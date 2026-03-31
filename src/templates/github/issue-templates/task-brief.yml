@@ -1,0 +1,42 @@
+name: Task Brief
+description: Implementation task for AI-assisted development
+labels: ["task"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What must be true when this task is done?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Files/areas expected to change
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Gate L1 passes
+        - [ ] Gate L2 passes
+        - [ ] Tests cover new behavior
+    validations:
+      required: true
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: Estimated size
+      options:
+        - "XS (< 30 min)"
+        - "S (30 min — 2 hours)"
+        - "M (2 — 8 hours)"
+        - "L (1 — 3 days)"
+    validations:
+      required: true

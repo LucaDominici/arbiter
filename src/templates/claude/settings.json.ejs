@@ -1,0 +1,76 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/stop-dangerous.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/enforce-read-only.sh",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-edit-ssot-guard.sh",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-commit-check.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-no-orphan-todo.sh",
+            "timeout": 5
+          }<% languageHooks.filter(h => h.name !== 'check-no-orphan-todo.sh').forEach((hook, i) => { %>,
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/<%= hook.name %>",
+            "timeout": 5
+          }<% }); %>
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(./scripts/*)"<% if (buildTool === 'npm') { %>,
+      "Bash(npm run *)",
+      "Bash(npx *)",
+      "Bash(node *)"<% } %><% if (buildTool === 'cargo') { %>,
+      "Bash(cargo *)"<% } %><% if (buildTool === 'gradle') { %>,
+      "Bash(./gradlew *)",
+      "Bash(gradle *)"<% } %>,
+      "Bash(gh *)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(sudo:*)",
+      "Bash(git push --force)"
+    ]
+  }
+}
