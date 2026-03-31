@@ -1,0 +1,37 @@
+# <%= projectName %> — GitHub Copilot Instructions
+
+> **Governance rules are in `AGENTS.md` (canonical, AAIF standard).**
+> This file adds Copilot-specific configuration only.
+
+---
+
+## Governance
+
+All invariants, coding standards, testing policy, and commit conventions are in
+[`AGENTS.md`](../../AGENTS.md). Always read it before suggesting or generating code.
+
+## Project Context
+
+| Fact | Value |
+|------|-------|
+| **Project** | <%= projectName %> |
+| **Language** | <%= language %><%= framework ? ` / ${framework}` : '' %> |
+| **Build** | `<%= buildCommand %>` |
+| **Test** | `<%= testCommand %>` |
+| **Lint** | `<%= lintCommand %>` |
+
+## Code Generation Rules
+
+- Follow the coding standards in `AGENTS.md` §Coding Standards
+- All new code must have tests per `AGENTS.md` §Testing Policy
+- Commit messages: `type(scope): summary` (see `AGENTS.md` §Commit Convention)
+- Branch naming: `task/#NNN-short-description`
+- Gate before commit: `./scripts/check-all.sh L1`
+- Gate before push: `./scripts/check-all.sh L2`
+
+## Do Not Generate
+
+- Code that violates any invariant listed in `AGENTS.md` §Invariants
+- Tests that mock internal APIs or databases
+- `any` type casts in TypeScript without explicit justification
+- Direct commits to `main` — always use a task branch

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { runInit } from './commands/init.js';
+import { runUpdate } from './commands/update.js';
+import { runDiff } from './commands/diff.js';
 
 const program = new Command();
 
@@ -23,6 +25,26 @@ program
       level: opts.level as string | undefined,
       dir: opts.dir as string | undefined,
     });
+  });
+
+program
+  .command('update')
+  .description('Re-generate governance files using stored config (arbiter.json)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--github', 'Force GitHub setup even if disabled in stored config', false)
+  .action(async (opts) => {
+    await runUpdate({
+      dir: opts.dir as string | undefined,
+      github: opts.github as boolean,
+    });
+  });
+
+program
+  .command('diff')
+  .description('Show what arbiter update would change (dry run)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts) => {
+    runDiff({ dir: opts.dir as string | undefined });
   });
 
 program.parse();

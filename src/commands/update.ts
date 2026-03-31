@@ -1,0 +1,77 @@
+import { resolve, basename } from 'node:path';
+import { detectLanguage } from '../detectors/language.js';
+import { detectBuildCommands } from '../detectors/build.js';
+import { detectFramework } from '../detectors/framework.js';
+import { detectGitInfo } from '../detectors/git.js';
+import { detectExisting } from '../detectors/existing.js';
+import { detectGithubAccess } from '../detectors/github.js';
+import { getLanguageHooks } from '../detectors/language-hooks.js';
+import { loadConfig, defaultConfig, saveConfig } from '../utils/config.js';
+import { runGenerators, runGithubSetup, printResults } from './init.js';
+
+export interface UpdateOptions {
+  dir: string | undefined;
+  github: boolean;
+}
+
+export async function runUpdate(options: UpdateOptions): Promise<void> {
+  const targetDir = resolve(options.dir ?? process.cwd());
+  const projectName = basename(targetDir);
+
+  console.log('\n  Arbiter — update\n');
+
+  const stored = loadConfig(targetDir);
+  if (!stored) {
+    console.log('  No arbiter.json found. Run `arbiter init` first.\n');
+    process.exit(1);
+  }
+
+  console.log('  Detecting project...');
+  const language = detectLanguage(targetDir);
+  const framework = detectFramework(targetDir, language);
+  const buildCmds = detectBuildCommands(targetDir, language);
+  const gitInfo = detectGitInfo(targetDir);
+  const existing = detectExisting(targetDir);
+  const githubAccess = detectGithubAccess();
+
+  console.log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`);
+  console.log(`  ├── Config: tools=[${stored.tools.join(',')}] level=${stored.governanceLevel}`);
+
+  const useGitHub = options.github
+    ? githubAccess.authenticated
+    : stored.useGitHub && githubAccess.authenticated;
+
+  const config = {
+    targetDir,
+    projectName,
+    description: `${projectName} project`,
+    language,
+    framework,
+    buildTool: buildCmds.buildTool,
+    buildCommand: buildCmds.buildCommand,
+    testCommand: buildCmds.testCommand,
+    lintCommand: buildCmds.lintCommand,
+    formatCommand: buildCmds.formatCommand,
+    tools: stored.tools,
+    governanceLevel: stored.governanceLevel,
+    useGitHub,
+    githubOwner: gitInfo.githubOwner,
+    githubRepo: gitInfo.githubRepo,
+    existing,
+    languageHooks: getLanguageHooks(language),
+  };
+
+  console.log('\n  Updating...');
+  const results = runGenerators(config);
+  printResults(results, targetDir);
+
+  const created = results.filter(r => r.action === 'created').length;
+  const replaced = results.filter(r => r.action === 'backed-up-and-replaced').length;
+  const skipped = results.filter(r => r.action === 'skipped').length;
+  console.log(`\n  Done! ${created} created, ${replaced} updated, ${skipped} skipped.`);
+
+  await runGithubSetup(config);
+
+  saveConfig(targetDir, { ...stored, useGitHub });
+  console.log(`\n  Run: ./scripts/check-all.sh L1  to verify\n`);
+}

@@ -13,8 +13,11 @@ import { generateCodex } from '../generators/codex.js';
 import { generateGithub } from '../generators/github.js';
 import { generateRoot } from '../generators/root.js';
 import { generateCheckAll } from '../generators/check-all.js';
+import { generateCursor } from '../generators/cursor.js';
+import { generateCopilot } from '../generators/copilot.js';
 import { provisionLabels } from '../github/labels.js';
 import { applyBranchProtection } from '../github/branch-protection.js';
+import { saveConfig } from '../utils/config.js';
 import type { ProjectConfig, AiTool, GovernanceLevel } from '../wizard/types.js';
 import type { WriteResult } from '../utils/fs.js';
 
@@ -32,7 +35,6 @@ export async function runInit(options: InitOptions): Promise<void> {
   console.log('\n  Arbiter — AI Development Governance Framework\n');
   console.log('  Detecting project...');
 
-  // Phase 1: Detect
   const language = detectLanguage(targetDir);
   const framework = detectFramework(targetDir, language);
   const buildCmds = detectBuildCommands(targetDir, language);
@@ -48,130 +50,106 @@ export async function runInit(options: InitOptions): Promise<void> {
   if (existing.claudeDir) console.log('  ├── Existing .claude/ detected — will merge');
   if (existing.agentsDir) console.log('  ├── Existing .agents/ detected — will merge');
 
-  // Phase 2: Wizard (or --yes defaults)
   let config: ProjectConfig;
-
   if (options.yes) {
     config = buildDefaultConfig({
-      targetDir,
-      projectName,
-      language,
-      framework,
-      buildCmds,
-      gitInfo,
-      existing,
+      targetDir, projectName, language, framework, buildCmds, gitInfo, existing,
       tools: parseTools(options.tools),
       governanceLevel: parseLevel(options.level),
       useGitHub: githubAccess.authenticated,
     });
   } else {
-    config = await runWizard({
-      targetDir,
-      projectName,
-      language,
-      framework,
-      buildCmds,
-      gitInfo,
-      existing,
-      githubAccess,
-    });
+    config = await runWizard({ targetDir, projectName, language, framework, buildCmds, gitInfo, existing, githubAccess });
   }
 
-  // Phase 3: Generate files
   console.log('\n  Generating...');
-  const allResults: WriteResult[] = [];
+  const allResults = runGenerators(config);
 
-  // AGENTS.md (always)
-  allResults.push(generateAgentsMd(config));
-
-  // Claude Code
-  if (config.tools.includes('claude')) {
-    const r = generateClaude(config);
-    allResults.push(...r.files);
-  }
-
-  // Codex
-  if (config.tools.includes('codex')) {
-    const r = generateCodex(config);
-    allResults.push(...r.files);
-  }
-
-  // GitHub assets
-  if (config.useGitHub) {
-    const r = generateGithub(config);
-    allResults.push(...r.files);
-
-    const rootR = generateRoot(config);
-    allResults.push(...rootR.files);
-
-    const checkR = generateCheckAll(config);
-    allResults.push(...checkR.files);
-  }
-
-  // Print file results
-  for (const result of allResults) {
-    const icon = result.action === 'skipped' ? '│  ' : '├──';
-    const label = result.action === 'skipped' ? ' (skipped — already exists)' : result.action === 'backed-up-and-replaced' ? ' (backed up + replaced)' : '';
-    const relPath = result.path.replace(targetDir + '/', '');
-    console.log(`  ${icon} ${relPath}${label}`);
-  }
+  printResults(allResults, targetDir);
 
   const created = allResults.filter(r => r.action === 'created').length;
   const skipped = allResults.filter(r => r.action === 'skipped').length;
   console.log(`\n  Done! ${created} files created, ${skipped} skipped.`);
 
-  // Phase 4: GitHub API operations (labels + branch protection)
-  if (config.useGitHub && config.githubOwner && config.githubRepo) {
-    console.log('\n  GitHub setup...');
+  await runGithubSetup(config);
 
-    console.log('  ├── Provisioning labels...');
-    const labelResult = provisionLabels(config.githubOwner, config.githubRepo);
-    if (labelResult.created.length > 0) console.log(`  │   Created: ${labelResult.created.join(', ')}`);
-    if (labelResult.updated.length > 0) console.log(`  │   Updated: ${labelResult.updated.join(', ')}`);
-    if (labelResult.errors.length > 0) console.log(`  │   Errors: ${labelResult.errors.join(', ')}`);
-
-    console.log('  ├── Applying branch protection to main...');
-    const bpResult = applyBranchProtection(config.githubOwner, config.githubRepo);
-    if (bpResult.applied) {
-      console.log('  │   Branch protection applied.');
-    } else {
-      console.log(`  │   Skipped (requires admin access): ${bpResult.error ?? 'unknown error'}`);
-    }
-  }
+  // Save config for future `arbiter update`
+  saveConfig(targetDir, {
+    version: '0.1',
+    tools: config.tools,
+    governanceLevel: config.governanceLevel,
+    useGitHub: config.useGitHub,
+  });
 
   console.log(`\n  Run: ./scripts/check-all.sh L1  to verify\n`);
 }
 
+export function runGenerators(config: ProjectConfig, dryRun = false): WriteResult[] {
+  const all: WriteResult[] = [];
+
+  all.push(generateAgentsMd(config));
+
+  if (config.tools.includes('claude')) all.push(...generateClaude(config).files);
+  if (config.tools.includes('codex')) all.push(...generateCodex(config).files);
+  if (config.tools.includes('cursor')) all.push(...generateCursor(config).files);
+  if (config.tools.includes('copilot')) all.push(...generateCopilot(config).files);
+
+  if (config.useGitHub) {
+    all.push(...generateGithub(config).files);
+    all.push(...generateRoot(config).files);
+    all.push(...generateCheckAll(config).files);
+  }
+
+  return all;
+}
+
+export async function runGithubSetup(config: ProjectConfig): Promise<void> {
+  if (!config.useGitHub || !config.githubOwner || !config.githubRepo) return;
+
+  console.log('\n  GitHub setup...');
+  console.log('  ├── Provisioning labels...');
+  const labelResult = provisionLabels(config.githubOwner, config.githubRepo);
+  if (labelResult.created.length > 0) console.log(`  │   Created: ${labelResult.created.join(', ')}`);
+  if (labelResult.updated.length > 0) console.log(`  │   Updated: ${labelResult.updated.join(', ')}`);
+  if (labelResult.errors.length > 0) console.log(`  │   Errors: ${labelResult.errors.join(', ')}`);
+
+  console.log('  ├── Applying branch protection to main...');
+  const bp = applyBranchProtection(config.githubOwner, config.githubRepo);
+  if (bp.applied) {
+    console.log('  │   Branch protection applied.');
+  } else {
+    console.log(`  │   Skipped (requires admin access): ${bp.error ?? 'unknown error'}`);
+  }
+}
+
+export function printResults(results: WriteResult[], targetDir: string): void {
+  for (const result of results) {
+    const icon = result.action === 'skipped' ? '│  ' : '├──';
+    const label = result.action === 'skipped' ? ' (skipped — already exists)'
+      : result.action === 'backed-up-and-replaced' ? ' (backed up + replaced)' : '';
+    const relPath = result.path.replace(targetDir + '/', '');
+    console.log(`  ${icon} ${relPath}${label}`);
+  }
+}
+
 function buildDefaultConfig(opts: {
-  targetDir: string;
-  projectName: string;
-  language: ReturnType<typeof detectLanguage>;
-  framework: string | null;
-  buildCmds: ReturnType<typeof detectBuildCommands>;
-  gitInfo: ReturnType<typeof detectGitInfo>;
-  existing: ReturnType<typeof detectExisting>;
-  tools: AiTool[];
-  governanceLevel: GovernanceLevel;
-  useGitHub: boolean;
+  targetDir: string; projectName: string;
+  language: ReturnType<typeof detectLanguage>; framework: string | null;
+  buildCmds: ReturnType<typeof detectBuildCommands>; gitInfo: ReturnType<typeof detectGitInfo>;
+  existing: ReturnType<typeof detectExisting>; tools: AiTool[];
+  governanceLevel: GovernanceLevel; useGitHub: boolean;
 }): ProjectConfig {
   return {
-    targetDir: opts.targetDir,
-    projectName: opts.projectName,
+    targetDir: opts.targetDir, projectName: opts.projectName,
     description: `${opts.projectName} project`,
-    language: opts.language,
-    framework: opts.framework,
-    buildTool: opts.buildCmds.buildTool,
-    buildCommand: opts.buildCmds.buildCommand,
-    testCommand: opts.buildCmds.testCommand,
-    lintCommand: opts.buildCmds.lintCommand,
+    language: opts.language, framework: opts.framework,
+    buildTool: opts.buildCmds.buildTool, buildCommand: opts.buildCmds.buildCommand,
+    testCommand: opts.buildCmds.testCommand, lintCommand: opts.buildCmds.lintCommand,
     formatCommand: opts.buildCmds.formatCommand,
-    tools: opts.tools,
-    governanceLevel: opts.governanceLevel,
+    tools: opts.tools, governanceLevel: opts.governanceLevel,
     useGitHub: opts.useGitHub,
-    githubOwner: opts.gitInfo.githubOwner,
-    githubRepo: opts.gitInfo.githubRepo,
-    existing: opts.existing,
-    languageHooks: getLanguageHooks(opts.language),
+    githubOwner: opts.gitInfo.githubOwner, githubRepo: opts.gitInfo.githubRepo,
+    existing: opts.existing, languageHooks: getLanguageHooks(opts.language),
   };
 }
 
