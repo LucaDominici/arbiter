@@ -10,6 +10,11 @@ import { runWizard } from '../wizard/prompts.js';
 import { generateAgentsMd } from '../generators/agents-md.js';
 import { generateClaude } from '../generators/claude.js';
 import { generateCodex } from '../generators/codex.js';
+import { generateGithub } from '../generators/github.js';
+import { generateRoot } from '../generators/root.js';
+import { generateCheckAll } from '../generators/check-all.js';
+import { provisionLabels } from '../github/labels.js';
+import { applyBranchProtection } from '../github/branch-protection.js';
 import type { ProjectConfig, AiTool, GovernanceLevel } from '../wizard/types.js';
 import type { WriteResult } from '../utils/fs.js';
 
@@ -38,6 +43,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   console.log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`);
   console.log(`  ├── Build: ${buildCmds.buildTool}`);
   console.log(`  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`);
+  if (githubAccess.authenticated) console.log(`  ├── GitHub: authenticated as ${githubAccess.username ?? 'unknown'}`);
   if (existing.agentsMd) console.log('  ├── Existing AGENTS.md detected — will back up');
   if (existing.claudeDir) console.log('  ├── Existing .claude/ detected — will merge');
   if (existing.agentsDir) console.log('  ├── Existing .agents/ detected — will merge');
@@ -71,7 +77,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     });
   }
 
-  // Phase 3: Generate
+  // Phase 3: Generate files
   console.log('\n  Generating...');
   const allResults: WriteResult[] = [];
 
@@ -90,9 +96,21 @@ export async function runInit(options: InitOptions): Promise<void> {
     allResults.push(...r.files);
   }
 
-  // Print results
+  // GitHub assets
+  if (config.useGitHub) {
+    const r = generateGithub(config);
+    allResults.push(...r.files);
+
+    const rootR = generateRoot(config);
+    allResults.push(...rootR.files);
+
+    const checkR = generateCheckAll(config);
+    allResults.push(...checkR.files);
+  }
+
+  // Print file results
   for (const result of allResults) {
-    const icon = result.action === 'created' ? '├──' : result.action === 'skipped' ? '│  ' : '├──';
+    const icon = result.action === 'skipped' ? '│  ' : '├──';
     const label = result.action === 'skipped' ? ' (skipped — already exists)' : result.action === 'backed-up-and-replaced' ? ' (backed up + replaced)' : '';
     const relPath = result.path.replace(targetDir + '/', '');
     console.log(`  ${icon} ${relPath}${label}`);
@@ -101,6 +119,26 @@ export async function runInit(options: InitOptions): Promise<void> {
   const created = allResults.filter(r => r.action === 'created').length;
   const skipped = allResults.filter(r => r.action === 'skipped').length;
   console.log(`\n  Done! ${created} files created, ${skipped} skipped.`);
+
+  // Phase 4: GitHub API operations (labels + branch protection)
+  if (config.useGitHub && config.githubOwner && config.githubRepo) {
+    console.log('\n  GitHub setup...');
+
+    console.log('  ├── Provisioning labels...');
+    const labelResult = provisionLabels(config.githubOwner, config.githubRepo);
+    if (labelResult.created.length > 0) console.log(`  │   Created: ${labelResult.created.join(', ')}`);
+    if (labelResult.updated.length > 0) console.log(`  │   Updated: ${labelResult.updated.join(', ')}`);
+    if (labelResult.errors.length > 0) console.log(`  │   Errors: ${labelResult.errors.join(', ')}`);
+
+    console.log('  ├── Applying branch protection to main...');
+    const bpResult = applyBranchProtection(config.githubOwner, config.githubRepo);
+    if (bpResult.applied) {
+      console.log('  │   Branch protection applied.');
+    } else {
+      console.log(`  │   Skipped (requires admin access): ${bpResult.error ?? 'unknown error'}`);
+    }
+  }
+
   console.log(`\n  Run: ./scripts/check-all.sh L1  to verify\n`);
 }
 
