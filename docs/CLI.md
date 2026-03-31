@@ -47,8 +47,8 @@ arbiter init --yes --tools claude,codex,cursor,copilot --level L3
 |-------|------------------|
 | `claude` | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
 | `codex` | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/` |
-| `cursor` | `.cursorrules` (Phase 4, not yet implemented) |
-| `copilot` | `.github/copilot-instructions.md` (Phase 4, not yet implemented) |
+| `cursor` | `.cursorrules` |
+| `copilot` | `.github/copilot-instructions.md` |
 
 Multiple tools: `--tools claude,codex`
 
@@ -138,11 +138,90 @@ If `gh` is unavailable or not authenticated, GitHub setup is skipped with a diag
 
 ---
 
+## `arbiter update`
+
+Re-generate governance files using stored config from `arbiter.json`. Run after upgrading arbiter to pick up template improvements.
+
+```
+arbiter update [options]
+```
+
+**Options:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dir <path>` | string | `cwd` | Target directory |
+| `--github` | boolean | `false` | Force GitHub setup even if disabled in stored config |
+
+**Behavior:**
+- Reads `arbiter.json` — exits with error if not found (run `arbiter init` first)
+- Re-detects language, framework, git info from current directory state
+- Regenerates canonical files (AGENTS.md, CLAUDE.md, CODEX.md, .cursorrules, copilot-instructions.md) — backing up existing
+- Skips hooks, rules, commands, workflows (customization-safe)
+- Re-runs GitHub label provisioning + branch protection
+- Saves updated `arbiter.json` with current settings
+
+---
+
+## `arbiter diff`
+
+Show what `arbiter update` would change, without writing any files.
+
+```
+arbiter diff [options]
+```
+
+**Options:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dir <path>` | string | `cwd` | Target directory |
+
+**Output symbols:**
+
+| Symbol | Meaning |
+|--------|---------|
+| `+` | New file (would be created) |
+| `~` | Content differs (would be updated) |
+| `=` | Unchanged (would be skipped) |
+
+**Example output:**
+```
+  Arbiter — diff (dry run)
+
+  = AGENTS.md  (unchanged)
+  ~ .claude/CLAUDE.md  (would update)
+  = .agents/CODEX.md  (unchanged)
+  + .cursorrules  (new file)
+  = .github/copilot-instructions.md  (unchanged)
+
+  Run `arbiter update` to apply changes.
+```
+
+---
+
+## `arbiter.json`
+
+Persisted config written by `arbiter init`, read by `arbiter update` and `arbiter diff`.
+
+```json
+{
+  "version": "0.1",
+  "tools": ["claude", "codex", "cursor", "copilot"],
+  "governanceLevel": "L2",
+  "useGitHub": true
+}
+```
+
+Commit this file so that `arbiter update` works in CI and for teammates.
+
+---
+
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Fatal error (template not found, permission denied, etc.) |
+| 1 | Fatal error (template not found, permission denied, arbiter.json missing) |
 
 Label provisioning and branch protection errors are non-fatal (logged, not thrown).
