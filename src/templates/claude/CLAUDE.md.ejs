@@ -1,7 +1,9 @@
 # <%= projectName %> — Claude Code Configuration
 
-> **Governance rules are in `AGENTS.md` (canonical, AAIF standard).**
-> This file adds Claude Code-specific configuration only: hooks, sub-agents, and slash commands.
+@AGENTS.md
+
+> This file imports `AGENTS.md` (canonical governance, AAIF standard) via the `@` directive above.
+> Below: Claude Code-specific configuration only — hooks, sub-agents, and slash commands.
 
 ---
 
@@ -11,7 +13,7 @@
 |------|-------|
 | **Project** | <%= projectName %> |
 | **Gate** | `./scripts/check-all.sh` |
-| **Full governance** | `../AGENTS.md` |
+| **Full governance** | `../AGENTS.md` (auto-imported above) |
 
 ---
 

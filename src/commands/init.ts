@@ -49,6 +49,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   if (existing.agentsMd) console.log('  ├── Existing AGENTS.md detected — will back up');
   if (existing.claudeDir) console.log('  ├── Existing .claude/ detected — will merge');
   if (existing.agentsDir) console.log('  ├── Existing .agents/ detected — will merge');
+  if (existing.aiRulez) console.log('  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)');
 
   let config: ProjectConfig;
   if (options.yes) {
@@ -87,12 +88,16 @@ export async function runInit(options: InitOptions): Promise<void> {
 export function runGenerators(config: ProjectConfig, dryRun = false): WriteResult[] {
   const all: WriteResult[] = [];
 
+  // AGENTS.md is always generated — it's the canonical governance source
   all.push(generateAgentsMd(config));
 
-  if (config.tools.includes('claude')) all.push(...generateClaude(config).files);
-  if (config.tools.includes('codex')) all.push(...generateCodex(config).files);
-  if (config.tools.includes('cursor')) all.push(...generateCursor(config).files);
-  if (config.tools.includes('copilot')) all.push(...generateCopilot(config).files);
+  // Skip tool-specific configs when ai-rulez manages them
+  if (!config.existing.aiRulez) {
+    if (config.tools.includes('claude')) all.push(...generateClaude(config).files);
+    if (config.tools.includes('codex')) all.push(...generateCodex(config).files);
+    if (config.tools.includes('cursor')) all.push(...generateCursor(config).files);
+    if (config.tools.includes('copilot')) all.push(...generateCopilot(config).files);
+  }
 
   if (config.useGitHub) {
     all.push(...generateGithub(config).files);

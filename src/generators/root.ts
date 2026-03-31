@@ -28,6 +28,13 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
     { skipIfExists: true },
   ));
 
+  // CONTRIBUTING.md — create if missing
+  results.push(writeFile(
+    resolvedPath(base, 'CONTRIBUTING.md'),
+    renderTemplate('root/CONTRIBUTING.md.ejs', data),
+    { skipIfExists: true },
+  ));
+
   // .editorconfig — create if missing
   results.push(writeFile(
     resolvedPath(base, '.editorconfig'),
