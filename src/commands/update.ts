@@ -6,7 +6,7 @@ import { detectGitInfo } from '../detectors/git.js';
 import { detectExisting } from '../detectors/existing.js';
 import { detectGithubAccess } from '../detectors/github.js';
 import { getLanguageHooks } from '../detectors/language-hooks.js';
-import { loadConfig, defaultConfig, saveConfig } from '../utils/config.js';
+import { loadConfig, saveConfig } from '../utils/config.js';
 import { runGenerators, runGithubSetup, printResults } from './init.js';
 
 export interface UpdateOptions {
@@ -14,7 +14,7 @@ export interface UpdateOptions {
   github: boolean;
 }
 
-export async function runUpdate(options: UpdateOptions): Promise<void> {
+export function runUpdate(options: UpdateOptions): void {
   const targetDir = resolve(options.dir ?? process.cwd());
   const projectName = basename(targetDir);
 
@@ -70,7 +70,7 @@ export async function runUpdate(options: UpdateOptions): Promise<void> {
   const skipped = results.filter(r => r.action === 'skipped').length;
   console.log(`\n  Done! ${created} created, ${replaced} updated, ${skipped} skipped.`);
 
-  await runGithubSetup(config);
+  runGithubSetup(config);
 
   saveConfig(targetDir, { ...stored, useGitHub });
   console.log(`\n  Run: ./scripts/check-all.sh L1  to verify\n`);

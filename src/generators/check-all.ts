@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
 import { renderTemplate } from '../utils/render.js';
 import { writeFile, resolvedPath } from '../utils/fs.js';
 import type { ProjectConfig } from '../wizard/types.js';

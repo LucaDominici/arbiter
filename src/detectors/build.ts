@@ -14,7 +14,6 @@ export function detectBuildCommands(dir: string, language: Language): BuildComma
   switch (language) {
     case 'typescript': {
       const pkg = readPackageJson(dir);
-      const hasVitest = hasScript(pkg, 'test') && JSON.stringify(pkg).includes('vitest');
       const hasEslint = hasScript(pkg, 'lint');
       const hasPrettier = JSON.stringify(pkg).includes('prettier');
       return {

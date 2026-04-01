@@ -76,7 +76,6 @@ describe('arbiter update', () => {
 
 describe('arbiter diff', () => {
   let dir: string;
-  let consoleSpy: ReturnType<typeof import('vitest')['vi']['spyOn']>;
 
   beforeEach(async () => {
     dir = tmpDir();

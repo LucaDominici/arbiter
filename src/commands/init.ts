@@ -72,7 +72,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   const skipped = allResults.filter(r => r.action === 'skipped').length;
   console.log(`\n  Done! ${created} files created, ${skipped} skipped.`);
 
-  await runGithubSetup(config);
+  runGithubSetup(config);
 
   // Save config for future `arbiter update`
   saveConfig(targetDir, {
@@ -85,7 +85,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   console.log(`\n  Run: ./scripts/check-all.sh L1  to verify\n`);
 }
 
-export function runGenerators(config: ProjectConfig, dryRun = false): WriteResult[] {
+export function runGenerators(config: ProjectConfig): WriteResult[] {
   const all: WriteResult[] = [];
 
   // AGENTS.md is always generated — it's the canonical governance source
@@ -108,7 +108,7 @@ export function runGenerators(config: ProjectConfig, dryRun = false): WriteResul
   return all;
 }
 
-export async function runGithubSetup(config: ProjectConfig): Promise<void> {
+export function runGithubSetup(config: ProjectConfig): void {
   if (!config.useGitHub || !config.githubOwner || !config.githubRepo) return;
 
   console.log('\n  GitHub setup...');

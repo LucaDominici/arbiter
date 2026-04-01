@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { saveConfig, loadConfig, defaultConfig } from '../../src/utils/config.js';
@@ -44,7 +44,7 @@ describe('arbiter config', () => {
 
   it('loadConfig returns null on malformed JSON', () => {
     const path = join(dir, 'arbiter.json');
-    require('node:fs').writeFileSync(path, '{invalid json', 'utf-8');
+    writeFileSync(path, '{invalid json', 'utf-8');
     expect(loadConfig(dir)).toBeNull();
   });
 

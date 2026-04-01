@@ -18,12 +18,12 @@ program
   .option('--tools <tools>', 'Comma-separated list of AI tools (claude,codex,cursor,copilot)')
   .option('--level <level>', 'Governance level: L1, L2, or L3', 'L2')
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action(async (opts) => {
+  .action(async (opts: { yes: boolean; tools?: string; level?: string; dir?: string }) => {
     await runInit({
-      yes: opts.yes as boolean,
-      tools: opts.tools as string | undefined,
-      level: opts.level as string | undefined,
-      dir: opts.dir as string | undefined,
+      yes: opts.yes,
+      tools: opts.tools,
+      level: opts.level,
+      dir: opts.dir,
     });
   });
 
@@ -32,10 +32,10 @@ program
   .description('Re-generate governance files using stored config (arbiter.json)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--github', 'Force GitHub setup even if disabled in stored config', false)
-  .action(async (opts) => {
-    await runUpdate({
-      dir: opts.dir as string | undefined,
-      github: opts.github as boolean,
+  .action((opts: { dir?: string; github: boolean }) => {
+    runUpdate({
+      dir: opts.dir,
+      github: opts.github,
     });
   });
 
@@ -43,8 +43,8 @@ program
   .command('diff')
   .description('Show what arbiter update would change (dry run)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts) => {
-    runDiff({ dir: opts.dir as string | undefined });
+  .action((opts: { dir?: string }) => {
+    runDiff({ dir: opts.dir });
   });
 
 program.parse();

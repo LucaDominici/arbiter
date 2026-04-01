@@ -7,14 +7,6 @@ import { detectGitInfo } from '../detectors/git.js';
 import { detectExisting } from '../detectors/existing.js';
 import { getLanguageHooks } from '../detectors/language-hooks.js';
 import { loadConfig } from '../utils/config.js';
-import { generateAgentsMd } from '../generators/agents-md.js';
-import { generateClaude } from '../generators/claude.js';
-import { generateCodex } from '../generators/codex.js';
-import { generateGithub } from '../generators/github.js';
-import { generateRoot } from '../generators/root.js';
-import { generateCheckAll } from '../generators/check-all.js';
-import { generateCursor } from '../generators/cursor.js';
-import { generateCopilot } from '../generators/copilot.js';
 import { renderTemplate } from '../utils/render.js';
 import { resolvedPath } from '../utils/fs.js';
 
