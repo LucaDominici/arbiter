@@ -1,0 +1,19 @@
+# Security Policy
+
+## Reporting a Vulnerability
+
+**Do not open a public GitHub issue for security vulnerabilities.**
+
+Report security issues privately to the maintainer:
+- Email: (configure your contact email)
+- Or use GitHub's private vulnerability reporting: Settings → Security → Advisories
+
+## Scope
+
+This policy applies to the `arbiter` codebase.
+
+## Response Timeline
+
+- Acknowledgment: within 48 hours
+- Initial assessment: within 7 days
+- Fix timeline: depends on severity (critical: 24-48h, high: 7 days, medium: 30 days)
