@@ -1,3 +1,19 @@
+export type WizardFlow = "greenfield" | "brownfield";
+
+export interface WizardAnswers {
+  description: string;
+  tools: AiTool[];
+  governanceLevel: GovernanceLevel;
+  useGitHub?: "yes" | "no";
+}
+
+export interface MigrationPlan {
+  preserved: string[];
+  merged: string[];
+  replaced: string[];
+  created: string[];
+}
+
 export type Language =
   | "typescript"
   | "java"

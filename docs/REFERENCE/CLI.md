@@ -12,13 +12,14 @@ arbiter init [options]
 
 **Options:**
 
-| Flag              | Type    | Default        | Description                                   |
-| ----------------- | ------- | -------------- | --------------------------------------------- |
-| `-y, --yes`       | boolean | `false`        | Skip wizard — use auto-detected defaults      |
-| `--tools <list>`  | string  | `claude,codex` | Comma-separated AI tools to configure         |
-| `--level <level>` | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`         |
-| `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory) |
-| `-h, --help`      | —       | —              | Show help                                     |
+| Flag              | Type    | Default        | Description                                           |
+| ----------------- | ------- | -------------- | ----------------------------------------------------- |
+| `-y, --yes`       | boolean | `false`        | Skip wizard — use auto-detected defaults              |
+| `--tools <list>`  | string  | `claude,codex` | Comma-separated AI tools to configure                 |
+| `--level <level>` | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`                 |
+| `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory)         |
+| `--dry-run`       | boolean | `false`        | Preview what would be generated without writing files |
+| `-h, --help`      | —       | —              | Show help                                             |
 
 **Examples:**
 
@@ -37,7 +38,20 @@ arbiter init --yes --dir /path/to/my-project
 
 # All tools, audit-grade governance
 arbiter init --yes --tools claude,codex,cursor,copilot --level L3
+
+# Preview what would be generated without writing any files
+arbiter init --dry-run
+arbiter init --yes --dry-run --tools claude --level L2
 ```
+
+**Wizard flows:**
+
+The interactive wizard is state-reactive — it behaves differently based on what already exists in the project:
+
+- **Greenfield** (no existing governance): detect → ask tools/level/github → confirm file list → generate
+- **Brownfield** (AGENTS.md, `.claude/`, or `.agents/` detected): detect → show existing governance → ask tools/level/github → show migration plan → confirm → generate
+
+The wizard always shows what will happen before touching any files. Cancelling at the confirmation step exits without writing.
 
 ---
 
