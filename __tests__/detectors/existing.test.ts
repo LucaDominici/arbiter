@@ -25,7 +25,7 @@ describe("detectExisting", () => {
     expect(state.agentsDir).toBe(false);
     expect(state.aiRulez).toBe(false);
     expect(state.settingsJson).toBe(false);
-    expect(state.checkAllSh).toBe(false);
+    expect(state.checkAllScript).toBe(false);
   });
 
   it("detects AGENTS.md", () => {

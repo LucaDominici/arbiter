@@ -103,7 +103,7 @@ export function makeConfig(
       agentsDir: false,
       aiRulez: false,
       settingsJson: false,
-      checkAllSh: false,
+      checkAllScript: false,
     },
     languageHooks: [],
     ...overrides,

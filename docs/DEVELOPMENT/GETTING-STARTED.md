@@ -70,7 +70,7 @@ src/
     build.ts              # buildCommand, testCommand, lintCommand, formatCommand
     git.ts                # isGitRepo, remoteUrl, githubOwner, githubRepo
     github.ts             # gh CLI available, authenticated, username
-    existing.ts           # agentsMd, claudeDir, agentsDir, aiRulez, settingsJson, checkAllSh
+    existing.ts           # agentsMd, claudeDir, agentsDir, aiRulez, settingsJson, checkAllScript
     language-hooks.ts     # LanguageHook[] per language
   generators/
     agents-md.ts          # AGENTS.md

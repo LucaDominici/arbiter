@@ -46,7 +46,7 @@ describe("brownfield: ai-rulez coexistence", () => {
         agentsDir: false,
         aiRulez: true,
         settingsJson: false,
-        checkAllSh: false,
+        checkAllScript: false,
       },
     });
   }

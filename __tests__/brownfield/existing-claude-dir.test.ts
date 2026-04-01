@@ -41,7 +41,7 @@ describe("brownfield: existing .claude/ directory", () => {
         agentsDir: false,
         aiRulez: false,
         settingsJson: false,
-        checkAllSh: false,
+        checkAllScript: false,
         ...extraExisting,
       },
     });
