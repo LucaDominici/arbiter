@@ -40,9 +40,9 @@ describe("tool output: claude", () => {
     const config = claudeConfig();
     generateClaude(config);
     const content = readFileSync(join(dir, ".claude", "CLAUDE.md"), "utf-8");
-    expect(content).toContain("stop-dangerous.sh");
-    expect(content).toContain("enforce-read-only.sh");
-    expect(content).toContain("pre-edit-ssot-guard.sh");
+    expect(content).toContain("stop-dangerous.mjs");
+    expect(content).toContain("enforce-read-only.mjs");
+    expect(content).toContain("pre-edit-ssot-guard.mjs");
   });
 
   it("settings.json is valid JSON with hooks and permissions keys", () => {
@@ -93,10 +93,10 @@ describe("tool output: claude", () => {
     generateClaude(config);
     const hooksDir = join(dir, ".claude", "hooks");
     const staticHooks = [
-      "stop-dangerous.sh",
-      "enforce-read-only.sh",
-      "pre-edit-ssot-guard.sh",
-      "check-no-orphan-todo.sh",
+      "stop-dangerous.mjs",
+      "enforce-read-only.mjs",
+      "pre-edit-ssot-guard.mjs",
+      "check-no-orphan-todo.mjs",
     ];
     for (const name of staticHooks) {
       expect(existsSync(join(hooksDir, name)), `${name} should exist`).toBe(
@@ -105,24 +105,24 @@ describe("tool output: claude", () => {
     }
   });
 
-  it("lib.sh contains project name", () => {
+  it("lib.mjs contains project name", () => {
     const config = claudeConfig();
     generateClaude(config);
     const content = readFileSync(
-      join(dir, ".claude", "hooks", "lib.sh"),
+      join(dir, ".claude", "hooks", "lib.mjs"),
       "utf-8",
     );
     expect(content).toContain("test-project");
   });
 
-  it("post-commit-check.sh contains conventional commit regex", () => {
+  it("post-commit-check.mjs contains conventional commit regex", () => {
     const config = claudeConfig();
     generateClaude(config);
     const content = readFileSync(
-      join(dir, ".claude", "hooks", "post-commit-check.sh"),
+      join(dir, ".claude", "hooks", "post-commit-check.mjs"),
       "utf-8",
     );
-    expect(content).toContain("grep -qE");
+    expect(content).toContain("CONVENTIONAL");
     expect(content).toContain("feat");
   });
 
@@ -145,12 +145,12 @@ describe("tool output: claude", () => {
     expect(startTask).toContain("gh issue view");
   });
 
-  it("TypeScript language hooks generate check-no-any.sh", () => {
+  it("TypeScript language hooks generate check-no-any.mjs", () => {
     const config = claudeConfig({
       languageHooks: getLanguageHooks("typescript"),
     });
     generateClaude(config);
-    expect(existsSync(join(dir, ".claude", "hooks", "check-no-any.sh"))).toBe(
+    expect(existsSync(join(dir, ".claude", "hooks", "check-no-any.mjs"))).toBe(
       true,
     );
   });

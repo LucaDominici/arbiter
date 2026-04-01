@@ -17,13 +17,13 @@ are defined in [`AGENTS.md`](../AGENTS.md). Read it before making any changes.
 | **Language** | <%= language %><%= framework ? ` / ${framework}` : '' %> |
 | **Build** | `<%= buildCommand %>` |
 | **Test** | `<%= testCommand %>` |
-| **Gate** | `./scripts/check-all.sh` |
+| **Gate** | `node scripts/check-all.mjs` |
 
 ## Cursor-Specific Rules
 
 - Always read `AGENTS.md` before starting a task
 - Follow the commit convention defined in `AGENTS.md` §Commit Convention
-- Run `./scripts/check-all.sh L1` before committing
+- Run `node scripts/check-all.mjs L1` before committing
 - Branch naming: `task/#NNN-short-description`
 - Do not edit files listed in `.cursorignore` (if present)
 
@@ -31,8 +31,8 @@ are defined in [`AGENTS.md`](../AGENTS.md). Read it before making any changes.
 
 ```bash
 # Gate
-./scripts/check-all.sh L1   # pre-commit
-./scripts/check-all.sh L2   # pre-push (matches CI)
+node scripts/check-all.mjs L1   # pre-commit
+node scripts/check-all.mjs L2   # pre-push (matches CI)
 
 # Build
 <%= buildCommand %>

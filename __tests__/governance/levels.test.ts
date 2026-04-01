@@ -60,7 +60,7 @@ describe("governance levels", () => {
     rmSync(dirL3, { recursive: true, force: true });
   });
 
-  it("check-all.sh contains project name for all levels", () => {
+  it("check-all.mjs contains project name for all levels", () => {
     const levels: GovernanceLevel[] = ["L1", "L2", "L3"];
     for (const level of levels) {
       const levelDir = mkdtempSync(
@@ -73,7 +73,7 @@ describe("governance levels", () => {
         }),
       );
       const content = readFileSync(
-        join(levelDir, "scripts", "check-all.sh"),
+        join(levelDir, "scripts", "check-all.mjs"),
         "utf-8",
       );
       expect(content).toContain(`proj-${level}`);

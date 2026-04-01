@@ -13,5 +13,5 @@ Initialize a task properly.
 ## After GO
 
 - Use TDD: write test first, then implementation
-- Run `./scripts/check-all.sh L1` after each logical unit
+- Run `node scripts/check-all.mjs L1` after each logical unit
 - Keep commits atomic: one logical change per commit

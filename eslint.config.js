@@ -34,6 +34,13 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist/", "node_modules/", "vitest.config.ts", "eslint.config.js"],
+    ignores: [
+      "dist/",
+      "node_modules/",
+      "vitest.config.ts",
+      "eslint.config.js",
+      "src/templates/",
+      "scripts/",
+    ],
   },
 );

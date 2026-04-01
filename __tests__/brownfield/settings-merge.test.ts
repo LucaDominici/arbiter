@@ -88,7 +88,7 @@ describe("brownfield: settings.json merge", () => {
     // Should have BOTH the custom hook AND the arbiter hook
     const commands = bashMatcher!.hooks.map((h) => h.command);
     expect(commands).toContain("bash .claude/hooks/my-custom-hook.sh");
-    expect(commands).toContain("bash .claude/hooks/stop-dangerous.sh");
+    expect(commands).toContain("node .claude/hooks/stop-dangerous.mjs");
   });
 
   it("preserves custom permissions alongside arbiter permissions", () => {

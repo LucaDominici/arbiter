@@ -41,7 +41,7 @@ describe("generateClaude", () => {
   it("hook scripts have shebang lines", () => {
     generateClaude(makeConfig(dir));
     const hookContent = readFileSync(
-      join(dir, ".claude", "hooks", "stop-dangerous.sh"),
+      join(dir, ".claude", "hooks", "stop-dangerous.mjs"),
       "utf-8",
     );
     expect(hookContent).toMatch(/^#!/);
@@ -55,14 +55,14 @@ describe("generateClaude", () => {
     expect(existsSync(join(dir, ".claude", "commands", "start-task.md"))).toBe(
       true,
     );
-    expect(existsSync(join(dir, ".claude", "hooks", "lib.sh"))).toBe(true);
+    expect(existsSync(join(dir, ".claude", "hooks", "lib.mjs"))).toBe(true);
   });
 
   it("includes language hooks in settings.json when provided", () => {
     const config = makeConfig(dir, {
       languageHooks: [
         {
-          name: "check-no-any.sh",
+          name: "check-no-any.mjs",
           description: "Block any types",
           body: '#!/usr/bin/env bash\necho "checking any"',
         },
@@ -70,6 +70,6 @@ describe("generateClaude", () => {
     });
     generateClaude(config);
     const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
-    expect(raw).toContain("check-no-any.sh");
+    expect(raw).toContain("check-no-any.mjs");
   });
 });

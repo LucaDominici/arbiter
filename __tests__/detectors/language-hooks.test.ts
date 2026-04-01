@@ -12,7 +12,7 @@ describe("getLanguageHooks", () => {
       "unknown",
     ] as const) {
       const hooks = getLanguageHooks(lang);
-      expect(hooks.some((h) => h.name === "check-no-orphan-todo.sh")).toBe(
+      expect(hooks.some((h) => h.name === "check-no-orphan-todo.mjs")).toBe(
         true,
       );
     }
@@ -20,7 +20,7 @@ describe("getLanguageHooks", () => {
 
   it("includes no-any hook for typescript", () => {
     const hooks = getLanguageHooks("typescript");
-    const noAny = hooks.find((h) => h.name === "check-no-any.sh");
+    const noAny = hooks.find((h) => h.name === "check-no-any.mjs");
     expect(noAny).toBeDefined();
     expect(noAny!.body).toContain(".ts");
     expect(noAny!.description).toContain("any");
@@ -28,7 +28,7 @@ describe("getLanguageHooks", () => {
 
   it("includes no-unwrap hook for rust", () => {
     const hooks = getLanguageHooks("rust");
-    const noUnwrap = hooks.find((h) => h.name === "check-no-unwrap.sh");
+    const noUnwrap = hooks.find((h) => h.name === "check-no-unwrap.mjs");
     expect(noUnwrap).toBeDefined();
     expect(noUnwrap!.body).toContain(".unwrap()");
     expect(noUnwrap!.description).toContain("unwrap");
@@ -37,7 +37,7 @@ describe("getLanguageHooks", () => {
   it("does not include no-any for non-typescript", () => {
     for (const lang of ["rust", "java", "go", "python", "unknown"] as const) {
       const hooks = getLanguageHooks(lang);
-      expect(hooks.some((h) => h.name === "check-no-any.sh")).toBe(false);
+      expect(hooks.some((h) => h.name === "check-no-any.mjs")).toBe(false);
     }
   });
 
@@ -50,7 +50,7 @@ describe("getLanguageHooks", () => {
       "unknown",
     ] as const) {
       const hooks = getLanguageHooks(lang);
-      expect(hooks.some((h) => h.name === "check-no-unwrap.sh")).toBe(false);
+      expect(hooks.some((h) => h.name === "check-no-unwrap.mjs")).toBe(false);
     }
   });
 
@@ -74,7 +74,7 @@ describe("getLanguageHooks", () => {
     expect(getLanguageHooks("python")).toHaveLength(1);
   });
 
-  it("all hooks have valid bash shebang", () => {
+  it("all hooks have valid shebang", () => {
     for (const lang of ["typescript", "rust"] as const) {
       const hooks = getLanguageHooks(lang);
       for (const hook of hooks) {

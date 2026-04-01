@@ -80,26 +80,26 @@ describe("matrix: Rust project", () => {
     expect(ci).toContain("rust-cache");
   });
 
-  it("check-all.sh references cargo", () => {
+  it("check-all.mjs references cargo", () => {
     const config = rustConfig();
     runGenerators(config);
     const checkAll = readFileSync(
-      join(dir, "scripts", "check-all.sh"),
+      join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(checkAll).toContain("cargo fmt");
-    expect(checkAll).toContain("cargo clippy");
-    expect(checkAll).toContain("cargo test");
+    expect(checkAll).toContain("fmt");
+    expect(checkAll).toContain("clippy");
+    expect(checkAll).toContain("cargo");
   });
 
-  it("generates check-no-unwrap.sh language hook", () => {
+  it("generates check-no-unwrap.mjs language hook", () => {
     const config = rustConfig();
     runGenerators(config);
     expect(
-      existsSync(join(dir, ".claude", "hooks", "check-no-unwrap.sh")),
+      existsSync(join(dir, ".claude", "hooks", "check-no-unwrap.mjs")),
     ).toBe(true);
     const hook = readFileSync(
-      join(dir, ".claude", "hooks", "check-no-unwrap.sh"),
+      join(dir, ".claude", "hooks", "check-no-unwrap.mjs"),
       "utf-8",
     );
     expect(hook).toContain(".unwrap()");

@@ -75,12 +75,12 @@ describe("tool output: cursor", () => {
     expect(content).toContain("spring-boot");
   });
 
-  it(".cursorrules gate commands section references check-all.sh L1 and L2", () => {
+  it(".cursorrules gate commands section references check-all.mjs L1 and L2", () => {
     const config = cursorConfig();
     generateCursor(config);
     const content = readFileSync(join(dir, ".cursorrules"), "utf-8");
-    expect(content).toContain("./scripts/check-all.sh L1");
-    expect(content).toContain("./scripts/check-all.sh L2");
+    expect(content).toContain("node scripts/check-all.mjs L1");
+    expect(content).toContain("node scripts/check-all.mjs L2");
   });
 
   it(".cursorrules contains Cursor-specific rules (cursorignore and AGENTS.md before task)", () => {

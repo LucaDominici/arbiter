@@ -9,13 +9,13 @@
 
 ## Project
 
-| Fact      | Value                                              |
-| --------- | -------------------------------------------------- |
-| **What**  | arbiter project                                    |
-| **Stack** | typescript                                         |
-| **Build** | `npm run build`                                    |
-| **Test**  | `npm run test`                                     |
-| **Gate**  | `./scripts/check-all.sh` (mandatory before commit) |
+| Fact      | Value                                                  |
+| --------- | ------------------------------------------------------ |
+| **What**  | arbiter project                                        |
+| **Stack** | typescript                                             |
+| **Build** | `npm run build`                                        |
+| **Test**  | `npm run test`                                         |
+| **Gate**  | `node scripts/check-all.mjs` (mandatory before commit) |
 
 ---
 
@@ -50,8 +50,8 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
 - **INV-07:** Branch naming: `task/#NNN-description`
 - **INV-08:** No direct commits to `main` — all changes via task branches + PR
-- **INV-09:** Gate must pass before commit: `./scripts/check-all.sh L1`
-- **INV-10:** Gate must pass before push: `./scripts/check-all.sh L2`
+- **INV-09:** Gate must pass before commit: `node scripts/check-all.mjs L1`
+- **INV-10:** Gate must pass before push: `node scripts/check-all.mjs L2`
 
 ---
 
@@ -120,8 +120,8 @@ L3 (deep, nightly/CI):    L2 + E2E + static analysis + evidence
 Run locally:
 
 ```bash
-./scripts/check-all.sh L1   # before commit
-./scripts/check-all.sh L2   # before push
+node scripts/check-all.mjs L1   # before commit
+node scripts/check-all.mjs L2   # before push
 ```
 
 ---

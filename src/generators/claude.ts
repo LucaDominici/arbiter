@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, mergeSettingsJson, resolvedPath } from "../utils/fs.js";
@@ -52,10 +51,10 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
   mkdirSync(hooksDir, { recursive: true });
 
   const staticHooks = [
-    "stop-dangerous.sh",
-    "enforce-read-only.sh",
-    "pre-edit-ssot-guard.sh",
-    "check-no-orphan-todo.sh",
+    "stop-dangerous.mjs",
+    "enforce-read-only.mjs",
+    "pre-edit-ssot-guard.mjs",
+    "check-no-orphan-todo.mjs",
   ];
   for (const hookFile of staticHooks) {
     results.push(
@@ -69,27 +68,24 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
 
   results.push(
     writeFile(
-      join(hooksDir, "lib.sh"),
-      renderTemplate("claude/hooks/lib.sh.ejs", data),
+      join(hooksDir, "lib.mjs"),
+      renderTemplate("claude/hooks/lib.mjs.ejs", data),
       { skipIfExists: true },
     ),
   );
   results.push(
     writeFile(
-      join(hooksDir, "post-commit-check.sh"),
-      renderTemplate("claude/hooks/post-commit-check.sh.ejs", data),
+      join(hooksDir, "post-commit-check.mjs"),
+      renderTemplate("claude/hooks/post-commit-check.mjs.ejs", data),
       { skipIfExists: true },
     ),
   );
 
   // Language-specific hook scripts
   for (const hook of config.languageHooks) {
-    if (hook.name !== "check-no-orphan-todo.sh") {
-      const body = hook.body.startsWith("#!/")
-        ? hook.body
-        : `#!/usr/bin/env bash\n${hook.body}`;
+    if (hook.name !== "check-no-orphan-todo.mjs") {
       results.push(
-        writeFile(join(hooksDir, hook.name), body, { skipIfExists: true }),
+        writeFile(join(hooksDir, hook.name), hook.body, { skipIfExists: true }),
       );
     }
   }
@@ -133,16 +129,5 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
     );
   }
 
-  // Make hook scripts executable (best effort)
-  chmodHooks(hooksDir);
-
   return { files: results };
-}
-
-function chmodHooks(dir: string): void {
-  try {
-    execFileSync("bash", ["-c", `chmod +x "${dir}"/*.sh`], { stdio: "ignore" });
-  } catch {
-    // Non-fatal — chmod is best effort
-  }
 }

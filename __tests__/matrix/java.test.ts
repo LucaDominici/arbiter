@@ -76,11 +76,11 @@ describe("matrix: Java project", () => {
     expect(ci).toContain("setup-java");
   });
 
-  it("check-all.sh references gradlew", () => {
+  it("check-all.mjs references gradlew", () => {
     const config = javaConfig();
     runGenerators(config);
     const checkAll = readFileSync(
-      join(dir, "scripts", "check-all.sh"),
+      join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
     expect(checkAll).toContain("gradlew");
@@ -90,7 +90,7 @@ describe("matrix: Java project", () => {
   it("does not include TypeScript-specific hooks", () => {
     const config = javaConfig();
     runGenerators(config);
-    expect(existsSync(join(dir, ".claude", "hooks", "check-no-any.sh"))).toBe(
+    expect(existsSync(join(dir, ".claude", "hooks", "check-no-any.mjs"))).toBe(
       false,
     );
   });

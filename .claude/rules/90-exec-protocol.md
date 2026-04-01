@@ -15,15 +15,15 @@ Before any file edit:
 3. Plan before editing (3+ file changes → outline first)
 4. Run `/start-task #NNN` to initialize properly
 5. Implement with TDD (test first)
-6. Run `./scripts/check-all.sh L1` before commit
-7. Run `./scripts/check-all.sh L2` before push
+6. Run `node scripts/check-all.mjs L1` before commit
+7. Run `node scripts/check-all.mjs L2` before push
 8. Run `/complete-task` to create PR
 
 ## Gate Commands
 
 ```bash
-./scripts/check-all.sh L1   # fast: lint + format + unit tests
-./scripts/check-all.sh L2   # full: L1 + coverage + integration
+node scripts/check-all.mjs L1   # fast: lint + format + unit tests
+node scripts/check-all.mjs L2   # full: L1 + coverage + integration
 ```
 
 ## Stop Conditions

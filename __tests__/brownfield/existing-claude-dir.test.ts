@@ -52,13 +52,13 @@ describe("brownfield: existing .claude/ directory", () => {
     const hooksDir = join(dir, ".claude", "hooks");
     mkdirSync(hooksDir, { recursive: true });
     const customHook = '#!/usr/bin/env bash\necho "custom hook"';
-    writeFileSync(join(hooksDir, "stop-dangerous.sh"), customHook);
+    writeFileSync(join(hooksDir, "stop-dangerous.mjs"), customHook);
 
     const config = configWithExistingClaude();
     runGenerators(config);
 
     // Custom hook should NOT be overwritten
-    const content = readFileSync(join(hooksDir, "stop-dangerous.sh"), "utf-8");
+    const content = readFileSync(join(hooksDir, "stop-dangerous.mjs"), "utf-8");
     expect(content).toBe(customHook);
   });
 

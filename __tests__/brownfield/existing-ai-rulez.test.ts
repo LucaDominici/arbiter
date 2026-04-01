@@ -94,12 +94,12 @@ describe("brownfield: ai-rulez coexistence", () => {
     expect(existsSync(join(dir, ".github", "dependabot.yml"))).toBe(true);
   });
 
-  it("still generates root files (SECURITY.md, CONTRIBUTING.md, check-all.sh)", () => {
+  it("still generates root files (SECURITY.md, CONTRIBUTING.md, check-all.mjs)", () => {
     const config = configWithAiRulez();
     runGenerators(config);
     expect(existsSync(join(dir, "SECURITY.md"))).toBe(true);
     expect(existsSync(join(dir, "CONTRIBUTING.md"))).toBe(true);
-    expect(existsSync(join(dir, "scripts", "check-all.sh"))).toBe(true);
+    expect(existsSync(join(dir, "scripts", "check-all.mjs"))).toBe(true);
   });
 
   it("result set only contains AGENTS.md + GitHub + root files (no tool configs)", () => {

@@ -7,11 +7,11 @@
 
 ## Quick Reference
 
-| Fact                | Value                    |
-| ------------------- | ------------------------ |
-| **Project**         | arbiter                  |
-| **Gate**            | `./scripts/check-all.sh` |
-| **Full governance** | `../AGENTS.md`           |
+| Fact                | Value                        |
+| ------------------- | ---------------------------- |
+| **Project**         | arbiter                      |
+| **Gate**            | `node scripts/check-all.mjs` |
+| **Full governance** | `../AGENTS.md`               |
 
 ---
 
@@ -49,18 +49,18 @@ Codex operates via explicit plans. Before any implementation:
     }
   ],
   "invariants": ["INV-01", "INV-07"],
-  "gate": "./scripts/check-all.sh L2"
+  "gate": "node scripts/check-all.mjs L2"
 }
 ```
 
 ## Command Translation
 
-| Claude Code                 | Codex Equivalent                    |
-| --------------------------- | ----------------------------------- |
-| `/start-task #NNN`          | Read issue → create plan → await GO |
-| `/complete-task`            | Gate L2 → commit → push → PR        |
-| `./scripts/check-all.sh L1` | Run before each commit              |
-| `./scripts/check-all.sh L2` | Run before push/PR                  |
+| Claude Code                     | Codex Equivalent                    |
+| ------------------------------- | ----------------------------------- |
+| `/start-task #NNN`              | Read issue → create plan → await GO |
+| `/complete-task`                | Gate L2 → commit → push → PR        |
+| `node scripts/check-all.mjs L1` | Run before each commit              |
+| `node scripts/check-all.mjs L2` | Run before push/PR                  |
 
 ## Hard Stops
 
