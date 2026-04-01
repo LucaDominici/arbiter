@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync } from "node:child_process";
 
 export interface BranchProtectionResult {
   applied: boolean;
@@ -9,11 +9,14 @@ export interface BranchProtectionResult {
  * Apply standard branch protection to main via gh api.
  * Requires repo admin access.
  */
-export function applyBranchProtection(owner: string, repo: string): BranchProtectionResult {
+export function applyBranchProtection(
+  owner: string,
+  repo: string,
+): BranchProtectionResult {
   const payload = JSON.stringify({
     required_status_checks: {
       strict: true,
-      contexts: ['CI Required'],
+      contexts: ["CI Required"],
     },
     enforce_admins: false,
     required_pull_request_reviews: {
@@ -26,15 +29,21 @@ export function applyBranchProtection(owner: string, repo: string): BranchProtec
   });
 
   try {
-    execFileSync('gh', [
-      'api',
-      `repos/${owner}/${repo}/branches/main/protection`,
-      '--method', 'PUT',
-      '--input', '-',
-    ], {
-      input: payload,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    execFileSync(
+      "gh",
+      [
+        "api",
+        `repos/${owner}/${repo}/branches/main/protection`,
+        "--method",
+        "PUT",
+        "--input",
+        "-",
+      ],
+      {
+        input: payload,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
     return { applied: true, error: null };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

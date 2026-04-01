@@ -12,11 +12,11 @@ GitHub labels are used for issue triage, capacity planning, and workflow automat
 
 15 labels provisioned idempotently (`gh label create/edit`):
 
-| Category | Labels |
-|----------|--------|
-| Type (8) | `bug`, `feature`, `task`, `docs`, `refactor`, `test`, `ci`, `deps` |
-| Size (4) | `size/XS`, `size/S`, `size/M`, `size/L` |
-| Priority (3) | `priority/P0`, `priority/P1`, `priority/P2` |
+| Category     | Labels                                                             |
+| ------------ | ------------------------------------------------------------------ |
+| Type (8)     | `bug`, `feature`, `task`, `docs`, `refactor`, `test`, `ci`, `deps` |
+| Size (4)     | `size/XS`, `size/S`, `size/M`, `size/L`                            |
+| Priority (3) | `priority/P0`, `priority/P1`, `priority/P2`                        |
 
 ## Rationale
 
@@ -28,10 +28,12 @@ GitHub labels are used for issue triage, capacity planning, and workflow automat
 ## Consequences
 
 **Positive:**
+
 - Consistent label vocabulary across all arbiter-managed repos.
 - Automation (CI, bots, dashboards) can rely on a known label set.
 - Type labels align with conventional commit types, reducing cognitive overhead.
 
 **Negative:**
+
 - Projects with existing label schemes need to reconcile with the standard set.
 - 15 labels may be insufficient for very large projects (can be extended per-project).

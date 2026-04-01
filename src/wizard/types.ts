@@ -1,6 +1,12 @@
-export type Language = 'typescript' | 'java' | 'rust' | 'python' | 'go' | 'unknown';
-export type GovernanceLevel = 'L1' | 'L2' | 'L3';
-export type AiTool = 'claude' | 'codex' | 'cursor' | 'copilot';
+export type Language =
+  | "typescript"
+  | "java"
+  | "rust"
+  | "python"
+  | "go"
+  | "unknown";
+export type GovernanceLevel = "L1" | "L2" | "L3";
+export type AiTool = "claude" | "codex" | "cursor" | "copilot";
 
 export interface LanguageHook {
   /** Name of the hook script to generate (e.g. "check-no-any.sh") */

@@ -1,8 +1,8 @@
-import { join } from 'node:path';
-import { renderTemplate } from '../utils/render.js';
-import { writeFile, resolvedPath } from '../utils/fs.js';
-import type { ProjectConfig } from '../wizard/types.js';
-import type { WriteResult } from '../utils/fs.js';
+import { join } from "node:path";
+import { renderTemplate } from "../utils/render.js";
+import { writeFile, resolvedPath } from "../utils/fs.js";
+import type { ProjectConfig } from "../wizard/types.js";
+import type { WriteResult } from "../utils/fs.js";
 
 export interface GithubGeneratorResult {
   files: WriteResult[];
@@ -12,40 +12,53 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
   const results: WriteResult[] = [];
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;
-  const githubDir = resolvedPath(base, '.github');
+  const githubDir = resolvedPath(base, ".github");
 
   // CI workflow — skip if exists (may be customized)
-  const workflowsDir = join(githubDir, 'workflows');
-  results.push(writeFile(
-    join(workflowsDir, 'ci.yml'),
-    renderTemplate('github/workflows/ci.yml.ejs', data),
-    { skipIfExists: true },
-  ));
+  const workflowsDir = join(githubDir, "workflows");
+  results.push(
+    writeFile(
+      join(workflowsDir, "ci.yml"),
+      renderTemplate("github/workflows/ci.yml.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
 
   // PR template — skip if exists
-  results.push(writeFile(
-    join(githubDir, 'PULL_REQUEST_TEMPLATE.md'),
-    renderTemplate('github/PULL_REQUEST_TEMPLATE.md', data),
-    { skipIfExists: true },
-  ));
+  results.push(
+    writeFile(
+      join(githubDir, "PULL_REQUEST_TEMPLATE.md"),
+      renderTemplate("github/PULL_REQUEST_TEMPLATE.md", data),
+      { skipIfExists: true },
+    ),
+  );
 
   // Issue templates — skip if exists
-  const issueTemplatesDir = join(githubDir, 'ISSUE_TEMPLATE');
-  const issueTemplates = ['bug-report.yml', 'feature-request.yml', 'task-brief.yml', 'config.yml'];
+  const issueTemplatesDir = join(githubDir, "ISSUE_TEMPLATE");
+  const issueTemplates = [
+    "bug-report.yml",
+    "feature-request.yml",
+    "task-brief.yml",
+    "config.yml",
+  ];
   for (const tpl of issueTemplates) {
-    results.push(writeFile(
-      join(issueTemplatesDir, tpl),
-      renderTemplate(`github/issue-templates/${tpl}`, data),
-      { skipIfExists: true },
-    ));
+    results.push(
+      writeFile(
+        join(issueTemplatesDir, tpl),
+        renderTemplate(`github/issue-templates/${tpl}`, data),
+        { skipIfExists: true },
+      ),
+    );
   }
 
   // Dependabot — skip if exists
-  results.push(writeFile(
-    join(githubDir, 'dependabot.yml'),
-    renderTemplate('github/dependabot.yml.ejs', data),
-    { skipIfExists: true },
-  ));
+  results.push(
+    writeFile(
+      join(githubDir, "dependabot.yml"),
+      renderTemplate("github/dependabot.yml.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
 
   return { files: results };
 }

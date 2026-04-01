@@ -55,7 +55,7 @@ Named exports make imports explicit and easier to refactor. They also work corre
 - **`import type`** — use `import type { Foo }` for type-only imports. This is enforced by eslint's `@typescript-eslint/consistent-type-imports` rule.
 - **`.js` extension in imports** — Node ESM requires the `.js` extension even when the source is `.ts`. Always write:
   ```typescript
-  import { writeFile } from '../utils/fs.js';
+  import { writeFile } from "../utils/fs.js";
   ```
 
 ---
@@ -96,15 +96,15 @@ type(scope): summary
 
 **Types:**
 
-| Type | When to use |
-|------|-------------|
-| `feat` | New feature or command |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `test` | Test additions or corrections |
+| Type       | When to use                         |
+| ---------- | ----------------------------------- |
+| `feat`     | New feature or command              |
+| `fix`      | Bug fix                             |
+| `docs`     | Documentation only                  |
+| `test`     | Test additions or corrections       |
 | `refactor` | Code change with no behavior change |
-| `chore` | Dependency updates, build config |
-| `ci` | CI workflow changes |
+| `chore`    | Dependency updates, build config    |
+| `ci`       | CI workflow changes                 |
 
 **Scope** is the module or area affected: `detectors`, `generators`, `templates`, `utils`, `cli`, `docs`, `deps`.
 

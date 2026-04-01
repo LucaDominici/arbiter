@@ -26,11 +26,13 @@ Merge rules for existing `.claude/settings.json`:
 ## Consequences
 
 **Positive:**
+
 - Users keep their custom permissions and deny rules across arbiter re-init.
 - Arbiter can safely add new hooks without disrupting existing configuration.
 - Idempotent: safe to run multiple times.
 
 **Negative:**
+
 - Merge logic adds complexity to the init code path.
 - Edge cases in hook matcher deduplication may require careful testing.
 - Removing an arbiter-managed hook requires manual editing of settings.json.

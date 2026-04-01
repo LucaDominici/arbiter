@@ -30,29 +30,30 @@ These hooks are generated from EJS templates in `src/templates/claude/hooks/`.
 
 ### `lib.sh`
 
-| Property | Value |
-|----------|-------|
+| Property            | Value                                   |
+| ------------------- | --------------------------------------- |
 | **Source template** | `src/templates/claude/hooks/lib.sh.ejs` |
-| **Event** | N/A (sourced by other hooks) |
-| **Purpose** | Shared logging utilities |
-| **Invariant** | None |
-| **Languages** | All |
+| **Event**           | N/A (sourced by other hooks)            |
+| **Purpose**         | Shared logging utilities                |
+| **Invariant**       | None                                    |
+| **Languages**       | All                                     |
 
 Provides `log_info`, `log_warn`, `log_error` functions. Writes to `.claude/hooks/logs/hook-events.log`.
 
 ### `post-commit-check.sh`
 
-| Property | Value |
-|----------|-------|
+| Property            | Value                                                 |
+| ------------------- | ----------------------------------------------------- |
 | **Source template** | `src/templates/claude/hooks/post-commit-check.sh.ejs` |
-| **Event** | `PostToolUse` -> `Bash` |
-| **Purpose** | Verify commit message follows conventional format |
-| **Invariant** | Commit convention (AGENTS.md Commit Convention) |
-| **Languages** | All |
-| **Timeout** | 3 seconds |
-| **Blocking** | No (warning only) |
+| **Event**           | `PostToolUse` -> `Bash`                               |
+| **Purpose**         | Verify commit message follows conventional format     |
+| **Invariant**       | Commit convention (AGENTS.md Commit Convention)       |
+| **Languages**       | All                                                   |
+| **Timeout**         | 3 seconds                                             |
+| **Blocking**        | No (warning only)                                     |
 
 Triggers only on `git commit` commands. Checks the last commit message against the pattern:
+
 ```
 ^(feat|fix|refactor|test|docs|ci|chore|perf|style|build|revert)(\([^)]+\))?: .{1,72}$
 ```
@@ -65,15 +66,15 @@ These hooks are generated programmatically by `src/detectors/language-hooks.ts` 
 
 ### `check-no-orphan-todo.sh`
 
-| Property | Value |
-|----------|-------|
-| **Source** | `src/detectors/language-hooks.ts` (`COMMON_NO_ORPHAN_TODO`) |
-| **Event** | `PostToolUse` -> `Edit\|Write` |
-| **Purpose** | Every TODO must reference a task ID |
-| **Invariant** | INV-06 |
-| **Languages** | All |
-| **Timeout** | 5 seconds |
-| **Blocking** | Yes (exit 1) |
+| Property      | Value                                                       |
+| ------------- | ----------------------------------------------------------- |
+| **Source**    | `src/detectors/language-hooks.ts` (`COMMON_NO_ORPHAN_TODO`) |
+| **Event**     | `PostToolUse` -> `Edit\|Write`                              |
+| **Purpose**   | Every TODO must reference a task ID                         |
+| **Invariant** | INV-06                                                      |
+| **Languages** | All                                                         |
+| **Timeout**   | 5 seconds                                                   |
+| **Blocking**  | Yes (exit 1)                                                |
 
 Scans the edited file for `TODO` not followed by `(#NNN)`. Fails if an orphan TODO is found.
 
@@ -81,15 +82,15 @@ Scans the edited file for `TODO` not followed by `(#NNN)`. Fails if an orphan TO
 
 ### `check-no-any.sh`
 
-| Property | Value |
-|----------|-------|
-| **Source** | `src/detectors/language-hooks.ts` (`TS_NO_ANY`) |
-| **Event** | `PostToolUse` -> `Edit\|Write` |
-| **Purpose** | No `any` type in TypeScript source files |
-| **Invariant** | INV-04 (TypeScript) |
-| **Languages** | TypeScript only |
-| **Timeout** | 5 seconds |
-| **Blocking** | Yes (exit 1) |
+| Property      | Value                                           |
+| ------------- | ----------------------------------------------- |
+| **Source**    | `src/detectors/language-hooks.ts` (`TS_NO_ANY`) |
+| **Event**     | `PostToolUse` -> `Edit\|Write`                  |
+| **Purpose**   | No `any` type in TypeScript source files        |
+| **Invariant** | INV-04 (TypeScript)                             |
+| **Languages** | TypeScript only                                 |
+| **Timeout**   | 5 seconds                                       |
+| **Blocking**  | Yes (exit 1)                                    |
 
 Only activates for `.ts` and `.tsx` files. Fails if an explicit `any` type annotation (`: any`) is found.
 
@@ -97,15 +98,15 @@ Only activates for `.ts` and `.tsx` files. Fails if an explicit `any` type annot
 
 ### `check-no-unwrap.sh`
 
-| Property | Value |
-|----------|-------|
-| **Source** | `src/detectors/language-hooks.ts` (`RUST_NO_UNWRAP`) |
-| **Event** | `PostToolUse` -> `Edit\|Write` |
-| **Purpose** | No `.unwrap()` calls in Rust source files |
-| **Invariant** | INV-04 (Rust) |
-| **Languages** | Rust only |
-| **Timeout** | 5 seconds |
-| **Blocking** | Yes (exit 1) |
+| Property      | Value                                                |
+| ------------- | ---------------------------------------------------- |
+| **Source**    | `src/detectors/language-hooks.ts` (`RUST_NO_UNWRAP`) |
+| **Event**     | `PostToolUse` -> `Edit\|Write`                       |
+| **Purpose**   | No `.unwrap()` calls in Rust source files            |
+| **Invariant** | INV-04 (Rust)                                        |
+| **Languages** | Rust only                                            |
+| **Timeout**   | 5 seconds                                            |
+| **Blocking**  | Yes (exit 1)                                         |
 
 Only activates for `.rs` files. Fails if `.unwrap()` is found.
 
@@ -119,36 +120,36 @@ The following hooks are referenced in `settings.json` and `CLAUDE.md.ejs` but do
 
 ### `stop-dangerous.sh`
 
-| Property | Value |
-|----------|-------|
-| **Event** | `PreToolUse` -> `Bash` |
-| **Purpose** | Block dangerous shell commands (rm -rf, force push, sudo) |
-| **Invariant** | Safety (process) |
-| **Languages** | All |
-| **Timeout** | 5 seconds |
-| **Status** | Planned (referenced in settings.json, no template yet) |
+| Property      | Value                                                     |
+| ------------- | --------------------------------------------------------- |
+| **Event**     | `PreToolUse` -> `Bash`                                    |
+| **Purpose**   | Block dangerous shell commands (rm -rf, force push, sudo) |
+| **Invariant** | Safety (process)                                          |
+| **Languages** | All                                                       |
+| **Timeout**   | 5 seconds                                                 |
+| **Status**    | Planned (referenced in settings.json, no template yet)    |
 
 ### `enforce-read-only.sh`
 
-| Property | Value |
-|----------|-------|
-| **Event** | `PreToolUse` -> `Edit\|Write` |
-| **Purpose** | Guard read-only files from modification |
-| **Invariant** | File protection |
-| **Languages** | All |
-| **Timeout** | 3 seconds |
-| **Status** | Planned (referenced in settings.json, no template yet) |
+| Property      | Value                                                  |
+| ------------- | ------------------------------------------------------ |
+| **Event**     | `PreToolUse` -> `Edit\|Write`                          |
+| **Purpose**   | Guard read-only files from modification                |
+| **Invariant** | File protection                                        |
+| **Languages** | All                                                    |
+| **Timeout**   | 3 seconds                                              |
+| **Status**    | Planned (referenced in settings.json, no template yet) |
 
 ### `pre-edit-ssot-guard.sh`
 
-| Property | Value |
-|----------|-------|
-| **Event** | `PreToolUse` -> `Edit\|Write` |
-| **Purpose** | Prevent unauthorized edits to SSOT documents |
-| **Invariant** | SSOT integrity |
-| **Languages** | All |
-| **Timeout** | 3 seconds |
-| **Status** | Planned (referenced in settings.json, no template yet) |
+| Property      | Value                                                  |
+| ------------- | ------------------------------------------------------ |
+| **Event**     | `PreToolUse` -> `Edit\|Write`                          |
+| **Purpose**   | Prevent unauthorized edits to SSOT documents           |
+| **Invariant** | SSOT integrity                                         |
+| **Languages** | All                                                    |
+| **Timeout**   | 3 seconds                                              |
+| **Status**    | Planned (referenced in settings.json, no template yet) |
 
 ---
 
@@ -156,15 +157,15 @@ The following hooks are referenced in `settings.json` and `CLAUDE.md.ejs` but do
 
 Registered in `.claude/settings.json`:
 
-| Event | Matcher | Hook | Status |
-|-------|---------|------|--------|
-| `PreToolUse` | `Bash` | `stop-dangerous.sh` | Planned |
-| `PreToolUse` | `Edit\|Write` | `enforce-read-only.sh` | Planned |
-| `PreToolUse` | `Edit\|Write` | `pre-edit-ssot-guard.sh` | Planned |
-| `PostToolUse` | `Bash` | `post-commit-check.sh` | Implemented |
-| `PostToolUse` | `Edit\|Write` | `check-no-orphan-todo.sh` | Implemented |
-| `PostToolUse` | `Edit\|Write` | `check-no-any.sh` | Implemented (TS only) |
-| `PostToolUse` | `Edit\|Write` | `check-no-unwrap.sh` | Implemented (Rust only) |
+| Event         | Matcher       | Hook                      | Status                  |
+| ------------- | ------------- | ------------------------- | ----------------------- |
+| `PreToolUse`  | `Bash`        | `stop-dangerous.sh`       | Planned                 |
+| `PreToolUse`  | `Edit\|Write` | `enforce-read-only.sh`    | Planned                 |
+| `PreToolUse`  | `Edit\|Write` | `pre-edit-ssot-guard.sh`  | Planned                 |
+| `PostToolUse` | `Bash`        | `post-commit-check.sh`    | Implemented             |
+| `PostToolUse` | `Edit\|Write` | `check-no-orphan-todo.sh` | Implemented             |
+| `PostToolUse` | `Edit\|Write` | `check-no-any.sh`         | Implemented (TS only)   |
+| `PostToolUse` | `Edit\|Write` | `check-no-unwrap.sh`      | Implemented (Rust only) |
 
 ---
 
@@ -174,17 +175,17 @@ The generated `settings.json` also configures tool permissions:
 
 **Allow list** (varies by `buildTool`):
 
-| Build Tool | Allowed Commands |
-|------------|-----------------|
-| All | `git *`, `./scripts/*`, `gh *` |
-| `npm` | `npm run *`, `npx *`, `node *` |
-| `cargo` | `cargo *` |
-| `gradle` | `./gradlew *`, `gradle *` |
+| Build Tool | Allowed Commands               |
+| ---------- | ------------------------------ |
+| All        | `git *`, `./scripts/*`, `gh *` |
+| `npm`      | `npm run *`, `npx *`, `node *` |
+| `cargo`    | `cargo *`                      |
+| `gradle`   | `./gradlew *`, `gradle *`      |
 
 **Deny list** (all languages):
 
-| Command | Reason |
-|---------|--------|
-| `rm -rf /*` | Prevent root filesystem deletion |
-| `sudo:*` | Prevent privilege escalation |
-| `git push --force` | Prevent history rewriting |
+| Command            | Reason                           |
+| ------------------ | -------------------------------- |
+| `rm -rf /*`        | Prevent root filesystem deletion |
+| `sudo:*`           | Prevent privilege escalation     |
+| `git push --force` | Prevent history rewriting        |

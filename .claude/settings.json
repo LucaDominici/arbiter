@@ -64,10 +64,6 @@
       "Bash(node *)",
       "Bash(gh *)"
     ],
-    "deny": [
-      "Bash(rm -rf /*)",
-      "Bash(sudo:*)",
-      "Bash(git push --force)"
-    ]
+    "deny": ["Bash(rm -rf /*)", "Bash(sudo:*)", "Bash(git push --force)"]
   }
 }

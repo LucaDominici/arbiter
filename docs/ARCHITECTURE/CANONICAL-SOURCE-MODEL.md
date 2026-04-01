@@ -55,17 +55,17 @@ Each layer has a distinct role and write strategy. Mixing them — for example, 
 
 Everything that must be consistent across all AI tools:
 
-| Concern | Example |
-|---------|---------|
-| Project identity | name, stack, build/test commands |
-| Authority hierarchy | which document overrides which |
-| Invariants | non-negotiable architecture and process rules |
-| Coding standards | language-specific conventions |
-| Testing policy | what must be tested and how |
-| Commit convention | `type(scope): summary` format |
-| Branch strategy | naming, protection rules |
-| Gate system | L1/L2/L3 quality levels |
-| Multi-agent extensions | per-tool capability table |
+| Concern                | Example                                       |
+| ---------------------- | --------------------------------------------- |
+| Project identity       | name, stack, build/test commands              |
+| Authority hierarchy    | which document overrides which                |
+| Invariants             | non-negotiable architecture and process rules |
+| Coding standards       | language-specific conventions                 |
+| Testing policy         | what must be tested and how                   |
+| Commit convention      | `type(scope): summary` format                 |
+| Branch strategy        | naming, protection rules                      |
+| Gate system            | L1/L2/L3 quality levels                       |
+| Multi-agent extensions | per-tool capability table                     |
 
 `AGENTS.md` is stateless (fully regenerated from `ProjectConfig`). A backup is kept on re-init (`AGENTS.md.bak`) but the file is always replaced. See [ADR-001](../ADR/001-agents-md-canonical.md).
 
@@ -75,17 +75,17 @@ Tool overlays **add** what `AGENTS.md` cannot express natively for a specific to
 
 **What tool configs add (and only this):**
 
-| Concern | Claude Code | Codex |
-|---------|-------------|-------|
-| Permissions schema | `settings.json` `permissions` + `allowedTools` | — |
-| Hook wiring | `settings.json` `hooks` section | — |
-| Enforcement scripts | `.claude/hooks/*.sh` | — |
-| Slash commands | `.claude/commands/*.md` | — |
-| Sub-agent definitions | `.claude/agents/*.md` | — |
-| Plan schema | — | `CODEX.md` §Plan Schema |
-| Execution router | — | `CODEX.md` §Execution Router |
-| Context pack | — | `.agents/plan/CONTEXT_PACK.md` |
-| Rule mirror | `.claude/rules/` | `.agents/rules/` |
+| Concern               | Claude Code                                    | Codex                          |
+| --------------------- | ---------------------------------------------- | ------------------------------ |
+| Permissions schema    | `settings.json` `permissions` + `allowedTools` | —                              |
+| Hook wiring           | `settings.json` `hooks` section                | —                              |
+| Enforcement scripts   | `.claude/hooks/*.sh`                           | —                              |
+| Slash commands        | `.claude/commands/*.md`                        | —                              |
+| Sub-agent definitions | `.claude/agents/*.md`                          | —                              |
+| Plan schema           | —                                              | `CODEX.md` §Plan Schema        |
+| Execution router      | —                                              | `CODEX.md` §Execution Router   |
+| Context pack          | —                                              | `.agents/plan/CONTEXT_PACK.md` |
+| Rule mirror           | `.claude/rules/`                               | `.agents/rules/`               |
 
 **What tool configs must not contain:**
 

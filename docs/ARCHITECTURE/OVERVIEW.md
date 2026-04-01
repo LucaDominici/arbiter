@@ -71,17 +71,17 @@ Each tool config opens with an explicit pointer to `AGENTS.md`:
 
 ### What tool configs add (and only this)
 
-| Tool | Claude Code | Codex |
-|------|-------------|-------|
-| Auth/Permissions | `settings.json` permissions + allowed tools | — |
-| Hook wiring | `settings.json` hooks section | — |
-| Hook scripts | `.claude/hooks/*.sh` | — |
-| Slash commands | `.claude/commands/*.md` | — |
-| Sub-agents | `.claude/agents/*.md` | — |
-| Plan schema | — | `CODEX.md` §Plan Schema |
-| Exec router | — | `CODEX.md` §Execution Router |
-| Context pack | — | `.agents/plan/CONTEXT_PACK.md` |
-| Rule mirror | `.claude/rules/` | `.agents/rules/` (same content) |
+| Tool             | Claude Code                                 | Codex                           |
+| ---------------- | ------------------------------------------- | ------------------------------- |
+| Auth/Permissions | `settings.json` permissions + allowed tools | —                               |
+| Hook wiring      | `settings.json` hooks section               | —                               |
+| Hook scripts     | `.claude/hooks/*.sh`                        | —                               |
+| Slash commands   | `.claude/commands/*.md`                     | —                               |
+| Sub-agents       | `.claude/agents/*.md`                       | —                               |
+| Plan schema      | —                                           | `CODEX.md` §Plan Schema         |
+| Exec router      | —                                           | `CODEX.md` §Execution Router    |
+| Context pack     | —                                           | `.agents/plan/CONTEXT_PACK.md`  |
+| Rule mirror      | `.claude/rules/`                            | `.agents/rules/` (same content) |
 
 ### What tool configs must NOT contain
 
@@ -113,11 +113,11 @@ Always includes a `ci-required` job as the merge gate (required status check for
 
 Three-level gate system:
 
-| Level | Checks | When |
-|-------|--------|------|
-| L1 | Format + lint + unit tests | Pre-commit (fast) |
-| L2 | L1 + integration + coverage + audit | Pre-push (matches CI) |
-| L3 | L2 + E2E + evidence | Release / audit |
+| Level | Checks                              | When                  |
+| ----- | ----------------------------------- | --------------------- |
+| L1    | Format + lint + unit tests          | Pre-commit (fast)     |
+| L2    | L1 + integration + coverage + audit | Pre-push (matches CI) |
+| L3    | L2 + E2E + evidence                 | Release / audit       |
 
 ```bash
 ./scripts/check-all.sh L1   # fast local check
@@ -136,6 +136,7 @@ Three-level gate system:
 ### Branch Protection
 
 Applied to `main` via `gh api`:
+
 - Required status check: `CI Required`
 - Required review: 1 approving reviewer
 - Dismiss stale reviews on push
@@ -156,12 +157,12 @@ See [CLI Reference](../REFERENCE/CLI.md) for command documentation.
 
 ### Additional Tool Targets
 
-| Tool | File | Status |
-|------|------|--------|
-| Cursor | `.cursorrules` | Shipped |
-| Copilot | `.github/copilot-instructions.md` | Shipped |
-| Gemini CLI | `GEMINI.md` | Planned (Phase 6-8) |
-| Windsurf | `.windsurfrules` | Planned (Phase 6-8) |
+| Tool       | File                              | Status              |
+| ---------- | --------------------------------- | ------------------- |
+| Cursor     | `.cursorrules`                    | Shipped             |
+| Copilot    | `.github/copilot-instructions.md` | Shipped             |
+| Gemini CLI | `GEMINI.md`                       | Planned (Phase 6-8) |
+| Windsurf   | `.windsurfrules`                  | Planned (Phase 6-8) |
 
 All targets follow the same thin-pointer pattern: point to `AGENTS.md`, add only tool-specific configuration.
 

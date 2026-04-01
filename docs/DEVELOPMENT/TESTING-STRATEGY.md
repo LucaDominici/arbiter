@@ -8,14 +8,14 @@ This document describes arbiter's test structure, conventions, fixture approach,
 
 6 test files covering detectors, utilities, and integration flows:
 
-| File | Category | What it covers |
-|------|----------|----------------|
-| `__tests__/detectors/language.test.ts` | Unit | Language detection by marker file presence |
-| `__tests__/detectors/existing.test.ts` | Unit | Existing state detection (agentsMd, claudeDir, aiRulez, etc.) |
-| `__tests__/utils/merge.test.ts` | Unit | `mergeSettingsJson()` — deep merge of hooks, permissions, and other keys |
-| `__tests__/utils/config.test.ts` | Unit | `arbiter.json` save and load roundtrip |
-| `__tests__/integration/init.test.ts` | Integration | Full `arbiter init` flow — AGENTS.md generated, thin pointer content, skipIfExists behavior, settings.json hook merge |
-| `__tests__/integration/update-diff.test.ts` | Integration | `arbiter update` and `arbiter diff` commands |
+| File                                        | Category    | What it covers                                                                                                        |
+| ------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| `__tests__/detectors/language.test.ts`      | Unit        | Language detection by marker file presence                                                                            |
+| `__tests__/detectors/existing.test.ts`      | Unit        | Existing state detection (agentsMd, claudeDir, aiRulez, etc.)                                                         |
+| `__tests__/utils/merge.test.ts`             | Unit        | `mergeSettingsJson()` — deep merge of hooks, permissions, and other keys                                              |
+| `__tests__/utils/config.test.ts`            | Unit        | `arbiter.json` save and load roundtrip                                                                                |
+| `__tests__/integration/init.test.ts`        | Integration | Full `arbiter init` flow — AGENTS.md generated, thin pointer content, skipIfExists behavior, settings.json hook merge |
+| `__tests__/integration/update-diff.test.ts` | Integration | `arbiter update` and `arbiter diff` commands                                                                          |
 
 ---
 
@@ -34,6 +34,7 @@ Unit tests cover a single function or module in isolation. They use `vitest`'s `
 Integration tests exercise the full command flow end-to-end within a temp directory. They call `runInit(config)` or the equivalent command function directly (no subprocess), let it run all detectors and generators, then assert on the filesystem state.
 
 Key scenarios covered in `init.test.ts`:
+
 - `AGENTS.md` is generated and contains the project name.
 - `CLAUDE.md` opens with the thin pointer block.
 - Hook files are created with `skipIfExists: true` (re-running init does not overwrite them).
@@ -47,14 +48,14 @@ Key scenarios covered in `init.test.ts`:
 Each test that touches the filesystem follows this pattern:
 
 ```typescript
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-test-'));
+  tmpDir = mkdtempSync(join(tmpdir(), "arbiter-test-"));
 });
 
 afterEach(() => {
@@ -63,6 +64,7 @@ afterEach(() => {
 ```
 
 **Why temp directories:**
+
 - Tests are fully isolated — no test can affect another's filesystem state.
 - Cleanup is deterministic — `afterEach` removes the directory even if the test fails.
 - No mocking of `fs` — tests exercise the real `writeFile` and `readFileSync` implementations, so they catch path or permission bugs that mocks would miss.
@@ -97,14 +99,14 @@ Coverage is a floor, not a goal. The meaningful test criterion is: every behavio
 
 Every change that touches behavior (as opposed to formatting or comments) must have a test. The following categories are non-negotiable:
 
-| Category | Example |
-|----------|---------|
-| Detector logic | New language detector must have a test with the marker file |
-| Write strategy | `skipIfExists` behavior must be verified on re-init |
-| Merge behavior | Any change to `mergeSettingsJson` must have a merge scenario test |
-| Generator output | New generator must verify file contents for at least one config variant |
-| Coexistence gates | `aiRulez` detection and skip behavior |
-| Config roundtrip | `arbiter.json` save/load for any new field added to `ProjectConfig` |
+| Category          | Example                                                                 |
+| ----------------- | ----------------------------------------------------------------------- |
+| Detector logic    | New language detector must have a test with the marker file             |
+| Write strategy    | `skipIfExists` behavior must be verified on re-init                     |
+| Merge behavior    | Any change to `mergeSettingsJson` must have a merge scenario test       |
+| Generator output  | New generator must verify file contents for at least one config variant |
+| Coexistence gates | `aiRulez` detection and skip behavior                                   |
+| Config roundtrip  | `arbiter.json` save/load for any new field added to `ProjectConfig`     |
 
 ---
 

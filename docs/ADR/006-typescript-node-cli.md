@@ -28,10 +28,12 @@ TypeScript + Node, distributed as `@arbiter/cli` on npm. Installed via `npx arbi
 ## Consequences
 
 **Positive:**
+
 - Familiar toolchain for the target audience (JS/TS developers).
 - `npx` provides frictionless installation without global dependencies.
 - Rich ecosystem for templating, CLI frameworks, and testing.
 
 **Negative:**
+
 - Requires Node.js in the dev environment (not available in some pure-Java or pure-Python shops).
 - npm package publishing adds a release step compared to a single binary.

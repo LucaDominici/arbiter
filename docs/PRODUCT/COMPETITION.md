@@ -8,12 +8,12 @@ This document analyzes tools in the AI governance and configuration space. The g
 
 ## Summary
 
-| Tool | Category | What it does | Relationship to Arbiter |
-|------|----------|-------------|------------------------|
-| **ai-rulez** | Format translator | Generates tool configs from a YAML spec | Complementary — Arbiter delegates to it when detected |
-| **ruler** | Rule file manager | Manages `.cursor/rules/`, `.clinerules` etc. | Overlapping (tool config files), but no canonical source |
-| **Manual setup** | No tool | Configure each tool by hand per repo | The status quo Arbiter replaces |
-| **AGENTS.md (spec)** | Standard | AAIF standard for canonical governance | Arbiter implements this standard |
+| Tool                 | Category          | What it does                                 | Relationship to Arbiter                                  |
+| -------------------- | ----------------- | -------------------------------------------- | -------------------------------------------------------- |
+| **ai-rulez**         | Format translator | Generates tool configs from a YAML spec      | Complementary — Arbiter delegates to it when detected    |
+| **ruler**            | Rule file manager | Manages `.cursor/rules/`, `.clinerules` etc. | Overlapping (tool config files), but no canonical source |
+| **Manual setup**     | No tool           | Configure each tool by hand per repo         | The status quo Arbiter replaces                          |
+| **AGENTS.md (spec)** | Standard          | AAIF standard for canonical governance       | Arbiter implements this standard                         |
 
 ---
 

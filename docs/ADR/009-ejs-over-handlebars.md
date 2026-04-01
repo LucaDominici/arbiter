@@ -35,9 +35,11 @@ Use EJS as the sole template engine. All 32 template files use the `.ejs` extens
 ## Consequences
 
 **Positive:**
+
 - Minimal learning curve for template contributors.
 - No engine-specific helper registration or configuration.
 - Static files (no EJS tags) are handled transparently by the same render call.
 
 **Negative:**
+
 - EJS allows arbitrary JavaScript in templates, which could in principle introduce logic that belongs in the generator layer. Contributors must keep template logic minimal — branching on config fields is acceptable; complex computations should live in the generator.

@@ -105,15 +105,25 @@ Arbiter detects the project language by looking for marker files in the target d
 **Step 1** — Add the language to the `Language` union in `src/wizard/types.ts`:
 
 ```typescript
-export type Language = 'typescript' | 'java' | 'rust' | 'go' | 'python' | 'kotlin' | 'unknown';
+export type Language =
+  | "typescript"
+  | "java"
+  | "rust"
+  | "go"
+  | "python"
+  | "kotlin"
+  | "unknown";
 ```
 
 **Step 2** — Add a detection case in `src/detectors/language.ts`:
 
 ```typescript
 // Kotlin: build.gradle.kts or settings.gradle.kts
-if (existsSync(join(dir, 'build.gradle.kts')) || existsSync(join(dir, 'settings.gradle.kts'))) {
-  return 'kotlin';
+if (
+  existsSync(join(dir, "build.gradle.kts")) ||
+  existsSync(join(dir, "settings.gradle.kts"))
+) {
+  return "kotlin";
 }
 ```
 
@@ -143,9 +153,9 @@ case 'kotlin':
 **Step 5** — Add a test in `__tests__/detectors/language.test.ts`:
 
 ```typescript
-it('detects kotlin from build.gradle.kts', async () => {
-  writeFileSync(join(tmpDir, 'build.gradle.kts'), '');
-  expect(await detectLanguage(tmpDir)).toBe('kotlin');
+it("detects kotlin from build.gradle.kts", async () => {
+  writeFileSync(join(tmpDir, "build.gradle.kts"), "");
+  expect(await detectLanguage(tmpDir)).toBe("kotlin");
 });
 ```
 
@@ -158,20 +168,24 @@ A generator is a function that takes a `ProjectConfig` and returns a list of `Wr
 **Step 1** — Create `src/generators/my-tool.ts`:
 
 ```typescript
-import { writeFile } from '../utils/fs.js';
-import { renderTemplate } from '../utils/render.js';
-import type { ProjectConfig } from '../wizard/types.js';
-import type { WriteResult } from '../utils/fs.js';
+import { writeFile } from "../utils/fs.js";
+import { renderTemplate } from "../utils/render.js";
+import type { ProjectConfig } from "../wizard/types.js";
+import type { WriteResult } from "../utils/fs.js";
 
-export async function generateMyTool(config: ProjectConfig): Promise<WriteResult[]> {
+export async function generateMyTool(
+  config: ProjectConfig,
+): Promise<WriteResult[]> {
   const results: WriteResult[] = [];
 
-  const content = renderTemplate('my-tool/config.ejs', config);
-  results.push(writeFile(
-    join(config.targetDir, '.my-tool', 'config.yml'),
-    content,
-    { backup: true }  // or { skipIfExists: true } depending on the file type
-  ));
+  const content = renderTemplate("my-tool/config.ejs", config);
+  results.push(
+    writeFile(
+      join(config.targetDir, ".my-tool", "config.yml"),
+      content,
+      { backup: true }, // or { skipIfExists: true } depending on the file type
+    ),
+  );
 
   return results;
 }
@@ -182,11 +196,11 @@ export async function generateMyTool(config: ProjectConfig): Promise<WriteResult
 **Step 3** — Wire the generator into `src/commands/init.ts` inside `runGenerators()`:
 
 ```typescript
-import { generateMyTool } from '../generators/my-tool.js';
+import { generateMyTool } from "../generators/my-tool.js";
 
 // Inside runGenerators():
-if (config.tools.includes('my-tool')) {
-  results.push(...await generateMyTool(config));
+if (config.tools.includes("my-tool")) {
+  results.push(...(await generateMyTool(config)));
 }
 ```
 
