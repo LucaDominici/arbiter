@@ -6,7 +6,12 @@ import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { detectGithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
-import { runWizard } from "../wizard/prompts.js";
+import {
+  runWizard,
+  determineFlow,
+  buildMigrationPlan,
+  displayMigrationPlan,
+} from "../wizard/prompts.js";
 import { generateAgentsMd } from "../generators/agents-md.js";
 import { generateClaude } from "../generators/claude.js";
 import { generateCodex } from "../generators/codex.js";
@@ -30,6 +35,7 @@ export interface InitOptions {
   tools: string | undefined;
   level: string | undefined;
   dir: string | undefined;
+  dryRun: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -83,7 +89,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       useGitHub: githubAccess.authenticated,
     });
   } else {
-    config = await runWizard({
+    const wizardResult = await runWizard({
       targetDir,
       projectName,
       language,
@@ -93,6 +99,16 @@ export async function runInit(options: InitOptions): Promise<void> {
       existing,
       githubAccess,
     });
+    if (wizardResult === null) {
+      console.log("\n  Cancelled.\n");
+      return;
+    }
+    config = wizardResult;
+  }
+
+  if (options.dryRun) {
+    displayDryRunPreview(config);
+    return;
   }
 
   console.log("\n  Generating...");
@@ -180,6 +196,27 @@ export function printResults(results: WriteResult[], targetDir: string): void {
     const relPath = result.path.replace(targetDir + "/", "");
     console.log(`  ${icon} ${relPath}${label}`);
   }
+}
+
+function displayDryRunPreview(config: ProjectConfig): void {
+  const flow = determineFlow(config.existing);
+  const plan = buildMigrationPlan(
+    config.existing,
+    config.tools,
+    config.useGitHub,
+  );
+  console.log("\n  Dry run — no files will be written.\n");
+  if (flow === "brownfield") {
+    displayMigrationPlan(plan);
+  } else {
+    console.log(
+      `  Would generate governance files for: ${config.tools.join(", ")}`,
+    );
+    for (const entry of plan.created) {
+      console.log(`  ├── ${entry}`);
+    }
+  }
+  console.log("\n  Run without --dry-run to apply.\n");
 }
 
 function buildDefaultConfig(opts: {

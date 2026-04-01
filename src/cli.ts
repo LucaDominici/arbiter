@@ -21,18 +21,25 @@ program
   )
   .option("--level <level>", "Governance level: L1, L2, or L3", "L2")
   .option("--dir <dir>", "Target directory (default: current directory)")
+  .option(
+    "--dry-run",
+    "Preview what would be generated without writing files",
+    false,
+  )
   .action(
     async (opts: {
       yes: boolean;
       tools?: string;
       level?: string;
       dir?: string;
+      dryRun: boolean;
     }) => {
       await runInit({
         yes: opts.yes,
         tools: opts.tools,
         level: opts.level,
         dir: opts.dir,
+        dryRun: opts.dryRun,
       });
     },
   );
