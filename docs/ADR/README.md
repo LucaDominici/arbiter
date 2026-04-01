@@ -1,0 +1,45 @@
+# Architectural Decision Records
+
+This directory contains the Architectural Decision Records (ADRs) for the Arbiter project. Each ADR captures a significant design decision, its context, rationale, and consequences.
+
+## Process
+
+1. Propose a new ADR by creating a file following the naming convention: `NNN-short-title.md`
+2. Use the template below
+3. Set status to `Proposed`, then update to `Accepted` after review
+4. ADRs are append-only: superseded decisions get status `Superseded by ADR-NNN`, never deleted
+
+## Template
+
+```markdown
+# ADR-NNN: Title
+
+**Status:** Proposed | Accepted | Superseded by ADR-NNN
+**Date:** YYYY-MM-DD
+**Deciders:** [names]
+
+## Context
+[What is the issue that motivates this decision?]
+
+## Decision
+[What is the change that we're proposing and/or doing?]
+
+## Rationale
+[Why is this the best option? What alternatives were considered?]
+
+## Consequences
+[What are the positive and negative effects of this decision?]
+```
+
+## Index
+
+| # | Title | Status | Date | Summary |
+|---|-------|--------|------|---------|
+| 001 | [AGENTS.md as canonical governance source](001-agents-md-canonical.md) | Accepted | 2026-04-01 | Single governance file for all AI coding tools, using the AAIF standard |
+| 002 | [Thin pointer pattern for tool overlays](002-thin-pointer-pattern.md) | Accepted | 2026-04-01 | Tool configs reference AGENTS.md and add only tool-specific settings |
+| 003 | [gh CLI as required dependency](003-gh-cli-required.md) | Accepted | 2026-04-01 | GitHub features require `gh` CLI; skip gracefully if unavailable |
+| 004 | [skipIfExists on hooks, rules, and commands](004-skip-if-exists.md) | Accepted | 2026-04-01 | Never overwrite project-customized files on re-init |
+| 005 | [Deep merge for settings.json](005-deep-merge-settings.md) | Accepted | 2026-04-01 | Union-merge permissions and hooks; incoming value wins for other keys |
+| 006 | [TypeScript + Node for the CLI runtime](006-typescript-node-cli.md) | Accepted | 2026-04-01 | TypeScript + Node via npx for zero-install distribution |
+| 007 | [15 standard labels as canonical set](007-standard-labels.md) | Accepted | 2026-04-01 | Minimal label set: 8 type + 4 size + 3 priority |
+| 008 | [Governance levels L1/L2/L3](008-governance-levels.md) | Accepted | 2026-04-01 | Three nested gate levels for pre-commit, CI, and audit workflows |
