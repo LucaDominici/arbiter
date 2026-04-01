@@ -137,6 +137,14 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 
 ---
 
+## Product Documentation
+
+- [`docs/PRODUCT/PRD.md`](docs/PRODUCT/PRD.md) — Vision, problem, users, features by phase, success metrics
+- [`docs/PRODUCT/MILESTONES.md`](docs/PRODUCT/MILESTONES.md) — Phased delivery with exit criteria
+- [`docs/PRODUCT/COMPETITION.md`](docs/PRODUCT/COMPETITION.md) — ai-rulez, ruler, manual setup — where Arbiter fits
+
+---
+
 ## Design Decisions
 
 See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
