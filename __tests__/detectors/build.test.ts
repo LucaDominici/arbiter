@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { detectBuildCommands } from "../../src/detectors/build.js";
 import { createTestProject, cleanupTestProject } from "../helpers.js";
@@ -90,6 +90,24 @@ describe("detectBuildCommands", () => {
       const result = detectBuildCommands(dir, "java");
       expect(result.buildCommand).toBe("gradle build -x test");
       expect(result.testCommand).toBe("gradle test");
+    });
+
+    it("uses maven when pom.xml exists and no gradle files", () => {
+      // createTestProject("java") creates build.gradle; remove it to test Maven-only layout
+      unlinkSync(join(dir, "build.gradle"));
+      writeFileSync(join(dir, "pom.xml"), "<project/>");
+      const result = detectBuildCommands(dir, "java");
+      expect(result.buildTool).toBe("maven");
+      expect(result.buildCommand).toBe("mvn package -DskipTests");
+      expect(result.testCommand).toBe("mvn test");
+      expect(result.lintCommand).toBe("mvn checkstyle:check");
+    });
+
+    it("prefers gradle over maven when both exist", () => {
+      writeFileSync(join(dir, "pom.xml"), "<project/>");
+      writeFileSync(join(dir, "gradlew"), "#!/bin/sh");
+      const result = detectBuildCommands(dir, "java");
+      expect(result.buildTool).toBe("gradle");
     });
   });
 

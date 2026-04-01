@@ -46,6 +46,20 @@ export function detectBuildCommands(
     }
     case "java": {
       const useWrapper = existsSync(join(dir, "gradlew"));
+      const hasBuildGradle =
+        existsSync(join(dir, "build.gradle")) ||
+        existsSync(join(dir, "build.gradle.kts"));
+      const useMaven =
+        !useWrapper && !hasBuildGradle && existsSync(join(dir, "pom.xml"));
+      if (useMaven) {
+        return {
+          buildTool: "maven",
+          buildCommand: "mvn package -DskipTests",
+          testCommand: "mvn test",
+          lintCommand: "mvn checkstyle:check",
+          formatCommand: 'echo "no formatter configured"',
+        };
+      }
       const gradle = useWrapper ? "./gradlew" : "gradle";
       return {
         buildTool: "gradle",
