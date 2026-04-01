@@ -9,11 +9,11 @@ export type GovernanceLevel = "L1" | "L2" | "L3";
 export type AiTool = "claude" | "codex" | "cursor" | "copilot";
 
 export interface LanguageHook {
-  /** Name of the hook script to generate (e.g. "check-no-any.sh") */
+  /** Name of the hook script to generate (e.g. "check-no-any.mjs") */
   name: string;
   /** What it enforces (for AGENTS.md invariant docs) */
   description: string;
-  /** Hook body (bash) */
+  /** Hook body (Node.js ESM) */
   body: string;
 }
 
@@ -47,7 +47,7 @@ export interface ProjectConfig {
     agentsDir: boolean;
     aiRulez: boolean;
     settingsJson: boolean;
-    checkAllSh: boolean;
+    checkAllScript: boolean;
   };
 
   languageHooks: LanguageHook[];

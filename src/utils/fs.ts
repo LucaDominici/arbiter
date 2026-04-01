@@ -102,6 +102,11 @@ function isPermissions(val: unknown): val is Permissions {
   return typeof val === "object" && val !== null && !Array.isArray(val);
 }
 
+function extractHookBasename(command: string): string | null {
+  const match = command.match(/\.claude\/hooks\/([^./\s]+)\.\w+/);
+  return match?.[1] ?? null;
+}
+
 function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
   const result: HooksObject = { ...existing };
 
@@ -115,11 +120,21 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
         (e) => e.matcher === incomingEntry.matcher,
       );
       if (existingEntry) {
-        // Union hooks by command
-        const existingCommands = new Set(
-          existingEntry.hooks.map((h) => h.command),
-        );
         for (const hook of incomingEntry.hooks) {
+          const incomingBasename = extractHookBasename(hook.command);
+
+          if (incomingBasename) {
+            // Remove old variants of the same hook (e.g. .sh → .mjs upgrade)
+            existingEntry.hooks = existingEntry.hooks.filter((h) => {
+              const existingBasename = extractHookBasename(h.command);
+              return existingBasename !== incomingBasename;
+            });
+          }
+
+          // Add the incoming hook if not already present
+          const existingCommands = new Set(
+            existingEntry.hooks.map((h) => h.command),
+          );
           if (!existingCommands.has(hook.command)) {
             existingEntry.hooks.push(hook);
           }

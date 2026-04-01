@@ -7,7 +7,7 @@ export interface ExistingState {
   agentsDir: boolean;
   aiRulez: boolean;
   settingsJson: boolean;
-  checkAllSh: boolean;
+  checkAllScript: boolean;
 }
 
 export function detectExisting(dir: string): ExistingState {
@@ -19,6 +19,8 @@ export function detectExisting(dir: string): ExistingState {
       existsSync(join(dir, ".ai-rulez")) ||
       existsSync(join(dir, "ai-rulez.yml")),
     settingsJson: existsSync(join(dir, ".claude", "settings.json")),
-    checkAllSh: existsSync(join(dir, "scripts", "check-all.sh")),
+    checkAllScript:
+      existsSync(join(dir, "scripts", "check-all.mjs")) ||
+      existsSync(join(dir, "scripts", "check-all.sh")),
   };
 }

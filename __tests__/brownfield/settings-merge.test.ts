@@ -39,7 +39,7 @@ describe("brownfield: settings.json merge", () => {
         agentsDir: false,
         aiRulez: false,
         settingsJson: true,
-        checkAllSh: false,
+        checkAllScript: false,
       },
     });
   }
@@ -144,7 +144,7 @@ describe("brownfield: settings.json merge", () => {
         agentsDir: false,
         aiRulez: false,
         settingsJson: false,
-        checkAllSh: false,
+        checkAllScript: false,
       },
     });
     generateClaude(config);
@@ -177,6 +177,184 @@ describe("brownfield: settings.json merge", () => {
     const firstBashPre = getHookCommands(first, "PreToolUse", "Bash");
     const secondBashPre = getHookCommands(second, "PreToolUse", "Bash");
     expect(secondBashPre.length).toBe(firstBashPre.length);
+  });
+
+  it("replaces old .sh hook commands with new .mjs equivalents during merge", () => {
+    const claudeDir = join(dir, ".claude");
+    mkdirSync(claudeDir, { recursive: true });
+
+    const existingSettings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [
+              {
+                type: "command",
+                command: "bash .claude/hooks/stop-dangerous.sh",
+                timeout: 10,
+              },
+            ],
+          },
+        ],
+        PostToolUse: [
+          {
+            matcher: "Edit|Write",
+            hooks: [
+              {
+                type: "command",
+                command: "bash .claude/hooks/check-no-orphan-todo.sh",
+                timeout: 10,
+              },
+              {
+                type: "command",
+                command: "bash .claude/hooks/check-no-any.sh",
+                timeout: 10,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    writeFileSync(
+      join(claudeDir, "settings.json"),
+      JSON.stringify(existingSettings, null, 2),
+    );
+
+    const config = configWithExistingSettings();
+    generateClaude(config);
+
+    const merged = JSON.parse(
+      readFileSync(join(claudeDir, "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const hooks = merged["hooks"] as Record<string, unknown[]>;
+
+    // Check PreToolUse Bash matcher
+    const preToolUse = hooks["PreToolUse"] as Array<{
+      matcher: string;
+      hooks: Array<{ command: string }>;
+    }>;
+    const bashMatcher = preToolUse.find((e) => e.matcher === "Bash");
+    const bashCommands = bashMatcher!.hooks.map((h) => h.command);
+
+    // Should have .mjs, NOT .sh
+    expect(bashCommands).toContain("node .claude/hooks/stop-dangerous.mjs");
+    expect(bashCommands).not.toContain("bash .claude/hooks/stop-dangerous.sh");
+
+    // Check PostToolUse Edit|Write matcher
+    const postToolUse = hooks["PostToolUse"] as Array<{
+      matcher: string;
+      hooks: Array<{ command: string }>;
+    }>;
+    const editMatcher = postToolUse.find((e) => e.matcher === "Edit|Write");
+    const editCommands = editMatcher!.hooks.map((h) => h.command);
+
+    expect(editCommands).toContain(
+      "node .claude/hooks/check-no-orphan-todo.mjs",
+    );
+    expect(editCommands).not.toContain(
+      "bash .claude/hooks/check-no-orphan-todo.sh",
+    );
+    expect(editCommands).toContain("node .claude/hooks/check-no-any.mjs");
+    expect(editCommands).not.toContain("bash .claude/hooks/check-no-any.sh");
+  });
+
+  it("replaces cd-prefixed .sh hooks with .mjs equivalents", () => {
+    const claudeDir = join(dir, ".claude");
+    mkdirSync(claudeDir, { recursive: true });
+
+    const existingSettings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [
+              {
+                type: "command",
+                command:
+                  'cd "$(git rev-parse --show-toplevel)" && bash .claude/hooks/stop-dangerous.sh',
+                timeout: 10,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    writeFileSync(
+      join(claudeDir, "settings.json"),
+      JSON.stringify(existingSettings, null, 2),
+    );
+
+    const config = configWithExistingSettings();
+    generateClaude(config);
+
+    const merged = JSON.parse(
+      readFileSync(join(claudeDir, "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const hooks = merged["hooks"] as Record<string, unknown[]>;
+    const preToolUse = hooks["PreToolUse"] as Array<{
+      matcher: string;
+      hooks: Array<{ command: string }>;
+    }>;
+    const bashMatcher = preToolUse.find((e) => e.matcher === "Bash");
+    const bashCommands = bashMatcher!.hooks.map((h) => h.command);
+
+    // Should have .mjs, NOT the cd-prefixed .sh
+    expect(bashCommands).toContain("node .claude/hooks/stop-dangerous.mjs");
+    expect(bashCommands).not.toContain(
+      'cd "$(git rev-parse --show-toplevel)" && bash .claude/hooks/stop-dangerous.sh',
+    );
+  });
+
+  it("preserves truly custom hooks that are not arbiter-managed", () => {
+    const claudeDir = join(dir, ".claude");
+    mkdirSync(claudeDir, { recursive: true });
+
+    const existingSettings = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [
+              {
+                type: "command",
+                command: "bash .claude/hooks/my-team-policy.sh",
+                timeout: 10,
+              },
+              {
+                type: "command",
+                command: "bash .claude/hooks/stop-dangerous.sh",
+                timeout: 10,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    writeFileSync(
+      join(claudeDir, "settings.json"),
+      JSON.stringify(existingSettings, null, 2),
+    );
+
+    const config = configWithExistingSettings();
+    generateClaude(config);
+
+    const merged = JSON.parse(
+      readFileSync(join(claudeDir, "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const hooks = merged["hooks"] as Record<string, unknown[]>;
+    const preToolUse = hooks["PreToolUse"] as Array<{
+      matcher: string;
+      hooks: Array<{ command: string }>;
+    }>;
+    const bashMatcher = preToolUse.find((e) => e.matcher === "Bash");
+    const bashCommands = bashMatcher!.hooks.map((h) => h.command);
+
+    // Custom hook preserved
+    expect(bashCommands).toContain("bash .claude/hooks/my-team-policy.sh");
+    // Arbiter hook upgraded
+    expect(bashCommands).toContain("node .claude/hooks/stop-dangerous.mjs");
+    expect(bashCommands).not.toContain("bash .claude/hooks/stop-dangerous.sh");
   });
 
   it("preserves unknown top-level keys from existing settings", () => {

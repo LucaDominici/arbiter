@@ -114,7 +114,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     useGitHub: config.useGitHub,
   });
 
-  console.log(`\n  Run: ./scripts/check-all.sh L1  to verify\n`);
+  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
 }
 
 export function runGenerators(config: ProjectConfig): WriteResult[] {

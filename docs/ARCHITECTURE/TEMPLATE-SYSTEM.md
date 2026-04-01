@@ -73,7 +73,7 @@ interface ProjectConfig {
     agentsDir: boolean; // .agents/ directory present
     aiRulez: boolean; // .ai-rulez/ or ai-rulez.yml present
     settingsJson: boolean; // .claude/settings.json present
-    checkAllSh: boolean; // scripts/check-all.sh present
+    checkAllScript: boolean; // scripts/check-all script present
   };
 
   // Language-specific hooks

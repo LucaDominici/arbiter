@@ -39,7 +39,7 @@ describe("brownfield: existing AGENTS.md", () => {
         agentsDir: false,
         aiRulez: false,
         settingsJson: false,
-        checkAllSh: false,
+        checkAllScript: false,
       },
     });
   }

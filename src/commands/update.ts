@@ -81,5 +81,5 @@ export function runUpdate(options: UpdateOptions): void {
   runGithubSetup(config);
 
   saveConfig(targetDir, { ...stored, useGitHub });
-  console.log(`\n  Run: ./scripts/check-all.sh L1  to verify\n`);
+  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
 }
