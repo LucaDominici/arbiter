@@ -52,6 +52,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-08:** No direct commits to `main` — all changes via task branches + PR
 - **INV-09:** Gate must pass before commit: `node scripts/check-all.mjs L1`
 - **INV-10:** Gate must pass before push: `node scripts/check-all.mjs L2`
+- **INV-11:** Full matrix testing — every generated template/artifact must be tested across all supported stacks (TS, Java, Rust, Go, Python) × tools (Claude, Codex, Cursor, Copilot) × governance levels (L1, L2, L3). No milestone completion without matrix coverage.
 
 ---
 
