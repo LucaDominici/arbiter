@@ -1,0 +1,37 @@
+# ADR-007: 15 standard labels as canonical set
+
+**Status:** Accepted
+**Date:** 2026-04-01
+**Deciders:** Luca Dominici
+
+## Context
+
+GitHub labels are used for issue triage, capacity planning, and workflow automation. Without a standard set, each project invents its own labels, making cross-repo consistency impossible and automation fragile.
+
+## Decision
+
+15 labels provisioned idempotently (`gh label create/edit`):
+
+| Category | Labels |
+|----------|--------|
+| Type (8) | `bug`, `feature`, `task`, `docs`, `refactor`, `test`, `ci`, `deps` |
+| Size (4) | `size/XS`, `size/S`, `size/M`, `size/L` |
+| Priority (3) | `priority/P0`, `priority/P1`, `priority/P2` |
+
+## Rationale
+
+- Type labels mirror commit convention types, creating consistency between commits and issues.
+- Size labels enable capacity planning.
+- Priority labels enable triage.
+- 15 is deliberately minimal -- enough for real use without labeling becoming overhead.
+
+## Consequences
+
+**Positive:**
+- Consistent label vocabulary across all arbiter-managed repos.
+- Automation (CI, bots, dashboards) can rely on a known label set.
+- Type labels align with conventional commit types, reducing cognitive overhead.
+
+**Negative:**
+- Projects with existing label schemes need to reconcile with the standard set.
+- 15 labels may be insufficient for very large projects (can be extended per-project).

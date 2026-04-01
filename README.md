@@ -37,7 +37,7 @@ AGENTS.md                    ← Canonical governance (AAIF standard, all tools 
 
 **Key principle:** `AGENTS.md` contains ALL governance (invariants, coding standards, testing policy, commit conventions). Tool-specific files add ONLY what that tool uniquely needs.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full model.
+See [`docs/ARCHITECTURE/OVERVIEW.md`](docs/ARCHITECTURE/OVERVIEW.md) for the full model.
 
 ---
 
@@ -71,7 +71,7 @@ Options:
   -h, --help             Show help
 ```
 
-See [`docs/CLI.md`](docs/CLI.md) for full option documentation and examples.
+See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentation and examples.
 
 ---
 
@@ -139,8 +139,9 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 
 ## Design Decisions
 
-See [`docs/DECISIONS.md`](docs/DECISIONS.md) for the rationale behind key choices:
-- Why `AGENTS.md` as canonical source (not `CLAUDE.md`)
-- Why thin pointers instead of full governance in each tool config
-- Why `gh` CLI is required (not optional)
-- Why `skipIfExists` on hooks (not overwrite)
+See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
+- [ADR-001](docs/ADR/001-agents-md-canonical.md): Why `AGENTS.md` as canonical source (not `CLAUDE.md`)
+- [ADR-002](docs/ADR/002-thin-pointer-pattern.md): Why thin pointers instead of full governance in each tool config
+- [ADR-003](docs/ADR/003-gh-cli-required.md): Why `gh` CLI is required (not optional)
+- [ADR-004](docs/ADR/004-skip-if-exists.md): Why `skipIfExists` on hooks (not overwrite)
+- [ADR-005](docs/ADR/005-deep-merge-settings.md): Deep merge for settings.json
