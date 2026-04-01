@@ -1,0 +1,18 @@
+// Arbiter hook library — shared utilities for all hooks
+// Project: <%= projectName %>
+import { mkdirSync, appendFileSync } from 'node:fs';
+
+const PROJECT = '<%= projectName %>';
+const LOG_DIR = '.claude/hooks/logs';
+const LOG_FILE = `${LOG_DIR}/hook-events.log`;
+
+mkdirSync(LOG_DIR, { recursive: true });
+
+function logEvent(level, message) {
+  const ts = new Date().toISOString();
+  appendFileSync(LOG_FILE, `[${ts}] [${PROJECT}] [${level}] ${message}\n`);
+}
+
+export const logInfo = (msg) => logEvent('INFO', msg);
+export const logWarn = (msg) => logEvent('WARN', msg);
+export const logError = (msg) => logEvent('ERROR', msg);

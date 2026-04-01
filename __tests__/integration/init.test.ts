@@ -65,13 +65,13 @@ describe("arbiter init --yes", () => {
     expect(settings).toHaveProperty("hooks");
   });
 
-  it("generates .claude/hooks/ with shell scripts", async () => {
+  it("generates .claude/hooks/ with hook scripts", async () => {
     await runInit({ yes: true, tools: "claude", level: "L2", dir });
-    expect(existsSync(join(dir, ".claude", "hooks", "stop-dangerous.sh"))).toBe(
-      true,
-    );
     expect(
-      existsSync(join(dir, ".claude", "hooks", "enforce-read-only.sh")),
+      existsSync(join(dir, ".claude", "hooks", "stop-dangerous.mjs")),
+    ).toBe(true);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "enforce-read-only.mjs")),
     ).toBe(true);
   });
 
@@ -88,7 +88,7 @@ describe("arbiter init --yes", () => {
 
   it("skips existing hooks files on re-run", async () => {
     await runInit({ yes: true, tools: "claude", level: "L2", dir });
-    const hookPath = join(dir, ".claude", "hooks", "stop-dangerous.sh");
+    const hookPath = join(dir, ".claude", "hooks", "stop-dangerous.mjs");
     const original = readFileSync(hookPath, "utf-8");
 
     // Second run — hook must not be overwritten

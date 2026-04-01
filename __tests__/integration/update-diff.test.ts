@@ -64,7 +64,7 @@ describe("arbiter update", () => {
   });
 
   it("update preserves existing hooks", async () => {
-    const hookPath = join(dir, ".claude", "hooks", "stop-dangerous.sh");
+    const hookPath = join(dir, ".claude", "hooks", "stop-dangerous.mjs");
     const original = readFileSync(hookPath, "utf-8");
 
     // Modify the hook to simulate customization

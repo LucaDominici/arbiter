@@ -12,7 +12,7 @@
 | Fact                | Value                                |
 | ------------------- | ------------------------------------ |
 | **Project**         | arbiter                              |
-| **Gate**            | `./scripts/check-all.sh`             |
+| **Gate**            | `node scripts/check-all.mjs`         |
 | **Full governance** | `../AGENTS.md` (auto-imported above) |
 
 ---
@@ -23,14 +23,14 @@
 
 Configured in `.claude/settings.json`. Active hooks:
 
-| Event                       | Hook                      | Purpose                                       |
-| --------------------------- | ------------------------- | --------------------------------------------- |
-| `PreToolUse` → Bash         | `stop-dangerous.sh`       | Block dangerous commands (rm -rf, force push) |
-| `PreToolUse` → Edit\|Write  | `enforce-read-only.sh`    | Guard read-only files                         |
-| `PreToolUse` → Edit\|Write  | `pre-edit-ssot-guard.sh`  | Prevent unauthorized SSOT edits               |
-| `PostToolUse` → Bash        | `post-commit-check.sh`    | Verify commit format after git commits        |
-| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.sh` | Block orphan TODOs (INV-06)                   |
-| `PostToolUse` → Edit\|Write | `check-no-any.sh`         | Block `any` types (INV-04)                    |
+| Event                       | Hook                       | Purpose                                       |
+| --------------------------- | -------------------------- | --------------------------------------------- |
+| `PreToolUse` → Bash         | `stop-dangerous.mjs`       | Block dangerous commands (rm -rf, force push) |
+| `PreToolUse` → Edit\|Write  | `enforce-read-only.mjs`    | Guard read-only files                         |
+| `PreToolUse` → Edit\|Write  | `pre-edit-ssot-guard.mjs`  | Prevent unauthorized SSOT edits               |
+| `PostToolUse` → Bash        | `post-commit-check.mjs`    | Verify commit format after git commits        |
+| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs` | Block orphan TODOs (INV-06)                   |
+| `PostToolUse` → Edit\|Write | `check-no-any.mjs`         | Block `any` types (INV-04)                    |
 
 ### Slash Commands
 

@@ -77,25 +77,25 @@ describe("matrix: TypeScript project", () => {
     expect(ci).toContain("node-version: '20'");
   });
 
-  it("check-all.sh references eslint and prettier", () => {
+  it("check-all.mjs references eslint and prettier", () => {
     const config = tsConfig();
     runGenerators(config);
     const checkAll = readFileSync(
-      join(dir, "scripts", "check-all.sh"),
+      join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
     expect(checkAll).toContain("eslint");
     expect(checkAll).toContain("prettier");
   });
 
-  it("generates check-no-any.sh language hook", () => {
+  it("generates check-no-any.mjs language hook", () => {
     const config = tsConfig();
     runGenerators(config);
-    expect(existsSync(join(dir, ".claude", "hooks", "check-no-any.sh"))).toBe(
+    expect(existsSync(join(dir, ".claude", "hooks", "check-no-any.mjs"))).toBe(
       true,
     );
     const hook = readFileSync(
-      join(dir, ".claude", "hooks", "check-no-any.sh"),
+      join(dir, ".claude", "hooks", "check-no-any.mjs"),
       "utf-8",
     );
     expect(hook).toContain("any");
@@ -113,11 +113,11 @@ describe("matrix: TypeScript project", () => {
     );
   });
 
-  it("settings.json includes check-no-any.sh hook entry", () => {
+  it("settings.json includes check-no-any.mjs hook entry", () => {
     const config = tsConfig();
     runGenerators(config);
     const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
-    expect(raw).toContain("check-no-any.sh");
+    expect(raw).toContain("check-no-any.mjs");
   });
 
   it("AGENTS.md coding standards section is TypeScript-specific", () => {

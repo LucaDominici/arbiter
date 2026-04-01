@@ -72,7 +72,7 @@ describe("tool output: copilot", () => {
       "utf-8",
     );
     expect(content).toContain("task/#NNN");
-    expect(content).toContain("check-all.sh");
+    expect(content).toContain("check-all.mjs");
   });
 
   it("copilot-instructions.md has Do Not Generate section", () => {

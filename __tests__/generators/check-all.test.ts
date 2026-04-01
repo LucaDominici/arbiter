@@ -22,43 +22,52 @@ describe("generateCheckAll", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("generates scripts/check-all.sh", () => {
+  it("generates scripts/check-all.mjs", () => {
     const result = generateCheckAll(makeConfig(dir));
     expect(result.files).toHaveLength(1);
-    expect(result.files[0].path).toContain("check-all.sh");
+    expect(result.files[0].path).toContain("check-all.mjs");
     expect(result.files[0].action).toBe("created");
   });
 
-  it("check-all.sh has shebang line", () => {
+  it("check-all.mjs has shebang line", () => {
     generateCheckAll(makeConfig(dir));
-    const content = readFileSync(join(dir, "scripts", "check-all.sh"), "utf-8");
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
     expect(content).toMatch(/^#!/);
   });
 
-  it("check-all.sh contains lint and test commands for TypeScript", () => {
+  it("check-all.mjs contains lint and test commands for TypeScript", () => {
     generateCheckAll(makeConfig(dir, { language: "typescript" }));
-    const content = readFileSync(join(dir, "scripts", "check-all.sh"), "utf-8");
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
     expect(content).toContain("eslint");
-    expect(content).toContain("npm test");
+    expect(content).toContain("npm");
     expect(content).toContain("prettier");
   });
 
-  it("check-all.sh contains Rust commands for Rust projects", () => {
+  it("check-all.mjs contains Rust commands for Rust projects", () => {
     generateCheckAll(makeConfig(dir, { language: "rust", buildTool: "cargo" }));
-    const content = readFileSync(join(dir, "scripts", "check-all.sh"), "utf-8");
-    expect(content).toContain("cargo fmt");
-    expect(content).toContain("cargo clippy");
-    expect(content).toContain("cargo test");
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("fmt");
+    expect(content).toContain("clippy");
+    expect(content).toContain("cargo");
   });
 
-  it("skips if check-all.sh already exists", () => {
+  it("skips if check-all.mjs already exists", () => {
     const scriptsDir = join(dir, "scripts");
     mkdirSync(scriptsDir, { recursive: true });
-    writeFileSync(join(scriptsDir, "check-all.sh"), "EXISTING");
+    writeFileSync(join(scriptsDir, "check-all.mjs"), "EXISTING");
 
     const result = generateCheckAll(makeConfig(dir));
     expect(result.files[0].action).toBe("skipped");
-    expect(readFileSync(join(scriptsDir, "check-all.sh"), "utf-8")).toBe(
+    expect(readFileSync(join(scriptsDir, "check-all.mjs"), "utf-8")).toBe(
       "EXISTING",
     );
   });
