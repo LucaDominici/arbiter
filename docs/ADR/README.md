@@ -43,3 +43,6 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 006 | [TypeScript + Node for the CLI runtime](006-typescript-node-cli.md) | Accepted | 2026-04-01 | TypeScript + Node via npx for zero-install distribution |
 | 007 | [15 standard labels as canonical set](007-standard-labels.md) | Accepted | 2026-04-01 | Minimal label set: 8 type + 4 size + 3 priority |
 | 008 | [Governance levels L1/L2/L3](008-governance-levels.md) | Accepted | 2026-04-01 | Three nested gate levels for pre-commit, CI, and audit workflows |
+| 009 | [EJS over Handlebars for templates](009-ejs-over-handlebars.md) | Accepted | 2026-04-01 | EJS chosen for plain-JS interpolation, zero learning curve, and existing usage across all 32 templates |
+| 010 | [ai-rulez coexistence — skip tool configs](010-ai-rulez-coexistence.md) | Accepted | 2026-04-01 | When ai-rulez is detected, skip tool config generation; AGENTS.md and GitHub scaffolding still generated |
+| 011 | [Brownfield-first design](011-brownfield-first-design.md) | Accepted | 2026-04-01 | Per-file conflict resolution strategies (backup+replace, deep merge, skipIfExists) designed for existing projects |
