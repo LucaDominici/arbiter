@@ -3,6 +3,10 @@
 // Fires on: PreToolUse → Edit|Write
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 
+// Only enforce on files within this repo
+const repoRoot = process.cwd();
+if (file && !file.startsWith(repoRoot)) process.exit(0);
+
 const READ_ONLY_PATTERNS = ["LICENSE", "package-lock.json", "Cargo.lock"];
 
 for (const pattern of READ_ONLY_PATTERNS) {

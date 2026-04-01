@@ -6,6 +6,10 @@ import { readFileSync, existsSync } from "node:fs";
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 if (!file || !existsSync(file)) process.exit(0);
 
+// Only enforce on files within this repo
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
+
 // Skip binary files and lock files
 const SKIP_EXTENSIONS = [
   ".lock",

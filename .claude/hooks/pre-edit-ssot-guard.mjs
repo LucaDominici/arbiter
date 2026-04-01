@@ -3,6 +3,10 @@
 // Fires on: PreToolUse → Edit|Write
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 
+// Only enforce on files within this repo
+const repoRoot = process.cwd();
+if (file && !file.startsWith(repoRoot)) process.exit(0);
+
 const SSOT_PATTERNS = [
   "AGENTS.md",
   ".claude/CLAUDE.md",

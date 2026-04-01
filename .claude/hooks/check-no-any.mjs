@@ -7,6 +7,10 @@ const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 if (!file || !existsSync(file)) process.exit(0);
 if (!file.endsWith(".ts") && !file.endsWith(".tsx")) process.exit(0);
 
+// Only enforce on files within this repo
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
+
 let content;
 try {
   content = readFileSync(file, "utf-8");
