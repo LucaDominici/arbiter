@@ -49,14 +49,49 @@ jobs:
       - run: ./gradlew test
 <% } %>
 
+<% if (governanceLevel !== 'L1') { %>
+  docs-check:
+    name: Docs Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check docs updated with code changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          HAS_CODE=$(echo "$CHANGED" | grep -E '^(src/|__tests__/)' || true)
+          HAS_DOCS=$(echo "$CHANGED" | grep -E '^(docs/|README\.md)' || true)
+
+          if [ -n "$HAS_CODE" ] && [ -z "$HAS_DOCS" ]; then
+            echo "::error::Code changed without documentation update"
+            echo ""
+            echo "Files changed in src/ or __tests__/:"
+            echo "$HAS_CODE"
+            echo ""
+            echo "Please update docs/ or README.md to explain the change."
+            exit 1
+          fi
+          echo "Docs check passed."
+<% } %>
+
   ci-required:
     name: CI Required
     runs-on: ubuntu-latest
-    needs: [lint-and-test]
+    needs: [lint-and-test<% if (governanceLevel !== 'L1') { %>, docs-check<% } %>]
     if: always()
     steps:
       - run: |
           if [[ "${{ needs.lint-and-test.result }}" != "success" ]]; then
-            echo "CI failed"
+            echo "lint-and-test failed"
             exit 1
-          fi
+          fi<% if (governanceLevel !== 'L1') { %>
+          if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
+            echo "docs-check failed"
+            exit 1
+          fi<% } %>
