@@ -1,0 +1,75 @@
+---
+description: Initialize a task with branch enforcement, plan gate, and tier classification
+argument-hint: '#NNN'
+---
+
+# /start-task #NNN
+
+Initialize a task properly before writing any code.
+
+## Step 1: Branch Enforcement (MANDATORY)
+
+Check current branch before any edits:
+
+```bash
+git branch --show-current
+```
+
+| Current Branch | Action |
+|----------------|--------|
+| `main` or `master` | **HARD STOP** — create task branch immediately |
+| Does NOT start with `task/` | **HARD STOP** — create task branch |
+| Starts with `task/#*` | Proceed |
+
+```bash
+git checkout -b task/#NNN-short-description
+```
+
+## Step 2: Read Context
+
+1. Read the GitHub issue: `gh issue view NNN`
+2. Read `AGENTS.md` — internalize invariants and coding standards
+3. Identify the scope: which files need to change?
+
+<% if (governanceLevel !== 'L1') { %>
+## Step 3: Classify Task Tier
+
+Based on issue scope, classify the task:
+
+| Tier | Criteria | Ceremony |
+|------|----------|----------|
+| **XS** | Single file change, obvious scope | Minimal plan |
+| **S** | 2-5 files, clear scope | Brief plan |
+| **Standard** | Multi-file, complex logic, schema changes | Full plan with risk matrix |
+
+<% } %>
+## Step <%= governanceLevel === 'L1' ? '3' : '4' %>: Create Plan
+
+<% if (governanceLevel === 'L1') { %>
+If changing 3+ files, outline your approach before editing:
+- Which files to modify
+- What tests to write
+- Which gate to run: `<%= testCommand %>`
+<% } else { %>
+Before any edits, produce a plan containing:
+
+1. **Scope**: Files to create/modify (no "etc." or "various")
+2. **Test plan**: What tests to write first (TDD)
+3. **Gate command**: `<%= testCommand %>`
+4. **Risk**: What could break (at least 1 item)
+<% if (governanceLevel === 'L3') { %>
+5. **Verification**: How to verify each acceptance criterion with evidence
+6. **SSOT updates**: Which documentation needs updating alongside code
+<% } %>
+
+**STOP HERE — await user GO before editing.**
+<% } %>
+
+## After GO
+
+<% if (governanceLevel !== 'L1') { %>
+- Use TDD: write test first, then implementation (Red → Green → Refactor)
+<% } %>
+- Run gate after each logical unit: `<%= testCommand %>`
+- Keep commits atomic: one logical change per commit
+- Commit format: `type(#NNN): summary`

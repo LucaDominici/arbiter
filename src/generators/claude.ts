@@ -116,14 +116,14 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
     );
   }
 
-  // Commands — skip if exists
+  // Commands — skip if exists (EJS templates, stack-parameterized)
   const commandsDir = resolvedPath(base, ".claude", "commands");
   const commands = ["start-task.md", "complete-task.md"];
   for (const cmd of commands) {
     results.push(
       writeFile(
         join(commandsDir, cmd),
-        renderTemplate(`claude/commands/${cmd}`, data),
+        renderTemplate(`claude/commands/${cmd}.ejs`, data),
         { skipIfExists: true },
       ),
     );
