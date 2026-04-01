@@ -7,11 +7,11 @@
 
 ## Quick Reference
 
-| Fact | Value |
-|------|-------|
-| **Project** | arbiter |
-| **Gate** | `./scripts/check-all.sh` |
-| **Full governance** | `../AGENTS.md` |
+| Fact                | Value                    |
+| ------------------- | ------------------------ |
+| **Project**         | arbiter                  |
+| **Gate**            | `./scripts/check-all.sh` |
+| **Full governance** | `../AGENTS.md`           |
 
 ---
 
@@ -55,16 +55,17 @@ Codex operates via explicit plans. Before any implementation:
 
 ## Command Translation
 
-| Claude Code | Codex Equivalent |
-|-------------|-----------------|
-| `/start-task #NNN` | Read issue → create plan → await GO |
-| `/complete-task` | Gate L2 → commit → push → PR |
-| `./scripts/check-all.sh L1` | Run before each commit |
-| `./scripts/check-all.sh L2` | Run before push/PR |
+| Claude Code                 | Codex Equivalent                    |
+| --------------------------- | ----------------------------------- |
+| `/start-task #NNN`          | Read issue → create plan → await GO |
+| `/complete-task`            | Gate L2 → commit → push → PR        |
+| `./scripts/check-all.sh L1` | Run before each commit              |
+| `./scripts/check-all.sh L2` | Run before push/PR                  |
 
 ## Hard Stops
 
 All hard stops from `AGENTS.md` apply. Additionally:
+
 - Never edit without a plan in `.agents/plan/PLAN.json`
 - Never commit directly to `main`
 - Never skip the gate

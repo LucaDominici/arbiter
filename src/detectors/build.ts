@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import type { Language } from '../wizard/types.js';
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { Language } from "../wizard/types.js";
 
 export interface BuildCommands {
   buildTool: string;
@@ -10,61 +10,70 @@ export interface BuildCommands {
   formatCommand: string;
 }
 
-export function detectBuildCommands(dir: string, language: Language): BuildCommands {
+export function detectBuildCommands(
+  dir: string,
+  language: Language,
+): BuildCommands {
   switch (language) {
-    case 'typescript': {
+    case "typescript": {
       const pkg = readPackageJson(dir);
-      const hasEslint = hasScript(pkg, 'lint');
-      const hasPrettier = JSON.stringify(pkg).includes('prettier');
+      const hasEslint = hasScript(pkg, "lint");
+      const hasPrettier = JSON.stringify(pkg).includes("prettier");
       return {
-        buildTool: 'npm',
-        buildCommand: getScript(pkg, 'build') ?? 'npm run build',
-        testCommand: getScript(pkg, 'test') ?? 'npm test',
-        lintCommand: hasEslint ? (getScript(pkg, 'lint') ?? 'npm run lint') : 'echo "no lint configured"',
-        formatCommand: hasPrettier ? 'npx prettier --check .' : 'echo "no formatter configured"',
+        buildTool: "npm",
+        buildCommand: getScript(pkg, "build") ?? "npm run build",
+        testCommand: getScript(pkg, "test") ?? "npm test",
+        lintCommand: hasEslint
+          ? (getScript(pkg, "lint") ?? "npm run lint")
+          : 'echo "no lint configured"',
+        formatCommand: hasPrettier
+          ? "npx prettier --check ."
+          : 'echo "no formatter configured"',
       };
     }
-    case 'rust': {
-      const hasCargoToml = existsSync(join(dir, 'src-tauri', 'Cargo.toml'));
-      const manifest = hasCargoToml ? '--manifest-path src-tauri/Cargo.toml' : '';
+    case "rust": {
+      const hasCargoToml = existsSync(join(dir, "src-tauri", "Cargo.toml"));
+      const manifest = hasCargoToml
+        ? "--manifest-path src-tauri/Cargo.toml"
+        : "";
       return {
-        buildTool: 'cargo',
+        buildTool: "cargo",
         buildCommand: `cargo build ${manifest}`.trim(),
         testCommand: `cargo test ${manifest}`.trim(),
         lintCommand: `cargo clippy ${manifest} -- -D warnings`.trim(),
         formatCommand: `cargo fmt ${manifest} --check`.trim(),
       };
     }
-    case 'java': {
-      const useWrapper = existsSync(join(dir, 'gradlew'));
-      const gradle = useWrapper ? './gradlew' : 'gradle';
+    case "java": {
+      const useWrapper = existsSync(join(dir, "gradlew"));
+      const gradle = useWrapper ? "./gradlew" : "gradle";
       return {
-        buildTool: 'gradle',
+        buildTool: "gradle",
         buildCommand: `${gradle} build -x test`,
         testCommand: `${gradle} test`,
         lintCommand: `${gradle} checkstyleMain`,
         formatCommand: 'echo "no formatter configured"',
       };
     }
-    case 'go':
+    case "go":
       return {
-        buildTool: 'go',
-        buildCommand: 'go build ./...',
-        testCommand: 'go test ./...',
-        lintCommand: 'golangci-lint run',
-        formatCommand: 'gofmt -l .',
+        buildTool: "go",
+        buildCommand: "go build ./...",
+        testCommand: "go test ./...",
+        lintCommand: "golangci-lint run",
+        formatCommand: "gofmt -l .",
       };
-    case 'python':
+    case "python":
       return {
-        buildTool: 'pip',
-        buildCommand: 'pip install -e .',
-        testCommand: 'pytest',
-        lintCommand: 'ruff check .',
-        formatCommand: 'ruff format --check .',
+        buildTool: "pip",
+        buildCommand: "pip install -e .",
+        testCommand: "pytest",
+        lintCommand: "ruff check .",
+        formatCommand: "ruff format --check .",
       };
     default:
       return {
-        buildTool: 'unknown',
+        buildTool: "unknown",
         buildCommand: 'echo "configure build command"',
         testCommand: 'echo "configure test command"',
         lintCommand: 'echo "configure lint command"',
@@ -75,22 +84,24 @@ export function detectBuildCommands(dir: string, language: Language): BuildComma
 
 function readPackageJson(dir: string): Record<string, unknown> {
   try {
-    return JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')) as Record<string, unknown>;
+    return JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf-8"),
+    ) as Record<string, unknown>;
   } catch {
     return {};
   }
 }
 
 function hasScript(pkg: Record<string, unknown>, name: string): boolean {
-  const scripts = pkg['scripts'];
-  return typeof scripts === 'object' && scripts !== null && name in scripts;
+  const scripts = pkg["scripts"];
+  return typeof scripts === "object" && scripts !== null && name in scripts;
 }
 
 function getScript(pkg: Record<string, unknown>, name: string): string | null {
-  const scripts = pkg['scripts'];
-  if (typeof scripts === 'object' && scripts !== null && name in scripts) {
+  const scripts = pkg["scripts"];
+  if (typeof scripts === "object" && scripts !== null && name in scripts) {
     const val = (scripts as Record<string, unknown>)[name];
-    return typeof val === 'string' ? `npm run ${name}` : null;
+    return typeof val === "string" ? `npm run ${name}` : null;
   }
   return null;
 }

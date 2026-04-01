@@ -47,14 +47,14 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 
 ## Non-Goals
 
-| Non-goal | Rationale |
-|----------|-----------|
-| Runtime enforcement (blocking bad code) | That's the AI tool's job. Arbiter sets policy, tools enforce it. |
-| AI model configuration | Which model to use is out of scope. Arbiter configures governance, not model selection. |
-| Replacing ai-rulez | ai-rulez is a format translator. Arbiter is a governance installer. They are complementary — if ai-rulez is detected, Arbiter delegates tool config generation to it. |
-| IDE plugins (VS Code extension, JetBrains plugin) | CLI-first. IDE integration comes through tool configs, not Arbiter directly. |
-| Locking to a specific AI tool | Arbiter is tool-agnostic. The canonical source (`AGENTS.md`) is read natively by all major tools. |
-| Cloud/SaaS dashboard | Offline-first CLI. No accounts, no telemetry, no cloud dependency. |
+| Non-goal                                          | Rationale                                                                                                                                                             |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime enforcement (blocking bad code)           | That's the AI tool's job. Arbiter sets policy, tools enforce it.                                                                                                      |
+| AI model configuration                            | Which model to use is out of scope. Arbiter configures governance, not model selection.                                                                               |
+| Replacing ai-rulez                                | ai-rulez is a format translator. Arbiter is a governance installer. They are complementary — if ai-rulez is detected, Arbiter delegates tool config generation to it. |
+| IDE plugins (VS Code extension, JetBrains plugin) | CLI-first. IDE integration comes through tool configs, not Arbiter directly.                                                                                          |
+| Locking to a specific AI tool                     | Arbiter is tool-agnostic. The canonical source (`AGENTS.md`) is read natively by all major tools.                                                                     |
+| Cloud/SaaS dashboard                              | Offline-first CLI. No accounts, no telemetry, no cloud dependency.                                                                                                    |
 
 ---
 
@@ -120,13 +120,13 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 
 ## Supported Stacks Matrix
 
-| Language | Detection Signal | Build | Lint | Format | Test |
-|----------|-----------------|-------|------|--------|------|
-| TypeScript | `package.json` | npm/yarn/pnpm | eslint | prettier | vitest/jest |
-| Java | `pom.xml` / `build.gradle` | gradle/maven | checkstyle | — | junit |
-| Rust | `Cargo.toml` | cargo | clippy | rustfmt | cargo test |
-| Go | `go.mod` | go | golangci-lint | gofmt | go test |
-| Python | `pyproject.toml` / `setup.py` | pip/uv | ruff | ruff | pytest |
+| Language   | Detection Signal              | Build         | Lint          | Format   | Test        |
+| ---------- | ----------------------------- | ------------- | ------------- | -------- | ----------- |
+| TypeScript | `package.json`                | npm/yarn/pnpm | eslint        | prettier | vitest/jest |
+| Java       | `pom.xml` / `build.gradle`    | gradle/maven  | checkstyle    | —        | junit       |
+| Rust       | `Cargo.toml`                  | cargo         | clippy        | rustfmt  | cargo test  |
+| Go         | `go.mod`                      | go            | golangci-lint | gofmt    | go test     |
+| Python     | `pyproject.toml` / `setup.py` | pip/uv        | ruff          | ruff     | pytest      |
 
 Multi-language repos: detected from the presence of multiple signal files. Arbiter generates a polyglot `AGENTS.md` covering all detected stacks.
 
@@ -134,10 +134,10 @@ Multi-language repos: detected from the presence of multiple signal files. Arbit
 
 ## Governance Levels
 
-| Level | Gate | Use case |
-|-------|------|----------|
-| **L1** | Lint + format + unit tests | Pre-commit, fast feedback, personal repos |
-| **L2** | L1 + integration tests + coverage ≥ 80% + dependency audit | Default, matches CI, team repos |
+| Level  | Gate                                                        | Use case                                                    |
+| ------ | ----------------------------------------------------------- | ----------------------------------------------------------- |
+| **L1** | Lint + format + unit tests                                  | Pre-commit, fast feedback, personal repos                   |
+| **L2** | L1 + integration tests + coverage ≥ 80% + dependency audit  | Default, matches CI, team repos                             |
 | **L3** | L2 + E2E tests + coverage ≥ 85% + SBOM + evidence artifacts | Audit-grade, regulated industries, OSS with strict policies |
 
 Arbiter itself operates at L3 (dogfooding its own highest governance tier).
@@ -146,13 +146,13 @@ Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
 ## Success Metrics
 
-| Metric | Target |
-|--------|--------|
-| Time from `npx arbiter init` to complete governance stack | < 60 seconds |
-| Tests passing (all stacks, all governance levels) | 200+ tests, 85%+ coverage |
-| Idempotency: running init twice produces no unintended changes | 100% |
-| Brownfield safety: existing customizations preserved | 100% of custom hooks/rules |
-| Zero proprietary or tool-specific lock-in in generated `AGENTS.md` | Always |
+| Metric                                                             | Target                     |
+| ------------------------------------------------------------------ | -------------------------- |
+| Time from `npx arbiter init` to complete governance stack          | < 60 seconds               |
+| Tests passing (all stacks, all governance levels)                  | 200+ tests, 85%+ coverage  |
+| Idempotency: running init twice produces no unintended changes     | 100%                       |
+| Brownfield safety: existing customizations preserved               | 100% of custom hooks/rules |
+| Zero proprietary or tool-specific lock-in in generated `AGENTS.md` | Always                     |
 
 ---
 
@@ -167,9 +167,9 @@ Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
 ## Open Questions
 
-| Question | Status | Recommendation |
-|----------|--------|---------------|
-| npm package name (`arbiter` vs `@arbiter/cli`) | Decided | `@arbiter/cli` (avoids conflicts, namespace reserved) |
-| License | Open | MIT (compatible with AGENTS.md spec, standard for CLI tools) |
-| Docs site | Open | Start markdown-only; plan Mintlify for v1.0 |
-| Plugin API design | Future | Not needed before v1.0 |
+| Question                                       | Status  | Recommendation                                               |
+| ---------------------------------------------- | ------- | ------------------------------------------------------------ |
+| npm package name (`arbiter` vs `@arbiter/cli`) | Decided | `@arbiter/cli` (avoids conflicts, namespace reserved)        |
+| License                                        | Open    | MIT (compatible with AGENTS.md spec, standard for CLI tools) |
+| Docs site                                      | Open    | Start markdown-only; plan Mintlify for v1.0                  |
+| Plugin API design                              | Future  | Not needed before v1.0                                       |

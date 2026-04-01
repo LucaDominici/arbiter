@@ -77,27 +77,28 @@ See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentati
 
 ## What Gets Generated
 
-| File / Directory | Always | Claude | Codex | GitHub |
-|-----------------|--------|--------|-------|--------|
-| `AGENTS.md` | ✓ | | | |
-| `.claude/CLAUDE.md` | | ✓ | | |
-| `.claude/settings.json` | | ✓ | | |
-| `.claude/hooks/` | | ✓ | | |
-| `.claude/rules/` | | ✓ | | |
-| `.claude/commands/` | | ✓ | | |
-| `.agents/CODEX.md` | | | ✓ | |
-| `.agents/rules/` | | | ✓ | |
-| `.agents/plan/` | | | ✓ | |
-| `.github/workflows/ci.yml` | | | | ✓ |
-| `.github/PULL_REQUEST_TEMPLATE.md` | | | | ✓ |
-| `.github/ISSUE_TEMPLATE/` | | | | ✓ |
-| `.github/dependabot.yml` | | | | ✓ |
-| `.github/CODEOWNERS` | | | | ✓ |
-| `SECURITY.md` | | | | ✓ |
-| `.editorconfig` | | | | ✓ |
-| `scripts/check-all.sh` | | | | ✓ |
+| File / Directory                   | Always | Claude | Codex | GitHub |
+| ---------------------------------- | ------ | ------ | ----- | ------ |
+| `AGENTS.md`                        | ✓      |        |       |        |
+| `.claude/CLAUDE.md`                |        | ✓      |       |        |
+| `.claude/settings.json`            |        | ✓      |       |        |
+| `.claude/hooks/`                   |        | ✓      |       |        |
+| `.claude/rules/`                   |        | ✓      |       |        |
+| `.claude/commands/`                |        | ✓      |       |        |
+| `.agents/CODEX.md`                 |        |        | ✓     |        |
+| `.agents/rules/`                   |        |        | ✓     |        |
+| `.agents/plan/`                    |        |        | ✓     |        |
+| `.github/workflows/ci.yml`         |        |        |       | ✓      |
+| `.github/PULL_REQUEST_TEMPLATE.md` |        |        |       | ✓      |
+| `.github/ISSUE_TEMPLATE/`          |        |        |       | ✓      |
+| `.github/dependabot.yml`           |        |        |       | ✓      |
+| `.github/CODEOWNERS`               |        |        |       | ✓      |
+| `SECURITY.md`                      |        |        |       | ✓      |
+| `.editorconfig`                    |        |        |       | ✓      |
+| `scripts/check-all.sh`             |        |        |       | ✓      |
 
 **Conflict resolution:**
+
 - `AGENTS.md`, `CLAUDE.md`, `CODEX.md` — backed up (`.bak`) and replaced
 - `settings.json` — deep merged (custom hooks preserved)
 - Hooks, rules, commands — skipped if already exist
@@ -107,29 +108,30 @@ See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentati
 
 ## Governance Levels
 
-| Level | What it gates |
-|-------|--------------|
-| **L1** | Lint + format + unit tests (fast, pre-commit) |
+| Level  | What it gates                                                   |
+| ------ | --------------------------------------------------------------- |
+| **L1** | Lint + format + unit tests (fast, pre-commit)                   |
 | **L2** | L1 + integration tests + coverage + audit (default, matches CI) |
-| **L3** | L2 + E2E + evidence artifacts (audit-grade) |
+| **L3** | L2 + E2E + evidence artifacts (audit-grade)                     |
 
 ---
 
 ## Stack Support
 
-| Language | Detected from | Build tool | Lint | Format |
-|----------|--------------|-----------|------|--------|
-| TypeScript | `package.json` | npm | eslint | prettier |
-| Java | `pom.xml` / `build.gradle` | gradle/maven | checkstyle | — |
-| Rust | `Cargo.toml` | cargo | clippy | rustfmt |
-| Go | `go.mod` | go | golangci-lint | gofmt |
-| Python | `pyproject.toml` | pip/uv | ruff | ruff |
+| Language   | Detected from              | Build tool   | Lint          | Format   |
+| ---------- | -------------------------- | ------------ | ------------- | -------- |
+| TypeScript | `package.json`             | npm          | eslint        | prettier |
+| Java       | `pom.xml` / `build.gradle` | gradle/maven | checkstyle    | —        |
+| Rust       | `Cargo.toml`               | cargo        | clippy        | rustfmt  |
+| Go         | `go.mod`                   | go           | golangci-lint | gofmt    |
+| Python     | `pyproject.toml`           | pip/uv       | ruff          | ruff     |
 
 ---
 
 ## Idempotency
 
 Running `arbiter init` twice on the same repo is safe. All generated files use deterministic conflict resolution. Re-running on an existing repo will:
+
 - Refresh `AGENTS.md` and pointer files (with backup)
 - Deep-merge `settings.json`
 - Skip any hooks/rules/templates you've customized
@@ -148,6 +150,7 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 ## Design Decisions
 
 See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
+
 - [ADR-001](docs/ADR/001-agents-md-canonical.md): Why `AGENTS.md` as canonical source (not `CLAUDE.md`)
 - [ADR-002](docs/ADR/002-thin-pointer-pattern.md): Why thin pointers instead of full governance in each tool config
 - [ADR-003](docs/ADR/003-gh-cli-required.md): Why `gh` CLI is required (not optional)

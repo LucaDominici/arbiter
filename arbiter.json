@@ -1,9 +1,6 @@
 {
   "version": "0.1",
-  "tools": [
-    "claude",
-    "codex"
-  ],
+  "tools": ["claude", "codex"],
   "governanceLevel": "L2",
   "useGitHub": true
 }

@@ -14,13 +14,14 @@ This decision was made at the start of the project, before any generator was wri
 
 Every generated file has an explicit conflict resolution strategy assigned at the point of generation:
 
-| Strategy | When used | Files |
-|----------|-----------|-------|
-| **backup + replace** | Canonical files — stateless, safe to regenerate | `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md` |
-| **deep merge** | Stateful config with both stable and project-customized sections | `.claude/settings.json` |
-| **skipIfExists** | Project-customizable files — created once, never overwritten | Hook scripts, rules, commands, GitHub workflows, issue templates, `check-all.sh`, root files |
+| Strategy             | When used                                                        | Files                                                                                        |
+| -------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **backup + replace** | Canonical files — stateless, safe to regenerate                  | `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`      |
+| **deep merge**       | Stateful config with both stable and project-customized sections | `.claude/settings.json`                                                                      |
+| **skipIfExists**     | Project-customizable files — created once, never overwritten     | Hook scripts, rules, commands, GitHub workflows, issue templates, `check-all.sh`, root files |
 
 These strategies are implemented in `src/utils/fs.ts`:
+
 - `writeFile(path, content, { backup: true })` — copies existing file to `<file>.bak`, writes new content.
 - `writeFile(path, content, { skipIfExists: true })` — returns `action: 'skipped'` if file exists, writes nothing.
 - `mergeSettingsJson(existingPath, incoming)` — deep merges: hooks union by `matcher+command`, permissions union arrays, other keys keep the existing value (existing wins).
@@ -44,11 +45,13 @@ The core insight: files fall into two categories.
 ## Consequences
 
 **Positive:**
+
 - Arbiter is safe to run on any existing project, including those with heavily customized hook scripts.
 - Re-running `arbiter init` is idempotent for stateful files — a second run produces no changes to customized hooks, rules, or commands.
 - `arbiter update` provides an explicit, opt-in path to refresh canonical files when the team decides to upgrade.
 
 **Negative:**
+
 - Users don't automatically receive updated hook templates when arbiter is upgraded. They must delete the file and re-init, or use `arbiter update`.
 - The backup file (`*.bak`) accumulates on disk over multiple re-inits. Users must clean it up manually.
 - The per-file strategy requires contributors adding new generators to consciously assign a conflict resolution strategy. There is no safe default — omitting the option throws an error.

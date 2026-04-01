@@ -38,9 +38,11 @@ if (!config.existing.aiRulez) {
 ## Consequences
 
 **Positive:**
+
 - Arbiter can be safely run on ai-rulez projects to add `AGENTS.md` and GitHub scaffolding without conflict.
 - No user configuration required — detection is automatic.
 
 **Negative:**
+
 - Users who want arbiter to manage tool configs alongside ai-rulez must manually delete their ai-rulez installation first. There is no merge or migration path.
 - The coexistence rule applies to the entire ai-rulez presence — there is no per-tool override (e.g., "generate `.cursorrules` even though ai-rulez is present").

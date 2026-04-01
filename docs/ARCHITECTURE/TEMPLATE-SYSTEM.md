@@ -40,40 +40,40 @@ Every template has access to the full `ProjectConfig` object. All fields are ava
 ```typescript
 interface ProjectConfig {
   // Core identity
-  targetDir: string;          // Absolute path to the project being initialized
-  projectName: string;        // Human-readable project name
-  description: string;        // One-line project description
+  targetDir: string; // Absolute path to the project being initialized
+  projectName: string; // Human-readable project name
+  description: string; // One-line project description
 
   // Stack
-  language: 'typescript' | 'java' | 'rust' | 'go' | 'python' | 'unknown';
-  framework: string;          // e.g. 'next', 'vue', 'react', 'express', 'spring-boot', 'quarkus', 'tauri', ''
-  buildTool: string;          // e.g. 'npm', 'gradle', 'cargo', 'go', 'pip', ''
+  language: "typescript" | "java" | "rust" | "go" | "python" | "unknown";
+  framework: string; // e.g. 'next', 'vue', 'react', 'express', 'spring-boot', 'quarkus', 'tauri', ''
+  buildTool: string; // e.g. 'npm', 'gradle', 'cargo', 'go', 'pip', ''
 
   // Commands (auto-detected or wizard-provided)
-  buildCommand: string;       // e.g. 'npm run build'
-  testCommand: string;        // e.g. 'npm test'
-  lintCommand: string;        // e.g. 'npm run lint'
-  formatCommand: string;      // e.g. 'npm run format'
+  buildCommand: string; // e.g. 'npm run build'
+  testCommand: string; // e.g. 'npm test'
+  lintCommand: string; // e.g. 'npm run lint'
+  formatCommand: string; // e.g. 'npm run format'
 
   // Tool selection
-  tools: Array<'claude' | 'codex' | 'cursor' | 'copilot'>;
+  tools: Array<"claude" | "codex" | "cursor" | "copilot">;
 
   // Governance
-  governanceLevel: 'L1' | 'L2' | 'L3';
+  governanceLevel: "L1" | "L2" | "L3";
 
   // GitHub integration
   useGitHub: boolean;
-  githubOwner: string;        // GitHub username or org, '' if not available
-  githubRepo: string;         // Repository name, '' if not available
+  githubOwner: string; // GitHub username or org, '' if not available
+  githubRepo: string; // Repository name, '' if not available
 
   // Existing state (detected before generation)
   existing: {
-    agentsMd: boolean;        // AGENTS.md present in targetDir
-    claudeDir: boolean;       // .claude/ directory present
-    agentsDir: boolean;       // .agents/ directory present
-    aiRulez: boolean;         // .ai-rulez/ or ai-rulez.yml present
-    settingsJson: boolean;    // .claude/settings.json present
-    checkAllSh: boolean;      // scripts/check-all.sh present
+    agentsMd: boolean; // AGENTS.md present in targetDir
+    claudeDir: boolean; // .claude/ directory present
+    agentsDir: boolean; // .agents/ directory present
+    aiRulez: boolean; // .ai-rulez/ or ai-rulez.yml present
+    settingsJson: boolean; // .claude/settings.json present
+    checkAllSh: boolean; // scripts/check-all.sh present
   };
 
   // Language-specific hooks
@@ -81,15 +81,16 @@ interface ProjectConfig {
 }
 
 interface LanguageHook {
-  name: string;               // Hook display name
-  matcher: string;            // File glob pattern for PreToolUse trigger
-  command: string;            // Shell command to run
+  name: string; // Hook display name
+  matcher: string; // File glob pattern for PreToolUse trigger
+  command: string; // Shell command to run
 }
 ```
 
 ### Common Template Patterns
 
 **Language conditional:**
+
 ```ejs
 <% if (language === 'typescript') { %>
 - Run `npm run typecheck` before committing.
@@ -99,6 +100,7 @@ interface LanguageHook {
 ```
 
 **Tools loop:**
+
 ```ejs
 <% tools.forEach(tool => { %>
 - <%= tool %> overlay generated at generation time.
@@ -106,6 +108,7 @@ interface LanguageHook {
 ```
 
 **Framework-specific content:**
+
 ```ejs
 <% if (framework === 'next') { %>
 ### Next.js Conventions
@@ -117,6 +120,7 @@ interface LanguageHook {
 ```
 
 **Governance level gating:**
+
 ```ejs
 <% if (governanceLevel === 'L3') { %>
 ## Audit Evidence
@@ -126,6 +130,7 @@ L3 gate requires evidence artifacts in `.evidence/` before release.
 ```
 
 **Conditional GitHub section:**
+
 ```ejs
 <% if (useGitHub && githubOwner) { %>
 **Repository:** https://github.com/<%= githubOwner %>/<%= githubRepo %>
@@ -140,68 +145,68 @@ L3 gate requires evidence artifacts in `.evidence/` before release.
 
 ### `agents-md/` (1 file)
 
-| File | Output | Type |
-|------|--------|------|
+| File            | Output      | Type    |
+| --------------- | ----------- | ------- |
 | `agents.md.ejs` | `AGENTS.md` | Dynamic |
 
 ### `claude/` (multiple files)
 
-| File | Output | Type |
-|------|--------|------|
-| `claude-md.ejs` | `.claude/CLAUDE.md` | Dynamic |
-| `settings.json.ejs` | `.claude/settings.json` (initial) | Dynamic |
-| `hooks/pre-tool-use.sh.ejs` | `.claude/hooks/pre-tool-use.sh` | Dynamic |
-| `hooks/post-tool-use.sh.ejs` | `.claude/hooks/post-tool-use.sh` | Dynamic |
-| `rules/exec-protocol.md` | `.claude/rules/exec-protocol.md` | Static |
-| `rules/mcp-usage.md` | `.claude/rules/mcp-usage.md` | Static |
-| `commands/start-task.md` | `.claude/commands/start-task.md` | Static |
-| `commands/complete-task.md` | `.claude/commands/complete-task.md` | Static |
+| File                         | Output                              | Type    |
+| ---------------------------- | ----------------------------------- | ------- |
+| `claude-md.ejs`              | `.claude/CLAUDE.md`                 | Dynamic |
+| `settings.json.ejs`          | `.claude/settings.json` (initial)   | Dynamic |
+| `hooks/pre-tool-use.sh.ejs`  | `.claude/hooks/pre-tool-use.sh`     | Dynamic |
+| `hooks/post-tool-use.sh.ejs` | `.claude/hooks/post-tool-use.sh`    | Dynamic |
+| `rules/exec-protocol.md`     | `.claude/rules/exec-protocol.md`    | Static  |
+| `rules/mcp-usage.md`         | `.claude/rules/mcp-usage.md`        | Static  |
+| `commands/start-task.md`     | `.claude/commands/start-task.md`    | Static  |
+| `commands/complete-task.md`  | `.claude/commands/complete-task.md` | Static  |
 
 ### `codex/` (multiple files)
 
-| File | Output | Type |
-|------|--------|------|
-| `codex-md.ejs` | `.agents/CODEX.md` | Dynamic |
-| `rules/exec-protocol.md` | `.agents/rules/exec-protocol.md` | Static |
-| `plan/PLAN.json` | `.agents/plan/PLAN.json` | Static |
-| `plan/CONTEXT_PACK.md` | `.agents/plan/CONTEXT_PACK.md` | Static |
+| File                     | Output                           | Type    |
+| ------------------------ | -------------------------------- | ------- |
+| `codex-md.ejs`           | `.agents/CODEX.md`               | Dynamic |
+| `rules/exec-protocol.md` | `.agents/rules/exec-protocol.md` | Static  |
+| `plan/PLAN.json`         | `.agents/plan/PLAN.json`         | Static  |
+| `plan/CONTEXT_PACK.md`   | `.agents/plan/CONTEXT_PACK.md`   | Static  |
 
 ### `cursor/` (1 file)
 
-| File | Output | Type |
-|------|--------|------|
+| File              | Output         | Type    |
+| ----------------- | -------------- | ------- |
 | `cursorrules.ejs` | `.cursorrules` | Dynamic |
 
 ### `copilot/` (1 file)
 
-| File | Output | Type |
-|------|--------|------|
+| File                          | Output                            | Type    |
+| ----------------------------- | --------------------------------- | ------- |
 | `copilot-instructions.md.ejs` | `.github/copilot-instructions.md` | Dynamic |
 
 ### `github/` (multiple files)
 
-| File | Output | Type |
-|------|--------|------|
-| `workflows/ci.yml.ejs` | `.github/workflows/ci.yml` | Dynamic |
-| `PULL_REQUEST_TEMPLATE.md` | `.github/PULL_REQUEST_TEMPLATE.md` | Static |
-| `ISSUE_TEMPLATE/bug.yml` | `.github/ISSUE_TEMPLATE/bug.yml` | Static |
-| `ISSUE_TEMPLATE/feature.yml` | `.github/ISSUE_TEMPLATE/feature.yml` | Static |
-| `ISSUE_TEMPLATE/task.yml` | `.github/ISSUE_TEMPLATE/task.yml` | Static |
-| `dependabot.yml.ejs` | `.github/dependabot.yml` | Dynamic |
+| File                         | Output                               | Type    |
+| ---------------------------- | ------------------------------------ | ------- |
+| `workflows/ci.yml.ejs`       | `.github/workflows/ci.yml`           | Dynamic |
+| `PULL_REQUEST_TEMPLATE.md`   | `.github/PULL_REQUEST_TEMPLATE.md`   | Static  |
+| `ISSUE_TEMPLATE/bug.yml`     | `.github/ISSUE_TEMPLATE/bug.yml`     | Static  |
+| `ISSUE_TEMPLATE/feature.yml` | `.github/ISSUE_TEMPLATE/feature.yml` | Static  |
+| `ISSUE_TEMPLATE/task.yml`    | `.github/ISSUE_TEMPLATE/task.yml`    | Static  |
+| `dependabot.yml.ejs`         | `.github/dependabot.yml`             | Dynamic |
 
 ### `root/` (multiple files)
 
-| File | Output | Type |
-|------|--------|------|
-| `CODEOWNERS.ejs` | `CODEOWNERS` | Dynamic |
-| `SECURITY.md` | `SECURITY.md` | Static |
-| `CONTRIBUTING.md` | `CONTRIBUTING.md` | Static |
-| `.editorconfig` | `.editorconfig` | Static |
+| File              | Output            | Type    |
+| ----------------- | ----------------- | ------- |
+| `CODEOWNERS.ejs`  | `CODEOWNERS`      | Dynamic |
+| `SECURITY.md`     | `SECURITY.md`     | Static  |
+| `CONTRIBUTING.md` | `CONTRIBUTING.md` | Static  |
+| `.editorconfig`   | `.editorconfig`   | Static  |
 
 ### `check-all/` (1 file)
 
-| File | Output | Type |
-|------|--------|------|
+| File               | Output                 | Type    |
+| ------------------ | ---------------------- | ------- |
 | `check-all.sh.ejs` | `scripts/check-all.sh` | Dynamic |
 
 ---
