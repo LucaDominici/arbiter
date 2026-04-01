@@ -6,16 +6,20 @@ This document describes arbiter's test structure, conventions, fixture approach,
 
 ## Current Test Suite
 
-6 test files covering detectors, utilities, and integration flows:
+42 test files across detectors, utils, generators, templates, integration, brownfield, matrix, and governance categories. Key areas:
 
-| File                                        | Category    | What it covers                                                                                                        |
-| ------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| `__tests__/detectors/language.test.ts`      | Unit        | Language detection by marker file presence                                                                            |
-| `__tests__/detectors/existing.test.ts`      | Unit        | Existing state detection (agentsMd, claudeDir, aiRulez, etc.)                                                         |
-| `__tests__/utils/merge.test.ts`             | Unit        | `mergeSettingsJson()` — deep merge of hooks, permissions, and other keys                                              |
-| `__tests__/utils/config.test.ts`            | Unit        | `arbiter.json` save and load roundtrip                                                                                |
-| `__tests__/integration/init.test.ts`        | Integration | Full `arbiter init` flow — AGENTS.md generated, thin pointer content, skipIfExists behavior, settings.json hook merge |
-| `__tests__/integration/update-diff.test.ts` | Integration | `arbiter update` and `arbiter diff` commands                                                                          |
+| Category                 | Files                                 | What it covers                                                      |
+| ------------------------ | ------------------------------------- | ------------------------------------------------------------------- |
+| `__tests__/detectors/`   | 6 files                               | Language, framework, build, git, hooks, existing-state detection    |
+| `__tests__/utils/`       | 4 files                               | fs, merge, config, render utilities                                 |
+| `__tests__/generators/`  | 8 files                               | Per-generator output verification (agents-md, claude, codex, etc.)  |
+| `__tests__/tools/`       | 5 files                               | Per-tool end-to-end output (Claude, Codex, Cursor, Copilot, GitHub) |
+| `__tests__/matrix/`      | 6 files (5 per-stack + cross-product) | Stack-specific generation + INV-11 cross-product combinations       |
+| `__tests__/templates/`   | 4 files                               | EJS template rendering across stacks, governance levels, and tools  |
+| `__tests__/governance/`  | 1 file                                | Governance level effects on AGENTS.md and check-all.mjs             |
+| `__tests__/integration/` | 2 files                               | Full `runInit` / `update` / `diff` command flows                    |
+| `__tests__/brownfield/`  | 4 files                               | Coexistence, backup, and merge scenarios for existing projects      |
+| `__tests__/wizard/`      | 2 files                               | Wizard prompts, dry-run, greenfield/brownfield flow                 |
 
 ---
 
@@ -92,6 +96,49 @@ Integration tests live under `__tests__/integration/` rather than mirroring a si
 **85% line coverage** is the project target, enforced in CI via `vitest --coverage`. The threshold is configured in `vitest.config.ts`.
 
 Coverage is a floor, not a goal. The meaningful test criterion is: every behavior documented in the README or a feature ADR must have a corresponding test. Coverage numbers follow from that; chasing the number without testing documented behavior is not acceptable.
+
+---
+
+## Matrix Testing (INV-11)
+
+INV-11 requires that every generated template/artifact is tested across all supported stacks (TS, Java, Rust, Go, Python) × tools (Claude, Codex, Cursor, Copilot) × governance levels (L1, L2, L3).
+
+### Coverage approach
+
+**Per-dimension tests** (existing):
+
+- `__tests__/matrix/{typescript,java,rust,go,python}.test.ts` — one stack at a time, always L2, uses `runGenerators()` end-to-end
+- `__tests__/governance/levels.test.ts` — three governance levels, always TypeScript
+- `__tests__/templates/commands-{claude,tools,governance}.test.ts` — stack or level independently
+
+**Cross-product tests** (`__tests__/matrix/cross-product.test.ts`):
+
+Tests the combinations where both stack and governance level interact in template logic. All cross-product tests use `renderTemplate()` (no filesystem setup) for speed. Coverage:
+
+| Template                                     | Combinations tested                                                                              |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `AGENTS.md.ejs`                              | 5 stacks × 3 levels: governance policy markers, language invariant isolation, L3 SSOT invariants |
+| `ci.yml.ejs`                                 | 5 stacks × 3 levels: `docs-check` presence/absence, language setup steps                         |
+| `check-all.mjs.ejs`                          | 5 stacks: per-language check commands; documents Go/Python fallback behavior                     |
+| `start-task.md.ejs` / `complete-task.md.ejs` | 5 stacks × 3 levels: testCommand in output, governance structure (tier/TDD/verification)         |
+
+### Adding cross-product tests
+
+When adding a new template that is parameterized by both `language` and `governanceLevel`, add cross-product coverage to `__tests__/matrix/cross-product.test.ts` using the established `for...of` loop pattern:
+
+```typescript
+for (const lang of LANGUAGES) {
+  for (const level of LEVELS) {
+    it(`${lang}+${level}: <assertion>`, () => {
+      const content = renderTemplate(
+        "path/to/template.ejs",
+        configFor(lang, level),
+      );
+      expect(content).toContain(/* expected cross-product output */);
+    });
+  }
+}
+```
 
 ---
 
