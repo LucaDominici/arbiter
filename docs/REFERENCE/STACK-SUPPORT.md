@@ -122,16 +122,27 @@ No framework detection implemented. Returns `null`.
 
 ### Java
 
+Build tool is auto-detected: Gradle takes priority; Maven is used when only `pom.xml` is present.
+
+**Gradle** (detected when `gradlew`, `build.gradle`, or `build.gradle.kts` is present):
+
 | Property           | Value                                                        |
 | ------------------ | ------------------------------------------------------------ |
-| **Detection**      | `pom.xml`, `build.gradle`, or `build.gradle.kts` present     |
 | **Build tool**     | `gradle`                                                     |
 | **Build command**  | `./gradlew build -x test` (uses wrapper if `gradlew` exists) |
 | **Test command**   | `./gradlew test`                                             |
-| **Lint tool**      | Checkstyle                                                   |
 | **Lint command**   | `./gradlew checkstyleMain`                                   |
-| **Format tool**    | None configured by default                                   |
 | **Format command** | `echo "no formatter configured"`                             |
+
+**Maven** (detected when only `pom.xml` is present, no Gradle files):
+
+| Property           | Value                            |
+| ------------------ | -------------------------------- |
+| **Build tool**     | `maven`                          |
+| **Build command**  | `mvn package -DskipTests`        |
+| **Test command**   | `mvn test`                       |
+| **Lint command**   | `mvn checkstyle:check`           |
+| **Format command** | `echo "no formatter configured"` |
 
 **CI workflow** (`ci.yml`):
 
