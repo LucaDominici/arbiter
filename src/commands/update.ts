@@ -1,13 +1,13 @@
-import { resolve, basename } from 'node:path';
-import { detectLanguage } from '../detectors/language.js';
-import { detectBuildCommands } from '../detectors/build.js';
-import { detectFramework } from '../detectors/framework.js';
-import { detectGitInfo } from '../detectors/git.js';
-import { detectExisting } from '../detectors/existing.js';
-import { detectGithubAccess } from '../detectors/github.js';
-import { getLanguageHooks } from '../detectors/language-hooks.js';
-import { loadConfig, saveConfig } from '../utils/config.js';
-import { runGenerators, runGithubSetup, printResults } from './init.js';
+import { resolve, basename } from "node:path";
+import { detectLanguage } from "../detectors/language.js";
+import { detectBuildCommands } from "../detectors/build.js";
+import { detectFramework } from "../detectors/framework.js";
+import { detectGitInfo } from "../detectors/git.js";
+import { detectExisting } from "../detectors/existing.js";
+import { detectGithubAccess } from "../detectors/github.js";
+import { getLanguageHooks } from "../detectors/language-hooks.js";
+import { loadConfig, saveConfig } from "../utils/config.js";
+import { runGenerators, runGithubSetup, printResults } from "./init.js";
 
 export interface UpdateOptions {
   dir: string | undefined;
@@ -18,15 +18,15 @@ export function runUpdate(options: UpdateOptions): void {
   const targetDir = resolve(options.dir ?? process.cwd());
   const projectName = basename(targetDir);
 
-  console.log('\n  Arbiter — update\n');
+  console.log("\n  Arbiter — update\n");
 
   const stored = loadConfig(targetDir);
   if (!stored) {
-    console.log('  No arbiter.json found. Run `arbiter init` first.\n');
+    console.log("  No arbiter.json found. Run `arbiter init` first.\n");
     process.exit(1);
   }
 
-  console.log('  Detecting project...');
+  console.log("  Detecting project...");
   const language = detectLanguage(targetDir);
   const framework = detectFramework(targetDir, language);
   const buildCmds = detectBuildCommands(targetDir, language);
@@ -34,8 +34,12 @@ export function runUpdate(options: UpdateOptions): void {
   const existing = detectExisting(targetDir);
   const githubAccess = detectGithubAccess();
 
-  console.log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`);
-  console.log(`  ├── Config: tools=[${stored.tools.join(',')}] level=${stored.governanceLevel}`);
+  console.log(
+    `  ├── Language: ${language}${framework ? ` / ${framework}` : ""}`,
+  );
+  console.log(
+    `  ├── Config: tools=[${stored.tools.join(",")}] level=${stored.governanceLevel}`,
+  );
 
   const useGitHub = options.github
     ? githubAccess.authenticated
@@ -61,14 +65,18 @@ export function runUpdate(options: UpdateOptions): void {
     languageHooks: getLanguageHooks(language),
   };
 
-  console.log('\n  Updating...');
+  console.log("\n  Updating...");
   const results = runGenerators(config);
   printResults(results, targetDir);
 
-  const created = results.filter(r => r.action === 'created').length;
-  const replaced = results.filter(r => r.action === 'backed-up-and-replaced').length;
-  const skipped = results.filter(r => r.action === 'skipped').length;
-  console.log(`\n  Done! ${created} created, ${replaced} updated, ${skipped} skipped.`);
+  const created = results.filter((r) => r.action === "created").length;
+  const replaced = results.filter(
+    (r) => r.action === "backed-up-and-replaced",
+  ).length;
+  const skipped = results.filter((r) => r.action === "skipped").length;
+  console.log(
+    `\n  Done! ${created} created, ${replaced} updated, ${skipped} skipped.`,
+  );
 
   runGithubSetup(config);
 

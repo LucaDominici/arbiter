@@ -35,6 +35,7 @@ type(scope): summary
 See `AGENTS.md` for the full coding standards, invariants, and testing policy.
 
 Key rules:
+
 - All code must pass the quality gate before committing
 - No `any` types — use proper type annotations
 - No orphan TODOs — every `TODO` must reference a task ID (`TODO(#NNN)`)

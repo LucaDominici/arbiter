@@ -27,10 +27,12 @@ Arbiter needs to interact with GitHub for label provisioning, issue templates, a
 ## Consequences
 
 **Positive:**
+
 - Zero token handling in arbiter code -- security responsibility delegated to `gh`.
 - Graceful degradation: repos without `gh` still get all non-GitHub features.
 - Familiar tool for developers already using GitHub.
 
 **Negative:**
+
 - Hard dependency on `gh` CLI for GitHub features (must be installed and authenticated).
 - Users on GitHub Enterprise with non-standard auth may need extra `gh` configuration.

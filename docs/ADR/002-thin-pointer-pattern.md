@@ -35,10 +35,12 @@ Template:
 ## Consequences
 
 **Positive:**
+
 - Governance is maintained in exactly one place (AGENTS.md).
 - Tool-specific configs stay minimal and easy to review.
 - Adding a new tool requires only a new thin pointer file.
 
 **Negative:**
+
 - Developers must follow the convention of not putting governance into tool files.
 - The pointer comment is a social contract, not enforced mechanically (could add a lint rule later).

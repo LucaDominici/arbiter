@@ -10,23 +10,23 @@ All templates live under `src/templates/` and are rendered by `ejs` using the `P
 
 These variables are available to every template via `ProjectConfig`:
 
-| Variable | Type | Example | Description |
-|----------|------|---------|-------------|
-| `projectName` | string | `my-app` | Inferred from directory name or git repo |
-| `description` | string | `my-app project` | Short project description |
-| `language` | string | `typescript` | Detected language (`typescript`, `java`, `rust`, `go`, `python`, `unknown`) |
-| `framework` | string \| null | `express+react` | Detected framework (null if none) |
-| `buildTool` | string | `npm` | Build system (`npm`, `cargo`, `gradle`, `go`, `pip`) |
-| `buildCommand` | string | `npm run build` | Full build command |
-| `testCommand` | string | `npm test` | Full test command |
-| `lintCommand` | string | `npm run lint` | Full lint command |
-| `formatCommand` | string | `npx prettier --check .` | Full format command |
-| `governanceLevel` | string | `L2` | Governance tier (`L1`, `L2`, `L3`) |
-| `tools` | string[] | `["claude","codex"]` | Selected AI tools |
-| `useGitHub` | boolean | `true` | Whether GitHub setup is enabled |
-| `githubOwner` | string \| null | `LucaDominici` | GitHub org or username |
-| `githubRepo` | string \| null | `my-app` | GitHub repository name |
-| `languageHooks` | LanguageHook[] | (see Hooks doc) | Language-specific hook definitions |
+| Variable          | Type           | Example                  | Description                                                                 |
+| ----------------- | -------------- | ------------------------ | --------------------------------------------------------------------------- |
+| `projectName`     | string         | `my-app`                 | Inferred from directory name or git repo                                    |
+| `description`     | string         | `my-app project`         | Short project description                                                   |
+| `language`        | string         | `typescript`             | Detected language (`typescript`, `java`, `rust`, `go`, `python`, `unknown`) |
+| `framework`       | string \| null | `express+react`          | Detected framework (null if none)                                           |
+| `buildTool`       | string         | `npm`                    | Build system (`npm`, `cargo`, `gradle`, `go`, `pip`)                        |
+| `buildCommand`    | string         | `npm run build`          | Full build command                                                          |
+| `testCommand`     | string         | `npm test`               | Full test command                                                           |
+| `lintCommand`     | string         | `npm run lint`           | Full lint command                                                           |
+| `formatCommand`   | string         | `npx prettier --check .` | Full format command                                                         |
+| `governanceLevel` | string         | `L2`                     | Governance tier (`L1`, `L2`, `L3`)                                          |
+| `tools`           | string[]       | `["claude","codex"]`     | Selected AI tools                                                           |
+| `useGitHub`       | boolean        | `true`                   | Whether GitHub setup is enabled                                             |
+| `githubOwner`     | string \| null | `LucaDominici`           | GitHub org or username                                                      |
+| `githubRepo`      | string \| null | `my-app`                 | GitHub repository name                                                      |
+| `languageHooks`   | LanguageHook[] | (see Hooks doc)          | Language-specific hook definitions                                          |
 
 ---
 
@@ -42,20 +42,20 @@ These variables are available to every template via `ProjectConfig`:
 
 ### Conditional Branches
 
-| Condition | Section Affected | Effect |
-|-----------|-----------------|--------|
-| `framework` truthy | Project table | Appends ` / <framework>` to Stack row |
-| `language === 'java'` | Invariants Tier 1 | Adds INV-03 (hexagonal architecture) |
-| `language === 'typescript'` | Invariants Tier 2 | Adds INV-04 (no `any`), INV-05 (no unused exports) |
-| `language === 'rust'` | Invariants Tier 2 | Adds INV-04 (no `.unwrap()`), INV-05 (no `unsafe`) |
-| `language === 'java'` | Invariants Tier 2 | Adds INV-04 (no raw types), INV-05 (complexity limits) |
-| `governanceLevel === 'L3'` | Invariants Tier 3 | Adds INV-11 (evidence artifacts), INV-12 (SSOT drift check) |
-| `language === 'typescript'` | Coding Standards | TypeScript-specific rules (strict mode, no `any`, etc.) |
-| `language === 'rust'` | Coding Standards | Rust-specific rules (doc comments, `?` operator, clippy pedantic) |
-| `language === 'java'` | Coding Standards | Java-specific rules (hexagonal, constructor injection, records) |
-| `governanceLevel === 'L1'` | Testing Policy | L1: unit tests, 70% coverage target |
-| `governanceLevel === 'L2'` | Testing Policy | L2: 80% coverage, integration tests, TDD preferred |
-| `governanceLevel === 'L3'` | Testing Policy | L3: 85% coverage, E2E, evidence artifacts, TDD required |
+| Condition                   | Section Affected  | Effect                                                            |
+| --------------------------- | ----------------- | ----------------------------------------------------------------- |
+| `framework` truthy          | Project table     | Appends ` / <framework>` to Stack row                             |
+| `language === 'java'`       | Invariants Tier 1 | Adds INV-03 (hexagonal architecture)                              |
+| `language === 'typescript'` | Invariants Tier 2 | Adds INV-04 (no `any`), INV-05 (no unused exports)                |
+| `language === 'rust'`       | Invariants Tier 2 | Adds INV-04 (no `.unwrap()`), INV-05 (no `unsafe`)                |
+| `language === 'java'`       | Invariants Tier 2 | Adds INV-04 (no raw types), INV-05 (complexity limits)            |
+| `governanceLevel === 'L3'`  | Invariants Tier 3 | Adds INV-11 (evidence artifacts), INV-12 (SSOT drift check)       |
+| `language === 'typescript'` | Coding Standards  | TypeScript-specific rules (strict mode, no `any`, etc.)           |
+| `language === 'rust'`       | Coding Standards  | Rust-specific rules (doc comments, `?` operator, clippy pedantic) |
+| `language === 'java'`       | Coding Standards  | Java-specific rules (hexagonal, constructor injection, records)   |
+| `governanceLevel === 'L1'`  | Testing Policy    | L1: unit tests, 70% coverage target                               |
+| `governanceLevel === 'L2'`  | Testing Policy    | L2: 80% coverage, integration tests, TDD preferred                |
+| `governanceLevel === 'L3'`  | Testing Policy    | L3: 85% coverage, E2E, evidence artifacts, TDD required           |
 
 ---
 
@@ -71,10 +71,10 @@ These variables are available to every template via `ProjectConfig`:
 
 **Conditional Branches:**
 
-| Condition | Effect |
-|-----------|--------|
-| `language === 'typescript'` | Adds `check-no-any.sh` hook row |
-| `language === 'rust'` | Adds `check-no-unwrap.sh` hook row |
+| Condition                   | Effect                             |
+| --------------------------- | ---------------------------------- |
+| `language === 'typescript'` | Adds `check-no-any.sh` hook row    |
+| `language === 'rust'`       | Adds `check-no-unwrap.sh` hook row |
 
 ### `.claude/settings.json`
 
@@ -86,12 +86,12 @@ These variables are available to every template via `ProjectConfig`:
 
 **Conditional Branches:**
 
-| Condition | Effect |
-|-----------|--------|
+| Condition                  | Effect                                                          |
+| -------------------------- | --------------------------------------------------------------- |
 | `languageHooks` (iterated) | Adds language-specific PostToolUse hooks to Edit\|Write matcher |
-| `buildTool === 'npm'` | Adds `npm run *`, `npx *`, `node *` to permissions allow list |
-| `buildTool === 'cargo'` | Adds `cargo *` to permissions allow list |
-| `buildTool === 'gradle'` | Adds `./gradlew *`, `gradle *` to permissions allow list |
+| `buildTool === 'npm'`      | Adds `npm run *`, `npx *`, `node *` to permissions allow list   |
+| `buildTool === 'cargo'`    | Adds `cargo *` to permissions allow list                        |
+| `buildTool === 'gradle'`   | Adds `./gradlew *`, `gradle *` to permissions allow list        |
 
 ### `.claude/hooks/lib.sh`
 
@@ -161,8 +161,8 @@ These variables are available to every template via `ProjectConfig`:
 
 **Conditional Branches:**
 
-| Condition | Effect |
-|-----------|--------|
+| Condition          | Effect                                   |
+| ------------------ | ---------------------------------------- |
 | `framework` truthy | Appends ` / <framework>` to Language row |
 
 ---
@@ -179,8 +179,8 @@ These variables are available to every template via `ProjectConfig`:
 
 **Conditional Branches:**
 
-| Condition | Effect |
-|-----------|--------|
+| Condition          | Effect                                   |
+| ------------------ | ---------------------------------------- |
 | `framework` truthy | Appends ` / <framework>` to Language row |
 
 ---
@@ -197,11 +197,11 @@ These variables are available to every template via `ProjectConfig`:
 
 **Conditional Branches:**
 
-| Condition | CI Job Steps |
-|-----------|-------------|
-| `language === 'typescript'` | Node 20 setup, `npm ci`, `npm run typecheck`, `npm run lint`, `npm test -- --coverage` |
-| `language === 'rust'` | Rust stable toolchain (clippy + rustfmt), `cargo fmt --check`, `cargo clippy`, `cargo test` |
-| `language === 'java'` | Java 21 Temurin, Gradle setup, `./gradlew checkstyleMain`, `./gradlew test` |
+| Condition                   | CI Job Steps                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| `language === 'typescript'` | Node 20 setup, `npm ci`, `npm run typecheck`, `npm run lint`, `npm test -- --coverage`      |
+| `language === 'rust'`       | Rust stable toolchain (clippy + rustfmt), `cargo fmt --check`, `cargo clippy`, `cargo test` |
+| `language === 'java'`       | Java 21 Temurin, Gradle setup, `./gradlew checkstyleMain`, `./gradlew test`                 |
 
 All variants include a `ci-required` rollup job that gates on `lint-and-test`.
 
@@ -215,11 +215,11 @@ All variants include a `ci-required` rollup job that gates on `lint-and-test`.
 
 **Conditional Branches:**
 
-| Condition | Package Ecosystem |
-|-----------|------------------|
-| `buildTool === 'npm'` | `npm` |
-| `buildTool === 'cargo'` | `cargo` |
-| `buildTool === 'gradle'` | `gradle` |
+| Condition                | Package Ecosystem |
+| ------------------------ | ----------------- |
+| `buildTool === 'npm'`    | `npm`             |
+| `buildTool === 'cargo'`  | `cargo`           |
+| `buildTool === 'gradle'` | `gradle`          |
 
 All variants also include `github-actions` ecosystem (always present).
 
@@ -247,12 +247,12 @@ All variants also include `github-actions` ecosystem (always present).
 
 **Conditional Branches:**
 
-| Condition | Effect |
-|-----------|--------|
-| `language === 'typescript'` | Adds "No `any` types" rule |
-| `language === 'rust'` | Adds "No `.unwrap()`" rule |
-| `lintCommand` truthy | Adds lint command reference |
-| `formatCommand` truthy | Adds format command reference |
+| Condition                   | Effect                        |
+| --------------------------- | ----------------------------- |
+| `language === 'typescript'` | Adds "No `any` types" rule    |
+| `language === 'rust'`       | Adds "No `.unwrap()`" rule    |
+| `lintCommand` truthy        | Adds lint command reference   |
+| `formatCommand` truthy      | Adds format command reference |
 
 ### `SECURITY.md`
 
@@ -278,8 +278,8 @@ All variants also include `github-actions` ecosystem (always present).
 
 **Conditional Branches:**
 
-| Condition | L1 Checks | L2 Checks |
-|-----------|-----------|-----------|
+| Condition                   | L1 Checks                                                    | L2 Checks                      |
+| --------------------------- | ------------------------------------------------------------ | ------------------------------ |
 | `language === 'typescript'` | `tsc --noEmit`, `prettier --check`, `eslint src`, `npm test` | `npm audit --audit-level=high` |
-| `language === 'rust'` | `cargo fmt --check`, `cargo clippy`, `cargo test` | `cargo audit` |
-| `language === 'java'` | `./gradlew checkstyleMain`, `./gradlew test` | `./gradlew integrationTest` |
+| `language === 'rust'`       | `cargo fmt --check`, `cargo clippy`, `cargo test`            | `cargo audit`                  |
+| `language === 'java'`       | `./gradlew checkstyleMain`, `./gradlew test`                 | `./gradlew integrationTest`    |

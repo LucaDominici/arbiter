@@ -9,13 +9,13 @@
 
 ## Project
 
-| Fact | Value |
-|------|-------|
-| **What** | arbiter project |
-| **Stack** | typescript |
-| **Build** | `npm run build` |
-| **Test** | `npm run test` |
-| **Gate** | `./scripts/check-all.sh` (mandatory before commit) |
+| Fact      | Value                                              |
+| --------- | -------------------------------------------------- |
+| **What**  | arbiter project                                    |
+| **Stack** | typescript                                         |
+| **Build** | `npm run build`                                    |
+| **Test**  | `npm run test`                                     |
+| **Gate**  | `./scripts/check-all.sh` (mandatory before commit) |
 
 ---
 
@@ -90,6 +90,7 @@ Summary: imperative, lowercase, ≤ 72 chars
 ```
 
 Examples:
+
 - `feat(auth): add OAuth2 token refresh`
 - `fix(#123): resolve null pointer in payment flow`
 - `test: add integration tests for user registration`
@@ -117,6 +118,7 @@ L3 (deep, nightly/CI):    L2 + E2E + static analysis + evidence
 ```
 
 Run locally:
+
 ```bash
 ./scripts/check-all.sh L1   # before commit
 ./scripts/check-all.sh L2   # before push
@@ -128,10 +130,10 @@ Run locally:
 
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:
 
-| File | Tool | Purpose |
-|------|------|---------|
-| `.claude/CLAUDE.md` | Claude Code | Hook configuration, sub-agents, slash commands |
-| `.agents/CODEX.md` | OpenAI Codex | Plan JSON schema, execution router |
+| File                | Tool         | Purpose                                        |
+| ------------------- | ------------ | ---------------------------------------------- |
+| `.claude/CLAUDE.md` | Claude Code  | Hook configuration, sub-agents, slash commands |
+| `.agents/CODEX.md`  | OpenAI Codex | Plan JSON schema, execution router             |
 
 When using Claude Code: read `.claude/CLAUDE.md` for Claude-specific configuration.
 When using Codex: read `.agents/CODEX.md` for Codex-specific configuration.

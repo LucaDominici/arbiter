@@ -7,6 +7,7 @@
 ## Context
 
 AI coding tools each have their own config file format:
+
 - Claude Code: `CLAUDE.md` / `.claude/`
 - Codex: `AGENTS.md` / `.agents/`
 - Cursor: `.cursorrules`
@@ -35,10 +36,12 @@ Maintaining governance in each tool's native format causes drift. The question w
 ## Consequences
 
 **Positive:**
+
 - Single place to update governance rules for all AI coding tools.
 - Aligns with the emerging industry standard (AAIF).
 - No vendor lock-in to any specific tool's format.
 
 **Negative:**
+
 - Teams unfamiliar with AGENTS.md need onboarding on the convention.
 - Tool-specific features that don't map to AGENTS.md still need separate files (addressed by ADR-002).

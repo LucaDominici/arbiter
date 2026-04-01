@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, writeFileSync, copyFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export interface WriteResult {
   path: string;
-  action: 'created' | 'skipped' | 'backed-up-and-replaced';
+  action: "created" | "skipped" | "backed-up-and-replaced";
 }
 
 /**
@@ -20,31 +20,38 @@ export function writeFile(
 
   if (existsSync(filePath)) {
     if (skipIfExists) {
-      return { path: filePath, action: 'skipped' };
+      return { path: filePath, action: "skipped" };
     }
     if (backup) {
       copyFileSync(filePath, `${filePath}.arbiter-backup`);
     }
     mkdirSync(dirname(filePath), { recursive: true });
-    writeFileSync(filePath, content, 'utf-8');
-    return { path: filePath, action: 'backed-up-and-replaced' };
+    writeFileSync(filePath, content, "utf-8");
+    return { path: filePath, action: "backed-up-and-replaced" };
   }
 
   mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, content, 'utf-8');
-  return { path: filePath, action: 'created' };
+  writeFileSync(filePath, content, "utf-8");
+  return { path: filePath, action: "created" };
 }
 
 /**
  * Copy a static file (non-template) to the target.
  */
-export function copyStaticFile(src: string, dest: string, opts: { skipIfExists?: boolean } = {}): WriteResult {
+export function copyStaticFile(
+  src: string,
+  dest: string,
+  opts: { skipIfExists?: boolean } = {},
+): WriteResult {
   if (existsSync(dest) && opts.skipIfExists) {
-    return { path: dest, action: 'skipped' };
+    return { path: dest, action: "skipped" };
   }
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(src, dest);
-  return { path: dest, action: existsSync(dest) ? 'backed-up-and-replaced' : 'created' };
+  return {
+    path: dest,
+    action: existsSync(dest) ? "backed-up-and-replaced" : "created",
+  };
 }
 
 /**
@@ -59,9 +66,17 @@ export function mergeSettingsJson(
   for (const [key, incomingVal] of Object.entries(incoming)) {
     const existingVal = existing[key];
 
-    if (key === 'hooks' && isHooksObject(incomingVal) && isHooksObject(existingVal)) {
+    if (
+      key === "hooks" &&
+      isHooksObject(incomingVal) &&
+      isHooksObject(existingVal)
+    ) {
       result[key] = mergeHooks(existingVal, incomingVal);
-    } else if (key === 'permissions' && isPermissions(incomingVal) && isPermissions(existingVal)) {
+    } else if (
+      key === "permissions" &&
+      isPermissions(incomingVal) &&
+      isPermissions(existingVal)
+    ) {
       result[key] = mergePermissions(existingVal, incomingVal);
     } else if (existingVal === undefined) {
       result[key] = incomingVal;
@@ -72,16 +87,19 @@ export function mergeSettingsJson(
   return result;
 }
 
-type HookEntry = { matcher: string; hooks: { type: string; command: string; timeout?: number }[] };
+type HookEntry = {
+  matcher: string;
+  hooks: { type: string; command: string; timeout?: number }[];
+};
 type HooksObject = Record<string, HookEntry[]>;
 type Permissions = { allow?: string[]; deny?: string[] };
 
 function isHooksObject(val: unknown): val is HooksObject {
-  return typeof val === 'object' && val !== null && !Array.isArray(val);
+  return typeof val === "object" && val !== null && !Array.isArray(val);
 }
 
 function isPermissions(val: unknown): val is Permissions {
-  return typeof val === 'object' && val !== null && !Array.isArray(val);
+  return typeof val === "object" && val !== null && !Array.isArray(val);
 }
 
 function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
@@ -93,10 +111,14 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
 
     for (const incomingEntry of incomingEntries) {
       // Find existing entry with same matcher
-      const existingEntry = merged.find(e => e.matcher === incomingEntry.matcher);
+      const existingEntry = merged.find(
+        (e) => e.matcher === incomingEntry.matcher,
+      );
       if (existingEntry) {
         // Union hooks by command
-        const existingCommands = new Set(existingEntry.hooks.map(h => h.command));
+        const existingCommands = new Set(
+          existingEntry.hooks.map((h) => h.command),
+        );
         for (const hook of incomingEntry.hooks) {
           if (!existingCommands.has(hook.command)) {
             existingEntry.hooks.push(hook);
@@ -113,8 +135,13 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
   return result;
 }
 
-function mergePermissions(existing: Permissions, incoming: Permissions): Permissions {
-  const unionArrays = (a: string[] = [], b: string[] = []): string[] => [...new Set([...a, ...b])];
+function mergePermissions(
+  existing: Permissions,
+  incoming: Permissions,
+): Permissions {
+  const unionArrays = (a: string[] = [], b: string[] = []): string[] => [
+    ...new Set([...a, ...b]),
+  ];
   return {
     allow: unionArrays(existing.allow, incoming.allow),
     deny: unionArrays(existing.deny, incoming.deny),

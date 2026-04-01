@@ -12,11 +12,11 @@ Different development phases have different quality gate needs. Pre-commit hooks
 
 Three gate levels, strictly nested (L1 ⊂ L2 ⊂ L3):
 
-| Level | Checks | Default use |
-|-------|--------|-------------|
-| L1 | Format + lint + unit tests | Pre-commit (fast) |
-| L2 | L1 + integration + coverage + audit | Pre-push, CI (default) |
-| L3 | L2 + E2E + evidence artifacts | Release, audit-grade repos |
+| Level | Checks                              | Default use                |
+| ----- | ----------------------------------- | -------------------------- |
+| L1    | Format + lint + unit tests          | Pre-commit (fast)          |
+| L2    | L1 + integration + coverage + audit | Pre-push, CI (default)     |
+| L3    | L2 + E2E + evidence artifacts       | Release, audit-grade repos |
 
 ## Rationale
 
@@ -28,11 +28,13 @@ Three gate levels, strictly nested (L1 ⊂ L2 ⊂ L3):
 ## Consequences
 
 **Positive:**
+
 - Local-CI parity: developers know that passing L2 locally means CI will pass.
 - Fast feedback during development (L1) without sacrificing thoroughness at push time (L2).
 - Audit-grade repos get a dedicated level (L3) without burdening everyday development.
 
 **Negative:**
+
 - Three levels add conceptual overhead for new contributors.
 - L3 evidence artifact generation may be slow, discouraging its use outside release workflows.
 - Custom checks that don't fit neatly into the three levels require project-specific configuration.

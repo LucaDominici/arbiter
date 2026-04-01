@@ -5,6 +5,7 @@
 **Do not open a public GitHub issue for security vulnerabilities.**
 
 Report security issues privately to the maintainer:
+
 - Email: (configure your contact email)
 - Or use GitHub's private vulnerability reporting: Settings → Security → Advisories
 
