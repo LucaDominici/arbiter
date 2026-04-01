@@ -217,6 +217,19 @@ Commit this file so that `arbiter update` works in CI and for teammates.
 
 ---
 
+## Environment Variables
+
+Arbiter does not read any custom environment variables. All configuration is via CLI flags or `arbiter.json`.
+
+Standard environment context used implicitly:
+
+| Variable | Source | Usage |
+|----------|--------|-------|
+| `PATH` | Shell | Locates `gh`, `git`, `node`, build tools |
+| `HOME` | OS | Resolves `~` in paths |
+
+---
+
 ## Exit Codes
 
 | Code | Meaning |
@@ -225,3 +238,51 @@ Commit this file so that `arbiter update` works in CI and for teammates.
 | 1 | Fatal error (template not found, permission denied, arbiter.json missing) |
 
 Label provisioning and branch protection errors are non-fatal (logged, not thrown).
+
+---
+
+## Common Workflows
+
+### Greenfield project (new repo, no existing governance)
+
+```bash
+mkdir my-project && cd my-project
+git init && npm init -y
+arbiter init
+# Interactive wizard detects TypeScript, asks for tools + level
+git add -A && git commit -m "chore: bootstrap AI governance"
+```
+
+### Brownfield project (existing repo, adding governance)
+
+```bash
+cd existing-project
+arbiter init --yes --tools claude,codex --level L2
+# Backs up any existing AGENTS.md, merges .claude/settings.json
+# Skips files that already exist (hooks, workflows, rules)
+git diff  # review changes
+git add -A && git commit -m "chore: add arbiter governance"
+```
+
+### CI mode (non-interactive, scripted setup)
+
+```bash
+arbiter init --yes --tools claude --level L1 --dir /workspace
+# No prompts, deterministic output
+```
+
+### Upgrading after arbiter version bump
+
+```bash
+npm update -g @arbiter/cli
+arbiter diff            # preview what would change
+arbiter update          # regenerate canonical files, preserve customizations
+```
+
+### Adding GitHub setup to an existing arbiter project
+
+```bash
+arbiter update --github
+# Forces label provisioning + branch protection even if
+# useGitHub was false in arbiter.json
+```
