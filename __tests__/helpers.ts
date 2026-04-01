@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Language } from "../src/wizard/types.js";
+import type { Language, ProjectConfig } from "../src/wizard/types.js";
 
 /**
  * Create a temp directory with language-specific marker files.
@@ -71,4 +71,41 @@ export function initGit(dir: string, remote?: string): void {
  */
 export function cleanupTestProject(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
+}
+
+/**
+ * Build a ProjectConfig fixture with sensible defaults.
+ * Pass overrides for any field you need to vary.
+ */
+export function makeConfig(
+  dir: string,
+  overrides: Partial<ProjectConfig> = {},
+): ProjectConfig {
+  return {
+    targetDir: dir,
+    projectName: "test-project",
+    description: "Test project",
+    language: "typescript",
+    framework: null,
+    buildTool: "npm",
+    buildCommand: "npm run build",
+    testCommand: "npm test",
+    lintCommand: "npm run lint",
+    formatCommand: "npx prettier --check .",
+    tools: ["claude", "codex"],
+    governanceLevel: "L2",
+    useGitHub: false,
+    githubOwner: null,
+    githubRepo: null,
+    existing: {
+      agentsMd: false,
+      claudeDir: false,
+      agentsDir: false,
+      aiRulez: false,
+      settingsJson: false,
+      checkAllSh: false,
+    },
+    languageHooks: [],
+    ...overrides,
+  };
 }
