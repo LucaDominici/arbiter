@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Version:** 0.1
-**Last updated:** 2026-04-01
+**Last updated:** 2026-04-02
 **Owner:** Luca Dominici
 
 ---
@@ -104,13 +104,35 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 - `--dry-run` flag for `arbiter init`
 - Show-before-modify: no silent overwrites
 
-### Phase 7 — Plugin System and Remote Templates (future)
+### Phase 7 — Foundation Repair + Stack Parity (M12-M13)
+
+- Go and Python stack parity: functional CI, gates, hooks, coding standards, invariants
+- Java Maven support (currently only Gradle in templates)
+- Documentation alignment: fix all .sh → .mjs drift, dead files, AGENTS.md claim accuracy
+- Retroactive fix for all CRITICAL/MAJOR findings from M1-M11 analysis (ADR-014)
+
+### Phase 8 — Tech Debt Prevention (M14-M16)
+
+- Arbiter self-enforcement: coverage thresholds, complexity limits, dead code detection, git hooks, commitlint
+- Generated per-stack debt gates: coverage, complexity, dead code, circular deps for all 5 stacks
+- Novel anti-tech-debt mechanism: proactive debt detection with baseline tracking and regression prevention
+- Each stack gets equivalent enforcement (not just TypeScript/Rust/Java)
+
+### Phase 9 — Advanced Generation (M17-M21)
+
+- Advanced hooks: plan-anchor, debug-state, pre-compact, dispatch
+- Rich invariant catalog: 25+ invariants across 5 tiers, all stacks
+- Skills and sub-agent generation: skeleton skills and agent definitions
+- SSOT framework generation: knowledge map, track router, engineering defaults
+- Richer GitHub integration: task-brief templates, epic templates, project boards
+
+### Phase 10 — Plugin System and Remote Templates (future)
 
 - Plugin API: allow custom generators
 - Remote template loading from GitHub
 - Private template registries
 
-### Phase 8 — Extended AI Tool Support (future)
+### Phase 11 — Extended AI Tool Support (future)
 
 - Gemini CLI: `.gemini/GEMINI.md` + tool integration
 - Windsurf: `windsurf-instructions.md`
