@@ -52,3 +52,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 011 | [Brownfield-first design](011-brownfield-first-design.md)               | Accepted | 2026-04-01 | Per-file conflict resolution strategies (backup+replace, deep merge, skipIfExists) designed for existing projects |
 | 012 | [3-layer documentation enforcement](012-doc-enforcement.md)             | Accepted | 2026-04-01 | CI blocks PRs with code changes but no docs updates; advisory hook + CI job + generated for L2+ target projects   |
 | 013 | [Fixture-based per-claim testing](013-testing-matrix.md)                | Accepted | 2026-04-01 | Every documented behavior maps to a dedicated test; real filesystem fixtures, no fs mocking                       |
+| 014 | [Tech debt prevention strategy](014-tech-debt-prevention-strategy.md)   | Accepted | 2026-04-02 | Foundation-first resequencing: fix Go/Python, align docs, self-enforce, then generate debt gates for all stacks   |

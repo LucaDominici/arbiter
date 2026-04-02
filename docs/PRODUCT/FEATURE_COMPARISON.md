@@ -1,6 +1,6 @@
 # Arbiter — Feature Comparison Matrix
 
-**Last updated:** 2026-04-01 (post-M11)
+**Last updated:** 2026-04-02 (post-M11, resequenced per ADR-014)
 **Updated after each milestone.**
 
 ---
@@ -141,14 +141,20 @@
 
 ## Milestone Tracker
 
-| Milestone                      | Issue   | Status   | Features Added      |
-| ------------------------------ | ------- | -------- | ------------------- |
-| M1-M10                         | #10-#19 | Done     | 32 features (G)     |
-| M11: Workflow Commands         | #34     | **Done** | +5 (rows 8-12)      |
-| M12: Advanced Hooks            | #35     | Planned  | +6 (rows 27, 31-36) |
-| M13: Skills & Sub-Agents       | #36     | Planned  | +3 (rows 17-18, 21) |
-| M14: Rich Invariant Catalog    | #37     | Planned  | +2 (rows 2, 10)     |
-| M15: SSOT Framework            | #38     | Planned  | +5 (rows 43-46, 49) |
-| M16: Richer GitHub Integration | #39     | Planned  | +2 (rows 52, 57)    |
+| Milestone                              | Issue   | Status   | Features Added                            |
+| -------------------------------------- | ------- | -------- | ----------------------------------------- |
+| M1-M10                                 | #10-#19 | Done     | 32 features (G)                           |
+| M11: Workflow Commands                 | #34     | **Done** | +5 (rows 8-12)                            |
+| M12: Go/Python Stack Parity            | #44     | Planned  | Fix: rows 6-7 for Go/Python (quality)     |
+| M13: Doc Alignment + Retroactive Fixes | #45     | Planned  | Fix: documentation accuracy (no new rows) |
+| M14: Arbiter Self-Enforcement          | #46     | Planned  | Infra: dog-food enforcement (no new rows) |
+| M15: Generated Tech Debt Gates         | #47     | Planned  | +N rows TBD (coverage, complexity, etc.)  |
+| M16: Novel Anti-Debt Mechanism         | #43     | Planned  | +N rows TBD (debt detection system)       |
+| M17: Advanced Hooks                    | #35     | Planned  | +6 (rows 27, 31-36)                       |
+| M18: Rich Invariant Catalog            | #37     | Planned  | +2 (rows 2, 10)                           |
+| M19: Skills & Sub-Agents               | #36     | Planned  | +3 (rows 17-18, 21)                       |
+| M20: SSOT Framework                    | #38     | Planned  | +5 (rows 43-46, 49)                       |
+| M21: Richer GitHub Integration         | #39     | Planned  | +2 (rows 52, 57)                          |
 
-**Target after M16:** 60/85 features (71%) -- closing the gap with Viafera.
+**Target after M21:** 60+ /85 features (71%+) -- closing the gap with Viafera.
+**M12-M16 focus:** Foundation repair + tech debt prevention (quality over quantity).
