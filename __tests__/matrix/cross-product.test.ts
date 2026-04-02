@@ -306,6 +306,28 @@ describe("cross-product: check-all.mjs — language check commands", () => {
   });
 });
 
+// ─── Java Maven variant ───────────────────────────────────────────────────────
+
+describe("cross-product: ci.yml — Java Maven variant", () => {
+  function renderCiMaven(level: GovernanceLevel): string {
+    return renderTemplate("github/workflows/ci.yml.ejs", {
+      ...configFor("java", level),
+      buildTool: "maven",
+      useGitHub: true,
+    });
+  }
+
+  for (const level of LEVELS) {
+    it(`java-maven+${level}: contains mvn; no gradlew; retains setup-java`, () => {
+      const content = renderCiMaven(level);
+      expect(content).toContain("mvn");
+      expect(content).toContain("setup-java");
+      expect(content).not.toContain("gradlew");
+      expect(content).not.toContain("setup-gradle");
+    });
+  }
+});
+
 // ─── Claude commands ──────────────────────────────────────────────────────────
 
 describe("cross-product: start-task.md — testCommand in output for all stack × level combinations", () => {
