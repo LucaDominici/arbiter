@@ -99,7 +99,7 @@ See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentati
 
 **Conflict resolution:**
 
-- `AGENTS.md`, `CLAUDE.md`, `CODEX.md` — backed up (`.bak`) and replaced
+- `AGENTS.md`, `CLAUDE.md`, `CODEX.md` — backed up (`.arbiter-backup`) and replaced
 - `settings.json` — deep merged (custom hooks preserved)
 - Hooks, rules, commands — skipped if already exist
 - GitHub templates, workflows — skipped if already exist

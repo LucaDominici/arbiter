@@ -67,7 +67,7 @@ Everything that must be consistent across all AI tools:
 | Gate system            | L1/L2/L3 quality levels                       |
 | Multi-agent extensions | per-tool capability table                     |
 
-`AGENTS.md` is stateless (fully regenerated from `ProjectConfig`). A backup is kept on re-init (`AGENTS.md.bak`) but the file is always replaced. See [ADR-001](../ADR/001-agents-md-canonical.md).
+`AGENTS.md` is stateless (fully regenerated from `ProjectConfig`). A backup is kept on re-init (`AGENTS.md.arbiter-backup`) but the file is always replaced. See [ADR-001](../ADR/001-agents-md-canonical.md).
 
 ### Layer 1: Tool Overlays (thin pointer — backup + replace for `CLAUDE.md`/`CODEX.md`, deep merge for `settings.json`, skipIfExists for everything else)
 
@@ -111,7 +111,7 @@ The generation pipeline enforces the layer model through two mechanisms:
 
 `src/utils/fs.ts` exposes `writeFile(path, content, opts)` with:
 
-- `{ backup: true }` — write a `.bak` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`.
+- `{ backup: true }` — write a `.arbiter-backup` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`.
 - `{ skipIfExists: true }` — do nothing if the file exists. Used for hooks, rules, commands, GitHub files, `scripts/check-all.mjs`.
 - `mergeSettingsJson()` — deep merge for `settings.json`: hooks union by matcher+command, permissions union arrays, other keys keep existing value.
 

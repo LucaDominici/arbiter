@@ -111,7 +111,7 @@ Multiple tools: `--tools claude,codex`
 
 | File                               | Behavior                                    |
 | ---------------------------------- | ------------------------------------------- |
-| `AGENTS.md`                        | Backed up as `AGENTS.md.bak`, then replaced |
+| `AGENTS.md`                        | Backed up as `AGENTS.md.arbiter-backup`, then replaced |
 | `.claude/CLAUDE.md`                | Backed up, then replaced                    |
 | `.agents/CODEX.md`                 | Backed up, then replaced                    |
 | `.claude/settings.json`            | Deep merged — custom hooks preserved        |

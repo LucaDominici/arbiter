@@ -22,7 +22,7 @@ Every generated file has an explicit conflict resolution strategy assigned at th
 
 These strategies are implemented in `src/utils/fs.ts`:
 
-- `writeFile(path, content, { backup: true })` — copies existing file to `<file>.bak`, writes new content.
+- `writeFile(path, content, { backup: true })` — copies existing file to `<file>.arbiter-backup`, writes new content.
 - `writeFile(path, content, { skipIfExists: true })` — returns `action: 'skipped'` if file exists, writes nothing.
 - `mergeSettingsJson(existingPath, incoming)` — deep merges: hooks union by `matcher+command`, permissions union arrays, other keys keep the existing value (existing wins).
 
@@ -53,5 +53,5 @@ The core insight: files fall into two categories.
 **Negative:**
 
 - Users don't automatically receive updated hook templates when arbiter is upgraded. They must delete the file and re-init, or use `arbiter update`.
-- The backup file (`*.bak`) accumulates on disk over multiple re-inits. Users must clean it up manually.
+- The backup file (`*.arbiter-backup`) accumulates on disk over multiple re-inits. Users must clean it up manually.
 - The per-file strategy requires contributors adding new generators to consciously assign a conflict resolution strategy. There is no safe default — omitting the option throws an error.
