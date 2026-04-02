@@ -12,13 +12,13 @@ How arbiter handles existing files, merges configuration, and ensures idempotent
 | `.claude/CLAUDE.md`                | Backup + replace                 | Thin pointer — stateless         |
 | `.agents/CODEX.md`                 | Backup + replace                 | Thin pointer — stateless         |
 | `.claude/settings.json`            | Deep merge                       | Custom hooks must be preserved   |
-| `.claude/hooks/*.sh`               | Skip if exists                   | Project-customized               |
+| `.claude/hooks/*.mjs`              | Skip if exists                   | Project-customized               |
 | `.claude/rules/*.md`               | Skip if exists                   | Project-customized               |
 | `.claude/commands/*.md`            | Skip if exists                   | Project-customized               |
 | `.github/workflows/ci.yml`         | Skip if exists                   | May be heavily customized        |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Skip if exists                   | May be customized                |
 | `.github/ISSUE_TEMPLATE/*`         | Skip if exists                   | May be customized                |
-| `scripts/check-all.sh`             | Skip if exists                   | May be customized                |
+| `scripts/check-all.mjs`            | Skip if exists                   | May be customized                |
 | `SECURITY.md`, `.editorconfig`     | Skip if exists                   | Created once                     |
 | GitHub labels                      | Create missing + update existing | Idempotent provisioning          |
 | Branch protection                  | Always apply                     | Rules are deterministic          |

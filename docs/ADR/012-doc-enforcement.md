@@ -8,7 +8,7 @@
 
 Code changes without corresponding documentation updates lead to documentation drift — a state where the source code and the documentation describe different systems. In an AI-governed project, this is especially problematic: AI agents read documentation to understand invariants, architecture, and conventions. Stale documentation produces wrong agent behavior.
 
-Arbiter already had an advisory mechanism (`pre-edit-ssot-guard.sh`) that warns when editing canonical governance files, but it exits 0 and cannot block a PR. There was no enforceable gate at the CI level, and no mechanism to propagate enforcement to projects that arbiter governs.
+Arbiter already had an advisory mechanism (`pre-edit-ssot-guard.mjs`) that warns when editing canonical governance files, but it exits 0 and cannot block a PR. There was no enforceable gate at the CI level, and no mechanism to propagate enforcement to projects that arbiter governs.
 
 ## Decision
 
@@ -16,7 +16,7 @@ Implement a 3-layer documentation enforcement mechanism:
 
 | Layer | Mechanism                                   | Scope                                                                                      | Blocking?               |
 | ----- | ------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------- |
-| 1     | Claude hook: `pre-edit-ssot-guard.sh`       | SSOT files (`AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`) | Advisory (exits 0)      |
+| 1     | Claude hook: `pre-edit-ssot-guard.mjs`       | SSOT files (`AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`) | Advisory (exits 0)      |
 | 2     | CI job: `docs-check` in GitHub Actions      | PRs that change `src/` or `__tests__/` without touching `docs/` or `README.md`             | Enforced (blocks merge) |
 | 3     | Generated CI: `ci.yml.ejs` for L2+ projects | Same `docs-check` job generated for governed projects at L2 or L3                          | Enforced (blocks merge) |
 
@@ -34,7 +34,7 @@ The check runs only on `pull_request` events (not on push to `main`), so direct-
 
 ## Rationale
 
-**Why not enforce via `check-all.sh` instead of CI?** The `check-all.sh` gate is local and runs on the working tree. It cannot diff against a PR base — it would need to compare the current branch to `main`, which is fragile and fails on non-main-branched work. A GitHub Actions job has first-class access to `github.event.pull_request.base.sha`, making the diff reliable and cheap.
+**Why not enforce via `check-all.mjs` instead of CI?** The `check-all.mjs` gate is local and runs on the working tree. It cannot diff against a PR base — it would need to compare the current branch to `main`, which is fragile and fails on non-main-branched work. A GitHub Actions job has first-class access to `github.event.pull_request.base.sha`, making the diff reliable and cheap.
 
 **Why not stricter (e.g., require a docs file for every commit)?** The unit of enforcement is the PR, not the commit. A developer can make multiple code commits in a PR and batch the documentation update at the end. Commit-level enforcement would require rebasing or amending, which creates unnecessary friction.
 

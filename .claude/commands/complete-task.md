@@ -4,7 +4,7 @@ Finalize a task: gate, commit, PR, merge.
 
 ## Steps
 
-1. Run `./scripts/check-all.sh L2` — must be GREEN
+1. Run `node scripts/check-all.mjs L2` — must be GREEN
 2. Commit with convention: `type(#NNN): summary`
 3. Push branch: `git push -u origin HEAD`
 4. Create PR: `gh pr create --title "type(#NNN): summary" --body "..."`

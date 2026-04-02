@@ -31,7 +31,7 @@ AGENTS.md                    ← Canonical governance (AAIF standard, all tools 
 ├── .claude/CLAUDE.md        ← Thin pointer + Claude-specific (hooks, settings, agents)
 ├── .agents/CODEX.md         ← Thin pointer + Codex-specific (plan schema, exec router)
 ├── .github/                 ← CI workflows, PR/issue templates, dependabot, CODEOWNERS
-├── scripts/check-all.sh     ← Quality gate runner (parameterized by stack)
+├── scripts/check-all.mjs    ← Quality gate runner (parameterized by stack)
 └── Root files               ← SECURITY.md, .editorconfig
 ```
 
@@ -95,7 +95,7 @@ See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentati
 | `.github/CODEOWNERS`               |        |        |       | ✓      |
 | `SECURITY.md`                      |        |        |       | ✓      |
 | `.editorconfig`                    |        |        |       | ✓      |
-| `scripts/check-all.sh`             |        |        |       | ✓      |
+| `scripts/check-all.mjs`            |        |        |       | ✓      |
 
 **Conflict resolution:**
 

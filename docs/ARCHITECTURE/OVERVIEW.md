@@ -27,7 +27,7 @@ AGENTS.md                           <- Layer 0: Canonical governance
 |   +-- dependabot.yml              |   Automated dependency updates
 |   +-- CODEOWNERS                  |   Review assignment
 |
-+-- scripts/check-all.sh            <- Layer 2: Quality gate runner
++-- scripts/check-all.mjs           <- Layer 2: Quality gate runner
 ```
 
 ---
@@ -75,7 +75,7 @@ Each tool config opens with an explicit pointer to `AGENTS.md`:
 | ---------------- | ------------------------------------------- | ------------------------------- |
 | Auth/Permissions | `settings.json` permissions + allowed tools | —                               |
 | Hook wiring      | `settings.json` hooks section               | —                               |
-| Hook scripts     | `.claude/hooks/*.sh`                        | —                               |
+| Hook scripts     | `.claude/hooks/*.mjs`                       | —                               |
 | Slash commands   | `.claude/commands/*.md`                     | —                               |
 | Sub-agents       | `.claude/agents/*.md`                       | —                               |
 | Plan schema      | —                                           | `CODEX.md` §Plan Schema         |
@@ -109,7 +109,7 @@ Generated at `.github/workflows/ci.yml`, parameterized by detected stack:
 
 Always includes a `ci-required` job as the merge gate (required status check for branch protection).
 
-### Quality Gate Script (`scripts/check-all.sh`)
+### Quality Gate Script (`scripts/check-all.mjs`)
 
 Three-level gate system:
 
@@ -120,9 +120,9 @@ Three-level gate system:
 | L3    | L2 + E2E + evidence                 | Release / audit       |
 
 ```bash
-./scripts/check-all.sh L1   # fast local check
-./scripts/check-all.sh L2   # full gate (default)
-./scripts/check-all.sh       # defaults to L2
+node scripts/check-all.mjs L1   # fast local check
+node scripts/check-all.mjs L2   # full gate (default)
+node scripts/check-all.mjs       # defaults to L2
 ```
 
 ### Labels

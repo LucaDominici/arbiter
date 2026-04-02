@@ -115,7 +115,7 @@ Multiple tools: `--tools claude,codex`
 | `.claude/CLAUDE.md`                | Backed up, then replaced                    |
 | `.agents/CODEX.md`                 | Backed up, then replaced                    |
 | `.claude/settings.json`            | Deep merged — custom hooks preserved        |
-| `.claude/hooks/*.sh`               | **Skipped** if already exists               |
+| `.claude/hooks/*.mjs`              | **Skipped** if already exists               |
 | `.claude/rules/*.md`               | **Skipped** if already exists               |
 | `.claude/commands/*.md`            | **Skipped** if already exists               |
 | `.agents/rules/*.md`               | **Skipped** if already exists               |
@@ -123,7 +123,7 @@ Multiple tools: `--tools claude,codex`
 | `.github/PULL_REQUEST_TEMPLATE.md` | **Skipped** if already exists               |
 | `.github/ISSUE_TEMPLATE/*`         | **Skipped** per file if already exists      |
 | `.github/dependabot.yml`           | **Skipped** if already exists               |
-| `scripts/check-all.sh`             | **Skipped** if already exists               |
+| `scripts/check-all.mjs`            | **Skipped** if already exists               |
 | `SECURITY.md`, `.editorconfig`     | **Skipped** if already exists               |
 
 **Running arbiter init twice is safe** — idempotent by design.

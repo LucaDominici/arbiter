@@ -73,8 +73,8 @@ These variables are available to every template via `ProjectConfig`:
 
 | Condition                   | Effect                             |
 | --------------------------- | ---------------------------------- |
-| `language === 'typescript'` | Adds `check-no-any.sh` hook row    |
-| `language === 'rust'`       | Adds `check-no-unwrap.sh` hook row |
+| `language === 'typescript'` | Adds `check-no-any.mjs` hook row    |
+| `language === 'rust'`       | Adds `check-no-unwrap.mjs` hook row |
 
 ### `.claude/settings.json`
 
@@ -93,20 +93,20 @@ These variables are available to every template via `ProjectConfig`:
 | `buildTool === 'cargo'`    | Adds `cargo *` to permissions allow list                        |
 | `buildTool === 'gradle'`   | Adds `./gradlew *`, `gradle *` to permissions allow list        |
 
-### `.claude/hooks/lib.sh`
+### `.claude/hooks/lib.mjs`
 
-**Template:** `src/templates/claude/hooks/lib.sh.ejs`
-**Output:** `.claude/hooks/lib.sh`
+**Template:** `src/templates/claude/hooks/lib.mjs.ejs`
+**Output:** `.claude/hooks/lib.mjs`
 **Generated when:** `tools` includes `claude`
 
 **Variables Used:** `projectName`
 
 **Conditional Branches:** None. Pure utility library (logging functions).
 
-### `.claude/hooks/post-commit-check.sh`
+### `.claude/hooks/post-commit-check.mjs`
 
-**Template:** `src/templates/claude/hooks/post-commit-check.sh.ejs`
-**Output:** `.claude/hooks/post-commit-check.sh`
+**Template:** `src/templates/claude/hooks/post-commit-check.mjs.ejs`
+**Output:** `.claude/hooks/post-commit-check.mjs`
 **Generated when:** `tools` includes `claude`
 
 **Variables Used:** None (static script).
@@ -268,10 +268,10 @@ All variants also include `github-actions` ecosystem (always present).
 
 ## Scripts
 
-### `scripts/check-all.sh`
+### `scripts/check-all.mjs`
 
-**Template:** `src/templates/scripts/check-all.sh.ejs`
-**Output:** `scripts/check-all.sh` (executable)
+**Template:** `src/templates/scripts/check-all.mjs.ejs`
+**Output:** `scripts/check-all.mjs` (executable)
 **Generated when:** `useGitHub` is true
 
 **Variables Used:** `projectName`, `language`
