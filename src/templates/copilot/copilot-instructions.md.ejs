@@ -43,5 +43,9 @@ Follow this lifecycle for every task:
 
 - Code that violates any invariant listed in `AGENTS.md` §Invariants
 - Tests that mock internal APIs or databases
-- `any` type casts in TypeScript without explicit justification
-- Direct commits to `main` — always use a task branch
+<% if (language === 'typescript') { %>- `any` type casts in TypeScript without explicit justification
+<% } %><% if (language === 'rust') { %>- `.unwrap()` calls without explicit justification
+<% } %><% if (language === 'java') { %>- Raw types — always parameterize generics
+<% } %><% if (language === 'go') { %>- Unchecked errors — always handle every returned error
+<% } %><% if (language === 'python') { %>- Untyped function signatures — always add type annotations
+<% } %>- Direct commits to `main` — always use a task branch

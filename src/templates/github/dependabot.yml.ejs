@@ -18,6 +18,24 @@ updates:
     schedule:
       interval: "weekly"
     labels: ["deps"]
+<% } %><% if (buildTool === 'maven') { %>
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["deps"]
+<% } %><% if (buildTool === 'go') { %>
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["deps"]
+<% } %><% if (buildTool === 'pip') { %>
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["deps"]
 <% } %>
   - package-ecosystem: "github-actions"
     directory: "/"

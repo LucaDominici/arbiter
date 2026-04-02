@@ -35,9 +35,20 @@ runCheck('unit tests', 'npm', ['test']);
 runCheck('fmt', 'cargo', ['fmt', '--check']);
 runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
 runCheck('unit tests', 'cargo', ['test']);
-<% } %><% if (language === 'java') { %>
+<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
 runCheck('checkstyle', './gradlew', ['checkstyleMain', '-q']);
 runCheck('unit tests', './gradlew', ['test', '-q']);
+<% } %><% if (language === 'java' && buildTool === 'maven') { %>
+runCheck('checkstyle', 'mvn', ['checkstyle:check', '-q']);
+runCheck('unit tests', 'mvn', ['test', '-q']);
+<% } %><% if (language === 'go') { %>
+runCheck('vet', 'go', ['vet', './...']);
+runCheck('lint', 'golangci-lint', ['run']);
+runCheck('unit tests', 'go', ['test', './...']);
+<% } %><% if (language === 'python') { %>
+runCheck('lint', 'ruff', ['check', '.']);
+runCheck('format', 'ruff', ['format', '--check', '.']);
+runCheck('unit tests', 'pytest', []);
 <% } %>
 
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
@@ -46,8 +57,14 @@ if (level === 'L2') {
   runCheck('audit', 'npm', ['audit', '--audit-level=high']);
 <% } %><% if (language === 'rust') { %>
   runCheck('audit', 'cargo', ['audit']);
-<% } %><% if (language === 'java') { %>
+<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('integration', './gradlew', ['integrationTest', '-q']);
+<% } %><% if (language === 'java' && buildTool === 'maven') { %>
+  runCheck('integration', 'mvn', ['verify', '-q']);
+<% } %><% if (language === 'go') { %>
+  runCheck('staticcheck', 'staticcheck', ['./...']);
+<% } %><% if (language === 'python') { %>
+  runCheck('audit', 'pip-audit', []);
 <% } %>
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -120,5 +120,92 @@ describe("matrix: Java project", () => {
     expect(permissions.allow).not.toEqual(
       expect.arrayContaining(["Bash(npm run *)"]),
     );
+  });
+});
+
+describe("matrix: Java project (Maven)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = createTestProject("java");
+    // Replace build.gradle with pom.xml to simulate Maven project
+    unlinkSync(join(dir, "build.gradle"));
+    writeFileSync(
+      join(dir, "pom.xml"),
+      "<project><modelVersion>4.0.0</modelVersion><artifactId>test</artifactId></project>",
+    );
+    initGit(dir);
+  });
+
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  function mavenConfig(
+    overrides: Partial<Parameters<typeof makeConfig>[1]> = {},
+  ) {
+    return makeConfig(dir, {
+      language: "java",
+      framework: null,
+      buildTool: "maven",
+      buildCommand: "mvn package -DskipTests",
+      testCommand: "mvn test",
+      lintCommand: "mvn checkstyle:check",
+      formatCommand: 'echo "no formatter configured"',
+      tools: ["claude", "codex"],
+      useGitHub: true,
+      githubOwner: "test-owner",
+      githubRepo: "test-repo",
+      languageHooks: getLanguageHooks("java"),
+      ...overrides,
+    });
+  }
+
+  it("CI workflow uses mvn commands, not gradlew", () => {
+    const config = mavenConfig();
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("mvn");
+    expect(ci).toContain("setup-java");
+    expect(ci).not.toContain("gradlew");
+    expect(ci).not.toContain("setup-gradle");
+  });
+
+  it("check-all.mjs references mvn commands", () => {
+    const config = mavenConfig();
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("mvn");
+    expect(checkAll).not.toContain("gradlew");
+  });
+
+  it("settings.json includes maven permissions, not gradle", () => {
+    const config = mavenConfig();
+    runGenerators(config);
+    const settings = JSON.parse(
+      readFileSync(join(dir, ".claude", "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const permissions = settings["permissions"] as { allow?: string[] };
+    expect(permissions.allow).toEqual(expect.arrayContaining(["Bash(mvn *)"]));
+    expect(permissions.allow).not.toEqual(
+      expect.arrayContaining(["Bash(./gradlew *)"]),
+    );
+  });
+
+  it("dependabot.yml includes maven ecosystem", () => {
+    const config = mavenConfig();
+    runGenerators(config);
+    const dependabot = readFileSync(
+      join(dir, ".github", "dependabot.yml"),
+      "utf-8",
+    );
+    expect(dependabot).toContain("maven");
+    expect(dependabot).not.toContain("gradle");
   });
 });
