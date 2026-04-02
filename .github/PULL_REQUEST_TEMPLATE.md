@@ -8,8 +8,8 @@
 
 ## Gate Checklist
 
-- [ ] `./scripts/check-all.sh L1` passes
-- [ ] `./scripts/check-all.sh L2` passes
+- [ ] `node scripts/check-all.mjs L1` passes
+- [ ] `node scripts/check-all.mjs L2` passes
 - [ ] No orphan TODOs (all TODO have task IDs)
 - [ ] No invariant violations (see AGENTS.md)
 - [ ] Tests added/updated for changed code

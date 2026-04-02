@@ -151,16 +151,16 @@ L3 gate requires evidence artifacts in `.evidence/` before release.
 
 ### `claude/` (multiple files)
 
-| File                         | Output                              | Type    |
-| ---------------------------- | ----------------------------------- | ------- |
-| `claude-md.ejs`              | `.claude/CLAUDE.md`                 | Dynamic |
-| `settings.json.ejs`          | `.claude/settings.json` (initial)   | Dynamic |
-| `hooks/pre-tool-use.sh.ejs`  | `.claude/hooks/pre-tool-use.sh`     | Dynamic |
-| `hooks/post-tool-use.sh.ejs` | `.claude/hooks/post-tool-use.sh`    | Dynamic |
-| `rules/exec-protocol.md`     | `.claude/rules/exec-protocol.md`    | Static  |
-| `rules/mcp-usage.md`         | `.claude/rules/mcp-usage.md`        | Static  |
-| `commands/start-task.md`     | `.claude/commands/start-task.md`    | Static  |
-| `commands/complete-task.md`  | `.claude/commands/complete-task.md` | Static  |
+| File                          | Output                              | Type    |
+| ----------------------------- | ----------------------------------- | ------- |
+| `claude-md.ejs`               | `.claude/CLAUDE.md`                 | Dynamic |
+| `settings.json.ejs`           | `.claude/settings.json` (initial)   | Dynamic |
+| `hooks/pre-tool-use.mjs.ejs`  | `.claude/hooks/pre-tool-use.mjs`    | Dynamic |
+| `hooks/post-tool-use.mjs.ejs` | `.claude/hooks/post-tool-use.mjs`   | Dynamic |
+| `rules/exec-protocol.md`      | `.claude/rules/exec-protocol.md`    | Static  |
+| `rules/mcp-usage.md`          | `.claude/rules/mcp-usage.md`        | Static  |
+| `commands/start-task.md`      | `.claude/commands/start-task.md`    | Static  |
+| `commands/complete-task.md`   | `.claude/commands/complete-task.md` | Static  |
 
 ### `codex/` (multiple files)
 
@@ -205,9 +205,9 @@ L3 gate requires evidence artifacts in `.evidence/` before release.
 
 ### `check-all/` (1 file)
 
-| File               | Output                 | Type    |
-| ------------------ | ---------------------- | ------- |
-| `check-all.sh.ejs` | `scripts/check-all.sh` | Dynamic |
+| File                | Output                  | Type    |
+| ------------------- | ----------------------- | ------- |
+| `check-all.mjs.ejs` | `scripts/check-all.mjs` | Dynamic |
 
 ---
 

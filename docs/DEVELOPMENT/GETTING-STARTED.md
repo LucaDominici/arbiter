@@ -80,7 +80,7 @@ src/
     copilot.ts            # .github/copilot-instructions.md
     github.ts             # .github/ tree + branch protection + labels
     root.ts               # CODEOWNERS, SECURITY.md, CONTRIBUTING.md, .editorconfig
-    check-all.ts          # scripts/check-all.sh
+    check-all.ts          # scripts/check-all.mjs
   wizard/
     index.ts              # Interactive prompts (inquirer)
     defaults.ts           # --yes mode defaults

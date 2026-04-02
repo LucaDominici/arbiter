@@ -20,7 +20,7 @@ This is implemented in `src/commands/init.ts` as a guard around `runGenerators()
 if (!config.existing.aiRulez) {
   // generate .claude/, .agents/, .cursorrules, copilot-instructions.md
 }
-// always: generate AGENTS.md, .github/, scripts/check-all.sh, root files
+// always: generate AGENTS.md, .github/, scripts/check-all.mjs, root files
 ```
 
 ## Rationale

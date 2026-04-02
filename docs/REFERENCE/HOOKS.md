@@ -125,15 +125,15 @@ Only activates for `.rs` files. Fails if `.unwrap()` is found.
 
 ---
 
-## Static Hooks (Generated from Template Files)
+## Dog-Food Only Hooks
 
-The following hooks are generated from static template files in `src/templates/claude/hooks/`.
+The following hooks exist only in arbiter's own repository (`.claude/hooks/`). They are not generated for governed projects — they are arbiter's self-governance tooling.
 
 ### `stop-dangerous.mjs`
 
 | Property      | Value                                                     |
 | ------------- | --------------------------------------------------------- |
-| **Source**    | `src/templates/claude/hooks/stop-dangerous.mjs`           |
+| **Source**    | `.claude/hooks/stop-dangerous.mjs`                        |
 | **Event**     | `PreToolUse` -> `Bash`                                    |
 | **Purpose**   | Block dangerous shell commands (rm -rf, force push, sudo) |
 | **Invariant** | Safety (process)                                          |
@@ -143,27 +143,27 @@ The following hooks are generated from static template files in `src/templates/c
 
 ### `enforce-read-only.mjs`
 
-| Property      | Value                                              |
-| ------------- | -------------------------------------------------- |
-| **Source**    | `src/templates/claude/hooks/enforce-read-only.mjs` |
-| **Event**     | `PreToolUse` -> `Edit\|Write`                      |
-| **Purpose**   | Guard read-only files from modification            |
-| **Invariant** | File protection                                    |
-| **Languages** | All                                                |
-| **Timeout**   | 3 seconds                                          |
-| **Blocking**  | Yes (exit 1)                                       |
+| Property      | Value                                   |
+| ------------- | --------------------------------------- |
+| **Source**    | `.claude/hooks/enforce-read-only.mjs`   |
+| **Event**     | `PreToolUse` -> `Edit\|Write`           |
+| **Purpose**   | Guard read-only files from modification |
+| **Invariant** | File protection                         |
+| **Languages** | All                                     |
+| **Timeout**   | 3 seconds                               |
+| **Blocking**  | Yes (exit 1)                            |
 
 ### `pre-edit-ssot-guard.mjs`
 
-| Property      | Value                                                |
-| ------------- | ---------------------------------------------------- |
-| **Source**    | `src/templates/claude/hooks/pre-edit-ssot-guard.mjs` |
-| **Event**     | `PreToolUse` -> `Edit\|Write`                        |
-| **Purpose**   | Warn on edits to SSOT documents                      |
-| **Invariant** | SSOT integrity                                       |
-| **Languages** | All                                                  |
-| **Timeout**   | 3 seconds                                            |
-| **Blocking**  | No (warning only, exits 0)                           |
+| Property      | Value                                   |
+| ------------- | --------------------------------------- |
+| **Source**    | `.claude/hooks/pre-edit-ssot-guard.mjs` |
+| **Event**     | `PreToolUse` -> `Edit\|Write`           |
+| **Purpose**   | Warn on edits to SSOT documents         |
+| **Invariant** | SSOT integrity                          |
+| **Languages** | All                                     |
+| **Timeout**   | 3 seconds                               |
+| **Blocking**  | No (warning only, exits 0)              |
 
 ---
 

@@ -26,7 +26,7 @@ Layer 0   AGENTS.md                         <- Canonical governance (AAIF standa
              |
 Layer 1   .claude/CLAUDE.md                 <- Claude Code overlay (thin pointer)
           .claude/settings.json             <- Hook wiring + permissions (deep-merged)
-          .claude/hooks/*.sh                <- Enforcement scripts (skipIfExists)
+          .claude/hooks/*.mjs                <- Enforcement scripts (skipIfExists)
           .claude/rules/*.md                <- Rule documents (skipIfExists)
           .claude/commands/*.md             <- Slash commands (skipIfExists)
              |
@@ -38,7 +38,7 @@ Layer 2   .github/workflows/ci.yml          <- CI pipeline (skipIfExists)
           .github/PULL_REQUEST_TEMPLATE.md  <- PR template (skipIfExists)
           .github/ISSUE_TEMPLATE/           <- Issue templates (skipIfExists)
           .github/dependabot.yml            <- Dep updates (skipIfExists)
-          scripts/check-all.sh              <- Gate runner (skipIfExists)
+          scripts/check-all.mjs              <- Gate runner (skipIfExists)
           CODEOWNERS                        <- Review ownership (skipIfExists)
           SECURITY.md                       <- Vulnerability policy (skipIfExists)
           CONTRIBUTING.md                   <- Contribution guide (skipIfExists)
@@ -67,7 +67,7 @@ Everything that must be consistent across all AI tools:
 | Gate system            | L1/L2/L3 quality levels                       |
 | Multi-agent extensions | per-tool capability table                     |
 
-`AGENTS.md` is stateless (fully regenerated from `ProjectConfig`). A backup is kept on re-init (`AGENTS.md.bak`) but the file is always replaced. See [ADR-001](../ADR/001-agents-md-canonical.md).
+`AGENTS.md` is stateless (fully regenerated from `ProjectConfig`). A backup is kept on re-init (`AGENTS.md.arbiter-backup`) but the file is always replaced. See [ADR-001](../ADR/001-agents-md-canonical.md).
 
 ### Layer 1: Tool Overlays (thin pointer — backup + replace for `CLAUDE.md`/`CODEX.md`, deep merge for `settings.json`, skipIfExists for everything else)
 
@@ -79,7 +79,7 @@ Tool overlays **add** what `AGENTS.md` cannot express natively for a specific to
 | --------------------- | ---------------------------------------------- | ------------------------------ |
 | Permissions schema    | `settings.json` `permissions` + `allowedTools` | —                              |
 | Hook wiring           | `settings.json` `hooks` section                | —                              |
-| Enforcement scripts   | `.claude/hooks/*.sh`                           | —                              |
+| Enforcement scripts   | `.claude/hooks/*.mjs`                          | —                              |
 | Slash commands        | `.claude/commands/*.md`                        | —                              |
 | Sub-agent definitions | `.claude/agents/*.md`                          | —                              |
 | Plan schema           | —                                              | `CODEX.md` §Plan Schema        |
@@ -111,8 +111,8 @@ The generation pipeline enforces the layer model through two mechanisms:
 
 `src/utils/fs.ts` exposes `writeFile(path, content, opts)` with:
 
-- `{ backup: true }` — write a `.bak` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`.
-- `{ skipIfExists: true }` — do nothing if the file exists. Used for hooks, rules, commands, GitHub files, `scripts/check-all.sh`.
+- `{ backup: true }` — write a `.arbiter-backup` copy of the existing file, then replace. Used for `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`.
+- `{ skipIfExists: true }` — do nothing if the file exists. Used for hooks, rules, commands, GitHub files, `scripts/check-all.mjs`.
 - `mergeSettingsJson()` — deep merge for `settings.json`: hooks union by matcher+command, permissions union arrays, other keys keep existing value.
 
 Each call returns a `WriteResult` with `action: 'created' | 'skipped' | 'backed-up-and-replaced'`. The init command prints a summary of all results, making the effect of each run visible.
