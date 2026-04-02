@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -84,5 +84,82 @@ describe("matrix: Go project", () => {
     const codex = readFileSync(join(dir, ".agents", "CODEX.md"), "utf-8");
     expect(claude).toContain("AGENTS.md");
     expect(codex).toContain("AGENTS.md");
+  });
+
+  it("AGENTS.md includes Go coding standards", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("gofmt");
+    expect(content).toContain("error handling");
+    expect(content).toContain("golangci-lint");
+  });
+
+  it("AGENTS.md includes Go invariants INV-04/INV-05", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("error handling");
+    expect(content).toContain("go vet");
+  });
+
+  it("CI workflow uses Go setup and commands", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("setup-go");
+    expect(ci).toContain("golangci-lint");
+    expect(ci).toContain("go test");
+  });
+
+  it("check-all.mjs references Go commands", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("vet");
+    expect(checkAll).toContain("golangci-lint");
+    expect(checkAll).toContain("'go'");
+  });
+
+  it("settings.json includes Go permissions", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const settings = JSON.parse(
+      readFileSync(join(dir, ".claude", "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const permissions = settings["permissions"] as { allow?: string[] };
+    expect(permissions.allow).toEqual(
+      expect.arrayContaining(["Bash(go *)", "Bash(golangci-lint *)"]),
+    );
+  });
+
+  it("generates check-no-unchecked-err.mjs language hook", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const hookPath = join(
+      dir,
+      ".claude",
+      "hooks",
+      "check-no-unchecked-err.mjs",
+    );
+    expect(existsSync(hookPath)).toBe(true);
+    const content = readFileSync(hookPath, "utf-8");
+    expect(content).toContain(".go");
+  });
+
+  it("dependabot.yml includes gomod ecosystem", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const dependabot = readFileSync(
+      join(dir, ".github", "dependabot.yml"),
+      "utf-8",
+    );
+    expect(dependabot).toContain("gomod");
   });
 });

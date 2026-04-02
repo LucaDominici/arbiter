@@ -64,7 +64,15 @@
       "Bash(node *)"<% } %><% if (buildTool === 'cargo') { %>,
       "Bash(cargo *)"<% } %><% if (buildTool === 'gradle') { %>,
       "Bash(./gradlew *)",
-      "Bash(gradle *)"<% } %>,
+      "Bash(gradle *)"<% } %><% if (buildTool === 'maven') { %>,
+      "Bash(mvn *)"<% } %><% if (buildTool === 'go') { %>,
+      "Bash(go *)",
+      "Bash(golangci-lint *)"<% } %><% if (buildTool === 'pip') { %>,
+      "Bash(python *)",
+      "Bash(pip *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(uv *)"<% } %>,
       "Bash(gh *)"
     ],
     "deny": [

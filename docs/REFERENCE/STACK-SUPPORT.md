@@ -89,14 +89,14 @@ No framework detection implemented. Returns `null`.
 - Node.js 20, npm cache
 - Steps: `npm ci` -> `npm run typecheck` -> `npm run lint` -> `npm test -- --coverage`
 
-**Quality gate** (`check-all.sh`):
+**Quality gate** (`check-all.mjs`):
 
 - L1: `tsc --noEmit`, `prettier --check .`, `eslint src`, `npm test`
 - L2: L1 + `npm audit --audit-level=high`
 
 **Language-specific hooks:**
 
-- `check-no-any.sh` — Blocks `: any` type annotations (INV-04)
+- `check-no-any.mjs` — Blocks `: any` type annotations (INV-04)
 
 **AGENTS.md invariants:**
 
@@ -146,13 +146,15 @@ Build tool is auto-detected: Gradle takes priority; Maven is used when only `pom
 
 **CI workflow** (`ci.yml`):
 
-- Java 21 Temurin, Gradle setup via `gradle/actions/setup-gradle@v3`
-- Steps: `./gradlew checkstyleMain` -> `./gradlew test`
+- Java 21 Temurin, `actions/setup-java@v4`
+- Gradle: `gradle/actions/setup-gradle@v3` + `./gradlew checkstyleMain` -> `./gradlew test`
+- Maven: `mvn checkstyle:check` -> `mvn test` (no `setup-gradle`)
 
-**Quality gate** (`check-all.sh`):
+**Quality gate** (`check-all.mjs`):
 
-- L1: `./gradlew checkstyleMain -q`, `./gradlew test -q`
-- L2: L1 + `./gradlew integrationTest -q`
+- L1 (Gradle): `./gradlew checkstyleMain`, `./gradlew test`
+- L1 (Maven): `mvn checkstyle:check`, `mvn test`
+- L2: L1 + `./gradlew integrationTest` (Gradle) or `mvn verify -DskipUTs` (Maven)
 
 **Language-specific hooks:** None (only common hooks apply).
 
@@ -191,14 +193,14 @@ Build tool is auto-detected: Gradle takes priority; Maven is used when only `pom
 - Rust stable toolchain with `clippy` + `rustfmt` components, Swatinem/rust-cache
 - Steps: `cargo fmt --check` -> `cargo clippy -- -D warnings` -> `cargo test`
 
-**Quality gate** (`check-all.sh`):
+**Quality gate** (`check-all.mjs`):
 
 - L1: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`
 - L2: L1 + `cargo audit`
 
 **Language-specific hooks:**
 
-- `check-no-unwrap.sh` — Blocks `.unwrap()` calls (INV-04)
+- `check-no-unwrap.mjs` — Blocks `.unwrap()` calls (INV-04)
 
 **AGENTS.md invariants:**
 
@@ -229,19 +231,37 @@ Build tool is auto-detected: Gradle takes priority; Maven is used when only `pom
 | **Format tool**    | gofmt               |
 | **Format command** | `gofmt -l .`        |
 
-**CI workflow:** Not yet implemented (no Go-specific branch in `ci.yml.ejs`).
+**CI workflow** (`ci.yml`):
 
-**Quality gate:** Not yet implemented (no Go-specific branch in `check-all.sh.ejs`).
+- Go 1.22+, `actions/setup-go@v5` with `go-version-file: 'go.mod'`
+- Steps: `go vet ./...` -> `golangci-lint run` -> `go test ./... -race -coverprofile=coverage.out`
 
-**Language-specific hooks:** None.
+**Quality gate** (`check-all.mjs`):
 
-**AGENTS.md invariants:** Common invariants only (INV-01, INV-02, INV-06 through INV-10).
+- L1: `go vet ./...`, `golangci-lint run`, `go test ./...`
+- L2: L1 + `staticcheck ./...`
 
-**AGENTS.md coding standards:** Not yet implemented (no Go-specific branch in `AGENTS.md.ejs`).
+**Language-specific hooks:**
+
+- `check-no-unchecked-err.mjs` — Blocks `_ = ` patterns that discard error returns (INV-04)
+
+**AGENTS.md invariants:**
+
+- INV-04: Explicit error handling required — no `_ = err` patterns
+- INV-05: `go vet` must pass clean with zero warnings
+
+**AGENTS.md coding standards:**
+
+- All exported functions and types must have doc comments
+- Errors must be explicitly handled — never discard with `_`
+- Format with `gofmt` before every commit
+- `golangci-lint` lint level for consistent style
+- Prefer table-driven tests with `t.Run` subtests
+- File naming: `snake_case.go`
 
 **Framework detection:** None.
 
-**Dependabot ecosystem:** Not yet configured (no Go branch in `dependabot.yml.ejs`).
+**Dependabot ecosystem:** `gomod`
 
 ---
 
@@ -258,19 +278,37 @@ Build tool is auto-detected: Gradle takes priority; Maven is used when only `pom
 | **Format tool**    | Ruff                                                        |
 | **Format command** | `ruff format --check .`                                     |
 
-**CI workflow:** Not yet implemented (no Python-specific branch in `ci.yml.ejs`).
+**CI workflow** (`ci.yml`):
 
-**Quality gate:** Not yet implemented (no Python-specific branch in `check-all.sh.ejs`).
+- Python 3.12, `actions/setup-python@v5`
+- Steps: `pip install -e ".[dev]"` -> `ruff check .` -> `ruff format --check .` -> `pytest --cov`
 
-**Language-specific hooks:** None.
+**Quality gate** (`check-all.mjs`):
 
-**AGENTS.md invariants:** Common invariants only (INV-01, INV-02, INV-06 through INV-10).
+- L1: `ruff check .`, `ruff format --check .`, `pytest`
+- L2: L1 + `pip-audit`
 
-**AGENTS.md coding standards:** Not yet implemented (no Python-specific branch in `AGENTS.md.ejs`).
+**Language-specific hooks:**
+
+- `check-no-bare-except.mjs` — Blocks bare `except:` clauses (always specify exception type)
+
+**AGENTS.md invariants:**
+
+- INV-04: Type annotations required on all public function signatures
+- INV-05: `ruff check` must pass clean with zero warnings
+
+**AGENTS.md coding standards:**
+
+- Type annotations required on all public functions and methods
+- Linting and formatting via `ruff` (replaces flake8, black, isort)
+- Tests with `pytest` using fixtures, not bare unittest
+- No bare `except:` — always specify the exception type
+- File naming: `snake_case.py`
+- Prefer dataclasses or Pydantic for structured data
 
 **Framework detection:** None.
 
-**Dependabot ecosystem:** Not yet configured (no Python/pip branch in `dependabot.yml.ejs`).
+**Dependabot ecosystem:** `pip`
 
 ---
 
@@ -278,14 +316,14 @@ Build tool is auto-detected: Gradle takes priority; Maven is used when only `pom
 
 Summary of what is fully implemented per language versus planned.
 
-| Feature                     | TypeScript              | Java                   | Rust                 | Go          | Python      |
-| --------------------------- | ----------------------- | ---------------------- | -------------------- | ----------- | ----------- |
-| Language detection          | Yes                     | Yes                    | Yes                  | Yes         | Yes         |
-| Framework detection         | Yes (10 variants)       | Yes (3 variants)       | Yes (2 variants)     | No          | No          |
-| Build commands              | Yes (from package.json) | Yes (Gradle)           | Yes (Cargo)          | Yes         | Yes         |
-| CI workflow                 | Yes                     | Yes                    | Yes                  | Planned     | Planned     |
-| Quality gate (check-all.sh) | Yes                     | Yes                    | Yes                  | Planned     | Planned     |
-| Language hooks              | `check-no-any.sh`       | None                   | `check-no-unwrap.sh` | None        | None        |
-| AGENTS.md coding standards  | Yes                     | Yes                    | Yes                  | Planned     | Planned     |
-| AGENTS.md invariants        | INV-04, INV-05          | INV-03, INV-04, INV-05 | INV-04, INV-05       | Common only | Common only |
-| Dependabot ecosystem        | npm                     | gradle                 | cargo                | Planned     | Planned     |
+| Feature                      | TypeScript              | Java (Gradle/Maven)    | Rust                  | Go                           | Python                     |
+| ---------------------------- | ----------------------- | ---------------------- | --------------------- | ---------------------------- | -------------------------- |
+| Language detection           | Yes                     | Yes                    | Yes                   | Yes                          | Yes                        |
+| Framework detection          | Yes (10 variants)       | Yes (3 variants)       | Yes (2 variants)      | No                           | No                         |
+| Build commands               | Yes (from package.json) | Yes (Gradle + Maven)   | Yes (Cargo)           | Yes                          | Yes                        |
+| CI workflow                  | Yes                     | Yes (both build tools) | Yes                   | Yes                          | Yes                        |
+| Quality gate (check-all.mjs) | Yes                     | Yes (both build tools) | Yes                   | Yes                          | Yes                        |
+| Language hooks               | `check-no-any.mjs`      | None                   | `check-no-unwrap.mjs` | `check-no-unchecked-err.mjs` | `check-no-bare-except.mjs` |
+| AGENTS.md coding standards   | Yes                     | Yes                    | Yes                   | Yes                          | Yes                        |
+| AGENTS.md invariants         | INV-04, INV-05          | INV-03, INV-04, INV-05 | INV-04, INV-05        | INV-04, INV-05               | INV-04, INV-05             |
+| Dependabot ecosystem         | npm                     | gradle / maven         | cargo                 | gomod                        | pip                        |

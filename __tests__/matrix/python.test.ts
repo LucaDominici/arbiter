@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -95,5 +95,81 @@ describe("matrix: Python project", () => {
     expect(permissions.allow).not.toEqual(
       expect.arrayContaining(["Bash(cargo *)"]),
     );
+  });
+
+  it("AGENTS.md includes Python coding standards", () => {
+    const config = pythonConfig();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("Type annotations");
+    expect(content).toContain("ruff");
+    expect(content).toContain("pytest");
+  });
+
+  it("AGENTS.md includes Python invariants INV-04/INV-05", () => {
+    const config = pythonConfig();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("Type annotations required");
+    expect(content).toContain("ruff check");
+  });
+
+  it("CI workflow uses Python setup and commands", () => {
+    const config = pythonConfig();
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("setup-python");
+    expect(ci).toContain("ruff");
+    expect(ci).toContain("pytest");
+  });
+
+  it("check-all.mjs references Python commands", () => {
+    const config = pythonConfig();
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("ruff");
+    expect(checkAll).toContain("pytest");
+  });
+
+  it("settings.json includes Python permissions", () => {
+    const config = pythonConfig();
+    runGenerators(config);
+    const settings = JSON.parse(
+      readFileSync(join(dir, ".claude", "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const permissions = settings["permissions"] as { allow?: string[] };
+    expect(permissions.allow).toEqual(
+      expect.arrayContaining([
+        "Bash(python *)",
+        "Bash(pip *)",
+        "Bash(pytest *)",
+        "Bash(ruff *)",
+      ]),
+    );
+  });
+
+  it("generates check-no-bare-except.mjs language hook", () => {
+    const config = pythonConfig();
+    runGenerators(config);
+    const hookPath = join(dir, ".claude", "hooks", "check-no-bare-except.mjs");
+    expect(existsSync(hookPath)).toBe(true);
+    const content = readFileSync(hookPath, "utf-8");
+    expect(content).toContain(".py");
+  });
+
+  it("dependabot.yml includes pip ecosystem", () => {
+    const config = pythonConfig();
+    runGenerators(config);
+    const dependabot = readFileSync(
+      join(dir, ".github", "dependabot.yml"),
+      "utf-8",
+    );
+    expect(dependabot).toContain("pip");
   });
 });

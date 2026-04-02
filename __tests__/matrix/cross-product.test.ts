@@ -123,22 +123,26 @@ describe("cross-product: AGENTS.md — language invariants isolated at all gover
       expect(content).not.toContain("No `any` type");
     });
 
-    it(`go+${level}: no language-specific coding standard; governance policy present`, () => {
+    it(`go+${level}: Go coding standards present; other stacks absent`, () => {
       const content = renderTemplate(
         "agents-md/AGENTS.md.ejs",
         configFor("go", level),
       );
+      expect(content).toContain("error handling");
+      expect(content).toContain("go vet");
       expect(content).not.toContain("Strict mode always on");
       expect(content).not.toContain("Hexagonal architecture");
       expect(content).not.toContain("clippy::pedantic");
       expect(content).not.toContain("No `any` type");
     });
 
-    it(`python+${level}: no language-specific coding standard; governance policy present`, () => {
+    it(`python+${level}: Python coding standards present; other stacks absent`, () => {
       const content = renderTemplate(
         "agents-md/AGENTS.md.ejs",
         configFor("python", level),
       );
+      expect(content).toContain("Type annotations");
+      expect(content).toContain("ruff");
       expect(content).not.toContain("Strict mode always on");
       expect(content).not.toContain("Hexagonal architecture");
       expect(content).not.toContain("clippy::pedantic");
@@ -217,15 +221,17 @@ describe("cross-product: ci.yml — language setup step across all governance le
       expect(renderCi("rust", level)).toContain("rust-toolchain");
     });
 
-    it(`go+${level}: no language-specific setup step (fallback behavior)`, () => {
+    it(`go+${level}: contains setup-go`, () => {
       const content = renderCi("go", level);
+      expect(content).toContain("setup-go");
       expect(content).not.toContain("setup-node");
       expect(content).not.toContain("setup-java");
       expect(content).not.toContain("rust-toolchain");
     });
 
-    it(`python+${level}: no language-specific setup step (fallback behavior)`, () => {
+    it(`python+${level}: contains setup-python`, () => {
       const content = renderCi("python", level);
+      expect(content).toContain("setup-python");
       expect(content).not.toContain("setup-node");
       expect(content).not.toContain("setup-java");
       expect(content).not.toContain("rust-toolchain");
@@ -272,19 +278,52 @@ describe("cross-product: check-all.mjs — language check commands", () => {
     expect(content).toContain("audit");
   });
 
-  // Go and Python have no template branches — the generated script contains no
-  // language-specific check commands. This documents the current fallback
-  // behavior; if Go/Python branches are added later, these tests should be updated.
-  for (const lang of ["go", "python"] as Language[]) {
-    it(`${lang}: project name present; no language-specific check commands`, () => {
-      const content = renderTemplate(
-        "scripts/check-all.mjs.ejs",
-        configFor(lang, "L2"),
-      );
-      expect(content).toContain("test-project");
-      expect(content).not.toContain("eslint");
-      expect(content).not.toContain("checkstyleMain");
-      expect(content).not.toContain("clippy");
+  it("go: contains go vet, golangci-lint, go test, and staticcheck", () => {
+    const content = renderTemplate(
+      "scripts/check-all.mjs.ejs",
+      configFor("go", "L2"),
+    );
+    expect(content).toContain("vet");
+    expect(content).toContain("golangci-lint");
+    expect(content).toContain("'go'");
+    expect(content).toContain("staticcheck");
+    expect(content).not.toContain("eslint");
+    expect(content).not.toContain("checkstyleMain");
+    expect(content).not.toContain("clippy");
+  });
+
+  it("python: contains ruff check, ruff format, pytest, and pip-audit", () => {
+    const content = renderTemplate(
+      "scripts/check-all.mjs.ejs",
+      configFor("python", "L2"),
+    );
+    expect(content).toContain("ruff");
+    expect(content).toContain("pytest");
+    expect(content).toContain("pip-audit");
+    expect(content).not.toContain("eslint");
+    expect(content).not.toContain("checkstyleMain");
+    expect(content).not.toContain("clippy");
+  });
+});
+
+// ─── Java Maven variant ───────────────────────────────────────────────────────
+
+describe("cross-product: ci.yml — Java Maven variant", () => {
+  function renderCiMaven(level: GovernanceLevel): string {
+    return renderTemplate("github/workflows/ci.yml.ejs", {
+      ...configFor("java", level),
+      buildTool: "maven",
+      useGitHub: true,
+    });
+  }
+
+  for (const level of LEVELS) {
+    it(`java-maven+${level}: contains mvn; no gradlew; retains setup-java`, () => {
+      const content = renderCiMaven(level);
+      expect(content).toContain("mvn");
+      expect(content).toContain("setup-java");
+      expect(content).not.toContain("gradlew");
+      expect(content).not.toContain("setup-gradle");
     });
   }
 });

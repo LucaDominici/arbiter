@@ -67,6 +67,20 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
     expect(stackLine).not.toContain(" / ");
   });
 
+  it("renders with Go — contains Go coding standards", () => {
+    const content = renderAgentsMd({ language: "go" });
+    expect(content).toContain("Go");
+    expect(content).toContain("gofmt");
+    expect(content).toContain("error handling");
+  });
+
+  it("renders with Python — contains Python coding standards", () => {
+    const content = renderAgentsMd({ language: "python" });
+    expect(content).toContain("Python");
+    expect(content).toContain("Type annotations");
+    expect(content).toContain("ruff");
+  });
+
   it("renders project name in title", () => {
     const content = renderAgentsMd({ projectName: "mega-app" });
     expect(content).toContain("mega-app");
