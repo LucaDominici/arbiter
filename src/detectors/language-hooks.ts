@@ -9,6 +9,8 @@ import { readFileSync, existsSync } from 'node:fs';
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
 if (!file.endsWith('.ts') && !file.endsWith('.tsx')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
 if (/:\\s*any\\b/.test(readFileSync(file, 'utf-8'))) {
   process.stderr.write(\`[arbiter] INV: No 'any' type allowed: \${file}\\n\`);
   process.exit(1);
@@ -25,6 +27,8 @@ import { readFileSync, existsSync } from 'node:fs';
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
 if (!file.endsWith('.rs')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
 if (/\\.unwrap\\(\\)/.test(readFileSync(file, 'utf-8'))) {
   process.stderr.write(\`[arbiter] INV: No .unwrap() allowed in Rust: \${file}\\n\`);
   process.exit(1);
@@ -40,6 +44,8 @@ const COMMON_NO_ORPHAN_TODO: LanguageHook = {
 import { readFileSync, existsSync } from 'node:fs';
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
 if (!file || !existsSync(file)) process.exit(0);
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
 let content; try { content = readFileSync(file, 'utf-8'); } catch { process.exit(0); }
 const offending = content.split('\\n').flatMap((line, i) =>
   /\\bTODO\\b/.test(line) && !/\\bTODO\\b.*\\(#\\d+\\)/.test(line) ? [\`\${i + 1}: \${line.trim()}\`] : []
@@ -61,6 +67,8 @@ import { readFileSync, existsSync } from 'node:fs';
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
 if (!file.endsWith('.go')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
 const lines = readFileSync(file, 'utf-8').split('\\n');
 const offending = lines.flatMap((line, i) =>
   /^\\s*_\\s*=\\s*\\S+/.test(line) && !line.trimStart().startsWith('//') ? [\`\${i + 1}: \${line.trim()}\`] : []
@@ -82,6 +90,8 @@ import { readFileSync, existsSync } from 'node:fs';
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
 if (!file.endsWith('.py')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
 const lines = readFileSync(file, 'utf-8').split('\\n');
 const offending = lines.flatMap((line, i) =>
   /\\bexcept\\s*:/.test(line) && !line.trimStart().startsWith('#') ? [\`\${i + 1}: \${line.trim()}\`] : []
