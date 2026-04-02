@@ -1,7 +1,7 @@
 # Arbiter — Milestones
 
 **Status:** Active
-**Last updated:** 2026-04-01
+**Last updated:** 2026-04-02
 
 Each milestone has a scope, exit criteria, and dependency chain. Milestones are tracked as GitHub issues.
 
@@ -207,18 +207,251 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
+---
+
+## M11 — Workflow Commands + Hook Migration ✅ DONE
+
+**Issues:** #28, #34, #40
+**Scope:** Generate `/start-task` and `/complete-task` slash commands for target projects. Migrate all bash hooks to portable Node.js `.mjs` files. Retroactive matrix test expansion for INV-11.
+
+**Deliverables:**
+
+- `.claude/commands/start-task.md` template (governance-level-parameterized)
+- `.claude/commands/complete-task.md` template (governance-level-parameterized)
+- All `.sh` hooks rewritten as `.mjs` (Node.js, cross-platform)
+- Settings merge logic upgraded to handle `.sh` → `.mjs` migration
+- Cross-product matrix tests: 5 stacks x 3 levels for AGENTS.md, ci.yml, check-all.mjs, commands
+
+**Exit criteria:** Commands generated for all governance levels. All hooks are `.mjs`. Matrix tests pass for all 60 cells. CI green.
+
+**Dependencies:** M10.
+
+---
+
+## M12 — Go/Python Stack Parity (foundation repair)
+
+**Issue:** #44
+**Scope:** Fix the 5 CRITICAL findings from the retroactive analysis. Go and Python currently produce non-functional governance (empty CI, empty gates, no coding standards, no invariants). Also fix Java Maven template gap. See ADR-014.
+
+**Deliverables:**
+
+- `src/templates/github/workflows/ci.yml.ejs` — Go and Python CI job branches
+- `src/templates/scripts/check-all.mjs.ejs` — Go and Python gate checks
+- `src/templates/agents-md/AGENTS.md.ejs` — Go and Python coding standards + invariants
+- `src/detectors/language-hooks.ts` — Go hooks (error handling), Python hooks (type hints)
+- `src/templates/claude/settings.json.ejs` — Go and Python tool permissions
+- `src/templates/github/dependabot.yml.ejs` — `gomod` and `pip` ecosystems
+- `src/templates/copilot/copilot-instructions.md.ejs` — Remove TS-specific lines for non-TS stacks
+- Java Maven support in ci.yml.ejs and check-all.mjs.ejs (detect Maven vs Gradle)
+- Updated cross-product tests that REQUIRE Go/Python content (not accept empty)
+
+**Testing protocol:**
+
+| Stack         | Real project (cloned from GH) | Verified |
+| ------------- | ----------------------------- | -------- |
+| TypeScript    | TBD                           | [ ]      |
+| Rust          | TBD                           | [ ]      |
+| Java (Gradle) | TBD                           | [ ]      |
+| Java (Maven)  | TBD                           | [ ]      |
+| Go            | TBD                           | [ ]      |
+| Python        | TBD                           | [ ]      |
+
+Report attached to issue as comment.
+
+**Exit criteria:** All 5 stacks produce functional CI, gates, coding standards, and invariants. Gate script runs real checks for all stacks. Real-project validation passes for all 6 rows above.
+
+**Dependencies:** M11.
+
+---
+
+## M13 — Documentation Alignment + Retroactive Fixes
+
+**Issue:** #45
+**Scope:** Fix all documentation drift (.sh → .mjs references), remove dead files, align AGENTS.md claims with reality. See ADR-014 retroactive analysis findings.
+
+**Deliverables:**
+
+- Fix `README.md`: `check-all.sh` → `check-all.mjs`, `.bak` → `.arbiter-backup`
+- Fix `docs/REFERENCE/STACK-SUPPORT.md`: all `.sh` → `.mjs` hook filenames
+- Fix `docs/REFERENCE/CLI.md`: all `.sh` → `.mjs` references, backup suffix
+- Fix `docs/REFERENCE/HOOKS.md`: align with actual hook implementations
+- Fix `AGENTS.md`: remove "enforced by CI" from INV-05 (until M14 makes it true)
+- Fix `AGENTS.md`: coverage 80% → 85% to match ADR-013
+- Remove dead `.sh` hook files from `.claude/hooks/`
+- Update `.claude/hooks/` dog-food versions to match template improvements (repo-root guard)
+- Update `docs/PRODUCT/MILESTONES.md` (this file — already done)
+
+**Testing protocol:** Same 6-repo validation as M12 (regression: all M12 functionality still works).
+
+**Exit criteria:** Zero references to `.sh` hooks in docs. Dead `.sh` files removed. AGENTS.md claims match actual enforcement. Docs pass a manual review for consistency.
+
+**Dependencies:** M12.
+
+---
+
+## M14 — Arbiter Self-Enforcement (dog-food)
+
+**Issue:** #46
+**Scope:** Apply tech debt prevention to Arbiter's own codebase. Dog-food before generating for users.
+
+**Deliverables:**
+
+- `vitest.config.ts` — Coverage thresholds: lines 85%, branches 75%, functions 90%, statements 85%
+- `eslint.config.js` — Complexity rules for `src/**/*.ts`: complexity 15, max-params 5, max-depth 4, max-lines-per-function 100, max-nested-callbacks 3
+- `package.json` — Add devDependencies: `madge`, `knip`, `@commitlint/cli`, `@commitlint/config-conventional`
+- `knip.json` — Dead code detection config (entry: `src/cli.ts`)
+- `scripts/check-all.mjs` — Add L1 checks: circular deps (madge), placeholders. Add L2 check: dead code (knip)
+- `.github/workflows/ci.yml` — Add steps: orphan-TODO, circular-deps, dead-code, placeholders
+- `.githooks/pre-commit` — Runs L1 gate
+- `.githooks/commit-msg` — Runs commitlint
+- `.githooks/pre-push` — Clean tree + L2 gate
+- `commitlint.config.js` — Conventional commits
+- `scripts/check-no-placeholders.mjs` — Placeholder/WIP/disabled-test scanner
+- `.claude/hooks/check-no-placeholders.mjs` — Claude Code write-time enforcement
+- `.claude/settings.json` — Wire placeholder hook
+
+**Testing protocol:** Same 6-repo regression + Arbiter's own gate must pass with all new checks.
+
+**Exit criteria:** Arbiter's own gate includes 8+ checks at L1 (typecheck, format, lint, unit tests, circular deps, placeholders) and 10+ at L2 (+ coverage, audit, dead code). All pass. Git hooks block bad commits locally. Commitlint enforces conventional format.
+
+**Dependencies:** M13.
+
+---
+
+## M15 — Generated Per-Stack Tech Debt Gates
+
+**Issue:** #47
+**Scope:** Generate tech debt prevention tooling for target projects. Each stack gets the appropriate tools for coverage thresholds, complexity limits, dead code detection, and circular dependency checks.
+
+**Deliverables:**
+
+Per-stack generated enforcement:
+
+| Stack      | Coverage                                      | Complexity                                 | Dead Code                         | Circular Deps               |
+| ---------- | --------------------------------------------- | ------------------------------------------ | --------------------------------- | --------------------------- |
+| TypeScript | vitest/jest thresholds in config              | ESLint complexity rules                    | Knip config                       | madge in gate               |
+| Rust       | cargo-tarpaulin config or llvm-cov thresholds | clippy pedantic lints                      | `#[warn(dead_code)]` verification | N/A (Rust compiler handles) |
+| Java       | JaCoCo thresholds in build.gradle/pom.xml     | PMD complexity rules                       | PMD unused code rules             | jdeps or ArchUnit           |
+| Go         | go test -coverprofile threshold check in gate | golangci-lint complexity linters           | golangci-lint deadcode/unused     | N/A (Go compiler handles)   |
+| Python     | pytest-cov thresholds in config               | ruff complexity rules (C901, PLR0911-0913) | ruff unused imports/variables     | N/A (ruff handles)          |
+
+- New templates for generated config files (e.g., `knip.json.ejs`, `ruff.toml.ejs` etc.)
+- Updated `check-all.mjs.ejs` with per-stack debt gate checks
+- Updated `ci.yml.ejs` with per-stack debt checks
+- Updated `AGENTS.md.ejs` with per-stack debt enforcement documentation
+
+**Testing protocol:** 6-repo real-project validation. For each: run `arbiter init`, then run the generated gate. The gate must execute real checks and pass (or fail with actionable messages on real violations).
+
+**Exit criteria:** All 5 stacks generate functional tech debt gates. Real-project gates run and produce meaningful output (not empty passes). Coverage thresholds are enforced. Complexity limits are enforced.
+
+**Dependencies:** M14 (dog-food validates the patterns before generating).
+
+---
+
+## M16 — Novel Anti-Tech-Debt Mechanism
+
+**Issue:** #43
+**Scope:** Design and implement a proactive tech debt detection system that does not exist in Viafera or any comparable tool. Generated for target projects across all stacks. See ADR-014.
+
+**Deliverables:**
+
+TBD after M12-M15 establish the foundation. Potential forms:
+
+- A generated `scripts/debt-audit.mjs` that quantifies debt metrics and trends them over time
+- A baseline file (`debt-baseline.json`) that captures current debt state; gate fails on regression
+- A Claude Code agent or hook that audits for debt patterns on schedule
+- Integration with the gate system: L2 includes debt-no-regression check, L3 includes debt-zero check
+- Dashboard or report output (markdown or JSON) attachable to PRs
+
+**Testing protocol:** 6-repo real-project validation + demonstrate debt detection catches a real regression.
+
+**Exit criteria:** Mechanism detects at least: coverage decay, complexity creep, dead code accumulation, dependency staleness, placeholder accumulation. Works across all 5 stacks. Baseline comparison prevents regressions.
+
+**Dependencies:** M15.
+
+---
+
+## M17 — Advanced Hooks (previously M12)
+
+**Issue:** #35
+**Scope:** Generate advanced Claude Code hooks for target projects: plan-anchor, debug-state, pre-compact, dispatch.
+
+**Dependencies:** M16.
+
+---
+
+## M18 — Rich Invariant Catalog (previously M14)
+
+**Issue:** #37
+**Scope:** Expand from 10 to 25+ invariants across 5 tiers. Now includes Go and Python invariants (made possible by M12).
+
+**Dependencies:** M12, M15.
+
+---
+
+## M19 — Skills & Sub-Agents Generation (previously M13)
+
+**Issue:** #36
+**Scope:** Skeleton skills and agent definitions for target projects.
+
+**Dependencies:** M17.
+
+---
+
+## M20 — SSOT Framework Generation (previously M15)
+
+**Issue:** #38
+**Scope:** Knowledge map, track router, engineering defaults.
+
+**Dependencies:** M18.
+
+---
+
+## M21 — Richer GitHub Integration (previously M16)
+
+**Issue:** #39
+**Scope:** Task-brief templates, epic template, project board.
+
+**Dependencies:** M20.
+
+---
+
 ## Milestone Dependency Graph
 
 ```
-M1 → M2 → M3 ──┐
-          → M4 ─┤
-     M2 → M5 ──┼→ M6 → M7 → M8 → M9
-                │              └──→ M10
-                └─────────────────┘
+                    ┌── M1-M10 (DONE) ──┐
+                    │                    │
+                    v                    v
+                  M11 (DONE)          (docs/tests done)
+                    │
+                    v
+            ┌─── M12 (Go/Python fix) ───┐
+            │                            │
+            v                            v
+          M13 (doc alignment)      M18 (invariants)
+            │
+            v
+          M14 (self-enforce)
+            │
+            v
+          M15 (generated gates)
+            │
+            v
+          M16 (anti-debt mechanism)
+            │
+            v
+          M17 (advanced hooks)
+            │
+            v
+          M19 (skills/agents)
+            │
+            v
+          M20 (SSOT framework)
+            │
+            v
+          M21 (GitHub integration)
 ```
 
-**Parallelism:**
+**Critical path:** M12 → M13 → M14 → M15 → M16 → M17 → M19 → M20 → M21
 
-- M3 ∥ M4 (architecture docs ∥ reference docs)
-- M4 ∥ M5 (reference docs ∥ test infrastructure)
-- M10 can start after M7 (independent of M8, M9)
+**Parallelism:** M18 (Rich Invariant Catalog) can start after M12 + M15, independent of M13-M14.
