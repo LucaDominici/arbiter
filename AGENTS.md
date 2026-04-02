@@ -43,7 +43,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 ### Tier 2: Code Quality
 
 - **INV-04:** No `any` type in TypeScript (enforced by hook + CI)
-- **INV-05:** No unused exports (dead code elimination enforced by CI)
+- **INV-05:** No unused exports (dead code elimination)
 - **INV-06:** Every TODO comment must reference a task ID: `TODO(#NNN)`
 
 ### Tier 3: Process
@@ -73,7 +73,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
 ### L2 (Standard)
 
-- Unit tests: 80% coverage minimum
+- Unit tests: 85% coverage minimum
 - Integration tests for all external boundaries (database, APIs)
 - No mocking of internal modules — only boundary mocks
 - TDD preferred: test first, then implement
