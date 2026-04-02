@@ -79,7 +79,7 @@ Tool overlays **add** what `AGENTS.md` cannot express natively for a specific to
 | --------------------- | ---------------------------------------------- | ------------------------------ |
 | Permissions schema    | `settings.json` `permissions` + `allowedTools` | —                              |
 | Hook wiring           | `settings.json` `hooks` section                | —                              |
-| Enforcement scripts   | `.claude/hooks/*.mjs`                           | —                              |
+| Enforcement scripts   | `.claude/hooks/*.mjs`                          | —                              |
 | Slash commands        | `.claude/commands/*.md`                        | —                              |
 | Sub-agent definitions | `.claude/agents/*.md`                          | —                              |
 | Plan schema           | —                                              | `CODEX.md` §Plan Schema        |

@@ -71,8 +71,8 @@ These variables are available to every template via `ProjectConfig`:
 
 **Conditional Branches:**
 
-| Condition                   | Effect                             |
-| --------------------------- | ---------------------------------- |
+| Condition                   | Effect                              |
+| --------------------------- | ----------------------------------- |
 | `language === 'typescript'` | Adds `check-no-any.mjs` hook row    |
 | `language === 'rust'`       | Adds `check-no-unwrap.mjs` hook row |
 

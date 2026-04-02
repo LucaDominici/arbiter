@@ -14,10 +14,10 @@ This decision was made at the start of the project, before any generator was wri
 
 Every generated file has an explicit conflict resolution strategy assigned at the point of generation:
 
-| Strategy             | When used                                                        | Files                                                                                        |
-| -------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| **backup + replace** | Canonical files — stateless, safe to regenerate                  | `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`      |
-| **deep merge**       | Stateful config with both stable and project-customized sections | `.claude/settings.json`                                                                      |
+| Strategy             | When used                                                        | Files                                                                                         |
+| -------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **backup + replace** | Canonical files — stateless, safe to regenerate                  | `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.cursorrules`, `.github/copilot-instructions.md`       |
+| **deep merge**       | Stateful config with both stable and project-customized sections | `.claude/settings.json`                                                                       |
 | **skipIfExists**     | Project-customizable files — created once, never overwritten     | Hook scripts, rules, commands, GitHub workflows, issue templates, `check-all.mjs`, root files |
 
 These strategies are implemented in `src/utils/fs.ts`:

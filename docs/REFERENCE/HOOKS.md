@@ -143,27 +143,27 @@ The following hooks exist only in arbiter's own repository (`.claude/hooks/`). T
 
 ### `enforce-read-only.mjs`
 
-| Property      | Value                                              |
-| ------------- | -------------------------------------------------- |
-| **Source**    | `.claude/hooks/enforce-read-only.mjs`              |
-| **Event**     | `PreToolUse` -> `Edit\|Write`                      |
-| **Purpose**   | Guard read-only files from modification            |
-| **Invariant** | File protection                                    |
-| **Languages** | All                                                |
-| **Timeout**   | 3 seconds                                          |
-| **Blocking**  | Yes (exit 1)                                       |
+| Property      | Value                                   |
+| ------------- | --------------------------------------- |
+| **Source**    | `.claude/hooks/enforce-read-only.mjs`   |
+| **Event**     | `PreToolUse` -> `Edit\|Write`           |
+| **Purpose**   | Guard read-only files from modification |
+| **Invariant** | File protection                         |
+| **Languages** | All                                     |
+| **Timeout**   | 3 seconds                               |
+| **Blocking**  | Yes (exit 1)                            |
 
 ### `pre-edit-ssot-guard.mjs`
 
-| Property      | Value                                                |
-| ------------- | ---------------------------------------------------- |
-| **Source**    | `.claude/hooks/pre-edit-ssot-guard.mjs`              |
-| **Event**     | `PreToolUse` -> `Edit\|Write`                        |
-| **Purpose**   | Warn on edits to SSOT documents                      |
-| **Invariant** | SSOT integrity                                       |
-| **Languages** | All                                                  |
-| **Timeout**   | 3 seconds                                            |
-| **Blocking**  | No (warning only, exits 0)                           |
+| Property      | Value                                   |
+| ------------- | --------------------------------------- |
+| **Source**    | `.claude/hooks/pre-edit-ssot-guard.mjs` |
+| **Event**     | `PreToolUse` -> `Edit\|Write`           |
+| **Purpose**   | Warn on edits to SSOT documents         |
+| **Invariant** | SSOT integrity                          |
+| **Languages** | All                                     |
+| **Timeout**   | 3 seconds                               |
+| **Blocking**  | No (warning only, exits 0)              |
 
 ---
 

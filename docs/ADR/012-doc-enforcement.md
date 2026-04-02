@@ -16,7 +16,7 @@ Implement a 3-layer documentation enforcement mechanism:
 
 | Layer | Mechanism                                   | Scope                                                                                      | Blocking?               |
 | ----- | ------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------- |
-| 1     | Claude hook: `pre-edit-ssot-guard.mjs`       | SSOT files (`AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`) | Advisory (exits 0)      |
+| 1     | Claude hook: `pre-edit-ssot-guard.mjs`      | SSOT files (`AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`) | Advisory (exits 0)      |
 | 2     | CI job: `docs-check` in GitHub Actions      | PRs that change `src/` or `__tests__/` without touching `docs/` or `README.md`             | Enforced (blocks merge) |
 | 3     | Generated CI: `ci.yml.ejs` for L2+ projects | Same `docs-check` job generated for governed projects at L2 or L3                          | Enforced (blocks merge) |
 
