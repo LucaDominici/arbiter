@@ -83,9 +83,9 @@ describe("getLanguageHooks", () => {
       "unknown",
     ] as const) {
       const hooks = getLanguageHooks(lang);
-      expect(
-        hooks.some((h) => h.name === "check-no-unchecked-err.mjs"),
-      ).toBe(false);
+      expect(hooks.some((h) => h.name === "check-no-unchecked-err.mjs")).toBe(
+        false,
+      );
     }
   });
 
@@ -98,9 +98,9 @@ describe("getLanguageHooks", () => {
       "unknown",
     ] as const) {
       const hooks = getLanguageHooks(lang);
-      expect(
-        hooks.some((h) => h.name === "check-no-bare-except.mjs"),
-      ).toBe(false);
+      expect(hooks.some((h) => h.name === "check-no-bare-except.mjs")).toBe(
+        false,
+      );
     }
   });
 
@@ -125,12 +125,7 @@ describe("getLanguageHooks", () => {
   });
 
   it("all hooks have valid shebang", () => {
-    for (const lang of [
-      "typescript",
-      "rust",
-      "go",
-      "python",
-    ] as const) {
+    for (const lang of ["typescript", "rust", "go", "python"] as const) {
       const hooks = getLanguageHooks(lang);
       for (const hook of hooks) {
         expect(hook.body).toMatch(/^#!/);

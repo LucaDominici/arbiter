@@ -192,9 +192,7 @@ describe("matrix: Java project (Maven)", () => {
       readFileSync(join(dir, ".claude", "settings.json"), "utf-8"),
     ) as Record<string, unknown>;
     const permissions = settings["permissions"] as { allow?: string[] };
-    expect(permissions.allow).toEqual(
-      expect.arrayContaining(["Bash(mvn *)"]),
-    );
+    expect(permissions.allow).toEqual(expect.arrayContaining(["Bash(mvn *)"]));
     expect(permissions.allow).not.toEqual(
       expect.arrayContaining(["Bash(./gradlew *)"]),
     );

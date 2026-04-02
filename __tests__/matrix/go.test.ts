@@ -142,7 +142,12 @@ describe("matrix: Go project", () => {
   it("generates check-no-unchecked-err.mjs language hook", () => {
     const config = goConfig();
     runGenerators(config);
-    const hookPath = join(dir, ".claude", "hooks", "check-no-unchecked-err.mjs");
+    const hookPath = join(
+      dir,
+      ".claude",
+      "hooks",
+      "check-no-unchecked-err.mjs",
+    );
     expect(existsSync(hookPath)).toBe(true);
     const content = readFileSync(hookPath, "utf-8");
     expect(content).toContain(".go");
