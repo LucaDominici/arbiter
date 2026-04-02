@@ -125,15 +125,15 @@ Only activates for `.rs` files. Fails if `.unwrap()` is found.
 
 ---
 
-## Static Hooks (Generated from Template Files)
+## Dog-Food Only Hooks
 
-The following hooks are generated from static template files in `src/templates/claude/hooks/`.
+The following hooks exist only in arbiter's own repository (`.claude/hooks/`). They are not generated for governed projects — they are arbiter's self-governance tooling.
 
 ### `stop-dangerous.mjs`
 
 | Property      | Value                                                     |
 | ------------- | --------------------------------------------------------- |
-| **Source**    | `src/templates/claude/hooks/stop-dangerous.mjs`           |
+| **Source**    | `.claude/hooks/stop-dangerous.mjs`                        |
 | **Event**     | `PreToolUse` -> `Bash`                                    |
 | **Purpose**   | Block dangerous shell commands (rm -rf, force push, sudo) |
 | **Invariant** | Safety (process)                                          |
@@ -145,7 +145,7 @@ The following hooks are generated from static template files in `src/templates/c
 
 | Property      | Value                                              |
 | ------------- | -------------------------------------------------- |
-| **Source**    | `src/templates/claude/hooks/enforce-read-only.mjs` |
+| **Source**    | `.claude/hooks/enforce-read-only.mjs`              |
 | **Event**     | `PreToolUse` -> `Edit\|Write`                      |
 | **Purpose**   | Guard read-only files from modification            |
 | **Invariant** | File protection                                    |
@@ -157,7 +157,7 @@ The following hooks are generated from static template files in `src/templates/c
 
 | Property      | Value                                                |
 | ------------- | ---------------------------------------------------- |
-| **Source**    | `src/templates/claude/hooks/pre-edit-ssot-guard.mjs` |
+| **Source**    | `.claude/hooks/pre-edit-ssot-guard.mjs`              |
 | **Event**     | `PreToolUse` -> `Edit\|Write`                        |
 | **Purpose**   | Warn on edits to SSOT documents                      |
 | **Invariant** | SSOT integrity                                       |
