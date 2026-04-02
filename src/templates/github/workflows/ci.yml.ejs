@@ -44,9 +44,36 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - uses: gradle/actions/setup-gradle@v3
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
       - run: ./gradlew checkstyleMain
       - run: ./gradlew test
+<% } else { %>      - run: mvn checkstyle:check
+      - run: mvn test
+<% } %><% } %><% if (language === 'go') { %>
+  lint-and-test:
+    name: Lint + Test (Go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - run: go vet ./...
+      - run: golangci-lint run
+      - run: go test ./... -race -coverprofile=coverage.out
+<% } %><% if (language === 'python') { %>
+  lint-and-test:
+    name: Lint + Test (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest --cov
 <% } %>
 
 <% if (governanceLevel !== 'L1') { %>

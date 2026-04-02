@@ -101,7 +101,7 @@ describe("matrix: Python project", () => {
     const config = pythonConfig();
     runGenerators(config);
     const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
-    expect(content).toContain("type annotations");
+    expect(content).toContain("Type annotations");
     expect(content).toContain("ruff");
     expect(content).toContain("pytest");
   });

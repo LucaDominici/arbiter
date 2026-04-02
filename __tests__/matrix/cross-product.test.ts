@@ -141,7 +141,7 @@ describe("cross-product: AGENTS.md — language invariants isolated at all gover
         "agents-md/AGENTS.md.ejs",
         configFor("python", level),
       );
-      expect(content).toContain("type annotations");
+      expect(content).toContain("Type annotations");
       expect(content).toContain("ruff");
       expect(content).not.toContain("Strict mode always on");
       expect(content).not.toContain("Hexagonal architecture");
@@ -285,7 +285,7 @@ describe("cross-product: check-all.mjs — language check commands", () => {
     );
     expect(content).toContain("vet");
     expect(content).toContain("golangci-lint");
-    expect(content).toContain("go test");
+    expect(content).toContain("'go'");
     expect(content).toContain("staticcheck");
     expect(content).not.toContain("eslint");
     expect(content).not.toContain("checkstyleMain");

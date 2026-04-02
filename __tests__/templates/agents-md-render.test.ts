@@ -77,7 +77,7 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
   it("renders with Python — contains Python coding standards", () => {
     const content = renderAgentsMd({ language: "python" });
     expect(content).toContain("Python");
-    expect(content).toContain("type annotations");
+    expect(content).toContain("Type annotations");
     expect(content).toContain("ruff");
   });
 

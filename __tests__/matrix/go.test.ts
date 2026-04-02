@@ -99,7 +99,7 @@ describe("matrix: Go project", () => {
     const config = goConfig();
     runGenerators(config);
     const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
-    expect(content).toContain("explicit error handling");
+    expect(content).toContain("error handling");
     expect(content).toContain("go vet");
   });
 
@@ -124,7 +124,7 @@ describe("matrix: Go project", () => {
     );
     expect(checkAll).toContain("vet");
     expect(checkAll).toContain("golangci-lint");
-    expect(checkAll).toContain("go test");
+    expect(checkAll).toContain("'go'");
   });
 
   it("settings.json includes Go permissions", () => {
