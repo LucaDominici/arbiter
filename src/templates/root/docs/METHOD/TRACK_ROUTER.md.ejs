@@ -1,0 +1,39 @@
+# Track Router — <%= projectName %>
+
+**Purpose:** Maps agent query types to the right starting document. Use this to navigate efficiently without reading everything.
+**Rule:** Read this first, then open only the section you need.
+
+---
+
+## Query Routing Table
+
+| Query type | Start here | Then read |
+|------------|------------|-----------|
+| What are the invariants? | `AGENTS.md` → Invariants section | Stop — invariants are self-contained |
+| What's the coding standard for X? | `AGENTS.md` → Coding Standards | `docs/METHOD/ENGINEERING_DEFAULTS.md` for depth |
+| How complex can this function be? | `docs/METHOD/ENGINEERING_DEFAULTS.md` → Complexity Limits | Stop |
+| What SOLID principle applies here? | `docs/METHOD/ENGINEERING_DEFAULTS.md` → SOLID-First Policy | Stop |
+| What docs exist on topic X? | `docs/METHOD/KNOWLEDGE_MAP.md` | Jump to specific doc |
+| What documents are canonical? | `docs/METHOD/SSOT_CORE_SET.md` | Jump to specific section |
+| How do I commit / run gates? | `AGENTS.md` → Project section | Stop |
+| What tests are required? | `AGENTS.md` → Testing Policy | Stop |
+| What's the architecture? | `docs/SYSTEM/ARCHITECTURE.md` (if it exists) | `docs/METHOD/KNOWLEDGE_MAP.md` for navigation |
+
+---
+
+## Context Economy Rules
+
+1. **Index before opening.** Always check `KNOWLEDGE_MAP.md` before reading a large doc.
+2. **Section-first.** Use the routing table above to jump to the right section, not the whole file.
+3. **Trust invariants.** AGENTS.md invariants are self-contained — no need to cross-reference.
+4. **Don't re-read unchanged files.** Once you've read a doc this session, trust your context.
+5. **Confirm before acting.** If a decision is ambiguous, cite the governing document and ask — don't guess.
+
+---
+
+## Adding New Routes
+
+When a new canonical document is added to the project:
+1. Add it to `docs/METHOD/SSOT_CORE_SET.md`
+2. Add an entry in `docs/METHOD/KNOWLEDGE_MAP.md` with section breakdown
+3. Add a routing row to the table above for the query types it answers

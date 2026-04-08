@@ -1,0 +1,254 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { generateSsot } from "../../src/generators/ssot.js";
+import { makeConfig } from "../helpers.js";
+
+describe("generateSsot", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-ssot-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  // ── Adoption tiers ──────────────────────────────────────────────────────────
+
+  it("L1: generates SSOT_CORE_SET.md and KNOWLEDGE_MAP.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/SSOT_CORE_SET.md"))).toBe(true);
+    expect(existsSync(join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"))).toBe(true);
+  });
+
+  it("L1: does NOT generate ENGINEERING_DEFAULTS.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"))).toBe(
+      false,
+    );
+  });
+
+  it("L1: does NOT generate TRACK_ROUTER.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/TRACK_ROUTER.md"))).toBe(false);
+  });
+
+  it("L2: generates ENGINEERING_DEFAULTS.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"))).toBe(
+      true,
+    );
+  });
+
+  it("L2: does NOT generate TRACK_ROUTER.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/TRACK_ROUTER.md"))).toBe(false);
+  });
+
+  it("L3: generates all four files", () => {
+    const config = makeConfig(dir, { governanceLevel: "L3" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/SSOT_CORE_SET.md"))).toBe(true);
+    expect(existsSync(join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"))).toBe(true);
+    expect(existsSync(join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"))).toBe(
+      true,
+    );
+    expect(existsSync(join(dir, "docs/METHOD/TRACK_ROUTER.md"))).toBe(true);
+  });
+
+  // ── Return value ─────────────────────────────────────────────────────────────
+
+  it("returns an array of WriteResults", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    const results = generateSsot(config);
+    expect(Array.isArray(results.files)).toBe(true);
+    expect(results.files.length).toBeGreaterThan(0);
+  });
+
+  it("all returned results have action and path", () => {
+    const config = makeConfig(dir, { governanceLevel: "L3" });
+    const results = generateSsot(config);
+    for (const r of results.files) {
+      expect(r).toHaveProperty("action");
+      expect(r).toHaveProperty("path");
+    }
+  });
+
+  // ── SSOT_CORE_SET.md content ─────────────────────────────────────────────────
+
+  it("SSOT_CORE_SET.md contains project name", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L1",
+      projectName: "my-app",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("my-app");
+  });
+
+  it("SSOT_CORE_SET.md references KNOWLEDGE_MAP.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("KNOWLEDGE_MAP.md");
+  });
+
+  it("SSOT_CORE_SET.md references ENGINEERING_DEFAULTS.md for L2+", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("ENGINEERING_DEFAULTS.md");
+  });
+
+  it("SSOT_CORE_SET.md does not reference ENGINEERING_DEFAULTS.md for L1", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).not.toContain("ENGINEERING_DEFAULTS.md");
+  });
+
+  // ── KNOWLEDGE_MAP.md content ──────────────────────────────────────────────────
+
+  it("KNOWLEDGE_MAP.md contains project name", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L1",
+      projectName: "my-app",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
+      "utf-8",
+    );
+    expect(content).toContain("my-app");
+  });
+
+  it("KNOWLEDGE_MAP.md has AGENTS.md entry", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
+      "utf-8",
+    );
+    expect(content).toContain("AGENTS.md");
+  });
+
+  it("KNOWLEDGE_MAP.md is skipIfExists (manual edits preserved)", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    // First run creates it
+    generateSsot(config);
+    const firstContent = readFileSync(
+      join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
+      "utf-8",
+    );
+
+    // Second run should skip
+    const results = generateSsot(config);
+    const knowledgeMapResult = results.files.find((r) =>
+      r.path.endsWith("KNOWLEDGE_MAP.md"),
+    );
+    expect(knowledgeMapResult?.action).toBe("skipped");
+
+    // Content unchanged
+    const secondContent = readFileSync(
+      join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
+      "utf-8",
+    );
+    expect(secondContent).toBe(firstContent);
+  });
+
+  // ── ENGINEERING_DEFAULTS.md content ──────────────────────────────────────────
+
+  it("ENGINEERING_DEFAULTS.md contains SOLID section", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("SOLID");
+  });
+
+  it("ENGINEERING_DEFAULTS.md has TypeScript-specific complexity limits for TS projects", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      language: "typescript",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("TypeScript");
+  });
+
+  it("ENGINEERING_DEFAULTS.md has Java-specific complexity limits for Java projects", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      language: "java",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("Java");
+  });
+
+  it("ENGINEERING_DEFAULTS.md mentions complexity limit", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    // Should mention cognitive complexity or cyclomatic complexity
+    expect(content.toLowerCase()).toMatch(/complexity/);
+  });
+
+  // ── TRACK_ROUTER.md content ───────────────────────────────────────────────────
+
+  it("TRACK_ROUTER.md explains when to read which doc", () => {
+    const config = makeConfig(dir, { governanceLevel: "L3" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/TRACK_ROUTER.md"),
+      "utf-8",
+    );
+    // Should have routing-like content
+    expect(content).toContain("AGENTS.md");
+    expect(content).toContain("KNOWLEDGE_MAP.md");
+  });
+
+  it("TRACK_ROUTER.md contains project name", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L3",
+      projectName: "my-app",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/TRACK_ROUTER.md"),
+      "utf-8",
+    );
+    expect(content).toContain("my-app");
+  });
+});
