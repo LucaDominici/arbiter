@@ -103,11 +103,35 @@ if (offending.length > 0) {
 }`,
 };
 
+const JAVA_NO_RAW_TYPES: LanguageHook = {
+  name: "check-no-raw-types.mjs",
+  description:
+    "No raw generic types in Java source files (always use type parameters)",
+  body: `#!/usr/bin/env node
+// Fail if a Java file uses raw generic types (unparameterized generics)
+import { readFileSync, existsSync } from 'node:fs';
+const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+if (!file.endsWith('.java')) process.exit(0);
+if (!existsSync(file)) process.exit(0);
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
+const lines = readFileSync(file, 'utf-8').split('\\n');
+const offending = lines.flatMap((line, i) =>
+  /\\b(List|Map|Set|Collection|ArrayList|HashMap|HashSet|LinkedList|Queue|Deque|Iterator|Optional)\\s+\\w/.test(line) && !line.trimStart().startsWith('//') ? [\`\${i + 1}: \${line.trim()}\`] : []
+);
+if (offending.length > 0) {
+  process.stderr.write(\`[arbiter] INV: Raw generic type found (always use type parameters like List<String>): \${file}\\n\`);
+  offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
+  process.exit(1);
+}`,
+};
+
 export function getLanguageHooks(language: Language): LanguageHook[] {
   const hooks: LanguageHook[] = [COMMON_NO_ORPHAN_TODO];
   if (language === "typescript") hooks.push(TS_NO_ANY);
   if (language === "rust") hooks.push(RUST_NO_UNWRAP);
   if (language === "go") hooks.push(GO_NO_UNCHECKED_ERR);
   if (language === "python") hooks.push(PY_NO_BARE_EXCEPT);
+  if (language === "java") hooks.push(JAVA_NO_RAW_TYPES);
   return hooks;
 }
