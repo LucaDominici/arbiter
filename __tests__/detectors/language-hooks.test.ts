@@ -129,6 +129,7 @@ describe("getLanguageHooks", () => {
     const noRawTypes = hooks.find((h) => h.name === "check-no-raw-types.mjs");
     expect(noRawTypes).toBeDefined();
     expect(noRawTypes!.body).toContain(".java");
+    expect(noRawTypes!.body).toContain("List");
     expect(noRawTypes!.description).toMatch(/raw/i);
   });
 

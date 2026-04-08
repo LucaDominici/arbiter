@@ -116,9 +116,11 @@ if (!existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();
 if (!file.startsWith(repoRoot)) process.exit(0);
 const lines = readFileSync(file, 'utf-8').split('\\n');
-const offending = lines.flatMap((line, i) =>
-  /\\b(List|Map|Set|Collection|ArrayList|HashMap|HashSet|LinkedList|Queue|Deque|Iterator|Optional)\\s+\\w/.test(line) && !line.trimStart().startsWith('//') ? [\`\${i + 1}: \${line.trim()}\`] : []
-);
+const offending = lines.flatMap((line, i) => {
+  const t = line.trimStart();
+  if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return [];
+  return /\\b(List|Map|Set|Collection|ArrayList|HashMap|HashSet|LinkedList|Queue|Deque|Iterator|Optional)\\b(?!<)/.test(line) ? [\`\${i + 1}: \${line.trim()}\`] : [];
+});
 if (offending.length > 0) {
   process.stderr.write(\`[arbiter] INV: Raw generic type found (always use type parameters like List<String>): \${file}\\n\`);
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
