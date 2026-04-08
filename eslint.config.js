@@ -23,6 +23,20 @@ export default tseslint.config(
       ],
     },
   },
+  // Complexity rules for source files
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      complexity: ["error", 15],
+      "max-params": ["error", 5],
+      "max-depth": ["error", 4],
+      "max-lines-per-function": [
+        "error",
+        { max: 100, skipBlankLines: true, skipComments: true },
+      ],
+      "max-nested-callbacks": ["error", 3],
+    },
+  },
   // Test files are not in tsconfig.json — disable type-aware rules and relax style rules
   {
     files: ["__tests__/**/*.ts"],
