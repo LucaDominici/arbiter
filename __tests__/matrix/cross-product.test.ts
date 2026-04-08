@@ -619,3 +619,135 @@ describe("cross-product: AGENTS.md — Debt Ratchet section at L2+, absent at L1
     });
   }
 });
+
+// ─── Advanced Hooks (M17) ─────────────────────────────────────────────────────
+
+describe("cross-product: settings.json — advanced hooks governance gating", () => {
+  function renderSettings(
+    lang: Language,
+    level: GovernanceLevel,
+  ): Record<string, unknown> {
+    const rendered = renderTemplate(
+      "claude/settings.json.ejs",
+      configFor(lang, level),
+    );
+    return JSON.parse(rendered) as Record<string, unknown>;
+  }
+
+  // PreCompact present at all levels for all stacks
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: PreCompact block present`, () => {
+        const json = renderSettings(lang, level);
+        const hooks = json["hooks"] as Record<string, unknown>;
+        expect(hooks).toHaveProperty("PreCompact");
+      });
+    }
+  }
+
+  // UserPromptSubmit: L2+ only
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: UserPromptSubmit block present`, () => {
+      const json = renderSettings(lang, "L2");
+      const hooks = json["hooks"] as Record<string, unknown>;
+      expect(hooks).toHaveProperty("UserPromptSubmit");
+    });
+
+    it(`${lang}+L3: UserPromptSubmit block present`, () => {
+      const json = renderSettings(lang, "L3");
+      const hooks = json["hooks"] as Record<string, unknown>;
+      expect(hooks).toHaveProperty("UserPromptSubmit");
+    });
+
+    it(`${lang}+L1: UserPromptSubmit block absent`, () => {
+      const json = renderSettings(lang, "L1");
+      const hooks = json["hooks"] as Record<string, unknown>;
+      expect(hooks).not.toHaveProperty("UserPromptSubmit");
+    });
+  }
+
+  // pre-edit-plan-anchor in PreToolUse at all levels
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: pre-edit-plan-anchor.mjs in PreToolUse`, () => {
+        const rendered = renderTemplate(
+          "claude/settings.json.ejs",
+          configFor(lang, level),
+        );
+        expect(rendered).toContain("pre-edit-plan-anchor.mjs");
+      });
+    }
+  }
+
+  // post-edit-dispatch: L2+ only
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: post-edit-dispatch.mjs in PostToolUse`, () => {
+      const rendered = renderTemplate(
+        "claude/settings.json.ejs",
+        configFor(lang, "L2"),
+      );
+      expect(rendered).toContain("post-edit-dispatch.mjs");
+    });
+
+    it(`${lang}+L1: post-edit-dispatch.mjs absent`, () => {
+      const rendered = renderTemplate(
+        "claude/settings.json.ejs",
+        configFor(lang, "L1"),
+      );
+      expect(rendered).not.toContain("post-edit-dispatch.mjs");
+    });
+  }
+
+  // debug-state-on-failure: L2+ only, PostToolUseFailure event
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: debug-state-on-failure.mjs present`, () => {
+      const rendered = renderTemplate(
+        "claude/settings.json.ejs",
+        configFor(lang, "L2"),
+      );
+      expect(rendered).toContain("debug-state-on-failure.mjs");
+    });
+
+    it(`${lang}+L1: debug-state-on-failure.mjs absent`, () => {
+      const rendered = renderTemplate(
+        "claude/settings.json.ejs",
+        configFor(lang, "L1"),
+      );
+      expect(rendered).not.toContain("debug-state-on-failure.mjs");
+    });
+  }
+
+  // settings.json must be valid JSON for all combinations
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: settings.json is valid JSON`, () => {
+        expect(() => renderSettings(lang, level)).not.toThrow();
+      });
+    }
+  }
+});
+
+// ─── start-task task state files (M17) ───────────────────────────────────────
+
+describe("cross-product: start-task.md — task state files for advanced hooks", () => {
+  function renderStartTask(lang: Language, level: GovernanceLevel): string {
+    return renderTemplate(
+      "claude/commands/start-task.md.ejs",
+      configFor(lang, level),
+    );
+  }
+
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: contains .task-phase instruction`, () => {
+      expect(renderStartTask(lang, "L2")).toContain(".task-phase");
+    });
+
+    it(`${lang}+L3: contains .task-phase instruction`, () => {
+      expect(renderStartTask(lang, "L3")).toContain(".task-phase");
+    });
+
+    it(`${lang}+L1: does NOT contain .task-phase instruction`, () => {
+      expect(renderStartTask(lang, "L1")).not.toContain(".task-phase");
+    });
+  }
+});

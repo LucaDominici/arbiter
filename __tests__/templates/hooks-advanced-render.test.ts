@@ -1,0 +1,414 @@
+import { describe, it, expect } from "vitest";
+import { renderTemplate } from "../../src/utils/render.js";
+import { makeConfig } from "../helpers.js";
+import type { Language, GovernanceLevel } from "../../src/wizard/types.js";
+
+/**
+ * Tests for the 5 advanced hook EJS templates (M17 / issue #35).
+ * Verifies: no EJS tag leaks, key markers present, stack-specific interpolation.
+ */
+
+const STACK_CONFIGS: Record<
+  Language,
+  Partial<Parameters<typeof makeConfig>[1]>
+> = {
+  typescript: {
+    buildTool: "npm",
+    testCommand: "npm test",
+    lintCommand: "npm run lint",
+    formatCommand: "npx prettier --write",
+  },
+  java: {
+    buildTool: "gradle",
+    testCommand: "./gradlew test",
+    lintCommand: "./gradlew checkstyleMain",
+    formatCommand: "echo ok",
+  },
+  rust: {
+    buildTool: "cargo",
+    testCommand: "cargo test",
+    lintCommand: "cargo clippy",
+    formatCommand: "cargo fmt",
+  },
+  go: {
+    buildTool: "go",
+    testCommand: "go test ./...",
+    lintCommand: "golangci-lint run",
+    formatCommand: "gofmt -w",
+  },
+  python: {
+    buildTool: "pip",
+    testCommand: "pytest",
+    lintCommand: "ruff check .",
+    formatCommand: "black .",
+  },
+  unknown: {},
+};
+
+const LANGUAGES: Language[] = ["typescript", "java", "rust", "go", "python"];
+
+function configFor(
+  lang: Language,
+  level: GovernanceLevel = "L2",
+): Record<string, unknown> {
+  return makeConfig("/tmp/test", {
+    language: lang,
+    governanceLevel: level,
+    ...STACK_CONFIGS[lang],
+  }) as unknown as Record<string, unknown>;
+}
+
+// ─── pre-compact.mjs.ejs ──────────────────────────────────────────────────────
+
+describe("hooks/pre-compact.mjs.ejs", () => {
+  it("renders without EJS tag leaks", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-compact.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("contains SESSION STATE banner", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-compact.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("SESSION STATE");
+  });
+
+  it("mentions compaction", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-compact.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toMatch(/compact/i);
+  });
+
+  it("imports readTaskState and getRepoRoot from lib.mjs", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-compact.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("readTaskState");
+    expect(out).toContain("getRepoRoot");
+    expect(out).toContain("lib.mjs");
+  });
+
+  it("renders identically for all stacks (no stack interpolation)", () => {
+    const base = renderTemplate(
+      "claude/hooks/pre-compact.mjs.ejs",
+      configFor("typescript"),
+    );
+    for (const lang of ["java", "rust", "go", "python"] as Language[]) {
+      const out = renderTemplate(
+        "claude/hooks/pre-compact.mjs.ejs",
+        configFor(lang),
+      );
+      expect(out).toBe(base);
+    }
+  });
+});
+
+// ─── pre-edit-plan-anchor.mjs.ejs ────────────────────────────────────────────
+
+describe("hooks/pre-edit-plan-anchor.mjs.ejs", () => {
+  it("renders without EJS tag leaks", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("contains ACTIVE PLAN banner text", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("ACTIVE PLAN");
+  });
+
+  it("only fires during implementation phase", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("implementation");
+  });
+
+  it("reads from .task-plan state file", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain(".task-plan");
+  });
+
+  it("imports readTaskState from lib.mjs", () => {
+    const out = renderTemplate(
+      "claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("readTaskState");
+    expect(out).toContain("lib.mjs");
+  });
+
+  it("renders identically for all stacks", () => {
+    const base = renderTemplate(
+      "claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+      configFor("typescript"),
+    );
+    for (const lang of ["java", "rust", "go", "python"] as Language[]) {
+      const out = renderTemplate(
+        "claude/hooks/pre-edit-plan-anchor.mjs.ejs",
+        configFor(lang),
+      );
+      expect(out).toBe(base);
+    }
+  });
+});
+
+// ─── skill-forced-eval.mjs.ejs ───────────────────────────────────────────────
+
+describe("hooks/skill-forced-eval.mjs.ejs", () => {
+  it("renders without EJS tag leaks for typescript", () => {
+    const out = renderTemplate(
+      "claude/hooks/skill-forced-eval.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("renders without EJS tag leaks for all stacks", () => {
+    for (const lang of LANGUAGES) {
+      const out = renderTemplate(
+        "claude/hooks/skill-forced-eval.mjs.ejs",
+        configFor(lang),
+      );
+      expect(out).not.toContain("<%");
+      expect(out).not.toContain("%>");
+    }
+  });
+
+  it("interpolates testCommand for typescript", () => {
+    const out = renderTemplate(
+      "claude/hooks/skill-forced-eval.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("npm test");
+  });
+
+  it("interpolates testCommand for rust", () => {
+    const out = renderTemplate(
+      "claude/hooks/skill-forced-eval.mjs.ejs",
+      configFor("rust"),
+    );
+    expect(out).toContain("cargo test");
+  });
+
+  it("interpolates testCommand for python", () => {
+    const out = renderTemplate(
+      "claude/hooks/skill-forced-eval.mjs.ejs",
+      configFor("python"),
+    );
+    expect(out).toContain("pytest");
+  });
+
+  it("handles implementation phase with keyword filter", () => {
+    const out = renderTemplate(
+      "claude/hooks/skill-forced-eval.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("implementation");
+  });
+
+  it("handles plan phase", () => {
+    const out = renderTemplate(
+      "claude/hooks/skill-forced-eval.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toMatch(/\bplan\b/i);
+  });
+
+  it("reads user prompt from stdin", () => {
+    const out = renderTemplate(
+      "claude/hooks/skill-forced-eval.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toMatch(/stdin|process\.stdin/i);
+  });
+});
+
+// ─── debug-state-on-failure.mjs.ejs ──────────────────────────────────────────
+
+describe("hooks/debug-state-on-failure.mjs.ejs", () => {
+  it("renders without EJS tag leaks for typescript", () => {
+    const out = renderTemplate(
+      "claude/hooks/debug-state-on-failure.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("renders without EJS tag leaks for all stacks", () => {
+    for (const lang of LANGUAGES) {
+      const out = renderTemplate(
+        "claude/hooks/debug-state-on-failure.mjs.ejs",
+        configFor(lang),
+      );
+      expect(out).not.toContain("<%");
+      expect(out).not.toContain("%>");
+    }
+  });
+
+  it("creates DEBUG_STATE.md", () => {
+    const out = renderTemplate(
+      "claude/hooks/debug-state-on-failure.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("DEBUG_STATE.md");
+  });
+
+  it("tracks failure count", () => {
+    const out = renderTemplate(
+      "claude/hooks/debug-state-on-failure.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toMatch(/failure.*count|count.*failure/i);
+  });
+
+  it("includes typescript test command pattern", () => {
+    const out = renderTemplate(
+      "claude/hooks/debug-state-on-failure.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("npm test");
+  });
+
+  it("includes rust test command pattern", () => {
+    const out = renderTemplate(
+      "claude/hooks/debug-state-on-failure.mjs.ejs",
+      configFor("rust"),
+    );
+    expect(out).toContain("cargo test");
+  });
+
+  it("includes python test command pattern", () => {
+    const out = renderTemplate(
+      "claude/hooks/debug-state-on-failure.mjs.ejs",
+      configFor("python"),
+    );
+    expect(out).toContain("pytest");
+  });
+
+  it("includes java test command pattern", () => {
+    const out = renderTemplate(
+      "claude/hooks/debug-state-on-failure.mjs.ejs",
+      configFor("java"),
+    );
+    expect(out).toContain("gradlew test");
+  });
+});
+
+// ─── post-edit-dispatch.mjs.ejs ───────────────────────────────────────────────
+
+describe("hooks/post-edit-dispatch.mjs.ejs", () => {
+  it("renders without EJS tag leaks for typescript", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("renders without EJS tag leaks for all stacks", () => {
+    for (const lang of LANGUAGES) {
+      const out = renderTemplate(
+        "claude/hooks/post-edit-dispatch.mjs.ejs",
+        configFor(lang),
+      );
+      expect(out).not.toContain("<%");
+      expect(out).not.toContain("%>");
+    }
+  });
+
+  it("typescript: contains prettier formatCommand", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("npx prettier --write");
+  });
+
+  it("typescript: contains eslint lintCommand", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("npm run lint");
+  });
+
+  it("rust: contains cargo fmt formatCommand", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("rust"),
+    );
+    expect(out).toContain("cargo fmt");
+  });
+
+  it("rust: contains cargo clippy lintCommand", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("rust"),
+    );
+    expect(out).toContain("cargo clippy");
+  });
+
+  it("go: contains gofmt formatCommand", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("go"),
+    );
+    expect(out).toContain("gofmt");
+  });
+
+  it("python: contains black formatCommand", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("python"),
+    );
+    expect(out).toContain("black");
+  });
+
+  it("python: contains ruff lintCommand", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("python"),
+    );
+    expect(out).toContain("ruff check .");
+  });
+
+  it("skips non-source file extensions like .md and .json", () => {
+    for (const lang of LANGUAGES) {
+      const out = renderTemplate(
+        "claude/hooks/post-edit-dispatch.mjs.ejs",
+        configFor(lang),
+      );
+      expect(out).toMatch(/\.md|markdown/);
+    }
+  });
+
+  it("reads file path from CLAUDE_TOOL_INPUT_PATH", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-edit-dispatch.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("CLAUDE_TOOL_INPUT_PATH");
+  });
+});

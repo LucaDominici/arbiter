@@ -72,4 +72,37 @@ describe("generateClaude", () => {
     const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
     expect(raw).toContain("check-no-any.mjs");
   });
+
+  it("generates pre-compact.mjs and pre-edit-plan-anchor.mjs at L1", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateClaude(config);
+    expect(existsSync(join(dir, ".claude", "hooks", "pre-compact.mjs"))).toBe(
+      true,
+    );
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "pre-edit-plan-anchor.mjs")),
+    ).toBe(true);
+  });
+
+  it("generates all 5 advanced hooks at L2", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateClaude(config);
+    const hooksDir = join(dir, ".claude", "hooks");
+    expect(existsSync(join(hooksDir, "pre-compact.mjs"))).toBe(true);
+    expect(existsSync(join(hooksDir, "pre-edit-plan-anchor.mjs"))).toBe(true);
+    expect(existsSync(join(hooksDir, "post-edit-dispatch.mjs"))).toBe(true);
+    expect(existsSync(join(hooksDir, "debug-state-on-failure.mjs"))).toBe(true);
+    expect(existsSync(join(hooksDir, "skill-forced-eval.mjs"))).toBe(true);
+  });
+
+  it("does NOT generate L2-only advanced hooks at L1", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateClaude(config);
+    const hooksDir = join(dir, ".claude", "hooks");
+    expect(existsSync(join(hooksDir, "post-edit-dispatch.mjs"))).toBe(false);
+    expect(existsSync(join(hooksDir, "debug-state-on-failure.mjs"))).toBe(
+      false,
+    );
+    expect(existsSync(join(hooksDir, "skill-forced-eval.mjs"))).toBe(false);
+  });
 });
