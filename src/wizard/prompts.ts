@@ -223,6 +223,7 @@ function buildConfigFromAnswers(
     githubRepo: input.gitInfo.githubRepo,
     existing: input.existing,
     languageHooks: getLanguageHooks(input.language),
+    enableDebtGates: answers.governanceLevel !== "L1",
   };
 }
 

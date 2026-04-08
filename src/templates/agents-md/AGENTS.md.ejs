@@ -166,7 +166,33 @@ node scripts/check-all.mjs L2   # before push
 ```
 
 ---
+<% if (enableDebtGates) { %>
+<% const threshold = governanceLevel === 'L3' ? 85 : 80; %>
+## Tech Debt Gates
 
+Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.mjs L2`):
+
+| Check | Tool | Threshold |
+|-------|------|-----------|
+<% if (language === 'typescript') { %>| Coverage | vitest / jest | <%= threshold %>% lines |
+| Complexity | ESLint `complexity` rule | max 15 |
+| Dead Code | Knip | zero unused exports |
+| Circular Deps | madge | zero cycles |
+<% } %><% if (language === 'rust') { %>| Coverage | cargo-tarpaulin / llvm-cov | <%= threshold %>% |
+| Complexity | `clippy::pedantic` | enforced |
+| Dead Code | `warn(dead_code)` (clippy) | zero warnings |
+<% } %><% if (language === 'java') { %>| Coverage | JaCoCo | <%= threshold %>% |
+| Complexity | PMD `CyclomaticComplexity` | max 15 |
+| Dead/Unused Code | PMD UnusedCode rules | zero violations |
+<% } %><% if (language === 'go') { %>| Coverage | go test -coverprofile | <%= threshold %>% |
+| Complexity | golangci-lint `gocyclo` | max 15 |
+| Dead Code | golangci-lint `deadcode,unused` | zero findings |
+<% } %><% if (language === 'python') { %>| Coverage | pytest-cov | <%= threshold %>% |
+| Complexity | ruff `C901,PLR` rules | max 15 |
+| Unused Imports | ruff `F401,F811` | zero findings |
+<% } %>
+---
+<% } %>
 ## Multi-Agent Tool Extensions
 
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:

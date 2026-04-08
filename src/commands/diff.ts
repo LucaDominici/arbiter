@@ -90,6 +90,7 @@ function buildDiffConfig(
     githubRepo: gitInfo.githubRepo,
     existing,
     languageHooks: getLanguageHooks(language),
+    enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
   };
 }
 

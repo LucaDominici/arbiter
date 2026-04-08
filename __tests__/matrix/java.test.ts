@@ -106,6 +106,39 @@ describe("matrix: Java project", () => {
     expect(content).not.toContain(".unwrap()");
   });
 
+  it("generates config/pmd-ruleset.xml when enableDebtGates is true", () => {
+    const config = javaConfig({ enableDebtGates: true });
+    runGenerators(config);
+    expect(existsSync(join(dir, "config", "pmd-ruleset.xml"))).toBe(true);
+  });
+
+  it("pmd-ruleset.xml not generated when enableDebtGates is false", () => {
+    const config = javaConfig({ enableDebtGates: false });
+    runGenerators(config);
+    expect(existsSync(join(dir, "config", "pmd-ruleset.xml"))).toBe(false);
+  });
+
+  it("check-all.mjs includes jacocoTestCoverageVerification and pmdMain when enableDebtGates is true", () => {
+    const config = javaConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("jacocoTestCoverageVerification");
+    expect(checkAll).toContain("pmdMain");
+  });
+
+  it("CI workflow includes debt-gates job for Java/Gradle when enableDebtGates is true", () => {
+    const config = javaConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("debt-gates:");
+  });
+
   it("settings.json includes gradle permissions", () => {
     const config = javaConfig();
     runGenerators(config);

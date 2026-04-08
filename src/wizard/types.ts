@@ -67,4 +67,6 @@ export interface ProjectConfig {
   };
 
   languageHooks: LanguageHook[];
+  /** Whether to generate tech debt prevention gates (coverage, complexity, dead code). Defaults to true for L2+. */
+  enableDebtGates: boolean;
 }

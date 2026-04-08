@@ -7,6 +7,7 @@ export interface ArbiterConfig {
   tools: AiTool[];
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
+  enableDebtGates?: boolean;
 }
 
 const CONFIG_FILE = "arbiter.json";

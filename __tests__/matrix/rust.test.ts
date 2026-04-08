@@ -117,6 +117,27 @@ describe("matrix: Rust project", () => {
     );
   });
 
+  it("check-all.mjs includes tarpaulin and clippy pedantic when enableDebtGates is true", () => {
+    const config = rustConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("tarpaulin");
+    expect(checkAll).toContain("pedantic");
+  });
+
+  it("CI workflow includes debt-gates job for Rust when enableDebtGates is true", () => {
+    const config = rustConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("debt-gates:");
+  });
+
   it("AGENTS.md coding standards are Rust-specific", () => {
     const config = rustConfig();
     runGenerators(config);

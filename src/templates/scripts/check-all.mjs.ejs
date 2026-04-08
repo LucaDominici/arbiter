@@ -66,6 +66,42 @@ if (level === 'L2') {
 <% } %><% if (language === 'python') { %>
   runCheck('audit', 'pip-audit', []);
 <% } %>
+<% if (enableDebtGates) { %>
+  // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────
+<% const threshold = governanceLevel === 'L3' ? 85 : 80; %>
+<% if (language === 'typescript') { %>
+  runCheck('coverage threshold', 'npx', ['vitest', 'run', '--coverage', '--coverage.thresholds.lines=<%= threshold %>']);
+  runCheck('dead code', 'npx', ['knip']);
+  runCheck('circular deps', 'npx', ['madge', '--circular', 'src']);
+<% } %><% if (language === 'rust') { %>
+  runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= threshold %>']);
+  runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings']);
+<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
+  runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q']);
+  runCheck('pmd', './gradlew', ['pmdMain', '-q']);
+<% } %><% if (language === 'java' && buildTool === 'maven') { %>
+  runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q']);
+  runCheck('pmd', 'mvn', ['pmd:check', '-q']);
+<% } %><% if (language === 'go') { %>
+  runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...']);
+  process.stdout.write('[CHECK] coverage threshold ... ');
+  const coverResult = spawnSync('go', ['tool', 'cover', '-func=coverage.out'], { encoding: 'utf-8', shell: false });
+  if (coverResult.status !== 0) {
+    console.log('FAIL (could not parse coverage)');
+    failed++;
+  } else {
+    const match = coverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
+    const pct = match ? parseFloat(match[1]) : 0;
+    if (pct < <%= threshold %>) { console.log(`FAIL (${pct.toFixed(1)}% < <%= threshold %>%)`); failed++; }
+    else { console.log(`PASS (${pct.toFixed(1)}%)`); }
+  }
+  runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,deadcode,unused']);
+<% } %><% if (language === 'python') { %>
+  runCheck('coverage threshold', 'pytest', ['--cov', '--cov-fail-under=<%= threshold %>']);
+  runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.']);
+  runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.']);
+<% } %>
+<% } %>
 }
 
 console.log('');

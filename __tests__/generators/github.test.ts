@@ -113,9 +113,11 @@ describe("docs-check governance gating", () => {
       join(dir, ".github", "workflows", "ci.yml"),
       "utf-8",
     );
-    const needsLine = content
-      .split("\n")
-      .find((line) => line.includes("needs:"));
+    const lines = content.split("\n");
+    const ciRequiredIdx = lines.findIndex((l) => l.includes("ci-required:"));
+    const needsLine = lines
+      .slice(ciRequiredIdx)
+      .find((l) => l.includes("needs:"));
     expect(needsLine).toBeDefined();
     expect(needsLine).not.toContain("docs-check");
   });
@@ -126,9 +128,11 @@ describe("docs-check governance gating", () => {
       join(dir, ".github", "workflows", "ci.yml"),
       "utf-8",
     );
-    const needsLine = content
-      .split("\n")
-      .find((line) => line.includes("needs:"));
+    const lines = content.split("\n");
+    const ciRequiredIdx = lines.findIndex((l) => l.includes("ci-required:"));
+    const needsLine = lines
+      .slice(ciRequiredIdx)
+      .find((l) => l.includes("needs:"));
     expect(needsLine).toBeDefined();
     expect(needsLine).toContain("docs-check");
   });

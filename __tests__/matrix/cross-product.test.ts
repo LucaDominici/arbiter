@@ -328,6 +328,124 @@ describe("cross-product: ci.yml — Java Maven variant", () => {
   }
 });
 
+// ─── Debt Gates ───────────────────────────────────────────────────────────────
+
+describe("cross-product: check-all.mjs — debt gate checks at L2+, absent at L1", () => {
+  const DEBT_GATE_MARKERS: Record<Language, string> = {
+    typescript: "knip",
+    rust: "tarpaulin",
+    java: "jacocoTestCoverageVerification",
+    go: "gocyclo",
+    python: "cov-fail-under",
+    unknown: "",
+  };
+
+  for (const lang of LANGUAGES.filter((l) => l !== "unknown")) {
+    it(`${lang}+L2: debt gate marker "${DEBT_GATE_MARKERS[lang]}" present`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L2"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain(DEBT_GATE_MARKERS[lang]);
+    });
+
+    it(`${lang}+L3: debt gate marker "${DEBT_GATE_MARKERS[lang]}" present`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L3"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain(DEBT_GATE_MARKERS[lang]);
+    });
+
+    it(`${lang}+L1: debt gate absent when disabled`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L1"),
+        enableDebtGates: false,
+      });
+      expect(content).not.toContain(DEBT_GATE_MARKERS[lang]);
+    });
+  }
+});
+
+describe("cross-product: check-all.mjs — coverage threshold values at L2 vs L3", () => {
+  for (const lang of ["typescript", "rust", "python"] as Language[]) {
+    it(`${lang}+L2: coverage threshold is 80`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L2"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("80");
+    });
+
+    it(`${lang}+L3: coverage threshold is 85`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L3"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("85");
+    });
+  }
+});
+
+describe("cross-product: ci.yml — debt-gates job at L2+, absent at L1", () => {
+  function renderCi(
+    lang: Language,
+    level: GovernanceLevel,
+    enableDebtGates: boolean,
+  ): string {
+    return renderTemplate("github/workflows/ci.yml.ejs", {
+      ...configFor(lang, level),
+      useGitHub: true,
+      enableDebtGates,
+    });
+  }
+
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: debt-gates job present`, () => {
+      const content = renderCi(lang, "L2", true);
+      expect(content).toContain("debt-gates:");
+    });
+
+    it(`${lang}+L3: debt-gates job present`, () => {
+      const content = renderCi(lang, "L3", true);
+      expect(content).toContain("debt-gates:");
+    });
+
+    it(`${lang}+L1: debt-gates job absent`, () => {
+      const content = renderCi(lang, "L1", false);
+      expect(content).not.toContain("debt-gates:");
+    });
+  }
+});
+
+describe("cross-product: AGENTS.md — tech debt section at L2+, absent at L1", () => {
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: Tech Debt Gates section present`, () => {
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...configFor(lang, "L2"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("Tech Debt Gates");
+    });
+
+    it(`${lang}+L3: Tech Debt Gates section present`, () => {
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...configFor(lang, "L3"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("Tech Debt Gates");
+    });
+
+    it(`${lang}+L1: Tech Debt Gates section absent`, () => {
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...configFor(lang, "L1"),
+        enableDebtGates: false,
+      });
+      expect(content).not.toContain("Tech Debt Gates");
+    });
+  }
+});
+
 // ─── Claude commands ──────────────────────────────────────────────────────────
 
 describe("cross-product: start-task.md — testCommand in output for all stack × level combinations", () => {
