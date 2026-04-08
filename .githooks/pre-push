@@ -7,8 +7,8 @@ if [ ! -d "node_modules" ]; then
   exit 0
 fi
 
-if [ -n "$(git status --porcelain)" ]; then
-  echo "Error: working tree is dirty. Commit or stash changes before pushing."
+if [ -n "$(git status --porcelain | grep -v '^??')" ]; then
+  echo "Error: working tree has uncommitted changes. Commit or stash before pushing."
   exit 1
 fi
 
