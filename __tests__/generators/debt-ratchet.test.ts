@@ -49,11 +49,18 @@ describe("generateDebtRatchet", () => {
   // Test for each stack: typescript, rust, java, go, python
   for (const lang of ["typescript", "rust", "java", "go", "python"] as const) {
     it(`generates both scripts for ${lang}`, () => {
-      cleanupTestProject(dir);
-      dir = createTestProject(lang);
-      const config = makeConfig(dir, { language: lang, enableDebtGates: true });
-      const result = generateDebtRatchet(config);
-      expect(result.files).toHaveLength(2);
+      const loopDir = createTestProject(lang);
+      initGit(loopDir);
+      try {
+        const config = makeConfig(loopDir, {
+          language: lang,
+          enableDebtGates: true,
+        });
+        const result = generateDebtRatchet(config);
+        expect(result.files).toHaveLength(2);
+      } finally {
+        cleanupTestProject(loopDir);
+      }
     });
   }
 });

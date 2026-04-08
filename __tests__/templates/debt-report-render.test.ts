@@ -32,4 +32,24 @@ describe("debt-report.mjs.ejs", () => {
     const rendered = renderTemplate("scripts/debt-report.mjs.ejs", data);
     expect(rendered).toContain("| Metric |");
   });
+
+  it("renders for java with gradle buildTool", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("scripts/debt-report.mjs.ejs", data);
+    expect(rendered).toContain("gradlew");
+  });
+
+  it("renders for java with maven buildTool", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "maven",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("scripts/debt-report.mjs.ejs", data);
+    expect(rendered).toContain("mvn");
+  });
 });

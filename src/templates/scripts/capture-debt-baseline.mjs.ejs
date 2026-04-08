@@ -37,7 +37,7 @@ const metrics = {};
 // ─── Stack-specific metric collection ─────────────────────────────────
 <% if (language === 'typescript') { %>
 // Coverage: vitest with json reporter
-const vitestResult = run('npx', ['vitest', 'run', '--coverage', '--coverage.reporter=json', '--coverage.reportsDirectory=.coverage-tmp']);
+run('npx', ['vitest', 'run', '--coverage', '--coverage.reporter=json', '--coverage.reportsDirectory=.coverage-tmp']);
 try {
   const summary = JSON.parse(readFileSync('.coverage-tmp/coverage-summary.json', 'utf-8'));
   metrics.coverage = { value: summary.total.lines.pct, unit: 'percent', direction: 'higher-is-better' };
@@ -60,7 +60,7 @@ try {
 } catch { metrics.deadCode = { value: 0, unit: 'count', direction: 'lower-is-better' }; }
 <% } %><% if (language === 'rust') { %>
 // Coverage: cargo tarpaulin
-const tarpaulinResult = run('cargo', ['tarpaulin', '--out', 'Json', '--output-dir', '.coverage-tmp']);
+run('cargo', ['tarpaulin', '--out', 'Json', '--output-dir', '.coverage-tmp']);
 try {
   const data = JSON.parse(readFileSync('.coverage-tmp/tarpaulin-report.json', 'utf-8'));
   metrics.coverage = { value: data.coverage, unit: 'percent', direction: 'higher-is-better' };
@@ -95,7 +95,7 @@ metrics.complexityViolations = { value: pmdResult.status !== 0 ? 1 : 0, unit: 'c
 metrics.deadCode = { value: 0, unit: 'count', direction: 'lower-is-better' };
 <% } %><% if (language === 'go') { %>
 // Coverage: go test -cover
-const goTestResult = run('go', ['test', '-coverprofile=.coverage-tmp.out', './...']);
+run('go', ['test', '-coverprofile=.coverage-tmp.out', './...']);
 const goCoverResult = run('go', ['tool', 'cover', '-func=.coverage-tmp.out']);
 try {
   const match = goCoverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
@@ -115,7 +115,7 @@ try {
 }
 <% } %><% if (language === 'python') { %>
 // Coverage: pytest --cov
-const pytestResult = run('pytest', ['--cov', '--cov-report=json', '--cov-report=term']);
+run('pytest', ['--cov', '--cov-report=json', '--cov-report=term']);
 try {
   const data = JSON.parse(readFileSync('coverage.json', 'utf-8'));
   metrics.coverage = { value: data.totals?.percent_covered ?? 0, unit: 'percent', direction: 'higher-is-better' };
