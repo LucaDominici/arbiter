@@ -1,9 +1,19 @@
+export type InvariantTier =
+  | "architectural"
+  | "data"
+  | "security"
+  | "operational"
+  | "governance";
+
+export type InvariantPreset = "essential" | "standard" | "full";
+
 export type WizardFlow = "greenfield" | "brownfield";
 
 export interface WizardAnswers {
   description: string;
   tools: AiTool[];
   governanceLevel: GovernanceLevel;
+  invariantPreset?: InvariantPreset;
   useGitHub?: "yes" | "no";
 }
 
@@ -69,4 +79,6 @@ export interface ProjectConfig {
   languageHooks: LanguageHook[];
   /** Whether to generate tech debt prevention gates (coverage, complexity, dead code). Defaults to true for L2+. */
   enableDebtGates: boolean;
+  /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */
+  invariantTiers: InvariantTier[];
 }

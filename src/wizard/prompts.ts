@@ -12,6 +12,7 @@ import type { GitInfo } from "../detectors/git.js";
 import type { ExistingState } from "../detectors/existing.js";
 import type { GithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
+import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 
 export interface WizardInput {
   targetDir: string;
@@ -224,6 +225,9 @@ function buildConfigFromAnswers(
     existing: input.existing,
     languageHooks: getLanguageHooks(input.language),
     enableDebtGates: answers.governanceLevel !== "L1",
+    invariantTiers: presetToTiers(
+      defaultPresetForLevel(answers.governanceLevel),
+    ),
   };
 }
 

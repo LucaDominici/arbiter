@@ -8,6 +8,7 @@ import { detectGithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { loadConfig, saveConfig } from "../utils/config.js";
 import { runGenerators, runGithubSetup, printResults } from "./init.js";
+import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 
 export interface UpdateOptions {
   dir: string | undefined;
@@ -64,6 +65,9 @@ export function runUpdate(options: UpdateOptions): void {
     existing,
     languageHooks: getLanguageHooks(language),
     enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
+    invariantTiers:
+      stored.invariantTiers ??
+      presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
   };
 
   console.log("\n  Updating...");

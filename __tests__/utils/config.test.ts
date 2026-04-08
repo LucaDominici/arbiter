@@ -69,4 +69,47 @@ describe("arbiter config", () => {
     expect(loaded!.tools).toEqual(["claude", "codex", "cursor", "copilot"]);
     expect(loaded!.governanceLevel).toBe("L3");
   });
+
+  it("saveConfig + loadConfig round-trips invariantTiers", () => {
+    const config = {
+      version: "0.1",
+      tools: ["claude"] as const,
+      governanceLevel: "L2" as const,
+      useGitHub: false,
+      invariantTiers: ["architectural", "data", "governance"] as const,
+    };
+    saveConfig(dir, config);
+    const loaded = loadConfig(dir);
+    expect(loaded!.invariantTiers).toEqual([
+      "architectural",
+      "data",
+      "governance",
+    ]);
+  });
+
+  it("loadConfig returns config without invariantTiers for old format (backwards compat)", () => {
+    const path = join(dir, "arbiter.json");
+    writeFileSync(
+      path,
+      JSON.stringify({
+        version: "0.1",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        useGitHub: false,
+      }),
+      "utf-8",
+    );
+    const loaded = loadConfig(dir);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.invariantTiers).toBeUndefined();
+  });
+
+  it("defaultConfig includes invariantTiers for L2 (standard preset)", () => {
+    const config = defaultConfig();
+    expect(config.invariantTiers).toBeDefined();
+    expect(config.invariantTiers).toContain("architectural");
+    expect(config.invariantTiers).toContain("governance");
+    expect(config.invariantTiers).toContain("data");
+    expect(config.invariantTiers).toContain("operational");
+  });
 });

@@ -3,6 +3,10 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Language, ProjectConfig } from "../src/wizard/types.js";
+import {
+  presetToTiers,
+  defaultPresetForLevel,
+} from "../src/invariants/filter.js";
 
 /**
  * Create a temp directory with language-specific marker files.
@@ -108,6 +112,7 @@ export function makeConfig(
     },
     languageHooks: [],
     enableDebtGates: governanceLevel !== "L1",
+    invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
     ...overrides,
   };
 }

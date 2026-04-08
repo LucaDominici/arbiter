@@ -10,6 +10,7 @@ import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
 import type { ProjectConfig } from "../wizard/types.js";
+import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 
 export interface DiffOptions {
   dir: string | undefined;
@@ -91,6 +92,9 @@ function buildDiffConfig(
     existing,
     languageHooks: getLanguageHooks(language),
     enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
+    invariantTiers:
+      stored.invariantTiers ??
+      presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
   };
 }
 
