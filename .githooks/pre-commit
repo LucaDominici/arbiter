@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# pre-commit: runs L1 gate before each commit
+set -e
+
+if [ ! -d "node_modules" ]; then
+  echo "Skipping pre-commit: node_modules not installed. Run npm install."
+  exit 0
+fi
+
+node scripts/check-all.mjs L1
