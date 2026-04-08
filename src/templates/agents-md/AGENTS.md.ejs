@@ -192,6 +192,22 @@ Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.m
 | Unused Imports | ruff `F401,F811` | zero findings |
 <% } %>
 ---
+
+## Debt Ratchet
+
+Proactive debt regression prevention. Baseline metrics stored in `debt-baseline.json` (commit this file).
+
+**Commands:**
+- `node scripts/capture-debt-baseline.mjs` — Capture current metrics as baseline
+- `node scripts/capture-debt-baseline.mjs --update` — Tighten baseline (only accepts improvements, never loosens)
+- `node scripts/debt-report.mjs` — Print current vs baseline comparison report
+- `node scripts/debt-report.mjs --gate` — Fail if any metric regressed (used in L2 gate)
+
+**Tracked:** coverage, complexity violations, dead code count, TODO count
+
+**Rule:** Never manually edit `debt-baseline.json` to loosen metrics — that defeats the ratchet. Only run `--update` after genuine improvements.
+
+---
 <% } %>
 ## Multi-Agent Tool Extensions
 

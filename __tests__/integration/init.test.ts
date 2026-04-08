@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { runInit } from "../../src/commands/init.js";
+import { runInit, runGenerators } from "../../src/commands/init.js";
+import { makeConfig } from "../helpers.js";
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), "arbiter-init-test-"));
@@ -100,5 +101,40 @@ describe("arbiter init --yes", () => {
   it("generates with --level L1", async () => {
     await runInit({ yes: true, tools: "claude,codex", level: "L1", dir });
     expect(existsSync(join(dir, "AGENTS.md"))).toBe(true);
+  });
+});
+
+describe("runGenerators — debt ratchet", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-ratchet-test-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("generates debt ratchet scripts when enableDebtGates is true", () => {
+    const config = makeConfig(dir, { enableDebtGates: true, useGitHub: true });
+    const results = runGenerators(config);
+    const paths = results.map((r) => r.path);
+    expect(paths.some((p) => p.includes("capture-debt-baseline.mjs"))).toBe(
+      true,
+    );
+    expect(paths.some((p) => p.includes("debt-report.mjs"))).toBe(true);
+  });
+
+  it("does not generate debt ratchet scripts when enableDebtGates is false", () => {
+    const config = makeConfig(dir, {
+      enableDebtGates: false,
+      governanceLevel: "L1",
+    });
+    const results = runGenerators(config);
+    const paths = results.map((r) => r.path);
+    expect(paths.some((p) => p.includes("capture-debt-baseline.mjs"))).toBe(
+      false,
+    );
+    expect(paths.some((p) => p.includes("debt-report.mjs"))).toBe(false);
   });
 });

@@ -85,4 +85,24 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
     const content = renderAgentsMd({ projectName: "mega-app" });
     expect(content).toContain("mega-app");
   });
+
+  it("includes Debt Ratchet section when enableDebtGates is true", () => {
+    const data = makeConfig("/tmp/test", {
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("agents-md/AGENTS.md.ejs", data);
+    expect(rendered).toContain("Debt Ratchet");
+    expect(rendered).toContain("capture-debt-baseline.mjs");
+    expect(rendered).toContain("debt-report.mjs");
+    expect(rendered).toContain("--update");
+  });
+
+  it("does not include Debt Ratchet section when enableDebtGates is false", () => {
+    const data = makeConfig("/tmp/test", {
+      enableDebtGates: false,
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("agents-md/AGENTS.md.ejs", data);
+    expect(rendered).not.toContain("Debt Ratchet");
+  });
 });
