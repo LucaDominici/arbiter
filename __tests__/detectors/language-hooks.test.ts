@@ -112,8 +112,8 @@ describe("getLanguageHooks", () => {
     expect(getLanguageHooks("rust")).toHaveLength(2);
   });
 
-  it("returns 1 hook for java (orphan-todo only)", () => {
-    expect(getLanguageHooks("java")).toHaveLength(1);
+  it("returns 2 hooks for java (orphan-todo + no-raw-types)", () => {
+    expect(getLanguageHooks("java")).toHaveLength(2);
   });
 
   it("returns 2 hooks for go (orphan-todo + no-unchecked-err)", () => {
@@ -124,8 +124,38 @@ describe("getLanguageHooks", () => {
     expect(getLanguageHooks("python")).toHaveLength(2);
   });
 
+  it("includes check-no-raw-types hook for java", () => {
+    const hooks = getLanguageHooks("java");
+    const noRawTypes = hooks.find((h) => h.name === "check-no-raw-types.mjs");
+    expect(noRawTypes).toBeDefined();
+    expect(noRawTypes!.body).toContain(".java");
+    expect(noRawTypes!.body).toContain("List");
+    expect(noRawTypes!.description).toMatch(/raw/i);
+  });
+
+  it("does not include check-no-raw-types for non-java", () => {
+    for (const lang of [
+      "typescript",
+      "rust",
+      "go",
+      "python",
+      "unknown",
+    ] as const) {
+      const hooks = getLanguageHooks(lang);
+      expect(hooks.some((h) => h.name === "check-no-raw-types.mjs")).toBe(
+        false,
+      );
+    }
+  });
+
   it("all hooks have valid shebang", () => {
-    for (const lang of ["typescript", "rust", "go", "python"] as const) {
+    for (const lang of [
+      "typescript",
+      "rust",
+      "java",
+      "go",
+      "python",
+    ] as const) {
       const hooks = getLanguageHooks(lang);
       for (const hook of hooks) {
         expect(hook.body).toMatch(/^#!/);

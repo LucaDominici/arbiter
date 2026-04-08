@@ -71,4 +71,36 @@ describe("generateCheckAll", () => {
       "EXISTING",
     );
   });
+
+  it("includes debt ratchet gate at L2 when enableDebtGates is true", () => {
+    generateCheckAll(
+      makeConfig(dir, { enableDebtGates: true, governanceLevel: "L2" }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("debt-report.mjs");
+    expect(content).toContain("--gate");
+  });
+
+  it("uses --require-improvement flag at L3", () => {
+    generateCheckAll(
+      makeConfig(dir, { enableDebtGates: true, governanceLevel: "L3" }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("--require-improvement");
+  });
+
+  it("does not include debt ratchet when enableDebtGates is false", () => {
+    generateCheckAll(makeConfig(dir, { enableDebtGates: false }));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("debt-report.mjs");
+  });
 });

@@ -21,6 +21,7 @@ import { generateCheckAll } from "../generators/check-all.js";
 import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
+import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { saveConfig } from "../utils/config.js";
@@ -161,6 +162,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
 
   if (config.enableDebtGates) {
     all.push(...generateDebtGates(config).files);
+    all.push(...generateDebtRatchet(config).files);
   }
 
   return all;

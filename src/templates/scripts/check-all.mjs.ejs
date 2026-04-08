@@ -101,6 +101,10 @@ if (level === 'L2') {
   runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.']);
   runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.']);
 <% } %>
+  // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
+  // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
+<% const ratchetFlag = governanceLevel === 'L3' ? '--require-improvement' : '--gate'; %>
+  runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '<%= ratchetFlag %>']);
 <% } %>
 }
 
