@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateSsot } from "../../src/generators/ssot.js";
@@ -152,28 +158,29 @@ describe("generateSsot", () => {
     expect(content).toContain("AGENTS.md");
   });
 
-  it("KNOWLEDGE_MAP.md is skipIfExists (manual edits preserved)", () => {
+  it("KNOWLEDGE_MAP.md is skipIfExists — preserves manual edits on re-run", () => {
     const config = makeConfig(dir, { governanceLevel: "L1" });
     // First run creates it
     generateSsot(config);
-    const firstContent = readFileSync(
+
+    // Simulate manual edits a user would make
+    writeFileSync(
       join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
-      "utf-8",
+      "# My custom knowledge map\n\nManually edited content.\n",
     );
 
-    // Second run should skip
+    // Second run should skip and leave manual edits intact
     const results = generateSsot(config);
     const knowledgeMapResult = results.files.find((r) =>
       r.path.endsWith("KNOWLEDGE_MAP.md"),
     );
     expect(knowledgeMapResult?.action).toBe("skipped");
 
-    // Content unchanged
-    const secondContent = readFileSync(
+    const afterContent = readFileSync(
       join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
       "utf-8",
     );
-    expect(secondContent).toBe(firstContent);
+    expect(afterContent).toContain("Manually edited content.");
   });
 
   // ── ENGINEERING_DEFAULTS.md content ──────────────────────────────────────────
@@ -223,6 +230,102 @@ describe("generateSsot", () => {
     );
     // Should mention cognitive complexity or cyclomatic complexity
     expect(content.toLowerCase()).toMatch(/complexity/);
+  });
+
+  it("ENGINEERING_DEFAULTS.md uses TypeScript table for unknown language (fallback)", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      language: "unknown",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("TypeScript");
+    // Must not render other language sections
+    expect(content).not.toContain("### Java");
+    expect(content).not.toContain("### Rust");
+    expect(content).not.toContain("### Go");
+    expect(content).not.toContain("### Python");
+  });
+
+  it("ENGINEERING_DEFAULTS.md has Rust-specific content for Rust projects", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      language: "rust",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("Rust");
+    expect(content).toContain("Clippy");
+    expect(content).not.toContain("### TypeScript");
+  });
+
+  it("ENGINEERING_DEFAULTS.md has Go-specific content for Go projects", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      language: "go",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("Go");
+    expect(content).toContain("gocognit");
+    expect(content).not.toContain("### TypeScript");
+  });
+
+  it("ENGINEERING_DEFAULTS.md has Python-specific content for Python projects", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      language: "python",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("Python");
+    expect(content).toContain("radon");
+    expect(content).not.toContain("### TypeScript");
+  });
+
+  it("ENGINEERING_DEFAULTS.md renders exactly one language section (mutual exclusivity)", () => {
+    const languages = [
+      "typescript",
+      "java",
+      "rust",
+      "go",
+      "python",
+      "unknown",
+    ] as const;
+    const headings = ["TypeScript", "Java", "Rust", "Go", "Python"];
+
+    for (const lang of languages) {
+      const langDir = mkdtempSync(join(tmpdir(), `arbiter-ssot-lang-${lang}-`));
+      try {
+        const config = makeConfig(langDir, {
+          governanceLevel: "L2",
+          language: lang,
+        });
+        generateSsot(config);
+        const content = readFileSync(
+          join(langDir, "docs/METHOD/ENGINEERING_DEFAULTS.md"),
+          "utf-8",
+        );
+        const renderedHeadings = headings.filter((h) =>
+          content.includes(`### ${h}`),
+        );
+        expect(renderedHeadings.length).toBe(1);
+      } finally {
+        rmSync(langDir, { recursive: true, force: true });
+      }
+    }
   });
 
   // ── TRACK_ROUTER.md content ───────────────────────────────────────────────────
