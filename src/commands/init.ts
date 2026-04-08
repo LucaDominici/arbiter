@@ -27,6 +27,7 @@ import { generateArchUnit } from "../generators/archunit.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
+import { generateSsot } from "../generators/ssot.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { saveConfig } from "../utils/config.js";
@@ -178,6 +179,8 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   }
 
   all.push(...generateArchUnit(config).files);
+
+  all.push(...generateSsot(config).files);
 
   return all;
 }
