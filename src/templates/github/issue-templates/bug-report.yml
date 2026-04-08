@@ -1,5 +1,5 @@
 name: Bug Report
-description: Something isn't working as expected
+description: Report a defect or unexpected behavior
 labels: ["bug"]
 body:
   - type: markdown
@@ -7,37 +7,66 @@ body:
       value: |
         **Before filing:** Check open issues for duplicates.
 
-  - type: textarea
-    id: description
+  - type: dropdown
+    id: severity
     attributes:
-      label: What happened?
-      description: Clear description of the bug
+      label: Severity
+      options:
+        - "Critical — data loss, security breach, or service down"
+        - "High — major feature broken, no workaround"
+        - "Medium — feature degraded, workaround exists"
+        - "Low — cosmetic or minor inconvenience"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "1. Context"
+      description: Environment and relevant state when the bug was observed.
+      placeholder: |
+        **Environment:** Local / CI / Staging / Production
+        **Version / commit:** abc1234
+        **Pre-conditions:** What state was the system in?
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: Steps to reproduce
-      value: |
+      label: "2. Steps to Reproduce / Observed vs Expected"
+      placeholder: |
+        **Steps:**
         1.
         2.
         3.
+
+        **Expected:** What should have happened
+        **Actual:** What actually happened
     validations:
       required: true
 
   - type: textarea
-    id: expected
+    id: invariant
     attributes:
-      label: Expected behavior
-    validations:
-      required: true
+      label: "3. Related Invariant Violation (optional)"
+      description: If this bug violates a known project invariant, reference it here.
+      placeholder: |
+        Violates INV-XX: description
 
   - type: textarea
-    id: environment
+    id: evidence
     attributes:
-      label: Environment
-      value: |
-        - OS:
-        - Node/Runtime version:
-        - Relevant versions:
+      label: "4. Evidence (optional)"
+      description: Logs, screenshots, stack traces, or links to artifacts.
+      placeholder: |
+        <paste stack trace or attach screenshot>
+
+  - type: checkboxes
+    id: acceptance
+    attributes:
+      label: "5. Acceptance Criteria"
+      options:
+        - label: "Bug is no longer reproducible following the steps above"
+        - label: "Regression test added to prevent recurrence"
+        - label: "CI pipeline passes green"

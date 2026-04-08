@@ -69,6 +69,146 @@ describe("generateGithub", () => {
   });
 });
 
+describe("task-brief governance gating", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-github-taskbrief-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("L1 task-brief omits Engineering Invariants and Forbidden Patterns", () => {
+    generateGithub(makeConfig(dir, { governanceLevel: "L1" }));
+    const content = readFileSync(
+      join(dir, ".github", "ISSUE_TEMPLATE", "task-brief.yml"),
+      "utf-8",
+    );
+    expect(content).not.toContain("Engineering Invariants");
+    expect(content).not.toContain("Forbidden Patterns");
+  });
+
+  it("L2 task-brief includes Engineering Invariants and Forbidden Patterns", () => {
+    generateGithub(makeConfig(dir, { governanceLevel: "L2" }));
+    const content = readFileSync(
+      join(dir, ".github", "ISSUE_TEMPLATE", "task-brief.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("Engineering Invariants");
+    expect(content).toContain("Forbidden Patterns");
+  });
+
+  it("L3 task-brief includes Engineering Invariants and Forbidden Patterns", () => {
+    generateGithub(makeConfig(dir, { governanceLevel: "L3" }));
+    const content = readFileSync(
+      join(dir, ".github", "ISSUE_TEMPLATE", "task-brief.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("Engineering Invariants");
+    expect(content).toContain("Forbidden Patterns");
+  });
+
+  it("all governance levels include core sections", () => {
+    for (const level of ["L1", "L2", "L3"] as const) {
+      const levelDir = mkdtempSync(
+        join(tmpdir(), "arbiter-github-taskbrief-level-"),
+      );
+      try {
+        generateGithub(makeConfig(levelDir, { governanceLevel: level }));
+        const content = readFileSync(
+          join(levelDir, ".github", "ISSUE_TEMPLATE", "task-brief.yml"),
+          "utf-8",
+        );
+        expect(content, `${level} missing Context`).toContain(
+          "Context & Rationale",
+        );
+        expect(content, `${level} missing Technical Scope`).toContain(
+          "Technical Scope",
+        );
+        expect(content, `${level} missing Definition of Done`).toContain(
+          "Definition of Done",
+        );
+        expect(content, `${level} missing Acceptance Criteria`).toContain(
+          "Acceptance Criteria",
+        );
+        expect(content, `${level} missing Test Plan`).toContain("Test Plan");
+      } finally {
+        rmSync(levelDir, { recursive: true, force: true });
+      }
+    }
+  });
+});
+
+describe("bug-report template content", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-github-bugreport-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("bug-report contains Severity dropdown", () => {
+    generateGithub(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".github", "ISSUE_TEMPLATE", "bug-report.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("Severity");
+  });
+
+  it("bug-report contains Steps to Reproduce section", () => {
+    generateGithub(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".github", "ISSUE_TEMPLATE", "bug-report.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("Steps to Reproduce");
+  });
+
+  it("bug-report contains Acceptance Criteria checkboxes", () => {
+    generateGithub(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".github", "ISSUE_TEMPLATE", "bug-report.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("Acceptance Criteria");
+  });
+});
+
+describe("epic template", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-github-epic-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("epic.yml is generated", () => {
+    generateGithub(makeConfig(dir));
+    expect(existsSync(join(dir, ".github", "ISSUE_TEMPLATE", "epic.yml"))).toBe(
+      true,
+    );
+  });
+
+  it("epic.yml contains Goal and Sub-tasks sections", () => {
+    generateGithub(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".github", "ISSUE_TEMPLATE", "epic.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("Goal");
+    expect(content).toContain("Sub-tasks");
+  });
+});
+
 describe("docs-check governance gating", () => {
   let dir: string;
 

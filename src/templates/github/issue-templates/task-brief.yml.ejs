@@ -1,0 +1,113 @@
+name: Task Brief
+description: Structured implementation task for AI-assisted development
+labels: ["task"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: "1. Context & Rationale"
+      description: |
+        Why are we doing this task?
+        - What problem does it solve or what value does it deliver?
+        - What must already be in place before starting?
+      placeholder: |
+        This task implements...
+
+        **Pre-conditions:**
+        - [ ] Prerequisite task completed
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "2. Technical Scope"
+      description: |
+        Detailed breakdown of what needs to change:
+        - Files, modules, APIs, components
+        - Schema or contract changes
+      placeholder: |
+        - Module: `auth`
+        - New file: `src/auth/token-refresh.ts`
+        - Contract: add `refresh_token` field to AuthResponse
+    validations:
+      required: true
+<%_ if (governanceLevel !== 'L1') { _%>
+
+  - type: checkboxes
+    id: invariants
+    attributes:
+      label: "3. Engineering Invariants"
+      description: Confirm which invariants apply to this task
+      options:
+        - label: "Input validation enforced at all boundaries"
+        - label: "No direct coupling to infrastructure (use abstractions)"
+        - label: "TDD followed — tests written before implementation"
+        - label: "No new `any` types introduced (TypeScript projects)"
+        - label: "Error paths handled and tested"
+<%_ } _%>
+
+  - type: checkboxes
+    id: dod
+    attributes:
+      label: "<%- governanceLevel !== 'L1' ? '4.' : '3.' %> Definition of Done"
+      description: Non-negotiable quality gates
+      options:
+        - label: "All tests pass"
+        - label: "Lint and format clean"
+        - label: "CI pipeline green"
+        - label: "Documentation updated if public API changed"
+        - label: "Gate L1 passes locally"
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "<%- governanceLevel !== 'L1' ? '5.' : '4.' %> Acceptance Criteria"
+      description: |
+        Use EARS format for precision, or plain prose for simple tasks.
+        - Event-driven: `When <trigger>, the system shall <response>`
+        - Conditional: `If <condition>, then the system shall <response>`
+      placeholder: |
+        When the user submits the form, the system shall validate all required fields.
+        If validation fails, the system shall return a 400 with field-level errors.
+    validations:
+      required: true
+
+  - type: textarea
+    id: testplan
+    attributes:
+      label: "<%- governanceLevel !== 'L1' ? '6.' : '5.' %> Test Plan"
+      description: |
+        Describe scenarios to verify:
+        - Happy path: normal success case
+        - Edge cases: boundaries, errors, failure modes
+      placeholder: |
+        **Happy path:** User provides valid input → success response
+
+        **Edge case:** Missing required field → 400 with field error
+    validations:
+      required: true
+<%_ if (governanceLevel !== 'L1') { _%>
+
+  - type: textarea
+    id: forbidden
+    attributes:
+      label: "7. Forbidden Patterns"
+      description: Explicit rules this task must NOT violate.
+      placeholder: |
+        - Must NOT introduce global state
+        - Must NOT bypass the existing auth middleware
+        - Must NOT use raw SQL (use the query builder)
+<%_ } _%>
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: Estimated Size
+      options:
+        - "XS (< 30 min)"
+        - "S (30 min — 2 hours)"
+        - "M (2 — 8 hours)"
+        - "L (1 — 3 days)"
+    validations:
+      required: true
