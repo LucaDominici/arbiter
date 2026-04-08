@@ -411,4 +411,38 @@ export const INVARIANT_CATALOG: Invariant[] = [
     minGovernanceLevel: "L3",
     enforcement: "CI (drift check / pre-merge hook)",
   },
+
+  // ─── Java-specific: Test Architecture ────────────────────────────────────────
+
+  {
+    id: "INV-29",
+    tier: "architectural",
+    title: "No MockMvc — use RestAssured for integration tests (Java)",
+    description:
+      "MockMvc tests the controller layer through a mock servlet container, bypassing real HTTP " +
+      "serialization, filter chains, exception handlers, and content negotiation. Bugs in those " +
+      "layers pass MockMvc and break in production. RestAssured tests the full HTTP stack with a " +
+      "real embedded server, providing genuine end-to-end confidence.",
+    languages: ["java"],
+    alwaysActive: true,
+    enforcement:
+      "hook (check-no-mockmvc.mjs) + ArchUnit (NoMockMvcTest.java) + policy",
+  },
+
+  {
+    id: "INV-30",
+    tier: "operational",
+    title: "Mutation testing required — PIT/pitest (Java, L2+)",
+    description:
+      "Line coverage measures which lines execute but not whether tests verify behavior. " +
+      "A suite can reach 90% coverage with assertions that check nothing meaningful. " +
+      "Mutation testing (PIT/pitest) injects faults into production code and verifies tests fail — " +
+      "proving genuine fault-detection power. Thresholds: 80% mutation score, 85% line coverage. " +
+      "Scope: domain and application layers only (not adapters/controllers).",
+    languages: ["java"],
+    alwaysActive: false,
+    minGovernanceLevel: "L2",
+    enforcement:
+      "CI gate (pitest in check-all.mjs L2) + generated pitest config",
+  },
 ];

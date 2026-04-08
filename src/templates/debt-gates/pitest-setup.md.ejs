@@ -1,0 +1,63 @@
+# Pitest (PIT Mutation Testing) Setup
+
+Mutation testing enforces INV-30: tests must have genuine fault-detection power, not just line coverage.
+Thresholds: **80% mutation score**, **85% line coverage**. Target: domain and application layers only.
+
+## Maven
+
+Add to your `pom.xml` inside `<build><plugins>`:
+
+```xml
+<plugin>
+  <groupId>org.pitest</groupId>
+  <artifactId>pitest-maven</artifactId>
+  <version>1.15.0</version>
+  <configuration>
+    <targetClasses>
+      <param><%= basePackage ? basePackage + '.domain.*' : '*.domain.*' %></param>
+      <param><%= basePackage ? basePackage + '.application.*' : '*.application.*' %></param>
+    </targetClasses>
+    <targetTests>
+      <param><%= basePackage ? basePackage + '.*Test' : '*.*Test' %></param>
+    </targetTests>
+    <mutationThreshold>80</mutationThreshold>
+    <coverageThreshold>85</coverageThreshold>
+    <outputFormats>
+      <outputFormat>XML</outputFormat>
+      <outputFormat>HTML</outputFormat>
+    </outputFormats>
+    <timestampedReports>false</timestampedReports>
+  </configuration>
+</plugin>
+```
+
+Run: `mvn org.pitest:pitest-maven:mutationCoverage`
+
+## Gradle
+
+Add to your `build.gradle`:
+
+```groovy
+plugins {
+  id 'info.solidsoft.pitest' version '1.15.0'
+}
+
+pitest {
+  targetClasses = ['<%= basePackage ? basePackage + '.domain.*' : '*.domain.*' %>', '<%= basePackage ? basePackage + '.application.*' : '*.application.*' %>']
+  mutationThreshold = 80
+  coverageThreshold = 85
+  outputFormats = ['XML', 'HTML']
+  timestampedReports = false
+}
+```
+
+Run: `./gradlew pitest`
+
+## CI Gate
+
+The `check-all.mjs L2` gate runs pitest automatically. Builds fail if mutation score drops below 80%.
+
+## Why mutation testing?
+
+Line coverage tells you which lines ran. Mutation testing tells you if tests actually verify behavior.
+A test that asserts nothing can achieve 100% coverage. A mutant that survives means a test gap.

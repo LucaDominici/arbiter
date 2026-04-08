@@ -4,6 +4,7 @@ import { detectBuildCommands } from "../detectors/build.js";
 import { detectFramework } from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
+import { detectBasePackage } from "../detectors/package.js";
 import { detectGithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
 import {
@@ -22,6 +23,7 @@ import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
+import { generateArchUnit } from "../generators/archunit.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
@@ -171,6 +173,8 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
     all.push(...generateDebtRatchet(config).files);
   }
 
+  all.push(...generateArchUnit(config).files);
+
   return all;
 }
 
@@ -265,7 +269,17 @@ function buildDefaultConfig(opts: {
     languageHooks: getLanguageHooks(opts.language),
     enableDebtGates: opts.governanceLevel !== "L1",
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
+    ...detectedBasePackage(opts.language, opts.targetDir),
   };
+}
+
+function detectedBasePackage(
+  language: ReturnType<typeof detectLanguage>,
+  targetDir: string,
+): { basePackage: string } | Record<never, never> {
+  if (language !== "java") return {};
+  const bp = detectBasePackage(targetDir);
+  return bp !== undefined ? { basePackage: bp } : {};
 }
 
 function parseTools(tools: string | undefined): AiTool[] {

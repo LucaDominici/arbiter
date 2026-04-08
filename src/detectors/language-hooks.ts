@@ -128,12 +128,31 @@ if (offending.length > 0) {
 }`,
 };
 
+const JAVA_NO_MOCKMVC: LanguageHook = {
+  name: "check-no-mockmvc.mjs",
+  description:
+    "No MockMvc usage in Java test files — use RestAssured for integration tests",
+  body: `#!/usr/bin/env node
+// Fail if a Java file imports or uses MockMvc (use RestAssured instead)
+import { readFileSync, existsSync } from 'node:fs';
+const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+if (!file.endsWith('.java')) process.exit(0);
+if (!existsSync(file)) process.exit(0);
+const repoRoot = process.cwd();
+if (!file.startsWith(repoRoot)) process.exit(0);
+const content = readFileSync(file, 'utf-8');
+if (/\\b(MockMvc|AutoConfigureMockMvc|MockMvcBuilders|MockMvcRequestBuilders|MockMvcResultMatchers)\\b/.test(content)) {
+  process.stderr.write(\`[arbiter] INV-29: MockMvc is forbidden — use RestAssured for integration tests: \${file}\\n\`);
+  process.exit(1);
+}`,
+};
+
 export function getLanguageHooks(language: Language): LanguageHook[] {
   const hooks: LanguageHook[] = [COMMON_NO_ORPHAN_TODO];
   if (language === "typescript") hooks.push(TS_NO_ANY);
   if (language === "rust") hooks.push(RUST_NO_UNWRAP);
   if (language === "go") hooks.push(GO_NO_UNCHECKED_ERR);
   if (language === "python") hooks.push(PY_NO_BARE_EXCEPT);
-  if (language === "java") hooks.push(JAVA_NO_RAW_TYPES);
+  if (language === "java") hooks.push(JAVA_NO_RAW_TYPES, JAVA_NO_MOCKMVC);
   return hooks;
 }

@@ -79,9 +79,11 @@ if (level === 'L2') {
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q']);
   runCheck('pmd', './gradlew', ['pmdMain', '-q']);
+  runCheck('mutation testing (pitest)', './gradlew', ['pitest', '-q']);
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q']);
   runCheck('pmd', 'mvn', ['pmd:check', '-q']);
+  runCheck('mutation testing (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']);
 <% } %><% if (language === 'go') { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...']);
   process.stdout.write('[CHECK] coverage threshold ... ');
