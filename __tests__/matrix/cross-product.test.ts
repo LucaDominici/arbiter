@@ -525,3 +525,97 @@ describe("cross-product: complete-task.md — testCommand and verification acros
     });
   }
 });
+
+// ─── Debt Ratchet ─────────────────────────────────────────────────────────────
+
+describe("cross-product: check-all.mjs — debt ratchet gate at L2+, absent at L1", () => {
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: debt-report.mjs present with --gate`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L2"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("debt-report.mjs");
+      expect(content).toContain("--gate");
+    });
+
+    it(`${lang}+L3: debt-report.mjs present with --require-improvement`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L3"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("debt-report.mjs");
+      expect(content).toContain("--require-improvement");
+    });
+
+    it(`${lang}+L1: debt-report.mjs absent`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L1"),
+        enableDebtGates: false,
+      });
+      expect(content).not.toContain("debt-report.mjs");
+    });
+  }
+});
+
+describe("cross-product: ci.yml — debt-ratchet job at L2+, absent at L1", () => {
+  function renderCi(
+    lang: Language,
+    level: GovernanceLevel,
+    enableDebtGates: boolean,
+  ): string {
+    return renderTemplate("github/workflows/ci.yml.ejs", {
+      ...configFor(lang, level),
+      useGitHub: true,
+      enableDebtGates,
+    });
+  }
+
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: debt-ratchet job present`, () => {
+      const content = renderCi(lang, "L2", true);
+      expect(content).toContain("debt-ratchet:");
+    });
+
+    it(`${lang}+L3: debt-ratchet job present with --require-improvement`, () => {
+      const content = renderCi(lang, "L3", true);
+      expect(content).toContain("debt-ratchet:");
+      expect(content).toContain("--require-improvement");
+    });
+
+    it(`${lang}+L1: debt-ratchet job absent`, () => {
+      const content = renderCi(lang, "L1", false);
+      expect(content).not.toContain("debt-ratchet:");
+    });
+  }
+});
+
+describe("cross-product: AGENTS.md — Debt Ratchet section at L2+, absent at L1", () => {
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: Debt Ratchet section present`, () => {
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...configFor(lang, "L2"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("Debt Ratchet");
+      expect(content).toContain("capture-debt-baseline.mjs");
+    });
+
+    it(`${lang}+L3: Debt Ratchet section present`, () => {
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...configFor(lang, "L3"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain("Debt Ratchet");
+    });
+
+    it(`${lang}+L1: Debt Ratchet section absent`, () => {
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...configFor(lang, "L1"),
+        enableDebtGates: false,
+      });
+      expect(content).not.toContain("Debt Ratchet");
+      expect(content).not.toContain("capture-debt-baseline.mjs");
+    });
+  }
+});
