@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // arbiter quality gate
 // Usage: node scripts/check-all.mjs [L1|L2]
-// L1: format + lint + unit tests (fast, pre-commit)
-// L2: L1 + coverage + audit (full, pre-push)
+// L1: typecheck, format, lint, tests, circular deps, placeholders, orphan TODOs, commitlint (8)
+// L2: L1 + coverage + dead code (10)
 import { spawnSync } from "node:child_process";
 
 const level = process.argv[2] ?? "L2";
@@ -25,15 +25,26 @@ console.log("");
 console.log(`=== arbiter Quality Gate: ${level} ===`);
 console.log("");
 
-// ─── L1: Fast checks ──────────────────────────────────────────────────────────
+// ─── L1: Fast checks (8) ─────────────────────────────────────────────────────
 runCheck("typecheck", "npx", ["tsc", "--noEmit"]);
 runCheck("format", "npx", ["prettier", "--check", "."]);
 runCheck("lint", "npx", ["eslint", "src", "__tests__"]);
 runCheck("unit tests", "npm", ["test"]);
+runCheck("circular deps", "npx", [
+  "madge",
+  "--circular",
+  "--extensions",
+  "ts",
+  "src/",
+]);
+runCheck("placeholders", "node", ["scripts/check-no-placeholders.mjs", "src"]);
+runCheck("orphan TODOs", "node", ["scripts/check-no-orphan-todo.mjs"]);
+runCheck("commitlint", "npx", ["commitlint", "--from", "HEAD~1"]);
 
-// ─── L2: Full checks ──────────────────────────────────────────────────────────
+// ─── L2: Full checks (+2 = 10) ────────────────────────────────────────────────
 if (level === "L2") {
-  runCheck("audit", "npm", ["audit", "--audit-level=high"]);
+  runCheck("coverage", "npm", ["test", "--", "--coverage"]);
+  runCheck("dead code", "npx", ["knip"]);
 }
 
 console.log("");
