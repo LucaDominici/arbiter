@@ -6,43 +6,47 @@ export function detectFramework(
   dir: string,
   language: Language,
 ): string | null {
-  if (language === "typescript") {
-    const pkg = readPackageJson(dir);
-    const deps = getAllDeps(pkg);
-    const hasTauri = existsSync(join(dir, "src-tauri"));
-    const hasVue = deps.has("vue");
-    const hasReact = deps.has("react");
-    const hasExpress = deps.has("express");
-    const hasNext = deps.has("next");
-    const hasFastify = deps.has("fastify");
-
-    if (hasTauri && hasReact) return "tauri+react";
-    if (hasTauri && hasVue) return "tauri+vue";
-    if (hasTauri) return "tauri";
-    if (hasNext) return "next";
-    if (hasExpress && hasReact) return "express+react";
-    if (hasExpress && hasVue) return "express+vue";
-    if (hasExpress) return "express";
-    if (hasFastify) return "fastify";
-    if (hasVue) return "vue";
-    if (hasReact) return "react";
-  }
-
-  if (language === "rust") {
-    if (existsSync(join(dir, "src-tauri"))) return "tauri";
-    return "rust";
-  }
-
-  if (language === "java") {
-    const buildFile =
-      readFileSafe(join(dir, "build.gradle")) +
-      readFileSafe(join(dir, "pom.xml"));
-    if (buildFile.includes("spring-boot")) return "spring-boot";
-    if (buildFile.includes("quarkus")) return "quarkus";
-    return "java";
-  }
-
+  if (language === "typescript") return detectTypescriptFramework(dir);
+  if (language === "rust") return detectRustFramework(dir);
+  if (language === "java") return detectJavaFramework(dir);
   return null;
+}
+
+function detectTypescriptFramework(dir: string): string | null {
+  const pkg = readPackageJson(dir);
+  const deps = getAllDeps(pkg);
+  const hasTauri = existsSync(join(dir, "src-tauri"));
+  const hasVue = deps.has("vue");
+  const hasReact = deps.has("react");
+  const hasExpress = deps.has("express");
+  const hasNext = deps.has("next");
+  const hasFastify = deps.has("fastify");
+
+  if (hasTauri && hasReact) return "tauri+react";
+  if (hasTauri && hasVue) return "tauri+vue";
+  if (hasTauri) return "tauri";
+  if (hasNext) return "next";
+  if (hasExpress && hasReact) return "express+react";
+  if (hasExpress && hasVue) return "express+vue";
+  if (hasExpress) return "express";
+  if (hasFastify) return "fastify";
+  if (hasVue) return "vue";
+  if (hasReact) return "react";
+  return null;
+}
+
+function detectRustFramework(dir: string): string {
+  if (existsSync(join(dir, "src-tauri"))) return "tauri";
+  return "rust";
+}
+
+function detectJavaFramework(dir: string): string {
+  const buildFile =
+    readFileSafe(join(dir, "build.gradle")) +
+    readFileSafe(join(dir, "pom.xml"));
+  if (buildFile.includes("spring-boot")) return "spring-boot";
+  if (buildFile.includes("quarkus")) return "quarkus";
+  return "java";
 }
 
 function readPackageJson(dir: string): Record<string, unknown> {

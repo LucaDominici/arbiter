@@ -23,7 +23,19 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
     ),
   );
 
-  // settings.json — deep merge if exists, create if not
+  generateClaudeSettings(base, data, results);
+  generateClaudeHooks(base, data, config, results);
+  generateClaudeRules(base, data, results);
+  generateClaudeCommands(base, data, results);
+
+  return { files: results };
+}
+
+function generateClaudeSettings(
+  base: string,
+  data: Record<string, unknown>,
+  results: WriteResult[],
+): void {
   const settingsPath = resolvedPath(base, ".claude", "settings.json");
   if (existsSync(settingsPath)) {
     const existing = JSON.parse(readFileSync(settingsPath, "utf-8")) as Record<
@@ -45,8 +57,14 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
       writeFile(settingsPath, renderTemplate("claude/settings.json.ejs", data)),
     );
   }
+}
 
-  // Hook scripts — skip if already exists
+function generateClaudeHooks(
+  base: string,
+  data: Record<string, unknown>,
+  config: ProjectConfig,
+  results: WriteResult[],
+): void {
   const hooksDir = resolvedPath(base, ".claude", "hooks");
   mkdirSync(hooksDir, { recursive: true });
 
@@ -81,7 +99,6 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
     ),
   );
 
-  // Language-specific hook scripts
   for (const hook of config.languageHooks) {
     if (hook.name !== "check-no-orphan-todo.mjs") {
       results.push(
@@ -89,8 +106,13 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
       );
     }
   }
+}
 
-  // Rules — skip if exists
+function generateClaudeRules(
+  base: string,
+  data: Record<string, unknown>,
+  results: WriteResult[],
+): void {
   const rulesDir = resolvedPath(base, ".claude", "rules");
   const rules = [
     {
@@ -115,8 +137,13 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
       ),
     );
   }
+}
 
-  // Commands — skip if exists (EJS templates, stack-parameterized)
+function generateClaudeCommands(
+  base: string,
+  data: Record<string, unknown>,
+  results: WriteResult[],
+): void {
   const commandsDir = resolvedPath(base, ".claude", "commands");
   const commands = ["start-task.md", "complete-task.md"];
   for (const cmd of commands) {
@@ -128,6 +155,4 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
       ),
     );
   }
-
-  return { files: results };
 }

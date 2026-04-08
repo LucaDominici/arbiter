@@ -9,9 +9,16 @@ import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
+import type { ProjectConfig } from "../wizard/types.js";
 
 export interface DiffOptions {
   dir: string | undefined;
+}
+
+interface DiffCheck {
+  path: string;
+  templateKey: string;
+  content: () => string;
 }
 
 export function runDiff(options: DiffOptions): void {
@@ -26,81 +33,9 @@ export function runDiff(options: DiffOptions): void {
     process.exit(1);
   }
 
-  const language = detectLanguage(targetDir);
-  const framework = detectFramework(targetDir, language);
-  const buildCmds = detectBuildCommands(targetDir, language);
-  const gitInfo = detectGitInfo(targetDir);
-  const existing = detectExisting(targetDir);
-
-  const config = {
-    targetDir,
-    projectName,
-    description: `${projectName} project`,
-    language,
-    framework,
-    buildTool: buildCmds.buildTool,
-    buildCommand: buildCmds.buildCommand,
-    testCommand: buildCmds.testCommand,
-    lintCommand: buildCmds.lintCommand,
-    formatCommand: buildCmds.formatCommand,
-    tools: stored.tools,
-    governanceLevel: stored.governanceLevel,
-    useGitHub: stored.useGitHub,
-    githubOwner: gitInfo.githubOwner,
-    githubRepo: gitInfo.githubRepo,
-    existing,
-    languageHooks: getLanguageHooks(language),
-  };
-
+  const config = buildDiffConfig(targetDir, projectName, stored);
   const data = config as unknown as Record<string, unknown>;
-  const checks: Array<{
-    path: string;
-    templateKey: string;
-    content: () => string;
-  }> = [
-    {
-      path: resolvedPath(targetDir, "AGENTS.md"),
-      templateKey: "AGENTS.md",
-      content: () => renderTemplate("agents-md/AGENTS.md.ejs", data),
-    },
-    ...(config.tools.includes("claude")
-      ? [
-          {
-            path: resolvedPath(targetDir, ".claude", "CLAUDE.md"),
-            templateKey: ".claude/CLAUDE.md",
-            content: () => renderTemplate("claude/CLAUDE.md.ejs", data),
-          },
-        ]
-      : []),
-    ...(config.tools.includes("codex")
-      ? [
-          {
-            path: resolvedPath(targetDir, ".agents", "CODEX.md"),
-            templateKey: ".agents/CODEX.md",
-            content: () => renderTemplate("codex/CODEX.md.ejs", data),
-          },
-        ]
-      : []),
-    ...(config.tools.includes("cursor")
-      ? [
-          {
-            path: resolvedPath(targetDir, ".cursorrules"),
-            templateKey: ".cursorrules",
-            content: () => renderTemplate("cursor/.cursorrules.ejs", data),
-          },
-        ]
-      : []),
-    ...(config.tools.includes("copilot")
-      ? [
-          {
-            path: resolvedPath(targetDir, ".github", "copilot-instructions.md"),
-            templateKey: ".github/copilot-instructions.md",
-            content: () =>
-              renderTemplate("copilot/copilot-instructions.md.ejs", data),
-          },
-        ]
-      : []),
-  ];
+  const checks = buildDiffChecks(targetDir, config, data);
 
   let hasChanges = false;
   for (const check of checks) {
@@ -124,4 +59,82 @@ export function runDiff(options: DiffOptions): void {
   } else {
     console.log("\n  Run `arbiter update` to apply changes.\n");
   }
+}
+
+function buildDiffConfig(
+  targetDir: string,
+  projectName: string,
+  stored: ReturnType<typeof loadConfig> & object,
+): ProjectConfig {
+  const language = detectLanguage(targetDir);
+  const framework = detectFramework(targetDir, language);
+  const buildCmds = detectBuildCommands(targetDir, language);
+  const gitInfo = detectGitInfo(targetDir);
+  const existing = detectExisting(targetDir);
+
+  return {
+    targetDir,
+    projectName,
+    description: `${projectName} project`,
+    language,
+    framework,
+    buildTool: buildCmds.buildTool,
+    buildCommand: buildCmds.buildCommand,
+    testCommand: buildCmds.testCommand,
+    lintCommand: buildCmds.lintCommand,
+    formatCommand: buildCmds.formatCommand,
+    tools: stored.tools,
+    governanceLevel: stored.governanceLevel,
+    useGitHub: stored.useGitHub,
+    githubOwner: gitInfo.githubOwner,
+    githubRepo: gitInfo.githubRepo,
+    existing,
+    languageHooks: getLanguageHooks(language),
+  };
+}
+
+function buildDiffChecks(
+  targetDir: string,
+  config: ProjectConfig,
+  data: Record<string, unknown>,
+): DiffCheck[] {
+  const checks: DiffCheck[] = [
+    {
+      path: resolvedPath(targetDir, "AGENTS.md"),
+      templateKey: "AGENTS.md",
+      content: () => renderTemplate("agents-md/AGENTS.md.ejs", data),
+    },
+  ];
+
+  if (config.tools.includes("claude")) {
+    checks.push({
+      path: resolvedPath(targetDir, ".claude", "CLAUDE.md"),
+      templateKey: ".claude/CLAUDE.md",
+      content: () => renderTemplate("claude/CLAUDE.md.ejs", data),
+    });
+  }
+  if (config.tools.includes("codex")) {
+    checks.push({
+      path: resolvedPath(targetDir, ".agents", "CODEX.md"),
+      templateKey: ".agents/CODEX.md",
+      content: () => renderTemplate("codex/CODEX.md.ejs", data),
+    });
+  }
+  if (config.tools.includes("cursor")) {
+    checks.push({
+      path: resolvedPath(targetDir, ".cursorrules"),
+      templateKey: ".cursorrules",
+      content: () => renderTemplate("cursor/.cursorrules.ejs", data),
+    });
+  }
+  if (config.tools.includes("copilot")) {
+    checks.push({
+      path: resolvedPath(targetDir, ".github", "copilot-instructions.md"),
+      templateKey: ".github/copilot-instructions.md",
+      content: () =>
+        renderTemplate("copilot/copilot-instructions.md.ejs", data),
+    });
+  }
+
+  return checks;
 }

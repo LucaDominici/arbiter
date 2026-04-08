@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# commit-msg: validates commit message against conventional commits
+set -e
+
+if [ ! -d "node_modules" ]; then
+  echo "Skipping commit-msg: node_modules not installed. Run npm install."
+  exit 0
+fi
+
+npx commitlint --edit "$1"
