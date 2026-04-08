@@ -289,7 +289,7 @@ Report attached to issue as comment.
 
 ---
 
-## M14 — Arbiter Self-Enforcement (dog-food)
+## M14 — Arbiter Self-Enforcement (dog-food) ✅ DONE
 
 **Issue:** #46
 **Scope:** Apply tech debt prevention to Arbiter's own codebase. Dog-food before generating for users.

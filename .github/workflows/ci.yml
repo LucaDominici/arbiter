@@ -28,11 +28,12 @@ jobs:
         run: node scripts/check-no-orphan-todo.mjs
       - name: Dead code check
         run: npx knip
+      - name: Fetch base branch for commitlint
+        if: github.event_name == 'pull_request'
+        run: git fetch origin main --depth=1
       - name: Commit message lint
         if: github.event_name == 'pull_request'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: npx commitlint --from "$BASE_SHA" --to HEAD
+        run: npx commitlint --from origin/main --to HEAD
 
   docs-check:
     name: Docs Check
