@@ -318,7 +318,7 @@ Report attached to issue as comment.
 
 ---
 
-## M15 — Generated Per-Stack Tech Debt Gates
+## M15 — Generated Per-Stack Tech Debt Gates ✅ DONE
 
 **Issue:** #47
 **Scope:** Generate tech debt prevention tooling for target projects. Each stack gets the appropriate tools for coverage thresholds, complexity limits, dead code detection, and circular dependency checks.
