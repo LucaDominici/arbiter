@@ -106,6 +106,34 @@ function generateClaudeHooks(
       );
     }
   }
+
+  // Advanced hooks — generated for all governance levels
+  for (const hookFile of ["pre-edit-plan-anchor.mjs", "pre-compact.mjs"]) {
+    results.push(
+      writeFile(
+        join(hooksDir, hookFile),
+        renderTemplate(`claude/hooks/${hookFile}.ejs`, data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
+  // Advanced hooks — L2+ only
+  if (config.governanceLevel !== "L1") {
+    for (const hookFile of [
+      "post-edit-dispatch.mjs",
+      "debug-state-on-failure.mjs",
+      "skill-forced-eval.mjs",
+    ]) {
+      results.push(
+        writeFile(
+          join(hooksDir, hookFile),
+          renderTemplate(`claude/hooks/${hookFile}.ejs`, data),
+          { skipIfExists: true },
+        ),
+      );
+    }
+  }
 }
 
 function generateClaudeRules(

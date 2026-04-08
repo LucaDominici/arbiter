@@ -73,3 +73,19 @@ Before any edits, produce a plan containing:
 - Run gate after each logical unit: `<%= testCommand %>`
 - Keep commits atomic: one logical change per commit
 - Commit format: `type(#NNN): summary`
+<% if (governanceLevel !== 'L1') { %>
+
+## Task State (for advanced hooks)
+
+After creating the branch and plan, write task state files so the advanced hooks
+(pre-compact, pre-edit-plan-anchor, skill-forced-eval) can track session context:
+
+```bash
+echo "#NNN"             > .claude/.task-id
+echo "implementation"   > .claude/.task-phase
+echo ".claude/plans/task-NNN.md" > .claude/.task-plan
+echo "Standard"         > .claude/.task-tier
+```
+
+Update `.task-phase` as the task progresses: `plan` → `implementation` → `verification` → `complete`.
+<% } %>

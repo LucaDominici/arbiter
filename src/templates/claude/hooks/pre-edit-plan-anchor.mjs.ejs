@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// Arbiter hook: re-anchor agent to active plan before each edit
+// Hook type: PreToolUse (Edit|Write)
+// Phase-aware: only injects plan during "implementation" phase
+// stdout is injected as context the model sees before the edit
+// Always exits 0 (non-blocking)
+import { readTaskState, getRepoRoot } from './lib.mjs';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, basename } from 'node:path';
+
+const root = getRepoRoot();
+// Reads .task-plan (plan file path) and .task-phase from .claude/ state files
+const { phase, plan } = readTaskState(root);
+
+if (phase !== 'implementation') process.exit(0);
+if (!plan || plan === 'unknown') process.exit(0);
+
+// Resolve plan path relative to repo root
+const planPath = plan.startsWith('/') ? plan : join(root, plan);
+if (!existsSync(planPath)) process.exit(0);
+
+const lines = readFileSync(planPath, 'utf-8').split('\n').slice(0, 20).join('\n');
+
+process.stdout.write(
+  `=== ACTIVE PLAN (${basename(planPath)}) ===\n` +
+  `${lines}\n` +
+  `===\n`,
+);

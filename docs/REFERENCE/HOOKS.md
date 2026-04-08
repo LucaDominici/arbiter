@@ -125,6 +125,96 @@ Only activates for `.rs` files. Fails if `.unwrap()` is found.
 
 ---
 
+## Advanced Hooks (M17)
+
+These hooks are generated from EJS templates for all governed projects. They are phase-aware, context-injecting, and state-preserving — unlike the simple lint hooks above.
+
+All advanced hooks always exit 0 (non-blocking, informational).
+
+### `pre-compact.mjs`
+
+| Property            | Value                                            |
+| ------------------- | ------------------------------------------------ |
+| **Source template** | `src/templates/claude/hooks/pre-compact.mjs.ejs` |
+| **Event**           | `PreCompact`                                     |
+| **Purpose**         | Preserve task state across context compaction    |
+| **Invariant**       | None (informational)                             |
+| **Languages**       | All                                              |
+| **Governance**      | All levels (L1+)                                 |
+| **Timeout**         | 3 seconds                                        |
+| **Blocking**        | No (exits 0)                                     |
+
+Fires before automatic context compaction. Reads `.claude/.task-{id,phase,plan,tier}` state files and outputs a structured banner to stdout. This banner is injected into the model's context after compaction, preventing disorientation.
+
+### `pre-edit-plan-anchor.mjs`
+
+| Property            | Value                                                     |
+| ------------------- | --------------------------------------------------------- |
+| **Source template** | `src/templates/claude/hooks/pre-edit-plan-anchor.mjs.ejs` |
+| **Event**           | `PreToolUse` -> `Edit\|Write`                             |
+| **Purpose**         | Re-anchor agent to active plan before each file edit      |
+| **Invariant**       | None (informational)                                      |
+| **Languages**       | All                                                       |
+| **Governance**      | All levels (L1+)                                          |
+| **Timeout**         | 3 seconds                                                 |
+| **Blocking**        | No (exits 0)                                              |
+
+Phase-aware: only fires during `implementation` phase. Reads `.claude/.task-plan` for the active plan path. If the plan file exists, outputs the first 20 lines to stdout (injected into model context before the edit). Silent no-op when state files are absent.
+
+### `post-edit-dispatch.mjs`
+
+| Property            | Value                                                   |
+| ------------------- | ------------------------------------------------------- |
+| **Source template** | `src/templates/claude/hooks/post-edit-dispatch.mjs.ejs` |
+| **Event**           | `PostToolUse` -> `Edit\|Write`                          |
+| **Purpose**         | Run format + lint after source file edits               |
+| **Invariant**       | None (informational)                                    |
+| **Languages**       | All (stack-specific format/lint commands)               |
+| **Governance**      | L2+ only                                                |
+| **Timeout**         | 15 seconds                                              |
+| **Blocking**        | No (exits 0)                                            |
+
+Fires after every file edit. Skips `.md`, `.json`, `.yaml`, lock files, and build directories. For source files (`.ts`, `.java`, `.rs`, `.go`, `.py`), runs `formatCommand` then `lintCommand` from `ProjectConfig`. Uses `spawnSync` — both steps report status to stderr but never block.
+
+### `debug-state-on-failure.mjs`
+
+| Property            | Value                                                             |
+| ------------------- | ----------------------------------------------------------------- |
+| **Source template** | `src/templates/claude/hooks/debug-state-on-failure.mjs.ejs`       |
+| **Event**           | `PostToolUseFailure` -> `Bash`                                    |
+| **Purpose**         | Capture failure state to `DEBUG_STATE.md` when test commands fail |
+| **Invariant**       | None (informational)                                              |
+| **Languages**       | All (stack-specific test command patterns)                        |
+| **Governance**      | L2+ only                                                          |
+| **Timeout**         | 5 seconds                                                         |
+| **Blocking**        | No (exits 0)                                                      |
+
+Fires only on bash command failures matching test/gate patterns (npm test, cargo test, go test, pytest, ./gradlew test, etc.). Creates/updates `.evidence/debug/DEBUG_STATE.md` with: command, truncated error output, branch, timestamp, and cumulative failure count.
+
+### `skill-forced-eval.mjs`
+
+| Property            | Value                                                  |
+| ------------------- | ------------------------------------------------------ |
+| **Source template** | `src/templates/claude/hooks/skill-forced-eval.mjs.ejs` |
+| **Event**           | `UserPromptSubmit`                                     |
+| **Purpose**         | Phase-aware skill activation nudge before each prompt  |
+| **Invariant**       | None (informational)                                   |
+| **Languages**       | All                                                    |
+| **Governance**      | L2+ only                                               |
+| **Timeout**         | 3 seconds                                              |
+| **Blocking**        | No (exits 0)                                           |
+
+Fires before every user prompt. Phase-aware behavior:
+
+- `plan` phase: reminds agent not to edit files until user says GO
+- `implementation` phase: keyword-filters the prompt; if code-related keywords found, outputs mandatory skill checklist (TDD, plan review, context7 docs)
+- `verification` phase: reminds about verification steps
+- Other phases: silent (zero token cost)
+
+Uses `testCommand` from `ProjectConfig` in the skill checklist output.
+
+---
+
 ## Dog-Food Only Hooks
 
 The following hooks exist only in arbiter's own repository (`.claude/hooks/`). They are not generated for governed projects — they are arbiter's self-governance tooling.
@@ -171,15 +261,20 @@ The following hooks exist only in arbiter's own repository (`.claude/hooks/`). T
 
 Registered in `.claude/settings.json`:
 
-| Event         | Matcher       | Hook                                          | Status                  |
-| ------------- | ------------- | --------------------------------------------- | ----------------------- |
-| `PreToolUse`  | `Bash`        | `node .claude/hooks/stop-dangerous.mjs`       | Implemented             |
-| `PreToolUse`  | `Edit\|Write` | `node .claude/hooks/enforce-read-only.mjs`    | Implemented             |
-| `PreToolUse`  | `Edit\|Write` | `node .claude/hooks/pre-edit-ssot-guard.mjs`  | Implemented             |
-| `PostToolUse` | `Bash`        | `node .claude/hooks/post-commit-check.mjs`    | Implemented             |
-| `PostToolUse` | `Edit\|Write` | `node .claude/hooks/check-no-orphan-todo.mjs` | Implemented             |
-| `PostToolUse` | `Edit\|Write` | `node .claude/hooks/check-no-any.mjs`         | Implemented (TS only)   |
-| `PostToolUse` | `Edit\|Write` | `node .claude/hooks/check-no-unwrap.mjs`      | Implemented (Rust only) |
+| Event                | Matcher       | Hook                                            | Status                  |
+| -------------------- | ------------- | ----------------------------------------------- | ----------------------- |
+| `PreToolUse`         | `Bash`        | `node .claude/hooks/stop-dangerous.mjs`         | Implemented             |
+| `PreToolUse`         | `Edit\|Write` | `node .claude/hooks/enforce-read-only.mjs`      | Implemented             |
+| `PreToolUse`         | `Edit\|Write` | `node .claude/hooks/pre-edit-ssot-guard.mjs`    | Implemented             |
+| `PreToolUse`         | `Edit\|Write` | `node .claude/hooks/pre-edit-plan-anchor.mjs`   | Implemented (all)       |
+| `PostToolUse`        | `Bash`        | `node .claude/hooks/post-commit-check.mjs`      | Implemented             |
+| `PostToolUse`        | `Edit\|Write` | `node .claude/hooks/check-no-orphan-todo.mjs`   | Implemented             |
+| `PostToolUse`        | `Edit\|Write` | `node .claude/hooks/check-no-any.mjs`           | Implemented (TS only)   |
+| `PostToolUse`        | `Edit\|Write` | `node .claude/hooks/check-no-unwrap.mjs`        | Implemented (Rust only) |
+| `PostToolUse`        | `Edit\|Write` | `node .claude/hooks/post-edit-dispatch.mjs`     | Implemented (L2+)       |
+| `PostToolUseFailure` | `Bash`        | `node .claude/hooks/debug-state-on-failure.mjs` | Implemented (L2+)       |
+| `PreCompact`         | —             | `node .claude/hooks/pre-compact.mjs`            | Implemented (all)       |
+| `UserPromptSubmit`   | —             | `node .claude/hooks/skill-forced-eval.mjs`      | Implemented (L2+)       |
 
 ---
 

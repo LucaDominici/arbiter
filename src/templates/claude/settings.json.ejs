@@ -23,6 +23,11 @@
             "type": "command",
             "command": "node .claude/hooks/pre-edit-ssot-guard.mjs",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-edit-plan-anchor.mjs",
+            "timeout": 3
           }
         ]
       }
@@ -50,10 +55,49 @@
             "type": "command",
             "command": "node .claude/hooks/<%= hook.name %>",
             "timeout": 5
-          }<% }); %>
+          }<% }); %><% if (governanceLevel !== 'L1') { %>,
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-edit-dispatch.mjs",
+            "timeout": 15
+          }<% } %>
         ]
       }
-    ]
+    ],
+    "PostToolUseFailure": [<% if (governanceLevel !== 'L1') { %>
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/debug-state-on-failure.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    <% } %>],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-compact.mjs",
+            "timeout": 3
+          }
+        ]
+      }
+    ]<% if (governanceLevel !== 'L1') { %>,
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/skill-forced-eval.mjs",
+            "timeout": 3
+          }
+        ]
+      }
+    ]<% } %>
   },
   "permissions": {
     "allow": [
