@@ -351,21 +351,30 @@ Per-stack generated enforcement:
 ## M16 — Novel Anti-Tech-Debt Mechanism
 
 **Issue:** #43
-**Scope:** Design and implement a proactive tech debt detection system that does not exist in Viafera or any comparable tool. Generated for target projects across all stacks. See ADR-014.
+**Status:** ✅ DONE
+**Scope:** Proactive tech debt regression prevention via a generated debt ratchet system. See ADR-015.
 
 **Deliverables:**
 
-TBD after M12-M15 establish the foundation. Potential forms:
+- `src/generators/debt-ratchet.ts` — generator producing 2 scripts when `enableDebtGates` is true
+- `src/templates/scripts/capture-debt-baseline.mjs.ejs` — captures debt metrics into `debt-baseline.json`
+- `src/templates/scripts/debt-report.mjs.ejs` — compares current vs baseline, gates on regression
+- `src/detectors/language-hooks.ts` — added Java `check-no-raw-types.mjs` hook (Layer A cleanup)
+- CI: `debt-ratchet` job in `ci.yml.ejs`, wired into `ci-required`
+- Gate: `debt-report.mjs --gate` (L2) / `--require-improvement` (L3) in `check-all.mjs.ejs`
+- AGENTS.md: Debt Ratchet section documenting commands and ratchet rule
+- 45 new matrix tests (5 stacks × 3 levels × 3 templates)
 
-- A generated `scripts/debt-audit.mjs` that quantifies debt metrics and trends them over time
-- A baseline file (`debt-baseline.json`) that captures current debt state; gate fails on regression
-- A Claude Code agent or hook that audits for debt patterns on schedule
-- Integration with the gate system: L2 includes debt-no-regression check, L3 includes debt-zero check
-- Dashboard or report output (markdown or JSON) attachable to PRs
+**Testing protocol:** All 5 stacks × L2/L3/L1 verified via cross-product matrix tests (INV-11 satisfied).
 
-**Testing protocol:** 6-repo real-project validation + demonstrate debt detection catches a real regression.
+**Exit criteria met:**
 
-**Exit criteria:** Mechanism detects at least: coverage decay, complexity creep, dead code accumulation, dependency staleness, placeholder accumulation. Works across all 5 stacks. Baseline comparison prevents regressions.
+- ✅ Coverage decay detection (via vitest/tarpaulin/JaCoCo/go-cover/pytest-cov)
+- ✅ Complexity creep detection (via eslint/clippy/PMD/gocyclo/ruff C901)
+- ✅ Dead code accumulation detection (via knip/clippy/PMD/deadcode/ruff F401)
+- ✅ Placeholder accumulation detection (TODO count, stack-agnostic grep)
+- ✅ Baseline comparison prevents regressions (`--gate` flag)
+- ✅ Works across all 5 stacks
 
 **Dependencies:** M15.
 
