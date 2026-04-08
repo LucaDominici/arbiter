@@ -6,7 +6,7 @@ export interface Label {
   description: string;
 }
 
-export const STANDARD_LABELS: Label[] = [
+const STANDARD_LABELS: Label[] = [
   { name: "bug", color: "d73a4a", description: "Something isn't working" },
   { name: "feature", color: "a2eeef", description: "New feature or request" },
   { name: "task", color: "0075ca", description: "Implementation task" },
