@@ -126,6 +126,11 @@ function buildDiffChecks(
   config: ProjectConfig,
   data: Record<string, unknown>,
 ): DiffCheck[] {
+  const OPTIONAL_TIERS = ["data", "security", "operational"];
+  const hasOptionalTiers = config.invariantTiers.some((t) =>
+    OPTIONAL_TIERS.includes(t),
+  );
+
   const checks: DiffCheck[] = [
     {
       path: resolvedPath(targetDir, "AGENTS.md"),
@@ -133,6 +138,15 @@ function buildDiffChecks(
       content: () => renderTemplate("agents-md/AGENTS.md.ejs", data),
     },
   ];
+
+  if (hasOptionalTiers) {
+    checks.push({
+      path: resolvedPath(targetDir, "GLOBAL_INVARIANTS.md"),
+      templateKey: "GLOBAL_INVARIANTS.md",
+      content: () =>
+        renderTemplate("global-invariants/GLOBAL_INVARIANTS.md.ejs", data),
+    });
+  }
 
   if (config.tools.includes("claude")) {
     checks.push({
