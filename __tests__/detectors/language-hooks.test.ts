@@ -112,8 +112,8 @@ describe("getLanguageHooks", () => {
     expect(getLanguageHooks("rust")).toHaveLength(2);
   });
 
-  it("returns 2 hooks for java (orphan-todo + no-raw-types)", () => {
-    expect(getLanguageHooks("java")).toHaveLength(2);
+  it("returns 3 hooks for java (orphan-todo + no-raw-types + no-mockmvc)", () => {
+    expect(getLanguageHooks("java")).toHaveLength(3);
   });
 
   it("returns 2 hooks for go (orphan-todo + no-unchecked-err)", () => {
@@ -145,6 +145,53 @@ describe("getLanguageHooks", () => {
       expect(hooks.some((h) => h.name === "check-no-raw-types.mjs")).toBe(
         false,
       );
+    }
+  });
+
+  it("includes check-no-mockmvc hook for java", () => {
+    const hooks = getLanguageHooks("java");
+    const noMockMvc = hooks.find((h) => h.name === "check-no-mockmvc.mjs");
+    expect(noMockMvc).toBeDefined();
+    expect(noMockMvc!.body).toContain(".java");
+    expect(noMockMvc!.description).toMatch(/MockMvc/i);
+  });
+
+  it("check-no-mockmvc blocks MockMvc import patterns", () => {
+    const hooks = getLanguageHooks("java");
+    const noMockMvc = hooks.find((h) => h.name === "check-no-mockmvc.mjs")!;
+    // The regex in the hook body should match MockMvc patterns
+    const regex =
+      /MockMvc|AutoConfigureMockMvc|MockMvcBuilders|MockMvcRequestBuilders|MockMvcResultMatchers/;
+    expect(
+      regex.test("import org.springframework.test.web.servlet.MockMvc;"),
+    ).toBe(true);
+    expect(
+      regex.test(
+        "import org.springframework.test.web.servlet.MockMvcBuilders;",
+      ),
+    ).toBe(true);
+    expect(
+      regex.test(
+        "import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;",
+      ),
+    ).toBe(true);
+    // RestAssured should NOT match
+    expect(regex.test("import io.restassured.RestAssured;")).toBe(false);
+    expect(regex.test("import io.restassured.http.ContentType;")).toBe(false);
+    // The hook body should contain the regex pattern
+    expect(noMockMvc!.body).toContain("MockMvc");
+  });
+
+  it("check-no-mockmvc does not appear for non-java", () => {
+    for (const lang of [
+      "typescript",
+      "rust",
+      "go",
+      "python",
+      "unknown",
+    ] as const) {
+      const hooks = getLanguageHooks(lang);
+      expect(hooks.some((h) => h.name === "check-no-mockmvc.mjs")).toBe(false);
     }
   });
 

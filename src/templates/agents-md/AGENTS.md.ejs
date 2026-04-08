@@ -65,7 +65,11 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - Use constructor injection exclusively (no field injection)
 - Records for immutable data transfer objects
 - No nullable fields without explicit `@Nullable` annotation
-- Method length ≤ 65 LOC, cyclomatic complexity ≤ 15<% } %><% if (language === 'go') { %>### Go
+- Method length ≤ 65 LOC, cyclomatic complexity ≤ 15
+- **Integration testing: RestAssured mandatory** — MockMvc is forbidden (INV-29)
+  - Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` with RestAssured
+  - MockMvc bypasses real HTTP serialization, filters, and exception handlers
+  - `@AutoConfigureMockMvc` is prohibited; use a real embedded server<% } %><% if (language === 'go') { %>### Go
 
 - All exported functions must have documentation comments
 - Error handling: check every returned error — no `_ = err` patterns
@@ -166,6 +170,7 @@ Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.m
 <% } %><% if (language === 'java') { %>| Coverage | JaCoCo | <%= threshold %>% |
 | Complexity | PMD `CyclomaticComplexity` | max 15 |
 | Dead/Unused Code | PMD UnusedCode rules | zero violations |
+| Mutation testing (pitest) | PIT | 80% mutation score |
 <% } %><% if (language === 'go') { %>| Coverage | go test -coverprofile | <%= threshold %>% |
 | Complexity | golangci-lint `gocyclo` | max 15 |
 | Dead Code | golangci-lint `deadcode,unused` | zero findings |

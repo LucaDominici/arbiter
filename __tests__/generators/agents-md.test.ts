@@ -68,4 +68,38 @@ describe("generateAgentsMd", () => {
     const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
     expect(content).toContain("No `.unwrap()` calls");
   });
+
+  it("Java AGENTS.md contains RestAssured mandatory policy", () => {
+    generateAgentsMd(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("RestAssured");
+    expect(content).toMatch(/MockMvc.*forbidden|forbidden.*MockMvc/i);
+  });
+
+  it("Java AGENTS.md contains pitest mutation threshold in debt gates", () => {
+    generateAgentsMd(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        governanceLevel: "L2",
+        enableDebtGates: true,
+      }),
+    );
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("pitest");
+    expect(content).toContain("mutation");
+  });
+
+  it("non-Java AGENTS.md does not contain RestAssured or pitest", () => {
+    generateAgentsMd(makeConfig(dir, { language: "typescript" }));
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).not.toContain("RestAssured");
+    expect(content).not.toContain("pitest");
+  });
 });

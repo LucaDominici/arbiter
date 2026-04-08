@@ -161,4 +161,49 @@ describe("generateDebtGates", () => {
     const result = generateDebtGates(config);
     expect(result.files).toHaveLength(0);
   });
+
+  it("generates config/pitest-setup.md for Java L2+ projects", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+      governanceLevel: "L2",
+    });
+    const result = generateDebtGates(config);
+    expect(result.files.some((f) => f.path.endsWith("pitest-setup.md"))).toBe(
+      true,
+    );
+    expect(existsSync(join(dir, "config", "pitest-setup.md"))).toBe(true);
+  });
+
+  it("pitest-setup.md contains both Maven and Gradle snippets", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+      governanceLevel: "L2",
+    });
+    generateDebtGates(config);
+    const content = readFileSync(
+      join(dir, "config", "pitest-setup.md"),
+      "utf-8",
+    );
+    expect(content).toContain("pitest");
+    expect(content).toContain("Maven");
+    expect(content).toContain("Gradle");
+    expect(content).toContain("mutationThreshold");
+  });
+
+  it("does not generate pitest-setup.md for non-Java projects", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, "config", "pitest-setup.md"))).toBe(false);
+  });
 });

@@ -81,4 +81,6 @@ export interface ProjectConfig {
   enableDebtGates: boolean;
   /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */
   invariantTiers: InvariantTier[];
+  /** Base Java package (e.g. "com.example.myapp"). Detected from pom.xml/build.gradle for Java projects. */
+  basePackage?: string;
 }

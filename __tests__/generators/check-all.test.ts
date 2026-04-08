@@ -103,4 +103,71 @@ describe("generateCheckAll", () => {
     );
     expect(content).not.toContain("debt-report.mjs");
   });
+
+  it("includes pitest mutation check for Java + Gradle at L2", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        enableDebtGates: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("pitest");
+    expect(content).toContain("mutation testing");
+  });
+
+  it("includes pitest mutation check for Java + Maven at L2", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "maven",
+        enableDebtGates: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("pitest");
+    expect(content).toContain("mutation testing");
+  });
+
+  it("does not include pitest for Java at L1 (no debt gates)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        enableDebtGates: false,
+        governanceLevel: "L1",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("pitest");
+  });
+
+  it("does not include pitest for non-Java languages at L2", () => {
+    for (const lang of ["typescript", "rust", "go", "python"] as const) {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: lang,
+          enableDebtGates: true,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("pitest");
+    }
+  });
 });

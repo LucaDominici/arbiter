@@ -44,6 +44,13 @@ export function generateDebtGates(
         { skipIfExists: true },
       ),
     );
+    results.push(
+      writeFile(
+        resolvedPath(base, "config", "pitest-setup.md"),
+        renderTemplate("debt-gates/pitest-setup.md.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
   }
 
   return { files: results };
