@@ -20,6 +20,19 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --coverage
+      - name: Circular dependency check
+        run: npx madge --circular --extensions ts src/
+      - name: Placeholder scan
+        run: node scripts/check-no-placeholders.mjs src
+      - name: Orphan TODO check
+        run: node scripts/check-no-orphan-todo.mjs
+      - name: Dead code check
+        run: npx knip
+      - name: Commit message lint
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: npx commitlint --from "$BASE_SHA" --to HEAD
 
   docs-check:
     name: Docs Check
