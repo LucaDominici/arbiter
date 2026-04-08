@@ -1,7 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { renderTemplate } from "../../src/utils/render.js";
 import { makeConfig } from "../helpers.js";
-import type { Language, GovernanceLevel } from "../../src/wizard/types.js";
+import type {
+  Language,
+  GovernanceLevel,
+  InvariantTier,
+} from "../../src/wizard/types.js";
+import {
+  getFilteredInvariants,
+  getInvariantsByTier,
+} from "../../src/invariants/filter.js";
+
+const TIER_LABELS: Record<InvariantTier, string> = {
+  architectural: "Tier 1: Architectural Integrity",
+  data: "Tier 2: Data Integrity",
+  security: "Tier 3: Security & Compliance",
+  operational: "Tier 4: Operational Excellence",
+  governance: "Tier 5: Governance",
+};
 
 /**
  * INV-11: Cross-product matrix tests — stack × governance level.
@@ -72,11 +88,22 @@ function configFor(
   lang: Language,
   level: GovernanceLevel,
 ): Record<string, unknown> {
-  return makeConfig("/tmp/test", {
+  const config = makeConfig("/tmp/test", {
     language: lang,
     governanceLevel: level,
     ...STACK_CONFIG[lang],
-  }) as unknown as Record<string, unknown>;
+  });
+  const invariants = getFilteredInvariants({
+    language: config.language,
+    governanceLevel: config.governanceLevel,
+    invariantTiers: config.invariantTiers,
+  });
+  return {
+    ...(config as unknown as Record<string, unknown>),
+    invariants,
+    invariantsByTier: getInvariantsByTier(invariants),
+    tierLabels: TIER_LABELS,
+  };
 }
 
 // ─── AGENTS.md ────────────────────────────────────────────────────────────────
@@ -129,7 +156,7 @@ describe("cross-product: AGENTS.md — language invariants isolated at all gover
         configFor("go", level),
       );
       expect(content).toContain("error handling");
-      expect(content).toContain("go vet");
+      expect(content).toContain("golangci-lint");
       expect(content).not.toContain("Strict mode always on");
       expect(content).not.toContain("Hexagonal architecture");
       expect(content).not.toContain("clippy::pedantic");

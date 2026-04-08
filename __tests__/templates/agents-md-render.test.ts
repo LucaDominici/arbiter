@@ -1,6 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { renderTemplate } from "../../src/utils/render.js";
 import { makeConfig } from "../helpers.js";
+import {
+  getFilteredInvariants,
+  getInvariantsByTier,
+  presetToTiers,
+} from "../../src/invariants/filter.js";
+import type { InvariantTier, GovernanceLevel } from "../../src/wizard/types.js";
+import type { Language } from "../../src/wizard/types.js";
+
+const TIER_LABELS: Record<InvariantTier, string> = {
+  architectural: "Tier 1: Architectural Integrity",
+  data: "Tier 2: Data Integrity",
+  security: "Tier 3: Security & Compliance",
+  operational: "Tier 4: Operational Excellence",
+  governance: "Tier 5: Governance",
+};
 
 describe("agents-md/AGENTS.md.ejs template rendering", () => {
   // renderTemplate expects Record<string, unknown>, makeConfig returns ProjectConfig.
@@ -8,10 +23,21 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
   const dummyDir = "/tmp/arbiter-render-test";
 
   function renderAgentsMd(overrides: Record<string, unknown> = {}): string {
-    const data = { ...makeConfig(dummyDir), ...overrides } as unknown as Record<
-      string,
-      unknown
-    >;
+    const config = makeConfig(dummyDir);
+    const merged = { ...config, ...overrides };
+    const invariants = getFilteredInvariants({
+      language: (overrides.language ?? config.language) as Language,
+      governanceLevel: (overrides.governanceLevel ??
+        config.governanceLevel) as GovernanceLevel,
+      invariantTiers: (overrides.invariantTiers ??
+        config.invariantTiers) as InvariantTier[],
+    });
+    const data = {
+      ...merged,
+      invariants,
+      invariantsByTier: getInvariantsByTier(invariants),
+      tierLabels: TIER_LABELS,
+    } as unknown as Record<string, unknown>;
     return renderTemplate("agents-md/AGENTS.md.ejs", data);
   }
 
@@ -87,10 +113,7 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
   });
 
   it("includes Debt Ratchet section when enableDebtGates is true", () => {
-    const data = makeConfig("/tmp/test", {
-      enableDebtGates: true,
-    }) as unknown as Record<string, unknown>;
-    const rendered = renderTemplate("agents-md/AGENTS.md.ejs", data);
+    const rendered = renderAgentsMd({ enableDebtGates: true });
     expect(rendered).toContain("Debt Ratchet");
     expect(rendered).toContain("capture-debt-baseline.mjs");
     expect(rendered).toContain("debt-report.mjs");
@@ -98,11 +121,64 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
   });
 
   it("does not include Debt Ratchet section when enableDebtGates is false", () => {
-    const data = makeConfig("/tmp/test", {
+    const rendered = renderAgentsMd({
       enableDebtGates: false,
       governanceLevel: "L1",
-    }) as unknown as Record<string, unknown>;
-    const rendered = renderTemplate("agents-md/AGENTS.md.ejs", data);
+      invariantTiers: presetToTiers("essential"),
+    });
     expect(rendered).not.toContain("Debt Ratchet");
+  });
+
+  it("renders Tier 1 heading for all presets", () => {
+    const content = renderAgentsMd();
+    expect(content).toContain("Tier 1: Architectural Integrity");
+    expect(content).toContain("Tier 5: Governance");
+  });
+
+  it("standard preset (L2 default) does not include security tier", () => {
+    const content = renderAgentsMd({
+      governanceLevel: "L2",
+      invariantTiers: presetToTiers("standard"),
+    });
+    expect(content).not.toContain("Tier 3: Security");
+    expect(content).not.toContain("INV-11");
+  });
+
+  it("full preset (L3 default) includes security tier", () => {
+    const content = renderAgentsMd({
+      governanceLevel: "L3",
+      invariantTiers: presetToTiers("full"),
+    });
+    expect(content).toContain("Tier 3: Security");
+    expect(content).toContain("INV-11");
+  });
+
+  it("essential preset only shows architectural and governance tiers", () => {
+    const content = renderAgentsMd({
+      governanceLevel: "L1",
+      invariantTiers: presetToTiers("essential"),
+    });
+    expect(content).toContain("Tier 1: Architectural Integrity");
+    expect(content).toContain("Tier 5: Governance");
+    expect(content).not.toContain("Tier 2: Data Integrity");
+    expect(content).not.toContain("Tier 4: Operational Excellence");
+  });
+
+  it("INV-21 (TODO refs) appears in all presets — it is always-active governance", () => {
+    for (const preset of ["essential", "standard", "full"] as const) {
+      const content = renderAgentsMd({ invariantTiers: presetToTiers(preset) });
+      expect(content).toContain("INV-21");
+    }
+  });
+
+  it("language-specific INV text shown for matching language", () => {
+    const tsContent = renderAgentsMd({ language: "typescript" });
+    expect(tsContent).toContain("No `any` type in TypeScript");
+
+    const javaContent = renderAgentsMd({ language: "java" });
+    expect(javaContent).toContain("Hexagonal architecture");
+
+    const rustContent = renderAgentsMd({ language: "rust" });
+    expect(rustContent).toContain("No `.unwrap()` calls");
   });
 });

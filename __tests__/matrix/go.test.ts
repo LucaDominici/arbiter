@@ -100,7 +100,7 @@ describe("matrix: Go project", () => {
     runGenerators(config);
     const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
     expect(content).toContain("error handling");
-    expect(content).toContain("go vet");
+    expect(content).toContain("golangci-lint");
   });
 
   it("CI workflow uses Go setup and commands", () => {

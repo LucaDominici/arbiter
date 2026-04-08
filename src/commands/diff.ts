@@ -9,8 +9,21 @@ import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
-import type { ProjectConfig } from "../wizard/types.js";
-import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
+import type { ProjectConfig, InvariantTier } from "../wizard/types.js";
+import {
+  presetToTiers,
+  defaultPresetForLevel,
+  getFilteredInvariants,
+  getInvariantsByTier,
+} from "../invariants/filter.js";
+
+const TIER_LABELS: Record<InvariantTier, string> = {
+  architectural: "Tier 1: Architectural Integrity",
+  data: "Tier 2: Data Integrity",
+  security: "Tier 3: Security & Compliance",
+  operational: "Tier 4: Operational Excellence",
+  governance: "Tier 5: Governance",
+};
 
 export interface DiffOptions {
   dir: string | undefined;
@@ -35,7 +48,17 @@ export function runDiff(options: DiffOptions): void {
   }
 
   const config = buildDiffConfig(targetDir, projectName, stored);
-  const data = config as unknown as Record<string, unknown>;
+  const invariants = getFilteredInvariants({
+    language: config.language,
+    governanceLevel: config.governanceLevel,
+    invariantTiers: config.invariantTiers,
+  });
+  const data = {
+    ...(config as unknown as Record<string, unknown>),
+    invariants,
+    invariantsByTier: getInvariantsByTier(invariants),
+    tierLabels: TIER_LABELS,
+  };
   const checks = buildDiffChecks(targetDir, config, data);
 
   let hasChanges = false;
