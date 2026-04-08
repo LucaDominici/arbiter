@@ -11,7 +11,10 @@ const PATTERNS = [
   { re: /\bWIP\b/, label: "WIP" },
   { re: /\bCHANGEME\b/i, label: "CHANGEME" },
   { re: /\bREPLACEME\b/i, label: "REPLACEME" },
-  { re: /\b(it|describe|test)\.skip\s*\(/, label: "it.skip/describe.skip/test.skip" },
+  {
+    re: /\b(it|describe|test)\.skip\s*\(/,
+    label: "it.skip/describe.skip/test.skip",
+  },
   { re: /\b(xit|xdescribe|xtest)\s*\(/, label: "xit/xdescribe/xtest" },
 ];
 
@@ -51,6 +54,8 @@ for (let i = 0; i < lines.length; i++) {
 if (found.length > 0) {
   console.error(`Placeholder patterns found in ${filePath}:`);
   for (const msg of found) console.error(msg);
-  console.error("\nRemove placeholder/WIP/disabled-test patterns before saving.");
+  console.error(
+    "\nRemove placeholder/WIP/disabled-test patterns before saving.",
+  );
   process.exit(1);
 }

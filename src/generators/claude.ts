@@ -46,7 +46,11 @@ function generateClaudeSettings(
       renderTemplate("claude/settings.json.ejs", data),
     ) as Record<string, unknown>;
     const merged = mergeSettingsJson(existing, incoming);
-    writeFileSync(settingsPath, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify(merged, null, 2) + "\n",
+      "utf-8",
+    );
     results.push({ path: settingsPath, action: "backed-up-and-replaced" });
   } else {
     results.push(
@@ -111,9 +115,18 @@ function generateClaudeRules(
 ): void {
   const rulesDir = resolvedPath(base, ".claude", "rules");
   const rules = [
-    { file: "05-agent-lifecycle.md", template: "claude/rules/05-agent-lifecycle.md" },
-    { file: "25-todo-folder-policy.md", template: "claude/rules/25-todo-folder-policy.md" },
-    { file: "90-exec-protocol.md", template: "claude/rules/90-exec-protocol.md.ejs" },
+    {
+      file: "05-agent-lifecycle.md",
+      template: "claude/rules/05-agent-lifecycle.md",
+    },
+    {
+      file: "25-todo-folder-policy.md",
+      template: "claude/rules/25-todo-folder-policy.md",
+    },
+    {
+      file: "90-exec-protocol.md",
+      template: "claude/rules/90-exec-protocol.md.ejs",
+    },
   ];
   for (const rule of rules) {
     results.push(

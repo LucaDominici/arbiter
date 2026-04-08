@@ -6,7 +6,11 @@ import { tmpdir } from "node:os";
 
 const SCRIPT = resolve("scripts/check-no-placeholders.mjs");
 
-function runScanner(dir: string): { status: number; stdout: string; stderr: string } {
+function runScanner(dir: string): {
+  status: number;
+  stdout: string;
+  stderr: string;
+} {
   const result = spawnSync("node", [SCRIPT, dir], {
     encoding: "utf-8",
     cwd: resolve("."),
@@ -27,7 +31,10 @@ describe("check-no-placeholders scanner", () => {
   it("passes on a clean file", () => {
     const { dir, cleanup } = makeDir();
     try {
-      writeFileSync(join(dir, "clean.ts"), 'export function hello(): string { return "world"; }\n');
+      writeFileSync(
+        join(dir, "clean.ts"),
+        'export function hello(): string { return "world"; }\n',
+      );
       const result = runScanner(dir);
       expect(result.status).toBe(0);
     } finally {
@@ -96,7 +103,10 @@ describe("check-no-placeholders scanner", () => {
     const { dir, cleanup } = makeDir();
     try {
       // "wikipedia" contains "wip" but should not trigger
-      writeFileSync(join(dir, "ok.ts"), 'const url = "https://wikipedia.org";\n');
+      writeFileSync(
+        join(dir, "ok.ts"),
+        'const url = "https://wikipedia.org";\n',
+      );
       const result = runScanner(dir);
       expect(result.status).toBe(0);
     } finally {
@@ -129,7 +139,10 @@ describe("check-no-placeholders scanner", () => {
   it("fails on it.skip(", () => {
     const { dir, cleanup } = makeDir();
     try {
-      writeFileSync(join(dir, "bad.test.ts"), "it.skip('broken test', () => {});\n");
+      writeFileSync(
+        join(dir, "bad.test.ts"),
+        "it.skip('broken test', () => {});\n",
+      );
       const result = runScanner(dir);
       expect(result.status).toBe(1);
       expect(result.stdout).toContain("it.skip");
@@ -141,7 +154,10 @@ describe("check-no-placeholders scanner", () => {
   it("fails on describe.skip(", () => {
     const { dir, cleanup } = makeDir();
     try {
-      writeFileSync(join(dir, "bad.test.ts"), "describe.skip('suite', () => {});\n");
+      writeFileSync(
+        join(dir, "bad.test.ts"),
+        "describe.skip('suite', () => {});\n",
+      );
       const result = runScanner(dir);
       expect(result.status).toBe(1);
     } finally {
@@ -152,7 +168,10 @@ describe("check-no-placeholders scanner", () => {
   it("fails on test.skip(", () => {
     const { dir, cleanup } = makeDir();
     try {
-      writeFileSync(join(dir, "bad.test.ts"), "test.skip('broken', () => {});\n");
+      writeFileSync(
+        join(dir, "bad.test.ts"),
+        "test.skip('broken', () => {});\n",
+      );
       const result = runScanner(dir);
       expect(result.status).toBe(1);
     } finally {

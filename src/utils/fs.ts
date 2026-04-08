@@ -131,7 +131,10 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
   return result;
 }
 
-function mergeHookEntry(existingEntry: HookEntry, incomingEntry: HookEntry): void {
+function mergeHookEntry(
+  existingEntry: HookEntry,
+  incomingEntry: HookEntry,
+): void {
   for (const hook of incomingEntry.hooks) {
     const incomingBasename = extractHookBasename(hook.command);
     if (incomingBasename) {

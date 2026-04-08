@@ -131,7 +131,8 @@ function buildDiffChecks(
     checks.push({
       path: resolvedPath(targetDir, ".github", "copilot-instructions.md"),
       templateKey: ".github/copilot-instructions.md",
-      content: () => renderTemplate("copilot/copilot-instructions.md.ejs", data),
+      content: () =>
+        renderTemplate("copilot/copilot-instructions.md.ejs", data),
     });
   }
 
