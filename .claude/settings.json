@@ -50,6 +50,11 @@
             "type": "command",
             "command": "node .claude/hooks/check-no-any.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-placeholders.mjs",
+            "timeout": 5
           }
         ]
       }
