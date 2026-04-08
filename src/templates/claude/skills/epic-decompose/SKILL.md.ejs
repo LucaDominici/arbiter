@@ -1,0 +1,78 @@
+---
+name: epic-decompose
+description: Use when breaking down a large feature (epic) into independently deliverable tasks. Produces a sequenced task list with dependencies, acceptance criteria, and size estimates.
+argument-hint: "<epic title or description>"
+---
+
+# Epic Decompose
+
+**Purpose:** Break a large feature into independently shippable tasks.
+
+## Step 1: Understand the Epic
+
+Read the epic description carefully. Identify:
+- The user-visible outcome
+- The technical surface area (which layers are affected)
+- External dependencies (third-party APIs, migrations, infra changes)
+- Risk areas (security, performance, backwards compatibility)
+
+## Step 2: Identify Seams
+
+Find natural boundaries where the work can be split:
+- **Vertical slices** — thin end-to-end slices (preferred)
+- **Horizontal layers** — domain first, then API, then UI
+- **Data migrations** — always a separate task, run before or after code
+
+## Step 3: Sequence Tasks
+
+Order tasks by:
+1. Foundation first (data models, migrations, shared types)
+2. Core behavior second (business logic, domain layer)
+3. Integration third (API endpoints, event handlers)
+4. UI/UX last (if applicable)
+5. Cleanup/polish (dead code removal, documentation)
+
+## Step 4: Write Task Briefs
+
+For each task:
+
+```markdown
+### Task N: <title>
+
+**Goal:** <one sentence — what does this task deliver?>
+**Depends on:** Task N-1 (or "none")
+**Acceptance criteria:**
+  - [ ] <testable criterion 1>
+  - [ ] <testable criterion 2>
+**Size:** XS / S / M / L
+**Risk:** Low / Medium / High
+**Notes:** <edge cases, gotchas, open questions>
+```
+
+## Size Reference
+
+| Size | Scope |
+|------|-------|
+| XS | < 1 hour, 1-2 files |
+| S | Half day, 3-5 files |
+| M | 1-2 days, 5-10 files |
+| L | 3-5 days, 10+ files or multiple layers |
+
+Tasks larger than M should be split further.
+
+## Output Format
+
+```markdown
+## Epic: <title>
+
+**Summary:** <2-3 sentences>
+**Total tasks:** <N>
+**Estimated total:** <size>
+
+### Tasks
+<task briefs in sequence>
+
+### Open Questions
+- <question 1>
+- <question 2>
+```
