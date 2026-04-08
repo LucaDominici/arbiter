@@ -22,6 +22,7 @@ import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
+import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { saveConfig } from "../utils/config.js";
@@ -143,6 +144,9 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
 
   // AGENTS.md is always generated — it's the canonical governance source
   all.push(generateAgentsMd(config));
+
+  // GLOBAL_INVARIANTS.md generated for standard/full presets (optional tiers selected)
+  all.push(generateGlobalInvariants(config));
 
   // Skip tool-specific configs when ai-rulez manages them
   if (!config.existing.aiRulez) {

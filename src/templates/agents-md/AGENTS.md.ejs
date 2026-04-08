@@ -36,9 +36,9 @@ Level 3:  Source code + tests — implementation truth
 Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
 <% for (const [tier, tierInvariants] of invariantsByTier.entries()) { %>
-### <%= tierLabels[tier] %>
+### <%- tierLabels[tier] %>
 
-<% for (const inv of tierInvariants) { %>- **<%= inv.id %>:** <%= (inv.languageDetail && inv.languageDetail[language]) ? inv.languageDetail[language] : inv.title %>
+<% for (const inv of tierInvariants) { %>- **<%- inv.id %>:** <%- (inv.languageDetail && inv.languageDetail[language]) ? inv.languageDetail[language] : inv.title %>
 <% } %>
 <% } %>
 
