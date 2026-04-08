@@ -115,30 +115,11 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
     const merged = [...existingEntries];
 
     for (const incomingEntry of incomingEntries) {
-      // Find existing entry with same matcher
       const existingEntry = merged.find(
         (e) => e.matcher === incomingEntry.matcher,
       );
       if (existingEntry) {
-        for (const hook of incomingEntry.hooks) {
-          const incomingBasename = extractHookBasename(hook.command);
-
-          if (incomingBasename) {
-            // Remove old variants of the same hook (e.g. .sh → .mjs upgrade)
-            existingEntry.hooks = existingEntry.hooks.filter((h) => {
-              const existingBasename = extractHookBasename(h.command);
-              return existingBasename !== incomingBasename;
-            });
-          }
-
-          // Add the incoming hook if not already present
-          const existingCommands = new Set(
-            existingEntry.hooks.map((h) => h.command),
-          );
-          if (!existingCommands.has(hook.command)) {
-            existingEntry.hooks.push(hook);
-          }
-        }
+        mergeHookEntry(existingEntry, incomingEntry);
       } else {
         merged.push(incomingEntry);
       }
@@ -148,6 +129,24 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
   }
 
   return result;
+}
+
+function mergeHookEntry(existingEntry: HookEntry, incomingEntry: HookEntry): void {
+  for (const hook of incomingEntry.hooks) {
+    const incomingBasename = extractHookBasename(hook.command);
+    if (incomingBasename) {
+      // Remove old variants of the same hook (e.g. .sh → .mjs upgrade)
+      existingEntry.hooks = existingEntry.hooks.filter((h) => {
+        const existingBasename = extractHookBasename(h.command);
+        return existingBasename !== incomingBasename;
+      });
+    }
+    // Add the incoming hook if not already present
+    const existingCommands = new Set(existingEntry.hooks.map((h) => h.command));
+    if (!existingCommands.has(hook.command)) {
+      existingEntry.hooks.push(hook);
+    }
+  }
 }
 
 function mergePermissions(
