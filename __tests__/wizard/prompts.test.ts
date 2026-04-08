@@ -7,6 +7,7 @@ import {
 } from "../../src/wizard/prompts.js";
 import type { WizardInput } from "../../src/wizard/prompts.js";
 import type { ExistingState } from "../../src/detectors/existing.js";
+import { presetToTiers } from "../../src/invariants/filter.js";
 
 vi.mock("inquirer", () => ({
   default: { prompt: vi.fn() },
@@ -209,5 +210,102 @@ describe("runWizard brownfield flow", () => {
 
     const result = await runWizard(makeWizardInput(existing));
     expect(result).toBeNull();
+  });
+});
+
+describe("runWizard invariant preset selection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses essential preset tiers when user selects essential", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L1",
+        invariantPreset: "essential",
+      })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    expect(result!.invariantTiers).toEqual(presetToTiers("essential"));
+    expect(result!.invariantTiers).toContain("architectural");
+    expect(result!.invariantTiers).toContain("governance");
+    expect(result!.invariantTiers).not.toContain("security");
+  });
+
+  it("uses full preset tiers when user selects full", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L3",
+        invariantPreset: "full",
+      })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    expect(result!.invariantTiers).toEqual(presetToTiers("full"));
+    expect(result!.invariantTiers).toContain("security");
+    expect(result!.invariantTiers).toContain("operational");
+  });
+
+  it("uses essential preset even when governance level is L2", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        invariantPreset: "essential",
+      })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    // essential has no data/operational tiers even though L2 default would be standard
+    expect(result!.invariantTiers).toEqual(presetToTiers("essential"));
+    expect(result!.invariantTiers).not.toContain("data");
+    expect(result!.invariantTiers).not.toContain("operational");
+  });
+
+  it("falls back to governance-level default when preset omitted", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        // no invariantPreset
+      })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    // L2 default is "standard"
+    expect(result!.invariantTiers).toEqual(presetToTiers("standard"));
+  });
+
+  it("L1 default preset is essential", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L1",
+      })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    expect(result!.invariantTiers).toEqual(presetToTiers("essential"));
+  });
+
+  it("L3 default preset is full", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L3",
+      })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    expect(result!.invariantTiers).toEqual(presetToTiers("full"));
   });
 });

@@ -165,6 +165,29 @@ export async function runWizard(
       ],
       default: "L2",
     },
+    {
+      type: "list",
+      name: "invariantPreset",
+      message: "Invariant coverage:",
+      choices: [
+        {
+          name: "Essential — architectural + governance rules only (~14 rules)",
+          value: "essential",
+        },
+        {
+          name: "Standard — + data integrity + operational rules (~23 rules)",
+          value: "standard",
+        },
+        {
+          name: "Full — all 28 rules including security tier",
+          value: "full",
+        },
+      ],
+      default: (answers: { governanceLevel: string }) =>
+        defaultPresetForLevel(
+          answers.governanceLevel as import("./types.js").GovernanceLevel,
+        ),
+    },
     ...githubChoice,
   ] as Parameters<typeof inquirer.prompt>[0])) as WizardAnswers;
 
@@ -226,7 +249,7 @@ function buildConfigFromAnswers(
     languageHooks: getLanguageHooks(input.language),
     enableDebtGates: answers.governanceLevel !== "L1",
     invariantTiers: presetToTiers(
-      defaultPresetForLevel(answers.governanceLevel),
+      answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
     ),
   };
 }
