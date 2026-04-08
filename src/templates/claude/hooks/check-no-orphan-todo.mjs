@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Arbiter hook: block orphan TODO comments (INV-06)
+// Arbiter hook: block orphan TODO comments (INV-21)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from "node:fs";
 
@@ -38,7 +38,7 @@ const offending = content
 
 if (offending.length > 0) {
   process.stderr.write(
-    `[arbiter] INV-06: Orphan TODO found in ${file} (must reference task ID like TODO(#123)):\n`,
+    `[arbiter] INV-21: Orphan TODO found in ${file} (must reference task ID like TODO(#123)):\n`,
   );
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`));
   process.exit(1);

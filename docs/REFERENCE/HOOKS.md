@@ -82,7 +82,7 @@ These hooks are generated programmatically by `src/detectors/language-hooks.ts` 
 | **Source**    | `src/detectors/language-hooks.ts` (`COMMON_NO_ORPHAN_TODO`) |
 | **Event**     | `PostToolUse` -> `Edit\|Write`                              |
 | **Purpose**   | Every TODO must reference a task ID                         |
-| **Invariant** | INV-06                                                      |
+| **Invariant** | INV-21                                                      |
 | **Languages** | All                                                         |
 | **Timeout**   | 5 seconds                                                   |
 | **Blocking**  | Yes (exit 1)                                                |
