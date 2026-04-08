@@ -55,7 +55,7 @@ Deliverables are NOT: "using the Strategy Pattern" or "adding an Abstract Factor
 
 **Enforcement:** ESLint `complexity` rule + `max-depth` + `max-params`.
 
-<% } %><% if (language === 'java') { %>
+<% } else if (language === 'java') { %>
 ### Java
 
 | Metric | Limit | Target |
@@ -70,7 +70,7 @@ Deliverables are NOT: "using the Strategy Pattern" or "adding an Abstract Factor
 
 Use Builders or Value Objects/Records when parameter count exceeds limit.
 
-<% } %><% if (language === 'rust') { %>
+<% } else if (language === 'rust') { %>
 ### Rust
 
 | Metric | Limit | Target |
@@ -82,7 +82,7 @@ Use Builders or Value Objects/Records when parameter count exceeds limit.
 
 **Enforcement:** Clippy `cognitive_complexity` lint.
 
-<% } %><% if (language === 'go') { %>
+<% } else if (language === 'go') { %>
 ### Go
 
 | Metric | Limit | Target |
@@ -94,7 +94,7 @@ Use Builders or Value Objects/Records when parameter count exceeds limit.
 
 **Enforcement:** `gocognit` or `gocyclo` in CI.
 
-<% } %><% if (language === 'python') { %>
+<% } else if (language === 'python') { %>
 ### Python
 
 | Metric | Limit | Target |

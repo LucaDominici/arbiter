@@ -48,3 +48,13 @@ Arbiter generates a `docs/METHOD/` SSOT skeleton as part of `arbiter init` and `
 - `ENGINEERING_DEFAULTS.md` gives consistent complexity limits that match the project's language toolchain.
 - `TRACK_ROUTER.md` (L3) provides explicit routing rules that reduce context waste in large projects.
 - `KNOWLEDGE_MAP.md` is intentionally not regenerated on `arbiter update` to protect manual edits.
+
+---
+
+## Amendment (post-review)
+
+Post-merge code review identified three issues, fixed in the same PR cycle:
+
+- **Template**: Sequential `if` blocks in `ENGINEERING_DEFAULTS.md.ejs` converted to `else if` chain to enforce mutual exclusivity of language sections at the template level.
+- **Tests**: Added coverage for `unknown` language (fallback → TypeScript table), `rust`, `go`, `python`, and a cross-language mutual exclusivity test verifying exactly one section renders per language.
+- **skipIfExists test**: Strengthened to write actual manual edits between runs and assert they survive, rather than only checking the returned action enum.
