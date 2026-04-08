@@ -63,6 +63,7 @@ export function runUpdate(options: UpdateOptions): void {
     githubRepo: gitInfo.githubRepo,
     existing,
     languageHooks: getLanguageHooks(language),
+    enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
   };
 
   console.log("\n  Updating...");

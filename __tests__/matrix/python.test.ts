@@ -163,6 +163,27 @@ describe("matrix: Python project", () => {
     expect(content).toContain(".py");
   });
 
+  it("check-all.mjs includes pytest cov-fail-under and ruff complexity when enableDebtGates is true", () => {
+    const config = pythonConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("cov-fail-under");
+    expect(checkAll).toContain("C901");
+  });
+
+  it("CI workflow includes debt-gates job for Python when enableDebtGates is true", () => {
+    const config = pythonConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("debt-gates:");
+  });
+
   it("dependabot.yml includes pip ecosystem", () => {
     const config = pythonConfig();
     runGenerators(config);

@@ -153,6 +153,39 @@ describe("matrix: Go project", () => {
     expect(content).toContain(".go");
   });
 
+  it("generates .golangci.yml when enableDebtGates is true", () => {
+    const config = goConfig({ enableDebtGates: true });
+    runGenerators(config);
+    expect(existsSync(join(dir, ".golangci.yml"))).toBe(true);
+  });
+
+  it(".golangci.yml not generated when enableDebtGates is false", () => {
+    const config = goConfig({ enableDebtGates: false });
+    runGenerators(config);
+    expect(existsSync(join(dir, ".golangci.yml"))).toBe(false);
+  });
+
+  it("check-all.mjs includes gocyclo and deadcode when enableDebtGates is true", () => {
+    const config = goConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("gocyclo");
+    expect(checkAll).toContain("deadcode");
+  });
+
+  it("CI workflow includes debt-gates job for Go when enableDebtGates is true", () => {
+    const config = goConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("debt-gates:");
+  });
+
   it("dependabot.yml includes gomod ecosystem", () => {
     const config = goConfig();
     runGenerators(config);

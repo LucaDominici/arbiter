@@ -107,10 +107,70 @@ jobs:
           echo "Docs check passed."
 <% } %>
 
+<% if (enableDebtGates) { %>
+<% const threshold = governanceLevel === 'L3' ? 85 : 80; %>
+  debt-gates:
+    name: Tech Debt Gates
+    runs-on: ubuntu-latest
+    needs: [lint-and-test]
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx vitest run --coverage --coverage.thresholds.lines=<%= threshold %>
+      - run: npx knip
+      - run: npx madge --circular src
+<% } %><% if (language === 'rust') { %>
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-tarpaulin
+      - run: cargo tarpaulin --fail-under <%= threshold %>
+      - run: cargo clippy -- -W clippy::pedantic -D warnings
+<% } %><% if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
+      - run: ./gradlew jacocoTestCoverageVerification
+      - run: ./gradlew pmdMain
+<% } else { %>      - run: mvn verify -Pjacoco
+      - run: mvn pmd:check
+<% } %><% } %><% if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - run: go test -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Check coverage threshold
+        run: |
+          PCT=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          if (( $(echo "$PCT < <%= threshold %>" | bc -l) )); then
+            echo "Coverage ${PCT}% is below <%= threshold %>%"
+            exit 1
+          fi
+          echo "Coverage ${PCT}% >= <%= threshold %>%"
+      - run: golangci-lint run --enable gocyclo,gocognit,deadcode,unused
+<% } %><% if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e ".[dev]"
+      - run: pytest --cov --cov-fail-under=<%= threshold %>
+      - run: ruff check --select C901,PLR0911,PLR0912,PLR0913,PLR0915 .
+      - run: ruff check --select F401,F811 .
+<% } %>
+<% } %>
+
   ci-required:
     name: CI Required
     runs-on: ubuntu-latest
-    needs: [lint-and-test<% if (governanceLevel !== 'L1') { %>, docs-check<% } %>]
+    needs: [lint-and-test<% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates<% } %>]
     if: always()
     steps:
       - run: |
@@ -120,5 +180,9 @@ jobs:
           fi<% if (governanceLevel !== 'L1') { %>
           if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
             echo "docs-check failed"
+            exit 1
+          fi<% } %><% if (enableDebtGates) { %>
+          if [[ "${{ needs.debt-gates.result }}" != "success" ]]; then
+            echo "debt-gates failed"
             exit 1
           fi<% } %>

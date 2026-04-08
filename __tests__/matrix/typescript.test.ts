@@ -113,6 +113,39 @@ describe("matrix: TypeScript project", () => {
     );
   });
 
+  it("generates knip.json when enableDebtGates is true", () => {
+    const config = tsConfig({ enableDebtGates: true });
+    runGenerators(config);
+    expect(existsSync(join(dir, "knip.json"))).toBe(true);
+  });
+
+  it("knip.json not generated when enableDebtGates is false", () => {
+    const config = tsConfig({ enableDebtGates: false });
+    runGenerators(config);
+    expect(existsSync(join(dir, "knip.json"))).toBe(false);
+  });
+
+  it("check-all.mjs includes knip and madge when enableDebtGates is true", () => {
+    const config = tsConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("knip");
+    expect(checkAll).toContain("madge");
+  });
+
+  it("CI workflow includes debt-gates job when enableDebtGates is true", () => {
+    const config = tsConfig({ enableDebtGates: true });
+    runGenerators(config);
+    const ci = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(ci).toContain("debt-gates:");
+  });
+
   it("settings.json includes check-no-any.mjs hook entry", () => {
     const config = tsConfig();
     runGenerators(config);

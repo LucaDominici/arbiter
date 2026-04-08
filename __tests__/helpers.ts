@@ -81,6 +81,7 @@ export function makeConfig(
   dir: string,
   overrides: Partial<ProjectConfig> = {},
 ): ProjectConfig {
+  const governanceLevel = overrides.governanceLevel ?? "L2";
   return {
     targetDir: dir,
     projectName: "test-project",
@@ -93,7 +94,7 @@ export function makeConfig(
     lintCommand: "npm run lint",
     formatCommand: "npx prettier --check .",
     tools: ["claude", "codex"],
-    governanceLevel: "L2",
+    governanceLevel,
     useGitHub: false,
     githubOwner: null,
     githubRepo: null,
@@ -106,6 +107,7 @@ export function makeConfig(
       checkAllScript: false,
     },
     languageHooks: [],
+    enableDebtGates: governanceLevel !== "L1",
     ...overrides,
   };
 }

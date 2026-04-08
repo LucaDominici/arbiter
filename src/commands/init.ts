@@ -20,6 +20,7 @@ import { generateRoot } from "../generators/root.js";
 import { generateCheckAll } from "../generators/check-all.js";
 import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
+import { generateDebtGates } from "../generators/debt-gates.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { saveConfig } from "../utils/config.js";
@@ -128,6 +129,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     tools: config.tools,
     governanceLevel: config.governanceLevel,
     useGitHub: config.useGitHub,
+    enableDebtGates: config.enableDebtGates,
   });
 
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
@@ -155,6 +157,10 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
     all.push(...generateGithub(config).files);
     all.push(...generateRoot(config).files);
     all.push(...generateCheckAll(config).files);
+  }
+
+  if (config.enableDebtGates) {
+    all.push(...generateDebtGates(config).files);
   }
 
   return all;
@@ -249,6 +255,7 @@ function buildDefaultConfig(opts: {
     githubRepo: opts.gitInfo.githubRepo,
     existing: opts.existing,
     languageHooks: getLanguageHooks(opts.language),
+    enableDebtGates: opts.governanceLevel !== "L1",
   };
 }
 
