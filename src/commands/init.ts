@@ -25,6 +25,8 @@ import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { generateArchUnit } from "../generators/archunit.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
+import { generateSkills } from "../generators/skills.js";
+import { generateAgentsClaude } from "../generators/agents-claude.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { saveConfig } from "../utils/config.js";
@@ -160,6 +162,8 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
       all.push(...generateCursor(config).files);
     if (config.tools.includes("copilot"))
       all.push(...generateCopilot(config).files);
+    all.push(...generateSkills(config).files);
+    all.push(...generateAgentsClaude(config).files);
   }
 
   if (config.useGitHub) {
