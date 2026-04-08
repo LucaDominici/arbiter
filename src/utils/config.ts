@@ -1,6 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AiTool, GovernanceLevel } from "../wizard/types.js";
+import type {
+  AiTool,
+  GovernanceLevel,
+  InvariantTier,
+} from "../wizard/types.js";
+import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 
 export interface ArbiterConfig {
   version: string;
@@ -8,6 +13,7 @@ export interface ArbiterConfig {
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
   enableDebtGates?: boolean;
+  invariantTiers?: InvariantTier[];
 }
 
 const CONFIG_FILE = "arbiter.json";
@@ -29,10 +35,12 @@ export function loadConfig(dir: string): ArbiterConfig | null {
 }
 
 export function defaultConfig(): ArbiterConfig {
+  const governanceLevel = "L2";
   return {
     version: CURRENT_VERSION,
     tools: ["claude", "codex"],
-    governanceLevel: "L2",
+    governanceLevel,
     useGitHub: false,
+    invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
   };
 }

@@ -15,7 +15,20 @@ const TIER_LABELS: Record<InvariantTier, string> = {
   governance: "Tier 5: Governance",
 };
 
-export function generateAgentsMd(config: ProjectConfig): WriteResult {
+const OPTIONAL_TIERS: InvariantTier[] = ["data", "security", "operational"];
+
+export function generateGlobalInvariants(config: ProjectConfig): WriteResult {
+  const hasOptionalTiers = config.invariantTiers.some((t) =>
+    OPTIONAL_TIERS.includes(t),
+  );
+
+  if (!hasOptionalTiers) {
+    return {
+      action: "skipped",
+      path: resolvedPath(config.targetDir, "GLOBAL_INVARIANTS.md"),
+    };
+  }
+
   const invariants = getFilteredInvariants({
     language: config.language,
     governanceLevel: config.governanceLevel,
@@ -30,8 +43,13 @@ export function generateAgentsMd(config: ProjectConfig): WriteResult {
     tierLabels: TIER_LABELS,
   };
 
-  const content = renderTemplate("agents-md/AGENTS.md.ejs", data);
-  return writeFile(resolvedPath(config.targetDir, "AGENTS.md"), content, {
-    backup: true,
-  });
+  const content = renderTemplate(
+    "global-invariants/GLOBAL_INVARIANTS.md.ejs",
+    data,
+  );
+  return writeFile(
+    resolvedPath(config.targetDir, "GLOBAL_INVARIANTS.md"),
+    content,
+    { backup: true },
+  );
 }

@@ -45,11 +45,9 @@ These variables are available to every template via `ProjectConfig`:
 | Condition                   | Section Affected  | Effect                                                            |
 | --------------------------- | ----------------- | ----------------------------------------------------------------- |
 | `framework` truthy          | Project table     | Appends ` / <framework>` to Stack row                             |
-| `language === 'java'`       | Invariants Tier 1 | Adds INV-03 (hexagonal architecture)                              |
-| `language === 'typescript'` | Invariants Tier 2 | Adds INV-04 (no `any`), INV-05 (no unused exports)                |
-| `language === 'rust'`       | Invariants Tier 2 | Adds INV-04 (no `.unwrap()`), INV-05 (no `unsafe`)                |
-| `language === 'java'`       | Invariants Tier 2 | Adds INV-04 (no raw types), INV-05 (complexity limits)            |
-| `governanceLevel === 'L3'`  | Invariants Tier 3 | Adds INV-11 (evidence artifacts), INV-12 (SSOT drift check)       |
+| `language` (per stack)      | Invariant section | Language-specific INV-03..06 text (data-driven, from catalog)     |
+| `invariantTiers` selection  | Invariant section | Tiers rendered: essential=T1+T5, standard=+T2+T4, full=+T3        |
+| `governanceLevel` (L2+)     | Invariants T5     | INV-26 (TDD) gated at L2+; INV-27/28 gated at L3                  |
 | `language === 'typescript'` | Coding Standards  | TypeScript-specific rules (strict mode, no `any`, etc.)           |
 | `language === 'rust'`       | Coding Standards  | Rust-specific rules (doc comments, `?` operator, clippy pedantic) |
 | `language === 'java'`       | Coding Standards  | Java-specific rules (hexagonal, constructor injection, records)   |

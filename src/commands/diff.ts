@@ -9,7 +9,21 @@ import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
-import type { ProjectConfig } from "../wizard/types.js";
+import type { ProjectConfig, InvariantTier } from "../wizard/types.js";
+import {
+  presetToTiers,
+  defaultPresetForLevel,
+  getFilteredInvariants,
+  getInvariantsByTier,
+} from "../invariants/filter.js";
+
+const TIER_LABELS: Record<InvariantTier, string> = {
+  architectural: "Tier 1: Architectural Integrity",
+  data: "Tier 2: Data Integrity",
+  security: "Tier 3: Security & Compliance",
+  operational: "Tier 4: Operational Excellence",
+  governance: "Tier 5: Governance",
+};
 
 export interface DiffOptions {
   dir: string | undefined;
@@ -34,7 +48,17 @@ export function runDiff(options: DiffOptions): void {
   }
 
   const config = buildDiffConfig(targetDir, projectName, stored);
-  const data = config as unknown as Record<string, unknown>;
+  const invariants = getFilteredInvariants({
+    language: config.language,
+    governanceLevel: config.governanceLevel,
+    invariantTiers: config.invariantTiers,
+  });
+  const data = {
+    ...(config as unknown as Record<string, unknown>),
+    invariants,
+    invariantsByTier: getInvariantsByTier(invariants),
+    tierLabels: TIER_LABELS,
+  };
   const checks = buildDiffChecks(targetDir, config, data);
 
   let hasChanges = false;
@@ -91,6 +115,9 @@ function buildDiffConfig(
     existing,
     languageHooks: getLanguageHooks(language),
     enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
+    invariantTiers:
+      stored.invariantTiers ??
+      presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
   };
 }
 
@@ -99,6 +126,11 @@ function buildDiffChecks(
   config: ProjectConfig,
   data: Record<string, unknown>,
 ): DiffCheck[] {
+  const OPTIONAL_TIERS = ["data", "security", "operational"];
+  const hasOptionalTiers = config.invariantTiers.some((t) =>
+    OPTIONAL_TIERS.includes(t),
+  );
+
   const checks: DiffCheck[] = [
     {
       path: resolvedPath(targetDir, "AGENTS.md"),
@@ -106,6 +138,15 @@ function buildDiffChecks(
       content: () => renderTemplate("agents-md/AGENTS.md.ejs", data),
     },
   ];
+
+  if (hasOptionalTiers) {
+    checks.push({
+      path: resolvedPath(targetDir, "GLOBAL_INVARIANTS.md"),
+      templateKey: "GLOBAL_INVARIANTS.md",
+      content: () =>
+        renderTemplate("global-invariants/GLOBAL_INVARIANTS.md.ejs", data),
+    });
+  }
 
   if (config.tools.includes("claude")) {
     checks.push({

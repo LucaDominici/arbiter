@@ -1,7 +1,29 @@
 import { describe, it, expect } from "vitest";
 import { renderTemplate } from "../../src/utils/render.js";
 import { makeConfig } from "../helpers.js";
-import type { Language, GovernanceLevel } from "../../src/wizard/types.js";
+import type {
+  Language,
+  GovernanceLevel,
+  InvariantTier,
+  InvariantPreset,
+} from "../../src/wizard/types.js";
+import {
+  getFilteredInvariants,
+  getInvariantsByTier,
+  presetToTiers,
+} from "../../src/invariants/filter.js";
+import { generateGlobalInvariants } from "../../src/generators/global-invariants.js";
+import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const TIER_LABELS: Record<InvariantTier, string> = {
+  architectural: "Tier 1: Architectural Integrity",
+  data: "Tier 2: Data Integrity",
+  security: "Tier 3: Security & Compliance",
+  operational: "Tier 4: Operational Excellence",
+  governance: "Tier 5: Governance",
+};
 
 /**
  * INV-11: Cross-product matrix tests — stack × governance level.
@@ -72,11 +94,22 @@ function configFor(
   lang: Language,
   level: GovernanceLevel,
 ): Record<string, unknown> {
-  return makeConfig("/tmp/test", {
+  const config = makeConfig("/tmp/test", {
     language: lang,
     governanceLevel: level,
     ...STACK_CONFIG[lang],
-  }) as unknown as Record<string, unknown>;
+  });
+  const invariants = getFilteredInvariants({
+    language: config.language,
+    governanceLevel: config.governanceLevel,
+    invariantTiers: config.invariantTiers,
+  });
+  return {
+    ...(config as unknown as Record<string, unknown>),
+    invariants,
+    invariantsByTier: getInvariantsByTier(invariants),
+    tierLabels: TIER_LABELS,
+  };
 }
 
 // ─── AGENTS.md ────────────────────────────────────────────────────────────────
@@ -129,7 +162,7 @@ describe("cross-product: AGENTS.md — language invariants isolated at all gover
         configFor("go", level),
       );
       expect(content).toContain("error handling");
-      expect(content).toContain("go vet");
+      expect(content).toContain("golangci-lint");
       expect(content).not.toContain("Strict mode always on");
       expect(content).not.toContain("Hexagonal architecture");
       expect(content).not.toContain("clippy::pedantic");
@@ -748,6 +781,172 @@ describe("cross-product: start-task.md — task state files for advanced hooks",
 
     it(`${lang}+L1: does NOT contain .task-phase instruction`, () => {
       expect(renderStartTask(lang, "L1")).not.toContain(".task-phase");
+    });
+  }
+});
+
+// ─── PRESET × LANG MATRIX ─────────────────────────────────────────────────────
+
+const PRESETS: InvariantPreset[] = ["essential", "standard", "full"];
+
+const PRESET_EXPECTED_TIERS: Record<InvariantPreset, InvariantTier[]> = {
+  essential: ["architectural", "governance"],
+  standard: ["architectural", "governance", "data", "operational"],
+  full: ["architectural", "governance", "data", "security", "operational"],
+};
+
+const ABSENT_TIERS: Record<InvariantPreset, string[]> = {
+  essential: [
+    "Tier 2: Data Integrity",
+    "Tier 3: Security",
+    "Tier 4: Operational",
+  ],
+  standard: ["Tier 3: Security"],
+  full: [],
+};
+
+function configForPreset(
+  lang: Language,
+  level: GovernanceLevel,
+  preset: InvariantPreset,
+): Record<string, unknown> {
+  const config = makeConfig("/tmp/test", {
+    language: lang,
+    governanceLevel: level,
+    invariantTiers: presetToTiers(preset),
+    ...STACK_CONFIG[lang],
+  });
+  const invariants = getFilteredInvariants({
+    language: config.language,
+    governanceLevel: config.governanceLevel,
+    invariantTiers: config.invariantTiers,
+  });
+  return {
+    ...(config as unknown as Record<string, unknown>),
+    invariants,
+    invariantsByTier: getInvariantsByTier(invariants),
+    tierLabels: TIER_LABELS,
+  };
+}
+
+describe("cross-product: AGENTS.md — tier headings by preset across all stacks", () => {
+  for (const lang of LANGUAGES) {
+    for (const preset of PRESETS) {
+      const expectedTiers = PRESET_EXPECTED_TIERS[preset];
+      const absentTierLabels = ABSENT_TIERS[preset];
+
+      it(`${lang}+${preset}: expected tiers present`, () => {
+        const content = renderTemplate(
+          "agents-md/AGENTS.md.ejs",
+          configForPreset(lang, "L2", preset),
+        );
+        for (const tier of expectedTiers) {
+          expect(content).toContain(TIER_LABELS[tier]);
+        }
+      });
+
+      if (absentTierLabels.length > 0) {
+        it(`${lang}+${preset}: excluded tiers absent`, () => {
+          const content = renderTemplate(
+            "agents-md/AGENTS.md.ejs",
+            configForPreset(lang, "L2", preset),
+          );
+          for (const label of absentTierLabels) {
+            expect(content).not.toContain(label);
+          }
+        });
+      }
+    }
+  }
+});
+
+describe("cross-product: AGENTS.md — always-active invariants present in all presets", () => {
+  for (const lang of LANGUAGES) {
+    it(`${lang}: INV-21 (TODO refs) present in all presets`, () => {
+      for (const preset of PRESETS) {
+        const content = renderTemplate(
+          "agents-md/AGENTS.md.ejs",
+          configForPreset(lang, "L2", preset),
+        );
+        expect(content).toContain("INV-21");
+      }
+    });
+
+    it(`${lang}: INV-01 (circular deps) present in all presets`, () => {
+      for (const preset of PRESETS) {
+        const content = renderTemplate(
+          "agents-md/AGENTS.md.ejs",
+          configForPreset(lang, "L2", preset),
+        );
+        expect(content).toContain("INV-01");
+      }
+    });
+  }
+});
+
+describe("cross-product: GLOBAL_INVARIANTS.md — generation by preset", () => {
+  let dir: string;
+
+  const setup = () => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-cp-global-"));
+    return dir;
+  };
+  const cleanup = (d: string) => rmSync(d, { recursive: true, force: true });
+
+  for (const lang of LANGUAGES) {
+    it(`${lang}+essential: GLOBAL_INVARIANTS.md skipped`, () => {
+      const d = setup();
+      try {
+        const config = makeConfig(d, {
+          language: lang,
+          governanceLevel: "L1",
+          invariantTiers: presetToTiers("essential"),
+          ...STACK_CONFIG[lang],
+        });
+        const result = generateGlobalInvariants(config);
+        expect(result.action).toBe("skipped");
+        expect(existsSync(join(d, "GLOBAL_INVARIANTS.md"))).toBe(false);
+      } finally {
+        cleanup(d);
+      }
+    });
+
+    it(`${lang}+standard: GLOBAL_INVARIANTS.md created with data/operational tiers`, () => {
+      const d = setup();
+      try {
+        const config = makeConfig(d, {
+          language: lang,
+          governanceLevel: "L2",
+          invariantTiers: presetToTiers("standard"),
+          ...STACK_CONFIG[lang],
+        });
+        const result = generateGlobalInvariants(config);
+        expect(result.action).toBe("created");
+        const content = readFileSync(join(d, "GLOBAL_INVARIANTS.md"), "utf-8");
+        expect(content).toContain("Tier 2: Data Integrity");
+        expect(content).toContain("Tier 4: Operational Excellence");
+        expect(content).not.toContain("Tier 3: Security");
+      } finally {
+        cleanup(d);
+      }
+    });
+
+    it(`${lang}+full: GLOBAL_INVARIANTS.md includes all 5 tiers`, () => {
+      const d = setup();
+      try {
+        const config = makeConfig(d, {
+          language: lang,
+          governanceLevel: "L3",
+          invariantTiers: presetToTiers("full"),
+          ...STACK_CONFIG[lang],
+        });
+        generateGlobalInvariants(config);
+        const content = readFileSync(join(d, "GLOBAL_INVARIANTS.md"), "utf-8");
+        expect(content).toContain("Tier 3: Security & Compliance");
+        expect(content).toContain("INV-11");
+      } finally {
+        cleanup(d);
+      }
     });
   }
 });

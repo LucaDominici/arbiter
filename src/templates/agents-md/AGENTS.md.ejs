@@ -35,30 +35,12 @@ Level 3:  Source code + tests — implementation truth
 
 Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
-### Tier 1: Architectural Integrity
+<% for (const [tier, tierInvariants] of invariantsByTier.entries()) { %>
+### <%- tierLabels[tier] %>
 
-- **INV-01:** No circular dependencies between modules
-- **INV-02:** Public API surface must be intentional — no accidental exports<% if (language === 'java') { %>
-- **INV-03:** Hexagonal architecture — domain must not import from adapters<% } %>
-
-### Tier 2: Code Quality
-
-<% if (language === 'typescript') { %>- **INV-04:** No `any` type in TypeScript (enforced by hook + CI)
-- **INV-05:** No unused exports (dead code elimination enforced by CI)<% } %><% if (language === 'rust') { %>- **INV-04:** No `.unwrap()` calls — use `?` or explicit error handling
-- **INV-05:** No `unsafe` blocks without explicit ADR approval<% } %><% if (language === 'java') { %>- **INV-04:** No raw types — generics must be parameterized
-- **INV-05:** Cyclomatic complexity ≤ 15, method length ≤ 65 LOC<% } %><% if (language === 'go') { %>- **INV-04:** Explicit error handling required — no `_ = err` patterns
-- **INV-05:** `go vet` must pass clean with zero warnings<% } %><% if (language === 'python') { %>- **INV-04:** Type annotations required on all public function signatures
-- **INV-05:** `ruff check` must pass clean with zero warnings<% } %>
-- **INV-06:** Every TODO comment must reference a task ID: `TODO(#NNN)`
-
-### Tier 3: Process
-
-- **INV-07:** Branch naming: `task/#NNN-description`
-- **INV-08:** No direct commits to `main` — all changes via task branches + PR
-- **INV-09:** Gate must pass before commit: `node scripts/check-all.mjs L1`
-- **INV-10:** Gate must pass before push: `node scripts/check-all.mjs L2`<% if (governanceLevel === 'L3') { %>
-- **INV-11:** Evidence artifacts must be generated for all gate runs
-- **INV-12:** SSOT documents must not contradict each other — run drift check before merge<% } %>
+<% for (const inv of tierInvariants) { %>- **<%- inv.id %>:** <%- (inv.languageDetail && inv.languageDetail[language]) ? inv.languageDetail[language] : inv.title %>
+<% } %>
+<% } %>
 
 ---
 
