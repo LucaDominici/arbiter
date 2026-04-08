@@ -35,10 +35,20 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
 
   // Issue templates — skip if exists
   const issueTemplatesDir = join(githubDir, "ISSUE_TEMPLATE");
+
+  // task-brief is EJS (governance-gated sections) — rendered separately
+  results.push(
+    writeFile(
+      join(issueTemplatesDir, "task-brief.yml"),
+      renderTemplate("github/issue-templates/task-brief.yml.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   const issueTemplates = [
     "bug-report.yml",
     "feature-request.yml",
-    "task-brief.yml",
+    "epic.yml",
     "config.yml",
   ];
   for (const tpl of issueTemplates) {

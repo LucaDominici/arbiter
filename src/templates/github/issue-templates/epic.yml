@@ -1,0 +1,66 @@
+name: Epic
+description: A collection of related tasks delivering a larger capability
+labels: ["feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: "1. Goal & Business Value"
+      description: What does this epic achieve? Why does it matter?
+      placeholder: |
+        This epic delivers...
+
+        **Business value:** Users can now...
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "2. Scope & Boundaries"
+      description: What is in scope and what is explicitly out of scope?
+      placeholder: |
+        **In scope:**
+        - Feature A
+        - Feature B
+
+        **Out of scope:**
+        - Feature C (tracked separately in #NNN)
+    validations:
+      required: true
+
+  - type: textarea
+    id: subtasks
+    attributes:
+      label: "3. Sub-tasks"
+      description: Link to the task-brief issues that make up this epic.
+      placeholder: |
+        - [ ] #NNN Task A
+        - [ ] #NNN Task B
+        - [ ] #NNN Task C
+    validations:
+      required: true
+
+  - type: textarea
+    id: success
+    attributes:
+      label: "4. Success Metrics / Definition of Done"
+      description: How do we know the epic is complete?
+      placeholder: |
+        - All sub-tasks closed
+        - End-to-end scenario passes
+        - Performance target met: < 200ms p99
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: "5. Risks & Dependencies"
+      description: External blockers, risky assumptions, or cross-team dependencies.
+      placeholder: |
+        **Dependencies:**
+        - Requires #NNN to be merged first
+
+        **Risks:**
+        - Third-party API may change without notice

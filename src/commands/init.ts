@@ -30,6 +30,7 @@ import { generateAgentsClaude } from "../generators/agents-claude.js";
 import { generateSsot } from "../generators/ssot.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
+import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import type {
@@ -206,6 +207,14 @@ export function runGithubSetup(config: ProjectConfig): void {
     console.log(
       `  │   Skipped (requires admin access): ${bp.error ?? "unknown error"}`,
     );
+  }
+
+  console.log("  └── Creating project board...");
+  const pb = createProjectBoard(config.githubOwner, config.githubRepo);
+  if (pb.created) {
+    console.log(`      Project board created: ${pb.projectUrl}`);
+  } else {
+    console.log(`      Skipped: ${pb.error ?? "unknown error"}`);
   }
 }
 
