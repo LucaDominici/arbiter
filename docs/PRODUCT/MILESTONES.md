@@ -435,6 +435,7 @@ Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **onc
 
 ## M22 — Architecture Verification Suite
 
+**Issue:** #70
 **Scope:** Generate complete architecture enforcement for all languages. Currently arbiter generates 1 ArchUnit test; viafera has 9+.
 
 **Deliverables:**
@@ -460,6 +461,7 @@ Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **onc
 
 ## M23 — Mutation Testing as Hard Gate
 
+**Issue:** #71
 **Scope:** Transform mutation testing from advisory guide to enforced gate. Currently generates `pitest-setup.md`; must generate build tool integration.
 
 **Deliverables:**
@@ -488,6 +490,7 @@ CI integration:
 
 ## M24 — Security Scanning Suite
 
+**Issue:** #72
 **Scope:** Generate security scanning enforcement. Currently arbiter generates zero security scanning.
 
 **Deliverables:**
@@ -525,6 +528,7 @@ Container scan (L3, nightly):
 
 ## M25 — Nightly Pipeline & Evidence Harness (L3)
 
+**Issue:** #73
 **Scope:** Generate L3-only nightly pipeline and evidence collection. Viafera's nightly includes E2E full, mutation, load, security deep.
 
 **Deliverables:**
@@ -552,6 +556,7 @@ Evidence harness:
 
 ## M26 — Real Database & Integration Testing
 
+**Issue:** #74
 **Scope:** Generate Testcontainers setup and enforce real database testing. Viafera uses Testcontainers with PostgreSQL; H2 is forbidden.
 
 **Deliverables:**
@@ -572,6 +577,7 @@ Evidence harness:
 
 ## M27 — Behavioral Test Structure & Test Quality
 
+**Issue:** #75
 **Scope:** Generate test structure templates and quality enforcement. Viafera uses @Nested/@DisplayName (Java), describe/it (TS).
 
 **Deliverables:**
@@ -603,6 +609,7 @@ Playwright quality (frontend projects):
 
 ## M28 — Contract Testing (Configurable)
 
+**Issue:** #76
 **Scope:** Generate Pact contract testing setup. Configurable — wizard asks "Does project have REST/GraphQL APIs?"
 
 **Deliverables:**
@@ -620,6 +627,7 @@ Playwright quality (frontend projects):
 
 ## M29 — Complete Static Analysis Suite
 
+**Issue:** #77
 **Scope:** Generate precise static analysis config for all languages. Currently generates generic configs; must generate precise rulesets.
 
 **Deliverables:**
@@ -642,6 +650,7 @@ Playwright quality (frontend projects):
 
 ## M30 — Coverage Tool Integration
 
+**Issue:** #78
 **Scope:** Integrate coverage verification into build tools, not just gate scripts. Currently thresholds are in gate script; must be in build tool config.
 
 **Deliverables:**
@@ -660,6 +669,7 @@ Playwright quality (frontend projects):
 
 ## M31 — Configuration Skill & arbiter.json v2
 
+**Issue:** #79
 **Scope:** Post-init configuration via skill + richer arbiter.json.
 
 **Deliverables:**
@@ -677,6 +687,7 @@ Playwright quality (frontend projects):
 
 ## M32 — Extended AI Tool Support
 
+**Issue:** #80
 **Scope:** Additional AI tool support and plugin API.
 
 **Deliverables:**
