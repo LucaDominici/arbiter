@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Version:** 0.1
-**Last updated:** 2026-04-02
+**Last updated:** 2026-04-09
 **Owner:** Luca Dominici
 
 ---
@@ -126,17 +126,30 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 - SSOT framework generation: knowledge map, track router, engineering defaults
 - Richer GitHub integration: task-brief templates, epic templates, project boards
 
-### Phase 10 — Plugin System and Remote Templates (future)
+### Phase 10 — Viafera-Aligned Enforcement (M22-M25)
 
-- Plugin API: allow custom generators
-- Remote template loading from GitHub
-- Private template registries
+Based on exhaustive gap analysis (`VIAFERA-ALIGNMENT.md`). Principle: **once chosen, enforced** (`ENFORCEMENT-PHILOSOPHY.md`).
 
-### Phase 11 — Extended AI Tool Support (future)
+- Architecture verification suite: full ArchUnit (Java), eslint-plugin-boundaries (TS), cargo-deny (Rust), go/analysis (Go), import-linter (Python)
+- Mutation testing as hard gate: PIT (Java), Stryker (TS), cargo-mutants (Rust), go-mutesting (Go), mutmut (Python)
+- Security scanning suite: dep audit, secrets detection (Gitleaks), PII scan, container scan (Trivy)
+- Nightly pipeline (L3): E2E full, mutation, security deep, evidence harness, change detection
 
-- Gemini CLI: `.gemini/GEMINI.md` + tool integration
-- Windsurf: `windsurf-instructions.md`
-- Agent SDK: arbiter-as-agent pattern
+### Phase 11 — Testing Discipline (M26-M28)
+
+- Real database testing: Testcontainers for all stacks, H2/in-memory explicitly forbidden
+- Behavioral test structure: @Nested/@DisplayName (Java), describe/it (TS), subtests (Go), pytest classes (Python)
+- Contract testing (configurable): Pact consumer/provider for projects with APIs
+
+### Phase 12 — Code Quality Enforcement (M29-M30)
+
+- Complete static analysis suite: Checkstyle + PMD + SpotBugs (Java), ESLint full (TS), clippy pedantic (Rust), golangci-lint full (Go), ruff full (Python)
+- Coverage tool integration: JaCoCo in build.gradle (Java), vitest config (TS), cargo-tarpaulin (Rust), go test -cover (Go), pytest-cov (Python)
+
+### Phase 13 — Ecosystem (M31-M32, future)
+
+- Configuration skill (`/arbiter configure`): post-init feature toggle, threshold override, arbiter.json v2
+- Extended AI tool support: Gemini CLI, Windsurf, Aider, Plugin API v1
 
 ---
 
