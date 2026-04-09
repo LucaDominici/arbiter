@@ -1,7 +1,7 @@
 # Arbiter — Milestones
 
 **Status:** Active
-**Last updated:** 2026-04-02
+**Last updated:** 2026-04-09
 
 Each milestone has a scope, exit criteria, and dependency chain. Milestones are tracked as GitHub issues.
 
@@ -425,42 +425,294 @@ Per-stack generated enforcement:
 
 ---
 
+---
+
+## Phase 10 — Viafera-Aligned Enforcement (M22-M32)
+
+Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **once chosen, enforced** — see `ENFORCEMENT-PHILOSOPHY.md`.
+
+---
+
+## M22 — Architecture Verification Suite
+
+**Scope:** Generate complete architecture enforcement for all languages. Currently arbiter generates 1 ArchUnit test; viafera has 9+.
+
+**Deliverables:**
+
+- **Java:** Generate full ArchUnit suite:
+  - `HexagonalArchitectureTest.java` — domain purity (no Spring/JPA in domain), dependency flow (inward only), ports independence, cross-module port discipline
+  - `RestAssuredArchTest.java` — every `*ControllerIT` must extend `RestAssuredBaseIT`, legacy exemption list pattern
+  - `TestCoverageArchTest.java` — every Controller must have a corresponding ControllerIT
+  - `RestAssuredBaseIT.java` — base class with setup (base URI, container, auth)
+  - RestAssured + Testcontainers dependencies in `build.gradle.ejs`
+- **TypeScript:** Generate `eslint-plugin-boundaries` config + domain purity rules
+- **Rust:** Generate `cargo-deny` config + clippy deny rules for dependency boundaries
+- **Go:** Generate custom go/analysis linter config
+- **Python:** Generate `import-linter` config + ruff custom rules
+
+**Gate:** All architecture tests are HARD gate (L2+). Build fails on violation.
+
+**Exit criteria:** All 5 stacks generate architecture boundary enforcement. Java generates full ArchUnit suite matching viafera's 9+ rules. Matrix tests validate output for all stacks × L2/L3.
+
+**Dependencies:** M21.
+
+---
+
+## M23 — Mutation Testing as Hard Gate
+
+**Scope:** Transform mutation testing from advisory guide to enforced gate. Currently generates `pitest-setup.md`; must generate build tool integration.
+
+**Deliverables:**
+
+Per-stack mutation testing:
+
+- **Java:** Pitest plugin in `build.gradle.ejs`, task `pitest`, thresholds (mutation ≥85%, coverage ≥90%), target classes pattern
+- **TypeScript:** `stryker.config.mjs.ejs`, mutation score threshold, CI job
+- **Rust:** `cargo-mutants` config + CI job
+- **Go:** `go-mutesting` setup + CI job
+- **Python:** `mutmut` config in `pyproject.toml.ejs` + CI job
+
+CI integration:
+
+- Dedicated mutation testing job in `ci.yml.ejs` (L3 only)
+- `nightly.yml.ejs` mutation step
+- `check-all.mjs.ejs` mutation step for L3
+
+**Gate:** HARD for L3 (build fails if mutation score < 85%).
+
+**Exit criteria:** All 5 stacks generate mutation testing config with hard threshold. L3 gate includes mutation check. Matrix tests validate.
+
+**Dependencies:** M21.
+
+---
+
+## M24 — Security Scanning Suite
+
+**Scope:** Generate security scanning enforcement. Currently arbiter generates zero security scanning.
+
+**Deliverables:**
+
+Dependency audit (L2+, HARD):
+
+- **Java:** OWASP DependencyCheck plugin in `build.gradle.ejs` (failBuildOnCVSS=7.0)
+- **TypeScript:** `npm audit --audit-level=high` in CI and gate
+- **Rust:** `cargo audit` in CI
+- **Go:** `govulncheck ./...` in CI
+- **Python:** `pip-audit` in CI
+
+Secrets detection (L2+, HARD):
+
+- Generate `.gitleaks.toml` for all languages
+- Gitleaks CI job in `ci.yml.ejs`
+
+PII scan (L2+, HARD, early-fail):
+
+- Generate `scripts/pii-scan.mjs` (regex-based, locale-configurable)
+- CI step PII before all other gates (JOB 00b pattern)
+- Claude Code hook: `check-no-pii.mjs` in PostToolUse
+
+Container scan (L3, nightly):
+
+- Trivy in `nightly.yml.ejs`
+
+**Gate:** Dep audit and secrets are HARD (L2+). PII is HARD early-fail (L2+). Trivy is L3 nightly.
+
+**Exit criteria:** All 5 stacks generate security scanning. CI includes dep audit + gitleaks + PII scan for L2+. Matrix tests validate.
+
+**Dependencies:** M21.
+
+---
+
+## M25 — Nightly Pipeline & Evidence Harness (L3)
+
+**Scope:** Generate L3-only nightly pipeline and evidence collection. Viafera's nightly includes E2E full, mutation, load, security deep.
+
+**Deliverables:**
+
+Nightly pipeline:
+
+- Generate `nightly.yml.ejs` for L3 projects
+- Jobs: E2E full suite, mutation testing (from M23), security deep scan (Trivy), load test placeholder
+- Change detection: `scripts/ci-classify-changes.mjs` — path filter → flags (docs_only, backend, frontend, high_risk)
+- Delta mode: skip L1+L2 if CI already green
+- `ci.yml.ejs` conditions jobs on change detection flags
+
+Evidence harness:
+
+- Generate `.evidence/` directory structure
+- Generate `scripts/evidence-collect.mjs` — collects logs, reports, generates `SUMMARY.json`
+- SUMMARY.json schema: `{obs_gate: "PASS"|"FAIL", tests: {...}, coverage: {...}, timestamp, commit}`
+- Gate: evidence REQUIRED for L3 merge
+
+**Exit criteria:** L3 projects get nightly.yml + evidence harness. Change detection optimizes CI for L2+.
+
+**Dependencies:** M23, M24.
+
+---
+
+## M26 — Real Database & Integration Testing
+
+**Scope:** Generate Testcontainers setup and enforce real database testing. Viafera uses Testcontainers with PostgreSQL; H2 is forbidden.
+
+**Deliverables:**
+
+- **Java:** Testcontainers dependency in `build.gradle.ejs` (testcontainers, postgresql), `AbstractIntegrationTest.java` base class, ArchUnit rule forbidding `org.h2` imports
+- **TypeScript:** testcontainers-node setup for integration tests
+- **Go:** testcontainers-go setup
+- **Python:** testcontainers-python setup
+- **Rust:** sqlx test setup with real database
+
+**Gate:** L2+ — integration tests with real database. No in-memory database allowed.
+
+**Exit criteria:** All stacks with database projects get Testcontainers setup. Anti-H2 rule enforced for Java.
+
+**Dependencies:** M22.
+
+---
+
+## M27 — Behavioral Test Structure & Test Quality
+
+**Scope:** Generate test structure templates and quality enforcement. Viafera uses @Nested/@DisplayName (Java), describe/it (TS).
+
+**Deliverables:**
+
+Behavioral test templates:
+
+- **Java:** @Nested + @DisplayName Given/When/Then pattern
+- **TypeScript:** describe/it/context pattern with Vitest
+- **Rust:** mod test with descriptive naming
+- **Go:** subtests with `t.Run("given X when Y then Z")`
+- **Python:** pytest classes with descriptive methods
+
+Testing policy document:
+
+- Generate `TESTING_POLICY.md.ejs` for target projects
+- Mock policy (what can be mocked, what cannot)
+- E2E policy (REAL-only for core APIs)
+- Minimum smoke test set
+
+Playwright quality (frontend projects):
+
+- Generate ESLint `eslint-plugin-playwright` config: no-force-option, no-wait-for-timeout, no-page-pause
+
+**Gate:** Test naming convention verified in gate script.
+
+**Dependencies:** M26.
+
+---
+
+## M28 — Contract Testing (Configurable)
+
+**Scope:** Generate Pact contract testing setup. Configurable — wizard asks "Does project have REST/GraphQL APIs?"
+
+**Deliverables:**
+
+- **Java:** Pact provider setup (pact-jvm dependency, PactVerificationIT base)
+- **TypeScript:** @pact-foundation/pact consumer setup
+- **Go/Rust/Python:** Equivalent Pact or schema-based contract testing
+- CI: Contract verification job in `ci.yml.ejs` (L2+)
+
+**Gate:** HARD for L2+ if contract testing is enabled.
+
+**Dependencies:** M26.
+
+---
+
+## M29 — Complete Static Analysis Suite
+
+**Scope:** Generate precise static analysis config for all languages. Currently generates generic configs; must generate precise rulesets.
+
+**Deliverables:**
+
+- **Java:**
+  - `config/checkstyle/checkstyle.xml` (CC≤15, method≤65, params≤7, classFanOut≤25)
+  - `config/pmd/ruleset.xml` (7 categories: design, error-prone, security, multithreading, best-practices, performance — precise rules, not generic)
+  - `config/spotbugs/exclude-filter.xml` (security patterns always active, framework FP narrowly suppressed)
+  - Spotless plugin in `build.gradle.ejs` (Google Java Format)
+- **TypeScript:** ESLint config: no-console, complexity, max-params, max-depth, max-lines-per-function, max-nested-callbacks, eslint-plugin-boundaries
+- **Rust:** `clippy.toml` with pedantic + deny rules
+- **Go:** `.golangci.yml` with full linter suite (gocyclo, goconst, gosec, gofmt, govet, deadcode)
+- **Python:** `ruff.toml` with precise rules (C901, PLR0911-0913, F401, F811, S rules for security)
+
+**Gate:** ALL static analysis tools are HARD gate (L1+).
+
+**Dependencies:** M21.
+
+---
+
+## M30 — Coverage Tool Integration
+
+**Scope:** Integrate coverage verification into build tools, not just gate scripts. Currently thresholds are in gate script; must be in build tool config.
+
+**Deliverables:**
+
+- **Java:** JaCoCo plugin in `build.gradle.ejs` with `jacocoTestCoverageVerification` task, line/branch thresholds, exclusions, HTML/XML/LCOV reports
+- **TypeScript:** vitest coverage config in `vitest.config.ts.ejs` with threshold enforcement
+- **Rust:** cargo-tarpaulin config with `--fail-under`
+- **Go:** go test -coverprofile threshold check integrated in gate
+- **Python:** pytest-cov config in `pyproject.toml.ejs` with `--cov-fail-under`
+
+**Gate:** Coverage verification in build tool (not just gate script).
+
+**Dependencies:** M29.
+
+---
+
+## M31 — Configuration Skill & arbiter.json v2
+
+**Scope:** Post-init configuration via skill + richer arbiter.json.
+
+**Deliverables:**
+
+- Skill `/arbiter configure`: modify arbiter.json interactively
+  - Toggle features (contract testing, mutation testing, security scanning)
+  - Override thresholds (coverage, complexity)
+  - Add/remove AI tools
+- arbiter.json v2 schema with features and thresholds sections
+- `arbiter update` reads v2 and regenerates only impacted files
+
+**Dependencies:** M25.
+
+---
+
+## M32 — Extended AI Tool Support
+
+**Scope:** Additional AI tool support and plugin API.
+
+**Deliverables:**
+
+- Gemini CLI: `.gemini/GEMINI.md` + settings
+- Windsurf: `windsurf-instructions.md`
+- Aider: `.aider.conf.yml`
+- Plugin API v1: interface for custom generators
+
+**Dependencies:** M31.
+
+---
+
 ## Milestone Dependency Graph
 
 ```
-                    ┌── M1-M10 (DONE) ──┐
-                    │                    │
-                    v                    v
-                  M11 (DONE)          (docs/tests done)
-                    │
-                    v
-            ┌─── M12 (Go/Python fix) ───┐
-            │                            │
-            v                            v
-          M13 (doc alignment)      M18 (invariants)
-            │
-            v
-          M14 (self-enforce)
-            │
-            v
-          M15 (generated gates)
-            │
-            v
-          M16 (anti-debt mechanism)
-            │
-            v
-          M17 (advanced hooks)
-            │
-            v
-          M19 (skills/agents)
-            │
-            v
-          M20 (SSOT framework)
-            │
-            v
-          M21 (GitHub integration)
+M1-M21 (ALL DONE)
+         │
+    [M0: Retrospective docs] ── prerequisite
+         │
+         ├── M22 (Architecture Verification) ─┐
+         │                                     │
+         ├── M23 (Mutation Testing) ───────────┤
+         │                                     ├── M25 (Nightly + Evidence)
+         ├── M24 (Security Scanning) ──────────┤
+         │                                     │
+         ├── M26 (Real DB Testing) ────────────┘
+         │    │
+         │    ├── M27 (Behavioral Tests)
+         │    └── M28 (Contract Testing)
+         │
+         ├── M29 (Static Analysis) ── M30 (Coverage Tools)
+         │
+         └── M31 (Configure Skill) ── M32 (Extended AI Tools)
 ```
 
-**Critical path:** M12 → M13 → M14 → M15 → M16 → M17 → M19 → M20 → M21
+**Critical path:** M22 → M23 → M24 → M25 → M31
 
-**Parallelism:** M18 (Rich Invariant Catalog) can start after M12 + M15, independent of M13-M14.
+**Parallelizable:** M22/M23/M24/M26/M29 can start in parallel. M27/M28 after M26. M30 after M29. M32 after M31.
