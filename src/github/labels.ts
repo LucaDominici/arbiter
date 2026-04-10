@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { runCli, runCliJson } from "../utils/run-cli.js";
 
 export interface Label {
   name: string;
@@ -49,23 +49,16 @@ export function provisionLabels(
   // Fetch existing labels once
   let existingNames: Set<string>;
   try {
-    const raw = execFileSync(
-      "gh",
-      [
-        "label",
-        "list",
-        "-R",
-        `${owner}/${repo}`,
-        "--json",
-        "name",
-        "--limit",
-        "200",
-      ],
-      {
-        stdio: ["pipe", "pipe", "pipe"],
-      },
-    ).toString();
-    const parsed = JSON.parse(raw) as Array<{ name: string }>;
+    const parsed = runCliJson("gh", [
+      "label",
+      "list",
+      "-R",
+      `${owner}/${repo}`,
+      "--json",
+      "name",
+      "--limit",
+      "200",
+    ]) as Array<{ name: string }>;
     existingNames = new Set(parsed.map((l) => l.name));
   } catch {
     existingNames = new Set();
@@ -75,38 +68,30 @@ export function provisionLabels(
     try {
       if (existingNames.has(label.name)) {
         // Update existing to ensure color/description are current
-        execFileSync(
-          "gh",
-          [
-            "label",
-            "edit",
-            label.name,
-            "-R",
-            `${owner}/${repo}`,
-            "--color",
-            label.color,
-            "--description",
-            label.description,
-          ],
-          { stdio: ["pipe", "pipe", "pipe"] },
-        );
+        runCli("gh", [
+          "label",
+          "edit",
+          label.name,
+          "-R",
+          `${owner}/${repo}`,
+          "--color",
+          label.color,
+          "--description",
+          label.description,
+        ]);
         result.updated.push(label.name);
       } else {
-        execFileSync(
-          "gh",
-          [
-            "label",
-            "create",
-            label.name,
-            "-R",
-            `${owner}/${repo}`,
-            "--color",
-            label.color,
-            "--description",
-            label.description,
-          ],
-          { stdio: ["pipe", "pipe", "pipe"] },
-        );
+        runCli("gh", [
+          "label",
+          "create",
+          label.name,
+          "-R",
+          `${owner}/${repo}`,
+          "--color",
+          label.color,
+          "--description",
+          label.description,
+        ]);
         result.created.push(label.name);
       }
     } catch (err) {

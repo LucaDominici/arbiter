@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { runCli } from "../utils/run-cli.js";
 
 export interface BranchProtectionResult {
   applied: boolean;
@@ -29,7 +29,7 @@ export function applyBranchProtection(
   });
 
   try {
-    execFileSync(
+    runCli(
       "gh",
       [
         "api",
@@ -39,10 +39,7 @@ export function applyBranchProtection(
         "--input",
         "-",
       ],
-      {
-        input: payload,
-        stdio: ["pipe", "pipe", "pipe"],
-      },
+      { input: payload },
     );
     return { applied: true, error: null };
   } catch (err) {

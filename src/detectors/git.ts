@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { runCli } from "../utils/run-cli.js";
 
 export interface GitInfo {
   isGitRepo: boolean;
@@ -50,9 +50,7 @@ function parseGithubUrl(url: string): {
 
 function runCmd(cmd: string, args: string[], cwd: string): string | null {
   try {
-    return execFileSync(cmd, args, { cwd, stdio: ["pipe", "pipe", "pipe"] })
-      .toString()
-      .trim();
+    return runCli(cmd, args, { cwd }).stdout.trim();
   } catch {
     return null;
   }

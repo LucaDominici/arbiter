@@ -39,6 +39,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
 - **INV-01:** No circular dependencies between modules
 - **INV-02:** Public API surface must be intentional — no accidental exports
+- **INV-12:** No direct `child_process` usage in `src/**/*.ts` (runtime TypeScript). All CLI invocations go through `src/utils/run-cli.ts`. EJS templates under `src/templates/` are stand-alone scripts shipped to target projects and are exempt. No MCP server is a hard or soft dependency of arbiter or its generated artifacts (see [ADR-020](docs/ADR/020-cli-first-over-mcp.md)).
 
 ### Tier 2: Code Quality
 

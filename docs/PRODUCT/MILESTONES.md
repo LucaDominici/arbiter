@@ -859,6 +859,34 @@ Playwright quality (frontend projects):
 
 ---
 
+## M33 — CLI-First Policy & Shared run-cli Wrapper
+
+**Issue:** #95
+**Scope:** Formalize CLI-first as an architectural invariant, consolidate scattered `spawnSync` call sites into `src/utils/run-cli.ts`, close the MCP fallback door left open in ADR-003, and clean up dangling MCP references across the docs. Arbiter was already CLI-first in practice — this milestone makes it enforceable.
+
+**Deliverables:**
+
+- `src/utils/run-cli.ts` + `__tests__/utils/run-cli.test.ts` (12 test cases: success, non-zero exit, timeout, ENOENT, retry, cwd, env, stdin, JSON parse)
+- `docs/ADR/020-cli-first-over-mcp.md`
+- `docs/ADR/003-gh-cli-required.md` — GitHub MCP fallback permanently closed
+- `docs/ADR/README.md` — index updated with 018/019/020
+- `docs/ARCHITECTURE/TEMPLATE-SYSTEM.md` — dangling `rules/mcp-usage.md` row removed
+- `docs/PRODUCT/FEATURE_COMPARISON.md` — rows 75-78 reframed with `NG` / `G` values + ADR-020 footnote
+- `AGENTS.md` — new **INV-12** (no direct `child_process` in `src/`, no MCP dependency)
+- `.claude/hooks/check-no-direct-spawn.mjs` + registration in `.claude/settings.json`
+- Migrated call sites: `src/detectors/git.ts`, `src/detectors/github.ts`, `src/github/labels.ts`, `src/github/branch-protection.ts`, `src/github/project-board.ts`, `scripts/check-all.mjs`
+
+**Exit criteria:**
+
+- L2 gate passes after migration
+- `grep -rE "node:child_process" src/` matches only `src/utils/run-cli.ts`
+- `grep -ri "MCP" docs/` matches only ADR-003 (historical), ADR-020 (policy), FEATURE_COMPARISON (gap with rationale), and this milestone entry
+- `arbiter init` on a scratch repo produces zero MCP strings in generated output
+
+**Dependencies:** M32.
+
+---
+
 ## Milestone Dependency Graph
 
 ```
