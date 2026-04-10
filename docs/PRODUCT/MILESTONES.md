@@ -427,9 +427,149 @@ Per-stack generated enforcement:
 
 ---
 
+## Phase 9.5 — Foundation Prerequisites (MA-ML)
+
+**Epic:** #81
+**Purpose:** Resolve the 7 CRITICAL (C1-C7) and 10 HIGH (H1-H10) issues identified in the antagonist review of the Viafera + Archivio synthesis. These prerequisites must ship before M22-M32 can execute on a reliable foundation.
+
+**Why this phase exists.** Both evidence sources for Phase 10 (Viafera and cloud.ms5.planning) are Java-Spring backends (N=2). Extrapolating to 5 languages × multiple archetypes has no empirical basis. The M22-M32 roadmap as originally written would:
+
+- Pick hexagonal (Viafera) OR layered (planning) architecture, breaking the other
+- Generate fail-closed gates with no brownfield migration path (50k LoC projects couldn't even commit the init PR)
+- Emit build tool config without ever invoking the target toolchain (version skew breaks at first user run)
+- Lack escape hatches for CVE false positives, causing merge deadlocks
+- Use hardcoded thresholds (80/70/85) that are nonsense for small or very large codebases
+- Dog-food only TypeScript while claiming cross-language support
+
+Phase 9.5 fixes these before M22 starts. After Phase 9.5, M22-M32 re-scope to consume the new foundation (archetype axis, suppression patterns, scaled thresholds, etc.).
+
+---
+
+### MA — Archetype Axis + Architecture Style Knob
+
+**Issue:** #82 · **Resolves:** C1, C2 · **Size:** L · **Deps:** —
+
+Add `archetype: backend-web-db | cli | library | data-pipeline | frontend-spa | embedded` and `architectureStyle: hexagonal | layered | modular-monolith | none` to `ProjectConfig`. Wizard asks both; generators gate on them. **Blocker for MB, MG, MH, MJ, ML.**
+
+---
+
+### MB — Debt Ratchet: Universal Baseline-Freeze
+
+**Issue:** #83 · **Resolves:** C6 · **Size:** L · **Deps:** MA
+
+Extend `capture-debt-baseline.mjs` + `debt-report.mjs` to capture PMD/Checkstyle/ArchUnit/SpotBugs violations per stack. New flag `arbiter init --brownfield` auto-captures baseline on day 0. Gates fail only on regression, not against absolute thresholds. **Blocker for MK, M22-M30.**
+
+---
+
+### MC — Suppression Pattern with Mandatory Expiry
+
+**Issue:** #84 · **Resolves:** C5 · **Size:** M · **Deps:** —
+
+Generate `suppressions/` dir with OWASP DC, Gitleaks, PII allowlist, ArchUnit baseline templates. Every suppression entry requires `reason`, `owner`, `expiresAt`, `scope`. Expired entries re-fail the gate. Preserves fail-closed with principled escape.
+
+---
+
+### MD — `arbiter verify` Post-Init Toolchain Probe
+
+**Issue:** #85 · **Resolves:** C4 · **Size:** M · **Deps:** —
+
+New `arbiter verify` command invokes minimal probes per stack (`./gradlew help --offline`, `cargo check`, `ruff --version`, etc.) and compares against a pinned compatibility matrix. Auto-runs at end of `arbiter init`. **First implementation target — smallest blast radius.**
+
+---
+
+### ME — Cross-Language Matrix Maturity Marking
+
+**Issue:** #86 · **Resolves:** C3 · **Size:** S · **Deps:** —
+
+Add `maturity: proven | beta | unsafe | unavailable` column to `CROSS-LANGUAGE-MATRIX.md`. Generators refuse to emit L3 features for cells that aren't `proven` (override via `--accept-beta-tools`). Documents known failure modes for cargo-mutants, go-mutesting, mutmut, pact-python.
+
+---
+
+### MF — Real-Project Nightly Matrix
+
+**Issue:** #87 · **Resolves:** H10 · **Size:** L · **Deps:** MA, MD
+
+New nightly CI workflow that runs `arbiter init` + generated gate execution on minimal real fixtures per `(language, archetype)` cell. Adds INV-31: every `proven` cell must have a nightly test. Closes the dog-food gap.
+
+---
+
+### MG — Scaled Thresholds + Practical/Pedantic Tiers
+
+**Issue:** #88 · **Resolves:** C7, H6 · **Size:** M · **Deps:** MA
+
+Thresholds compute from LoC (no coverage < 1000 LoC, no mutation < 5000 LoC, ramped 60% → 85%). New `strictnessTier: practical | pedantic` with per-language rule sets (L2 = practical, L3 = pedantic opt-in). Documented calibration source.
+
+---
+
+### MH — Test Pyramid Profile per Archetype
+
+**Issue:** #89 · **Resolves:** H3 · **Size:** M · **Deps:** MA
+
+Per-archetype pyramid definitions (backend-web-db gets L1-L5; cli gets unit/integration/e2e only; library gets unit/property-based/compat-matrix). No empty CI stages.
+
+---
+
+### MI — STRIDE Skeleton Enforcement
+
+**Issue:** #90 · **Resolves:** H1 · **Size:** S · **Deps:** —
+
+Generate STRIDE/RACI/RTM enforcement _skeletons_ (empty schemas), not pre-populated templates. Gate scans for HIGH/CRITICAL claims and requires linked `@Security`-tagged tests. Empty = no gate = no lie.
+
+---
+
+### MJ — Evidence Harness Retention Config
+
+**Issue:** #91 · **Resolves:** H5 · **Size:** S · **Deps:** MA
+
+`evidenceRetention: { mode, count?, bucketUrl? }` in ProjectConfig. Default `local-last-N` count 5. Generate `.gitignore` entry for `.evidence/` and `evidence-rotate.mjs`. External bucket is opt-in.
+
+---
+
+### MK — Grace Period for Level Upgrade
+
+**Issue:** #92 · **Resolves:** H9 · **Size:** M · **Deps:** MB
+
+New `arbiter upgrade-level` command captures baseline for newly activated gates, sets `graceEndsAt` (+30 days). During grace, new gates warn only; after grace, hard-fail. Bounded escape hatch for L1 → L2 → L3 migration.
+
+---
+
+### ML — Contract Testing by Contract Type
+
+**Issue:** #93 · **Resolves:** H7 · **Size:** S · **Deps:** MA, M28
+
+Extend ProjectConfig with `contractType: rest-owned | rest-public | graphql | grpc | message-queue | none`. M28 branches on type: Pact / OpenAPI diff / graphql-inspector / buf breaking / schema registry.
+
+---
+
+### Phase 9.5 Critical Path
+
+```
+MA (#82) ──┬── MB (#83) ──── MK (#92)
+           ├── MG (#88)
+           ├── MH (#89)
+           ├── MJ (#91)
+           └── ML (#93)
+
+MC (#84) ──── M22, M24 prereq
+MD (#85) ──── MF (#87) prereq
+ME (#86) ──── parallel doc
+MI (#90) ──── parallel (integrates with M24)
+MF (#87) ──── needs MA + MD
+```
+
+**Entry point:** MD (#85) — smallest blast radius, validates the overall approach end-to-end.
+
+**Exit criteria for Phase 9.5:** All 12 sub-issues closed. `arbiter.json` schema includes archetype, architectureStyle, strictnessTier, evidenceRetention, contractType. Real-project nightly CI runs ≥10 cells with all passing. Phase 10 milestones updated to reference the new foundation.
+
+---
+
+---
+
 ## Phase 10 — Viafera-Aligned Enforcement (M22-M32)
 
 Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **once chosen, enforced** — see `ENFORCEMENT-PHILOSOPHY.md`.
+
+> **Prerequisite:** Phase 9.5 (MA-ML, epic #81) must complete before Phase 10 milestones start. Each Phase 10 milestone depends on specific Phase 9.5 deliverables — see the "Phase 9.5 integration" note on each milestone.
 
 ---
 
@@ -455,7 +595,9 @@ Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **onc
 
 **Exit criteria:** All 5 stacks generate architecture boundary enforcement. Java generates full ArchUnit suite matching viafera's 9+ rules. Matrix tests validate output for all stacks × L2/L3.
 
-**Dependencies:** M21.
+**Dependencies:** M21, MA (#82 — architecture style knob), MC (#84 — ArchUnit baseline suppression), ME (#86 — tool maturity).
+
+**Phase 9.5 integration:** M22 no longer generates "the ArchUnit suite" — it generates rules conditioned on `architectureStyle`. Hexagonal rules emit only if `architectureStyle === "hexagonal"`. Layered rules emit only if `architectureStyle === "layered"`. Per-archetype rule subsets via MH.
 
 ---
 
@@ -484,7 +626,9 @@ CI integration:
 
 **Exit criteria:** All 5 stacks generate mutation testing config with hard threshold. L3 gate includes mutation check. Matrix tests validate.
 
-**Dependencies:** M21.
+**Dependencies:** M21, ME (#86 — tool maturity marking), MG (#88 — LoC-scaled thresholds).
+
+**Phase 9.5 integration:** Mutation testing is gated on ME maturity. Stacks where mutation tools are `unsafe` or `beta` (Go, Rust, Python currently) require explicit `--accept-beta-tools` flag or are silently downgraded. MG ensures mutation gate is skipped below 5000 LoC. MH restricts mutation testing to archetypes where it makes sense (not libraries below threshold, not embedded).
 
 ---
 
@@ -522,7 +666,9 @@ Container scan (L3, nightly):
 
 **Exit criteria:** All 5 stacks generate security scanning. CI includes dep audit + gitleaks + PII scan for L2+. Matrix tests validate.
 
-**Dependencies:** M21.
+**Dependencies:** M21, MC (#84 — suppression pattern), MI (#90 — STRIDE skeleton).
+
+**Phase 9.5 integration:** Dep audit consults suppressions from MC (OWASP DC false positives principled-escape). STRIDE generation replaced with MI's skeleton enforcement — no pre-populated threats. PII scan uses `pii-allowlist.json` from MC.
 
 ---
 
@@ -550,7 +696,9 @@ Evidence harness:
 
 **Exit criteria:** L3 projects get nightly.yml + evidence harness. Change detection optimizes CI for L2+.
 
-**Dependencies:** M23, M24.
+**Dependencies:** M23, M24, MA (#82 — archetype axis), MH (#89 — test pyramid profile), MJ (#91 — evidence retention).
+
+**Phase 9.5 integration:** Nightly pipeline jobs are selected per archetype (MH) — no E2E stage for CLI or library archetypes, no Testcontainers stage where no DB. Evidence harness uses MJ retention config (default `local-last-N` count 5, `.evidence/` in `.gitignore`).
 
 ---
 
@@ -571,7 +719,9 @@ Evidence harness:
 
 **Exit criteria:** All stacks with database projects get Testcontainers setup. Anti-H2 rule enforced for Java.
 
-**Dependencies:** M22.
+**Dependencies:** M22, MA (#82 — archetype axis for `hasDatabase` flag).
+
+**Phase 9.5 integration:** Testcontainers setup emits only when `config.hasDatabase === true` (set by MA). Skipped entirely for CLI / library / frontend-spa without DB. Anti-H2 ArchUnit rule is gated on `architectureStyle !== "none"` — library projects with embedded H2 for tests are not blocked unless the user opts in.
 
 ---
 
@@ -603,7 +753,9 @@ Playwright quality (frontend projects):
 
 **Gate:** Test naming convention verified in gate script.
 
-**Dependencies:** M26.
+**Dependencies:** M26, MH (#89 — test pyramid profile).
+
+**Phase 9.5 integration:** Behavioral test templates are emitted per the archetype's test pyramid profile (MH). CLI archetypes get subprocess-based integration examples, not Given/When/Then Spring controller templates. Library archetypes get property-based test examples.
 
 ---
 
@@ -621,7 +773,9 @@ Playwright quality (frontend projects):
 
 **Gate:** HARD for L2+ if contract testing is enabled.
 
-**Dependencies:** M26.
+**Dependencies:** M26, ML (#93 — contract type branching).
+
+**Phase 9.5 integration:** M28 no longer defaults to Pact. It branches on `config.contractType` (set by ML): `rest-owned` → Pact, `rest-public` → OpenAPI diff, `graphql` → schema diff (graphql-inspector), `grpc` → `buf breaking`, `message-queue` → schema registry, `none` → no generation.
 
 ---
 
@@ -644,7 +798,9 @@ Playwright quality (frontend projects):
 
 **Gate:** ALL static analysis tools are HARD gate (L1+).
 
-**Dependencies:** M21.
+**Dependencies:** M21, MB (#83 — baseline-freeze), MG (#88 — scaled thresholds + tiers).
+
+**Phase 9.5 integration:** Precise thresholds for Checkstyle/PMD/ESLint come from MG per-tier rule sets (practical vs pedantic). Brownfield projects get baselines captured via MB's extended debt ratchet — existing violations lock in, only regressions fail the gate.
 
 ---
 
@@ -663,7 +819,9 @@ Playwright quality (frontend projects):
 
 **Gate:** Coverage verification in build tool (not just gate script).
 
-**Dependencies:** M29.
+**Dependencies:** M29, MG (#88 — scaled thresholds).
+
+**Phase 9.5 integration:** Coverage thresholds are no longer hardcoded. MG computes them per-project from LoC floors + archetype + strictness tier. A 500-LoC Rust CLI does not get a 80% threshold; a 100k-LoC monolith gets archetype-calibrated numbers.
 
 ---
 
@@ -708,22 +866,41 @@ M1-M21 (ALL DONE)
          │
     [M0: Retrospective docs] ── prerequisite
          │
-         ├── M22 (Architecture Verification) ─┐
-         │                                     │
-         ├── M23 (Mutation Testing) ───────────┤
-         │                                     ├── M25 (Nightly + Evidence)
-         ├── M24 (Security Scanning) ──────────┤
-         │                                     │
-         ├── M26 (Real DB Testing) ────────────┘
+    ┌────┴────────────────────────────────────────────┐
+    │  Phase 9.5 — Foundation (epic #81)              │
+    │                                                  │
+    │  MA (#82 archetype) ──┬── MB (#83 baseline) ── MK (#92 grace)
+    │                       ├── MG (#88 thresholds)
+    │                       ├── MH (#89 pyramid)
+    │                       ├── MJ (#91 evidence retention)
+    │                       └── ML (#93 contract type)
+    │                                                  │
+    │  MC (#84 suppressions) — parallel               │
+    │  MD (#85 verify) ─── MF (#87 nightly matrix)    │
+    │  ME (#86 maturity) — parallel (doc)             │
+    │  MI (#90 STRIDE skeleton) — parallel            │
+    └────────────────┬─────────────────────────────────┘
+                     │
+         ├── M22 (Architecture) ──┐           [needs MA, MC, ME]
+         │                         │
+         ├── M23 (Mutation) ───────┤           [needs ME, MG]
+         │                         ├── M25 (Nightly + Evidence)  [needs MA, MH, MJ]
+         ├── M24 (Security) ───────┤           [needs MC, MI]
+         │                         │
+         ├── M26 (Real DB) ────────┘           [needs MA]
          │    │
-         │    ├── M27 (Behavioral Tests)
-         │    └── M28 (Contract Testing)
+         │    ├── M27 (Behavioral) [needs MH]
+         │    └── M28 (Contract)   [needs ML]
          │
-         ├── M29 (Static Analysis) ── M30 (Coverage Tools)
+         ├── M29 (Static Analysis) ── M30 (Coverage) [needs MB, MG]
          │
-         └── M31 (Configure Skill) ── M32 (Extended AI Tools)
+         └── M31 (Configure) ── M32 (Extended AI Tools)
 ```
 
-**Critical path:** M22 → M23 → M24 → M25 → M31
+**Entry point (Phase 9.5):** MD (#85) — smallest blast radius, isolated command, validates end-to-end approach.
 
-**Parallelizable:** M22/M23/M24/M26/M29 can start in parallel. M27/M28 after M26. M30 after M29. M32 after M31.
+**Critical path (Phase 9.5):** MA → MB → MK (~3 weeks serial). MC/MD/ME/MI run in parallel with MA.
+
+**Critical path (Phase 10):** Phase 9.5 complete → M22 → M23 → M24 → M25 → M31.
+
+**Parallelizable (Phase 10):** M22/M23/M24/M26/M29 can start in parallel once their Phase 9.5 prerequisites are met. M27/M28 after M26. M30 after M29. M32 after M31.
