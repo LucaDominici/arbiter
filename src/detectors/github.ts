@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { runCli } from "../utils/run-cli.js";
 
 export interface GithubAccess {
   available: boolean;
@@ -69,9 +69,7 @@ export function detectGithubAccess(): GithubAccess {
 
 function runCmd(cmd: string, args: string[]): string | null {
   try {
-    return execFileSync(cmd, args, { stdio: ["pipe", "pipe", "pipe"] })
-      .toString()
-      .trim();
+    return runCli(cmd, args).stdout.trim();
   } catch {
     return null;
   }

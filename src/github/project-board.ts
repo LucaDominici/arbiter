@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { runCli, runCliJson } from "../utils/run-cli.js";
 
 export interface ProjectBoardResult {
   created: boolean;
@@ -18,21 +18,16 @@ export function createProjectBoard(
   let projectNumber: number;
   let projectUrl: string;
   try {
-    const raw = execFileSync(
-      "gh",
-      [
-        "project",
-        "create",
-        "--owner",
-        owner,
-        "--title",
-        `${repo} Board`,
-        "--format",
-        "json",
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    ).toString();
-    const parsed = JSON.parse(raw) as { number: number; url: string };
+    const parsed = runCliJson("gh", [
+      "project",
+      "create",
+      "--owner",
+      owner,
+      "--title",
+      `${repo} Board`,
+      "--format",
+      "json",
+    ]) as { number: number; url: string };
     projectNumber = parsed.number;
     projectUrl = parsed.url;
   } catch (err) {
@@ -42,46 +37,38 @@ export function createProjectBoard(
 
   // Add Priority field
   try {
-    execFileSync(
-      "gh",
-      [
-        "project",
-        "field-create",
-        String(projectNumber),
-        "--owner",
-        owner,
-        "--name",
-        "Priority",
-        "--data-type",
-        "SINGLE_SELECT",
-        "--single-select-options",
-        "P0,P1,P2",
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    );
+    runCli("gh", [
+      "project",
+      "field-create",
+      String(projectNumber),
+      "--owner",
+      owner,
+      "--name",
+      "Priority",
+      "--data-type",
+      "SINGLE_SELECT",
+      "--single-select-options",
+      "P0,P1,P2",
+    ]);
   } catch {
     // Non-fatal: project was created, custom field is optional
   }
 
   // Add Size field
   try {
-    execFileSync(
-      "gh",
-      [
-        "project",
-        "field-create",
-        String(projectNumber),
-        "--owner",
-        owner,
-        "--name",
-        "Size",
-        "--data-type",
-        "SINGLE_SELECT",
-        "--single-select-options",
-        "XS,S,M,L",
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    );
+    runCli("gh", [
+      "project",
+      "field-create",
+      String(projectNumber),
+      "--owner",
+      owner,
+      "--name",
+      "Size",
+      "--data-type",
+      "SINGLE_SELECT",
+      "--single-select-options",
+      "XS,S,M,L",
+    ]);
   } catch {
     // Non-fatal: project was created, custom field is optional
   }

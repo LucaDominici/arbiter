@@ -9,6 +9,7 @@
 
 - **G** = Generates/installs this for target projects
 - **P** = Has this as part of its own process (production-proven)
+- **NG** = Explicit non-goal (see linked ADR)
 - **-** = Not present
 
 ## Comparison Table
@@ -109,11 +110,11 @@
 | 73  | Diff preview                                     | G                                                       | -                                                                                | -                          | -                         |
 | 74  | Adoption tiers (Level 1/2/3)                     | -                                                       | P                                                                                | -                          | -                         |
 |     |                                                  |                                                         |                                                                                  |                            |                           |
-|     | **MCP INTEGRATION**                              |                                                         |                                                                                  |                            |                           |
-| 75  | Custom MCP servers                               | -                                                       | P                                                                                | -                          | -                         |
-| 76  | MCP usage policy                                 | -                                                       | P                                                                                | -                          | -                         |
-| 77  | MCP hard gate                                    | -                                                       | P                                                                                | -                          | -                         |
-| 78  | Memory system integration                        | -                                                       | P                                                                                | -                          | -                         |
+|     | **TOOL INTEGRATION POLICY**                      |                                                         |                                                                                  |                            |                           |
+| 75  | Custom MCP servers [^mcp]                        | NG                                                      | P                                                                                | -                          | -                         |
+| 76  | Tool-integration policy [^mcp]                   | G (CLI-first via ADR-020)                               | P (MCP usage policy)                                                             | -                          | -                         |
+| 77  | Tool-integration hard gate [^mcp]                | G (INV-12 + check-no-direct-spawn hook)                 | P (MCP hard gate)                                                                | -                          | -                         |
+| 78  | Memory system integration [^mcp]                 | NG                                                      | P                                                                                | -                          | -                         |
 |     |                                                  |                                                         |                                                                                  |                            |                           |
 |     | **DEVELOPER EXPERIENCE**                         |                                                         |                                                                                  |                            |                           |
 | 79  | Web UI                                           | -                                                       | -                                                                                | P                          | -                         |
@@ -123,6 +124,8 @@
 | 83  | Auto-advance (autonomous)                        | -                                                       | -                                                                                | P                          | -                         |
 | 84  | Worktree workflow                                | -                                                       | P                                                                                | -                          | -                         |
 | 85  | Bug analysis pipeline                            | -                                                       | P                                                                                | -                          | -                         |
+
+[^mcp]: Arbiter is **CLI-first by policy** — see [ADR-020](../ADR/020-cli-first-over-mcp.md). MCP servers are neither a dependency nor a fallback, because every gate must run in CI, bare terminals, and under any AI coding harness. Rows 75 and 78 are explicit non-goals; rows 76 and 77 are satisfied by the policy itself (ADR-020) plus the `src/utils/run-cli.ts` wrapper and the `check-no-direct-spawn` hook enforcing INV-12.
 
 ---
 

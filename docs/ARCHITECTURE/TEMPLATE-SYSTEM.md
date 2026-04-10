@@ -158,7 +158,6 @@ L3 gate requires evidence artifacts in `.evidence/` before release.
 | `hooks/pre-tool-use.mjs.ejs`  | `.claude/hooks/pre-tool-use.mjs`    | Dynamic |
 | `hooks/post-tool-use.mjs.ejs` | `.claude/hooks/post-tool-use.mjs`   | Dynamic |
 | `rules/exec-protocol.md`      | `.claude/rules/exec-protocol.md`    | Static  |
-| `rules/mcp-usage.md`          | `.claude/rules/mcp-usage.md`        | Static  |
 | `commands/start-task.md`      | `.claude/commands/start-task.md`    | Static  |
 | `commands/complete-task.md`   | `.claude/commands/complete-task.md` | Static  |
 

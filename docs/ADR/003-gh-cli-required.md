@@ -21,7 +21,7 @@ Arbiter needs to interact with GitHub for label provisioning, issue templates, a
 ### Alternatives rejected
 
 - **GitHub token in wizard** -- security risk, poor UX.
-- **GitHub MCP server** -- optional, not universally installed. May be added as an alternative path later.
+- **GitHub MCP server** -- optional, not universally installed. **Rejected permanently in [ADR-020](020-cli-first-over-mcp.md)** — arbiter does not support MCP fallbacks for tool integrations.
 - **HTTP directly with token from env** -- adds token management complexity to arbiter.
 
 ## Consequences
