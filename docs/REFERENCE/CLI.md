@@ -218,6 +218,135 @@ arbiter diff [options]
 
 ---
 
+## `arbiter worktree` / `arbiter wt`
+
+Manage git worktrees for parallel task development. All subcommands work from the main repository root — never from inside an open worktree.
+
+### `arbiter worktree open <task-id> [slug]`
+
+Create a sibling worktree for a task branch. Safe to call from Claude Code — never spawns GUI terminals.
+
+```
+arbiter worktree open <task-id> [slug] [options]
+arbiter wt open <task-id> [slug] [options]
+```
+
+**Options:**
+
+| Flag              | Type   | Default | Description                         |
+| ----------------- | ------ | ------- | ----------------------------------- |
+| `--base <branch>` | string | `main`  | Base branch to create the task from |
+
+**Behaviour:**
+
+- Creates `<worktreesBase>/<taskId>[-slug]/` as a sibling of the repo (not nested)
+- Creates and checks out branch `task/<taskId>[-slug]`
+- Symlinks local-only files listed in `arbiter.json::worktree.links` (default: `.claude/settings.local.json`, `.env`)
+- Writes a structured entry to `.arbiter/worktree-open.log.json`
+- Prints the worktree path and a ready-to-paste `cd` command
+
+**Refusals:**
+
+- Working tree has staged/modified tracked files
+- Running from inside a worktree (`.git` is a file, not a directory)
+- Base branch does not exist
+- Worktree already open for that task
+
+**Example output:**
+
+```
+Worktree ready: /home/luca/work/repos/arbiter.worktrees/#97-my-feature
+Branch:         task/#97-my-feature
+Base:           main @ 4bacd7d
+Links:          1 linked, 0 copied-from-template, 1 missing
+
+Next:           cd '/home/luca/work/repos/arbiter.worktrees/#97-my-feature'
+```
+
+---
+
+### `arbiter worktree close <task-id>`
+
+Tear down a task worktree after its branch is merged. Runs a structured sequence of safety checks before removal.
+
+```
+arbiter worktree close <task-id> [options]
+arbiter wt close <task-id> [options]
+```
+
+**Options:**
+
+| Flag            | Type    | Default | Description                                      |
+| --------------- | ------- | ------- | ------------------------------------------------ |
+| `--force`       | boolean | `false` | Close even if branch is unmerged or a hook fails |
+| `--keep-branch` | boolean | `false` | Do not delete the task branch after closing      |
+| `--no-fetch`    | boolean | `false` | Skip `git fetch origin` before the merge check   |
+
+**Sequence:**
+
+1. Locate the open-log entry for the task
+2. Verify the worktree directory exists
+3. Refuse if the worktree has uncommitted changes (bypassed by `--force`)
+4. Refuse if the branch has not been merged into `origin/<base>` (bypassed by `--force`)
+5. Warn about dangling symlinks (never throws)
+6. Run `arbiter.json::worktree.closeHook` if configured; non-zero exit aborts (bypassed by `--force`)
+7. `git worktree remove --force` + `git worktree prune`
+8. Delete the task branch (skipped with `--keep-branch`)
+9. Append a structured entry to `.arbiter/worktree-close.log.json`
+
+---
+
+### `arbiter worktree list`
+
+List all open task worktrees.
+
+```
+arbiter worktree list
+arbiter wt list
+```
+
+Reads from `git worktree list --porcelain` and filters to branches starting with `task/`. Shows worktrees that were opened but not yet closed.
+
+---
+
+### Worktree config in `arbiter.json`
+
+The optional `worktree` key controls placement and symlink behaviour:
+
+```json
+{
+  "worktree": {
+    "base": null,
+    "links": [
+      { "path": ".claude/settings.local.json", "required": false },
+      { "path": ".env", "template": ".env.example", "required": false }
+    ],
+    "closeHook": null
+  }
+}
+```
+
+| Field       | Type           | Default    | Description                                                                    |
+| ----------- | -------------- | ---------- | ------------------------------------------------------------------------------ |
+| `base`      | `string\|null` | `null`     | Absolute path for worktrees dir. `null` → `<parent>/<repoName>.worktrees`      |
+| `links`     | `LinkSpec[]`   | see CLI.md | Files to symlink (or copy from template) into each new worktree                |
+| `closeHook` | `string\|null` | `null`     | Path to script invoked before removal. Receives worktree absolute path as `$1` |
+
+**LinkSpec fields:**
+
+| Field      | Type                | Default     | Description                                               |
+| ---------- | ------------------- | ----------- | --------------------------------------------------------- |
+| `path`     | string              | —           | Relative path within the repo                             |
+| `required` | boolean             | `false`     | If `true`, throws when source is absent                   |
+| `template` | string              | —           | Fallback source path if `path` is absent in the main repo |
+| `strategy` | `"symlink"\|"copy"` | `"symlink"` | How to materialise the file in the worktree               |
+
+**Environment variable override:**
+
+Set `ARBITER_WORKTREES_DIR` to override `worktree.base` without editing `arbiter.json`. Useful for test environments.
+
+---
+
 ## `arbiter.json`
 
 Persisted config written by `arbiter init`, read by `arbiter update` and `arbiter diff`.
@@ -227,7 +356,15 @@ Persisted config written by `arbiter init`, read by `arbiter update` and `arbite
   "version": "0.1",
   "tools": ["claude", "codex", "cursor", "copilot"],
   "governanceLevel": "L2",
-  "useGitHub": true
+  "useGitHub": true,
+  "worktree": {
+    "base": null,
+    "links": [
+      { "path": ".claude/settings.local.json", "required": false },
+      { "path": ".env", "template": ".env.example", "required": false }
+    ],
+    "closeHook": null
+  }
 }
 ```
 
@@ -237,14 +374,11 @@ Commit this file so that `arbiter update` works in CI and for teammates.
 
 ## Environment Variables
 
-Arbiter does not read any custom environment variables. All configuration is via CLI flags or `arbiter.json`.
-
-Standard environment context used implicitly:
-
-| Variable | Source | Usage                                    |
-| -------- | ------ | ---------------------------------------- |
-| `PATH`   | Shell  | Locates `gh`, `git`, `node`, build tools |
-| `HOME`   | OS     | Resolves `~` in paths                    |
+| Variable                | Source | Usage                                                          |
+| ----------------------- | ------ | -------------------------------------------------------------- |
+| `PATH`                  | Shell  | Locates `gh`, `git`, `node`, build tools                       |
+| `HOME`                  | OS     | Resolves `~` in paths                                          |
+| `ARBITER_WORKTREES_DIR` | Shell  | Overrides `arbiter.json::worktree.base` for worktree placement |
 
 ---
 
