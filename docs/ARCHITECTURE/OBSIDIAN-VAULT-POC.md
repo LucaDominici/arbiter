@@ -183,7 +183,7 @@ Add one optional question after the governance level question:
 ? Generate Obsidian vault? (optional second brain in docs/vault/)
 ```
 
-Result stored in `config.enableObsidianVault: boolean` and persisted to `.arbiter/config.json`.
+Result stored in `config.enableObsidianVault: boolean` and persisted to `arbiter.json` via `saveConfig`.
 
 ### Init Integration: `src/commands/init.ts`
 
@@ -204,7 +204,7 @@ export interface ProjectConfig {
 }
 ```
 
-Persisted in `.arbiter/config.json` via `saveConfig`.
+Persisted in `arbiter.json` via `saveConfig` (`ArbiterConfig.enableObsidianVault`).
 
 ---
 
@@ -212,7 +212,7 @@ Persisted in `.arbiter/config.json` via `saveConfig`.
 
 **`arbiter obsidian --sync` flow:**
 
-1. Load `.arbiter/config.json`; fail fast if `enableObsidianVault !== true` and `--force` absent
+1. Load `arbiter.json` via `loadConfig`; fail fast if `enableObsidianVault !== true` and `--force` absent
 2. Re-run detectors: language, framework, modules, github access
 3. Re-query `gh issue list --json` and `gh label list --json` (if github access)
 4. For each generator output file:
