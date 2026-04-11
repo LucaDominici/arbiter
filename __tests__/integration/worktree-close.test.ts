@@ -98,9 +98,11 @@ function openAndMerge(taskId: string, slug: string): string {
   const wtPath = join(worktreesDir, `${taskId}-${slug}`);
 
   // Make a commit in the worktree — stage only the feature file, not any symlinks
-  // that materializeLink may have created (to avoid merge conflicts)
-  writeFileSync(join(wtPath, "feature.txt"), "done");
-  execFileSync("git", ["add", "feature.txt"], { cwd: wtPath, stdio: "ignore" });
+  // that materializeLink may have created (to avoid merge conflicts). Use a
+  // slug-scoped filename so two worktrees for the same task id don't collide.
+  const featureFile = `feature-${slug}.txt`;
+  writeFileSync(join(wtPath, featureFile), "done");
+  execFileSync("git", ["add", featureFile], { cwd: wtPath, stdio: "ignore" });
   execFileSync("git", ["commit", "-m", "feat: add feature"], {
     cwd: wtPath,
     stdio: "ignore",
@@ -282,5 +284,20 @@ describe("runWorktreeClose", () => {
     expect(() => runWorktreeClose({ taskId: "#000", cwd: repoRoot })).toThrow(
       /no open worktree/i,
     );
+  });
+
+  it("closes the second worktree when two share the same task id", () => {
+    // Open two worktrees for the same task id with different slugs
+    openAndMerge("#999", "first");
+    openAndMerge("#999", "second");
+
+    // Close the first — picks the first matching open-log entry
+    runWorktreeClose({ taskId: "#999", cwd: repoRoot, noFetch: true });
+    expect(existsSync(join(worktreesDir, "#999-first"))).toBe(false);
+    expect(existsSync(join(worktreesDir, "#999-second"))).toBe(true);
+
+    // Close the second — must skip the stale first entry and find the second
+    runWorktreeClose({ taskId: "#999", cwd: repoRoot, noFetch: true });
+    expect(existsSync(join(worktreesDir, "#999-second"))).toBe(false);
   });
 });

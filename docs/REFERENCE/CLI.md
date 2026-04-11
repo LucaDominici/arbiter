@@ -284,7 +284,7 @@ arbiter wt close <task-id> [options]
 
 **Sequence:**
 
-1. Locate the open-log entry for the task
+1. Locate the first open-log entry for the task whose worktree directory still exists (skips entries for worktrees that were already closed — important when multiple worktrees share a task id)
 2. Verify the worktree directory exists
 3. Refuse if the worktree has uncommitted changes (bypassed by `--force`)
 4. Refuse if the branch has not been merged into `origin/<base>` (bypassed by `--force`)
