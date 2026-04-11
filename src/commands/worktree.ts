@@ -309,7 +309,9 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   const taskId = sanitizeTaskId(opts.taskId);
   const logPath = join(arbiterLogDir(gitRoot), "worktree-open.log.json");
   const openEntries = readJsonArray(logPath) as OpenLogEntry[];
-  const entry = openEntries.find((e) => e.taskId === taskId);
+  const entry = openEntries.find(
+    (e) => e.taskId === taskId && existsSync(e.worktreePath),
+  );
   if (!entry) {
     throw new Error(
       `No open worktree found for task ${taskId}. ` +
@@ -318,13 +320,6 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   }
 
   const { worktreePath, branch, baseBranch } = entry;
-
-  if (!existsSync(worktreePath)) {
-    throw new Error(
-      `Worktree directory not found: ${worktreePath}\n` +
-        "It may have been removed manually. Run 'git worktree prune' to clean up.",
-    );
-  }
 
   if (workingTreeDirty(worktreePath) && !force) {
     throw new Error(
