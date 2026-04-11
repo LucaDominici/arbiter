@@ -107,4 +107,6 @@ export interface ProjectConfig {
   invariantTiers: InvariantTier[];
   /** Base Java package (e.g. "com.example.myapp"). Detected from pom.xml/build.gradle for Java projects. */
   basePackage?: string;
+  /** Whether to generate the optional Obsidian vault at docs/vault/. */
+  enableObsidianVault?: boolean;
 }

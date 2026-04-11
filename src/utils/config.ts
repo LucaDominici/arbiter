@@ -16,6 +16,8 @@ export interface ArbiterConfig {
   enableDebtGates?: boolean;
   invariantTiers?: InvariantTier[];
   worktree?: WorktreeConfig;
+  /** Whether the Obsidian vault generator ran during init. Used by `arbiter obsidian` sync. */
+  enableObsidianVault?: boolean;
 }
 
 const CONFIG_FILE = "arbiter.json";
