@@ -128,6 +128,18 @@ node scripts/check-all.mjs L2   # before push
 
 ---
 
+## Authoring — Task Workflow
+
+Use `arbiter worktree open <task-id> [slug]` (alias: `arbiter wt open`) to start a task
+branch. This command creates a sibling worktree (never nested), symlinks local-only files
+(`.claude/settings.local.json`, `.env`), and prints the `cd` path. It is Claude-safe by
+default — it never spawns GUI terminals.
+
+Use `arbiter worktree close <task-id>` to tear down after merging. The command verifies
+the branch is merged into `origin/main` before removing the worktree.
+
+---
+
 ## Multi-Agent Tool Extensions
 
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:

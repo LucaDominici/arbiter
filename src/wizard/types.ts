@@ -43,6 +43,30 @@ export interface LanguageHook {
   body: string;
 }
 
+export type WorktreeLinkStrategy = "symlink" | "copy";
+
+export interface WorktreeLinkSpec {
+  /** Relative path inside the repo (e.g. ".env", ".claude/settings.local.json") */
+  path: string;
+  /** Throw if source is missing instead of silently skipping */
+  required?: boolean;
+  /** Fallback: copy from this template path if source is absent */
+  template?: string;
+  /** How to materialize the link (default: "symlink") */
+  strategy?: WorktreeLinkStrategy;
+}
+
+export interface WorktreeConfig {
+  /** Absolute path to the directory that holds all worktrees.
+   *  null → sibling of the repo: <parent>/<repoName>.worktrees */
+  base: string | null;
+  /** Files/dirs to symlink (or copy) from the main repo into each worktree */
+  links: WorktreeLinkSpec[];
+  /** Optional script to run before removing the worktree on close.
+   *  Receives the worktree path as its first argument. */
+  closeHook: string | null;
+}
+
 export interface ProjectConfig {
   /** Directory being initialized */
   targetDir: string;

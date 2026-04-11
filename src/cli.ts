@@ -3,6 +3,11 @@ import { Command } from "commander";
 import { runInit } from "./commands/init.js";
 import { runUpdate } from "./commands/update.js";
 import { runDiff } from "./commands/diff.js";
+import {
+  runWorktreeOpen,
+  runWorktreeClose,
+  runWorktreeList,
+} from "./commands/worktree.js";
 
 const program = new Command();
 
@@ -68,6 +73,54 @@ program
   .option("--dir <dir>", "Target directory (default: current directory)")
   .action((opts: { dir?: string }) => {
     runDiff({ dir: opts.dir });
+  });
+
+const worktree = program
+  .command("worktree")
+  .alias("wt")
+  .description("Manage git worktrees for parallel task development");
+
+worktree
+  .command("open <task-id> [slug]")
+  .description(
+    "Create a sibling worktree with a task branch and symlinked local files",
+  )
+  .option("--base <branch>", "Base branch to branch from", "main")
+  .action(
+    (taskId: string, slug: string | undefined, opts: { base: string }) => {
+      runWorktreeOpen({
+        taskId,
+        ...(slug !== undefined ? { slug } : {}),
+        base: opts.base,
+      });
+    },
+  );
+
+worktree
+  .command("close <task-id>")
+  .description("Tear down a task worktree after its branch is merged")
+  .option("--force", "Close even if branch is unmerged or hook fails", false)
+  .option("--keep-branch", "Do not delete the task branch after closing", false)
+  .option("--no-fetch", "Skip git fetch before the merge check", false)
+  .action(
+    (
+      taskId: string,
+      opts: { force: boolean; keepBranch: boolean; fetch: boolean },
+    ) => {
+      runWorktreeClose({
+        taskId,
+        force: opts.force,
+        keepBranch: opts.keepBranch,
+        noFetch: !opts.fetch,
+      });
+    },
+  );
+
+worktree
+  .command("list")
+  .description("List open task worktrees")
+  .action(() => {
+    runWorktreeList();
   });
 
 program.parse();

@@ -4,6 +4,7 @@ import type {
   AiTool,
   GovernanceLevel,
   InvariantTier,
+  WorktreeConfig,
 } from "../wizard/types.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 
@@ -14,6 +15,7 @@ export interface ArbiterConfig {
   useGitHub: boolean;
   enableDebtGates?: boolean;
   invariantTiers?: InvariantTier[];
+  worktree?: WorktreeConfig;
 }
 
 const CONFIG_FILE = "arbiter.json";
