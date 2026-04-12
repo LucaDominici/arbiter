@@ -4,21 +4,21 @@ tags: [governance, agents]
 ---
 <!-- arbiter:generated source=src/generators/obsidian-vault-index.ts -->
 
-# AGENTS.md — <%= projectName %>
+# AGENTS.md — <%- projectName %>
 
 This is an Obsidian-friendly sectioned view. Canonical source: [[../../AGENTS|AGENTS.md]] at project root.
 
 ## Stack
 
-- Language: <%= language %>
-- Framework: <%= framework || "n/a" %>
-- Build: `<%= buildCommand %>`
-- Test: `<%= testCommand %>`
+- Language: <%- language %>
+- Framework: <%- framework || "n/a" %>
+- Build: `<%- buildCommand %>`
+- Test: `<%- testCommand %>`
 
 ## Governance
 
-- Level: **<%= governanceLevel %>**
-- Tools: <%= tools.join(", ") %>
+- Level: **<%- governanceLevel %>**
+- Tools: <%- tools.join(", ") %>
 
 ## Invariants
 

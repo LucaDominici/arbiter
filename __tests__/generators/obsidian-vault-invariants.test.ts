@@ -53,6 +53,23 @@ describe("generateInvariantNotes", () => {
     expect(content).toContain("<!-- arbiter:generated source=");
   });
 
+  it("frontmatter values are not HTML-escaped", () => {
+    generateInvariantNotes(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, "docs/vault/governance/invariants/INV-01.md"),
+      "utf-8",
+    );
+    expect(content).not.toContain("&#34;");
+    expect(content).not.toContain("&amp;");
+    expect(content).not.toContain("&lt;");
+
+    const fm = parseYaml(content.match(/^---\n([\s\S]+?)\n---/)![1]) as Record<
+      string,
+      unknown
+    >;
+    expect(fm.title).toBe("No circular dependencies between modules");
+  });
+
   it("filters invariants by governance level (L3 >= L1)", () => {
     const l1 = generateInvariantNotes(
       makeConfig(dir, { governanceLevel: "L1" }),

@@ -14,6 +14,6 @@ _No labels defined._
 | Label | Invariant |
 | ----- | --------- |
 <% labels.forEach(function(l) { -%>
-| `<%= l.name %>` | <%= l.invariant ? "[[governance/invariants/" + l.invariant + "]]" : "—" %> |
+| `<%- l.name %>` | <%- l.invariant ? "[[governance/invariants/" + l.invariant + "]]" : "—" %> |
 <% }); -%>
 <% } -%>

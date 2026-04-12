@@ -12,6 +12,6 @@ _No modules detected for this project._
 | Module | Kind | Path |
 | ------ | ---- | ---- |
 <% modules.forEach(function(m) { -%>
-| [[architecture/modules/<%= m.slug %>\|<%= m.name %>]] | <%= m.kind %> | `<%= m.relPath %>` |
+| [[architecture/modules/<%- m.slug %>\|<%- m.name %>]] | <%- m.kind %> | `<%- m.relPath %>` |
 <% }); -%>
 <% } -%>

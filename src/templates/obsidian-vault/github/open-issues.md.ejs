@@ -12,6 +12,6 @@ _`gh` CLI not authenticated or offline. Run `arbiter obsidian --sync --github-on
 _No open issues._
 <% } else { -%>
 <% issues.forEach(function(issue) { -%>
-- [[github/issues/<%= issue.number %>|#<%= issue.number %> — <%= issue.title %>]] (<%= issue.labels.join(", ") || "no labels" %>)
+- [[github/issues/<%- issue.number %>|#<%- issue.number %> — <%- issue.title %>]] (<%- issue.labels.join(", ") || "no labels" %>)
 <% }); -%>
 <% } -%>

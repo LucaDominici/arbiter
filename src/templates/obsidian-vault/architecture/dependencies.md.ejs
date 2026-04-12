@@ -12,6 +12,6 @@ _No modules detected. Run `arbiter obsidian --sync` after adding modules._
 Best-effort dependency map (refined by future `arbiter obsidian --sync` runs).
 
 <% modules.forEach(function(m) { -%>
-- [[architecture/modules/<%= m.slug %>|<%= m.name %>]]
+- [[architecture/modules/<%- m.slug %>|<%- m.name %>]]
 <% }); -%>
 <% } -%>

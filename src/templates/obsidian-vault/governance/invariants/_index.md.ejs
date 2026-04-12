@@ -7,10 +7,10 @@ tags: [index, invariants]
 # Invariants Index
 
 <% tiers.forEach(function(tier) { -%>
-## <%= tier.label %>
+## <%- tier.label %>
 
 <% tier.invariants.forEach(function(inv) { -%>
-- [[governance/invariants/<%= inv.id %>|<%= inv.id %> — <%= inv.title %>]]
+- [[governance/invariants/<%- inv.id %>|<%- inv.id %> — <%- inv.title %>]]
 <% }); -%>
 
 <% }); -%>
