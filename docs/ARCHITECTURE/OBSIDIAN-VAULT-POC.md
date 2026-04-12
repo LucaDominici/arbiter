@@ -335,3 +335,40 @@ Each milestone produces a commit with passing tests.
 - **Canvas impact maps:** `.canvas` JSON generation deferred until vault is stable.
 - **Cross-project vault federation:** a single user with multiple arbiter projects might want a parent vault linking all child vaults. Out of scope for POC.
 - **Reverse sync:** edits in the vault flowing back to source (e.g., ADR changes) — explicitly out of scope.
+
+---
+
+## Viafera POC Findings (2026-04-12)
+
+**Command run:**
+
+```
+node dist/cli.js obsidian --force --dir /home/luca/work/repos/viafera
+```
+
+**Wall-clock:** ~0.09s (well under the 5-second target).
+
+**Files generated:** 36
+
+- 23 invariant notes (INV-01..INV-26 minus 11/12/13/14/15 — filtered out by L2 governance level)
+- 1 invariants `_index.md`
+- 1 governance `AGENTS.md` sectioned view
+- 1 decisions `_template.md`
+- 3 module notes (`backend.md`, `frontend.md`, `contracts.md`)
+- 1 modules `_index.md`
+- 1 `stack.md`
+- 1 `dependencies.md`
+- 1 `impact-map.md`
+- 2 PRD templates
+- 1 `00-INDEX.md`
+- 2 `.obsidian/` settings files (app.json, graph.json)
+
+**Modules detected:** `backend`, `frontend`, `contracts` (via the TypeScript fallback-top-level-dirs path; viafera has no `package.json` workspaces). Known miss: `e2e-v2` is not in the `FALLBACK_SOURCE_DIRS` list (future enhancement). Good-enough for the POC target of ≥3 clusters.
+
+**Idempotence check:** second run produced identical content (zero diff).
+
+**Blocker discovered and fixed during POC:** EJS `<%= %>` HTML-escaped quotes in frontmatter YAML values and shell commands in `stack.md`, producing `&#34;` entities. Fixed by migrating all 12 templates to `<%- %>` (raw output) and adding a round-trip regression test. Commit: `5fd2dfd`.
+
+**Manual Obsidian desktop check:** pending — user to open `/home/luca/work/repos/viafera/docs/vault` in Obsidian and verify the graph view shows ≥3 navigable clusters and backlinks resolve.
+
+**Non-goals confirmed:** no AST-level invariant↔module binding (every `alwaysActive` invariant maps to every module, the rest map to none — correct for the POC).
