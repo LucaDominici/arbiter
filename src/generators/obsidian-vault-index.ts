@@ -1,5 +1,10 @@
 import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
+import { resolvedPath } from "../utils/fs.js";
+import {
+  DEFAULT_VAULT_OPTIONS,
+  writeVaultOutput,
+  type ObsidianVaultOptions,
+} from "./obsidian-vault-io.js";
 import { detectModules } from "../detectors/modules.js";
 import { getFilteredInvariants } from "../invariants/filter.js";
 import type { ProjectConfig } from "../wizard/types.js";
@@ -20,21 +25,25 @@ function slugify(name: string): string {
 
 export function generateAgentsSectionedNote(
   config: ProjectConfig,
+  opts: ObsidianVaultOptions = DEFAULT_VAULT_OPTIONS,
 ): IndexNoteResult {
   const base = resolvedPath(config.targetDir, "docs", "vault");
   const data = config as unknown as Record<string, unknown>;
   return {
     files: [
-      writeFile(
+      writeVaultOutput(
         resolvedPath(base, "governance", "AGENTS.md"),
         renderTemplate("obsidian-vault/governance/AGENTS.md.ejs", data),
-        { skipIfExists: false },
+        opts,
       ),
     ],
   };
 }
 
-export function generateImpactMap(config: ProjectConfig): IndexNoteResult {
+export function generateImpactMap(
+  config: ProjectConfig,
+  opts: ObsidianVaultOptions = DEFAULT_VAULT_OPTIONS,
+): IndexNoteResult {
   const base = resolvedPath(config.targetDir, "docs", "vault");
   const modules = detectModules(config.targetDir, config.language).map((m) => ({
     name: m.name,
@@ -64,13 +73,13 @@ export function generateImpactMap(config: ProjectConfig): IndexNoteResult {
 
   return {
     files: [
-      writeFile(
+      writeVaultOutput(
         resolvedPath(base, "architecture", "impact-map.md"),
         renderTemplate("obsidian-vault/architecture/impact-map.md.ejs", {
           invariantRows,
           moduleRows,
         } as unknown as Record<string, unknown>),
-        { skipIfExists: false },
+        opts,
       ),
     ],
   };

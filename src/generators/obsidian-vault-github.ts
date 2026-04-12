@@ -1,5 +1,10 @@
 import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
+import { resolvedPath } from "../utils/fs.js";
+import {
+  DEFAULT_VAULT_OPTIONS,
+  writeVaultOutput,
+  type ObsidianVaultOptions,
+} from "./obsidian-vault-io.js";
 import * as ghFetcher from "./obsidian-vault-github-fetch.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
@@ -10,6 +15,7 @@ export interface GithubVaultNotesResult {
 
 export function generateGithubVaultNotes(
   config: ProjectConfig,
+  opts: ObsidianVaultOptions = DEFAULT_VAULT_OPTIONS,
 ): GithubVaultNotesResult {
   if (!config.useGitHub) return { files: [] };
 
@@ -19,34 +25,34 @@ export function generateGithubVaultNotes(
   const files: WriteResult[] = [];
 
   files.push(
-    writeFile(
+    writeVaultOutput(
       resolvedPath(base, "github", "open-issues.md"),
       renderTemplate("obsidian-vault/github/open-issues.md.ejs", {
         ...data,
       } as unknown as Record<string, unknown>),
-      { skipIfExists: false },
+      opts,
     ),
   );
 
   files.push(
-    writeFile(
+    writeVaultOutput(
       resolvedPath(base, "github", "labels.md"),
       renderTemplate("obsidian-vault/github/labels.md.ejs", {
         ...data,
       } as unknown as Record<string, unknown>),
-      { skipIfExists: false },
+      opts,
     ),
   );
 
   if (data.available) {
     for (const issue of data.issues) {
       files.push(
-        writeFile(
+        writeVaultOutput(
           resolvedPath(base, "github", "issues", `${issue.number}.md`),
           renderTemplate("obsidian-vault/github/issues/issue.md.ejs", {
             issue,
           } as unknown as Record<string, unknown>),
-          { skipIfExists: false },
+          opts,
         ),
       );
     }

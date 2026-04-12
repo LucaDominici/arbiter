@@ -1,5 +1,10 @@
 import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
+import { resolvedPath } from "../utils/fs.js";
+import {
+  DEFAULT_VAULT_OPTIONS,
+  writeVaultOutput,
+  type ObsidianVaultOptions,
+} from "./obsidian-vault-io.js";
 import type { ProjectConfig, Language } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import {
@@ -23,6 +28,7 @@ function resolveLanguageDetail(
 
 export function generateInvariantNotes(
   config: ProjectConfig,
+  opts: ObsidianVaultOptions = DEFAULT_VAULT_OPTIONS,
 ): InvariantNotesResult {
   const invariants = getFilteredInvariants({
     language: config.language,
@@ -44,10 +50,10 @@ export function generateInvariantNotes(
       modules: [] as string[],
     };
     files.push(
-      writeFile(
+      writeVaultOutput(
         resolvedPath(base, "governance", "invariants", `${invariant.id}.md`),
         renderTemplate("obsidian-vault/governance/invariants/INV.md.ejs", data),
-        { skipIfExists: false },
+        opts,
       ),
     );
   }
@@ -58,12 +64,12 @@ export function generateInvariantNotes(
   }));
 
   files.push(
-    writeFile(
+    writeVaultOutput(
       resolvedPath(base, "governance", "invariants", "_index.md"),
       renderTemplate("obsidian-vault/governance/invariants/_index.md.ejs", {
         tiers,
       } as unknown as Record<string, unknown>),
-      { skipIfExists: false },
+      opts,
     ),
   );
 

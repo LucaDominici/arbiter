@@ -1,6 +1,11 @@
 import { relative } from "node:path";
 import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
+import { resolvedPath } from "../utils/fs.js";
+import {
+  DEFAULT_VAULT_OPTIONS,
+  writeVaultOutput,
+  type ObsidianVaultOptions,
+} from "./obsidian-vault-io.js";
 import { detectModules, type DetectedModule } from "../detectors/modules.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
@@ -40,7 +45,10 @@ function toViewModel(
   }));
 }
 
-export function generateModuleNotes(config: ProjectConfig): ModuleNotesResult {
+export function generateModuleNotes(
+  config: ProjectConfig,
+  opts: ObsidianVaultOptions = DEFAULT_VAULT_OPTIONS,
+): ModuleNotesResult {
   const base = resolvedPath(config.targetDir, "docs", "vault");
   const modules = toViewModel(
     detectModules(config.targetDir, config.language),
@@ -51,12 +59,12 @@ export function generateModuleNotes(config: ProjectConfig): ModuleNotesResult {
 
   for (const m of modules) {
     files.push(
-      writeFile(
+      writeVaultOutput(
         resolvedPath(base, "architecture", "modules", `${m.slug}.md`),
         renderTemplate("obsidian-vault/architecture/modules/module.md.ejs", {
           module: m,
         } as unknown as Record<string, unknown>),
-        { skipIfExists: false },
+        opts,
       ),
     );
   }
@@ -67,32 +75,32 @@ export function generateModuleNotes(config: ProjectConfig): ModuleNotesResult {
   };
 
   files.push(
-    writeFile(
+    writeVaultOutput(
       resolvedPath(base, "architecture", "modules", "_index.md"),
       renderTemplate(
         "obsidian-vault/architecture/modules/_index.md.ejs",
         sharedData,
       ),
-      { skipIfExists: false },
+      opts,
     ),
   );
 
   files.push(
-    writeFile(
+    writeVaultOutput(
       resolvedPath(base, "architecture", "stack.md"),
       renderTemplate("obsidian-vault/architecture/stack.md.ejs", sharedData),
-      { skipIfExists: false },
+      opts,
     ),
   );
 
   files.push(
-    writeFile(
+    writeVaultOutput(
       resolvedPath(base, "architecture", "dependencies.md"),
       renderTemplate(
         "obsidian-vault/architecture/dependencies.md.ejs",
         sharedData,
       ),
-      { skipIfExists: false },
+      opts,
     ),
   );
 

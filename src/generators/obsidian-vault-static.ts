@@ -1,5 +1,10 @@
 import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
+import { resolvedPath } from "../utils/fs.js";
+import {
+  DEFAULT_VAULT_OPTIONS,
+  writeVaultOutput,
+  type ObsidianVaultOptions,
+} from "./obsidian-vault-io.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 
@@ -21,15 +26,16 @@ const STATIC_TEMPLATES = [
 
 export function generateStaticVaultFiles(
   config: ProjectConfig,
+  opts: ObsidianVaultOptions = DEFAULT_VAULT_OPTIONS,
 ): StaticVaultGeneratorResult {
   const data = config as unknown as Record<string, unknown>;
   const base = resolvedPath(config.targetDir, "docs", "vault");
 
   const files = STATIC_TEMPLATES.map(({ tpl, out }) =>
-    writeFile(
+    writeVaultOutput(
       resolvedPath(base, ...out.split("/")),
       renderTemplate(`obsidian-vault/${tpl}`, data),
-      { skipIfExists: true },
+      opts,
     ),
   );
 
