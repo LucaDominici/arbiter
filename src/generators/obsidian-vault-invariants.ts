@@ -1,44 +1,17 @@
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
-import type {
-  ProjectConfig,
-  InvariantTier,
-  Language,
-} from "../wizard/types.js";
+import type { ProjectConfig, Language } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import {
   getFilteredInvariants,
   getInvariantsByTier,
 } from "../invariants/filter.js";
+import { TIER_LABELS, TIER_INDEX, TIER_ORDER } from "../invariants/tiers.js";
 import type { Invariant } from "../invariants/types.js";
 
 export interface InvariantNotesResult {
   files: WriteResult[];
 }
-
-const TIER_LABELS: Record<InvariantTier, string> = {
-  architectural: "Tier 1: Architectural Integrity",
-  data: "Tier 2: Data Integrity",
-  security: "Tier 3: Security & Compliance",
-  operational: "Tier 4: Operational Excellence",
-  governance: "Tier 5: Governance",
-};
-
-const TIER_INDEX: Record<InvariantTier, number> = {
-  architectural: 1,
-  data: 2,
-  security: 3,
-  operational: 4,
-  governance: 5,
-};
-
-const TIER_ORDER: InvariantTier[] = [
-  "architectural",
-  "data",
-  "security",
-  "operational",
-  "governance",
-];
 
 function resolveLanguageDetail(
   inv: Invariant,
