@@ -28,6 +28,7 @@ import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
 import { generateSsot } from "../generators/ssot.js";
+import { generateObsidianVault } from "../generators/obsidian-vault.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
@@ -46,6 +47,7 @@ export interface InitOptions {
   level: string | undefined;
   dir: string | undefined;
   dryRun: boolean;
+  obsidian: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -97,6 +99,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       tools: parseTools(options.tools),
       governanceLevel: parseLevel(options.level),
       useGitHub: githubAccess.authenticated,
+      obsidian: options.obsidian,
     });
   } else {
     const wizardResult = await runWizard({
@@ -140,6 +143,9 @@ export async function runInit(options: InitOptions): Promise<void> {
     useGitHub: config.useGitHub,
     enableDebtGates: config.enableDebtGates,
     invariantTiers: config.invariantTiers,
+    ...(config.enableObsidianVault === true
+      ? { enableObsidianVault: true }
+      : {}),
   });
 
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
@@ -182,6 +188,10 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   all.push(...generateArchUnit(config).files);
 
   all.push(...generateSsot(config).files);
+
+  if (config.enableObsidianVault) {
+    all.push(...generateObsidianVault(config).files);
+  }
 
   return all;
 }
@@ -264,6 +274,7 @@ function buildDefaultConfig(opts: {
   tools: AiTool[];
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
+  obsidian?: boolean;
 }): ProjectConfig {
   return {
     targetDir: opts.targetDir,
@@ -285,6 +296,7 @@ function buildDefaultConfig(opts: {
     languageHooks: getLanguageHooks(opts.language),
     enableDebtGates: opts.governanceLevel !== "L1",
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
+    enableObsidianVault: opts.obsidian ?? false,
     ...detectedBasePackage(opts.language, opts.targetDir),
   };
 }

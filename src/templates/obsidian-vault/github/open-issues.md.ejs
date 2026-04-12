@@ -1,0 +1,17 @@
+---
+title: Open Issues
+tags: [github, issues]
+---
+<!-- arbiter:generated source=src/generators/obsidian-vault-github.ts -->
+
+# Open Issues
+
+<% if (!available) { -%>
+_`gh` CLI not authenticated or offline. Run `arbiter obsidian --sync --github-only` after `gh auth login`._
+<% } else if (issues.length === 0) { -%>
+_No open issues._
+<% } else { -%>
+<% issues.forEach(function(issue) { -%>
+- [[github/issues/<%- issue.number %>|#<%- issue.number %> — <%- issue.title %>]] (<%- issue.labels.join(", ") || "no labels" %>)
+<% }); -%>
+<% } -%>

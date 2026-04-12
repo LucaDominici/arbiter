@@ -1,0 +1,17 @@
+---
+title: Modules Index
+tags: [index, modules]
+---
+<!-- arbiter:generated source=src/generators/obsidian-vault-modules.ts -->
+
+# Modules Index
+
+<% if (modules.length === 0) { -%>
+_No modules detected for this project._
+<% } else { -%>
+| Module | Kind | Path |
+| ------ | ---- | ---- |
+<% modules.forEach(function(m) { -%>
+| [[architecture/modules/<%- m.slug %>\|<%- m.name %>]] | <%- m.kind %> | `<%- m.relPath %>` |
+<% }); -%>
+<% } -%>

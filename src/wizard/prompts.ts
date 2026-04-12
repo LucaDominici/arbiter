@@ -128,9 +128,94 @@ export async function runWizard(
     console.log("");
   }
 
-  const githubChoice = buildGithubChoice(wizardInput.githubAccess);
+  const answers = (await inquirer.prompt(
+    buildMainQuestions(wizardInput) as Parameters<typeof inquirer.prompt>[0],
+  )) as WizardAnswers;
 
-  const answers = (await inquirer.prompt([
+  const tools =
+    answers.tools.length > 0
+      ? answers.tools
+      : (["claude", "codex"] as AiTool[]);
+  const useGitHub = answers.useGitHub === "yes";
+
+  const { enableObsidianVault } = (await inquirer.prompt([
+    {
+      type: "confirm",
+      name: "enableObsidianVault",
+      message: "Generate optional Obsidian vault at docs/vault/?",
+      default: false,
+    },
+  ] as Parameters<typeof inquirer.prompt>[0])) as {
+    enableObsidianVault: boolean;
+  };
+
+  const config = buildConfigFromAnswers(
+    wizardInput,
+    answers,
+    enableObsidianVault,
+  );
+
+  if (flow === "brownfield") {
+    const plan = buildMigrationPlan(wizardInput.existing, tools, useGitHub);
+    displayMigrationPlan(plan);
+  } else {
+    console.log(`\n  Will generate governance files for: ${tools.join(", ")}`);
+  }
+
+  const { confirm } = (await inquirer.prompt([
+    {
+      type: "confirm",
+      name: "confirm",
+      message: flow === "brownfield" ? "Proceed with migration?" : "Proceed?",
+      default: true,
+    },
+  ] as Parameters<typeof inquirer.prompt>[0])) as { confirm: boolean };
+
+  if (!confirm) {
+    return null;
+  }
+
+  return config;
+}
+
+function buildConfigFromAnswers(
+  input: WizardInput,
+  answers: WizardAnswers,
+  enableObsidianVault: boolean,
+): ProjectConfig {
+  const tools =
+    answers.tools.length > 0
+      ? answers.tools
+      : (["claude", "codex"] as AiTool[]);
+  return {
+    targetDir: input.targetDir,
+    projectName: input.projectName,
+    description: answers.description,
+    language: input.language,
+    framework: input.framework,
+    buildTool: input.buildCmds.buildTool,
+    buildCommand: input.buildCmds.buildCommand,
+    testCommand: input.buildCmds.testCommand,
+    lintCommand: input.buildCmds.lintCommand,
+    formatCommand: input.buildCmds.formatCommand,
+    tools,
+    governanceLevel: answers.governanceLevel,
+    useGitHub: answers.useGitHub === "yes",
+    githubOwner: input.gitInfo.githubOwner,
+    githubRepo: input.gitInfo.githubRepo,
+    existing: input.existing,
+    languageHooks: getLanguageHooks(input.language),
+    enableDebtGates: answers.governanceLevel !== "L1",
+    invariantTiers: presetToTiers(
+      answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
+    ),
+    enableObsidianVault,
+  };
+}
+
+function buildMainQuestions(wizardInput: WizardInput): object[] {
+  const githubChoice = buildGithubChoice(wizardInput.githubAccess);
+  return [
     {
       type: "input",
       name: "description",
@@ -183,75 +268,13 @@ export async function runWizard(
           value: "full",
         },
       ],
-      default: (answers: { governanceLevel: string }) =>
+      default: (answers: { governanceLevel: string }): string =>
         defaultPresetForLevel(
           answers.governanceLevel as import("./types.js").GovernanceLevel,
         ),
     },
     ...githubChoice,
-  ] as Parameters<typeof inquirer.prompt>[0])) as WizardAnswers;
-
-  const tools =
-    answers.tools.length > 0
-      ? answers.tools
-      : (["claude", "codex"] as AiTool[]);
-  const useGitHub = answers.useGitHub === "yes";
-  const config = buildConfigFromAnswers(wizardInput, answers);
-
-  if (flow === "brownfield") {
-    const plan = buildMigrationPlan(wizardInput.existing, tools, useGitHub);
-    displayMigrationPlan(plan);
-  } else {
-    console.log(`\n  Will generate governance files for: ${tools.join(", ")}`);
-  }
-
-  const { confirm } = (await inquirer.prompt([
-    {
-      type: "confirm",
-      name: "confirm",
-      message: flow === "brownfield" ? "Proceed with migration?" : "Proceed?",
-      default: true,
-    },
-  ] as Parameters<typeof inquirer.prompt>[0])) as { confirm: boolean };
-
-  if (!confirm) {
-    return null;
-  }
-
-  return config;
-}
-
-function buildConfigFromAnswers(
-  input: WizardInput,
-  answers: WizardAnswers,
-): ProjectConfig {
-  const tools =
-    answers.tools.length > 0
-      ? answers.tools
-      : (["claude", "codex"] as AiTool[]);
-  return {
-    targetDir: input.targetDir,
-    projectName: input.projectName,
-    description: answers.description,
-    language: input.language,
-    framework: input.framework,
-    buildTool: input.buildCmds.buildTool,
-    buildCommand: input.buildCmds.buildCommand,
-    testCommand: input.buildCmds.testCommand,
-    lintCommand: input.buildCmds.lintCommand,
-    formatCommand: input.buildCmds.formatCommand,
-    tools,
-    governanceLevel: answers.governanceLevel,
-    useGitHub: answers.useGitHub === "yes",
-    githubOwner: input.gitInfo.githubOwner,
-    githubRepo: input.gitInfo.githubRepo,
-    existing: input.existing,
-    languageHooks: getLanguageHooks(input.language),
-    enableDebtGates: answers.governanceLevel !== "L1",
-    invariantTiers: presetToTiers(
-      answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
-    ),
-  };
+  ];
 }
 
 function buildGithubChoice(access: GithubAccess): object[] {

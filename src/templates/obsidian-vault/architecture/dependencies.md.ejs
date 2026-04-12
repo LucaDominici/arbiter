@@ -1,0 +1,17 @@
+---
+title: Module Dependencies
+tags: [architecture, dependencies]
+---
+<!-- arbiter:generated source=src/generators/obsidian-vault-modules.ts -->
+
+# Module Dependencies
+
+<% if (modules.length === 0) { -%>
+_No modules detected. Run `arbiter obsidian --sync` after adding modules._
+<% } else { -%>
+Best-effort dependency map (refined by future `arbiter obsidian --sync` runs).
+
+<% modules.forEach(function(m) { -%>
+- [[architecture/modules/<%- m.slug %>|<%- m.name %>]]
+<% }); -%>
+<% } -%>

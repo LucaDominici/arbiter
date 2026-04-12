@@ -1,19 +1,12 @@
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
-import type { ProjectConfig, InvariantTier } from "../wizard/types.js";
+import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import {
   getFilteredInvariants,
   getInvariantsByTier,
 } from "../invariants/filter.js";
-
-const TIER_LABELS: Record<InvariantTier, string> = {
-  architectural: "Tier 1: Architectural Integrity",
-  data: "Tier 2: Data Integrity",
-  security: "Tier 3: Security & Compliance",
-  operational: "Tier 4: Operational Excellence",
-  governance: "Tier 5: Governance",
-};
+import { TIER_LABELS } from "../invariants/tiers.js";
 
 export function generateAgentsMd(config: ProjectConfig): WriteResult {
   const invariants = getFilteredInvariants({

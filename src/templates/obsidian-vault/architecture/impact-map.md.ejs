@@ -1,0 +1,39 @@
+---
+title: Impact Map
+tags: [architecture, impact]
+---
+<!-- arbiter:generated source=src/generators/obsidian-vault-index.ts -->
+
+# Impact Map
+
+Cross-reference between invariants and modules.
+
+## By Invariant
+
+<% invariantRows.forEach(function(row) { -%>
+### [[governance/invariants/<%- row.id %>|<%- row.id %> — <%- row.title %>]]
+
+<% if (row.modules.length === 0) { -%>
+_No module bindings — applies globally or no modules detected._
+<% } else { -%>
+<% row.modules.forEach(function(m) { -%>
+- [[architecture/modules/<%- m.slug %>|<%- m.name %>]]
+<% }); -%>
+<% } -%>
+
+<% }); -%>
+
+## By Module
+
+<% moduleRows.forEach(function(row) { -%>
+### [[architecture/modules/<%- row.slug %>|<%- row.name %>]]
+
+<% if (row.invariants.length === 0) { -%>
+_No specific invariant bindings._
+<% } else { -%>
+<% row.invariants.forEach(function(inv) { -%>
+- [[governance/invariants/<%- inv.id %>|<%- inv.id %> — <%- inv.title %>]]
+<% }); -%>
+<% } -%>
+
+<% }); -%>
