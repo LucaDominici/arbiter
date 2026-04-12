@@ -1,0 +1,16 @@
+---
+title: Invariants Index
+tags: [index, invariants]
+---
+<!-- arbiter:generated source=src/generators/obsidian-vault-invariants.ts -->
+
+# Invariants Index
+
+<% tiers.forEach(function(tier) { -%>
+## <%= tier.label %>
+
+<% tier.invariants.forEach(function(inv) { -%>
+- [[governance/invariants/<%= inv.id %>|<%= inv.id %> — <%= inv.title %>]]
+<% }); -%>
+
+<% }); -%>
