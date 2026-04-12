@@ -1,0 +1,22 @@
+---
+id: <%= issue.number %>
+title: <%= JSON.stringify(issue.title) %>
+state: <%= issue.state %>
+labels: [<%= issue.labels.map(function(l){return JSON.stringify(l)}).join(", ") %>]
+invariants: [<%= issue.invariants.join(", ") %>]
+url: <%= issue.url %>
+tags: [github, issue]
+---
+<!-- arbiter:generated source=src/generators/obsidian-vault-github.ts -->
+
+# #<%= issue.number %> — <%= issue.title %>
+
+- **State:** <%= issue.state %>
+- **Labels:** <%= issue.labels.join(", ") || "none" %>
+- **URL:** <%= issue.url %>
+
+## Related
+
+<% issue.invariants.forEach(function(inv) { -%>
+- [[governance/invariants/<%= inv %>]]
+<% }); -%>
