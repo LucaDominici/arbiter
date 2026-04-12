@@ -31,6 +31,11 @@ program
     "Preview what would be generated without writing files",
     false,
   )
+  .option(
+    "--obsidian",
+    "Generate optional Obsidian vault at docs/vault/",
+    false,
+  )
   .action(
     async (opts: {
       yes: boolean;
@@ -38,6 +43,7 @@ program
       level?: string;
       dir?: string;
       dryRun: boolean;
+      obsidian: boolean;
     }) => {
       await runInit({
         yes: opts.yes,
@@ -45,6 +51,7 @@ program
         level: opts.level,
         dir: opts.dir,
         dryRun: opts.dryRun,
+        obsidian: opts.obsidian,
       });
     },
   );

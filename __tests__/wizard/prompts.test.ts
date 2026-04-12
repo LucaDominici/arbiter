@@ -141,6 +141,7 @@ describe("runWizard greenfield flow", () => {
         tools: ["claude"],
         governanceLevel: "L2",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
@@ -156,6 +157,7 @@ describe("runWizard greenfield flow", () => {
         tools: ["claude"],
         governanceLevel: "L2",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: false });
 
     const result = await runWizard(makeWizardInput());
@@ -169,6 +171,7 @@ describe("runWizard greenfield flow", () => {
         tools: [],
         governanceLevel: "L1",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
@@ -190,6 +193,7 @@ describe("runWizard brownfield flow", () => {
         tools: ["claude"],
         governanceLevel: "L2",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput(existing));
@@ -206,6 +210,7 @@ describe("runWizard brownfield flow", () => {
         tools: ["claude"],
         governanceLevel: "L2",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: false });
 
     const result = await runWizard(makeWizardInput(existing));
@@ -226,6 +231,7 @@ describe("runWizard invariant preset selection", () => {
         governanceLevel: "L1",
         invariantPreset: "essential",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
@@ -243,6 +249,7 @@ describe("runWizard invariant preset selection", () => {
         governanceLevel: "L3",
         invariantPreset: "full",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
@@ -259,6 +266,7 @@ describe("runWizard invariant preset selection", () => {
         governanceLevel: "L2",
         invariantPreset: "essential",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
@@ -276,6 +284,7 @@ describe("runWizard invariant preset selection", () => {
         governanceLevel: "L2",
         // no invariantPreset
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
@@ -290,6 +299,7 @@ describe("runWizard invariant preset selection", () => {
         tools: ["claude"],
         governanceLevel: "L1",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
@@ -303,6 +313,7 @@ describe("runWizard invariant preset selection", () => {
         tools: ["claude"],
         governanceLevel: "L3",
       })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
       .mockResolvedValueOnce({ confirm: true });
 
     const result = await runWizard(makeWizardInput());
