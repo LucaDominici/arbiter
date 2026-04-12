@@ -69,4 +69,65 @@ describe("detectModules", () => {
     const mods = detectModules(join(dir, "nope"), "typescript");
     expect(mods).toEqual([]);
   });
+
+  it("go: uses subdir fallback", () => {
+    mkdirSync(join(dir, "backend"), { recursive: true });
+    const mods = detectModules(dir, "go");
+    expect(mods.map((m) => m.name)).toContain("backend");
+    expect(mods[0]?.language).toBe("go");
+  });
+
+  it("rust: uses subdir fallback", () => {
+    mkdirSync(join(dir, "src"), { recursive: true });
+    const mods = detectModules(dir, "rust");
+    expect(mods.map((m) => m.name)).toContain("src");
+    expect(mods[0]?.language).toBe("rust");
+  });
+
+  it("python: uses subdir fallback", () => {
+    mkdirSync(join(dir, "lib"), { recursive: true });
+    const mods = detectModules(dir, "python");
+    expect(mods.map((m) => m.name)).toContain("lib");
+    expect(mods[0]?.language).toBe("python");
+  });
+
+  it("typescript: handles workspaces as object with packages key", () => {
+    mkdirSync(join(dir, "packages", "pkg-a"), { recursive: true });
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({
+        name: "root",
+        workspaces: { packages: ["packages/*"] },
+      }),
+    );
+    writeFileSync(
+      join(dir, "packages/pkg-a/package.json"),
+      JSON.stringify({ name: "pkg-a" }),
+    );
+    const mods = detectModules(dir, "typescript");
+    expect(mods.map((m) => m.name)).toContain("pkg-a");
+  });
+
+  it("typescript: falls through to subdir fallback on malformed package.json", () => {
+    writeFileSync(join(dir, "package.json"), "{ not valid json");
+    mkdirSync(join(dir, "src"), { recursive: true });
+    const mods = detectModules(dir, "typescript");
+    expect(mods.map((m) => m.name)).toContain("src");
+  });
+
+  it("java: detects multi-module from Maven pom.xml", () => {
+    writeFileSync(
+      join(dir, "pom.xml"),
+      `<project><modules><module>core</module><module>api</module></modules></project>`,
+    );
+    const mods = detectModules(dir, "java");
+    expect(mods.map((m) => m.name).sort()).toEqual(["api", "core"]);
+    expect(mods[0]?.kind).toBe("maven-module");
+  });
+
+  it("java: falls back to subdirs when no build file", () => {
+    mkdirSync(join(dir, "backend"), { recursive: true });
+    const mods = detectModules(dir, "java");
+    expect(mods.map((m) => m.name)).toContain("backend");
+  });
 });

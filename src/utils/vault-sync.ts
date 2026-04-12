@@ -4,10 +4,6 @@ import type { WriteResult } from "./fs.js";
 
 const MARKER_RE = /<!--\s*arbiter:generated[^>]*-->/;
 
-export function isGeneratedFile(content: string): boolean {
-  return MARKER_RE.test(content);
-}
-
 export function writeVaultFile(
   filePath: string,
   content: string,
@@ -20,7 +16,7 @@ export function writeVaultFile(
   }
 
   const existing = readFileSync(filePath, "utf-8");
-  if (!opts.force && !isGeneratedFile(existing)) {
+  if (!opts.force && !MARKER_RE.test(existing)) {
     return { path: filePath, action: "skipped" };
   }
 
