@@ -109,16 +109,34 @@ worktree
   .option("--force", "Close even if branch is unmerged or hook fails", false)
   .option("--keep-branch", "Do not delete the task branch after closing", false)
   .option("--no-fetch", "Skip git fetch before the merge check", false)
+  .option(
+    "--harvest",
+    "Copy modified/untracked files back to main repo before closing",
+    false,
+  )
+  .option(
+    "--harvest-all",
+    "Harvest all files and skip merge check (implies --force for cleanup)",
+    false,
+  )
   .action(
     (
       taskId: string,
-      opts: { force: boolean; keepBranch: boolean; fetch: boolean },
+      opts: {
+        force: boolean;
+        keepBranch: boolean;
+        fetch: boolean;
+        harvest: boolean;
+        harvestAll: boolean;
+      },
     ) => {
       runWorktreeClose({
         taskId,
         force: opts.force,
         keepBranch: opts.keepBranch,
         noFetch: !opts.fetch,
+        harvest: opts.harvest,
+        harvestAll: opts.harvestAll,
       });
     },
   );

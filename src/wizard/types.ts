@@ -54,6 +54,8 @@ export interface WorktreeLinkSpec {
   template?: string;
   /** How to materialize the link (default: "symlink") */
   strategy?: WorktreeLinkStrategy;
+  /** Whether this is a file or directory link (default: "file") */
+  type?: "file" | "directory";
 }
 
 export interface WorktreeConfig {

@@ -133,3 +133,81 @@ describe("checkLinkIntegrity", () => {
     expect(dangling).toHaveLength(0);
   });
 });
+
+describe("materializeLink — directory type", () => {
+  it("returns LINKED_DIR and creates a symlink when type is directory and source exists", () => {
+    mkdirSync(join(mainRepo, "node_modules", "pkg"), { recursive: true });
+    writeFileSync(
+      join(mainRepo, "node_modules", "pkg", "index.js"),
+      "module.exports = {}",
+    );
+    writeFileSync(join(mainRepo, "node_modules", "marker.txt"), "exists");
+
+    const spec: WorktreeLinkSpec = { path: "node_modules", type: "directory" };
+    const result = materializeLink(spec, mainRepo, worktree);
+
+    expect(result.result).toBe("LINKED_DIR");
+    const linkPath = join(worktree, "node_modules");
+    expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(linkPath)).toBe(resolve(mainRepo, "node_modules"));
+  });
+
+  it("returns COPIED_DIR and copies recursively when type is directory and strategy is copy", () => {
+    mkdirSync(join(mainRepo, "node_modules", "pkg"), { recursive: true });
+    writeFileSync(
+      join(mainRepo, "node_modules", "pkg", "index.js"),
+      "module.exports = {}",
+    );
+
+    const spec: WorktreeLinkSpec = {
+      path: "node_modules",
+      type: "directory",
+      strategy: "copy",
+    };
+    const result = materializeLink(spec, mainRepo, worktree);
+
+    expect(result.result).toBe("COPIED_DIR");
+    const copiedPath = join(worktree, "node_modules");
+    expect(lstatSync(copiedPath).isSymbolicLink()).toBe(false);
+    expect(existsSync(join(copiedPath, "pkg", "index.js"))).toBe(true);
+  });
+
+  it("returns MISSING when type is directory, source absent, and required is falsy", () => {
+    const spec: WorktreeLinkSpec = {
+      path: "node_modules",
+      type: "directory",
+      required: false,
+    };
+    const result = materializeLink(spec, mainRepo, worktree);
+    expect(result.result).toBe("MISSING");
+  });
+
+  it("throws when type is directory, source absent, and required is true", () => {
+    const spec: WorktreeLinkSpec = {
+      path: "node_modules",
+      type: "directory",
+      required: true,
+    };
+    expect(() => materializeLink(spec, mainRepo, worktree)).toThrow(
+      /required directory missing/i,
+    );
+  });
+
+  it("throws when type is directory but source is a file, not a directory", () => {
+    writeFileSync(join(mainRepo, "node_modules"), "not a directory");
+    const spec: WorktreeLinkSpec = { path: "node_modules", type: "directory" };
+    expect(() => materializeLink(spec, mainRepo, worktree)).toThrow(
+      /expected directory/i,
+    );
+  });
+
+  it("is idempotent — skips if destination already exists (directory symlink)", () => {
+    mkdirSync(join(mainRepo, "node_modules"), { recursive: true });
+    writeFileSync(join(mainRepo, "node_modules", "marker.txt"), "exists");
+
+    const spec: WorktreeLinkSpec = { path: "node_modules", type: "directory" };
+    materializeLink(spec, mainRepo, worktree); // first call
+    const result = materializeLink(spec, mainRepo, worktree); // second call
+    expect(result.result).toBe("LINKED_DIR");
+  });
+});
