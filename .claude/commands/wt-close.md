@@ -30,15 +30,22 @@ Close a git worktree and optionally harvest files back to the main repo.
 3. After the command succeeds, switch back to the main repo:
 
    ```bash
-   cd <main-repo-path>
+   cd $(git rev-parse --show-toplevel)
    ```
 
-   The main repo path can be found via `git rev-parse --show-toplevel` or from the worktree open log.
+   Or use the path from the worktree open log at `.arbiter/worktree-open.log.json`.
 
 4. Print a summary:
    - If harvest was used: list of harvested files (copied) and skipped files (conflicts)
    - Worktree closed path
    - Branch deletion status
+
+## Error Handling
+
+- **"No open worktree found for task"**: The task has no open worktree. Run `arbiter wt list` to see existing worktrees.
+- **"Worktree has uncommitted changes"**: Either commit/stash changes in the worktree, or use `--force` to close anyway, or use `--harvest-all` to copy changes back first.
+- **"Branch has not been merged"**: The branch hasn't been merged into the base branch. Use `--harvest-all` to copy files back, or `/complete-task` to merge the branch first, or `--force` to close anyway (uncommitted work will be lost).
+- **"Must run from the main repository"**: `cd` back to the main repo first.
 
 ## Allowed Tools
 
