@@ -5,6 +5,7 @@ import {
   writeFileSync,
   existsSync,
   readFileSync,
+  mkdirSync,
 } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -299,5 +300,101 @@ describe("runWorktreeClose", () => {
     // Close the second — must skip the stale first entry and find the second
     runWorktreeClose({ taskId: "#999", cwd: repoRoot, noFetch: true });
     expect(existsSync(join(worktreesDir, "#999-second"))).toBe(false);
+  });
+});
+
+describe("runWorktreeClose --harvest", () => {
+  it("harvests modified files back to main repo before closing", () => {
+    runWorktreeOpen({
+      taskId: "#888",
+      slug: "harvest",
+      cwd: repoRoot,
+      worktreesDir,
+    });
+    const wtPath = join(worktreesDir, "#888-harvest");
+
+    // Create a tracked file in main repo and commit it
+    mkdirSync(join(repoRoot, "src"), { recursive: true });
+    writeFileSync(join(repoRoot, "src/app.ts"), "original");
+    execFileSync("git", ["add", "."], { cwd: repoRoot, stdio: "ignore" });
+    execFileSync("git", ["commit", "-m", "add app.ts"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+
+    // Pull the commit into the worktree branch
+    execFileSync("git", ["merge", "main"], { cwd: wtPath, stdio: "ignore" });
+
+    // Modify the file in the worktree (unstaged)
+    writeFileSync(join(wtPath, "src/app.ts"), "modified-in-wt");
+
+    // Use harvestAll to skip merge check (branch isn't merged)
+    const harvested: string[] = [];
+    runWorktreeClose({
+      taskId: "#888",
+      harvestAll: true,
+      cwd: repoRoot,
+      noFetch: true,
+      onHarvestFile: (file, action) => {
+        if (action === "copy") harvested.push(file);
+      },
+    });
+
+    expect(harvested).toContain("src/app.ts");
+    expect(readFileSync(join(repoRoot, "src/app.ts"), "utf-8")).toBe(
+      "modified-in-wt",
+    );
+    expect(existsSync(wtPath)).toBe(false);
+  });
+
+  it("harvests new (untracked) files back to main repo", () => {
+    runWorktreeOpen({
+      taskId: "#887",
+      slug: "harvest-new",
+      cwd: repoRoot,
+      worktreesDir,
+    });
+    const wtPath = join(worktreesDir, "#887-harvest-new");
+
+    // Create a new file in the worktree (untracked)
+    mkdirSync(join(wtPath, "src"), { recursive: true });
+    writeFileSync(join(wtPath, "src", "new-feature.ts"), "new content");
+
+    // Use harvestAll to skip merge check
+    const harvested: string[] = [];
+    runWorktreeClose({
+      taskId: "#887",
+      harvestAll: true,
+      cwd: repoRoot,
+      noFetch: true,
+      onHarvestFile: (file, action) => {
+        if (action === "copy") harvested.push(file);
+      },
+    });
+
+    expect(harvested).toContain("src/new-feature.ts");
+    expect(existsSync(join(repoRoot, "src", "new-feature.ts"))).toBe(true);
+  });
+
+  it("harvestAll skips merge check", () => {
+    runWorktreeOpen({
+      taskId: "#886",
+      slug: "harvest-force",
+      cwd: repoRoot,
+      worktreesDir,
+    });
+    const wtPath = join(worktreesDir, "#886-harvest-force");
+
+    // Don't merge the branch — harvestAll should still close
+    writeFileSync(join(wtPath, "work.txt"), "wip");
+
+    runWorktreeClose({
+      taskId: "#886",
+      harvestAll: true,
+      cwd: repoRoot,
+      noFetch: true,
+    });
+
+    expect(existsSync(wtPath)).toBe(false);
   });
 });

@@ -233,3 +233,40 @@ describe("runWorktreeList", () => {
     expect(lines.join("\n")).toMatch(/task\/#999-test/);
   });
 });
+
+describe("runWorktreeOpen — node_modules handling", () => {
+  it("symlinks node_modules when it exists in the main repo", () => {
+    mkdirSync(join(repoRoot, "node_modules", "some-pkg"), { recursive: true });
+    writeFileSync(
+      join(repoRoot, "node_modules", "some-pkg", "index.js"),
+      "module.exports = {}",
+    );
+
+    runWorktreeOpen({
+      taskId: "#777",
+      slug: "nodelink",
+      cwd: repoRoot,
+      worktreesDir,
+    });
+
+    const nmLink = join(worktreesDir, "#777-nodelink", "node_modules");
+    expect(existsSync(nmLink)).toBe(true);
+    expect(lstatSync(nmLink).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(nmLink)).toBe(resolve(repoRoot, "node_modules"));
+  });
+
+  it("succeeds when node_modules does not exist (MISSING, not error)", () => {
+    // No node_modules directory in the main repo
+    expect(() =>
+      runWorktreeOpen({
+        taskId: "#776",
+        slug: "nomodules",
+        cwd: repoRoot,
+        worktreesDir,
+      }),
+    ).not.toThrow();
+
+    const nmPath = join(worktreesDir, "#776-nomodules", "node_modules");
+    expect(existsSync(nmPath)).toBe(false);
+  });
+});

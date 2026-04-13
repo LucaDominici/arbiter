@@ -9,6 +9,8 @@ import {
   worktreePathFor,
 } from "../worktree/paths.js";
 import { materializeLink, checkLinkIntegrity } from "../worktree/links.js";
+import { harvestFiles } from "../worktree/harvest.js";
+import type { HarvestOptions } from "../worktree/harvest.js";
 import {
   isRunningFromMainRepo,
   workingTreeDirty,
@@ -23,6 +25,7 @@ import type { WorktreeConfig, WorktreeLinkSpec } from "../wizard/types.js";
 const DEFAULT_LINKS: WorktreeLinkSpec[] = [
   { path: ".claude/settings.local.json", required: false },
   { path: ".env", template: ".env.example", required: false },
+  { path: "node_modules", required: false, type: "directory" },
 ];
 
 function defaultWorktreeConfig(): WorktreeConfig {
@@ -95,6 +98,12 @@ export interface WorktreeCloseOptions {
   cwd?: string;
   /** Receive warning lines instead of printing them (used in tests). */
   onWarning?: (msg: string) => void;
+  /** Copy modified/untracked files from worktree back to main repo before closing. */
+  harvest?: boolean;
+  /** When harvesting, skip merge check (implies --force for cleanup). */
+  harvestAll?: boolean;
+  /** Callback for each harvested file (used in tests). */
+  onHarvestFile?: HarvestOptions["onFile"];
 }
 
 export interface WorktreeListOptions {
@@ -104,16 +113,54 @@ export interface WorktreeListOptions {
 }
 
 // ---------------------------------------------------------------------------
+// open helpers
+// ---------------------------------------------------------------------------
+
+interface LinkSummary {
+  linked: number;
+  linkedDir: number;
+  copied: number;
+  copiedDir: number;
+  missing: number;
+}
+
+function materializeLinks(
+  specs: WorktreeLinkSpec[],
+  gitRoot: string,
+  worktreePath: string,
+): LinkSummary {
+  const summary: LinkSummary = {
+    linked: 0,
+    linkedDir: 0,
+    copied: 0,
+    copiedDir: 0,
+    missing: 0,
+  };
+  for (const spec of specs) {
+    const result = materializeLink(spec, gitRoot, worktreePath);
+    if (result.result === "LINKED") summary.linked++;
+    else if (result.result === "LINKED_DIR") summary.linkedDir++;
+    else if (result.result === "COPIED_TEMPLATE") summary.copied++;
+    else if (result.result === "COPIED_DIR") summary.copiedDir++;
+    else summary.missing++;
+  }
+  return summary;
+}
+
+function printLinkSummary(summary: LinkSummary): void {
+  console.log(
+    `Links:          ${summary.linked} linked, ${summary.linkedDir} linked-dir, ${summary.copied} copied-from-template, ${summary.copiedDir} copied-dir, ${summary.missing} missing`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // open
 // ---------------------------------------------------------------------------
 
 export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
   const cwd = opts.cwd ?? process.cwd();
-
-  // 1. Locate git root
   const gitRoot = getGitRoot(cwd);
 
-  // 2. Must be in a main repo, not a worktree
   if (!isRunningFromMainRepo(gitRoot)) {
     throw new Error(
       "Must run from the main repository, not a worktree. " +
@@ -121,7 +168,6 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     );
   }
 
-  // 3. No dirty working tree
   if (workingTreeDirty(cwd)) {
     throw new Error(
       "Working tree has uncommitted changes. " +
@@ -129,17 +175,14 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     );
   }
 
-  // 4. Sanitise inputs
   const taskId = sanitizeTaskId(opts.taskId);
   const slug = opts.slug;
   const branchName = branchNameFor(taskId, slug);
   const baseBranch = opts.base ?? "main";
 
-  // 5. Load worktree config
   const config = loadConfig(gitRoot);
   const wtConfig = config?.worktree ?? defaultWorktreeConfig();
 
-  // 6. Resolve worktree path
   const worktreeBase = resolveWorktreeBase(
     gitRoot,
     wtConfig.base,
@@ -147,7 +190,6 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
   );
   const worktreePath = worktreePathFor(worktreeBase, taskId, slug);
 
-  // 7. Idempotency guard
   if (existsSync(worktreePath)) {
     throw new Error(
       `Worktree already exists at: ${worktreePath}\n` +
@@ -155,7 +197,6 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     );
   }
 
-  // 8. Verify base branch exists (local ref)
   try {
     runCli("git", ["rev-parse", "--verify", `refs/heads/${baseBranch}`], {
       cwd: gitRoot,
@@ -167,33 +208,19 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     );
   }
 
-  // 9. Get short ref for logging
   const baseRef = runCli("git", ["rev-parse", "--short", baseBranch], {
     cwd: gitRoot,
   }).stdout.trim();
 
-  // 10. Create worktree parent directory + worktree with a new branch
   mkdirSync(worktreeBase, { recursive: true });
   runCli(
     "git",
     ["worktree", "add", "-b", branchName, worktreePath, baseBranch],
-    {
-      cwd: gitRoot,
-    },
+    { cwd: gitRoot },
   );
 
-  // 11. Materialise links
-  let linked = 0;
-  let copied = 0;
-  let missing = 0;
-  for (const spec of wtConfig.links) {
-    const result = materializeLink(spec, gitRoot, worktreePath);
-    if (result.result === "LINKED") linked++;
-    else if (result.result === "COPIED_TEMPLATE") copied++;
-    else missing++;
-  }
+  const linkSummary = materializeLinks(wtConfig.links, gitRoot, worktreePath);
 
-  // 12. Write open log
   const logPath = join(arbiterLogDir(gitRoot), "worktree-open.log.json");
   const entries = readJsonArray(logPath) as OpenLogEntry[];
   entries.push({
@@ -207,13 +234,10 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
   });
   writeJsonArray(logPath, entries);
 
-  // 13. Print result
   console.log(`\nWorktree ready: ${worktreePath}`);
   console.log(`Branch:         ${branchName}`);
   console.log(`Base:           ${baseBranch} @ ${baseRef}`);
-  console.log(
-    `Links:          ${linked} linked, ${copied} copied-from-template, ${missing} missing`,
-  );
+  printLinkSummary(linkSummary);
   console.log(`\nNext:           cd '${worktreePath}'\n`);
 }
 
@@ -285,6 +309,77 @@ function assertBranchMerged(
 }
 
 // ---------------------------------------------------------------------------
+// close helpers
+// ---------------------------------------------------------------------------
+
+function harvestAndReport(
+  worktreePath: string,
+  gitRoot: string,
+  harvestAll: boolean,
+  onHarvestFile?: HarvestOptions["onFile"],
+): void {
+  const harvestOpts: HarvestOptions = {
+    worktreePath,
+    mainRepoPath: gitRoot,
+    autoConfirm: harvestAll,
+  };
+  if (onHarvestFile) {
+    harvestOpts.onFile = onHarvestFile;
+  }
+  const result = harvestFiles(harvestOpts);
+
+  if (result.copied.length > 0) {
+    console.log(`Harvested ${result.copied.length} file(s):`);
+    for (const f of result.copied) {
+      console.log(`  copied: ${f}`);
+    }
+  }
+  if (result.skipped.length > 0) {
+    console.log(
+      `Skipped ${result.skipped.length} file(s) (uncommitted changes in main repo):`,
+    );
+    for (const f of result.skipped) {
+      console.log(`  skipped: ${f}`);
+    }
+  }
+  if (result.copied.length === 0 && result.skipped.length === 0) {
+    console.log("No files to harvest (worktree has no changes).");
+  }
+}
+
+interface CloseValidationParams {
+  worktreePath: string;
+  branch: string;
+  baseBranch: string;
+  gitRoot: string;
+  force: boolean;
+  harvestAll: boolean;
+  noFetch: boolean;
+}
+
+function validateBeforeClose(params: CloseValidationParams): void {
+  const {
+    worktreePath,
+    branch,
+    baseBranch,
+    gitRoot,
+    force,
+    harvestAll,
+    noFetch,
+  } = params;
+  if (workingTreeDirty(worktreePath) && !force && !harvestAll) {
+    throw new Error(
+      `Worktree has uncommitted changes at: ${worktreePath}\n` +
+        "Commit or stash your changes, then retry. Use --force to close anyway.",
+    );
+  }
+
+  if (!harvestAll) {
+    assertBranchMerged(branch, baseBranch, gitRoot, noFetch, force);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // close
 // ---------------------------------------------------------------------------
 
@@ -292,9 +387,11 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   const cwd = opts.cwd ?? process.cwd();
   const force = opts.force ?? false;
   const noFetch = opts.noFetch ?? false;
+  const harvest = opts.harvest ?? false;
+  const harvestAll = opts.harvestAll ?? false;
   const warn =
     opts.onWarning ??
-    ((msg: string) => {
+    ((msg: string): void => {
       console.log(msg);
     });
 
@@ -321,14 +418,19 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   const { worktreePath, branch, baseBranch } = entry;
 
-  if (workingTreeDirty(worktreePath) && !force) {
-    throw new Error(
-      `Worktree has uncommitted changes at: ${worktreePath}\n` +
-        "Commit or stash your changes, then retry. Use --force to close anyway.",
-    );
+  if (harvest || harvestAll) {
+    harvestAndReport(worktreePath, gitRoot, harvestAll, opts.onHarvestFile);
   }
 
-  assertBranchMerged(branch, baseBranch, gitRoot, noFetch, force);
+  validateBeforeClose({
+    worktreePath,
+    branch,
+    baseBranch,
+    gitRoot,
+    force,
+    harvestAll,
+    noFetch,
+  });
 
   const config = loadConfig(gitRoot);
   const wtConfig = config?.worktree ?? defaultWorktreeConfig();
@@ -372,7 +474,7 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
   const cwd = opts.cwd ?? process.cwd();
   const emit =
     opts.onLine ??
-    ((line: string) => {
+    ((line: string): void => {
       console.log(line);
     });
   const gitRoot = getGitRoot(cwd);
