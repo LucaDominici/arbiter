@@ -276,23 +276,26 @@ arbiter wt close <task-id> [options]
 
 **Options:**
 
-| Flag            | Type    | Default | Description                                      |
-| --------------- | ------- | ------- | ------------------------------------------------ |
-| `--force`       | boolean | `false` | Close even if branch is unmerged or a hook fails |
-| `--keep-branch` | boolean | `false` | Do not delete the task branch after closing      |
-| `--no-fetch`    | boolean | `false` | Skip `git fetch origin` before the merge check   |
+| Flag            | Type    | Default | Description                                                                                    |
+| --------------- | ------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `--force`       | boolean | `false` | Close even if branch is unmerged or a hook fails                                               |
+| `--keep-branch` | boolean | `false` | Do not delete the task branch after closing                                                    |
+| `--no-fetch`    | boolean | `false` | Skip `git fetch origin` before the merge check                                                 |
+| `--harvest`     | boolean | `false` | Copy modified/untracked files from worktree back to main repo before closing                   |
+| `--harvest-all` | boolean | `false` | Like `--harvest` but auto-confirms all files and skips merge check (implies force for cleanup) |
 
 **Sequence:**
 
 1. Locate the first open-log entry for the task whose worktree directory still exists (skips entries for worktrees that were already closed — important when multiple worktrees share a task id)
 2. Verify the worktree directory exists
 3. Refuse if the worktree has uncommitted changes (bypassed by `--force`)
-4. Refuse if the branch has not been merged into `origin/<base>` (bypassed by `--force`)
+4. Refuse if the branch has not been merged into `origin/<base>` (bypassed by `--force`; skipped entirely by `--harvest-all`)
 5. Warn about dangling symlinks (never throws)
 6. Run `arbiter.json::worktree.closeHook` if configured; non-zero exit aborts (bypassed by `--force`)
-7. `git worktree remove --force` + `git worktree prune`
-8. Delete the task branch (skipped with `--keep-branch`)
-9. Append a structured entry to `.arbiter/worktree-close.log.json`
+7. If `--harvest` or `--harvest-all`: copy modified and untracked files from the worktree back to the main repo. Files that conflict with uncommitted changes in the main repo are skipped (not overwritten). `--harvest-all` auto-confirms all files without prompting.
+8. `git worktree remove --force` + `git worktree prune`
+9. Delete the task branch (skipped with `--keep-branch`)
+10. Append a structured entry to `.arbiter/worktree-close.log.json`
 
 ---
 
@@ -319,7 +322,8 @@ The optional `worktree` key controls placement and symlink behaviour:
     "base": null,
     "links": [
       { "path": ".claude/settings.local.json", "required": false },
-      { "path": ".env", "template": ".env.example", "required": false }
+      { "path": ".env", "template": ".env.example", "required": false },
+      { "path": "node_modules", "required": false, "type": "directory" }
     ],
     "closeHook": null
   }
@@ -334,12 +338,13 @@ The optional `worktree` key controls placement and symlink behaviour:
 
 **LinkSpec fields:**
 
-| Field      | Type                | Default     | Description                                               |
-| ---------- | ------------------- | ----------- | --------------------------------------------------------- |
-| `path`     | string              | —           | Relative path within the repo                             |
-| `required` | boolean             | `false`     | If `true`, throws when source is absent                   |
-| `template` | string              | —           | Fallback source path if `path` is absent in the main repo |
-| `strategy` | `"symlink"\|"copy"` | `"symlink"` | How to materialise the file in the worktree               |
+| Field      | Type                  | Default     | Description                                               |
+| ---------- | --------------------- | ----------- | --------------------------------------------------------- |
+| `path`     | string                | —           | Relative path within the repo                             |
+| `required` | boolean               | `false`     | If `true`, throws when source is absent                   |
+| `template` | string                | —           | Fallback source path if `path` is absent in the main repo |
+| `strategy` | `"symlink"\|"copy"`   | `"symlink"` | How to materialise the file in the worktree               |
+| `type`     | `"file"\|"directory"` | `"file"`    | Whether `path` is a single file or a directory            |
 
 **Environment variable override:**
 
@@ -361,7 +366,8 @@ Persisted config written by `arbiter init`, read by `arbiter update` and `arbite
     "base": null,
     "links": [
       { "path": ".claude/settings.local.json", "required": false },
-      { "path": ".env", "template": ".env.example", "required": false }
+      { "path": ".env", "template": ".env.example", "required": false },
+      { "path": "node_modules", "required": false, "type": "directory" }
     ],
     "closeHook": null
   }
