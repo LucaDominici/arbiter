@@ -3,3 +3,9 @@ dist/
 *.log
 .env
 coverage/
+
+# Claude Code local settings (user-specific permissions)
+.claude/settings.local.json
+
+# Arbiter worktree logs
+.arbiter/
