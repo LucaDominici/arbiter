@@ -154,6 +154,102 @@ If `gh` is unavailable or not authenticated, GitHub setup is skipped with a diag
 
 ---
 
+## `arbiter verify`
+
+Probe toolchain compatibility for the detected project stack. Reads the project directory, detects the language (TypeScript, Java, Rust, Go, or Python), and checks that the installed tool versions fall within Arbiter's supported ranges.
+
+```
+arbiter verify [options]
+```
+
+**Options:**
+
+| Flag           | Type    | Default | Description                                       |
+| -------------- | ------- | ------- | ------------------------------------------------- |
+| `--dir <path>` | string  | `cwd`   | Target directory to detect the stack from         |
+| `--json`       | boolean | `false` | Emit JSON report instead of human-readable output |
+
+**Exit codes:**
+
+| Code | Meaning                                                     |
+| ---- | ----------------------------------------------------------- |
+| 0    | All probes passed or skipped (toolchain not installed)      |
+| 1    | One or more probes failed (version outside supported range) |
+
+**Probe states:**
+
+| State     | Meaning                                                              |
+| --------- | -------------------------------------------------------------------- |
+| `passed`  | Tool installed; version within supported range                       |
+| `skipped` | Tool not found on PATH (toolchain not installed — not a fatal error) |
+| `failed`  | Tool installed but version is outside the supported range            |
+
+**Example output (text):**
+
+```
+arbiter verify — stack: typescript  dir: /projects/my-app
+
+  [passed] node  20.11.1
+  [passed] npm  10.2.4
+
+Result: OK
+```
+
+```
+arbiter verify — stack: java  dir: /projects/my-app
+
+  [passed] java  21.0.1
+  [skipped] gradle  (toolchain-missing)
+  [failed] mvn  (version 3.6 outside >=3.8)
+
+Result: FAIL
+```
+
+**Example output (JSON):**
+
+```bash
+arbiter verify --json
+```
+
+```json
+{
+  "dir": "/projects/my-app",
+  "stack": "typescript",
+  "probes": [
+    {
+      "tool": "node",
+      "status": "passed",
+      "version": { "major": 20, "minor": 11, "patch": 1 }
+    },
+    {
+      "tool": "npm",
+      "status": "passed",
+      "version": { "major": 10, "minor": 2, "patch": 4 }
+    }
+  ],
+  "hasFailures": false
+}
+```
+
+**Supported version ranges:**
+
+| Stack      | Tool      | Minimum  |
+| ---------- | --------- | -------- |
+| TypeScript | `node`    | `>=18`   |
+| TypeScript | `npm`     | `>=9`    |
+| Java       | `java`    | `>=17`   |
+| Java       | `gradle`  | `>=7`    |
+| Java       | `mvn`     | `>=3.8`  |
+| Rust       | `rustc`   | `>=1.70` |
+| Rust       | `cargo`   | `>=1.70` |
+| Go         | `go`      | `>=1.21` |
+| Python     | `python3` | `>=3.10` |
+| Python     | `pip`     | `>=22`   |
+
+Ranges are checked at major.minor granularity. Patch version is not enforced.
+
+---
+
 ## `arbiter update`
 
 Re-generate governance files using stored config from `arbiter.json`. Run after upgrading arbiter to pick up template improvements.
