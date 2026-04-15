@@ -90,4 +90,92 @@ describe("generateArchUnit", () => {
     );
     expect(secondFile?.action).toBe("skipped");
   });
+
+  // ── architecture-style gate (ADR-021 / C2 fix) ───────────────────────────────
+
+  it("does NOT generate ArchitectureTest.java when architectureStyle is 'none'", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "none",
+    });
+    const result = generateArchUnit(config);
+    const archTest = result.files.find((f) =>
+      f.path.endsWith("ArchitectureTest.java"),
+    );
+    expect(archTest).toBeUndefined();
+  });
+
+  it("generates ArchitectureTest.java with hexagonal rules when architectureStyle is 'hexagonal'", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+    });
+    const result = generateArchUnit(config);
+    const archTest = result.files.find((f) =>
+      f.path.endsWith("ArchitectureTest.java"),
+    );
+    expect(archTest).toBeDefined();
+    const content = readFileSync(archTest!.path, "utf-8");
+    expect(content).toContain("domain_must_not_depend_on_infrastructure");
+    expect(content).toContain("adapters_must_not_depend_on_each_other");
+  });
+
+  it("generates ArchitectureTest.java with layered rules when architectureStyle is 'layered'", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "layered",
+    });
+    const result = generateArchUnit(config);
+    const archTest = result.files.find((f) =>
+      f.path.endsWith("ArchitectureTest.java"),
+    );
+    expect(archTest).toBeDefined();
+    const content = readFileSync(archTest!.path, "utf-8");
+    expect(content).toContain("repositories_must_not_depend_on_services");
+    expect(content).toContain("services_must_not_depend_on_controllers");
+  });
+
+  it("generates ArchitectureTest.java with modular-monolith rules when architectureStyle is 'modular-monolith'", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "modular-monolith",
+    });
+    const result = generateArchUnit(config);
+    const archTest = result.files.find((f) =>
+      f.path.endsWith("ArchitectureTest.java"),
+    );
+    expect(archTest).toBeDefined();
+    const content = readFileSync(archTest!.path, "utf-8");
+    expect(content).toContain("no_cross_module_internal_access");
+  });
+
+  it("always generates NoMockMvcTest.java regardless of architectureStyle", () => {
+    for (const style of [
+      "none",
+      "hexagonal",
+      "layered",
+      "modular-monolith",
+    ] as const) {
+      const styleDir = createTestProject("java");
+      try {
+        const config = makeConfig(styleDir, {
+          language: "java",
+          buildTool: "gradle",
+          architectureStyle: style,
+        });
+        const result = generateArchUnit(config);
+        const noMockMvc = result.files.find((f) =>
+          f.path.endsWith("NoMockMvcTest.java"),
+        );
+        expect(noMockMvc).toBeDefined();
+        expect(noMockMvc!.action).toBe("created");
+      } finally {
+        cleanupTestProject(styleDir);
+      }
+    }
+  });
 });
