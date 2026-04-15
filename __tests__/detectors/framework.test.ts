@@ -143,8 +143,8 @@ describe("detectFramework", () => {
       expect(detectFramework(dir, "rust")).toBe("tauri");
     });
 
-    it("returns rust when no src-tauri", () => {
-      expect(detectFramework(dir, "rust")).toBe("rust");
+    it("returns null when no src-tauri", () => {
+      expect(detectFramework(dir, "rust")).toBeNull();
     });
   });
 
@@ -253,7 +253,7 @@ describe("detectArchetypeHint", () => {
     });
 
     it("rust with unmapped framework falls back to library", () => {
-      expect(detectArchetypeHint(ANY_DIR, "rust", "rust")).toBe("library");
+      expect(detectArchetypeHint(ANY_DIR, "rust", "actix-web")).toBe("library");
     });
   });
 
