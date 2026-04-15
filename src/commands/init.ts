@@ -390,7 +390,17 @@ function parseLevel(level: string | undefined): GovernanceLevel {
 
 function runToolchainVerify(targetDir: string): void {
   console.log("\n  Verifying toolchain compatibility...");
-  const report = runProbes(targetDir);
+  let report: ReturnType<typeof runProbes>;
+  try {
+    report = runProbes(targetDir);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `\n  Toolchain verification failed unexpectedly: ${msg}\n` +
+        "  Generated files are on disk. Use --no-verify to skip verification.\n",
+    );
+    process.exit(1);
+  }
   console.log(formatText(report));
   if (report.hasFailures) {
     console.error(

@@ -1,6 +1,6 @@
 import type { ProbeResult, VerifyReport } from "./schema.js";
 
-const REMEDIATION: Record<string, string> = {
+const REMEDIATION: Partial<Record<string, string>> = {
   node: "Upgrade Node.js: https://nodejs.org/en/download",
   npm: "Upgrade npm: npm install -g npm",
   java: "Upgrade JDK: https://adoptium.net",
@@ -12,7 +12,7 @@ const REMEDIATION: Record<string, string> = {
   python3: "Upgrade Python: https://python.org/downloads",
   pip: "Upgrade pip: python3 -m pip install --upgrade pip",
   ruff: "Install/upgrade ruff: pip install --upgrade ruff",
-  kotlin: "Upgrade Kotlin: https://kotlinlang.org/docs/releases.html",
+  kotlinc: "Upgrade Kotlin: https://kotlinlang.org/docs/releases.html",
   "gradlew:help":
     "Check Gradle wrapper version: ./gradlew wrapper --gradle-version=X",
   "tsc:noEmit":

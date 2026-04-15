@@ -14,7 +14,6 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -208,10 +207,15 @@ async function main() {
 
   console.log("Fetching latest stable versions...");
   const latestMap = {};
-  await Promise.allSettled(
+  await Promise.all(
     [...tools].map(async (tool) => {
       const fetcher = TOOL_FETCHERS[tool];
-      if (!fetcher) return;
+      if (!fetcher) {
+        console.warn(
+          `  ${tool}: no fetcher registered — skipped (add to TOOL_FETCHERS)`,
+        );
+        return;
+      }
       try {
         latestMap[tool] = await fetcher();
         console.log(

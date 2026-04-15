@@ -49,7 +49,7 @@ const TOOL_SPECS: Record<string, ToolSpec> = {
   },
   pip: { args: ["--version"], channel: "stdout", parse: parsePipVersion },
   ruff: { args: ["--version"], channel: "stdout", parse: parseRuffVersion },
-  kotlin: {
+  kotlinc: {
     args: ["-version"],
     channel: "stderr",
     parse: parseKotlinVersion,
