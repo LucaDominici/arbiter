@@ -53,6 +53,8 @@ export function runUpdate(options: UpdateOptions): void {
     stored.archetype ??
     detectArchetypeHint(targetDir, language, framework) ??
     "library";
+  const architectureStyle = stored.architectureStyle ?? "none";
+  const isMultiTenant = stored.isMultiTenant ?? false;
   const hasDatabase =
     stored.hasDatabase ??
     (archetype === "backend-web-db" || archetype === "data-pipeline");
@@ -65,8 +67,8 @@ export function runUpdate(options: UpdateOptions): void {
     language,
     framework,
     archetype,
-    architectureStyle: stored.architectureStyle ?? "none",
-    isMultiTenant: stored.isMultiTenant ?? false,
+    architectureStyle,
+    isMultiTenant,
     hasDatabase,
     hasPublicApi,
     buildTool: buildCmds.buildTool,
@@ -102,6 +104,14 @@ export function runUpdate(options: UpdateOptions): void {
 
   runGithubSetup(config);
 
-  saveConfig(targetDir, { ...stored, useGitHub });
+  saveConfig(targetDir, {
+    ...stored,
+    useGitHub,
+    archetype,
+    architectureStyle,
+    isMultiTenant,
+    hasDatabase,
+    hasPublicApi,
+  });
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
 }
