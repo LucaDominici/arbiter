@@ -16,6 +16,7 @@ export interface ArbiterConfig {
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
   enableDebtGates?: boolean;
+  enableSuppressions?: boolean;
   invariantTiers?: InvariantTier[];
   worktree?: WorktreeConfig;
   /** Whether the Obsidian vault generator ran during init. Used by `arbiter obsidian` sync. */

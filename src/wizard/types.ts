@@ -151,6 +151,8 @@ export interface ProjectConfig {
   languageHooks: LanguageHook[];
   /** Whether to generate tech debt prevention gates (coverage, complexity, dead code). Defaults to true for L2+. */
   enableDebtGates: boolean;
+  /** Whether to generate suppression templates and the check-suppressions.mjs expiry gate. Defaults to true for all governance levels. */
+  enableSuppressions: boolean;
   /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */
   invariantTiers: InvariantTier[];
   /** Base Java package (e.g. "com.example.myapp"). Detected from pom.xml/build.gradle for Java projects. */

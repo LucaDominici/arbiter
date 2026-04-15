@@ -429,6 +429,23 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "hook (check-no-mockmvc.mjs) + ArchUnit (NoMockMvcTest.java) + policy",
   },
 
+  // ─── Governance: Suppression Expiry ─────────────────────────────────────────
+
+  {
+    id: "INV-31",
+    tier: "governance",
+    title: "Suppressions must have mandatory expiry",
+    description:
+      "Every suppression entry in dependency-check-suppressions.xml, .gitleaksignore, " +
+      "pii-allowlist.json, and archunit-baseline.json must carry four mandatory metadata " +
+      "fields: reason (≥10 chars), owner (@github-handle), expiresAt (ISO date), and scope. " +
+      "Entries with a past expiresAt block the L1 gate. There are no permanent suppressions — " +
+      "waivers must be renewed or removed when the underlying issue is resolved.",
+    alwaysActive: true,
+    enforcement:
+      "CI gate (scripts/check-suppressions.mjs — L1) + pre-commit hook",
+  },
+
   {
     id: "INV-30",
     tier: "operational",

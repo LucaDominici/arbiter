@@ -51,6 +51,10 @@ runCheck('format', 'ruff', ['format', '--check', '.']);
 runCheck('unit tests', 'pytest', []);
 <% } %>
 
+<% if (enableSuppressions) { %>
+// ─── L1: Suppression expiry ───────────────────────────────────────────────────
+runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
+<% } %>
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 <% if (language === 'typescript') { %>

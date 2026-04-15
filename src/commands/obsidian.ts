@@ -99,6 +99,7 @@ function buildProjectConfig(
     existing,
     languageHooks: getLanguageHooks(language),
     enableDebtGates: stored?.enableDebtGates ?? governanceLevel !== "L1",
+    enableSuppressions: stored?.enableSuppressions !== false,
     invariantTiers:
       stored?.invariantTiers ??
       presetToTiers(defaultPresetForLevel(governanceLevel)),

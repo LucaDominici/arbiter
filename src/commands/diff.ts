@@ -131,6 +131,7 @@ function buildDiffConfig(
     existing,
     languageHooks: getLanguageHooks(language),
     enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
+    enableSuppressions: stored.enableSuppressions !== false,
     invariantTiers:
       stored.invariantTiers ??
       presetToTiers(defaultPresetForLevel(stored.governanceLevel)),

@@ -26,6 +26,7 @@ import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
+import { generateSuppressions } from "../generators/suppressions.js";
 import { generateArchUnit } from "../generators/archunit.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
@@ -191,6 +192,10 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
     all.push(...generateDebtRatchet(config).files);
   }
 
+  if (config.enableSuppressions) {
+    all.push(...generateSuppressions(config).files);
+  }
+
   all.push(...generateArchUnit(config).files);
 
   all.push(...generateSsot(config).files);
@@ -344,6 +349,7 @@ function buildDefaultConfig(opts: {
     existing: opts.existing,
     languageHooks: getLanguageHooks(opts.language),
     enableDebtGates: opts.governanceLevel !== "L1",
+    enableSuppressions: true,
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
     ...detectedBasePackage(opts.language, opts.targetDir),
