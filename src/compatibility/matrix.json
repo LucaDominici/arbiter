@@ -1,0 +1,20 @@
+{
+  "typescript": [
+    { "tool": "node", "range": ">=18" },
+    { "tool": "npm", "range": ">=9" }
+  ],
+  "java": [
+    { "tool": "java", "range": ">=17" },
+    { "tool": "gradle", "range": ">=7" },
+    { "tool": "mvn", "range": ">=3.8" }
+  ],
+  "rust": [
+    { "tool": "rustc", "range": ">=1.70" },
+    { "tool": "cargo", "range": ">=1.70" }
+  ],
+  "go": [{ "tool": "go", "range": ">=1.21" }],
+  "python": [
+    { "tool": "python3", "range": ">=3.10" },
+    { "tool": "pip", "range": ">=22" }
+  ]
+}
