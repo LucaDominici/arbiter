@@ -193,7 +193,7 @@ const TOOL_FETCHERS = {
   python3: latestPython,
   pip: latestPip,
   ruff: latestRuff,
-  kotlin: latestKotlin,
+  kotlinc: latestKotlin,
 };
 
 async function main() {
