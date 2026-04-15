@@ -19,6 +19,7 @@ arbiter init [options]
 | `--level <level>` | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`                 |
 | `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory)         |
 | `--dry-run`       | boolean | `false`        | Preview what would be generated without writing files |
+| `--no-verify`     | boolean | `false`        | Skip toolchain compatibility probes after generation  |
 | `-h, --help`      | —       | —              | Show help                                             |
 
 **Examples:**
@@ -42,6 +43,9 @@ arbiter init --yes --tools claude,codex,cursor,copilot --level L3
 # Preview what would be generated without writing any files
 arbiter init --dry-run
 arbiter init --yes --dry-run --tools claude --level L2
+
+# Skip toolchain probe (CI or incomplete dev environment)
+arbiter init --yes --no-verify
 ```
 
 **Wizard flows:**
@@ -156,7 +160,9 @@ If `gh` is unavailable or not authenticated, GitHub setup is skipped with a diag
 
 ## `arbiter verify`
 
-Probe toolchain compatibility for the detected project stack. Reads the project directory, detects the language (TypeScript, Java, Rust, Go, or Python), and checks that the installed tool versions fall within Arbiter's supported ranges.
+Probe toolchain compatibility for the detected project stack. Reads the project directory, detects the language (TypeScript, Java, Rust, Go, or Python), and checks that the installed tool versions fall within Arbiter's supported ranges. Also runs a per-stack build invocation probe to confirm the build toolchain is functional.
+
+`arbiter verify` runs automatically after `arbiter init` unless `--no-verify` is passed.
 
 ```
 arbiter verify [options]
@@ -183,6 +189,29 @@ arbiter verify [options]
 | `passed`  | Tool installed; version within supported range                       |
 | `skipped` | Tool not found on PATH (toolchain not installed — not a fatal error) |
 | `failed`  | Tool installed but version is outside the supported range            |
+
+**Build probes:**
+
+After version probes, `arbiter verify` runs a build invocation probe in the target directory to confirm the build toolchain works end-to-end.
+
+| Stack      | Build probe    | Command                    | File guard      |
+| ---------- | -------------- | -------------------------- | --------------- |
+| TypeScript | `tsc:noEmit`   | `npx tsc --noEmit`         | `tsconfig.json` |
+| Java       | `gradlew:help` | `./gradlew help --offline` | `gradlew`       |
+| Rust       | `cargo:check`  | `cargo check`              | `Cargo.toml`    |
+| Go         | `go:build`     | `go build -n ./...`        | `go.mod`        |
+| Python     | `ruff:version` | `ruff --version`           | (always run)    |
+
+Build probes use `kind: "build"` in the JSON report. A missing file guard skips the probe (not a failure).
+
+**Remediation hints:**
+
+When a probe fails, the text output includes an upgrade hint:
+
+```
+  [failed] gradle  (version 6.9 outside >=7)
+    → Upgrade Gradle wrapper: ./gradlew wrapper --gradle-version=8.x
+```
 
 **Example output (text):**
 
@@ -240,11 +269,14 @@ arbiter verify --json
 | Java       | `java`    | `>=17`   |
 | Java       | `gradle`  | `>=7`    |
 | Java       | `mvn`     | `>=3.8`  |
+| Kotlin     | `java`    | `>=17`   |
+| Kotlin     | `kotlin`  | `>=1.9`  |
 | Rust       | `rustc`   | `>=1.70` |
 | Rust       | `cargo`   | `>=1.70` |
 | Go         | `go`      | `>=1.21` |
 | Python     | `python3` | `>=3.10` |
 | Python     | `pip`     | `>=22`   |
+| Python     | `ruff`    | `>=0.4`  |
 
 Ranges are checked at major.minor granularity. Patch version is not enforced.
 
