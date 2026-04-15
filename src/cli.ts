@@ -8,6 +8,7 @@ import {
   runWorktreeClose,
   runWorktreeList,
 } from "./commands/worktree.js";
+import { runVerify } from "./commands/verify.js";
 
 const program = new Command();
 
@@ -146,6 +147,15 @@ worktree
   .description("List open task worktrees")
   .action(() => {
     runWorktreeList();
+  });
+
+program
+  .command("verify")
+  .description("Probe toolchain compatibility for the detected stack")
+  .option("--json", "Emit JSON report", false)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { json: boolean; dir?: string }) => {
+    runVerify({ json: opts.json, dir: opts.dir });
   });
 
 program
