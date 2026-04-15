@@ -14,6 +14,11 @@ export interface WizardAnswers {
   tools: AiTool[];
   governanceLevel: GovernanceLevel;
   invariantPreset?: InvariantPreset;
+  archetype: Archetype;
+  architectureStyle: ArchitectureStyle;
+  hasDatabase: boolean;
+  hasPublicApi: boolean;
+  isMultiTenant: boolean;
   useGitHub?: "yes" | "no";
 }
 
@@ -33,6 +38,20 @@ export type Language =
   | "unknown";
 export type GovernanceLevel = "L1" | "L2" | "L3";
 export type AiTool = "claude" | "codex" | "cursor" | "copilot";
+
+export type Archetype =
+  | "backend-web-db"
+  | "cli"
+  | "library"
+  | "data-pipeline"
+  | "frontend-spa"
+  | "embedded";
+
+export type ArchitectureStyle =
+  | "hexagonal"
+  | "layered"
+  | "modular-monolith"
+  | "none";
 
 export interface LanguageHook {
   /** Name of the hook script to generate (e.g. "check-no-any.mjs") */
@@ -79,6 +98,16 @@ export interface ProjectConfig {
   language: Language;
   /** e.g. "express+react", "spring-boot", "tauri" */
   framework: string | null;
+  /** Project archetype — shape of the runtime topology */
+  archetype: Archetype;
+  /** Internal module decomposition style. Default "none" = no architecture rules generated */
+  architectureStyle: ArchitectureStyle;
+  /** Whether the project handles multiple tenants sharing one deployment */
+  isMultiTenant: boolean;
+  /** Whether the project connects to a database */
+  hasDatabase: boolean;
+  /** Whether the project exposes a public API (REST, GraphQL, gRPC, etc.) */
+  hasPublicApi: boolean;
   /** e.g. "npm", "gradle", "cargo" */
   buildTool: string;
   buildCommand: string;

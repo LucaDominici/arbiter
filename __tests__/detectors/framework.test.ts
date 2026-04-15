@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { detectFramework } from "../../src/detectors/framework.js";
+import {
+  detectFramework,
+  detectArchetypeHint,
+} from "../../src/detectors/framework.js";
 import { createTestProject, cleanupTestProject } from "../helpers.js";
 
 describe("detectFramework", () => {
@@ -192,6 +195,79 @@ describe("detectFramework", () => {
 
     it("returns null for unknown", () => {
       expect(detectFramework(dir, "unknown")).toBeNull();
+    });
+  });
+});
+
+describe("detectArchetypeHint", () => {
+  const ANY_DIR = "/does/not/matter";
+
+  describe("framework → backend-web-db mappings", () => {
+    const backendCases: Array<[string, string]> = [
+      ["java", "spring-boot"],
+      ["java", "quarkus"],
+      ["typescript", "next"],
+      ["typescript", "express"],
+      ["typescript", "express+react"],
+      ["typescript", "express+vue"],
+      ["typescript", "fastify"],
+    ];
+    for (const [lang, fw] of backendCases) {
+      it(`${lang}:${fw} → backend-web-db`, () => {
+        expect(detectArchetypeHint(ANY_DIR, lang as never, fw)).toBe(
+          "backend-web-db",
+        );
+      });
+    }
+  });
+
+  describe("framework → frontend-spa mappings", () => {
+    const frontendCases: Array<[string, string]> = [
+      ["typescript", "tauri+react"],
+      ["typescript", "tauri+vue"],
+      ["typescript", "tauri"],
+      ["typescript", "react"],
+      ["typescript", "vue"],
+      ["rust", "tauri"],
+    ];
+    for (const [lang, fw] of frontendCases) {
+      it(`${lang}:${fw} → frontend-spa`, () => {
+        expect(detectArchetypeHint(ANY_DIR, lang as never, fw)).toBe(
+          "frontend-spa",
+        );
+      });
+    }
+  });
+
+  describe("language fallbacks (no framework match)", () => {
+    it("java with unmapped framework falls back to library", () => {
+      expect(detectArchetypeHint(ANY_DIR, "java", "java")).toBe("library");
+    });
+
+    it("typescript with null framework falls back to library", () => {
+      expect(detectArchetypeHint(ANY_DIR, "typescript", null)).toBe("library");
+    });
+
+    it("rust with null framework falls back to library", () => {
+      expect(detectArchetypeHint(ANY_DIR, "rust", null)).toBe("library");
+    });
+
+    it("rust with unmapped framework falls back to library", () => {
+      expect(detectArchetypeHint(ANY_DIR, "rust", "rust")).toBe("library");
+    });
+  });
+
+  describe("languages with no reliable archetype heuristic return null", () => {
+    it("go returns null", () => {
+      expect(detectArchetypeHint(ANY_DIR, "go", null)).toBeNull();
+    });
+
+    it("python returns null", () => {
+      expect(detectArchetypeHint(ANY_DIR, "python", null)).toBeNull();
+    });
+
+    it("unknown returns null", () => {
+      expect(detectArchetypeHint(ANY_DIR, "unknown", null)).toBeNull();
     });
   });
 });

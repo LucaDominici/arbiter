@@ -354,4 +354,137 @@ describe("generateSsot", () => {
     );
     expect(content).toContain("my-app");
   });
+
+  // ── Archetype-conditional content in SSOT_CORE_SET.md (ADR-021) ──────────────
+
+  it("SSOT_CORE_SET.md shows archetype label in header", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "backend-web-db",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("backend-web-db");
+  });
+
+  it("SSOT_CORE_SET.md shows architectureStyle next to archetype when set", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "backend-web-db",
+      architectureStyle: "hexagonal",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("hexagonal");
+  });
+
+  it("SSOT_CORE_SET.md does NOT show architectureStyle when 'none'", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "library",
+      architectureStyle: "none",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).not.toContain("none");
+  });
+
+  it("SSOT_CORE_SET.md omits Data section when hasDatabase is false", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "library",
+      hasDatabase: false,
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).not.toContain("SCHEMA.md");
+    expect(content).not.toContain("MIGRATIONS.md");
+  });
+
+  it("SSOT_CORE_SET.md includes Data section when hasDatabase is true", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "backend-web-db",
+      hasDatabase: true,
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("SCHEMA.md");
+    expect(content).toContain("MIGRATIONS.md");
+  });
+
+  it("SSOT_CORE_SET.md omits API Contracts section when hasPublicApi is false", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "library",
+      hasPublicApi: false,
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).not.toContain("OPENAPI.yaml");
+  });
+
+  it("SSOT_CORE_SET.md includes API Contracts section when hasPublicApi is true", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "backend-web-db",
+      hasPublicApi: true,
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("OPENAPI.yaml");
+  });
+
+  it("SSOT_CORE_SET.md includes both Data and API sections for backend-web-db archetype", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "backend-web-db",
+      hasDatabase: true,
+      hasPublicApi: true,
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("SCHEMA.md");
+    expect(content).toContain("OPENAPI.yaml");
+  });
+
+  it("SSOT_CORE_SET.md omits both Data and API sections for library archetype", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "library",
+      hasDatabase: false,
+      hasPublicApi: false,
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).not.toContain("SCHEMA.md");
+    expect(content).not.toContain("OPENAPI.yaml");
+  });
 });

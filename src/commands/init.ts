@@ -1,7 +1,10 @@
 import { resolve, basename } from "node:path";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import { detectFramework } from "../detectors/framework.js";
+import {
+  detectFramework,
+  detectArchetypeHint,
+} from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { detectBasePackage } from "../detectors/package.js";
@@ -143,6 +146,11 @@ export async function runInit(options: InitOptions): Promise<void> {
     useGitHub: config.useGitHub,
     enableDebtGates: config.enableDebtGates,
     invariantTiers: config.invariantTiers,
+    archetype: config.archetype,
+    architectureStyle: config.architectureStyle,
+    isMultiTenant: config.isMultiTenant,
+    hasDatabase: config.hasDatabase,
+    hasPublicApi: config.hasPublicApi,
     ...(config.enableObsidianVault === true
       ? { enableObsidianVault: true }
       : {}),
@@ -276,12 +284,23 @@ function buildDefaultConfig(opts: {
   useGitHub: boolean;
   obsidian?: boolean;
 }): ProjectConfig {
+  const archetype =
+    detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ??
+    "library";
+  const hasDatabase =
+    archetype === "backend-web-db" || archetype === "data-pipeline";
+  const hasPublicApi = archetype === "backend-web-db";
   return {
     targetDir: opts.targetDir,
     projectName: opts.projectName,
     description: `${opts.projectName} project`,
     language: opts.language,
     framework: opts.framework,
+    archetype,
+    architectureStyle: "none",
+    isMultiTenant: false,
+    hasDatabase,
+    hasPublicApi,
     buildTool: opts.buildCmds.buildTool,
     buildCommand: opts.buildCmds.buildCommand,
     testCommand: opts.buildCmds.testCommand,

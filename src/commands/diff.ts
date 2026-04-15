@@ -2,7 +2,10 @@ import { resolve, basename } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import { detectFramework } from "../detectors/framework.js";
+import {
+  detectFramework,
+  detectArchetypeHint,
+} from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
@@ -95,6 +98,14 @@ function buildDiffConfig(
   const buildCmds = detectBuildCommands(targetDir, language);
   const gitInfo = detectGitInfo(targetDir);
   const existing = detectExisting(targetDir);
+  const archetype =
+    stored.archetype ??
+    detectArchetypeHint(targetDir, language, framework) ??
+    "library";
+  const hasDatabase =
+    stored.hasDatabase ??
+    (archetype === "backend-web-db" || archetype === "data-pipeline");
+  const hasPublicApi = stored.hasPublicApi ?? archetype === "backend-web-db";
 
   return {
     targetDir,
@@ -102,6 +113,11 @@ function buildDiffConfig(
     description: `${projectName} project`,
     language,
     framework,
+    archetype,
+    architectureStyle: stored.architectureStyle ?? "none",
+    isMultiTenant: stored.isMultiTenant ?? false,
+    hasDatabase,
+    hasPublicApi,
     buildTool: buildCmds.buildTool,
     buildCommand: buildCmds.buildCommand,
     testCommand: buildCmds.testCommand,
