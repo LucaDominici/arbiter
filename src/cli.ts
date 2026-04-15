@@ -37,6 +37,11 @@ program
     "Generate optional Obsidian vault at docs/vault/",
     false,
   )
+  .option(
+    "--brownfield",
+    "Auto-capture debt baseline after generation (locks current state as day-0 baseline)",
+    false,
+  )
   .action(
     async (opts: {
       yes: boolean;
@@ -45,6 +50,7 @@ program
       dir?: string;
       dryRun: boolean;
       obsidian: boolean;
+      brownfield: boolean;
     }) => {
       await runInit({
         yes: opts.yes,
@@ -53,6 +59,7 @@ program
         dir: opts.dir,
         dryRun: opts.dryRun,
         obsidian: opts.obsidian,
+        brownfield: opts.brownfield,
       });
     },
   );

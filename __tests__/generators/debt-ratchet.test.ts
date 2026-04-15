@@ -26,10 +26,10 @@ describe("generateDebtRatchet", () => {
     expect(generateDebtRatchet(config).files).toHaveLength(0);
   });
 
-  it("generates 2 files when enableDebtGates is true", () => {
+  it("generates 3 files when enableDebtGates is true", () => {
     const config = makeConfig(dir, { enableDebtGates: true });
     const result = generateDebtRatchet(config);
-    expect(result.files).toHaveLength(2);
+    expect(result.files).toHaveLength(3);
   });
 
   it("generates capture-debt-baseline.mjs", () => {
@@ -48,7 +48,7 @@ describe("generateDebtRatchet", () => {
 
   // Test for each stack: typescript, rust, java, go, python
   for (const lang of ["typescript", "rust", "java", "go", "python"] as const) {
-    it(`generates both scripts for ${lang}`, () => {
+    it(`generates 3 scripts for ${lang}`, () => {
       const loopDir = createTestProject(lang);
       initGit(loopDir);
       try {
@@ -57,7 +57,7 @@ describe("generateDebtRatchet", () => {
           enableDebtGates: true,
         });
         const result = generateDebtRatchet(config);
-        expect(result.files).toHaveLength(2);
+        expect(result.files).toHaveLength(3);
       } finally {
         cleanupTestProject(loopDir);
       }
