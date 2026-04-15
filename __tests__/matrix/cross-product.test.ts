@@ -884,6 +884,31 @@ describe("cross-product: AGENTS.md — always-active invariants present in all p
   }
 });
 
+// ─── Suppressions ─────────────────────────────────────────────────────────────
+
+describe("cross-product: check-all.mjs — suppressions expiry check at all governance levels", () => {
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: suppressions expiry check present when enableSuppressions=true`, () => {
+        const content = renderTemplate("scripts/check-all.mjs.ejs", {
+          ...configFor(lang, level),
+          enableSuppressions: true,
+        });
+        expect(content).toContain("check-suppressions.mjs");
+        expect(content).toContain("suppressions expiry");
+      });
+
+      it(`${lang}+${level}: suppressions expiry check absent when enableSuppressions=false`, () => {
+        const content = renderTemplate("scripts/check-all.mjs.ejs", {
+          ...configFor(lang, level),
+          enableSuppressions: false,
+        });
+        expect(content).not.toContain("check-suppressions.mjs");
+      });
+    }
+  }
+});
+
 describe("cross-product: GLOBAL_INVARIANTS.md — generation by preset", () => {
   let dir: string;
 
