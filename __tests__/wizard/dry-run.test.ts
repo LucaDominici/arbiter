@@ -18,6 +18,7 @@ describe("arbiter init --dry-run", () => {
 
   it("does not create any files in dry-run mode", async () => {
     await runInit({
+      noVerify: true,
       yes: true,
       tools: "claude",
       level: "L2",
@@ -32,6 +33,7 @@ describe("arbiter init --dry-run", () => {
 
   it("does not save arbiter.json in dry-run mode", async () => {
     await runInit({
+      noVerify: true,
       yes: true,
       tools: "claude,codex",
       level: "L1",
@@ -44,6 +46,7 @@ describe("arbiter init --dry-run", () => {
 
   it("creates files normally when dry-run is false", async () => {
     await runInit({
+      noVerify: true,
       yes: true,
       tools: "claude",
       level: "L2",

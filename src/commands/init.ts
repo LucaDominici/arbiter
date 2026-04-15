@@ -1,4 +1,6 @@
 import { resolve, basename } from "node:path";
+import { runProbes } from "../compatibility/probe.js";
+import { formatText } from "../compatibility/report.js";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
 import {
@@ -55,6 +57,8 @@ export interface InitOptions {
   obsidian: boolean;
   /** Auto-capture debt baseline after generation (brownfield day-0 lock-in). */
   brownfield: boolean;
+  /** Skip toolchain compatibility probes after generation. */
+  noVerify: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -154,6 +158,10 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   if (options.brownfield && config.enableDebtGates) {
     runBrownfieldCapture(targetDir);
+  }
+
+  if (!options.noVerify) {
+    runToolchainVerify(targetDir);
   }
 
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
@@ -378,4 +386,17 @@ function parseTools(tools: string | undefined): AiTool[] {
 function parseLevel(level: string | undefined): GovernanceLevel {
   if (level === "L1" || level === "L2" || level === "L3") return level;
   return "L2";
+}
+
+function runToolchainVerify(targetDir: string): void {
+  console.log("\n  Verifying toolchain compatibility...");
+  const report = runProbes(targetDir);
+  console.log(formatText(report));
+  if (report.hasFailures) {
+    console.error(
+      "\n  arbiter init aborted: toolchain incompatibilities detected.\n" +
+        "  Fix the issues above and re-run, or use --no-verify to skip.\n",
+    );
+    process.exit(1);
+  }
 }
