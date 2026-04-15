@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Language } from "../wizard/types.js";
+import type { Archetype, Language } from "../wizard/types.js";
 
 export function detectFramework(
   dir: string,
@@ -76,4 +76,50 @@ function readFileSafe(path: string): string {
   } catch {
     return "";
   }
+}
+
+// Maps a framework slug to an archetype for languages where heuristics are reliable.
+// Keyed by `${language}:${framework}`. Languages without a reliable mapping (go, python,
+// unknown) are not present — callers default to "library". See ADR-021.
+const FRAMEWORK_ARCHETYPE_MAP: ReadonlyMap<string, Archetype> = new Map([
+  ["java:spring-boot", "backend-web-db"],
+  ["java:quarkus", "backend-web-db"],
+  ["typescript:next", "backend-web-db"],
+  ["typescript:express", "backend-web-db"],
+  ["typescript:express+react", "backend-web-db"],
+  ["typescript:express+vue", "backend-web-db"],
+  ["typescript:fastify", "backend-web-db"],
+  ["typescript:tauri+react", "frontend-spa"],
+  ["typescript:tauri+vue", "frontend-spa"],
+  ["typescript:tauri", "frontend-spa"],
+  ["typescript:react", "frontend-spa"],
+  ["typescript:vue", "frontend-spa"],
+  ["rust:tauri", "frontend-spa"],
+]);
+
+// Languages where "no matching framework" still yields a reliable archetype.
+const LANGUAGE_FALLBACK_ARCHETYPE: ReadonlyMap<Language, Archetype> = new Map([
+  ["java", "library"],
+  ["typescript", "library"],
+  ["rust", "library"],
+]);
+
+/**
+ * Infer a project archetype from the detected language and framework.
+ * Returns null when the heuristic is unreliable — callers should default to "library".
+ *
+ * The archetype is separate from language: a TypeScript CLI and a Python CLI share
+ * archetype invariants. See ADR-021.
+ */
+export function detectArchetypeHint(
+  _dir: string,
+  language: Language,
+  framework: string | null,
+): Archetype | null {
+  if (framework !== null) {
+    const key = `${language}:${framework}`;
+    const mapped = FRAMEWORK_ARCHETYPE_MAP.get(key);
+    if (mapped !== undefined) return mapped;
+  }
+  return LANGUAGE_FALLBACK_ARCHETYPE.get(language) ?? null;
 }

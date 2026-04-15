@@ -1,7 +1,10 @@
 import { resolve, basename } from "node:path";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import { detectFramework } from "../detectors/framework.js";
+import {
+  detectFramework,
+  detectArchetypeHint,
+} from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
@@ -36,6 +39,33 @@ function tallyResults(files: WriteResult[]): Counters {
   return counters;
 }
 
+function resolveAxisFields(
+  stored: ArbiterConfig | null,
+  targetDir: string,
+  language: ReturnType<typeof detectLanguage>,
+  framework: string | null,
+): {
+  archetype: ProjectConfig["archetype"];
+  architectureStyle: ProjectConfig["architectureStyle"];
+  isMultiTenant: boolean;
+  hasDatabase: boolean;
+  hasPublicApi: boolean;
+} {
+  const archetype =
+    stored?.archetype ??
+    detectArchetypeHint(targetDir, language, framework) ??
+    "library";
+  return {
+    archetype,
+    architectureStyle: stored?.architectureStyle ?? "none",
+    isMultiTenant: stored?.isMultiTenant ?? false,
+    hasDatabase:
+      stored?.hasDatabase ??
+      (archetype === "backend-web-db" || archetype === "data-pipeline"),
+    hasPublicApi: stored?.hasPublicApi ?? archetype === "backend-web-db",
+  };
+}
+
 function buildProjectConfig(
   targetDir: string,
   projectName: string,
@@ -46,8 +76,8 @@ function buildProjectConfig(
   const buildCmds = detectBuildCommands(targetDir, language);
   const gitInfo = detectGitInfo(targetDir);
   const existing = detectExisting(targetDir);
-
   const governanceLevel: GovernanceLevel = stored?.governanceLevel ?? "L2";
+  const axis = resolveAxisFields(stored, targetDir, language, framework);
 
   return {
     targetDir,
@@ -55,6 +85,7 @@ function buildProjectConfig(
     description: `${projectName} project`,
     language,
     framework,
+    ...axis,
     buildTool: buildCmds.buildTool,
     buildCommand: buildCmds.buildCommand,
     testCommand: buildCmds.testCommand,

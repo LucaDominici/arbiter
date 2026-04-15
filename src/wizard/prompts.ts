@@ -2,6 +2,7 @@ import inquirer from "inquirer";
 import type {
   ProjectConfig,
   AiTool,
+  Archetype,
   WizardFlow,
   MigrationPlan,
   WizardAnswers,
@@ -13,6 +14,7 @@ import type { ExistingState } from "../detectors/existing.js";
 import type { GithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
+import { detectArchetypeHint } from "../detectors/framework.js";
 
 export interface WizardInput {
   targetDir: string;
@@ -193,6 +195,11 @@ function buildConfigFromAnswers(
     description: answers.description,
     language: input.language,
     framework: input.framework,
+    archetype: answers.archetype,
+    architectureStyle: answers.architectureStyle,
+    isMultiTenant: answers.isMultiTenant,
+    hasDatabase: answers.hasDatabase,
+    hasPublicApi: answers.hasPublicApi,
     buildTool: input.buildCmds.buildTool,
     buildCommand: input.buildCmds.buildCommand,
     testCommand: input.buildCmds.testCommand,
@@ -213,26 +220,13 @@ function buildConfigFromAnswers(
   };
 }
 
-function buildMainQuestions(wizardInput: WizardInput): object[] {
-  const githubChoice = buildGithubChoice(wizardInput.githubAccess);
+const ARCHETYPE_DB_SET = new Set<Archetype>([
+  "backend-web-db",
+  "data-pipeline",
+]);
+
+function buildGovernanceQuestions(): object[] {
   return [
-    {
-      type: "input",
-      name: "description",
-      message: "Project description:",
-      default: `${wizardInput.projectName} project`,
-    },
-    {
-      type: "checkbox",
-      name: "tools",
-      message: "Which AI tools will you use?",
-      choices: [
-        { name: "Claude Code (Anthropic)", value: "claude", checked: true },
-        { name: "Codex (OpenAI)", value: "codex", checked: true },
-        { name: "Cursor", value: "cursor", checked: false },
-        { name: "Copilot", value: "copilot", checked: false },
-      ],
-    },
     {
       type: "list",
       name: "governanceLevel",
@@ -273,6 +267,127 @@ function buildMainQuestions(wizardInput: WizardInput): object[] {
           answers.governanceLevel as import("./types.js").GovernanceLevel,
         ),
     },
+  ];
+}
+
+function buildArchetypeQuestions(archetypeDefault: Archetype): object[] {
+  return [
+    {
+      type: "list",
+      name: "archetype",
+      message: "Project archetype:",
+      choices: [
+        {
+          name: "backend-web-db  — HTTP service with database",
+          value: "backend-web-db",
+        },
+        { name: "cli             — Command-line tool", value: "cli" },
+        {
+          name: "library         — Reusable library / package",
+          value: "library",
+        },
+        {
+          name: "data-pipeline   — ETL / batch processing",
+          value: "data-pipeline",
+        },
+        {
+          name: "frontend-spa    — Browser / desktop UI",
+          value: "frontend-spa",
+        },
+        {
+          name: "embedded        — Firmware / bare-metal",
+          value: "embedded",
+        },
+      ],
+      default: archetypeDefault,
+    },
+    {
+      type: "list",
+      name: "architectureStyle",
+      message: "Internal architecture style:",
+      choices: [
+        {
+          name: "none            — No architecture rules generated  [default]",
+          value: "none",
+        },
+        {
+          name: "hexagonal       — Ports & adapters (e.g. Viafera-style)",
+          value: "hexagonal",
+        },
+        {
+          name: "layered         — Package-direction layers",
+          value: "layered",
+        },
+        {
+          name: "modular-monolith — Bounded-context module isolation",
+          value: "modular-monolith",
+        },
+      ],
+      default: "none",
+    },
+    {
+      type: "list",
+      name: "hasDatabase",
+      message: "Does the project connect to a database?",
+      choices: [
+        { name: "Yes", value: true },
+        { name: "No", value: false },
+      ],
+      default: (answers: { archetype: Archetype }): boolean =>
+        ARCHETYPE_DB_SET.has(answers.archetype),
+    },
+    {
+      type: "list",
+      name: "hasPublicApi",
+      message: "Does the project expose a public API?",
+      choices: [
+        { name: "Yes", value: true },
+        { name: "No", value: false },
+      ],
+      default: (answers: { archetype: Archetype }): boolean =>
+        answers.archetype === "backend-web-db",
+    },
+    {
+      type: "list",
+      name: "isMultiTenant",
+      message: "Is the project multi-tenant?",
+      choices: [
+        { name: "Yes", value: true },
+        { name: "No", value: false },
+      ],
+      default: false,
+    },
+  ];
+}
+
+function buildMainQuestions(wizardInput: WizardInput): object[] {
+  const githubChoice = buildGithubChoice(wizardInput.githubAccess);
+  const archetypeDefault: Archetype =
+    detectArchetypeHint(
+      wizardInput.targetDir,
+      wizardInput.language,
+      wizardInput.framework,
+    ) ?? "library";
+  return [
+    {
+      type: "input",
+      name: "description",
+      message: "Project description:",
+      default: `${wizardInput.projectName} project`,
+    },
+    {
+      type: "checkbox",
+      name: "tools",
+      message: "Which AI tools will you use?",
+      choices: [
+        { name: "Claude Code (Anthropic)", value: "claude", checked: true },
+        { name: "Codex (OpenAI)", value: "codex", checked: true },
+        { name: "Cursor", value: "cursor", checked: false },
+        { name: "Copilot", value: "copilot", checked: false },
+      ],
+    },
+    ...buildGovernanceQuestions(),
+    ...buildArchetypeQuestions(archetypeDefault),
     ...githubChoice,
   ];
 }

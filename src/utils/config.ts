@@ -2,6 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   AiTool,
+  Archetype,
+  ArchitectureStyle,
   GovernanceLevel,
   InvariantTier,
   WorktreeConfig,
@@ -18,6 +20,12 @@ export interface ArbiterConfig {
   worktree?: WorktreeConfig;
   /** Whether the Obsidian vault generator ran during init. Used by `arbiter obsidian` sync. */
   enableObsidianVault?: boolean;
+  // Phase 9.5 MA: archetype axis fields — optional for backward compat with arbiter.json v0.1
+  archetype?: Archetype;
+  architectureStyle?: ArchitectureStyle;
+  isMultiTenant?: boolean;
+  hasDatabase?: boolean;
+  hasPublicApi?: boolean;
 }
 
 const CONFIG_FILE = "arbiter.json";
@@ -46,5 +54,10 @@ export function defaultConfig(): ArbiterConfig {
     governanceLevel,
     useGitHub: false,
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
+    archetype: "library",
+    architectureStyle: "none",
+    isMultiTenant: false,
+    hasDatabase: false,
+    hasPublicApi: false,
   };
 }

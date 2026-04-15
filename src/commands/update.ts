@@ -1,7 +1,10 @@
 import { resolve, basename } from "node:path";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import { detectFramework } from "../detectors/framework.js";
+import {
+  detectFramework,
+  detectArchetypeHint,
+} from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { detectGithubAccess } from "../detectors/github.js";
@@ -46,12 +49,26 @@ export function runUpdate(options: UpdateOptions): void {
     ? githubAccess.authenticated
     : stored.useGitHub && githubAccess.authenticated;
 
+  const archetype =
+    stored.archetype ??
+    detectArchetypeHint(targetDir, language, framework) ??
+    "library";
+  const hasDatabase =
+    stored.hasDatabase ??
+    (archetype === "backend-web-db" || archetype === "data-pipeline");
+  const hasPublicApi = stored.hasPublicApi ?? archetype === "backend-web-db";
+
   const config = {
     targetDir,
     projectName,
     description: `${projectName} project`,
     language,
     framework,
+    archetype,
+    architectureStyle: stored.architectureStyle ?? "none",
+    isMultiTenant: stored.isMultiTenant ?? false,
+    hasDatabase,
+    hasPublicApi,
     buildTool: buildCmds.buildTool,
     buildCommand: buildCmds.buildCommand,
     testCommand: buildCmds.testCommand,
