@@ -17,29 +17,31 @@ export function generateSuppressions(
 
   return {
     files: [
+      // User-edited data stores — skip on update to preserve live suppression entries
       writeFile(
         resolvedPath(base, "suppressions", "dependency-check-suppressions.xml"),
         renderTemplate(
           "suppressions/dependency-check-suppressions.xml.ejs",
           data,
         ),
-        { skipIfExists: false },
+        { skipIfExists: true },
       ),
       writeFile(
         resolvedPath(base, "suppressions", ".gitleaksignore"),
         renderTemplate("suppressions/gitleaksignore.ejs", data),
-        { skipIfExists: false },
+        { skipIfExists: true },
       ),
       writeFile(
         resolvedPath(base, "suppressions", "pii-allowlist.json"),
         renderTemplate("suppressions/pii-allowlist.json.ejs", data),
-        { skipIfExists: false },
+        { skipIfExists: true },
       ),
       writeFile(
         resolvedPath(base, "suppressions", "archunit-baseline.json"),
         renderTemplate("suppressions/archunit-baseline.json.ejs", data),
-        { skipIfExists: false },
+        { skipIfExists: true },
       ),
+      // Arbiter-managed files — always regenerate to pick up gate script changes
       writeFile(
         resolvedPath(base, "suppressions", "suppressions-schema.json"),
         renderTemplate("suppressions/suppressions-schema.json.ejs", data),

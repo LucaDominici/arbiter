@@ -140,6 +140,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     governanceLevel: config.governanceLevel,
     useGitHub: config.useGitHub,
     enableDebtGates: config.enableDebtGates,
+    enableSuppressions: config.enableSuppressions,
     invariantTiers: config.invariantTiers,
     archetype: config.archetype,
     architectureStyle: config.architectureStyle,

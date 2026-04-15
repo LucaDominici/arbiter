@@ -5,12 +5,18 @@
 import { readFileSync, existsSync } from 'node:fs';
 
 const REQUIRED_FIELDS = ['reason', 'owner', 'expiresAt', 'scope'];
+const REASON_MIN_LEN = 10;
 const WARN_DAYS = 30;
 let failed = 0;
 let warnings = 0;
 
 function checkExpiry(expiresAt, label, file) {
   const expiry = new Date(expiresAt);
+  if (isNaN(expiry.getTime())) {
+    process.stderr.write(`[FAIL] ${file}: ${label} — invalid expiresAt (not a date): ${expiresAt}\n`);
+    failed++;
+    return;
+  }
   const now = new Date();
   const diffMs = expiry.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -32,6 +38,11 @@ function validateEntry(entry, label, file) {
       valid = false;
     }
   }
+  if (valid && entry.reason.length < REASON_MIN_LEN) {
+    process.stderr.write(`[FAIL] ${file}: ${label} — reason must be at least ${REASON_MIN_LEN} characters\n`);
+    failed++;
+    valid = false;
+  }
   if (valid) {
     checkExpiry(entry.expiresAt, label, file);
   }
@@ -50,8 +61,20 @@ function checkJsonFile(filePath) {
   if (!existsSync(filePath)) return;
   const raw = readFileSync(filePath, 'utf-8').trim();
   if (!raw || raw === '[]') return;
-  const entries = JSON.parse(raw);
-  if (!Array.isArray(entries) || entries.length === 0) return;
+  let entries;
+  try {
+    entries = JSON.parse(raw);
+  } catch (e) {
+    process.stderr.write(`[FAIL] ${filePath}: could not parse JSON — ${e.message}\n`);
+    failed++;
+    return;
+  }
+  if (!Array.isArray(entries)) {
+    process.stderr.write(`[FAIL] ${filePath}: expected a JSON array, got ${typeof entries}\n`);
+    failed++;
+    return;
+  }
+  if (entries.length === 0) return;
   for (let i = 0; i < entries.length; i++) {
     validateEntry(entries[i], `entry[${i}]`, filePath);
   }
@@ -73,11 +96,14 @@ function checkXmlFile(filePath) {
       tokens.push({ type: 'suppress' });
     }
   }
-  // For each suppress token, the immediately preceding token must be a comment.
+  // For each suppress token, the immediately preceding token must be a single-line comment.
+  // Multi-line comments (containing newlines) are header/documentation blocks — not metadata.
   let idx = 0;
   for (let i = 0; i < tokens.length; i++) {
     if (tokens[i].type === 'suppress') {
-      const prev = (i > 0 && tokens[i - 1].type === 'comment') ? tokens[i - 1] : null;
+      const candidate = (i > 0 && tokens[i - 1].type === 'comment') ? tokens[i - 1] : null;
+      const isSingleLine = candidate && !candidate.content.includes('\n');
+      const prev = isSingleLine ? candidate : null;
       const meta = prev ? parseMetaComment(prev.content) : {};
       validateEntry(meta, `<suppress>[${idx}]`, filePath);
       idx++;

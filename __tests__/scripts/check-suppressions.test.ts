@@ -210,6 +210,65 @@ abc123def456789`,
     expect(stderr).toMatch(/missing required field/i);
   });
 
+  // ─── expiresAt validation ─────────────────────────────────────────────────
+
+  it("exits 1 when pii-allowlist.json entry has non-date expiresAt (e.g. 'never')", () => {
+    writeJson(dir, join("suppressions", "pii-allowlist.json"), [
+      {
+        reason: "Test fixture secret for unit tests only",
+        owner: "@luca",
+        expiresAt: "never",
+        scope: "test",
+      },
+    ]);
+    const { status, stderr } = runScript(dir);
+    expect(status).toBe(1);
+    expect(stderr).toMatch(/invalid expiresAt/i);
+  });
+
+  it("exits 1 when pii-allowlist.json entry has reason shorter than 10 chars", () => {
+    writeJson(dir, join("suppressions", "pii-allowlist.json"), [
+      {
+        reason: "Short",
+        owner: "@luca",
+        expiresAt: "2099-01-01",
+        scope: "test",
+      },
+    ]);
+    const { status, stderr } = runScript(dir);
+    expect(status).toBe(1);
+    expect(stderr).toMatch(/reason must be at least/i);
+  });
+
+  it("exits 1 when pii-allowlist.json contains a JSON object (not array)", () => {
+    writeFileSync(
+      join(dir, "suppressions", "pii-allowlist.json"),
+      JSON.stringify({ reason: "bad format" }),
+    );
+    const { status, stderr } = runScript(dir);
+    expect(status).toBe(1);
+    expect(stderr).toMatch(/expected a JSON array/i);
+  });
+
+  it("exits 1 when XML suppress element follows only a multi-line header comment (no metadata)", () => {
+    writeXml(
+      dir,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Project header comment spanning multiple lines
+  reason: example | owner: @example | expiresAt: 2099-01-01 | scope: all
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+<suppress>
+  <cve>CVE-2020-9999</cve>
+</suppress>
+</suppressions>`,
+    );
+    const { status, stderr } = runScript(dir);
+    expect(status).toBe(1);
+    expect(stderr).toMatch(/missing required field/i);
+  });
+
   // ─── mkdirSync guard ──────────────────────────────────────────────────────
 
   it("exits 0 when suppressions/ directory does not exist (no entries)", () => {
