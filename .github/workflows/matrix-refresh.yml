@@ -1,0 +1,48 @@
+name: Matrix Refresh
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    name: Refresh Compatibility Matrix
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Refresh matrix
+        run: node scripts/refresh-matrix.mjs --apply
+
+      - name: Open PR if matrix changed
+        run: |
+          if git diff --quiet src/compatibility/matrix.json; then
+            echo "Matrix unchanged — nothing to do."
+          else
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            BRANCH="chore/matrix-refresh-$(date +%Y%m%d)"
+            git checkout -b "$BRANCH"
+            git add src/compatibility/matrix.json
+            git commit -m "chore: refresh compatibility matrix $(date +%Y-%m-%d)"
+            git push origin "$BRANCH"
+            gh pr create \
+              --title "chore: refresh compatibility matrix $(date +%Y-%m-%d)" \
+              --body "Automated weekly matrix refresh. Review version bumps before merging." \
+              --base main \
+              --head "$BRANCH"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

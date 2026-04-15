@@ -20,9 +20,14 @@ export interface LanguageMatrix {
 /** Result of probing a single tool */
 export type ProbeStatus = "passed" | "skipped" | "failed";
 
+/** Whether probe checks installed tool version or invokes a build command */
+export type ProbeKind = "version" | "build";
+
 export interface ProbeResult {
   tool: string;
   status: ProbeStatus;
+  /** Distinguishes version checks from build-invocation probes */
+  kind?: ProbeKind;
   /** Parsed version if the tool was found */
   version?: SemVer;
   /** Human-readable reason for skipped or failed */

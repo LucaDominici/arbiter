@@ -42,6 +42,7 @@ program
     "Auto-capture debt baseline after generation (locks current state as day-0 baseline)",
     false,
   )
+  .option("--no-verify", "Skip toolchain compatibility probes after generation")
   .action(
     async (opts: {
       yes: boolean;
@@ -51,6 +52,7 @@ program
       dryRun: boolean;
       obsidian: boolean;
       brownfield: boolean;
+      verify: boolean;
     }) => {
       await runInit({
         yes: opts.yes,
@@ -60,6 +62,7 @@ program
         dryRun: opts.dryRun,
         obsidian: opts.obsidian,
         brownfield: opts.brownfield,
+        noVerify: !opts.verify,
       });
     },
   );

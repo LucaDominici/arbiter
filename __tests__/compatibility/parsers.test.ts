@@ -10,6 +10,8 @@ import {
   parseGoVersion,
   parsePythonVersion,
   parsePipVersion,
+  parseRuffVersion,
+  parseKotlinVersion,
 } from "../../src/compatibility/parsers.js";
 
 describe("parseNodeVersion", () => {
@@ -170,5 +172,51 @@ describe("parsePipVersion", () => {
   });
   it("returns null for empty", () => {
     expect(parsePipVersion("")).toBeNull();
+  });
+});
+
+describe("parseRuffVersion", () => {
+  it("parses standard ruff --version output", () => {
+    expect(parseRuffVersion("ruff 0.4.5\n")).toEqual({
+      major: 0,
+      minor: 4,
+      patch: 5,
+    });
+  });
+  it("parses 1.x version", () => {
+    expect(parseRuffVersion("ruff 1.0.0\n")).toEqual({
+      major: 1,
+      minor: 0,
+      patch: 0,
+    });
+  });
+  it("returns null for empty", () => {
+    expect(parseRuffVersion("")).toBeNull();
+  });
+  it("returns null for garbage", () => {
+    expect(parseRuffVersion("ruff --version: 0.4.5")).toBeNull();
+  });
+});
+
+describe("parseKotlinVersion", () => {
+  it("parses kotlinc-jvm version output", () => {
+    expect(parseKotlinVersion("kotlinc-jvm 1.9.23 (JRE 17.0.9+9)\n")).toEqual({
+      major: 1,
+      minor: 9,
+      patch: 23,
+    });
+  });
+  it("parses 2.x version", () => {
+    expect(parseKotlinVersion("kotlinc-jvm 2.0.0 (JRE 21)\n")).toEqual({
+      major: 2,
+      minor: 0,
+      patch: 0,
+    });
+  });
+  it("returns null for empty", () => {
+    expect(parseKotlinVersion("")).toBeNull();
+  });
+  it("returns null for non-kotlinc output", () => {
+    expect(parseKotlinVersion("kotlin-stdlib-jvm 2.0.0")).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,30 +35,60 @@ describe("arbiter init --yes", () => {
   });
 
   it("generates AGENTS.md on a fresh directory", async () => {
-    await runInit({ yes: true, tools: "claude,codex", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude,codex",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     expect(existsSync(join(dir, "AGENTS.md"))).toBe(true);
   });
 
   it("AGENTS.md contains project name", async () => {
-    await runInit({ yes: true, tools: "claude,codex", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude,codex",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
     expect(content.length).toBeGreaterThan(100);
     expect(content).toContain("AGENTS.md");
   });
 
   it("generates .claude/ directory with CLAUDE.md", async () => {
-    await runInit({ yes: true, tools: "claude", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     expect(existsSync(join(dir, ".claude", "CLAUDE.md"))).toBe(true);
   });
 
   it("CLAUDE.md is a thin pointer referencing AGENTS.md", async () => {
-    await runInit({ yes: true, tools: "claude", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     const content = readFileSync(join(dir, ".claude", "CLAUDE.md"), "utf-8");
     expect(content).toContain("AGENTS.md");
   });
 
   it("generates .claude/settings.json", async () => {
-    await runInit({ yes: true, tools: "claude", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     expect(existsSync(join(dir, ".claude", "settings.json"))).toBe(true);
     const settings = JSON.parse(
       readFileSync(join(dir, ".claude", "settings.json"), "utf-8"),
@@ -67,7 +97,13 @@ describe("arbiter init --yes", () => {
   });
 
   it("generates .claude/hooks/ with hook scripts", async () => {
-    await runInit({ yes: true, tools: "claude", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     expect(
       existsSync(join(dir, ".claude", "hooks", "stop-dangerous.mjs")),
     ).toBe(true);
@@ -77,30 +113,144 @@ describe("arbiter init --yes", () => {
   });
 
   it("generates .agents/ directory with CODEX.md", async () => {
-    await runInit({ yes: true, tools: "codex", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "codex",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     expect(existsSync(join(dir, ".agents", "CODEX.md"))).toBe(true);
   });
 
   it("CODEX.md references AGENTS.md", async () => {
-    await runInit({ yes: true, tools: "codex", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "codex",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     const content = readFileSync(join(dir, ".agents", "CODEX.md"), "utf-8");
     expect(content).toContain("AGENTS.md");
   });
 
   it("skips existing hooks files on re-run", async () => {
-    await runInit({ yes: true, tools: "claude", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     const hookPath = join(dir, ".claude", "hooks", "stop-dangerous.mjs");
     const original = readFileSync(hookPath, "utf-8");
 
     // Second run — hook must not be overwritten
-    await runInit({ yes: true, tools: "claude", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
     const after = readFileSync(hookPath, "utf-8");
     expect(after).toBe(original);
   });
 
   it("generates with --level L1", async () => {
-    await runInit({ yes: true, tools: "claude,codex", level: "L1", dir });
+    await runInit({
+      yes: true,
+      tools: "claude,codex",
+      level: "L1",
+      dir,
+      noVerify: true,
+    });
     expect(existsSync(join(dir, "AGENTS.md"))).toBe(true);
+  });
+});
+
+describe("arbiter init — verify integration", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = tmpDir();
+    initGit(dir);
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it("skips probes when noVerify=true", async () => {
+    const probeSpy = vi.fn().mockReturnValue({
+      dir,
+      stack: "unknown",
+      probes: [],
+      hasFailures: false,
+    });
+    vi.doMock("../../src/compatibility/probe.js", () => ({
+      runProbes: probeSpy,
+    }));
+    await runInit({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
+    expect(probeSpy).not.toHaveBeenCalled();
+  });
+
+  it("calls runProbes after generation when noVerify=false", async () => {
+    const probeSpy = vi.fn().mockReturnValue({
+      dir,
+      stack: "unknown",
+      probes: [],
+      hasFailures: false,
+    });
+    vi.doMock("../../src/compatibility/probe.js", () => ({
+      runProbes: probeSpy,
+    }));
+    const { runInit: runInitFresh } =
+      await import("../../src/commands/init.js");
+    await runInitFresh({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: false,
+    });
+    expect(probeSpy).toHaveBeenCalledWith(dir);
+  });
+
+  it("exits non-zero when probes fail and noVerify=false", async () => {
+    const probeSpy = vi.fn().mockReturnValue({
+      dir,
+      stack: "java",
+      probes: [
+        { tool: "gradle", status: "failed", reason: "version 6.0 outside >=7" },
+      ],
+      hasFailures: true,
+    });
+    vi.doMock("../../src/compatibility/probe.js", () => ({
+      runProbes: probeSpy,
+    }));
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation((() => {}) as (code?: number) => never);
+    const { runInit: runInitFresh } =
+      await import("../../src/commands/init.js");
+    await runInitFresh({
+      yes: true,
+      tools: "claude",
+      level: "L2",
+      dir,
+      noVerify: false,
+    });
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
 

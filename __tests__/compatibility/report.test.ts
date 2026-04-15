@@ -62,6 +62,23 @@ describe("formatText", () => {
   });
 });
 
+describe("formatText — remediation hints", () => {
+  it("includes remediation hint for failed version probe", () => {
+    const out = formatText(mixed);
+    // mvn failed → should include upgrade hint
+    expect(out).toMatch(/upgrade.*maven|maven.*upgrade/i);
+  });
+
+  it("does not include remediation hint for skipped probes", () => {
+    const out = formatText(mixed);
+    // gradle skipped → no remediation for gradle in output
+    const lines = out.split("\n");
+    const gradleLine = lines.findIndex((l) => l.includes("gradle"));
+    const nextLine = lines[gradleLine + 1] ?? "";
+    expect(nextLine).not.toMatch(/→/);
+  });
+});
+
 describe("formatJson", () => {
   it("serializes the full report", () => {
     const obj = JSON.parse(formatJson(passed)) as VerifyReport;

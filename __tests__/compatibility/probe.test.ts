@@ -32,7 +32,7 @@ vi.mock("../../src/utils/run-cli.js", () => ({
 }));
 
 import { runCli, CliError } from "../../src/utils/run-cli.js";
-import { probeTool } from "../../src/compatibility/probe.js";
+import { probeTool, runBuildProbe } from "../../src/compatibility/probe.js";
 
 const mockRunCli = runCli as MockInstance;
 
@@ -114,5 +114,101 @@ describe("probeTool — unparseable output → failed", () => {
     const result = probeTool("node", ["--version"], ">=18", "stdout");
     expect(result.status).toBe("failed");
     expect(result.reason).toMatch(/unrecognized/);
+  });
+});
+
+// --- build probes ---
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return { ...actual, existsSync: vi.fn() };
+});
+
+import { existsSync } from "node:fs";
+const mockExistsSync = existsSync as MockInstance;
+
+describe("runBuildProbe — requires file missing → skipped", () => {
+  it("returns skipped when required file does not exist", () => {
+    mockExistsSync.mockReturnValue(false);
+    const result = runBuildProbe("/some/dir", {
+      name: "gradlew:help",
+      command: "./gradlew",
+      args: ["help", "--offline"],
+      requires: "gradlew",
+    });
+    expect(result.status).toBe("skipped");
+    expect(result.reason).toBe("build-file-not-found");
+    expect(result.kind).toBe("build");
+    expect(mockRunCli).not.toHaveBeenCalled();
+  });
+});
+
+describe("runBuildProbe — command succeeds → passed", () => {
+  it("returns passed when command exits 0", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRunCli.mockReturnValue({
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 100,
+    });
+    const result = runBuildProbe("/some/dir", {
+      name: "gradlew:help",
+      command: "./gradlew",
+      args: ["help", "--offline"],
+      requires: "gradlew",
+    });
+    expect(result.status).toBe("passed");
+    expect(result.kind).toBe("build");
+    expect(mockRunCli).toHaveBeenCalledWith(
+      "./gradlew",
+      ["help", "--offline"],
+      expect.objectContaining({ cwd: "/some/dir" }),
+    );
+  });
+});
+
+describe("runBuildProbe — CliError → failed", () => {
+  it("returns failed with stderr excerpt when command fails", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: "./gradlew",
+        args: ["help", "--offline"],
+        exitCode: 1,
+        stdout: "",
+        stderr: "FAILURE: Build failed with an exception.",
+        timedOut: false,
+      });
+    });
+    const result = runBuildProbe("/some/dir", {
+      name: "gradlew:help",
+      command: "./gradlew",
+      args: ["help", "--offline"],
+      requires: "gradlew",
+    });
+    expect(result.status).toBe("failed");
+    expect(result.kind).toBe("build");
+    expect(result.reason).toContain("FAILURE");
+  });
+});
+
+describe("runBuildProbe — empty requires → always run", () => {
+  it("runs command even when requires is empty string", () => {
+    mockExistsSync.mockReturnValue(false); // should not be called for empty requires
+    mockRunCli.mockReturnValue({
+      stdout: "ruff 0.4.5\n",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 5,
+    });
+    const result = runBuildProbe("/some/dir", {
+      name: "ruff:version",
+      command: "ruff",
+      args: ["--version"],
+      requires: "",
+    });
+    expect(result.status).toBe("passed");
+    expect(result.kind).toBe("build");
   });
 });
