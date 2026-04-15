@@ -53,6 +53,23 @@ export type ArchitectureStyle =
   | "modular-monolith"
   | "none";
 
+/**
+ * Computed from (language, archetype, architectureStyle) at generation time.
+ * Not persisted on ProjectConfig — passed to EJS templates as `metricsProfile`.
+ */
+export interface MetricsProfile {
+  /** frontend-spa + typescript only: include bundle size metric */
+  includeBundleSize: boolean;
+  /** library + typescript: include public-API surface count */
+  includePublicApiSurface: boolean;
+  /** backend-web-db or library: include branch coverage in addition to line */
+  includeBranchCoverage: boolean;
+  /** java only: emit SpotBugs config and collect spotbugsViolations */
+  spotbugsEnabled: boolean;
+  /** java + architectureStyle !== 'none': collect archunitFailingRules */
+  archunitEnabled: boolean;
+}
+
 export interface LanguageHook {
   /** Name of the hook script to generate (e.g. "check-no-any.mjs") */
   name: string;

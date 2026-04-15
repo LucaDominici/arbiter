@@ -36,6 +36,7 @@ import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
+import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import type {
   ProjectConfig,
@@ -51,6 +52,8 @@ export interface InitOptions {
   dir: string | undefined;
   dryRun: boolean;
   obsidian: boolean;
+  /** Auto-capture debt baseline after generation (brownfield day-0 lock-in). */
+  brownfield: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -78,16 +81,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     console.log(
       `  ├── GitHub: authenticated as ${githubAccess.username ?? "unknown"}`,
     );
-  if (existing.agentsMd)
-    console.log("  ├── Existing AGENTS.md detected — will back up");
-  if (existing.claudeDir)
-    console.log("  ├── Existing .claude/ detected — will merge");
-  if (existing.agentsDir)
-    console.log("  ├── Existing .agents/ detected — will merge");
-  if (existing.aiRulez)
-    console.log(
-      "  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)",
-    );
+  logExistingDetections(existing);
 
   let config: ProjectConfig;
   if (options.yes) {
@@ -155,6 +149,10 @@ export async function runInit(options: InitOptions): Promise<void> {
       ? { enableObsidianVault: true }
       : {}),
   });
+
+  if (options.brownfield && config.enableDebtGates) {
+    runBrownfieldCapture(targetDir);
+  }
 
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
 }
@@ -233,6 +231,38 @@ export function runGithubSetup(config: ProjectConfig): void {
     console.log(`      Project board created: ${pb.projectUrl}`);
   } else {
     console.log(`      Skipped: ${pb.error ?? "unknown error"}`);
+  }
+}
+
+function logExistingDetections(
+  existing: ReturnType<typeof detectExisting>,
+): void {
+  if (existing.agentsMd)
+    console.log("  ├── Existing AGENTS.md detected — will back up");
+  if (existing.claudeDir)
+    console.log("  ├── Existing .claude/ detected — will merge");
+  if (existing.agentsDir)
+    console.log("  ├── Existing .agents/ detected — will merge");
+  if (existing.aiRulez)
+    console.log(
+      "  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)",
+    );
+}
+
+function runBrownfieldCapture(targetDir: string): void {
+  console.log("\n  Capturing debt baseline (this may take a few minutes)…");
+  try {
+    runCli("node", ["scripts/capture-debt-baseline.mjs"], {
+      cwd: targetDir,
+      timeoutMs: 600_000,
+    });
+    console.log("  Baseline captured at scripts/debt-baseline.json");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `  Baseline capture failed (${msg}). Re-run manually: node scripts/capture-debt-baseline.mjs`,
+    );
+    // Non-fatal: generated files are on disk; toolchain may be incomplete
   }
 }
 
