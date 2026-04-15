@@ -1,6 +1,8 @@
 # SSOT Core Set — <%= projectName %>
 
 **Status:** ENFORCED
+**Archetype:** `<%= archetype %>`<% if (architectureStyle && architectureStyle !== 'none') { %> / `<%= architectureStyle %>`<% } %>
+
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
 **Purpose:** Authoritative inventory of all Single Source of Truth documents in this project. Every canonical document governing product, system, or process MUST be listed here.
 
@@ -26,7 +28,27 @@
 > Examples:
 > - `docs/SYSTEM/ARCHITECTURE.md` — Technical architecture overview
 > - `docs/SYSTEM/DECISIONS.md` — Architectural Decision Records
+<% if (architectureStyle && architectureStyle !== 'none') { %>
+> - `docs/ADR/` — Architectural Decision Records (architecture style: <%= architectureStyle %>)
+<% } %>
+<% if (hasDatabase) { %>
+## 4. Data (HOW We Manage Persistent State)
 
+> Entries required when `hasDatabase: true`:
+>
+> - `docs/DATA/SCHEMA.md` — Canonical database schema overview
+> - `docs/DATA/MIGRATIONS.md` — Migration history and rollback procedures
+> - `docs/DATA/DATA_DICTIONARY.md` — Field-level glossary for all entities
+
+<% } %><% if (hasPublicApi) { %>
+## <%= hasDatabase ? '5' : '4' %>. API Contracts (WHAT Callers Can Depend On)
+
+> Entries required when `hasPublicApi: true`:
+>
+> - `docs/API/OPENAPI.yaml` or equivalent — Machine-readable API contract
+> - `docs/API/CHANGELOG.md` — API versioning and breaking-change history
+
+<% } %>
 ---
 
 ## Maintenance Rules
