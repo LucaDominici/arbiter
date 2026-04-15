@@ -98,6 +98,24 @@ export function parsePipVersion(raw: string): SemVer | null {
   return { major: +maj, minor: +min, patch: pat !== undefined ? +pat : 0 };
 }
 
+/** `ruff 0.4.5` */
+export function parseRuffVersion(raw: string): SemVer | null {
+  const m = raw.trim().match(/^ruff\s+(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return null;
+  const [, maj, min, pat] = m;
+  if (maj === undefined || min === undefined || pat === undefined) return null;
+  return { major: +maj, minor: +min, patch: +pat };
+}
+
+/** `kotlinc-jvm 1.9.23 (JRE 17.0.9+9)` */
+export function parseKotlinVersion(raw: string): SemVer | null {
+  const m = raw.trim().match(/^kotlinc-jvm\s+(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return null;
+  const [, maj, min, pat] = m;
+  if (maj === undefined || min === undefined || pat === undefined) return null;
+  return { major: +maj, minor: +min, patch: +pat };
+}
+
 // ---- internal ----
 
 function parseBare(s: string): SemVer | null {
