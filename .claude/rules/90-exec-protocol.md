@@ -26,6 +26,8 @@ node scripts/check-all.mjs L1   # fast: lint + format + unit tests
 node scripts/check-all.mjs L2   # full: L1 + coverage + integration
 ```
 
+CI Linux jobs run on self-hosted runner `docker-ci-build` via repo variable `CI_BUILD_RUNNER_LABEL` — see INV-13 in `AGENTS.md`.
+
 ## Stop Conditions
 
 - Gate fails after two focused attempts → STOP, report blockers
