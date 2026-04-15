@@ -35,9 +35,9 @@ function detectTypescriptFramework(dir: string): string | null {
   return null;
 }
 
-function detectRustFramework(dir: string): string {
+function detectRustFramework(dir: string): string | null {
   if (existsSync(join(dir, "src-tauri"))) return "tauri";
-  return "rust";
+  return null;
 }
 
 function detectJavaFramework(dir: string): string {

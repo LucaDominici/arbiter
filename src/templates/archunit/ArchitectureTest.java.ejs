@@ -5,7 +5,6 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -76,5 +75,10 @@ public class ArchitectureTest {
             .should().accessClassesThat()
             .resideInAPackage("<%= basePackage ? basePackage + '.modules.[^.]+.internal..' : 'modules.[^.]+.internal..' %>")
             .because("Module internal packages are private — access only through the module's public API package.");
+<% } else { %>
+    // UNSUPPORTED ARCHITECTURE STYLE: <%= architectureStyle %>
+    // This file was generated with an unrecognised architecture style.
+    // Re-run `arbiter init` and select: hexagonal, layered, or modular-monolith.
+    // No architecture rules are enforced until the style is corrected.
 <% } %>
 }
