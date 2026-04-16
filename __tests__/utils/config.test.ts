@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,9 +52,11 @@ describe("arbiter config", () => {
   });
 
   it("loadConfig returns null on malformed JSON", () => {
+    vi.spyOn(console, "warn").mockImplementationOnce(() => undefined);
     const path = join(dir, "arbiter.json");
     writeFileSync(path, "{invalid json", "utf-8");
     expect(loadConfig(dir)).toBeNull();
+    vi.restoreAllMocks();
   });
 
   it("saveConfig preserves all tool types", () => {
