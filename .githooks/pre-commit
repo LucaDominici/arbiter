@@ -11,4 +11,19 @@ fi
 # independent temp repositories without GIT_DIR poisoning their git calls.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY
 
+# Vite/vitest (v5+) cannot handle '#' in the project root path — it treats '#'
+# as a URL fragment and mangles all module IDs. Worktrees named '#NNN' trigger
+# this. Rsync to a temporary '#'-free path and run the gate from there.
+if [[ "$PWD" == *"#"* ]]; then
+  ORIG_DIR="$(pwd)"
+  TMP_DIR=$(mktemp -d /tmp/arbiter-hook-XXXXXX)
+  rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
+  ln -sfn "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
+  cd "$TMP_DIR"
+  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L1
+  STATUS=$?
+  rm -rf "$TMP_DIR"
+  exit $STATUS
+fi
+
 node scripts/check-all.mjs L1
