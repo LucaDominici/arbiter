@@ -135,6 +135,7 @@ export function generateArchUnit(
 
   // M22: Hexagonal suite — requires hexagonal style AND basePackage.
   // basePackage is mandatory to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath.
+  // layered/modular-monolith suites are deferred; only ArchitectureTest.java is emitted for those styles.
   if (config.architectureStyle === "hexagonal" && config.basePackage) {
     files.push(
       ...emitHexagonalSuite(

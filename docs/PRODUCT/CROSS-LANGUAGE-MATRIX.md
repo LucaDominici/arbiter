@@ -39,7 +39,7 @@ Generator gate: `src/utils/maturity-check.ts::isL3Allowed()`
 | **Dead code**               | PMD unused rules                        | Knip                                   | clippy dead_code            | golangci-lint deadcode     | ruff F401/F811                 | proven / proven / proven / proven / proven                   |
 | **Circular deps**           | jdeps / ArchUnit                        | madge                                  | Rust compiler (native)      | Go compiler (native)       | ruff / custom                  | proven / proven / proven / proven / proven                   |
 | **Type safety**             | no raw types (ArchUnit)                 | no `any` (ESLint)                      | no `.unwrap()` (clippy)     | error checking (go vet)    | type annotations (mypy)        | proven / proven / proven / proven / proven                   |
-| **No MockMvc**              | ArchUnit RestAssuredArchTest            | N/A                                    | N/A                         | N/A                        | N/A                            | proven / N/A / N/A / N/A / N/A                               |
+| **No MockMvc**              | ArchUnit NoMockMvcTest                  | N/A                                    | N/A                         | N/A                        | N/A                            | proven / N/A / N/A / N/A / N/A                               |
 
 ---
 
