@@ -15,6 +15,7 @@ import {
   parsePythonVersion,
   parsePipVersion,
   parseRuffVersion,
+  parseLintImportsVersion,
   parseKotlinVersion,
 } from "./parsers.js";
 import type { SemVer } from "./parsers.js";
@@ -49,6 +50,11 @@ const TOOL_SPECS: Record<string, ToolSpec> = {
   },
   pip: { args: ["--version"], channel: "stdout", parse: parsePipVersion },
   ruff: { args: ["--version"], channel: "stdout", parse: parseRuffVersion },
+  "lint-imports": {
+    args: ["--version"],
+    channel: "stdout",
+    parse: parseLintImportsVersion,
+  },
   kotlinc: {
     args: ["-version"],
     channel: "stderr",

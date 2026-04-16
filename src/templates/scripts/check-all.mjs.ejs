@@ -108,6 +108,9 @@ if (level === 'L2') {
 <% } %>
 <% } %><% if (language === 'python') { %>
   runCheck('audit', 'pip-audit', [], { soft: graceActive });
+<% if (architectureStyle === 'hexagonal') { %>
+  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
+<% } %>
 <% } %>
 <% if (enableDebtGates) { %>
   // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────

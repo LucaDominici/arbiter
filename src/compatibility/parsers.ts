@@ -98,6 +98,15 @@ export function parsePipVersion(raw: string): SemVer | null {
   return { major: +maj, minor: +min, patch: pat !== undefined ? +pat : 0 };
 }
 
+/** `lint-imports, version 2.1.0` */
+export function parseLintImportsVersion(raw: string): SemVer | null {
+  const m = raw.trim().match(/lint-imports,\s+version\s+(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return null;
+  const [, maj, min, pat] = m;
+  if (maj === undefined || min === undefined || pat === undefined) return null;
+  return { major: +maj, minor: +min, patch: +pat };
+}
+
 /** `ruff 0.4.5` */
 export function parseRuffVersion(raw: string): SemVer | null {
   const m = raw.trim().match(/^ruff\s+(\d+)\.(\d+)\.(\d+)/);
