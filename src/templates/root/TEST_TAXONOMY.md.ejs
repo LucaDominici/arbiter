@@ -1,0 +1,77 @@
+# Test Taxonomy — <%= projectName %>
+
+<!-- arbiter-managed: test-pyramid-profile (INV-89) -->
+<!-- Archetype: <%= archetype %> -->
+
+This document defines the test pyramid for **<%= projectName %>**.
+Each level maps to a CI stage in `ci.yml` and a check in `scripts/check-all.mjs`.
+
+---
+
+## Pyramid Levels
+<% const profiles = {
+  'backend-web-db': {
+    levels: [
+      { name: 'L1 Unit', desc: 'Fast, isolated unit tests for business logic and domain models', tools: 'JUnit / pytest / vitest / cargo test' },
+      { name: 'L2 Integration', desc: 'Service + DB integration using Testcontainers or Docker Compose', tools: 'Testcontainers, RestAssured, TestClient' },
+      { name: 'L3 Contract', desc: 'Consumer-driven contract tests to verify API compatibility', tools: 'Pact, Spring Cloud Contract' },
+      { name: 'L4 E2E', desc: 'End-to-end browser / API flows against a running environment', tools: 'Playwright, Cypress, Postman' },
+      { name: 'L5 Performance', desc: 'Load and stress tests verifying SLAs under production-like load', tools: 'k6, Gatling, Locust' },
+    ],
+  },
+  'cli': {
+    levels: [
+      { name: 'L1 Unit', desc: 'Unit tests for individual commands, parsers, and handlers', tools: 'JUnit / pytest / vitest / cargo test' },
+      { name: 'L2 CLI Integration', desc: 'Integration tests invoking the CLI binary with real arguments', tools: 'bats, pytest subprocess, assert_cmd' },
+    ],
+  },
+  'library': {
+    levels: [
+      { name: 'L1 Unit', desc: 'Unit tests for all public API surface — every exported function/class', tools: 'JUnit / pytest / vitest / cargo test' },
+      { name: 'L2 Property-Based', desc: 'Generative / property-based tests to find edge cases', tools: 'fast-check, Hypothesis, proptest, QuickCheck' },
+    ],
+  },
+  'data-pipeline': {
+    levels: [
+      { name: 'L1 Unit', desc: 'Unit tests for transforms, parsers, and aggregation logic', tools: 'pytest / vitest / cargo test' },
+      { name: 'L2 Integration', desc: 'Pipeline integration with real or containerised data stores', tools: 'Testcontainers, pytest-docker' },
+      { name: 'L3 Contract', desc: 'Schema / data contract tests ensuring upstream/downstream compatibility', tools: 'Great Expectations, Pact, soda-core' },
+    ],
+  },
+  'frontend-spa': {
+    levels: [
+      { name: 'L1 Unit', desc: 'Unit tests for utilities, hooks, and pure functions', tools: 'vitest, jest' },
+      { name: 'L2 Component', desc: 'Component-level rendering and interaction tests', tools: 'Testing Library, Storybook, Enzyme' },
+      { name: 'L3 E2E', desc: 'Full browser flows against a running or mocked backend', tools: 'Playwright, Cypress' },
+    ],
+  },
+  'embedded': {
+    levels: [
+      { name: 'L1 Unit', desc: 'Host-side unit tests for logic, state machines, and protocols', tools: 'Unity, cargo test, pytest' },
+      { name: 'L2 Hardware Integration', desc: 'Tests against simulator, emulator, or real hardware in CI', tools: 'QEMU, Renode, JTAG-based harness' },
+    ],
+  },
+};
+const profile = profiles[archetype] || profiles['library'];
+%>
+| Level | Description | Tools |
+|-------|-------------|-------|
+<% for (const level of profile.levels) { -%>
+| **<%= level.name %>** | <%= level.desc %> | `<%= level.tools %>` |
+<% } %>
+
+---
+
+## Conventions
+
+- **L1 tests** run on every commit (pre-commit hook via `scripts/check-all.mjs L1`).
+- **L2+ tests** run on push/PR (`scripts/check-all.mjs L2`).
+- Test files live next to the code they test (co-located) or in a top-level `tests/` directory.
+- Every public function/method must have at least one test.
+<% if (archetype === 'backend-web-db' || archetype === 'data-pipeline') { %>
+- Testcontainers are the preferred integration harness — no mocked DB connections in integration tests.
+<% } %><% if (archetype === 'library') { %>
+- Property-based tests must cover all public API inputs. Use `fast-check` / `Hypothesis` / `proptest`.
+<% } %><% if (archetype === 'frontend-spa' || archetype === 'backend-web-db') { %>
+- E2E tests run headless in CI (Playwright recommended).
+<% } %>

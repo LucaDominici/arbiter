@@ -5,6 +5,9 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["__tests__/**/*.test.ts"],
+    // Integration tests use vi.doMock + dynamic import which requires process-level
+    // isolation to avoid module registry leaks across parallel test files.
+    poolMatchGlobs: [["**/__tests__/integration/**", "forks"]],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
