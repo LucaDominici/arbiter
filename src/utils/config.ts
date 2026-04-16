@@ -29,6 +29,8 @@ export interface ArbiterConfig {
   hasPublicApi?: boolean;
   // Phase 9.5 ME: beta-tool override — persisted for audit trail
   acceptBetaTools?: boolean;
+  // Phase 9.5 MJ: evidence retention policy — persisted for arbiter update
+  evidenceRetention?: import("../wizard/types.js").EvidenceRetentionConfig;
 }
 
 const CONFIG_FILE = "arbiter.json";

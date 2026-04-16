@@ -165,4 +165,20 @@ export interface ProjectConfig {
    * Beta tools (maturity="beta") require this flag; unsafe tools are never allowed.
    */
   acceptBetaTools?: boolean;
+  /**
+   * Phase 9.5 MJ: evidence harness retention policy.
+   * Controls how many evidence runs to keep and where to store them.
+   * Default: { mode: "local-last-N", count: 5 }
+   */
+  evidenceRetention?: EvidenceRetentionConfig;
+}
+
+export type EvidenceRetentionMode = "local-last-N" | "external-bucket" | "none";
+
+export interface EvidenceRetentionConfig {
+  mode: EvidenceRetentionMode;
+  /** For local-last-N: number of runs to keep. Default 5. */
+  count?: number;
+  /** For external-bucket: target URL (e.g. s3://bucket/path). */
+  bucketUrl?: string;
 }
