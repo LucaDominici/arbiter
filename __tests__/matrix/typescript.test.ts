@@ -159,8 +159,75 @@ describe("matrix: TypeScript project", () => {
     const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
     expect(content).toContain("Strict mode always on");
     expect(content).toContain("kebab-case.ts");
-    // Should NOT contain Java or Rust standards
+    // Should NOT contain Java or Rust standards, and no M22a hexagonal block for non-hexagonal config
     expect(content).not.toContain("Hexagonal architecture");
     expect(content).not.toContain(".unwrap()");
+    expect(content).not.toContain("Architecture Verification (M22a)");
+  });
+
+  describe("hexagonal architecture variant", () => {
+    function hexConfig() {
+      return tsConfig({ architectureStyle: "hexagonal" });
+    }
+
+    it("emits .eslintrc-boundaries.cjs at project root", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, ".eslintrc-boundaries.cjs"))).toBe(true);
+    });
+
+    it("emits scripts/check-boundaries.mjs at project root", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, "scripts", "check-boundaries.mjs"))).toBe(
+        true,
+      );
+    });
+
+    it("check-all.mjs calls node scripts/check-boundaries.mjs for boundaries gate", () => {
+      runGenerators(hexConfig());
+      const checkAll = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(checkAll).toContain("check-boundaries.mjs");
+    });
+
+    it(".eslintrc-boundaries.cjs contains boundaries/element-types and domain layers", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(
+        join(dir, ".eslintrc-boundaries.cjs"),
+        "utf-8",
+      );
+      expect(content).toContain("boundaries/element-types");
+      expect(content).toContain("domain");
+      expect(content).toContain("adapters");
+      expect(content).toContain("infrastructure");
+    });
+
+    it("AGENTS.md contains Architecture Verification (M22a) section", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).toContain("Architecture Verification (M22a)");
+      expect(content).toContain("eslint-plugin-boundaries");
+    });
+
+    it("check-all.mjs contains boundaries gate step", () => {
+      runGenerators(hexConfig());
+      const checkAll = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(checkAll).toContain("runCheck('boundaries'");
+    });
+
+    it("non-hexagonal config does NOT emit .eslintrc-boundaries.cjs", () => {
+      runGenerators(tsConfig());
+      expect(existsSync(join(dir, ".eslintrc-boundaries.cjs"))).toBe(false);
+    });
+
+    it("non-hexagonal AGENTS.md does NOT contain M22a section", () => {
+      runGenerators(tsConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).not.toContain("Architecture Verification (M22a)");
+    });
   });
 });

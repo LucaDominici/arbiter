@@ -86,6 +86,9 @@ runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
 if (level === 'L2') {
 <% if (language === 'typescript') { %>
   runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+<% if (architectureStyle === 'hexagonal') { %>
+  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'rust') { %>
   runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>

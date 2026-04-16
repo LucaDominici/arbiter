@@ -1,7 +1,7 @@
 # Arbiter — Cross-Language Enforcement Matrix
 
 **Status:** Active
-**Last updated:** 2026-04-16
+**Last updated:** 2026-04-16 (M22a: TypeScript boundaries added)
 
 For every enforcement mechanism, arbiter must generate the equivalent for all 5 supported languages. This matrix is the canonical reference.
 
@@ -78,7 +78,7 @@ Generator gate: `src/utils/maturity-check.ts::isL3Allowed()`
 
 | Mechanism                 | Status                                                                              | Milestone         |
 | ------------------------- | ----------------------------------------------------------------------------------- | ----------------- |
-| Architecture boundaries   | Java done (5 ArchUnit classes, hexagonal). TS/Rust/Go/Python tracked in #70a-d      | M22 (Java done)   |
+| Architecture boundaries   | Java + TypeScript done (M22/M22a). Rust/Go/Python tracked in #70b-d                 | M22/M22a done     |
 | Complexity limits         | Partial (ESLint for TS, PMD mention for Java)                                       | M29               |
 | Static analysis           | Partial (generic PMD)                                                               | M29               |
 | Formatting                | Partial (assumed, not generated)                                                    | M29               |

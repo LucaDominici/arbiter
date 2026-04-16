@@ -53,7 +53,30 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - Prefer `const` over `let`, never `var`
 - Async/await over callbacks or raw Promises
 - Named exports preferred over default exports
-- File naming: `kebab-case.ts`<% } %><% if (language === 'rust') { %>### Rust
+- File naming: `kebab-case.ts`<% if (architectureStyle === 'hexagonal') { %>
+
+### Architecture Verification (M22a)
+
+Generated `eslint-plugin-boundaries` config enforces hexagonal layer isolation (hard gate, L2+).
+
+**Peer deps**: `npm i -D eslint@^9 eslint-plugin-boundaries @typescript-eslint/parser`
+
+**Setup**: in your root ESLint config, add:
+```js
+extends: ['./.eslintrc-boundaries.cjs']
+```
+
+**Rules enforced**:
+
+| Layer | Allowed dependencies | Notes |
+|-------|---------------------|-------|
+| `src/domain/**` | none | No framework imports; no Node built-ins; no browser globals |
+| `src/application/**` | `domain` | Ports defined here |
+| `src/adapters/**` | `application`, `domain` | Inbound + outbound adapters |
+| `src/infrastructure/**` | `application`, `domain` | Bootstrap + config |
+
+**Suppressions**: add exemptions to `suppressions/boundaries-baseline.json` with `scope` (file-pattern glob) + `expiresAt` (wave-migration date). Enforced by `check-suppressions.mjs` L1 gate.
+<% } %><% } %><% if (language === 'rust') { %>### Rust
 
 - All public items must have documentation comments
 - Error handling: use `?` operator and typed `Result<T, E>`
