@@ -82,7 +82,26 @@ extends: ['./.eslintrc-boundaries.cjs']
 - Error handling: use `?` operator and typed `Result<T, E>`
 - No `.unwrap()` or `.expect()` in library code; test code may use `.expect("...")`
 - Use `clippy::pedantic` lint level
-- Prefer `&str` over `String` in function parameters<% } %><% if (language === 'java') { %>### Java
+- Prefer `&str` over `String` in function parameters<% if (architectureStyle === 'hexagonal') { %>
+
+### Architecture Verification (M22b)
+
+Generated `cargo-deny` + `clippy.toml` + domain-purity grep enforce hexagonal layer isolation (hard gate, L2+).
+
+**Peer deps**: `cargo install cargo-deny`
+
+**Setup**: the generated `deny.toml` and `clippy.toml` are placed at the project root. No `Cargo.toml` changes needed.
+
+**Rules enforced**:
+
+| Layer | Mechanism | What it bans |
+|-------|-----------|-------------|
+| Project (all layers) | cargo-deny `[bans]` | Framework crates as direct dependencies (sqlx, axum, reqwest, …) |
+| Project (all layers) | `clippy.toml` `disallowed_types` | Framework types anywhere in code (sqlx::Pool, axum::Router, …) |
+| `src/domain/**` | grep scan in `check-boundaries.mjs` | `use sqlx`, `use axum`, `use diesel`, … — module-level enforcer |
+
+**Suppressions**: add exemptions to `suppressions/boundaries-baseline.json` with `scope` (file-pattern glob) + `expiresAt` (wave-migration date). Enforced by `check-suppressions.mjs` L1 gate.
+<% } %><% } %><% if (language === 'java') { %>### Java
 
 - Hexagonal architecture: domain → no framework imports
 - Use constructor injection exclusively (no field injection)

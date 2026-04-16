@@ -91,6 +91,9 @@ if (level === 'L2') {
 <% } %>
 <% } %><% if (language === 'rust') { %>
   runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
+<% if (architectureStyle === 'hexagonal') { %>
+  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('integration', './gradlew', ['integrationTest', '-q'], { soft: graceActive });
 <% if (architectureStyle === 'hexagonal' && basePackage) { %>
