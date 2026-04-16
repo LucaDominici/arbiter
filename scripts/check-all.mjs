@@ -69,7 +69,13 @@ runCheck("circular deps", "npx", [
 ]);
 runCheck("placeholders", "node", ["scripts/check-no-placeholders.mjs", "src"]);
 runCheck("orphan TODOs", "node", ["scripts/check-no-orphan-todo.mjs"]);
-runCheck("commitlint", "npx", ["commitlint", "--from", "HEAD~1"]);
+runCheck("commitlint", "npx", [
+  "commitlint",
+  "--from",
+  "origin/main",
+  "--to",
+  "HEAD",
+]);
 
 // ─── L2: Full checks (+2 = 10) ────────────────────────────────────────────────
 if (level === "L2") {
