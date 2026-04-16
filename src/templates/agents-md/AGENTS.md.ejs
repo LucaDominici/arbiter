@@ -69,7 +69,29 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **Integration testing: RestAssured mandatory** — MockMvc is forbidden (INV-29)
   - Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` with RestAssured
   - MockMvc bypasses real HTTP serialization, filters, and exception handlers
-  - `@AutoConfigureMockMvc` is prohibited; use a real embedded server<% } %><% if (language === 'go') { %>### Go
+  - `@AutoConfigureMockMvc` is prohibited; use a real embedded server<% if (architectureStyle === 'hexagonal' && basePackage) { %>
+
+### Architecture Verification (M22)
+
+Generated ArchUnit test suite enforces hexagonal boundaries (hard gate, L2+).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'gradle/arch-test-deps.gradle'
+```
+
+**Rules enforced** (`src/test/java/<%= basePackage.replace(/\./g, '/') %>/architecture/`):
+
+| Class | Rules |
+|-------|-------|
+| `DomainPurityTest` | No Spring/JPA/Hibernate imports in `domain.**` |
+| `DependencyFlowTest` | Adapters → ports only; application → domain only; domain has no outbound deps |
+| `PortsIndependenceTest` | `application.port.in/out` must not depend on adapters or infrastructure |
+| `TestCoverageArchTest` | `*ControllerIT` classes must reside in `adapter.in.web` |<% if (hasDatabase && hasPublicApi) { %>
+| `RestAssuredArchTest` | All `*ControllerIT` must extend `RestAssuredBaseIT` |<% } %>
+
+**Suppressions**: add exemptions to `suppressions/archunit-baseline.json` with `scope` (class-pattern glob) + `expiresAt` (wave-migration date).
+<% } %><% } %><% if (language === 'go') { %>### Go
 
 - All exported functions must have documentation comments
 - Error handling: check every returned error — no `_ = err` patterns

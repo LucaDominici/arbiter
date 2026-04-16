@@ -90,6 +90,9 @@ if (level === 'L2') {
   runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('integration', './gradlew', ['integrationTest', '-q'], { soft: graceActive });
+<% if (architectureStyle === 'hexagonal' && basePackage) { %>
+  runCheck('architecture tests', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('integration', 'mvn', ['verify', '-q'], { soft: graceActive });
 <% } %><% if (language === 'go') { %>
