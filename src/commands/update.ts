@@ -1,62 +1,19 @@
 import { resolve, basename } from "node:path";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import {
-  detectFramework,
-  detectArchetypeHint,
-} from "../detectors/framework.js";
+import { detectFramework } from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { detectGithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
-import { loadConfig, saveConfig, type ArbiterConfig } from "../utils/config.js";
+import { resolveAxisFields } from "../detectors/axis.js";
+import { loadConfig, saveConfig } from "../utils/config.js";
 import { runGenerators, runGithubSetup, printResults } from "./init.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
-import { defaultContractType } from "../wizard/archetype-defaults.js";
-import type {
-  Archetype,
-  ArchitectureStyle,
-  ContractType,
-} from "../wizard/types.js";
 
 export interface UpdateOptions {
   dir: string | undefined;
   github: boolean;
-}
-
-function resolveAxisFields(
-  stored: ArbiterConfig,
-  targetDir: string,
-  language: ReturnType<typeof detectLanguage>,
-  framework: string | null,
-): {
-  archetype: Archetype;
-  architectureStyle: ArchitectureStyle;
-  isMultiTenant: boolean;
-  hasDatabase: boolean;
-  hasPublicApi: boolean;
-  contractType: ContractType;
-} {
-  const archetype =
-    stored.archetype ??
-    detectArchetypeHint(targetDir, language, framework) ??
-    "library";
-  const architectureStyle = stored.architectureStyle ?? "none";
-  const isMultiTenant = stored.isMultiTenant ?? false;
-  const hasDatabase =
-    stored.hasDatabase ??
-    (archetype === "backend-web-db" || archetype === "data-pipeline");
-  const hasPublicApi = stored.hasPublicApi ?? archetype === "backend-web-db";
-  const contractType =
-    stored.contractType ?? defaultContractType(archetype, hasPublicApi);
-  return {
-    archetype,
-    architectureStyle,
-    isMultiTenant,
-    hasDatabase,
-    hasPublicApi,
-    contractType,
-  };
 }
 
 export function runUpdate(options: UpdateOptions): void {

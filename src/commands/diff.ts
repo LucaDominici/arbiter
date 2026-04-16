@@ -2,18 +2,15 @@ import { resolve, basename } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import {
-  detectFramework,
-  detectArchetypeHint,
-} from "../detectors/framework.js";
+import { detectFramework } from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
+import { resolveAxisFields } from "../detectors/axis.js";
 import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
 import type { ProjectConfig, InvariantTier } from "../wizard/types.js";
-import { defaultContractType } from "../wizard/archetype-defaults.js";
 import {
   presetToTiers,
   defaultPresetForLevel,
@@ -99,14 +96,7 @@ function buildDiffConfig(
   const buildCmds = detectBuildCommands(targetDir, language);
   const gitInfo = detectGitInfo(targetDir);
   const existing = detectExisting(targetDir);
-  const archetype =
-    stored.archetype ??
-    detectArchetypeHint(targetDir, language, framework) ??
-    "library";
-  const hasDatabase =
-    stored.hasDatabase ??
-    (archetype === "backend-web-db" || archetype === "data-pipeline");
-  const hasPublicApi = stored.hasPublicApi ?? archetype === "backend-web-db";
+  const axis = resolveAxisFields(stored, targetDir, language, framework);
 
   return {
     targetDir,
@@ -114,11 +104,7 @@ function buildDiffConfig(
     description: `${projectName} project`,
     language,
     framework,
-    archetype,
-    architectureStyle: stored.architectureStyle ?? "none",
-    isMultiTenant: stored.isMultiTenant ?? false,
-    hasDatabase,
-    hasPublicApi,
+    ...axis,
     buildTool: buildCmds.buildTool,
     buildCommand: buildCmds.buildCommand,
     testCommand: buildCmds.testCommand,
@@ -136,12 +122,6 @@ function buildDiffConfig(
     invariantTiers:
       stored.invariantTiers ??
       presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
-    contractType:
-      stored.contractType ??
-      defaultContractType(
-        stored.archetype ?? "library",
-        stored.hasPublicApi ?? false,
-      ),
   };
 }
 

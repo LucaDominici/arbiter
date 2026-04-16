@@ -55,6 +55,9 @@ export function loadConfig(dir: string): ArbiterConfig | null {
   try {
     return JSON.parse(readFileSync(path, "utf-8")) as ArbiterConfig;
   } catch {
+    console.warn(
+      `[arbiter] arbiter.json at ${path} is corrupt (invalid JSON) — ignoring and treating as missing`,
+    );
     return null;
   }
 }

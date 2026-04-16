@@ -15,6 +15,7 @@ import type { GithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import { detectArchetypeHint } from "../detectors/framework.js";
+import { ARCHETYPE_DB_SET } from "../detectors/axis.js";
 import {
   defaultContractType,
   shouldAskContractType,
@@ -227,11 +228,6 @@ function buildConfigFromAnswers(
       defaultContractType(answers.archetype, answers.hasPublicApi),
   };
 }
-
-const ARCHETYPE_DB_SET = new Set<Archetype>([
-  "backend-web-db",
-  "data-pipeline",
-]);
 
 function buildGovernanceQuestions(): object[] {
   return [

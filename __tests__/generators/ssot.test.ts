@@ -487,4 +487,20 @@ describe("generateSsot", () => {
     expect(content).not.toContain("SCHEMA.md");
     expect(content).not.toContain("OPENAPI.yaml");
   });
+
+  it("SSOT_CORE_SET.md (#114): no numeric section prefixes — hasDatabase=false,hasPublicApi=true emits API section without stale number", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L2",
+      archetype: "frontend-spa",
+      hasDatabase: false,
+      hasPublicApi: true,
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("OPENAPI.yaml");
+    expect(content).not.toMatch(/## \d+\./);
+  });
 });
