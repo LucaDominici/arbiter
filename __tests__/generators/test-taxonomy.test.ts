@@ -1,11 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { renderTemplate } from "../../src/utils/render.js";
+import { getTestPyramidProfile } from "../../src/config/test-pyramid-profiles.js";
 import { makeConfig } from "../helpers.js";
 
 describe("TEST_TAXONOMY.md.ejs", () => {
   function render(overrides: Parameters<typeof makeConfig>[1] = {}): string {
     const config = makeConfig("/tmp/test", overrides);
-    return renderTemplate("root/TEST_TAXONOMY.md.ejs", config);
+    const profile = getTestPyramidProfile(config.archetype);
+    return renderTemplate("root/TEST_TAXONOMY.md.ejs", {
+      ...(config as unknown as Record<string, unknown>),
+      levels: profile.levels,
+      hasContainerIntegration: profile.hasContainerIntegration,
+      hasPropertyTests: profile.hasPropertyTests,
+      hasE2ETests: profile.hasE2ETests,
+    });
   }
 
   // ─── cli ──────────────────────────────────────────────────────────────────
@@ -119,8 +127,7 @@ describe("TEST_TAXONOMY.md.ejs", () => {
   });
 
   it("contains project name", () => {
-    const config = makeConfig("/tmp/test", { archetype: "cli" });
-    const content = renderTemplate("root/TEST_TAXONOMY.md.ejs", config);
+    const content = render({ archetype: "cli" });
     expect(content).toContain("test-project");
   });
 });

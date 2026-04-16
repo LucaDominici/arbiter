@@ -86,11 +86,15 @@ if (level === 'L2') {
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q']);
   runCheck('pmd', './gradlew', ['pmdMain', '-q']);
+<% if (mutationEnabled) { %>
   runCheck('mutation testing (pitest)', './gradlew', ['pitest', '-q']);
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q']);
   runCheck('pmd', 'mvn', ['pmd:check', '-q']);
+<% if (mutationEnabled) { %>
   runCheck('mutation testing (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']);
+<% } %>
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...']);

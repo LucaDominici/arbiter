@@ -182,7 +182,7 @@ export interface ProjectConfig {
   /**
    * Phase 9.5 MG: detected or estimated lines of code in the target project.
    * Used by "scaled" threshold profile to compute coverage/mutation gates.
-   * 0 = unknown; treated as "large" for safety (thresholds fully enabled).
+   * 0 = unknown; treated same as <1000 LoC for scaled profile (coverage and mutation gates disabled).
    */
   linesOfCode?: number;
   /**

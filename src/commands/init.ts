@@ -43,6 +43,7 @@ import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
 import type { ArbiterConfig } from "../utils/config.js";
+import { isL3Allowed } from "../utils/maturity-check.js";
 import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import type {
@@ -133,6 +134,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     return;
   }
 
+  checkL3MaturityGates(config);
+
   console.log("\n  Generating...");
   const allResults = runGenerators(config);
 
@@ -198,7 +201,9 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
 
   all.push(...generateArchUnit(config).files);
 
-  all.push(...generateStrideEnforcement(config).files);
+  if (config.enableDebtGates) {
+    all.push(...generateStrideEnforcement(config).files);
+  }
 
   all.push(...generateEvidenceRetention(config).files);
 
@@ -415,6 +420,40 @@ function parseTools(tools: string | undefined): AiTool[] {
 function parseLevel(level: string | undefined): GovernanceLevel {
   if (level === "L1" || level === "L2" || level === "L3") return level;
   return "L2";
+}
+
+/**
+ * Gate check for L3 maturity. Blocks generation if any L3 feature
+ * (mutation, contract) is marked unsafe or beta without --accept-beta-tools.
+ * Exits the process with an actionable error message on violation.
+ */
+function checkL3MaturityGates(config: ProjectConfig): void {
+  if (config.governanceLevel !== "L3") return;
+
+  const l3Features: Array<"mutation" | "contract"> = ["mutation", "contract"];
+  const blocked: string[] = [];
+
+  for (const feature of l3Features) {
+    const result = isL3Allowed(
+      config.language,
+      feature,
+      config.acceptBetaTools ?? false,
+    );
+    if (!result.allowed && result.errorMessage) {
+      blocked.push(`  • ${result.errorMessage}`);
+    }
+  }
+
+  if (blocked.length > 0) {
+    console.error("\n  arbiter init aborted: L3 maturity gate failed.\n");
+    for (const msg of blocked) {
+      console.error(msg);
+    }
+    console.error(
+      "\n  Use --accept-beta-tools to allow beta tools, or reduce governance to L2.\n",
+    );
+    process.exit(1);
+  }
 }
 
 function runToolchainVerify(targetDir: string): void {

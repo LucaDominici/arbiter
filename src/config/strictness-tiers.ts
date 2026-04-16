@@ -41,7 +41,7 @@ const PEDANTIC_OVERRIDES: Partial<StrictnessTierRules> = {
  * Pedantic tier layers additional rules on top of practical.
  */
 export function getStrictnessTierRules(
-  language: Language,
+  _language: Language,
   tier: StrictnessTier,
 ): StrictnessTierRules {
   if (tier === "practical") return { ...PRACTICAL_BASE };
@@ -55,9 +55,6 @@ export function getStrictnessTierRules(
     golangciExtraLinters: [...(PEDANTIC_OVERRIDES.golangciExtraLinters ?? [])],
     ruffExtraRules: [...(PEDANTIC_OVERRIDES.ruffExtraRules ?? [])],
   };
-
-  // Language-specific practical overrides (applied in both tiers where relevant)
-  void language; // reserved for future language-specific adjustments
 
   return pedantic;
 }
