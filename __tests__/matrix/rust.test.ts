@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -147,5 +154,110 @@ describe("matrix: Rust project", () => {
     // Should NOT contain TypeScript or Java standards
     expect(content).not.toContain("Strict mode always on");
     expect(content).not.toContain("constructor injection");
+  });
+
+  describe("hexagonal architecture variant", () => {
+    function hexConfig() {
+      return rustConfig({ architectureStyle: "hexagonal" });
+    }
+
+    it("emits deny.toml at project root", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, "deny.toml"))).toBe(true);
+    });
+
+    it("emits clippy.toml at project root", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, "clippy.toml"))).toBe(true);
+    });
+
+    it("emits scripts/check-boundaries.mjs", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, "scripts", "check-boundaries.mjs"))).toBe(
+        true,
+      );
+    });
+
+    it("deny.toml contains framework crate bans", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, "deny.toml"), "utf-8");
+      expect(content).toContain("sqlx");
+      expect(content).toContain("axum");
+    });
+
+    it("clippy.toml contains disallowed_types", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, "clippy.toml"), "utf-8");
+      expect(content).toContain("disallowed_types");
+    });
+
+    it("AGENTS.md contains Architecture Verification (M22b) section with cargo-deny", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).toContain("Architecture Verification (M22b)");
+      expect(content).toContain("cargo-deny");
+    });
+
+    it("check-all.mjs contains boundaries gate step", () => {
+      runGenerators(hexConfig());
+      const checkAll = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(checkAll).toContain("runCheck('boundaries'");
+    });
+
+    it("domain purity grep fails on forbidden use statement, passes on clean domain", () => {
+      runGenerators(hexConfig());
+      mkdirSync(join(dir, "src", "domain"), { recursive: true });
+      writeFileSync(join(dir, "src", "domain", "bad.rs"), "use sqlx::Pool;\n");
+
+      const fail = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(fail.status).not.toBe(0);
+      expect(fail.stderr).toContain("sqlx");
+
+      rmSync(join(dir, "src", "domain", "bad.rs"));
+
+      const pass = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(pass.stderr ?? "").not.toContain("domain purity violations");
+    });
+
+    it("domain purity grep also catches pub use re-exports", () => {
+      runGenerators(hexConfig());
+      mkdirSync(join(dir, "src", "domain"), { recursive: true });
+      writeFileSync(
+        join(dir, "src", "domain", "bad.rs"),
+        "pub use sqlx::Pool;\n",
+      );
+
+      const fail = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(fail.status).not.toBe(0);
+      expect(fail.stderr).toContain("sqlx");
+
+      rmSync(join(dir, "src", "domain", "bad.rs"));
+    });
+
+    it("non-hexagonal config does NOT emit deny.toml", () => {
+      runGenerators(rustConfig());
+      expect(existsSync(join(dir, "deny.toml"))).toBe(false);
+    });
+
+    it("non-hexagonal AGENTS.md does NOT contain M22b section", () => {
+      runGenerators(rustConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).not.toContain("Architecture Verification (M22b)");
+    });
   });
 });
