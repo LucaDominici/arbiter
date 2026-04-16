@@ -72,5 +72,6 @@ export function defaultConfig(): ArbiterConfig {
     isMultiTenant: false,
     hasDatabase: false,
     hasPublicApi: false,
+    contractType: "none",
   };
 }

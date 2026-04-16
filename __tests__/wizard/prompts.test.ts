@@ -320,3 +320,49 @@ describe("runWizard invariant preset selection", () => {
     expect(result!.invariantTiers).toEqual(presetToTiers("full"));
   });
 });
+
+describe("runWizard ML — contractType", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("hasPublicApi=false → contractType defaults to none (when: skipped)", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        archetype: "library",
+        architectureStyle: "none",
+        hasDatabase: false,
+        hasPublicApi: false,
+        isMultiTenant: false,
+        // contractType absent: when: returned false, no answer provided
+      })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    expect(result!.contractType).toBe("none");
+  });
+
+  it("hasPublicApi=true + contractType=graphql → contractType propagates", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        archetype: "backend-web-db",
+        architectureStyle: "none",
+        hasDatabase: true,
+        hasPublicApi: true,
+        isMultiTenant: false,
+        contractType: "graphql",
+      })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    expect(result!.contractType).toBe("graphql");
+  });
+});
