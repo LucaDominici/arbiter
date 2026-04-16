@@ -1,19 +1,16 @@
 import { resolve, basename } from "node:path";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import {
-  detectFramework,
-  detectArchetypeHint,
-} from "../detectors/framework.js";
+import { detectFramework } from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
+import { resolveAxisFields } from "../detectors/axis.js";
 import { loadConfig, type ArbiterConfig } from "../utils/config.js";
 import { generateObsidianVault } from "../generators/obsidian-vault.js";
 import { generateGithubVaultNotes } from "../generators/obsidian-vault-github.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import type { ProjectConfig, GovernanceLevel } from "../wizard/types.js";
-import { defaultContractType } from "../wizard/archetype-defaults.js";
 import type { WriteResult } from "../utils/fs.js";
 
 export interface ObsidianOptions {
@@ -38,37 +35,6 @@ function tallyResults(files: WriteResult[]): Counters {
     else counters.skipped++;
   }
   return counters;
-}
-
-function resolveAxisFields(
-  stored: ArbiterConfig | null,
-  targetDir: string,
-  language: ReturnType<typeof detectLanguage>,
-  framework: string | null,
-): {
-  archetype: ProjectConfig["archetype"];
-  architectureStyle: ProjectConfig["architectureStyle"];
-  isMultiTenant: boolean;
-  hasDatabase: boolean;
-  hasPublicApi: boolean;
-  contractType: NonNullable<ProjectConfig["contractType"]>;
-} {
-  const archetype =
-    stored?.archetype ??
-    detectArchetypeHint(targetDir, language, framework) ??
-    "library";
-  const hasPublicApi = stored?.hasPublicApi ?? archetype === "backend-web-db";
-  return {
-    archetype,
-    architectureStyle: stored?.architectureStyle ?? "none",
-    isMultiTenant: stored?.isMultiTenant ?? false,
-    hasDatabase:
-      stored?.hasDatabase ??
-      (archetype === "backend-web-db" || archetype === "data-pipeline"),
-    hasPublicApi,
-    contractType:
-      stored?.contractType ?? defaultContractType(archetype, hasPublicApi),
-  };
 }
 
 function buildProjectConfig(
