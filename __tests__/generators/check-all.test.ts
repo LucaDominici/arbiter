@@ -268,4 +268,49 @@ describe("generateCheckAll", () => {
     );
     expect(content).toContain("coverage.thresholds.lines=85");
   });
+
+  // ─── MK: grace period guard ─────────────────────────────────────────────────
+
+  it("generated script includes grace guard block reading arbiter.json", () => {
+    generateCheckAll(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("graceActive");
+    expect(content).toContain("graceEndsAt");
+    expect(content).toContain("graceFromLevel");
+    expect(content).toContain("arbiter.json");
+  });
+
+  it("generated script includes WARN (grace period) path in runCheck", () => {
+    generateCheckAll(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("WARN (grace period)");
+  });
+
+  it("generated L2 audit call passes soft option", () => {
+    generateCheckAll(makeConfig(dir, { language: "typescript" }));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("{ soft: graceActive }");
+  });
+
+  it("generated L2 debt ratchet call passes soft option", () => {
+    generateCheckAll(
+      makeConfig(dir, { enableDebtGates: true, governanceLevel: "L2" }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const ratchetIdx = content.indexOf("debt-report.mjs");
+    expect(ratchetIdx).toBeGreaterThan(-1);
+    expect(content.slice(ratchetIdx)).toContain("graceActive");
+  });
 });

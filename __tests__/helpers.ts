@@ -120,6 +120,7 @@ export function makeConfig(
     enableSuppressions: true,
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
     basePackage: undefined,
+    contractType: "none",
     ...overrides,
   };
 }

@@ -46,6 +46,7 @@ import type { ArbiterConfig } from "../utils/config.js";
 import { isL3Allowed } from "../utils/maturity-check.js";
 import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
+import { defaultContractType } from "../wizard/archetype-defaults.js";
 import type {
   ProjectConfig,
   AiTool,
@@ -365,6 +366,7 @@ function buildDefaultConfig(opts: {
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
     acceptBetaTools: opts.acceptBetaTools ?? false,
+    contractType: defaultContractType(archetype, hasPublicApi),
     ...detectedBasePackage(opts.language, opts.targetDir),
   };
 }
@@ -396,6 +398,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.strictnessTier !== undefined
       ? { strictnessTier: config.strictnessTier }
       : {}),
+    contractType: config.contractType,
   };
 }
 

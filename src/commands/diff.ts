@@ -13,6 +13,7 @@ import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
 import type { ProjectConfig, InvariantTier } from "../wizard/types.js";
+import { defaultContractType } from "../wizard/archetype-defaults.js";
 import {
   presetToTiers,
   defaultPresetForLevel,
@@ -135,6 +136,12 @@ function buildDiffConfig(
     invariantTiers:
       stored.invariantTiers ??
       presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
+    contractType:
+      stored.contractType ??
+      defaultContractType(
+        stored.archetype ?? "library",
+        stored.hasPublicApi ?? false,
+      ),
   };
 }
 

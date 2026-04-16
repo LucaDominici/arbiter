@@ -13,6 +13,7 @@ import { generateObsidianVault } from "../generators/obsidian-vault.js";
 import { generateGithubVaultNotes } from "../generators/obsidian-vault-github.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import type { ProjectConfig, GovernanceLevel } from "../wizard/types.js";
+import { defaultContractType } from "../wizard/archetype-defaults.js";
 import type { WriteResult } from "../utils/fs.js";
 
 export interface ObsidianOptions {
@@ -50,11 +51,13 @@ function resolveAxisFields(
   isMultiTenant: boolean;
   hasDatabase: boolean;
   hasPublicApi: boolean;
+  contractType: NonNullable<ProjectConfig["contractType"]>;
 } {
   const archetype =
     stored?.archetype ??
     detectArchetypeHint(targetDir, language, framework) ??
     "library";
+  const hasPublicApi = stored?.hasPublicApi ?? archetype === "backend-web-db";
   return {
     archetype,
     architectureStyle: stored?.architectureStyle ?? "none",
@@ -62,7 +65,9 @@ function resolveAxisFields(
     hasDatabase:
       stored?.hasDatabase ??
       (archetype === "backend-web-db" || archetype === "data-pipeline"),
-    hasPublicApi: stored?.hasPublicApi ?? archetype === "backend-web-db",
+    hasPublicApi,
+    contractType:
+      stored?.contractType ?? defaultContractType(archetype, hasPublicApi),
   };
 }
 

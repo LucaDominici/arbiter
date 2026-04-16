@@ -282,6 +282,56 @@ Ranges are checked at major.minor granularity. Patch version is not enforced.
 
 ---
 
+## `arbiter upgrade-level`
+
+Upgrade the governance level of a project with a bounded grace period for new gates.
+
+```
+arbiter upgrade-level [options]
+```
+
+**Options:**
+
+| Flag            | Type    | Default | Description                                                        |
+| --------------- | ------- | ------- | ------------------------------------------------------------------ |
+| `--target <Lx>` | string  | —       | Target governance level: `L2` or `L3` (required unless `--extend`) |
+| `--extend`      | boolean | `false` | Extend an existing active grace period by `--days`                 |
+| `--days <n>`    | number  | `30`    | Grace period length in days                                        |
+| `--dir <path>`  | string  | `cwd`   | Target directory                                                   |
+
+**Behavior:**
+
+1. Validates the target is a promotion (downgrade → exits with actionable error).
+2. Runs `node scripts/capture-debt-baseline.mjs --update` to capture a debt snapshot (INV-33: must succeed before grace is persisted).
+3. Sets `governanceLevel = target`, `graceFromLevel = previous`, `graceEndsAt = ISO(now + days)` in `arbiter.json`.
+4. Regenerates `scripts/check-all.mjs` via `arbiter update`.
+
+During the grace period, new L2 gates print `WARN (grace period)` and exit 0 instead of failing. After expiry, they hard-fail as normal.
+
+**`--extend`:** Bumps an active (non-expired) `graceEndsAt` by `--days` and appends an audit entry to `.arbiter/grace-log.json`.
+
+**Examples:**
+
+```bash
+# Upgrade from L1 to L2 with default 30-day grace
+arbiter upgrade-level --target=L2
+
+# Upgrade with a custom grace window
+arbiter upgrade-level --target=L2 --days=14
+
+# Extend an active grace period by 15 more days
+arbiter upgrade-level --extend --days=15
+
+# Inspect grace state
+jq '{governanceLevel,graceFromLevel,graceEndsAt}' arbiter.json
+
+# Simulate grace expiry (for testing)
+jq '.graceEndsAt = "2000-01-01T00:00:00.000Z"' arbiter.json | sponge arbiter.json
+node scripts/check-all.mjs L2   # L2 gates now hard-fail
+```
+
+---
+
 ## `arbiter update`
 
 Re-generate governance files using stored config from `arbiter.json`. Run after upgrading arbiter to pick up template improvements.

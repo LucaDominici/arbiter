@@ -34,6 +34,11 @@ export interface ArbiterConfig {
   // Phase 9.5 MG: threshold profile and strictness tier — persisted for arbiter update
   thresholdProfile?: import("../wizard/types.js").ThresholdProfile;
   strictnessTier?: import("../wizard/types.js").StrictnessTier;
+  // Phase 9.5 MK: grace period for level upgrades — see ADR-028
+  graceEndsAt?: string;
+  graceFromLevel?: GovernanceLevel;
+  // Phase 9.5 ML: contract testing type axis — see ADR-028
+  contractType?: import("../wizard/types.js").ContractType;
 }
 
 const CONFIG_FILE = "arbiter.json";
@@ -67,5 +72,6 @@ export function defaultConfig(): ArbiterConfig {
     isMultiTenant: false,
     hasDatabase: false,
     hasPublicApi: false,
+    contractType: "none",
   };
 }
