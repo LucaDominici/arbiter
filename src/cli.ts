@@ -196,7 +196,20 @@ program
     }) => {
       const upgradeOpts: import("./commands/upgrade-level.js").UpgradeLevelOptions =
         { extend: opts.extend };
-      if (opts.target) upgradeOpts.target = opts.target as "L2" | "L3";
+      if (opts.target) {
+        if (
+          opts.target !== "L1" &&
+          opts.target !== "L2" &&
+          opts.target !== "L3"
+        ) {
+          console.error(
+            `  Error: invalid --target "${opts.target}". Valid values: L2, L3.`,
+          );
+          process.exit(1);
+        }
+        upgradeOpts.target =
+          opts.target as import("./wizard/types.js").GovernanceLevel;
+      }
       if (opts.days !== undefined) upgradeOpts.days = opts.days;
       if (opts.dir !== undefined) upgradeOpts.dir = opts.dir;
       runUpgradeLevel(upgradeOpts);

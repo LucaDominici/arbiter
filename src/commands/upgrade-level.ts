@@ -61,9 +61,18 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   });
 
   const endsDate = graceEndsAt.slice(0, 10);
-  console.log(
-    `Grace ends ${endsDate} (${days} days). ${target} gates will WARN until then.`,
-  );
+  if (current === "L1") {
+    console.log(
+      `Grace ends ${endsDate} (${days} days). ${target} gates will WARN until then.`,
+    );
+  } else {
+    console.log(
+      `Upgraded to ${target}. Grace period recorded until ${endsDate} (${days} days).`,
+    );
+    console.log(
+      `  Note: grace-period warn mode is L1→L2 only in this release; ${target} gates activate immediately.`,
+    );
+  }
 }
 
 function handleExtend(dir: string, stored: ArbiterConfig, days: number): void {
@@ -72,7 +81,9 @@ function handleExtend(dir: string, stored: ArbiterConfig, days: number): void {
     throw new Error("No grace period to extend (none set or already expired).");
   }
 
-  const newEndsAt = new Date(Date.now() + days * 86400000).toISOString();
+  const newEndsAt = new Date(
+    Date.parse(existing) + days * 86400000,
+  ).toISOString();
 
   const arbiterDir = join(dir, ".arbiter");
   if (!existsSync(arbiterDir)) {

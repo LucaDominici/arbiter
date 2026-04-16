@@ -3,6 +3,7 @@ import { writeFileSync, existsSync, readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createTestProject, cleanupTestProject } from "../helpers.js";
 import { runUpgradeLevel } from "../../src/commands/upgrade-level.js";
+import { runCli } from "../../src/utils/run-cli.js";
 import type { GovernanceLevel } from "../../src/wizard/types.js";
 import { loadConfig } from "../../src/utils/config.js";
 
@@ -98,7 +99,7 @@ describe("runUpgradeLevel — MK grace period (ADR-028)", () => {
     );
   });
 
-  it("--extend on active grace: bumps graceEndsAt by +30d and appends to grace-log.json", () => {
+  it("--extend on active grace: adds +30d to existing end date and appends to grace-log.json", () => {
     seedConfig("L1");
     const futureDate = new Date(Date.now() + 15 * 86400000).toISOString();
     writeFileSync(
@@ -113,13 +114,13 @@ describe("runUpgradeLevel — MK grace period (ADR-028)", () => {
       }),
     );
 
-    const before = Date.now();
     runUpgradeLevel({ dir, extend: true });
 
     const saved = loadConfig(dir);
     const newEndsAt = Date.parse(saved!.graceEndsAt!);
-    const expectedMin = before + 29 * 86400000;
-    expect(newEndsAt).toBeGreaterThanOrEqual(expectedMin);
+    // Adds 30 days to existing end date (futureDate), not to now
+    const expectedEndsAt = Date.parse(futureDate) + 30 * 86400000;
+    expect(Math.abs(newEndsAt - expectedEndsAt)).toBeLessThan(1000);
 
     const logPath = join(dir, ".arbiter", "grace-log.json");
     expect(existsSync(logPath)).toBe(true);
@@ -205,5 +206,18 @@ describe("runUpgradeLevel — MK grace period (ADR-028)", () => {
       readFileSync(join(dir, ".arbiter", "grace-log.json"), "utf-8"),
     ) as unknown[];
     expect(log).toHaveLength(2);
+  });
+
+  it("INV-33: does not persist graceEndsAt when baseline capture fails", () => {
+    seedConfig("L1");
+    vi.mocked(runCli).mockImplementationOnce(() => {
+      throw new Error("Simulated baseline failure");
+    });
+
+    expect(() => runUpgradeLevel({ dir, target: "L2" })).toThrow();
+
+    const saved = loadConfig(dir);
+    expect(saved?.graceEndsAt).toBeUndefined();
+    expect(saved?.governanceLevel).toBe("L1");
   });
 });
