@@ -27,6 +27,8 @@ export interface ArbiterConfig {
   isMultiTenant?: boolean;
   hasDatabase?: boolean;
   hasPublicApi?: boolean;
+  // Phase 9.5 ME: beta-tool override — persisted for audit trail
+  acceptBetaTools?: boolean;
 }
 
 const CONFIG_FILE = "arbiter.json";

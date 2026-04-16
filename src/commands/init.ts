@@ -39,6 +39,7 @@ import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
+import type { ArbiterConfig } from "../utils/config.js";
 import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import type {
@@ -59,6 +60,8 @@ export interface InitOptions {
   brownfield: boolean;
   /** Skip toolchain compatibility probes after generation. */
   noVerify: boolean;
+  /** Allow L3 generation with beta-maturity tools. Persisted in arbiter.json for audit. */
+  acceptBetaTools?: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -102,6 +105,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       governanceLevel: parseLevel(options.level),
       useGitHub: githubAccess.authenticated,
       obsidian: options.obsidian,
+      acceptBetaTools: options.acceptBetaTools ?? false,
     });
   } else {
     const wizardResult = await runWizard({
@@ -138,23 +142,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   runGithubSetup(config);
 
   // Save config for future `arbiter update`
-  saveConfig(targetDir, {
-    version: "0.1",
-    tools: config.tools,
-    governanceLevel: config.governanceLevel,
-    useGitHub: config.useGitHub,
-    enableDebtGates: config.enableDebtGates,
-    enableSuppressions: config.enableSuppressions,
-    invariantTiers: config.invariantTiers,
-    archetype: config.archetype,
-    architectureStyle: config.architectureStyle,
-    isMultiTenant: config.isMultiTenant,
-    hasDatabase: config.hasDatabase,
-    hasPublicApi: config.hasPublicApi,
-    ...(config.enableObsidianVault === true
-      ? { enableObsidianVault: true }
-      : {}),
-  });
+  saveConfig(targetDir, buildArbiterConfig(config));
 
   if (options.brownfield && config.enableDebtGates) {
     runBrownfieldCapture(targetDir);
@@ -327,6 +315,7 @@ function buildDefaultConfig(opts: {
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
   obsidian?: boolean;
+  acceptBetaTools?: boolean;
 }): ProjectConfig {
   const archetype =
     detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ??
@@ -361,7 +350,29 @@ function buildDefaultConfig(opts: {
     enableSuppressions: true,
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
+    acceptBetaTools: opts.acceptBetaTools ?? false,
     ...detectedBasePackage(opts.language, opts.targetDir),
+  };
+}
+
+function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
+  return {
+    version: "0.1",
+    tools: config.tools,
+    governanceLevel: config.governanceLevel,
+    useGitHub: config.useGitHub,
+    enableDebtGates: config.enableDebtGates,
+    enableSuppressions: config.enableSuppressions,
+    invariantTiers: config.invariantTiers,
+    archetype: config.archetype,
+    architectureStyle: config.architectureStyle,
+    isMultiTenant: config.isMultiTenant,
+    hasDatabase: config.hasDatabase,
+    hasPublicApi: config.hasPublicApi,
+    ...(config.enableObsidianVault === true
+      ? { enableObsidianVault: true }
+      : {}),
+    ...(config.acceptBetaTools === true ? { acceptBetaTools: true } : {}),
   };
 }
 
