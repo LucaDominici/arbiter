@@ -20,6 +20,8 @@ export interface WizardAnswers {
   hasPublicApi: boolean;
   isMultiTenant: boolean;
   useGitHub?: "yes" | "no";
+  /** Phase 9.5 ML: set only when hasPublicApi=true. Absent = default "none". */
+  contractType?: ContractType;
 }
 
 export interface MigrationPlan {
@@ -191,10 +193,32 @@ export interface ProjectConfig {
    * Default: { mode: "local-last-N", count: 5 }
    */
   evidenceRetention?: EvidenceRetentionConfig;
+  /**
+   * Phase 9.5 ML: contract testing strategy — see ADR-028.
+   * Wizard asks only if hasPublicApi === true. Default: "none".
+   */
+  contractType?: ContractType;
 }
 
 export type ThresholdProfile = "scaled" | "fixed";
 export type StrictnessTier = "practical" | "pedantic";
+
+/**
+ * Phase 9.5 ML: contract testing strategy — see ADR-028.
+ * "rest-owned"    → Pact consumer + provider (owned by your team).
+ * "rest-public"   → OpenAPI diff (breaking-change detection for public API).
+ * "graphql"       → Schema diff via graphql-inspector.
+ * "grpc"          → buf breaking check.
+ * "message-queue" → Schema registry integration (Avro, Protobuf).
+ * "none"          → No contract testing generated.
+ */
+export type ContractType =
+  | "rest-owned"
+  | "rest-public"
+  | "graphql"
+  | "grpc"
+  | "message-queue"
+  | "none";
 
 export type EvidenceRetentionMode = "local-last-N" | "external-bucket" | "none";
 

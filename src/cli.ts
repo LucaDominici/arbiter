@@ -9,6 +9,7 @@ import {
   runWorktreeList,
 } from "./commands/worktree.js";
 import { runVerify } from "./commands/verify.js";
+import { runUpgradeLevel } from "./commands/upgrade-level.js";
 
 const program = new Command();
 
@@ -174,6 +175,33 @@ program
   .action((opts: { json: boolean; dir?: string }) => {
     runVerify({ json: opts.json, dir: opts.dir });
   });
+
+program
+  .command("upgrade-level")
+  .description("Upgrade governance level with a grace period for new gates")
+  .option("--target <level>", "Target level (L2 or L3)")
+  .option(
+    "--extend",
+    "Extend an existing active grace period by --days (default: 30)",
+    false,
+  )
+  .option("--days <n>", "Grace period length in days (default: 30)", parseInt)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(
+    (opts: {
+      target?: string;
+      extend: boolean;
+      days?: number;
+      dir?: string;
+    }) => {
+      const upgradeOpts: import("./commands/upgrade-level.js").UpgradeLevelOptions =
+        { extend: opts.extend };
+      if (opts.target) upgradeOpts.target = opts.target as "L2" | "L3";
+      if (opts.days !== undefined) upgradeOpts.days = opts.days;
+      if (opts.dir !== undefined) upgradeOpts.dir = opts.dir;
+      runUpgradeLevel(upgradeOpts);
+    },
+  );
 
 program
   .command("obsidian")
