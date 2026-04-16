@@ -13,6 +13,11 @@ import { loadConfig, saveConfig, type ArbiterConfig } from "../utils/config.js";
 import { runGenerators, runGithubSetup, printResults } from "./init.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import { defaultContractType } from "../wizard/archetype-defaults.js";
+import type {
+  Archetype,
+  ArchitectureStyle,
+  ContractType,
+} from "../wizard/types.js";
 
 export interface UpdateOptions {
   dir: string | undefined;
@@ -24,7 +29,14 @@ function resolveAxisFields(
   targetDir: string,
   language: ReturnType<typeof detectLanguage>,
   framework: string | null,
-) {
+): {
+  archetype: Archetype;
+  architectureStyle: ArchitectureStyle;
+  isMultiTenant: boolean;
+  hasDatabase: boolean;
+  hasPublicApi: boolean;
+  contractType: ContractType;
+} {
   const archetype =
     stored.archetype ??
     detectArchetypeHint(targetDir, language, framework) ??

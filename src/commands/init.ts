@@ -398,9 +398,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.strictnessTier !== undefined
       ? { strictnessTier: config.strictnessTier }
       : {}),
-    ...(config.contractType !== undefined
-      ? { contractType: config.contractType }
-      : {}),
+    contractType: config.contractType,
   };
 }
 

@@ -197,7 +197,7 @@ export interface ProjectConfig {
    * Phase 9.5 ML: contract testing strategy — see ADR-028.
    * Wizard asks only if hasPublicApi === true. Default: "none".
    */
-  contractType?: ContractType;
+  contractType: ContractType;
 }
 
 export type ThresholdProfile = "scaled" | "fixed";

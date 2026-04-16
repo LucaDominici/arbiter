@@ -197,11 +197,7 @@ program
       const upgradeOpts: import("./commands/upgrade-level.js").UpgradeLevelOptions =
         { extend: opts.extend };
       if (opts.target) {
-        if (
-          opts.target !== "L1" &&
-          opts.target !== "L2" &&
-          opts.target !== "L3"
-        ) {
+        if (opts.target !== "L2" && opts.target !== "L3") {
           console.error(
             `  Error: invalid --target "${opts.target}". Valid values: L2, L3.`,
           );
