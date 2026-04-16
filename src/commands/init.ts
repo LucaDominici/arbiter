@@ -29,6 +29,7 @@ import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { generateSuppressions } from "../generators/suppressions.js";
+import { generateStrideEnforcement } from "../generators/stride-enforcement.js";
 import { generateArchUnit } from "../generators/archunit.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
@@ -194,6 +195,8 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   }
 
   all.push(...generateArchUnit(config).files);
+
+  all.push(...generateStrideEnforcement(config).files);
 
   all.push(...generateSsot(config).files);
 

@@ -170,4 +170,29 @@ describe("generateCheckAll", () => {
       expect(content).not.toContain("pitest");
     }
   });
+
+  it("includes STRIDE/RACI traceability check at L2 when enableDebtGates is true", () => {
+    generateCheckAll(
+      makeConfig(dir, { enableDebtGates: true, governanceLevel: "L2" }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("check-stride-traceability.mjs");
+    expect(content).toContain("STRIDE");
+  });
+
+  it("does not include STRIDE check outside L2 block (appears only within if-level check)", () => {
+    generateCheckAll(makeConfig(dir, { enableDebtGates: true }));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    // The check appears inside the `if (level === 'L2')` block — verify that
+    const l2BlockStart = content.indexOf("if (level === 'L2')");
+    const strideIdx = content.indexOf("check-stride-traceability.mjs");
+    expect(l2BlockStart).toBeGreaterThan(-1);
+    expect(strideIdx).toBeGreaterThan(l2BlockStart);
+  });
 });
