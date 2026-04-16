@@ -55,6 +55,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-10:** Gate must pass before push: `node scripts/check-all.mjs L2`
 - **INV-11:** Full matrix testing — every generated template/artifact must be tested across all supported stacks (TS, Java, Rust, Go, Python) × tools (Claude, Codex, Cursor, Copilot) × governance levels (L1, L2, L3). No milestone completion without matrix coverage.
 - **INV-13:** Self-hosted runner for Linux CI — all GitHub Actions Linux jobs (arbiter's own CI and the generated `ci.yml.ejs` template) must use `${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}`. Do not hardcode `ubuntu-latest`. Override via repo variable `CI_BUILD_RUNNER_LABEL` when needed. Mirrors haben INV-11 (see [ADR-023](docs/ADR/023-self-hosted-ci-runner.md)).
+- **INV-32:** Every language with ≥1 `proven` cell in `src/compatibility/cross-language-matrix.json` must have a fixture under `__tests__/fixtures/real-projects/` with a valid `manifest.json`. Enforced by `scripts/check-matrix-fixtures.mjs` (L1 gate) and the nightly `real-project-matrix` workflow.
 
 ---
 

@@ -1,0 +1,7 @@
+{
+  "language": "python",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "note": "Minimal Python package with pyproject.toml — no framework → detects as library archetype"
+}

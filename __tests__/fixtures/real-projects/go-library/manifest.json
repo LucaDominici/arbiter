@@ -1,0 +1,7 @@
+{
+  "language": "go",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "note": "Minimal Go module — no framework → detects as library archetype"
+}

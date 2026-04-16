@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Gradle wrapper shim.
+# The nightly CI installs Gradle via gradle/actions/setup-gradle@v3.
+# This script simply delegates to the installed 'gradle' binary.
+set -euo pipefail
+exec gradle "$@"
