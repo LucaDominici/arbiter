@@ -7,6 +7,84 @@ export interface ArchUnitGeneratorResult {
   files: WriteResult[];
 }
 
+function emitHexagonalSuite(
+  config: ProjectConfig & { basePackage: string },
+  base: string,
+  packagePath: string,
+  data: Record<string, unknown>,
+): WriteResult[] {
+  const files: WriteResult[] = [];
+
+  for (const name of [
+    "DomainPurityTest.java",
+    "DependencyFlowTest.java",
+    "PortsIndependenceTest.java",
+    "TestCoverageArchTest.java",
+  ] as const) {
+    files.push(
+      writeFile(
+        resolvedPath(base, "src", "test", "java", packagePath, name),
+        renderTemplate(`archunit/${name}.ejs`, data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
+  if (config.hasDatabase && config.hasPublicApi) {
+    const supportPath = config.basePackage.replace(/\./g, "/") + "/support";
+
+    files.push(
+      writeFile(
+        resolvedPath(
+          base,
+          "src",
+          "test",
+          "java",
+          supportPath,
+          "RestAssuredBaseIT.java",
+        ),
+        renderTemplate("archunit/RestAssuredBaseIT.java.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+
+    files.push(
+      writeFile(
+        resolvedPath(
+          base,
+          "src",
+          "test",
+          "java",
+          packagePath,
+          "RestAssuredArchTest.java",
+        ),
+        renderTemplate("archunit/RestAssuredArchTest.java.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
+  if (config.buildTool === "gradle") {
+    files.push(
+      writeFile(
+        resolvedPath(base, "gradle", "arch-test-deps.gradle"),
+        renderTemplate("archunit/arch-test-deps.gradle.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  } else if (config.buildTool === "maven") {
+    files.push(
+      writeFile(
+        resolvedPath(base, "docs", "arch-test-deps-maven.md"),
+        renderTemplate("archunit/arch-test-deps-maven.md.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
+  return files;
+}
+
 export function generateArchUnit(
   config: ProjectConfig,
 ): ArchUnitGeneratorResult {
@@ -51,6 +129,19 @@ export function generateArchUnit(
         ),
         renderTemplate("archunit/ArchitectureTest.java.ejs", data),
         { skipIfExists: true },
+      ),
+    );
+  }
+
+  // M22: Hexagonal suite — requires hexagonal style AND basePackage.
+  // basePackage is mandatory to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath.
+  if (config.architectureStyle === "hexagonal" && config.basePackage) {
+    files.push(
+      ...emitHexagonalSuite(
+        config as ProjectConfig & { basePackage: string },
+        base,
+        packagePath,
+        data,
       ),
     );
   }

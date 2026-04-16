@@ -242,3 +242,182 @@ describe("matrix: Java project (Maven)", () => {
     expect(dependabot).not.toContain("gradle");
   });
 });
+
+// ── M22: Hexagonal Architecture Verification Suite (INV-32 evidence) ───────────
+
+describe("matrix: Java project — hexagonal architecture suite (M22)", () => {
+  let hexDir: string;
+
+  beforeEach(() => {
+    hexDir = createTestProject("java");
+    initGit(hexDir);
+  });
+
+  afterEach(() => {
+    cleanupTestProject(hexDir);
+  });
+
+  function hexConfig(
+    overrides: Partial<Parameters<typeof makeConfig>[1]> = {},
+  ) {
+    return makeConfig(hexDir, {
+      language: "java",
+      framework: "spring-boot",
+      buildTool: "gradle",
+      buildCommand: "gradle build -x test",
+      testCommand: "gradle test",
+      lintCommand: "gradle checkstyleMain",
+      formatCommand: 'echo "no formatter configured"',
+      tools: ["claude"],
+      useGitHub: true,
+      githubOwner: "test-owner",
+      githubRepo: "test-repo",
+      languageHooks: getLanguageHooks("java"),
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.fixture",
+      ...overrides,
+    });
+  }
+
+  it("emits DomainPurityTest.java in architecture package", () => {
+    const config = hexConfig();
+    runGenerators(config);
+    expect(
+      existsSync(
+        join(
+          hexDir,
+          "src",
+          "test",
+          "java",
+          "com",
+          "example",
+          "fixture",
+          "architecture",
+          "DomainPurityTest.java",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("emits DependencyFlowTest.java in architecture package", () => {
+    const config = hexConfig();
+    runGenerators(config);
+    expect(
+      existsSync(
+        join(
+          hexDir,
+          "src",
+          "test",
+          "java",
+          "com",
+          "example",
+          "fixture",
+          "architecture",
+          "DependencyFlowTest.java",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("emits PortsIndependenceTest.java in architecture package", () => {
+    const config = hexConfig();
+    runGenerators(config);
+    expect(
+      existsSync(
+        join(
+          hexDir,
+          "src",
+          "test",
+          "java",
+          "com",
+          "example",
+          "fixture",
+          "architecture",
+          "PortsIndependenceTest.java",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("emits TestCoverageArchTest.java in architecture package", () => {
+    const config = hexConfig();
+    runGenerators(config);
+    expect(
+      existsSync(
+        join(
+          hexDir,
+          "src",
+          "test",
+          "java",
+          "com",
+          "example",
+          "fixture",
+          "architecture",
+          "TestCoverageArchTest.java",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("emits arch-test-deps.gradle fragment", () => {
+    const config = hexConfig();
+    runGenerators(config);
+    expect(existsSync(join(hexDir, "gradle", "arch-test-deps.gradle"))).toBe(
+      true,
+    );
+  });
+
+  it("emits RestAssuredBaseIT.java + RestAssuredArchTest.java when hasDatabase+hasPublicApi", () => {
+    const config = hexConfig({ hasDatabase: true, hasPublicApi: true });
+    runGenerators(config);
+    expect(
+      existsSync(
+        join(
+          hexDir,
+          "src",
+          "test",
+          "java",
+          "com",
+          "example",
+          "fixture",
+          "support",
+          "RestAssuredBaseIT.java",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(
+          hexDir,
+          "src",
+          "test",
+          "java",
+          "com",
+          "example",
+          "fixture",
+          "architecture",
+          "RestAssuredArchTest.java",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("AGENTS.md includes architecture verification section for hexagonal+basePackage", () => {
+    const config = hexConfig();
+    runGenerators(config);
+    const content = readFileSync(join(hexDir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("Architecture Verification");
+    expect(content).toContain("DomainPurityTest");
+    expect(content).toContain("DependencyFlowTest");
+  });
+
+  it("check-all.mjs includes architecture tests step for hexagonal Gradle", () => {
+    const config = hexConfig();
+    runGenerators(config);
+    const content = readFileSync(
+      join(hexDir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("architecture tests");
+  });
+});

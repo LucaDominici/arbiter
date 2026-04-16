@@ -76,28 +76,28 @@ Generator gate: `src/utils/maturity-check.ts::isL3Allowed()`
 
 ## Implementation Status
 
-| Mechanism                 | Status                                                | Milestone         |
-| ------------------------- | ----------------------------------------------------- | ----------------- |
-| Architecture boundaries   | Partial (1 ArchUnit test for Java)                    | M22               |
-| Complexity limits         | Partial (ESLint for TS, PMD mention for Java)         | M29               |
-| Static analysis           | Partial (generic PMD)                                 | M29               |
-| Formatting                | Partial (assumed, not generated)                      | M29               |
-| Coverage                  | Partial (threshold in gate script, not in build tool) | M30               |
-| Mutation testing          | Advisory only (guide, not gate)                       | M23               |
-| Dep security              | Not generated                                         | M24               |
-| Secrets scanning          | Not generated                                         | M24               |
-| Integration DB            | Not generated                                         | M26               |
-| API testing (RestAssured) | Partial (ArchUnit test, no setup)                     | M22               |
-| Contract testing          | Not generated                                         | M28               |
-| DB migrations             | Mentioned in invariants, not generated                | Future            |
-| E2E testing               | Not generated                                         | M25               |
-| Dead code                 | Generated (Knip, PMD, clippy, golangci-lint, ruff)    | Done (M15)        |
-| Circular deps             | Generated (madge, jdeps, native)                      | Done (M15)        |
-| Type safety               | Generated (hooks per language)                        | Done (M12)        |
-| No MockMvc                | Generated (ArchUnit NoMockMvcTest)                    | Done (M21/INV-29) |
-| PII scan                  | Not generated                                         | M24               |
-| Evidence harness          | Not generated                                         | M25               |
-| Nightly pipeline          | Not generated                                         | M25               |
+| Mechanism                 | Status                                                                              | Milestone         |
+| ------------------------- | ----------------------------------------------------------------------------------- | ----------------- |
+| Architecture boundaries   | Java done (5 ArchUnit classes, hexagonal). TS/Rust/Go/Python tracked in #70a-d      | M22 (Java done)   |
+| Complexity limits         | Partial (ESLint for TS, PMD mention for Java)                                       | M29               |
+| Static analysis           | Partial (generic PMD)                                                               | M29               |
+| Formatting                | Partial (assumed, not generated)                                                    | M29               |
+| Coverage                  | Partial (threshold in gate script, not in build tool)                               | M30               |
+| Mutation testing          | Advisory only (guide, not gate)                                                     | M23               |
+| Dep security              | Not generated                                                                       | M24               |
+| Secrets scanning          | Not generated                                                                       | M24               |
+| Integration DB            | Not generated                                                                       | M26               |
+| API testing (RestAssured) | Java done (RestAssuredBaseIT + RestAssuredArchTest + dep fragment). Maven: doc only | M22 (Java done)   |
+| Contract testing          | Not generated                                                                       | M28               |
+| DB migrations             | Mentioned in invariants, not generated                                              | Future            |
+| E2E testing               | Not generated                                                                       | M25               |
+| Dead code                 | Generated (Knip, PMD, clippy, golangci-lint, ruff)                                  | Done (M15)        |
+| Circular deps             | Generated (madge, jdeps, native)                                                    | Done (M15)        |
+| Type safety               | Generated (hooks per language)                                                      | Done (M12)        |
+| No MockMvc                | Generated (ArchUnit NoMockMvcTest)                                                  | Done (M21/INV-29) |
+| PII scan                  | Not generated                                                                       | M24               |
+| Evidence harness          | Not generated                                                                       | M25               |
+| Nightly pipeline          | Not generated                                                                       | M25               |
 
 ---
 
