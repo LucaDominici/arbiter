@@ -84,6 +84,17 @@ try {
 
 Never throw from a generator or detector. Callers do not have try/catch around generator calls. If a generator cannot complete, it should log and return an empty result array rather than throwing.
 
+**`loadConfig` error visibility:** `loadConfig` returns `null` for both missing and corrupt `arbiter.json`. When the file exists but cannot be parsed (invalid JSON), it emits `console.warn` before returning `null` so operators can distinguish corruption from absence. Callers that guard with `if (!stored)` will still exit with "No arbiter.json found" — the warn fires to stderr first. Do not add new silent `catch {}` in `loadConfig` or its callers.
+
+---
+
+## Shared Detector Utilities
+
+`src/detectors/axis.ts` is the canonical module for archetype axis-field resolution:
+
+- **`ARCHETYPE_DB_SET: ReadonlySet<Archetype>`** — set of archetypes that have a database by default (`backend-web-db`, `data-pipeline`). All code that needs to check "does this archetype imply a database?" must use this set — no inline string literals.
+- **`resolveAxisFields(stored, targetDir, language, framework)`** — computes the six axis fields (`archetype`, `architectureStyle`, `isMultiTenant`, `hasDatabase`, `hasPublicApi`, `contractType`) from stored config with detection fallback. All commands that build a `ProjectConfig` from stored config must call this helper — do not inline the resolution logic.
+
 ---
 
 ## Commit Format
