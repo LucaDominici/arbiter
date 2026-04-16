@@ -1,0 +1,7 @@
+{
+  "language": "typescript",
+  "archetype": "backend-web-db",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "note": "TypeScript with fastify dep → detects as backend-web-db archetype"
+}
