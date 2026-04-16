@@ -16,13 +16,17 @@ const BANNED_PREFIXES = [
   'sqlx', 'diesel', 'sea_orm', 'axum', 'actix_web',
   'reqwest', 'tonic', 'rocket', 'warp', 'hyper',
 ];
+// Matches bare `use crate::` and re-exports `pub use crate::` / `pub(crate) use crate::`.
 const bannedRe = new RegExp(
-  `^\\s*use\\s+(${BANNED_PREFIXES.join('|')})[;:]`,
+  `^\\s*(?:pub(?:\\([^)]*\\))?\\s+)?use\\s+(${BANNED_PREFIXES.join('|')})[;:]`,
 );
 const violations = [];
 
 function scanDomain(dir) {
-  if (!existsSync(dir)) return;
+  if (!existsSync(dir)) {
+    process.stdout.write(`check-boundaries: src/domain/ not found — skipping domain purity scan\n`);
+    return;
+  }
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -53,20 +57,33 @@ const deny = spawnSync(
 if (deny.error) {
   process.stderr.write(`check-boundaries: failed to spawn 'cargo deny': ${deny.error.message}\n`);
   failed++;
+} else if (deny.signal !== null) {
+  process.stderr.write(`check-boundaries: 'cargo deny' killed by signal ${deny.signal}\n`);
+  if (deny.stdout) process.stdout.write(deny.stdout);
+  if (deny.stderr) process.stderr.write(deny.stderr);
+  failed++;
 } else if (deny.status !== 0) {
   if (deny.stdout) process.stdout.write(deny.stdout);
   if (deny.stderr) process.stderr.write(deny.stderr);
   failed++;
 }
 
-// ─── Layer 3: clippy disallowed types/methods ─────────────────────────────────
+// ─── Layer 3: clippy disallowed types/methods (enforces clippy.toml) ─────────
+// Runs only the disallowed_* lints from clippy.toml — distinct from the broad
+// L1 `cargo clippy -- -D warnings` which does not apply disallowed_types rules
+// in non-hexagonal projects. Here we target those rules explicitly.
 const clippy = spawnSync(
   'cargo',
-  ['clippy', '--', '-D', 'warnings'],
+  ['clippy', '--', '-D', 'clippy::disallowed_types', '-D', 'clippy::disallowed_methods', '-D', 'clippy::disallowed_macros'],
   { encoding: 'utf-8', shell: false },
 );
 if (clippy.error) {
   process.stderr.write(`check-boundaries: failed to spawn 'cargo clippy': ${clippy.error.message}\n`);
+  failed++;
+} else if (clippy.signal !== null) {
+  process.stderr.write(`check-boundaries: 'cargo clippy' killed by signal ${clippy.signal}\n`);
+  if (clippy.stdout) process.stdout.write(clippy.stdout);
+  if (clippy.stderr) process.stderr.write(clippy.stderr);
   failed++;
 } else if (clippy.status !== 0) {
   if (clippy.stdout) process.stdout.write(clippy.stdout);

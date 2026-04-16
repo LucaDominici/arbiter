@@ -44,8 +44,9 @@ deny = [
   { name = "reqwest" },
   # gRPC
   { name = "tonic" },
-  # Low-level HTTP
-  { name = "hyper" },
+  # hyper intentionally excluded: it is a transitive dep of reqwest/axum/tonic,
+  # so banning it directly would break any hexagonal project using those frameworks
+  # in adapters. The grep-scan and disallowed_types enforce domain isolation instead.
 ]
 
 [sources]

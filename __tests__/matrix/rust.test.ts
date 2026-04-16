@@ -230,6 +230,25 @@ describe("matrix: Rust project", () => {
       expect(pass.stderr ?? "").not.toContain("domain purity violations");
     });
 
+    it("domain purity grep also catches pub use re-exports", () => {
+      runGenerators(hexConfig());
+      mkdirSync(join(dir, "src", "domain"), { recursive: true });
+      writeFileSync(
+        join(dir, "src", "domain", "bad.rs"),
+        "pub use sqlx::Pool;\n",
+      );
+
+      const fail = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(fail.status).not.toBe(0);
+      expect(fail.stderr).toContain("sqlx");
+
+      rmSync(join(dir, "src", "domain", "bad.rs"));
+    });
+
     it("non-hexagonal config does NOT emit deny.toml", () => {
       runGenerators(rustConfig());
       expect(existsSync(join(dir, "deny.toml"))).toBe(false);
