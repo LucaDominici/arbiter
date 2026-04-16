@@ -195,4 +195,77 @@ describe("generateCheckAll", () => {
     expect(l2BlockStart).toBeGreaterThan(-1);
     expect(strideIdx).toBeGreaterThan(l2BlockStart);
   });
+
+  // ─── MG: scaled thresholds ──────────────────────────────────────────────────
+
+  it("fixed profile (default) uses 80% coverage threshold at L2", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "typescript",
+        enableDebtGates: true,
+        governanceLevel: "L2",
+        thresholdProfile: "fixed",
+        linesOfCode: 500,
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("80");
+    expect(content).toContain("coverage");
+  });
+
+  it("scaled profile + LoC<1000 omits coverage gate from generated script", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "typescript",
+        enableDebtGates: true,
+        governanceLevel: "L2",
+        thresholdProfile: "scaled",
+        linesOfCode: 500,
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("coverage.thresholds.lines");
+  });
+
+  it("scaled profile + LoC>=1000 includes coverage gate with ramped threshold", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "typescript",
+        enableDebtGates: true,
+        governanceLevel: "L2",
+        thresholdProfile: "scaled",
+        linesOfCode: 5000,
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("coverage.thresholds.lines");
+    // Threshold between 60% and 85% for 5k LoC
+    expect(content).toMatch(/coverage\.thresholds\.lines=\d{2}/);
+  });
+
+  it("scaled profile + LoC>=10000 uses 85% coverage threshold", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "typescript",
+        enableDebtGates: true,
+        governanceLevel: "L2",
+        thresholdProfile: "scaled",
+        linesOfCode: 15_000,
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("coverage.thresholds.lines=85");
+  });
 });

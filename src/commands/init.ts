@@ -382,6 +382,12 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.evidenceRetention !== undefined
       ? { evidenceRetention: config.evidenceRetention }
       : {}),
+    ...(config.thresholdProfile !== undefined
+      ? { thresholdProfile: config.thresholdProfile }
+      : {}),
+    ...(config.strictnessTier !== undefined
+      ? { strictnessTier: config.strictnessTier }
+      : {}),
   };
 }
 

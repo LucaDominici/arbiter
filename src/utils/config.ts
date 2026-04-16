@@ -31,6 +31,9 @@ export interface ArbiterConfig {
   acceptBetaTools?: boolean;
   // Phase 9.5 MJ: evidence retention policy — persisted for arbiter update
   evidenceRetention?: import("../wizard/types.js").EvidenceRetentionConfig;
+  // Phase 9.5 MG: threshold profile and strictness tier — persisted for arbiter update
+  thresholdProfile?: import("../wizard/types.js").ThresholdProfile;
+  strictnessTier?: import("../wizard/types.js").StrictnessTier;
 }
 
 const CONFIG_FILE = "arbiter.json";
