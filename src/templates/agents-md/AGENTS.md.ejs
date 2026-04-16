@@ -140,7 +140,26 @@ apply from: 'gradle/arch-test-deps.gradle'
 - Use `gofmt` for formatting (enforced by CI)
 - Use `golangci-lint` with project-level config
 - Prefer table-driven tests
-- File naming: `snake_case.go`<% } %><% if (language === 'python') { %>### Python
+- File naming: `snake_case.go`<% if (architectureStyle === 'hexagonal') { %>
+
+### Architecture Verification (M22c)
+
+Generated depguard config + domain-purity grep enforce hexagonal layer isolation (hard gate, L2+).
+
+**Peer deps**: `golangci-lint >= 2.0`
+
+**Setup**: the generated `.golangci-boundaries.yml` is placed at the project root. No `go.mod` changes needed.
+
+**Rules enforced**:
+
+| Layer | Mechanism | What it bans |
+|-------|-----------|-------------|
+| Project (all layers) | depguard `main` rule in `.golangci-boundaries.yml` | Framework imports in business logic (gorm, gin, echo, fiber, …) |
+| `internal/domain/**` | depguard `domain-purity` rule | Framework imports in domain packages |
+| `internal/domain/**` | grep scan in `scripts/check-boundaries.mjs` | `"gorm.io/…"`, `"github.com/gin-gonic/…"`, … — toolchain-free enforcer |
+
+**Suppressions**: add exemptions to `suppressions/boundaries-baseline.json` with `scope` (file-pattern glob) + `expiresAt` (wave-migration date). Enforced by `check-suppressions.mjs` L1 gate.
+<% } %><% } %><% if (language === 'python') { %>### Python
 
 - Type annotations required on all public function signatures
 - Use `ruff` for linting and formatting

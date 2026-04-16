@@ -103,6 +103,9 @@ if (level === 'L2') {
   runCheck('integration', 'mvn', ['verify', '-q'], { soft: graceActive });
 <% } %><% if (language === 'go') { %>
   runCheck('staticcheck', 'staticcheck', ['./...'], { soft: graceActive });
+<% if (architectureStyle === 'hexagonal') { %>
+  runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'python') { %>
   runCheck('audit', 'pip-audit', [], { soft: graceActive });
 <% } %>

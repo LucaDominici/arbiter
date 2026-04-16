@@ -99,9 +99,9 @@
       "reason": "cargo-deny and clippy provide reliable static checks for Rust"
     },
     "go": {
-      "tool": "go/analysis",
+      "tool": "golangci-lint (depguard)",
       "maturity": "proven",
-      "reason": "go/analysis framework is part of the Go standard toolchain"
+      "reason": "depguard (golangci-lint) provides reliable static checks for Go, consistent with M22b pattern"
     },
     "python": {
       "tool": "import-linter + ruff",

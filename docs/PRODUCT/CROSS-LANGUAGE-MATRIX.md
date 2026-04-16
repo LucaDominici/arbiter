@@ -1,7 +1,7 @@
 # Arbiter — Cross-Language Enforcement Matrix
 
 **Status:** Active
-**Last updated:** 2026-04-16 (M22b: Rust boundaries added)
+**Last updated:** 2026-04-17 (M22c: Go boundaries via depguard added)
 
 For every enforcement mechanism, arbiter must generate the equivalent for all 5 supported languages. This matrix is the canonical reference.
 
@@ -23,7 +23,7 @@ Generator gate: `src/utils/maturity-check.ts::isL3Allowed()`
 
 | Mechanism                   | Java                                    | TypeScript                             | Rust                        | Go                         | Python                         | Maturity (Java / TS / Rust / Go / Python)                    |
 | --------------------------- | --------------------------------------- | -------------------------------------- | --------------------------- | -------------------------- | ------------------------------ | ------------------------------------------------------------ |
-| **Architecture boundaries** | ArchUnit                                | eslint-plugin-boundaries               | cargo-deny + clippy         | go/analysis                | import-linter + ruff           | proven / proven / proven / proven / proven                   |
+| **Architecture boundaries** | ArchUnit                                | eslint-plugin-boundaries               | cargo-deny + clippy         | golangci-lint (depguard)   | import-linter + ruff           | proven / proven / proven / proven / proven                   |
 | **Complexity limits**       | Checkstyle (CC≤15, method≤65, params≤7) | ESLint (complexity: 15, max-params: 5) | clippy cognitive_complexity | gocyclo (≤15)              | ruff C901 (≤15)                | proven / proven / proven / proven / proven                   |
 | **Static analysis**         | PMD + SpotBugs                          | ESLint strict + TypeScript strict      | clippy pedantic + deny      | golangci-lint (full suite) | ruff (full rules) + mypy       | proven / proven / proven / proven / proven                   |
 | **Formatting**              | Spotless (Google Java Format)           | Prettier                               | rustfmt                     | gofmt                      | ruff format                    | proven / proven / proven / proven / proven                   |
@@ -57,47 +57,47 @@ Generator gate: `src/utils/maturity-check.ts::isL3Allowed()`
 
 ## CI Job Mapping
 
-| CI Job                      |     L1     |                                      L2                                      |    L3 (nightly)    |
-| --------------------------- | :--------: | :--------------------------------------------------------------------------: | :----------------: |
-| Lint + format               | All stacks |                                  All stacks                                  |     All stacks     |
-| Unit tests                  | All stacks |                                  All stacks                                  |     All stacks     |
-| Coverage verification       |     —      |                                  All stacks                                  |     All stacks     |
-| Architecture boundaries     |     —      | Java (ArchUnit), TS (eslint-boundaries), Rust (cargo-deny + boundaries shim) |   All applicable   |
-| Dependency audit            |     —      |                                  All stacks                                  |     All stacks     |
-| Secrets scan (Gitleaks)     |     —      |                                  All stacks                                  |     All stacks     |
-| PII scan                    |     —      |                                  All stacks                                  |     All stacks     |
-| Integration tests (real DB) |     —      |                              All stacks with DB                              | All stacks with DB |
-| Mutation testing            |     —      |                                      —                                       |     All stacks     |
-| E2E full suite              |     —      |                                      —                                       | Frontend projects  |
-| Evidence harness            |     —      |                                      —                                       |     All stacks     |
-| Container scan (Trivy)      |     —      |                                      —                                       |     All stacks     |
+| CI Job                      |     L1     |                                             L2                                              |    L3 (nightly)    |
+| --------------------------- | :--------: | :-----------------------------------------------------------------------------------------: | :----------------: |
+| Lint + format               | All stacks |                                         All stacks                                          |     All stacks     |
+| Unit tests                  | All stacks |                                         All stacks                                          |     All stacks     |
+| Coverage verification       |     —      |                                         All stacks                                          |     All stacks     |
+| Architecture boundaries     |     —      | Java (ArchUnit), TS (eslint-boundaries), Rust (cargo-deny + boundaries shim), Go (depguard) |   All applicable   |
+| Dependency audit            |     —      |                                         All stacks                                          |     All stacks     |
+| Secrets scan (Gitleaks)     |     —      |                                         All stacks                                          |     All stacks     |
+| PII scan                    |     —      |                                         All stacks                                          |     All stacks     |
+| Integration tests (real DB) |     —      |                                     All stacks with DB                                      | All stacks with DB |
+| Mutation testing            |     —      |                                              —                                              |     All stacks     |
+| E2E full suite              |     —      |                                              —                                              | Frontend projects  |
+| Evidence harness            |     —      |                                              —                                              |     All stacks     |
+| Container scan (Trivy)      |     —      |                                              —                                              |     All stacks     |
 
 ---
 
 ## Implementation Status
 
-| Mechanism                 | Status                                                                              | Milestone          |
-| ------------------------- | ----------------------------------------------------------------------------------- | ------------------ |
-| Architecture boundaries   | Java + TypeScript + Rust done (M22/M22a/M22b). Go tracked in #139, Python in #140   | M22/M22a/M22b done |
-| Complexity limits         | Partial (ESLint for TS, PMD mention for Java)                                       | M29                |
-| Static analysis           | Partial (generic PMD)                                                               | M29                |
-| Formatting                | Partial (assumed, not generated)                                                    | M29                |
-| Coverage                  | Partial (threshold in gate script, not in build tool)                               | M30                |
-| Mutation testing          | Advisory only (guide, not gate)                                                     | M23                |
-| Dep security              | Not generated                                                                       | M24                |
-| Secrets scanning          | Not generated                                                                       | M24                |
-| Integration DB            | Not generated                                                                       | M26                |
-| API testing (RestAssured) | Java done (RestAssuredBaseIT + RestAssuredArchTest + dep fragment). Maven: doc only | M22 (Java done)    |
-| Contract testing          | Not generated                                                                       | M28                |
-| DB migrations             | Mentioned in invariants, not generated                                              | Future             |
-| E2E testing               | Not generated                                                                       | M25                |
-| Dead code                 | Generated (Knip, PMD, clippy, golangci-lint, ruff)                                  | Done (M15)         |
-| Circular deps             | Generated (madge, jdeps, native)                                                    | Done (M15)         |
-| Type safety               | Generated (hooks per language)                                                      | Done (M12)         |
-| No MockMvc                | Generated (ArchUnit NoMockMvcTest)                                                  | Done (M21/INV-29)  |
-| PII scan                  | Not generated                                                                       | M24                |
-| Evidence harness          | Not generated                                                                       | M25                |
-| Nightly pipeline          | Not generated                                                                       | M25                |
+| Mechanism                 | Status                                                                              | Milestone         |
+| ------------------------- | ----------------------------------------------------------------------------------- | ----------------- |
+| Architecture boundaries   | Java + TypeScript + Rust + Go done (M22/M22a/M22b/M22c). Python tracked in #140     | M22–M22c done     |
+| Complexity limits         | Partial (ESLint for TS, PMD mention for Java)                                       | M29               |
+| Static analysis           | Partial (generic PMD)                                                               | M29               |
+| Formatting                | Partial (assumed, not generated)                                                    | M29               |
+| Coverage                  | Partial (threshold in gate script, not in build tool)                               | M30               |
+| Mutation testing          | Advisory only (guide, not gate)                                                     | M23               |
+| Dep security              | Not generated                                                                       | M24               |
+| Secrets scanning          | Not generated                                                                       | M24               |
+| Integration DB            | Not generated                                                                       | M26               |
+| API testing (RestAssured) | Java done (RestAssuredBaseIT + RestAssuredArchTest + dep fragment). Maven: doc only | M22 (Java done)   |
+| Contract testing          | Not generated                                                                       | M28               |
+| DB migrations             | Mentioned in invariants, not generated                                              | Future            |
+| E2E testing               | Not generated                                                                       | M25               |
+| Dead code                 | Generated (Knip, PMD, clippy, golangci-lint, ruff)                                  | Done (M15)        |
+| Circular deps             | Generated (madge, jdeps, native)                                                    | Done (M15)        |
+| Type safety               | Generated (hooks per language)                                                      | Done (M12)        |
+| No MockMvc                | Generated (ArchUnit NoMockMvcTest)                                                  | Done (M21/INV-29) |
+| PII scan                  | Not generated                                                                       | M24               |
+| Evidence harness          | Not generated                                                                       | M25               |
+| Nightly pipeline          | Not generated                                                                       | M25               |
 
 ---
 
