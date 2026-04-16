@@ -33,6 +33,7 @@ import { generateStrideEnforcement } from "../generators/stride-enforcement.js";
 import { generateEvidenceRetention } from "../generators/evidence-retention.js";
 import { generateTestTaxonomy } from "../generators/test-taxonomy.js";
 import { generateArchUnit } from "../generators/archunit.js";
+import { generateEslintBoundaries } from "../generators/boundaries.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
@@ -201,6 +202,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   }
 
   all.push(...generateArchUnit(config).files);
+  all.push(...generateEslintBoundaries(config).files);
 
   if (config.enableDebtGates) {
     all.push(...generateStrideEnforcement(config).files);
