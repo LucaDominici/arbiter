@@ -226,6 +226,8 @@ describe("matrix: Go project", () => {
         join(dir, ".golangci-boundaries.yml"),
         "utf-8",
       );
+      expect(content).toContain('version: "2"');
+      expect(content).toContain("default: none");
       expect(content).toContain("gorm");
       expect(content).toContain("gin");
       expect(content).toContain("!**/internal/adapter/**");
