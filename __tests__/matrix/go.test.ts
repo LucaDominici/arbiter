@@ -220,7 +220,7 @@ describe("matrix: Go project", () => {
       );
     });
 
-    it(".golangci-boundaries.yml contains framework bans (gorm + gin)", () => {
+    it(".golangci-boundaries.yml contains framework bans (gorm + gin) scoped away from adapters", () => {
       runGenerators(hexConfig());
       const content = readFileSync(
         join(dir, ".golangci-boundaries.yml"),
@@ -228,6 +228,7 @@ describe("matrix: Go project", () => {
       );
       expect(content).toContain("gorm");
       expect(content).toContain("gin");
+      expect(content).toContain("!**/internal/adapter/**");
     });
 
     it("AGENTS.md contains Architecture Verification (M22c) section with depguard", () => {

@@ -12,8 +12,13 @@ linters:
 linters-settings:
   depguard:
     rules:
-      # ── Project-wide: ban framework imports from business logic ──────────────────
+      # ── Non-adapter layers: ban framework imports from domain and application ──────
       main:
+        files:
+          - "!**/internal/adapter/**"
+          - "!**/internal/infrastructure/**"
+          - "!**/cmd/**"
+          - "!**/*_test.go"
         deny:
           - pkg: "gorm.io/gorm"
             desc: "Use repository interfaces (ports); ORM belongs in infrastructure adapters"
