@@ -12,6 +12,7 @@ import {
   getInvariantsByTier,
   presetToTiers,
 } from "../../src/invariants/filter.js";
+import { computeThresholds } from "../../src/config/thresholds.js";
 import { generateGlobalInvariants } from "../../src/generators/global-invariants.js";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -104,11 +105,17 @@ function configFor(
     governanceLevel: config.governanceLevel,
     invariantTiers: config.invariantTiers,
   });
+  // Pre-compute thresholds — same as generateCheckAll does — so templates
+  // that reference coverageEnabled/coverageThreshold always receive these values.
+  const thresholds = computeThresholds(0, "fixed", level);
   return {
     ...(config as unknown as Record<string, unknown>),
     invariants,
     invariantsByTier: getInvariantsByTier(invariants),
     tierLabels: TIER_LABELS,
+    coverageEnabled: thresholds.coverageEnabled,
+    coverageThreshold: thresholds.coverageThreshold,
+    mutationEnabled: thresholds.mutationEnabled,
   };
 }
 

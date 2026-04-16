@@ -43,6 +43,11 @@ program
     false,
   )
   .option("--no-verify", "Skip toolchain compatibility probes after generation")
+  .option(
+    "--accept-beta-tools",
+    "Allow generation of L3 features backed by beta-maturity tools (audit trail written to arbiter.json)",
+    false,
+  )
   .action(
     async (opts: {
       yes: boolean;
@@ -53,6 +58,7 @@ program
       obsidian: boolean;
       brownfield: boolean;
       verify: boolean;
+      acceptBetaTools: boolean;
     }) => {
       await runInit({
         yes: opts.yes,
@@ -63,6 +69,7 @@ program
         obsidian: opts.obsidian,
         brownfield: opts.brownfield,
         noVerify: !opts.verify,
+        acceptBetaTools: opts.acceptBetaTools,
       });
     },
   );

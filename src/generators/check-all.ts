@@ -1,5 +1,6 @@
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
+import { computeThresholds } from "../config/thresholds.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 
@@ -12,7 +13,20 @@ export function generateCheckAll(
 ): CheckAllGeneratorResult {
   const results: WriteResult[] = [];
   const base = config.targetDir;
-  const data = config as unknown as Record<string, unknown>;
+
+  const thresholds = computeThresholds(
+    config.linesOfCode ?? 0,
+    config.thresholdProfile ?? "fixed",
+    config.governanceLevel,
+  );
+
+  const data = {
+    ...config,
+    // Pre-computed threshold values consumed by check-all.mjs.ejs
+    coverageThreshold: thresholds.coverageThreshold,
+    coverageEnabled: thresholds.coverageEnabled,
+    mutationEnabled: thresholds.mutationEnabled,
+  } as unknown as Record<string, unknown>;
 
   const scriptPath = resolvedPath(base, "scripts", "check-all.mjs");
   results.push(

@@ -159,4 +159,49 @@ export interface ProjectConfig {
   basePackage?: string;
   /** Whether to generate the optional Obsidian vault at docs/vault/. */
   enableObsidianVault?: boolean;
+  /**
+   * User explicitly acknowledges that one or more beta tools will be used.
+   * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.
+   * Beta tools (maturity="beta") require this flag; unsafe tools are never allowed.
+   */
+  acceptBetaTools?: boolean;
+  /**
+   * Phase 9.5 MG: coverage/mutation threshold profile.
+   * "scaled" = LoC-based ramp (no coverage <1000 LoC, no mutation <5000 LoC, 60%→85%).
+   * "fixed"  = flat 80% (L2) / 85% (L3) regardless of project size.
+   * Default: "scaled".
+   */
+  thresholdProfile?: ThresholdProfile;
+  /**
+   * Phase 9.5 MG: enforcement strictness tier.
+   * "practical" = standard rules for most teams.
+   * "pedantic"  = additional rules: noUncheckedIndexedAccess (TS), clippy pedantic (Rust), etc.
+   * Default: "practical".
+   */
+  strictnessTier?: StrictnessTier;
+  /**
+   * Phase 9.5 MG: detected or estimated lines of code in the target project.
+   * Used by "scaled" threshold profile to compute coverage/mutation gates.
+   * 0 = unknown; treated same as <1000 LoC for scaled profile (coverage and mutation gates disabled).
+   */
+  linesOfCode?: number;
+  /**
+   * Phase 9.5 MJ: evidence harness retention policy.
+   * Controls how many evidence runs to keep and where to store them.
+   * Default: { mode: "local-last-N", count: 5 }
+   */
+  evidenceRetention?: EvidenceRetentionConfig;
+}
+
+export type ThresholdProfile = "scaled" | "fixed";
+export type StrictnessTier = "practical" | "pedantic";
+
+export type EvidenceRetentionMode = "local-last-N" | "external-bucket" | "none";
+
+export interface EvidenceRetentionConfig {
+  mode: EvidenceRetentionMode;
+  /** For local-last-N: number of runs to keep. Default 5. */
+  count?: number;
+  /** For external-bucket: target URL (e.g. s3://bucket/path). */
+  bucketUrl?: string;
 }

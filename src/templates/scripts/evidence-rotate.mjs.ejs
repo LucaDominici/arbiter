@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+// <%= projectName %> — evidence harness rotation (INV-91)
+// Keeps the last N evidence runs in .evidence/, removes older ones.
+// Usage: node scripts/evidence-rotate.mjs
+<% if (evidenceRetention && evidenceRetention.mode === 'external-bucket') { %>
+// WARNING: external-bucket mode is a stub.
+// Configure credentials before enabling upload:
+//   export EVIDENCE_BUCKET_SECRET=<your-secret>
+// Target bucket: <%= evidenceRetention.bucketUrl %>
+// This script currently only rotates local copies.
+// Uncomment and implement the upload block below once credentials are in place.
+<% } %>
+import { readdirSync, rmSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+const EVIDENCE_DIR = '.evidence';
+const KEEP_LAST = <%= (evidenceRetention && evidenceRetention.count != null) ? evidenceRetention.count : 5 %>;
+
+if (!existsSync(EVIDENCE_DIR)) {
+  process.stdout.write(`[evidence-rotate] ${EVIDENCE_DIR}/ not found — nothing to rotate\n`);
+  process.exit(0);
+}
+
+// Collect run directories (direct children only, sorted by name ascending)
+const entries = readdirSync(EVIDENCE_DIR, { withFileTypes: true })
+  .filter(e => e.isDirectory())
+  .map(e => e.name)
+  .sort();
+
+if (entries.length <= KEEP_LAST) {
+  process.stdout.write(`[evidence-rotate] ${entries.length} run(s) — within limit of ${KEEP_LAST}, nothing removed\n`);
+  process.exit(0);
+}
+
+const toRemove = entries.slice(0, entries.length - KEEP_LAST);
+for (const name of toRemove) {
+  const fullPath = join(EVIDENCE_DIR, name);
+  rmSync(fullPath, { recursive: true, force: true });
+  process.stdout.write(`[evidence-rotate] removed ${fullPath}\n`);
+}
+
+process.stdout.write(`[evidence-rotate] kept ${KEEP_LAST} most recent run(s)\n`);
+<% if (evidenceRetention && evidenceRetention.mode === 'external-bucket') { %>
+
+// ─── External bucket upload stub ─────────────────────────────────────────────
+// TODO(#91): implement upload to <%= evidenceRetention.bucketUrl %>
+// Requires: EVIDENCE_BUCKET_SECRET env var
+// if (!process.env.EVIDENCE_BUCKET_SECRET) {
+//   process.stderr.write('[evidence-rotate] WARN: EVIDENCE_BUCKET_SECRET not set — skipping upload\n');
+// } else {
+//   // upload remaining runs to bucket
+// }
+<% } %>

@@ -29,6 +29,9 @@ import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { generateSuppressions } from "../generators/suppressions.js";
+import { generateStrideEnforcement } from "../generators/stride-enforcement.js";
+import { generateEvidenceRetention } from "../generators/evidence-retention.js";
+import { generateTestTaxonomy } from "../generators/test-taxonomy.js";
 import { generateArchUnit } from "../generators/archunit.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
@@ -39,6 +42,8 @@ import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
+import type { ArbiterConfig } from "../utils/config.js";
+import { isL3Allowed } from "../utils/maturity-check.js";
 import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import type {
@@ -59,6 +64,8 @@ export interface InitOptions {
   brownfield: boolean;
   /** Skip toolchain compatibility probes after generation. */
   noVerify: boolean;
+  /** Allow L3 generation with beta-maturity tools. Persisted in arbiter.json for audit. */
+  acceptBetaTools?: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -102,6 +109,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       governanceLevel: parseLevel(options.level),
       useGitHub: githubAccess.authenticated,
       obsidian: options.obsidian,
+      acceptBetaTools: options.acceptBetaTools ?? false,
     });
   } else {
     const wizardResult = await runWizard({
@@ -126,6 +134,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     return;
   }
 
+  checkL3MaturityGates(config);
+
   console.log("\n  Generating...");
   const allResults = runGenerators(config);
 
@@ -138,23 +148,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   runGithubSetup(config);
 
   // Save config for future `arbiter update`
-  saveConfig(targetDir, {
-    version: "0.1",
-    tools: config.tools,
-    governanceLevel: config.governanceLevel,
-    useGitHub: config.useGitHub,
-    enableDebtGates: config.enableDebtGates,
-    enableSuppressions: config.enableSuppressions,
-    invariantTiers: config.invariantTiers,
-    archetype: config.archetype,
-    architectureStyle: config.architectureStyle,
-    isMultiTenant: config.isMultiTenant,
-    hasDatabase: config.hasDatabase,
-    hasPublicApi: config.hasPublicApi,
-    ...(config.enableObsidianVault === true
-      ? { enableObsidianVault: true }
-      : {}),
-  });
+  saveConfig(targetDir, buildArbiterConfig(config));
 
   if (options.brownfield && config.enableDebtGates) {
     runBrownfieldCapture(targetDir);
@@ -206,6 +200,14 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   }
 
   all.push(...generateArchUnit(config).files);
+
+  if (config.enableDebtGates) {
+    all.push(...generateStrideEnforcement(config).files);
+  }
+
+  all.push(...generateEvidenceRetention(config).files);
+
+  all.push(...generateTestTaxonomy(config).files);
 
   all.push(...generateSsot(config).files);
 
@@ -327,6 +329,7 @@ function buildDefaultConfig(opts: {
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
   obsidian?: boolean;
+  acceptBetaTools?: boolean;
 }): ProjectConfig {
   const archetype =
     detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ??
@@ -361,7 +364,38 @@ function buildDefaultConfig(opts: {
     enableSuppressions: true,
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
+    acceptBetaTools: opts.acceptBetaTools ?? false,
     ...detectedBasePackage(opts.language, opts.targetDir),
+  };
+}
+
+function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
+  return {
+    version: "0.1",
+    tools: config.tools,
+    governanceLevel: config.governanceLevel,
+    useGitHub: config.useGitHub,
+    enableDebtGates: config.enableDebtGates,
+    enableSuppressions: config.enableSuppressions,
+    invariantTiers: config.invariantTiers,
+    archetype: config.archetype,
+    architectureStyle: config.architectureStyle,
+    isMultiTenant: config.isMultiTenant,
+    hasDatabase: config.hasDatabase,
+    hasPublicApi: config.hasPublicApi,
+    ...(config.enableObsidianVault === true
+      ? { enableObsidianVault: true }
+      : {}),
+    ...(config.acceptBetaTools === true ? { acceptBetaTools: true } : {}),
+    ...(config.evidenceRetention !== undefined
+      ? { evidenceRetention: config.evidenceRetention }
+      : {}),
+    ...(config.thresholdProfile !== undefined
+      ? { thresholdProfile: config.thresholdProfile }
+      : {}),
+    ...(config.strictnessTier !== undefined
+      ? { strictnessTier: config.strictnessTier }
+      : {}),
   };
 }
 
@@ -386,6 +420,40 @@ function parseTools(tools: string | undefined): AiTool[] {
 function parseLevel(level: string | undefined): GovernanceLevel {
   if (level === "L1" || level === "L2" || level === "L3") return level;
   return "L2";
+}
+
+/**
+ * Gate check for L3 maturity. Blocks generation if any L3 feature
+ * (mutation, contract) is marked unsafe or beta without --accept-beta-tools.
+ * Exits the process with an actionable error message on violation.
+ */
+function checkL3MaturityGates(config: ProjectConfig): void {
+  if (config.governanceLevel !== "L3") return;
+
+  const l3Features: Array<"mutation" | "contract"> = ["mutation", "contract"];
+  const blocked: string[] = [];
+
+  for (const feature of l3Features) {
+    const result = isL3Allowed(
+      config.language,
+      feature,
+      config.acceptBetaTools ?? false,
+    );
+    if (!result.allowed && result.errorMessage) {
+      blocked.push(`  • ${result.errorMessage}`);
+    }
+  }
+
+  if (blocked.length > 0) {
+    console.error("\n  arbiter init aborted: L3 maturity gate failed.\n");
+    for (const msg of blocked) {
+      console.error(msg);
+    }
+    console.error(
+      "\n  Use --accept-beta-tools to allow beta tools, or reduce governance to L2.\n",
+    );
+    process.exit(1);
+  }
 }
 
 function runToolchainVerify(targetDir: string): void {

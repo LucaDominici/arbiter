@@ -72,23 +72,31 @@ if (level === 'L2') {
 <% } %>
 <% if (enableDebtGates) { %>
   // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────
-<% const threshold = governanceLevel === 'L3' ? 85 : 80; %>
 <% if (language === 'typescript') { %>
-  runCheck('coverage threshold', 'npx', ['vitest', 'run', '--coverage', '--coverage.thresholds.lines=<%= threshold %>']);
+<% if (coverageEnabled) { %>
+  runCheck('coverage threshold', 'npx', ['vitest', 'run', '--coverage', '--coverage.thresholds.lines=<%= coverageThreshold %>']);
+<% } %>
   runCheck('dead code', 'npx', ['knip']);
   runCheck('circular deps', 'npx', ['madge', '--circular', 'src']);
 <% } %><% if (language === 'rust') { %>
-  runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= threshold %>']);
+<% if (coverageEnabled) { %>
+  runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>']);
+<% } %>
   runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings']);
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q']);
   runCheck('pmd', './gradlew', ['pmdMain', '-q']);
+<% if (mutationEnabled) { %>
   runCheck('mutation testing (pitest)', './gradlew', ['pitest', '-q']);
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q']);
   runCheck('pmd', 'mvn', ['pmd:check', '-q']);
+<% if (mutationEnabled) { %>
   runCheck('mutation testing (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']);
+<% } %>
 <% } %><% if (language === 'go') { %>
+<% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...']);
   process.stdout.write('[CHECK] coverage threshold ... ');
   const coverResult = spawnSync('go', ['tool', 'cover', '-func=coverage.out'], { encoding: 'utf-8', shell: false });
@@ -98,15 +106,20 @@ if (level === 'L2') {
   } else {
     const match = coverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
     const pct = match ? parseFloat(match[1]) : 0;
-    if (pct < <%= threshold %>) { console.log(`FAIL (${pct.toFixed(1)}% < <%= threshold %>%)`); failed++; }
+    if (pct < <%= coverageThreshold %>) { console.log(`FAIL (${pct.toFixed(1)}% < <%= coverageThreshold %>%)`); failed++; }
     else { console.log(`PASS (${pct.toFixed(1)}%)`); }
   }
+<% } %>
   runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,deadcode,unused']);
 <% } %><% if (language === 'python') { %>
-  runCheck('coverage threshold', 'pytest', ['--cov', '--cov-fail-under=<%= threshold %>']);
+<% if (coverageEnabled) { %>
+  runCheck('coverage threshold', 'pytest', ['--cov', '--cov-fail-under=<%= coverageThreshold %>']);
+<% } %>
   runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.']);
   runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.']);
 <% } %>
+  // ─── L2: STRIDE/RACI traceability ───────────────────────────────────────────
+  runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs']);
   // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
 <% const ratchetFlag = governanceLevel === 'L3' ? '--require-improvement' : '--gate'; %>
