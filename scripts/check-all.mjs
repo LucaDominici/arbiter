@@ -76,6 +76,7 @@ runCheck("commitlint", "npx", [
   "--to",
   "HEAD",
 ]);
+runCheck("test naming", "node", ["scripts/check-test-naming.mjs"]);
 
 // ─── L2: Full checks (+2 = 10) ────────────────────────────────────────────────
 if (level === "L2") {

@@ -1,0 +1,47 @@
+/// Example of behavioral test structure for Rust.
+///
+/// Pattern: use descriptive function names in the form
+/// `given_<context>_when_<action>_then_<expected>`.
+/// Group related tests with a `mod` block.
+
+#[cfg(test)]
+mod given_valid_input {
+    #[test]
+    fn when_processed_then_returns_uppercase() {
+        // Arrange
+        let input = "hello";
+
+        // Act
+        let result = input.to_uppercase();
+
+        // Assert
+        assert_eq!(result, "HELLO");
+    }
+
+    #[test]
+    fn when_trimmed_and_processed_then_transforms_correctly() {
+        // Arrange
+        let input = "  hello  ";
+
+        // Act
+        let result = input.trim().to_uppercase();
+
+        // Assert
+        assert_eq!(result, "HELLO");
+    }
+}
+
+#[cfg(test)]
+mod given_empty_input {
+    #[test]
+    fn when_processed_then_returns_empty_string() {
+        // Arrange
+        let input = "";
+
+        // Act
+        let result = input.to_uppercase();
+
+        // Assert
+        assert!(result.is_empty());
+    }
+}

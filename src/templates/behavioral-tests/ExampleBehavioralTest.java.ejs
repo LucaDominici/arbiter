@@ -1,0 +1,66 @@
+package example;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Example of Given/When/Then behavioral test structure using JUnit5.
+ *
+ * Pattern: @Nested classes group by context; @DisplayName provides readable descriptions.
+ * Replace 'ExampleSubject' with the class or behaviour under test.
+ */
+@DisplayName("ExampleSubject")
+class ExampleBehavioralTest {
+
+    @Nested
+    @DisplayName("given a valid input")
+    class GivenValidInput {
+
+        @Test
+        @DisplayName("when processed, then returns expected result")
+        void whenProcessed_thenReturnsExpectedResult() {
+            // Arrange
+            var input = "hello";
+
+            // Act
+            var result = input.toUpperCase();
+
+            // Assert
+            assertThat(result).isEqualTo("HELLO");
+        }
+
+        @Test
+        @DisplayName("when chained, then transforms correctly")
+        void whenChained_thenTransformsCorrectly() {
+            // Arrange
+            var input = "  hello  ";
+
+            // Act
+            var result = input.trim().toUpperCase();
+
+            // Assert
+            assertThat(result).isEqualTo("HELLO");
+        }
+    }
+
+    @Nested
+    @DisplayName("given an empty input")
+    class GivenEmptyInput {
+
+        @Test
+        @DisplayName("when processed, then returns empty string")
+        void whenProcessed_thenReturnsEmptyString() {
+            // Arrange
+            var input = "";
+
+            // Act
+            var result = input.toUpperCase();
+
+            // Assert
+            assertThat(result).isEmpty();
+        }
+    }
+}

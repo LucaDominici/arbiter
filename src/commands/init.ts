@@ -40,11 +40,13 @@ import { generateGoBoundaries } from "../generators/go-boundaries.js";
 import { generatePythonBoundaries } from "../generators/python-boundaries.js";
 import { generateMutation } from "../generators/mutation.js";
 import { generateNightly } from "../generators/nightly.js";
+import { generateIntegrationTesting } from "../generators/integration-testing.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
 import { generateSsot } from "../generators/ssot.js";
 import { generateObsidianVault } from "../generators/obsidian-vault.js";
+import { generateBehavioralTests } from "../generators/behavioral-tests.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
@@ -218,6 +220,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   all.push(...generatePythonBoundaries(config).files);
   all.push(...generateMutation(config).files);
   all.push(...generateNightly(config).files);
+  all.push(...generateIntegrationTesting(config).files);
 
   if (config.enableDebtGates) {
     all.push(...generateStrideEnforcement(config).files);
@@ -226,6 +229,8 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   all.push(...generateEvidenceRetention(config).files);
 
   all.push(...generateTestTaxonomy(config).files);
+
+  all.push(...generateBehavioralTests(config).files);
 
   all.push(...generateSsot(config).files);
 

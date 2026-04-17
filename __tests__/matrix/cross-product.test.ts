@@ -301,11 +301,11 @@ describe("cross-product: check-all.mjs — language check commands", () => {
     expect(content).toContain("audit");
   });
 
-  it("java: contains checkstyleMain, gradlew test, and integrationTest", () => {
-    const content = renderTemplate(
-      "scripts/check-all.mjs.ejs",
-      configFor("java", "L2"),
-    );
+  it("java: contains checkstyleMain, gradlew test, and integrationTest (hasDatabase=true)", () => {
+    const content = renderTemplate("scripts/check-all.mjs.ejs", {
+      ...configFor("java", "L2"),
+      hasDatabase: true,
+    });
     expect(content).toContain("checkstyleMain");
     expect(content).toContain("gradlew");
     expect(content).toContain("integrationTest");
@@ -1185,5 +1185,159 @@ describe("cross-product: generateNightly — L3 emits nightly files per stack", 
         rmSync(d, { recursive: true, force: true });
       }
     });
+  }
+});
+
+// ─── M26: Integration testing — hasDatabase gate ──────────────────────────────
+
+describe("cross-product: check-all.mjs — integration test step (M26, hasDatabase gate)", () => {
+  // Markers that should appear in rendered check-all.mjs for each language
+  // when hasDatabase=true at L2+, and be ABSENT when hasDatabase=false or at L1.
+  //
+  // java: `integrationTest` is currently rendered unconditionally in the Java branch
+  // (no hasDatabase guard yet). After Task 5 (M26) wraps it with
+  // `<% if (hasDatabase) %>`, the negative tests (hasDatabase=false) will go GREEN.
+  // Until then, the negative tests correctly FAIL in RED.
+  //
+  // For L1, the check-all.mjs.ejs uses EJS-time `<% if (governanceLevel !== 'L1') %>`
+  // guards (to be added in Task 5). Until then, the L1-absent tests correctly FAIL.
+  const INTEGRATION_MARKERS: Record<Language, string> = {
+    typescript: "integration",
+    java: "integrationTest",
+    rust: "integration",
+    go: "integration",
+    python: "tests/integration",
+    unknown: "",
+  };
+
+  for (const lang of LANGUAGES) {
+    for (const level of ["L2", "L3"] as GovernanceLevel[]) {
+      it(`${lang}+${level}+hasDatabase=true: integration marker present`, () => {
+        const marker = INTEGRATION_MARKERS[lang];
+        if (!marker) return;
+        const content = renderTemplate("scripts/check-all.mjs.ejs", {
+          ...configFor(lang, level),
+          hasDatabase: true,
+        });
+        expect(content).toContain(marker);
+      });
+    }
+
+    it(`${lang}+L1+hasDatabase=true: integration marker absent (L1 excluded)`, () => {
+      const marker = INTEGRATION_MARKERS[lang];
+      if (!marker) return;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L1"),
+        hasDatabase: true,
+      });
+      expect(content).not.toContain(marker);
+    });
+
+    it(`${lang}+L2+hasDatabase=false: integration marker absent`, () => {
+      const marker = INTEGRATION_MARKERS[lang];
+      if (!marker) return;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L2"),
+        hasDatabase: false,
+      });
+      expect(content).not.toContain(marker);
+    });
+  }
+});
+
+// ─── M27: Behavioral tests — TESTING_POLICY.md.ejs (5 stacks × 3 levels) ────
+
+describe("cross-product: TESTING_POLICY.md — renders for all stacks and levels (INV-11)", () => {
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: renders without error and contains naming section`, () => {
+        const content = renderTemplate(
+          "behavioral-tests/TESTING_POLICY.md.ejs",
+          configFor(lang, level),
+        );
+        expect(content.toLowerCase()).toContain("naming");
+        expect(content.toLowerCase()).toContain("mock");
+      });
+    }
+  }
+
+  it("L2+: E2E policy section present", () => {
+    const content = renderTemplate(
+      "behavioral-tests/TESTING_POLICY.md.ejs",
+      configFor("typescript", "L2"),
+    );
+    expect(content.toLowerCase()).toContain("e2e");
+  });
+
+  it("L1: E2E policy section absent", () => {
+    const content = renderTemplate(
+      "behavioral-tests/TESTING_POLICY.md.ejs",
+      configFor("typescript", "L1"),
+    );
+    expect(content.toLowerCase()).not.toContain("e2e policy");
+  });
+});
+
+// ─── M27: check-test-naming.mjs.ejs — naming patterns per stack (5 stacks × 3 levels) ─
+
+describe("cross-product: check-test-naming.mjs — correct patterns per stack (INV-11)", () => {
+  const NAMING_PATTERNS: Record<Language, string> = {
+    typescript: ".test.ts",
+    java: "Test.java",
+    rust: "_test.rs",
+    go: "_test.go",
+    python: "test_",
+    unknown: "",
+  };
+
+  for (const lang of LANGUAGES) {
+    if (!NAMING_PATTERNS[lang]) continue;
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: naming pattern "${NAMING_PATTERNS[lang]}" present`, () => {
+        const content = renderTemplate(
+          "scripts/check-test-naming.mjs.ejs",
+          configFor(lang, level),
+        );
+        expect(content).toContain(NAMING_PATTERNS[lang]);
+      });
+    }
+  }
+});
+
+// ─── M27: behavioral example templates — render per language ─────────────────
+
+describe("cross-product: behavioral test example templates render per language (INV-11)", () => {
+  const EXAMPLE_TEMPLATES: Partial<Record<Language, string>> = {
+    java: "behavioral-tests/ExampleBehavioralTest.java.ejs",
+    typescript: "behavioral-tests/example.behavioral.test.ts.ejs",
+    rust: "behavioral-tests/example_behavioral_test.rs.ejs",
+    go: "behavioral-tests/example_behavioral_test.go.ejs",
+    python: "behavioral-tests/test_example_behavioral.py.ejs",
+  };
+
+  for (const [lang, template] of Object.entries(EXAMPLE_TEMPLATES)) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: renders without error`, () => {
+        expect(() =>
+          renderTemplate(template, configFor(lang as Language, level)),
+        ).not.toThrow();
+      });
+    }
+  }
+});
+
+// ─── M27: check-all.mjs.ejs — test naming gate present in L1 ─────────────────
+
+describe("cross-product: check-all.mjs — test naming gate wired in L1 (INV-11/M27)", () => {
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: check-test-naming.mjs present in gate`, () => {
+        const content = renderTemplate(
+          "scripts/check-all.mjs.ejs",
+          configFor(lang, level),
+        );
+        expect(content).toContain("check-test-naming.mjs");
+      });
+    }
   }
 });
