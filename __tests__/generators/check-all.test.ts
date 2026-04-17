@@ -543,4 +543,299 @@ describe("generateCheckAll", () => {
     expect(content).toContain("--gitleaks-ignore-path");
     expect(content).not.toContain("--baseline-path");
   });
+
+  // ─── M26: hasDatabase integration test steps ────────────────────────────────
+
+  describe("M26 hasDatabase integration steps", () => {
+    // TypeScript
+    it("TypeScript: includes vitest integration step at L2 when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "typescript",
+          hasDatabase: true,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).toContain("'vitest', 'run', 'integration'");
+    });
+
+    it("TypeScript: omits vitest integration step at L2 when hasDatabase=false", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "typescript",
+          hasDatabase: false,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'vitest', 'run', 'integration'");
+    });
+
+    it("TypeScript: omits vitest integration step at L1 even when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "typescript",
+          hasDatabase: true,
+          governanceLevel: "L1",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'vitest', 'run', 'integration'");
+    });
+
+    // Java Gradle
+    it("Java Gradle: includes integrationTest step at L2 when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "java",
+          buildTool: "gradle",
+          hasDatabase: true,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).toContain("'integrationTest'");
+    });
+
+    it("Java Gradle: omits integrationTest step at L2 when hasDatabase=false", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "java",
+          buildTool: "gradle",
+          hasDatabase: false,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'integrationTest'");
+    });
+
+    it("Java Gradle: omits integrationTest step at L1 even when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "java",
+          buildTool: "gradle",
+          hasDatabase: true,
+          governanceLevel: "L1",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'integrationTest'");
+    });
+
+    // Java Maven
+    it("Java Maven: includes mvn verify integration step at L2 when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "java",
+          buildTool: "maven",
+          hasDatabase: true,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).toContain("['verify', '-q']");
+    });
+
+    it("Java Maven: omits mvn verify integration step at L2 when hasDatabase=false", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "java",
+          buildTool: "maven",
+          hasDatabase: false,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("['verify', '-q']");
+    });
+
+    it("Java Maven: omits mvn verify integration step at L1 even when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "java",
+          buildTool: "maven",
+          hasDatabase: true,
+          governanceLevel: "L1",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("['verify', '-q']");
+    });
+
+    // Rust
+    it("Rust: includes cargo test *integration* step at L2 when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "rust",
+          buildTool: "cargo",
+          hasDatabase: true,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).toContain("'*integration*'");
+    });
+
+    it("Rust: omits cargo test *integration* step at L2 when hasDatabase=false", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "rust",
+          buildTool: "cargo",
+          hasDatabase: false,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'*integration*'");
+    });
+
+    it("Rust: omits cargo test *integration* step at L1 even when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "rust",
+          buildTool: "cargo",
+          hasDatabase: true,
+          governanceLevel: "L1",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'*integration*'");
+    });
+
+    // Go
+    it("Go: includes go test -tags integration step at L2 when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "go",
+          buildTool: "go",
+          hasDatabase: true,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).toContain("'-tags', 'integration'");
+    });
+
+    it("Go: omits go test -tags integration step at L2 when hasDatabase=false", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "go",
+          buildTool: "go",
+          hasDatabase: false,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'-tags', 'integration'");
+    });
+
+    it("Go: omits go test -tags integration step at L1 even when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "go",
+          buildTool: "go",
+          hasDatabase: true,
+          governanceLevel: "L1",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'-tags', 'integration'");
+    });
+
+    // Python
+    it("Python: includes pytest tests/integration/ step at L2 when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "python",
+          buildTool: "pip",
+          hasDatabase: true,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).toContain("'tests/integration/'");
+    });
+
+    it("Python: omits pytest tests/integration/ step at L2 when hasDatabase=false", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "python",
+          buildTool: "pip",
+          hasDatabase: false,
+          governanceLevel: "L2",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'tests/integration/'");
+    });
+
+    it("Python: omits pytest tests/integration/ step at L1 even when hasDatabase=true", () => {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: "python",
+          buildTool: "pip",
+          hasDatabase: true,
+          governanceLevel: "L1",
+        }),
+      );
+      const content = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("'tests/integration/'");
+    });
+  });
 });

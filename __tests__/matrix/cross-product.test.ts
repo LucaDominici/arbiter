@@ -301,11 +301,11 @@ describe("cross-product: check-all.mjs — language check commands", () => {
     expect(content).toContain("audit");
   });
 
-  it("java: contains checkstyleMain, gradlew test, and integrationTest", () => {
-    const content = renderTemplate(
-      "scripts/check-all.mjs.ejs",
-      configFor("java", "L2"),
-    );
+  it("java: contains checkstyleMain, gradlew test, and integrationTest (hasDatabase=true)", () => {
+    const content = renderTemplate("scripts/check-all.mjs.ejs", {
+      ...configFor("java", "L2"),
+      hasDatabase: true,
+    });
     expect(content).toContain("checkstyleMain");
     expect(content).toContain("gradlew");
     expect(content).toContain("integrationTest");
@@ -1184,6 +1184,63 @@ describe("cross-product: generateNightly — L3 emits nightly files per stack", 
       } finally {
         rmSync(d, { recursive: true, force: true });
       }
+    });
+  }
+});
+
+// ─── M26: Integration testing — hasDatabase gate ──────────────────────────────
+
+describe("cross-product: check-all.mjs — integration test step (M26, hasDatabase gate)", () => {
+  // Markers that should appear in rendered check-all.mjs for each language
+  // when hasDatabase=true at L2+, and be ABSENT when hasDatabase=false or at L1.
+  //
+  // java: `integrationTest` is currently rendered unconditionally in the Java branch
+  // (no hasDatabase guard yet). After Task 5 (M26) wraps it with
+  // `<% if (hasDatabase) %>`, the negative tests (hasDatabase=false) will go GREEN.
+  // Until then, the negative tests correctly FAIL in RED.
+  //
+  // For L1, the check-all.mjs.ejs uses EJS-time `<% if (governanceLevel !== 'L1') %>`
+  // guards (to be added in Task 5). Until then, the L1-absent tests correctly FAIL.
+  const INTEGRATION_MARKERS: Record<Language, string> = {
+    typescript: "integration",
+    java: "integrationTest",
+    rust: "integration",
+    go: "integration",
+    python: "tests/integration",
+    unknown: "",
+  };
+
+  for (const lang of LANGUAGES) {
+    for (const level of ["L2", "L3"] as GovernanceLevel[]) {
+      it(`${lang}+${level}+hasDatabase=true: integration marker present`, () => {
+        const marker = INTEGRATION_MARKERS[lang];
+        if (!marker) return;
+        const content = renderTemplate("scripts/check-all.mjs.ejs", {
+          ...configFor(lang, level),
+          hasDatabase: true,
+        });
+        expect(content).toContain(marker);
+      });
+    }
+
+    it(`${lang}+L1+hasDatabase=true: integration marker absent (L1 excluded)`, () => {
+      const marker = INTEGRATION_MARKERS[lang];
+      if (!marker) return;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L1"),
+        hasDatabase: true,
+      });
+      expect(content).not.toContain(marker);
+    });
+
+    it(`${lang}+L2+hasDatabase=false: integration marker absent`, () => {
+      const marker = INTEGRATION_MARKERS[lang];
+      if (!marker) return;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L2"),
+        hasDatabase: false,
+      });
+      expect(content).not.toContain(marker);
     });
   }
 });

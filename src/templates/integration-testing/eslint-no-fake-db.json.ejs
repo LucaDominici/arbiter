@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "sqlite3",
+            "message": "Use Testcontainers + PostgreSQL for integration tests (INV-34). sqlite3 is banned in test files."
+          },
+          {
+            "name": "better-sqlite3",
+            "message": "Use Testcontainers + PostgreSQL for integration tests (INV-34). better-sqlite3 is banned in test files."
+          }
+        ]
+      }
+    ]
+  }
+}

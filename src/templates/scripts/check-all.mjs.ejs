@@ -99,6 +99,9 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
+<% if (hasDatabase && governanceLevel !== 'L1') { %>
+  runCheck('integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'rust') { %>
 <% if (enableSecurityScanning) { %>
   runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
@@ -106,8 +109,13 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
+<% if (hasDatabase && governanceLevel !== 'L1') { %>
+  runCheck('integration tests', 'cargo', ['test', '--test', '*integration*'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
+<% if (hasDatabase && governanceLevel !== 'L1') { %>
   runCheck('integration', './gradlew', ['integrationTest', '-q'], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal' && basePackage) { %>
   runCheck('architecture tests', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: graceActive });
 <% } %>
@@ -115,7 +123,9 @@ if (level === 'L2') {
   runCheck('dep audit (OWASP)', './gradlew', ['dependencyCheckAnalyze', '-q'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
+<% if (hasDatabase && governanceLevel !== 'L1') { %>
   runCheck('integration', 'mvn', ['verify', '-q'], { soft: graceActive });
+<% } %>
 <% if (enableSecurityScanning) { %>
   runCheck('dep audit (OWASP)', 'mvn', ['org.owasp:dependency-check-maven:check', '-q'], { soft: graceActive });
 <% } %>
@@ -127,12 +137,18 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
+<% if (hasDatabase && governanceLevel !== 'L1') { %>
+  runCheck('integration tests', 'go', ['test', '-tags', 'integration', '-run', 'Integration', './...'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'python') { %>
 <% if (enableSecurityScanning) { %>
   runCheck('audit', 'pip-audit', [], { soft: graceActive });
 <% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
+<% } %>
+<% if (hasDatabase && governanceLevel !== 'L1') { %>
+  runCheck('integration tests', 'pytest', ['tests/integration/'], { soft: graceActive });
 <% } %>
 <% } %>
 <% if (enableDebtGates) { %>
