@@ -29,6 +29,7 @@ import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { generateSuppressions } from "../generators/suppressions.js";
+import { generateSecurity } from "../generators/security.js";
 import { generateStrideEnforcement } from "../generators/stride-enforcement.js";
 import { generateEvidenceRetention } from "../generators/evidence-retention.js";
 import { generateTestTaxonomy } from "../generators/test-taxonomy.js";
@@ -205,6 +206,10 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
     all.push(...generateSuppressions(config).files);
   }
 
+  if (config.enableSecurityScanning) {
+    all.push(...generateSecurity(config).files);
+  }
+
   all.push(...generateArchUnit(config).files);
   all.push(...generateEslintBoundaries(config).files);
   all.push(...generateRustBoundaries(config).files);
@@ -373,6 +378,7 @@ function buildDefaultConfig(opts: {
     languageHooks: getLanguageHooks(opts.language),
     enableDebtGates: opts.governanceLevel !== "L1",
     enableSuppressions: true,
+    enableSecurityScanning: opts.governanceLevel !== "L1",
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
     acceptBetaTools: opts.acceptBetaTools ?? false,
@@ -389,6 +395,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     useGitHub: config.useGitHub,
     enableDebtGates: config.enableDebtGates,
     enableSuppressions: config.enableSuppressions,
+    enableSecurityScanning: config.enableSecurityScanning,
     invariantTiers: config.invariantTiers,
     archetype: config.archetype,
     architectureStyle: config.architectureStyle,

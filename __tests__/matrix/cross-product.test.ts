@@ -265,7 +265,8 @@ describe("cross-product: ci.yml — language setup step across all governance le
     it(`go+${level}: contains setup-go`, () => {
       const content = renderCi("go", level);
       expect(content).toContain("setup-go");
-      expect(content).not.toContain("setup-node");
+      // L2+ security-early-fail job legitimately adds setup-node for pii-scan.mjs
+      if (level === "L1") expect(content).not.toContain("setup-node");
       expect(content).not.toContain("setup-java");
       expect(content).not.toContain("rust-toolchain");
     });
@@ -273,7 +274,8 @@ describe("cross-product: ci.yml — language setup step across all governance le
     it(`python+${level}: contains setup-python`, () => {
       const content = renderCi("python", level);
       expect(content).toContain("setup-python");
-      expect(content).not.toContain("setup-node");
+      // L2+ security-early-fail job legitimately adds setup-node for pii-scan.mjs
+      if (level === "L1") expect(content).not.toContain("setup-node");
       expect(content).not.toContain("setup-java");
       expect(content).not.toContain("rust-toolchain");
     });
@@ -803,13 +805,11 @@ const PRESET_EXPECTED_TIERS: Record<InvariantPreset, InvariantTier[]> = {
   full: ["architectural", "governance", "data", "security", "operational"],
 };
 
+// INV-11/12/13 are alwaysActive=true at L2+ (M24), so "Tier 3: Security" appears
+// in AGENTS.md for all presets at L2+ regardless of tier selection.
 const ABSENT_TIERS: Record<InvariantPreset, string[]> = {
-  essential: [
-    "Tier 2: Data Integrity",
-    "Tier 3: Security",
-    "Tier 4: Operational",
-  ],
-  standard: ["Tier 3: Security"],
+  essential: ["Tier 2: Data Integrity", "Tier 4: Operational"],
+  standard: [],
   full: [],
 };
 
@@ -958,7 +958,8 @@ describe("cross-product: GLOBAL_INVARIANTS.md — generation by preset", () => {
         const content = readFileSync(join(d, "GLOBAL_INVARIANTS.md"), "utf-8");
         expect(content).toContain("Tier 2: Data Integrity");
         expect(content).toContain("Tier 4: Operational Excellence");
-        expect(content).not.toContain("Tier 3: Security");
+        // INV-11/12/13 are alwaysActive=true at L2+ (M24), security tier appears regardless of preset
+        expect(content).toContain("Tier 3: Security");
       } finally {
         cleanup(d);
       }
@@ -984,78 +985,83 @@ describe("cross-product: GLOBAL_INVARIANTS.md — generation by preset", () => {
   }
 });
 
-// ── M23: mutation gate cross-product assertions ───────────────────────────────
+// ─── M24: Security scanning cross-product ─────────────────────────────────────
 
-describe("cross-product: check-all.mjs — mutation commands at L3 per stack", () => {
-  const MUTATION_MARKERS: Partial<Record<Language, string>> = {
-    typescript: "stryker",
-    java: "pitest",
-    rust: "mutants",
-    python: "mutmut",
-  };
+// New M24 dep-audit additions per stack (TS/Rust/Python already had audit steps pre-M24)
+const DEP_AUDIT_MARKERS: Partial<Record<Language, string>> = {
+  java: "dependencyCheckAnalyze",
+  typescript: "audit-level=high",
+  rust: "'cargo', ['audit']",
+  go: "govulncheck",
+  python: "pip-audit",
+};
 
-  for (const [lang, marker] of Object.entries(MUTATION_MARKERS) as [
-    Language,
-    string,
-  ][]) {
-    it(`${lang}+L3: check-all.mjs contains "${marker}"`, () => {
-      const content = renderTemplate("scripts/check-all.mjs.ejs", {
-        ...configFor(lang, "L3"),
-        enableDebtGates: true,
-      });
-      expect(content).toContain(marker);
-    });
-  }
-
-  // L2 regression: TS/Rust/Python mutation commands must NOT appear at L2
-  const L2_ABSENT_MARKERS: Partial<Record<Language, string>> = {
-    typescript: "stryker",
-    rust: "mutants",
-    python: "mutmut",
-  };
-
-  for (const [lang, marker] of Object.entries(L2_ABSENT_MARKERS) as [
-    Language,
-    string,
-  ][]) {
-    it(`${lang}+L2: check-all.mjs does NOT contain "${marker}"`, () => {
-      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+describe("cross-product: check-all.mjs — security scanning (M24)", () => {
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: pii-scan runs before L2 block`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L2");
+      const cfg = {
         ...configFor(lang, "L2"),
-        enableDebtGates: true,
-      });
-      expect(content).not.toContain(marker);
-    });
-  }
-});
-
-describe("cross-product: AGENTS.md — mutation row in tech debt table at L3", () => {
-  const MUTATION_ROWS: Partial<Record<Language, string>> = {
-    typescript: "Mutation testing (Stryker)",
-    java: "Mutation testing (pitest)",
-    rust: "Mutation testing (cargo-mutants)",
-    python: "Mutation testing (mutmut)",
-  };
-
-  for (const [lang, row] of Object.entries(MUTATION_ROWS) as [
-    Language,
-    string,
-  ][]) {
-    it(`${lang}+L3: AGENTS.md debt gates table has mutation row`, () => {
-      const config = configFor(lang, "L3");
-      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
-        ...config,
-        enableDebtGates: true,
-      });
-      expect(content).toContain(row);
+        enableSecurityScanning: true,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      const piiIdx = content.indexOf("pii-scan.mjs");
+      const l2BlockIdx = content.indexOf("if (level === 'L2')");
+      expect(piiIdx).toBeGreaterThan(-1);
+      expect(l2BlockIdx).toBeGreaterThan(-1);
+      expect(piiIdx).toBeLessThan(l2BlockIdx);
     });
 
-    it(`${lang}+L2: AGENTS.md debt gates table does NOT have mutation row`, () => {
-      const config = configFor(lang, "L2");
-      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
-        ...config,
-        enableDebtGates: true,
-      });
-      expect(content).not.toContain(row);
+    it(`${lang}+L2: gitleaks step present in L2 block`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L2");
+      const cfg = {
+        ...configFor(lang, "L2"),
+        enableSecurityScanning: true,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      const l2BlockIdx = content.indexOf("if (level === 'L2')");
+      expect(content.indexOf("gitleaks", l2BlockIdx)).toBeGreaterThan(
+        l2BlockIdx,
+      );
+    });
+
+    it(`${lang}+L2: dep-audit step present in L2 block`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L2");
+      const cfg = {
+        ...configFor(lang, "L2"),
+        enableSecurityScanning: true,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      const marker = DEP_AUDIT_MARKERS[lang];
+      if (marker) {
+        const l2BlockIdx = content.indexOf("if (level === 'L2')");
+        expect(content.indexOf(marker, l2BlockIdx)).toBeGreaterThan(l2BlockIdx);
+      }
+    });
+
+    it(`${lang}+L1: no gitleaks or dep-audit step (security gates are L2+)`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L1");
+      const cfg = {
+        ...configFor(lang, "L1"),
+        enableSecurityScanning: false,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      expect(content).not.toContain("gitleaks");
+      expect(content).not.toContain("govulncheck");
+      expect(content).not.toContain("dependencyCheckAnalyze");
+      expect(content).not.toContain("pii-scan.mjs");
     });
   }
 });

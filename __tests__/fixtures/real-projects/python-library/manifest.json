@@ -3,5 +3,6 @@
   "archetype": "library",
   "buildTool": null,
   "levels": ["L1", "L2"],
-  "note": "Minimal Python package with pyproject.toml — no framework → detects as library archetype"
+  "note": "Minimal Python package with pyproject.toml \u2014 no framework \u2192 detects as library archetype",
+  "enableSecurityScanning": true
 }

@@ -3,5 +3,6 @@
   "archetype": "library",
   "buildTool": null,
   "levels": ["L1", "L2"],
-  "note": "Minimal TypeScript library — no framework deps → detects as library archetype"
+  "note": "Minimal TypeScript library \u2014 no framework deps \u2192 detects as library archetype",
+  "enableSecurityScanning": true
 }

@@ -3,5 +3,6 @@
   "archetype": "frontend-spa",
   "buildTool": null,
   "levels": ["L1", "L2"],
-  "note": "TypeScript with react dep → detects as frontend-spa archetype"
+  "note": "TypeScript with react dep \u2192 detects as frontend-spa archetype",
+  "enableSecurityScanning": true
 }

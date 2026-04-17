@@ -60,7 +60,7 @@ describe("generateGlobalInvariants", () => {
     expect(content).toContain("Tier 5: Governance");
   });
 
-  it("standard preset content omits security tier", () => {
+  it("standard preset at L2 includes security tier (INV-11/12/13 alwaysActive, M24)", () => {
     const config = makeConfig(dir, {
       governanceLevel: "L2",
       invariantTiers: presetToTiers("standard"),
@@ -69,7 +69,8 @@ describe("generateGlobalInvariants", () => {
     const content = readFileSync(join(dir, "GLOBAL_INVARIANTS.md"), "utf-8");
     expect(content).toContain("Tier 1: Architectural Integrity");
     expect(content).toContain("Tier 2: Data Integrity");
-    expect(content).not.toContain("Tier 3: Security");
+    // INV-11/12/13 are alwaysActive=true at L2+, so security tier appears even with standard preset
+    expect(content).toContain("Tier 3: Security");
     expect(content).toContain("Tier 4: Operational Excellence");
     expect(content).toContain("Tier 5: Governance");
   });
