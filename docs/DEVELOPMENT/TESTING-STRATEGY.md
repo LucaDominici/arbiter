@@ -115,12 +115,12 @@ INV-11 requires that every generated template/artifact is tested across all supp
 
 Tests the combinations where both stack and governance level interact in template logic. All cross-product tests use `renderTemplate()` (no filesystem setup) for speed. Coverage:
 
-| Template                                     | Combinations tested                                                                              |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `AGENTS.md.ejs`                              | 5 stacks × 3 levels: governance policy markers, language invariant isolation, L3 SSOT invariants |
-| `ci.yml.ejs`                                 | 5 stacks × 3 levels: `docs-check` presence/absence, language setup steps                         |
-| `check-all.mjs.ejs`                          | 5 stacks: per-language check commands; documents Go/Python fallback behavior                     |
-| `start-task.md.ejs` / `complete-task.md.ejs` | 5 stacks × 3 levels: testCommand in output, governance structure (tier/TDD/verification)         |
+| Template            | Combinations tested                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `AGENTS.md.ejs`     | 5 stacks × 3 levels: governance policy markers, language invariant isolation, L3 SSOT invariants |
+| `ci.yml.ejs`        | 5 stacks × 3 levels: `docs-check` presence/absence, language setup steps                         |
+| `check-all.mjs.ejs` | 5 stacks: per-language check commands; documents Go/Python fallback behavior                     |
+| `task.md.ejs`       | 5 stacks × 3 levels: testCommand in output, governance structure (tier/TDD/verification)         |
 
 ### Adding cross-product tests
 

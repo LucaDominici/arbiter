@@ -35,10 +35,9 @@ Configured in `.claude/settings.json`. Active hooks:
 
 ### Slash Commands
 
-| Command            | Purpose                                              |
-| ------------------ | ---------------------------------------------------- |
-| `/start-task #NNN` | Initialize task: create branch, read AGENTS.md, plan |
-| `/complete-task`   | Finalize: gate, commit, PR, merge                    |
+| Command      | Purpose                                           |
+| ------------ | ------------------------------------------------- |
+| `/task #NNN` | Full lifecycle: branch, plan, implement, gate, PR |
 
 ---
 

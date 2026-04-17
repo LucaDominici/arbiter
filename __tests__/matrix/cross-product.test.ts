@@ -492,10 +492,10 @@ describe("cross-product: AGENTS.md — tech debt section at L2+, absent at L1", 
 
 // ─── Claude commands ──────────────────────────────────────────────────────────
 
-describe("cross-product: start-task.md — testCommand in output for all stack × level combinations", () => {
-  function renderStartTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — testCommand in output for all stack × level combinations", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/start-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
@@ -503,23 +503,23 @@ describe("cross-product: start-task.md — testCommand in output for all stack �
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" appears in output`, () => {
-        expect(renderStartTask(lang, level)).toContain(TEST_COMMANDS[lang]);
+        expect(renderTask(lang, level)).toContain(TEST_COMMANDS[lang]);
       });
     }
   }
 });
 
-describe("cross-product: start-task.md — governance structure across all stacks", () => {
-  function renderStartTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — governance structure across all stacks", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/start-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
 
   for (const lang of LANGUAGES) {
     it(`${lang}+L1: no tier classification and no TDD reference`, () => {
-      const content = renderStartTask(lang, "L1");
+      const content = renderTask(lang, "L1");
       expect(content).not.toMatch(/\bXS\b/);
       expect(content).not.toMatch(/\bStandard\b/);
       expect(content).not.toMatch(/\bTDD\b/);
@@ -527,23 +527,23 @@ describe("cross-product: start-task.md — governance structure across all stack
     });
 
     it(`${lang}+L2: tier classification and TDD reference present`, () => {
-      const content = renderStartTask(lang, "L2");
+      const content = renderTask(lang, "L2");
       expect(content).toMatch(/XS|Standard/);
       expect(content).toMatch(/TDD/);
     });
 
     it(`${lang}+L3: tier classification, TDD, and verification present`, () => {
-      const content = renderStartTask(lang, "L3");
+      const content = renderTask(lang, "L3");
       expect(content).toMatch(/XS|Standard/);
       expect(content).toMatch(/verif|evidence/i);
     });
   }
 });
 
-describe("cross-product: complete-task.md — testCommand and verification across all stacks", () => {
-  function renderCompleteTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — testCommand and verification across all stacks", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/complete-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
@@ -551,19 +551,19 @@ describe("cross-product: complete-task.md — testCommand and verification acros
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" in gate section`, () => {
-        expect(renderCompleteTask(lang, level)).toContain(TEST_COMMANDS[lang]);
+        expect(renderTask(lang, level)).toContain(TEST_COMMANDS[lang]);
       });
     }
   }
 
   for (const lang of LANGUAGES) {
     it(`${lang}+L3: verification section present`, () => {
-      const content = renderCompleteTask(lang, "L3");
+      const content = renderTask(lang, "L3");
       expect(content).toMatch(/Verification|evidence/i);
     });
 
     it(`${lang}+L1: no verification section`, () => {
-      const content = renderCompleteTask(lang, "L1");
+      const content = renderTask(lang, "L1");
       expect(content).not.toMatch(/Verification/);
       expect(content).not.toMatch(/evidence/i);
     });
@@ -773,25 +773,25 @@ describe("cross-product: settings.json — advanced hooks governance gating", ()
 
 // ─── start-task task state files (M17) ───────────────────────────────────────
 
-describe("cross-product: start-task.md — task state files for advanced hooks", () => {
-  function renderStartTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — task state files for advanced hooks", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/start-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
 
   for (const lang of LANGUAGES) {
     it(`${lang}+L2: contains .task-phase instruction`, () => {
-      expect(renderStartTask(lang, "L2")).toContain(".task-phase");
+      expect(renderTask(lang, "L2")).toContain(".task-phase");
     });
 
     it(`${lang}+L3: contains .task-phase instruction`, () => {
-      expect(renderStartTask(lang, "L3")).toContain(".task-phase");
+      expect(renderTask(lang, "L3")).toContain(".task-phase");
     });
 
     it(`${lang}+L1: does NOT contain .task-phase instruction`, () => {
-      expect(renderStartTask(lang, "L1")).not.toContain(".task-phase");
+      expect(renderTask(lang, "L1")).not.toContain(".task-phase");
     });
   }
 });

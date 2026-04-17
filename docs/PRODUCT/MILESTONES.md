@@ -212,12 +212,11 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 ## M11 — Workflow Commands + Hook Migration ✅ DONE
 
 **Issues:** #28, #34, #40
-**Scope:** Generate `/start-task` and `/complete-task` slash commands for target projects. Migrate all bash hooks to portable Node.js `.mjs` files. Retroactive matrix test expansion for INV-11.
+**Scope:** Generate a single `/task` slash command for target projects covering the full task lifecycle. Migrate all bash hooks to portable Node.js `.mjs` files. Retroactive matrix test expansion for INV-11.
 
 **Deliverables:**
 
-- `.claude/commands/start-task.md` template (governance-level-parameterized)
-- `.claude/commands/complete-task.md` template (governance-level-parameterized)
+- `.claude/commands/task.md` template (governance-level-parameterized, single file covering init → plan → implement → gate → PR)
 - All `.sh` hooks rewritten as `.mjs` (Node.js, cross-platform)
 - Settings merge logic upgraded to handle `.sh` → `.mjs` migration
 - Cross-product matrix tests: 5 stacks x 3 levels for AGENTS.md, ci.yml, check-all.mjs, commands
