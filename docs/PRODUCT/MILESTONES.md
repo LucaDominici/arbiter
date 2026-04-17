@@ -682,7 +682,7 @@ Container scan (L3, nightly): ⏳ Deferred to M25
 
 ---
 
-## M25 — Nightly Pipeline & Evidence Harness (L3)
+## M25 — Nightly Pipeline & Evidence Harness (L3) ✓ DONE
 
 **Issue:** #73
 **Scope:** Generate L3-only nightly pipeline and evidence collection. Viafera's nightly includes E2E full, mutation, load, security deep.

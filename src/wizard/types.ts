@@ -200,6 +200,11 @@ export interface ProjectConfig {
    * Wizard asks only if hasPublicApi === true. Default: "none".
    */
   contractType: ContractType;
+  /**
+   * M25: path to k6 load test script (relative to project root).
+   * Used by the generated nightly.yml. L3-only. Default: "tests/load/default.js".
+   */
+  k6ScriptPath?: string;
 }
 
 export type ThresholdProfile = "scaled" | "fixed";

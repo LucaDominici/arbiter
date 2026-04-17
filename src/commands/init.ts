@@ -39,6 +39,7 @@ import { generateRustBoundaries } from "../generators/rust-boundaries.js";
 import { generateGoBoundaries } from "../generators/go-boundaries.js";
 import { generatePythonBoundaries } from "../generators/python-boundaries.js";
 import { generateMutation } from "../generators/mutation.js";
+import { generateNightly } from "../generators/nightly.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
@@ -216,6 +217,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   all.push(...generateGoBoundaries(config).files);
   all.push(...generatePythonBoundaries(config).files);
   all.push(...generateMutation(config).files);
+  all.push(...generateNightly(config).files);
 
   if (config.enableDebtGates) {
     all.push(...generateStrideEnforcement(config).files);

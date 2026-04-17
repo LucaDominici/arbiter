@@ -494,4 +494,23 @@ export const INVARIANT_CATALOG: Invariant[] = [
     enforcement:
       "CI gate (scripts/check-matrix-fixtures.mjs — L1) + nightly real-project-matrix workflow",
   },
+
+  // ─── Governance: L3 Evidence Gate ────────────────────────────────────────────
+
+  {
+    id: "INV-33",
+    tier: "governance",
+    title: "L3 merges require valid evidence with obs_gate == PASS",
+    description:
+      "L3 governance mandates structured, machine-checkable evidence of deep validation " +
+      "before merging. The evidence harness (scripts/evidence-collect.mjs) writes " +
+      ".evidence/SUMMARY.json containing an obs_gate field. A merge is blocked when " +
+      "obs_gate !== 'PASS', which indicates that tests failed, coverage dropped below " +
+      "threshold, mutation score is insufficient, or critical security findings exist. " +
+      "The nightly pipeline populates this evidence; the L3 check-all.mjs gate reads it.",
+    alwaysActive: true,
+    minGovernanceLevel: "L3",
+    enforcement:
+      "check-all.mjs L3 block (reads .evidence/SUMMARY.json) + nightly pipeline (evidence-collect.mjs)",
+  },
 ];

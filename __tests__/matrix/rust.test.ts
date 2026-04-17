@@ -310,14 +310,14 @@ describe("matrix: Rust L3 mutation gate (cargo-mutants)", () => {
     expect(content).toMatch(/domain|application/);
   });
 
-  it("check-all.mjs invokes cargo-mutants at L3", () => {
+  it("check-all.mjs does NOT invoke cargo-mutants (mutation moved to nightly)", () => {
     const config = rustL3Config();
     runGenerators(config);
     const content = readFileSync(
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("mutants");
+    expect(content).not.toContain("mutants");
   });
 
   it("L2 config does NOT emit cargo-mutants.toml", () => {
