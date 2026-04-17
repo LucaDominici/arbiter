@@ -166,7 +166,29 @@ Generated depguard config + domain-purity grep enforce hexagonal layer isolation
 - Use `pytest` for testing with fixtures over setUp/tearDown
 - No bare `except:` — always specify exception type
 - File naming: `snake_case.py`
-- Prefer dataclasses or Pydantic models for structured data<% } %>
+- Prefer dataclasses or Pydantic models for structured data<% if (architectureStyle === 'hexagonal') { %>
+
+### Architecture Verification (M22d)
+
+Generated `import-linter` + `ruff` banned-api + domain-purity grep enforce hexagonal layer isolation (hard gate, L2+).
+
+**Peer deps**: `pip install import-linter` (ruff assumed — required for L1 lint).
+
+**Setup**: the generated `.importlinter` and `ruff-boundaries.toml` sit at the project root. **One-time action**: open `.importlinter` and replace `yourpkg` with your actual top-level package name. No `pyproject.toml` changes are made.
+
+**Assumed layout**: `src/<pkg>/domain/`, `src/<pkg>/application/`, `src/<pkg>/adapters/`, `src/<pkg>/infrastructure/`. Flat-layout projects must adapt the `src/domain/` path in `scripts/check-boundaries.mjs` and `ruff-boundaries.toml`.
+
+**Rules enforced**:
+
+| Layer | Mechanism | What it bans |
+|-------|-----------|-------------|
+| `<pkg>.domain` | import-linter `forbidden` contract | Framework modules (django, flask, fastapi, sqlalchemy, httpx, …) |
+| All layers | import-linter `layers` contract | Upward imports (domain cannot import application; application cannot import adapters; …) |
+| `src/domain/**/*.py` | ruff `TID251` banned-api via `ruff-boundaries.toml` | Same framework module list — caught at file granularity with line numbers |
+| `src/domain/**/*.py` | pure-Node grep scan in `check-boundaries.mjs` | `import X`, `from X import …` — enforces L1 without Python deps installed |
+
+**Suppressions**: add exemptions to `suppressions/boundaries-baseline.json` with `scope` (file-pattern glob) + `expiresAt` (wave-migration date). Enforced by `check-suppressions.mjs` L1 gate.
+<% } %><% } %>
 
 ---
 

@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -192,6 +199,125 @@ describe("matrix: Python project", () => {
       "utf-8",
     );
     expect(dependabot).toContain("pip");
+  });
+
+  describe("hexagonal architecture variant", () => {
+    function hexConfig() {
+      return pythonConfig({ architectureStyle: "hexagonal" });
+    }
+
+    it("emits .importlinter at project root", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, ".importlinter"))).toBe(true);
+    });
+
+    it("emits ruff-boundaries.toml at project root", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, "ruff-boundaries.toml"))).toBe(true);
+    });
+
+    it("emits scripts/check-boundaries.mjs", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, "scripts", "check-boundaries.mjs"))).toBe(
+        true,
+      );
+    });
+
+    it(".importlinter contains framework module bans", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, ".importlinter"), "utf-8");
+      expect(content).toContain("sqlalchemy");
+      expect(content).toContain("fastapi");
+      expect(content).toContain("forbidden");
+    });
+
+    it(".importlinter contains layers contract", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, ".importlinter"), "utf-8");
+      expect(content).toContain("type = layers");
+      expect(content).toContain("domain");
+      expect(content).toContain("adapters");
+    });
+
+    it("ruff-boundaries.toml contains TID251 banned-api entries", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, "ruff-boundaries.toml"), "utf-8");
+      expect(content).toContain("TID251");
+      expect(content).toContain('"sqlalchemy"');
+      expect(content).toContain("banned-api");
+    });
+
+    it("AGENTS.md contains Architecture Verification (M22d) section with import-linter", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).toContain("Architecture Verification (M22d)");
+      expect(content).toContain("import-linter");
+    });
+
+    it("check-all.mjs contains boundaries gate step", () => {
+      runGenerators(hexConfig());
+      const checkAll = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(checkAll).toContain("runCheck('boundaries'");
+    });
+
+    it("domain purity grep fails on forbidden import statement, passes on clean domain", () => {
+      runGenerators(hexConfig());
+      mkdirSync(join(dir, "src", "domain"), { recursive: true });
+      writeFileSync(
+        join(dir, "src", "domain", "bad.py"),
+        "import sqlalchemy\n",
+      );
+
+      const fail = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(fail.status).not.toBe(0);
+      expect(fail.stderr).toContain("sqlalchemy");
+
+      rmSync(join(dir, "src", "domain", "bad.py"));
+
+      const pass = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(pass.stderr ?? "").not.toContain("domain purity violations");
+    });
+
+    it("domain purity grep also catches from-import form", () => {
+      runGenerators(hexConfig());
+      mkdirSync(join(dir, "src", "domain"), { recursive: true });
+      writeFileSync(
+        join(dir, "src", "domain", "bad.py"),
+        "from sqlalchemy.orm import Session\n",
+      );
+
+      const fail = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(fail.status).not.toBe(0);
+      expect(fail.stderr).toContain("sqlalchemy");
+
+      rmSync(join(dir, "src", "domain", "bad.py"));
+    });
+
+    it("non-hexagonal config does NOT emit .importlinter", () => {
+      runGenerators(pythonConfig());
+      expect(existsSync(join(dir, ".importlinter"))).toBe(false);
+    });
+
+    it("non-hexagonal AGENTS.md does NOT contain M22d section", () => {
+      runGenerators(pythonConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).not.toContain("Architecture Verification (M22d)");
+    });
   });
 });
 

@@ -1,6 +1,6 @@
 {
   "_comment": "Machine-readable maturity index for the cross-language enforcement matrix. Values: proven | beta | unsafe | unavailable. Consumed by src/utils/maturity-check.ts.",
-  "_lastUpdated": "2026-04-16",
+  "_lastUpdated": "2026-04-17",
   "mutation": {
     "java": {
       "tool": "pitest",

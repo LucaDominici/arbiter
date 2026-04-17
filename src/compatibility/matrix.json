@@ -20,6 +20,7 @@
   "python": [
     { "tool": "python3", "range": ">=3.10" },
     { "tool": "pip", "range": ">=22" },
-    { "tool": "ruff", "range": ">=0.4" }
+    { "tool": "ruff", "range": ">=0.4" },
+    { "tool": "lint-imports", "range": ">=2.0" }
   ]
 }

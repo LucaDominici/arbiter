@@ -11,6 +11,7 @@ import {
   parsePythonVersion,
   parsePipVersion,
   parseRuffVersion,
+  parseLintImportsVersion,
   parseKotlinVersion,
 } from "../../src/compatibility/parsers.js";
 
@@ -195,6 +196,29 @@ describe("parseRuffVersion", () => {
   });
   it("returns null for garbage", () => {
     expect(parseRuffVersion("ruff --version: 0.4.5")).toBeNull();
+  });
+});
+
+describe("parseLintImportsVersion", () => {
+  it("parses standard lint-imports --version output", () => {
+    expect(parseLintImportsVersion("lint-imports, version 2.1.0\n")).toEqual({
+      major: 2,
+      minor: 1,
+      patch: 0,
+    });
+  });
+  it("parses 2.0.0", () => {
+    expect(parseLintImportsVersion("lint-imports, version 2.0.0\n")).toEqual({
+      major: 2,
+      minor: 0,
+      patch: 0,
+    });
+  });
+  it("returns null for empty", () => {
+    expect(parseLintImportsVersion("")).toBeNull();
+  });
+  it("returns null for unrecognized format", () => {
+    expect(parseLintImportsVersion("2.1.0")).toBeNull();
   });
 });
 
