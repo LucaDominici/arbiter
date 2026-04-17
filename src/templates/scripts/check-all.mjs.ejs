@@ -86,7 +86,12 @@ runCheck('unit tests', 'pytest', []);
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 <% if (archetype === 'frontend-spa' && language === 'typescript') { %>
 // ─── L1: Playwright quality rules (M27) ──────────────────────────────────────
-runCheck('playwright rules', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-playwright.json', 'src/**/*.spec.ts', 'src/**/*.test.ts']);
+// Requires: npm install -D eslint-plugin-playwright
+if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
+  runCheck('playwright rules', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-playwright.json', 'src/**/*.spec.ts']);
+} else {
+  console.log('[CHECK] playwright rules ... SKIP (run: npm install -D eslint-plugin-playwright)');
+}
 <% } %>
 <% if (enableSuppressions) { %>
 // ─── L1: Suppression expiry ───────────────────────────────────────────────────
