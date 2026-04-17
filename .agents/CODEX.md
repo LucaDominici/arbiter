@@ -55,12 +55,11 @@ Codex operates via explicit plans. Before any implementation:
 
 ## Command Translation
 
-| Claude Code                     | Codex Equivalent                    |
-| ------------------------------- | ----------------------------------- |
-| `/start-task #NNN`              | Read issue → create plan → await GO |
-| `/complete-task`                | Gate L2 → commit → push → PR        |
-| `node scripts/check-all.mjs L1` | Run before each commit              |
-| `node scripts/check-all.mjs L2` | Run before push/PR                  |
+| Claude Code                     | Codex Equivalent                                  |
+| ------------------------------- | ------------------------------------------------- |
+| `/task #NNN`                    | Full lifecycle: branch, plan, implement, gate, PR |
+| `node scripts/check-all.mjs L1` | Run before each commit                            |
+| `node scripts/check-all.mjs L2` | Run before push/PR                                |
 
 ## Hard Stops
 
