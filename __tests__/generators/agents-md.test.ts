@@ -82,7 +82,21 @@ describe("generateAgentsMd", () => {
     expect(content).toMatch(/MockMvc.*forbidden|forbidden.*MockMvc/i);
   });
 
-  it("Java AGENTS.md contains pitest mutation threshold in debt gates", () => {
+  it("Java L3 AGENTS.md contains pitest mutation threshold in debt gates", () => {
+    generateAgentsMd(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        governanceLevel: "L3",
+        enableDebtGates: true,
+      }),
+    );
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toContain("pitest");
+    expect(content).toContain("mutation");
+  });
+
+  it("Java L2 AGENTS.md does NOT contain pitest mutation row (L3-only gate)", () => {
     generateAgentsMd(
       makeConfig(dir, {
         language: "java",
@@ -92,8 +106,7 @@ describe("generateAgentsMd", () => {
       }),
     );
     const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
-    expect(content).toContain("pitest");
-    expect(content).toContain("mutation");
+    expect(content).not.toContain("| Mutation testing (pitest)");
   });
 
   it("non-Java AGENTS.md does not contain RestAssured or pitest", () => {

@@ -247,20 +247,23 @@ Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.m
 | Complexity | ESLint `complexity` rule | max 15 |
 | Dead Code | Knip | zero unused exports |
 | Circular Deps | madge | zero cycles |
-<% } %><% if (language === 'rust') { %>| Coverage | cargo-tarpaulin / llvm-cov | <%= threshold %>% |
+<% if (governanceLevel === 'L3') { %>| Mutation testing (Stryker) | @stryker-mutator/core | 85% mutation score |
+<% } %><% } %><% if (language === 'rust') { %>| Coverage | cargo-tarpaulin / llvm-cov | <%= threshold %>% |
 | Complexity | `clippy::pedantic` | enforced |
 | Dead Code | `warn(dead_code)` (clippy) | zero warnings |
-<% } %><% if (language === 'java') { %>| Coverage | JaCoCo | <%= threshold %>% |
+<% if (governanceLevel === 'L3') { %>| Mutation testing (cargo-mutants) | cargo-mutants (beta) | 85% mutation score |
+<% } %><% } %><% if (language === 'java') { %>| Coverage | JaCoCo | <%= threshold %>% |
 | Complexity | PMD `CyclomaticComplexity` | max 15 |
 | Dead/Unused Code | PMD UnusedCode rules | zero violations |
-| Mutation testing (pitest) | PIT | 80% mutation score |
-<% } %><% if (language === 'go') { %>| Coverage | go test -coverprofile | <%= threshold %>% |
+<% if (governanceLevel === 'L3') { %>| Mutation testing (pitest) | PIT 1.15+ | 85% mutation score |
+<% } %><% } %><% if (language === 'go') { %>| Coverage | go test -coverprofile | <%= threshold %>% |
 | Complexity | golangci-lint `gocyclo` | max 15 |
 | Dead Code | golangci-lint `deadcode,unused` | zero findings |
 <% } %><% if (language === 'python') { %>| Coverage | pytest-cov | <%= threshold %>% |
 | Complexity | ruff `C901,PLR` rules | max 15 |
 | Unused Imports | ruff `F401,F811` | zero findings |
-<% } %>
+<% if (governanceLevel === 'L3') { %>| Mutation testing (mutmut) | mutmut (beta) | 85% mutation score |
+<% } %><% } %>
 ---
 
 ## Debt Ratchet
