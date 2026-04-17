@@ -9,7 +9,7 @@ fi
 
 # Unset git hook env vars so integration tests can create and operate on
 # independent temp repositories without GIT_DIR poisoning their git calls.
-unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 
 if [ -n "$(git status --porcelain | grep -v '^??')" ]; then
   echo "Error: working tree has uncommitted changes. Commit or stash before pushing."
