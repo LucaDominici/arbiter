@@ -155,6 +155,8 @@ export interface ProjectConfig {
   enableDebtGates: boolean;
   /** Whether to generate suppression templates and the check-suppressions.mjs expiry gate. Defaults to true for all governance levels. */
   enableSuppressions: boolean;
+  /** Whether to generate security scanning gates (PII scan, gitleaks, dep audit). Defaults to true for L2+. */
+  enableSecurityScanning: boolean;
   /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */
   invariantTiers: InvariantTier[];
   /** Base Java package (e.g. "com.example.myapp"). Detected from pom.xml/build.gradle for Java projects. */

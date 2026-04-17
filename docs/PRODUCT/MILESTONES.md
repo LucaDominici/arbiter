@@ -641,34 +641,40 @@ CI integration:
 **Issue:** #72
 **Scope:** Generate security scanning enforcement. Currently arbiter generates zero security scanning.
 
+**Status:** COMPLETE (2026-04-17)
+
 **Deliverables:**
 
-Dependency audit (L2+, HARD):
+Dependency audit (L2+, HARD): ✅
 
-- **Java:** OWASP DependencyCheck plugin in `build.gradle.ejs` (failBuildOnCVSS=7.0)
-- **TypeScript:** `npm audit --audit-level=high` in CI and gate
-- **Rust:** `cargo audit` in CI
-- **Go:** `govulncheck ./...` in CI
-- **Python:** `pip-audit` in CI
+- [x] **Java:** OWASP DependencyCheck snippet `config/owasp-dependency-check.gradle` (failBuildOnCVSS=7.0)
+- [x] **TypeScript:** `npm audit --audit-level=high` in CI and gate
+- [x] **Rust:** `cargo audit` in CI and gate
+- [x] **Go:** `govulncheck ./...` in CI and gate (new)
+- [x] **Python:** `pip-audit` in CI and gate
 
-Secrets detection (L2+, HARD):
+Secrets detection (L2+, HARD): ✅
 
-- Generate `.gitleaks.toml` for all languages
-- Gitleaks CI job in `ci.yml.ejs`
+- [x] Generate `.gitleaks.toml` for all languages
+- [x] Gitleaks CI job (`security-early-fail`) in `ci.yml.ejs`
+- [x] Gitleaks step in L2 gate (`check-all.mjs.ejs`)
 
-PII scan (L2+, HARD, early-fail):
+PII scan (L2+, HARD, early-fail): ✅
 
-- Generate `scripts/pii-scan.mjs` (regex-based, locale-configurable)
-- CI step PII before all other gates (JOB 00b pattern)
-- Claude Code hook: `check-no-pii.mjs` in PostToolUse
+- [x] Generate `scripts/pii-scan.mjs` (email/phone/credit-card patterns, reads `pii-allowlist.json`)
+- [x] PII scan before all other gates in `check-all.mjs.ejs` (HARD, no grace period)
+- [x] CI `security-early-fail` job (PII + gitleaks) runs before `lint-and-test`
+- [x] Claude Code hook: `check-no-pii.mjs` in PostToolUse (Edit|Write)
+- [x] INV-11/12/13 upgraded: `alwaysActive: true`, `minGovernanceLevel: "L2"`, enforcement populated
+- [x] INV-12 broadened: "No PII in logs" → "No PII in code, tests, or logs"
 
-Container scan (L3, nightly):
+Container scan (L3, nightly): ⏳ Deferred to M25
 
-- Trivy in `nightly.yml.ejs`
+- [ ] Trivy in `nightly.yml.ejs` — TODO(#73)
 
-**Gate:** Dep audit and secrets are HARD (L2+). PII is HARD early-fail (L2+). Trivy is L3 nightly.
+**Gate:** Dep audit and secrets are HARD (L2+). PII is HARD early-fail (L2+). Trivy is L3 nightly (M25).
 
-**Exit criteria:** All 5 stacks generate security scanning. CI includes dep audit + gitleaks + PII scan for L2+. Matrix tests validate.
+**Exit criteria:** All 5 stacks generate security scanning. CI includes dep audit + gitleaks + PII scan for L2+. Matrix tests validate. ✅
 
 **Dependencies:** M21, MC (#84 — suppression pattern), MI (#90 — STRIDE skeleton).
 

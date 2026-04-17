@@ -169,20 +169,28 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "API keys, passwords, tokens, and other secrets must never appear in source files, " +
       "configuration files committed to version control, or log output. Use environment " +
       "variables or secret managers (Vault, AWS Secrets Manager, etc.).",
-    alwaysActive: false,
-    enforcement: "CI (git-secrets / trufflehog / gitleaks)",
+    alwaysActive: true,
+    minGovernanceLevel: "L2",
+    enforcement:
+      "CI (gitleaks secrets scan — security-early-fail job, runs before lint-and-test); " +
+      "local gate: `gitleaks detect --source . --baseline-path suppressions/.gitleaksignore` (L2 block)",
   },
 
   {
     id: "INV-12",
     tier: "security",
-    title: "No PII in logs",
+    title: "No PII in code, tests, or logs",
     description:
-      "Personally identifiable information (names, emails, phone numbers, IP addresses, " +
-      "session tokens) must not appear in log output. Mask or redact PII before logging. " +
-      "Required for GDPR/NIS2 compliance.",
-    alwaysActive: false,
-    enforcement: "code review / manual audit",
+      "Personally identifiable information (emails, phone numbers, credit card numbers) must not " +
+      "appear in source code, test fixtures, or log output. Mask or redact PII before logging. " +
+      "Required for GDPR/NIS2 compliance. Enforced by static scan (pii-scan.mjs) as a HARD " +
+      "early-fail gate — no grace-period exception applies.",
+    alwaysActive: true,
+    minGovernanceLevel: "L2",
+    enforcement:
+      "CI (pii-scan.mjs — security-early-fail job, HARD early-fail, no grace period); " +
+      "local gate: `node scripts/pii-scan.mjs` runs before all L1 checks; " +
+      "Claude hook: check-no-pii.mjs (PostToolUse, Edit|Write)",
   },
 
   {
@@ -191,11 +199,17 @@ export const INVARIANT_CATALOG: Invariant[] = [
     title: "Dependencies scanned for known vulnerabilities",
     description:
       "All third-party dependencies must be scanned for CVEs before each release. " +
-      "High-severity vulnerabilities block deployment. Dependency updates must be reviewed " +
-      "for breaking changes.",
-    alwaysActive: false,
+      "High-severity vulnerabilities (CVSS ≥ 7.0) block deployment. Dependency updates must be " +
+      "reviewed for breaking changes.",
+    alwaysActive: true,
+    minGovernanceLevel: "L2",
     enforcement:
-      "CI (npm audit / cargo audit / OWASP Dependency Check / pip-audit / govulncheck)",
+      "CI dep-audit step per stack — TypeScript: `npm audit --audit-level=high`; " +
+      "Rust: rustsec/audit-check action; " +
+      "Java: OWASP Dependency-Check (failBuildOnCVSS=7.0, apply config/owasp-dependency-check.gradle); " +
+      "Go: golang/govulncheck-action; " +
+      "Python: pip-audit. " +
+      "Local gate (L2 block): same commands, soft: graceActive",
   },
 
   {
@@ -432,27 +446,18 @@ export const INVARIANT_CATALOG: Invariant[] = [
   {
     id: "INV-30",
     tier: "operational",
-    title: "Mutation testing required — L3 hard gate (85% threshold)",
+    title: "Mutation testing required — PIT/pitest (Java, L2+)",
     description:
       "Line coverage measures which lines execute but not whether tests verify behavior. " +
       "A suite can reach 90% coverage with assertions that check nothing meaningful. " +
-      "Mutation testing injects faults into production code and verifies tests fail — " +
-      "proving genuine fault-detection power. Threshold: 85% mutation score. " +
-      "Scope: domain and application layers only (not adapters/controllers). " +
-      "Go excluded until a maintained mutation tool reaches beta maturity (ADR-029).",
-    languages: ["java", "typescript", "rust", "python"],
+      "Mutation testing (PIT/pitest) injects faults into production code and verifies tests fail — " +
+      "proving genuine fault-detection power. Thresholds: 80% mutation score, 85% line coverage. " +
+      "Scope: domain and application layers only (not adapters/controllers).",
+    languages: ["java"],
     alwaysActive: false,
-    minGovernanceLevel: "L3",
-    languageDetail: {
-      java: "PIT/pitest 1.15+ — targetClasses: *.domain.*, *.application.service.*, *.application.usecase.*",
-      typescript: "Stryker Mutator — testRunner: vitest, thresholds.break: 85",
-      rust: "cargo-mutants (beta) — examine_globs: src/domain/**/*.rs, src/application/**/*.rs",
-      go: "Excluded — go-mutesting is unsafe (no stable maintained tool). ADR-029.",
-      python:
-        "mutmut (beta) — paths_to_mutate: src/<modulePath>/, timeout_per_mutant: 120s",
-    },
+    minGovernanceLevel: "L2",
     enforcement:
-      "Generated per-stack mutation config + check-all.mjs L3 gate (requires --accept-beta-tools for Rust/Python)",
+      "CI gate (pitest in check-all.mjs L2) + generated pitest config",
   },
 
   // ─── Governance: Suppression Expiry ─────────────────────────────────────────

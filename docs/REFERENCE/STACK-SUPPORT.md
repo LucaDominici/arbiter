@@ -327,3 +327,38 @@ Summary of what is fully implemented per language versus planned.
 | AGENTS.md coding standards   | Yes                     | Yes                    | Yes                   | Yes                          | Yes                        |
 | AGENTS.md invariants         | INV-04, INV-05          | INV-03, INV-04, INV-05 | INV-04, INV-05        | INV-04, INV-05               | INV-04, INV-05             |
 | Dependabot ecosystem         | npm                     | gradle / maven         | cargo                 | gomod                        | pip                        |
+
+---
+
+## Security Scanning (M24)
+
+Generated for all stacks when `enableSecurityScanning: true` (L2+). Three scanners: PII scan (HARD early-fail), secrets detection (gitleaks), dependency audit.
+
+| Scanner   | TypeScript                                   | Java                | Rust          | Go                  | Python      |
+| --------- | -------------------------------------------- | ------------------- | ------------- | ------------------- | ----------- |
+| PII scan  | `node scripts/pii-scan.mjs`                  | same                | same          | same                | same        |
+| Secrets   | gitleaks                                     | same                | same          | same                | same        |
+| Dep audit | `npm audit --audit-level=high`               | OWASP DC (CVSS≥7.0) | `cargo audit` | `govulncheck ./...` | `pip-audit` |
+| CI job    | `security-early-fail` (before lint-and-test) | same                | same          | same                | same        |
+
+**Gate ordering:**
+
+1. PII scan (HARD, no grace — always runs before L1)
+2. Gitleaks (L2 block, `soft: graceActive`)
+3. Dep audit (L2 block, `soft: graceActive`)
+
+**Java OWASP DC setup:** Add to `build.gradle`:
+
+```groovy
+apply from: 'config/owasp-dependency-check.gradle'
+```
+
+The snippet sets `failBuildOnCVSS = 7.0f` and reads `suppressions/dependency-check-suppressions.xml`.
+
+**Suppression files** (user-managed, never overwritten):
+
+- `suppressions/.gitleaksignore` — gitleaks allowlist
+- `suppressions/pii-allowlist.json` — PII allowlist (`[{"pattern": "...", "reason": "..."}]`)
+- `suppressions/dependency-check-suppressions.xml` — OWASP DC allowlist (Java only)
+
+**Claude hook:** `check-no-pii.mjs` (PostToolUse, Edit|Write) — blocks PII from being committed.

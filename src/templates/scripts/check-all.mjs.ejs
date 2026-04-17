@@ -52,6 +52,10 @@ console.log('');
 console.log(`=== <%= projectName %> Quality Gate: ${level} ===`);
 console.log('');
 
+<% if (enableSecurityScanning) { %>
+// ─── Early-fail: PII scan (INV-12, HARD — no grace period) ────────────────────
+runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
+<% } %>
 // ─── L1: Fast checks ──────────────────────────────────────────────────────────
 <% if (language === 'typescript') { %>
 runCheck('typecheck', 'npx', ['tsc', '--noEmit']);
@@ -84,13 +88,21 @@ runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
 <% } %>
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
+<% if (enableSecurityScanning) { %>
+  // ─── L2: Security scanning (INV-11/12/13) ──────────────────────────────────
+  runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });
+<% } %>
 <% if (language === 'typescript') { %>
+<% if (enableSecurityScanning) { %>
   runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'rust') { %>
+<% if (enableSecurityScanning) { %>
   runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
@@ -99,15 +111,26 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal' && basePackage) { %>
   runCheck('architecture tests', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: graceActive });
 <% } %>
+<% if (enableSecurityScanning) { %>
+  runCheck('dep audit (OWASP)', './gradlew', ['dependencyCheckAnalyze', '-q'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('integration', 'mvn', ['verify', '-q'], { soft: graceActive });
+<% if (enableSecurityScanning) { %>
+  runCheck('dep audit (OWASP)', 'mvn', ['org.owasp:dependency-check-maven:check', '-q'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'go') { %>
   runCheck('staticcheck', 'staticcheck', ['./...'], { soft: graceActive });
+<% if (enableSecurityScanning) { %>
+  runCheck('dep audit', 'govulncheck', ['./...'], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'python') { %>
+<% if (enableSecurityScanning) { %>
   runCheck('audit', 'pip-audit', [], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
