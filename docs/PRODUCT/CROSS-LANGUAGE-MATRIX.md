@@ -1,7 +1,7 @@
 # Arbiter — Cross-Language Enforcement Matrix
 
 **Status:** Active
-**Last updated:** 2026-04-17 (M22c: Go boundaries via depguard added)
+**Last updated:** 2026-04-17 (M22c: Go boundaries via depguard; M22d: Python boundaries via import-linter + ruff)
 
 For every enforcement mechanism, arbiter must generate the equivalent for all 5 supported languages. This matrix is the canonical reference.
 
@@ -57,20 +57,20 @@ Generator gate: `src/utils/maturity-check.ts::isL3Allowed()`
 
 ## CI Job Mapping
 
-| CI Job                      |     L1     |                                             L2                                              |    L3 (nightly)    |
-| --------------------------- | :--------: | :-----------------------------------------------------------------------------------------: | :----------------: |
-| Lint + format               | All stacks |                                         All stacks                                          |     All stacks     |
-| Unit tests                  | All stacks |                                         All stacks                                          |     All stacks     |
-| Coverage verification       |     —      |                                         All stacks                                          |     All stacks     |
-| Architecture boundaries     |     —      | Java (ArchUnit), TS (eslint-boundaries), Rust (cargo-deny + boundaries shim), Go (depguard) |   All applicable   |
-| Dependency audit            |     —      |                                         All stacks                                          |     All stacks     |
-| Secrets scan (Gitleaks)     |     —      |                                         All stacks                                          |     All stacks     |
-| PII scan                    |     —      |                                         All stacks                                          |     All stacks     |
-| Integration tests (real DB) |     —      |                                     All stacks with DB                                      | All stacks with DB |
-| Mutation testing            |     —      |                                              —                                              |     All stacks     |
-| E2E full suite              |     —      |                                              —                                              | Frontend projects  |
-| Evidence harness            |     —      |                                              —                                              |     All stacks     |
-| Container scan (Trivy)      |     —      |                                              —                                              |     All stacks     |
+| CI Job                      |     L1     |                                                             L2                                                             |    L3 (nightly)    |
+| --------------------------- | :--------: | :------------------------------------------------------------------------------------------------------------------------: | :----------------: |
+| Lint + format               | All stacks |                                                         All stacks                                                         |     All stacks     |
+| Unit tests                  | All stacks |                                                         All stacks                                                         |     All stacks     |
+| Coverage verification       |     —      |                                                         All stacks                                                         |     All stacks     |
+| Architecture boundaries     |     —      | Java (ArchUnit), TS (eslint-boundaries), Rust (cargo-deny + boundaries shim), Go (depguard), Python (import-linter + ruff) |   All applicable   |
+| Dependency audit            |     —      |                                                         All stacks                                                         |     All stacks     |
+| Secrets scan (Gitleaks)     |     —      |                                                         All stacks                                                         |     All stacks     |
+| PII scan                    |     —      |                                                         All stacks                                                         |     All stacks     |
+| Integration tests (real DB) |     —      |                                                     All stacks with DB                                                     | All stacks with DB |
+| Mutation testing            |     —      |                                                             —                                                              |     All stacks     |
+| E2E full suite              |     —      |                                                             —                                                              | Frontend projects  |
+| Evidence harness            |     —      |                                                             —                                                              |     All stacks     |
+| Container scan (Trivy)      |     —      |                                                             —                                                              |     All stacks     |
 
 ---
 
@@ -78,7 +78,7 @@ Generator gate: `src/utils/maturity-check.ts::isL3Allowed()`
 
 | Mechanism                 | Status                                                                              | Milestone         |
 | ------------------------- | ----------------------------------------------------------------------------------- | ----------------- |
-| Architecture boundaries   | Java + TypeScript + Rust + Go done (M22/M22a/M22b/M22c). Python tracked in #140     | M22–M22c done     |
+| Architecture boundaries   | Java + TypeScript + Rust + Go + Python all done (M22/M22a/M22b/M22c/M22d)           | M22–M22d done     |
 | Complexity limits         | Partial (ESLint for TS, PMD mention for Java)                                       | M29               |
 | Static analysis           | Partial (generic PMD)                                                               | M29               |
 | Formatting                | Partial (assumed, not generated)                                                    | M29               |
