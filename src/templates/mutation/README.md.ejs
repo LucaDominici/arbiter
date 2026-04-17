@@ -1,0 +1,67 @@
+# Mutation Testing — L3 Hard Gate
+
+Enforces INV-30: tests must have genuine fault-detection power (85% mutation score).
+
+## Per-Stack Setup
+
+<% if (language === 'java' && buildTool === 'gradle') { %>
+### Java (Gradle)
+
+`gradle/pitest.gradle` has been generated. Add to your `build.gradle`:
+
+```groovy
+apply from: 'gradle/pitest.gradle'
+```
+
+Run: `./gradlew pitest`
+<% } %><% if (language === 'java' && buildTool === 'maven') { %>
+### Java (Maven)
+
+See `docs/mutation/pitest-maven-setup.md` for the `<plugin>` block to add to `pom.xml`.
+
+Run: `mvn verify -Ppitest`
+<% } %><% if (language === 'typescript') { %>
+### TypeScript
+
+Install peer deps:
+
+```bash
+npm i -D @stryker-mutator/core @stryker-mutator/vitest-runner
+```
+
+`stryker.conf.json` has been generated at the project root.
+
+Run: `npx stryker run`
+<% } %><% if (language === 'rust') { %>
+### Rust (beta — requires `--accept-beta-tools`)
+
+Install cargo-mutants:
+
+```bash
+cargo install cargo-mutants
+```
+
+`cargo-mutants.toml` and `scripts/parse-mutants.mjs` have been generated.
+
+Run: `cargo mutants --config cargo-mutants.toml 2>&1 | node scripts/parse-mutants.mjs --threshold <%= mutationThreshold %>`
+<% } %><% if (language === 'python') { %>
+### Python (beta — requires `--accept-beta-tools`)
+
+Install mutmut:
+
+```bash
+pip install mutmut
+```
+
+`mutmut-config.toml` and `scripts/parse-mutmut.py` have been generated.
+
+Run: `mutmut run && python scripts/parse-mutmut.py --threshold <%= mutationThreshold %>`
+<% } %>
+
+## Threshold
+
+**<%= mutationThreshold %>% mutation score** required. Enforced by `node scripts/check-all.mjs L2`.
+
+## Disabling
+
+Lower governance to L2 (`arbiter init --level=L2`) to revert to advisory-only mutation guidance.

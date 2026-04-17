@@ -983,3 +983,59 @@ describe("cross-product: GLOBAL_INVARIANTS.md — generation by preset", () => {
     });
   }
 });
+
+// ── M23: mutation gate cross-product assertions ───────────────────────────────
+
+describe("cross-product: check-all.mjs — mutation commands at L3 per stack", () => {
+  const MUTATION_MARKERS: Partial<Record<Language, string>> = {
+    typescript: "stryker",
+    java: "pitest",
+    rust: "mutants",
+    python: "mutmut",
+  };
+
+  for (const [lang, marker] of Object.entries(MUTATION_MARKERS) as [
+    Language,
+    string,
+  ][]) {
+    it(`${lang}+L3: check-all.mjs contains "${marker}"`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L3"),
+        enableDebtGates: true,
+      });
+      expect(content).toContain(marker);
+    });
+  }
+});
+
+describe("cross-product: AGENTS.md — mutation row in tech debt table at L3", () => {
+  const MUTATION_ROWS: Partial<Record<Language, string>> = {
+    typescript: "Mutation testing (Stryker)",
+    java: "Mutation testing (pitest)",
+    rust: "Mutation testing (cargo-mutants)",
+    python: "Mutation testing (mutmut)",
+  };
+
+  for (const [lang, row] of Object.entries(MUTATION_ROWS) as [
+    Language,
+    string,
+  ][]) {
+    it(`${lang}+L3: AGENTS.md debt gates table has mutation row`, () => {
+      const config = configFor(lang, "L3");
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...config,
+        enableDebtGates: true,
+      });
+      expect(content).toContain(row);
+    });
+
+    it(`${lang}+L2: AGENTS.md debt gates table does NOT have mutation row`, () => {
+      const config = configFor(lang, "L2");
+      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
+        ...config,
+        enableDebtGates: true,
+      });
+      expect(content).not.toContain(row);
+    });
+  }
+});
