@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { runInit, runGenerators } from "../../src/commands/init.js";
+import { runProbes } from "../../src/compatibility/probe.js";
 import { makeConfig } from "../helpers.js";
+
+vi.mock("../../src/compatibility/probe.js", () => ({
+  runProbes: vi.fn(),
+}));
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), "arbiter-init-test-"));
@@ -176,7 +181,12 @@ describe("arbiter init — verify integration", () => {
   beforeEach(() => {
     dir = tmpDir();
     initGit(dir);
-    vi.resetModules();
+    vi.mocked(runProbes).mockReturnValue({
+      dir: "",
+      stack: "unknown",
+      probes: [],
+      hasFailures: false,
+    });
   });
 
   afterEach(() => {
@@ -185,15 +195,6 @@ describe("arbiter init — verify integration", () => {
   });
 
   it("skips probes when noVerify=true", async () => {
-    const probeSpy = vi.fn().mockReturnValue({
-      dir,
-      stack: "unknown",
-      probes: [],
-      hasFailures: false,
-    });
-    vi.doMock("../../src/compatibility/probe.js", () => ({
-      runProbes: probeSpy,
-    }));
     await runInit({
       yes: true,
       tools: "claude",
@@ -201,33 +202,22 @@ describe("arbiter init — verify integration", () => {
       dir,
       noVerify: true,
     });
-    expect(probeSpy).not.toHaveBeenCalled();
+    expect(vi.mocked(runProbes)).not.toHaveBeenCalled();
   });
 
   it("calls runProbes after generation when noVerify=false", async () => {
-    const probeSpy = vi.fn().mockReturnValue({
-      dir,
-      stack: "unknown",
-      probes: [],
-      hasFailures: false,
-    });
-    vi.doMock("../../src/compatibility/probe.js", () => ({
-      runProbes: probeSpy,
-    }));
-    const { runInit: runInitFresh } =
-      await import("../../src/commands/init.js");
-    await runInitFresh({
+    await runInit({
       yes: true,
       tools: "claude",
       level: "L2",
       dir,
       noVerify: false,
     });
-    expect(probeSpy).toHaveBeenCalledWith(dir);
+    expect(vi.mocked(runProbes)).toHaveBeenCalledWith(dir);
   });
 
   it("exits non-zero when probes fail and noVerify=false", async () => {
-    const probeSpy = vi.fn().mockReturnValue({
+    vi.mocked(runProbes).mockReturnValue({
       dir,
       stack: "java",
       probes: [
@@ -235,15 +225,10 @@ describe("arbiter init — verify integration", () => {
       ],
       hasFailures: true,
     });
-    vi.doMock("../../src/compatibility/probe.js", () => ({
-      runProbes: probeSpy,
-    }));
     const exitSpy = vi
       .spyOn(process, "exit")
       .mockImplementation((() => {}) as (code?: number) => never);
-    const { runInit: runInitFresh } =
-      await import("../../src/commands/init.js");
-    await runInitFresh({
+    await runInit({
       yes: true,
       tools: "claude",
       level: "L2",
