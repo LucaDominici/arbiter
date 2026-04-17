@@ -432,18 +432,27 @@ export const INVARIANT_CATALOG: Invariant[] = [
   {
     id: "INV-30",
     tier: "operational",
-    title: "Mutation testing required — PIT/pitest (Java, L2+)",
+    title: "Mutation testing required — L3 hard gate (85% threshold)",
     description:
       "Line coverage measures which lines execute but not whether tests verify behavior. " +
       "A suite can reach 90% coverage with assertions that check nothing meaningful. " +
-      "Mutation testing (PIT/pitest) injects faults into production code and verifies tests fail — " +
-      "proving genuine fault-detection power. Thresholds: 80% mutation score, 85% line coverage. " +
-      "Scope: domain and application layers only (not adapters/controllers).",
-    languages: ["java"],
+      "Mutation testing injects faults into production code and verifies tests fail — " +
+      "proving genuine fault-detection power. Threshold: 85% mutation score. " +
+      "Scope: domain and application layers only (not adapters/controllers). " +
+      "Go excluded until a maintained mutation tool reaches beta maturity (ADR-029).",
+    languages: ["java", "typescript", "rust", "python"],
     alwaysActive: false,
-    minGovernanceLevel: "L2",
+    minGovernanceLevel: "L3",
+    languageDetail: {
+      java: "PIT/pitest 1.15+ — targetClasses: *.domain.*, *.application.service.*, *.application.usecase.*",
+      typescript: "Stryker Mutator — testRunner: vitest, thresholds.break: 85",
+      rust: "cargo-mutants (beta) — examine_globs: src/domain/**/*.rs, src/application/**/*.rs",
+      go: "Excluded — go-mutesting is unsafe (no stable maintained tool). ADR-029.",
+      python:
+        "mutmut (beta) — paths_to_mutate: src/<modulePath>/, timeout_per_mutant: 120s",
+    },
     enforcement:
-      "CI gate (pitest in check-all.mjs L2) + generated pitest config",
+      "Generated per-stack mutation config + check-all.mjs L3 gate (requires --accept-beta-tools for Rust/Python)",
   },
 
   // ─── Governance: Suppression Expiry ─────────────────────────────────────────
