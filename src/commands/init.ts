@@ -37,6 +37,7 @@ import { generateEslintBoundaries } from "../generators/boundaries.js";
 import { generateRustBoundaries } from "../generators/rust-boundaries.js";
 import { generateGoBoundaries } from "../generators/go-boundaries.js";
 import { generatePythonBoundaries } from "../generators/python-boundaries.js";
+import { generateMutation } from "../generators/mutation.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
@@ -209,6 +210,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   all.push(...generateRustBoundaries(config).files);
   all.push(...generateGoBoundaries(config).files);
   all.push(...generatePythonBoundaries(config).files);
+  all.push(...generateMutation(config).files);
 
   if (config.enableDebtGates) {
     all.push(...generateStrideEnforcement(config).files);

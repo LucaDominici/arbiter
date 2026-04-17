@@ -26,6 +26,7 @@ export function generateCheckAll(
     coverageThreshold: thresholds.coverageThreshold,
     coverageEnabled: thresholds.coverageEnabled,
     mutationEnabled: thresholds.mutationEnabled,
+    mutationThreshold: thresholds.mutationThreshold,
   } as unknown as Record<string, unknown>;
 
   const scriptPath = resolvedPath(base, "scripts", "check-all.mjs");

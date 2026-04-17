@@ -261,3 +261,86 @@ describe("matrix: Rust project", () => {
     });
   });
 });
+
+// ── M23: Rust L3 mutation gate (cargo-mutants — beta) ────────────────────────
+
+describe("matrix: Rust L3 mutation gate (cargo-mutants)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = createTestProject("rust");
+    initGit(dir);
+  });
+
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  function rustL3Config(
+    overrides: Partial<Parameters<typeof makeConfig>[1]> = {},
+  ) {
+    return makeConfig(dir, {
+      language: "rust",
+      governanceLevel: "L3",
+      useGitHub: true,
+      githubOwner: "test-owner",
+      githubRepo: "test-repo",
+      languageHooks: getLanguageHooks("rust"),
+      acceptBetaTools: true,
+      ...overrides,
+    });
+  }
+
+  it("emits cargo-mutants.toml at L3 when acceptBetaTools=true", () => {
+    const config = rustL3Config();
+    runGenerators(config);
+    expect(existsSync(join(dir, "cargo-mutants.toml"))).toBe(true);
+  });
+
+  it("emits scripts/parse-mutants.mjs at L3 when acceptBetaTools=true", () => {
+    const config = rustL3Config();
+    runGenerators(config);
+    expect(existsSync(join(dir, "scripts", "parse-mutants.mjs"))).toBe(true);
+  });
+
+  it("cargo-mutants.toml contains 85% threshold reference", () => {
+    const config = rustL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "cargo-mutants.toml"), "utf-8");
+    expect(content).toMatch(/domain|application/);
+  });
+
+  it("check-all.mjs invokes cargo-mutants at L3", () => {
+    const config = rustL3Config();
+    runGenerators(config);
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("mutants");
+  });
+
+  it("L2 config does NOT emit cargo-mutants.toml", () => {
+    const config = rustL3Config({ governanceLevel: "L2" });
+    runGenerators(config);
+    expect(existsSync(join(dir, "cargo-mutants.toml"))).toBe(false);
+  });
+
+  it("throws beta error when acceptBetaTools=false at L3", () => {
+    const config = rustL3Config({ acceptBetaTools: false });
+    expect(() => runGenerators(config)).toThrow(/beta/i);
+  });
+
+  it("throws beta error when acceptBetaTools not set at L3", () => {
+    const config = rustL3Config({ acceptBetaTools: undefined });
+    expect(() => runGenerators(config)).toThrow(/beta/i);
+  });
+
+  it("AGENTS.md L3 mentions cargo-mutants and 85%", () => {
+    const config = rustL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toMatch(/cargo.mutants|mutation/i);
+    expect(content).toContain("85");
+  });
+});

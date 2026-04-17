@@ -320,3 +320,86 @@ describe("matrix: Python project", () => {
     });
   });
 });
+
+// ── M23: Python L3 mutation gate (mutmut — beta) ─────────────────────────────
+
+describe("matrix: Python L3 mutation gate (mutmut)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = createTestProject("python");
+    initGit(dir);
+  });
+
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  function pythonL3Config(
+    overrides: Partial<Parameters<typeof makeConfig>[1]> = {},
+  ) {
+    return makeConfig(dir, {
+      language: "python",
+      governanceLevel: "L3",
+      useGitHub: true,
+      githubOwner: "test-owner",
+      githubRepo: "test-repo",
+      languageHooks: getLanguageHooks("python"),
+      acceptBetaTools: true,
+      ...overrides,
+    });
+  }
+
+  it("emits mutmut-config.toml at L3 when acceptBetaTools=true", () => {
+    const config = pythonL3Config();
+    runGenerators(config);
+    expect(existsSync(join(dir, "mutmut-config.toml"))).toBe(true);
+  });
+
+  it("emits scripts/parse-mutmut.py at L3 when acceptBetaTools=true", () => {
+    const config = pythonL3Config();
+    runGenerators(config);
+    expect(existsSync(join(dir, "scripts", "parse-mutmut.py"))).toBe(true);
+  });
+
+  it("mutmut-config.toml references project source path", () => {
+    const config = pythonL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "mutmut-config.toml"), "utf-8");
+    expect(content).toMatch(/paths_to_mutate|src/);
+  });
+
+  it("check-all.mjs invokes mutmut at L3", () => {
+    const config = pythonL3Config();
+    runGenerators(config);
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("mutmut");
+  });
+
+  it("L2 config does NOT emit mutmut-config.toml", () => {
+    const config = pythonL3Config({ governanceLevel: "L2" });
+    runGenerators(config);
+    expect(existsSync(join(dir, "mutmut-config.toml"))).toBe(false);
+  });
+
+  it("throws beta error when acceptBetaTools=false at L3", () => {
+    const config = pythonL3Config({ acceptBetaTools: false });
+    expect(() => runGenerators(config)).toThrow(/beta/i);
+  });
+
+  it("throws beta error when acceptBetaTools not set at L3", () => {
+    const config = pythonL3Config({ acceptBetaTools: undefined });
+    expect(() => runGenerators(config)).toThrow(/beta/i);
+  });
+
+  it("AGENTS.md L3 mentions mutmut and 85%", () => {
+    const config = pythonL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toMatch(/mutmut|mutation/i);
+    expect(content).toContain("85");
+  });
+});

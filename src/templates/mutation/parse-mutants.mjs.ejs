@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+// Parses cargo-mutants stdout and fails if caught% < threshold.
+// Tolerates cargo-mutants 24.x and 25.x stdout variants.
+// Usage: cargo mutants ... 2>&1 | node scripts/parse-mutants.mjs --threshold 85
+
+import { createInterface } from "node:readline";
+
+const thresholdArg = process.argv.indexOf("--threshold");
+const threshold = thresholdArg !== -1 ? Number(process.argv[thresholdArg + 1]) : <%= mutationThreshold %>;
+
+let caught = 0;
+let total = 0;
+
+const rl = createInterface({ input: process.stdin });
+
+rl.on("line", (line) => {
+  // cargo-mutants 24.x: "42 mutants tested: 38 caught, 4 missed, 0 unviable"
+  // cargo-mutants 25.x: "Caught 38/42 (90.5%) mutants"
+  const v24 = line.match(/(\d+)\s+mutants tested:\s+(\d+)\s+caught/);
+  if (v24) {
+    total = Number(v24[1]);
+    caught = Number(v24[2]);
+    return;
+  }
+  const v25 = line.match(/Caught\s+(\d+)\/(\d+)/);
+  if (v25) {
+    caught = Number(v25[1]);
+    total = Number(v25[2]);
+  }
+});
+
+rl.on("close", () => {
+  if (total === 0) {
+    console.error("parse-mutants: no mutation results found in cargo-mutants output");
+    process.exit(1);
+  }
+  const pct = Math.round((caught / total) * 100);
+  console.log(`Mutation score: ${caught}/${total} (${pct}%) — threshold: ${threshold}%`);
+  if (pct < threshold) {
+    console.error(`FAIL: mutation score ${pct}% is below threshold ${threshold}%`);
+    process.exit(1);
+  }
+  console.log("PASS: mutation score meets threshold");
+});

@@ -421,3 +421,70 @@ describe("matrix: Java project — hexagonal architecture suite (M22)", () => {
     expect(content).toContain("architecture tests");
   });
 });
+
+// ── M23: Java L3 mutation gate (pitest hard gate) ────────────────────────────
+
+describe("matrix: Java L3 mutation gate (pitest)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = createTestProject("java");
+    initGit(dir);
+  });
+
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  function javaL3Config(
+    overrides: Partial<Parameters<typeof makeConfig>[1]> = {},
+  ) {
+    return makeConfig(dir, {
+      language: "java",
+      governanceLevel: "L3",
+      buildTool: "gradle",
+      useGitHub: true,
+      githubOwner: "test-owner",
+      githubRepo: "test-repo",
+      languageHooks: getLanguageHooks("java"),
+      ...overrides,
+    });
+  }
+
+  it("emits gradle/pitest.gradle at L3", () => {
+    const config = javaL3Config();
+    runGenerators(config);
+    expect(existsSync(join(dir, "gradle", "pitest.gradle"))).toBe(true);
+  });
+
+  it("pitest.gradle threshold equals 85", () => {
+    const config = javaL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "gradle", "pitest.gradle"), "utf-8");
+    expect(content).toContain("mutationThreshold = 85");
+  });
+
+  it("check-all.mjs invokes pitest at L3 for Gradle", () => {
+    const config = javaL3Config();
+    runGenerators(config);
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("pitest");
+  });
+
+  it("L2 Gradle config does NOT emit pitest.gradle", () => {
+    const config = javaL3Config({ governanceLevel: "L2" });
+    runGenerators(config);
+    expect(existsSync(join(dir, "gradle", "pitest.gradle"))).toBe(false);
+  });
+
+  it("AGENTS.md L3 mentions pitest and 85%", () => {
+    const config = javaL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toMatch(/pitest|mutation/i);
+    expect(content).toContain("85");
+  });
+});

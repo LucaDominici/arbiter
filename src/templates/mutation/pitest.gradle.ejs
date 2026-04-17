@@ -1,0 +1,23 @@
+// PIT mutation testing — L3 hard gate (INV-30)
+// Apply from root build.gradle: apply from: 'gradle/pitest.gradle'
+// Run: ./gradlew pitest
+
+plugins {
+    id 'info.solidsoft.pitest' version '1.15.0'
+}
+
+pitest {
+    targetClasses = [
+        '<%= basePackage %>.domain.*',
+        '<%= basePackage %>.application.service.*',
+        '<%= basePackage %>.application.usecase.*'
+    ]
+    mutationThreshold = <%= mutationThreshold %>
+    coverageThreshold = <%= mutationThreshold %>
+    timeoutFactor = 2.0
+    timeoutConstInMillis = 10000
+    avoidCallsTo = ['java.util.logging', 'org.apache.log4j', 'org.slf4j']
+    outputFormats = ['XML', 'HTML']
+    withHistory = true
+    junit5PluginVersion = '1.2.1'
+}

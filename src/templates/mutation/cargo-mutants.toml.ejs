@@ -1,0 +1,9 @@
+# cargo-mutants configuration — L3 mutation gate (beta)
+# Run: cargo mutants --config cargo-mutants.toml 2>&1 | node scripts/parse-mutants.mjs --threshold <%= mutationThreshold %>
+
+examine_globs = [
+    "src/domain/**/*.rs",
+    "src/application/**/*.rs"
+]
+
+minimum_test_timeout = 60
