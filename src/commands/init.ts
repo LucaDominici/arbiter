@@ -29,6 +29,7 @@ import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { generateSuppressions } from "../generators/suppressions.js";
+import { generateSecurity } from "../generators/security.js";
 import { generateStrideEnforcement } from "../generators/stride-enforcement.js";
 import { generateEvidenceRetention } from "../generators/evidence-retention.js";
 import { generateTestTaxonomy } from "../generators/test-taxonomy.js";
@@ -38,6 +39,7 @@ import { generateRustBoundaries } from "../generators/rust-boundaries.js";
 import { generateGoBoundaries } from "../generators/go-boundaries.js";
 import { generatePythonBoundaries } from "../generators/python-boundaries.js";
 import { generateMutation } from "../generators/mutation.js";
+import { generateNightly } from "../generators/nightly.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
@@ -205,12 +207,17 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
     all.push(...generateSuppressions(config).files);
   }
 
+  if (config.enableSecurityScanning) {
+    all.push(...generateSecurity(config).files);
+  }
+
   all.push(...generateArchUnit(config).files);
   all.push(...generateEslintBoundaries(config).files);
   all.push(...generateRustBoundaries(config).files);
   all.push(...generateGoBoundaries(config).files);
   all.push(...generatePythonBoundaries(config).files);
   all.push(...generateMutation(config).files);
+  all.push(...generateNightly(config).files);
 
   if (config.enableDebtGates) {
     all.push(...generateStrideEnforcement(config).files);
@@ -373,6 +380,7 @@ function buildDefaultConfig(opts: {
     languageHooks: getLanguageHooks(opts.language),
     enableDebtGates: opts.governanceLevel !== "L1",
     enableSuppressions: true,
+    enableSecurityScanning: opts.governanceLevel !== "L1",
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
     acceptBetaTools: opts.acceptBetaTools ?? false,
@@ -389,6 +397,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     useGitHub: config.useGitHub,
     enableDebtGates: config.enableDebtGates,
     enableSuppressions: config.enableSuppressions,
+    enableSecurityScanning: config.enableSecurityScanning,
     invariantTiers: config.invariantTiers,
     archetype: config.archetype,
     architectureStyle: config.architectureStyle,

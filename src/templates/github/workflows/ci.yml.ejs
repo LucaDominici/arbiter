@@ -7,11 +7,58 @@ on:
     branches: [main]
 
 jobs:
+<% if (enableSecurityScanning) { %>
+  security-early-fail:
+    name: Security (PII + Secrets)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: PII scan (INV-12, HARD)
+        run: node scripts/pii-scan.mjs
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
+      - name: Gitleaks secrets scan (INV-11)
+        run: |
+          gitleaks detect --source . --config .gitleaks.toml \
+            --gitleaks-ignore-path suppressions/.gitleaksignore \
+            --exit-code 1 --redact
+<% } %>
+<% if (governanceLevel === 'L3') { %>
+  classify-changes:
+    name: Classify Changes
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      backend_changed: ${{ steps.classify.outputs.backend_changed }}
+      frontend_changed: ${{ steps.classify.outputs.frontend_changed }}
+      infra_changed: ${{ steps.classify.outputs.infra_changed }}
+      high_risk: ${{ steps.classify.outputs.high_risk }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - id: classify
+        run: node scripts/ci-classify-changes.mjs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+          HEAD_SHA: ${{ github.sha }}
+<% } %>
 <% if (language === 'typescript') { %>
   lint-and-test:
     name: Lint + Test
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    steps:
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -21,11 +68,17 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --coverage
+<% if (enableSecurityScanning) { %>
+      - name: Dep audit (INV-13)
+        run: npm audit --audit-level=high
+<% } %>
 <% } %><% if (language === 'rust') { %>
   lint-and-test:
     name: Lint + Test (Rust)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    steps:
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -34,11 +87,19 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy -- -D warnings
       - run: cargo test
+<% if (enableSecurityScanning) { %>
+      - name: Dep audit (INV-13)
+        uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+<% } %>
 <% } %><% if (language === 'java') { %>
   lint-and-test:
     name: Lint + Test (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    steps:
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
@@ -47,13 +108,23 @@ jobs:
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
       - run: ./gradlew checkstyleMain
       - run: ./gradlew test
+<% if (enableSecurityScanning) { %>
+      - name: Dep audit OWASP DC (INV-13)
+        run: ./gradlew dependencyCheckAnalyze
+<% } %>
 <% } else { %>      - run: mvn checkstyle:check
       - run: mvn test
+<% if (enableSecurityScanning) { %>
+      - name: Dep audit OWASP DC (INV-13)
+        run: mvn org.owasp:dependency-check-maven:check
+<% } %>
 <% } %><% } %><% if (language === 'go') { %>
   lint-and-test:
     name: Lint + Test (Go)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    steps:
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -61,11 +132,17 @@ jobs:
       - run: go vet ./...
       - run: golangci-lint run
       - run: go test ./... -race -coverprofile=coverage.out
+<% if (enableSecurityScanning) { %>
+      - name: Dep audit govulncheck (INV-13)
+        uses: golang/govulncheck-action@v1
+<% } %>
 <% } %><% if (language === 'python') { %>
   lint-and-test:
     name: Lint + Test (Python)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    steps:
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -74,6 +151,10 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest --cov
+<% if (enableSecurityScanning) { %>
+      - name: Dep audit (INV-13)
+        run: pip-audit
+<% } %>
 <% } %>
 
 <% if (governanceLevel !== 'L1') { %>
@@ -206,14 +287,18 @@ jobs:
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    needs: [lint-and-test<% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %>]
+    needs: [lint-and-test<% if (enableSecurityScanning) { %>, security-early-fail<% } %><% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %><% if (governanceLevel === 'L3') { %>, classify-changes<% } %>]
     if: always()
     steps:
       - run: |
           if [[ "${{ needs.lint-and-test.result }}" != "success" ]]; then
             echo "lint-and-test failed"
             exit 1
-          fi<% if (governanceLevel !== 'L1') { %>
+          fi<% if (enableSecurityScanning) { %>
+          if [[ "${{ needs.security-early-fail.result }}" != "success" ]]; then
+            echo "security-early-fail failed"
+            exit 1
+          fi<% } %><% if (governanceLevel !== 'L1') { %>
           if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
             echo "docs-check failed"
             exit 1

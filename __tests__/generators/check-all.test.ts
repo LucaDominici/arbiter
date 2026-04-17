@@ -104,7 +104,7 @@ describe("generateCheckAll", () => {
     expect(content).not.toContain("debt-report.mjs");
   });
 
-  it("includes pitest mutation check for Java + Gradle at L2", () => {
+  it("does NOT include pitest for Java + Gradle (mutation moved to nightly)", () => {
     generateCheckAll(
       makeConfig(dir, {
         language: "java",
@@ -117,11 +117,10 @@ describe("generateCheckAll", () => {
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("pitest");
-    expect(content).toContain("mutation testing");
+    expect(content).not.toContain("pitest");
   });
 
-  it("includes pitest mutation check for Java + Maven at L2", () => {
+  it("does NOT include pitest for Java + Maven (mutation moved to nightly)", () => {
     generateCheckAll(
       makeConfig(dir, {
         language: "java",
@@ -134,8 +133,7 @@ describe("generateCheckAll", () => {
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("pitest");
-    expect(content).toContain("mutation testing");
+    expect(content).not.toContain("pitest");
   });
 
   it("does not include pitest for Java at L1 (no debt gates)", () => {
@@ -312,5 +310,237 @@ describe("generateCheckAll", () => {
     const ratchetIdx = content.indexOf("debt-report.mjs");
     expect(ratchetIdx).toBeGreaterThan(-1);
     expect(content.slice(ratchetIdx)).toContain("graceActive");
+  });
+
+  // ─── M24: Security scanning ─────────────────────────────────────────────────
+
+  it("PII scan runs before the L1 section (early-fail, not inside L2 block)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const piiIdx = content.indexOf("pii-scan.mjs");
+    const l2BlockIdx = content.indexOf("if (level === 'L2')");
+    expect(piiIdx).toBeGreaterThan(-1);
+    expect(l2BlockIdx).toBeGreaterThan(-1);
+    expect(piiIdx).toBeLessThan(l2BlockIdx);
+  });
+
+  it("PII scan is a hard fail (no soft: graceActive on pii-scan call)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const piiIdx = content.indexOf("pii-scan.mjs");
+    expect(piiIdx).toBeGreaterThan(-1);
+    // The runCheck call for pii-scan must not pass { soft: ... }
+    const lineEnd = content.indexOf("\n", piiIdx);
+    const piiLine = content.slice(
+      content.lastIndexOf("\n", piiIdx) + 1,
+      lineEnd,
+    );
+    expect(piiLine).not.toContain("soft");
+  });
+
+  it("PII scan also runs at L1 (early-fail not inside L2 block)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        enableSecurityScanning: true,
+        governanceLevel: "L1",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("pii-scan.mjs");
+  });
+
+  it("gitleaks step present in L2 section when enableSecurityScanning is true", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const l2BlockIdx = content.indexOf("if (level === 'L2')");
+    const gitleaksIdx = content.indexOf("gitleaks", l2BlockIdx);
+    expect(l2BlockIdx).toBeGreaterThan(-1);
+    expect(gitleaksIdx).toBeGreaterThan(l2BlockIdx);
+  });
+
+  it("gitleaks step honors soft: graceActive (ADR-028)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const gitleaksIdx = content.indexOf("gitleaks");
+    expect(gitleaksIdx).toBeGreaterThan(-1);
+    const callEnd = content.indexOf("\n", gitleaksIdx);
+    const callLine = content.slice(
+      content.lastIndexOf("\n", gitleaksIdx) + 1,
+      callEnd,
+    );
+    expect(callLine).toContain("graceActive");
+  });
+
+  it("Java Gradle: dependencyCheckAnalyze in L2 when enableSecurityScanning", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const l2BlockIdx = content.indexOf("if (level === 'L2')");
+    expect(
+      content.indexOf("dependencyCheckAnalyze", l2BlockIdx),
+    ).toBeGreaterThan(l2BlockIdx);
+  });
+
+  it("Java Maven: dependency-check-maven in L2 when enableSecurityScanning", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "maven",
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const l2BlockIdx = content.indexOf("if (level === 'L2')");
+    expect(
+      content.indexOf("dependency-check-maven", l2BlockIdx),
+    ).toBeGreaterThan(l2BlockIdx);
+  });
+
+  it("Go: govulncheck in L2 when enableSecurityScanning", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "go",
+        buildTool: "go",
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    const l2BlockIdx = content.indexOf("if (level === 'L2')");
+    expect(content.indexOf("govulncheck", l2BlockIdx)).toBeGreaterThan(
+      l2BlockIdx,
+    );
+  });
+
+  it("enableSecurityScanning=false: no gitleaks, govulncheck, or OWASP DC step", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        enableSecurityScanning: false,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("gitleaks");
+    expect(content).not.toContain("dependencyCheckAnalyze");
+    expect(content).not.toContain("pii-scan.mjs");
+  });
+
+  it("enableSecurityScanning=false: typescript npm audit absent", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "typescript",
+        buildTool: "npm",
+        enableSecurityScanning: false,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("npm audit");
+  });
+
+  it("enableSecurityScanning=false: rust cargo audit absent", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "rust",
+        buildTool: "cargo",
+        enableSecurityScanning: false,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("cargo audit");
+  });
+
+  it("enableSecurityScanning=false: python pip-audit absent", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "python",
+        buildTool: "pip",
+        enableSecurityScanning: false,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("pip-audit");
+  });
+
+  it("gitleaks command uses --gitleaks-ignore-path not --baseline-path", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        enableSecurityScanning: true,
+        governanceLevel: "L2",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("--gitleaks-ignore-path");
+    expect(content).not.toContain("--baseline-path");
   });
 });

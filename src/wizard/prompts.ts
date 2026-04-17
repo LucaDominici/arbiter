@@ -219,6 +219,7 @@ function buildConfigFromAnswers(
     languageHooks: getLanguageHooks(input.language),
     enableDebtGates: answers.governanceLevel !== "L1",
     enableSuppressions: true,
+    enableSecurityScanning: answers.governanceLevel !== "L1",
     invariantTiers: presetToTiers(
       answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
     ),

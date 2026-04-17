@@ -155,6 +155,8 @@ export interface ProjectConfig {
   enableDebtGates: boolean;
   /** Whether to generate suppression templates and the check-suppressions.mjs expiry gate. Defaults to true for all governance levels. */
   enableSuppressions: boolean;
+  /** Whether to generate security scanning gates (PII scan, gitleaks, dep audit). Defaults to true for L2+. */
+  enableSecurityScanning: boolean;
   /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */
   invariantTiers: InvariantTier[];
   /** Base Java package (e.g. "com.example.myapp"). Detected from pom.xml/build.gradle for Java projects. */
@@ -198,6 +200,11 @@ export interface ProjectConfig {
    * Wizard asks only if hasPublicApi === true. Default: "none".
    */
   contractType: ContractType;
+  /**
+   * M25: path to k6 load test script (relative to project root).
+   * Used by the generated nightly.yml. L3-only. Default: "tests/load/default.js".
+   */
+  k6ScriptPath?: string;
 }
 
 export type ThresholdProfile = "scaled" | "fixed";

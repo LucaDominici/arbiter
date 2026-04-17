@@ -303,6 +303,34 @@ Proactive debt regression prevention. Baseline metrics stored in `debt-baseline.
 **Rule:** Never manually edit `debt-baseline.json` to loosen metrics — that defeats the ratchet. Only run `--update` after genuine improvements.
 
 ---
+<% } %><% if (enableSecurityScanning) { %>
+## Security Scanning (INV-11/12/13)
+
+Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) and runs before all other gates.
+
+| Scanner | Tool | Gate Level | Trigger |
+|---------|------|-----------|---------|
+| Secrets detection | gitleaks | L2 HARD | `gitleaks detect --source . --baseline-path suppressions/.gitleaksignore` |
+| PII scan | pii-scan.mjs | L2 HARD (no grace) | `node scripts/pii-scan.mjs` |
+<% if (language === 'typescript') { %>| Dep audit | npm audit | L2 HARD | `npm audit --audit-level=high` |
+<% } %><% if (language === 'rust') { %>| Dep audit | cargo audit | L2 HARD | `cargo audit` |
+<% } %><% if (language === 'java') { %>| Dep audit | OWASP Dependency-Check | L2 HARD | `./gradlew dependencyCheckAnalyze` (Gradle) / `mvn org.owasp:dependency-check-maven:check` (Maven) |
+<% } %><% if (language === 'go') { %>| Dep audit | govulncheck | L2 HARD | `govulncheck ./...` |
+<% } %><% if (language === 'python') { %>| Dep audit | pip-audit | L2 HARD | `pip-audit` |
+<% } %>
+**Suppression files** (user-edited, not overwritten):
+- `suppressions/.gitleaksignore` — allowlisted gitleaks findings
+- `suppressions/pii-allowlist.json` — allowlisted PII patterns (format: `[{"pattern": "...", "reason": "..."}]`)
+<% if (language === 'java') { %>
+**Java OWASP DC setup**: Apply the generated snippet in your `build.gradle`:
+```groovy
+apply from: 'config/owasp-dependency-check.gradle'
+```
+Suppression file: `suppressions/dependency-check-suppressions.xml`
+<% } %>
+**Claude hook**: `check-no-pii.mjs` (PostToolUse, Edit|Write) blocks PII from being written to source files.
+
+---
 <% } %>
 ## Multi-Agent Tool Extensions
 

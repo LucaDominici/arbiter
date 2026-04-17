@@ -275,14 +275,14 @@ describe("matrix: TypeScript L3 mutation gate (Stryker)", () => {
     expect(content).toContain("vitest");
   });
 
-  it("check-all.mjs invokes stryker at L3", () => {
+  it("check-all.mjs does NOT invoke stryker (mutation moved to nightly)", () => {
     const config = tsL3Config();
     runGenerators(config);
     const content = readFileSync(
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("stryker");
+    expect(content).not.toContain("stryker");
   });
 
   it("L2 config does NOT emit stryker.conf.json", () => {

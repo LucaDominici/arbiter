@@ -135,13 +135,14 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
     expect(content).toContain("Tier 5: Governance");
   });
 
-  it("standard preset (L2 default) does not include security tier", () => {
+  it("standard preset at L2 includes security tier (INV-11/12/13 alwaysActive, M24)", () => {
     const content = renderAgentsMd({
       governanceLevel: "L2",
       invariantTiers: presetToTiers("standard"),
     });
-    expect(content).not.toContain("Tier 3: Security");
-    expect(content).not.toContain("INV-11");
+    // INV-11/12/13 are alwaysActive=true at L2+, so security tier appears even with standard preset
+    expect(content).toContain("Tier 3: Security");
+    expect(content).toContain("INV-11");
   });
 
   it("full preset (L3 default) includes security tier", () => {

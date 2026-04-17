@@ -1,0 +1,229 @@
+#!/usr/bin/env node
+// <%= projectName %> — evidence harness collector (INV-33)
+// Collects test/coverage/mutation/security metrics and writes:
+//   .evidence/SUMMARY.json  — machine-readable gate result
+//   .evidence/SUMMARY.md    — human-readable report
+// L3 gate: check-all.mjs L3 block fails when obs_gate !== "PASS"
+// Usage: node scripts/evidence-collect.mjs
+import { spawnSync } from 'node:child_process';
+import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+const EVIDENCE_DIR = '.evidence';
+const MUTATION_THRESHOLD = <%= mutationThreshold || 80 %>;
+const COVERAGE_THRESHOLD = <%= coverageThreshold || 80 %>;
+
+mkdirSync(EVIDENCE_DIR, { recursive: true });
+
+const start = Date.now();
+
+/** @returns {{ total: number, passed: number, failed: number, skipped: number }} */
+function collectTestResults() {
+  const result = { total: 0, passed: 0, failed: 0, skipped: 0 };
+<% if (language === 'typescript') { %>
+  const r = spawnSync('npx', ['vitest', 'run', '--reporter=json'], { encoding: 'utf-8', shell: false });
+  try {
+    const json = JSON.parse(r.stdout || '{}');
+    result.total = json.numTotalTests ?? 0;
+    result.passed = json.numPassedTests ?? 0;
+    result.failed = json.numFailedTests ?? 0;
+    result.skipped = json.numPendingTests ?? 0;
+  } catch { /* test output not JSON-parseable, leave defaults */ }
+<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
+  const r = spawnSync('./gradlew', ['test', '-q'], { encoding: 'utf-8', shell: false });
+  result.failed = r.status !== 0 ? 1 : 0;
+  result.passed = r.status === 0 ? 1 : 0;
+  result.total = 1;
+<% } %><% if (language === 'java' && buildTool === 'maven') { %>
+  const r = spawnSync('mvn', ['test', '-q'], { encoding: 'utf-8', shell: false });
+  result.failed = r.status !== 0 ? 1 : 0;
+  result.passed = r.status === 0 ? 1 : 0;
+  result.total = 1;
+<% } %><% if (language === 'rust') { %>
+  const r = spawnSync('cargo', ['test', '--', '--format', 'json'], { encoding: 'utf-8', shell: false });
+  result.failed = r.status !== 0 ? 1 : 0;
+  result.passed = r.status === 0 ? 1 : 0;
+  result.total = 1;
+<% } %><% if (language === 'python') { %>
+  const r = spawnSync('pytest', ['--tb=no', '-q'], { encoding: 'utf-8', shell: false });
+  const match = (r.stdout || '').match(/(\d+) passed(?:, (\d+) failed)?(?:, (\d+) error)?/);
+  if (match) {
+    result.passed = parseInt(match[1] ?? '0', 10);
+    result.failed = parseInt(match[2] ?? '0', 10);
+    result.total = result.passed + result.failed;
+  }
+<% } %><% if (language === 'go') { %>
+  const r = spawnSync('go', ['test', '-json', './...'], { encoding: 'utf-8', shell: false });
+  for (const line of (r.stdout || '').split('\n').filter(Boolean)) {
+    try {
+      const ev = JSON.parse(line);
+      if (ev.Action === 'pass' && ev.Test) result.passed++;
+      if (ev.Action === 'fail' && ev.Test) result.failed++;
+    } catch { /* skip */ }
+  }
+  result.total = result.passed + result.failed;
+<% } %>
+  return result;
+}
+
+/** @returns {{ line: number, branch: number }} */
+function collectCoverage() {
+<% if (language === 'typescript') { %>
+  const r = spawnSync('npx', ['vitest', 'run', '--coverage', '--coverage.reporter=json', '--reporter=silent'], {
+    encoding: 'utf-8', shell: false,
+  });
+  try {
+    const coverageJson = JSON.parse(readFileSync('coverage/coverage-summary.json', 'utf-8'));
+    const total = coverageJson.total;
+    return {
+      line: (total?.lines?.pct ?? 0) / 100,
+      branch: (total?.branches?.pct ?? 0) / 100,
+    };
+  } catch { return { line: 0, branch: 0 }; }
+<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
+  spawnSync('./gradlew', ['jacocoTestReport', '-q'], { encoding: 'utf-8', shell: false });
+  return { line: 0, branch: 0 };
+<% } %><% if (language === 'java' && buildTool === 'maven') { %>
+  spawnSync('mvn', ['verify', '-Pjacoco', '-q'], { encoding: 'utf-8', shell: false });
+  return { line: 0, branch: 0 };
+<% } %><% if (language === 'rust') { %>
+  const r = spawnSync('cargo', ['tarpaulin', '--out', 'Json', '--output-dir', '.evidence'], {
+    encoding: 'utf-8', shell: false,
+  });
+  return { line: 0, branch: 0 };
+<% } %><% if (language === 'python') { %>
+  const r = spawnSync('pytest', ['--cov', '--cov-report=json:.evidence/coverage.json'], {
+    encoding: 'utf-8', shell: false,
+  });
+  try {
+    const cov = JSON.parse(readFileSync('.evidence/coverage.json', 'utf-8'));
+    return { line: (cov.totals?.percent_covered ?? 0) / 100, branch: 0 };
+  } catch { return { line: 0, branch: 0 }; }
+<% } %><% if (language === 'go') { %>
+  const r = spawnSync('go', ['test', '-coverprofile=.evidence/coverage.out', '-covermode=atomic', './...'], {
+    encoding: 'utf-8', shell: false,
+  });
+  const coverResult = spawnSync('go', ['tool', 'cover', '-func=.evidence/coverage.out'], {
+    encoding: 'utf-8', shell: false,
+  });
+  const match = (coverResult.stdout || '').match(/total:\s+\(statements\)\s+([\d.]+)%/);
+  return { line: match ? parseFloat(match[1]) / 100 : 0, branch: 0 };
+<% } %>
+}
+
+/** @returns {{ score: number }} */
+function collectMutationScore() {
+<% if (language === 'typescript') { %>
+  if (!existsSync('stryker.conf.json')) return { score: 0 };
+  const r = spawnSync('npx', ['stryker', 'run', '--reporters', 'json'], { encoding: 'utf-8', shell: false });
+  try {
+    const report = JSON.parse(readFileSync('reports/mutation/mutation.json', 'utf-8'));
+    const score = report.metrics?.mutationScore ?? 0;
+    return { score: score / 100 };
+  } catch { return { score: 0 }; }
+<% } %><% if (language === 'java' && buildTool === 'gradle') { %>
+  if (!existsSync('gradle/pitest.gradle')) return { score: 0 };
+  spawnSync('./gradlew', ['pitest', '-q'], { encoding: 'utf-8', shell: false });
+  return { score: 0 };
+<% } %><% if (language === 'java' && buildTool === 'maven') { %>
+  spawnSync('mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q'], { encoding: 'utf-8', shell: false });
+  return { score: 0 };
+<% } %><% if (language === 'rust') { %>
+  if (!existsSync('cargo-mutants.toml')) return { score: 0 };
+  spawnSync('cargo', ['mutants', '--config', 'cargo-mutants.toml'], { encoding: 'utf-8', shell: false });
+  return { score: 0 };
+<% } %><% if (language === 'python') { %>
+  if (!existsSync('mutmut-config.toml')) return { score: 0 };
+  spawnSync('mutmut', ['run'], { encoding: 'utf-8', shell: false });
+  return { score: 0 };
+<% } %><% if (language === 'go') { %>
+  return { score: 0 };
+<% } %>
+}
+
+/** @returns {{ critical: number, high: number }} */
+function collectSecurityFindings() {
+  const r = spawnSync('trivy', ['fs', '--format', 'json', '--severity', 'CRITICAL,HIGH', '.'], {
+    encoding: 'utf-8', shell: false,
+  });
+  try {
+    const report = JSON.parse(r.stdout || '{}');
+    let critical = 0;
+    let high = 0;
+    for (const result of (report.Results ?? [])) {
+      for (const vuln of (result.Vulnerabilities ?? [])) {
+        if (vuln.Severity === 'CRITICAL') critical++;
+        if (vuln.Severity === 'HIGH') high++;
+      }
+    }
+    return { critical, high };
+  } catch {
+    return { critical: 0, high: 0 };
+  }
+}
+
+const tests = collectTestResults();
+const coverage = collectCoverage();
+const mutation = collectMutationScore();
+const security = collectSecurityFindings();
+const duration = Math.round((Date.now() - start) / 1000);
+
+const commitResult = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf-8', shell: false });
+const commit = (commitResult.stdout || '').trim();
+
+const coverageOk = coverage.line >= COVERAGE_THRESHOLD / 100;
+const mutationOk = mutation.score >= MUTATION_THRESHOLD / 100;
+const testsOk = tests.failed === 0;
+const securityOk = security.critical === 0;
+
+const obs_gate = (coverageOk && mutationOk && testsOk && securityOk) ? 'PASS' : 'FAIL';
+
+const summary = {
+  obs_gate,
+  timestamp: new Date().toISOString(),
+  commit,
+  duration_seconds: duration,
+  tests,
+  coverage: {
+    line: Math.round(coverage.line * 10000) / 100,
+    branch: Math.round(coverage.branch * 10000) / 100,
+  },
+  mutation: {
+    score: Math.round(mutation.score * 10000) / 100,
+    threshold: MUTATION_THRESHOLD,
+  },
+  security,
+};
+
+writeFileSync(join(EVIDENCE_DIR, 'SUMMARY.json'), JSON.stringify(summary, null, 2));
+
+const md = `# Evidence Summary — <%= projectName %>
+
+**Gate:** \`${obs_gate}\`
+**Commit:** \`${commit}\`
+**Timestamp:** ${summary.timestamp}
+**Duration:** ${duration}s
+
+## Tests
+- Total: ${tests.total} | Passed: ${tests.passed} | Failed: ${tests.failed} | Skipped: ${tests.skipped}
+
+## Coverage
+- Line: ${summary.coverage.line}% (threshold: ${COVERAGE_THRESHOLD}%) — ${coverageOk ? 'PASS' : 'FAIL'}
+- Branch: ${summary.coverage.branch}%
+
+## Mutation
+- Score: ${summary.mutation.score}% (threshold: ${MUTATION_THRESHOLD}%) — ${mutationOk ? 'PASS' : 'FAIL'}
+
+## Security
+- Critical: ${security.critical} | High: ${security.high} — ${securityOk ? 'PASS' : 'FAIL'}
+`;
+
+writeFileSync(join(EVIDENCE_DIR, 'SUMMARY.md'), md);
+
+process.stdout.write(`[evidence-collect] obs_gate=${obs_gate}\n`);
+process.stdout.write(`[evidence-collect] wrote ${EVIDENCE_DIR}/SUMMARY.json\n`);
+
+if (obs_gate !== 'PASS') {
+  process.stderr.write(`[evidence-collect] GATE FAIL — see ${EVIDENCE_DIR}/SUMMARY.json for details\n`);
+  process.exit(1);
+}

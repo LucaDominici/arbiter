@@ -22,19 +22,19 @@ const ALL_TIERS: InvariantTier[] = [
 // ---------------------------------------------------------------------------
 
 describe("INVARIANT_CATALOG", () => {
-  it("has exactly 32 entries", () => {
-    expect(INVARIANT_CATALOG).toHaveLength(32);
+  it("has exactly 33 entries", () => {
+    expect(INVARIANT_CATALOG).toHaveLength(33);
   });
 
   it("all IDs are unique", () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id);
     const unique = new Set(ids);
-    expect(unique.size).toBe(32);
+    expect(unique.size).toBe(33);
   });
 
   it("all IDs match INV-XX pattern sequentially", () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id);
-    for (let i = 1; i <= 32; i++) {
+    for (let i = 1; i <= 33; i++) {
       expect(ids).toContain(`INV-${String(i).padStart(2, "0")}`);
     }
   });
@@ -70,18 +70,24 @@ describe("INVARIANT_CATALOG", () => {
     }
   });
 
-  it("Tier 2, 3, 4 invariants are NOT alwaysActive", () => {
+  it("Tier 2, 4 invariants are NOT alwaysActive", () => {
+    // INV-11/12/13 (security tier) are intentionally alwaysActive=true at L2+ (M24 upgrade)
     const optional = INVARIANT_CATALOG.filter(
-      (inv) =>
-        inv.tier === "data" ||
-        inv.tier === "security" ||
-        inv.tier === "operational",
+      (inv) => inv.tier === "data" || inv.tier === "operational",
     );
     expect(optional.length).toBeGreaterThan(0);
     for (const inv of optional) {
       expect(inv.alwaysActive, `${inv.id} should NOT be alwaysActive`).toBe(
         false,
       );
+    }
+  });
+
+  it("INV-11/12/13 (security) are alwaysActive with minGovernanceLevel L2 (M24)", () => {
+    for (const id of ["INV-11", "INV-12", "INV-13"]) {
+      const inv = INVARIANT_CATALOG.find((i) => i.id === id);
+      expect(inv?.alwaysActive, `${id} should be alwaysActive`).toBe(true);
+      expect(inv?.minGovernanceLevel, `${id} should require L2`).toBe("L2");
     }
   });
 
@@ -107,9 +113,9 @@ describe("INVARIANT_CATALOG", () => {
     expect(tier4).toHaveLength(6);
   });
 
-  it("has exactly 10 Tier 5 invariants", () => {
+  it("has exactly 11 Tier 5 invariants", () => {
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === "governance");
-    expect(tier5).toHaveLength(10);
+    expect(tier5).toHaveLength(11);
   });
 
   it("language-specific invariants (INV-04, INV-05, INV-06) have languageDetail for all 5 languages", () => {
@@ -167,27 +173,13 @@ describe("INVARIANT_CATALOG", () => {
     expect(inv29?.title.toLowerCase()).toContain("mockmvc");
   });
 
-  it("INV-30 (mutation testing) is operational, not alwaysActive, L3, multi-language (no Go)", () => {
+  it("INV-30 (mutation testing) is operational, not alwaysActive, L2+, Java-only", () => {
     const inv30 = INVARIANT_CATALOG.find((inv) => inv.id === "INV-30");
     expect(inv30?.tier).toBe("operational");
     expect(inv30?.alwaysActive).toBe(false);
-    expect(inv30?.minGovernanceLevel).toBe("L3");
-    expect(inv30?.languages).toContain("java");
-    expect(inv30?.languages).toContain("typescript");
-    expect(inv30?.languages).toContain("rust");
-    expect(inv30?.languages).toContain("python");
-    expect(inv30?.languages).not.toContain("go");
-    expect(inv30?.title.toLowerCase()).toMatch(/mutation/);
-  });
-
-  it("INV-30 has languageDetail for all 5 languages (Go entry documents exclusion)", () => {
-    const inv30 = INVARIANT_CATALOG.find((inv) => inv.id === "INV-30");
-    for (const lang of LANGUAGES) {
-      expect(
-        inv30?.languageDetail?.[lang],
-        `INV-30 missing languageDetail for ${lang}`,
-      ).toBeTruthy();
-    }
+    expect(inv30?.minGovernanceLevel).toBe("L2");
+    expect(inv30?.languages).toEqual(["java"]);
+    expect(inv30?.title.toLowerCase()).toMatch(/mutation|pitest|pit/);
   });
 });
 
@@ -221,8 +213,10 @@ describe("getFilteredInvariants", () => {
     // Data tier excluded
     expect(ids).not.toContain("INV-07");
     expect(ids).not.toContain("INV-08");
-    // Security tier excluded
-    expect(ids).not.toContain("INV-11");
+    // INV-11/12/13 are alwaysActive=true (M24 upgrade) so they bypass tier selection
+    expect(ids).toContain("INV-11");
+    expect(ids).toContain("INV-12");
+    expect(ids).toContain("INV-13");
     // Operational tier excluded
     expect(ids).not.toContain("INV-16");
   });
@@ -322,7 +316,7 @@ describe("getFilteredInvariants", () => {
     expect(ids).not.toContain("INV-28");
   });
 
-  it("returns 31 for TypeScript + L3 + all tiers (INV-29 Java-only excluded, INV-30 multi-lang included)", () => {
+  it("returns 31 for TypeScript + L3 + all tiers (INV-29/30 Java-only excluded)", () => {
     const result = getFilteredInvariants({
       language: "typescript",
       governanceLevel: "L3",
@@ -331,9 +325,10 @@ describe("getFilteredInvariants", () => {
     expect(result).toHaveLength(31);
     const ids = result.map((inv) => inv.id);
     expect(ids).not.toContain("INV-29");
-    expect(ids).toContain("INV-30");
+    expect(ids).not.toContain("INV-30");
     expect(ids).toContain("INV-31");
     expect(ids).toContain("INV-32");
+    expect(ids).toContain("INV-33");
   });
 
   it("returns fewer than 28 for unknown language (language-specific excluded)", () => {
@@ -371,95 +366,61 @@ describe("getFilteredInvariants", () => {
     }
   });
 
-  it("INV-30 appears for Java at L3 only (not L1/L2)", () => {
-    const l3result = getFilteredInvariants({
-      language: "java",
-      governanceLevel: "L3",
-      invariantTiers: ALL_TIERS,
-    });
-    expect(l3result.map((inv) => inv.id)).toContain("INV-30");
-
-    for (const level of ["L1", "L2"] as const) {
+  it("INV-30 appears for Java at L2+ with operational tier", () => {
+    for (const level of ["L2", "L3"] as const) {
       const result = getFilteredInvariants({
         language: "java",
         governanceLevel: level,
         invariantTiers: ALL_TIERS,
       });
-      expect(
-        result.map((inv) => inv.id),
-        `INV-30 should not appear for Java at ${level}`,
-      ).not.toContain("INV-30");
+      const ids = result.map((inv) => inv.id);
+      expect(ids, `INV-30 missing for Java at ${level}`).toContain("INV-30");
     }
   });
 
-  it("INV-30 appears for TypeScript, Rust, Python at L3", () => {
-    for (const lang of ["typescript", "rust", "python"] as const) {
-      const result = getFilteredInvariants({
-        language: lang,
-        governanceLevel: "L3",
-        invariantTiers: ALL_TIERS,
-      });
-      expect(
-        result.map((inv) => inv.id),
-        `INV-30 missing for ${lang} at L3`,
-      ).toContain("INV-30");
-    }
-  });
-
-  it("INV-30 does not appear for Go (excluded — unsafe mutation tooling)", () => {
+  it("INV-30 does not appear for Java at L1", () => {
     const result = getFilteredInvariants({
-      language: "go",
-      governanceLevel: "L3",
+      language: "java",
+      governanceLevel: "L1",
       invariantTiers: ALL_TIERS,
     });
     expect(result.map((inv) => inv.id)).not.toContain("INV-30");
   });
 
-  it("INV-30 does not appear for any language at L1 or L2", () => {
-    for (const lang of [
-      "java",
-      "typescript",
-      "rust",
-      "go",
-      "python",
-    ] as const) {
-      for (const level of ["L1", "L2"] as const) {
-        const result = getFilteredInvariants({
-          language: lang,
-          governanceLevel: level,
-          invariantTiers: ALL_TIERS,
-        });
-        expect(
-          result.map((inv) => inv.id),
-          `INV-30 should not appear for ${lang} at ${level}`,
-        ).not.toContain("INV-30");
-      }
+  it("INV-30 does not appear for non-Java languages", () => {
+    for (const lang of ["typescript", "rust", "go", "python"] as const) {
+      const result = getFilteredInvariants({
+        language: lang,
+        governanceLevel: "L3",
+        invariantTiers: ALL_TIERS,
+      });
+      expect(result.map((inv) => inv.id)).not.toContain("INV-30");
     }
   });
 
-  it("Java + L2 + all tiers returns 29 invariants (INV-27/28/30 L3-gated excluded)", () => {
+  it("Java + L2 + all tiers returns 30 invariants (L3-gated INV-27/28 excluded)", () => {
     const result = getFilteredInvariants({
       language: "java",
       governanceLevel: "L2",
       invariantTiers: ALL_TIERS,
     });
-    expect(result).toHaveLength(29);
+    expect(result).toHaveLength(30);
     const ids = result.map((inv) => inv.id);
     expect(ids).toContain("INV-29");
-    expect(ids).not.toContain("INV-30");
+    expect(ids).toContain("INV-30");
     expect(ids).toContain("INV-31");
     expect(ids).toContain("INV-32");
     expect(ids).not.toContain("INV-27");
     expect(ids).not.toContain("INV-28");
   });
 
-  it("Java + L3 + all tiers returns all 32 invariants", () => {
+  it("Java + L3 + all tiers returns all 33 invariants", () => {
     const result = getFilteredInvariants({
       language: "java",
       governanceLevel: "L3",
       invariantTiers: ALL_TIERS,
     });
-    expect(result).toHaveLength(32);
+    expect(result).toHaveLength(33);
   });
 
   it("essential preset at L1 returns minimal set", () => {
