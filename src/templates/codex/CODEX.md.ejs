@@ -68,8 +68,7 @@ Follow this lifecycle for every task:
 
 | Claude Code | Codex Equivalent |
 |-------------|-----------------|
-| `/start-task #NNN` | Read issue → create plan → await GO |
-| `/complete-task` | Gate L2 → commit → push → PR |
+| `/task #NNN` | Full lifecycle: branch → plan → implement → gate → PR |
 | `<%= testCommand %>` | Run tests for this stack |
 | `node scripts/check-all.mjs L1` | Run before each commit |
 | `node scripts/check-all.mjs L2` | Run before push/PR |

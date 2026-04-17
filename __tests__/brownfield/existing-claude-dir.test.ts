@@ -103,13 +103,13 @@ describe("brownfield: existing .claude/ directory", () => {
   it("preserves custom commands (skipIfExists)", () => {
     const cmdsDir = join(dir, ".claude", "commands");
     mkdirSync(cmdsDir, { recursive: true });
-    const customCmd = "# Custom start-task command\nDo something special.";
-    writeFileSync(join(cmdsDir, "start-task.md"), customCmd);
+    const customCmd = "# Custom task command\nDo something special.";
+    writeFileSync(join(cmdsDir, "task.md"), customCmd);
 
     const config = configWithExistingClaude();
     runGenerators(config);
 
-    const content = readFileSync(join(cmdsDir, "start-task.md"), "utf-8");
+    const content = readFileSync(join(cmdsDir, "task.md"), "utf-8");
     expect(content).toBe(customCmd);
   });
 });

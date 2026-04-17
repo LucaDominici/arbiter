@@ -59,8 +59,7 @@ describe("tool output: codex", () => {
     const config = codexConfig();
     generateCodex(config);
     const content = readFileSync(join(dir, ".agents", "CODEX.md"), "utf-8");
-    expect(content).toContain("/start-task");
-    expect(content).toContain("/complete-task");
+    expect(content).toContain("/task");
   });
 
   it("generates 3 rules files in .agents/rules/", () => {

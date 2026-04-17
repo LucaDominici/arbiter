@@ -52,9 +52,7 @@ describe("generateClaude", () => {
     expect(
       existsSync(join(dir, ".claude", "rules", "90-exec-protocol.md")),
     ).toBe(true);
-    expect(existsSync(join(dir, ".claude", "commands", "start-task.md"))).toBe(
-      true,
-    );
+    expect(existsSync(join(dir, ".claude", "commands", "task.md"))).toBe(true);
     expect(existsSync(join(dir, ".claude", "hooks", "lib.mjs"))).toBe(true);
   });
 
