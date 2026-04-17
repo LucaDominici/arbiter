@@ -231,3 +231,71 @@ describe("matrix: TypeScript project", () => {
     });
   });
 });
+
+// ── M23: TypeScript L3 mutation gate (Stryker) ───────────────────────────────
+
+describe("matrix: TypeScript L3 mutation gate (Stryker)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = createTestProject("typescript");
+    initGit(dir);
+  });
+
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  function tsL3Config(
+    overrides: Partial<Parameters<typeof makeConfig>[1]> = {},
+  ) {
+    return makeConfig(dir, {
+      language: "typescript",
+      governanceLevel: "L3",
+      buildTool: "npm",
+      useGitHub: true,
+      githubOwner: "test-owner",
+      githubRepo: "test-repo",
+      languageHooks: getLanguageHooks("typescript"),
+      ...overrides,
+    });
+  }
+
+  it("emits stryker.conf.json at L3", () => {
+    const config = tsL3Config();
+    runGenerators(config);
+    expect(existsSync(join(dir, "stryker.conf.json"))).toBe(true);
+  });
+
+  it("stryker.conf.json threshold equals 85", () => {
+    const config = tsL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "stryker.conf.json"), "utf-8");
+    expect(content).toContain("85");
+    expect(content).toContain("vitest");
+  });
+
+  it("check-all.mjs invokes stryker at L3", () => {
+    const config = tsL3Config();
+    runGenerators(config);
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("stryker");
+  });
+
+  it("L2 config does NOT emit stryker.conf.json", () => {
+    const config = tsL3Config({ governanceLevel: "L2" });
+    runGenerators(config);
+    expect(existsSync(join(dir, "stryker.conf.json"))).toBe(false);
+  });
+
+  it("AGENTS.md L3 mentions stryker and 85%", () => {
+    const config = tsL3Config();
+    runGenerators(config);
+    const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+    expect(content).toMatch(/stryker/i);
+    expect(content).toContain("85");
+  });
+});
