@@ -3,5 +3,6 @@
   "archetype": "library",
   "buildTool": "gradle",
   "levels": ["L1", "L2"],
-  "note": "Minimal Java library with Gradle — no framework plugin → detects as library archetype"
+  "note": "Minimal Java library with Gradle \u2014 no framework plugin \u2192 detects as library archetype",
+  "enableSecurityScanning": true
 }

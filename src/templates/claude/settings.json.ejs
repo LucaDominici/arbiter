@@ -50,7 +50,12 @@
             "type": "command",
             "command": "node .claude/hooks/check-no-orphan-todo.mjs",
             "timeout": 5
-          }<% languageHooks.filter(h => h.name !== 'check-no-orphan-todo.mjs').forEach((hook, i) => { %>,
+          }<% if (enableSecurityScanning) { %>,
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-pii.mjs",
+            "timeout": 5
+          }<% } %><% languageHooks.filter(h => h.name !== 'check-no-orphan-todo.mjs').forEach((hook, i) => { %>,
           {
             "type": "command",
             "command": "node .claude/hooks/<%= hook.name %>",

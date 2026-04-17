@@ -135,14 +135,15 @@ describe("tool output: claude", () => {
     expect(existsSync(join(rulesDir, "90-exec-protocol.md"))).toBe(true);
   });
 
-  it("generates 2 command files; start-task.md references gh issue view", () => {
+  it("generates 1 command file; task.md references gh issue view", () => {
     const config = claudeConfig();
     generateClaude(config);
     const commandsDir = join(dir, ".claude", "commands");
-    expect(existsSync(join(commandsDir, "start-task.md"))).toBe(true);
-    expect(existsSync(join(commandsDir, "complete-task.md"))).toBe(true);
-    const startTask = readFileSync(join(commandsDir, "start-task.md"), "utf-8");
-    expect(startTask).toContain("gh issue view");
+    expect(existsSync(join(commandsDir, "task.md"))).toBe(true);
+    expect(existsSync(join(commandsDir, "start-task.md"))).toBe(false);
+    expect(existsSync(join(commandsDir, "complete-task.md"))).toBe(false);
+    const taskContent = readFileSync(join(commandsDir, "task.md"), "utf-8");
+    expect(taskContent).toContain("gh issue view");
   });
 
   it("TypeScript language hooks generate check-no-any.mjs", () => {

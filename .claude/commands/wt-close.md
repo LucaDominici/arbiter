@@ -44,7 +44,7 @@ Close a git worktree and optionally harvest files back to the main repo.
 
 - **"No open worktree found for task"**: The task has no open worktree. Run `arbiter wt list` to see existing worktrees.
 - **"Worktree has uncommitted changes"**: Either commit/stash changes in the worktree, or use `--force` to close anyway, or use `--harvest-all` to copy changes back first.
-- **"Branch has not been merged"**: The branch hasn't been merged into the base branch. Use `--harvest-all` to copy files back, or `/complete-task` to merge the branch first, or `--force` to close anyway (uncommitted work will be lost).
+- **"Branch has not been merged"**: The branch hasn't been merged into the base branch. Use `--harvest-all` to copy files back, or `/task` to merge the branch first, or `--force` to close anyway (uncommitted work will be lost).
 - **"Must run from the main repository"**: `cd` back to the main repo first.
 
 ## Allowed Tools

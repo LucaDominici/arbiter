@@ -52,6 +52,10 @@ console.log('');
 console.log(`=== <%= projectName %> Quality Gate: ${level} ===`);
 console.log('');
 
+<% if (enableSecurityScanning) { %>
+// ─── Early-fail: PII scan (INV-12, HARD — no grace period) ────────────────────
+runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
+<% } %>
 // ─── L1: Fast checks ──────────────────────────────────────────────────────────
 <% if (language === 'typescript') { %>
 runCheck('typecheck', 'npx', ['tsc', '--noEmit']);
@@ -84,13 +88,21 @@ runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
 <% } %>
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
+<% if (enableSecurityScanning) { %>
+  // ─── L2: Security scanning (INV-11/12/13) ──────────────────────────────────
+  runCheck('gitleaks', 'gitleaks', ['detect', '--source', '.', '--config', '.gitleaks.toml', '--gitleaks-ignore-path', 'suppressions/.gitleaksignore', '--exit-code', '1'], { soft: graceActive });
+<% } %>
 <% if (language === 'typescript') { %>
+<% if (enableSecurityScanning) { %>
   runCheck('audit', 'npm', ['audit', '--audit-level=high'], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'rust') { %>
+<% if (enableSecurityScanning) { %>
   runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
@@ -99,15 +111,26 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal' && basePackage) { %>
   runCheck('architecture tests', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: graceActive });
 <% } %>
+<% if (enableSecurityScanning) { %>
+  runCheck('dep audit (OWASP)', './gradlew', ['dependencyCheckAnalyze', '-q'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('integration', 'mvn', ['verify', '-q'], { soft: graceActive });
+<% if (enableSecurityScanning) { %>
+  runCheck('dep audit (OWASP)', 'mvn', ['org.owasp:dependency-check-maven:check', '-q'], { soft: graceActive });
+<% } %>
 <% } %><% if (language === 'go') { %>
   runCheck('staticcheck', 'staticcheck', ['./...'], { soft: graceActive });
+<% if (enableSecurityScanning) { %>
+  runCheck('dep audit', 'govulncheck', ['./...'], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'python') { %>
+<% if (enableSecurityScanning) { %>
   runCheck('audit', 'pip-audit', [], { soft: graceActive });
+<% } %>
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
@@ -120,41 +143,17 @@ if (level === 'L2') {
 <% } %>
   runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
   runCheck('circular deps', 'npx', ['madge', '--circular', 'src'], { soft: graceActive });
-<% if (governanceLevel === 'L3') { %>
-  runCheck('mutation testing (stryker)', 'npx', ['stryker', 'run'], { soft: graceActive });
-<% } %>
 <% } %><% if (language === 'rust') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });
 <% } %>
   runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings'], { soft: graceActive });
-<% if (governanceLevel === 'L3') { %>
-  process.stdout.write('[CHECK] mutation testing (cargo-mutants) ... ');
-  {
-    const cargoMutants = spawnSync('cargo', ['mutants', '--config', 'cargo-mutants.toml'], { encoding: 'utf-8', shell: false });
-    const parseMutants = spawnSync('node', ['scripts/parse-mutants.mjs', '--threshold', '<%= mutationThreshold %>'], {
-      input: (cargoMutants.stdout || '') + '\n' + (cargoMutants.stderr || ''),
-      encoding: 'utf-8',
-      shell: false,
-    });
-    if (parseMutants.status !== 0) {
-      console.log(graceActive ? 'WARN (grace period)' : 'FAIL');
-      if (!graceActive) failed++;
-    } else { console.log('PASS'); }
-  }
-<% } %>
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q'], { soft: graceActive });
   runCheck('pmd', './gradlew', ['pmdMain', '-q'], { soft: graceActive });
-<% if (mutationEnabled) { %>
-  runCheck('mutation testing (pitest)', './gradlew', ['pitest', '-q'], { soft: graceActive });
-<% } %>
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q'], { soft: graceActive });
   runCheck('pmd', 'mvn', ['pmd:check', '-q'], { soft: graceActive });
-<% if (mutationEnabled) { %>
-  runCheck('mutation testing (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q'], { soft: graceActive });
-<% } %>
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...'], { soft: graceActive });
@@ -179,21 +178,6 @@ if (level === 'L2') {
 <% } %>
   runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.'], { soft: graceActive });
   runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.'], { soft: graceActive });
-<% if (governanceLevel === 'L3') { %>
-  process.stdout.write('[CHECK] mutation testing (mutmut) ... ');
-  {
-    const mutmutRun = spawnSync('mutmut', ['run'], { encoding: 'utf-8', shell: false });
-    const parseMutmut = spawnSync('python', ['scripts/parse-mutmut.py', '--threshold', '<%= mutationThreshold %>'], {
-      input: (mutmutRun.stdout || '') + '\n' + (mutmutRun.stderr || ''),
-      encoding: 'utf-8',
-      shell: false,
-    });
-    if (mutmutRun.status !== 0 || parseMutmut.status !== 0) {
-      console.log(graceActive ? 'WARN (grace period)' : 'FAIL');
-      if (!graceActive) failed++;
-    } else { console.log('PASS'); }
-  }
-<% } %>
 <% } %>
   // ─── L2: STRIDE/RACI traceability ───────────────────────────────────────────
   runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });
@@ -201,6 +185,31 @@ if (level === 'L2') {
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
 <% const ratchetFlag = governanceLevel === 'L3' ? '--require-improvement' : '--gate'; %>
   runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '<%= ratchetFlag %>'], { soft: graceActive });
+<% } %>
+<% if (governanceLevel === 'L3') { %>
+  // ─── L3: Evidence gate (INV-33) ─────────────────────────────────────────────
+  // Validates nightly evidence produced by evidence-collect.mjs.
+  // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
+  {
+    const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
+    if (!existsSync(_summaryPath)) {
+      console.log('WARN — .evidence/SUMMARY.json absent (run nightly pipeline first)');
+    } else {
+      try {
+        const _summary = JSON.parse(readFileSync(_summaryPath, 'utf-8'));
+        if (_summary.obs_gate === 'PASS') {
+          console.log('PASS');
+        } else {
+          console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
+          failed++;
+        }
+      } catch {
+        console.log('FAIL (could not parse .evidence/SUMMARY.json)');
+        failed++;
+      }
+    }
+  }
 <% } %>
 }
 

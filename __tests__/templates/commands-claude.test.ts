@@ -29,92 +29,70 @@ const STACK_LANGUAGES: Language[] = [
   "python",
 ];
 
-function renderStartTask(language: Language): string {
+function renderTask(language: Language): string {
   const config = makeConfig("/tmp/test", {
     language,
     testCommand: GATE_COMMANDS[language],
   });
   return renderTemplate(
-    "claude/commands/start-task.md.ejs",
+    "claude/commands/task.md.ejs",
     config as unknown as Record<string, unknown>,
   );
 }
 
-function renderCompleteTask(language: Language): string {
-  const config = makeConfig("/tmp/test", {
-    language,
-    testCommand: GATE_COMMANDS[language],
-  });
-  return renderTemplate(
-    "claude/commands/complete-task.md.ejs",
-    config as unknown as Record<string, unknown>,
-  );
-}
-
-describe("claude commands: start-task.md — structural sections", () => {
+describe("claude commands: task.md — structural sections", () => {
   it("contains branch enforcement section", () => {
-    const content = renderStartTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/branch/i);
     expect(content).toMatch(/main|master/i);
   });
 
   it("contains plan gate with STOP", () => {
-    const content = renderStartTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/STOP/);
   });
 
   it("contains tier classification (XS/S/Standard)", () => {
-    const content = renderStartTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/XS/);
     expect(content).toMatch(/Standard/);
   });
 
   it("contains GitHub issue read instruction", () => {
-    const content = renderStartTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/gh issue view|issue/i);
   });
 
   it("references AGENTS.md invariants", () => {
-    const content = renderStartTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/AGENTS\.md/);
   });
-});
 
-describe("claude commands: complete-task.md — structural sections", () => {
   it("contains gate execution section", () => {
-    const content = renderCompleteTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/gate|Gate/i);
   });
 
   it("contains commit section", () => {
-    const content = renderCompleteTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/commit|Commit/i);
   });
 
   it("contains PR creation section", () => {
-    const content = renderCompleteTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/PR|pull request|gh pr create/i);
   });
 
   it("contains branch validation (not main)", () => {
-    const content = renderCompleteTask("typescript");
+    const content = renderTask("typescript");
     expect(content).toMatch(/main|master/i);
   });
 });
 
-describe("claude commands: start-task.md — stack parameterization", () => {
+describe("claude commands: task.md — stack parameterization", () => {
   for (const lang of STACK_LANGUAGES) {
     it(`gate command for ${lang} = ${GATE_COMMANDS[lang]}`, () => {
-      const content = renderStartTask(lang);
-      expect(content).toContain(GATE_COMMANDS[lang]);
-    });
-  }
-});
-
-describe("claude commands: complete-task.md — stack parameterization", () => {
-  for (const lang of STACK_LANGUAGES) {
-    it(`gate command for ${lang} = ${GATE_COMMANDS[lang]}`, () => {
-      const content = renderCompleteTask(lang);
+      const content = renderTask(lang);
       expect(content).toContain(GATE_COMMANDS[lang]);
     });
   }

@@ -14,6 +14,7 @@ import {
 } from "../../src/invariants/filter.js";
 import { computeThresholds } from "../../src/config/thresholds.js";
 import { generateGlobalInvariants } from "../../src/generators/global-invariants.js";
+import { generateNightly } from "../../src/generators/nightly.js";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -265,7 +266,8 @@ describe("cross-product: ci.yml — language setup step across all governance le
     it(`go+${level}: contains setup-go`, () => {
       const content = renderCi("go", level);
       expect(content).toContain("setup-go");
-      expect(content).not.toContain("setup-node");
+      // L2+ security-early-fail job + L3 classify-changes both add setup-node
+      if (level === "L1") expect(content).not.toContain("setup-node");
       expect(content).not.toContain("setup-java");
       expect(content).not.toContain("rust-toolchain");
     });
@@ -273,7 +275,8 @@ describe("cross-product: ci.yml — language setup step across all governance le
     it(`python+${level}: contains setup-python`, () => {
       const content = renderCi("python", level);
       expect(content).toContain("setup-python");
-      expect(content).not.toContain("setup-node");
+      // L2+ security-early-fail job + L3 classify-changes both add setup-node
+      if (level === "L1") expect(content).not.toContain("setup-node");
       expect(content).not.toContain("setup-java");
       expect(content).not.toContain("rust-toolchain");
     });
@@ -489,10 +492,10 @@ describe("cross-product: AGENTS.md — tech debt section at L2+, absent at L1", 
 
 // ─── Claude commands ──────────────────────────────────────────────────────────
 
-describe("cross-product: start-task.md — testCommand in output for all stack × level combinations", () => {
-  function renderStartTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — testCommand in output for all stack × level combinations", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/start-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
@@ -500,23 +503,23 @@ describe("cross-product: start-task.md — testCommand in output for all stack �
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" appears in output`, () => {
-        expect(renderStartTask(lang, level)).toContain(TEST_COMMANDS[lang]);
+        expect(renderTask(lang, level)).toContain(TEST_COMMANDS[lang]);
       });
     }
   }
 });
 
-describe("cross-product: start-task.md — governance structure across all stacks", () => {
-  function renderStartTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — governance structure across all stacks", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/start-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
 
   for (const lang of LANGUAGES) {
     it(`${lang}+L1: no tier classification and no TDD reference`, () => {
-      const content = renderStartTask(lang, "L1");
+      const content = renderTask(lang, "L1");
       expect(content).not.toMatch(/\bXS\b/);
       expect(content).not.toMatch(/\bStandard\b/);
       expect(content).not.toMatch(/\bTDD\b/);
@@ -524,23 +527,23 @@ describe("cross-product: start-task.md — governance structure across all stack
     });
 
     it(`${lang}+L2: tier classification and TDD reference present`, () => {
-      const content = renderStartTask(lang, "L2");
+      const content = renderTask(lang, "L2");
       expect(content).toMatch(/XS|Standard/);
       expect(content).toMatch(/TDD/);
     });
 
     it(`${lang}+L3: tier classification, TDD, and verification present`, () => {
-      const content = renderStartTask(lang, "L3");
+      const content = renderTask(lang, "L3");
       expect(content).toMatch(/XS|Standard/);
       expect(content).toMatch(/verif|evidence/i);
     });
   }
 });
 
-describe("cross-product: complete-task.md — testCommand and verification across all stacks", () => {
-  function renderCompleteTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — testCommand and verification across all stacks", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/complete-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
@@ -548,19 +551,19 @@ describe("cross-product: complete-task.md — testCommand and verification acros
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" in gate section`, () => {
-        expect(renderCompleteTask(lang, level)).toContain(TEST_COMMANDS[lang]);
+        expect(renderTask(lang, level)).toContain(TEST_COMMANDS[lang]);
       });
     }
   }
 
   for (const lang of LANGUAGES) {
     it(`${lang}+L3: verification section present`, () => {
-      const content = renderCompleteTask(lang, "L3");
+      const content = renderTask(lang, "L3");
       expect(content).toMatch(/Verification|evidence/i);
     });
 
     it(`${lang}+L1: no verification section`, () => {
-      const content = renderCompleteTask(lang, "L1");
+      const content = renderTask(lang, "L1");
       expect(content).not.toMatch(/Verification/);
       expect(content).not.toMatch(/evidence/i);
     });
@@ -770,25 +773,25 @@ describe("cross-product: settings.json — advanced hooks governance gating", ()
 
 // ─── start-task task state files (M17) ───────────────────────────────────────
 
-describe("cross-product: start-task.md — task state files for advanced hooks", () => {
-  function renderStartTask(lang: Language, level: GovernanceLevel): string {
+describe("cross-product: task.md — task state files for advanced hooks", () => {
+  function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate(
-      "claude/commands/start-task.md.ejs",
+      "claude/commands/task.md.ejs",
       configFor(lang, level),
     );
   }
 
   for (const lang of LANGUAGES) {
     it(`${lang}+L2: contains .task-phase instruction`, () => {
-      expect(renderStartTask(lang, "L2")).toContain(".task-phase");
+      expect(renderTask(lang, "L2")).toContain(".task-phase");
     });
 
     it(`${lang}+L3: contains .task-phase instruction`, () => {
-      expect(renderStartTask(lang, "L3")).toContain(".task-phase");
+      expect(renderTask(lang, "L3")).toContain(".task-phase");
     });
 
     it(`${lang}+L1: does NOT contain .task-phase instruction`, () => {
-      expect(renderStartTask(lang, "L1")).not.toContain(".task-phase");
+      expect(renderTask(lang, "L1")).not.toContain(".task-phase");
     });
   }
 });
@@ -803,13 +806,11 @@ const PRESET_EXPECTED_TIERS: Record<InvariantPreset, InvariantTier[]> = {
   full: ["architectural", "governance", "data", "security", "operational"],
 };
 
+// INV-11/12/13 are alwaysActive=true at L2+ (M24), so "Tier 3: Security" appears
+// in AGENTS.md for all presets at L2+ regardless of tier selection.
 const ABSENT_TIERS: Record<InvariantPreset, string[]> = {
-  essential: [
-    "Tier 2: Data Integrity",
-    "Tier 3: Security",
-    "Tier 4: Operational",
-  ],
-  standard: ["Tier 3: Security"],
+  essential: ["Tier 2: Data Integrity", "Tier 4: Operational"],
+  standard: [],
   full: [],
 };
 
@@ -958,7 +959,8 @@ describe("cross-product: GLOBAL_INVARIANTS.md — generation by preset", () => {
         const content = readFileSync(join(d, "GLOBAL_INVARIANTS.md"), "utf-8");
         expect(content).toContain("Tier 2: Data Integrity");
         expect(content).toContain("Tier 4: Operational Excellence");
-        expect(content).not.toContain("Tier 3: Security");
+        // INV-11/12/13 are alwaysActive=true at L2+ (M24), security tier appears regardless of preset
+        expect(content).toContain("Tier 3: Security");
       } finally {
         cleanup(d);
       }
@@ -984,12 +986,92 @@ describe("cross-product: GLOBAL_INVARIANTS.md — generation by preset", () => {
   }
 });
 
-// ── M23: mutation gate cross-product assertions ───────────────────────────────
+// ─── M24: Security scanning cross-product ─────────────────────────────────────
 
-describe("cross-product: check-all.mjs — mutation commands at L3 per stack", () => {
+// New M24 dep-audit additions per stack (TS/Rust/Python already had audit steps pre-M24)
+const DEP_AUDIT_MARKERS: Partial<Record<Language, string>> = {
+  java: "dependencyCheckAnalyze",
+  typescript: "audit-level=high",
+  rust: "'cargo', ['audit']",
+  go: "govulncheck",
+  python: "pip-audit",
+};
+
+describe("cross-product: check-all.mjs — security scanning (M24)", () => {
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L2: pii-scan runs before L2 block`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L2");
+      const cfg = {
+        ...configFor(lang, "L2"),
+        enableSecurityScanning: true,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      const piiIdx = content.indexOf("pii-scan.mjs");
+      const l2BlockIdx = content.indexOf("if (level === 'L2')");
+      expect(piiIdx).toBeGreaterThan(-1);
+      expect(l2BlockIdx).toBeGreaterThan(-1);
+      expect(piiIdx).toBeLessThan(l2BlockIdx);
+    });
+
+    it(`${lang}+L2: gitleaks step present in L2 block`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L2");
+      const cfg = {
+        ...configFor(lang, "L2"),
+        enableSecurityScanning: true,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      const l2BlockIdx = content.indexOf("if (level === 'L2')");
+      expect(content.indexOf("gitleaks", l2BlockIdx)).toBeGreaterThan(
+        l2BlockIdx,
+      );
+    });
+
+    it(`${lang}+L2: dep-audit step present in L2 block`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L2");
+      const cfg = {
+        ...configFor(lang, "L2"),
+        enableSecurityScanning: true,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      const marker = DEP_AUDIT_MARKERS[lang];
+      if (marker) {
+        const l2BlockIdx = content.indexOf("if (level === 'L2')");
+        expect(content.indexOf(marker, l2BlockIdx)).toBeGreaterThan(l2BlockIdx);
+      }
+    });
+
+    it(`${lang}+L1: no gitleaks or dep-audit step (security gates are L2+)`, () => {
+      const thresholds = computeThresholds(0, "fixed", "L1");
+      const cfg = {
+        ...configFor(lang, "L1"),
+        enableSecurityScanning: false,
+        coverageEnabled: thresholds.coverageEnabled,
+        coverageThreshold: thresholds.coverageThreshold,
+        mutationEnabled: thresholds.mutationEnabled,
+      };
+      const content = renderTemplate("scripts/check-all.mjs.ejs", cfg);
+      expect(content).not.toContain("gitleaks");
+      expect(content).not.toContain("govulncheck");
+      expect(content).not.toContain("dependencyCheckAnalyze");
+      expect(content).not.toContain("pii-scan.mjs");
+    });
+  }
+});
+
+// ── M23/M25: mutation moved from check-all.mjs → nightly.yml ─────────────────
+
+describe("cross-product: check-all.mjs — mutation commands absent at all levels (M25)", () => {
   const MUTATION_MARKERS: Partial<Record<Language, string>> = {
     typescript: "stryker",
-    java: "pitest",
     rust: "mutants",
     python: "mutmut",
   };
@@ -998,26 +1080,14 @@ describe("cross-product: check-all.mjs — mutation commands at L3 per stack", (
     Language,
     string,
   ][]) {
-    it(`${lang}+L3: check-all.mjs contains "${marker}"`, () => {
+    it(`${lang}+L3: check-all.mjs does NOT contain "${marker}" (moved to nightly)`, () => {
       const content = renderTemplate("scripts/check-all.mjs.ejs", {
         ...configFor(lang, "L3"),
         enableDebtGates: true,
       });
-      expect(content).toContain(marker);
+      expect(content).not.toContain(marker);
     });
-  }
 
-  // L2 regression: TS/Rust/Python mutation commands must NOT appear at L2
-  const L2_ABSENT_MARKERS: Partial<Record<Language, string>> = {
-    typescript: "stryker",
-    rust: "mutants",
-    python: "mutmut",
-  };
-
-  for (const [lang, marker] of Object.entries(L2_ABSENT_MARKERS) as [
-    Language,
-    string,
-  ][]) {
     it(`${lang}+L2: check-all.mjs does NOT contain "${marker}"`, () => {
       const content = renderTemplate("scripts/check-all.mjs.ejs", {
         ...configFor(lang, "L2"),
@@ -1028,34 +1098,92 @@ describe("cross-product: check-all.mjs — mutation commands at L3 per stack", (
   }
 });
 
-describe("cross-product: AGENTS.md — mutation row in tech debt table at L3", () => {
-  const MUTATION_ROWS: Partial<Record<Language, string>> = {
-    typescript: "Mutation testing (Stryker)",
-    java: "Mutation testing (pitest)",
-    rust: "Mutation testing (cargo-mutants)",
-    python: "Mutation testing (mutmut)",
+// ── M25: nightly pipeline & evidence harness cross-product assertions ─────────
+
+describe("cross-product: generateNightly — L3 emits nightly files per stack", () => {
+  const NIGHTLY_MUTATION_MARKERS: Partial<Record<Language, string>> = {
+    typescript: "stryker",
+    java: "pitest",
+    rust: "mutants",
+    python: "mutmut",
   };
 
-  for (const [lang, row] of Object.entries(MUTATION_ROWS) as [
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L3: generateNightly emits 4 files`, () => {
+      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`));
+      try {
+        const config = makeConfig(d, {
+          language: lang,
+          governanceLevel: "L3",
+          acceptBetaTools: true,
+          ...STACK_CONFIG[lang],
+        });
+        const result = generateNightly(config);
+        expect(result.files).toHaveLength(4);
+        const paths = result.files.map((f) => f.path);
+        expect(paths.some((p) => p.endsWith("nightly.yml"))).toBe(true);
+        expect(paths.some((p) => p.endsWith("evidence-collect.mjs"))).toBe(
+          true,
+        );
+        expect(paths.some((p) => p.endsWith("ci-classify-changes.mjs"))).toBe(
+          true,
+        );
+        expect(paths.some((p) => p.endsWith(".gitkeep"))).toBe(true);
+      } finally {
+        rmSync(d, { recursive: true, force: true });
+      }
+    });
+
+    it(`${lang}+L1: generateNightly emits 0 files`, () => {
+      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`));
+      try {
+        const config = makeConfig(d, {
+          language: lang,
+          governanceLevel: "L1",
+          ...STACK_CONFIG[lang],
+        });
+        expect(generateNightly(config).files).toHaveLength(0);
+      } finally {
+        rmSync(d, { recursive: true, force: true });
+      }
+    });
+
+    it(`${lang}+L2: generateNightly emits 0 files`, () => {
+      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`));
+      try {
+        const config = makeConfig(d, {
+          language: lang,
+          governanceLevel: "L2",
+          ...STACK_CONFIG[lang],
+        });
+        expect(generateNightly(config).files).toHaveLength(0);
+      } finally {
+        rmSync(d, { recursive: true, force: true });
+      }
+    });
+  }
+
+  for (const [lang, marker] of Object.entries(NIGHTLY_MUTATION_MARKERS) as [
     Language,
     string,
   ][]) {
-    it(`${lang}+L3: AGENTS.md debt gates table has mutation row`, () => {
-      const config = configFor(lang, "L3");
-      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
-        ...config,
-        enableDebtGates: true,
-      });
-      expect(content).toContain(row);
-    });
-
-    it(`${lang}+L2: AGENTS.md debt gates table does NOT have mutation row`, () => {
-      const config = configFor(lang, "L2");
-      const content = renderTemplate("agents-md/AGENTS.md.ejs", {
-        ...config,
-        enableDebtGates: true,
-      });
-      expect(content).not.toContain(row);
+    it(`${lang}+L3: nightly.yml contains mutation marker "${marker}"`, () => {
+      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`));
+      try {
+        const config = makeConfig(d, {
+          language: lang,
+          governanceLevel: "L3",
+          acceptBetaTools: true,
+          ...STACK_CONFIG[lang],
+        });
+        const result = generateNightly(config);
+        const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+        expect(f, "nightly.yml not found").toBeDefined();
+        const content = readFileSync(f!.path, "utf-8");
+        expect(content).toContain(marker);
+      } finally {
+        rmSync(d, { recursive: true, force: true });
+      }
     });
   }
 });

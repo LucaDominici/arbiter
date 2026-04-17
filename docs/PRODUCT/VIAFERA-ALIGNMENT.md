@@ -249,9 +249,9 @@ Controlled via JUnit `@Tag("unit")`, `@Tag("archunit")`, `@Tag("integration")`, 
 
 **Gate:** HARD (L1).
 
-**Arbiter today:** Not generated.
+**Arbiter today:** Generated (M24). Per-stack: Java OWASP DC snippet (`config/owasp-dependency-check.gradle`, `apply from:`), TypeScript `npm audit`, Rust `cargo audit`, Go `govulncheck`, Python `pip-audit`. CI dep-audit step + local L2 gate. `soft: graceActive` honored.
 
-**Gap:** CRITICAL.
+**Gap:** Resolved (M24).
 
 ### 5.2 Secrets Detection (Gitleaks)
 
@@ -259,9 +259,9 @@ Controlled via JUnit `@Tag("unit")`, `@Tag("archunit")`, `@Tag("integration")`, 
 
 **Gate:** Advisory (nightly), targeting HARD.
 
-**Arbiter today:** Not generated.
+**Arbiter today:** Generated (M24). `.gitleaks.toml` emitted for all stacks. `security-early-fail` CI job (before `lint-and-test`). L2 gate step. Suppression baseline: `suppressions/.gitleaksignore`.
 
-**Gap:** MAJOR.
+**Gap:** Resolved (M24).
 
 ### 5.3 PII Scan
 
@@ -269,9 +269,9 @@ Controlled via JUnit `@Tag("unit")`, `@Tag("archunit")`, `@Tag("integration")`, 
 
 **Gate:** HARD.
 
-**Arbiter today:** Not generated.
+**Arbiter today:** Generated (M24). `scripts/pii-scan.mjs` (email/phone/credit-card), HARD early-fail before L1 section in `check-all.mjs` (no grace period). `security-early-fail` CI job runs PII before all other CI jobs. Claude hook `check-no-pii.mjs` (PostToolUse). INV-12 broadened to cover code/tests/logs.
 
-**Gap:** MAJOR.
+**Gap:** Resolved (M24).
 
 ### 5.4 Trivy Filesystem Scan
 
@@ -279,9 +279,9 @@ Controlled via JUnit `@Tag("unit")`, `@Tag("archunit")`, `@Tag("integration")`, 
 
 **Gate:** Advisory (nightly, skippable).
 
-**Arbiter today:** Not generated.
+**Arbiter today:** Not generated. Deferred to M25 (nightly pipeline). TODO(#73).
 
-**Gap:** MINOR.
+**Gap:** MINOR (M25).
 
 ---
 

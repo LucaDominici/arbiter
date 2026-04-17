@@ -151,15 +151,14 @@ L3 gate requires evidence artifacts in `.evidence/` before release.
 
 ### `claude/` (multiple files)
 
-| File                          | Output                              | Type    |
-| ----------------------------- | ----------------------------------- | ------- |
-| `claude-md.ejs`               | `.claude/CLAUDE.md`                 | Dynamic |
-| `settings.json.ejs`           | `.claude/settings.json` (initial)   | Dynamic |
-| `hooks/pre-tool-use.mjs.ejs`  | `.claude/hooks/pre-tool-use.mjs`    | Dynamic |
-| `hooks/post-tool-use.mjs.ejs` | `.claude/hooks/post-tool-use.mjs`   | Dynamic |
-| `rules/exec-protocol.md`      | `.claude/rules/exec-protocol.md`    | Static  |
-| `commands/start-task.md`      | `.claude/commands/start-task.md`    | Static  |
-| `commands/complete-task.md`   | `.claude/commands/complete-task.md` | Static  |
+| File                          | Output                            | Type    |
+| ----------------------------- | --------------------------------- | ------- |
+| `claude-md.ejs`               | `.claude/CLAUDE.md`               | Dynamic |
+| `settings.json.ejs`           | `.claude/settings.json` (initial) | Dynamic |
+| `hooks/pre-tool-use.mjs.ejs`  | `.claude/hooks/pre-tool-use.mjs`  | Dynamic |
+| `hooks/post-tool-use.mjs.ejs` | `.claude/hooks/post-tool-use.mjs` | Dynamic |
+| `rules/exec-protocol.md`      | `.claude/rules/exec-protocol.md`  | Static  |
+| `commands/task.md`            | `.claude/commands/task.md`        | Static  |
 
 ### `codex/` (multiple files)
 

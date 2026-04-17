@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+// <%= projectName %> — CI change classifier
+// Reads changed files since origin/main and writes flags to $GITHUB_OUTPUT.
+// Advisory only — flag values inform job conditions, never block merge.
+// Flags: docs_only, backend_changed, frontend_changed, infra_changed, high_risk
+// Usage: node scripts/ci-classify-changes.mjs
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, existsSync } from 'node:fs';
+
+const base = process.env.BASE_SHA ?? 'origin/main';
+const head = process.env.HEAD_SHA ?? 'HEAD';
+
+const r = spawnSync('git', ['diff', '--name-only', `${base}...${head}`], {
+  encoding: 'utf-8',
+  shell: false,
+});
+
+const changed = (r.stdout || '').split('\n').filter(Boolean);
+
+const DOCS_PATTERNS = [/^docs\//, /^README/i, /\.md$/i];
+const FRONTEND_PATTERNS = [/^src\/(?:ui|frontend|components|pages|views)\//, /\.(tsx?|css|scss|html)$/];
+const INFRA_PATTERNS = [/^\.github\//, /^(Dockerfile|docker-compose|terraform|\.tf$)/i, /^k8s\//, /^helm\//];
+const HIGH_RISK_PATTERNS = [
+  /^src\/(?:auth|security|payment|billing)\//,
+  /migrations?\//,
+  /schema\.(sql|graphql|proto)$/i,
+];
+<% if (language === 'typescript') { %>
+const BACKEND_PATTERNS = [/^src\//, /\.(ts|js)$/];
+<% } %><% if (language === 'java') { %>
+const BACKEND_PATTERNS = [/^src\/main\/java\//, /\.(java|kt)$/];
+<% } %><% if (language === 'rust') { %>
+const BACKEND_PATTERNS = [/^src\//, /\.rs$/];
+<% } %><% if (language === 'python') { %>
+const BACKEND_PATTERNS = [/^src\//, /\.py$/];
+<% } %><% if (language === 'go') { %>
+const BACKEND_PATTERNS = [/^(?!.*_test\.go).*\.go$/, /^cmd\//, /^internal\//];
+<% } %>
+
+const match = (patterns) => changed.some((f) => patterns.some((p) => p.test(f)));
+
+const docs_only = changed.length > 0 && changed.every((f) => DOCS_PATTERNS.some((p) => p.test(f)));
+const backend_changed = match(BACKEND_PATTERNS);
+const frontend_changed = match(FRONTEND_PATTERNS);
+const infra_changed = match(INFRA_PATTERNS);
+const high_risk = match(HIGH_RISK_PATTERNS);
+
+const flags = { docs_only, backend_changed, frontend_changed, infra_changed, high_risk };
+
+process.stdout.write('[ci-classify] changed files: ' + changed.length + '\n');
+for (const [k, v] of Object.entries(flags)) {
+  process.stdout.write(`[ci-classify] ${k}=${v}\n`);
+}
+
+if (process.env.GITHUB_OUTPUT && existsSync(process.env.GITHUB_OUTPUT)) {
+  for (const [k, v] of Object.entries(flags)) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `${k}=${v}\n`);
+  }
+}
