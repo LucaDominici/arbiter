@@ -1,0 +1,7 @@
+# mutmut configuration — L3 mutation gate (beta)
+# Run: mutmut run && python scripts/parse-mutmut.py --threshold <%= mutationThreshold %>
+
+paths_to_mutate = "src/<%= modulePath %>/"
+runner = "pytest -x -q"
+tests_dir = "tests/"
+timeout_per_mutant = 120

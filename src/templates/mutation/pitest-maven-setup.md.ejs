@@ -1,0 +1,63 @@
+# PIT Mutation Testing — Maven Setup (L3 hard gate)
+
+Add the following plugin to your `pom.xml` inside `<build><plugins>`:
+
+```xml
+<plugin>
+    <groupId>org.pitest</groupId>
+    <artifactId>pitest-maven</artifactId>
+    <version>1.15.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.1</version>
+        </dependency>
+    </dependencies>
+    <configuration>
+        <targetClasses>
+            <param><%= basePackage %>.domain.*</param>
+            <param><%= basePackage %>.application.service.*</param>
+            <param><%= basePackage %>.application.usecase.*</param>
+        </targetClasses>
+        <mutationThreshold><%= mutationThreshold %></mutationThreshold>
+        <coverageThreshold><%= mutationThreshold %></coverageThreshold>
+        <timeoutFactor>2.0</timeoutFactor>
+        <timeoutConstant>10000</timeoutConstant>
+        <avoidCallsTo>
+            <avoidCallsTo>java.util.logging</avoidCallsTo>
+            <avoidCallsTo>org.apache.log4j</avoidCallsTo>
+            <avoidCallsTo>org.slf4j</avoidCallsTo>
+        </avoidCallsTo>
+        <outputFormats>
+            <outputFormat>XML</outputFormat>
+            <outputFormat>HTML</outputFormat>
+        </outputFormats>
+        <withHistory>true</withHistory>
+    </configuration>
+    <executions>
+        <execution>
+            <id>pitest</id>
+            <phase>verify</phase>
+            <goals><goal>mutationCoverage</goal></goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+Run mutation tests:
+
+```bash
+mvn verify -Ppitest
+```
+
+Or bind to a profile in your `pom.xml`:
+
+```xml
+<profiles>
+    <profile>
+        <id>pitest</id>
+        <!-- plugin already bound to verify phase above -->
+    </profile>
+</profiles>
+```

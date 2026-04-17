@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Parses mutmut results and fails if caught% < threshold."""
+
+import subprocess
+import sys
+import re
+
+
+def main() -> None:
+    threshold_arg = next(
+        (int(sys.argv[i + 1]) for i, a in enumerate(sys.argv) if a == "--threshold"),
+        <%= mutationThreshold %>,
+    )
+
+    result = subprocess.run(
+        ["mutmut", "results"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+
+    survived = len(re.findall(r"SURVIVED", output))
+    killed = len(re.findall(r"KILLED", output))
+    total = killed + survived
+
+    if total == 0:
+        print("parse-mutmut: no mutation results found", file=sys.stderr)
+        sys.exit(1)
+
+    pct = round((killed / total) * 100)
+    print(f"Mutation score: {killed}/{total} ({pct}%) — threshold: {threshold_arg}%")
+
+    if pct < threshold_arg:
+        print(
+            f"FAIL: mutation score {pct}% is below threshold {threshold_arg}%",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    print("PASS: mutation score meets threshold")
+
+
+if __name__ == "__main__":
+    main()
