@@ -1,0 +1,4 @@
+#!/bin/sh
+# Minimal Gradle wrapper for arbiter brownfield E2E tests (RUN_E2E=1).
+# Delegates to the system 'gradle' command. Requires gradle to be in PATH.
+exec gradle "$@"

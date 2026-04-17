@@ -53,13 +53,55 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - Prefer `const` over `let`, never `var`
 - Async/await over callbacks or raw Promises
 - Named exports preferred over default exports
-- File naming: `kebab-case.ts`<% } %><% if (language === 'rust') { %>### Rust
+- File naming: `kebab-case.ts`<% if (architectureStyle === 'hexagonal') { %>
+
+### Architecture Verification (M22a)
+
+Generated `eslint-plugin-boundaries` config enforces hexagonal layer isolation (hard gate, L2+).
+
+**Peer deps**: `npm i -D eslint@^9 eslint-plugin-boundaries @typescript-eslint/parser`
+
+**Setup**: in your root ESLint config, add:
+```js
+extends: ['./.eslintrc-boundaries.cjs']
+```
+
+**Rules enforced**:
+
+| Layer | Allowed dependencies | Notes |
+|-------|---------------------|-------|
+| `src/domain/**` | none | No framework imports; no Node built-ins; no browser globals |
+| `src/application/**` | `domain` | Ports defined here |
+| `src/adapters/**` | `application`, `domain` | Inbound + outbound adapters |
+| `src/infrastructure/**` | `application`, `domain` | Bootstrap + config |
+
+**Suppressions**: add exemptions to `suppressions/boundaries-baseline.json` with `scope` (file-pattern glob) + `expiresAt` (wave-migration date). Enforced by `check-suppressions.mjs` L1 gate.
+<% } %><% } %><% if (language === 'rust') { %>### Rust
 
 - All public items must have documentation comments
 - Error handling: use `?` operator and typed `Result<T, E>`
 - No `.unwrap()` or `.expect()` in library code; test code may use `.expect("...")`
 - Use `clippy::pedantic` lint level
-- Prefer `&str` over `String` in function parameters<% } %><% if (language === 'java') { %>### Java
+- Prefer `&str` over `String` in function parameters<% if (architectureStyle === 'hexagonal') { %>
+
+### Architecture Verification (M22b)
+
+Generated `cargo-deny` + `clippy.toml` + domain-purity grep enforce hexagonal layer isolation (hard gate, L2+).
+
+**Peer deps**: `cargo install cargo-deny`
+
+**Setup**: the generated `deny.toml` and `clippy.toml` are placed at the project root. No `Cargo.toml` changes needed.
+
+**Rules enforced**:
+
+| Layer | Mechanism | What it bans |
+|-------|-----------|-------------|
+| Project (all layers) | cargo-deny `[bans]` | Framework crates as direct dependencies (sqlx, axum, reqwest, …) |
+| Project (all layers) | `clippy.toml` `disallowed_types` | Framework types anywhere in code (sqlx::Pool, axum::Router, …) |
+| `src/domain/**` | grep scan in `check-boundaries.mjs` | `use sqlx`, `use axum`, `use diesel`, … — module-level enforcer |
+
+**Suppressions**: add exemptions to `suppressions/boundaries-baseline.json` with `scope` (file-pattern glob) + `expiresAt` (wave-migration date). Enforced by `check-suppressions.mjs` L1 gate.
+<% } %><% } %><% if (language === 'java') { %>### Java
 
 - Hexagonal architecture: domain → no framework imports
 - Use constructor injection exclusively (no field injection)
@@ -69,14 +111,55 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **Integration testing: RestAssured mandatory** — MockMvc is forbidden (INV-29)
   - Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` with RestAssured
   - MockMvc bypasses real HTTP serialization, filters, and exception handlers
-  - `@AutoConfigureMockMvc` is prohibited; use a real embedded server<% } %><% if (language === 'go') { %>### Go
+  - `@AutoConfigureMockMvc` is prohibited; use a real embedded server<% if (architectureStyle === 'hexagonal' && basePackage) { %>
+
+### Architecture Verification (M22)
+
+Generated ArchUnit test suite enforces hexagonal boundaries (hard gate, L2+).
+
+**Setup**: add to `build.gradle`:
+```groovy
+apply from: 'gradle/arch-test-deps.gradle'
+```
+
+**Rules enforced** (`src/test/java/<%= basePackage.replace(/\./g, '/') %>/architecture/`):
+
+| Class | Rules |
+|-------|-------|
+| `DomainPurityTest` | No Spring/JPA/Hibernate imports in `domain.**` |
+| `DependencyFlowTest` | Adapters → ports only; application → domain only; domain has no outbound deps |
+| `PortsIndependenceTest` | `application.port.in/out` must not depend on adapters or infrastructure |
+| `TestCoverageArchTest` | `*ControllerIT` classes must reside in `adapter.in.web` |<% if (hasDatabase && hasPublicApi) { %>
+| `RestAssuredArchTest` | All `*ControllerIT` must extend `RestAssuredBaseIT` |<% } %>
+
+**Suppressions**: add exemptions to `suppressions/archunit-baseline.json` with `scope` (class-pattern glob) + `expiresAt` (wave-migration date).
+<% } %><% } %><% if (language === 'go') { %>### Go
 
 - All exported functions must have documentation comments
 - Error handling: check every returned error — no `_ = err` patterns
 - Use `gofmt` for formatting (enforced by CI)
 - Use `golangci-lint` with project-level config
 - Prefer table-driven tests
-- File naming: `snake_case.go`<% } %><% if (language === 'python') { %>### Python
+- File naming: `snake_case.go`<% if (architectureStyle === 'hexagonal') { %>
+
+### Architecture Verification (M22c)
+
+Generated depguard config + domain-purity grep enforce hexagonal layer isolation (hard gate, L2+).
+
+**Peer deps**: `golangci-lint >= 2.0`
+
+**Setup**: the generated `.golangci-boundaries.yml` is placed at the project root. No `go.mod` changes needed.
+
+**Rules enforced**:
+
+| Layer | Mechanism | What it bans |
+|-------|-----------|-------------|
+| Project (all layers) | depguard `main` rule in `.golangci-boundaries.yml` | Framework imports in business logic (gorm, gin, echo, fiber, …) |
+| `internal/domain/**` | depguard `domain-purity` rule | Framework imports in domain packages |
+| `internal/domain/**` | grep scan in `scripts/check-boundaries.mjs` | `"gorm.io/…"`, `"github.com/gin-gonic/…"`, … — toolchain-free enforcer |
+
+**Suppressions**: add exemptions to `suppressions/boundaries-baseline.json` with `scope` (file-pattern glob) + `expiresAt` (wave-migration date). Enforced by `check-suppressions.mjs` L1 gate.
+<% } %><% } %><% if (language === 'python') { %>### Python
 
 - Type annotations required on all public function signatures
 - Use `ruff` for linting and formatting

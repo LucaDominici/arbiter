@@ -15,6 +15,11 @@ import type { GithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import { detectArchetypeHint } from "../detectors/framework.js";
+import { ARCHETYPE_DB_SET } from "../detectors/axis.js";
+import {
+  defaultContractType,
+  shouldAskContractType,
+} from "./archetype-defaults.js";
 
 export interface WizardInput {
   targetDir: string;
@@ -213,17 +218,16 @@ function buildConfigFromAnswers(
     existing: input.existing,
     languageHooks: getLanguageHooks(input.language),
     enableDebtGates: answers.governanceLevel !== "L1",
+    enableSuppressions: true,
     invariantTiers: presetToTiers(
       answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
     ),
     enableObsidianVault,
+    contractType:
+      answers.contractType ??
+      defaultContractType(answers.archetype, answers.hasPublicApi),
   };
 }
-
-const ARCHETYPE_DB_SET = new Set<Archetype>([
-  "backend-web-db",
-  "data-pipeline",
-]);
 
 function buildGovernanceQuestions(): object[] {
   return [
@@ -357,7 +361,42 @@ function buildArchetypeQuestions(archetypeDefault: Archetype): object[] {
       ],
       default: false,
     },
+    buildContractTypeQuestion(),
   ];
+}
+
+function buildContractTypeQuestion(): object {
+  return {
+    type: "list",
+    name: "contractType",
+    message: "Contract testing style:",
+    // shouldAskContractType is a named export so it can be unit-tested directly.
+    // The inquirer `when` function is NOT exercised by the mocked runWizard tests.
+    when: (answers: { hasPublicApi?: boolean }) =>
+      shouldAskContractType(answers),
+    choices: [
+      {
+        name: "rest-owned     — Pact (consumer + provider you own)",
+        value: "rest-owned",
+      },
+      {
+        name: "rest-public    — OpenAPI diff (breaking-change detector)",
+        value: "rest-public",
+      },
+      {
+        name: "graphql        — Schema diff (graphql-inspector)",
+        value: "graphql",
+      },
+      { name: "grpc           — buf breaking", value: "grpc" },
+      {
+        name: "message-queue  — Schema registry (Avro/Protobuf)",
+        value: "message-queue",
+      },
+      { name: "none           — No contract testing", value: "none" },
+    ],
+    default: (answers: { archetype?: Archetype; hasPublicApi?: boolean }) =>
+      defaultContractType(answers.archetype, answers.hasPublicApi ?? false),
+  };
 }
 
 function buildMainQuestions(wizardInput: WizardInput): object[] {

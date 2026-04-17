@@ -8,6 +8,10 @@
     { "tool": "gradle", "range": ">=7" },
     { "tool": "mvn", "range": ">=3.8" }
   ],
+  "kotlin": [
+    { "tool": "java", "range": ">=17" },
+    { "tool": "kotlinc", "range": ">=1.9" }
+  ],
   "rust": [
     { "tool": "rustc", "range": ">=1.70" },
     { "tool": "cargo", "range": ">=1.70" }
@@ -15,6 +19,7 @@
   "go": [{ "tool": "go", "range": ">=1.21" }],
   "python": [
     { "tool": "python3", "range": ">=3.10" },
-    { "tool": "pip", "range": ">=22" }
+    { "tool": "pip", "range": ">=22" },
+    { "tool": "ruff", "range": ">=0.4" }
   ]
 }

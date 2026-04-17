@@ -6,10 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   lint-and-test:
     name: Lint + Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -28,6 +33,8 @@ jobs:
         run: node scripts/check-no-orphan-todo.mjs
       - name: Dead code check
         run: npx knip
+      - name: Matrix fixture coverage (INV-32)
+        run: node scripts/check-matrix-fixtures.mjs
       - name: Fetch base branch for commitlint
         if: github.event_name == 'pull_request'
         run: git fetch origin main --depth=1
@@ -37,7 +44,8 @@ jobs:
 
   docs-check:
     name: Docs Check
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 5
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v6
@@ -66,7 +74,8 @@ jobs:
 
   ci-required:
     name: CI Required
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 5
     needs: [lint-and-test, docs-check]
     if: always()
     steps:

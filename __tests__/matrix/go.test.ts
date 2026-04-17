@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -194,5 +201,108 @@ describe("matrix: Go project", () => {
       "utf-8",
     );
     expect(dependabot).toContain("gomod");
+  });
+
+  describe("hexagonal architecture variant", () => {
+    function hexConfig() {
+      return goConfig({ architectureStyle: "hexagonal" });
+    }
+
+    it("emits .golangci-boundaries.yml at project root", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, ".golangci-boundaries.yml"))).toBe(true);
+    });
+
+    it("emits scripts/check-boundaries.mjs", () => {
+      runGenerators(hexConfig());
+      expect(existsSync(join(dir, "scripts", "check-boundaries.mjs"))).toBe(
+        true,
+      );
+    });
+
+    it(".golangci-boundaries.yml contains framework bans (gorm + gin) scoped away from adapters", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(
+        join(dir, ".golangci-boundaries.yml"),
+        "utf-8",
+      );
+      expect(content).toContain('version: "2"');
+      expect(content).toContain("default: none");
+      expect(content).toContain("gorm");
+      expect(content).toContain("gin");
+      expect(content).toContain("!**/internal/adapter/**");
+    });
+
+    it("AGENTS.md contains Architecture Verification (M22c) section with depguard", () => {
+      runGenerators(hexConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).toContain("Architecture Verification (M22c)");
+      expect(content).toContain("depguard");
+    });
+
+    it("check-all.mjs contains boundaries gate step", () => {
+      runGenerators(hexConfig());
+      const checkAll = readFileSync(
+        join(dir, "scripts", "check-all.mjs"),
+        "utf-8",
+      );
+      expect(checkAll).toContain("runCheck('boundaries'");
+    });
+
+    it("domain purity grep fails on forbidden import, passes on clean domain", () => {
+      runGenerators(hexConfig());
+      mkdirSync(join(dir, "internal", "domain"), { recursive: true });
+      writeFileSync(
+        join(dir, "internal", "domain", "bad.go"),
+        'import "gorm.io/gorm"\n',
+      );
+
+      const fail = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(fail.status).not.toBe(0);
+      expect(fail.stderr).toContain("gorm");
+
+      rmSync(join(dir, "internal", "domain", "bad.go"));
+
+      const pass = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(pass.stderr ?? "").not.toContain("domain purity violations");
+    });
+
+    it("domain purity grep also catches grouped import syntax", () => {
+      runGenerators(hexConfig());
+      mkdirSync(join(dir, "internal", "domain"), { recursive: true });
+      writeFileSync(
+        join(dir, "internal", "domain", "bad.go"),
+        'import (\n  "gorm.io/gorm"\n)\n',
+      );
+
+      const fail = spawnSync("node", ["scripts/check-boundaries.mjs"], {
+        cwd: dir,
+        encoding: "utf-8",
+        shell: false,
+      });
+      expect(fail.status).not.toBe(0);
+      expect(fail.stderr).toContain("gorm");
+
+      rmSync(join(dir, "internal", "domain", "bad.go"));
+    });
+
+    it("non-hexagonal config does NOT emit .golangci-boundaries.yml", () => {
+      runGenerators(goConfig());
+      expect(existsSync(join(dir, ".golangci-boundaries.yml"))).toBe(false);
+    });
+
+    it("non-hexagonal AGENTS.md does NOT contain M22c section", () => {
+      runGenerators(goConfig());
+      const content = readFileSync(join(dir, "AGENTS.md"), "utf-8");
+      expect(content).not.toContain("Architecture Verification (M22c)");
+    });
   });
 });

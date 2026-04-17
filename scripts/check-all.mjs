@@ -14,13 +14,20 @@ const level = process.argv[2] ?? "L2";
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes per check
 let failed = 0;
 
-function runCheck(name, cmd, args, timeoutMs = DEFAULT_TIMEOUT_MS) {
+function runCheck(
+  name,
+  cmd,
+  args,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  { cwd } = {},
+) {
   const start = Date.now();
   process.stdout.write(`[CHECK] ${name} ... `);
   const r = spawnSync(cmd, args, {
     encoding: "utf-8",
     shell: false,
     timeout: timeoutMs,
+    ...(cwd ? { cwd } : {}),
   });
   const elapsed = Date.now() - start;
 
@@ -69,7 +76,13 @@ runCheck("circular deps", "npx", [
 ]);
 runCheck("placeholders", "node", ["scripts/check-no-placeholders.mjs", "src"]);
 runCheck("orphan TODOs", "node", ["scripts/check-no-orphan-todo.mjs"]);
-runCheck("commitlint", "npx", ["commitlint", "--from", "HEAD~1"]);
+runCheck(
+  "commitlint",
+  "npx",
+  ["commitlint", "--from", "origin/main", "--to", "HEAD"],
+  DEFAULT_TIMEOUT_MS,
+  { cwd: process.env.ARBITER_HOOK_GIT_CWD },
+);
 
 // ─── L2: Full checks (+2 = 10) ────────────────────────────────────────────────
 if (level === "L2") {

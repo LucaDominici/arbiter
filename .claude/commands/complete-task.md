@@ -39,6 +39,20 @@ If any FAIL → fix before proceeding.
 2. Commit with convention: `type(#NNN): summary`
 3. Push branch: `git push -u origin HEAD`
 
+## Phase 2.5 — Post-Commit Verifier Agent (MANDATORY, before PR)
+
+Dispatch a single adversarial verifier agent against the committed code. This agent runs AFTER the gate passes but BEFORE the PR is created, so any findings can be fixed in the same PR.
+
+The verifier agent must:
+
+- Trace each new feature end-to-end (generator emits file → template imports correct path → runtime behavior is correct)
+- Check for dead code / defined-but-never-used fields (especially in MetricsProfile-style computed configs)
+- Verify --update / ratchet logic preserves prior state (no silent metric drops)
+- Check CLI option wiring end-to-end (flag declared → parsed → forwarded → guarded)
+- Verify fixture execute bits and test setup assumptions
+
+**Agent dispatch gate**: HARD STOP if verifier agent was not dispatched. Treat any [ISSUE] finding as a blocker — fix, re-gate, re-commit before proceeding to Phase 3.
+
 ## Phase 3 — PR + Merge
 
 4. Create PR: `gh pr create --title "type(#NNN): summary" --body "..."`

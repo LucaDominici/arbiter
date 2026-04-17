@@ -1,0 +1,7 @@
+{
+  "language": "java",
+  "archetype": "library",
+  "buildTool": "gradle",
+  "levels": ["L1", "L2"],
+  "note": "Minimal Java library with Gradle — no framework plugin → detects as library archetype"
+}

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,9 +52,11 @@ describe("arbiter config", () => {
   });
 
   it("loadConfig returns null on malformed JSON", () => {
+    vi.spyOn(console, "warn").mockImplementationOnce(() => undefined);
     const path = join(dir, "arbiter.json");
     writeFileSync(path, "{invalid json", "utf-8");
     expect(loadConfig(dir)).toBeNull();
+    vi.restoreAllMocks();
   });
 
   it("saveConfig preserves all tool types", () => {
@@ -111,5 +113,95 @@ describe("arbiter config", () => {
     expect(config.invariantTiers).toContain("governance");
     expect(config.invariantTiers).toContain("data");
     expect(config.invariantTiers).toContain("operational");
+  });
+});
+
+describe("arbiter config — MK grace-period fields (ADR-028)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-config-grace-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("round-trips graceEndsAt and graceFromLevel through save/load", () => {
+    const grace = "2026-05-16T00:00:00.000Z";
+    saveConfig(dir, {
+      version: "0.1",
+      tools: ["claude"],
+      governanceLevel: "L2",
+      useGitHub: false,
+      graceEndsAt: grace,
+      graceFromLevel: "L1",
+    });
+    const loaded = loadConfig(dir);
+    expect(loaded?.graceEndsAt).toBe(grace);
+    expect(loaded?.graceFromLevel).toBe("L1");
+  });
+
+  it("defaultConfig does NOT include graceEndsAt or graceFromLevel", () => {
+    const config = defaultConfig();
+    expect(config.graceEndsAt).toBeUndefined();
+    expect(config.graceFromLevel).toBeUndefined();
+  });
+
+  it("loadConfig tolerates arbiter.json without grace fields (backward compat)", () => {
+    writeFileSync(
+      join(dir, "arbiter.json"),
+      JSON.stringify({
+        version: "0.1",
+        tools: ["claude"],
+        governanceLevel: "L1",
+        useGitHub: false,
+      }),
+      "utf-8",
+    );
+    const loaded = loadConfig(dir);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.graceEndsAt).toBeUndefined();
+    expect(loaded?.graceFromLevel).toBeUndefined();
+  });
+});
+
+describe("arbiter config — ML contractType field (ADR-028)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-config-contract-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("round-trips contractType through save/load", () => {
+    saveConfig(dir, {
+      version: "0.1",
+      tools: ["claude"],
+      governanceLevel: "L2",
+      useGitHub: false,
+      contractType: "graphql",
+    });
+    const loaded = loadConfig(dir);
+    expect(loaded?.contractType).toBe("graphql");
+  });
+
+  it("loadConfig tolerates arbiter.json without contractType (backward compat)", () => {
+    writeFileSync(
+      join(dir, "arbiter.json"),
+      JSON.stringify({
+        version: "0.1",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        useGitHub: false,
+      }),
+      "utf-8",
+    );
+    const loaded = loadConfig(dir);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.contractType).toBeUndefined();
   });
 });

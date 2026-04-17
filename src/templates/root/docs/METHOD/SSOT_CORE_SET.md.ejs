@@ -8,11 +8,11 @@
 
 ---
 
-## 1. Governance (HOW Agents Must Behave)
+## Governance (HOW Agents Must Behave)
 
 - `AGENTS.md` — Canonical agent governance: invariants, coding standards, commit convention, gate commands
 
-## 2. Method (HOW We Execute)
+## Method (HOW We Execute)
 
 - `docs/METHOD/KNOWLEDGE_MAP.md` — Navigation index for heavy documentation; read this before opening large docs
 - `docs/METHOD/SSOT_CORE_SET.md` — This file (authoritative SSOT inventory)
@@ -21,7 +21,7 @@
 <% } %><% if (governanceLevel === 'L3') { %>
 - `docs/METHOD/TRACK_ROUTER.md` — Query-to-document routing guide for context-efficient navigation
 <% } %>
-## 3. System (HOW We Build It)
+## System (HOW We Build It)
 
 > Add architecture, ADR, and decision records here as the project grows.
 >
@@ -32,7 +32,7 @@
 > - `docs/ADR/` — Architectural Decision Records (architecture style: <%= architectureStyle %>)
 <% } %>
 <% if (hasDatabase) { %>
-## 4. Data (HOW We Manage Persistent State)
+## Data (HOW We Manage Persistent State)
 
 > Entries required when `hasDatabase: true`:
 >
@@ -41,7 +41,7 @@
 > - `docs/DATA/DATA_DICTIONARY.md` — Field-level glossary for all entities
 
 <% } %><% if (hasPublicApi) { %>
-## <%= hasDatabase ? '5' : '4' %>. API Contracts (WHAT Callers Can Depend On)
+## API Contracts (WHAT Callers Can Depend On)
 
 > Entries required when `hasPublicApi: true`:
 >

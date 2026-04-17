@@ -20,6 +20,8 @@ export interface WizardAnswers {
   hasPublicApi: boolean;
   isMultiTenant: boolean;
   useGitHub?: "yes" | "no";
+  /** Phase 9.5 ML: set only when hasPublicApi=true. Absent = default "none". */
+  contractType?: ContractType;
 }
 
 export interface MigrationPlan {
@@ -52,6 +54,23 @@ export type ArchitectureStyle =
   | "layered"
   | "modular-monolith"
   | "none";
+
+/**
+ * Computed from (language, archetype, architectureStyle) at generation time.
+ * Not persisted on ProjectConfig — passed to EJS templates as `metricsProfile`.
+ */
+export interface MetricsProfile {
+  /** frontend-spa + typescript only: include bundle size metric */
+  includeBundleSize: boolean;
+  /** library + typescript: include public-API surface count */
+  includePublicApiSurface: boolean;
+  /** backend-web-db or library: include branch coverage in addition to line */
+  includeBranchCoverage: boolean;
+  /** java only: emit SpotBugs config and collect spotbugsViolations */
+  spotbugsEnabled: boolean;
+  /** java + architectureStyle !== 'none': collect archunitFailingRules */
+  archunitEnabled: boolean;
+}
 
 export interface LanguageHook {
   /** Name of the hook script to generate (e.g. "check-no-any.mjs") */
@@ -134,10 +153,79 @@ export interface ProjectConfig {
   languageHooks: LanguageHook[];
   /** Whether to generate tech debt prevention gates (coverage, complexity, dead code). Defaults to true for L2+. */
   enableDebtGates: boolean;
+  /** Whether to generate suppression templates and the check-suppressions.mjs expiry gate. Defaults to true for all governance levels. */
+  enableSuppressions: boolean;
   /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */
   invariantTiers: InvariantTier[];
   /** Base Java package (e.g. "com.example.myapp"). Detected from pom.xml/build.gradle for Java projects. */
   basePackage?: string;
   /** Whether to generate the optional Obsidian vault at docs/vault/. */
   enableObsidianVault?: boolean;
+  /**
+   * User explicitly acknowledges that one or more beta tools will be used.
+   * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.
+   * Beta tools (maturity="beta") require this flag; unsafe tools are never allowed.
+   */
+  acceptBetaTools?: boolean;
+  /**
+   * Phase 9.5 MG: coverage/mutation threshold profile.
+   * "scaled" = LoC-based ramp (no coverage <1000 LoC, no mutation <5000 LoC, 60%→85%).
+   * "fixed"  = flat 80% (L2) / 85% (L3) regardless of project size.
+   * Default: "scaled".
+   */
+  thresholdProfile?: ThresholdProfile;
+  /**
+   * Phase 9.5 MG: enforcement strictness tier.
+   * "practical" = standard rules for most teams.
+   * "pedantic"  = additional rules: noUncheckedIndexedAccess (TS), clippy pedantic (Rust), etc.
+   * Default: "practical".
+   */
+  strictnessTier?: StrictnessTier;
+  /**
+   * Phase 9.5 MG: detected or estimated lines of code in the target project.
+   * Used by "scaled" threshold profile to compute coverage/mutation gates.
+   * 0 = unknown; treated same as <1000 LoC for scaled profile (coverage and mutation gates disabled).
+   */
+  linesOfCode?: number;
+  /**
+   * Phase 9.5 MJ: evidence harness retention policy.
+   * Controls how many evidence runs to keep and where to store them.
+   * Default: { mode: "local-last-N", count: 5 }
+   */
+  evidenceRetention?: EvidenceRetentionConfig;
+  /**
+   * Phase 9.5 ML: contract testing strategy — see ADR-028.
+   * Wizard asks only if hasPublicApi === true. Default: "none".
+   */
+  contractType: ContractType;
+}
+
+export type ThresholdProfile = "scaled" | "fixed";
+export type StrictnessTier = "practical" | "pedantic";
+
+/**
+ * Phase 9.5 ML: contract testing strategy — see ADR-028.
+ * "rest-owned"    → Pact consumer + provider (owned by your team).
+ * "rest-public"   → OpenAPI diff (breaking-change detection for public API).
+ * "graphql"       → Schema diff via graphql-inspector.
+ * "grpc"          → buf breaking check.
+ * "message-queue" → Schema registry integration (Avro, Protobuf).
+ * "none"          → No contract testing generated.
+ */
+export type ContractType =
+  | "rest-owned"
+  | "rest-public"
+  | "graphql"
+  | "grpc"
+  | "message-queue"
+  | "none";
+
+export type EvidenceRetentionMode = "local-last-N" | "external-bucket" | "none";
+
+export interface EvidenceRetentionConfig {
+  mode: EvidenceRetentionMode;
+  /** For local-last-N: number of runs to keep. Default 5. */
+  count?: number;
+  /** For external-bucket: target URL (e.g. s3://bucket/path). */
+  bucketUrl?: string;
 }

@@ -1,13 +1,11 @@
 import { resolve, basename } from "node:path";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import {
-  detectFramework,
-  detectArchetypeHint,
-} from "../detectors/framework.js";
+import { detectFramework } from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
+import { resolveAxisFields } from "../detectors/axis.js";
 import { loadConfig, type ArbiterConfig } from "../utils/config.js";
 import { generateObsidianVault } from "../generators/obsidian-vault.js";
 import { generateGithubVaultNotes } from "../generators/obsidian-vault-github.js";
@@ -37,33 +35,6 @@ function tallyResults(files: WriteResult[]): Counters {
     else counters.skipped++;
   }
   return counters;
-}
-
-function resolveAxisFields(
-  stored: ArbiterConfig | null,
-  targetDir: string,
-  language: ReturnType<typeof detectLanguage>,
-  framework: string | null,
-): {
-  archetype: ProjectConfig["archetype"];
-  architectureStyle: ProjectConfig["architectureStyle"];
-  isMultiTenant: boolean;
-  hasDatabase: boolean;
-  hasPublicApi: boolean;
-} {
-  const archetype =
-    stored?.archetype ??
-    detectArchetypeHint(targetDir, language, framework) ??
-    "library";
-  return {
-    archetype,
-    architectureStyle: stored?.architectureStyle ?? "none",
-    isMultiTenant: stored?.isMultiTenant ?? false,
-    hasDatabase:
-      stored?.hasDatabase ??
-      (archetype === "backend-web-db" || archetype === "data-pipeline"),
-    hasPublicApi: stored?.hasPublicApi ?? archetype === "backend-web-db",
-  };
 }
 
 function buildProjectConfig(
@@ -99,6 +70,7 @@ function buildProjectConfig(
     existing,
     languageHooks: getLanguageHooks(language),
     enableDebtGates: stored?.enableDebtGates ?? governanceLevel !== "L1",
+    enableSuppressions: stored?.enableSuppressions !== false,
     invariantTiers:
       stored?.invariantTiers ??
       presetToTiers(defaultPresetForLevel(governanceLevel)),

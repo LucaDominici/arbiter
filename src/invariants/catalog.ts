@@ -315,7 +315,7 @@ export const INVARIANT_CATALOG: Invariant[] = [
     enforcement: "integration tests / deployment checks",
   },
 
-  // ─── Tier 5: Governance (8) ───────────────────────────────────────────────
+  // ─── Tier 5: Governance (10) ──────────────────────────────────────────────
 
   {
     id: "INV-21",
@@ -444,5 +444,40 @@ export const INVARIANT_CATALOG: Invariant[] = [
     minGovernanceLevel: "L2",
     enforcement:
       "CI gate (pitest in check-all.mjs L2) + generated pitest config",
+  },
+
+  // ─── Governance: Suppression Expiry ─────────────────────────────────────────
+
+  {
+    id: "INV-31",
+    tier: "governance",
+    title: "Suppressions must have mandatory expiry",
+    description:
+      "Every suppression entry in dependency-check-suppressions.xml, .gitleaksignore, " +
+      "pii-allowlist.json, and archunit-baseline.json must carry four mandatory metadata " +
+      "fields: reason (≥10 chars), owner (@github-handle), expiresAt (ISO date), and scope. " +
+      "Entries with a past expiresAt block the L1 gate. There are no permanent suppressions — " +
+      "waivers must be renewed or removed when the underlying issue is resolved.",
+    alwaysActive: true,
+    enforcement:
+      "CI gate (scripts/check-suppressions.mjs — L1) + pre-commit hook",
+  },
+
+  // ─── Governance: Real-Project Matrix Coverage ───────────────────────────────
+
+  {
+    id: "INV-32",
+    tier: "governance",
+    title: "Every 'proven' language must have a nightly real-project fixture",
+    description:
+      "Arbiter's cross-language-matrix.json tracks tool maturity per language. A 'proven' " +
+      "rating implies the tool chain works end-to-end on real projects. Every language that " +
+      "carries at least one 'proven' cell must have a corresponding fixture under " +
+      "__tests__/fixtures/real-projects/ so the nightly real-project-matrix workflow can " +
+      "exercise the full arbiter pipeline (init → verify → check-all) against it. " +
+      "Promoting a language to 'proven' without a fixture is rejected by the L1 gate.",
+    alwaysActive: true,
+    enforcement:
+      "CI gate (scripts/check-matrix-fixtures.mjs — L1) + nightly real-project-matrix workflow",
   },
 ];

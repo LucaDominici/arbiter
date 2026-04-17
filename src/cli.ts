@@ -9,6 +9,7 @@ import {
   runWorktreeList,
 } from "./commands/worktree.js";
 import { runVerify } from "./commands/verify.js";
+import { runUpgradeLevel } from "./commands/upgrade-level.js";
 
 const program = new Command();
 
@@ -37,6 +38,17 @@ program
     "Generate optional Obsidian vault at docs/vault/",
     false,
   )
+  .option(
+    "--brownfield",
+    "Auto-capture debt baseline after generation (locks current state as day-0 baseline)",
+    false,
+  )
+  .option("--no-verify", "Skip toolchain compatibility probes after generation")
+  .option(
+    "--accept-beta-tools",
+    "Allow generation of L3 features backed by beta-maturity tools (audit trail written to arbiter.json)",
+    false,
+  )
   .action(
     async (opts: {
       yes: boolean;
@@ -45,6 +57,9 @@ program
       dir?: string;
       dryRun: boolean;
       obsidian: boolean;
+      brownfield: boolean;
+      verify: boolean;
+      acceptBetaTools: boolean;
     }) => {
       await runInit({
         yes: opts.yes,
@@ -53,6 +68,9 @@ program
         dir: opts.dir,
         dryRun: opts.dryRun,
         obsidian: opts.obsidian,
+        brownfield: opts.brownfield,
+        noVerify: !opts.verify,
+        acceptBetaTools: opts.acceptBetaTools,
       });
     },
   );
@@ -157,6 +175,42 @@ program
   .action((opts: { json: boolean; dir?: string }) => {
     runVerify({ json: opts.json, dir: opts.dir });
   });
+
+program
+  .command("upgrade-level")
+  .description("Upgrade governance level with a grace period for new gates")
+  .option("--target <level>", "Target level (L2 or L3)")
+  .option(
+    "--extend",
+    "Extend an existing active grace period by --days (default: 30)",
+    false,
+  )
+  .option("--days <n>", "Grace period length in days (default: 30)", parseInt)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(
+    (opts: {
+      target?: string;
+      extend: boolean;
+      days?: number;
+      dir?: string;
+    }) => {
+      const upgradeOpts: import("./commands/upgrade-level.js").UpgradeLevelOptions =
+        { extend: opts.extend };
+      if (opts.target) {
+        if (opts.target !== "L2" && opts.target !== "L3") {
+          console.error(
+            `  Error: invalid --target "${opts.target}". Valid values: L2, L3.`,
+          );
+          process.exit(1);
+        }
+        upgradeOpts.target =
+          opts.target as import("./wizard/types.js").GovernanceLevel;
+      }
+      if (opts.days !== undefined) upgradeOpts.days = opts.days;
+      if (opts.dir !== undefined) upgradeOpts.dir = opts.dir;
+      runUpgradeLevel(upgradeOpts);
+    },
+  );
 
 program
   .command("obsidian")

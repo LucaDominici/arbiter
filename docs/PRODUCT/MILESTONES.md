@@ -525,19 +525,23 @@ Generate STRIDE/RACI/RTM enforcement _skeletons_ (empty schemas), not pre-popula
 
 ---
 
-### MK — Grace Period for Level Upgrade
+### MK — Grace Period for Level Upgrade ✓ SHIPPED
 
 **Issue:** #92 · **Resolves:** H9 · **Size:** M · **Deps:** MB
 
 New `arbiter upgrade-level` command captures baseline for newly activated gates, sets `graceEndsAt` (+30 days). During grace, new gates warn only; after grace, hard-fail. Bounded escape hatch for L1 → L2 → L3 migration.
 
+**Shipped:** ADR-028 Part I; `src/commands/upgrade-level.ts`; grace guard in `check-all.mjs.ejs`; INV-33; `--extend` with `.arbiter/grace-log.json`.
+
 ---
 
-### ML — Contract Testing by Contract Type
+### ML — Contract Testing by Contract Type ✓ SHIPPED
 
 **Issue:** #93 · **Resolves:** H7 · **Size:** S · **Deps:** MA, M28
 
 Extend ProjectConfig with `contractType: rest-owned | rest-public | graphql | grpc | message-queue | none`. M28 branches on type: Pact / OpenAPI diff / graphql-inspector / buf breaking / schema registry.
+
+**Shipped:** ADR-028 Part II; `src/wizard/archetype-defaults.ts` (`defaultContractType`, `shouldAskContractType`); wizard prompt gated on `hasPublicApi`; propagated to all 5 call sites.
 
 ---
 
@@ -762,20 +766,21 @@ Playwright quality (frontend projects):
 ## M28 — Contract Testing (Configurable)
 
 **Issue:** #76
-**Scope:** Generate Pact contract testing setup. Configurable — wizard asks "Does project have REST/GraphQL APIs?"
+**Scope:** Generate contract testing setup branching on `config.contractType` (set by ML, #93).
 
-**Deliverables:**
+**Deliverables (per contractType):**
 
-- **Java:** Pact provider setup (pact-jvm dependency, PactVerificationIT base)
-- **TypeScript:** @pact-foundation/pact consumer setup
-- **Go/Rust/Python:** Equivalent Pact or schema-based contract testing
-- CI: Contract verification job in `ci.yml.ejs` (L2+)
+- **`rest-owned`:** Pact consumer + provider setup (pact-jvm / @pact-foundation/pact / equivalent)
+- **`rest-public`:** OpenAPI diff — breaking-change detector in CI
+- **`graphql`:** graphql-inspector schema diff
+- **`grpc`:** buf breaking check
+- **`message-queue`:** schema registry integration (Avro/Protobuf)
+- **`none`:** no generation
+- CI: Contract verification job in `ci.yml.ejs` (L2+) per type
 
-**Gate:** HARD for L2+ if contract testing is enabled.
+**Gate:** INV-34 (HARD for L2+ when contractType ≠ "none").
 
-**Dependencies:** M26, ML (#93 — contract type branching).
-
-**Phase 9.5 integration:** M28 no longer defaults to Pact. It branches on `config.contractType` (set by ML): `rest-owned` → Pact, `rest-public` → OpenAPI diff, `graphql` → schema diff (graphql-inspector), `grpc` → `buf breaking`, `message-queue` → schema registry, `none` → no generation.
+**Dependencies:** M26, ML (#93, shipped — provides `config.contractType`).
 
 ---
 

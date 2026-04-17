@@ -12,6 +12,7 @@ import {
   getInvariantsByTier,
   presetToTiers,
 } from "../../src/invariants/filter.js";
+import { computeThresholds } from "../../src/config/thresholds.js";
 import { generateGlobalInvariants } from "../../src/generators/global-invariants.js";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -104,11 +105,17 @@ function configFor(
     governanceLevel: config.governanceLevel,
     invariantTiers: config.invariantTiers,
   });
+  // Pre-compute thresholds — same as generateCheckAll does — so templates
+  // that reference coverageEnabled/coverageThreshold always receive these values.
+  const thresholds = computeThresholds(0, "fixed", level);
   return {
     ...(config as unknown as Record<string, unknown>),
     invariants,
     invariantsByTier: getInvariantsByTier(invariants),
     tierLabels: TIER_LABELS,
+    coverageEnabled: thresholds.coverageEnabled,
+    coverageThreshold: thresholds.coverageThreshold,
+    mutationEnabled: thresholds.mutationEnabled,
   };
 }
 
@@ -881,6 +888,31 @@ describe("cross-product: AGENTS.md — always-active invariants present in all p
         expect(content).toContain("INV-01");
       }
     });
+  }
+});
+
+// ─── Suppressions ─────────────────────────────────────────────────────────────
+
+describe("cross-product: check-all.mjs — suppressions expiry check at all governance levels", () => {
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: suppressions expiry check present when enableSuppressions=true`, () => {
+        const content = renderTemplate("scripts/check-all.mjs.ejs", {
+          ...configFor(lang, level),
+          enableSuppressions: true,
+        });
+        expect(content).toContain("check-suppressions.mjs");
+        expect(content).toContain("suppressions expiry");
+      });
+
+      it(`${lang}+${level}: suppressions expiry check absent when enableSuppressions=false`, () => {
+        const content = renderTemplate("scripts/check-all.mjs.ejs", {
+          ...configFor(lang, level),
+          enableSuppressions: false,
+        });
+        expect(content).not.toContain("check-suppressions.mjs");
+      });
+    }
   }
 });
 

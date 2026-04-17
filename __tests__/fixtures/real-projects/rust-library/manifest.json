@@ -1,0 +1,7 @@
+{
+  "language": "rust",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "note": "Minimal Rust library crate — no Tauri → detects as library archetype"
+}

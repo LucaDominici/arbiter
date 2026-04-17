@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'pmd'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+// Pinned PMD version + narrow ruleset for deterministic E2E violation counts.
+pmd {
+    toolVersion = '6.55.0'
+    ruleSetFiles = files('pmd-ruleset.xml')
+    ruleSets = []
+    ignoreFailures = true
+}
+
+pmdMain {
+    reports {
+        xml.required = true
+        html.required = false
+    }
+}

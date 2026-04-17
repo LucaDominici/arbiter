@@ -51,6 +51,13 @@ export function generateDebtGates(
         { skipIfExists: true },
       ),
     );
+    results.push(
+      writeFile(
+        resolvedPath(base, "spotbugs.gradle"),
+        renderTemplate("debt-gates/spotbugs.gradle.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
   }
 
   return { files: results };

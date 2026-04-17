@@ -179,3 +179,290 @@ describe("generateArchUnit", () => {
     }
   });
 });
+
+describe("generateArchUnit — hexagonal suite (M22)", () => {
+  it("emits 4 arch test files + Gradle dep fragment for hexagonal+basePackage+gradle", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("DomainPurityTest.java"))).toBe(true);
+    expect(paths.some((p) => p.endsWith("DependencyFlowTest.java"))).toBe(true);
+    expect(paths.some((p) => p.endsWith("PortsIndependenceTest.java"))).toBe(
+      true,
+    );
+    expect(paths.some((p) => p.endsWith("TestCoverageArchTest.java"))).toBe(
+      true,
+    );
+    expect(paths.some((p) => p.endsWith("arch-test-deps.gradle"))).toBe(true);
+  });
+
+  it("places hexagonal test files in src/test/java/<packagePath>/architecture", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const domainPurity = result.files.find((f) =>
+      f.path.endsWith("DomainPurityTest.java"),
+    );
+    expect(domainPurity!.path).toContain("src/test/java");
+    expect(domainPurity!.path).toContain("com/example/myapp/architecture");
+  });
+
+  it("DomainPurityTest.java contains domain purity rules", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("DomainPurityTest.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("domain_must_not_import_spring");
+    expect(content).toContain("domain_must_not_import_jpa");
+    expect(content).toContain("com.example.myapp");
+  });
+
+  it("DependencyFlowTest.java contains dependency flow rules", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("DependencyFlowTest.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("adapters_must_not_depend_on_domain_directly");
+    expect(content).toContain("application_must_not_depend_on_adapters");
+    expect(content).toContain("domain_must_not_depend_on_application");
+    expect(content).toContain("domain_must_not_depend_on_infrastructure");
+  });
+
+  it("PortsIndependenceTest.java contains ports independence rules", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("PortsIndependenceTest.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("inbound_ports_must_not_depend_on_adapters");
+    expect(content).toContain("outbound_ports_must_not_depend_on_adapters");
+  });
+
+  it("TestCoverageArchTest.java contains test coverage rule", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("TestCoverageArchTest.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("every_controller_must_have_integration_test");
+  });
+
+  it("arch-test-deps.gradle contains ArchUnit + RestAssured + Testcontainers deps", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("arch-test-deps.gradle"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("archunit-junit5");
+    expect(content).toContain("rest-assured");
+    expect(content).toContain("postgresql");
+    expect(content).toContain("apply from:");
+  });
+
+  it("emits Maven .md doc instead of .gradle when buildTool is maven", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "maven",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("arch-test-deps.gradle"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("arch-test-deps-maven.md"))).toBe(true);
+    expect(paths.some((p) => p.endsWith("DomainPurityTest.java"))).toBe(true);
+  });
+
+  it("skips hexagonal suite when basePackage is absent", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: undefined,
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("DomainPurityTest.java"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("arch-test-deps.gradle"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("NoMockMvcTest.java"))).toBe(true);
+  });
+
+  it("emits RestAssuredBaseIT and RestAssuredArchTest when hasDatabase+hasPublicApi+hexagonal", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+      hasDatabase: true,
+      hasPublicApi: true,
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("RestAssuredBaseIT.java"))).toBe(true);
+    expect(paths.some((p) => p.endsWith("RestAssuredArchTest.java"))).toBe(
+      true,
+    );
+  });
+
+  it("RestAssuredBaseIT.java is placed in support/ package", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+      hasDatabase: true,
+      hasPublicApi: true,
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("RestAssuredBaseIT.java"),
+    );
+    expect(file!.path).toContain("support");
+    expect(file!.path).toContain("com/example/myapp");
+  });
+
+  it("RestAssuredBaseIT.java contains Testcontainers + RestAssured setup", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+      hasDatabase: true,
+      hasPublicApi: true,
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("RestAssuredBaseIT.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("PostgreSQLContainer");
+    expect(content).toContain("RestAssured");
+    expect(content).toContain("SpringBootTest");
+    expect(content).toContain("authHeader");
+  });
+
+  it("RestAssuredArchTest.java contains controller IT enforcement rules", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+      hasDatabase: true,
+      hasPublicApi: true,
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("RestAssuredArchTest.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain(
+      "all_controller_its_must_extend_rest_assured_base",
+    );
+    expect(content).toContain("RestAssuredBaseIT");
+  });
+
+  it("omits RestAssuredBaseIT and RestAssuredArchTest when hasDatabase is false", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+      hasDatabase: false,
+      hasPublicApi: true,
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("RestAssuredBaseIT.java"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("RestAssuredArchTest.java"))).toBe(
+      false,
+    );
+  });
+
+  it("omits RestAssuredBaseIT and RestAssuredArchTest when hasPublicApi is false", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+      hasDatabase: true,
+      hasPublicApi: false,
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("RestAssuredBaseIT.java"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("RestAssuredArchTest.java"))).toBe(
+      false,
+    );
+  });
+
+  it("does NOT emit hexagonal suite for layered architectureStyle", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "layered",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("DomainPurityTest.java"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("DependencyFlowTest.java"))).toBe(
+      false,
+    );
+    expect(paths.some((p) => p.endsWith("arch-test-deps.gradle"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("ArchitectureTest.java"))).toBe(true);
+  });
+
+  it("does NOT emit hexagonal suite for modular-monolith architectureStyle", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "modular-monolith",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("DomainPurityTest.java"))).toBe(false);
+    expect(paths.some((p) => p.endsWith("ArchitectureTest.java"))).toBe(true);
+  });
+});

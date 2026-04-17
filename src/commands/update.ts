@@ -1,14 +1,12 @@
 import { resolve, basename } from "node:path";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
-import {
-  detectFramework,
-  detectArchetypeHint,
-} from "../detectors/framework.js";
+import { detectFramework } from "../detectors/framework.js";
 import { detectGitInfo } from "../detectors/git.js";
 import { detectExisting } from "../detectors/existing.js";
 import { detectGithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
+import { resolveAxisFields } from "../detectors/axis.js";
 import { loadConfig, saveConfig } from "../utils/config.js";
 import { runGenerators, runGithubSetup, printResults } from "./init.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
@@ -49,16 +47,14 @@ export function runUpdate(options: UpdateOptions): void {
     ? githubAccess.authenticated
     : stored.useGitHub && githubAccess.authenticated;
 
-  const archetype =
-    stored.archetype ??
-    detectArchetypeHint(targetDir, language, framework) ??
-    "library";
-  const architectureStyle = stored.architectureStyle ?? "none";
-  const isMultiTenant = stored.isMultiTenant ?? false;
-  const hasDatabase =
-    stored.hasDatabase ??
-    (archetype === "backend-web-db" || archetype === "data-pipeline");
-  const hasPublicApi = stored.hasPublicApi ?? archetype === "backend-web-db";
+  const {
+    archetype,
+    architectureStyle,
+    isMultiTenant,
+    hasDatabase,
+    hasPublicApi,
+    contractType,
+  } = resolveAxisFields(stored, targetDir, language, framework);
 
   const config = {
     targetDir,
@@ -84,9 +80,11 @@ export function runUpdate(options: UpdateOptions): void {
     existing,
     languageHooks: getLanguageHooks(language),
     enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
+    enableSuppressions: stored.enableSuppressions !== false,
     invariantTiers:
       stored.invariantTiers ??
       presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
+    contractType,
   };
 
   console.log("\n  Updating...");
@@ -112,6 +110,7 @@ export function runUpdate(options: UpdateOptions): void {
     isMultiTenant,
     hasDatabase,
     hasPublicApi,
+    contractType,
   });
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
 }

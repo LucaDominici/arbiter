@@ -1,4 +1,6 @@
 import { resolve, basename } from "node:path";
+import { runProbes } from "../compatibility/probe.js";
+import { formatText } from "../compatibility/report.js";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
 import {
@@ -26,7 +28,14 @@ import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
+import { generateSuppressions } from "../generators/suppressions.js";
+import { generateStrideEnforcement } from "../generators/stride-enforcement.js";
+import { generateEvidenceRetention } from "../generators/evidence-retention.js";
+import { generateTestTaxonomy } from "../generators/test-taxonomy.js";
 import { generateArchUnit } from "../generators/archunit.js";
+import { generateEslintBoundaries } from "../generators/boundaries.js";
+import { generateRustBoundaries } from "../generators/rust-boundaries.js";
+import { generateGoBoundaries } from "../generators/go-boundaries.js";
 import { generateGlobalInvariants } from "../generators/global-invariants.js";
 import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
@@ -36,7 +45,11 @@ import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
+import type { ArbiterConfig } from "../utils/config.js";
+import { isL3Allowed } from "../utils/maturity-check.js";
+import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
+import { defaultContractType } from "../wizard/archetype-defaults.js";
 import type {
   ProjectConfig,
   AiTool,
@@ -51,6 +64,12 @@ export interface InitOptions {
   dir: string | undefined;
   dryRun: boolean;
   obsidian: boolean;
+  /** Auto-capture debt baseline after generation (brownfield day-0 lock-in). */
+  brownfield: boolean;
+  /** Skip toolchain compatibility probes after generation. */
+  noVerify: boolean;
+  /** Allow L3 generation with beta-maturity tools. Persisted in arbiter.json for audit. */
+  acceptBetaTools?: boolean;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -78,16 +97,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     console.log(
       `  ├── GitHub: authenticated as ${githubAccess.username ?? "unknown"}`,
     );
-  if (existing.agentsMd)
-    console.log("  ├── Existing AGENTS.md detected — will back up");
-  if (existing.claudeDir)
-    console.log("  ├── Existing .claude/ detected — will merge");
-  if (existing.agentsDir)
-    console.log("  ├── Existing .agents/ detected — will merge");
-  if (existing.aiRulez)
-    console.log(
-      "  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)",
-    );
+  logExistingDetections(existing);
 
   let config: ProjectConfig;
   if (options.yes) {
@@ -103,6 +113,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       governanceLevel: parseLevel(options.level),
       useGitHub: githubAccess.authenticated,
       obsidian: options.obsidian,
+      acceptBetaTools: options.acceptBetaTools ?? false,
     });
   } else {
     const wizardResult = await runWizard({
@@ -127,6 +138,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     return;
   }
 
+  checkL3MaturityGates(config);
+
   console.log("\n  Generating...");
   const allResults = runGenerators(config);
 
@@ -139,22 +152,15 @@ export async function runInit(options: InitOptions): Promise<void> {
   runGithubSetup(config);
 
   // Save config for future `arbiter update`
-  saveConfig(targetDir, {
-    version: "0.1",
-    tools: config.tools,
-    governanceLevel: config.governanceLevel,
-    useGitHub: config.useGitHub,
-    enableDebtGates: config.enableDebtGates,
-    invariantTiers: config.invariantTiers,
-    archetype: config.archetype,
-    architectureStyle: config.architectureStyle,
-    isMultiTenant: config.isMultiTenant,
-    hasDatabase: config.hasDatabase,
-    hasPublicApi: config.hasPublicApi,
-    ...(config.enableObsidianVault === true
-      ? { enableObsidianVault: true }
-      : {}),
-  });
+  saveConfig(targetDir, buildArbiterConfig(config));
+
+  if (options.brownfield && config.enableDebtGates) {
+    runBrownfieldCapture(targetDir);
+  }
+
+  if (!options.noVerify) {
+    runToolchainVerify(targetDir);
+  }
 
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
 }
@@ -193,7 +199,22 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
     all.push(...generateDebtRatchet(config).files);
   }
 
+  if (config.enableSuppressions) {
+    all.push(...generateSuppressions(config).files);
+  }
+
   all.push(...generateArchUnit(config).files);
+  all.push(...generateEslintBoundaries(config).files);
+  all.push(...generateRustBoundaries(config).files);
+  all.push(...generateGoBoundaries(config).files);
+
+  if (config.enableDebtGates) {
+    all.push(...generateStrideEnforcement(config).files);
+  }
+
+  all.push(...generateEvidenceRetention(config).files);
+
+  all.push(...generateTestTaxonomy(config).files);
 
   all.push(...generateSsot(config).files);
 
@@ -233,6 +254,38 @@ export function runGithubSetup(config: ProjectConfig): void {
     console.log(`      Project board created: ${pb.projectUrl}`);
   } else {
     console.log(`      Skipped: ${pb.error ?? "unknown error"}`);
+  }
+}
+
+function logExistingDetections(
+  existing: ReturnType<typeof detectExisting>,
+): void {
+  if (existing.agentsMd)
+    console.log("  ├── Existing AGENTS.md detected — will back up");
+  if (existing.claudeDir)
+    console.log("  ├── Existing .claude/ detected — will merge");
+  if (existing.agentsDir)
+    console.log("  ├── Existing .agents/ detected — will merge");
+  if (existing.aiRulez)
+    console.log(
+      "  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)",
+    );
+}
+
+function runBrownfieldCapture(targetDir: string): void {
+  console.log("\n  Capturing debt baseline (this may take a few minutes)…");
+  try {
+    runCli("node", ["scripts/capture-debt-baseline.mjs"], {
+      cwd: targetDir,
+      timeoutMs: 600_000,
+    });
+    console.log("  Baseline captured at scripts/debt-baseline.json");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `  Baseline capture failed (${msg}). Re-run manually: node scripts/capture-debt-baseline.mjs`,
+    );
+    // Non-fatal: generated files are on disk; toolchain may be incomplete
   }
 }
 
@@ -283,6 +336,7 @@ function buildDefaultConfig(opts: {
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
   obsidian?: boolean;
+  acceptBetaTools?: boolean;
 }): ProjectConfig {
   const archetype =
     detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ??
@@ -314,9 +368,43 @@ function buildDefaultConfig(opts: {
     existing: opts.existing,
     languageHooks: getLanguageHooks(opts.language),
     enableDebtGates: opts.governanceLevel !== "L1",
+    enableSuppressions: true,
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
+    acceptBetaTools: opts.acceptBetaTools ?? false,
+    contractType: defaultContractType(archetype, hasPublicApi),
     ...detectedBasePackage(opts.language, opts.targetDir),
+  };
+}
+
+function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
+  return {
+    version: "0.1",
+    tools: config.tools,
+    governanceLevel: config.governanceLevel,
+    useGitHub: config.useGitHub,
+    enableDebtGates: config.enableDebtGates,
+    enableSuppressions: config.enableSuppressions,
+    invariantTiers: config.invariantTiers,
+    archetype: config.archetype,
+    architectureStyle: config.architectureStyle,
+    isMultiTenant: config.isMultiTenant,
+    hasDatabase: config.hasDatabase,
+    hasPublicApi: config.hasPublicApi,
+    ...(config.enableObsidianVault === true
+      ? { enableObsidianVault: true }
+      : {}),
+    ...(config.acceptBetaTools === true ? { acceptBetaTools: true } : {}),
+    ...(config.evidenceRetention !== undefined
+      ? { evidenceRetention: config.evidenceRetention }
+      : {}),
+    ...(config.thresholdProfile !== undefined
+      ? { thresholdProfile: config.thresholdProfile }
+      : {}),
+    ...(config.strictnessTier !== undefined
+      ? { strictnessTier: config.strictnessTier }
+      : {}),
+    contractType: config.contractType,
   };
 }
 
@@ -341,4 +429,61 @@ function parseTools(tools: string | undefined): AiTool[] {
 function parseLevel(level: string | undefined): GovernanceLevel {
   if (level === "L1" || level === "L2" || level === "L3") return level;
   return "L2";
+}
+
+/**
+ * Gate check for L3 maturity. Blocks generation if any L3 feature
+ * (mutation, contract) is marked unsafe or beta without --accept-beta-tools.
+ * Exits the process with an actionable error message on violation.
+ */
+function checkL3MaturityGates(config: ProjectConfig): void {
+  if (config.governanceLevel !== "L3") return;
+
+  const l3Features: Array<"mutation" | "contract"> = ["mutation", "contract"];
+  const blocked: string[] = [];
+
+  for (const feature of l3Features) {
+    const result = isL3Allowed(
+      config.language,
+      feature,
+      config.acceptBetaTools ?? false,
+    );
+    if (!result.allowed && result.errorMessage) {
+      blocked.push(`  • ${result.errorMessage}`);
+    }
+  }
+
+  if (blocked.length > 0) {
+    console.error("\n  arbiter init aborted: L3 maturity gate failed.\n");
+    for (const msg of blocked) {
+      console.error(msg);
+    }
+    console.error(
+      "\n  Use --accept-beta-tools to allow beta tools, or reduce governance to L2.\n",
+    );
+    process.exit(1);
+  }
+}
+
+function runToolchainVerify(targetDir: string): void {
+  console.log("\n  Verifying toolchain compatibility...");
+  let report: ReturnType<typeof runProbes>;
+  try {
+    report = runProbes(targetDir);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `\n  Toolchain verification failed unexpectedly: ${msg}\n` +
+        "  Generated files are on disk. Use --no-verify to skip verification.\n",
+    );
+    process.exit(1);
+  }
+  console.log(formatText(report));
+  if (report.hasFailures) {
+    console.error(
+      "\n  arbiter init aborted: toolchain incompatibilities detected.\n" +
+        "  Fix the issues above and re-run, or use --no-verify to skip.\n",
+    );
+    process.exit(1);
+  }
 }

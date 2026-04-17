@@ -16,6 +16,7 @@ export interface ArbiterConfig {
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
   enableDebtGates?: boolean;
+  enableSuppressions?: boolean;
   invariantTiers?: InvariantTier[];
   worktree?: WorktreeConfig;
   /** Whether the Obsidian vault generator ran during init. Used by `arbiter obsidian` sync. */
@@ -26,6 +27,18 @@ export interface ArbiterConfig {
   isMultiTenant?: boolean;
   hasDatabase?: boolean;
   hasPublicApi?: boolean;
+  // Phase 9.5 ME: beta-tool override — persisted for audit trail
+  acceptBetaTools?: boolean;
+  // Phase 9.5 MJ: evidence retention policy — persisted for arbiter update
+  evidenceRetention?: import("../wizard/types.js").EvidenceRetentionConfig;
+  // Phase 9.5 MG: threshold profile and strictness tier — persisted for arbiter update
+  thresholdProfile?: import("../wizard/types.js").ThresholdProfile;
+  strictnessTier?: import("../wizard/types.js").StrictnessTier;
+  // Phase 9.5 MK: grace period for level upgrades — see ADR-028
+  graceEndsAt?: string;
+  graceFromLevel?: GovernanceLevel;
+  // Phase 9.5 ML: contract testing type axis — see ADR-028
+  contractType?: import("../wizard/types.js").ContractType;
 }
 
 const CONFIG_FILE = "arbiter.json";
@@ -42,6 +55,9 @@ export function loadConfig(dir: string): ArbiterConfig | null {
   try {
     return JSON.parse(readFileSync(path, "utf-8")) as ArbiterConfig;
   } catch {
+    console.warn(
+      `[arbiter] arbiter.json at ${path} is corrupt (invalid JSON) — ignoring and treating as missing`,
+    );
     return null;
   }
 }
@@ -59,5 +75,6 @@ export function defaultConfig(): ArbiterConfig {
     isMultiTenant: false,
     hasDatabase: false,
     hasPublicApi: false,
+    contractType: "none",
   };
 }

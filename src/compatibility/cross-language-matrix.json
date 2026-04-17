@@ -1,0 +1,166 @@
+{
+  "_comment": "Machine-readable maturity index for the cross-language enforcement matrix. Values: proven | beta | unsafe | unavailable. Consumed by src/utils/maturity-check.ts.",
+  "_lastUpdated": "2026-04-16",
+  "mutation": {
+    "java": {
+      "tool": "pitest",
+      "maturity": "proven",
+      "reason": "pitest is the de-facto Java mutation testing standard; stable API, broad adoption"
+    },
+    "typescript": {
+      "tool": "stryker",
+      "maturity": "proven",
+      "reason": "Stryker 8.x is well-maintained with first-class Vitest integration"
+    },
+    "rust": {
+      "tool": "cargo-mutants",
+      "maturity": "beta",
+      "reason": "cargo-mutants threshold gating is unstable; passes on some versions, fails silently on others"
+    },
+    "go": {
+      "tool": "go-mutesting",
+      "maturity": "unsafe",
+      "reason": "go-mutesting is abandoned upstream and hangs on Go 1.23 module graphs"
+    },
+    "python": {
+      "tool": "mutmut",
+      "maturity": "beta",
+      "reason": "mutmut runtime can exceed 6h on mid-sized codebases; no reliable timeout-per-mutant control"
+    }
+  },
+  "contract": {
+    "java": {
+      "tool": "pact-jvm",
+      "maturity": "proven",
+      "reason": "pact-jvm has stable consumer + provider verification; widely adopted in Spring Boot"
+    },
+    "typescript": {
+      "tool": "@pact-foundation/pact",
+      "maturity": "proven",
+      "reason": "Pact JS library is well-maintained with Node 18+ support"
+    },
+    "rust": {
+      "tool": "pact_consumer",
+      "maturity": "beta",
+      "reason": "pact_consumer for Rust is a community crate; provider verification is experimental"
+    },
+    "go": {
+      "tool": "pact_consumer (Go)",
+      "maturity": "beta",
+      "reason": "Pact Go SDK wraps the Rust core via FFI; occasional FFI panics on newer Go runtimes"
+    },
+    "python": {
+      "tool": "pact-python",
+      "maturity": "beta",
+      "reason": "pact-python lacks provider-verification parity with pact-jvm; V4 migration in progress"
+    }
+  },
+  "coverage": {
+    "java": {
+      "tool": "jacoco",
+      "maturity": "proven",
+      "reason": "JaCoCo is the standard Java coverage tool with Gradle and Maven integration"
+    },
+    "typescript": {
+      "tool": "vitest/c8",
+      "maturity": "proven",
+      "reason": "vitest --coverage with c8 is stable and fast"
+    },
+    "rust": {
+      "tool": "cargo-tarpaulin",
+      "maturity": "proven",
+      "reason": "cargo-tarpaulin produces reliable line/branch coverage on stable Rust"
+    },
+    "go": {
+      "tool": "go test -cover",
+      "maturity": "proven",
+      "reason": "Built-in Go coverage is stable; no external tooling required"
+    },
+    "python": {
+      "tool": "pytest-cov",
+      "maturity": "proven",
+      "reason": "pytest-cov with coverage.py is the standard Python coverage stack"
+    }
+  },
+  "architecture": {
+    "java": {
+      "tool": "ArchUnit",
+      "maturity": "proven",
+      "reason": "ArchUnit has stable API and is widely used in Spring Boot monoliths"
+    },
+    "typescript": {
+      "tool": "eslint-plugin-boundaries",
+      "maturity": "proven",
+      "reason": "eslint-plugin-boundaries provides reliable import boundary checking"
+    },
+    "rust": {
+      "tool": "cargo-deny + clippy",
+      "maturity": "proven",
+      "reason": "cargo-deny and clippy provide reliable static checks for Rust"
+    },
+    "go": {
+      "tool": "golangci-lint (depguard)",
+      "maturity": "proven",
+      "reason": "depguard (golangci-lint) provides reliable static checks for Go, consistent with M22b pattern"
+    },
+    "python": {
+      "tool": "import-linter + ruff",
+      "maturity": "proven",
+      "reason": "import-linter enforces import contracts; ruff handles style"
+    }
+  },
+  "e2e": {
+    "java": {
+      "tool": "RestAssured IT",
+      "maturity": "proven",
+      "reason": "RestAssured integration tests are widely used for Spring Boot E2E"
+    },
+    "typescript": {
+      "tool": "Playwright",
+      "maturity": "proven",
+      "reason": "Playwright is the industry standard for browser E2E testing"
+    },
+    "rust": {
+      "tool": "N/A",
+      "maturity": "unavailable",
+      "reason": "No E2E testing equivalent for Rust CLI projects; use integration level instead"
+    },
+    "go": {
+      "tool": "N/A",
+      "maturity": "unavailable",
+      "reason": "No E2E testing equivalent for Go CLI projects; use integration level instead"
+    },
+    "python": {
+      "tool": "Playwright / pytest-playwright",
+      "maturity": "proven",
+      "reason": "pytest-playwright is stable with Python 3.10+"
+    }
+  },
+  "security": {
+    "java": {
+      "tool": "OWASP DependencyCheck",
+      "maturity": "proven",
+      "reason": "OWASP DependencyCheck is the standard Java dependency audit tool"
+    },
+    "typescript": {
+      "tool": "npm audit",
+      "maturity": "proven",
+      "reason": "npm audit is built into npm and reliable"
+    },
+    "rust": {
+      "tool": "cargo audit",
+      "maturity": "proven",
+      "reason": "cargo audit is the standard Rust advisory check"
+    },
+    "go": {
+      "tool": "govulncheck",
+      "maturity": "proven",
+      "reason": "govulncheck is the official Go vulnerability scanner from the Go team"
+    },
+    "python": {
+      "tool": "pip-audit",
+      "maturity": "proven",
+      "reason": "pip-audit is stable and maintained by PyPA"
+    }
+  }
+}

@@ -36,7 +36,13 @@ describe("arbiter update", () => {
   beforeEach(async () => {
     dir = tmpDir();
     initGit(dir);
-    await runInit({ yes: true, tools: "claude,codex", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude,codex",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
   });
 
   afterEach(() => {
@@ -83,6 +89,7 @@ describe("arbiter update", () => {
       tools: "claude,codex,cursor,copilot",
       level: "L2",
       dir,
+      noVerify: true,
     });
     await runUpdate({ dir, github: false });
 
@@ -99,7 +106,13 @@ describe("arbiter diff", () => {
   beforeEach(async () => {
     dir = tmpDir();
     initGit(dir);
-    await runInit({ yes: true, tools: "claude,codex", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude,codex",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
   });
 
   afterEach(() => {
@@ -181,7 +194,13 @@ describe("ai-rulez detection", () => {
     const { mkdirSync } = await import("node:fs");
     mkdirSync(join(dir, ".ai-rulez"), { recursive: true });
 
-    await runInit({ yes: true, tools: "claude,codex", level: "L2", dir });
+    await runInit({
+      yes: true,
+      tools: "claude,codex",
+      level: "L2",
+      dir,
+      noVerify: true,
+    });
 
     // AGENTS.md should still be generated
     expect(existsSync(join(dir, "AGENTS.md"))).toBe(true);

@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+    id 'info.solidsoft.pitest' version '1.15.0'
+}
+
+group = 'com.example.incompat'
+version = '0.0.1'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+// pitest 1.15.x requires Gradle >=8; this fixture simulates an incompatible
+// combination to verify that arbiter verify detects version-skew.
+pitest {
+    targetClasses = ['com.example.*']
+    threads = 4
+    outputFormats = ['HTML']
+    mutationThreshold = 85
+}

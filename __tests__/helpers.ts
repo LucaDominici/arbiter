@@ -117,8 +117,10 @@ export function makeConfig(
     },
     languageHooks: [],
     enableDebtGates: governanceLevel !== "L1",
+    enableSuppressions: true,
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
     basePackage: undefined,
+    contractType: "none",
     ...overrides,
   };
 }

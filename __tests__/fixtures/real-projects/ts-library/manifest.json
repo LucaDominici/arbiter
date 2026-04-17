@@ -1,0 +1,7 @@
+{
+  "language": "typescript",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "note": "Minimal TypeScript library — no framework deps → detects as library archetype"
+}
