@@ -117,7 +117,7 @@ if (level === 'L2') {
 <% } %>
   runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
   runCheck('circular deps', 'npx', ['madge', '--circular', 'src'], { soft: graceActive });
-<% if (mutationEnabled) { %>
+<% if (governanceLevel === 'L3') { %>
   runCheck('mutation testing (stryker)', 'npx', ['stryker', 'run'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'rust') { %>
@@ -125,7 +125,7 @@ if (level === 'L2') {
   runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });
 <% } %>
   runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings'], { soft: graceActive });
-<% if (mutationEnabled) { %>
+<% if (governanceLevel === 'L3') { %>
   process.stdout.write('[CHECK] mutation testing (cargo-mutants) ... ');
   {
     const cargoMutants = spawnSync('cargo', ['mutants', '--config', 'cargo-mutants.toml'], { encoding: 'utf-8', shell: false });
@@ -176,7 +176,7 @@ if (level === 'L2') {
 <% } %>
   runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.'], { soft: graceActive });
   runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.'], { soft: graceActive });
-<% if (mutationEnabled) { %>
+<% if (governanceLevel === 'L3') { %>
   process.stdout.write('[CHECK] mutation testing (mutmut) ... ');
   {
     const mutmutRun = spawnSync('mutmut', ['run'], { encoding: 'utf-8', shell: false });

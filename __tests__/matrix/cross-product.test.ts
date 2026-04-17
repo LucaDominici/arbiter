@@ -1006,6 +1006,26 @@ describe("cross-product: check-all.mjs — mutation commands at L3 per stack", (
       expect(content).toContain(marker);
     });
   }
+
+  // L2 regression: TS/Rust/Python mutation commands must NOT appear at L2
+  const L2_ABSENT_MARKERS: Partial<Record<Language, string>> = {
+    typescript: "stryker",
+    rust: "mutants",
+    python: "mutmut",
+  };
+
+  for (const [lang, marker] of Object.entries(L2_ABSENT_MARKERS) as [
+    Language,
+    string,
+  ][]) {
+    it(`${lang}+L2: check-all.mjs does NOT contain "${marker}"`, () => {
+      const content = renderTemplate("scripts/check-all.mjs.ejs", {
+        ...configFor(lang, "L2"),
+        enableDebtGates: true,
+      });
+      expect(content).not.toContain(marker);
+    });
+  }
 });
 
 describe("cross-product: AGENTS.md — mutation row in tech debt table at L3", () => {
