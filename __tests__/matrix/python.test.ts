@@ -369,14 +369,14 @@ describe("matrix: Python L3 mutation gate (mutmut)", () => {
     expect(content).toMatch(/paths_to_mutate|src/);
   });
 
-  it("check-all.mjs invokes mutmut at L3", () => {
+  it("check-all.mjs does NOT invoke mutmut (mutation moved to nightly)", () => {
     const config = pythonL3Config();
     runGenerators(config);
     const content = readFileSync(
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("mutmut");
+    expect(content).not.toContain("mutmut");
   });
 
   it("L2 config does NOT emit mutmut-config.toml", () => {

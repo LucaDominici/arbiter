@@ -104,7 +104,7 @@ describe("generateCheckAll", () => {
     expect(content).not.toContain("debt-report.mjs");
   });
 
-  it("includes pitest mutation check for Java + Gradle at L2", () => {
+  it("does NOT include pitest for Java + Gradle (mutation moved to nightly)", () => {
     generateCheckAll(
       makeConfig(dir, {
         language: "java",
@@ -117,11 +117,10 @@ describe("generateCheckAll", () => {
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("pitest");
-    expect(content).toContain("mutation testing");
+    expect(content).not.toContain("pitest");
   });
 
-  it("includes pitest mutation check for Java + Maven at L2", () => {
+  it("does NOT include pitest for Java + Maven (mutation moved to nightly)", () => {
     generateCheckAll(
       makeConfig(dir, {
         language: "java",
@@ -134,8 +133,7 @@ describe("generateCheckAll", () => {
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("pitest");
-    expect(content).toContain("mutation testing");
+    expect(content).not.toContain("pitest");
   });
 
   it("does not include pitest for Java at L1 (no debt gates)", () => {
