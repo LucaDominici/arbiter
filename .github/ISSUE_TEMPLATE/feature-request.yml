@@ -18,6 +18,13 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: canon
+    attributes:
+      label: Applicable CANON-NN IDs
+      description: "Which canon rules gate this implementation? See docs/SYSTEM/CANON.md. Leave blank if none."
+      placeholder: "e.g. CANON-01, CANON-04"
+
   - type: textarea
     id: alternatives
     attributes:

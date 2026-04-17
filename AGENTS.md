@@ -25,7 +25,7 @@ When documents conflict, higher level wins. No debate.
 
 ```
 Level 1:  AGENTS.md — invariants + governance (this file)
-Level 2:  Architecture docs (docs/SYSTEM/ARCHITECTURE.md, PROJECT_STATUS.md)
+Level 2:  docs/SYSTEM/CANON.md — process canon (CANON-NN) + architecture docs
 Level 3:  Source code + tests — implementation truth
 ```
 
@@ -34,6 +34,8 @@ Level 3:  Source code + tests — implementation truth
 ## Invariants
 
 Violation protocol: **STOP → REFUSE → cite INV-XX**.
+
+> For non-code process rules (dual-sided declination, fixture requirements, brownfield contracts, etc.) see [`docs/SYSTEM/CANON.md`](docs/SYSTEM/CANON.md) (CANON-NN). Violation protocol identical: STOP → REFUSE → cite CANON-NN.
 
 ### Tier 1: Architectural Integrity
 

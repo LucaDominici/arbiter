@@ -29,6 +29,13 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: canon
+    attributes:
+      label: Applicable CANON-NN IDs
+      description: "Which canon rules gate this implementation? See docs/SYSTEM/CANON.md. Leave blank if none."
+      placeholder: "e.g. CANON-05, CANON-11"
+
   - type: dropdown
     id: size
     attributes:
