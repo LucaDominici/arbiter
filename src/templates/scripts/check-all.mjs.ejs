@@ -125,6 +125,21 @@ if (level === 'L2') {
   runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });
 <% } %>
   runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings'], { soft: graceActive });
+<% if (mutationEnabled) { %>
+  process.stdout.write('[CHECK] mutation testing (cargo-mutants) ... ');
+  {
+    const cargoMutants = spawnSync('cargo', ['mutants', '--config', 'cargo-mutants.toml'], { encoding: 'utf-8', shell: false });
+    const parseMutants = spawnSync('node', ['scripts/parse-mutants.mjs', '--threshold', '<%= mutationThreshold %>'], {
+      input: (cargoMutants.stdout || '') + '\n' + (cargoMutants.stderr || ''),
+      encoding: 'utf-8',
+      shell: false,
+    });
+    if (parseMutants.status !== 0) {
+      console.log(graceActive ? 'WARN (grace period)' : 'FAIL');
+      if (!graceActive) failed++;
+    } else { console.log('PASS'); }
+  }
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q'], { soft: graceActive });
   runCheck('pmd', './gradlew', ['pmdMain', '-q'], { soft: graceActive });

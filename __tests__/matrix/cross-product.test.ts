@@ -116,6 +116,7 @@ function configFor(
     coverageEnabled: thresholds.coverageEnabled,
     coverageThreshold: thresholds.coverageThreshold,
     mutationEnabled: thresholds.mutationEnabled,
+    mutationThreshold: thresholds.mutationThreshold,
   };
 }
 
