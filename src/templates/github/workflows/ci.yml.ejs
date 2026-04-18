@@ -225,16 +225,15 @@ jobs:
         if: always()
         run: |
           mkdir -p coverage
-          cp -r build/reports/jacoco/test/html/. coverage/ 2>/dev/null || true
-          cp build/reports/jacoco/test/jacocoTestReport.xml coverage/coverage.xml 2>/dev/null || true
+          cp -r build/coverage/html/. coverage/ 2>/dev/null || true
+          cp build/coverage/coverage.xml coverage/coverage.xml 2>/dev/null || true
 <% } else { %>      - run: mvn verify -Pjacoco
       - run: mvn pmd:check
       - name: Copy JaCoCo reports to coverage/
         if: always()
         run: |
           mkdir -p coverage
-          cp -r target/site/jacoco/. coverage/ 2>/dev/null || true
-          cp target/site/jacoco/jacoco.xml coverage/coverage.xml 2>/dev/null || true
+          cp -r target/coverage/. coverage/ 2>/dev/null || true
 <% } %><% } %><% if (language === 'go') { %>
       - uses: actions/setup-go@v5
         with:
