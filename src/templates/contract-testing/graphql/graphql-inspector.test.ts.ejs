@@ -1,0 +1,20 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+
+describe('<%= projectName %> GraphQL schema compatibility', () => {
+  const referenceSchema = path.resolve(process.cwd(), 'contracts', 'schema-reference.graphql');
+  const currentSchema = path.resolve(process.cwd(), 'contracts', 'schema-current.graphql');
+
+  it('has no breaking schema changes', () => {
+    if (!existsSync(referenceSchema) || !existsSync(currentSchema)) {
+      console.warn('[WARN] GraphQL schema files not found — skipping diff');
+      return;
+    }
+    execFileSync(
+      'npx',
+      ['@graphql-inspector/cli', 'diff', referenceSchema, currentSchema],
+      { encoding: 'utf-8', stdio: 'inherit' },
+    );
+  });
+});

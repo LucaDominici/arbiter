@@ -305,11 +305,75 @@ jobs:
       - name: Run debt ratchet
         run: node scripts/debt-report.mjs<% if (governanceLevel === 'L3') { %> --require-improvement<% } else { %> --gate<% } %>
 <% } %>
+<% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>
+
+  contract-verify:
+    name: Contract Verify
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [lint-and-test]
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+<% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
+      - name: Run Pact contract tests
+        run: npx pact-broker can-i-deploy --pacticipant <%= projectName %> --latest
+<% } else if (contractType === 'graphql') { %>
+      - name: Run GraphQL schema contract tests
+        run: npx graphql-inspector diff schema.graphql
+<% } else if (contractType === 'grpc') { %>
+      - name: Run gRPC contract tests
+        run: npx buf breaking --against .git#branch=main
+<% } else if (contractType === 'message-queue') { %>
+      - name: Run Pact messaging contract tests
+        run: npx pact-broker can-i-deploy --pacticipant <%= projectName %> --latest
+<% } %>
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
+<% } %>
+<% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
+      - name: Run Pact contract tests
+        run: <%= buildTool === 'gradle' ? './gradlew pactPublish pactVerify' : 'mvn pact:publish pact:verify' %>
+<% } else if (contractType === 'graphql') { %>
+      - name: Run GraphQL contract tests
+        run: <%= buildTool === 'gradle' ? './gradlew test --tests *.graphql.*' : 'mvn test -Dtest=*GraphQL*' %>
+<% } else if (contractType === 'grpc') { %>
+      - name: Run gRPC contract tests
+        run: <%= buildTool === 'gradle' ? './gradlew test --tests *.grpc.*' : 'mvn test -Dtest=*Grpc*' %>
+<% } %>
+<% } else if (language === 'rust') { %>
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run contract tests
+        run: cargo test --test '*contract*'
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Run contract tests
+        run: go test -tags contract -run Contract ./...
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e ".[dev]"
+      - name: Run contract tests
+        run: pytest tests/contract/
+<% } %>
+<% } %>
 
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    needs: [lint-and-test<% if (enableSecurityScanning) { %>, security-early-fail<% } %><% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %><% if (governanceLevel === 'L3') { %>, classify-changes<% } %>]
+    needs: [lint-and-test<% if (enableSecurityScanning) { %>, security-early-fail<% } %><% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>, contract-verify<% } %><% if (governanceLevel === 'L3') { %>, classify-changes<% } %>]
     if: always()
     steps:
       - run: |
@@ -331,5 +395,9 @@ jobs:
           fi
           if [[ "${{ needs.debt-ratchet.result }}" != "success" ]]; then
             echo "debt-ratchet failed"
+            exit 1
+          fi<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>
+          if [[ "${{ needs.contract-verify.result }}" != "success" ]]; then
+            echo "contract-verify failed"
             exit 1
           fi<% } %>

@@ -1,0 +1,21 @@
+import subprocess
+import os
+import pytest
+
+
+@pytest.mark.skipif(
+    not (os.path.exists("contracts/schema-reference.graphql") and
+         os.path.exists("contracts/schema-current.graphql")),
+    reason="GraphQL schema files not found",
+)
+def test_no_breaking_schema_changes():
+    result = subprocess.run(
+        ["npx", "@graphql-inspector/cli", "diff",
+         "contracts/schema-reference.graphql",
+         "contracts/schema-current.graphql"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"Breaking GraphQL schema changes:\n{result.stdout}\n{result.stderr}"
+    )

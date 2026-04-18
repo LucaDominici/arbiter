@@ -1,0 +1,23 @@
+package <%= basePackage || 'com.example' %>.contracts;
+
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class GrpcContractTest {
+
+    @Test
+    void noBreakingProtobufChanges() throws IOException, InterruptedException {
+        if (!new File("proto").exists()) {
+            System.out.println("[WARN] proto/ directory not found — skipping buf check");
+            return;
+        }
+        ProcessBuilder pb = new ProcessBuilder("buf", "breaking", "--against", ".git#branch=main");
+        pb.inheritIO();
+        int exitCode = pb.start().waitFor();
+        assertEquals(0, exitCode, "Breaking Protobuf changes detected by buf");
+    }
+}

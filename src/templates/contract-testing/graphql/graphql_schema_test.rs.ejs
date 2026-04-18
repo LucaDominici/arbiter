@@ -1,0 +1,27 @@
+#[cfg(test)]
+mod graphql_schema_tests {
+    use std::path::Path;
+    use std::process::Command;
+
+    #[test]
+    fn no_breaking_schema_changes() {
+        let reference = Path::new("contracts/schema-reference.graphql");
+        let current = Path::new("contracts/schema-current.graphql");
+
+        if !reference.exists() || !current.exists() {
+            println!("[WARN] GraphQL schema files not found — skipping diff");
+            return;
+        }
+
+        let output = Command::new("npx")
+            .args(["@graphql-inspector/cli", "diff",
+                   "contracts/schema-reference.graphql",
+                   "contracts/schema-current.graphql"])
+            .output()
+            .expect("Failed to run graphql-inspector");
+
+        assert!(output.status.success(),
+            "Breaking GraphQL schema changes:\n{}",
+            String::from_utf8_lossy(&output.stdout));
+    }
+}

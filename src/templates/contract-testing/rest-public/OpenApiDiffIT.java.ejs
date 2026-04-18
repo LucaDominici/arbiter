@@ -1,0 +1,31 @@
+package <%= basePackage || 'com.example' %>.contracts;
+
+import org.junit.jupiter.api.Test;
+import org.openapitools.openapidiff.core.OpenApiCompare;
+import org.openapitools.openapidiff.core.model.ChangedOpenApi;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class OpenApiDiffIT {
+
+    @Test
+    void noBreakingChanges() {
+        Path contractsDir = Paths.get("contracts");
+        Path referenceSpec = contractsDir.resolve("openapi-reference.yaml");
+        Path currentSpec = contractsDir.resolve("openapi-current.yaml");
+
+        if (!referenceSpec.toFile().exists() || !currentSpec.toFile().exists()) {
+            System.out.println("[WARN] OpenAPI spec files not found — skipping diff");
+            return;
+        }
+
+        ChangedOpenApi diff = OpenApiCompare.fromLocations(
+            referenceSpec.toString(), currentSpec.toString()
+        );
+        assertTrue(diff.isCompatible(),
+            "Breaking OpenAPI changes detected: " + diff.getIncompatibilities());
+    }
+}

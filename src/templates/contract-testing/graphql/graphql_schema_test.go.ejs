@@ -1,0 +1,24 @@
+package contracts_test
+
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
+
+func TestNoBreakingGraphQLChanges(t *testing.T) {
+	if _, err := os.Stat("contracts/schema-reference.graphql"); os.IsNotExist(err) {
+		t.Skip("GraphQL reference schema not found")
+	}
+	if _, err := os.Stat("contracts/schema-current.graphql"); os.IsNotExist(err) {
+		t.Skip("GraphQL current schema not found")
+	}
+
+	cmd := exec.Command("npx", "@graphql-inspector/cli", "diff",
+		"contracts/schema-reference.graphql",
+		"contracts/schema-current.graphql")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Breaking GraphQL schema changes:\n%s", out)
+	}
+}

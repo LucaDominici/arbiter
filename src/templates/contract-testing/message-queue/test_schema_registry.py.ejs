@@ -1,0 +1,15 @@
+import os
+import pytest
+import requests
+
+
+@pytest.mark.skipif(
+    not os.environ.get("SCHEMA_REGISTRY_URL"),
+    reason="SCHEMA_REGISTRY_URL not set — skipping schema registry check",
+)
+def test_schema_registry_reachable():
+    url = os.environ["SCHEMA_REGISTRY_URL"]
+    response = requests.get(f"{url}/subjects", timeout=10)
+    assert response.status_code == 200, (
+        f"Schema registry returned {response.status_code}"
+    )

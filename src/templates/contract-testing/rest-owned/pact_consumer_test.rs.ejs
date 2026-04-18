@@ -1,0 +1,23 @@
+#[cfg(test)]
+mod pact_tests {
+    use pact_consumer::prelude::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_get_resource() {
+        let pact = PactBuilder::new("<%= projectName %>-consumer", "<%= projectName %>-provider")
+            .interaction("a request for a resource", |i| {
+                i.given("a resource exists");
+                i.request.get().path("/api/resource");
+                i.response
+                    .ok()
+                    .json_utf8()
+                    .json_body(json!({"id": 1, "name": "example"}));
+            })
+            .start_mock_server();
+
+        let url = pact.path("/api/resource");
+        let result = reqwest::get(url).await.unwrap();
+        assert_eq!(result.status(), 200);
+    }
+}

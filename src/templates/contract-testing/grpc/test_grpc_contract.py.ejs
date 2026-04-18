@@ -1,0 +1,18 @@
+import subprocess
+import os
+import pytest
+
+
+@pytest.mark.skipif(
+    not os.path.exists("proto"),
+    reason="proto/ directory not found — skipping buf check",
+)
+def test_no_breaking_protobuf_changes():
+    result = subprocess.run(
+        ["buf", "breaking", "--against", ".git#branch=main"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"Breaking Protobuf changes detected:\n{result.stdout}\n{result.stderr}"
+    )

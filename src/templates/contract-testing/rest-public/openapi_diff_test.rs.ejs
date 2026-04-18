@@ -1,0 +1,26 @@
+#[cfg(test)]
+mod openapi_diff_tests {
+    use std::path::Path;
+    use std::process::Command;
+
+    #[test]
+    fn no_breaking_changes() {
+        let reference = Path::new("contracts/openapi-reference.yaml");
+        let current = Path::new("contracts/openapi-current.yaml");
+
+        if !reference.exists() || !current.exists() {
+            println!("[WARN] OpenAPI spec files not found — skipping diff");
+            return;
+        }
+
+        let output = Command::new("npx")
+            .args(["openapi-diff", "contracts/openapi-reference.yaml",
+                   "contracts/openapi-current.yaml", "--fail-on-incompatible"])
+            .output()
+            .expect("Failed to run openapi-diff");
+
+        assert!(output.status.success(),
+            "Breaking OpenAPI changes detected:\n{}",
+            String::from_utf8_lossy(&output.stdout));
+    }
+}

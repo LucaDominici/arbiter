@@ -1,0 +1,30 @@
+# Contract Testing Policy
+
+**Contract strategy:** `<%= contractType %>`
+
+## Purpose
+
+Contract testing verifies that services honour the contracts they expose to consumers. This document defines the testing approach for this project.
+
+## Gate
+
+- **L2+:** Contract tests run in CI. Failures block merge.
+- **L1:** Contract testing not enforced (no gate).
+
+## Tools
+
+<% if (contractType === 'rest-owned') { %>
+**Pact** — consumer-driven contract testing. The consumer generates a pact file; the provider verifies it.
+<% } else if (contractType === 'rest-public') { %>
+**openapi-diff** — detects breaking changes in the OpenAPI spec between versions.
+<% } else if (contractType === 'graphql') { %>
+**graphql-inspector** — schema diffing to detect breaking changes in the GraphQL schema.
+<% } else if (contractType === 'grpc') { %>
+**buf breaking** — detects breaking changes in Protobuf definitions.
+<% } else if (contractType === 'message-queue') { %>
+**Confluent Schema Registry** — ensures message schemas remain compatible between producer and consumer.
+<% } %>
+
+## Running Locally
+
+See `scripts/check-all.mjs` L2 gate for the exact command.

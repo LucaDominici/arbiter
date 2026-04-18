@@ -228,6 +228,36 @@ if (level === 'L2') {
 <% } %>
   // ─── L2: STRIDE/RACI traceability ───────────────────────────────────────────
   runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });
+<% if (contractType && contractType !== 'none') { %>
+  // ─── L2: Contract testing gate (INV-35) ──────────────────────────────────────
+<% if (language === 'typescript') { %>
+<% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
+  runCheck('contract tests (Pact)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+<% } else if (contractType === 'graphql') { %>
+  runCheck('contract tests (GraphQL schema)', 'npx', ['graphql-inspector', 'diff', 'schema.graphql'], { soft: graceActive });
+<% } else if (contractType === 'grpc') { %>
+  runCheck('contract tests (gRPC)', 'npx', ['buf', 'breaking', '--against', '.git#branch=main'], { soft: graceActive });
+<% } else if (contractType === 'message-queue') { %>
+  runCheck('contract tests (Pact messaging)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+<% } %>
+<% } else if (language === 'java') { %>
+<% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
+  runCheck('contract tests (Pact)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "pactPublish pactVerify" : "pact:publish pact:verify" %>'], { soft: graceActive });
+<% } else if (contractType === 'graphql') { %>
+  runCheck('contract tests (GraphQL)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.graphql.*" : "test -Dtest=*GraphQL*" %>'], { soft: graceActive });
+<% } else if (contractType === 'grpc') { %>
+  runCheck('contract tests (gRPC)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.grpc.*" : "test -Dtest=*Grpc*" %>'], { soft: graceActive });
+<% } else if (contractType === 'message-queue') { %>
+  runCheck('contract tests (Pact messaging)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "pactPublish pactVerify" : "pact:publish pact:verify" %>'], { soft: graceActive });
+<% } %>
+<% } else if (language === 'rust') { %>
+  runCheck('contract tests', 'cargo', ['test', '--test', '*contract*'], { soft: graceActive });
+<% } else if (language === 'go') { %>
+  runCheck('contract tests', 'go', ['test', '-tags', 'contract', '-run', 'Contract', './...'], { soft: graceActive });
+<% } else if (language === 'python') { %>
+  runCheck('contract tests (Pact)', 'pytest', ['tests/contract/'], { soft: graceActive });
+<% } %>
+<% } %>
   // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
 <% const ratchetFlag = governanceLevel === 'L3' ? '--require-improvement' : '--gate'; %>
