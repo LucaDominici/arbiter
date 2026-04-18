@@ -769,7 +769,7 @@ Gate (dual-sided, CANON-01/14):
 
 ---
 
-## M28 — Contract Testing (Configurable)
+## M28 — Contract Testing (Configurable) ✅ SHIPPED
 
 **Issue:** #76
 **Scope:** Generate contract testing setup branching on `config.contractType` (set by ML, #93).
