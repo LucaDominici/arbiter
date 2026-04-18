@@ -3,6 +3,7 @@ dist/
 *.log
 .env
 coverage/
+!src/templates/coverage/
 
 # Claude Code local settings (user-specific permissions)
 .claude/settings.local.json

@@ -30,3 +30,5 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+apply from: 'gradle/jacoco.gradle'

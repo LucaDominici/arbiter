@@ -26,6 +26,7 @@ import { generateRoot } from "../generators/root.js";
 import { generateCheckAll } from "../generators/check-all.js";
 import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
+import { generateCoverage } from "../generators/coverage.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { generateSuppressions } from "../generators/suppressions.js";
@@ -203,6 +204,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   if (config.enableDebtGates) {
     all.push(...generateDebtGates(config).files);
     all.push(...generateDebtRatchet(config).files);
+    all.push(...generateCoverage(config).files);
   }
 
   if (config.enableSuppressions) {
