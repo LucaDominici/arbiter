@@ -1,0 +1,16 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+
+describe('<%= projectName %> gRPC Protobuf breaking-change detection', () => {
+  it('has no breaking Protobuf changes vs main branch', () => {
+    if (!existsSync('proto')) {
+      console.warn('[WARN] proto/ directory not found — skipping buf check');
+      return;
+    }
+    execFileSync(
+      'buf',
+      ['breaking', '--against', '.git#branch=main'],
+      { encoding: 'utf-8', stdio: 'inherit' },
+    );
+  });
+});

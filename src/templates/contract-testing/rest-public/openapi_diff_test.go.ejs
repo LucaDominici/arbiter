@@ -1,0 +1,25 @@
+package contracts_test
+
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
+
+func TestNoBreakingOpenAPIChanges(t *testing.T) {
+	if _, err := os.Stat("contracts/openapi-reference.yaml"); os.IsNotExist(err) {
+		t.Skip("OpenAPI reference spec not found — skipping diff")
+	}
+	if _, err := os.Stat("contracts/openapi-current.yaml"); os.IsNotExist(err) {
+		t.Skip("OpenAPI current spec not found — skipping diff")
+	}
+
+	cmd := exec.Command("npx", "openapi-diff",
+		"contracts/openapi-reference.yaml",
+		"contracts/openapi-current.yaml",
+		"--fail-on-incompatible")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Breaking OpenAPI changes detected:\n%s", out)
+	}
+}

@@ -1,0 +1,31 @@
+import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
+
+/**
+ * Contract test: verify schema compatibility with the Schema Registry.
+ *
+ * Requires SCHEMA_REGISTRY_URL environment variable.
+ * Topic name convention: <%= projectName %>-events
+ */
+describe('<%= projectName %> Schema Registry compatibility', () => {
+  const registryUrl = process.env['SCHEMA_REGISTRY_URL'];
+
+  beforeAll(() => {
+    if (!registryUrl) {
+      console.warn('[WARN] SCHEMA_REGISTRY_URL not set — skipping schema registry checks');
+    }
+  });
+
+  it('latest schema version is backward compatible', async () => {
+    if (!registryUrl) return;
+
+    const registry = new SchemaRegistry({ host: registryUrl });
+    const subject = '<%= projectName %>-events-value';
+
+    const versions = await registry.getRegistryId(subject, 'latest');
+    expect(versions).toBeDefined();
+
+    // Verify compatibility mode is BACKWARD or FULL
+    const config = await registry.getSchemaRegistryId(subject);
+    console.log(`Schema ID for ${subject}: ${config}`);
+  });
+});

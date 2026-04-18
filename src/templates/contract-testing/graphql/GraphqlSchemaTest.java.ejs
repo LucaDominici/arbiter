@@ -1,0 +1,24 @@
+package <%= basePackage || 'com.example' %>.contracts;
+
+import graphql.schema.idl.SchemaParser;
+import graphql.schema.idl.TypeDefinitionRegistry;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class GraphqlSchemaTest {
+
+    @Test
+    void schemaIsValid() {
+        File schemaFile = new File("contracts/schema-current.graphql");
+        if (!schemaFile.exists()) {
+            System.out.println("[WARN] GraphQL schema not found — skipping validation");
+            return;
+        }
+        SchemaParser parser = new SchemaParser();
+        TypeDefinitionRegistry registry = parser.parse(schemaFile);
+        assertNotNull(registry, "GraphQL schema failed to parse");
+    }
+}

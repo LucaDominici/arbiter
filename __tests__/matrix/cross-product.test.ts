@@ -15,6 +15,7 @@ import {
 import { computeThresholds } from "../../src/config/thresholds.js";
 import { generateGlobalInvariants } from "../../src/generators/global-invariants.js";
 import { generateNightly } from "../../src/generators/nightly.js";
+import { generateContractTesting } from "../../src/generators/contract-testing.js";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1338,6 +1339,42 @@ describe("cross-product: check-all.mjs — test naming gate wired in L1 (INV-11/
         );
         expect(content).toContain("check-test-naming.mjs");
       });
+    }
+  }
+});
+
+// ─── M28: Contract testing — generateContractTesting cross-product sweep ──────
+
+const CONTRACT_TYPES = [
+  "rest-owned",
+  "rest-public",
+  "graphql",
+  "grpc",
+  "message-queue",
+] as const;
+
+describe("cross-product: generateContractTesting — no throw for lang × level × contractType (M28)", () => {
+  for (const lang of LANGUAGES) {
+    for (const level of ["L2", "L3"] as GovernanceLevel[]) {
+      for (const contractType of CONTRACT_TYPES) {
+        it(`${lang}+${level}+${contractType}: generateContractTesting does not throw`, () => {
+          const d = mkdtempSync(
+            join(tmpdir(), `arbiter-cp-contract-${lang}-${level}-`),
+          );
+          try {
+            const config = makeConfig(d, {
+              language: lang,
+              governanceLevel: level,
+              contractType,
+              basePackage: "com.example",
+              ...STACK_CONFIG[lang],
+            });
+            expect(() => generateContractTesting(config)).not.toThrow();
+          } finally {
+            rmSync(d, { recursive: true, force: true });
+          }
+        });
+      }
     }
   }
 });

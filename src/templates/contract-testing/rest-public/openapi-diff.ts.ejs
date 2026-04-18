@@ -1,0 +1,29 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+
+/**
+ * Contract test: verify no breaking changes in the OpenAPI spec.
+ *
+ * Requires openapi-diff CLI: npm install -g openapi-diff
+ * Reference spec stored at: contracts/openapi-reference.yaml
+ * Current spec served by the running app or exported to: contracts/openapi-current.yaml
+ */
+describe('<%= projectName %> OpenAPI breaking-change detection', () => {
+  const contractsDir = path.resolve(process.cwd(), 'contracts');
+  const referenceSpec = path.join(contractsDir, 'openapi-reference.yaml');
+  const currentSpec = path.join(contractsDir, 'openapi-current.yaml');
+
+  it('has no breaking changes vs the reference spec', () => {
+    if (!existsSync(referenceSpec) || !existsSync(currentSpec)) {
+      console.warn('[WARN] OpenAPI spec files not found — skipping diff (run export first)');
+      return;
+    }
+    const result = execFileSync(
+      'npx',
+      ['openapi-diff', referenceSpec, currentSpec, '--fail-on-incompatible'],
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+    console.log(result);
+  });
+});

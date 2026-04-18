@@ -1,0 +1,45 @@
+package contracts_test
+
+import (
+	"fmt"
+	"net/http"
+	"testing"
+
+	"github.com/pact-foundation/pact-go/v2/consumer"
+	"github.com/pact-foundation/pact-go/v2/matchers"
+)
+
+func TestPactConsumer(t *testing.T) {
+	mockProvider, err := consumer.NewV2Pact(consumer.MockHTTPProviderConfig{
+		Consumer: "<%= projectName %>-consumer",
+		Provider: "<%= projectName %>-provider",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = mockProvider.
+		AddInteraction().
+		Given("a resource exists").
+		UponReceiving("a request for a resource").
+		WithRequest("GET", "/api/resource").
+		WillRespondWith(200, func(b *consumer.V2ResponseBuilder) {
+			b.JSONBody(matchers.Map{
+				"id":   matchers.Like(1),
+				"name": matchers.Like("example"),
+			})
+		}).
+		ExecuteTest(t, func(config consumer.MockServerConfig) error {
+			resp, err := http.Get(fmt.Sprintf("http://%s:%d/api/resource", config.Host, config.Port))
+			if err != nil {
+				return err
+			}
+			if resp.StatusCode != 200 {
+				return fmt.Errorf("expected 200, got %d", resp.StatusCode)
+			}
+			return nil
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

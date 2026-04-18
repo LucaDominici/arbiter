@@ -1,0 +1,24 @@
+package contracts_test
+
+import (
+	"net/http"
+	"os"
+	"testing"
+)
+
+func TestSchemaRegistryReachable(t *testing.T) {
+	registryURL := os.Getenv("SCHEMA_REGISTRY_URL")
+	if registryURL == "" {
+		t.Skip("SCHEMA_REGISTRY_URL not set — skipping schema registry check")
+	}
+
+	resp, err := http.Get(registryURL + "/subjects")
+	if err != nil {
+		t.Fatalf("Schema registry unreachable: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Schema registry returned %d", resp.StatusCode)
+	}
+}

@@ -1,0 +1,19 @@
+package contracts_test
+
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
+
+func TestNoBreakingProtobufChanges(t *testing.T) {
+	if _, err := os.Stat("proto"); os.IsNotExist(err) {
+		t.Skip("proto/ directory not found — skipping buf check")
+	}
+
+	cmd := exec.Command("buf", "breaking", "--against", ".git#branch=main")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Breaking Protobuf changes detected:\n%s", out)
+	}
+}

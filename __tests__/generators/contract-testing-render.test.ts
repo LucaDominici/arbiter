@@ -1,0 +1,326 @@
+import { describe, it, expect } from "vitest";
+import { renderTemplate } from "../../src/utils/render.js";
+
+/**
+ * CANON-04 compliance: every .ejs template in src/templates/contract-testing/
+ * must appear in at least one test with a concrete string assertion.
+ * 29 templates → ≥29 test cases.
+ */
+
+const baseData = {
+  projectName: "my-project",
+  contractType: "rest-owned",
+  language: "typescript",
+  governanceLevel: "L2",
+  basePackage: "com.example",
+};
+
+// ─── CONTRACTS_POLICY.md.ejs (1 template, 5 contractType branches) ───────────
+
+describe("contract-testing render: CONTRACTS_POLICY.md.ejs", () => {
+  it("rest-owned: contains 'Pact'", () => {
+    const content = renderTemplate("contract-testing/CONTRACTS_POLICY.md.ejs", {
+      ...baseData,
+      contractType: "rest-owned",
+    });
+    expect(content).toContain("Pact");
+  });
+
+  it("rest-public: contains 'openapi-diff'", () => {
+    const content = renderTemplate("contract-testing/CONTRACTS_POLICY.md.ejs", {
+      ...baseData,
+      contractType: "rest-public",
+    });
+    expect(content).toContain("openapi-diff");
+  });
+
+  it("graphql: contains 'graphql-inspector'", () => {
+    const content = renderTemplate("contract-testing/CONTRACTS_POLICY.md.ejs", {
+      ...baseData,
+      contractType: "graphql",
+    });
+    expect(content).toContain("graphql-inspector");
+  });
+
+  it("grpc: contains 'buf'", () => {
+    const content = renderTemplate("contract-testing/CONTRACTS_POLICY.md.ejs", {
+      ...baseData,
+      contractType: "grpc",
+    });
+    expect(content).toContain("buf");
+  });
+
+  it("message-queue: contains 'Schema Registry'", () => {
+    const content = renderTemplate("contract-testing/CONTRACTS_POLICY.md.ejs", {
+      ...baseData,
+      contractType: "message-queue",
+    });
+    expect(content).toContain("Schema Registry");
+  });
+});
+
+// ─── rest-owned templates (6 templates) ──────────────────────────────────────
+
+describe("contract-testing render: rest-owned", () => {
+  it("pact-consumer.test.ts.ejs: contains '@pact-foundation/pact'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact-consumer.test.ts.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content).toContain("@pact-foundation/pact");
+  });
+
+  it("pact-consumer.test.ts.ejs: contains projectName interpolation 'my-project'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact-consumer.test.ts.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content).toContain("my-project");
+  });
+
+  it("PactVerificationIT.java.ejs: contains 'au.com.dius.pact'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/PactVerificationIT.java.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content).toContain("au.com.dius.pact");
+  });
+
+  it("PactVerificationIT.java.ejs: contains basePackage interpolation 'com.example'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/PactVerificationIT.java.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content).toContain("com.example");
+  });
+
+  it("pact-deps.gradle.ejs: contains 'au.com.dius.pact.provider'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact-deps.gradle.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content).toContain("au.com.dius.pact.provider");
+  });
+
+  it("pact_consumer_test.rs.ejs: contains 'pact_consumer'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact_consumer_test.rs.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content).toContain("pact_consumer");
+  });
+
+  it("pact_consumer_test.go.ejs: contains 'pact-foundation/pact-go'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact_consumer_test.go.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content).toContain("pact-foundation/pact-go");
+  });
+
+  it("test_pact_consumer.py.ejs: contains 'pact'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/test_pact_consumer.py.ejs",
+      { ...baseData, contractType: "rest-owned" },
+    );
+    expect(content.includes("pact-python") || content.includes("pact")).toBe(
+      true,
+    );
+  });
+});
+
+// ─── rest-public templates (5 templates) ─────────────────────────────────────
+
+describe("contract-testing render: rest-public", () => {
+  it("openapi-diff.ts.ejs: contains 'openapi-diff'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi-diff.ts.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-diff");
+  });
+
+  it("OpenApiDiffIT.java.ejs: contains 'openapi-diff' or 'openapidiff'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/OpenApiDiffIT.java.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(
+      content.includes("openapi-diff") || content.includes("openapidiff"),
+    ).toBe(true);
+  });
+
+  it("openapi_diff_test.rs.ejs: contains 'openapi-diff'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi_diff_test.rs.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-diff");
+  });
+
+  it("openapi_diff_test.go.ejs: contains 'openapi-diff'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi_diff_test.go.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-diff");
+  });
+
+  it("test_openapi_diff.py.ejs: contains 'openapi-diff'", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/test_openapi_diff.py.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-diff");
+  });
+});
+
+// ─── graphql templates (5 templates) ─────────────────────────────────────────
+
+describe("contract-testing render: graphql", () => {
+  it("graphql-inspector.test.ts.ejs: contains 'graphql-inspector'", () => {
+    const content = renderTemplate(
+      "contract-testing/graphql/graphql-inspector.test.ts.ejs",
+      { ...baseData, contractType: "graphql" },
+    );
+    expect(content).toContain("graphql-inspector");
+  });
+
+  it("GraphqlSchemaTest.java.ejs: contains 'graphql'", () => {
+    const content = renderTemplate(
+      "contract-testing/graphql/GraphqlSchemaTest.java.ejs",
+      { ...baseData, contractType: "graphql" },
+    );
+    expect(content.toLowerCase()).toContain("graphql");
+  });
+
+  it("graphql_schema_test.rs.ejs: contains 'graphql-inspector'", () => {
+    const content = renderTemplate(
+      "contract-testing/graphql/graphql_schema_test.rs.ejs",
+      { ...baseData, contractType: "graphql" },
+    );
+    expect(content).toContain("graphql-inspector");
+  });
+
+  it("graphql_schema_test.go.ejs: contains 'graphql-inspector'", () => {
+    const content = renderTemplate(
+      "contract-testing/graphql/graphql_schema_test.go.ejs",
+      { ...baseData, contractType: "graphql" },
+    );
+    expect(content).toContain("graphql-inspector");
+  });
+
+  it("test_graphql_schema.py.ejs: contains 'graphql-inspector'", () => {
+    const content = renderTemplate(
+      "contract-testing/graphql/test_graphql_schema.py.ejs",
+      { ...baseData, contractType: "graphql" },
+    );
+    expect(content).toContain("graphql-inspector");
+  });
+});
+
+// ─── grpc templates (7 templates) ────────────────────────────────────────────
+
+describe("contract-testing render: grpc", () => {
+  it("buf.yaml.ejs: contains 'version: v2'", () => {
+    const content = renderTemplate("contract-testing/grpc/buf.yaml.ejs", {
+      ...baseData,
+      contractType: "grpc",
+    });
+    expect(content).toContain("version: v2");
+  });
+
+  it("buf-breaking.yml.ejs: contains 'FILE'", () => {
+    const content = renderTemplate(
+      "contract-testing/grpc/buf-breaking.yml.ejs",
+      { ...baseData, contractType: "grpc" },
+    );
+    expect(content).toContain("FILE");
+  });
+
+  it("grpc-contract.test.ts.ejs: contains 'buf'", () => {
+    const content = renderTemplate(
+      "contract-testing/grpc/grpc-contract.test.ts.ejs",
+      { ...baseData, contractType: "grpc" },
+    );
+    expect(content).toContain("buf");
+  });
+
+  it("GrpcContractTest.java.ejs: contains 'buf'", () => {
+    const content = renderTemplate(
+      "contract-testing/grpc/GrpcContractTest.java.ejs",
+      { ...baseData, contractType: "grpc" },
+    );
+    expect(content).toContain("buf");
+  });
+
+  it("grpc_contract_test.rs.ejs: contains 'buf'", () => {
+    const content = renderTemplate(
+      "contract-testing/grpc/grpc_contract_test.rs.ejs",
+      { ...baseData, contractType: "grpc" },
+    );
+    expect(content).toContain("buf");
+  });
+
+  it("grpc_contract_test.go.ejs: contains 'buf'", () => {
+    const content = renderTemplate(
+      "contract-testing/grpc/grpc_contract_test.go.ejs",
+      { ...baseData, contractType: "grpc" },
+    );
+    expect(content).toContain("buf");
+  });
+
+  it("test_grpc_contract.py.ejs: contains 'buf'", () => {
+    const content = renderTemplate(
+      "contract-testing/grpc/test_grpc_contract.py.ejs",
+      { ...baseData, contractType: "grpc" },
+    );
+    expect(content).toContain("buf");
+  });
+});
+
+// ─── message-queue templates (5 templates) ───────────────────────────────────
+
+describe("contract-testing render: message-queue", () => {
+  it("schema-registry-check.ts.ejs: contains 'SchemaRegistry' or 'schema-registry'", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/schema-registry-check.ts.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(
+      content.includes("schema-registry") || content.includes("SchemaRegistry"),
+    ).toBe(true);
+  });
+
+  it("SchemaRegistryCheckIT.java.ejs: contains 'SchemaRegistry'", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content).toContain("SchemaRegistry");
+  });
+
+  it("schema_registry_test.rs.ejs: contains 'schema_registry'", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/schema_registry_test.rs.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content).toContain("schema_registry");
+  });
+
+  it("schema_registry_test.go.ejs: contains 'SCHEMA_REGISTRY_URL'", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/schema_registry_test.go.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content).toContain("SCHEMA_REGISTRY_URL");
+  });
+
+  it("test_schema_registry.py.ejs: contains 'SCHEMA_REGISTRY_URL'", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/test_schema_registry.py.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content).toContain("SCHEMA_REGISTRY_URL");
+  });
+});

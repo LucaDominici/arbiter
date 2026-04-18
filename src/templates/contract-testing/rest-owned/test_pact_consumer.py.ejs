@@ -1,0 +1,35 @@
+import pytest
+from pact import Consumer, Provider
+
+PACT_MOCK_HOST = "localhost"
+PACT_MOCK_PORT = 1234
+
+
+@pytest.fixture(scope="module")
+def pact():
+    consumer = Consumer("<%= projectName %>-consumer")
+    p = consumer.has_pact_with(
+        Provider("<%= projectName %>-provider"),
+        host_name=PACT_MOCK_HOST,
+        port=PACT_MOCK_PORT,
+        pact_dir="./pacts",
+    )
+    p.start_service()
+    yield p
+    p.stop_service()
+
+
+def test_get_resource(pact):
+    expected = {"id": 1, "name": "example"}
+
+    (
+        pact.given("a resource exists")
+        .upon_receiving("a request for a resource")
+        .with_request("GET", "/api/resource")
+        .will_respond_with(200, body=expected)
+    )
+
+    with pact:
+        import requests
+        result = requests.get(f"http://{PACT_MOCK_HOST}:{PACT_MOCK_PORT}/api/resource")
+        assert result.status_code == 200

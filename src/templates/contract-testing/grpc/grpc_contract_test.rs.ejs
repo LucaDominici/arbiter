@@ -1,0 +1,22 @@
+#[cfg(test)]
+mod grpc_contract_tests {
+    use std::path::Path;
+    use std::process::Command;
+
+    #[test]
+    fn no_breaking_protobuf_changes() {
+        if !Path::new("proto").exists() {
+            println!("[WARN] proto/ directory not found — skipping buf check");
+            return;
+        }
+
+        let output = Command::new("buf")
+            .args(["breaking", "--against", ".git#branch=main"])
+            .output()
+            .expect("Failed to run buf");
+
+        assert!(output.status.success(),
+            "Breaking Protobuf changes detected:\n{}",
+            String::from_utf8_lossy(&output.stdout));
+    }
+}

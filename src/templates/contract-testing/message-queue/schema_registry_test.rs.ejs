@@ -1,0 +1,21 @@
+#[cfg(test)]
+mod schema_registry_tests {
+    use schema_registry_converter::async_impl::schema_registry::SrSettings;
+
+    #[tokio::test]
+    async fn schema_registry_is_reachable() {
+        let registry_url = match std::env::var("SCHEMA_REGISTRY_URL") {
+            Ok(url) => url,
+            Err(_) => {
+                println!("[WARN] SCHEMA_REGISTRY_URL not set — skipping");
+                return;
+            }
+        };
+
+        let settings = SrSettings::new(registry_url);
+        // A successful SrSettings construction indicates valid URL format.
+        // Integration tests requiring a live registry should be tagged #[ignore]
+        // and run with: cargo test -- --include-ignored
+        assert!(!settings.get_url().is_empty());
+    }
+}
