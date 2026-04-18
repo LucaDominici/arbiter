@@ -24,6 +24,20 @@ export function generateDebtGates(
         { skipIfExists: true },
       ),
     );
+    results.push(
+      writeFile(
+        resolvedPath(base, ".eslintrc-static.json"),
+        renderTemplate("debt-gates/eslintrc-static.json.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    results.push(
+      writeFile(
+        resolvedPath(base, ".prettierrc.json"),
+        renderTemplate("debt-gates/prettierrc.json.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
   }
 
   if (config.language === "go") {
@@ -46,6 +60,27 @@ export function generateDebtGates(
     );
     results.push(
       writeFile(
+        resolvedPath(base, "config", "checkstyle.xml"),
+        renderTemplate("debt-gates/checkstyle.xml.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    results.push(
+      writeFile(
+        resolvedPath(base, "config", "spotbugs-exclude.xml"),
+        renderTemplate("debt-gates/spotbugs-exclude.xml.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    results.push(
+      writeFile(
+        resolvedPath(base, "spotless.gradle"),
+        renderTemplate("debt-gates/spotless.gradle.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    results.push(
+      writeFile(
         resolvedPath(base, "config", "pitest-setup.md"),
         renderTemplate("debt-gates/pitest-setup.md.ejs", data),
         { skipIfExists: true },
@@ -55,6 +90,16 @@ export function generateDebtGates(
       writeFile(
         resolvedPath(base, "spotbugs.gradle"),
         renderTemplate("debt-gates/spotbugs.gradle.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
+  if (config.language === "python") {
+    results.push(
+      writeFile(
+        resolvedPath(base, "ruff.toml"),
+        renderTemplate("debt-gates/ruff.toml.ejs", data),
         { skipIfExists: true },
       ),
     );
