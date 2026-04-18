@@ -1,6 +1,33 @@
 {
   "_comment": "Machine-readable maturity index for the cross-language enforcement matrix. Values: proven | beta | unsafe | unavailable. Consumed by src/utils/maturity-check.ts.",
-  "_lastUpdated": "2026-04-17",
+  "_lastUpdated": "2026-04-18",
+  "static_analysis": {
+    "java": {
+      "tool": "checkstyle+pmd+spotbugs+spotless",
+      "maturity": "proven",
+      "reason": "All four tools wired into L1/L2 gate; precise Viafera-equivalent rulesets"
+    },
+    "typescript": {
+      "tool": "eslint+prettier",
+      "maturity": "proven",
+      "reason": "Comprehensive static rules + format check wired into L1 gate"
+    },
+    "rust": {
+      "tool": "clippy",
+      "maturity": "proven",
+      "reason": "cargo clippy -D warnings wired into L1; pedantic deny rules in clippy.toml for hexagonal archetype"
+    },
+    "go": {
+      "tool": "golangci-lint",
+      "maturity": "proven",
+      "reason": "Full linter suite (gocyclo/gosec/errcheck/staticcheck) wired into L1 gate"
+    },
+    "python": {
+      "tool": "ruff",
+      "maturity": "proven",
+      "reason": "Comprehensive rules (complexity/unused/security) wired into L1 gate"
+    }
+  },
   "mutation": {
     "java": {
       "tool": "pitest",

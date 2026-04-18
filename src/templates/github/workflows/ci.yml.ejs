@@ -211,7 +211,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-tarpaulin
-      - run: cargo tarpaulin --fail-under <%= threshold %>
+      - run: cargo tarpaulin --fail-under <%= threshold %> --out Html --out Xml --out Lcov --output-dir coverage/
       - run: cargo clippy -- -W clippy::pedantic -D warnings
 <% } %><% if (language === 'java') { %>
       - uses: actions/setup-java@v4
@@ -221,8 +221,19 @@ jobs:
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
       - run: ./gradlew jacocoTestCoverageVerification
       - run: ./gradlew pmdMain
+      - name: Copy JaCoCo reports to coverage/
+        if: always()
+        run: |
+          mkdir -p coverage
+          cp -r build/coverage/html/. coverage/ 2>/dev/null || true
+          cp build/coverage/coverage.xml coverage/coverage.xml 2>/dev/null || true
 <% } else { %>      - run: mvn verify -Pjacoco
       - run: mvn pmd:check
+      - name: Copy JaCoCo reports to coverage/
+        if: always()
+        run: |
+          mkdir -p coverage
+          cp -r target/coverage/. coverage/ 2>/dev/null || true
 <% } %><% } %><% if (language === 'go') { %>
       - uses: actions/setup-go@v5
         with:
@@ -236,16 +247,27 @@ jobs:
             exit 1
           fi
           echo "Coverage ${PCT}% >= <%= threshold %>%"
+      - name: Generate HTML coverage report
+        run: |
+          mkdir -p coverage
+          go tool cover -html=coverage.out -o coverage/coverage.html
       - run: golangci-lint run --enable gocyclo,gocognit,deadcode,unused
 <% } %><% if (language === 'python') { %>
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: pip install -e ".[dev]"
-      - run: pytest --cov --cov-fail-under=<%= threshold %>
+      - run: pytest --cov --cov-fail-under=<%= threshold %> --cov-report=html:coverage/html --cov-report=xml:coverage/coverage.xml
       - run: ruff check --select C901,PLR0911,PLR0912,PLR0913,PLR0915 .
       - run: ruff check --select F401,F811 .
 <% } %>
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ github.run_id }}
+          path: coverage/
+          retention-days: 30
 <% } %>
 
 <% if (enableDebtGates) { %>

@@ -1,0 +1,26 @@
+# pytest-cov configuration
+# Gate: pytest --cov --cov-report=html:coverage/html --cov-report=xml:coverage/coverage.xml (L2)
+
+[run]
+branch = True
+source = .
+omit =
+    tests/*
+    **/test_*.py
+    **/*_test.py
+    **/conftest.py
+    setup.py
+
+[report]
+fail_under = <%= coverageThreshold %>
+show_missing = True
+skip_covered = False
+
+[html]
+directory = coverage/html
+
+[xml]
+output = coverage/coverage.xml
+
+[lcov]
+output = coverage/lcov.info

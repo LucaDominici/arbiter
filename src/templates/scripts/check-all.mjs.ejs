@@ -4,7 +4,7 @@
 // L1: format + lint + unit tests (fast, pre-commit)
 // L2: L1 + coverage + audit (full, pre-push)
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const level = process.argv[2] ?? 'L2';
@@ -61,6 +61,12 @@ runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
 runCheck('typecheck', 'npx', ['tsc', '--noEmit']);
 runCheck('format', 'npx', ['prettier', '--check', '.']);
 runCheck('lint', 'npx', ['eslint', 'src']);
+// ─── L1: Static analysis rules (M29) ─────────────────────────────────────────
+if (existsSync('.eslintrc-static.json')) {
+  runCheck('static analysis', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-static.json', 'src']);
+} else {
+  console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
+}
 runCheck('unit tests', 'npm', ['test']);
 <% } %><% if (language === 'rust') { %>
 runCheck('fmt', 'cargo', ['fmt', '--check']);
@@ -68,9 +74,11 @@ runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
 runCheck('unit tests', 'cargo', ['test']);
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
 runCheck('checkstyle', './gradlew', ['checkstyleMain', '-q']);
+runCheck('format (spotless)', './gradlew', ['spotlessCheck', '-q']);
 runCheck('unit tests', './gradlew', ['test', '-q']);
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
 runCheck('checkstyle', 'mvn', ['checkstyle:check', '-q']);
+runCheck('format (spotless)', 'mvn', ['spotless:check', '-q']);
 runCheck('unit tests', 'mvn', ['test', '-q']);
 <% } %><% if (language === 'go') { %>
 runCheck('vet', 'go', ['vet', './...']);
@@ -178,9 +186,11 @@ if (level === 'L2') {
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q'], { soft: graceActive });
   runCheck('pmd', './gradlew', ['pmdMain', '-q'], { soft: graceActive });
+  runCheck('spotbugs', './gradlew', ['spotbugsMain', '-q']);
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q'], { soft: graceActive });
   runCheck('pmd', 'mvn', ['pmd:check', '-q'], { soft: graceActive });
+  runCheck('spotbugs', 'mvn', ['com.github.spotbugs:spotbugs-maven-plugin:check', '-q']);
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...'], { soft: graceActive });
@@ -197,11 +207,21 @@ if (level === 'L2') {
       if (!graceActive) failed++;
     } else { console.log(`PASS (${pct.toFixed(1)}%)`); }
   }
+  if (existsSync('coverage.out')) {
+    mkdirSync('coverage', { recursive: true });
+    process.stdout.write('[CHECK] coverage HTML report ... ');
+    const htmlResult = spawnSync('go', ['tool', 'cover', '-html=coverage.out', '-o', 'coverage/coverage.html'], { encoding: 'utf-8', shell: false });
+    if (htmlResult.status !== 0) {
+      console.log('FAIL (go tool cover -html)');
+      if (htmlResult.stderr) process.stderr.write(htmlResult.stderr);
+      if (!graceActive) failed++;
+    } else { console.log('PASS'); }
+  }
 <% } %>
-  runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,deadcode,unused'], { soft: graceActive });
+  runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,unused'], { soft: graceActive });
 <% } %><% if (language === 'python') { %>
 <% if (coverageEnabled) { %>
-  runCheck('coverage threshold', 'pytest', ['--cov', '--cov-fail-under=<%= coverageThreshold %>'], { soft: graceActive });
+  runCheck('coverage threshold', 'pytest', ['--cov', '--cov-fail-under=<%= coverageThreshold %>', '--cov-report=html:coverage/html', '--cov-report=xml:coverage/coverage.xml'], { soft: graceActive });
 <% } %>
   runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.'], { soft: graceActive });
   runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.'], { soft: graceActive });

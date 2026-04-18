@@ -815,22 +815,22 @@ Gate (dual-sided, CANON-01/14):
 
 ---
 
-## M30 — Coverage Tool Integration
+## M30 — Coverage Tool Integration ✅
 
-**Issue:** #78
-**Scope:** Integrate coverage verification into build tools, not just gate scripts. Currently thresholds are in gate script; must be in build tool config.
+**Issue:** #78 (closed)
+**Scope:** Integrate coverage verification into build tools, not just gate scripts. Previously thresholds were only in gate script; now enforced in build tool config too.
 
-**Deliverables:**
+**Deliverables (shipped):**
 
-- **Java:** JaCoCo plugin in `build.gradle.ejs` with `jacocoTestCoverageVerification` task, line/branch thresholds, exclusions, HTML/XML/LCOV reports
-- **TypeScript:** vitest coverage config in `vitest.config.ts.ejs` with threshold enforcement
-- **Rust:** cargo-tarpaulin config with `--fail-under`
-- **Go:** go test -coverprofile threshold check integrated in gate
-- **Python:** pytest-cov config in `pyproject.toml.ejs` with `--cov-fail-under`
+- **Java/Gradle:** `gradle/jacoco.gradle` — JaCoCo plugin, `jacocoTestCoverageVerification` task with line/branch thresholds, exclusions, HTML+XML reports to `build/coverage/`
+- **Java/Maven:** `docs/coverage/jacoco-maven-setup.md` — advisory doc with full `pom.xml` snippet (fragment pattern, same as pitest)
+- **TypeScript:** `vitest.config.ts` — provider v8, reporters text/html/lcov, threshold enforcement
+- **Rust:** `.tarpaulin.toml` — `out = ["Html", "Xml", "Lcov"]`, `output-dir = "coverage/"`, threshold via `--fail-under` in gate
+- **Python:** `.coveragerc` — `[run] branch=True`, `[report] fail_under`, html+xml+lcov report dirs
+- **Go:** no config file; HTML report via `go tool cover -html` in gate script
+- **CI:** `ci.yml.ejs` — JaCoCo path normalization steps (Gradle+Maven) + `actions/upload-artifact` for all stacks
 
 **Gate:** Coverage verification in build tool (not just gate script).
-
-**Dependencies:** M29, MG (#88 — scaled thresholds).
 
 **Phase 9.5 integration:** Coverage thresholds are no longer hardcoded. MG computes them per-project from LoC floors + archetype + strictness tier. A 500-LoC Rust CLI does not get a 80% threshold; a 100k-LoC monolith gets archetype-calibrated numbers.
 

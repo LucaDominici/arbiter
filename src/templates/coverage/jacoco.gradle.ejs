@@ -1,0 +1,49 @@
+// Wire into build.gradle: apply from: 'gradle/jacoco.gradle'
+// Gate: ./gradlew jacocoTestCoverageVerification (L2 — hard fail)
+// Reports: ./gradlew jacocoTestReport → build/coverage/
+
+apply plugin: 'jacoco'
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir('coverage/html')
+        xml.required = true
+        xml.outputLocation = layout.buildDirectory.file('coverage/coverage.xml')
+        csv.required = false
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = <%= (coverageThreshold / 100).toFixed(2) %>
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = <%= (Math.max(60, coverageThreshold - 10) / 100).toFixed(2) %>
+            }
+            excludes = [
+                '*Test',
+                '*Tests',
+                '*Spec',
+                '*IT',
+                '*Config',
+                '*Application',
+                '*.generated.*',
+            ]
+        }
+    }
+}
+
+check.dependsOn jacocoTestCoverageVerification
