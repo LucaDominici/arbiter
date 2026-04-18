@@ -9,7 +9,8 @@ plugins {
 spotbugs {
     effort = 'max'
     reportLevel = 'medium'
-    ignoreFailures = true  // capture-debt-baseline.mjs reads the XML report; gate via debt-report.mjs
+    ignoreFailures = false
+    excludeFilter = file('config/spotbugs-exclude.xml')
 }
 
 spotbugsMain {

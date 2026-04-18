@@ -172,7 +172,7 @@ describe("matrix: Go project", () => {
     expect(existsSync(join(dir, ".golangci.yml"))).toBe(false);
   });
 
-  it("check-all.mjs includes gocyclo and deadcode when enableDebtGates is true", () => {
+  it("check-all.mjs includes gocyclo and unused when enableDebtGates is true", () => {
     const config = goConfig({ enableDebtGates: true });
     runGenerators(config);
     const checkAll = readFileSync(
@@ -180,7 +180,7 @@ describe("matrix: Go project", () => {
       "utf-8",
     );
     expect(checkAll).toContain("gocyclo");
-    expect(checkAll).toContain("deadcode");
+    expect(checkAll).toContain("unused");
   });
 
   it("CI workflow includes debt-gates job for Go when enableDebtGates is true", () => {

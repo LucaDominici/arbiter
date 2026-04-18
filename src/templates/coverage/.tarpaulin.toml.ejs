@@ -1,0 +1,7 @@
+# cargo-tarpaulin configuration
+# Gate: cargo tarpaulin --fail-under <%= coverageThreshold %> (L2 — hard fail)
+# Note: threshold is enforced via --fail-under CLI flag in check-all.mjs; not via this file.
+
+[run]
+out = ["Html", "Xml", "Lcov"]
+output-dir = "coverage/"

@@ -1,0 +1,72 @@
+# JaCoCo Coverage — Maven Setup
+
+Add the JaCoCo plugin to your `pom.xml` to enable coverage verification and reporting.
+
+## Required `pom.xml` additions
+
+```xml
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.jacoco</groupId>
+      <artifactId>jacoco-maven-plugin</artifactId>
+      <version>0.8.12</version>
+      <executions>
+        <!-- Instrument classes for coverage measurement -->
+        <execution>
+          <id>prepare-agent</id>
+          <goals><goal>prepare-agent</goal></goals>
+        </execution>
+        <!-- Generate HTML + XML reports -->
+        <execution>
+          <id>report</id>
+          <phase>verify</phase>
+          <goals><goal>report</goal></goals>
+          <configuration>
+            <outputDirectory>${project.build.directory}/coverage</outputDirectory>
+          </configuration>
+        </execution>
+        <!-- Enforce thresholds -->
+        <execution>
+          <id>check</id>
+          <phase>verify</phase>
+          <goals><goal>check</goal></goals>
+          <configuration>
+            <rules>
+              <rule>
+                <limits>
+                  <limit>
+                    <counter>LINE</counter>
+                    <value>COVEREDRATIO</value>
+                    <minimum><%= (coverageThreshold / 100).toFixed(2) %></minimum>
+                  </limit>
+                  <limit>
+                    <counter>BRANCH</counter>
+                    <value>COVEREDRATIO</value>
+                    <minimum><%= (Math.max(60, coverageThreshold - 10) / 100).toFixed(2) %></minimum>
+                  </limit>
+                </limits>
+                <excludes>
+                  <exclude>*Test</exclude>
+                  <exclude>*Tests</exclude>
+                  <exclude>*IT</exclude>
+                  <exclude>*Config</exclude>
+                  <exclude>*Application</exclude>
+                </excludes>
+              </rule>
+            </rules>
+          </configuration>
+        </execution>
+      </executions>
+    </plugin>
+  </plugins>
+</build>
+```
+
+## Gate command
+
+```bash
+mvn verify -Pjacoco
+```
+
+Reports are written to `target/coverage/`.

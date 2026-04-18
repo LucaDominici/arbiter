@@ -711,18 +711,18 @@ Evidence harness:
 
 ---
 
-## M26 — Real Database & Integration Testing
+## M26 — Real Database & Integration Testing ✓ SHIPPED
 
-**Issue:** #74
+**Issue:** #74 (PR #188)
 **Scope:** Generate Testcontainers setup and enforce real database testing. Viafera uses Testcontainers with PostgreSQL; H2 is forbidden.
 
 **Deliverables:**
 
-- **Java:** Testcontainers dependency in `build.gradle.ejs` (testcontainers, postgresql), `AbstractIntegrationTest.java` base class, ArchUnit rule forbidding `org.h2` imports
-- **TypeScript:** testcontainers-node setup for integration tests
-- **Go:** testcontainers-go setup
-- **Python:** testcontainers-python setup
-- **Rust:** sqlx test setup with real database
+- **Java:** Testcontainers dependency in `build.gradle.ejs` (testcontainers, postgresql), `AbstractIntegrationTest.java` base class, ArchUnit rule forbidding `org.h2` imports (`NoH2ArchTest.java`)
+- **TypeScript:** `test-setup.ts.ejs` with testcontainers-node, `eslint-no-fake-db.json.ejs` banning `better-sqlite3`/`sqlite3`
+- **Go:** `main_test.go.ejs` with testcontainers-go and TestMain setup
+- **Python:** `conftest.py.ejs` with testcontainers-python PostgreSQL fixture
+- **Rust:** `db_fixture.rs.ejs` with sqlx + testcontainers test setup
 
 **Gate:** L2+ — integration tests with real database. No in-memory database allowed.
 
@@ -734,37 +734,38 @@ Evidence harness:
 
 ---
 
-## M27 — Behavioral Test Structure & Test Quality
+## M27 — Behavioral Test Structure & Test Quality ✓ SHIPPED
 
-**Issue:** #75
+**Issue:** #75 (PR #189)
 **Scope:** Generate test structure templates and quality enforcement. Viafera uses @Nested/@DisplayName (Java), describe/it (TS).
 
 **Deliverables:**
 
-Behavioral test templates:
+Behavioral test templates (`src/templates/behavioral-tests/`):
 
-- **Java:** @Nested + @DisplayName Given/When/Then pattern
-- **TypeScript:** describe/it/context pattern with Vitest
-- **Rust:** mod test with descriptive naming
-- **Go:** subtests with `t.Run("given X when Y then Z")`
-- **Python:** pytest classes with descriptive methods
+- **Java:** `ExampleBehavioralTest.java.ejs` — `@Nested`/`@DisplayName` Given/When/Then with AssertJ
+- **TypeScript:** `example.behavioral.test.ts.ejs` — Vitest `describe/it` with nested context blocks
+- **Rust:** `example_behavioral_test.rs.ejs` — `#[cfg(test)]` + `#[test]` with descriptive `given_X_when_Y_then_Z` names
+- **Go:** `example_behavioral_test.go.ejs` — `t.Run("given X / when Y / then Z")` subtests
+- **Python:** `test_example_behavioral.py.ejs` — pytest `class TestGiven...` with `def test_when_...` methods
 
 Testing policy document:
 
-- Generate `TESTING_POLICY.md.ejs` for target projects
-- Mock policy (what can be mocked, what cannot)
-- E2E policy (REAL-only for core APIs)
-- Minimum smoke test set
+- `TESTING_POLICY.md.ejs` with L1/L2/L3 governance guards: test pyramid, mock policy, E2E policy, naming conventions, coverage targets
 
-Playwright quality (frontend projects):
+Playwright quality (frontend-spa TypeScript only):
 
-- Generate ESLint `eslint-plugin-playwright` config: no-force-option, no-wait-for-timeout, no-page-pause
+- `.eslintrc-playwright.json.ejs`: no-force-option, no-wait-for-timeout, no-page-pause, prefer-web-first-assertions
+- Playwright gate wired in `check-all.mjs.ejs` (L1, graceful skip if plugin absent)
 
-**Gate:** Test naming convention verified in gate script.
+Gate (dual-sided, CANON-01/14):
+
+- `scripts/check-test-naming.mjs.ejs` — language-specific naming convention gate (HARD L1+) for all 5 stacks
+- Wired in `check-all.mjs.ejs` and in arbiter's own `scripts/check-all.mjs`
 
 **Dependencies:** M26, MH (#89 — test pyramid profile).
 
-**Phase 9.5 integration:** Behavioral test templates are emitted per the archetype's test pyramid profile (MH). CLI archetypes get subprocess-based integration examples, not Given/When/Then Spring controller templates. Library archetypes get property-based test examples.
+**Phase 9.5 integration:** All behavioral templates emit unconditionally (every project gets TESTING_POLICY.md and the naming gate). Playwright config emits only for `frontend-spa + typescript`.
 
 ---
 
@@ -814,22 +815,22 @@ Playwright quality (frontend projects):
 
 ---
 
-## M30 — Coverage Tool Integration
+## M30 — Coverage Tool Integration ✅
 
-**Issue:** #78
-**Scope:** Integrate coverage verification into build tools, not just gate scripts. Currently thresholds are in gate script; must be in build tool config.
+**Issue:** #78 (closed)
+**Scope:** Integrate coverage verification into build tools, not just gate scripts. Previously thresholds were only in gate script; now enforced in build tool config too.
 
-**Deliverables:**
+**Deliverables (shipped):**
 
-- **Java:** JaCoCo plugin in `build.gradle.ejs` with `jacocoTestCoverageVerification` task, line/branch thresholds, exclusions, HTML/XML/LCOV reports
-- **TypeScript:** vitest coverage config in `vitest.config.ts.ejs` with threshold enforcement
-- **Rust:** cargo-tarpaulin config with `--fail-under`
-- **Go:** go test -coverprofile threshold check integrated in gate
-- **Python:** pytest-cov config in `pyproject.toml.ejs` with `--cov-fail-under`
+- **Java/Gradle:** `gradle/jacoco.gradle` — JaCoCo plugin, `jacocoTestCoverageVerification` task with line/branch thresholds, exclusions, HTML+XML reports to `build/coverage/`
+- **Java/Maven:** `docs/coverage/jacoco-maven-setup.md` — advisory doc with full `pom.xml` snippet (fragment pattern, same as pitest)
+- **TypeScript:** `vitest.config.ts` — provider v8, reporters text/html/lcov, threshold enforcement
+- **Rust:** `.tarpaulin.toml` — `out = ["Html", "Xml", "Lcov"]`, `output-dir = "coverage/"`, threshold via `--fail-under` in gate
+- **Python:** `.coveragerc` — `[run] branch=True`, `[report] fail_under`, html+xml+lcov report dirs
+- **Go:** no config file; HTML report via `go tool cover -html` in gate script
+- **CI:** `ci.yml.ejs` — JaCoCo path normalization steps (Gradle+Maven) + `actions/upload-artifact` for all stacks
 
 **Gate:** Coverage verification in build tool (not just gate script).
-
-**Dependencies:** M29, MG (#88 — scaled thresholds).
 
 **Phase 9.5 integration:** Coverage thresholds are no longer hardcoded. MG computes them per-project from LoC floors + archetype + strictness tier. A 500-LoC Rust CLI does not get a 80% threshold; a 100k-LoC monolith gets archetype-calibrated numbers.
 

@@ -26,6 +26,7 @@ import { generateRoot } from "../generators/root.js";
 import { generateCheckAll } from "../generators/check-all.js";
 import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
+import { generateCoverage } from "../generators/coverage.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
 import { generateSuppressions } from "../generators/suppressions.js";
@@ -46,6 +47,7 @@ import { generateSkills } from "../generators/skills.js";
 import { generateAgentsClaude } from "../generators/agents-claude.js";
 import { generateSsot } from "../generators/ssot.js";
 import { generateObsidianVault } from "../generators/obsidian-vault.js";
+import { generateBehavioralTests } from "../generators/behavioral-tests.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
@@ -202,6 +204,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   if (config.enableDebtGates) {
     all.push(...generateDebtGates(config).files);
     all.push(...generateDebtRatchet(config).files);
+    all.push(...generateCoverage(config).files);
   }
 
   if (config.enableSuppressions) {
@@ -228,6 +231,8 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   all.push(...generateEvidenceRetention(config).files);
 
   all.push(...generateTestTaxonomy(config).files);
+
+  all.push(...generateBehavioralTests(config).files);
 
   all.push(...generateSsot(config).files);
 
