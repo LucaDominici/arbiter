@@ -13,7 +13,10 @@ let failed = 0;
 function runCheck(name, cmd, args, { soft = false } = {}) {
   process.stdout.write(`[CHECK] ${name} ... `);
   const r = spawnSync(cmd, args, { encoding: 'utf-8', shell: false });
-  if (r.status === 0) {
+  if (r.error?.code === 'ENOENT') {
+    console.log(`FAIL (binary not found: ${cmd})`);
+    failed++;
+  } else if (r.status === 0) {
     console.log('PASS');
   } else if (soft) {
     console.log('WARN (grace period)');

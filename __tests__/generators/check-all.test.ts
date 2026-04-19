@@ -278,6 +278,16 @@ describe("generateCheckAll", () => {
 
   // ─── MK: grace period guard ─────────────────────────────────────────────────
 
+  it("runCheck treats ENOENT as hard failure regardless of grace period", () => {
+    generateCheckAll(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("ENOENT");
+    expect(content).toContain("binary not found");
+  });
+
   it("generated script includes grace guard block reading arbiter.json", () => {
     generateCheckAll(makeConfig(dir));
     const content = readFileSync(
