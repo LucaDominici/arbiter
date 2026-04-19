@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { runInit } from "./commands/init.js";
 import { runUpdate } from "./commands/update.js";
 import { runDiff } from "./commands/diff.js";
+import { runConfigure } from "./commands/configure.js";
 import {
   runWorktreeOpen,
   runWorktreeClose,
@@ -91,6 +92,20 @@ program
       dir: opts.dir,
       github: opts.github,
     });
+  });
+
+program
+  .command("configure")
+  .description("Modify arbiter.json configuration (non-interactive: use --set)")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .option(
+    "--set <path=value>",
+    "Set a config path to a value (repeatable)",
+    (v, acc: string[]) => [...acc, v],
+    [] as string[],
+  )
+  .action((opts: { dir?: string | undefined; set: string[] }) => {
+    runConfigure({ dir: opts.dir, sets: opts.set });
   });
 
 program

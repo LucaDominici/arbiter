@@ -8,8 +8,6 @@ export interface MutationGeneratorResult {
   files: WriteResult[];
 }
 
-const MUTATION_THRESHOLD = 85;
-
 export function generateMutation(
   config: ProjectConfig,
 ): MutationGeneratorResult {
@@ -24,7 +22,7 @@ export function generateMutation(
 
   const data: Record<string, unknown> = {
     ...(config as unknown as Record<string, unknown>),
-    mutationThreshold: MUTATION_THRESHOLD,
+    mutationThreshold: config.thresholds?.mutationScore ?? 85,
     basePackage: config.basePackage ?? "com.example",
     modulePath: config.projectName.replace(/-/g, "_"),
   };

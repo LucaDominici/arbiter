@@ -26,9 +26,9 @@ linters:
 
 linters-settings:
   gocyclo:
-    min-complexity: 15
+    min-complexity: <%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>
   gocognit:
-    min-complexity: 15
+    min-complexity: <%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>
   goconst:
     min-len: 3
     min-occurrences: 3

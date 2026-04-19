@@ -16,6 +16,7 @@ const SKILL_NAMES = [
   "understand-code",
   "codebase-audit",
   "epic-decompose",
+  "configure",
 ] as const;
 
 describe("generateSkills", () => {
@@ -35,7 +36,7 @@ describe("generateSkills", () => {
     expect(result.files).toHaveLength(0);
   });
 
-  it("generates all 7 skill SKILL.md files for claude projects", () => {
+  it("generates all 8 skill SKILL.md files for claude projects", () => {
     const config = makeConfig(dir, { tools: ["claude"] });
     const result = generateSkills(config);
     expect(result.files).toHaveLength(SKILL_NAMES.length);

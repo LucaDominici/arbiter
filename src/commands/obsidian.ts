@@ -37,6 +37,28 @@ function tallyResults(files: WriteResult[]): Counters {
   return counters;
 }
 
+function deriveFlags(
+  stored: ArbiterConfig | null,
+  governanceLevel: GovernanceLevel,
+): {
+  enableDebtGates: boolean;
+  enableSuppressions: boolean;
+  enableSecurityScanning: boolean;
+} {
+  if (stored) {
+    return {
+      enableDebtGates: stored.features.debtGates,
+      enableSuppressions: stored.features.suppressions,
+      enableSecurityScanning: stored.features.securityScanning,
+    };
+  }
+  return {
+    enableDebtGates: governanceLevel !== "L1",
+    enableSuppressions: true,
+    enableSecurityScanning: governanceLevel !== "L1",
+  };
+}
+
 function buildProjectConfig(
   targetDir: string,
   projectName: string,
@@ -49,6 +71,7 @@ function buildProjectConfig(
   const existing = detectExisting(targetDir);
   const governanceLevel: GovernanceLevel = stored?.governanceLevel ?? "L2";
   const axis = resolveAxisFields(stored, targetDir, language, framework);
+  const flags = deriveFlags(stored, governanceLevel);
 
   return {
     targetDir,
@@ -69,10 +92,7 @@ function buildProjectConfig(
     githubRepo: gitInfo.githubRepo,
     existing,
     languageHooks: getLanguageHooks(language),
-    enableDebtGates: stored?.enableDebtGates ?? governanceLevel !== "L1",
-    enableSuppressions: stored?.enableSuppressions !== false,
-    enableSecurityScanning:
-      stored?.enableSecurityScanning ?? governanceLevel !== "L1",
+    ...flags,
     invariantTiers:
       stored?.invariantTiers ??
       presetToTiers(defaultPresetForLevel(governanceLevel)),
