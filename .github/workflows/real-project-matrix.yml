@@ -5,6 +5,10 @@ on:
     - cron: "0 3 * * *" # 03:00 UTC nightly
   workflow_dispatch: {}
 
+permissions:
+  actions: read
+  contents: read
+
 concurrency:
   group: real-project-matrix
   cancel-in-progress: false
