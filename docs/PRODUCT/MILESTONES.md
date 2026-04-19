@@ -1,7 +1,7 @@
 # Arbiter — Milestones
 
 **Status:** Active
-**Last updated:** 2026-04-09
+**Last updated:** 2026-04-19
 
 Each milestone has a scope, exit criteria, and dependency chain. Milestones are tracked as GitHub issues.
 
@@ -489,6 +489,8 @@ Add `maturity: proven | beta | unsafe | unavailable` column to `CROSS-LANGUAGE-M
 **Issue:** #87 · **Resolves:** H10 · **Size:** L · **Deps:** MA, MD
 
 New nightly CI workflow that runs `arbiter init` + generated gate execution on minimal real fixtures per `(language, archetype)` cell. Adds INV-31: every `proven` cell must have a nightly test. Closes the dog-food gap.
+
+Final hardening note (2026-04-19): the finishing pass for PR #228 stabilized the nightly around the generated L2 contract rather than around ad-hoc runner state. The workflow now installs the extra binaries that the generated gates actually invoke, TypeScript coverage is constrained to `src/**`, and the real-project fixtures were tightened so Java, TypeScript, Python, and Rust cells match the generated files they are expected to execute. See `docs/DEVELOPMENT/REAL-PROJECT-TESTING.md` for the operational checklist and failure modes.
 
 ---
 
