@@ -49,13 +49,14 @@ describe("generateCheckAll", () => {
     expect(content).toContain("prettier");
   });
 
-  it("static analysis eslint does not specify --ext flag (avoids TypeScript parse errors)", () => {
+  it("static analysis eslint uses --no-error-on-unmatched-pattern (avoids error on TypeScript-only src)", () => {
     generateCheckAll(makeConfig(dir, { language: "typescript" }));
     const content = readFileSync(
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
     expect(content).toContain("eslintrc-static.json");
+    expect(content).toContain("'--no-error-on-unmatched-pattern'");
     expect(content).not.toContain("'--ext', '.ts,.js'");
   });
 

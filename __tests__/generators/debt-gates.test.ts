@@ -223,6 +223,23 @@ describe("generateDebtGates", () => {
     expect(content).toContain("7");
   });
 
+  it("checkstyle.xml does not contain DOCTYPE declaration (avoids DTD network resolution on CI)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const content = readFileSync(
+      join(dir, "config", "checkstyle.xml"),
+      "utf-8",
+    );
+    expect(content).not.toContain("<!DOCTYPE");
+    expect(content).not.toContain("checkstyle.org/dtds");
+  });
+
   it("generates config/spotbugs-exclude.xml for Java projects (M29)", () => {
     cleanupTestProject(dir);
     dir = createTestProject("java");
