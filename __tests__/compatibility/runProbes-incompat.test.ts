@@ -179,7 +179,7 @@ describe("runProbes — incompat-gradle-pitest fixture", () => {
     const report = runProbes(FIXTURE_DIR);
     const buildProbe = report.probes.find((p) => p.kind === "build");
     expect(buildProbe).toBeDefined();
-    expect(buildProbe?.tool).toBe("gradlew:help");
+    expect(buildProbe?.tool).toBe("gradlew:version");
     expect(buildProbe?.status).toBe("passed");
   });
 });

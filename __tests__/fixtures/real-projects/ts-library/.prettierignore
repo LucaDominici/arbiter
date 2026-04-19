@@ -1,5 +1,7 @@
 .claude/
 .github/
+scripts/
 suppressions/
 docs/
 *.md
+arbiter.json
