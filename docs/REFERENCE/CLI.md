@@ -351,10 +351,74 @@ arbiter update [options]
 
 - Reads `arbiter.json` — exits with error if not found (run `arbiter init` first)
 - Re-detects language, framework, git info from current directory state
-- Regenerates canonical files (AGENTS.md, CLAUDE.md, CODEX.md, .cursorrules, copilot-instructions.md) — backing up existing
+- Diffs stored config against the previous snapshot to determine which generators are impacted
+- Regenerates only impacted files (selective update); axis or governance changes trigger a full regeneration
 - Skips hooks, rules, commands, workflows (customization-safe)
 - Re-runs GitHub label provisioning + branch protection
-- Saves updated `arbiter.json` with current settings
+- Saves updated `arbiter.json` and snapshot with current settings
+
+---
+
+## `arbiter configure`
+
+Modify `arbiter.json` settings without re-running the wizard.
+
+```
+arbiter configure --set <path>=<value> [--set <path>=<value> ...]
+```
+
+**Options:**
+
+| Flag           | Type   | Default | Description                                    |
+| -------------- | ------ | ------- | ---------------------------------------------- |
+| `--set <kv>`   | string | —       | `path=value` assignment (repeatable); required |
+| `--dir <path>` | string | `cwd`   | Target directory                               |
+
+**Supported paths:**
+
+| Path                              | Type            | Constraint                    |
+| --------------------------------- | --------------- | ----------------------------- |
+| `features.debtGates`              | boolean         | `true` / `false`              |
+| `features.securityScanning`       | boolean         | `true` / `false`              |
+| `features.mutationTesting`        | boolean         | `true` / `false`              |
+| `features.contractTesting`        | boolean         | `true` / `false`              |
+| `features.suppressions`           | boolean         | `true` / `false`              |
+| `features.evidenceHarness`        | boolean         | `true` / `false`              |
+| `tools`                           | comma-separated | `claude,codex,cursor,copilot` |
+| `governanceLevel`                 | string          | `L1`, `L2`, `L3`              |
+| `useGitHub`                       | boolean         | `true` / `false`              |
+| `thresholds.lineCoverage`         | number          | 0–100                         |
+| `thresholds.branchCoverage`       | number          | 0–100                         |
+| `thresholds.mutationScore`        | number          | 0–100                         |
+| `thresholds.cyclomaticComplexity` | number          | positive                      |
+| `thresholds.methodLength`         | number          | positive                      |
+| `thresholds.maxParams`            | number          | positive                      |
+
+**Behavior:**
+
+- Parses each `--set` in order; later assignments override earlier ones for the same path
+- Validates the resulting config with the full v2 schema before writing
+- Exits non-zero without writing if validation fails
+- Does not regenerate files — run `arbiter update` after to apply changes to generated outputs
+
+**Examples:**
+
+```bash
+# Disable mutation testing
+arbiter configure --set features.mutationTesting=false
+
+# Raise line coverage target
+arbiter configure --set thresholds.lineCoverage=90
+
+# Multiple changes at once
+arbiter configure --set features.debtGates=true --set thresholds.cyclomaticComplexity=10
+
+# Change AI tools
+arbiter configure --set tools=claude,cursor
+
+# Then regenerate only the affected files
+arbiter update
+```
 
 ---
 
