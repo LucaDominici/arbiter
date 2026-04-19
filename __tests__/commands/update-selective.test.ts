@@ -48,7 +48,7 @@ describe("runUpdate — v2 config migration", () => {
     cleanupTestProject(dir);
   });
 
-  it("migrates v1 config to v2 on disk after update", () => {
+  it("migrates v1 config to v2 on disk after update", async () => {
     writeFileSync(
       join(dir, "arbiter.json"),
       JSON.stringify({
@@ -61,7 +61,7 @@ describe("runUpdate — v2 config migration", () => {
       }),
     );
 
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     const raw = readArbiterJson(dir);
     expect(raw["version"]).toBe("0.2");
@@ -79,13 +79,13 @@ describe("runUpdate — v2 config migration", () => {
     });
   });
 
-  it("persists v2 config user-set thresholds after update", () => {
+  it("persists v2 config user-set thresholds after update", async () => {
     writeV2Config(dir, {
       archetype: "backend-web-db",
       thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 90 },
     });
 
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     const raw = readArbiterJson(dir);
     expect((raw["thresholds"] as Record<string, unknown>)["lineCoverage"]).toBe(
@@ -108,18 +108,18 @@ describe("runUpdate — selective regeneration via snapshot", () => {
     cleanupTestProject(dir);
   });
 
-  it("returns keysRun=null and writes snapshot on first update", () => {
+  it("returns keysRun=null and writes snapshot on first update", async () => {
     writeV2Config(dir);
 
-    const result = runUpdate({ dir, github: false });
+    const result = await runUpdate({ dir, github: false });
 
     expect(result.keysRun).toBeNull();
     expect(existsSync(join(dir, ".arbiter-generated.json"))).toBe(true);
   });
 
-  it("returns scoped keysRun when only one feature flag changes after first update", () => {
+  it("returns scoped keysRun when only one feature flag changes after first update", async () => {
     writeV2Config(dir);
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     writeV2Config(dir, {
       features: {
@@ -132,7 +132,7 @@ describe("runUpdate — selective regeneration via snapshot", () => {
       },
     });
 
-    const result = runUpdate({ dir, github: false });
+    const result = await runUpdate({ dir, github: false });
 
     expect(result.keysRun).not.toBeNull();
     expect(result.keysRun?.has("mutation")).toBe(true);
@@ -143,26 +143,26 @@ describe("runUpdate — selective regeneration via snapshot", () => {
     expect(result.keysRun?.has("coverage")).toBe(false);
   });
 
-  it("returns full regen (*) when governanceLevel changes", () => {
+  it("returns full regen (*) when governanceLevel changes", async () => {
     writeV2Config(dir);
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     writeV2Config(dir, { governanceLevel: "L3" });
 
-    const result = runUpdate({ dir, github: false });
+    const result = await runUpdate({ dir, github: false });
 
     expect(result.keysRun?.has("*")).toBe(true);
   });
 
-  it("returns scoped keysRun with coverage+check-all when only lineCoverage threshold changes", () => {
+  it("returns scoped keysRun with coverage+check-all when only lineCoverage threshold changes", async () => {
     writeV2Config(dir);
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     writeV2Config(dir, {
       thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 90 },
     });
 
-    const result = runUpdate({ dir, github: false });
+    const result = await runUpdate({ dir, github: false });
 
     expect(result.keysRun?.has("coverage")).toBe(true);
     expect(result.keysRun?.has("check-all")).toBe(true);
@@ -170,15 +170,15 @@ describe("runUpdate — selective regeneration via snapshot", () => {
     expect(result.keysRun?.has("mutation")).toBe(false);
   });
 
-  it("updates the snapshot file after each selective update", () => {
+  it("updates the snapshot file after each selective update", async () => {
     writeV2Config(dir);
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     writeV2Config(dir, {
       thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 90 },
     });
 
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     const snapshot = JSON.parse(
       readFileSync(join(dir, ".arbiter-generated.json"), "utf-8"),

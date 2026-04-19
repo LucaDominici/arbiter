@@ -182,6 +182,28 @@ function buildDiffChecks(
         renderTemplate("copilot/copilot-instructions.md.ejs", data),
     });
   }
+  if (config.tools.includes("gemini")) {
+    checks.push({
+      path: resolvedPath(targetDir, ".gemini", "GEMINI.md"),
+      templateKey: ".gemini/GEMINI.md",
+      content: () => renderTemplate("gemini/GEMINI.md.ejs", data),
+    });
+  }
+  if (config.tools.includes("windsurf")) {
+    checks.push({
+      path: resolvedPath(targetDir, "windsurf-instructions.md"),
+      templateKey: "windsurf-instructions.md",
+      content: () =>
+        renderTemplate("windsurf/windsurf-instructions.md.ejs", data),
+    });
+  }
+  if (config.tools.includes("aider")) {
+    checks.push({
+      path: resolvedPath(targetDir, ".aider.conf.yml"),
+      templateKey: ".aider.conf.yml",
+      content: () => renderTemplate("aider/.aider.conf.yml.ejs", data),
+    });
+  }
 
   return checks;
 }

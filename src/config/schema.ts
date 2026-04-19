@@ -45,6 +45,7 @@ export interface ArbiterConfigV2 {
   invariantTiers?: InvariantTier[];
   worktree?: WorktreeConfig;
   enableObsidianVault?: boolean;
+  plugins?: string[];
 }
 
 export type ValidateResult =

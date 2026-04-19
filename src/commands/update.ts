@@ -14,7 +14,7 @@ import {
   saveConfig,
   saveSnapshot,
 } from "../utils/config.js";
-import { runGithubSetup, printResults } from "./init.js";
+import { runGithubSetup, printResults, runPlugins } from "./init.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 import { diffConfig, impactedGenerators } from "../config/diff.js";
 import { validateConfig } from "../config/schema.js";
@@ -118,7 +118,7 @@ function selectAndRun(
   return { results: runGeneratorsSelective(specs, keys), keysRun: keys };
 }
 
-export function runUpdate(options: UpdateOptions): UpdateResult {
+export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const targetDir = resolve(options.dir ?? process.cwd());
   const projectName = basename(targetDir);
 
@@ -188,6 +188,12 @@ export function runUpdate(options: UpdateOptions): UpdateResult {
   console.log("\n  Updating...");
 
   const { results, keysRun } = selectAndRun(specs, snapshot, stored);
+  const pluginResults = await runPlugins(
+    targetDir,
+    Array.isArray(stored.plugins) ? stored.plugins : [],
+    stored,
+  );
+  results.push(...pluginResults);
 
   printResults(results, targetDir);
 

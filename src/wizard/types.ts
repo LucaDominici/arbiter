@@ -39,7 +39,14 @@ export type Language =
   | "go"
   | "unknown";
 export type GovernanceLevel = "L1" | "L2" | "L3";
-export type AiTool = "claude" | "codex" | "cursor" | "copilot";
+export type AiTool =
+  | "claude"
+  | "codex"
+  | "cursor"
+  | "copilot"
+  | "gemini"
+  | "windsurf"
+  | "aider";
 
 export type Archetype =
   | "backend-web-db"
@@ -148,6 +155,9 @@ export interface ProjectConfig {
     aiRulez: boolean;
     settingsJson: boolean;
     checkAllScript: boolean;
+    geminiDir: boolean;
+    windsurfRules: boolean;
+    aiderConf: boolean;
   };
 
   languageHooks: LanguageHook[];

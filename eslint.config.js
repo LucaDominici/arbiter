@@ -55,6 +55,7 @@ export default tseslint.config(
       "eslint.config.js",
       "src/templates/",
       "scripts/",
+      "__tests__/fixtures/",
     ],
   },
 );

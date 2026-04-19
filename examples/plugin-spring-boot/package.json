@@ -1,0 +1,14 @@
+{
+  "name": "@arbiter/plugin-spring-boot",
+  "version": "0.1.0",
+  "description": "Arbiter plugin: Spring Boot project skeleton generator",
+  "main": "index.js",
+  "keywords": [
+    "arbiter",
+    "arbiter-plugin",
+    "spring-boot"
+  ],
+  "peerDependencies": {
+    "@arbiter/cli": "*"
+  }
+}

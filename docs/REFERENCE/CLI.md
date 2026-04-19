@@ -38,7 +38,7 @@ arbiter init --yes --tools claude --level L1
 arbiter init --yes --dir /path/to/my-project
 
 # All tools, audit-grade governance
-arbiter init --yes --tools claude,codex,cursor,copilot --level L3
+arbiter init --yes --tools claude,codex,cursor,copilot,gemini,windsurf,aider --level L3
 
 # Preview what would be generated without writing any files
 arbiter init --dry-run
@@ -61,14 +61,17 @@ The wizard always shows what will happen before touching any files. Cancelling a
 
 ## Tool Values (`--tools`)
 
-| Value     | What it generates                                                    |
-| --------- | -------------------------------------------------------------------- |
-| `claude`  | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
-| `codex`   | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/`                |
-| `cursor`  | `.cursorrules`                                                       |
-| `copilot` | `.github/copilot-instructions.md`                                    |
+| Value      | What it generates                                                    |
+| ---------- | -------------------------------------------------------------------- |
+| `claude`   | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
+| `codex`    | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/`                |
+| `cursor`   | `.cursorrules`                                                       |
+| `copilot`  | `.github/copilot-instructions.md`                                    |
+| `gemini`   | `.gemini/GEMINI.md` (thin pointer to AGENTS.md)                      |
+| `windsurf` | `windsurf-instructions.md` (thin pointer to AGENTS.md)               |
+| `aider`    | `.aider.conf.yml` (YAML convention mapping + AGENTS.md reference)    |
 
-Multiple tools: `--tools claude,codex`
+Multiple tools: `--tools claude,codex,gemini,windsurf,aider`
 
 ---
 
@@ -594,16 +597,166 @@ Set `ARBITER_WORKTREES_DIR` to override `worktree.base` without editing `arbiter
 
 ---
 
+## `arbiter plugin`
+
+Manage third-party generator plugins. Plugins are npm packages that extend `arbiter update` with custom file generation without forking arbiter.
+
+> **Security:** Plugins execute Node.js code with arbiter's full privileges. Vet plugins the same way you vet any npm devDependency.
+
+See also: [ADR-031 — Plugin API v1](../ADR/031-plugin-api-v1.md)
+
+### `arbiter plugin add <pkg>`
+
+Register a plugin. Validates the package is resolvable from `node_modules` before persisting.
+
+```
+arbiter plugin add <pkg> [options]
+arbiter plugin add @company/arbiter-spring-boot
+```
+
+**Options:**
+
+| Flag           | Type   | Default | Description      |
+| -------------- | ------ | ------- | ---------------- |
+| `--dir <path>` | string | `cwd`   | Target directory |
+
+**Behavior:**
+
+1. Resolves `<pkg>` from `targetDir/node_modules` — fails with a clear error if not installed.
+2. Validates the plugin shape (`name`, `apiVersion: "1"`, `generate`).
+3. Appends `<pkg>` to `plugins[]` in `arbiter.json` (idempotent — no-op if already listed).
+4. Prints a security advisory.
+
+**Example output:**
+
+```
+  Plugin "@company/arbiter-spring-boot" added.
+
+  Advisory: this plugin will execute Node code during `arbiter update`.
+  Verify the source before use.
+```
+
+---
+
+### `arbiter plugin remove <pkg>`
+
+Remove a plugin from `arbiter.json`. Idempotent — no-op if the package is not listed.
+
+```
+arbiter plugin remove <pkg> [options]
+```
+
+**Options:**
+
+| Flag           | Type   | Default | Description      |
+| -------------- | ------ | ------- | ---------------- |
+| `--dir <path>` | string | `cwd`   | Target directory |
+
+---
+
+### `arbiter plugin list`
+
+Show configured plugins and their resolution status.
+
+```
+arbiter plugin list [options]
+```
+
+**Options:**
+
+| Flag           | Type   | Default | Description      |
+| -------------- | ------ | ------- | ---------------- |
+| `--dir <path>` | string | `cwd`   | Target directory |
+
+**Example output:**
+
+```
+  Configured plugins:
+
+    @company/arbiter-spring-boot  resolved
+    @company/arbiter-rails        not found (npm install @company/arbiter-rails)
+```
+
+---
+
+### Plugin authoring
+
+A plugin is an npm package that exports an `ArbiterPlugin` object. Install types from `@arbiter/cli/plugin`:
+
+```js
+// index.js
+const { join } = require("node:path");
+
+/** @type {import("@arbiter/cli/plugin").ArbiterPlugin} */
+module.exports = {
+  name: "my-arbiter-plugin",
+  apiVersion: "1",
+  templateRoot: join(__dirname, "templates"),
+
+  detect(config) {
+    return config.framework === "spring-boot";
+  },
+
+  generate(ctx) {
+    const content = ctx.renderTemplate("Application.java.ejs", {
+      projectName: ctx.config.projectName,
+    });
+    return {
+      files: [
+        {
+          path: join(ctx.targetDir, "Application.java"),
+          content,
+          action: "create",
+        },
+      ],
+    };
+  },
+};
+```
+
+See `examples/plugin-spring-boot/` for a complete reference implementation.
+
+**Plugin contract (`@arbiter/cli/plugin`):**
+
+| Field          | Type                                   | Required | Description                                        |
+| -------------- | -------------------------------------- | -------- | -------------------------------------------------- |
+| `name`         | `string`                               | yes      | Lowercase, matches `[a-z0-9][a-z0-9-_]*`           |
+| `apiVersion`   | `"1"`                                  | yes      | Literal string; binary compat check                |
+| `templateRoot` | `string`                               | yes      | Absolute path to the plugin's `templates/` dir     |
+| `detect`       | `(config: ArbiterConfig) => boolean`   | no       | Return `false` to skip this plugin for the project |
+| `generate`     | `(ctx: PluginContext) => PluginResult` | yes      | Return `{ files: PluginFile[] }` to write          |
+
+**`PluginFile` fields:**
+
+| Field     | Type                                         | Default    | Description                             |
+| --------- | -------------------------------------------- | ---------- | --------------------------------------- |
+| `path`    | `string`                                     | —          | Absolute path to write                  |
+| `content` | `string`                                     | —          | File content                            |
+| `action`  | `"create" \| "backup-and-replace" \| "skip"` | `"create"` | Write behavior when file already exists |
+
+**Plugin failure isolation:** a plugin that throws during `generate()` emits a warning and contributes zero files. The overall `arbiter update` continues.
+
+---
+
 ## `arbiter.json`
 
 Persisted config written by `arbiter init`, read by `arbiter update` and `arbiter diff`.
 
 ```json
 {
-  "version": "0.1",
-  "tools": ["claude", "codex", "cursor", "copilot"],
+  "version": "0.2",
+  "tools": [
+    "claude",
+    "codex",
+    "cursor",
+    "copilot",
+    "gemini",
+    "windsurf",
+    "aider"
+  ],
   "governanceLevel": "L2",
   "useGitHub": true,
+  "plugins": ["@company/arbiter-spring-boot"],
   "worktree": {
     "base": null,
     "links": [

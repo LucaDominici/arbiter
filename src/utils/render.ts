@@ -27,3 +27,15 @@ export function renderString(
 ): string {
   return ejs.render(template, data);
 }
+
+/**
+ * Render an EJS template from an absolute file path.
+ * Used by the plugin runner to render templates from plugin-owned templateRoot.
+ */
+export function renderFromAbsPath(
+  absPath: string,
+  data: Record<string, unknown>,
+): string {
+  const source = readFileSync(absPath, "utf-8");
+  return ejs.render(source, data, { filename: absPath });
+}

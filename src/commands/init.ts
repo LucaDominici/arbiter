@@ -1,4 +1,4 @@
-import { resolve, basename } from "node:path";
+import { resolve, basename, join } from "node:path";
 import { runProbes } from "../compatibility/probe.js";
 import { formatText } from "../compatibility/report.js";
 import { detectLanguage } from "../detectors/language.js";
@@ -28,6 +28,9 @@ import {
   buildRegistry,
   runGeneratorsFromRegistry,
 } from "../generators/registry.js";
+import { loadPlugin } from "../utils/plugin-loader.js";
+import { renderFromAbsPath } from "../utils/render.js";
+import { writeFile } from "../utils/fs.js";
 import { isL3Allowed } from "../utils/maturity-check.js";
 import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
@@ -151,6 +154,56 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
   return runGeneratorsFromRegistry(buildRegistry(config));
 }
 
+export async function runPlugins(
+  targetDir: string,
+  plugins: string[],
+  storedConfig: ArbiterConfig,
+): Promise<WriteResult[]> {
+  const all: WriteResult[] = [];
+  const writtenPaths = new Set<string>();
+  for (const pkg of plugins) {
+    try {
+      const plugin = await loadPlugin(pkg, targetDir);
+      if (plugin.detect && !plugin.detect(storedConfig)) continue;
+      const ctx = {
+        config: storedConfig,
+        targetDir,
+        renderTemplate(relPath: string, data: Record<string, unknown>): string {
+          return renderFromAbsPath(join(plugin.templateRoot, relPath), data);
+        },
+      };
+      const result = plugin.generate(ctx);
+      if (!Array.isArray(result.files)) {
+        console.warn(
+          `  [arbiter] Plugin "${pkg}" returned invalid result (no files array). Skipping.`,
+        );
+        continue;
+      }
+      for (const file of result.files) {
+        if (writtenPaths.has(file.path)) {
+          console.warn(
+            `  [arbiter] Plugin "${pkg}" conflict: "${file.path}" already written by a prior plugin. Skipping.`,
+          );
+          all.push({ path: file.path, action: "skipped" });
+          continue;
+        }
+        writtenPaths.add(file.path);
+        all.push(
+          writeFile(file.path, file.content, {
+            backup: file.action === "backup-and-replace",
+            skipIfExists: file.action === "skip",
+          }),
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `  [arbiter] Plugin "${pkg}" failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  return all;
+}
+
 export function runGithubSetup(config: ProjectConfig): void {
   if (!config.useGitHub || !config.githubOwner || !config.githubRepo) return;
 
@@ -192,6 +245,14 @@ function logExistingDetections(
     console.log("  ├── Existing .claude/ detected — will merge");
   if (existing.agentsDir)
     console.log("  ├── Existing .agents/ detected — will merge");
+  if (existing.geminiDir)
+    console.log("  ├── Existing .gemini/ detected — will back up");
+  if (existing.windsurfRules)
+    console.log(
+      "  ├── Existing windsurf-instructions.md detected — will back up",
+    );
+  if (existing.aiderConf)
+    console.log("  ├── Existing .aider.conf.yml detected — will back up");
   if (existing.aiRulez)
     console.log(
       "  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)",
@@ -362,7 +423,15 @@ function parseTools(tools: string | undefined): AiTool[] {
   return tools
     .split(",")
     .filter((t): t is AiTool =>
-      ["claude", "codex", "cursor", "copilot"].includes(t),
+      [
+        "claude",
+        "codex",
+        "cursor",
+        "copilot",
+        "gemini",
+        "windsurf",
+        "aider",
+      ].includes(t),
     );
 }
 

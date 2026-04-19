@@ -11,6 +11,11 @@ import {
 } from "./commands/worktree.js";
 import { runVerify } from "./commands/verify.js";
 import { runUpgradeLevel } from "./commands/upgrade-level.js";
+import {
+  runPluginAdd,
+  runPluginRemove,
+  runPluginList,
+} from "./commands/plugin.js";
 
 const program = new Command();
 
@@ -25,7 +30,7 @@ program
   .option("-y, --yes", "Skip wizard — use auto-detected defaults", false)
   .option(
     "--tools <tools>",
-    "Comma-separated list of AI tools (claude,codex,cursor,copilot)",
+    "Comma-separated list of AI tools (claude,codex,cursor,copilot,gemini,windsurf,aider)",
   )
   .option("--level <level>", "Governance level: L1, L2, or L3", "L2")
   .option("--dir <dir>", "Target directory (default: current directory)")
@@ -87,8 +92,8 @@ program
     "Force GitHub setup even if disabled in stored config",
     false,
   )
-  .action((opts: { dir?: string; github: boolean }) => {
-    runUpdate({
+  .action(async (opts: { dir?: string; github: boolean }) => {
+    await runUpdate({
       dir: opts.dir,
       github: opts.github,
     });
@@ -266,4 +271,43 @@ program
     },
   );
 
-program.parse();
+const plugin = program.command("plugin").description("Manage arbiter plugins");
+
+plugin
+  .command("add <pkg>")
+  .description(
+    "Add a plugin to this project (validates it is resolvable first)",
+  )
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(async (pkg: string, opts: { dir?: string }) => {
+    await runPluginAdd({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      pkg,
+    });
+  });
+
+plugin
+  .command("remove <pkg>")
+  .description("Remove a plugin from this project")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((pkg: string, opts: { dir?: string }) => {
+    runPluginRemove({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      pkg,
+    });
+  });
+
+plugin
+  .command("list")
+  .description("List plugins configured for this project")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(async (opts: { dir?: string }) => {
+    await runPluginList({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
+
+program.parseAsync().catch((err: unknown) => {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});

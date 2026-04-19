@@ -50,4 +50,23 @@ describe("detectExisting", () => {
     writeFileSync(join(dir, "ai-rulez.yml"), "");
     expect(detectExisting(dir).aiRulez).toBe(true);
   });
+
+  it("returns geminiDir=false for empty dir", () => {
+    expect(detectExisting(dir).geminiDir).toBe(false);
+  });
+
+  it("detects .gemini directory", () => {
+    mkdirSync(join(dir, ".gemini"));
+    expect(detectExisting(dir).geminiDir).toBe(true);
+  });
+
+  it("detects windsurf-instructions.md", () => {
+    writeFileSync(join(dir, "windsurf-instructions.md"), "# windsurf");
+    expect(detectExisting(dir).windsurfRules).toBe(true);
+  });
+
+  it("detects .aider.conf.yml", () => {
+    writeFileSync(join(dir, ".aider.conf.yml"), "model: gpt-4o");
+    expect(detectExisting(dir).aiderConf).toBe(true);
+  });
 });

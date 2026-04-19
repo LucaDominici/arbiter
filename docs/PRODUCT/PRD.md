@@ -19,7 +19,7 @@ Any developer using AI coding agents should be able to run `npx arbiter init`, a
 
 Teams adopting AI coding agents face a consistent setup problem:
 
-1. **Every tool needs its own config** — Claude needs `CLAUDE.md`, Codex needs `CODEX.md`, Cursor needs `.cursorrules`, Copilot needs `copilot-instructions.md`. Each has a different format.
+1. **Every tool needs its own config** — Claude needs `CLAUDE.md`, Codex needs `CODEX.md`, Cursor needs `.cursorrules`, Copilot needs `copilot-instructions.md`, Gemini needs `GEMINI.md`, Windsurf needs `windsurf-instructions.md`, Aider needs `.aider.conf.yml`. Each has a different format.
 2. **Configs diverge immediately** — Without a canonical source, each tool's config drifts independently. Different tools get different rules, different test policies, different commit conventions.
 3. **No enforcement at edit time** — AI agents make edits but nothing enforces invariants (no magic strings, no console.log in production, correct branch naming) as they work.
 4. **GitHub infra is manual** — CI, PR templates, issue templates, branch protection, labels — all set up by hand per repo, inconsistently.
@@ -88,6 +88,9 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 
 - Cursor support: `.cursorrules` generation
 - Copilot support: `copilot-instructions.md` generation
+- Gemini CLI support: `.gemini/GEMINI.md` generation
+- Windsurf support: `windsurf-instructions.md` generation
+- Aider support: `.aider.conf.yml` generation
 - ai-rulez detection: if `.ai-rulez/` exists, skip tool configs; generate only AGENTS.md + GitHub infra
 
 ### Phase 5 — Comprehensive Tests and Documentation (M5-M7)
@@ -146,10 +149,11 @@ Based on exhaustive gap analysis (`VIAFERA-ALIGNMENT.md`). Principle: **once cho
 - Complete static analysis suite: Checkstyle + PMD + SpotBugs (Java), ESLint full (TS), clippy pedantic (Rust), golangci-lint full (Go), ruff full (Python)
 - Coverage tool integration: JaCoCo in build.gradle (Java), vitest config (TS), cargo-tarpaulin (Rust), go test -cover (Go), pytest-cov (Python)
 
-### Phase 13 — Ecosystem (M31-M32, future)
+### Phase 13 — Ecosystem (M31-M32, shipped)
 
-- Configuration skill (`/arbiter configure`): post-init feature toggle, threshold override, arbiter.json v2
-- Extended AI tool support: Gemini CLI, Windsurf, Aider, Plugin API v1
+- Configuration skill (`/arbiter configure`): post-init feature toggle, threshold override, arbiter.json v2 (M31)
+- Extended AI tool support: Gemini CLI, Windsurf, Aider generators + brownfield detection (M32)
+- Plugin API v1: `ArbiterPlugin` interface + `arbiter plugin add/remove/list` CLI; organizations ship framework generators without forking arbiter (M32)
 
 ---
 
