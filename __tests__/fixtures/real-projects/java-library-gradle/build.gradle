@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'checkstyle'
+    id 'com.diffplug.spotless' version '7.0.3'
 }
 
 group = 'com.example'
@@ -33,4 +34,12 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        trimTrailingWhitespace()
+        endWithNewline()
+        target 'src/**/*.java'
+    }
 }
