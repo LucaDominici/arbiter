@@ -95,7 +95,7 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: "check-all",
-      enabled: config.useGitHub,
+      enabled: true,
       run: () => generateCheckAll(config).files,
     },
     {
