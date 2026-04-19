@@ -26,7 +26,7 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
 
   await loadPlugin(opts.pkg, targetDir);
 
-  const plugins = stored.plugins ?? [];
+  const plugins = Array.isArray(stored.plugins) ? stored.plugins : [];
   if (!plugins.includes(opts.pkg)) {
     plugins.push(opts.pkg);
   }
@@ -59,7 +59,7 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
     process.exit(1);
   }
 
-  const plugins = stored.plugins ?? [];
+  const plugins = Array.isArray(stored.plugins) ? stored.plugins : [];
   if (plugins.length === 0) {
     console.log("  No plugins configured.");
     return;

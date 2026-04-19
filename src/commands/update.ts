@@ -98,7 +98,7 @@ export async function runUpdate(options: UpdateOptions): Promise<void> {
   const results = runGenerators(config);
   const pluginResults = await runPlugins(
     targetDir,
-    stored.plugins ?? [],
+    Array.isArray(stored.plugins) ? stored.plugins : [],
     stored,
   );
   results.push(...pluginResults);

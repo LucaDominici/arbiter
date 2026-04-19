@@ -15,9 +15,19 @@ export async function loadPlugin(
   let entry: string;
   try {
     entry = require.resolve(pkg);
-  } catch {
+  } catch (err) {
+    const isNotFound =
+      err instanceof Error &&
+      (err as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND";
+    if (isNotFound) {
+      throw new Error(
+        `Plugin "${pkg}" not found in ${targetDir}/node_modules. Install it first: npm install ${pkg}`,
+        { cause: err },
+      );
+    }
     throw new Error(
-      `Plugin "${pkg}" not found in ${targetDir}/node_modules. Install it first: npm install ${pkg}`,
+      `Plugin "${pkg}" failed to resolve: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
     );
   }
   const rawMod: Record<string, unknown> = (await import(
@@ -45,5 +55,13 @@ function validatePluginShape(plugin: unknown, pkg: string): void {
   }
   if (typeof p["generate"] !== "function") {
     throw new Error(`Plugin "${pkg}" is missing required generate() function.`);
+  }
+  if (typeof p["templateRoot"] !== "string") {
+    throw new Error(`Plugin "${pkg}" must have a string templateRoot field.`);
+  }
+  if ("detect" in p && typeof p["detect"] !== "function") {
+    throw new Error(
+      `Plugin "${pkg}" detect field must be a function if present.`,
+    );
   }
 }

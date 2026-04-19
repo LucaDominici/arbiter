@@ -263,6 +263,7 @@ export async function runPlugins(
   storedConfig: ArbiterConfig,
 ): Promise<WriteResult[]> {
   const all: WriteResult[] = [];
+  const writtenPaths = new Set<string>();
   for (const pkg of plugins) {
     try {
       const plugin = await loadPlugin(pkg, targetDir);
@@ -275,7 +276,20 @@ export async function runPlugins(
         },
       };
       const result = plugin.generate(ctx);
+      if (!Array.isArray(result.files)) {
+        console.warn(
+          `  [arbiter] Plugin "${pkg}" returned invalid result (no files array). Skipping.`,
+        );
+        continue;
+      }
       for (const file of result.files) {
+        if (writtenPaths.has(file.path)) {
+          console.warn(
+            `  [arbiter] Plugin "${pkg}" conflict: "${file.path}" already written by a prior plugin. Skipping.`,
+          );
+          continue;
+        }
+        writtenPaths.add(file.path);
         all.push(
           writeFile(file.path, file.content, {
             backup: file.action === "backup-and-replace",
