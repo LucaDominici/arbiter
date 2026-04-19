@@ -15,6 +15,7 @@ const SKILL_NAMES = [
   "understand-code",
   "codebase-audit",
   "epic-decompose",
+  "configure",
 ] as const;
 
 export function generateSkills(config: ProjectConfig): SkillsGeneratorResult {

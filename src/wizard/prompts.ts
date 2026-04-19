@@ -20,6 +20,7 @@ import {
   defaultContractType,
   shouldAskContractType,
 } from "./archetype-defaults.js";
+import { DEFAULT_THRESHOLDS } from "../config/schema.js";
 
 export interface WizardInput {
   targetDir: string;
@@ -220,6 +221,13 @@ function buildConfigFromAnswers(
     enableDebtGates: answers.governanceLevel !== "L1",
     enableSuppressions: true,
     enableSecurityScanning: answers.governanceLevel !== "L1",
+    enableMutationTesting: answers.governanceLevel !== "L1",
+    enableContractTesting:
+      (answers.contractType ??
+        defaultContractType(answers.archetype, answers.hasPublicApi)) !==
+      "none",
+    enableEvidenceHarness: answers.governanceLevel === "L3",
+    thresholds: DEFAULT_THRESHOLDS[answers.governanceLevel],
     invariantTiers: presetToTiers(
       answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
     ),

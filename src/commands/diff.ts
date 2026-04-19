@@ -117,10 +117,9 @@ function buildDiffConfig(
     githubRepo: gitInfo.githubRepo,
     existing,
     languageHooks: getLanguageHooks(language),
-    enableDebtGates: stored.enableDebtGates ?? stored.governanceLevel !== "L1",
-    enableSuppressions: stored.enableSuppressions !== false,
-    enableSecurityScanning:
-      stored.enableSecurityScanning ?? stored.governanceLevel !== "L1",
+    enableDebtGates: stored.features.debtGates,
+    enableSuppressions: stored.features.suppressions,
+    enableSecurityScanning: stored.features.securityScanning,
     invariantTiers:
       stored.invariantTiers ??
       presetToTiers(defaultPresetForLevel(stored.governanceLevel)),

@@ -7,9 +7,9 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: './coverage',
       thresholds: {
-        lines: <%= coverageThreshold %>,
+        lines: <%= locals.thresholds ? locals.thresholds.lineCoverage : coverageThreshold %>,
         functions: <%= coverageThreshold %>,
-        branches: <%= coverageThreshold %>,
+        branches: <%= locals.thresholds ? locals.thresholds.branchCoverage : coverageThreshold %>,
         statements: <%= coverageThreshold %>,
       },
     },
