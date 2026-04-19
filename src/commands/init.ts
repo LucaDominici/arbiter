@@ -287,6 +287,7 @@ export async function runPlugins(
           console.warn(
             `  [arbiter] Plugin "${pkg}" conflict: "${file.path}" already written by a prior plugin. Skipping.`,
           );
+          all.push({ path: file.path, action: "skipped" });
           continue;
         }
         writtenPaths.add(file.path);
