@@ -5,7 +5,8 @@
     "track": "B",
     "paths": [
       "__tests__/scripts/real-project-matrix-workflow.test.ts",
-      "__tests__/scripts/real-project-fixtures.test.ts"
+      "__tests__/scripts/real-project-fixtures.test.ts",
+      "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md"
     ]
   },
   "files": [
@@ -18,6 +19,11 @@
       "path": "__tests__/scripts/real-project-fixtures.test.ts",
       "operation": "modify",
       "reason": "Lock the real-project fixture contents that the nightly matrix now depends on."
+    },
+    {
+      "path": "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md",
+      "operation": "modify",
+      "reason": "Document the new regression tests so the follow-up PR remains consistent with ADR-012 docs enforcement."
     }
   ],
   "invariants": ["INV-07", "INV-08", "INV-09", "INV-10"],
