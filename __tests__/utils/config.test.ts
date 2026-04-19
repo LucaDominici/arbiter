@@ -32,16 +32,14 @@ describe("arbiter config", () => {
     expect(loadConfig(dir)).toBeNull();
   });
 
-  it("saveConfig + loadConfig round-trips correctly", () => {
-    const config = {
-      version: "0.1",
-      tools: ["claude", "codex"] as const,
-      governanceLevel: "L2" as const,
-      useGitHub: true,
-    };
-    saveConfig(dir, config);
+  it("saveConfig + loadConfig round-trips v2 config correctly", () => {
+    const config = defaultConfig();
+    saveConfig(dir, { ...config, useGitHub: true });
     const loaded = loadConfig(dir);
-    expect(loaded).toEqual(config);
+    expect(loaded?.useGitHub).toBe(true);
+    expect(loaded?.version).toBe("0.2");
+    expect(loaded?.features).toBeDefined();
+    expect(loaded?.thresholds).toBeDefined();
   });
 
   it("defaultConfig returns L2 with claude+codex", () => {

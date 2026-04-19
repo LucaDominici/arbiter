@@ -28,7 +28,7 @@ select = [
 "*_test.py" = ["S101", "S311"]
 
 [lint.mccabe]
-max-complexity = 15
+max-complexity = <%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>
 
 [format]
 # Match Black defaults for consistency

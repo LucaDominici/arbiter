@@ -18,45 +18,16 @@ import {
   buildMigrationPlan,
   displayMigrationPlan,
 } from "../wizard/prompts.js";
-import { generateAgentsMd } from "../generators/agents-md.js";
-import { generateClaude } from "../generators/claude.js";
-import { generateCodex } from "../generators/codex.js";
-import { generateGithub } from "../generators/github.js";
-import { generateRoot } from "../generators/root.js";
-import { generateCheckAll } from "../generators/check-all.js";
-import { generateCursor } from "../generators/cursor.js";
-import { generateCopilot } from "../generators/copilot.js";
-import { generateGemini } from "../generators/gemini.js";
-import { generateWindsurf } from "../generators/windsurf.js";
-import { generateAider } from "../generators/aider.js";
-import { generateCoverage } from "../generators/coverage.js";
-import { generateDebtGates } from "../generators/debt-gates.js";
-import { generateDebtRatchet } from "../generators/debt-ratchet.js";
-import { generateSuppressions } from "../generators/suppressions.js";
-import { generateSecurity } from "../generators/security.js";
-import { generateStrideEnforcement } from "../generators/stride-enforcement.js";
-import { generateEvidenceRetention } from "../generators/evidence-retention.js";
-import { generateTestTaxonomy } from "../generators/test-taxonomy.js";
-import { generateArchUnit } from "../generators/archunit.js";
-import { generateEslintBoundaries } from "../generators/boundaries.js";
-import { generateRustBoundaries } from "../generators/rust-boundaries.js";
-import { generateGoBoundaries } from "../generators/go-boundaries.js";
-import { generatePythonBoundaries } from "../generators/python-boundaries.js";
-import { generateMutation } from "../generators/mutation.js";
-import { generateNightly } from "../generators/nightly.js";
-import { generateIntegrationTesting } from "../generators/integration-testing.js";
-import { generateContractTesting } from "../generators/contract-testing.js";
-import { generateGlobalInvariants } from "../generators/global-invariants.js";
-import { generateSkills } from "../generators/skills.js";
-import { generateAgentsClaude } from "../generators/agents-claude.js";
-import { generateSsot } from "../generators/ssot.js";
-import { generateObsidianVault } from "../generators/obsidian-vault.js";
-import { generateBehavioralTests } from "../generators/behavioral-tests.js";
 import { provisionLabels } from "../github/labels.js";
 import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
 import type { ArbiterConfig } from "../utils/config.js";
+import { DEFAULT_THRESHOLDS } from "../config/schema.js";
+import {
+  buildRegistry,
+  runGeneratorsFromRegistry,
+} from "../generators/registry.js";
 import { loadPlugin } from "../utils/plugin-loader.js";
 import { renderFromAbsPath } from "../utils/render.js";
 import { writeFile } from "../utils/fs.js";
@@ -180,81 +151,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 }
 
 export function runGenerators(config: ProjectConfig): WriteResult[] {
-  const all: WriteResult[] = [];
-
-  // AGENTS.md is always generated — it's the canonical governance source
-  all.push(generateAgentsMd(config));
-
-  // GLOBAL_INVARIANTS.md generated for standard/full presets (optional tiers selected)
-  all.push(generateGlobalInvariants(config));
-
-  // Skip tool-specific configs when ai-rulez manages them
-  if (!config.existing.aiRulez) {
-    if (config.tools.includes("claude"))
-      all.push(...generateClaude(config).files);
-    if (config.tools.includes("codex"))
-      all.push(...generateCodex(config).files);
-    if (config.tools.includes("cursor"))
-      all.push(...generateCursor(config).files);
-    if (config.tools.includes("copilot"))
-      all.push(...generateCopilot(config).files);
-    if (config.tools.includes("gemini"))
-      all.push(...generateGemini(config).files);
-    if (config.tools.includes("windsurf"))
-      all.push(...generateWindsurf(config).files);
-    if (config.tools.includes("aider"))
-      all.push(...generateAider(config).files);
-    all.push(...generateSkills(config).files);
-    all.push(...generateAgentsClaude(config).files);
-  }
-
-  if (config.useGitHub) {
-    all.push(...generateGithub(config).files);
-    all.push(...generateRoot(config).files);
-    all.push(...generateCheckAll(config).files);
-  }
-
-  if (config.enableDebtGates) {
-    all.push(...generateDebtGates(config).files);
-    all.push(...generateDebtRatchet(config).files);
-    all.push(...generateCoverage(config).files);
-  }
-
-  if (config.enableSuppressions) {
-    all.push(...generateSuppressions(config).files);
-  }
-
-  if (config.enableSecurityScanning) {
-    all.push(...generateSecurity(config).files);
-  }
-
-  all.push(...generateArchUnit(config).files);
-  all.push(...generateEslintBoundaries(config).files);
-  all.push(...generateRustBoundaries(config).files);
-  all.push(...generateGoBoundaries(config).files);
-  all.push(...generatePythonBoundaries(config).files);
-  all.push(...generateMutation(config).files);
-  all.push(...generateNightly(config).files);
-  all.push(...generateIntegrationTesting(config).files);
-  all.push(...generateContractTesting(config).files);
-
-  if (config.enableDebtGates) {
-    all.push(...generateStrideEnforcement(config).files);
-  }
-
-  all.push(...generateEvidenceRetention(config).files);
-
-  all.push(...generateTestTaxonomy(config).files);
-
-  all.push(...generateBehavioralTests(config).files);
-
-  all.push(...generateSsot(config).files);
-
-  if (config.enableObsidianVault) {
-    all.push(...generateObsidianVault(config).files);
-  }
-
-  return all;
+  return runGeneratorsFromRegistry(buildRegistry(config));
 }
 
 export async function runPlugins(
@@ -460,23 +357,35 @@ function buildDefaultConfig(opts: {
     enableDebtGates: opts.governanceLevel !== "L1",
     enableSuppressions: true,
     enableSecurityScanning: opts.governanceLevel !== "L1",
+    enableMutationTesting: opts.governanceLevel !== "L1",
+    enableContractTesting:
+      defaultContractType(archetype, hasPublicApi) !== "none",
+    enableEvidenceHarness: opts.governanceLevel === "L3",
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
     acceptBetaTools: opts.acceptBetaTools ?? false,
     contractType: defaultContractType(archetype, hasPublicApi),
+    thresholds: DEFAULT_THRESHOLDS[opts.governanceLevel],
     ...detectedBasePackage(opts.language, opts.targetDir),
   };
 }
 
 function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
+  const level = config.governanceLevel;
   return {
-    version: "0.1",
+    version: "0.2",
     tools: config.tools,
-    governanceLevel: config.governanceLevel,
+    governanceLevel: level,
     useGitHub: config.useGitHub,
-    enableDebtGates: config.enableDebtGates,
-    enableSuppressions: config.enableSuppressions,
-    enableSecurityScanning: config.enableSecurityScanning,
+    features: {
+      debtGates: config.enableDebtGates,
+      suppressions: config.enableSuppressions,
+      securityScanning: config.enableSecurityScanning,
+      mutationTesting: config.enableMutationTesting !== false,
+      contractTesting: config.enableContractTesting !== false,
+      evidenceHarness: config.enableEvidenceHarness === true,
+    },
+    thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],
     invariantTiers: config.invariantTiers,
     archetype: config.archetype,
     architectureStyle: config.architectureStyle,

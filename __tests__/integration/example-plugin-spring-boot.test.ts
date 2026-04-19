@@ -39,6 +39,24 @@ function installPluginViaSymlink(dir: string): void {
   symlinkSync(SPRING_BOOT_PLUGIN_DIR, join(scopeDir, "plugin-spring-boot"));
 }
 
+const FEATURES = {
+  debtGates: false,
+  suppressions: false,
+  securityScanning: false,
+  mutationTesting: false,
+  contractTesting: false,
+  evidenceHarness: false,
+};
+
+const THRESHOLDS = {
+  lineCoverage: 60,
+  branchCoverage: 50,
+  mutationScore: 70,
+  cyclomaticComplexity: 20,
+  methodLength: 100,
+  maxParams: 8,
+};
+
 function writeArbiterConfig(dir: string): void {
   const config = {
     version: "0.2",
@@ -48,6 +66,9 @@ function writeArbiterConfig(dir: string): void {
     framework: "spring-boot",
     governanceLevel: "L1",
     tools: ["claude"],
+    useGitHub: false,
+    features: FEATURES,
+    thresholds: THRESHOLDS,
     plugins: ["@arbiter/plugin-spring-boot"],
   };
   writeFileSync(join(dir, "arbiter.json"), JSON.stringify(config, null, 2));
@@ -113,6 +134,9 @@ describe("example plugin: @arbiter/plugin-spring-boot", () => {
           framework: "react",
           governanceLevel: "L1",
           tools: ["claude"],
+          useGitHub: false,
+          features: FEATURES,
+          thresholds: THRESHOLDS,
           plugins: ["@arbiter/plugin-spring-boot"],
         },
         null,

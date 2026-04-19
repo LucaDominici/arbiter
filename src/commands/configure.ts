@@ -1,0 +1,129 @@
+import { resolve } from "node:path";
+import { loadConfig, saveConfig } from "../utils/config.js";
+import { validateConfig } from "../config/schema.js";
+import type { ArbiterConfigV2 } from "../config/schema.js";
+
+export interface ConfigureOptions {
+  dir?: string | undefined;
+  sets: string[];
+}
+
+const ALLOWED_PATHS = new Set([
+  "features.contractTesting",
+  "features.mutationTesting",
+  "features.securityScanning",
+  "features.evidenceHarness",
+  "features.debtGates",
+  "features.suppressions",
+  "thresholds.lineCoverage",
+  "thresholds.branchCoverage",
+  "thresholds.mutationScore",
+  "thresholds.cyclomaticComplexity",
+  "thresholds.methodLength",
+  "thresholds.maxParams",
+  "governanceLevel",
+  "useGitHub",
+  "tools",
+]);
+
+const VALID_TOOLS = new Set(["claude", "codex", "cursor", "copilot"]);
+
+function parseValue(path: string, raw: string): unknown {
+  if (path.startsWith("features.")) {
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+    throw new Error(`features.* must be true or false — got: ${raw}`);
+  }
+  if (path.startsWith("thresholds.")) {
+    const n = Number(raw);
+    if (!Number.isFinite(n))
+      throw new Error(`${path} must be a number — got: ${raw}`);
+    return n;
+  }
+  if (path === "useGitHub") {
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+    throw new Error(`useGitHub must be true or false — got: ${raw}`);
+  }
+  if (path === "tools") {
+    const toolList = raw.split(",").map((t) => t.trim());
+    for (const t of toolList) {
+      if (!VALID_TOOLS.has(t)) {
+        throw new Error(
+          `Invalid tool: "${t}". Valid tools: claude, codex, cursor, copilot`,
+        );
+      }
+    }
+    return toolList;
+  }
+  return raw;
+}
+
+function applySet(
+  config: ArbiterConfigV2,
+  path: string,
+  value: unknown,
+): ArbiterConfigV2 {
+  const parts = path.split(".");
+  if (parts.length === 1 && parts[0] !== undefined) {
+    const key0 = parts[0];
+    return { ...config, [key0]: value };
+  }
+  if (parts.length === 2 && parts[0] !== undefined && parts[1] !== undefined) {
+    const top = parts[0];
+    const key = parts[1];
+    const root = config as unknown as Record<string, Record<string, unknown>>;
+    const parent = root[top] ?? {};
+    return {
+      ...config,
+      [top]: { ...parent, [key]: value },
+    };
+  }
+  throw new Error(`Unsupported path depth: ${path}`);
+}
+
+export function runConfigure(options: ConfigureOptions): void {
+  if (options.sets.length === 0) {
+    console.error(
+      "  Usage: arbiter configure --set <path>=<value>\n" +
+        "  Interactive mode requires a TTY. Non-interactive usage requires --set.\n",
+    );
+    process.exit(2);
+  }
+
+  const targetDir = resolve(options.dir ?? process.cwd());
+  const stored = loadConfig(targetDir);
+  if (!stored) {
+    throw new Error("No arbiter.json found. Run `arbiter init` first.");
+  }
+
+  let config = stored;
+
+  for (const assignment of options.sets) {
+    const eqIdx = assignment.indexOf("=");
+    if (eqIdx < 0) {
+      throw new Error(
+        `Invalid --set format (expected path=value): ${assignment}`,
+      );
+    }
+    const path = assignment.slice(0, eqIdx);
+    const rawValue = assignment.slice(eqIdx + 1);
+
+    if (!ALLOWED_PATHS.has(path)) {
+      throw new Error(`Unknown configuration path: ${path}`);
+    }
+
+    const value = parseValue(path, rawValue);
+    config = applySet(config, path, value);
+  }
+
+  const result = validateConfig(config);
+  if (!result.ok) {
+    throw new Error(
+      `Configuration invalid after changes:\n  ${result.errors.join("\n  ")}`,
+    );
+  }
+
+  saveConfig(targetDir, result.config);
+  console.log(`  Updated: ${options.sets.join(", ")}`);
+}

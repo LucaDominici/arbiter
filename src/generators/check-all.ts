@@ -14,7 +14,7 @@ export function generateCheckAll(
   const results: WriteResult[] = [];
   const base = config.targetDir;
 
-  const thresholds = computeThresholds(
+  const computed = computeThresholds(
     config.linesOfCode ?? 0,
     config.thresholdProfile ?? "fixed",
     config.governanceLevel,
@@ -22,11 +22,12 @@ export function generateCheckAll(
 
   const data = {
     ...config,
-    // Pre-computed threshold values consumed by check-all.mjs.ejs
-    coverageThreshold: thresholds.coverageThreshold,
-    coverageEnabled: thresholds.coverageEnabled,
-    mutationEnabled: thresholds.mutationEnabled,
-    mutationThreshold: thresholds.mutationThreshold,
+    coverageThreshold:
+      config.thresholds?.lineCoverage ?? computed.coverageThreshold,
+    coverageEnabled: computed.coverageEnabled,
+    mutationEnabled: computed.mutationEnabled,
+    mutationThreshold:
+      config.thresholds?.mutationScore ?? computed.mutationThreshold,
   } as unknown as Record<string, unknown>;
 
   const scriptPath = resolvedPath(base, "scripts", "check-all.mjs");

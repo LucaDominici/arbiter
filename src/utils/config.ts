@@ -1,65 +1,63 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type {
-  AiTool,
-  Archetype,
-  ArchitectureStyle,
-  GovernanceLevel,
-  InvariantTier,
-  WorktreeConfig,
-} from "../wizard/types.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
+import {
+  type ArbiterConfigV2,
+  type FeatureFlags,
+  type ThresholdsV2,
+  migrateV1ToV2,
+  DEFAULT_THRESHOLDS,
+} from "../config/schema.js";
 
-export interface ArbiterConfig {
-  version: string;
-  tools: AiTool[];
-  governanceLevel: GovernanceLevel;
-  useGitHub: boolean;
-  enableDebtGates?: boolean;
-  enableSuppressions?: boolean;
-  enableSecurityScanning?: boolean;
-  invariantTiers?: InvariantTier[];
-  worktree?: WorktreeConfig;
-  /** Whether the Obsidian vault generator ran during init. Used by `arbiter obsidian` sync. */
-  enableObsidianVault?: boolean;
-  // Phase 9.5 MA: archetype axis fields — optional for backward compat with arbiter.json v0.1
-  archetype?: Archetype;
-  architectureStyle?: ArchitectureStyle;
-  isMultiTenant?: boolean;
-  hasDatabase?: boolean;
-  hasPublicApi?: boolean;
-  // Phase 9.5 ME: beta-tool override — persisted for audit trail
-  acceptBetaTools?: boolean;
-  // Phase 9.5 MJ: evidence retention policy — persisted for arbiter update
-  evidenceRetention?: import("../wizard/types.js").EvidenceRetentionConfig;
-  // Phase 9.5 MG: threshold profile and strictness tier — persisted for arbiter update
-  thresholdProfile?: import("../wizard/types.js").ThresholdProfile;
-  strictnessTier?: import("../wizard/types.js").StrictnessTier;
-  // Phase 9.5 MK: grace period for level upgrades — see ADR-028
-  graceEndsAt?: string;
-  graceFromLevel?: GovernanceLevel;
-  // Phase 9.5 ML: contract testing type axis — see ADR-028
-  contractType?: import("../wizard/types.js").ContractType;
-  // Plugin API v1 — packages declared here are loaded during `arbiter update`
-  plugins?: string[];
-}
+export type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 };
+export type ArbiterConfig = ArbiterConfigV2;
 
 const CONFIG_FILE = "arbiter.json";
-const CURRENT_VERSION = "0.1";
+const SNAPSHOT_FILE = ".arbiter-generated.json";
 
 export function saveConfig(dir: string, config: ArbiterConfig): void {
   const path = join(dir, CONFIG_FILE);
   writeFileSync(path, JSON.stringify(config, null, 2) + "\n", "utf-8");
 }
 
-export function loadConfig(dir: string): ArbiterConfig | null {
-  const path = join(dir, CONFIG_FILE);
+export function saveSnapshot(dir: string, config: ArbiterConfig): void {
+  const path = join(dir, SNAPSHOT_FILE);
+  writeFileSync(path, JSON.stringify(config, null, 2) + "\n", "utf-8");
+}
+
+export function loadSnapshot(dir: string): ArbiterConfig | null {
+  const path = join(dir, SNAPSHOT_FILE);
   if (!existsSync(path)) return null;
   try {
     return JSON.parse(readFileSync(path, "utf-8")) as ArbiterConfig;
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.warn(
-      `[arbiter] arbiter.json at ${path} is corrupt (invalid JSON) — ignoring and treating as missing`,
+      `[arbiter] ${SNAPSHOT_FILE} at ${path} is unreadable (${msg}) — skipping snapshot`,
+    );
+    return null;
+  }
+}
+
+export function loadConfig(dir: string): ArbiterConfig | null {
+  const path = join(dir, CONFIG_FILE);
+  if (!existsSync(path)) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(path, "utf-8"));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[arbiter] arbiter.json at ${path} has invalid JSON (${msg}) — ignoring`,
+    );
+    return null;
+  }
+  try {
+    return migrateV1ToV2(raw);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[arbiter] arbiter.json at ${path} failed migration (${msg}) — ignoring`,
     );
     return null;
   }
@@ -68,10 +66,19 @@ export function loadConfig(dir: string): ArbiterConfig | null {
 export function defaultConfig(): ArbiterConfig {
   const governanceLevel = "L2";
   return {
-    version: CURRENT_VERSION,
+    version: "0.2",
     tools: ["claude", "codex"],
     governanceLevel,
     useGitHub: false,
+    features: {
+      debtGates: true,
+      suppressions: true,
+      securityScanning: true,
+      mutationTesting: true,
+      contractTesting: false,
+      evidenceHarness: false,
+    },
+    thresholds: DEFAULT_THRESHOLDS[governanceLevel],
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
     archetype: "library",
     architectureStyle: "none",

@@ -173,6 +173,12 @@ export interface ProjectConfig {
   basePackage?: string;
   /** Whether to generate the optional Obsidian vault at docs/vault/. */
   enableObsidianVault?: boolean;
+  /** Whether to generate mutation testing configuration. Default true for L2+. */
+  enableMutationTesting?: boolean;
+  /** Whether to generate contract testing configuration. Default from contractType. */
+  enableContractTesting?: boolean;
+  /** Whether to generate evidence retention configuration. Default true for L3. */
+  enableEvidenceHarness?: boolean;
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.
@@ -215,6 +221,16 @@ export interface ProjectConfig {
    * Used by the generated nightly.yml. L3-only. Default: "tests/load/default.js".
    */
   k6ScriptPath?: string;
+  thresholds?: ThresholdsV2;
+}
+
+export interface ThresholdsV2 {
+  lineCoverage: number;
+  branchCoverage: number;
+  mutationScore: number;
+  cyclomaticComplexity: number;
+  methodLength: number;
+  maxParams: number;
 }
 
 export type ThresholdProfile = "scaled" | "fixed";
