@@ -72,15 +72,34 @@ jobs:
             | sh -s -- -b "$(go env GOPATH)/bin" v1.57.2
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
+      - if: matrix.language == 'go' && matrix.level == 'L2'
+        name: Install Go L2 analysis tools
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
       - if: matrix.language == 'python'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      - if: matrix.language == 'python' && matrix.level == 'L2'
+        name: Install Python L2 analysis tools
+        run: pip install pip-audit pytest-cov
+
       - if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - if: matrix.language == 'rust' && matrix.level == 'L2'
+        name: Install Rust L2 analysis tools
+        run: |
+          cargo install cargo-audit --locked
+          VERSION=0.31.2
+          curl -sSfL "https://github.com/xd009642/tarpaulin/releases/download/${VERSION}/cargo-tarpaulin-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz -C ~/.cargo/bin
 
       - if: matrix.level == 'L2'
         name: Install gitleaks

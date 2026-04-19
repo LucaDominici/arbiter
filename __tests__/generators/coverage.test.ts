@@ -53,6 +53,16 @@ describe("generateCoverage", () => {
     expect(content).toContain("lcov");
   });
 
+  it("vitest.config.ts contains include: ['src/**'] to scope coverage to source files", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateCoverage(config);
+    const content = readFileSync(join(dir, "vitest.config.ts"), "utf-8");
+    expect(content).toContain("include: ['src/**']");
+  });
+
   // ── Java ───────────────────────────────────────────────────────────────────
 
   it("generates gradle/jacoco.gradle for Java Gradle projects", () => {

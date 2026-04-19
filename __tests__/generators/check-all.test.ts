@@ -49,13 +49,14 @@ describe("generateCheckAll", () => {
     expect(content).toContain("prettier");
   });
 
-  it("static analysis eslint includes --ext .ts,.js for TypeScript", () => {
+  it("static analysis eslint does not specify --ext flag (avoids TypeScript parse errors)", () => {
     generateCheckAll(makeConfig(dir, { language: "typescript" }));
     const content = readFileSync(
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("'--ext', '.ts,.js'");
+    expect(content).toContain("eslintrc-static.json");
+    expect(content).not.toContain("'--ext', '.ts,.js'");
   });
 
   it("check-all.mjs contains Rust commands for Rust projects", () => {
