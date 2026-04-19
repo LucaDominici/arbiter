@@ -176,6 +176,17 @@ gh run watch
 
 ---
 
+## Regression Coverage
+
+The highest-friction nightly failures now have dedicated repo-level regression tests in addition to the end-to-end workflow itself:
+
+- `__tests__/scripts/real-project-matrix-workflow.test.ts` locks the self-hosted workflow contract: Actions API permissions, pinned Gradle setup, and the extra L2 tools that the generated gates invoke.
+- `__tests__/scripts/real-project-fixtures.test.ts` locks the fixture contract for the cells that previously regressed: TypeScript backend `testcontainers`, Python `pytest-cov`, Java fixture build/config wiring, and Rust `#[must_use]` annotations relied on by clippy pedantic.
+
+If a future change updates the nightly workflow or one of the real-project fixtures, update these tests in the same PR. They exist to catch breakage before the nightly matrix becomes the first place a regression appears.
+
+---
+
 ## Troubleshooting
 
 ### `arbiter init` fails with "unknown language"

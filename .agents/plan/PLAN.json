@@ -1,23 +1,29 @@
 {
-  "run_id": "task-20260419-204900",
+  "run_id": "task-20260419-211800",
   "task_id": "#81",
   "scope": {
     "track": "B",
     "paths": [
-      "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md",
-      "docs/PRODUCT/MILESTONES.md"
+      "__tests__/scripts/real-project-matrix-workflow.test.ts",
+      "__tests__/scripts/real-project-fixtures.test.ts",
+      "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md"
     ]
   },
   "files": [
     {
-      "path": "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md",
+      "path": "__tests__/scripts/real-project-matrix-workflow.test.ts",
       "operation": "modify",
-      "reason": "Document the L2/nightly hardening requirements and the CI failure modes fixed by PR #228."
+      "reason": "Lock the self-hosted nightly workflow contract that fixed the PR #228 CI regressions."
     },
     {
-      "path": "docs/PRODUCT/MILESTONES.md",
+      "path": "__tests__/scripts/real-project-fixtures.test.ts",
       "operation": "modify",
-      "reason": "Record the final hardening note for MF and reflect the current update date."
+      "reason": "Lock the real-project fixture contents that the nightly matrix now depends on."
+    },
+    {
+      "path": "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md",
+      "operation": "modify",
+      "reason": "Document the new regression tests so the follow-up PR remains consistent with ADR-012 docs enforcement."
     }
   ],
   "invariants": ["INV-07", "INV-08", "INV-09", "INV-10"],
