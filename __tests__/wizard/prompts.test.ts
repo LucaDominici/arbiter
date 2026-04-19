@@ -23,6 +23,9 @@ function makeExisting(overrides: Partial<ExistingState> = {}): ExistingState {
     aiRulez: false,
     settingsJson: false,
     checkAllScript: false,
+    geminiDir: false,
+    windsurfRules: false,
+    aiderConf: false,
     ...overrides,
   };
 }
@@ -126,6 +129,39 @@ describe("buildMigrationPlan", () => {
     expect(plan.created.some((s) => s.toLowerCase().includes("github"))).toBe(
       true,
     );
+  });
+
+  it("puts .gemini/GEMINI.md in created when gemini selected and no existing .gemini dir", () => {
+    const plan = buildMigrationPlan(makeExisting(), ["gemini"], false);
+    expect(plan.created.some((s) => s.includes(".gemini"))).toBe(true);
+  });
+
+  it("puts .gemini/GEMINI.md in replaced when geminiDir=true", () => {
+    const existing = makeExisting({ geminiDir: true });
+    const plan = buildMigrationPlan(existing, ["gemini"], false);
+    expect(plan.replaced.some((s) => s.includes("GEMINI.md"))).toBe(true);
+  });
+
+  it("puts windsurf-instructions.md in created when windsurf selected and no existing file", () => {
+    const plan = buildMigrationPlan(makeExisting(), ["windsurf"], false);
+    expect(plan.created.some((s) => s.includes("windsurf"))).toBe(true);
+  });
+
+  it("puts windsurf-instructions.md in replaced when windsurfRules=true", () => {
+    const existing = makeExisting({ windsurfRules: true });
+    const plan = buildMigrationPlan(existing, ["windsurf"], false);
+    expect(plan.replaced.some((s) => s.includes("windsurf"))).toBe(true);
+  });
+
+  it("puts .aider.conf.yml in created when aider selected and no existing file", () => {
+    const plan = buildMigrationPlan(makeExisting(), ["aider"], false);
+    expect(plan.created.some((s) => s.includes(".aider"))).toBe(true);
+  });
+
+  it("puts .aider.conf.yml in replaced when aiderConf=true", () => {
+    const existing = makeExisting({ aiderConf: true });
+    const plan = buildMigrationPlan(existing, ["aider"], false);
+    expect(plan.replaced.some((s) => s.includes(".aider"))).toBe(true);
   });
 });
 

@@ -24,7 +24,7 @@ program
   .option("-y, --yes", "Skip wizard — use auto-detected defaults", false)
   .option(
     "--tools <tools>",
-    "Comma-separated list of AI tools (claude,codex,cursor,copilot)",
+    "Comma-separated list of AI tools (claude,codex,cursor,copilot,gemini,windsurf,aider)",
   )
   .option("--level <level>", "Governance level: L1, L2, or L3", "L2")
   .option("--dir <dir>", "Target directory (default: current directory)")

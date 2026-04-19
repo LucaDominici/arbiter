@@ -1,0 +1,45 @@
+# <%= projectName %> — Gemini CLI Instructions
+
+> **Governance rules are in `AGENTS.md` (canonical, AAIF standard).**
+> This file adds Gemini CLI-specific configuration only.
+
+---
+
+## Governance
+
+All invariants, coding standards, testing policy, and commit conventions are in
+[`AGENTS.md`](../../AGENTS.md). Always read it before generating or suggesting code.
+
+## Stack
+
+| Fact | Value |
+|------|-------|
+| **Language** | <%= language %><%= framework ? ` / ${framework}` : '' %> |
+| **Build** | `<%= buildCommand %>` |
+| **Test** | `<%= testCommand %>` |
+| **Lint** | `<%= lintCommand %>` |
+| **Gate** | `node scripts/check-all.mjs` |
+
+## Task Workflow
+
+Follow this lifecycle for every task:
+
+1. **Start**: Read GitHub issue → read `AGENTS.md` → create `task/#NNN-description` branch
+2. **Plan**: Identify files to change. 3+ files → outline approach before editing
+3. **Implement**: Write tests first, then implementation. Run `<%= testCommand %>` after each unit
+4. **Gate**: `node scripts/check-all.mjs L1` before commit, `node scripts/check-all.mjs L2` before push
+5. **Finalize**: Commit → push → PR → verify CI → merge
+
+## Quick Commands
+
+```bash
+# Gate
+node scripts/check-all.mjs L1   # pre-commit
+node scripts/check-all.mjs L2   # pre-push (matches CI)
+
+# Build
+<%= buildCommand %>
+
+# Test
+<%= testCommand %>
+```

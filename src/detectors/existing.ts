@@ -8,6 +8,9 @@ export interface ExistingState {
   aiRulez: boolean;
   settingsJson: boolean;
   checkAllScript: boolean;
+  geminiDir: boolean;
+  windsurfRules: boolean;
+  aiderConf: boolean;
 }
 
 export function detectExisting(dir: string): ExistingState {
@@ -22,5 +25,8 @@ export function detectExisting(dir: string): ExistingState {
     checkAllScript:
       existsSync(join(dir, "scripts", "check-all.mjs")) ||
       existsSync(join(dir, "scripts", "check-all.sh")),
+    geminiDir: existsSync(join(dir, ".gemini")),
+    windsurfRules: existsSync(join(dir, "windsurf-instructions.md")),
+    aiderConf: existsSync(join(dir, ".aider.conf.yml")),
   };
 }

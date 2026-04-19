@@ -33,10 +33,40 @@ export interface WizardInput {
 }
 
 export function determineFlow(existing: ExistingState): WizardFlow {
-  if (existing.agentsMd || existing.claudeDir || existing.agentsDir) {
+  if (
+    existing.agentsMd ||
+    existing.claudeDir ||
+    existing.agentsDir ||
+    existing.geminiDir ||
+    existing.windsurfRules ||
+    existing.aiderConf
+  ) {
     return "brownfield";
   }
   return "greenfield";
+}
+
+interface SimpleToolEntry {
+  tool: AiTool;
+  filePath: string;
+  existsAlready: boolean;
+}
+
+function addSimpleToolFiles(
+  tools: AiTool[],
+  aiRulez: boolean,
+  entries: SimpleToolEntry[],
+  replaced: string[],
+  created: string[],
+): void {
+  for (const { tool, filePath, existsAlready } of entries) {
+    if (!tools.includes(tool) || aiRulez) continue;
+    if (existsAlready) {
+      replaced.push(filePath);
+    } else {
+      created.push(filePath);
+    }
+  }
 }
 
 export function buildMigrationPlan(
@@ -82,13 +112,35 @@ export function buildMigrationPlan(
     }
   }
 
-  if (tools.includes("cursor") && !existing.aiRulez) {
-    created.push(".cursorrules");
-  }
-
-  if (tools.includes("copilot") && !existing.aiRulez) {
-    created.push(".github/copilot-instructions.md");
-  }
+  addSimpleToolFiles(
+    tools,
+    existing.aiRulez,
+    [
+      { tool: "cursor", filePath: ".cursorrules", existsAlready: false },
+      {
+        tool: "copilot",
+        filePath: ".github/copilot-instructions.md",
+        existsAlready: false,
+      },
+      {
+        tool: "gemini",
+        filePath: ".gemini/GEMINI.md",
+        existsAlready: existing.geminiDir,
+      },
+      {
+        tool: "windsurf",
+        filePath: "windsurf-instructions.md",
+        existsAlready: existing.windsurfRules,
+      },
+      {
+        tool: "aider",
+        filePath: ".aider.conf.yml",
+        existsAlready: existing.aiderConf,
+      },
+    ],
+    replaced,
+    created,
+  );
 
   if (useGitHub) {
     created.push(
@@ -132,6 +184,10 @@ export async function runWizard(
     if (wizardInput.existing.agentsMd) console.log("  ├── AGENTS.md");
     if (wizardInput.existing.claudeDir) console.log("  ├── .claude/ directory");
     if (wizardInput.existing.agentsDir) console.log("  ├── .agents/ directory");
+    if (wizardInput.existing.geminiDir) console.log("  ├── .gemini/ directory");
+    if (wizardInput.existing.windsurfRules)
+      console.log("  ├── windsurf-instructions.md");
+    if (wizardInput.existing.aiderConf) console.log("  ├── .aider.conf.yml");
     console.log("");
   }
 
@@ -424,6 +480,9 @@ function buildMainQuestions(wizardInput: WizardInput): object[] {
         { name: "Codex (OpenAI)", value: "codex", checked: true },
         { name: "Cursor", value: "cursor", checked: false },
         { name: "Copilot", value: "copilot", checked: false },
+        { name: "Gemini CLI (Google)", value: "gemini", checked: false },
+        { name: "Windsurf (Codeium)", value: "windsurf", checked: false },
+        { name: "Aider (terminal pair)", value: "aider", checked: false },
       ],
     },
     ...buildGovernanceQuestions(),

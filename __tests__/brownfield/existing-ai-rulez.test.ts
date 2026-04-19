@@ -35,7 +35,15 @@ describe("brownfield: ai-rulez coexistence", () => {
       testCommand: "npm test",
       lintCommand: "npm run lint",
       formatCommand: "npx prettier --check .",
-      tools: ["claude", "codex", "cursor", "copilot"],
+      tools: [
+        "claude",
+        "codex",
+        "cursor",
+        "copilot",
+        "gemini",
+        "windsurf",
+        "aider",
+      ],
       useGitHub: true,
       githubOwner: "test-owner",
       githubRepo: "test-repo",
@@ -47,6 +55,9 @@ describe("brownfield: ai-rulez coexistence", () => {
         aiRulez: true,
         settingsJson: false,
         checkAllScript: false,
+        geminiDir: false,
+        windsurfRules: false,
+        aiderConf: false,
       },
     });
   }

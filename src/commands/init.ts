@@ -26,6 +26,9 @@ import { generateRoot } from "../generators/root.js";
 import { generateCheckAll } from "../generators/check-all.js";
 import { generateCursor } from "../generators/cursor.js";
 import { generateCopilot } from "../generators/copilot.js";
+import { generateGemini } from "../generators/gemini.js";
+import { generateWindsurf } from "../generators/windsurf.js";
+import { generateAider } from "../generators/aider.js";
 import { generateCoverage } from "../generators/coverage.js";
 import { generateDebtGates } from "../generators/debt-gates.js";
 import { generateDebtRatchet } from "../generators/debt-ratchet.js";
@@ -192,6 +195,12 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
       all.push(...generateCursor(config).files);
     if (config.tools.includes("copilot"))
       all.push(...generateCopilot(config).files);
+    if (config.tools.includes("gemini"))
+      all.push(...generateGemini(config).files);
+    if (config.tools.includes("windsurf"))
+      all.push(...generateWindsurf(config).files);
+    if (config.tools.includes("aider"))
+      all.push(...generateAider(config).files);
     all.push(...generateSkills(config).files);
     all.push(...generateAgentsClaude(config).files);
   }
@@ -286,6 +295,14 @@ function logExistingDetections(
     console.log("  ├── Existing .claude/ detected — will merge");
   if (existing.agentsDir)
     console.log("  ├── Existing .agents/ detected — will merge");
+  if (existing.geminiDir)
+    console.log("  ├── Existing .gemini/ detected — will back up");
+  if (existing.windsurfRules)
+    console.log(
+      "  ├── Existing windsurf-instructions.md detected — will back up",
+    );
+  if (existing.aiderConf)
+    console.log("  ├── Existing .aider.conf.yml detected — will back up");
   if (existing.aiRulez)
     console.log(
       "  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)",
@@ -444,7 +461,15 @@ function parseTools(tools: string | undefined): AiTool[] {
   return tools
     .split(",")
     .filter((t): t is AiTool =>
-      ["claude", "codex", "cursor", "copilot"].includes(t),
+      [
+        "claude",
+        "codex",
+        "cursor",
+        "copilot",
+        "gemini",
+        "windsurf",
+        "aider",
+      ].includes(t),
     );
 }
 
