@@ -82,6 +82,13 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - if: matrix.level == 'L2'
+        name: Install gitleaks
+        run: |
+          VERSION=8.18.4
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+
       # ─── Stage fixture ──────────────────────────────────────────────────────
 
       - name: Stage fixture

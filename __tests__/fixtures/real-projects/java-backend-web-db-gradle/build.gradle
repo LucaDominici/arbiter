@@ -22,6 +22,12 @@ checkstyle {
     configFile = file('config/checkstyle/checkstyle.xml')
 }
 
+configurations.all {
+    resolutionStrategy.capabilitiesResolution.withCapability('com.google.collections:google-collections') {
+        selectHighestVersion()
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

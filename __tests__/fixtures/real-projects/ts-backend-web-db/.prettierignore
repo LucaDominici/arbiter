@@ -5,3 +5,4 @@ suppressions/
 docs/
 *.md
 arbiter.json
+vitest.config.ts

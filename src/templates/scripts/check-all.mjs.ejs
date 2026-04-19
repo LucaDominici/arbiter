@@ -63,7 +63,7 @@ runCheck('format', 'npx', ['prettier', '--check', '.']);
 runCheck('lint', 'npx', ['eslint', 'src']);
 // ─── L1: Static analysis rules (M29) ─────────────────────────────────────────
 if (existsSync('.eslintrc-static.json')) {
-  runCheck('static analysis', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-static.json', 'src']);
+  runCheck('static analysis', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-static.json', '--ext', '.ts,.js', 'src']);
 } else {
   console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }
