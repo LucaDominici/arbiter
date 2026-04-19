@@ -18,7 +18,7 @@ describe("runUpdate axis-field persistence (M2 regression)", () => {
     cleanupTestProject(dir);
   });
 
-  it("persists explicit axis fields back to arbiter.json", () => {
+  it("persists explicit axis fields back to arbiter.json", async () => {
     writeFileSync(
       join(dir, "arbiter.json"),
       JSON.stringify({
@@ -34,7 +34,7 @@ describe("runUpdate axis-field persistence (M2 regression)", () => {
       }),
     );
 
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     const saved = loadConfig(dir);
     expect(saved?.archetype).toBe("frontend-spa");
@@ -44,7 +44,7 @@ describe("runUpdate axis-field persistence (M2 regression)", () => {
     expect(saved?.hasPublicApi).toBe(false);
   });
 
-  it("detects and persists axis fields when absent from stored config", () => {
+  it("detects and persists axis fields when absent from stored config", async () => {
     writeFileSync(
       join(dir, "package.json"),
       JSON.stringify({ dependencies: { express: "^4.0.0" } }),
@@ -59,7 +59,7 @@ describe("runUpdate axis-field persistence (M2 regression)", () => {
       }),
     );
 
-    runUpdate({ dir, github: false });
+    await runUpdate({ dir, github: false });
 
     const saved = loadConfig(dir);
     expect(saved?.archetype).toBe("backend-web-db");

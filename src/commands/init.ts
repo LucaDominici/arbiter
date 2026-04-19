@@ -1,4 +1,4 @@
-import { resolve, basename } from "node:path";
+import { resolve, basename, join } from "node:path";
 import { runProbes } from "../compatibility/probe.js";
 import { formatText } from "../compatibility/report.js";
 import { detectLanguage } from "../detectors/language.js";
@@ -57,6 +57,9 @@ import { applyBranchProtection } from "../github/branch-protection.js";
 import { createProjectBoard } from "../github/project-board.js";
 import { saveConfig } from "../utils/config.js";
 import type { ArbiterConfig } from "../utils/config.js";
+import { loadPlugin } from "../utils/plugin-loader.js";
+import { renderFromAbsPath } from "../utils/render.js";
+import { writeFile } from "../utils/fs.js";
 import { isL3Allowed } from "../utils/maturity-check.js";
 import { runCli } from "../utils/run-cli.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
@@ -251,6 +254,41 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
     all.push(...generateObsidianVault(config).files);
   }
 
+  return all;
+}
+
+export async function runPlugins(
+  targetDir: string,
+  plugins: string[],
+  storedConfig: ArbiterConfig,
+): Promise<WriteResult[]> {
+  const all: WriteResult[] = [];
+  for (const pkg of plugins) {
+    try {
+      const plugin = await loadPlugin(pkg, targetDir);
+      if (plugin.detect && !plugin.detect(storedConfig)) continue;
+      const ctx = {
+        config: storedConfig,
+        targetDir,
+        renderTemplate(relPath: string, data: Record<string, unknown>): string {
+          return renderFromAbsPath(join(plugin.templateRoot, relPath), data);
+        },
+      };
+      const result = plugin.generate(ctx);
+      for (const file of result.files) {
+        all.push(
+          writeFile(file.path, file.content, {
+            backup: file.action === "backup-and-replace",
+            skipIfExists: file.action === "skip",
+          }),
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `  [arbiter] Plugin "${pkg}" failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
   return all;
 }
 

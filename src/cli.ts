@@ -10,6 +10,11 @@ import {
 } from "./commands/worktree.js";
 import { runVerify } from "./commands/verify.js";
 import { runUpgradeLevel } from "./commands/upgrade-level.js";
+import {
+  runPluginAdd,
+  runPluginRemove,
+  runPluginList,
+} from "./commands/plugin.js";
 
 const program = new Command();
 
@@ -86,8 +91,8 @@ program
     "Force GitHub setup even if disabled in stored config",
     false,
   )
-  .action((opts: { dir?: string; github: boolean }) => {
-    runUpdate({
+  .action(async (opts: { dir?: string; github: boolean }) => {
+    await runUpdate({
       dir: opts.dir,
       github: opts.github,
     });
@@ -250,5 +255,41 @@ program
       });
     },
   );
+
+const plugin = program.command("plugin").description("Manage arbiter plugins");
+
+plugin
+  .command("add <pkg>")
+  .description(
+    "Add a plugin to this project (validates it is resolvable first)",
+  )
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(async (pkg: string, opts: { dir?: string }) => {
+    await runPluginAdd({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      pkg,
+    });
+  });
+
+plugin
+  .command("remove <pkg>")
+  .description("Remove a plugin from this project")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((pkg: string, opts: { dir?: string }) => {
+    runPluginRemove({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      pkg,
+    });
+  });
+
+plugin
+  .command("list")
+  .description("List plugins configured for this project")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(async (opts: { dir?: string }) => {
+    await runPluginList({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
 
 program.parse();

@@ -6,6 +6,13 @@
   "bin": {
     "arbiter": "./dist/cli.js"
   },
+  "exports": {
+    ".": "./dist/cli.js",
+    "./plugin": {
+      "types": "./dist/types/plugin.d.ts",
+      "default": "./dist/types/plugin.js"
+    }
+  },
   "scripts": {
     "build": "tsc && rm -rf dist/templates && cp -r src/templates dist/templates",
     "dev": "tsx src/cli.ts",

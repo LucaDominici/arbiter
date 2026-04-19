@@ -8,7 +8,12 @@ import { detectGithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
 import { resolveAxisFields } from "../detectors/axis.js";
 import { loadConfig, saveConfig } from "../utils/config.js";
-import { runGenerators, runGithubSetup, printResults } from "./init.js";
+import {
+  runGenerators,
+  runPlugins,
+  runGithubSetup,
+  printResults,
+} from "./init.js";
 import { presetToTiers, defaultPresetForLevel } from "../invariants/filter.js";
 
 export interface UpdateOptions {
@@ -16,7 +21,7 @@ export interface UpdateOptions {
   github: boolean;
 }
 
-export function runUpdate(options: UpdateOptions): void {
+export async function runUpdate(options: UpdateOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd());
   const projectName = basename(targetDir);
 
@@ -91,6 +96,12 @@ export function runUpdate(options: UpdateOptions): void {
 
   console.log("\n  Updating...");
   const results = runGenerators(config);
+  const pluginResults = await runPlugins(
+    targetDir,
+    stored.plugins ?? [],
+    stored,
+  );
+  results.push(...pluginResults);
   printResults(results, targetDir);
 
   const created = results.filter((r) => r.action === "created").length;

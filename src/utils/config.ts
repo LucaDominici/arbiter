@@ -40,6 +40,8 @@ export interface ArbiterConfig {
   graceFromLevel?: GovernanceLevel;
   // Phase 9.5 ML: contract testing type axis — see ADR-028
   contractType?: import("../wizard/types.js").ContractType;
+  // Plugin API v1 — packages declared here are loaded during `arbiter update`
+  plugins?: string[];
 }
 
 const CONFIG_FILE = "arbiter.json";
