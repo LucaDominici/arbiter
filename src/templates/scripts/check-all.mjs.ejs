@@ -13,7 +13,10 @@ let failed = 0;
 function runCheck(name, cmd, args, { soft = false } = {}) {
   process.stdout.write(`[CHECK] ${name} ... `);
   const r = spawnSync(cmd, args, { encoding: 'utf-8', shell: false });
-  if (r.status === 0) {
+  if (r.error?.code === 'ENOENT') {
+    console.log(`FAIL (binary not found: ${cmd})`);
+    failed++;
+  } else if (r.status === 0) {
     console.log('PASS');
   } else if (soft) {
     console.log('WARN (grace period)');
@@ -63,7 +66,7 @@ runCheck('format', 'npx', ['prettier', '--check', '.']);
 runCheck('lint', 'npx', ['eslint', 'src']);
 // ─── L1: Static analysis rules (M29) ─────────────────────────────────────────
 if (existsSync('.eslintrc-static.json')) {
-  runCheck('static analysis', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-static.json', 'src']);
+  runCheck('static analysis', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-static.json', '--no-error-on-unmatched-pattern', 'src']);
 } else {
   console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }

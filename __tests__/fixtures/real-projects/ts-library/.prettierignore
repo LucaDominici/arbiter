@@ -1,0 +1,8 @@
+.claude/
+.github/
+scripts/
+suppressions/
+docs/
+*.md
+arbiter.json
+vitest.config.ts

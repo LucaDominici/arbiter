@@ -17,6 +17,7 @@ discover job
 run job (matrix fan-out, one cell per fixture × level)
   ├─ checkout + build arbiter
   ├─ install per-language toolchain (setup-java/go/python/rust)
+  ├─ install extra L2 binaries when the generated gate requires them
   ├─ cp fixture → $RUNNER_TEMP/project
   ├─ node dist/cli.js init --yes --no-verify --level=$LEVEL
   ├─ node dist/cli.js verify
@@ -27,6 +28,17 @@ aggregate job
        queries GitHub Jobs API for this run
        asserts ≥10 cells with conclusion=success
 ```
+
+At L1, the workflow only needs the language toolchain plus Node for Arbiter itself. At L2, the staged project executes the full generated gate, so the runner must also provide the binaries that the generated project expects to call. The current nightly workflow installs these explicitly rather than assuming they are present on `docker-ci-build`.
+
+Current L2 extras:
+
+- All languages: `gitleaks`
+- Go: `staticcheck`, `govulncheck`
+- Rust: `cargo-audit`, `cargo-tarpaulin`
+- Python: `pip-audit`, `pytest-cov`
+
+Treat these as part of the nightly contract, not incidental workflow glue. If a generator starts invoking a new L2 tool, the nightly workflow and this document must be updated in the same PR.
 
 ---
 
@@ -123,6 +135,17 @@ node scripts/check-all.mjs L1
 
 You need the language toolchain installed locally. If `cargo` / `go` / `python` / `./gradlew` is not in `PATH`, the `check-all.mjs` step will fail.
 
+For L2 dog-fooding, mirror the nightly environment instead of relying on whatever happens to be installed on your machine. The generated gate now reports missing binaries explicitly as `FAIL (binary not found: <cmd>)`, which makes absent runner tooling a real regression signal instead of a vague spawn failure.
+
+Recommended local L2 checklist:
+
+- Install the base language toolchain for the fixture under test.
+- Install `gitleaks` because every L2 fixture can invoke it.
+- For Go fixtures, install `staticcheck` and `govulncheck`.
+- For Rust fixtures, install `cargo-audit` and `cargo-tarpaulin`.
+- For Python fixtures, install `pip-audit` and `pytest-cov`.
+- For Java fixtures, ensure `gradlew` is executable after copying the fixture.
+
 For TypeScript fixtures:
 
 ```bash
@@ -132,6 +155,8 @@ npm install --legacy-peer-deps
 node /path/to/arbiter/dist/cli.js init --yes --no-verify --level=L1
 node scripts/check-all.mjs L1
 ```
+
+For the TypeScript `backend-web-db` fixture at L2, install dependencies before running the generated gate and keep `testcontainers` in the fixture's devDependencies. `arbiter init --level=L2` generates `src/test/test-setup.ts` that imports `testcontainers`; if the fixture omits it, `tsc --noEmit` fails before the integration setup is exercised.
 
 ---
 
@@ -161,9 +186,53 @@ The fixture is missing its build marker file. Check that `package.json`, `Cargo.
 
 The fixture's `config/checkstyle/checkstyle.xml` must exist and be valid. Checkstyle runs at L1 for Java+Gradle. Keep the ruleset minimal — the fixtures use only `IllegalImports`, `UpperEll`, `NoFinalizer`, `EmptyCatchBlock`.
 
+Do not reference an external DTD from the fixture checkstyle file. The self-hosted runner may not be able to fetch remote DTDs, which turns a syntax-valid ruleset into a network-coupled failure before any Java code is checked.
+
 ### `check-all.mjs` fails with "gradlew: Permission denied"
 
 The workflow adds a `chmod +x gradlew` step for Java fixtures. Locally, run `chmod +x gradlew` in the staged directory before invoking `check-all.mjs`.
+
+### `check-all.mjs L2` fails with `binary not found`
+
+The staged project invoked a tool that is part of the generated L2 gate, but the runner or local shell does not provide it. Match the installed tools to the fixture language:
+
+- all L2 fixtures: `gitleaks`
+- Go: `staticcheck`, `govulncheck`
+- Rust: `cargo-audit`, `cargo-tarpaulin`
+- Python: `pip-audit`, `pytest-cov`
+
+If the workflow is missing one of these, fix the workflow. If your local repro is missing one of these, install it before treating the cell as a product regression.
+
+### TypeScript coverage is unexpectedly low because `scripts/*.mjs` are counted
+
+Vitest coverage for generated TypeScript projects must be scoped to `src/**`. Without that include filter, V8 coverage can absorb generated scripts and support files, which drags the total below the intended threshold even when the library or app code is adequately tested.
+
+When debugging a TypeScript fixture:
+
+- inspect `vitest.config.ts` after generation;
+- confirm coverage includes `src/**`;
+- treat coverage over helper scripts as a generator/config bug, not a fixture weakness.
+
+### Java fixture fails before tests because a referenced Gradle/config file is missing
+
+The Java fixtures are intentionally real, so `build.gradle` must not reference files or plugins that are absent from the fixture. Common examples are `apply from: 'gradle/jacoco.gradle'` and `config/checkstyle/checkstyle.xml`.
+
+If Gradle fails during configuration:
+
+- verify every referenced file exists inside the fixture;
+- keep checkstyle self-contained so it does not depend on network fetches;
+- keep the test dependencies aligned with the files Arbiter generates, including AssertJ and ArchUnit when the generated tests import them.
+
+### TypeScript `backend-web-db` fixture fails at L2 with missing `testcontainers`
+
+This fixture must declare `testcontainers` in `devDependencies`. L2 generation emits integration-test setup that imports `testcontainers`, so the dependency is required even before any container-backed test is executed.
+
+### Python or Rust fixture passes L1 but fails L2
+
+L2 is expected to be stricter than L1 because it adds coverage and security/dependency checks. Verify the fixture can satisfy the actual gate, not just the base test runner:
+
+- Python fixtures need `pytest-cov` available for coverage and `pip-audit` for dependency audit.
+- Rust fixtures need `cargo-audit` and `cargo-tarpaulin`, and public functions should satisfy the stricter lint surface that the generated project enables.
 
 ### Aggregate step fails with "only N of ≥10 passed"
 

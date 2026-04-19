@@ -3,6 +3,7 @@ plugins {
     id 'checkstyle'
     id 'org.springframework.boot' version '3.2.3'
     id 'io.spring.dependency-management' version '1.1.4'
+    id 'com.diffplug.spotless' version '7.0.3'
 }
 
 group = 'com.example'
@@ -22,13 +23,29 @@ checkstyle {
     configFile = file('config/checkstyle/checkstyle.xml')
 }
 
+configurations.all {
+    resolutionStrategy.capabilitiesResolution.withCapability('com.google.collections:google-collections') {
+        selectHighestVersion()
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.assertj:assertj-core:3.25.3'
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.2.1'
 }
 
 test {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        trimTrailingWhitespace()
+        endWithNewline()
+        target 'src/**/*.java'
+    }
 }
 
 apply from: 'gradle/jacoco.gradle'

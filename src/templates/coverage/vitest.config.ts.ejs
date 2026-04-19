@@ -6,6 +6,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: './coverage',
+      include: ['src/**'],
       thresholds: {
         lines: <%= locals.thresholds ? locals.thresholds.lineCoverage : coverageThreshold %>,
         functions: <%= coverageThreshold %>,

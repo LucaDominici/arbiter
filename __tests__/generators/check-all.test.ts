@@ -49,6 +49,17 @@ describe("generateCheckAll", () => {
     expect(content).toContain("prettier");
   });
 
+  it("static analysis eslint uses --no-error-on-unmatched-pattern (avoids error on TypeScript-only src)", () => {
+    generateCheckAll(makeConfig(dir, { language: "typescript" }));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("eslintrc-static.json");
+    expect(content).toContain("'--no-error-on-unmatched-pattern'");
+    expect(content).not.toContain("'--ext', '.ts,.js'");
+  });
+
   it("check-all.mjs contains Rust commands for Rust projects", () => {
     generateCheckAll(makeConfig(dir, { language: "rust", buildTool: "cargo" }));
     const content = readFileSync(
@@ -268,6 +279,16 @@ describe("generateCheckAll", () => {
   });
 
   // ─── MK: grace period guard ─────────────────────────────────────────────────
+
+  it("runCheck treats ENOENT as hard failure regardless of grace period", () => {
+    generateCheckAll(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("ENOENT");
+    expect(content).toContain("binary not found");
+  });
 
   it("generated script includes grace guard block reading arbiter.json", () => {
     generateCheckAll(makeConfig(dir));

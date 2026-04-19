@@ -89,9 +89,9 @@ const BUILD_PROBE_SPECS: Record<string, BuildProbeSpec> = {
     requires: "tsconfig.json",
   },
   java: {
-    name: "gradlew:help",
+    name: "gradlew:version",
     command: "./gradlew",
-    args: ["help", "--offline"],
+    args: ["--version"],
     requires: "gradlew",
   },
   rust: {

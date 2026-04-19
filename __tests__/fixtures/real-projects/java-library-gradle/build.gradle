@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'checkstyle'
+    id 'com.diffplug.spotless' version '7.0.3'
 }
 
 group = 'com.example'
@@ -20,11 +21,27 @@ checkstyle {
     configFile = file('config/checkstyle/checkstyle.xml')
 }
 
+configurations.all {
+    resolutionStrategy.capabilitiesResolution.withCapability('com.google.collections:google-collections') {
+        selectHighestVersion()
+    }
+}
+
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.assertj:assertj-core:3.25.3'
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.2.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
     useJUnitPlatform()
+}
+
+spotless {
+    java {
+        trimTrailingWhitespace()
+        endWithNewline()
+        target 'src/**/*.java'
+    }
 }

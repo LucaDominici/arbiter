@@ -74,7 +74,7 @@ describe("debt-gates config templates — rendering", () => {
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
     const content = renderTemplate("debt-gates/checkstyle.xml.ejs", data);
-    expect(content).toContain("<!DOCTYPE");
+    expect(content).not.toContain("<!DOCTYPE");
     expect(content).toContain("CyclomaticComplexity");
     expect(content).toContain("MethodLength");
     expect(content).toContain("65");

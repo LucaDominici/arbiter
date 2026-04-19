@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --check ."
   },
   "dependencies": {
     "fastify": "^4.26.0"
@@ -13,9 +14,11 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^1.4.0",
     "eslint": "^8.57.0",
     "prettier": "^3.2.0",
     "typescript": "^5.4.0",
+    "testcontainers": "^10.9.0",
     "vitest": "^1.4.0"
   }
 }

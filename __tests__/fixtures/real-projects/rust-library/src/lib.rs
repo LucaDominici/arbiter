@@ -1,9 +1,11 @@
 /// Adds two integers.
+#[must_use]
 pub fn add(a: i64, b: i64) -> i64 {
     a + b
 }
 
 /// Multiplies two integers.
+#[must_use]
 pub fn multiply(a: i64, b: i64) -> i64 {
     a * b
 }
