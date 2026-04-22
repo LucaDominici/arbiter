@@ -65,7 +65,7 @@ jobs:
           gradle-version: "8.8"
 
       - if: matrix.language == 'go'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.22"
 
