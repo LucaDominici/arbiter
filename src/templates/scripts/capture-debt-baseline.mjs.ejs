@@ -48,10 +48,13 @@ for (const [key, current] of Object.entries(collected)) {
     baseline.metrics[key] = current;
     continue;
   }
+  // Strict comparison: on a tie, keep `prev` so sub-fields like `items`
+  // (populated by archunitFailingRules on machines with test results) are
+  // not silently overwritten when the current run produces an empty list.
   if (current.direction === 'higher-is-better') {
-    baseline.metrics[key] = current.value >= prev.value ? current : prev;
+    baseline.metrics[key] = current.value > prev.value ? current : prev;
   } else if (current.direction === 'lower-is-better') {
-    baseline.metrics[key] = current.value <= prev.value ? current : prev;
+    baseline.metrics[key] = current.value < prev.value ? current : prev;
   } else {
     // Unknown direction — overwrite (no ratchet applicable).
     baseline.metrics[key] = current;

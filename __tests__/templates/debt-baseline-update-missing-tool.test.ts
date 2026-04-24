@@ -219,6 +219,42 @@ describe("capture-debt-baseline --update: missing-tool preservation (#126)", () 
     });
   });
 
+  it("tie on value: prev wins so sub-fields like `items` are not dropped", () => {
+    // archunitFailingRules on first run populates `items` with rule names.
+    // A re-run on a machine lacking the test-results dir produces value=0
+    // with no `items`. Tie (0 === 0) must NOT overwrite the prior `items`.
+    writeFileSync(
+      join(dir, "scripts", "debt-baseline.json"),
+      JSON.stringify({
+        version: 2,
+        metrics: {
+          archunitFailingRules: {
+            value: 0,
+            unit: "count",
+            direction: "lower-is-better",
+            items: ["PackageBoundaryRule", "LayerDependencyRule"],
+          },
+        },
+      }),
+      "utf-8",
+    );
+    writeFakeDebtLib(dir, {
+      archunitFailingRules: {
+        value: 0,
+        unit: "count",
+        direction: "lower-is-better",
+      },
+    });
+
+    runCapture(dir, ["--update"]);
+
+    const after = readBaseline(dir);
+    expect(after.metrics.archunitFailingRules.items).toEqual([
+      "PackageBoundaryRule",
+      "LayerDependencyRule",
+    ]);
+  });
+
   it("malformed baseline file produces error message including filename", () => {
     writeFileSync(
       join(dir, "scripts", "debt-baseline.json"),
