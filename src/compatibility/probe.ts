@@ -19,7 +19,12 @@ import {
   parseKotlinVersion,
 } from "./parsers.js";
 import type { SemVer } from "./parsers.js";
-import type { ProbeResult, VerifyReport } from "./schema.js";
+import type {
+  LanguageMatrix,
+  MatrixEntry,
+  ProbeResult,
+  VerifyReport,
+} from "./schema.js";
 import matrixJson from "./matrix.json" with { type: "json" };
 
 type OutputChannel = "stdout" | "stderr";
@@ -124,12 +129,11 @@ export function probeTool(
   range: string,
   channel: OutputChannel,
 ): ProbeResult {
-  const parse =
-    TOOL_SPECS[tool]?.parse ??
-    ((raw: string) => {
-      void raw;
-      return null;
-    });
+  const spec = TOOL_SPECS[tool];
+  if (!spec) {
+    return { tool, status: "failed", reason: `no spec for tool: ${tool}` };
+  }
+  const parse = spec.parse;
 
   let raw: string;
   try {
@@ -137,7 +141,24 @@ export function probeTool(
     raw = channel === "stderr" ? result.stderr : result.stdout;
   } catch (err) {
     if (err instanceof CliError) {
-      return { tool, status: "skipped", reason: "toolchain-missing" };
+      if (err.notFound) {
+        return { tool, status: "skipped", reason: "toolchain-missing" };
+      }
+      if (err.timedOut) {
+        return {
+          tool,
+          status: "failed",
+          reason: `probe timeout (${PROBE_TIMEOUT_MS}ms)`,
+        };
+      }
+      const detail = (err.stderr || err.stdout || err.message)
+        .trim()
+        .slice(0, 500);
+      return {
+        tool,
+        status: "failed",
+        reason: `exit ${err.exitCode}: ${detail}`,
+      };
     }
     throw err;
   }
@@ -163,16 +184,47 @@ export function probeTool(
   return { tool, status: "passed", version };
 }
 
-type RawMatrix = {
-  typescript: Array<{ tool: string; range: string }>;
-  java: Array<{ tool: string; range: string }>;
-  kotlin: Array<{ tool: string; range: string }>;
-  rust: Array<{ tool: string; range: string }>;
-  go: Array<{ tool: string; range: string }>;
-  python: Array<{ tool: string; range: string }>;
-};
+const REQUIRED_MATRIX_KEYS: ReadonlyArray<keyof LanguageMatrix> = [
+  "typescript",
+  "java",
+  "kotlin",
+  "rust",
+  "go",
+  "python",
+];
 
-const MATRIX = matrixJson as RawMatrix;
+/** exported for tests */
+export function validateMatrix(raw: unknown): LanguageMatrix {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new Error("matrix.json: root must be an object");
+  }
+  const obj = raw as Record<string, unknown>;
+  for (const key of REQUIRED_MATRIX_KEYS) {
+    const arr = obj[key];
+    if (!Array.isArray(arr)) {
+      throw new Error(`matrix.json: ${key} must be an array`);
+    }
+    arr.forEach((entry, i) => {
+      if (typeof entry !== "object" || entry === null) {
+        throw new Error(`matrix.json: ${key}[${i}] must be an object`);
+      }
+      const e = entry as Record<string, unknown>;
+      if (typeof e.tool !== "string") {
+        throw new Error(
+          `matrix.json: ${key}[${i}].tool expected string, got ${typeof e.tool}`,
+        );
+      }
+      if (typeof e.range !== "string") {
+        throw new Error(
+          `matrix.json: ${key}[${i}].range expected string, got ${typeof e.range}`,
+        );
+      }
+    });
+  }
+  return obj as unknown as LanguageMatrix;
+}
+
+const MATRIX = validateMatrix(matrixJson);
 
 /**
  * Run a build-invocation probe in the target directory.
@@ -185,7 +237,7 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
       tool: spec.name,
       status: "skipped",
       kind: "build",
-      reason: "build-file-not-found",
+      reason: `build-file-not-found: ${spec.requires}`,
     };
   }
 
@@ -197,8 +249,31 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
     return { tool: spec.name, status: "passed", kind: "build" };
   } catch (err) {
     if (err instanceof CliError) {
-      const reason = (err.stderr || err.message).trim().slice(0, 120);
-      return { tool: spec.name, status: "failed", kind: "build", reason };
+      if (err.notFound) {
+        return {
+          tool: spec.name,
+          status: "failed",
+          kind: "build",
+          reason: `build tool missing: ${spec.command}`,
+        };
+      }
+      if (err.timedOut) {
+        return {
+          tool: spec.name,
+          status: "failed",
+          kind: "build",
+          reason: `build timeout (${BUILD_PROBE_TIMEOUT_MS}ms)`,
+        };
+      }
+      const detail = (err.stderr || err.stdout || err.message)
+        .trim()
+        .slice(0, 500);
+      return {
+        tool: spec.name,
+        status: "failed",
+        kind: "build",
+        reason: `exit ${err.exitCode}: ${detail}`,
+      };
     }
     throw err;
   }
@@ -211,18 +286,20 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
 export function runProbes(dir: string): VerifyReport {
   const lang = detectLanguage(dir);
 
-  const entries: Array<{ tool: string; range: string }> =
+  const entries: MatrixEntry[] =
     lang === "typescript"
       ? MATRIX.typescript
       : lang === "java"
         ? MATRIX.java
-        : lang === "rust"
-          ? MATRIX.rust
-          : lang === "go"
-            ? MATRIX.go
-            : lang === "python"
-              ? MATRIX.python
-              : [];
+        : lang === "kotlin"
+          ? MATRIX.kotlin
+          : lang === "rust"
+            ? MATRIX.rust
+            : lang === "go"
+              ? MATRIX.go
+              : lang === "python"
+                ? MATRIX.python
+                : [];
 
   const probes: ProbeResult[] = entries.map(({ tool, range }) => {
     const spec = TOOL_SPECS[tool];
