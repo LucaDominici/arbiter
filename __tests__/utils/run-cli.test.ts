@@ -27,6 +27,7 @@ describe("runCli", () => {
     expect(err!.exitCode).toBe(2);
     expect(err!.stderr).toBe("boom");
     expect(err!.timedOut).toBe(false);
+    expect(err!.notFound).toBe(false);
     expect(err!.cmd).toBe("node");
     expect(err!.args).toEqual([
       "-e",
@@ -43,6 +44,7 @@ describe("runCli", () => {
     }
     expect(err).toBeInstanceOf(CliError);
     expect(err!.timedOut).toBe(true);
+    expect(err!.notFound).toBe(false);
     expect(err!.message).toMatch(/timed out/i);
   });
 
@@ -54,6 +56,8 @@ describe("runCli", () => {
       err = e as CliError;
     }
     expect(err).toBeInstanceOf(CliError);
+    expect(err!.notFound).toBe(true);
+    expect(err!.timedOut).toBe(false);
     expect(err!.message).toMatch(/not found/i);
   });
 

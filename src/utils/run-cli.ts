@@ -23,6 +23,7 @@ interface CliErrorDetails {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  notFound: boolean;
 }
 
 export class CliError extends Error {
@@ -32,6 +33,7 @@ export class CliError extends Error {
   readonly stdout: string;
   readonly stderr: string;
   readonly timedOut: boolean;
+  readonly notFound: boolean;
 
   constructor(details: CliErrorDetails, message?: string) {
     super(message ?? formatMessage(details));
@@ -42,6 +44,7 @@ export class CliError extends Error {
     this.stdout = details.stdout;
     this.stderr = details.stderr;
     this.timedOut = details.timedOut;
+    this.notFound = details.notFound;
   }
 }
 
@@ -83,7 +86,15 @@ function runOnce(
       ok: false,
       fatal: true,
       error: new CliError(
-        { cmd, args, exitCode: -1, stdout, stderr, timedOut: false },
+        {
+          cmd,
+          args,
+          exitCode: -1,
+          stdout,
+          stderr,
+          timedOut: false,
+          notFound: true,
+        },
         `Command not found: ${cmd}`,
       ),
     };
@@ -101,6 +112,7 @@ function runOnce(
         stdout,
         stderr,
         timedOut: true,
+        notFound: false,
       }),
     };
   }
@@ -116,6 +128,7 @@ function runOnce(
         stdout,
         stderr,
         timedOut: false,
+        notFound: false,
       }),
     };
   }
@@ -176,6 +189,7 @@ export function runCliJson(
         stdout: result.stdout,
         stderr: result.stderr,
         timedOut: false,
+        notFound: false,
       },
       `Invalid JSON output from ${cmd}: ${(err as Error).message}`,
     );
