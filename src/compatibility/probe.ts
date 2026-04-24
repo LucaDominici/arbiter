@@ -124,12 +124,11 @@ export function probeTool(
   range: string,
   channel: OutputChannel,
 ): ProbeResult {
-  const parse =
-    TOOL_SPECS[tool]?.parse ??
-    ((raw: string) => {
-      void raw;
-      return null;
-    });
+  const spec = TOOL_SPECS[tool];
+  if (!spec) {
+    return { tool, status: "failed", reason: `no spec for tool: ${tool}` };
+  }
+  const parse = spec.parse;
 
   let raw: string;
   try {
@@ -137,7 +136,24 @@ export function probeTool(
     raw = channel === "stderr" ? result.stderr : result.stdout;
   } catch (err) {
     if (err instanceof CliError) {
-      return { tool, status: "skipped", reason: "toolchain-missing" };
+      if (err.notFound) {
+        return { tool, status: "skipped", reason: "toolchain-missing" };
+      }
+      if (err.timedOut) {
+        return {
+          tool,
+          status: "failed",
+          reason: `probe timeout (${PROBE_TIMEOUT_MS}ms)`,
+        };
+      }
+      const detail = (err.stderr || err.stdout || err.message)
+        .trim()
+        .slice(0, 500);
+      return {
+        tool,
+        status: "failed",
+        reason: `exit ${err.exitCode}: ${detail}`,
+      };
     }
     throw err;
   }
@@ -185,7 +201,7 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
       tool: spec.name,
       status: "skipped",
       kind: "build",
-      reason: "build-file-not-found",
+      reason: `build-file-not-found: ${spec.requires}`,
     };
   }
 
@@ -197,8 +213,31 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
     return { tool: spec.name, status: "passed", kind: "build" };
   } catch (err) {
     if (err instanceof CliError) {
-      const reason = (err.stderr || err.message).trim().slice(0, 120);
-      return { tool: spec.name, status: "failed", kind: "build", reason };
+      if (err.notFound) {
+        return {
+          tool: spec.name,
+          status: "failed",
+          kind: "build",
+          reason: `build tool missing: ${spec.command}`,
+        };
+      }
+      if (err.timedOut) {
+        return {
+          tool: spec.name,
+          status: "failed",
+          kind: "build",
+          reason: `build timeout (${BUILD_PROBE_TIMEOUT_MS}ms)`,
+        };
+      }
+      const detail = (err.stderr || err.stdout || err.message)
+        .trim()
+        .slice(0, 500);
+      return {
+        tool: spec.name,
+        status: "failed",
+        kind: "build",
+        reason: `exit ${err.exitCode}: ${detail}`,
+      };
     }
     throw err;
   }

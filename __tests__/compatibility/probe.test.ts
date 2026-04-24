@@ -11,6 +11,7 @@ vi.mock("../../src/utils/run-cli.js", () => ({
     readonly stdout: string;
     readonly stderr: string;
     readonly timedOut: boolean;
+    readonly notFound: boolean;
     constructor(details: {
       cmd: string;
       args: readonly string[];
@@ -18,8 +19,15 @@ vi.mock("../../src/utils/run-cli.js", () => ({
       stdout: string;
       stderr: string;
       timedOut: boolean;
+      notFound?: boolean;
     }) {
-      super(`Command not found: ${details.cmd}`);
+      super(
+        details.notFound
+          ? `Command not found: ${details.cmd}`
+          : details.timedOut
+            ? `Command timed out: ${details.cmd}`
+            : `Command failed (exit ${details.exitCode})`,
+      );
       this.name = "CliError";
       this.cmd = details.cmd;
       this.args = details.args;
@@ -27,6 +35,7 @@ vi.mock("../../src/utils/run-cli.js", () => ({
       this.stdout = details.stdout;
       this.stderr = details.stderr;
       this.timedOut = details.timedOut;
+      this.notFound = details.notFound ?? false;
     }
   },
 }));
@@ -55,8 +64,8 @@ describe("probeTool — happy path (passed)", () => {
   });
 });
 
-describe("probeTool — ENOENT → skipped", () => {
-  it("returns skipped when tool is not installed", () => {
+describe("probeTool — notFound → skipped", () => {
+  it("returns skipped:toolchain-missing when tool is not installed", () => {
     mockRunCli.mockImplementation(() => {
       throw new CliError({
         cmd: "go",
@@ -65,12 +74,64 @@ describe("probeTool — ENOENT → skipped", () => {
         stdout: "",
         stderr: "",
         timedOut: false,
+        notFound: true,
       });
     });
     const result = probeTool("go", ["version"], ">=1.21", "stdout");
     expect(result.status).toBe("skipped");
     expect(result.reason).toBe("toolchain-missing");
     expect(result.version).toBeUndefined();
+  });
+});
+
+describe("probeTool — timedOut → failed", () => {
+  it("returns failed with probe timeout reason", () => {
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: "node",
+        args: ["--version"],
+        exitCode: -1,
+        stdout: "",
+        stderr: "",
+        timedOut: true,
+      });
+    });
+    const result = probeTool("node", ["--version"], ">=18", "stdout");
+    expect(result.status).toBe("failed");
+    expect(result.reason).toMatch(/probe timeout/);
+  });
+});
+
+describe("probeTool — non-zero exit → failed", () => {
+  it("returns failed with exit code and stderr excerpt", () => {
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: "node",
+        args: ["--version"],
+        exitCode: 1,
+        stdout: "",
+        stderr: "some broken install",
+        timedOut: false,
+      });
+    });
+    const result = probeTool("node", ["--version"], ">=18", "stdout");
+    expect(result.status).toBe("failed");
+    expect(result.reason).toContain("exit 1");
+    expect(result.reason).toContain("some broken install");
+  });
+});
+
+describe("probeTool — no spec → failed", () => {
+  it("returns failed when TOOL_SPECS lookup misses", () => {
+    const result = probeTool(
+      "unknown-tool-xyz",
+      ["--version"],
+      ">=1",
+      "stdout",
+    );
+    expect(result.status).toBe("failed");
+    expect(result.reason).toBe("no spec for tool: unknown-tool-xyz");
+    expect(mockRunCli).not.toHaveBeenCalled();
   });
 });
 
@@ -128,7 +189,7 @@ import { existsSync } from "node:fs";
 const mockExistsSync = existsSync as MockInstance;
 
 describe("runBuildProbe — requires file missing → skipped", () => {
-  it("returns skipped when required file does not exist", () => {
+  it("returns skipped with path in reason when required file does not exist", () => {
     mockExistsSync.mockReturnValue(false);
     const result = runBuildProbe("/some/dir", {
       name: "gradlew:help",
@@ -137,7 +198,7 @@ describe("runBuildProbe — requires file missing → skipped", () => {
       requires: "gradlew",
     });
     expect(result.status).toBe("skipped");
-    expect(result.reason).toBe("build-file-not-found");
+    expect(result.reason).toBe("build-file-not-found: gradlew");
     expect(result.kind).toBe("build");
     expect(mockRunCli).not.toHaveBeenCalled();
   });
@@ -190,6 +251,81 @@ describe("runBuildProbe — CliError → failed", () => {
     expect(result.status).toBe("failed");
     expect(result.kind).toBe("build");
     expect(result.reason).toContain("FAILURE");
+  });
+});
+
+describe("runBuildProbe — notFound → failed with 'build tool missing'", () => {
+  it("returns failed with build-tool-missing reason when command not installed", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: "cargo",
+        args: ["check"],
+        exitCode: -1,
+        stdout: "",
+        stderr: "",
+        timedOut: false,
+        notFound: true,
+      });
+    });
+    const result = runBuildProbe("/some/dir", {
+      name: "cargo:check",
+      command: "cargo",
+      args: ["check"],
+      requires: "Cargo.toml",
+    });
+    expect(result.status).toBe("failed");
+    expect(result.kind).toBe("build");
+    expect(result.reason).toBe("build tool missing: cargo");
+  });
+});
+
+describe("runBuildProbe — timedOut → failed with timeout reason", () => {
+  it("returns failed with build-timeout reason when command hangs", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: "./gradlew",
+        args: ["--version"],
+        exitCode: -1,
+        stdout: "",
+        stderr: "",
+        timedOut: true,
+      });
+    });
+    const result = runBuildProbe("/some/dir", {
+      name: "gradlew:version",
+      command: "./gradlew",
+      args: ["--version"],
+      requires: "gradlew",
+    });
+    expect(result.status).toBe("failed");
+    expect(result.reason).toMatch(/build timeout/);
+  });
+});
+
+describe("runBuildProbe — stderr empty uses stdout fallback", () => {
+  it("surfaces stdout in reason when stderr is empty", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: "go",
+        args: ["build", "-n", "./..."],
+        exitCode: 2,
+        stdout: "package main: no Go files",
+        stderr: "",
+        timedOut: false,
+      });
+    });
+    const result = runBuildProbe("/some/dir", {
+      name: "go:build",
+      command: "go",
+      args: ["build", "-n", "./..."],
+      requires: "go.mod",
+    });
+    expect(result.status).toBe("failed");
+    expect(result.reason).toContain("exit 2");
+    expect(result.reason).toContain("no Go files");
   });
 });
 
