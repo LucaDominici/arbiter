@@ -1,6 +1,12 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  renameSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
-import { runCli } from "../utils/run-cli.js";
+import { runCli, CliError } from "../utils/run-cli.js";
 import { loadConfig } from "../utils/config.js";
 import {
   sanitizeTaskId,
@@ -61,8 +67,29 @@ function arbiterLogDir(gitRoot: string): string {
 function readJsonArray(path: string): unknown[] {
   if (!existsSync(path)) return [];
   try {
-    return JSON.parse(readFileSync(path, "utf-8")) as unknown[];
-  } catch {
+    const raw: unknown = JSON.parse(readFileSync(path, "utf-8"));
+    if (!Array.isArray(raw)) {
+      throw new SyntaxError(`Expected JSON array, got ${typeof raw}`);
+    }
+    return raw as unknown[];
+  } catch (err) {
+    if (!(err instanceof SyntaxError)) {
+      throw err;
+    }
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const backupPath = `${path}.corrupt-${ts}`;
+    let moved = false;
+    try {
+      renameSync(path, backupPath);
+      moved = true;
+    } catch {
+      // rename best-effort; still return []
+    }
+    process.stderr.write(
+      moved
+        ? `Warning: corrupt JSON at ${path} — moved to ${backupPath}\n`
+        : `Warning: corrupt JSON at ${path} — could not back up (rename failed); original may be overwritten\n`,
+    );
     return [];
   }
 }
@@ -153,6 +180,40 @@ function printLinkSummary(summary: LinkSummary): void {
   );
 }
 
+function resolveEffectiveBase(baseBranch: string, gitRoot: string): string {
+  try {
+    runCli("git", ["rev-parse", "--verify", `refs/heads/${baseBranch}`], {
+      cwd: gitRoot,
+    });
+    return baseBranch;
+  } catch (err) {
+    if (err instanceof CliError && !err.notFound && !err.timedOut) {
+      try {
+        runCli(
+          "git",
+          ["rev-parse", "--verify", `refs/remotes/origin/${baseBranch}`],
+          { cwd: gitRoot },
+        );
+        return `origin/${baseBranch}`;
+      } catch (innerErr) {
+        if (
+          innerErr instanceof CliError &&
+          !innerErr.notFound &&
+          !innerErr.timedOut
+        ) {
+          throw new Error(
+            `Base branch '${baseBranch}' does not exist. ` +
+              "Create it or specify a different base with --base.",
+            { cause: innerErr },
+          );
+        }
+        throw innerErr;
+      }
+    }
+    throw err;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // open
 // ---------------------------------------------------------------------------
@@ -197,25 +258,16 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     );
   }
 
-  try {
-    runCli("git", ["rev-parse", "--verify", `refs/heads/${baseBranch}`], {
-      cwd: gitRoot,
-    });
-  } catch {
-    throw new Error(
-      `Base branch '${baseBranch}' does not exist. ` +
-        "Create it or specify a different base with --base.",
-    );
-  }
+  const effectiveBase = resolveEffectiveBase(baseBranch, gitRoot);
 
-  const baseRef = runCli("git", ["rev-parse", "--short", baseBranch], {
+  const baseRef = runCli("git", ["rev-parse", "--short", effectiveBase], {
     cwd: gitRoot,
   }).stdout.trim();
 
   mkdirSync(worktreeBase, { recursive: true });
   runCli(
     "git",
-    ["worktree", "add", "-b", branchName, worktreePath, baseBranch],
+    ["worktree", "add", "-b", branchName, worktreePath, effectiveBase],
     { cwd: gitRoot },
   );
 
@@ -276,16 +328,25 @@ function deleteTaskBranch(
   branch: string,
   gitRoot: string,
   force: boolean,
-): void {
+): boolean {
   try {
     runCli("git", ["branch", "-d", branch], { cwd: gitRoot });
-  } catch {
-    if (force) {
-      try {
-        runCli("git", ["branch", "-D", branch], { cwd: gitRoot });
-      } catch {
-        // Branch cleanup is best-effort
-      }
+    return true;
+  } catch (softErr) {
+    if (!force) {
+      process.stderr.write(
+        `Warning: could not delete branch '${branch}': ${softErr instanceof Error ? softErr.message : String(softErr)}\n`,
+      );
+      return false;
+    }
+    try {
+      runCli("git", ["branch", "-D", branch], { cwd: gitRoot });
+      return true;
+    } catch (hardErr) {
+      process.stderr.write(
+        `Warning: could not force-delete branch '${branch}': ${hardErr instanceof Error ? hardErr.message : String(hardErr)}\n`,
+      );
+      return false;
     }
   }
 }
@@ -374,8 +435,48 @@ function validateBeforeClose(params: CloseValidationParams): void {
     );
   }
 
-  if (!harvestAll) {
+  if (harvestAll) {
+    process.stderr.write(
+      `Warning: harvest-all: skipping merge check; any un-merged commits on '${branch}' will be permanently lost.\n`,
+    );
+  } else {
     assertBranchMerged(branch, baseBranch, gitRoot, noFetch, force);
+  }
+}
+
+function resolveOpenEntry(logPath: string, taskId: string): OpenLogEntry {
+  const openEntries = readJsonArray(logPath) as OpenLogEntry[];
+  const entry = openEntries.find(
+    (e) => e.taskId === taskId && existsSync(e.worktreePath),
+  );
+  if (!entry) {
+    const staleIdx = openEntries.findIndex(
+      (e) => e.taskId === taskId && !existsSync(e.worktreePath),
+    );
+    const staleEntry = staleIdx !== -1 ? openEntries[staleIdx] : undefined;
+    if (staleEntry !== undefined) {
+      process.stderr.write(
+        `Worktree directory missing — removing stale log entry for task ${taskId} ` +
+          `(was: ${staleEntry.worktreePath})\n`,
+      );
+      openEntries.splice(staleIdx, 1);
+      writeJsonArray(logPath, openEntries);
+    }
+    throw new Error(
+      `No open worktree found for task ${taskId}. ` +
+        "Run 'arbiter worktree list' to see open worktrees.",
+    );
+  }
+  return entry;
+}
+
+function warnDanglingLinks(
+  links: WorktreeLinkSpec[],
+  worktreePath: string,
+  warn: (msg: string) => void,
+): void {
+  for (const d of checkLinkIntegrity(links, worktreePath)) {
+    warn(`Warning: dangling symlink: ${d}`);
   }
 }
 
@@ -389,6 +490,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   const noFetch = opts.noFetch ?? false;
   const harvest = opts.harvest ?? false;
   const harvestAll = opts.harvestAll ?? false;
+  const effectiveForce = force || harvestAll;
   const warn =
     opts.onWarning ??
     ((msg: string): void => {
@@ -405,16 +507,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   const taskId = sanitizeTaskId(opts.taskId);
   const logPath = join(arbiterLogDir(gitRoot), "worktree-open.log.json");
-  const openEntries = readJsonArray(logPath) as OpenLogEntry[];
-  const entry = openEntries.find(
-    (e) => e.taskId === taskId && existsSync(e.worktreePath),
-  );
-  if (!entry) {
-    throw new Error(
-      `No open worktree found for task ${taskId}. ` +
-        "Run 'arbiter worktree list' to see open worktrees.",
-    );
-  }
+  const entry = resolveOpenEntry(logPath, taskId);
 
   const { worktreePath, branch, baseBranch } = entry;
 
@@ -434,10 +527,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   const config = loadConfig(gitRoot);
   const wtConfig = config?.worktree ?? defaultWorktreeConfig();
-  const dangling = checkLinkIntegrity(wtConfig.links, worktreePath);
-  for (const d of dangling) {
-    warn(`Warning: dangling symlink: ${d}`);
-  }
+  warnDanglingLinks(wtConfig.links, worktreePath, warn);
 
   runCloseHookIfConfigured(wtConfig.closeHook, worktreePath, gitRoot, force);
 
@@ -447,8 +537,9 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   runCli("git", ["worktree", "prune"], { cwd: gitRoot });
 
   if (!opts.keepBranch) {
-    deleteTaskBranch(branch, gitRoot, force);
-    console.log(`Branch ${branch} deleted.`);
+    if (deleteTaskBranch(branch, gitRoot, effectiveForce)) {
+      console.log(`Branch ${branch} deleted.`);
+    }
   }
 
   const closeLogPath = join(arbiterLogDir(gitRoot), "worktree-close.log.json");
@@ -458,7 +549,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
     branch,
     worktreePath,
     closedAt: new Date().toISOString(),
-    force,
+    force: effectiveForce,
   });
   writeJsonArray(closeLogPath, closeEntries);
 

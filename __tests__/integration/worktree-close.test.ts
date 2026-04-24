@@ -6,6 +6,7 @@ import {
   existsSync,
   readFileSync,
   mkdirSync,
+  readdirSync,
 } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -396,5 +397,139 @@ describe("runWorktreeClose --harvest", () => {
     });
 
     expect(existsSync(wtPath)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #307 — readJsonArray backs up corrupt open log
+// ---------------------------------------------------------------------------
+
+describe("#307 corrupt open log backup", () => {
+  it("renames corrupt log to .corrupt file and proceeds", () => {
+    const logDir = join(repoRoot, ".arbiter");
+    mkdirSync(logDir, { recursive: true });
+    const logPath = join(logDir, "worktree-open.log.json");
+    writeFileSync(logPath, "{not valid json[[", "utf-8");
+
+    expect(() =>
+      runWorktreeClose({ taskId: "#307", cwd: repoRoot, noFetch: true }),
+    ).toThrow(/no open worktree/i);
+
+    // Original log file must be gone (renamed)
+    expect(existsSync(logPath)).toBe(false);
+    // A .corrupt-* backup must exist
+    const files = readdirSync(logDir);
+    expect(
+      files.some((f) => f.startsWith("worktree-open.log.json.corrupt-")),
+    ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #313 — harvestAll close log force field + bypass warning
+// ---------------------------------------------------------------------------
+
+describe("#313 harvestAll close log and warning", () => {
+  it("records force=true in close log even when opts.force is false", () => {
+    runWorktreeOpen({
+      taskId: "#313a",
+      slug: "harvest-log",
+      cwd: repoRoot,
+      worktreesDir,
+    });
+
+    runWorktreeClose({
+      taskId: "#313a",
+      harvestAll: true,
+      cwd: repoRoot,
+      noFetch: true,
+    });
+
+    const logPath = join(repoRoot, ".arbiter", "worktree-close.log.json");
+    const entries = JSON.parse(readFileSync(logPath, "utf-8")) as Array<
+      Record<string, unknown>
+    >;
+    const entry = entries.find((e) => e["taskId"] === "#313a");
+    expect(entry?.["force"]).toBe(true);
+  });
+
+  it("emits harvest-all bypass warning to stderr", () => {
+    runWorktreeOpen({
+      taskId: "#313b",
+      slug: "harvest-warn",
+      cwd: repoRoot,
+      worktreesDir,
+    });
+
+    const stderrChunks: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = (chunk: unknown, ...args: unknown[]) => {
+      stderrChunks.push(String(chunk));
+      return originalWrite(
+        chunk,
+        ...(args as Parameters<typeof originalWrite>),
+      );
+    };
+
+    try {
+      runWorktreeClose({
+        taskId: "#313b",
+        harvestAll: true,
+        cwd: repoRoot,
+        noFetch: true,
+      });
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
+    expect(stderrChunks.join("")).toMatch(/harvest-all/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #314 — stale log entry is pruned with distinct message
+// ---------------------------------------------------------------------------
+
+describe("#314 stale log entry pruning", () => {
+  it("prunes stale entry and throws with informative error", () => {
+    // Write a log entry that points to a non-existent directory
+    const logDir = join(repoRoot, ".arbiter");
+    mkdirSync(logDir, { recursive: true });
+    const logPath = join(logDir, "worktree-open.log.json");
+    const fakeEntry = {
+      taskId: "#314",
+      slug: "gone",
+      worktreePath: join(worktreesDir, "#314-gone-deleted"),
+      branch: "task/#314-gone",
+      baseBranch: "main",
+      baseRef: "abc1234",
+      openedAt: new Date().toISOString(),
+    };
+    writeFileSync(logPath, JSON.stringify([fakeEntry], null, 2), "utf-8");
+
+    const stderrChunks: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = (chunk: unknown, ...args: unknown[]) => {
+      stderrChunks.push(String(chunk));
+      return originalWrite(
+        chunk,
+        ...(args as Parameters<typeof originalWrite>),
+      );
+    };
+
+    try {
+      expect(() =>
+        runWorktreeClose({ taskId: "#314", cwd: repoRoot, noFetch: true }),
+      ).toThrow(/no open worktree/i);
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
+    // Stale message emitted to stderr
+    expect(stderrChunks.join("")).toMatch(/stale log entry/i);
+
+    // Log entry must be pruned
+    const remaining = JSON.parse(readFileSync(logPath, "utf-8")) as unknown[];
+    expect(remaining).toHaveLength(0);
   });
 });

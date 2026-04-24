@@ -489,12 +489,13 @@ arbiter wt open <task-id> [slug] [options]
 - Symlinks local-only files listed in `arbiter.json::worktree.links` (default: `.claude/settings.local.json`, `.env`)
 - Writes a structured entry to `.arbiter/worktree-open.log.json`
 - Prints the worktree path and a ready-to-paste `cd` command
+- `--base`: if the named branch does not exist locally, falls back to `origin/<base>` (useful in fresh clones where the branch is only available as a remote-tracking ref)
 
 **Refusals:**
 
 - Working tree has staged/modified tracked files
 - Running from inside a worktree (`.git` is a file, not a directory)
-- Base branch does not exist
+- Base branch does not exist (checked as local ref first, then `origin/<base>`)
 - Worktree already open for that task
 
 **Example output:**
@@ -531,16 +532,17 @@ arbiter wt close <task-id> [options]
 
 **Sequence:**
 
-1. Locate the first open-log entry for the task whose worktree directory still exists (skips entries for worktrees that were already closed — important when multiple worktrees share a task id)
+1. Locate the first open-log entry for the task whose worktree directory still exists. Stale entries (path no longer on disk) are pruned from the log and reported via stderr. If no live entry is found, the command fails with an informative message.
 2. Verify the worktree directory exists
 3. Refuse if the worktree has uncommitted changes (bypassed by `--force`)
 4. Refuse if the branch has not been merged into `origin/<base>` (bypassed by `--force`; skipped entirely by `--harvest-all`)
+   - `--harvest-all` emits a stderr warning: "any un-merged commits will be permanently lost"
 5. Warn about dangling symlinks (never throws)
 6. Run `arbiter.json::worktree.closeHook` if configured; non-zero exit aborts (bypassed by `--force`)
 7. If `--harvest` or `--harvest-all`: copy modified and untracked files from the worktree back to the main repo. Files that conflict with uncommitted changes in the main repo are skipped (not overwritten). `--harvest-all` auto-confirms all files without prompting.
 8. `git worktree remove --force` + `git worktree prune`
-9. Delete the task branch (skipped with `--keep-branch`)
-10. Append a structured entry to `.arbiter/worktree-close.log.json`
+9. Delete the task branch (skipped with `--keep-branch`); stderr warning on failure (branch deletion is best-effort)
+10. Append a structured entry to `.arbiter/worktree-close.log.json`; `force` field is `true` when `--force` or `--harvest-all` was used
 
 ---
 
