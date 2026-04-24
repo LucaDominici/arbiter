@@ -316,11 +316,11 @@ function runCloseHookIfConfigured(
   try {
     runCli(absPath, [resolve(worktreePath)], { timeoutMs: 60_000 });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     if (!force) {
-      throw new Error(`Close hook failed: ${(err as Error).message}`, {
-        cause: err,
-      });
+      throw new Error(`Close hook failed: ${msg}`, { cause: err });
     }
+    process.stderr.write(`Warning: close hook failed: ${msg}\n`);
   }
 }
 
