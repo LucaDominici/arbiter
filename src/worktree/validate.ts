@@ -45,7 +45,9 @@ export function branchFullyMerged(
     try {
       runCli("git", ["fetch", "origin"], { cwd, timeoutMs: 30_000 });
     } catch {
-      // Fetch failure is non-fatal — proceed with cached remote refs
+      process.stderr.write(
+        "Warning: git fetch failed — using cached refs, result may be stale\n",
+      );
     }
   }
 
