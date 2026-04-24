@@ -5,12 +5,14 @@ import type { Language } from "../wizard/types.js";
 export function detectLanguage(dir: string): Language {
   if (existsSync(join(dir, "package.json"))) return "typescript";
   if (existsSync(join(dir, "Cargo.toml"))) return "rust";
-  if (
+  const hasJvmBuild =
     existsSync(join(dir, "pom.xml")) ||
     existsSync(join(dir, "build.gradle")) ||
-    existsSync(join(dir, "build.gradle.kts"))
-  )
+    existsSync(join(dir, "build.gradle.kts"));
+  if (hasJvmBuild) {
+    if (existsSync(join(dir, "src/main/kotlin"))) return "kotlin";
     return "java";
+  }
   if (existsSync(join(dir, "go.mod"))) return "go";
   if (
     existsSync(join(dir, "pyproject.toml")) ||

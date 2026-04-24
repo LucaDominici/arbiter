@@ -12,6 +12,7 @@ export interface MatrixEntry {
 export interface LanguageMatrix {
   typescript: MatrixEntry[];
   java: MatrixEntry[];
+  kotlin: MatrixEntry[];
   rust: MatrixEntry[];
   go: MatrixEntry[];
   python: MatrixEntry[];

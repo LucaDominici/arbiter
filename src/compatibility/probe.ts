@@ -179,16 +179,57 @@ export function probeTool(
   return { tool, status: "passed", version };
 }
 
+type MatrixEntryRaw = { tool: string; range: string };
 type RawMatrix = {
-  typescript: Array<{ tool: string; range: string }>;
-  java: Array<{ tool: string; range: string }>;
-  kotlin: Array<{ tool: string; range: string }>;
-  rust: Array<{ tool: string; range: string }>;
-  go: Array<{ tool: string; range: string }>;
-  python: Array<{ tool: string; range: string }>;
+  typescript: MatrixEntryRaw[];
+  java: MatrixEntryRaw[];
+  kotlin: MatrixEntryRaw[];
+  rust: MatrixEntryRaw[];
+  go: MatrixEntryRaw[];
+  python: MatrixEntryRaw[];
 };
 
-const MATRIX = matrixJson as RawMatrix;
+const REQUIRED_MATRIX_KEYS: ReadonlyArray<keyof RawMatrix> = [
+  "typescript",
+  "java",
+  "kotlin",
+  "rust",
+  "go",
+  "python",
+];
+
+/** exported for tests */
+export function validateMatrix(raw: unknown): RawMatrix {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new Error("matrix.json: root must be an object");
+  }
+  const obj = raw as Record<string, unknown>;
+  for (const key of REQUIRED_MATRIX_KEYS) {
+    const arr = obj[key];
+    if (!Array.isArray(arr)) {
+      throw new Error(`matrix.json: ${key} must be an array`);
+    }
+    arr.forEach((entry, i) => {
+      if (typeof entry !== "object" || entry === null) {
+        throw new Error(`matrix.json: ${key}[${i}] must be an object`);
+      }
+      const e = entry as Record<string, unknown>;
+      if (typeof e.tool !== "string") {
+        throw new Error(
+          `matrix.json: ${key}[${i}].tool expected string, got ${typeof e.tool}`,
+        );
+      }
+      if (typeof e.range !== "string") {
+        throw new Error(
+          `matrix.json: ${key}[${i}].range expected string, got ${typeof e.range}`,
+        );
+      }
+    });
+  }
+  return obj as unknown as RawMatrix;
+}
+
+const MATRIX = validateMatrix(matrixJson);
 
 /**
  * Run a build-invocation probe in the target directory.
@@ -255,13 +296,15 @@ export function runProbes(dir: string): VerifyReport {
       ? MATRIX.typescript
       : lang === "java"
         ? MATRIX.java
-        : lang === "rust"
-          ? MATRIX.rust
-          : lang === "go"
-            ? MATRIX.go
-            : lang === "python"
-              ? MATRIX.python
-              : [];
+        : lang === "kotlin"
+          ? MATRIX.kotlin
+          : lang === "rust"
+            ? MATRIX.rust
+            : lang === "go"
+              ? MATRIX.go
+              : lang === "python"
+                ? MATRIX.python
+                : [];
 
   const probes: ProbeResult[] = entries.map(({ tool, range }) => {
     const spec = TOOL_SPECS[tool];

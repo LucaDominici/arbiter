@@ -40,10 +40,21 @@ vi.mock("../../src/utils/run-cli.js", () => ({
   },
 }));
 
+vi.mock("../../src/detectors/language.js", () => ({
+  detectLanguage: vi.fn(),
+}));
+
 import { runCli, CliError } from "../../src/utils/run-cli.js";
-import { probeTool, runBuildProbe } from "../../src/compatibility/probe.js";
+import {
+  probeTool,
+  runBuildProbe,
+  runProbes,
+  validateMatrix,
+} from "../../src/compatibility/probe.js";
+import { detectLanguage } from "../../src/detectors/language.js";
 
 const mockRunCli = runCli as MockInstance;
+const mockDetectLanguage = detectLanguage as unknown as MockInstance;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -346,5 +357,79 @@ describe("runBuildProbe — empty requires → always run", () => {
     });
     expect(result.status).toBe("passed");
     expect(result.kind).toBe("build");
+  });
+});
+
+describe("runProbes — kotlin dispatch", () => {
+  it("runs java + kotlinc version probes when detectLanguage returns kotlin", () => {
+    mockDetectLanguage.mockReturnValue("kotlin");
+    mockExistsSync.mockReturnValue(false); // no build-probe spec for kotlin anyway
+    mockRunCli
+      .mockReturnValueOnce({
+        stdout: "",
+        stderr: 'openjdk version "21.0.1" 2023-10-17\n',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      .mockReturnValueOnce({
+        stdout: "",
+        stderr: "kotlinc-jvm 1.9.23 (JRE 21.0.1+12)\n",
+        exitCode: 0,
+        durationMs: 15,
+      });
+
+    const report = runProbes("/some/kotlin/dir");
+    expect(report.stack).toBe("kotlin");
+    expect(report.probes).toHaveLength(2);
+    expect(report.probes.map((p) => p.tool)).toEqual(["java", "kotlinc"]);
+    expect(report.probes.every((p) => p.status === "passed")).toBe(true);
+    expect(report.hasFailures).toBe(false);
+  });
+});
+
+describe("validateMatrix", () => {
+  it("accepts a valid matrix object", () => {
+    const valid = {
+      typescript: [{ tool: "node", range: ">=18" }],
+      java: [{ tool: "java", range: ">=17" }],
+      kotlin: [{ tool: "kotlinc", range: ">=1.9" }],
+      rust: [{ tool: "rustc", range: ">=1.70" }],
+      go: [{ tool: "go", range: ">=1.21" }],
+      python: [{ tool: "python3", range: ">=3.10" }],
+    };
+    expect(() => validateMatrix(valid)).not.toThrow();
+  });
+
+  it("throws when root is not an object", () => {
+    expect(() => validateMatrix([])).toThrow(/root must be an object/);
+  });
+
+  it("throws with offending key when a language key is missing", () => {
+    const bad = {
+      typescript: [],
+      java: [],
+      rust: [],
+      go: [],
+      python: [],
+      // kotlin missing
+    };
+    expect(() => validateMatrix(bad)).toThrow(/kotlin must be an array/);
+  });
+
+  it("throws with indexed path when an entry range is wrong type", () => {
+    const bad = {
+      typescript: [],
+      java: [],
+      kotlin: [
+        { tool: "java", range: ">=17" },
+        { tool: "kotlinc", range: 1.9 }, // number, not string
+      ],
+      rust: [],
+      go: [],
+      python: [],
+    };
+    expect(() => validateMatrix(bad)).toThrow(
+      /kotlin\[1\]\.range expected string/,
+    );
   });
 });

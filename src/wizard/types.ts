@@ -34,6 +34,7 @@ export interface MigrationPlan {
 export type Language =
   | "typescript"
   | "java"
+  | "kotlin"
   | "rust"
   | "python"
   | "go"
