@@ -143,7 +143,7 @@ describe("runPluginList", () => {
     expect(logs).toContain("resolved");
   });
 
-  it("shows 'not found' when plugin resolution fails", async () => {
+  it("shows 'not loadable: <message>' when plugin resolution fails", async () => {
     vi.mocked(pluginLoader.loadPlugin).mockRejectedValue(
       new Error("not installed"),
     );
@@ -154,7 +154,21 @@ describe("runPluginList", () => {
     await runPluginList({ dir });
     const logs = vi.mocked(console.log).mock.calls.flat().join("\n");
     expect(logs).toContain("missing-plugin");
-    expect(logs).toContain("not found");
+    expect(logs).toContain("not loadable: not installed");
+  });
+
+  it("surfaces the first line of a multi-line error in the status", async () => {
+    vi.mocked(pluginLoader.loadPlugin).mockRejectedValue(
+      new Error("SyntaxError: unexpected token\n    at Module._compile"),
+    );
+    writeFileSync(
+      join(dir, "arbiter.json"),
+      JSON.stringify({ ...BASE_CONFIG, plugins: ["bad-plugin"] }),
+    );
+    await runPluginList({ dir });
+    const logs = vi.mocked(console.log).mock.calls.flat().join("\n");
+    expect(logs).toContain("not loadable: SyntaxError: unexpected token");
+    expect(logs).not.toContain("at Module._compile");
   });
 
   it("prints an empty message when no plugins are configured", async () => {
