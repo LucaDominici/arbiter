@@ -10,7 +10,8 @@
   ],
   "kotlin": [
     { "tool": "java", "range": ">=17" },
-    { "tool": "kotlinc", "range": ">=1.9" }
+    { "tool": "kotlinc", "range": ">=1.9" },
+    { "tool": "gradle", "range": ">=7" }
   ],
   "rust": [
     { "tool": "rustc", "range": ">=1.70" },

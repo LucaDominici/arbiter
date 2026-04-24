@@ -361,7 +361,7 @@ describe("runBuildProbe — empty requires → always run", () => {
 });
 
 describe("runProbes — kotlin dispatch", () => {
-  it("runs java + kotlinc version probes when detectLanguage returns kotlin", () => {
+  it("runs java + kotlinc + gradle version probes when detectLanguage returns kotlin", () => {
     mockDetectLanguage.mockReturnValue("kotlin");
     mockExistsSync.mockReturnValue(false); // no build-probe spec for kotlin anyway
     mockRunCli
@@ -376,12 +376,22 @@ describe("runProbes — kotlin dispatch", () => {
         stderr: "kotlinc-jvm 1.9.23 (JRE 21.0.1+12)\n",
         exitCode: 0,
         durationMs: 15,
+      })
+      .mockReturnValueOnce({
+        stdout: "Gradle 8.5\n",
+        stderr: "",
+        exitCode: 0,
+        durationMs: 20,
       });
 
     const report = runProbes("/some/kotlin/dir");
     expect(report.stack).toBe("kotlin");
-    expect(report.probes).toHaveLength(2);
-    expect(report.probes.map((p) => p.tool)).toEqual(["java", "kotlinc"]);
+    expect(report.probes).toHaveLength(3);
+    expect(report.probes.map((p) => p.tool)).toEqual([
+      "java",
+      "kotlinc",
+      "gradle",
+    ]);
     expect(report.probes.every((p) => p.status === "passed")).toBe(true);
     expect(report.hasFailures).toBe(false);
   });
