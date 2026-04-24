@@ -270,3 +270,89 @@ describe("runWorktreeOpen — node_modules handling", () => {
     expect(existsSync(nmPath)).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// #315 — base-branch falls back to origin/<base> when local ref missing
+// ---------------------------------------------------------------------------
+
+describe("#315 base-branch origin fallback", () => {
+  let remoteDir: string;
+  let cloneDir: string;
+  let cloneWorktreesDir: string;
+
+  beforeEach(() => {
+    // Add a bare remote to the existing repoRoot and push a feature branch
+    remoteDir = makeTmpDir("arbiter-wt-315-remote-");
+    execFileSync("git", ["init", "--bare", "-b", "main"], {
+      cwd: remoteDir,
+      stdio: "ignore",
+    });
+    execFileSync("git", ["remote", "add", "origin", remoteDir], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    execFileSync("git", ["checkout", "-b", "feature/315", "--quiet"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    execFileSync("git", ["push", "origin", "main", "feature/315"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    execFileSync("git", ["checkout", "main", "--quiet"], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+
+    // Clone the remote — feature/315 exists only as origin/feature/315 in the clone
+    cloneDir = makeTmpDir("arbiter-wt-315-clone-");
+    execFileSync("git", ["clone", remoteDir, cloneDir], { stdio: "ignore" });
+    execFileSync("git", ["config", "user.email", "test@arbiter.dev"], {
+      cwd: cloneDir,
+      stdio: "ignore",
+    });
+    execFileSync("git", ["config", "user.name", "Arbiter Test"], {
+      cwd: cloneDir,
+      stdio: "ignore",
+    });
+    cloneWorktreesDir = makeTmpDir("arbiter-wt-315-store-");
+  });
+
+  afterEach(() => {
+    try {
+      execFileSync("git", ["worktree", "prune"], {
+        cwd: cloneDir,
+        stdio: "ignore",
+      });
+    } catch {
+      // ignore
+    }
+    rmSync(remoteDir, { recursive: true, force: true });
+    rmSync(cloneDir, { recursive: true, force: true });
+    rmSync(cloneWorktreesDir, { recursive: true, force: true });
+  });
+
+  it("opens worktree using origin/<base> when local ref is absent", () => {
+    // Confirm feature/315 is not a local branch in the clone
+    expect(() =>
+      execFileSync("git", ["rev-parse", "--verify", "refs/heads/feature/315"], {
+        cwd: cloneDir,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+
+    // runWorktreeOpen should succeed via origin/feature/315 fallback
+    expect(() =>
+      runWorktreeOpen({
+        taskId: "#315",
+        slug: "origin-fallback",
+        base: "feature/315",
+        cwd: cloneDir,
+        worktreesDir: cloneWorktreesDir,
+      }),
+    ).not.toThrow();
+
+    const wtPath = join(cloneWorktreesDir, "#315-origin-fallback");
+    expect(existsSync(wtPath)).toBe(true);
+  });
+});
