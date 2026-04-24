@@ -60,7 +60,9 @@ export function provisionLabels(
       "200",
     ]) as Array<{ name: string }>;
     existingNames = new Set(parsed.map((l) => l.name));
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    result.errors.push(`list labels failed: ${msg}`);
     existingNames = new Set();
   }
 
