@@ -15,28 +15,46 @@ const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json');
 const collected = collectMetrics(cwd);
 collected.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' };
 
-// ─── Build baseline object ────────────────────────────────────────────────────
+// ─── Load prior baseline (if --update mode) ───────────────────────────────────
+// Keys in existing.metrics that are absent from `collected` (e.g. tools not
+// installed on the current machine) MUST survive, otherwise --update silently
+// drops metrics when any capture tool is unavailable.
+let existing = { metrics: {} };
+if (updateMode && existsSync(BASELINE_FILE)) {
+  try {
+    const parsed = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'));
+    existing = { metrics: parsed.metrics ?? {} };
+  } catch (err) {
+    throw new Error(`Malformed baseline at ${BASELINE_FILE}: ${err.message}`);
+  }
+}
+
+// ─── Build baseline object (seeded from prior, ratcheted by collected) ───────
 const baseline = {
   version: 2,
   capturedAt: new Date().toISOString(),
   commit: getCommit(cwd),
   archetype: '<%= archetype %>',
-  metrics: collected,
+  metrics: { ...existing.metrics },
 };
 
-// ─── One-way ratchet (--update mode) ─────────────────────────────────────────
-if (updateMode && existsSync(BASELINE_FILE)) {
-  const existing = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'));
-  for (const [key, current] of Object.entries(collected)) {
-    const prev = existing.metrics?.[key];
-    if (!prev) continue;
-    // Keep the better (tighter) value in each direction
-    if (current.direction === 'higher-is-better' && current.value < prev.value) {
-      baseline.metrics[key] = prev;
-    }
-    if (current.direction === 'lower-is-better' && current.value > prev.value) {
-      baseline.metrics[key] = prev;
-    }
+// One-way ratchet: for each currently-collected metric, keep the tighter value.
+// For metrics present only in `existing` (tool unavailable this run), the
+// spread above has already preserved them verbatim.
+for (const [key, current] of Object.entries(collected)) {
+  const prev = existing.metrics[key];
+  // No prior value, or direction changed between runs — overwrite with current.
+  if (!prev || prev.direction !== current.direction) {
+    baseline.metrics[key] = current;
+    continue;
+  }
+  if (current.direction === 'higher-is-better') {
+    baseline.metrics[key] = current.value >= prev.value ? current : prev;
+  } else if (current.direction === 'lower-is-better') {
+    baseline.metrics[key] = current.value <= prev.value ? current : prev;
+  } else {
+    // Unknown direction — overwrite (no ratchet applicable).
+    baseline.metrics[key] = current;
   }
 }
 
