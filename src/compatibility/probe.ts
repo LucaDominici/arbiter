@@ -19,7 +19,12 @@ import {
   parseKotlinVersion,
 } from "./parsers.js";
 import type { SemVer } from "./parsers.js";
-import type { ProbeResult, VerifyReport } from "./schema.js";
+import type {
+  LanguageMatrix,
+  MatrixEntry,
+  ProbeResult,
+  VerifyReport,
+} from "./schema.js";
 import matrixJson from "./matrix.json" with { type: "json" };
 
 type OutputChannel = "stdout" | "stderr";
@@ -179,17 +184,7 @@ export function probeTool(
   return { tool, status: "passed", version };
 }
 
-type MatrixEntryRaw = { tool: string; range: string };
-type RawMatrix = {
-  typescript: MatrixEntryRaw[];
-  java: MatrixEntryRaw[];
-  kotlin: MatrixEntryRaw[];
-  rust: MatrixEntryRaw[];
-  go: MatrixEntryRaw[];
-  python: MatrixEntryRaw[];
-};
-
-const REQUIRED_MATRIX_KEYS: ReadonlyArray<keyof RawMatrix> = [
+const REQUIRED_MATRIX_KEYS: ReadonlyArray<keyof LanguageMatrix> = [
   "typescript",
   "java",
   "kotlin",
@@ -199,7 +194,7 @@ const REQUIRED_MATRIX_KEYS: ReadonlyArray<keyof RawMatrix> = [
 ];
 
 /** exported for tests */
-export function validateMatrix(raw: unknown): RawMatrix {
+export function validateMatrix(raw: unknown): LanguageMatrix {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new Error("matrix.json: root must be an object");
   }
@@ -226,7 +221,7 @@ export function validateMatrix(raw: unknown): RawMatrix {
       }
     });
   }
-  return obj as unknown as RawMatrix;
+  return obj as unknown as LanguageMatrix;
 }
 
 const MATRIX = validateMatrix(matrixJson);
@@ -291,7 +286,7 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
 export function runProbes(dir: string): VerifyReport {
   const lang = detectLanguage(dir);
 
-  const entries: Array<{ tool: string; range: string }> =
+  const entries: MatrixEntry[] =
     lang === "typescript"
       ? MATRIX.typescript
       : lang === "java"
