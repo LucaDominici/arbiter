@@ -4,6 +4,7 @@ export interface ProjectBoardResult {
   created: boolean;
   projectUrl: string | null;
   error: string | null;
+  warnings: string[];
 }
 
 /**
@@ -15,6 +16,7 @@ export function createProjectBoard(
   repo: string,
 ): ProjectBoardResult {
   // Create the project
+  const warnings: string[] = [];
   let projectNumber: number;
   let projectUrl: string;
   try {
@@ -32,7 +34,7 @@ export function createProjectBoard(
     projectUrl = parsed.url;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { created: false, projectUrl: null, error: msg };
+    return { created: false, projectUrl: null, error: msg, warnings: [] };
   }
 
   // Add Priority field
@@ -50,8 +52,10 @@ export function createProjectBoard(
       "--single-select-options",
       "P0,P1,P2",
     ]);
-  } catch {
-    // Non-fatal: project was created, custom field is optional
+  } catch (err) {
+    warnings.push(
+      `Priority field: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   // Add Size field
@@ -69,9 +73,11 @@ export function createProjectBoard(
       "--single-select-options",
       "XS,S,M,L",
     ]);
-  } catch {
-    // Non-fatal: project was created, custom field is optional
+  } catch (err) {
+    warnings.push(
+      `Size field: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
-  return { created: true, projectUrl, error: null };
+  return { created: true, projectUrl, error: null, warnings };
 }

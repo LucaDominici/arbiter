@@ -145,11 +145,15 @@ When `gh` is authenticated, `arbiter init` also:
    - Creates missing labels
    - Updates color/description on existing labels
    - Never deletes labels
+   - If the initial label-list call fails (network, auth), the error is captured in the result's `errors[]` output with a `"list labels failed: <msg>"` prefix rather than silently proceeding
 
 2. **Applies branch protection to `main`** via `gh api`
    - Required status check: `CI Required`
    - Required review: 1 approving reviewer, dismiss stale
    - No force-push, no deletions
+
+3. **Creates a GitHub Project board** with Priority and Size fields
+   - If field-create calls fail (insufficient scope, API limits), failures are captured in `warnings[]` and printed; `created: true` is still returned because the board itself was created successfully
 
 GitHub setup requires:
 
@@ -537,8 +541,9 @@ arbiter wt close <task-id> [options]
 3. Refuse if the worktree has uncommitted changes (bypassed by `--force`)
 4. Refuse if the branch has not been merged into `origin/<base>` (bypassed by `--force`; skipped entirely by `--harvest-all`)
    - `--harvest-all` emits a stderr warning: "any un-merged commits will be permanently lost"
+   - If `git fetch origin` fails before the merge check, a stderr warning is emitted ("git fetch failed — using cached refs, result may be stale") and the check proceeds with stale remote refs
 5. Warn about dangling symlinks (never throws)
-6. Run `arbiter.json::worktree.closeHook` if configured; non-zero exit aborts (bypassed by `--force`)
+6. Run `arbiter.json::worktree.closeHook` if configured; non-zero exit aborts without `--force`; with `--force` the throw is suppressed but a stderr warning is always emitted
 7. If `--harvest` or `--harvest-all`: copy modified and untracked files from the worktree back to the main repo. Files that conflict with uncommitted changes in the main repo are skipped (not overwritten). `--harvest-all` auto-confirms all files without prompting.
 8. `git worktree remove --force` + `git worktree prune`
 9. Delete the task branch (skipped with `--keep-branch`); stderr warning on failure (branch deletion is best-effort)
@@ -676,7 +681,7 @@ arbiter plugin list [options]
   Configured plugins:
 
     @company/arbiter-spring-boot  resolved
-    @company/arbiter-rails        not found (npm install @company/arbiter-rails)
+    @company/arbiter-rails        not loadable: Cannot find module '@company/arbiter-rails'
 ```
 
 ---

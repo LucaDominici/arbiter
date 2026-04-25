@@ -231,6 +231,7 @@ export function runGithubSetup(config: ProjectConfig): void {
   const pb = createProjectBoard(config.githubOwner, config.githubRepo);
   if (pb.created) {
     console.log(`      Project board created: ${pb.projectUrl}`);
+    for (const w of pb.warnings) console.log(`      Warning: ${w}`);
   } else {
     console.log(`      Skipped: ${pb.error ?? "unknown error"}`);
   }

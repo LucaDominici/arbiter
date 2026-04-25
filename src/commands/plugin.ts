@@ -71,8 +71,9 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
     try {
       await loadPlugin(pkg, targetDir);
       status = "resolved";
-    } catch {
-      status = "not found";
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      status = `not loadable: ${raw.split("\n")[0]}`;
     }
     console.log(`  ├── ${pkg} (${status})`);
   }

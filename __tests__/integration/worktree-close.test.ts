@@ -282,6 +282,53 @@ describe("runWorktreeClose", () => {
     expect(existsSync(join(worktreesDir, "#999-hookfail"))).toBe(true);
   });
 
+  it("emits stderr warning but does not throw when close hook fails under --force", () => {
+    openAndMerge("#999", "hookforce");
+
+    const hookScript = join(repoRoot, "fail-hook-force.sh");
+    writeFileSync(hookScript, "#!/bin/sh\nexit 1\n");
+    execFileSync("chmod", ["+x", hookScript]);
+
+    writeFileSync(
+      join(repoRoot, "arbiter.json"),
+      JSON.stringify({
+        version: "0.1",
+        tools: ["claude"],
+        governanceLevel: "L1",
+        useGitHub: false,
+        worktree: {
+          base: worktreesDir,
+          links: [],
+          closeHook: "./fail-hook-force.sh",
+        },
+      }),
+    );
+
+    const stderrChunks: string[] = [];
+    const origWrite = process.stderr.write.bind(process.stderr);
+    const spy = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation((chunk: unknown) => {
+        stderrChunks.push(String(chunk));
+        return origWrite(chunk as Parameters<typeof origWrite>[0]);
+      });
+
+    expect(() =>
+      runWorktreeClose({
+        taskId: "#999",
+        force: true,
+        cwd: repoRoot,
+        noFetch: true,
+      }),
+    ).not.toThrow();
+
+    spy.mockRestore();
+
+    expect(stderrChunks.join("")).toMatch(/close hook failed/i);
+    // Worktree should be removed despite hook failure
+    expect(existsSync(join(worktreesDir, "#999-hookforce"))).toBe(false);
+  });
+
   it("refuses when no open log entry exists for the task", () => {
     expect(() => runWorktreeClose({ taskId: "#000", cwd: repoRoot })).toThrow(
       /no open worktree/i,
