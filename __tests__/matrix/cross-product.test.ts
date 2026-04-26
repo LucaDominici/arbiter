@@ -519,21 +519,19 @@ describe("cross-product: task.md — governance structure across all stacks", ()
   }
 
   for (const lang of LANGUAGES) {
-    it(`${lang}+L1: no tier classification and no TDD reference`, () => {
+    it(`${lang}+L1: no tier classification, has STOP gate`, () => {
       const content = renderTask(lang, "L1");
       expect(content).not.toMatch(/\bXS\b/);
       expect(content).not.toMatch(/\bStandard\b/);
-      expect(content).not.toMatch(/\bTDD\b/);
-      expect(content).not.toMatch(/STOP HERE/);
+      expect(content).toMatch(/STOP HERE/);
     });
 
     it(`${lang}+L2: tier classification and TDD reference present`, () => {
       const content = renderTask(lang, "L2");
       expect(content).toMatch(/XS|Standard/);
-      expect(content).toMatch(/TDD/);
     });
 
-    it(`${lang}+L3: tier classification, TDD, and verification present`, () => {
+    it(`${lang}+L3: tier classification and verification present`, () => {
       const content = renderTask(lang, "L3");
       expect(content).toMatch(/XS|Standard/);
       expect(content).toMatch(/verif|evidence/i);

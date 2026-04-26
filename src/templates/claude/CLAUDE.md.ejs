@@ -29,7 +29,8 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PreToolUse` → Edit\|Write | `enforce-read-only.mjs` | Guard read-only files |
 | `PreToolUse` → Edit\|Write | `pre-edit-ssot-guard.mjs` | Prevent unauthorized SSOT edits |
 | `PostToolUse` → Bash | `post-commit-check.mjs` | Verify commit format after git commits |
-| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs` | Block orphan TODOs (INV-21)<% if (language === 'typescript') { %>
+| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs` | Block orphan TODOs (INV-21)<% if (governanceLevel !== 'L1') { %>
+| `UserPromptSubmit` → * | `guard-task-completion.mjs` | Warn on premature task-completion claims |<% } %><% if (language === 'typescript') { %>
 | `PostToolUse` → Edit\|Write | `check-no-any.mjs` | Block `any` types (INV-04)<% } %><% if (language === 'rust') { %>
 | `PostToolUse` → Edit\|Write | `check-no-unwrap.mjs` | Block `.unwrap()` calls (INV-04)<% } %>
 
@@ -38,6 +39,8 @@ Configured in `.claude/settings.json`. Active hooks:
 | Command | Purpose |
 |---------|---------|
 | `/task #NNN` | Full lifecycle: branch, plan, implement, gate, PR |
+| `/wt-list` | List active git worktrees with status |
+| `/wt-prune` | Prune stale worktree metadata |
 
 ---
 

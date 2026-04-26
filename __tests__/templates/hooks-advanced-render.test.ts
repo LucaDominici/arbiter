@@ -412,3 +412,104 @@ describe("hooks/post-edit-dispatch.mjs.ejs", () => {
     expect(out).toContain("CLAUDE_TOOL_INPUT_PATH");
   });
 });
+
+// ─── guard-task-completion.mjs.ejs ────────────────────────────────────────
+
+describe("hooks/guard-task-completion.mjs.ejs", () => {
+  it("renders without EJS tag leaks for typescript", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("renders without EJS tag leaks for all stacks", () => {
+    for (const lang of LANGUAGES) {
+      const out = renderTemplate(
+        "claude/hooks/guard-task-completion.mjs.ejs",
+        configFor(lang),
+      );
+      expect(out).not.toContain("<%");
+      expect(out).not.toContain("%>");
+    }
+  });
+
+  it("contains COMPLETION GUARD banner", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("COMPLETION GUARD");
+  });
+
+  it("reads task state via readTaskState from lib.mjs", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("readTaskState");
+    expect(out).toContain("getRepoRoot");
+    expect(out).toContain("lib.mjs");
+  });
+
+  it("detects completion claim patterns", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toMatch(/task complete|task completed/i);
+    expect(out).toMatch(/wrapping up|ready to/i);
+  });
+
+  it("checks .agents-dispatched counter", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("agents-dispatched");
+    expect(out).toContain("minRequired");
+  });
+
+  it("only fires during implementation or verification phase", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("implementation");
+    expect(out).toContain("verification");
+  });
+
+  it("reads user prompt from stdin", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toMatch(/stdin|process\.stdin/i);
+  });
+
+  it("interpolates testCommand for typescript", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("npm test");
+  });
+
+  it("interpolates testCommand for rust", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("rust"),
+    );
+    expect(out).toContain("cargo test");
+  });
+
+  it("interpolates projectName", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("test-project");
+  });
+});

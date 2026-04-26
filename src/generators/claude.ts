@@ -124,6 +124,7 @@ function generateClaudeHooks(
       "post-edit-dispatch.mjs",
       "debug-state-on-failure.mjs",
       "skill-forced-eval.mjs",
+      "guard-task-completion.mjs",
     ]) {
       results.push(
         writeFile(
@@ -173,7 +174,7 @@ function generateClaudeCommands(
   results: WriteResult[],
 ): void {
   const commandsDir = resolvedPath(base, ".claude", "commands");
-  const commands = ["task.md"];
+  const commands = ["task.md", "wt-list.md", "wt-prune.md"];
   for (const cmd of commands) {
     results.push(
       writeFile(

@@ -32,12 +32,15 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs`  | Block orphan TODOs (INV-06)                   |
 | `PostToolUse` → Edit\|Write | `check-no-any.mjs`          | Block `any` types (INV-04)                    |
 | `PostToolUse` → Edit\|Write | `check-no-placeholders.mjs` | Block placeholder/WIP/disabled-test patterns  |
+| `UserPromptSubmit` → \*     | `guard-task-completion.mjs` | Warn on premature task-completion claims      |
 
 ### Slash Commands
 
 | Command      | Purpose                                           |
 | ------------ | ------------------------------------------------- |
 | `/task #NNN` | Full lifecycle: branch, plan, implement, gate, PR |
+| `/wt-list`   | List active git worktrees with status             |
+| `/wt-prune`  | Prune stale worktree metadata                     |
 
 ---
 
