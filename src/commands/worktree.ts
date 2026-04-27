@@ -79,16 +79,18 @@ function readJsonArray(path: string): unknown[] {
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     const backupPath = `${path}.corrupt-${ts}`;
     let moved = false;
+    let renameErrMsg = "";
     try {
       renameSync(path, backupPath);
       moved = true;
-    } catch {
-      // rename best-effort; still return []
+    } catch (renameErr) {
+      renameErrMsg =
+        renameErr instanceof Error ? renameErr.message : String(renameErr);
     }
     process.stderr.write(
       moved
         ? `Warning: corrupt JSON at ${path} — moved to ${backupPath}\n`
-        : `Warning: corrupt JSON at ${path} — could not back up (rename failed); original may be overwritten\n`,
+        : `Warning: corrupt JSON at ${path} — could not back up (rename failed: ${renameErrMsg}); original may be overwritten\n`,
     );
     return [];
   }
@@ -529,7 +531,12 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   const wtConfig = config?.worktree ?? defaultWorktreeConfig();
   warnDanglingLinks(wtConfig.links, worktreePath, warn);
 
-  runCloseHookIfConfigured(wtConfig.closeHook, worktreePath, gitRoot, force);
+  runCloseHookIfConfigured(
+    wtConfig.closeHook,
+    worktreePath,
+    gitRoot,
+    effectiveForce,
+  );
 
   runCli("git", ["worktree", "remove", "--force", worktreePath], {
     cwd: gitRoot,

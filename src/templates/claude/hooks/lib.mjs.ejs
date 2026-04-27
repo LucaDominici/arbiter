@@ -27,6 +27,7 @@ export function getRepoRoot() {
   if (result.status === 0 && result.stdout) {
     return result.stdout.trim();
   }
+  logWarn('getRepoRoot: git rev-parse failed, falling back to cwd');
   return process.cwd();
 }
 

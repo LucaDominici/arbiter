@@ -53,6 +53,12 @@ describe("generateClaude", () => {
       existsSync(join(dir, ".claude", "rules", "90-exec-protocol.md")),
     ).toBe(true);
     expect(existsSync(join(dir, ".claude", "commands", "task.md"))).toBe(true);
+    expect(existsSync(join(dir, ".claude", "commands", "wt-list.md"))).toBe(
+      true,
+    );
+    expect(existsSync(join(dir, ".claude", "commands", "wt-prune.md"))).toBe(
+      true,
+    );
     expect(existsSync(join(dir, ".claude", "hooks", "lib.mjs"))).toBe(true);
   });
 
@@ -82,7 +88,7 @@ describe("generateClaude", () => {
     ).toBe(true);
   });
 
-  it("generates all 5 advanced hooks at L2", () => {
+  it("generates all 6 advanced hooks at L2", () => {
     const config = makeConfig(dir, { governanceLevel: "L2" });
     generateClaude(config);
     const hooksDir = join(dir, ".claude", "hooks");
@@ -91,6 +97,7 @@ describe("generateClaude", () => {
     expect(existsSync(join(hooksDir, "post-edit-dispatch.mjs"))).toBe(true);
     expect(existsSync(join(hooksDir, "debug-state-on-failure.mjs"))).toBe(true);
     expect(existsSync(join(hooksDir, "skill-forced-eval.mjs"))).toBe(true);
+    expect(existsSync(join(hooksDir, "guard-task-completion.mjs"))).toBe(true);
   });
 
   it("does NOT generate L2-only advanced hooks at L1", () => {
@@ -102,5 +109,51 @@ describe("generateClaude", () => {
       false,
     );
     expect(existsSync(join(hooksDir, "skill-forced-eval.mjs"))).toBe(false);
+    expect(existsSync(join(hooksDir, "guard-task-completion.mjs"))).toBe(false);
+  });
+
+  it("generates wt-list.md with git worktree list reference", () => {
+    generateClaude(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".claude", "commands", "wt-list.md"),
+      "utf-8",
+    );
+    expect(content).toContain("git worktree list");
+  });
+
+  it("generates wt-prune.md with git worktree prune reference", () => {
+    generateClaude(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".claude", "commands", "wt-prune.md"),
+      "utf-8",
+    );
+    expect(content).toContain("git worktree prune");
+  });
+
+  it("guard-task-completion.mjs is present at L2", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateClaude(config);
+    const content = readFileSync(
+      join(dir, ".claude", "hooks", "guard-task-completion.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("COMPLETION GUARD");
+    expect(content).toContain("task complete");
+  });
+
+  it("guard-task-completion.mjs is not present at L1", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateClaude(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "guard-task-completion.mjs")),
+    ).toBe(false);
+  });
+
+  it("guard-task-completion is wired in settings.json UserPromptSubmit at L2", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateClaude(config);
+    const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("guard-task-completion.mjs");
+    expect(raw).toContain("UserPromptSubmit");
   });
 });

@@ -1,89 +1,220 @@
+---
+description: Full task lifecycle — plan, implement, review, gate, merge
+argument-hint: "#NNN [--skip-review] [--dry-run]"
+---
+
 # /task #NNN
 
-Full task lifecycle: branch, plan, implement, gate, commit, PR, merge.
+Full lifecycle: plan → STOP → implement → review → gate → commit → PR → merge.
 
-## Phase 0 — Preflight (MANDATORY)
+**Plan Mode Required:** Must run in plan mode. If not in plan mode, STOP and tell user to enter plan mode first.
 
-1. **Branch guard**: Run `git branch --show-current`
-   - If on `main` → HARD STOP — create task branch first, do not proceed
-2. **Duplicate-branch guard**: Run `git branch --list "task/#NNN-*"`
-   - If a matching branch already exists → confirm with user before switching or re-creating
-3. Read the GitHub issue: `gh issue view NNN`
-   - Confirm issue is OPEN before starting; if closed, alert user
-4. **Extract acceptance criteria**: List every exit criterion / AC from the issue body explicitly
+**Worktree Recommended:** Run from worktree (created via `/wt-open`). If on main or a non-task branch, STOP and suggest `/wt-open #NNN`.
 
-## Phase 1 — Setup
+---
 
-1. Read `AGENTS.md` — internalize invariants before touching any code
-2. Create branch: `git checkout -b task/#NNN-kebab-case-description`
-3. Check for existing plan: `ls ~/.claude/plans/ | grep -i NNN`
-   - If a plan exists, read it — do not re-plan from scratch
-4. Identify files to change (3+ files → create a plan and confirm with user)
+## PHASE PLAN — Read-Only
 
-## Phase 2 — Acceptance Criteria Gate
+### Phase 0: Preflight
 
-List the acceptance criteria extracted in Phase 0. Confirm with user they are complete.
+1. **Branch guard**:
 
-**STOP HERE** — await user GO before editing any file
+   ```bash
+   git branch --show-current
+   ```
 
-## After GO
+   | Branch                      | Action                                     |
+   | --------------------------- | ------------------------------------------ |
+   | `main` or `master`          | HARD STOP — create task branch or worktree |
+   | does not start with `task/` | STOP — create proper branch                |
 
-- Use TDD: write the test first, then the implementation
-- Run `node scripts/check-all.mjs L1` after each logical unit
+2. **Worktree check**: If not in a worktree, suggest `/wt-open #NNN` for isolation.
+
+3. **Read issue**:
+
+   ```bash
+   gh issue view NNN
+   ```
+
+   Confirm issue is OPEN. If closed, warn user.
+
+4. **Duplicate guard**: Check for existing branch:
+
+   ```bash
+   git branch --list "task/#NNN-*"
+   ```
+
+   If exists, confirm before reusing or recreating.
+
+5. **Flag parsing**: Check for `--skip-review` and `--dry-run` flags in the command arguments.
+
+### Phase 1: Context
+
+1. Read `AGENTS.md` — internalize invariants.
+2. Read `docs/SYSTEM/CANON.md` — internalize process rules.
+3. Check for existing plan: `ls .claude/plans/ | grep -i NNN`
+4. Identify scope: which files need to change?
+
+### Phase 2: Classification
+
+Classify the task:
+
+| Tier         | Criteria                                  | Ceremony                      |
+| ------------ | ----------------------------------------- | ----------------------------- |
+| **XS**       | Single file, obvious scope                | Minimal plan, 3 review agents |
+| **S**        | 2-5 files, clear scope                    | Brief plan, 3 review agents   |
+| **Standard** | Multi-file, complex logic, schema changes | Full plan, 4 review agents    |
+
+Write tier to state file:
+
+```bash
+echo "<tier>" > .claude/.task-tier
+```
+
+### Phase 3: Plan Creation
+
+Produce a plan containing:
+
+1. **Scope**: Files to create/modify (no "etc." or "various")
+2. **Test plan**: What tests to write first (TDD)
+3. **Gate command**: `node scripts/check-all.mjs L2`
+4. **Risk**: What could break (at least 1 item)
+
+Write state files:
+
+```bash
+echo "#NNN" > .claude/.task-id
+echo ".claude/plans/task-NNN.md" > .claude/.task-plan
+echo "plan" > .claude/.task-phase
+```
+
+**STOP HERE** — await user GO before editing any file.
+
+---
+
+## PHASE EXEC — After GO
+
+### Phase 4: Setup
+
+1. **Dirty-tree guard**: Working tree must be clean before starting.
+
+   ```bash
+   git status --porcelain
+   ```
+
+   If dirty, STOP and commit/stash changes first.
+
+2. **Create branch** if not already on one:
+
+   ```bash
+   git checkout -b task/#NNN-kebab-case-description
+   ```
+
+3. **Update phase**:
+   ```bash
+   echo "implementation" > .claude/.task-phase
+   ```
+
+### Phase 5: Implementation (TDD)
+
+- Use TDD: write test first, then implementation (Red → Green → Refactor)
+- Run gate after each logical unit:
+  ```bash
+  node scripts/check-all.mjs L1
+  ```
 - Keep commits atomic: one logical change per commit
+- Commit format: `type(#NNN): summary`
 
-## Phase 3 — Code Review (MANDATORY before gate)
+### Phase 6: Code Review (MANDATORY)
 
-**Task complexity:**
+**Agent minimums:**
 
-- XS/S (< 3 files, < 50 changed lines): 3 agents minimum
-- Standard (≥ 3 files or ≥ 50 lines): 4 agents minimum
+- XS/S: 3 agents minimum
+- Standard: 4 agents minimum
 
-### Phase 3.1 — Dispatch parallel review agents (run ALL simultaneously)
+#### 6.1 — Dispatch parallel review agents (run ALL simultaneously)
 
 - **Agent 1 — Bugs & logic errors**: Null/undefined mishandling, incorrect conditions, wrong defaults, off-by-one errors
 - **Agent 2 — Type safety & patterns**: Unsafe casts, `any` leaks, missing type guards, SOLID violations
 - **Agent 3 — Domain consistency**: Do changes respect invariants (AGENTS.md), ADRs, and governance contracts?
+- **Agent 4 — (Standard only) Test quality**: Are tests meaningful? Edge cases covered? Not just happy path?
 
-### Phase 3.2 — Silent failure hunter (always runs, separate agent)
+#### 6.2 — Silent failure hunter (always runs, separate agent)
 
 Hunt specifically for: swallowed exceptions (`catch {}`), `??` defaults that mask undefined with wrong fallbacks, conditions that silently produce no output, unhandled promise rejections.
 
-### Phase 3.3 — Agent dispatch gate
+#### 6.3 — File-backed dispatch gate
 
-HARD STOP if agents were not dispatched. "I reviewed it" without actual agent tool calls does not satisfy this gate.
+After dispatching agents, record the count:
 
-### Phase 3.5 — Acceptance criteria verification (MANDATORY)
+```bash
+echo "3" > .agents-dispatched   # or 4 for Standard
+```
 
-Re-read the original GitHub issue. For each acceptance criterion, state: PASS / FAIL / NOT TESTED.
-If any FAIL → fix before proceeding.
+**HARD STOP** if agents were not actually dispatched. "I reviewed it" without agent tool calls does not satisfy this gate.
 
-## Phase 4 — Gate + Commit
+#### 6.4 — Acceptance criteria verification
 
-1. Run `node scripts/check-all.mjs L2` — must be GREEN
-2. Commit with convention: `type(#NNN): summary`
-3. Push branch: `git push -u origin HEAD`
+Re-read the original GitHub issue. For each acceptance criterion, state: PASS / FAIL / NOT TESTED. If any FAIL, fix before proceeding.
 
-## Phase 4.5 — Post-Commit Verifier Agent (MANDATORY, before PR)
+### Phase 7: Adversarial Verifier (MANDATORY)
 
-Dispatch a single adversarial verifier agent against the committed code. This agent runs AFTER the gate passes but BEFORE the PR is created, so any findings can be fixed in the same PR.
+Dispatch a single adversarial verifier agent. This runs AFTER code review but BEFORE the gate.
 
-The verifier agent must:
+The verifier must:
 
-- Trace each new feature end-to-end (generator emits file → template imports correct path → runtime behavior is correct)
-- Check for dead code / defined-but-never-used fields (especially in MetricsProfile-style computed configs)
-- Verify --update / ratchet logic preserves prior state (no silent metric drops)
-- Check CLI option wiring end-to-end (flag declared → parsed → forwarded → guarded)
-- Verify fixture execute bits and test setup assumptions
+- Trace each new feature end-to-end
+- Check for dead code / defined-but-never-used fields
+- Verify CLI option wiring end-to-end (flag declared → parsed → forwarded)
+- Check fixture assumptions and test setup
 
-**Agent dispatch gate**: HARD STOP if verifier agent was not dispatched. Treat any [ISSUE] finding as a blocker — fix, re-gate, re-commit before proceeding to Phase 5.
+**HARD STOP** if verifier agent was not dispatched. Treat [ISSUE] findings as blockers.
 
-## Phase 5 — PR + Merge
+### Phase 8: Gate
 
-4. Create PR: `gh pr create --title "type(#NNN): summary" --body "..."`
-5. Verify CI passes: `gh pr checks`
-6. Merge when green: `gh pr merge --squash`
-7. Close issue: `gh issue close NNN`
+```bash
+node scripts/check-all.mjs L2
+```
+
+Gate must be **GREEN**. If it fails:
+
+- Fix root cause. No `--no-verify`. No skipping.
+- Report blocker if fails after two focused attempts.
+
+Update phase:
+
+```bash
+echo "verification" > .claude/.task-phase
+```
+
+### Phase 9: Commit + Push
+
+```bash
+git add <specific-files>
+git commit -m "type(#NNN): summary"
+git push -u origin HEAD
+```
+
+### Phase 10: PR + Merge
+
+```bash
+gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
+gh pr checks
+gh pr merge --squash
+```
+
+### Phase 11: Cleanup
+
+```bash
+gh issue close NNN
+echo "complete" > .claude/.task-phase
+```
+
+If using worktree, close it:
+
+```bash
+/wt-close NNN
+```
 
 ## Gate Failure
 
