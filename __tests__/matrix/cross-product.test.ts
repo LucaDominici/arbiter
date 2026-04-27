@@ -526,7 +526,7 @@ describe("cross-product: task.md — governance structure across all stacks", ()
       expect(content).toMatch(/STOP HERE/);
     });
 
-    it(`${lang}+L2: tier classification and TDD reference present`, () => {
+    it(`${lang}+L2: tier classification present`, () => {
       const content = renderTask(lang, "L2");
       expect(content).toMatch(/XS|Standard/);
     });

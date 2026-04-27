@@ -12,6 +12,9 @@ function getRepoRoot() {
     encoding: "utf-8",
   });
   if (result.status === 0 && result.stdout) return result.stdout.trim();
+  process.stderr.write(
+    "guard-task-completion: git rev-parse failed, falling back to cwd\n",
+  );
   return process.cwd();
 }
 

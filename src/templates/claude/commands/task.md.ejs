@@ -148,9 +148,7 @@ echo "plan" > .claude/.task-phase
 - **Agent 1 — Bugs & logic errors**: Null/undefined mishandling, incorrect conditions, wrong defaults, off-by-one errors
 - **Agent 2 — Type safety & patterns**: Unsafe casts, `any` leaks, missing type guards, SOLID violations
 - **Agent 3 — Domain consistency**: Do changes respect invariants (AGENTS.md), ADRs, and governance contracts?
-<% if (governanceLevel !== 'L1') { %>
 - **Agent 4 — (Standard only) Test quality**: Are tests meaningful? Edge cases covered? Not just happy path?
-<% } %>
 
 #### 6.2 — Silent failure hunter (always runs, separate agent)
 
