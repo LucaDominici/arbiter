@@ -39,6 +39,8 @@ Configured in `.claude/settings.json`. Active hooks:
 | Command      | Purpose                                           |
 | ------------ | ------------------------------------------------- |
 | `/task #NNN` | Full lifecycle: branch, plan, implement, gate, PR |
+| `/wt-open`   | Open an isolated task worktree                    |
+| `/wt-close`  | Close or harvest a task worktree                  |
 | `/wt-list`   | List active git worktrees with status             |
 | `/wt-prune`  | Prune stale worktree metadata                     |
 

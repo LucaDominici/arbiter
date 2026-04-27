@@ -282,7 +282,7 @@ describe("runWorktreeClose", () => {
     expect(existsSync(join(worktreesDir, "#999-hookfail"))).toBe(true);
   });
 
-  it("emits stderr warning but does not throw when close hook fails under --force", () => {
+  it("emits warning callback but does not throw when close hook fails under --force", () => {
     openAndMerge("#999", "hookforce");
 
     const hookScript = join(repoRoot, "fail-hook-force.sh");
@@ -304,14 +304,7 @@ describe("runWorktreeClose", () => {
       }),
     );
 
-    const stderrChunks: string[] = [];
-    const origWrite = process.stderr.write.bind(process.stderr);
-    const spy = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation((chunk: unknown) => {
-        stderrChunks.push(String(chunk));
-        return origWrite(chunk as Parameters<typeof origWrite>[0]);
-      });
+    const warnings: string[] = [];
 
     expect(() =>
       runWorktreeClose({
@@ -319,12 +312,11 @@ describe("runWorktreeClose", () => {
         force: true,
         cwd: repoRoot,
         noFetch: true,
+        onWarning: (warning) => warnings.push(warning),
       }),
     ).not.toThrow();
 
-    spy.mockRestore();
-
-    expect(stderrChunks.join("")).toMatch(/close hook failed/i);
+    expect(warnings.join("\n")).toMatch(/close hook failed/i);
     // Worktree should be removed despite hook failure
     expect(existsSync(join(worktreesDir, "#999-hookforce"))).toBe(false);
   });

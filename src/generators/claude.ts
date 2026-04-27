@@ -174,7 +174,13 @@ function generateClaudeCommands(
   results: WriteResult[],
 ): void {
   const commandsDir = resolvedPath(base, ".claude", "commands");
-  const commands = ["task.md", "wt-list.md", "wt-prune.md"];
+  const commands = [
+    "task.md",
+    "wt-open.md",
+    "wt-close.md",
+    "wt-list.md",
+    "wt-prune.md",
+  ];
   for (const cmd of commands) {
     results.push(
       writeFile(

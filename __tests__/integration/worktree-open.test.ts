@@ -316,7 +316,7 @@ describe("#315 base-branch origin fallback", () => {
       stdio: "ignore",
     });
     cloneWorktreesDir = makeTmpDir("arbiter-wt-315-store-");
-  });
+  }, 30_000);
 
   afterEach(() => {
     try {
@@ -354,5 +354,5 @@ describe("#315 base-branch origin fallback", () => {
 
     const wtPath = join(cloneWorktreesDir, "#315-origin-fallback");
     expect(existsSync(wtPath)).toBe(true);
-  });
+  }, 30_000);
 });

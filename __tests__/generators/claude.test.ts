@@ -53,6 +53,12 @@ describe("generateClaude", () => {
       existsSync(join(dir, ".claude", "rules", "90-exec-protocol.md")),
     ).toBe(true);
     expect(existsSync(join(dir, ".claude", "commands", "task.md"))).toBe(true);
+    expect(existsSync(join(dir, ".claude", "commands", "wt-open.md"))).toBe(
+      true,
+    );
+    expect(existsSync(join(dir, ".claude", "commands", "wt-close.md"))).toBe(
+      true,
+    );
     expect(existsSync(join(dir, ".claude", "commands", "wt-list.md"))).toBe(
       true,
     );
@@ -119,6 +125,24 @@ describe("generateClaude", () => {
       "utf-8",
     );
     expect(content).toContain("git worktree list");
+  });
+
+  it("generates wt-open.md with arbiter wt open reference", () => {
+    generateClaude(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".claude", "commands", "wt-open.md"),
+      "utf-8",
+    );
+    expect(content).toContain("arbiter wt open");
+  });
+
+  it("generates wt-close.md with arbiter wt close reference", () => {
+    generateClaude(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".claude", "commands", "wt-close.md"),
+      "utf-8",
+    );
+    expect(content).toContain("arbiter wt close");
   });
 
   it("generates wt-prune.md with git worktree prune reference", () => {

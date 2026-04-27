@@ -44,6 +44,13 @@ function renderTask(
   );
 }
 
+function renderCommand(template: string): string {
+  return renderTemplate(
+    `claude/commands/${template}.ejs`,
+    makeConfig("/tmp/test") as unknown as Record<string, unknown>,
+  );
+}
+
 describe("claude commands: task.md — structural sections", () => {
   it("contains branch enforcement section", () => {
     const content = renderTask();
@@ -80,6 +87,22 @@ describe("claude commands: task.md — structural sections", () => {
     expect(content).toMatch(/\.task-id/);
     expect(content).toMatch(/\.task-phase/);
     expect(content).toMatch(/\.task-plan/);
+  });
+
+  it("sets local exclude entries before writing task state", () => {
+    const content = renderTask();
+    const excludeIdx = content.indexOf("touch .git/info/exclude");
+    const taskStateIdx = content.indexOf('echo "#NNN" > .claude/.task-id');
+    expect(excludeIdx).toBeGreaterThan(-1);
+    expect(taskStateIdx).toBeGreaterThan(excludeIdx);
+    for (const pattern of [
+      ".claude/.task-*",
+      ".claude/plans/",
+      ".agents-dispatched",
+      ".arbiter/",
+    ]) {
+      expect(content).toContain(pattern);
+    }
   });
 
   it("contains code review agent dispatch section at L2+", () => {
@@ -168,4 +191,20 @@ describe("claude commands: task.md — stack parameterization", () => {
       expect(content).toContain(GATE_COMMANDS[lang]);
     });
   }
+});
+
+describe("claude commands: worktree helpers", () => {
+  it("renders wt-open without EJS leaks and invokes arbiter wt open", () => {
+    const content = renderCommand("wt-open.md");
+    expect(content).not.toContain("<%");
+    expect(content).not.toContain("%>");
+    expect(content).toContain("arbiter wt open <TASK_ID> [SLUG]");
+  });
+
+  it("renders wt-close without EJS leaks and invokes arbiter wt close", () => {
+    const content = renderCommand("wt-close.md");
+    expect(content).not.toContain("<%");
+    expect(content).not.toContain("%>");
+    expect(content).toContain("arbiter wt close <TASK_ID>");
+  });
 });

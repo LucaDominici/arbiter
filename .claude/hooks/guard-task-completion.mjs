@@ -61,11 +61,14 @@ const COMPLETION_PATTERNS =
   /\b(task complete|task completed|all phases complete|pr merged|merged to main|wrapping up|ready to (merge|close))\b/i;
 if (!COMPLETION_PATTERNS.test(promptText)) process.exit(0);
 
-// Completion claimed but phase is not complete — check evidence
+// Completion claimed before the task reached the complete phase.
 const dispatched = readAgentsDispatched(root);
 const minRequired = tier === "Standard" ? 4 : 3;
 
 const warnings = [];
+warnings.push(
+  `- phase: ${phase} (must be complete before claiming completion)`,
+);
 if (dispatched < minRequired) {
   warnings.push(
     `- agents-dispatched: ${dispatched} (minimum ${minRequired} for tier ${tier})`,
@@ -74,9 +77,8 @@ if (dispatched < minRequired) {
 
 process.stdout.write(
   `━━━ COMPLETION GUARD ━━━\n` +
-    `Claimed task complete, but phase=${phase}\n` +
-    (warnings.length
-      ? `Missing evidence:\n${warnings.join("\n")}\n\nAction: run code review phases before claiming completion. Gate: node scripts/check-all.mjs L2\n`
-      : `Evidence OK. Proceed with: node scripts/check-all.mjs L2\n`) +
+    `Premature task-completion claim detected.\n` +
+    `Missing evidence:\n${warnings.join("\n")}\n\n` +
+    `Required before completion: resolve review/verifier findings, run node scripts/check-all.mjs L2, commit, push, merge PR, then set phase=complete.\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
 );
