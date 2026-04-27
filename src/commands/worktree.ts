@@ -304,6 +304,7 @@ function runCloseHookIfConfigured(
   worktreePath: string,
   gitRoot: string,
   force: boolean,
+  warn: (msg: string) => void,
 ): void {
   if (!hookPath) return;
   const absPath = resolve(gitRoot, hookPath);
@@ -322,7 +323,7 @@ function runCloseHookIfConfigured(
     if (!force) {
       throw new Error(`Close hook failed: ${msg}`, { cause: err });
     }
-    process.stderr.write(`Warning: close hook failed: ${msg}\n`);
+    warn(`Warning: close hook failed: ${msg}`);
   }
 }
 
@@ -536,6 +537,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
     worktreePath,
     gitRoot,
     effectiveForce,
+    warn,
   );
 
   runCli("git", ["worktree", "remove", "--force", worktreePath], {

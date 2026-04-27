@@ -59,6 +59,15 @@ describe("generateEvidenceRetention", () => {
     expect(content).toContain(".env");
   });
 
+  it(".gitignore contains local Arbiter runtime state entries", () => {
+    generateEvidenceRetention(makeConfig(dir));
+    const content = readFileSync(join(dir, ".gitignore"), "utf-8");
+    expect(content).toContain(".arbiter/");
+    expect(content).toContain(".agents-dispatched");
+    expect(content).toContain(".claude/.task-*");
+    expect(content).toContain(".claude/plans/");
+  });
+
   it(".gitignore skipIfExists — does not overwrite existing file", () => {
     generateEvidenceRetention(makeConfig(dir));
     const gitignorePath = join(dir, ".gitignore");

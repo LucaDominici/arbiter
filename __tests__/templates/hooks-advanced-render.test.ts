@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { renderTemplate } from "../../src/utils/render.js";
 import { makeConfig } from "../helpers.js";
 import type { Language, GovernanceLevel } from "../../src/wizard/types.js";
@@ -511,5 +515,45 @@ describe("hooks/guard-task-completion.mjs.ejs", () => {
       configFor("typescript"),
     );
     expect(out).toContain("test-project");
+  });
+
+  it("warns instead of approving completion while phase is implementation", () => {
+    const dir = mkdtempSync(join(tmpdir(), "arbiter-guard-hook-"));
+    try {
+      execFileSync("git", ["init", "-b", "main"], {
+        cwd: dir,
+        stdio: "ignore",
+      });
+      const hooksDir = join(dir, ".claude", "hooks");
+      mkdirSync(hooksDir, { recursive: true });
+      writeFileSync(
+        join(hooksDir, "lib.mjs"),
+        renderTemplate("claude/hooks/lib.mjs.ejs", configFor("typescript")),
+      );
+      const hookPath = join(hooksDir, "guard-task-completion.mjs");
+      writeFileSync(
+        hookPath,
+        renderTemplate(
+          "claude/hooks/guard-task-completion.mjs.ejs",
+          configFor("typescript"),
+        ),
+      );
+      writeFileSync(join(dir, ".claude", ".task-phase"), "implementation\n");
+      writeFileSync(join(dir, ".claude", ".task-tier"), "Standard\n");
+      writeFileSync(join(dir, ".agents-dispatched"), "4\n");
+
+      const result = spawnSync("node", [hookPath], {
+        cwd: dir,
+        input: JSON.stringify({ prompt: "task complete, ready to merge" }),
+        encoding: "utf-8",
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Premature task-completion claim");
+      expect(result.stdout).toContain("phase: implementation");
+      expect(result.stdout).not.toContain("Evidence OK");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

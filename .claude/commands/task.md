@@ -83,6 +83,12 @@ Produce a plan containing:
 Write state files:
 
 ```bash
+mkdir -p .git/info .claude/plans
+touch .git/info/exclude
+for pattern in ".claude/.task-*" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
+  grep -qxF "$pattern" .git/info/exclude || printf "%s\n" "$pattern" >> .git/info/exclude
+done
+
 echo "#NNN" > .claude/.task-id
 echo ".claude/plans/task-NNN.md" > .claude/.task-plan
 echo "plan" > .claude/.task-phase

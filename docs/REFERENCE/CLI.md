@@ -543,7 +543,7 @@ arbiter wt close <task-id> [options]
    - `--harvest-all` emits a stderr warning: "any un-merged commits will be permanently lost"
    - If `git fetch origin` fails before the merge check, a stderr warning is emitted ("git fetch failed — using cached refs, result may be stale") and the check proceeds with stale remote refs
 5. Warn about dangling symlinks (never throws)
-6. Run `arbiter.json::worktree.closeHook` if configured; non-zero exit aborts without `--force`; with `--force` the throw is suppressed but a stderr warning is always emitted
+6. Run `arbiter.json::worktree.closeHook` if configured; non-zero exit aborts without `--force`; with `--force` the throw is suppressed but a warning is still emitted
 7. If `--harvest` or `--harvest-all`: copy modified and untracked files from the worktree back to the main repo. Files that conflict with uncommitted changes in the main repo are skipped (not overwritten). `--harvest-all` auto-confirms all files without prompting.
 8. `git worktree remove --force` + `git worktree prune`
 9. Delete the task branch (skipped with `--keep-branch`); stderr warning on failure (branch deletion is best-effort)
