@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
 import type { ProjectConfig } from "../wizard/types.js";
@@ -41,13 +39,7 @@ export function generateSecurity(
     results.push(
       writeFile(
         resolvedPath(base, ".claude", "hooks", "check-no-pii.mjs"),
-        readFileSync(
-          join(
-            import.meta.dirname,
-            "../templates/claude/hooks/check-no-pii.mjs",
-          ),
-          "utf-8",
-        ),
+        renderTemplate("claude/hooks/check-no-pii.mjs", data),
         { skipIfExists: true },
       ),
     );
