@@ -5,6 +5,20 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## Fix #298: drop redundant ProjectConfig intersection cast in archunit (2026-05-01)
+
+`emitHexagonalSuite` in `src/generators/archunit.ts` no longer takes
+`ProjectConfig & { basePackage: string }`; `basePackage` is passed as a
+separate `string` parameter from the if-guarded call site. The previous
+cast at the call site would have silently lied if the guard at
+`generateArchUnit:139` (`config.architectureStyle === "hexagonal" && config.basePackage`)
+were ever relaxed, leading to `basePackage.replace(...)` throwing on
+`undefined` inside the function body. The new signature makes the
+non-empty contract local to the call site and removes the intersection
+cast entirely.
+
+---
+
 ## ADR-030: Consolidate /start-task + /complete-task → /task
 
 **Date:** 2026-04-17
