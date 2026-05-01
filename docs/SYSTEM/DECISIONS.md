@@ -19,6 +19,22 @@ cast entirely.
 
 ---
 
+## Fix #300: route check-no-pii.mjs emit through renderTemplate (2026-05-01)
+
+`src/generators/security.ts` now emits the PII hook via
+`renderTemplate("claude/hooks/check-no-pii.mjs", data)` instead of a
+direct `readFileSync(import.meta.dirname/...)`. `renderTemplate` resolves
+its templates via `fileURLToPath(import.meta.url)`, which is portable
+across all Node versions; `import.meta.dirname` is Node 20.11+ only and
+is undefined under some bundler configurations. The change also aligns
+the security generator with the pattern already used in
+`src/generators/claude.ts` for sibling static `.mjs` hooks
+(`stop-dangerous`, `enforce-read-only`, `pre-edit-ssot-guard`,
+`check-no-orphan-todo`). The template contains no `<%`/`%>` delimiters
+so EJS pass-through is byte-identical.
+
+---
+
 ## ADR-030: Consolidate /start-task + /complete-task → /task
 
 **Date:** 2026-04-17
