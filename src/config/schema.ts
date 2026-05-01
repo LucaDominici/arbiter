@@ -100,8 +100,8 @@ function validateThresholds(raw: unknown, errors: string[]): boolean {
   const coverage = ["lineCoverage", "branchCoverage", "mutationScore"] as const;
   for (const key of coverage) {
     const v = raw[key];
-    if (typeof v !== "number" || v < 0 || v > 100) {
-      errors.push(`thresholds.${key} must be a number between 0 and 100`);
+    if (typeof v !== "number" || v <= 0 || v > 100) {
+      errors.push(`thresholds.${key} must be a number between 1 and 100`);
       ok = false;
     }
   }

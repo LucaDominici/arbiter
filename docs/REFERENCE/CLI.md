@@ -394,9 +394,9 @@ arbiter configure --set <path>=<value> [--set <path>=<value> ...]
 | `tools`                           | comma-separated | `claude,codex,cursor,copilot` |
 | `governanceLevel`                 | string          | `L1`, `L2`, `L3`              |
 | `useGitHub`                       | boolean         | `true` / `false`              |
-| `thresholds.lineCoverage`         | number          | 0–100                         |
-| `thresholds.branchCoverage`       | number          | 0–100                         |
-| `thresholds.mutationScore`        | number          | 0–100                         |
+| `thresholds.lineCoverage`         | number          | 1–100                         |
+| `thresholds.branchCoverage`       | number          | 1–100                         |
+| `thresholds.mutationScore`        | number          | 1–100                         |
 | `thresholds.cyclomaticComplexity` | number          | positive                      |
 | `thresholds.methodLength`         | number          | positive                      |
 | `thresholds.maxParams`            | number          | positive                      |

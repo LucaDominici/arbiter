@@ -133,6 +133,74 @@ describe("validateConfig — rejection", () => {
     }
   });
 
+  it("rejects lineCoverage equal to 0 (would silently disable coverage gate)", () => {
+    const result = validateConfig({
+      version: "0.2",
+      tools: ["claude"],
+      governanceLevel: "L2",
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: true,
+      },
+      thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 0 },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes("lineCoverage"))).toBe(true);
+    }
+  });
+
+  it("rejects branchCoverage equal to 0", () => {
+    const result = validateConfig({
+      version: "0.2",
+      tools: ["claude"],
+      governanceLevel: "L2",
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: true,
+      },
+      thresholds: { ...DEFAULT_THRESHOLDS.L2, branchCoverage: 0 },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes("branchCoverage"))).toBe(
+        true,
+      );
+    }
+  });
+
+  it("rejects mutationScore equal to 0", () => {
+    const result = validateConfig({
+      version: "0.2",
+      tools: ["claude"],
+      governanceLevel: "L2",
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: true,
+      },
+      thresholds: { ...DEFAULT_THRESHOLDS.L2, mutationScore: 0 },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes("mutationScore"))).toBe(true);
+    }
+  });
+
   it("rejects lineCoverage above 100", () => {
     const result = validateConfig({
       version: "0.2",
