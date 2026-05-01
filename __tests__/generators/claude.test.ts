@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateClaude } from "../../src/generators/claude.js";
@@ -179,5 +186,53 @@ describe("generateClaude", () => {
     const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
     expect(raw).toContain("guard-task-completion.mjs");
     expect(raw).toContain("UserPromptSubmit");
+  });
+
+  describe("existing settings.json — parse guard (#297)", () => {
+    function seedExistingSettings(content: string): void {
+      const claudeDir = join(dir, ".claude");
+      mkdirSync(claudeDir, { recursive: true });
+      writeFileSync(join(claudeDir, "settings.json"), content, "utf-8");
+    }
+
+    it("throws prefixed error on malformed JSON (trailing comma)", () => {
+      seedExistingSettings('{"hooks": {},}');
+      expect(() => generateClaude(makeConfig(dir))).toThrow(
+        /Failed to parse existing \.claude\/settings\.json/,
+      );
+    });
+
+    it("throws prefixed error when existing settings.json is null", () => {
+      seedExistingSettings("null");
+      expect(() => generateClaude(makeConfig(dir))).toThrow(
+        /Failed to parse existing \.claude\/settings\.json/,
+      );
+    });
+
+    it("throws prefixed error when existing settings.json is an array", () => {
+      seedExistingSettings("[1,2,3]");
+      expect(() => generateClaude(makeConfig(dir))).toThrow(
+        /Failed to parse existing \.claude\/settings\.json/,
+      );
+    });
+
+    it("throws prefixed error when existing settings.json is a primitive", () => {
+      seedExistingSettings('"a string"');
+      expect(() => generateClaude(makeConfig(dir))).toThrow(
+        /Failed to parse existing \.claude\/settings\.json/,
+      );
+    });
+
+    it("merges successfully when existing settings.json is a valid object", () => {
+      seedExistingSettings(
+        JSON.stringify({ permissions: { allow: ["custom"] } }),
+      );
+      expect(() => generateClaude(makeConfig(dir))).not.toThrow();
+      const merged = JSON.parse(
+        readFileSync(join(dir, ".claude", "settings.json"), "utf-8"),
+      ) as Record<string, unknown>;
+      expect(merged).toHaveProperty("hooks");
+      expect(merged).toHaveProperty("permissions");
+    });
   });
 });
