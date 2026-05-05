@@ -50,6 +50,10 @@ npm run test
 **Lint:** `npm run lint`
 **Format:** `echo &#34;no formatter configured&#34;`
 
+### Enforcement Chain
+
+Code changes pass through four enforcement layers in sequence: edit-time Claude Code hooks (`.claude/hooks/`) block bad edits before they land on disk; pre-commit `.githooks/pre-commit` runs the L1 gate on every `git commit` regardless of editor; pre-push `.githooks/pre-push` runs the L2 gate before any push; and CI verifies all PRs. To activate the git hooks run `git config core.hooksPath .githooks` (Node projects also auto-install this via `npm install` through the `prepare` script; non-Node projects use `./scripts/setup-hooks.sh`).
+
 ## Hook Hardness Manifest
 
 All hooks in `src/templates/claude/hooks/` are classified in `.arbiter/hooks-manifest.json` with an explicit `classification` field (`HARD` or `ADVISORY`). The L1 gate verifies this classification empirically on every CI run (INV-36).

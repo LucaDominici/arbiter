@@ -257,6 +257,24 @@ node scripts/check-all.mjs L2   # before push
 ```
 
 ---
+
+## Enforcement Chain
+
+Changes pass through four enforcement layers:
+
+| Layer | Mechanism | Coverage |
+|-------|-----------|----------|
+| Edit-time | Claude Code hooks (`.claude/hooks/`) | Claude Code edits only |
+| Pre-commit | `.githooks/pre-commit` — runs L1 gate | All editors (`git commit`) |
+| Pre-push | `.githooks/pre-push` — runs L2 gate | All pushes |
+| CI | GitHub Actions / equivalent | All PRs |
+| Branch protection | See ADR-007 | Force-push, direct merge |
+
+<% if (language === 'typescript') { %>Install hooks: `git config core.hooksPath .githooks` (auto-applied via `npm install` — see `package.json` `prepare` script).
+<% } else { %>Install hooks: `git config core.hooksPath .githooks` (or run `./scripts/setup-hooks.sh`).
+<% } %>Bypass surface: only `git commit --no-verify` (documented, audited at PR review).
+
+---
 <% if (enableDebtGates) { %>
 <% const threshold = governanceLevel === 'L3' ? 85 : 80; %>
 ## Tech Debt Gates

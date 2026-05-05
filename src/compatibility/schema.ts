@@ -19,7 +19,7 @@ export interface LanguageMatrix {
 }
 
 /** Result of probing a single tool */
-export type ProbeStatus = "passed" | "skipped" | "failed";
+export type ProbeStatus = "passed" | "skipped" | "failed" | "warning";
 
 /** Whether probe checks installed tool version or invokes a build command */
 export type ProbeKind = "version" | "build";

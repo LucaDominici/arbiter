@@ -314,7 +314,49 @@ export function runProbes(dir: string): VerifyReport {
     probes.push(runBuildProbe(dir, buildSpec));
   }
 
+  const hooksProbe = probeHooksPath(dir);
+  if (hooksProbe !== null) {
+    probes.push(hooksProbe);
+  }
+
   const hasFailures = probes.some((p) => p.status === "failed");
 
   return { dir, stack: lang, probes, hasFailures };
+}
+
+/**
+ * Probe whether `.githooks/pre-commit` exists but `core.hooksPath` is not set to `.githooks`.
+ * Returns null (silent skip) if no `.githooks/` directory is present at all.
+ * Exported for unit testing.
+ */
+export function probeHooksPath(dir: string): ProbeResult | null {
+  const preCommitPath = join(dir, ".githooks", "pre-commit");
+  if (!existsSync(preCommitPath)) {
+    return null;
+  }
+
+  let configuredPath: string | null;
+  try {
+    const result = runCli("git", ["config", "--get", "core.hooksPath"], {
+      cwd: dir,
+      timeoutMs: PROBE_TIMEOUT_MS,
+    });
+    configuredPath = result.stdout.trim();
+  } catch {
+    // git config --get exits non-zero when key is absent — treat as not set
+    configuredPath = null;
+  }
+
+  if (configuredPath === ".githooks") {
+    return { tool: "hooksPath", status: "passed", kind: "build" };
+  }
+
+  return {
+    tool: "hooksPath",
+    status: "warning",
+    kind: "build",
+    reason:
+      ".githooks/pre-commit exists but core.hooksPath is not set to .githooks. " +
+      "Run: git config core.hooksPath .githooks (or ./scripts/setup-hooks.sh for non-Node projects).",
+  };
 }
