@@ -11,5 +11,6 @@ coverage/
 .claude/plans/
 .agents-dispatched
 
-# Arbiter local runtime state
+# Arbiter local runtime state (logs); manifest is committed
 .arbiter/
+!.arbiter/hooks-manifest.json
