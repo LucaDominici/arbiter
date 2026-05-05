@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# commit-msg: validates commit message against conventional commits
+set -e
+
+<% if (language === 'typescript') { %>
+if [ ! -d "node_modules" ]; then
+  echo "Skipping commit-msg: node_modules not installed. Run npm install."
+  exit 0
+fi
+
+npx commitlint --edit "$1"
+<% } else { %>
+# commitlint is optional on non-Node stacks — skip gracefully if npx is absent.
+if command -v npx >/dev/null 2>&1; then
+  npx commitlint --edit "$1"
+else
+  echo "commitlint skip: npx not available"
+fi
+<% } %>

@@ -31,7 +31,8 @@ export type GeneratorKey =
   | "test-taxonomy"
   | "behavioral-tests"
   | "ssot"
-  | "obsidian-vault";
+  | "obsidian-vault"
+  | "githooks";
 
 export interface ConfigDiff {
   paths: string[];
@@ -76,7 +77,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     "skills",
     "agents-claude",
   ],
-  useGitHub: ["github", "root", "check-all"],
+  useGitHub: ["github", "root", "check-all", "githooks"],
   "features.debtGates": [
     "debt-gates",
     "debt-ratchet",
