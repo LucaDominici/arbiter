@@ -166,7 +166,14 @@ describe("GitHubBackend", () => {
 
       expect(mockRunCliJson).toHaveBeenCalledWith(
         "gh",
-        expect.arrayContaining(["issue", "create", "--title", "New issue"]),
+        expect.arrayContaining([
+          "issue",
+          "create",
+          "--title",
+          "New issue",
+          "--json",
+          "number",
+        ]),
         expect.anything(),
       );
       expect(unit.id).toBe("#7");

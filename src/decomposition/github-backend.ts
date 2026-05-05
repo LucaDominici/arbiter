@@ -128,6 +128,7 @@ export class GitHubBackend implements DecompositionBackend {
     if (input.labels && input.labels.length > 0) {
       args.push("--label", input.labels.join(","));
     }
+    args.push("--json", "number");
 
     const result = runCliJson("gh", args, {}) as { number: number };
     const unit: WorkUnit = {

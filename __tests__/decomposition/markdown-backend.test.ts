@@ -142,4 +142,22 @@ describe("MarkdownBackend", () => {
     const files = readdirSync(join(dir, ".arbiter", "work"));
     expect(files.every((f) => f.endsWith(".md"))).toBe(true);
   });
+
+  it("generateId avoids collision after deletion (uses max suffix, not count)", async () => {
+    const u1 = await backend.create({ title: "A", status: "open" });
+    const u2 = await backend.create({ title: "B", status: "open" });
+    const u3 = await backend.create({ title: "C", status: "open" });
+    await backend.close(u2.id);
+    // Manually remove u2 file to simulate deletion
+    const { unlinkSync } = await import("node:fs");
+    const workPath = join(dir, ".arbiter", "work");
+    const files = readdirSync(workPath);
+    const u2File = files.find((f) => f.includes(u2.id.replace(/\//g, "-")));
+    if (u2File) unlinkSync(join(workPath, u2File));
+
+    const u4 = await backend.create({ title: "D", status: "open" });
+    expect(u4.id).not.toBe(u3.id);
+    expect(u4.id).not.toBe(u1.id);
+    expect(u4.id).not.toBe(u2.id);
+  });
 });

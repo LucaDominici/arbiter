@@ -121,17 +121,18 @@ function parseUnit(content: string): WorkUnit | null {
 
 function generateId(dir: string): string {
   const date = new Date().toISOString().slice(0, 10);
-  const prefix = `WU-${date}`;
+  const prefix = `WU-${date}-`;
 
-  let n = 1;
+  let maxN = 0;
   if (existsSync(dir)) {
-    const existing = readdirSync(dir).filter(
-      (f) => f.startsWith(prefix.replace(/-/g, "_")) || f.startsWith(prefix),
-    ).length;
-    n = existing + 1;
+    for (const f of readdirSync(dir)) {
+      if (!f.startsWith(prefix) || !f.endsWith(".md")) continue;
+      const n = parseInt(f.slice(prefix.length, -3), 10);
+      if (!isNaN(n) && n > maxN) maxN = n;
+    }
   }
 
-  return `${prefix}-${n}`;
+  return `${prefix}${maxN + 1}`;
 }
 
 export class MarkdownBackend implements DecompositionBackend {
