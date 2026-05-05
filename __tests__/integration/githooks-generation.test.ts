@@ -456,9 +456,11 @@ describe("generateGithooks — empirical fail-fast spawn", () => {
     // 2. Symlink node_modules so the TS node_modules guard passes
     const repoRoot = join(new URL("../../", import.meta.url).pathname);
     const nodeModulesTarget = join(repoRoot, "node_modules");
-    if (existsSync(nodeModulesTarget)) {
-      symlinkSync(nodeModulesTarget, join(dir, "node_modules"));
-    }
+    // Assert loudly if the source doesn't exist: a missing symlink target would
+    // cause the node_modules guard to skip the hook (exit 0), making the
+    // expect(result.status).not.toBe(0) assertion fail with a cryptic message.
+    expect(existsSync(nodeModulesTarget)).toBe(true);
+    symlinkSync(nodeModulesTarget, join(dir, "node_modules"));
 
     // 3. Stub check-all.mjs to exit 1 unconditionally
     mkdirSync(join(dir, "scripts"), { recursive: true });

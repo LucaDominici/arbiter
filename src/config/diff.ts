@@ -68,8 +68,10 @@ function normField(key: string, val: unknown): unknown {
 type ImpactedSet = Set<GeneratorKey | "*">;
 
 const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
-  // githooks is always-on (enabled: true in registry); its content is
-  // language-sensitive, so it belongs here rather than under useGitHub.
+  // githooks is always-on (enabled: true in registry). It lives under the
+  // `tools` key as belt-and-suspenders: any tool change should re-run the
+  // githooks generator because tool config can affect which gate steps the
+  // generated hooks invoke.
   tools: [
     "agents-md",
     "claude",

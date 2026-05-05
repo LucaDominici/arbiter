@@ -28,6 +28,7 @@ if [[ "$PWD" == *"#"* ]]; then
   rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
   ln -sfn "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
   cd "$TMP_DIR"
+  # Reserved: consumed by check-all when worktree-aware gate lands
   ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L1
   exit $?
 fi
