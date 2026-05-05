@@ -441,6 +441,50 @@ describe("probeHooksPath", () => {
   });
 });
 
+describe("runProbes — hasWarnings aggregation", () => {
+  it("sets hasWarnings=true when probeHooksPath returns a warning", () => {
+    mockDetectLanguage.mockReturnValue("kotlin");
+    // kotlin probes: 3x runCli (java, kotlinc, gradle), no build probe
+    mockRunCli
+      .mockReturnValueOnce({
+        stdout: "",
+        stderr: 'openjdk version "21.0.1" 2023-10-17\n',
+        exitCode: 0,
+        durationMs: 10,
+      })
+      .mockReturnValueOnce({
+        stdout: "",
+        stderr: "kotlinc-jvm 1.9.23 (JRE 21.0.1+12)\n",
+        exitCode: 0,
+        durationMs: 15,
+      })
+      .mockReturnValueOnce({
+        stdout: "Gradle 8.5\n",
+        stderr: "",
+        exitCode: 0,
+        durationMs: 20,
+      })
+      .mockImplementationOnce(() => {
+        throw new CliError({
+          cmd: "git",
+          args: ["config", "--get", "core.hooksPath"],
+          exitCode: 1,
+          stdout: "",
+          stderr: "",
+          timedOut: false,
+        });
+      });
+    // probeHooksPath: existsSync(.githooks/pre-commit) → true
+    mockExistsSync.mockReturnValueOnce(true);
+
+    const report = runProbes("/some/kotlin/dir");
+    expect(report.hasWarnings).toBe(true);
+    expect(report.hasFailures).toBe(false);
+    const hp = report.probes.find((p) => p.tool === "hooksPath");
+    expect(hp?.status).toBe("warning");
+  });
+});
+
 describe("validateMatrix", () => {
   it("accepts a valid matrix object", () => {
     const valid = {
