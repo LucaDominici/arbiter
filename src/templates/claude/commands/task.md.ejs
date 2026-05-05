@@ -2,6 +2,7 @@
 description: Full task lifecycle — plan, implement, review, gate, merge
 argument-hint: '#NNN [--skip-review] [--dry-run]'
 ---
+<% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
 
 # /task #NNN
 
@@ -35,10 +36,17 @@ Full lifecycle: plan → STOP → implement → review → gate → commit → P
 <% } %>
 
 3. **Read issue**:
+<% if (_backend === 'github') { %>
    ```bash
    gh issue view NNN
    ```
    Confirm issue is OPEN. If closed, warn user.
+<% } else { %>
+   ```bash
+   arbiter work show <NNN>
+   ```
+   Confirm work unit exists and is open.
+<% } %>
 
 4. **Duplicate guard**: Check for existing branch:
    ```bash
@@ -217,17 +225,28 @@ git push -u origin HEAD
 
 ### Phase 10: PR + Merge
 
+<% if (_backend === 'github') { %>
 ```bash
 gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
 gh pr checks
 gh pr merge --squash
 ```
+<% } else { %>
+```bash
+git push -u origin HEAD
+arbiter work close <NNN>
+```
+<% } %>
 
 <% if (governanceLevel !== 'L1') { %>
 ### Phase 11: Cleanup
 
 ```bash
+<% if (_backend === 'github') { %>
 gh issue close NNN
+<% } else { %>
+arbiter work close NNN
+<% } %>
 arbiter task advance --to complete
 ```
 

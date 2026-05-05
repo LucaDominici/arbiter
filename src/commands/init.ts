@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { resolve, basename, join } from "node:path";
 import { runProbes } from "../compatibility/probe.js";
 import { formatText } from "../compatibility/report.js";
@@ -55,6 +56,8 @@ export interface InitOptions {
   noVerify: boolean;
   /** Allow L3 generation with beta-maturity tools. Persisted in arbiter.json for audit. */
   acceptBetaTools?: boolean;
+  /** Override decomposition backend (github|markdown). If absent, derived from gh auth status. */
+  backend?: "github" | "markdown";
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -86,6 +89,10 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   let config: ProjectConfig;
   if (options.yes) {
+    const useGitHub =
+      options.backend !== undefined
+        ? options.backend === "github"
+        : githubAccess.authenticated;
     config = buildDefaultConfig({
       targetDir,
       projectName,
@@ -96,7 +103,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       existing,
       tools: parseTools(options.tools),
       governanceLevel: parseLevel(options.level),
-      useGitHub: githubAccess.authenticated,
+      useGitHub,
       obsidian: options.obsidian,
       acceptBetaTools: options.acceptBetaTools ?? false,
     });
@@ -134,7 +141,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   const skipped = allResults.filter((r) => r.action === "skipped").length;
   console.log(`\n  Done! ${created} files created, ${skipped} skipped.`);
 
-  runGithubSetup(config);
+  runBackendSetup(config);
 
   // Save config for future `arbiter update`
   saveConfig(targetDir, buildArbiterConfig(config));
@@ -202,6 +209,18 @@ export async function runPlugins(
     }
   }
   return all;
+}
+
+function runBackendSetup(config: ProjectConfig): void {
+  const backend =
+    config.decompositionBackend ?? (config.useGitHub ? "github" : "markdown");
+  if (backend === "github") {
+    runGithubSetup(config);
+  } else {
+    const workDir = join(config.targetDir, ".arbiter", "work");
+    mkdirSync(workDir, { recursive: true });
+    console.log("\n  Markdown backend: scaffolded .arbiter/work/");
+  }
 }
 
 export function runGithubSetup(config: ProjectConfig): void {
@@ -351,6 +370,7 @@ function buildDefaultConfig(opts: {
     tools: opts.tools,
     governanceLevel: opts.governanceLevel,
     useGitHub: opts.useGitHub,
+    decompositionBackend: opts.useGitHub ? "github" : "markdown",
     githubOwner: opts.gitInfo.githubOwner,
     githubRepo: opts.gitInfo.githubRepo,
     existing: opts.existing,
@@ -373,11 +393,14 @@ function buildDefaultConfig(opts: {
 
 function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
   const level = config.governanceLevel;
+  const backend =
+    config.decompositionBackend ?? (config.useGitHub ? "github" : "markdown");
   return {
     version: "0.2",
     tools: config.tools,
     governanceLevel: level,
     useGitHub: config.useGitHub,
+    decomposition: { backend },
     features: {
       debtGates: config.enableDebtGates,
       suppressions: config.enableSuppressions,

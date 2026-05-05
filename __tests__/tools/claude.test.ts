@@ -135,8 +135,11 @@ describe("tool output: claude", () => {
     expect(existsSync(join(rulesDir, "90-exec-protocol.md"))).toBe(true);
   });
 
-  it("generates 1 command file; task.md references gh issue view", () => {
-    const config = claudeConfig();
+  it("generates 1 command file; task.md references gh issue view for github backend", () => {
+    const config = claudeConfig({
+      useGitHub: true,
+      decompositionBackend: "github",
+    });
     generateClaude(config);
     const commandsDir = join(dir, ".claude", "commands");
     expect(existsSync(join(commandsDir, "task.md"))).toBe(true);
