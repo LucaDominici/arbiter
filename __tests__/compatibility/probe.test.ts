@@ -50,6 +50,7 @@ import {
   runBuildProbe,
   runProbes,
   validateMatrix,
+  probeHooksPath,
 } from "../../src/compatibility/probe.js";
 import { detectLanguage } from "../../src/detectors/language.js";
 
@@ -394,6 +395,49 @@ describe("runProbes — kotlin dispatch", () => {
     ]);
     expect(report.probes.every((p) => p.status === "passed")).toBe(true);
     expect(report.hasFailures).toBe(false);
+  });
+});
+
+describe("probeHooksPath", () => {
+  it("returns null when .githooks/pre-commit does not exist", () => {
+    mockExistsSync.mockReturnValue(false);
+    const result = probeHooksPath("/some/dir");
+    expect(result).toBeNull();
+  });
+
+  it("returns warning when pre-commit exists but core.hooksPath is not set", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRunCli.mockImplementation(() => {
+      throw new CliError({
+        cmd: "git",
+        args: ["config", "--get", "core.hooksPath"],
+        exitCode: 1,
+        stdout: "",
+        stderr: "",
+        timedOut: false,
+      });
+    });
+    const result = probeHooksPath("/some/dir");
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe("warning");
+    expect(result?.tool).toBe("hooksPath");
+    expect(result?.reason).toMatch(/core\.hooksPath/);
+    expect(result?.kind).toBeUndefined();
+  });
+
+  it("returns passed when pre-commit exists and core.hooksPath is .githooks", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRunCli.mockReturnValue({
+      stdout: ".githooks\n",
+      stderr: "",
+      exitCode: 0,
+      durationMs: 5,
+    });
+    const result = probeHooksPath("/some/dir");
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe("passed");
+    expect(result?.tool).toBe("hooksPath");
+    expect(result?.kind).toBeUndefined();
   });
 });
 

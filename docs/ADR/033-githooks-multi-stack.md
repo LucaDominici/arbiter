@@ -10,7 +10,7 @@ Arbiter generated rich Claude Code hook configurations (`.claude/hooks/`) for ta
 
 ## Decision
 
-Add `src/generators/githooks.ts` — an always-on generator emitting a `.githooks/` directory for all five supported language stacks (TypeScript, Java, Kotlin, Rust, Go, Python):
+Add `src/generators/githooks.ts` — an always-on generator emitting a `.githooks/` directory for all six supported language stacks (TypeScript, Java, Kotlin, Rust, Go, Python):
 
 - **`.githooks/pre-commit`** — runs the L1 gate (`node scripts/check-all.mjs L1` for Node stacks; `./scripts/check-all.sh L1` for non-Node stacks). Exits non-zero on failure, blocking the commit.
 - **`.githooks/pre-push`** — runs the L2 gate. Exits non-zero on failure, blocking the push.

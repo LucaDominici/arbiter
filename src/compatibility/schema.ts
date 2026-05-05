@@ -45,4 +45,6 @@ export interface VerifyReport {
   probes: ProbeResult[];
   /** true if any probe has status "failed" */
   hasFailures: boolean;
+  /** true if any probe has status "warning" */
+  hasWarnings: boolean;
 }

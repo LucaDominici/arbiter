@@ -18,6 +18,7 @@ const passed: VerifyReport = {
     },
   ],
   hasFailures: false,
+  hasWarnings: false,
 };
 
 const mixed: VerifyReport = {
@@ -38,6 +39,7 @@ const mixed: VerifyReport = {
     },
   ],
   hasFailures: true,
+  hasWarnings: false,
 };
 
 describe("formatText", () => {

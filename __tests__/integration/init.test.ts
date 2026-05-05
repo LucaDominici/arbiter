@@ -186,6 +186,7 @@ describe("arbiter init — verify integration", () => {
       stack: "unknown",
       probes: [],
       hasFailures: false,
+      hasWarnings: false,
     });
   });
 
@@ -224,6 +225,7 @@ describe("arbiter init — verify integration", () => {
         { tool: "gradle", status: "failed", reason: "version 6.0 outside >=7" },
       ],
       hasFailures: true,
+      hasWarnings: false,
     });
     const exitSpy = vi
       .spyOn(process, "exit")

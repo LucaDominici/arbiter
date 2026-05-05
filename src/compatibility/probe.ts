@@ -320,8 +320,9 @@ export function runProbes(dir: string): VerifyReport {
   }
 
   const hasFailures = probes.some((p) => p.status === "failed");
+  const hasWarnings = probes.some((p) => p.status === "warning");
 
-  return { dir, stack: lang, probes, hasFailures };
+  return { dir, stack: lang, probes, hasFailures, hasWarnings };
 }
 
 /**
@@ -348,13 +349,12 @@ export function probeHooksPath(dir: string): ProbeResult | null {
   }
 
   if (configuredPath === ".githooks") {
-    return { tool: "hooksPath", status: "passed", kind: "build" };
+    return { tool: "hooksPath", status: "passed" };
   }
 
   return {
     tool: "hooksPath",
     status: "warning",
-    kind: "build",
     reason:
       ".githooks/pre-commit exists but core.hooksPath is not set to .githooks. " +
       "Run: git config core.hooksPath .githooks (or ./scripts/setup-hooks.sh for non-Node projects).",
