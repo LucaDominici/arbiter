@@ -56,6 +56,8 @@ export interface InitOptions {
   noVerify: boolean;
   /** Allow L3 generation with beta-maturity tools. Persisted in arbiter.json for audit. */
   acceptBetaTools?: boolean;
+  /** Override decomposition backend (github|markdown). If absent, derived from gh auth status. */
+  backend?: "github" | "markdown";
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -87,6 +89,10 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   let config: ProjectConfig;
   if (options.yes) {
+    const useGitHub =
+      options.backend !== undefined
+        ? options.backend === "github"
+        : githubAccess.authenticated;
     config = buildDefaultConfig({
       targetDir,
       projectName,
@@ -97,7 +103,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       existing,
       tools: parseTools(options.tools),
       governanceLevel: parseLevel(options.level),
-      useGitHub: githubAccess.authenticated,
+      useGitHub,
       obsidian: options.obsidian,
       acceptBetaTools: options.acceptBetaTools ?? false,
     });

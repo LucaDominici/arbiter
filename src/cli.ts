@@ -65,6 +65,10 @@ program
     "Allow generation of L3 features backed by beta-maturity tools (audit trail written to arbiter.json)",
     false,
   )
+  .option(
+    "--backend <backend>",
+    "Decomposition backend: github or markdown (overrides gh auth detection)",
+  )
   .action(
     async (opts: {
       yes: boolean;
@@ -76,7 +80,12 @@ program
       brownfield: boolean;
       verify: boolean;
       acceptBetaTools: boolean;
+      backend?: string;
     }) => {
+      const backend =
+        opts.backend === "github" || opts.backend === "markdown"
+          ? opts.backend
+          : undefined;
       await runInit({
         yes: opts.yes,
         tools: opts.tools,
@@ -87,6 +96,7 @@ program
         brownfield: opts.brownfield,
         noVerify: !opts.verify,
         acceptBetaTools: opts.acceptBetaTools,
+        ...(backend !== undefined ? { backend } : {}),
       });
     },
   );
