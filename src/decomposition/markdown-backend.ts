@@ -56,8 +56,13 @@ function serializeUnit(unit: WorkUnit): string {
 }
 
 function escapeFrontMatterValue(v: string): string {
-  if (v.includes('"') || v.includes(":") || v.includes("#")) {
-    return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  if (
+    v.includes('"') ||
+    v.includes(":") ||
+    v.includes("#") ||
+    v.includes("\n")
+  ) {
+    return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
   }
   return v;
 }
@@ -65,7 +70,11 @@ function escapeFrontMatterValue(v: string): string {
 function parseFrontMatterValue(v: string): string {
   const trimmed = v.trim();
   if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-    return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+    return trimmed
+      .slice(1, -1)
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\")
+      .replace(/\\n/g, "\n");
   }
   return trimmed;
 }

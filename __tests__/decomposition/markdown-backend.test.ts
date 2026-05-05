@@ -144,6 +144,15 @@ describe("MarkdownBackend", () => {
     expect(fetched!.body).toContain("newlines");
   });
 
+  it("front-matter survives round-trip with embedded newline in title", async () => {
+    const unit = await backend.create({
+      title: "line one\nline two",
+      status: "open",
+    });
+    const fetched = await backend.get(unit.id);
+    expect(fetched!.title).toBe("line one\nline two");
+  });
+
   it("list skips malformed work unit files (missing front-matter) without throwing", async () => {
     const workDir = join(dir, ".arbiter", "work");
     mkdirSync(workDir, { recursive: true });
