@@ -19,7 +19,7 @@ export interface WizardAnswers {
   hasDatabase: boolean;
   hasPublicApi: boolean;
   isMultiTenant: boolean;
-  useGitHub?: "yes" | "no";
+  decompositionBackend?: "github" | "markdown";
   /** Phase 9.5 ML: set only when hasPublicApi=true. Absent = default "none". */
   contractType?: ContractType;
 }
@@ -146,6 +146,7 @@ export interface ProjectConfig {
   governanceLevel: GovernanceLevel;
 
   useGitHub: boolean;
+  decompositionBackend?: "github" | "markdown";
   githubOwner: string | null;
   githubRepo: string | null;
 
