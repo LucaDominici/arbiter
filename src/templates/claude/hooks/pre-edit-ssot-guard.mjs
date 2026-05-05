@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Arbiter hook: hard-block edits to governance/SSOT documents
 // Fires on: PreToolUse → Edit|Write
-// Exit 2: block (Claude Code asks user for explicit approval)
+// Exit 2: block — stderr returned to Claude as error context; user is NOT prompted
 // Bypass: ARBITER_SSOT_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 
@@ -13,6 +13,8 @@ const SSOT_PATTERNS = [
   ".agents/CODEX.md",
   "docs/METHOD/",
   "docs/SYSTEM/DECISIONS",
+  "docs/SYSTEM/CANON.md",
+  "docs/ADR/",
 ];
 
 for (const pattern of SSOT_PATTERNS) {

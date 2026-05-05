@@ -50,6 +50,32 @@ npm run test
 **Lint:** `npm run lint`
 **Format:** `echo &#34;no formatter configured&#34;`
 
+## Hook Hardness Manifest
+
+All hooks in `src/templates/claude/hooks/` are classified in `.arbiter/hooks-manifest.json` with an explicit `classification` field (`HARD` or `ADVISORY`). The L1 gate verifies this classification empirically on every CI run (INV-36).
+
+**When adding a new hook:**
+
+1. Write the hook file.
+2. Add an entry to `.arbiter/hooks-manifest.json` with the correct `classification` and, if `HARD`, a `fixture` describing how to trigger a violation.
+3. Run `node scripts/check-hardness-inventory.mjs` — it must exit 0.
+4. Run the full gate: `node scripts/check-all.mjs L1`.
+
+**When modifying a HARD hook:**
+
+Ensure the hook still exits non-zero on the fixture defined in the manifest. Changing a HARD hook to exit 0 (advisory) without updating the manifest will fail CI.
+
+### SSOT and plan bypass env vars
+
+Two hooks block edits to high-authority documents. For legitimate edits, use session-scoped bypass:
+
+| Hook                       | Guards                                                                                        | Bypass                             |
+| -------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`, `.agents/CODEX.md` | `ARBITER_SSOT_BYPASS=1 claude ...` |
+| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan                                             | `ARBITER_PLAN_BYPASS=1 claude ...` |
+
+**Warning:** Do not set these in your shell profile — session-scoped only. Legitimate edits should reference a corresponding ADR or amendment in the commit message.
+
 ## Pull Requests
 
 - Fill out the PR template completely

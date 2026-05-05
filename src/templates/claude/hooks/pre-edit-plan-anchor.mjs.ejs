@@ -3,7 +3,7 @@
 // Hook type: PreToolUse (Edit|Write)
 // Phase-aware: blocks during "implementation" phase with no valid plan
 // Injects plan context (stdout) when plan is valid — model sees it before the edit
-// Exit 2: hard block (Claude Code asks user for explicit approval)
+// Exit 2: block — stderr returned to Claude as error context; user is NOT prompted
 // Bypass: ARBITER_PLAN_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
 import { readTaskState, getRepoRoot } from './lib.mjs';
 import { readFileSync, existsSync } from 'node:fs';

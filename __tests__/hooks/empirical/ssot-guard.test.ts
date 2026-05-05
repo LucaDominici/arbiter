@@ -30,6 +30,11 @@ describe("pre-edit-ssot-guard", () => {
     expect(result.status).toBe(2);
   });
 
+  it("exits 2 when editing docs/SYSTEM/CANON.md", () => {
+    const result = run("docs/SYSTEM/CANON.md");
+    expect(result.status).toBe(2);
+  });
+
   it("exits 0 for non-SSOT files", () => {
     const result = run("src/commands/init.ts");
     expect(result.status).toBe(0);
