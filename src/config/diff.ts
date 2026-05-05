@@ -68,6 +68,8 @@ function normField(key: string, val: unknown): unknown {
 type ImpactedSet = Set<GeneratorKey | "*">;
 
 const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
+  // githooks is always-on (enabled: true in registry); its content is
+  // language-sensitive, so it belongs here rather than under useGitHub.
   tools: [
     "agents-md",
     "claude",
@@ -76,8 +78,9 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     "copilot",
     "skills",
     "agents-claude",
+    "githooks",
   ],
-  useGitHub: ["github", "root", "check-all", "githooks"],
+  useGitHub: ["github", "root", "check-all"],
   "features.debtGates": [
     "debt-gates",
     "debt-ratchet",
