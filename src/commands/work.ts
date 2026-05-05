@@ -1,4 +1,5 @@
 import { loadConfig } from "../utils/config.js";
+import type { ArbiterConfigV2 } from "../config/schema.js";
 import { getBackend } from "../decomposition/registry.js";
 import type { WorkUnitStatus, WorkUnitPhase } from "../decomposition/types.js";
 
@@ -35,7 +36,7 @@ function resolveDir(dir?: string): string {
   return dir ?? process.cwd();
 }
 
-function requireConfig(targetDir: string) {
+function requireConfig(targetDir: string): ArbiterConfigV2 {
   const config = loadConfig(targetDir);
   if (!config) {
     throw new Error("No arbiter.json found. Run `arbiter init` first.");

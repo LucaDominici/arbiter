@@ -14,6 +14,16 @@ import type {
 
 export type { ThresholdsV2 };
 
+let _useGitHubWarnEmitted = false;
+
+function warnUseGitHubDeprecated(): void {
+  if (_useGitHubWarnEmitted) return;
+  _useGitHubWarnEmitted = true;
+  process.stderr.write(
+    '[arbiter] Warning: `useGitHub` is deprecated. Use `decomposition.backend: "github"|"markdown"` instead.\n',
+  );
+}
+
 export interface FeatureFlags {
   contractTesting: boolean;
   mutationTesting: boolean;
@@ -209,6 +219,13 @@ function deriveEvidenceHarness(
   return level === "L3";
 }
 
+function applyDecompositionAlias(cfg: ArbiterConfigV2): ArbiterConfigV2 {
+  if (cfg.decomposition?.backend) return cfg;
+  warnUseGitHubDeprecated();
+  const backend: DecompositionBackendId = cfg.useGitHub ? "github" : "markdown";
+  return { ...cfg, decomposition: { backend } };
+}
+
 export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
   if (!isRecord(raw)) {
     throw new Error("arbiter.json must be a non-null object");
@@ -216,7 +233,7 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
 
   if (raw["version"] === "0.2") {
     const result = validateConfig(raw);
-    if (result.ok) return result.config;
+    if (result.ok) return applyDecompositionAlias(result.config);
     throw new Error(
       `arbiter.json v0.2 is invalid: ${result.errors.join("; ")}`,
     );
@@ -260,6 +277,12 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
     Object.entries(raw).filter(([k]) => !stripKeys.has(k)),
   );
 
+  const useGitHub =
+    typeof raw["useGitHub"] === "boolean" ? raw["useGitHub"] : false;
+  const migratedBackend: DecompositionBackendId = useGitHub
+    ? "github"
+    : "markdown";
+
   return {
     ...rest,
     version: "0.2",
@@ -269,7 +292,8 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
         )
       : (["claude", "codex"] as AiTool[]),
     governanceLevel: level,
-    useGitHub: typeof raw["useGitHub"] === "boolean" ? raw["useGitHub"] : false,
+    useGitHub,
+    decomposition: { backend: migratedBackend },
     features,
     thresholds,
   } as unknown as ArbiterConfigV2;
