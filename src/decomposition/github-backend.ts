@@ -11,7 +11,7 @@ interface GhIssue {
   number: number;
   title: string;
   state: string;
-  body?: string;
+  body?: string | null;
   labels: Array<{ name: string }>;
 }
 
@@ -22,7 +22,11 @@ function ghStateToStatus(state: string): WorkUnitStatus {
 }
 
 function statusToGhState(status: WorkUnitStatus): string {
-  return status === "done" ? "closed" : "open";
+  if (status === "done") return "closed";
+  if (status === "open") return "open";
+  throw new Error(
+    `GitHub backend does not support filtering by status "${status}". Use "open" or "done".`,
+  );
 }
 
 function mapIssue(issue: GhIssue): WorkUnit {
@@ -72,6 +76,18 @@ export class GitHubBackend implements DecompositionBackend {
   }
 
   list(filter?: { status?: WorkUnitStatus }): Promise<WorkUnit[]> {
+    if (
+      filter?.status &&
+      filter.status !== "open" &&
+      filter.status !== "done"
+    ) {
+      return Promise.reject(
+        new Error(
+          `GitHub backend does not support filtering by status "${filter.status}". Use "open" or "done".`,
+        ),
+      );
+    }
+
     const args = [
       "issue",
       "list",
@@ -109,7 +125,9 @@ export class GitHubBackend implements DecompositionBackend {
       ) as GhIssue;
       return Promise.resolve(mapIssue(issue));
     } catch (err) {
-      if (err instanceof CliError) return Promise.resolve(null);
+      if (err instanceof CliError && !err.notFound && !err.timedOut) {
+        return Promise.resolve(null);
+      }
       return Promise.reject(err as Error);
     }
   }
@@ -128,11 +146,19 @@ export class GitHubBackend implements DecompositionBackend {
     if (input.labels && input.labels.length > 0) {
       args.push("--label", input.labels.join(","));
     }
-    args.push("--json", "number");
 
-    const result = runCliJson("gh", args, {}) as { number: number };
+    const result = runCli("gh", args, {});
+    const match = /\/issues\/(\d+)/.exec(result.stdout.trim());
+    if (match === null || match[1] === undefined) {
+      return Promise.reject(
+        new Error(
+          `gh issue create returned unexpected output: ${result.stdout.trim()}`,
+        ),
+      );
+    }
+    const num = parseInt(match[1], 10);
     const unit: WorkUnit = {
-      id: `#${result.number}`,
+      id: `#${num}`,
       title: input.title,
       status: input.status,
     };

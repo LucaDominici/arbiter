@@ -7,6 +7,7 @@ import {
   runWorkCreate,
   runWorkShow,
   runWorkClose,
+  runWorkAdvance,
 } from "../../src/commands/work.js";
 
 function makeProjectDir(): string {
@@ -173,5 +174,37 @@ describe("runWorkClose", () => {
 
     await runWorkList({ dir });
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("done"));
+  });
+});
+
+describe("runWorkAdvance", () => {
+  let dir: string;
+  const consoleSpy = vi
+    .spyOn(console, "log")
+    .mockImplementation(() => undefined);
+
+  beforeEach(() => {
+    dir = makeProjectDir();
+    consoleSpy.mockClear();
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("advances a work unit phase and persists it", async () => {
+    await runWorkCreate({ dir, title: "Advance test" });
+
+    const workDir = join(dir, ".arbiter", "work");
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const file = readdirSync(workDir)[0]!;
+    const content = readFileSync(join(workDir, file), "utf-8");
+    const idMatch = content.match(/^id:\s*(.+)$/m);
+    const id = idMatch![1]!.trim();
+
+    await runWorkAdvance({ dir, id, phase: "plan" });
+
+    await runWorkShow({ dir, id });
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("plan"));
   });
 });

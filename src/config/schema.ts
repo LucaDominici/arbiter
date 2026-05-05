@@ -193,6 +193,7 @@ export function validateConfig(raw: unknown): ValidateResult {
 
   validateFeatures(raw["features"], errors);
   validateThresholds(raw["thresholds"], errors);
+  validateDecomposition(raw["decomposition"], errors);
 
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -200,6 +201,22 @@ export function validateConfig(raw: unknown): ValidateResult {
 
   const config = { ...raw } as unknown as ArbiterConfigV2;
   return { ok: true, config };
+}
+
+const DECOMPOSITION_BACKENDS = new Set(["github", "markdown"]);
+
+function validateDecomposition(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return;
+  if (!isRecord(raw)) {
+    errors.push("decomposition must be an object");
+    return;
+  }
+  const backend = raw["backend"];
+  if (backend !== undefined && !DECOMPOSITION_BACKENDS.has(backend as string)) {
+    errors.push(
+      `decomposition.backend must be "github" or "markdown" — got ${typeof backend === "string" ? backend : JSON.stringify(backend)}`,
+    );
+  }
 }
 
 interface LegacyEvidenceRetention {

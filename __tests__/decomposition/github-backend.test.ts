@@ -106,6 +106,20 @@ describe("GitHubBackend", () => {
         expect.anything(),
       );
     });
+
+    it("throws for unsupported status filter (in_progress)", async () => {
+      const backend = new GitHubBackend(baseConfig());
+      await expect(backend.list({ status: "in_progress" })).rejects.toThrow(
+        /does not support filtering by status/,
+      );
+    });
+
+    it("throws for unsupported status filter (blocked)", async () => {
+      const backend = new GitHubBackend(baseConfig());
+      await expect(backend.list({ status: "blocked" })).rejects.toThrow(
+        /does not support filtering by status/,
+      );
+    });
   });
 
   describe("get", () => {
@@ -154,8 +168,13 @@ describe("GitHubBackend", () => {
   });
 
   describe("create", () => {
-    it("calls gh issue create and returns WorkUnit with number-based id", async () => {
-      mockRunCliJson.mockReturnValue({ number: 7 });
+    it("calls gh issue create and parses issue number from URL", async () => {
+      mockRunCli.mockReturnValue({
+        stdout: "https://github.com/owner/my-repo/issues/7\n",
+        stderr: "",
+        exitCode: 0,
+        durationMs: 10,
+      });
 
       const backend = new GitHubBackend(baseConfig());
       const unit = await backend.create({
@@ -164,20 +183,27 @@ describe("GitHubBackend", () => {
         labels: ["task"],
       });
 
-      expect(mockRunCliJson).toHaveBeenCalledWith(
+      expect(mockRunCli).toHaveBeenCalledWith(
         "gh",
-        expect.arrayContaining([
-          "issue",
-          "create",
-          "--title",
-          "New issue",
-          "--json",
-          "number",
-        ]),
+        expect.arrayContaining(["issue", "create", "--title", "New issue"]),
         expect.anything(),
       );
       expect(unit.id).toBe("#7");
       expect(unit.title).toBe("New issue");
+    });
+
+    it("throws when gh issue create returns unexpected output", async () => {
+      mockRunCli.mockReturnValue({
+        stdout: "unexpected\n",
+        stderr: "",
+        exitCode: 0,
+        durationMs: 10,
+      });
+
+      const backend = new GitHubBackend(baseConfig());
+      await expect(
+        backend.create({ title: "Bad", status: "open" }),
+      ).rejects.toThrow(/unexpected output/);
     });
   });
 
@@ -202,6 +228,30 @@ describe("GitHubBackend", () => {
       expect(mockRunCli).toHaveBeenCalledWith(
         "gh",
         expect.arrayContaining(["issue", "edit", "5"]),
+        expect.anything(),
+      );
+    });
+
+    it("removes prior phase label when advancing", async () => {
+      mockRunCliJson.mockReturnValue({
+        number: 5,
+        title: "Test",
+        state: "OPEN",
+        labels: [{ name: "phase/plan" }],
+      });
+      mockRunCli.mockReturnValue({
+        stdout: "",
+        stderr: "",
+        exitCode: 0,
+        durationMs: 0,
+      });
+
+      const backend = new GitHubBackend(baseConfig());
+      await backend.advance("#5", "implementation");
+
+      expect(mockRunCli).toHaveBeenCalledWith(
+        "gh",
+        expect.arrayContaining(["--remove-label", "phase/plan"]),
         expect.anything(),
       );
     });

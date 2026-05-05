@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync, readdirSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  existsSync,
+  readdirSync,
+  mkdirSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { MarkdownBackend } from "../../src/decomposition/markdown-backend.js";
@@ -135,6 +142,36 @@ describe("MarkdownBackend", () => {
     const fetched = await backend.get(unit.id);
     expect(fetched!.title).toBe('Fix: handle "quotes" & <tags>');
     expect(fetched!.body).toContain("newlines");
+  });
+
+  it("list skips malformed work unit files (missing front-matter) without throwing", async () => {
+    const workDir = join(dir, ".arbiter", "work");
+    mkdirSync(workDir, { recursive: true });
+    writeFileSync(
+      join(workDir, "malformed.md"),
+      "no front matter here\njust text",
+    );
+    const units = await backend.list();
+    expect(units).toHaveLength(0);
+  });
+
+  it("list skips files with invalid status value without throwing", async () => {
+    const workDir = join(dir, ".arbiter", "work");
+    mkdirSync(workDir, { recursive: true });
+    writeFileSync(
+      join(workDir, "bad-status.md"),
+      "---\nid: WU-bad\ntitle: Bad\nstatus: in-progress\n---\n",
+    );
+    const units = await backend.list();
+    expect(units).toHaveLength(0);
+  });
+
+  it("get returns null for file with truncated front-matter", async () => {
+    const workDir = join(dir, ".arbiter", "work");
+    mkdirSync(workDir, { recursive: true });
+    writeFileSync(join(workDir, "WU-truncated.md"), "---\nid: WU-truncated\n");
+    const result = await backend.get("WU-truncated");
+    expect(result).toBeNull();
   });
 
   it("work files are .md files in .arbiter/work/", async () => {

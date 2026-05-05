@@ -172,7 +172,12 @@ export class MarkdownBackend implements DecompositionBackend {
       if (!file.endsWith(".md")) continue;
       const content = readFileSync(join(this.dir, file), "utf-8");
       const unit = parseUnit(content);
-      if (!unit) continue;
+      if (!unit) {
+        process.stderr.write(
+          `[arbiter] Warning: skipping malformed work unit: ${file}\n`,
+        );
+        continue;
+      }
       if (filter?.status && unit.status !== filter.status) continue;
       units.push(unit);
     }
