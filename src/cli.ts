@@ -16,6 +16,8 @@ import {
   runPluginRemove,
   runPluginList,
 } from "./commands/plugin.js";
+import { runTaskAdvance } from "./commands/task.js";
+import type { TaskPhase } from "./commands/task.js";
 
 const program = new Command();
 
@@ -270,6 +272,25 @@ program
       });
     },
   );
+
+const task = program.command("task").description("Manage task lifecycle state");
+
+task
+  .command("advance")
+  .description("Advance (or reverse) the task lifecycle phase")
+  .requiredOption(
+    "--to <phase>",
+    "Target phase (preflight|plan|implementation|verification|complete)",
+  )
+  .option("--reverse", "Allow backward phase transitions", false)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { to: string; reverse: boolean; dir?: string }) => {
+    runTaskAdvance({
+      to: opts.to as TaskPhase,
+      reverse: opts.reverse,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
 
 const plugin = program.command("plugin").description("Manage arbiter plugins");
 

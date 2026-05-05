@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Arbiter hook: warn on premature task-completion claims
+// Arbiter hook: hard-block premature task-completion claims
 // Hook type: UserPromptSubmit — fires before every user prompt
-// Non-blocking (exit 0) — advisory only
+// Hard block (exit 2) — returns stderr to Claude as error context
 // Reads .claude/.task-phase + prompt to detect early "complete" declarations
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -75,10 +75,11 @@ if (dispatched < minRequired) {
   );
 }
 
-process.stdout.write(
+process.stderr.write(
   `━━━ COMPLETION GUARD ━━━\n` +
     `Premature task-completion claim detected.\n` +
     `Missing evidence:\n${warnings.join("\n")}\n\n` +
     `Required before completion: resolve review/verifier findings, run node scripts/check-all.mjs L2, commit, push, merge PR, then set phase=complete.\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
 );
+process.exit(2);

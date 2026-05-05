@@ -101,7 +101,7 @@ Write state files:
 ```bash
 echo "#NNN" > .claude/.task-id
 echo ".claude/plans/task-NNN.md" > .claude/.task-plan
-echo "plan" > .claude/.task-phase
+arbiter task advance --to plan
 ```
 <% } %>
 
@@ -127,7 +127,7 @@ echo "plan" > .claude/.task-phase
 <% if (governanceLevel !== 'L1') { %>
 3. **Update phase**:
    ```bash
-   echo "implementation" > .claude/.task-phase
+   arbiter task advance --to implementation
    ```
 <% } %>
 
@@ -203,7 +203,7 @@ Gate must be **GREEN**. If it fails:
 <% if (governanceLevel !== 'L1') { %>
 Update phase:
 ```bash
-echo "verification" > .claude/.task-phase
+arbiter task advance --to verification
 ```
 <% } %>
 
@@ -228,7 +228,7 @@ gh pr merge --squash
 
 ```bash
 gh issue close NNN
-echo "complete" > .claude/.task-phase
+arbiter task advance --to complete
 ```
 
 If using worktree, close it:

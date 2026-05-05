@@ -517,7 +517,7 @@ describe("hooks/guard-task-completion.mjs.ejs", () => {
     expect(out).toContain("test-project");
   });
 
-  it("warns instead of approving completion while phase is implementation", () => {
+  it("hard-blocks (exit 2) completion claim while phase is implementation", () => {
     const dir = mkdtempSync(join(tmpdir(), "arbiter-guard-hook-"));
     try {
       execFileSync("git", ["init", "-b", "main"], {
@@ -548,12 +548,20 @@ describe("hooks/guard-task-completion.mjs.ejs", () => {
         encoding: "utf-8",
       });
 
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("Premature task-completion claim");
-      expect(result.stdout).toContain("phase: implementation");
-      expect(result.stdout).not.toContain("Evidence OK");
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain("COMPLETION GUARD");
+      expect(result.stderr).toContain("phase: implementation");
+      expect(result.stdout).toBe("");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("renders process.exit(2) in guard template", () => {
+    const out = renderTemplate(
+      "claude/hooks/guard-task-completion.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("process.exit(2)");
   });
 });

@@ -781,16 +781,16 @@ describe("cross-product: task.md — task state files for advanced hooks", () =>
   }
 
   for (const lang of LANGUAGES) {
-    it(`${lang}+L2: contains .task-phase instruction`, () => {
-      expect(renderTask(lang, "L2")).toContain(".task-phase");
+    it(`${lang}+L2: contains arbiter task advance instruction`, () => {
+      expect(renderTask(lang, "L2")).toContain("arbiter task advance");
     });
 
-    it(`${lang}+L3: contains .task-phase instruction`, () => {
-      expect(renderTask(lang, "L3")).toContain(".task-phase");
+    it(`${lang}+L3: contains arbiter task advance instruction`, () => {
+      expect(renderTask(lang, "L3")).toContain("arbiter task advance");
     });
 
-    it(`${lang}+L1: does NOT contain .task-phase instruction`, () => {
-      expect(renderTask(lang, "L1")).not.toContain(".task-phase");
+    it(`${lang}+L1: does NOT contain arbiter task advance instruction`, () => {
+      expect(renderTask(lang, "L1")).not.toContain("arbiter task advance");
     });
   }
 });
