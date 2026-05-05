@@ -23,11 +23,20 @@ export interface FeatureFlags {
   suppressions: boolean;
 }
 
+export type DecompositionBackendId = "github" | "markdown";
+
+export interface DecompositionConfig {
+  backend: DecompositionBackendId;
+  markdown?: { dir: string };
+  github?: { owner: string; repo: string };
+}
+
 export interface ArbiterConfigV2 {
   version: string;
   tools: AiTool[];
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
+  decomposition?: DecompositionConfig;
   features: FeatureFlags;
   thresholds: ThresholdsV2;
   archetype?: Archetype;
