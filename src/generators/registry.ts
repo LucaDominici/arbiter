@@ -29,6 +29,7 @@ import { generateAgentsClaude } from "./agents-claude.js";
 import { generateSsot } from "./ssot.js";
 import { generateObsidianVault } from "./obsidian-vault.js";
 import { generateBehavioralTests } from "./behavioral-tests.js";
+import { generateGithooks } from "./githooks.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import type { GeneratorKey } from "../config/diff.js";
@@ -127,6 +128,11 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: "stride-enforcement",
       enabled: config.enableDebtGates,
       run: () => generateStrideEnforcement(config).files,
+    },
+    {
+      key: "githooks",
+      enabled: true,
+      run: () => generateGithooks(config).files,
     },
   ];
 }

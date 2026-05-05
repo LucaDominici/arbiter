@@ -566,4 +566,20 @@ export const INVARIANT_CATALOG: Invariant[] = [
     enforcement:
       "L1 gate (scripts/check-hardness-inventory.mjs) — drift and empirical exit-code assertions on every CI run",
   },
+
+  // ─── Operational: Generated Githooks ─────────────────────────────────────────
+
+  {
+    id: "INV-37",
+    tier: "governance",
+    title: "Generated githooks",
+    description:
+      "generateGithooks emits executable .githooks/{pre-commit,pre-push,commit-msg} for every " +
+      "supported language stack. Hooks must run L1/L2 gates respectively.",
+    alwaysActive: true,
+    enforcement:
+      "src/generators/githooks.ts (generator) + " +
+      "__tests__/generators/githooks.test.ts + " +
+      "__tests__/integration/githooks-generation.test.ts",
+  },
 ];

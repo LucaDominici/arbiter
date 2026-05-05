@@ -35,15 +35,29 @@ export function formatText(report: VerifyReport): string {
   for (const p of report.probes) {
     const ver = versionStr(p);
     const detail = p.reason ? `  (${p.reason})` : ver ? `  ${ver}` : "";
-    lines.push(`  [${p.status}] ${p.tool}${detail}`);
+    const prefix = p.status === "warning" ? "⚠ " : "";
+    lines.push(`  [${p.status}] ${prefix}${p.tool}${detail}`);
     if (p.status === "failed") {
       const hint = REMEDIATION[p.tool] ?? "See tool documentation";
       lines.push(`    → ${hint}`);
     }
+    if (p.status === "warning" && p.reason) {
+      lines.push(`    → ${p.reason}`);
+    }
   }
 
   lines.push("");
-  lines.push(report.hasFailures ? "Result: FAIL" : "Result: OK");
+  if (report.hasFailures) {
+    lines.push("Result: FAIL");
+  } else {
+    lines.push("Result: OK");
+  }
+  if (report.hasWarnings) {
+    const warnCount = report.probes.filter(
+      (p) => p.status === "warning",
+    ).length;
+    lines.push(`⚠ ${warnCount} warning(s): run suggested commands above`);
+  }
   return lines.join("\n");
 }
 

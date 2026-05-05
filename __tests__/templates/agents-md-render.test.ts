@@ -182,4 +182,19 @@ describe("agents-md/AGENTS.md.ejs template rendering", () => {
     const rustContent = renderAgentsMd({ language: "rust" });
     expect(rustContent).toContain("No `.unwrap()` calls");
   });
+
+  it("renders Enforcement Chain table for all languages", () => {
+    const content = renderAgentsMd({ language: "java" });
+    expect(content).toContain("Enforcement Chain");
+    expect(content).toContain("Pre-commit");
+    expect(content).toContain(".githooks/pre-commit");
+  });
+
+  it("renders TS-specific hook install line for typescript only", () => {
+    const ts = renderAgentsMd({ language: "typescript" });
+    expect(ts).toContain("npm install");
+    const rust = renderAgentsMd({ language: "rust" });
+    expect(rust).toContain("setup-hooks.sh");
+    expect(rust).not.toContain("npm install");
+  });
 });
