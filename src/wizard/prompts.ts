@@ -7,6 +7,7 @@ import type {
   MigrationPlan,
   WizardAnswers,
   Language,
+  Lane,
 } from "./types.js";
 import type { BuildCommands } from "../detectors/build.js";
 import type { GitInfo } from "../detectors/git.js";
@@ -31,6 +32,7 @@ export interface WizardInput {
   gitInfo: GitInfo;
   existing: ExistingState;
   githubAccess: GithubAccess;
+  detectedLanes?: Lane[];
 }
 
 export function determineFlow(existing: ExistingState): WizardFlow {
@@ -301,6 +303,7 @@ function buildConfigFromAnswers(
     contractType:
       answers.contractType ??
       defaultContractType(answers.archetype, answers.hasPublicApi),
+    lanes: input.detectedLanes ?? [],
   };
 }
 

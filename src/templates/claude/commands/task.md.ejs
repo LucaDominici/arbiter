@@ -3,6 +3,7 @@ description: Full task lifecycle — plan, implement, review, gate, merge
 argument-hint: '#NNN [--skip-review] [--dry-run]'
 ---
 <% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
+<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; const _codeLanes = _lanes.filter(l => l !== 'docs'); %>
 
 # /task #NNN
 
@@ -111,6 +112,22 @@ echo "#NNN" > .claude/.task-id
 echo ".claude/plans/task-NNN.md" > .claude/.task-plan
 arbiter task advance --to plan
 ```
+<% } %>
+
+<% if (_multiLane) { %>
+---
+
+## Lane Discipline
+
+This project has multiple lanes.<% if (_codeLanes.length >= 2) { %> **Cross-stack rule:** if your task touches both **<%= _codeLanes.join('** and **') %>**, STOP and split into separate tasks/PRs.<% } %>
+
+| Lane | Scope | Test command |
+|------|-------|--------------|
+<% if (_lanes.includes('frontend')) { %>| **frontend** | Files under `frontend/` | `<%= testCommand %> --filter frontend` |
+<% } %><% if (_lanes.includes('backend')) { %>| **backend** | Files under `backend/` | `<%= testCommand %> --filter backend` |
+<% } %><% if (_lanes.includes('docs')) { %>| **docs** | Files under `docs/` | Documentation review only — no code gate |
+<% } %>
+Before implementation: identify which lane(s) your change touches. If only one lane — proceed. If multiple — STOP and request split.
 <% } %>
 
 **STOP HERE** — await user GO before editing any file.

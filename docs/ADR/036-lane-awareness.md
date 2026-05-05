@@ -1,0 +1,67 @@
+# ADR-036: Lane/Track Awareness for Multi-Layer Projects
+
+**Status:** Accepted  
+**Issue:** #403  
+**Date:** 2026-05-05
+
+## Context
+
+Arbiter generated uniform task workflows regardless of target repo structure. Multi-layer projects (frontend + backend + docs) received the same `task.md`, `post-edit-dispatch.mjs`, and `ci.yml` as single-stack repos — a gap relative to Viafera's track A/B/C/D discipline (`viafera/.claude/CLAUDE.md:118-125`).
+
+Issue #403 closes this gap for v1.0 GA as part of epic #399 (Viafera parity).
+
+## Decision
+
+### Detection (strict, top-level dirs only)
+
+Three lane types are detected:
+
+- **frontend**: `frontend/package.json` exists AND has a known FE framework dep (`react`, `vue`, `svelte`, `@angular/core`, `solid-js`, `preact`, `next`, `nuxt`, `astro`)
+- **backend**: `backend/` exists AND has one of `pom.xml`, `build.gradle`, `build.gradle.kts`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `requirements.txt`; OR `backend/package.json` with a known BE Node framework dep (`express`, `fastify`, `hono`, `koa`, `@nestjs/core`)
+- **docs**: `docs/` exists AND contains ≥1 `.md` file at top-level or one level deep
+
+Detection returns `{ lanes: [] }` for any project not matching the above. Templates only branch when `lanes.length >= 2` (`_multiLane`).
+
+Turborepo `apps/*`/`services/*` layouts are explicitly out of scope for v1.0.
+
+### Single-lane invariance
+
+For any project where `lanes.length < 2`, all generated artifacts are byte-identical to the pre-#403 output. This is enforced by the `lanes-ci.test.ts`, `lanes-task-md.test.ts`, `lanes-post-edit-dispatch.test.ts`, and `lanes-agents-md.test.ts` invariance assertions.
+
+### Template branching
+
+Three templates gain lane-aware sections, all gated on `_multiLane`:
+
+1. **`task.md.ejs`** — "Lane Discipline" section with cross-stack STOP rule and lane-to-scope table
+2. **`post-edit-dispatch.mjs.ejs`** — lane-scoping shim that exits early for files outside declared lanes
+3. **`AGENTS.md.ejs`** — "Lane Discipline" section with lane-scope and role columns
+4. **`ci.yml.ejs`** — `classify-changes` job promoted from L3-only to `(L3 || _multiLane)`; new `cross-stack-guard` job added
+
+### Cross-stack guard semantics
+
+New `cross-stack-guard` CI job, gated `_multiLane`, depends on `classify-changes`:
+
+- Runs only on pull requests (`if: github.event_name == 'pull_request'`)
+- If `backend_changed == 'true' && frontend_changed == 'true'`:
+  - **L3**: step exits 1 with error message (hard fail)
+  - **L1/L2**: posts advisory PR comment via `actions/github-script@v7`
+
+Requires `pull-requests: write` permission (declared at job level, not workflow level, to minimize blast radius).
+
+### Schema
+
+`lanes?: Lane[]` added to `ArbiterConfigV2`. Optional field; no schema version bump required (additive, non-breaking). Persisted in `arbiter.json` only when non-empty.
+
+## Alternatives Considered
+
+**Turborepo `apps/*` detection**: deferred. Requires recursive package discovery; higher complexity with unclear v1.0 return on investment. Documented in this ADR as explicit out-of-scope.
+
+**Hard-fail at all governance levels**: rejected. Advisory comment at L1/L2 limits blast radius for teams adopting lane discipline incrementally.
+
+**Separate `cross-stack-guard` workflow file**: rejected. Co-locating in `ci.yml` keeps the guard visible in the same PR checks list; separate file adds more generated artifacts without benefit.
+
+## Consequences
+
+- Multi-layer repos detected automatically during `arbiter init`; stored `lanes` field takes precedence over detection on subsequent `arbiter update`
+- Cross-product matrix expanded with sparse multi-lane suite (5 configs × 2 templates = 10 extra cases in CANON-13)
+- `check-matrix-fixtures.mjs` accepts optional `lanes` field in manifests (backward-compatible, no changes required to existing 9 fixtures)

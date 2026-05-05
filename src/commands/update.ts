@@ -24,7 +24,7 @@ import {
   runGeneratorsSelective,
 } from "../generators/registry.js";
 import type { GeneratorKey } from "../config/diff.js";
-import type { ProjectConfig } from "../wizard/types.js";
+import type { ProjectConfig, Lane } from "../wizard/types.js";
 import type { ArbiterConfigV2 } from "../utils/config.js";
 
 export interface UpdateOptions {
@@ -59,6 +59,7 @@ function v2ToProjectConfig(
     hasDatabase: boolean;
     hasPublicApi: boolean;
     contractType: ProjectConfig["contractType"];
+    lanes: Lane[];
   },
 ): ProjectConfig {
   const level = stored.governanceLevel;
@@ -89,7 +90,19 @@ function v2ToProjectConfig(
     enableObsidianVault: stored.enableObsidianVault ?? false,
     contractType: detectorFields.contractType,
     thresholds: stored.thresholds,
+    lanes: detectorFields.lanes,
   };
+}
+
+function printStats(results: WriteResult[]): void {
+  const created = results.filter((r) => r.action === "created").length;
+  const replaced = results.filter(
+    (r) => r.action === "backed-up-and-replaced",
+  ).length;
+  const skipped = results.filter((r) => r.action === "skipped").length;
+  console.log(
+    `\n  Done! ${created} created, ${replaced} updated, ${skipped} skipped.`,
+  );
 }
 
 function selectAndRun(
@@ -156,6 +169,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     hasDatabase,
     hasPublicApi,
     contractType,
+    lanes,
   } = resolveAxisFields(stored, targetDir, language, framework);
 
   const detectorFields = {
@@ -179,6 +193,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     hasDatabase,
     hasPublicApi,
     contractType,
+    lanes,
   };
 
   const config = v2ToProjectConfig(stored, detectorFields);
@@ -196,15 +211,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   results.push(...pluginResults);
 
   printResults(results, targetDir);
-
-  const created = results.filter((r) => r.action === "created").length;
-  const replaced = results.filter(
-    (r) => r.action === "backed-up-and-replaced",
-  ).length;
-  const skipped = results.filter((r) => r.action === "skipped").length;
-  console.log(
-    `\n  Done! ${created} created, ${replaced} updated, ${skipped} skipped.`,
-  );
+  printStats(results);
 
   runGithubSetup(config);
 
@@ -217,6 +224,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     hasDatabase,
     hasPublicApi,
     contractType,
+    ...(lanes.length > 0 && { lanes }),
   };
 
   const validation = validateConfig(nextConfig);

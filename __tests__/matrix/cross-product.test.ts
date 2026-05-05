@@ -1376,3 +1376,68 @@ describe("cross-product: generateContractTesting — no throw for lang × level 
     }
   }
 });
+
+// ─── #403: Multi-lane — sparse 3×3 sweep (task/ci/agents-md templates) ────────
+// Sparse: typescript×all-levels + one other lang per lane config to keep matrix small
+
+const MULTI_LANE_CONFIGS: Array<{
+  lanes: ("frontend" | "backend" | "docs")[];
+  level: GovernanceLevel;
+  lang: Language;
+}> = [
+  { lanes: ["frontend", "backend"], level: "L1", lang: "typescript" },
+  { lanes: ["frontend", "backend"], level: "L2", lang: "typescript" },
+  { lanes: ["frontend", "backend"], level: "L3", lang: "typescript" },
+  { lanes: ["frontend", "backend", "docs"], level: "L2", lang: "typescript" },
+  { lanes: ["frontend", "backend"], level: "L2", lang: "java" },
+];
+
+describe("cross-product: multi-lane (#403) — ci.yml + task.md contain lane discipline sections", () => {
+  for (const { lanes, level, lang } of MULTI_LANE_CONFIGS) {
+    it(`${lang}+${level}+lanes[${lanes.join(",")}]: ci.yml has classify-changes + cross-stack-guard`, () => {
+      const rendered = renderTemplate(
+        "github/workflows/ci.yml.ejs",
+        makeConfig("/tmp/test", {
+          language: lang,
+          governanceLevel: level,
+          lanes,
+          ...STACK_CONFIG[lang],
+        }) as unknown as Record<string, unknown>,
+      );
+      expect(rendered).toContain("classify-changes");
+      expect(rendered).toContain("cross-stack-guard");
+    });
+
+    it(`${lang}+${level}+lanes[${lanes.join(",")}]: task.md has Lane Discipline section`, () => {
+      const rendered = renderTemplate(
+        "claude/commands/task.md.ejs",
+        makeConfig("/tmp/test", {
+          language: lang,
+          governanceLevel: level,
+          lanes,
+          ...STACK_CONFIG[lang],
+        }) as unknown as Record<string, unknown>,
+      );
+      expect(rendered).toContain("Lane Discipline");
+    });
+  }
+});
+
+describe("cross-product: single-lane (#403) — ci.yml unchanged for lanes:[]", () => {
+  for (const lang of ["typescript", "java", "go"] as Language[]) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}+lanes[]: no cross-stack-guard emitted`, () => {
+        const rendered = renderTemplate(
+          "github/workflows/ci.yml.ejs",
+          makeConfig("/tmp/test", {
+            language: lang,
+            governanceLevel: level,
+            lanes: [],
+            ...STACK_CONFIG[lang],
+          }) as unknown as Record<string, unknown>,
+        );
+        expect(rendered).not.toContain("cross-stack-guard");
+      });
+    }
+  }
+});

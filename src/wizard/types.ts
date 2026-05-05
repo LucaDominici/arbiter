@@ -63,6 +63,8 @@ export type ArchitectureStyle =
   | "modular-monolith"
   | "none";
 
+export type Lane = "frontend" | "backend" | "docs";
+
 /**
  * Computed from (language, archetype, architectureStyle) at generation time.
  * Not persisted on ProjectConfig — passed to EJS templates as `metricsProfile`.
@@ -224,6 +226,8 @@ export interface ProjectConfig {
    */
   k6ScriptPath?: string;
   thresholds?: ThresholdsV2;
+  /** Detected project lanes (FE/BE/docs). Empty array = single-lane / no lane awareness. */
+  lanes: Lane[];
 }
 
 export interface ThresholdsV2 {

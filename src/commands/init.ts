@@ -13,6 +13,7 @@ import { detectExisting } from "../detectors/existing.js";
 import { detectBasePackage } from "../detectors/package.js";
 import { detectGithubAccess } from "../detectors/github.js";
 import { getLanguageHooks } from "../detectors/language-hooks.js";
+import { detectLanes } from "../detectors/lanes.js";
 import {
   runWizard,
   determineFlow,
@@ -73,6 +74,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   const gitInfo = detectGitInfo(targetDir);
   const existing = detectExisting(targetDir);
   const githubAccess = detectGithubAccess();
+  const lanesResult = detectLanes(targetDir);
 
   console.log(
     `  ├── Language: ${language}${framework ? ` / ${framework}` : ""}`,
@@ -106,6 +108,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       useGitHub,
       obsidian: options.obsidian,
       acceptBetaTools: options.acceptBetaTools ?? false,
+      lanes: lanesResult.lanes,
     });
   } else {
     const wizardResult = await runWizard({
@@ -117,6 +120,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       gitInfo,
       existing,
       githubAccess,
+      detectedLanes: lanesResult.lanes,
     });
     if (wizardResult === null) {
       console.log("\n  Cancelled.\n");
@@ -344,6 +348,7 @@ function buildDefaultConfig(opts: {
   useGitHub: boolean;
   obsidian?: boolean;
   acceptBetaTools?: boolean;
+  lanes?: import("../wizard/types.js").Lane[];
 }): ProjectConfig {
   const archetype =
     detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ??
@@ -387,6 +392,7 @@ function buildDefaultConfig(opts: {
     acceptBetaTools: opts.acceptBetaTools ?? false,
     contractType: defaultContractType(archetype, hasPublicApi),
     thresholds: DEFAULT_THRESHOLDS[opts.governanceLevel],
+    lanes: opts.lanes ?? [],
     ...detectedBasePackage(opts.language, opts.targetDir),
   };
 }
@@ -430,6 +436,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       ? { strictnessTier: config.strictnessTier }
       : {}),
     contractType: config.contractType,
+    ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
   };
 }
 

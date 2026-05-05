@@ -6,6 +6,7 @@ import type {
   EvidenceRetentionConfig,
   GovernanceLevel,
   InvariantTier,
+  Lane,
   StrictnessTier,
   ThresholdProfile,
   ThresholdsV2,
@@ -65,6 +66,7 @@ export interface ArbiterConfigV2 {
   worktree?: WorktreeConfig;
   enableObsidianVault?: boolean;
   plugins?: string[];
+  lanes?: Lane[];
 }
 
 export type ValidateResult =
@@ -194,6 +196,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateFeatures(raw["features"], errors);
   validateThresholds(raw["thresholds"], errors);
   validateDecomposition(raw["decomposition"], errors);
+  validateLanes(raw["lanes"], errors);
 
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -204,6 +207,24 @@ export function validateConfig(raw: unknown): ValidateResult {
 }
 
 const DECOMPOSITION_BACKENDS = new Set(["github", "markdown"]);
+const VALID_LANES: ReadonlySet<string> = new Set([
+  "frontend",
+  "backend",
+  "docs",
+]);
+
+function validateLanes(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return;
+  if (!Array.isArray(raw)) {
+    errors.push("lanes must be an array");
+    return;
+  }
+  for (const v of raw) {
+    if (!VALID_LANES.has(v as string)) {
+      errors.push(`lanes contains invalid value: ${String(v)}`);
+    }
+  }
+}
 
 function validateDecomposition(raw: unknown, errors: string[]): void {
   if (raw === undefined || raw === null) return;

@@ -350,6 +350,22 @@ Suppression file: `suppressions/dependency-check-suppressions.xml`
 
 ---
 <% } %>
+<% { const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; if (_multiLane) { %>
+---
+
+## Lane Discipline
+
+This project uses lane-isolated development. **Cross-stack rule:** if a task touches more than one lane, STOP and split into separate tasks/PRs.
+
+| Lane | Scope | Role |
+|------|-------|------|
+<% if (_lanes.includes('frontend')) { %>| **frontend** | `frontend/` | UI — components, styles, client logic |
+<% } %><% if (_lanes.includes('backend')) { %>| **backend** | `backend/` | Server — APIs, domain, persistence |
+<% } %><% if (_lanes.includes('docs')) { %>| **docs** | `docs/` | Documentation (READ-ONLY src, WRITE-ONLY docs) |
+<% } %>
+**Single-lane task**: identify lane, run lane gate, PR touches only that lane's files.
+**Cross-lane task**: STOP → split into N single-lane PRs, one per affected lane.
+<% } } %>
 ## Multi-Agent Tool Extensions
 
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:
