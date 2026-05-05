@@ -582,4 +582,19 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "__tests__/generators/githooks.test.ts + " +
       "__tests__/integration/githooks-generation.test.ts",
   },
+
+  {
+    id: "INV-38",
+    tier: "governance",
+    title: "Phase-tracked lifecycle enforcement",
+    description:
+      "Task lifecycle phase transitions are validated mechanically: completion guard exits 2 on " +
+      "premature claim (returns stderr to Claude as error context), pre-commit blocks commits during " +
+      "preflight/plan phases, and arbiter task advance validates forward-only transitions with audit log.",
+    alwaysActive: true,
+    enforcement:
+      "src/templates/claude/hooks/guard-task-completion.mjs.ejs (exit 2) + " +
+      "src/templates/githooks/pre-commit.ejs (phase guard) + " +
+      "src/commands/task.ts (advance validator)",
+  },
 ];

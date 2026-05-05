@@ -82,11 +82,11 @@ describe("claude commands: task.md — structural sections", () => {
     expect(content).toMatch(/Standard/);
   });
 
-  it("contains state file writes (.task-id, .task-phase, .task-plan)", () => {
+  it("contains state file writes (.task-id, .task-plan) and arbiter task advance", () => {
     const content = renderTask();
     expect(content).toMatch(/\.task-id/);
-    expect(content).toMatch(/\.task-phase/);
     expect(content).toMatch(/\.task-plan/);
+    expect(content).toContain("arbiter task advance");
   });
 
   it("sets local exclude entries before writing task state", () => {

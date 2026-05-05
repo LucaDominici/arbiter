@@ -54,6 +54,28 @@ npm run test
 
 Code changes pass through four enforcement layers in sequence: edit-time Claude Code hooks (`.claude/hooks/`) block bad edits before they land on disk; pre-commit `.githooks/pre-commit` runs the L1 gate on every `git commit` regardless of editor; pre-push `.githooks/pre-push` runs the L2 gate before any push; and CI verifies all PRs. To activate the git hooks run `git config core.hooksPath .githooks` (Node projects also auto-install this via `npm install` through the `prepare` script; non-Node projects use `./scripts/setup-hooks.sh`).
 
+### Task Lifecycle State Machine
+
+Arbiter tasks follow a validated five-phase lifecycle. Transitions are mechanical — not advisory:
+
+```
+preflight → plan → implementation → verification → complete
+```
+
+Advance the phase with:
+
+```bash
+arbiter task advance --to <phase>
+```
+
+Rules:
+
+- Forward-only by default. Skipping a phase (e.g. `preflight → implementation`) throws.
+- `--reverse` allows backward transitions for exceptional cases.
+- Each transition is appended to `.claude/.task-phase-history` with an ISO timestamp and `prev → next`.
+- Commits are blocked during `preflight` and `plan` phases by the generated pre-commit hook (INV-38).
+- Claiming task completion while phase is `implementation` or `verification` triggers the completion guard (exit 2, INV-38).
+
 ## Hook Hardness Manifest
 
 All hooks in `src/templates/claude/hooks/` are classified in `.arbiter/hooks-manifest.json` with an explicit `classification` field (`HARD` or `ADVISORY`). The L1 gate verifies this classification empirically on every CI run (INV-36).
