@@ -11,10 +11,28 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  security-early-fail:
+    name: Security (Secrets)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
+      - name: Gitleaks secrets scan
+        run: |
+          gitleaks detect --source . --config .gitleaks.toml \
+            --gitleaks-ignore-path suppressions/.gitleaksignore \
+            --exit-code 1 --redact
+
   lint-and-test:
     name: Lint + Test
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     timeout-minutes: 15
+    needs: [security-early-fail]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -25,6 +43,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --coverage
+      - name: Dep audit
+        run: npm audit --audit-level=high
       - name: Circular dependency check
         run: npx madge --circular --extensions ts src/
       - name: Placeholder scan
@@ -76,10 +96,14 @@ jobs:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     timeout-minutes: 5
-    needs: [lint-and-test, docs-check]
+    needs: [security-early-fail, lint-and-test, docs-check]
     if: always()
     steps:
       - run: |
+          if [[ "${{ needs.security-early-fail.result }}" != "success" ]]; then
+            echo "security-early-fail failed"
+            exit 1
+          fi
           if [[ "${{ needs.lint-and-test.result }}" != "success" ]]; then
             echo "lint-and-test failed"
             exit 1
