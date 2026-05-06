@@ -259,6 +259,7 @@ arbiter work close <NNN>
 ### Phase 11: Cleanup
 
 ```bash
+node scripts/done-evidence.mjs
 <% if (_backend === 'github') { %>
 gh issue close NNN
 <% } else { %>

@@ -294,7 +294,7 @@ function buildConfigFromAnswers(
       (answers.contractType ??
         defaultContractType(answers.archetype, answers.hasPublicApi)) !==
       "none",
-    enableEvidenceHarness: answers.governanceLevel === "L3",
+    enableEvidenceHarness: answers.governanceLevel !== "L1",
     thresholds: DEFAULT_THRESHOLDS[answers.governanceLevel],
     invariantTiers: presetToTiers(
       answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),

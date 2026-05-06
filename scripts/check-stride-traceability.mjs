@@ -1,0 +1,136 @@
+#!/usr/bin/env node
+// arbiter — STRIDE/RACI traceability check (INV-90)
+// Scans HIGH/CRITICAL claims in governance docs and verifies each has a
+// @Security:<id> or @RACI:<id> annotation in the codebase.
+// Usage: node scripts/check-stride-traceability.mjs (must be run from project root)
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join, extname } from "node:path";
+
+let failed = 0;
+
+// ─── File walker ──────────────────────────────────────────────────────────────
+
+const SCAN_EXTS = new Set([
+  ".ts",
+  ".js",
+  ".mjs",
+  ".java",
+  ".go",
+  ".py",
+  ".rs",
+  ".kt",
+]);
+const EXCLUDE_DIRS = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "target",
+  "build",
+  ".cache",
+  "coverage",
+  ".evidence",
+  ".nyc_output",
+  "vendor",
+]);
+
+function walkFiles(dir) {
+  const results = [];
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (!EXCLUDE_DIRS.has(entry.name))
+        results.push(...walkFiles(join(dir, entry.name)));
+    } else if (SCAN_EXTS.has(extname(entry.name))) {
+      results.push(join(dir, entry.name));
+    }
+  }
+  return results;
+}
+
+// ─── Threat/claim parser ──────────────────────────────────────────────────────
+
+/**
+ * Parse a markdown table in filePath for rows where the column at severityCol
+ * (0-indexed, after splitting by |) is HIGH or CRITICAL.
+ * Returns { id, severity, line } objects.
+ */
+function parseClaims(filePath, idCol, severityCol) {
+  if (!existsSync(filePath)) return [];
+  const lines = readFileSync(filePath, "utf-8").split("\n");
+  const claims = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith("|") || !line.endsWith("|")) continue;
+    // Split "| a | b | c |" → ['', 'a', 'b', 'c', '']
+    const cols = line.split("|").map((c) => c.trim());
+    // cols[0] and cols[last] are empty; real values start at index 1
+    const id = cols[idCol + 1];
+    const sev = (cols[severityCol + 1] ?? "").toUpperCase();
+    if (!id || id.startsWith("-") || id === "ID") continue;
+    if (sev === "HIGH" || sev === "CRITICAL") {
+      claims.push({ id, severity: sev, line: i + 1, file: filePath });
+    }
+  }
+  return claims;
+}
+
+// ─── Tag lookup ───────────────────────────────────────────────────────────────
+
+function buildTagIndex(sourceFiles) {
+  const tags = new Set();
+  for (const file of sourceFiles) {
+    let content;
+    try {
+      content = readFileSync(file, "utf-8");
+    } catch {
+      continue;
+    }
+    const matches = content.matchAll(/@(Security|RACI):([A-Za-z0-9_-]+)/g);
+    for (const m of matches) tags.add(`${m[1]}:${m[2]}`);
+  }
+  return tags;
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
+const sourceFiles = walkFiles(".");
+const tagIndex = buildTagIndex(sourceFiles);
+
+// STRIDE: | ID | Threat | Category | Severity(3) | Mitigation | Status |
+const strideClaims = parseClaims("docs/SECURITY/STRIDE.md", 0, 3);
+// RACI:   | ID | Responsibility | Accountable | Responsible | Consulted | Informed | Priority(6) |
+const raciClaims = parseClaims("docs/GOVERNANCE/RACI.md", 0, 6);
+
+for (const claim of strideClaims) {
+  const tag = `Security:${claim.id}`;
+  if (!tagIndex.has(tag)) {
+    process.stderr.write(
+      `[FAIL] ${claim.file}:${claim.line} — ${claim.severity} threat "${claim.id}" has no @Security:${claim.id} tagged test\n`,
+    );
+    failed++;
+  }
+}
+
+for (const claim of raciClaims) {
+  const tag = `RACI:${claim.id}`;
+  if (!tagIndex.has(tag)) {
+    process.stderr.write(
+      `[FAIL] ${claim.file}:${claim.line} — ${claim.severity} responsibility "${claim.id}" has no @RACI:${claim.id} tagged test\n`,
+    );
+    failed++;
+  }
+}
+
+if (failed > 0) {
+  process.stderr.write(
+    `\n[SUMMARY] ${failed} HIGH/CRITICAL claim(s) lack verified tests\n`,
+  );
+  process.exit(1);
+} else {
+  process.stdout.write("[SUMMARY] All HIGH/CRITICAL claims verified\n");
+}
