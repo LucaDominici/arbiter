@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // arbiter quality gate
-// Usage: node scripts/check-all.mjs [L1|L2]
-// L1: typecheck, format, lint, tests, circular deps, placeholders, orphan TODOs, commitlint (8)
-// L2: L1 + coverage + dead code (10)
+// Usage: node scripts/check-all.mjs [L1|L2|L3]
+// L1: typecheck, format, lint, tests, circular deps, placeholders, orphan TODOs, commitlint, test naming (9)
+// L2: L1 + coverage + dead code + npm audit + gitleaks secrets scan (13)
+// L3: L2 + full repo secrets scan (nightly/manual)
 //
 // NOTE: this file runs without a build step and cannot import from src/.
 // src/ code goes through src/utils/run-cli.ts (INV-12). Gate scripts are
@@ -81,10 +82,22 @@ runCheck("hardness inventory", "node", [
   "scripts/check-hardness-inventory.mjs",
 ]);
 
-// ─── L2: Full checks (+2 = 11) ────────────────────────────────────────────────
-if (level === "L2") {
+// ─── L2/L3: Full checks ───────────────────────────────────────────────────────
+if (level === "L2" || level === "L3") {
   runCheck("coverage", "npm", ["test", "--", "--coverage"]);
   runCheck("dead code", "npx", ["knip"]);
+  runCheck("audit", "npm", ["audit", "--audit-level=high"]);
+  runCheck("gitleaks", "gitleaks", [
+    "detect",
+    "--source",
+    ".",
+    "--config",
+    ".gitleaks.toml",
+    "--gitleaks-ignore-path",
+    "suppressions/.gitleaksignore",
+    "--exit-code",
+    "1",
+  ]);
 }
 
 console.log("");

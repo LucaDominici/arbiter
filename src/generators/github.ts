@@ -61,6 +61,15 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
     );
   }
 
+  // Issue state automation — skip if exists
+  results.push(
+    writeFile(
+      join(workflowsDir, "issue-state.yml"),
+      renderTemplate("github/workflows/issue-state.yml.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   // Dependabot — skip if exists
   results.push(
     writeFile(

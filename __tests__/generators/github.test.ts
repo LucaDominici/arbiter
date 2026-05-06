@@ -16,7 +16,7 @@ describe("generateGithub", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("generates CI workflow, PR template, issue templates, and dependabot", () => {
+  it("generates CI workflow, PR template, issue templates, dependabot, and issue-state", () => {
     const result = generateGithub(makeConfig(dir));
     const paths = result.files.map((f) => f.path);
     expect(paths.some((p) => p.includes("ci.yml"))).toBe(true);
@@ -25,6 +25,18 @@ describe("generateGithub", () => {
     );
     expect(paths.some((p) => p.includes("dependabot.yml"))).toBe(true);
     expect(paths.some((p) => p.includes("bug-report.yml"))).toBe(true);
+    expect(paths.some((p) => p.includes("issue-state.yml"))).toBe(true);
+  });
+
+  it("issue-state.yml contains state transition steps", () => {
+    generateGithub(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".github", "workflows", "issue-state.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("Extract linked issue number");
+    expect(content).toContain("→ In Review");
+    expect(content).toContain("→ Done");
   });
 
   it("CI workflow contains TypeScript-specific steps", () => {
