@@ -146,12 +146,17 @@ function generateClaudeHooks(
 
   // Advanced hooks — L2+ only
   if (config.governanceLevel !== "L1") {
-    for (const hookFile of [
+    const advancedHooks = [
       "post-edit-dispatch.mjs",
       "debug-state-on-failure.mjs",
       "skill-forced-eval.mjs",
       "guard-task-completion.mjs",
-    ]) {
+    ];
+    // Evidence guard only when evidence harness is enabled (mirrors CLI/config emission)
+    if (config.enableEvidenceHarness !== false) {
+      advancedHooks.push("guard-done-evidence.mjs");
+    }
+    for (const hookFile of advancedHooks) {
       results.push(
         writeFile(
           join(hooksDir, hookFile),

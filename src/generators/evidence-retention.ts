@@ -20,20 +20,36 @@ export function generateEvidenceRetention(
     },
   } as unknown as Record<string, unknown>;
 
-  return {
-    files: [
-      // Arbiter-managed rotation script — always regenerate to pick up changes
+  const files: WriteResult[] = [
+    // Arbiter-managed rotation script — always regenerate to pick up changes
+    writeFile(
+      resolvedPath(base, "scripts", "evidence-rotate.mjs"),
+      renderTemplate("scripts/evidence-rotate.mjs.ejs", data),
+      { skipIfExists: false },
+    ),
+    // Seed .gitignore with common entries + .evidence/ — skip if user already has one
+    writeFile(
+      resolvedPath(base, ".gitignore"),
+      renderTemplate("root/.gitignore.ejs", data),
+      { skipIfExists: true },
+    ),
+  ];
+
+  // L2+: emit done-evidence CLI + per-archetype pin config (ADR-037)
+  if (config.governanceLevel !== "L1") {
+    files.push(
       writeFile(
-        resolvedPath(base, "scripts", "evidence-rotate.mjs"),
-        renderTemplate("scripts/evidence-rotate.mjs.ejs", data),
+        resolvedPath(base, "scripts", "done-evidence.mjs"),
+        renderTemplate("scripts/done-evidence.mjs.ejs", data),
         { skipIfExists: false },
       ),
-      // Seed .gitignore with common entries + .evidence/ — skip if user already has one
       writeFile(
-        resolvedPath(base, ".gitignore"),
-        renderTemplate("root/.gitignore.ejs", data),
+        resolvedPath(base, "evidence-files.json"),
+        renderTemplate("evidence-files.json.ejs", data),
         { skipIfExists: true },
       ),
-    ],
-  };
+    );
+  }
+
+  return { files };
 }

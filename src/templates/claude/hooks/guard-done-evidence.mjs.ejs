@@ -12,12 +12,22 @@ import { join } from 'node:path';
 const root = getRepoRoot();
 const { phase } = readTaskState(root);
 
+// Only guard during verification phase (evidence required before claiming done)
+if (phase !== 'verification') process.exit(0);
+
 // Only guard when a completion claim is made (mirrors guard-task-completion pattern)
 let promptText = '';
+let raw;
 try {
-  const raw = readFileSync(0, 'utf-8');
+  raw = readFileSync(0, 'utf-8');
+} catch (e) {
+  process.stderr.write(`[guard-done-evidence] WARN: could not read stdin (${e.code ?? e.message}) — blocking as fail-safe\n`);
+  process.exit(2);
+}
+try {
   promptText = JSON.parse(raw)?.prompt ?? '';
 } catch {
+  // Non-JSON stdin is not a hook error — treat as empty prompt
   process.exit(0);
 }
 
@@ -44,10 +54,16 @@ if (!existsSync(EVIDENCE_PATH)) {
 }
 
 let evidence;
+let rawEvidence;
 try {
-  evidence = JSON.parse(readFileSync(EVIDENCE_PATH, 'utf-8'));
-} catch {
-  fail('evidence file is not valid JSON');
+  rawEvidence = readFileSync(EVIDENCE_PATH, 'utf-8');
+} catch (e) {
+  fail(`could not read evidence file — ${e.code ?? e.message}`);
+}
+try {
+  evidence = JSON.parse(rawEvidence);
+} catch (e) {
+  fail(`evidence file is not valid JSON — ${e.message}`);
 }
 
 if (evidence.all_green !== true) {
@@ -56,12 +72,24 @@ if (evidence.all_green !== true) {
 
 const pinnedFiles = Array.isArray(evidence.pinned_files) ? evidence.pinned_files : [];
 
+if (pinnedFiles.length === 0) {
+  fail('pinned_files is empty — no files were pinned at evidence capture time');
+}
+
 for (const entry of pinnedFiles) {
+  if (!entry || typeof entry.path !== 'string' || typeof entry.sha256 !== 'string') {
+    fail(`malformed entry in pinned_files: ${JSON.stringify(entry)}`);
+  }
   const absPath = join(root, entry.path);
   if (!existsSync(absPath)) {
     fail(`pinned file not found on disk: ${entry.path}`);
   }
-  const currentSha = createHash('sha256').update(readFileSync(absPath)).digest('hex');
+  let currentSha;
+  try {
+    currentSha = createHash('sha256').update(readFileSync(absPath)).digest('hex');
+  } catch (e) {
+    fail(`could not read pinned file ${entry.path} — ${e.code ?? e.message}`);
+  }
   if (currentSha !== entry.sha256) {
     fail(`SHA mismatch — drift detected in ${entry.path} (modified since evidence captured)`);
   }

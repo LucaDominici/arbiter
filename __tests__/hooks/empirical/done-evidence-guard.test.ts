@@ -18,7 +18,9 @@ function configFor() {
 }
 
 function sha256(content: string): string {
-  return createHash("sha256").update(content).digest("hex");
+  return createHash("sha256")
+    .update(Buffer.from(content, "utf-8"))
+    .digest("hex");
 }
 
 const DONE_CLAIM_PROMPT = "task complete, ready to merge";
@@ -171,6 +173,33 @@ describe("guard-done-evidence — empirical spawn", () => {
     try {
       // No evidence file at all — but prompt is benign, so no check
       const result = runHook(hookPath, dir, BENIGN_PROMPT);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("exits 2 when pinned_files is empty (no files were pinned)", () => {
+    const { dir, hookPath } = setup();
+    try {
+      writeEvidence(dir, { all_green: true, includePinnedFiles: false });
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT);
+      expect(result.status).toBe(2);
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i);
+      expect(result.stderr).toMatch(/empty|no pinned/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("exits 0 on done claim when phase is not verification (phase guard)", () => {
+    const { dir, hookPath } = setup();
+    try {
+      // Overwrite phase to implementation — hook should stand down
+      writeFileSync(join(dir, ".claude", ".task-phase"), "implementation\n");
+      // No evidence file — but hook should exit 0 because phase guard fires first
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT);
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
     } finally {
