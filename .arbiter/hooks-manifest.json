@@ -73,6 +73,13 @@
       "rationale": "State capture on PostToolUseFailure — not a violation guard, intentionally non-blocking"
     },
     {
+      "file": "guard-done-evidence.mjs.ejs",
+      "classification": "HARD",
+      "expectedExitCode": 2,
+      "spawnable": false,
+      "rationale": "UserPromptSubmit hard block (exit 2) — completion claims without valid SHA-pinned evidence are rejected; empirical coverage in __tests__/hooks/empirical/done-evidence-guard.test.ts. INV-38."
+    },
+    {
       "file": "guard-task-completion.mjs.ejs",
       "classification": "HARD",
       "expectedExitCode": 2,

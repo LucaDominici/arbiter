@@ -1,0 +1,74 @@
+---
+name: architect-review
+description: Use when introducing new modules, adding external dependencies, or making structural changes that cross module boundaries. On-demand architecture review.
+---
+
+# Architect Review
+
+## Use When
+
+- New module / component creation
+- External dependency added
+- Cross-module communication change
+- New top-level directory under `src/`
+- New shared utility or cross-cutting concern
+- Import boundary violation (importing from a sibling module's internals)
+
+## Skip When
+
+- Bug fixes within existing patterns
+- Test-only changes
+- Documentation-only changes
+- UI/style-only changes with no domain impact
+
+When skipping, output:
+
+```
+[architect-review — SKIPPED]
+Skip criterion applied: <criterion>
+```
+
+## Review Checklist
+
+### Structure
+
+- Does the new code follow the existing directory structure?
+- Does it avoid importing from a module's internal files directly?
+- Is the module boundary well-defined (clear public API)?
+- Is the change backwards-compatible?
+- Does it introduce any circular dependencies?
+
+### Dependencies
+
+- Is the new dependency necessary?
+- Is it actively maintained?
+- Does it overlap with an existing dependency?
+
+### Testability
+
+- Can the new module be tested in isolation?
+- Does it require a running external system to test?
+
+### Observability
+
+- Does it log at appropriate levels?
+- Are errors surfaced with enough context?
+
+## Output Format
+
+```markdown
+## Architect Review
+
+**Change:** <brief description>
+**Classification:** Breaking / Non-breaking / Additive
+
+**Structure:** Strong / Adequate / Needs Attention
+**Dependencies:** Strong / Adequate / Needs Attention
+**Testability:** Strong / Adequate / Needs Attention
+
+**Concerns:**
+
+- <concern 1>
+
+**Recommendation:** Proceed / Proceed with conditions / Redesign
+```

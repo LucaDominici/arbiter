@@ -386,7 +386,7 @@ function buildDefaultConfig(opts: {
     enableMutationTesting: opts.governanceLevel !== "L1",
     enableContractTesting:
       defaultContractType(archetype, hasPublicApi) !== "none",
-    enableEvidenceHarness: opts.governanceLevel === "L3",
+    enableEvidenceHarness: opts.governanceLevel !== "L1",
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     enableObsidianVault: opts.obsidian ?? false,
     acceptBetaTools: opts.acceptBetaTools ?? false,

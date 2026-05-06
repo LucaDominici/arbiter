@@ -1,6 +1,33 @@
 {
-  "version": "0.1",
+  "version": "0.2",
   "tools": ["claude", "codex"],
   "governanceLevel": "L2",
-  "useGitHub": true
+  "useGitHub": true,
+  "decomposition": {
+    "backend": "github"
+  },
+  "features": {
+    "debtGates": true,
+    "suppressions": true,
+    "securityScanning": true,
+    "mutationTesting": true,
+    "contractTesting": false,
+    "evidenceHarness": false
+  },
+  "thresholds": {
+    "lineCoverage": 80,
+    "branchCoverage": 70,
+    "mutationScore": 80,
+    "cyclomaticComplexity": 15,
+    "methodLength": 65,
+    "maxParams": 7
+  },
+  "invariantTiers": ["architectural", "governance", "data", "operational"],
+  "archetype": "library",
+  "architectureStyle": "none",
+  "isMultiTenant": false,
+  "hasDatabase": false,
+  "hasPublicApi": false,
+  "contractType": "none",
+  "lanes": ["docs"]
 }

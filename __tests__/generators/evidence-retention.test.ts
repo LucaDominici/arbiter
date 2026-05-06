@@ -30,9 +30,29 @@ describe("generateEvidenceRetention", () => {
     cleanupTestProject(dir);
   });
 
-  it("generates 2 files by default (rotate script + gitignore)", () => {
-    const config = makeConfig(dir);
+  it("generates 2 files at L1 (rotate script + gitignore)", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
     expect(generateEvidenceRetention(config).files).toHaveLength(2);
+  });
+
+  it("generates 4 files at L2+ (rotate + gitignore + done-evidence + evidence-files)", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    expect(generateEvidenceRetention(config).files).toHaveLength(4);
+  });
+
+  it("generates scripts/done-evidence.mjs at L2+", () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(existsSync(join(dir, "scripts", "done-evidence.mjs"))).toBe(true);
+  });
+
+  it("does not generate scripts/done-evidence.mjs at L1", () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(existsSync(join(dir, "scripts", "done-evidence.mjs"))).toBe(false);
+  });
+
+  it("generates evidence-files.json at L2+", () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(existsSync(join(dir, "evidence-files.json"))).toBe(true);
   });
 
   it("generates scripts/evidence-rotate.mjs", () => {

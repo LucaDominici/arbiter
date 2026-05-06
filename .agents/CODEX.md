@@ -10,6 +10,7 @@
 | Fact                | Value                        |
 | ------------------- | ---------------------------- |
 | **Project**         | arbiter                      |
+| **Test**            | `npm run test`               |
 | **Gate**            | `node scripts/check-all.mjs` |
 | **Full governance** | `../AGENTS.md`               |
 
@@ -48,18 +49,29 @@ Codex operates via explicit plans. Before any implementation:
       "reason": "why this file changes"
     }
   ],
-  "invariants": ["INV-01", "INV-07"],
+  "invariants": ["INV-01", "INV-22"],
   "gate": "node scripts/check-all.mjs L2"
 }
 ```
 
+## Task Workflow
+
+Follow this lifecycle for every task:
+
+1. **Start**: Read GitHub issue → read `AGENTS.md` → create `task/#NNN-description` branch
+2. **Plan**: Create `.agents/plan/PLAN.json` with file manifest and invariants
+3. **Implement**: Write tests first, then implementation. Run `npm run test` after each unit
+4. **Gate**: `node scripts/check-all.mjs L1` before commit, `node scripts/check-all.mjs L2` before push
+5. **Finalize**: Commit → push → PR → verify CI → merge
+
 ## Command Translation
 
-| Claude Code                     | Codex Equivalent                                  |
-| ------------------------------- | ------------------------------------------------- |
-| `/task #NNN`                    | Full lifecycle: branch, plan, implement, gate, PR |
-| `node scripts/check-all.mjs L1` | Run before each commit                            |
-| `node scripts/check-all.mjs L2` | Run before push/PR                                |
+| Claude Code                     | Codex Equivalent                                      |
+| ------------------------------- | ----------------------------------------------------- |
+| `/task #NNN`                    | Full lifecycle: branch → plan → implement → gate → PR |
+| `npm run test`                  | Run tests for this stack                              |
+| `node scripts/check-all.mjs L1` | Run before each commit                                |
+| `node scripts/check-all.mjs L2` | Run before push/PR                                    |
 
 ## Hard Stops
 

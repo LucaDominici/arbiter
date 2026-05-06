@@ -28,12 +28,10 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PreToolUse` → Bash         | `stop-dangerous.mjs`        | Block dangerous commands (rm -rf, force push) |
 | `PreToolUse` → Edit\|Write  | `enforce-read-only.mjs`     | Guard read-only files                         |
 | `PreToolUse` → Edit\|Write  | `pre-edit-ssot-guard.mjs`   | Prevent unauthorized SSOT edits               |
-| `PreToolUse` → Edit\|Write  | `pre-edit-plan-anchor.mjs`  | Block implementation-phase edits without plan |
 | `PostToolUse` → Bash        | `post-commit-check.mjs`     | Verify commit format after git commits        |
-| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs`  | Block orphan TODOs (INV-06)                   |
-| `PostToolUse` → Edit\|Write | `check-no-any.mjs`          | Block `any` types (INV-04)                    |
-| `PostToolUse` → Edit\|Write | `check-no-placeholders.mjs` | Block placeholder/WIP/disabled-test patterns  |
+| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs`  | Block orphan TODOs (INV-21)                   |
 | `UserPromptSubmit` → \*     | `guard-task-completion.mjs` | Warn on premature task-completion claims      |
+| `PostToolUse` → Edit\|Write | `check-no-any.mjs`          | Block `any` types (INV-04)                    |
 
 ### Slash Commands
 

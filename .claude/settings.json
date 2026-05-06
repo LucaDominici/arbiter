@@ -48,7 +48,22 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node .claude/hooks/check-no-placeholders.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-direct-spawn.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/check-no-orphan-todo.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-pii.mjs",
             "timeout": 5
           },
           {
@@ -58,13 +73,8 @@
           },
           {
             "type": "command",
-            "command": "node .claude/hooks/check-no-placeholders.mjs",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-no-direct-spawn.mjs",
-            "timeout": 5
+            "command": "node .claude/hooks/post-edit-dispatch.mjs",
+            "timeout": 15
           }
         ]
       }
@@ -79,6 +89,43 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/skill-forced-eval.mjs",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-task-completion.mjs",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/debug-state-on-failure.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-compact.mjs",
+            "timeout": 3
+          }
+        ]
       }
     ]
   },
@@ -89,7 +136,9 @@
       "Bash(npm run *)",
       "Bash(npx *)",
       "Bash(node *)",
-      "Bash(gh *)"
+      "Bash(gh *)",
+      "Bash(bun run arbiter *)",
+      "Bash(arbiter *)"
     ],
     "deny": ["Bash(rm -rf /*)", "Bash(sudo:*)", "Bash(git push --force)"]
   }
