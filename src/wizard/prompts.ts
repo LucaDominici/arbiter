@@ -7,6 +7,7 @@ import type {
   MigrationPlan,
   WizardAnswers,
   Language,
+  Lane,
 } from "./types.js";
 import type { BuildCommands } from "../detectors/build.js";
 import type { GitInfo } from "../detectors/git.js";
@@ -31,6 +32,7 @@ export interface WizardInput {
   gitInfo: GitInfo;
   existing: ExistingState;
   githubAccess: GithubAccess;
+  detectedLanes?: Lane[];
 }
 
 export function determineFlow(existing: ExistingState): WizardFlow {
@@ -200,7 +202,12 @@ export async function runWizard(
     answers.tools.length > 0
       ? answers.tools
       : (["claude", "codex"] as AiTool[]);
-  const useGitHub = answers.useGitHub === "yes";
+  const decompositionBackend: "github" | "markdown" =
+    answers.decompositionBackend ??
+    (wizardInput.githubAccess.available &&
+    wizardInput.githubAccess.authenticated
+      ? "github"
+      : "markdown");
 
   const { enableObsidianVault } = (await inquirer.prompt([
     {
@@ -220,7 +227,11 @@ export async function runWizard(
   );
 
   if (flow === "brownfield") {
-    const plan = buildMigrationPlan(wizardInput.existing, tools, useGitHub);
+    const plan = buildMigrationPlan(
+      wizardInput.existing,
+      tools,
+      decompositionBackend === "github",
+    );
     displayMigrationPlan(plan);
   } else {
     console.log(`\n  Will generate governance files for: ${tools.join(", ")}`);
@@ -269,7 +280,8 @@ function buildConfigFromAnswers(
     formatCommand: input.buildCmds.formatCommand,
     tools,
     governanceLevel: answers.governanceLevel,
-    useGitHub: answers.useGitHub === "yes",
+    decompositionBackend: answers.decompositionBackend ?? "markdown",
+    useGitHub: answers.decompositionBackend === "github",
     githubOwner: input.gitInfo.githubOwner,
     githubRepo: input.gitInfo.githubRepo,
     existing: input.existing,
@@ -291,6 +303,7 @@ function buildConfigFromAnswers(
     contractType:
       answers.contractType ??
       defaultContractType(answers.archetype, answers.hasPublicApi),
+    lanes: input.detectedLanes ?? [],
   };
 }
 
@@ -512,17 +525,19 @@ function buildGithubChoice(access: GithubAccess): object[] {
   return [
     {
       type: "list",
-      name: "useGitHub",
-      message:
-        "Generate GitHub assets? (.github/ workflows, templates, labels)",
+      name: "decompositionBackend",
+      message: "Decomposition backend (where tasks/work units are stored):",
       choices: [
         {
-          name: `Yes — gh authenticated as ${access.username ?? "unknown"}`,
-          value: "yes",
+          name: `github — gh authenticated as ${access.username ?? "unknown"}`,
+          value: "github",
         },
-        { name: "No — skip GitHub setup", value: "no" },
+        {
+          name: "markdown — local .arbiter/work/*.md files (no gh required)",
+          value: "markdown",
+        },
       ],
-      default: "yes",
+      default: "github",
     },
   ];
 }

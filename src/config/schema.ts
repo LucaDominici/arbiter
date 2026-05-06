@@ -6,6 +6,7 @@ import type {
   EvidenceRetentionConfig,
   GovernanceLevel,
   InvariantTier,
+  Lane,
   StrictnessTier,
   ThresholdProfile,
   ThresholdsV2,
@@ -13,6 +14,16 @@ import type {
 } from "../wizard/types.js";
 
 export type { ThresholdsV2 };
+
+let _useGitHubWarnEmitted = false;
+
+function warnUseGitHubDeprecated(): void {
+  if (_useGitHubWarnEmitted) return;
+  _useGitHubWarnEmitted = true;
+  process.stderr.write(
+    '[arbiter] Warning: `useGitHub` is deprecated. Use `decomposition.backend: "github"|"markdown"` instead.\n',
+  );
+}
 
 export interface FeatureFlags {
   contractTesting: boolean;
@@ -23,11 +34,20 @@ export interface FeatureFlags {
   suppressions: boolean;
 }
 
+export type DecompositionBackendId = "github" | "markdown";
+
+export interface DecompositionConfig {
+  backend: DecompositionBackendId;
+  markdown?: { dir: string };
+  github?: { owner: string; repo: string };
+}
+
 export interface ArbiterConfigV2 {
   version: string;
   tools: AiTool[];
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
+  decomposition?: DecompositionConfig;
   features: FeatureFlags;
   thresholds: ThresholdsV2;
   archetype?: Archetype;
@@ -46,6 +66,7 @@ export interface ArbiterConfigV2 {
   worktree?: WorktreeConfig;
   enableObsidianVault?: boolean;
   plugins?: string[];
+  lanes?: Lane[];
 }
 
 export type ValidateResult =
@@ -100,8 +121,8 @@ function validateThresholds(raw: unknown, errors: string[]): boolean {
   const coverage = ["lineCoverage", "branchCoverage", "mutationScore"] as const;
   for (const key of coverage) {
     const v = raw[key];
-    if (typeof v !== "number" || v < 0 || v > 100) {
-      errors.push(`thresholds.${key} must be a number between 0 and 100`);
+    if (typeof v !== "number" || v <= 0 || v > 100) {
+      errors.push(`thresholds.${key} must be a number between 1 and 100`);
       ok = false;
     }
   }
@@ -174,6 +195,8 @@ export function validateConfig(raw: unknown): ValidateResult {
 
   validateFeatures(raw["features"], errors);
   validateThresholds(raw["thresholds"], errors);
+  validateDecomposition(raw["decomposition"], errors);
+  validateLanes(raw["lanes"], errors);
 
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -181,6 +204,40 @@ export function validateConfig(raw: unknown): ValidateResult {
 
   const config = { ...raw } as unknown as ArbiterConfigV2;
   return { ok: true, config };
+}
+
+const DECOMPOSITION_BACKENDS = new Set(["github", "markdown"]);
+const VALID_LANES: ReadonlySet<string> = new Set([
+  "frontend",
+  "backend",
+  "docs",
+]);
+
+function validateLanes(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return;
+  if (!Array.isArray(raw)) {
+    errors.push("lanes must be an array");
+    return;
+  }
+  for (const v of raw) {
+    if (!VALID_LANES.has(v as string)) {
+      errors.push(`lanes contains invalid value: ${String(v)}`);
+    }
+  }
+}
+
+function validateDecomposition(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return;
+  if (!isRecord(raw)) {
+    errors.push("decomposition must be an object");
+    return;
+  }
+  const backend = raw["backend"];
+  if (backend !== undefined && !DECOMPOSITION_BACKENDS.has(backend as string)) {
+    errors.push(
+      `decomposition.backend must be "github" or "markdown" — got ${typeof backend === "string" ? backend : JSON.stringify(backend)}`,
+    );
+  }
 }
 
 interface LegacyEvidenceRetention {
@@ -200,6 +257,13 @@ function deriveEvidenceHarness(
   return level === "L3";
 }
 
+function applyDecompositionAlias(cfg: ArbiterConfigV2): ArbiterConfigV2 {
+  if (cfg.decomposition?.backend) return cfg;
+  warnUseGitHubDeprecated();
+  const backend: DecompositionBackendId = cfg.useGitHub ? "github" : "markdown";
+  return { ...cfg, decomposition: { backend } };
+}
+
 export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
   if (!isRecord(raw)) {
     throw new Error("arbiter.json must be a non-null object");
@@ -207,7 +271,7 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
 
   if (raw["version"] === "0.2") {
     const result = validateConfig(raw);
-    if (result.ok) return result.config;
+    if (result.ok) return applyDecompositionAlias(result.config);
     throw new Error(
       `arbiter.json v0.2 is invalid: ${result.errors.join("; ")}`,
     );
@@ -251,6 +315,12 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
     Object.entries(raw).filter(([k]) => !stripKeys.has(k)),
   );
 
+  const useGitHub =
+    typeof raw["useGitHub"] === "boolean" ? raw["useGitHub"] : false;
+  const migratedBackend: DecompositionBackendId = useGitHub
+    ? "github"
+    : "markdown";
+
   return {
     ...rest,
     version: "0.2",
@@ -260,7 +330,8 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
         )
       : (["claude", "codex"] as AiTool[]),
     governanceLevel: level,
-    useGitHub: typeof raw["useGitHub"] === "boolean" ? raw["useGitHub"] : false,
+    useGitHub,
+    decomposition: { backend: migratedBackend },
     features,
     thresholds,
   } as unknown as ArbiterConfigV2;

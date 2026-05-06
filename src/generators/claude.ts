@@ -31,6 +31,35 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
   return { files: results };
 }
 
+function isPlainObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+function parseExistingSettings(settingsPath: string): Record<string, unknown> {
+  const raw = readFileSync(settingsPath, "utf-8");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Failed to parse existing .claude/settings.json: ${msg}. Fix or delete and re-run.`,
+      { cause: err },
+    );
+  }
+  if (!isPlainObject(parsed)) {
+    const kind = Array.isArray(parsed)
+      ? "array"
+      : parsed === null
+        ? "null"
+        : typeof parsed;
+    throw new Error(
+      `Failed to parse existing .claude/settings.json: expected JSON object, got ${kind}. Fix or delete and re-run.`,
+    );
+  }
+  return parsed;
+}
+
 function generateClaudeSettings(
   base: string,
   data: Record<string, unknown>,
@@ -38,10 +67,7 @@ function generateClaudeSettings(
 ): void {
   const settingsPath = resolvedPath(base, ".claude", "settings.json");
   if (existsSync(settingsPath)) {
-    const existing = JSON.parse(readFileSync(settingsPath, "utf-8")) as Record<
-      string,
-      unknown
-    >;
+    const existing = parseExistingSettings(settingsPath);
     const incoming = JSON.parse(
       renderTemplate("claude/settings.json.ejs", data),
     ) as Record<string, unknown>;

@@ -19,7 +19,7 @@ export interface WizardAnswers {
   hasDatabase: boolean;
   hasPublicApi: boolean;
   isMultiTenant: boolean;
-  useGitHub?: "yes" | "no";
+  decompositionBackend?: "github" | "markdown";
   /** Phase 9.5 ML: set only when hasPublicApi=true. Absent = default "none". */
   contractType?: ContractType;
 }
@@ -62,6 +62,8 @@ export type ArchitectureStyle =
   | "layered"
   | "modular-monolith"
   | "none";
+
+export type Lane = "frontend" | "backend" | "docs";
 
 /**
  * Computed from (language, archetype, architectureStyle) at generation time.
@@ -146,6 +148,7 @@ export interface ProjectConfig {
   governanceLevel: GovernanceLevel;
 
   useGitHub: boolean;
+  decompositionBackend?: "github" | "markdown";
   githubOwner: string | null;
   githubRepo: string | null;
 
@@ -223,6 +226,8 @@ export interface ProjectConfig {
    */
   k6ScriptPath?: string;
   thresholds?: ThresholdsV2;
+  /** Detected project lanes (FE/BE/docs). Empty array = single-lane / no lane awareness. */
+  lanes: Lane[];
 }
 
 export interface ThresholdsV2 {

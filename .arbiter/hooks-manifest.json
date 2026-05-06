@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "_comment": "Hardness manifest — every hook declared with explicit intent. Drift from this file fails L1 CI. See scripts/check-hardness-inventory.mjs.",
+  "hooks": [
+    {
+      "file": "check-no-orphan-todo.mjs",
+      "classification": "HARD",
+      "spawnable": true,
+      "expectedExitCode": 1,
+      "fixture": {
+        "type": "file-with-content",
+        "content": "// TODO: bare todo without task id\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "INV-06: bare TODO without task ID is a gate violation"
+    },
+    {
+      "file": "check-no-pii.mjs",
+      "classification": "HARD",
+      "spawnable": true,
+      "expectedExitCode": 1,
+      "fixture": {
+        "type": "file-with-content",
+        "content": "const contact = 'user@example.com';\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "INV-12: PII patterns (email, phone, credit card) must not appear in committed files"
+    },
+    {
+      "file": "enforce-read-only.mjs",
+      "classification": "HARD",
+      "spawnable": true,
+      "expectedExitCode": 1,
+      "fixture": {
+        "type": "env-only",
+        "env": { "CLAUDE_TOOL_INPUT_PATH": "package-lock.json" }
+      },
+      "rationale": "Designated read-only files (AGENTS.md, LICENSE, package-lock.json, Cargo.lock) must not be edited silently"
+    },
+    {
+      "file": "stop-dangerous.mjs",
+      "classification": "HARD",
+      "spawnable": true,
+      "expectedExitCode": 1,
+      "fixture": {
+        "type": "env-only",
+        "env": { "CLAUDE_TOOL_INPUT_COMMAND": "rm -rf /" }
+      },
+      "rationale": "Dangerous shell commands (rm -rf /, force push, DROP TABLE) must be blocked"
+    },
+    {
+      "file": "pre-edit-ssot-guard.mjs",
+      "classification": "HARD",
+      "spawnable": true,
+      "expectedExitCode": 2,
+      "fixture": {
+        "type": "env-only",
+        "env": { "CLAUDE_TOOL_INPUT_PATH": "AGENTS.md" }
+      },
+      "rationale": "SSOT governance documents must not be edited without explicit ADR or amendment. Exit 2 blocks and returns stderr to Claude as error context. Fixed in #402."
+    },
+    {
+      "file": "pre-edit-plan-anchor.mjs.ejs",
+      "classification": "HARD",
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "EJS template rendered at arbiter init time. Empirical exit-2 coverage in __tests__/hooks/empirical/plan-anchor.test.ts. Blocks implementation-phase edits with no active plan. Fixed in #405."
+    },
+    {
+      "file": "debug-state-on-failure.mjs.ejs",
+      "classification": "ADVISORY",
+      "spawnable": false,
+      "rationale": "State capture on PostToolUseFailure — not a violation guard, intentionally non-blocking"
+    },
+    {
+      "file": "guard-task-completion.mjs.ejs",
+      "classification": "HARD",
+      "expectedExitCode": 2,
+      "spawnable": false,
+      "rationale": "UserPromptSubmit hard block (exit 2) — premature task-completion claims return stderr to Claude as error context; empirical coverage in __tests__/hooks/empirical/completion-guard.test.ts"
+    },
+    {
+      "file": "post-commit-check.mjs.ejs",
+      "classification": "ADVISORY",
+      "spawnable": false,
+      "rationale": "PostToolUse L2 gate reminder — advisory reminder, not a violation guard"
+    },
+    {
+      "file": "post-edit-dispatch.mjs.ejs",
+      "classification": "ADVISORY",
+      "spawnable": false,
+      "rationale": "PostToolUse format/lint dispatcher — advisory dispatcher, not a guard"
+    },
+    {
+      "file": "pre-compact.mjs.ejs",
+      "classification": "ADVISORY",
+      "spawnable": false,
+      "rationale": "PreCompact session state preservation — advisory, intentionally non-blocking"
+    },
+    {
+      "file": "skill-forced-eval.mjs.ejs",
+      "classification": "ADVISORY",
+      "spawnable": false,
+      "rationale": "Skill context injector — advisory context injection, not a guard"
+    }
+  ]
+}

@@ -19,7 +19,7 @@ export interface LanguageMatrix {
 }
 
 /** Result of probing a single tool */
-export type ProbeStatus = "passed" | "skipped" | "failed";
+export type ProbeStatus = "passed" | "skipped" | "failed" | "warning";
 
 /** Whether probe checks installed tool version or invokes a build command */
 export type ProbeKind = "version" | "build";
@@ -45,4 +45,6 @@ export interface VerifyReport {
   probes: ProbeResult[];
   /** true if any probe has status "failed" */
   hasFailures: boolean;
+  /** true if any probe has status "warning" */
+  hasWarnings: boolean;
 }

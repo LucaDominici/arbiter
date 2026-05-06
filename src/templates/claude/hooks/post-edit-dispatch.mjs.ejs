@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; %>#!/usr/bin/env node
 // Arbiter hook: run format + lint after file edits
 // Hook type: PostToolUse (Edit|Write)
 // Stack: <%= language %> | Format: <%= formatCommand %> | Lint: <%= lintCommand %>
@@ -33,6 +33,15 @@ try {
 }
 if (!filePath) process.exit(0);
 
+const root = getRepoRoot();
+<% if (_multiLane) { %>
+// Lane-scoping: only dispatch for files within a declared lane
+const LANES = <%- JSON.stringify(_lanes) %>;
+const _relPath = filePath.startsWith(root + '/') ? filePath.slice(root.length + 1) : filePath;
+const _laneOf = (p) => LANES.find(l => p.startsWith(l + '/')) ?? null;
+const _lane = _laneOf(_relPath);
+if (LANES.length > 0 && _lane === null && !_relPath.startsWith('scripts/')) process.exit(0);
+<% } %>
 // Skip .md docs, .json config, lock files, build artifacts
 const SKIP_PATTERNS = /\.(md|json|yaml|yml|txt|log|lock|toml|xml|html|css|svg|png|jpg|gif)$/i;
 const SKIP_DIRS = /\/(node_modules|build|dist|target|\.git|\.cache|__pycache__|\.venv)\//;
@@ -44,8 +53,6 @@ const SOURCE_EXTS = <%- JSON.stringify(sourceExts) %>;
 if (SOURCE_EXTS.length > 0 && !SOURCE_EXTS.includes(extname(filePath).toLowerCase())) process.exit(0);
 
 if (!existsSync(filePath)) process.exit(0);
-
-const root = getRepoRoot();
 
 // ── Step 1: FORMAT ──────────────────────────────────────────────────────────
 const formatParts = '<%= formatCommand %>'.split(' ');

@@ -1,4 +1,4 @@
-name: CI
+<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; %>name: CI
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
             --gitleaks-ignore-path suppressions/.gitleaksignore \
             --exit-code 1 --redact
 <% } %>
-<% if (governanceLevel === 'L3') { %>
+<% if (governanceLevel === 'L3' || _multiLane) { %>
   classify-changes:
     name: Classify Changes
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
@@ -52,12 +52,43 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || 'origin/main' }}
           HEAD_SHA: ${{ github.sha }}
 <% } %>
+<% if (_multiLane) { %>
+  cross-stack-guard:
+    name: Cross-Stack Guard
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [classify-changes]
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+<% if (governanceLevel === 'L3') { %>
+      - name: Enforce cross-stack split
+        if: needs.classify-changes.outputs.backend_changed == 'true' && needs.classify-changes.outputs.frontend_changed == 'true'
+        run: |
+          echo "::error::This PR touches both frontend and backend lanes. Split into separate PRs."
+          exit 1
+<% } else { %>
+      - name: Warn cross-stack changes
+        if: needs.classify-changes.outputs.backend_changed == 'true' && needs.classify-changes.outputs.frontend_changed == 'true'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '> [!WARNING]\n> This PR touches both **frontend** and **backend** lanes. Consider splitting into separate PRs for cleaner review and safer deployment.'
+            })
+<% } %>
+<% } %>
 <% if (language === 'typescript') { %>
   lint-and-test:
     name: Lint + Test
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -76,8 +107,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Rust)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -97,8 +128,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -122,8 +153,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Go)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -140,8 +171,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Python)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3') _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3'){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -373,7 +404,7 @@ jobs:
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    needs: [lint-and-test<% if (enableSecurityScanning) { %>, security-early-fail<% } %><% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>, contract-verify<% } %><% if (governanceLevel === 'L3') { %>, classify-changes<% } %>]
+    needs: [lint-and-test<% if (enableSecurityScanning) { %>, security-early-fail<% } %><% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>, contract-verify<% } %><% if (governanceLevel === 'L3' || _multiLane) { %>, classify-changes<% } %><% if (_multiLane) { %>, cross-stack-guard<% } %>]
     if: always()
     steps:
       - run: |
@@ -399,5 +430,9 @@ jobs:
           fi<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>
           if [[ "${{ needs.contract-verify.result }}" != "success" ]]; then
             echo "contract-verify failed"
+            exit 1
+          fi<% } %><% if (_multiLane) { %>
+          if [[ "${{ needs.cross-stack-guard.result }}" == "failure" ]]; then
+            echo "cross-stack-guard failed"
             exit 1
           fi<% } %>

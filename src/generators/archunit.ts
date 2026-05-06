@@ -8,7 +8,8 @@ export interface ArchUnitGeneratorResult {
 }
 
 function emitHexagonalSuite(
-  config: ProjectConfig & { basePackage: string },
+  config: ProjectConfig,
+  basePackage: string,
   base: string,
   packagePath: string,
   data: Record<string, unknown>,
@@ -31,7 +32,7 @@ function emitHexagonalSuite(
   }
 
   if (config.hasDatabase && config.hasPublicApi) {
-    const supportPath = config.basePackage.replace(/\./g, "/") + "/support";
+    const supportPath = basePackage.replace(/\./g, "/") + "/support";
 
     files.push(
       writeFile(
@@ -139,7 +140,8 @@ export function generateArchUnit(
   if (config.architectureStyle === "hexagonal" && config.basePackage) {
     files.push(
       ...emitHexagonalSuite(
-        config as ProjectConfig & { basePackage: string },
+        config,
+        config.basePackage,
         base,
         packagePath,
         data,

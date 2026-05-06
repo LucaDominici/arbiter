@@ -55,7 +55,7 @@ console.log("");
 console.log(`=== arbiter Quality Gate: ${level} ===`);
 console.log("");
 
-// ─── L1: Fast checks (8) ─────────────────────────────────────────────────────
+// ─── L1: Fast checks (9) ─────────────────────────────────────────────────────
 runCheck("typecheck", "npx", ["tsc", "--noEmit"]);
 runCheck("format", "npx", ["prettier", "--check", "."]);
 runCheck("lint", "npx", ["eslint", "src", "__tests__"]);
@@ -77,8 +77,11 @@ runCheck("commitlint", "npx", [
   "HEAD",
 ]);
 runCheck("test naming", "node", ["scripts/check-test-naming.mjs"]);
+runCheck("hardness inventory", "node", [
+  "scripts/check-hardness-inventory.mjs",
+]);
 
-// ─── L2: Full checks (+2 = 10) ────────────────────────────────────────────────
+// ─── L2: Full checks (+2 = 11) ────────────────────────────────────────────────
 if (level === "L2") {
   runCheck("coverage", "npm", ["test", "--", "--coverage"]);
   runCheck("dead code", "npx", ["knip"]);

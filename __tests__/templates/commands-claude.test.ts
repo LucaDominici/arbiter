@@ -32,11 +32,13 @@ const STACK_LANGUAGES: Language[] = [
 function renderTask(
   language: Language = "typescript",
   governanceLevel: GovernanceLevel = "L2",
+  decompositionBackend: "github" | "markdown" = "github",
 ): string {
   const config = makeConfig("/tmp/test", {
     language,
     governanceLevel,
     testCommand: GATE_COMMANDS[language],
+    decompositionBackend,
   });
   return renderTemplate(
     "claude/commands/task.md.ejs",
@@ -82,11 +84,11 @@ describe("claude commands: task.md — structural sections", () => {
     expect(content).toMatch(/Standard/);
   });
 
-  it("contains state file writes (.task-id, .task-phase, .task-plan)", () => {
+  it("contains state file writes (.task-id, .task-plan) and arbiter task advance", () => {
     const content = renderTask();
     expect(content).toMatch(/\.task-id/);
-    expect(content).toMatch(/\.task-phase/);
     expect(content).toMatch(/\.task-plan/);
+    expect(content).toContain("arbiter task advance");
   });
 
   it("sets local exclude entries before writing task state", () => {
@@ -123,9 +125,9 @@ describe("claude commands: task.md — structural sections", () => {
     expect(content).toMatch(/wt-close/);
   });
 
-  it("contains GitHub issue read instruction", () => {
-    const content = renderTask();
-    expect(content).toMatch(/gh issue view|issue/i);
+  it("contains issue read instruction (github backend uses gh issue view)", () => {
+    const content = renderTask("typescript", "L2", "github");
+    expect(content).toMatch(/gh issue view/i);
   });
 
   it("references AGENTS.md invariants", () => {
@@ -191,6 +193,52 @@ describe("claude commands: task.md — stack parameterization", () => {
       expect(content).toContain(GATE_COMMANDS[lang]);
     });
   }
+});
+
+describe("claude commands: task.md — decompositionBackend branching (CANON-04/13)", () => {
+  it("github backend: Phase 0 uses gh issue view", () => {
+    const content = renderTask("typescript", "L2", "github");
+    expect(content).toContain("gh issue view NNN");
+    expect(content).not.toContain("arbiter work show");
+  });
+
+  it("markdown backend: Phase 0 uses arbiter work show", () => {
+    const content = renderTask("typescript", "L2", "markdown");
+    expect(content).toContain("arbiter work show");
+    expect(content).not.toContain("gh issue view NNN");
+  });
+
+  it("github backend: Phase 10 uses gh pr create/merge", () => {
+    const content = renderTask("typescript", "L2", "github");
+    expect(content).toContain("gh pr create");
+    expect(content).toContain("gh pr merge");
+  });
+
+  it("markdown backend: Phase 10 uses arbiter work close", () => {
+    const content = renderTask("typescript", "L2", "markdown");
+    expect(content).toContain("arbiter work close");
+    expect(content).not.toContain("gh pr create");
+  });
+
+  it("github backend L2+: Phase 11 uses gh issue close", () => {
+    const content = renderTask("typescript", "L2", "github");
+    expect(content).toContain("gh issue close NNN");
+  });
+
+  it("markdown backend L2+: Phase 11 uses arbiter work close", () => {
+    const content = renderTask("typescript", "L2", "markdown");
+    const matches = (content.match(/arbiter work close/g) ?? []).length;
+    expect(matches).toBeGreaterThanOrEqual(1);
+    expect(content).not.toContain("gh issue close");
+  });
+
+  it("no EJS leaks in either backend render", () => {
+    for (const backend of ["github", "markdown"] as const) {
+      const content = renderTask("typescript", "L2", backend);
+      expect(content).not.toContain("<%");
+      expect(content).not.toContain("%>");
+    }
+  });
 });
 
 describe("claude commands: worktree helpers", () => {

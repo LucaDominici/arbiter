@@ -402,3 +402,72 @@ describe("runWizard ML — contractType", () => {
     expect(result!.contractType).toBe("graphql");
   });
 });
+
+describe("decompositionBackend selection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("defaults to markdown when gh not available", async () => {
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L2",
+      })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(makeWizardInput());
+    expect(result!.decompositionBackend).toBe("markdown");
+    expect(result!.useGitHub).toBe(false);
+  });
+
+  it("uses github when user selects github from prompt", async () => {
+    const input = makeWizardInput();
+    input.githubAccess = {
+      available: true,
+      authenticated: true,
+      username: "testuser",
+      error: null,
+    };
+
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        decompositionBackend: "github",
+      })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(input);
+    expect(result!.decompositionBackend).toBe("github");
+    expect(result!.useGitHub).toBe(true);
+  });
+
+  it("uses markdown when user selects markdown even with gh available", async () => {
+    const input = makeWizardInput();
+    input.githubAccess = {
+      available: true,
+      authenticated: true,
+      username: "testuser",
+      error: null,
+    };
+
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: "my project",
+        tools: ["claude"],
+        governanceLevel: "L2",
+        decompositionBackend: "markdown",
+      })
+      .mockResolvedValueOnce({ enableObsidianVault: false })
+      .mockResolvedValueOnce({ confirm: true });
+
+    const result = await runWizard(input);
+    expect(result!.decompositionBackend).toBe("markdown");
+    expect(result!.useGitHub).toBe(false);
+  });
+});

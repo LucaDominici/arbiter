@@ -23,6 +23,11 @@
             "type": "command",
             "command": "node .claude/hooks/pre-edit-ssot-guard.mjs",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-edit-plan-anchor.mjs",
+            "timeout": 3
           }
         ]
       }

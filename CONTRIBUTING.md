@@ -50,6 +50,58 @@ npm run test
 **Lint:** `npm run lint`
 **Format:** `echo &#34;no formatter configured&#34;`
 
+### Enforcement Chain
+
+Code changes pass through four enforcement layers in sequence: edit-time Claude Code hooks (`.claude/hooks/`) block bad edits before they land on disk; pre-commit `.githooks/pre-commit` runs the L1 gate on every `git commit` regardless of editor; pre-push `.githooks/pre-push` runs the L2 gate before any push; and CI verifies all PRs. To activate the git hooks run `git config core.hooksPath .githooks` (Node projects also auto-install this via `npm install` through the `prepare` script; non-Node projects use `./scripts/setup-hooks.sh`).
+
+### Task Lifecycle State Machine
+
+Arbiter tasks follow a validated five-phase lifecycle. Transitions are mechanical — not advisory:
+
+```
+preflight → plan → implementation → verification → complete
+```
+
+Advance the phase with:
+
+```bash
+arbiter task advance --to <phase>
+```
+
+Rules:
+
+- Forward-only by default. Skipping a phase (e.g. `preflight → implementation`) throws.
+- `--reverse` allows backward transitions for exceptional cases.
+- Each transition is appended to `.claude/.task-phase-history` with an ISO timestamp and `prev → next`.
+- Commits are blocked during `preflight` and `plan` phases by the generated pre-commit hook (INV-38).
+- Claiming task completion while phase is `implementation` or `verification` triggers the completion guard (exit 2, INV-38).
+
+## Hook Hardness Manifest
+
+All hooks in `src/templates/claude/hooks/` are classified in `.arbiter/hooks-manifest.json` with an explicit `classification` field (`HARD` or `ADVISORY`). The L1 gate verifies this classification empirically on every CI run (INV-36).
+
+**When adding a new hook:**
+
+1. Write the hook file.
+2. Add an entry to `.arbiter/hooks-manifest.json` with the correct `classification` and, if `HARD`, a `fixture` describing how to trigger a violation.
+3. Run `node scripts/check-hardness-inventory.mjs` — it must exit 0.
+4. Run the full gate: `node scripts/check-all.mjs L1`.
+
+**When modifying a HARD hook:**
+
+Ensure the hook still exits non-zero on the fixture defined in the manifest. Changing a HARD hook to exit 0 (advisory) without updating the manifest will fail CI.
+
+### SSOT and plan bypass env vars
+
+Two hooks block edits to high-authority documents. For legitimate edits, use session-scoped bypass:
+
+| Hook                       | Guards                                                                                        | Bypass                             |
+| -------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`, `.agents/CODEX.md` | `ARBITER_SSOT_BYPASS=1 claude ...` |
+| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan                                             | `ARBITER_PLAN_BYPASS=1 claude ...` |
+
+**Warning:** Do not set these in your shell profile — session-scoped only. Legitimate edits should reference a corresponding ADR or amendment in the commit message.
+
 ## Pull Requests
 
 - Fill out the PR template completely
