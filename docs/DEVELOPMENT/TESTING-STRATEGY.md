@@ -175,3 +175,19 @@ Tests run in parallel by default (vitest). Each test file gets its own temp dire
 2. Use `beforeEach`/`afterEach` with a temp directory for any test that writes files.
 3. Assert on concrete filesystem state or return values — avoid asserting on log output.
 4. Run `npm run test:coverage` to verify the new test brings coverage up, not down.
+
+---
+
+## Version-Agnostic Assertions
+
+When testing generated workflow files that reference tool versions (e.g. `gradle/actions/setup-gradle@vN`, `actions/checkout@vN`), assert on the version-independent prefix rather than pinning a concrete tag:
+
+```ts
+// bad — breaks on every Dependabot bump
+expect(content).toContain("uses: gradle/actions/setup-gradle@v3");
+
+// good — survives future bumps
+expect(content).toContain("uses: gradle/actions/setup-gradle@");
+```
+
+This keeps Dependabot PRs green without requiring manual test updates on every action version bump.
