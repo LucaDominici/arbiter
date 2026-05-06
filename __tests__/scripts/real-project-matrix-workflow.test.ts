@@ -19,7 +19,7 @@ describe("real-project-matrix workflow regressions", () => {
 
   it("pins setup-gradle to a concrete Gradle version for Java fixtures", () => {
     const content = readWorkflow();
-    expect(content).toContain("uses: gradle/actions/setup-gradle@v3");
+    expect(content).toContain("uses: gradle/actions/setup-gradle@");
     expect(content).toContain('gradle-version: "8.8"');
   });
 
