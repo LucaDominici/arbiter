@@ -68,7 +68,7 @@ export function generateInvariantNotes(
       resolvedPath(base, "governance", "invariants", "_index.md"),
       renderTemplate("obsidian-vault/governance/invariants/_index.md.ejs", {
         tiers,
-      } as unknown as Record<string, unknown>),
+      }),
       opts,
     ),
   );

@@ -29,7 +29,7 @@ export function generateGithubVaultNotes(
       resolvedPath(base, "github", "open-issues.md"),
       renderTemplate("obsidian-vault/github/open-issues.md.ejs", {
         ...data,
-      } as unknown as Record<string, unknown>),
+      }),
       opts,
     ),
   );
@@ -39,7 +39,7 @@ export function generateGithubVaultNotes(
       resolvedPath(base, "github", "labels.md"),
       renderTemplate("obsidian-vault/github/labels.md.ejs", {
         ...data,
-      } as unknown as Record<string, unknown>),
+      }),
       opts,
     ),
   );
@@ -51,7 +51,7 @@ export function generateGithubVaultNotes(
           resolvedPath(base, "github", "issues", `${issue.number}.md`),
           renderTemplate("obsidian-vault/github/issues/issue.md.ejs", {
             issue,
-          } as unknown as Record<string, unknown>),
+          }),
           opts,
         ),
       );

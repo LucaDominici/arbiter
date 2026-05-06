@@ -78,7 +78,7 @@ export function generateImpactMap(
         renderTemplate("obsidian-vault/architecture/impact-map.md.ejs", {
           invariantRows,
           moduleRows,
-        } as unknown as Record<string, unknown>),
+        }),
         opts,
       ),
     ],

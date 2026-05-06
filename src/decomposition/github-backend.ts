@@ -128,7 +128,9 @@ export class GitHubBackend implements DecompositionBackend {
       if (err instanceof CliError && !err.notFound && !err.timedOut) {
         return Promise.resolve(null);
       }
-      return Promise.reject(err as Error);
+      return Promise.reject(
+        err instanceof Error ? err : new Error(String(err)),
+      );
     }
   }
 

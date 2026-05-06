@@ -243,8 +243,7 @@ program
           );
           process.exit(1);
         }
-        upgradeOpts.target =
-          opts.target as import("./wizard/types.js").GovernanceLevel;
+        upgradeOpts.target = opts.target;
       }
       if (opts.days !== undefined) upgradeOpts.days = opts.days;
       if (opts.dir !== undefined) upgradeOpts.dir = opts.dir;

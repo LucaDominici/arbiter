@@ -334,5 +334,5 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
     decomposition: { backend: migratedBackend },
     features,
     thresholds,
-  } as unknown as ArbiterConfigV2;
+  };
 }

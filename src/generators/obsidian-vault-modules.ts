@@ -63,7 +63,7 @@ export function generateModuleNotes(
         resolvedPath(base, "architecture", "modules", `${m.slug}.md`),
         renderTemplate("obsidian-vault/architecture/modules/module.md.ejs", {
           module: m,
-        } as unknown as Record<string, unknown>),
+        }),
         opts,
       ),
     );
