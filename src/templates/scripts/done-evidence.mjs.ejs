@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+// <%= projectName %> — done-evidence CLI (INV-38)
+// Captures SHA-256 of load-bearing source files + gate state into
+//   .claude/.last-done-evidence.json
+// Guards against "done" claims when source drifted after gate ran.
+//
+// Usage: node scripts/done-evidence.mjs
+//
+// Workflow:
+//   1. Runs the L2 gate (node scripts/check-all.mjs L2)
+//   2. If green: captures SHA-256 of all files in evidence-files.json
+//      and writes .claude/.last-done-evidence.json
+//   3. If red: prints failures, exits 1
+import { spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  readdirSync,
+  statSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+} from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join, extname, relative } from 'node:path';
+
+const EVIDENCE_PATH = '.claude/.last-done-evidence.json';
+const CONFIG_PATH = 'evidence-files.json';
+const TASK_ID_PATH = '.claude/.task-id';
+
+/** Read evidence-files.json config or fall back to defaults. */
+function loadConfig() {
+  if (existsSync(CONFIG_PATH)) {
+    try {
+      return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+    } catch {
+      process.stderr.write('[done-evidence] evidence-files.json is invalid JSON — using defaults\n');
+    }
+  }
+  return {
+    pin_dirs: ['src'],
+    pin_extensions: ['.ts', '.tsx', '.mjs', '.js'],
+    exclude_dirs: ['node_modules', 'dist', 'build', 'coverage', '.git'],
+  };
+}
+
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.git',
+  'target', 'vendor', '__pycache__', '.venv']);
+
+/** Recursively walk a directory; call fn(absolutePath) for each file. */
+function walk(dir, fn, excludeDirs) {
+  const exclude = new Set([...SKIP_DIRS, ...(excludeDirs ?? [])]);
+  let entries;
+  try { entries = readdirSync(dir); } catch { return; }
+  for (const entry of entries) {
+    if (exclude.has(entry)) continue;
+    const full = join(dir, entry);
+    let stat;
+    try { stat = statSync(full); } catch { continue; }
+    if (stat.isDirectory()) {
+      walk(full, fn, excludeDirs);
+    } else {
+      fn(full);
+    }
+  }
+}
+
+/** SHA-256 of file contents. */
+function sha256File(absPath) {
+  return createHash('sha256').update(readFileSync(absPath)).digest('hex');
+}
+
+// ─── Step 1: Run L2 gate ─────────────────────────────────────────────────────
+
+process.stdout.write('[done-evidence] Running L2 gate...\n');
+const gate = spawnSync('node', ['scripts/check-all.mjs', 'L2'], {
+  stdio: 'inherit',
+  shell: false,
+});
+
+if (gate.status !== 0) {
+  process.stderr.write(
+    '\n[done-evidence] Gate FAILED — fix the issues above before capturing done evidence.\n',
+  );
+  process.exit(1);
+}
+
+// ─── Step 2: Gather pinned files ─────────────────────────────────────────────
+
+const config = loadConfig();
+const pinDirs = Array.isArray(config.pin_dirs) ? config.pin_dirs : ['src'];
+const pinExts = new Set(Array.isArray(config.pin_extensions) ? config.pin_extensions : ['.ts']);
+const excludeDirs = Array.isArray(config.exclude_dirs) ? config.exclude_dirs : [];
+
+const pinnedFiles = [];
+
+for (const dir of pinDirs) {
+  if (!existsSync(dir)) continue;
+  walk(dir, (absPath) => {
+    if (pinExts.has(extname(absPath))) {
+      const relPath = relative(process.cwd(), absPath).replace(/\\/g, '/');
+      pinnedFiles.push({
+        path: relPath,
+        sha256: sha256File(absPath),
+      });
+    }
+  }, excludeDirs);
+}
+
+// ─── Step 3: Read task ID ─────────────────────────────────────────────────────
+
+const taskId = existsSync(TASK_ID_PATH)
+  ? readFileSync(TASK_ID_PATH, 'utf-8').trim()
+  : 'unknown';
+
+// ─── Step 4: Write evidence JSON ──────────────────────────────────────────────
+
+mkdirSync('.claude', { recursive: true });
+
+const evidence = {
+  version: 1,
+  captured_at: new Date().toISOString(),
+  task_id: taskId,
+  all_green: true,
+  gate_level: 'L2',
+  pinned_files: pinnedFiles,
+};
+
+writeFileSync(EVIDENCE_PATH, JSON.stringify(evidence, null, 2) + '\n', 'utf-8');
+
+process.stdout.write(
+  `[done-evidence] Evidence captured.\n` +
+  `  task_id:      ${taskId}\n` +
+  `  pinned_files: ${pinnedFiles.length}\n` +
+  `  written to:   ${EVIDENCE_PATH}\n`,
+);
