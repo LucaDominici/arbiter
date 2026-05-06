@@ -81,6 +81,7 @@ runCheck("test naming", "node", ["scripts/check-test-naming.mjs"]);
 runCheck("hardness inventory", "node", [
   "scripts/check-hardness-inventory.mjs",
 ]);
+runCheck("docs", "node", ["scripts/check-docs.mjs"]);
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {
