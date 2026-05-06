@@ -1,0 +1,50 @@
+// Arbiter hook library — shared utilities for all hooks
+// Project: arbiter
+import { mkdirSync, appendFileSync, readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+
+const PROJECT = "arbiter";
+const LOG_DIR = ".claude/hooks/logs";
+const LOG_FILE = `${LOG_DIR}/hook-events.log`;
+
+mkdirSync(LOG_DIR, { recursive: true });
+
+function logEvent(level, message) {
+  const ts = new Date().toISOString();
+  appendFileSync(LOG_FILE, `[${ts}] [${PROJECT}] [${level}] ${message}\n`);
+}
+
+export const logInfo = (msg) => logEvent("INFO", msg);
+export const logWarn = (msg) => logEvent("WARN", msg);
+export const logError = (msg) => logEvent("ERROR", msg);
+
+/** Returns the git repository root, falling back to process.cwd(). */
+export function getRepoRoot() {
+  const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
+    encoding: "utf-8",
+  });
+  if (result.status === 0 && result.stdout) {
+    return result.stdout.trim();
+  }
+  logWarn("getRepoRoot: git rev-parse failed, falling back to cwd");
+  return process.cwd();
+}
+
+/**
+ * Reads task state files from .claude/ in the given root directory.
+ * Returns defaults ('unknown') for any missing files.
+ */
+export function readTaskState(root) {
+  function read(file) {
+    const p = join(root, ".claude", file);
+    if (!existsSync(p)) return "unknown";
+    return readFileSync(p, "utf-8").trim() || "unknown";
+  }
+  return {
+    taskId: read(".task-id"),
+    phase: read(".task-phase"),
+    plan: read(".task-plan"),
+    tier: read(".task-tier"),
+  };
+}

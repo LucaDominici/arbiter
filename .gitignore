@@ -18,3 +18,4 @@ coverage/
 # Java build artifacts in fixtures
 __tests__/**/.gradle/
 __tests__/**/bin/
+.evidence/
