@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# pre-commit: runs L1 gate before each commit
+# pre-commit: gitleaks secret scan + L1 gate before each commit
 set -e
 
 if [ ! -d "node_modules" ]; then
   echo "Skipping pre-commit: node_modules not installed. Run npm install."
   exit 0
+fi
+
+# Secret scanning on staged files
+if command -v gitleaks &>/dev/null; then
+  gitleaks protect --staged --config .gitleaks.toml \
+    --gitleaks-ignore-path suppressions/.gitleaksignore --verbose \
+    || { echo "gitleaks: secrets detected — commit blocked"; exit 1; }
+else
+  echo "WARNING: gitleaks not installed — skipping staged secret scan (CI enforces it)"
+  echo "         Install: https://github.com/gitleaks/gitleaks#installing"
 fi
 
 # Unset git hook env vars so integration tests can create and operate on
