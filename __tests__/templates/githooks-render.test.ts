@@ -78,6 +78,20 @@ describe("githooks/pre-commit.ejs", () => {
     const out = renderTemplate("githooks/pre-commit.ejs", rustConfig());
     expect(out).toContain("command -v node");
   });
+
+  it("both stacks: include phase guard blocking preflight and plan", () => {
+    for (const cfg of [tsConfig(), rustConfig()]) {
+      const out = renderTemplate("githooks/pre-commit.ejs", cfg);
+      expect(out).toContain("preflight|plan");
+    }
+  });
+
+  it("both stacks: phase guard instructs arbiter task advance", () => {
+    for (const cfg of [tsConfig(), rustConfig()]) {
+      const out = renderTemplate("githooks/pre-commit.ejs", cfg);
+      expect(out).toContain("arbiter task advance --to implementation");
+    }
+  });
 });
 
 // ─── githooks/pre-push.ejs ───────────────────────────────────────────────────

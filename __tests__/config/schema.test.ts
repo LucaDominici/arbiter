@@ -414,6 +414,53 @@ describe("migrateV1ToV2 — already v2", () => {
   });
 });
 
+describe("useGitHub soft-alias migration", () => {
+  const baseV2 = {
+    version: "0.2",
+    tools: ["claude"],
+    governanceLevel: "L2",
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: true,
+      securityScanning: true,
+      evidenceHarness: false,
+      debtGates: true,
+      suppressions: true,
+    },
+    thresholds: DEFAULT_THRESHOLDS.L2,
+  };
+
+  it("derives backend=github from useGitHub:true when decomposition absent", () => {
+    const result = migrateV1ToV2({ ...baseV2, useGitHub: true });
+    expect(result.decomposition?.backend).toBe("github");
+  });
+
+  it("derives backend=markdown from useGitHub:false when decomposition absent", () => {
+    const result = migrateV1ToV2({ ...baseV2, useGitHub: false });
+    expect(result.decomposition?.backend).toBe("markdown");
+  });
+
+  it("does not override explicit decomposition.backend", () => {
+    const result = migrateV1ToV2({
+      ...baseV2,
+      useGitHub: true,
+      decomposition: { backend: "markdown" },
+    });
+    expect(result.decomposition?.backend).toBe("markdown");
+  });
+
+  it("v1 migration derives backend from useGitHub silently", () => {
+    const v1 = {
+      governanceLevel: "L2",
+      useGitHub: true,
+      tools: ["claude"],
+    };
+    const result = migrateV1ToV2(v1);
+    expect(result.decomposition?.backend).toBe("github");
+  });
+});
+
 describe("DEFAULT_THRESHOLDS", () => {
   it("L2 has lineCoverage=80, branchCoverage=70, mutationScore=80", () => {
     expect(DEFAULT_THRESHOLDS.L2.lineCoverage).toBe(80);

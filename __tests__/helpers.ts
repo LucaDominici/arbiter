@@ -125,6 +125,7 @@ export function makeConfig(
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
     basePackage: undefined,
     contractType: "none",
+    lanes: [],
     ...overrides,
   };
 }

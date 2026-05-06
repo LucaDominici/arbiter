@@ -98,10 +98,10 @@ describe("claude commands — governance level L2", () => {
     expect(content).toMatch(/\bCleanup\b/);
   });
 
-  it("includes state file writes", () => {
+  it("includes state file writes and arbiter task advance", () => {
     const content = renderTaskForLevel("L2");
     expect(content).toMatch(/\.task-id/);
-    expect(content).toMatch(/\.task-phase/);
+    expect(content).toContain("arbiter task advance");
   });
 
   it("does NOT contain verification criteria (L3 only)", () => {

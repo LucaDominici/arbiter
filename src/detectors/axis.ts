@@ -2,11 +2,13 @@ import type {
   Archetype,
   ArchitectureStyle,
   ContractType,
+  Lane,
 } from "../wizard/types.js";
 import type { ArbiterConfig } from "../utils/config.js";
 import { detectArchetypeHint } from "./framework.js";
 import { detectLanguage } from "./language.js";
 import { defaultContractType } from "../wizard/archetype-defaults.js";
+import { detectLanes } from "./lanes.js";
 
 export const ARCHETYPE_DB_SET: ReadonlySet<Archetype> = new Set<Archetype>([
   "backend-web-db",
@@ -20,6 +22,11 @@ export interface AxisFields {
   hasDatabase: boolean;
   hasPublicApi: boolean;
   contractType: ContractType;
+  lanes: Lane[];
+}
+
+function resolveLanes(stored: ArbiterConfig | null, targetDir: string): Lane[] {
+  return stored?.lanes ?? detectLanes(targetDir).lanes;
 }
 
 export function resolveAxisFields(
@@ -33,6 +40,7 @@ export function resolveAxisFields(
     detectArchetypeHint(targetDir, language, framework) ??
     "library";
   const hasPublicApi = stored?.hasPublicApi ?? archetype === "backend-web-db";
+  const lanes = resolveLanes(stored, targetDir);
   return {
     archetype,
     architectureStyle: stored?.architectureStyle ?? "none",
@@ -41,5 +49,6 @@ export function resolveAxisFields(
     hasPublicApi,
     contractType:
       stored?.contractType ?? defaultContractType(archetype, hasPublicApi),
+    lanes,
   };
 }

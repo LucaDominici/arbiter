@@ -16,6 +16,16 @@ import {
   runPluginRemove,
   runPluginList,
 } from "./commands/plugin.js";
+import { runTaskAdvance } from "./commands/task.js";
+import type { TaskPhase } from "./commands/task.js";
+import {
+  runWorkList,
+  runWorkCreate,
+  runWorkShow,
+  runWorkClose,
+  runWorkAdvance,
+} from "./commands/work.js";
+import type { WorkUnitPhase, WorkUnitStatus } from "./decomposition/types.js";
 
 const program = new Command();
 
@@ -55,6 +65,10 @@ program
     "Allow generation of L3 features backed by beta-maturity tools (audit trail written to arbiter.json)",
     false,
   )
+  .option(
+    "--backend <backend>",
+    "Decomposition backend: github or markdown (overrides gh auth detection)",
+  )
   .action(
     async (opts: {
       yes: boolean;
@@ -66,7 +80,12 @@ program
       brownfield: boolean;
       verify: boolean;
       acceptBetaTools: boolean;
+      backend?: string;
     }) => {
+      const backend =
+        opts.backend === "github" || opts.backend === "markdown"
+          ? opts.backend
+          : undefined;
       await runInit({
         yes: opts.yes,
         tools: opts.tools,
@@ -77,6 +96,7 @@ program
         brownfield: opts.brownfield,
         noVerify: !opts.verify,
         acceptBetaTools: opts.acceptBetaTools,
+        ...(backend !== undefined ? { backend } : {}),
       });
     },
   );
@@ -271,6 +291,25 @@ program
     },
   );
 
+const task = program.command("task").description("Manage task lifecycle state");
+
+task
+  .command("advance")
+  .description("Advance (or reverse) the task lifecycle phase")
+  .requiredOption(
+    "--to <phase>",
+    "Target phase (preflight|plan|implementation|verification|complete)",
+  )
+  .option("--reverse", "Allow backward phase transitions", false)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { to: string; reverse: boolean; dir?: string }) => {
+    runTaskAdvance({
+      to: opts.to as TaskPhase,
+      reverse: opts.reverse,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
+
 const plugin = program.command("plugin").description("Manage arbiter plugins");
 
 plugin
@@ -303,6 +342,90 @@ plugin
   .option("--dir <dir>", "Target directory (default: current directory)")
   .action(async (opts: { dir?: string }) => {
     await runPluginList({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
+
+const work = program
+  .command("work")
+  .description("Manage work units via decomposition backend");
+
+work
+  .command("list")
+  .description("List work units")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .option(
+    "--status <status>",
+    "Filter by status: open, in_progress, blocked, done",
+  )
+  .action(async (opts: { dir?: string; status?: string }) => {
+    await runWorkList({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      ...(opts.status ? { status: opts.status as WorkUnitStatus } : {}),
+    });
+  });
+
+work
+  .command("create")
+  .description("Create a new work unit")
+  .requiredOption("--title <title>", "Work unit title")
+  .option("--body <body>", "Work unit body/description")
+  .option("--label <labels>", "Comma-separated labels")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(
+    async (opts: {
+      title: string;
+      body?: string;
+      label?: string;
+      dir?: string;
+    }) => {
+      await runWorkCreate({
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        title: opts.title,
+        ...(opts.body ? { body: opts.body } : {}),
+        ...(opts.label
+          ? { labels: opts.label.split(",").map((l) => l.trim()) }
+          : {}),
+      });
+    },
+  );
+
+work
+  .command("show <id>")
+  .description("Show details of a work unit")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(async (id: string, opts: { dir?: string }) => {
+    await runWorkShow({
+      id,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
+
+work
+  .command("close <id>")
+  .description("Mark a work unit as done")
+  .option("--reason <reason>", "Reason for closing")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(async (id: string, opts: { reason?: string; dir?: string }) => {
+    await runWorkClose({
+      id,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      ...(opts.reason !== undefined ? { reason: opts.reason } : {}),
+    });
+  });
+
+work
+  .command("advance <id>")
+  .description("Advance a work unit to a new lifecycle phase")
+  .requiredOption(
+    "--phase <phase>",
+    "Target phase (preflight|plan|implementation|verification|complete)",
+  )
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action(async (id: string, opts: { phase: string; dir?: string }) => {
+    await runWorkAdvance({
+      id,
+      phase: opts.phase as WorkUnitPhase,
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
     });
   });

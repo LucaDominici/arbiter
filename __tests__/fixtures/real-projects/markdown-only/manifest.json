@@ -1,0 +1,8 @@
+{
+  "language": "typescript",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "decompositionBackend": "markdown",
+  "note": "Markdown decomposition backend — no gh required; .arbiter/work/ seeded with a sample work unit"
+}

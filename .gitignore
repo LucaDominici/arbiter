@@ -14,3 +14,7 @@ coverage/
 # Arbiter local runtime state (logs); manifest is committed
 .arbiter/
 !.arbiter/hooks-manifest.json
+
+# Java build artifacts in fixtures
+__tests__/**/.gradle/
+__tests__/**/bin/
