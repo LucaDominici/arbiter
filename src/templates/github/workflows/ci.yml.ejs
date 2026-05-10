@@ -252,6 +252,7 @@ jobs:
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
       - run: ./gradlew jacocoTestCoverageVerification
       - run: ./gradlew pmdMain
+      - run: ./gradlew spotbugsMain
       - name: Copy JaCoCo reports to coverage/
         if: always()
         run: |
@@ -260,6 +261,7 @@ jobs:
           cp build/coverage/coverage.xml coverage/coverage.xml 2>/dev/null || true
 <% } else { %>      - run: mvn verify -Pjacoco
       - run: mvn pmd:check
+      - run: mvn spotbugs:check
       - name: Copy JaCoCo reports to coverage/
         if: always()
         run: |

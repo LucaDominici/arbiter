@@ -52,6 +52,34 @@ describe("real-project fixture regressions", () => {
     expect(checkstyle).not.toContain("<!DOCTYPE");
   });
 
+  it("java-backend-web-db-gradle has PMD and SpotBugs configs wired (#404)", () => {
+    const buildGradle = readFixture(
+      "__tests__/fixtures/real-projects/java-backend-web-db-gradle/build.gradle",
+    );
+    const jacocoGradle = readFixture(
+      "__tests__/fixtures/real-projects/java-backend-web-db-gradle/gradle/jacoco.gradle",
+    );
+
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/java-backend-web-db-gradle/config/pmd/ruleset.xml",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/java-backend-web-db-gradle/config/spotbugs/spotbugs-exclude.xml",
+        ),
+      ),
+    ).toBe(true);
+    expect(buildGradle).toContain("pmd");
+    expect(buildGradle).toContain("com.github.spotbugs");
+    expect(jacocoGradle).toContain("jacocoTestCoverageVerification");
+    expect(jacocoGradle).toContain("check.dependsOn");
+  });
+
   it("java-library-gradle keeps spotless and generated test deps wired", () => {
     const buildGradle = readFixture(
       "__tests__/fixtures/real-projects/java-library-gradle/build.gradle",

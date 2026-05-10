@@ -49,4 +49,27 @@ describe("ci.yml.ejs rendering", () => {
     const ciRequired = rendered.split("ci-required:")[1];
     expect(ciRequired).toContain("debt-ratchet");
   });
+
+  // Java debt-gates job — SpotBugs step (#404)
+  it("Java Gradle debt-gates job includes spotbugsMain step", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+      governanceLevel: "L2",
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(rendered).toContain("spotbugsMain");
+  });
+
+  it("Java Maven debt-gates job includes spotbugs:check step", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "maven",
+      enableDebtGates: true,
+      governanceLevel: "L2",
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(rendered).toContain("spotbugs:check");
+  });
 });

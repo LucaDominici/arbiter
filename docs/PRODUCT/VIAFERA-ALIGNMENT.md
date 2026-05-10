@@ -74,9 +74,9 @@ Viafera implements **31 enforcement mechanisms** across 8 layers. Almost all are
 
 **Gate:** HARD (maxWarnings=0).
 
-**Arbiter today:** Does not generate Checkstyle config for Java.
+**Arbiter today (post-#404):** Generates `config/checkstyle/checkstyle.xml` with 16 modules covering complexity, length, naming, imports, and whitespace. Includes `SuppressWarningsHolder` (TreeWalker) + `SuppressWarningsFilter` (Checker) pair to honour `@SuppressWarnings` annotations — matching Viafera's suppression mechanism.
 
-**Gap:** CRITICAL for Java projects.
+**Gap:** CLOSED (#404, 2026-05-10). Remaining delta: Viafera relies on Spotless + google-java-format instead of Checkstyle style rules; Arbiter generates broader Checkstyle coverage which is appropriate for projects not using google-java-format.
 
 ### 2.2 PMD
 
@@ -91,9 +91,9 @@ Viafera implements **31 enforcement mechanisms** across 8 layers. Almost all are
 
 **Gate:** HARD (ignoreFailures=false).
 
-**Arbiter today:** Generates a generic `pmd-ruleset.xml` without precise rules.
+**Arbiter today (post-#404):** Generates `config/pmd/ruleset.xml` with all 7 categories (DESIGN, ERROR-PRONE, MULTITHREADING, SECURITY, BEST PRACTICES, PERFORMANCE, CODE STYLE). Code-style category added: `UnnecessaryFullyQualifiedName`, `UnnecessaryReturn`, `UselessParentheses`, `UselessQualifiedThis`. Thresholds and exclusions match Viafera reference commit `9c67772d`.
 
-**Gap:** CRITICAL — generic vs precise ruleset.
+**Gap:** CLOSED (#404, 2026-05-10). Parity achieved at rule-set level.
 
 ### 2.3 SpotBugs
 
@@ -105,9 +105,9 @@ Viafera implements **31 enforcement mechanisms** across 8 layers. Almost all are
 
 **Gate:** HARD (ignoreFailures=false).
 
-**Arbiter today:** Not generated.
+**Arbiter today (post-#404):** Generates `config/spotbugs/spotbugs-exclude.xml` with 8 structured `<Match>` sections: DTO/entity exposure (EI_EXPOSE_REP/2), null-check false positives (NP_NONNULL_FIELD, NP_NONNULL_PARAM_VIOLATION, NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE, RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE), Optional-return false positives (NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE), constructor-throw suppressions (CT_CONSTRUCTOR_THROW), unread config fields (URF_UNREAD_FIELD), test fixture fields (URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD), and constant exposure (MS_SHOULD_BE_FINAL). Security patterns (SQL injection, XSS) are never suppressed. SpotBugs step wired in CI debt-gates job and in `check-all.mjs` at L2 with `{ soft: graceActive }`.
 
-**Gap:** MAJOR for Java projects.
+**Gap:** CLOSED (#404, 2026-05-10). Parity achieved on structure and policies; Arbiter uses generic class-pattern targeting (Viafera uses some project-specific names).
 
 ### 2.4 Spotless (Formatting)
 
@@ -133,9 +133,9 @@ Viafera implements **31 enforcement mechanisms** across 8 layers. Almost all are
 
 **Gate:** HARD (build fails below threshold).
 
-**Arbiter today:** Generates threshold in gate script but NOT JaCoCo plugin in build.gradle, NOT verification task.
+**Arbiter today (post-#404):** Generates `gradle/jacoco.gradle` with `jacocoTestCoverageVerification` task wired to `check`. Coverage threshold computed by `computeThresholds()` per governance level (L1=70%, L2=80%, L3=90%). Gate script invokes `jacocoTestCoverageVerification` with `{ soft: graceActive }` at L2. Fixture updated to include verification task.
 
-**Gap:** CRITICAL — threshold without tool integration is incomplete.
+**Gap:** CLOSED (#404, 2026-05-10). Note: Viafera has hardcoded 90%; Arbiter parametrises by level — L3 produces 90% through existing `computeThresholds()` logic, which is intentionally superior.
 
 ### 3.2 Mutation Testing (PIT/Pitest)
 
@@ -148,9 +148,9 @@ Viafera implements **31 enforcement mechanisms** across 8 layers. Almost all are
 
 **Gate:** HARD (build fails below threshold). Runs on L3 deep/nightly.
 
-**Arbiter today:** Generates `pitest-setup.md` — a GUIDE, not a gate.
+**Arbiter today (post-M23):** Generates `pitest.gradle.ejs` with mutation threshold configuration. Pitest is intentionally **nightly-only** (M23 decision): it does not appear in `check-all.mjs` at any gate level. The nightly CI job invokes pitest independently. This matches Viafera's behaviour where pitest runs as a deep nightly, not as a pre-commit gate.
 
-**Gap:** CRITICAL — advisory document vs hard gate. Must generate pitest plugin in build.gradle with thresholds.
+**Gap:** CLOSED (M23 + architecture decision ADR-037). Pitest-in-gate was planned but reverted after M23 test `check-all.mjs does NOT invoke pitest` codified the nightly-only decision. No action required.
 
 ---
 
