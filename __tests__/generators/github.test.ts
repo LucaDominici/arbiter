@@ -298,3 +298,66 @@ describe("docs-check governance gating", () => {
     expect(content).toContain("if: github.event_name == 'pull_request'");
   });
 });
+
+describe("security-early-fail CI job", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-github-security-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("security-early-fail job present when enableSecurityScanning: true", () => {
+    generateGithub(makeConfig(dir, { enableSecurityScanning: true }));
+    const content = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("security-early-fail:");
+  });
+
+  it("security-early-fail contains gitleaks detect step", () => {
+    generateGithub(makeConfig(dir, { enableSecurityScanning: true }));
+    const content = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("gitleaks detect");
+  });
+
+  it("security-early-fail contains PII scan step", () => {
+    generateGithub(makeConfig(dir, { enableSecurityScanning: true }));
+    const content = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("pii-scan.mjs");
+  });
+
+  it("security-early-fail absent when enableSecurityScanning: false", () => {
+    generateGithub(makeConfig(dir, { enableSecurityScanning: false }));
+    const content = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    expect(content).not.toContain("security-early-fail:");
+  });
+
+  it("ci-required needs security-early-fail when enableSecurityScanning: true", () => {
+    generateGithub(makeConfig(dir, { enableSecurityScanning: true }));
+    const content = readFileSync(
+      join(dir, ".github", "workflows", "ci.yml"),
+      "utf-8",
+    );
+    const lines = content.split("\n");
+    const ciRequiredIdx = lines.findIndex((l) => l.includes("ci-required:"));
+    const needsLine = lines
+      .slice(ciRequiredIdx)
+      .find((l) => l.includes("needs:"));
+    expect(needsLine).toBeDefined();
+    expect(needsLine).toContain("security-early-fail");
+  });
+});
