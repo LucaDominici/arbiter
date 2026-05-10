@@ -181,7 +181,7 @@ describe("generateArchUnit", () => {
 });
 
 describe("generateArchUnit — hexagonal suite (M22)", () => {
-  it("emits 4 arch test files + Gradle dep fragment for hexagonal+basePackage+gradle", () => {
+  it("emits 7 arch test files + Gradle dep fragment for hexagonal+basePackage+gradle", () => {
     const config = makeConfig(dir, {
       language: "java",
       buildTool: "gradle",
@@ -464,5 +464,75 @@ describe("generateArchUnit — hexagonal suite (M22)", () => {
     const paths = result.files.map((f) => f.path);
     expect(paths.some((p) => p.endsWith("DomainPurityTest.java"))).toBe(false);
     expect(paths.some((p) => p.endsWith("ArchitectureTest.java"))).toBe(true);
+  });
+
+  it("emits NamingConventionsTest.java, AntiCyclicTest.java, NoH2ArchTest.java for hexagonal+basePackage", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("NamingConventionsTest.java"))).toBe(
+      true,
+    );
+    expect(paths.some((p) => p.endsWith("AntiCyclicTest.java"))).toBe(true);
+    expect(paths.some((p) => p.endsWith("NoH2ArchTest.java"))).toBe(true);
+  });
+
+  it("NamingConventionsTest.java contains naming convention rules", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("NamingConventionsTest.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("services_should_end_with_service");
+    expect(content).toContain("repositories_should_end_with_repository");
+    expect(content).toContain("controllers_should_end_with_controller");
+    expect(content).toContain("ports_should_end_with_port");
+    expect(content).toContain("@ArchTest");
+    expect(content).toContain("com.example.myapp");
+  });
+
+  it("AntiCyclicTest.java contains SlicesRuleDefinition cycle check", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) =>
+      f.path.endsWith("AntiCyclicTest.java"),
+    );
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("SlicesRuleDefinition");
+    expect(content).toContain("beFreeOfCycles");
+    expect(content).toContain("no_cycles_between_slices");
+    expect(content).toContain("com.example.myapp");
+  });
+
+  it("NoH2ArchTest.java contains H2 import prohibition", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "hexagonal",
+      basePackage: "com.example.myapp",
+    });
+    const result = generateArchUnit(config);
+    const file = result.files.find((f) => f.path.endsWith("NoH2ArchTest.java"));
+    const content = readFileSync(file!.path, "utf-8");
+    expect(content).toContain("no_h2_imports_in_production_code");
+    expect(content).toContain("org.h2..");
+    expect(content).toContain("@ArchTest");
+    expect(content).toContain("com.example.myapp");
   });
 });

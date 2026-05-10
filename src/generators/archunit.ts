@@ -21,6 +21,9 @@ function emitHexagonalSuite(
     "DependencyFlowTest.java",
     "PortsIndependenceTest.java",
     "TestCoverageArchTest.java",
+    "NamingConventionsTest.java",
+    "AntiCyclicTest.java",
+    "NoH2ArchTest.java",
   ] as const) {
     files.push(
       writeFile(

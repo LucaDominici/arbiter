@@ -5,6 +5,26 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#398): ArchUnit hexagonal suite parity — 3 new templates (2026-05-10)
+
+Adds `NamingConventionsTest.java.ejs`, `AntiCyclicTest.java.ejs`, and
+`NoH2ArchTest.java.ejs` to `src/templates/archunit/`, completing viafera
+parity for the hexagonal enforcement suite. `emitHexagonalSuite()` in
+`src/generators/archunit.ts` now emits 7 test files (up from 4).
+
+- **NamingConventionsTest**: enforces `*Service`, `*Repository`, `*Controller`,
+  `*Port` suffixes for the four hexagonal stereotypes.
+- **AntiCyclicTest**: uses `SlicesRuleDefinition.slices().matching(basePackage + ".(*)..").should().beFreeOfCycles()`.
+- **NoH2ArchTest**: bans `org.h2..` imports in production code; H2 is
+  test-only.
+
+The java fixture manifest gains `architectureStyle: "hexagonal"` and
+`basePackage: "com.example"` so integration tests exercise the full suite.
+CANON-07 (shell-script execution in tests) does not apply — templates emit
+Java test files, not shell scripts. Render-correctness assertions suffice.
+
+---
+
 ## chore: typescript-eslint 8.58.2 → 8.59.2 (2026-05-10)
 
 Stricter rules in 8.59.2 flagged three patterns across the codebase:
