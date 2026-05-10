@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderTemplate } from "../../src/utils/render.js";
+import { makeConfig } from "../helpers.js";
 
 /**
  * CANON-04 compliance: every .ejs template in src/templates/contract-testing/
@@ -276,6 +277,72 @@ describe("contract-testing render: grpc", () => {
       { ...baseData, contractType: "grpc" },
     );
     expect(content).toContain("buf");
+  });
+});
+
+// ─── F5 (#364): Pact broker env-gate + argv split (INV-42) ──────────────────
+
+describe("contract-testing render: F5 Pact broker glue (INV-42)", () => {
+  it("pact-deps.gradle.ejs: contains PACT_BROKER_BASE_URL system property", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact-deps.gradle.ejs",
+      { ...baseData, language: "java", buildTool: "gradle" },
+    );
+    expect(content).toContain("PACT_BROKER_BASE_URL");
+  });
+
+  it("pact-deps.gradle.ejs: contains pact.broker.url system property config", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact-deps.gradle.ejs",
+      { ...baseData, language: "java", buildTool: "gradle" },
+    );
+    expect(content).toContain("pact.broker.url");
+  });
+
+  it("check-all.mjs.ejs Java Gradle rest-owned: argv has 'pactPublish' and 'pactVerify' as separate elements", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      governanceLevel: "L2",
+      contractType: "rest-owned",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("'pactPublish'");
+    expect(content).toContain("'pactVerify'");
+    expect(content).not.toContain("'pactPublish pactVerify'");
+  });
+
+  it("check-all.mjs.ejs TypeScript rest-owned: has PACT_BROKER_BASE_URL env-gate", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      buildTool: "npm",
+      governanceLevel: "L2",
+      contractType: "rest-owned",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("PACT_BROKER_BASE_URL");
+  });
+
+  it(".env.pact.ejs: renders PACT_BROKER_BASE_URL and PACT_BROKER_TOKEN placeholders", () => {
+    const content = renderTemplate("contract-testing/env/.env.pact.ejs", {
+      ...baseData,
+    });
+    expect(content).toContain("PACT_BROKER_BASE_URL=");
+    expect(content).toContain("PACT_BROKER_TOKEN=");
+  });
+
+  it("ci.yml.ejs TS rest-owned: Pact step has PACT_BROKER_BASE_URL conditional", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      buildTool: "npm",
+      governanceLevel: "L2",
+      contractType: "rest-owned",
+      useGitHub: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(content).toContain("PACT_BROKER_BASE_URL");
   });
 });
 

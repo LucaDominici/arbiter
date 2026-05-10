@@ -152,3 +152,19 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Decision:** Rename the file to `check-no-pii.mjs.ejs`. No content changes — the file contains no EJS tags and renders identically. Update the generator reference in `security.ts` and the `.arbiter/hooks-manifest.json` entry accordingly. Add a CANON-04 render test.
 
 **Consequences:** The `.mjs.ejs` suffix makes the file's role explicit. The hardness-inventory `spawnable: true` classification is retained because the file remains pure JavaScript with no EJS syntax, so the empirical exit-code test continues to pass by spawning the file directly. Codex parity check strips the `.ejs` suffix when verifying the codex config template, so no change to `codex/config.toml.ejs` is needed.
+
+---
+
+## ADR-034: INV-41 and INV-42 — Schema Registry testCompatibility and Pact broker env-gate
+
+**Date:** 2026-05-11
+**Status:** Accepted
+**Reference:** Issues #362 (#344 F3), #364 (#344 F5)
+
+**Context:** Audit finding F3 revealed that `src/templates/contract-testing/message-queue/` performed reachability checks (HTTP GET /subjects) rather than actual schema compatibility verification. Finding F5 found that `check-all.mjs.ejs` packed `'pactPublish pactVerify'` as a single spawnSync argv element (shell:false) causing silent failures, and emitted no `PACT_BROKER_BASE_URL` / `PACT_BROKER_TOKEN` forwarding.
+
+**Decision (INV-41):** All 5 language message-queue templates must call `testCompatibility()` (or language-equivalent REST POST to `/compatibility/subjects/{s}/versions/latest`) and assert BACKWARD or FULL compatibility level. Reachability-only checks do not satisfy the invariant.
+
+**Decision (INV-42):** All Pact broker runCheck invocations in `check-all.mjs.ejs` and CI workflow steps must be wrapped in a `PACT_BROKER_BASE_URL` environment check. When unset, the gate emits a visible SKIP log and does not error. When set, `PACT_BROKER_TOKEN` is forwarded as a system property or env var. No hardcoded broker URL is permitted.
+
+**Consequences:** Message-queue contract tests now provide genuine schema evolution safety. Pact broker steps no longer silently fail against a missing broker. The `.env.pact` scaffold (committed with empty values) and `.gitignore` pattern ensure tokens are never committed to source control.

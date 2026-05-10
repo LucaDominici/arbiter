@@ -615,4 +615,21 @@ export const INVARIANT_CATALOG: Invariant[] = [
     enforcement:
       "__tests__/hooks/empirical/hook-fires.test.ts (22 tests covering all 14 hook templates)",
   },
+
+  {
+    id: "INV-42",
+    tier: "operational",
+    title:
+      "Pact broker glue must be env-gated; no silent runs against default URL",
+    description:
+      "Generated Pact contract gates in check-all.mjs and CI workflows must be wrapped in a " +
+      "PACT_BROKER_BASE_URL environment check. When the variable is unset the step skips with a " +
+      "visible log line. When set, PACT_BROKER_TOKEN is forwarded to the Gradle/Maven/npx process " +
+      "as a system property or env var. No hardcoded broker URL is permitted.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/scripts/check-all.mjs.ejs (env-gate block around Pact runCheck calls) + " +
+      "src/templates/github/workflows/ci.yml.ejs (if: vars.PACT_BROKER_BASE_URL != '' + env: block) + " +
+      "src/templates/contract-testing/rest-owned/pact-deps.gradle.ejs (conditional system props)",
+  },
 ];

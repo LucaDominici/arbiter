@@ -239,23 +239,47 @@ if (level === 'L2') {
   // ─── L2: Contract testing gate (INV-35) ──────────────────────────────────────
 <% if (language === 'typescript') { %>
 <% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
-  runCheck('contract tests (Pact)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+  if (!process.env.PACT_BROKER_BASE_URL) {
+    console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');
+  } else {
+    runCheck('contract tests (Pact)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+  }
 <% } else if (contractType === 'graphql') { %>
   runCheck('contract tests (GraphQL schema)', 'npx', ['graphql-inspector', 'diff', 'schema.graphql'], { soft: graceActive });
 <% } else if (contractType === 'grpc') { %>
   runCheck('contract tests (gRPC)', 'npx', ['buf', 'breaking', '--against', '.git#branch=main'], { soft: graceActive });
 <% } else if (contractType === 'message-queue') { %>
-  runCheck('contract tests (Pact messaging)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+  if (!process.env.PACT_BROKER_BASE_URL) {
+    console.log('[CHECK] contract tests (Pact messaging) ... SKIP — PACT_BROKER_BASE_URL unset');
+  } else {
+    runCheck('contract tests (Pact messaging)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+  }
 <% } %>
 <% } else if (language === 'java') { %>
 <% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
-  runCheck('contract tests (Pact)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "pactPublish pactVerify" : "pact:publish pact:verify" %>'], { soft: graceActive });
+  if (!process.env.PACT_BROKER_BASE_URL) {
+    console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');
+  } else {
+<% if (buildTool === 'gradle') { %>
+    runCheck('contract tests (Pact)', './gradlew', ['pactPublish', 'pactVerify'], { soft: graceActive });
+<% } else { %>
+    runCheck('contract tests (Pact)', 'mvn', ['pact:publish', 'pact:verify'], { soft: graceActive });
+<% } %>
+  }
 <% } else if (contractType === 'graphql') { %>
   runCheck('contract tests (GraphQL)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.graphql.*" : "test -Dtest=*GraphQL*" %>'], { soft: graceActive });
 <% } else if (contractType === 'grpc') { %>
   runCheck('contract tests (gRPC)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.grpc.*" : "test -Dtest=*Grpc*" %>'], { soft: graceActive });
 <% } else if (contractType === 'message-queue') { %>
-  runCheck('contract tests (Pact messaging)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "pactPublish pactVerify" : "pact:publish pact:verify" %>'], { soft: graceActive });
+  if (!process.env.PACT_BROKER_BASE_URL) {
+    console.log('[CHECK] contract tests (Pact messaging) ... SKIP — PACT_BROKER_BASE_URL unset');
+  } else {
+<% if (buildTool === 'gradle') { %>
+    runCheck('contract tests (Pact messaging)', './gradlew', ['pactPublish', 'pactVerify'], { soft: graceActive });
+<% } else { %>
+    runCheck('contract tests (Pact messaging)', 'mvn', ['pact:publish', 'pact:verify'], { soft: graceActive });
+<% } %>
+  }
 <% } %>
 <% } else if (language === 'rust') { %>
   runCheck('contract tests', 'cargo', ['test', '--test', '*contract*'], { soft: graceActive });
