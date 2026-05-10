@@ -81,10 +81,10 @@ describe("tool output: codex", () => {
     expect(readme).toContain("PLAN.json");
   });
 
-  it("result lists exactly 5 files all with created action", () => {
+  it("result lists exactly 7 files all with created action", () => {
     const config = codexConfig();
     const result = generateCodex(config);
-    expect(result.files).toHaveLength(5);
+    expect(result.files).toHaveLength(7);
     for (const f of result.files) {
       expect(f.action).toBe("created");
     }

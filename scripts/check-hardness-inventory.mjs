@@ -4,6 +4,7 @@
 // Checks:
 //   1. Drift: every hook file in hooks-dir has a manifest entry; every entry points to existing file
 //   2. HARD+spawnable hooks: spawn with fixture, assert exit code matches manifest
+//   3. Codex parity: every entry with tools["codex"] is wired in the Codex config template
 import { spawnSync } from "node:child_process";
 import {
   readFileSync,
@@ -24,9 +25,12 @@ const REPO_ROOT = resolve(__dirname, "..");
 const args = process.argv.slice(2);
 let manifestPath = join(REPO_ROOT, ".arbiter/hooks-manifest.json");
 let hooksDir = join(REPO_ROOT, "src/templates/claude/hooks");
+let codexTemplatePath = join(REPO_ROOT, "src/templates/codex/config.toml.ejs");
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--manifest" && args[i + 1]) manifestPath = args[++i];
   if (args[i] === "--hooks-dir" && args[i + 1]) hooksDir = args[++i];
+  if (args[i] === "--codex-template" && args[i + 1])
+    codexTemplatePath = args[++i];
 }
 
 let failed = 0;
@@ -124,6 +128,35 @@ for (const entry of hardSpawnable) {
   }
 }
 
+// ─── 3. Codex parity check ────────────────────────────────────────────────────
+
+const codexEntries = manifest.hooks.filter(
+  (h) => Array.isArray(h.tools) && h.tools.includes("codex"),
+);
+
+if (codexEntries.length > 0) {
+  if (!existsSync(codexTemplatePath)) {
+    for (const entry of codexEntries) {
+      fail(
+        `manifest entry '${entry.file}' declares tools:["codex"] but Codex config template not found at ${codexTemplatePath}`,
+      );
+    }
+  } else {
+    const codexTemplate = readFileSync(codexTemplatePath, "utf-8");
+    for (const entry of codexEntries) {
+      // Strip .ejs suffix from static hooks to get the actual hook filename
+      const hookFile = entry.file.replace(/\.ejs$/, "");
+      if (codexTemplate.includes(hookFile)) {
+        pass(`Codex config template wires adapter for: ${hookFile}`);
+      } else {
+        fail(
+          `manifest entry '${entry.file}' declares tools:["codex"] but '${hookFile}' is missing from Codex config template`,
+        );
+      }
+    }
+  }
+}
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 if (failed > 0) {
@@ -133,6 +166,6 @@ if (failed > 0) {
   process.exit(1);
 } else {
   process.stdout.write(
-    `\n=== HARDNESS INVENTORY PASSED (${hookFiles.length} hooks, ${hardSpawnable.length} HARD empirically verified) ===\n`,
+    `\n=== HARDNESS INVENTORY PASSED (${hookFiles.length} hooks, ${hardSpawnable.length} HARD empirically verified, ${codexEntries.length} Codex parity verified) ===\n`,
   );
 }
