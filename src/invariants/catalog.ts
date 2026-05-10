@@ -617,6 +617,24 @@ export const INVARIANT_CATALOG: Invariant[] = [
   },
 
   {
+    id: "INV-41",
+    tier: "operational",
+    title:
+      "Message-queue contract tests must call Schema Registry testCompatibility",
+    description:
+      "Schema Registry contract tests must invoke testCompatibility() against the registered schema, " +
+      "not merely check reachability (HTTP-200 on /subjects). The compatibility level must be BACKWARD " +
+      "or FULL. A test that only GETs /subjects is not a contract test — it is a health check.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/contract-testing/message-queue/schema-registry-check.ts.ejs + " +
+      "src/templates/contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs + " +
+      "src/templates/contract-testing/message-queue/schema_registry_test.go.ejs + " +
+      "src/templates/contract-testing/message-queue/test_schema_registry.py.ejs + " +
+      "src/templates/contract-testing/message-queue/schema_registry_test.rs.ejs",
+  },
+
+  {
     id: "INV-42",
     tier: "operational",
     title:

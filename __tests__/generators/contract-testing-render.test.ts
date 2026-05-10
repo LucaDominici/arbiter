@@ -349,45 +349,72 @@ describe("contract-testing render: F5 Pact broker glue (INV-42)", () => {
 // ─── message-queue templates (5 templates) ───────────────────────────────────
 
 describe("contract-testing render: message-queue", () => {
-  it("schema-registry-check.ts.ejs: contains 'SchemaRegistry' or 'schema-registry'", () => {
+  it("schema-registry-check.ts.ejs: calls testCompatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/schema-registry-check.ts.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(
-      content.includes("schema-registry") || content.includes("SchemaRegistry"),
-    ).toBe(true);
+    expect(content).toContain("testCompatibility");
   });
 
-  it("SchemaRegistryCheckIT.java.ejs: contains 'SchemaRegistry'", () => {
+  it("schema-registry-check.ts.ejs: asserts BACKWARD or FULL compat level", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/schema-registry-check.ts.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content.includes("BACKWARD") || content.includes("FULL")).toBe(true);
+  });
+
+  it("SchemaRegistryCheckIT.java.ejs: calls testCompatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("SchemaRegistry");
+    expect(content).toContain("testCompatibility");
   });
 
-  it("schema_registry_test.rs.ejs: contains 'schema_registry'", () => {
+  it("SchemaRegistryCheckIT.java.ejs: asserts BACKWARD or FULL compat level", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content.includes("BACKWARD") || content.includes("FULL")).toBe(true);
+  });
+
+  it("schema_registry_test.rs.ejs: calls post_schema_compatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/schema_registry_test.rs.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("schema_registry");
+    expect(content).toContain("compatibility");
   });
 
-  it("schema_registry_test.go.ejs: contains 'SCHEMA_REGISTRY_URL'", () => {
+  it("schema_registry_test.go.ejs: POSTs to /compatibility/ endpoint (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/schema_registry_test.go.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("SCHEMA_REGISTRY_URL");
+    expect(content).toContain("/compatibility/");
   });
 
-  it("test_schema_registry.py.ejs: contains 'SCHEMA_REGISTRY_URL'", () => {
+  it("test_schema_registry.py.ejs: calls test_compatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/test_schema_registry.py.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("SCHEMA_REGISTRY_URL");
+    expect(content).toContain("test_compatibility");
+  });
+
+  it("check-all.mjs.ejs TS message-queue: wired to Schema Registry not Pact", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      buildTool: "npm",
+      governanceLevel: "L2",
+      contractType: "message-queue",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("Schema Registry");
+    expect(content).not.toContain("Pact messaging");
   });
 });

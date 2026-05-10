@@ -22,7 +22,7 @@ Contract testing verifies that services honour the contracts they expose to cons
 <% } else if (contractType === 'grpc') { %>
 **buf breaking** — detects breaking changes in Protobuf definitions.
 <% } else if (contractType === 'message-queue') { %>
-**Confluent Schema Registry** — ensures message schemas remain compatible between producer and consumer.
+**Confluent Schema Registry** — calls `testCompatibility()` to verify BACKWARD or FULL schema compatibility between producer and consumer. A reachability-only check does not satisfy INV-41.
 <% } %>
 
 ## Running Locally

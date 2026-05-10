@@ -1,10 +1,11 @@
 import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 
 /**
- * Contract test: verify schema compatibility with the Schema Registry.
+ * Contract test: verify schema compatibility with the Schema Registry (INV-41).
  *
+ * Calls testCompatibility() — not just a reachability ping.
  * Requires SCHEMA_REGISTRY_URL environment variable.
- * Topic name convention: <%= projectName %>-events
+ * Subject convention: <%= projectName %>-events-value
  */
 describe('<%= projectName %> Schema Registry compatibility', () => {
   const registryUrl = process.env['SCHEMA_REGISTRY_URL'];
@@ -15,17 +16,27 @@ describe('<%= projectName %> Schema Registry compatibility', () => {
     }
   });
 
-  it('latest schema version is backward compatible', async () => {
+  it('schema is BACKWARD or FULL compatible with latest registered version', async () => {
     if (!registryUrl) return;
 
     const registry = new SchemaRegistry({ host: registryUrl });
     const subject = '<%= projectName %>-events-value';
 
-    const versions = await registry.getRegistryId(subject, 'latest');
-    expect(versions).toBeDefined();
+    // Fetch current compat level for this subject (falls back to global config)
+    const configUrl = `${registryUrl}/config/${encodeURIComponent(subject)}`;
+    const resp = await fetch(configUrl);
+    if (resp.ok) {
+      const { compatibilityLevel } = (await resp.json()) as { compatibilityLevel: string };
+      const allowed = ['BACKWARD', 'FULL', 'BACKWARD_TRANSITIVE', 'FULL_TRANSITIVE'];
+      expect(allowed).toContain(compatibilityLevel);
+    }
 
-    // Verify compatibility mode is BACKWARD or FULL
-    const config = await registry.getSchemaRegistryId(subject);
-    console.log(`Schema ID for ${subject}: ${config}`);
+    // Retrieve the latest registered schema and run testCompatibility
+    const latestId = await registry.getRegistryId(subject, 'latest');
+    expect(latestId).toBeGreaterThan(0);
+
+    const schema = await registry.getSchema(latestId);
+    const isCompatible = await registry.testCompatibility(subject, schema);
+    expect(isCompatible).toBe(true);
   });
 });

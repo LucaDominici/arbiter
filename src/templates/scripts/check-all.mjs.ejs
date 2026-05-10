@@ -249,10 +249,10 @@ if (level === 'L2') {
 <% } else if (contractType === 'grpc') { %>
   runCheck('contract tests (gRPC)', 'npx', ['buf', 'breaking', '--against', '.git#branch=main'], { soft: graceActive });
 <% } else if (contractType === 'message-queue') { %>
-  if (!process.env.PACT_BROKER_BASE_URL) {
-    console.log('[CHECK] contract tests (Pact messaging) ... SKIP — PACT_BROKER_BASE_URL unset');
+  if (!process.env.SCHEMA_REGISTRY_URL) {
+    console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');
   } else {
-    runCheck('contract tests (Pact messaging)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+    runCheck('contract tests (Schema Registry)', 'npx', ['vitest', 'run', '--testPathPattern=schema-registry'], { soft: graceActive });
   }
 <% } %>
 <% } else if (language === 'java') { %>
@@ -271,13 +271,13 @@ if (level === 'L2') {
 <% } else if (contractType === 'grpc') { %>
   runCheck('contract tests (gRPC)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.grpc.*" : "test -Dtest=*Grpc*" %>'], { soft: graceActive });
 <% } else if (contractType === 'message-queue') { %>
-  if (!process.env.PACT_BROKER_BASE_URL) {
-    console.log('[CHECK] contract tests (Pact messaging) ... SKIP — PACT_BROKER_BASE_URL unset');
+  if (!process.env.SCHEMA_REGISTRY_URL) {
+    console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');
   } else {
 <% if (buildTool === 'gradle') { %>
-    runCheck('contract tests (Pact messaging)', './gradlew', ['pactPublish', 'pactVerify'], { soft: graceActive });
+    runCheck('contract tests (Schema Registry)', './gradlew', ['test', '--tests', '*SchemaRegistry*'], { soft: graceActive });
 <% } else { %>
-    runCheck('contract tests (Pact messaging)', 'mvn', ['pact:publish', 'pact:verify'], { soft: graceActive });
+    runCheck('contract tests (Schema Registry)', 'mvn', ['test', '-Dtest=*SchemaRegistry*'], { soft: graceActive });
 <% } %>
   }
 <% } %>

@@ -2,16 +2,24 @@ package <%= basePackage || 'com.example' %>.contracts;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collection;
+import java.io.IOException;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Schema Registry compatibility integration test (INV-41).
+ * Calls testCompatibility() — not just a reachability ping.
+ */
 class SchemaRegistryCheckIT {
 
+    private static final String SUBJECT = "<%= projectName %>-events-value";
+
     @Test
-    void schemaCompatibilityIsValid() throws Exception {
+    void schemaIsBackwardOrFullCompatible() throws IOException, RestClientException {
         String registryUrl = System.getenv("SCHEMA_REGISTRY_URL");
         if (registryUrl == null || registryUrl.isBlank()) {
             System.out.println("[WARN] SCHEMA_REGISTRY_URL not set — skipping");
@@ -19,8 +27,18 @@ class SchemaRegistryCheckIT {
         }
 
         SchemaRegistryClient client = new CachedSchemaRegistryClient(registryUrl, 100);
-        Collection<String> subjects = client.getAllSubjects();
-        assertFalse(subjects.isEmpty(), "Schema registry returned no subjects");
-        System.out.println("Registered subjects: " + subjects);
+
+        // Verify compat level is BACKWARD or FULL (INV-41)
+        String compatLevel = client.getCompatibility(SUBJECT);
+        List<String> allowed = List.of("BACKWARD", "FULL", "BACKWARD_TRANSITIVE", "FULL_TRANSITIVE");
+        assertTrue(allowed.contains(compatLevel),
+            "Expected BACKWARD or FULL compat for " + SUBJECT + " but got: " + compatLevel);
+
+        // Fetch latest schema and run real compatibility check
+        int latestId = client.getLatestSchemaMetadata(SUBJECT).getId();
+        var latestSchema = client.getSchemaById(latestId);
+
+        boolean compatible = client.testCompatibility(SUBJECT, latestSchema);
+        assertTrue(compatible, "Schema is not compatible with latest version for subject: " + SUBJECT);
     }
 }
