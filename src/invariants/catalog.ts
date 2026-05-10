@@ -602,4 +602,17 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "src/templates/githooks/pre-commit.ejs (phase guard) + " +
       "src/commands/task.ts (advance validator)",
   },
+
+  {
+    id: "INV-39",
+    tier: "governance",
+    title: "Hook templates require empirical fire-tests",
+    description:
+      "Every Claude Code hook template in src/templates/claude/hooks/ must have at least one " +
+      "empirical fire-test in __tests__/hooks/empirical/. Adding a hook template without a " +
+      "corresponding test is a gate violation.",
+    alwaysActive: true,
+    enforcement:
+      "__tests__/hooks/empirical/hook-fires.test.ts (22 tests covering all 14 hook templates)",
+  },
 ];

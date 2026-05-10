@@ -35,7 +35,7 @@ const TEST_PATTERNS = [
   /\b\.\/gradlew\s+test\b/,
   /\bmvn\s+(test|verify)\b/,
   /\bnode\s+scripts\/check-all\.mjs\b/,
-  new RegExp(<%= JSON.stringify(escapedTestCmd) %>),
+  new RegExp(<%- JSON.stringify(escapedTestCmd) %>),
 ];
 if (!TEST_PATTERNS.some((p) => p.test(command))) process.exit(0);
 
