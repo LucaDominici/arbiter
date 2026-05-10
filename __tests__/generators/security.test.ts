@@ -8,6 +8,7 @@ import {
   makeConfig,
 } from "../helpers.js";
 import { generateSecurity } from "../../src/generators/security.js";
+import { renderTemplate } from "../../src/utils/render.js";
 
 const BASE_FILES = [
   join("scripts", "pii-scan.mjs"),
@@ -157,4 +158,26 @@ describe("generateSecurity", () => {
       }
     });
   }
+});
+
+describe("check-no-pii.mjs.ejs render (CANON-04)", () => {
+  it("renders non-empty output", () => {
+    const out = renderTemplate("claude/hooks/check-no-pii.mjs.ejs", {});
+    expect(out.length).toBeGreaterThan(0);
+  });
+
+  it("rendered output references INV-12", () => {
+    const out = renderTemplate("claude/hooks/check-no-pii.mjs.ejs", {});
+    expect(out).toContain("INV-12");
+  });
+
+  it("rendered output contains email address PII pattern", () => {
+    const out = renderTemplate("claude/hooks/check-no-pii.mjs.ejs", {});
+    expect(out).toContain("email address");
+  });
+
+  it("rendered output reads CLAUDE_TOOL_INPUT_PATH", () => {
+    const out = renderTemplate("claude/hooks/check-no-pii.mjs.ejs", {});
+    expect(out).toContain("CLAUDE_TOOL_INPUT_PATH");
+  });
 });

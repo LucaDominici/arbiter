@@ -16,7 +16,7 @@
       "rationale": "INV-06: bare TODO without task ID is a gate violation"
     },
     {
-      "file": "check-no-pii.mjs",
+      "file": "check-no-pii.mjs.ejs",
       "classification": "HARD",
       "tools": ["claude", "codex"],
       "spawnable": true,
