@@ -1,0 +1,43 @@
+[features]
+codex_hooks = true
+
+# ── PreToolUse: bash commands ─────────────────────────────────────────────────
+
+[[hooks.PreToolUse]]
+matcher = "^bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/stop-dangerous.mjs"
+timeout = 5
+
+# ── PreToolUse: file edits (apply_patch) ─────────────────────────────────────
+
+[[hooks.PreToolUse]]
+matcher = "^apply_patch$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/enforce-read-only.mjs"
+timeout = 3
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/pre-edit-ssot-guard.mjs"
+timeout = 3
+
+# ── PostToolUse: after file edits ─────────────────────────────────────────────
+
+[[hooks.PostToolUse]]
+matcher = "^apply_patch$"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-orphan-todo.mjs"
+timeout = 5
+<% if (enableSecurityScanning) { %>
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-pii.mjs"
+timeout = 5
+<% } %>

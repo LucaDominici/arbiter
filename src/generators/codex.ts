@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
+import { generateCodexHooks } from "./codex-hooks.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 
@@ -53,6 +54,10 @@ export function generateCodex(config: ProjectConfig): CodexGeneratorResult {
   results.push(
     writeFile(join(planDir, "README.md"), PLAN_README, { skipIfExists: true }),
   );
+
+  // Hook parity — .codex/config.toml + codex-adapter.mjs
+  const hookResult = generateCodexHooks(config);
+  results.push(...hookResult.files);
 
   return { files: results };
 }
