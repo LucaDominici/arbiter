@@ -31,7 +31,6 @@ export type GeneratorKey =
   | "test-taxonomy"
   | "behavioral-tests"
   | "ssot"
-  | "obsidian-vault"
   | "githooks";
 
 export interface ConfigDiff {

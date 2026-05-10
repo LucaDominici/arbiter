@@ -27,7 +27,6 @@ import { generateGlobalInvariants } from "./global-invariants.js";
 import { generateSkills } from "./skills.js";
 import { generateAgentsClaude } from "./agents-claude.js";
 import { generateSsot } from "./ssot.js";
-import { generateObsidianVault } from "./obsidian-vault.js";
 import { generateBehavioralTests } from "./behavioral-tests.js";
 import { generateGithooks } from "./githooks.js";
 import type { ProjectConfig } from "../wizard/types.js";
@@ -196,11 +195,6 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       run: () => generateBehavioralTests(config).files,
     },
     { key: "ssot", enabled: true, run: () => generateSsot(config).files },
-    {
-      key: "obsidian-vault",
-      enabled: config.enableObsidianVault === true,
-      run: () => generateObsidianVault(config).files,
-    },
   ];
 }
 

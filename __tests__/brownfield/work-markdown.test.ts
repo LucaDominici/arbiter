@@ -79,7 +79,6 @@ describe("brownfield: markdown backend re-init preserves .arbiter/work/ (CANON-1
       dir,
       noVerify: true,
       dryRun: false,
-      obsidian: false,
       brownfield: false,
       backend: "markdown",
     });

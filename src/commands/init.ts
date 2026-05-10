@@ -50,7 +50,6 @@ export interface InitOptions {
   level: string | undefined;
   dir: string | undefined;
   dryRun: boolean;
-  obsidian: boolean;
   /** Auto-capture debt baseline after generation (brownfield day-0 lock-in). */
   brownfield: boolean;
   /** Skip toolchain compatibility probes after generation. */
@@ -106,7 +105,6 @@ export async function runInit(options: InitOptions): Promise<void> {
       tools: parseTools(options.tools),
       governanceLevel: parseLevel(options.level),
       useGitHub,
-      obsidian: options.obsidian,
       acceptBetaTools: options.acceptBetaTools ?? false,
       lanes: lanesResult.lanes,
     });
@@ -346,7 +344,6 @@ function buildDefaultConfig(opts: {
   tools: AiTool[];
   governanceLevel: GovernanceLevel;
   useGitHub: boolean;
-  obsidian?: boolean;
   acceptBetaTools?: boolean;
   lanes?: import("../wizard/types.js").Lane[];
 }): ProjectConfig {
@@ -388,7 +385,6 @@ function buildDefaultConfig(opts: {
       defaultContractType(archetype, hasPublicApi) !== "none",
     enableEvidenceHarness: opts.governanceLevel !== "L1",
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
-    enableObsidianVault: opts.obsidian ?? false,
     acceptBetaTools: opts.acceptBetaTools ?? false,
     contractType: defaultContractType(archetype, hasPublicApi),
     thresholds: DEFAULT_THRESHOLDS[opts.governanceLevel],
@@ -422,9 +418,6 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     isMultiTenant: config.isMultiTenant,
     hasDatabase: config.hasDatabase,
     hasPublicApi: config.hasPublicApi,
-    ...(config.enableObsidianVault === true
-      ? { enableObsidianVault: true }
-      : {}),
     ...(config.acceptBetaTools === true ? { acceptBetaTools: true } : {}),
     ...(config.evidenceRetention !== undefined
       ? { evidenceRetention: config.evidenceRetention }
