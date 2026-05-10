@@ -101,7 +101,7 @@ See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentati
 
 - `AGENTS.md`, `CLAUDE.md`, `CODEX.md` — backed up (`.arbiter-backup`) and replaced
 - `settings.json` — deep merged (custom hooks preserved)
-- Hooks, rules, commands — skipped if already exist
+- Hooks, rules, commands — skipped if already exist (all hooks are empirically tested — see `__tests__/hooks/empirical/`)
 - GitHub templates, workflows — skipped if already exist
 
 ---
