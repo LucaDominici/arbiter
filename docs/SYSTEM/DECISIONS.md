@@ -5,6 +5,16 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## chore: typescript-eslint 8.58.2 → 8.59.2 (2026-05-10)
+
+Stricter rules in 8.59.2 flagged three patterns across the codebase:
+
+- `src/cli.ts`: removed redundant `as GovernanceLevel` cast (already typed by Commander)
+- `src/config/schema.ts`: removed `as unknown as ArbiterConfigV2` cast from `migrateV1ToV2` return (object literal now satisfies the type directly)
+- `src/decomposition/github-backend.ts`: `Promise.reject(err as Error)` → guard that wraps non-Error values
+
+---
+
 ## Fix #298: drop redundant ProjectConfig intersection cast in archunit (2026-05-01)
 
 `emitHexagonalSuite` in `src/generators/archunit.ts` no longer takes
