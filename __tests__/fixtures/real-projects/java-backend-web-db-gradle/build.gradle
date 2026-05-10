@@ -1,9 +1,11 @@
 plugins {
     id 'java'
     id 'checkstyle'
+    id 'pmd'
     id 'org.springframework.boot' version '3.2.3'
     id 'io.spring.dependency-management' version '1.1.4'
     id 'com.diffplug.spotless' version '7.0.3'
+    id 'com.github.spotbugs' version '6.0.9'
 }
 
 group = 'com.example'
@@ -21,6 +23,25 @@ java {
 checkstyle {
     toolVersion = '10.14.0'
     configFile = file('config/checkstyle/checkstyle.xml')
+}
+
+pmd {
+    toolVersion = '7.3.0'
+    consoleOutput = true
+    ruleSets = []
+    ruleSetFiles = files('config/pmd/ruleset.xml')
+}
+
+spotbugs {
+    toolVersion = '4.8.3'
+    excludeFilter = file('config/spotbugs/spotbugs-exclude.xml')
+}
+
+spotbugsMain {
+    reports {
+        xml { enabled = true }
+        html { enabled = false }
+    }
 }
 
 configurations.all {

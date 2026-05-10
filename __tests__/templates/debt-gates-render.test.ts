@@ -205,4 +205,48 @@ describe("debt-gates config templates — rendering", () => {
     expect(content).toContain("spotbugs-exclude.xml");
     expect(content).toContain("main.xml");
   });
+
+  // pmd-ruleset.xml.ejs — codestyle category (Viafera parity #404)
+  it("pmd-ruleset.xml.ejs includes codestyle category with Viafera-parity rules", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("debt-gates/pmd-ruleset.xml.ejs", data);
+    expect(content).toContain(
+      "category/java/codestyle.xml/UnnecessaryFullyQualifiedName",
+    );
+    expect(content).toContain("category/java/codestyle.xml/UnnecessaryReturn");
+    expect(content).toContain("category/java/codestyle.xml/UselessParentheses");
+    expect(content).toContain(
+      "category/java/codestyle.xml/UselessQualifiedThis",
+    );
+  });
+
+  // checkstyle.xml.ejs — SuppressWarnings pair (Viafera parity #404)
+  it("checkstyle.xml.ejs includes SuppressWarningsHolder and SuppressWarningsFilter pair", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("debt-gates/checkstyle.xml.ejs", data);
+    expect(content).toContain("SuppressWarningsHolder");
+    expect(content).toContain("SuppressWarningsFilter");
+  });
+
+  // spotbugs-exclude.xml.ejs — expanded sections (Viafera parity #404)
+  it("spotbugs-exclude.xml.ejs includes CT_CONSTRUCTOR_THROW, URF_UNREAD_FIELD, and Optional-pattern sections", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("debt-gates/spotbugs-exclude.xml.ejs", data);
+    expect(content).toContain("CT_CONSTRUCTOR_THROW");
+    expect(content).toContain("URF_UNREAD_FIELD");
+    expect(content).toContain("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE");
+    expect(content).toContain("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD");
+  });
 });
