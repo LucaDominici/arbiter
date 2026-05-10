@@ -187,12 +187,15 @@ describe("contract-testing render: graphql", () => {
     expect(content).toContain("graphql-inspector");
   });
 
-  it("GraphqlSchemaTest.java.ejs: contains 'graphql'", () => {
+  it("GraphqlSchemaTest.java.ejs: uses @graphql-inspector/cli via ProcessBuilder (F4/INV parity)", () => {
     const content = renderTemplate(
       "contract-testing/graphql/GraphqlSchemaTest.java.ejs",
       { ...baseData, contractType: "graphql" },
     );
-    expect(content.toLowerCase()).toContain("graphql");
+    expect(content).toContain("@graphql-inspector/cli");
+    expect(content).toContain("ProcessBuilder");
+    expect(content).toContain("schema-reference.graphql");
+    expect(content).toContain("schema-current.graphql");
   });
 
   it("graphql_schema_test.rs.ejs: contains 'graphql-inspector'", () => {
