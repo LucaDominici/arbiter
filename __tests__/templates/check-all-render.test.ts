@@ -158,3 +158,68 @@ describe("check-all.mjs.ejs rendering — Python e2e gate (#366)", () => {
     expect(content).not.toContain("runCheck('e2e', 'pytest', ['tests/e2e/']");
   });
 });
+
+// F17 — contract gate command fixes (#376)
+describe("check-all.mjs.ejs — contract gate commands (F17)", () => {
+  const contractTypes = [
+    "rest-owned",
+    "rest-public",
+    "graphql",
+    "grpc",
+    "message-queue",
+  ] as const;
+
+  const rustTargets: Record<string, string> = {
+    "rest-owned": "pact_consumer_test",
+    "rest-public": "openapi_diff_test",
+    graphql: "graphql_schema_test",
+    grpc: "grpc_contract_test",
+    "message-queue": "schema_registry_test",
+  };
+
+  for (const ct of contractTypes) {
+    it(`Rust ${ct}: uses cargo test --test ${rustTargets[ct]}`, () => {
+      const data = makeConfig("/tmp/test", {
+        language: "rust",
+        contractType: ct,
+        governanceLevel: "L2",
+        coverageEnabled: false,
+        coverageThreshold: 80,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).toContain(`--test', '${rustTargets[ct]}'`);
+      expect(content).not.toContain("*contract*");
+    });
+  }
+
+  it("Go: uses go test -tags contract (no change needed, verified)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "go",
+      contractType: "rest-owned",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+      coverageThreshold: 80,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("'-tags', 'contract'");
+  });
+
+  for (const contractType of [
+    "rest-owned",
+    "graphql",
+    "grpc",
+    "message-queue",
+  ] as const) {
+    it(`Python ${contractType}: uses pytest tests/contract/ path`, () => {
+      const data = makeConfig("/tmp/test", {
+        language: "python",
+        contractType,
+        governanceLevel: "L2",
+        coverageEnabled: false,
+        coverageThreshold: 80,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).toContain("tests/contract/");
+    });
+  }
+});

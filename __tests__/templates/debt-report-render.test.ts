@@ -25,6 +25,40 @@ describe("debt-report.mjs.ejs", () => {
     });
   }
 
+  describe("missing baseline behavior by governance level", () => {
+    it("L1: warns and exits 0 (no fail-closed)", () => {
+      const data = makeDataWithProfile({
+        language: "typescript",
+        governanceLevel: "L1",
+      });
+      const rendered = renderTemplate("scripts/debt-report.mjs.ejs", data);
+      expect(rendered).toContain("console.warn");
+      expect(rendered).toContain("debt-baseline.json not found");
+      expect(rendered).not.toContain("GATE FAIL: debt-baseline.json not found");
+    });
+
+    it("L2: emits console.warn to stderr and exits 0", () => {
+      const data = makeDataWithProfile({
+        language: "typescript",
+        governanceLevel: "L2",
+      });
+      const rendered = renderTemplate("scripts/debt-report.mjs.ejs", data);
+      expect(rendered).toContain("console.warn");
+      expect(rendered).toContain("debt-baseline.json not found");
+      expect(rendered).not.toContain("GATE FAIL: debt-baseline.json not found");
+    });
+
+    it("L3: exits with code 1 when baseline missing (fail-closed)", () => {
+      const data = makeDataWithProfile({
+        language: "typescript",
+        governanceLevel: "L3",
+      });
+      const rendered = renderTemplate("scripts/debt-report.mjs.ejs", data);
+      expect(rendered).toContain("GATE FAIL: debt-baseline.json not found");
+      expect(rendered).toContain("process.exit(1)");
+    });
+  });
+
   it("contains --require-improvement flag logic", () => {
     const data = makeDataWithProfile({ language: "typescript" });
     const rendered = renderTemplate("scripts/debt-report.mjs.ejs", data);

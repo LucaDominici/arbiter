@@ -1,3 +1,6 @@
+//go:build contract
+// +build contract
+
 package contracts_test
 
 import (
@@ -27,6 +30,7 @@ func TestNoBreakingOpenAPIChanges(t *testing.T) {
 		"--fail-on-incompatible")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Breaking OpenAPI changes detected:\n%s", out)
+		t.Fatalf("Breaking OpenAPI changes detected:
+%s", out)
 	}
 }

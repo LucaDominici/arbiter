@@ -508,3 +508,30 @@ describe("contract-testing render: message-queue", () => {
     expect(content).not.toContain("Pact messaging");
   });
 });
+
+// F17 — Go build tags and Python path fixes (#376)
+describe("contract-testing template fixes (F17)", () => {
+  const baseData = {
+    projectName: "test-project",
+    language: "go",
+    governanceLevel: "L2",
+  };
+
+  const goTemplates = [
+    "contract-testing/rest-owned/pact_consumer_test.go.ejs",
+    "contract-testing/rest-public/openapi_diff_test.go.ejs",
+    "contract-testing/graphql/graphql_schema_test.go.ejs",
+    "contract-testing/grpc/grpc_contract_test.go.ejs",
+    "contract-testing/message-queue/schema_registry_test.go.ejs",
+  ];
+
+  for (const tmpl of goTemplates) {
+    it(`${tmpl} starts with //go:build contract`, () => {
+      const content = renderTemplate(tmpl, {
+        ...baseData,
+        contractType: tmpl.split("/")[1],
+      });
+      expect(content.trimStart()).toMatch(/^\/\/go:build contract/);
+    });
+  }
+});

@@ -15,9 +15,13 @@ const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json');
 
 // ─── Load baseline ────────────────────────────────────────────────────────────
 if (!existsSync(BASELINE_FILE)) {
-  console.log('[arbiter] No debt-baseline.json found — skipping debt ratchet check.');
-  console.log('  Run: node scripts/capture-debt-baseline.mjs');
+<% if (governanceLevel === 'L3') { %>
+  process.stderr.write('[arbiter] GATE FAIL: debt-baseline.json not found. Run: node scripts/capture-debt-baseline.mjs\n');
+  process.exit(1);
+<% } else { %>
+  console.warn('[arbiter] WARN: debt-baseline.json not found.\n  Run: node scripts/capture-debt-baseline.mjs\n  Until baseline is captured, debt ratchet is INACTIVE.');
   process.exit(0);
+<% } %>
 }
 
 const rawBaseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'));

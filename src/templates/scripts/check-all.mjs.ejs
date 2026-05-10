@@ -285,7 +285,17 @@ if (level === 'L2') {
   }
 <% } %>
 <% } else if (language === 'rust') { %>
-  runCheck('contract tests', 'cargo', ['test', '--test', '*contract*'], { soft: graceActive });
+<% if (contractType === 'rest-owned') { %>
+  runCheck('contract tests (Pact)', 'cargo', ['test', '--test', 'pact_consumer_test'], { soft: graceActive });
+<% } else if (contractType === 'rest-public') { %>
+  runCheck('contract tests (OpenAPI)', 'cargo', ['test', '--test', 'openapi_diff_test'], { soft: graceActive });
+<% } else if (contractType === 'graphql') { %>
+  runCheck('contract tests (GraphQL)', 'cargo', ['test', '--test', 'graphql_schema_test'], { soft: graceActive });
+<% } else if (contractType === 'grpc') { %>
+  runCheck('contract tests (gRPC)', 'cargo', ['test', '--test', 'grpc_contract_test'], { soft: graceActive });
+<% } else if (contractType === 'message-queue') { %>
+  runCheck('contract tests (schema registry)', 'cargo', ['test', '--test', 'schema_registry_test'], { soft: graceActive });
+<% } %>
 <% } else if (language === 'go') { %>
   runCheck('contract tests', 'go', ['test', '-tags', 'contract', '-run', 'Contract', './...'], { soft: graceActive });
 <% } else if (language === 'python') { %>

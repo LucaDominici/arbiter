@@ -20,21 +20,21 @@ export function generateDebtGates(
     results.push(
       writeFile(
         resolvedPath(base, "knip.json"),
-        renderTemplate("debt-gates/knip.json.ejs", data),
+        renderTemplate("static-analysis/knip.json.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, ".eslintrc-static.json"),
-        renderTemplate("debt-gates/eslintrc-static.json.ejs", data),
+        renderTemplate("static-analysis/eslintrc-static.json.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, ".prettierrc.json"),
-        renderTemplate("debt-gates/prettierrc.json.ejs", data),
+        renderTemplate("static-analysis/prettierrc.json.ejs", data),
         { skipIfExists: true },
       ),
     );
@@ -44,7 +44,7 @@ export function generateDebtGates(
     results.push(
       writeFile(
         resolvedPath(base, ".golangci.yml"),
-        renderTemplate("debt-gates/.golangci.yml.ejs", data),
+        renderTemplate("static-analysis/.golangci.yml.ejs", data),
         { skipIfExists: true },
       ),
     );
@@ -54,42 +54,42 @@ export function generateDebtGates(
     results.push(
       writeFile(
         resolvedPath(base, "config", "pmd-ruleset.xml"),
-        renderTemplate("debt-gates/pmd-ruleset.xml.ejs", data),
+        renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, "config", "checkstyle.xml"),
-        renderTemplate("debt-gates/checkstyle.xml.ejs", data),
+        renderTemplate("static-analysis/checkstyle.xml.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, "config", "spotbugs-exclude.xml"),
-        renderTemplate("debt-gates/spotbugs-exclude.xml.ejs", data),
+        renderTemplate("static-analysis/spotbugs-exclude.xml.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, "spotless.gradle"),
-        renderTemplate("debt-gates/spotless.gradle.ejs", data),
+        renderTemplate("static-analysis/spotless.gradle.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, "config", "pitest-setup.md"),
-        renderTemplate("debt-gates/pitest-setup.md.ejs", data),
+        renderTemplate("mutation/pitest-l2-setup.md.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, "spotbugs.gradle"),
-        renderTemplate("debt-gates/spotbugs.gradle.ejs", data),
+        renderTemplate("static-analysis/spotbugs.gradle.ejs", data),
         { skipIfExists: true },
       ),
     );
@@ -99,7 +99,7 @@ export function generateDebtGates(
     results.push(
       writeFile(
         resolvedPath(base, "ruff.toml"),
-        renderTemplate("debt-gates/ruff.toml.ejs", data),
+        renderTemplate("static-analysis/ruff.toml.ejs", data),
         { skipIfExists: true },
       ),
     );
