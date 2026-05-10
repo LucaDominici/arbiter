@@ -124,3 +124,18 @@ Rejected on scope grounds. Spring Boot, Rails, Django generators each require si
 - ADR-020: CLI-first over MCP
 - `src/types/plugin.ts` — contract types
 - `examples/plugin-spring-boot/` — reference implementation
+
+---
+
+## Status (2026-05-10)
+
+**BETA** — API is public but not stable. Breaking changes possible before v1.0.
+
+### Graduation criteria (BETA → stable)
+
+The plugin API graduates to stable when **both** of the following are met:
+
+1. At least one externally-maintained plugin is published to npm that consumes the `ArbiterPlugin` interface, with arbiter CI able to install and run it end-to-end.
+2. No breaking interface changes have been required for 60 days after the external plugin ships.
+
+The original criterion (Obsidian vault extraction) is no longer valid — the Obsidian feature was removed in #396 per v1.0 scope decision (see ADR-038).

@@ -263,7 +263,9 @@ task
     });
   });
 
-const plugin = program.command("plugin").description("Manage arbiter plugins");
+const plugin = program
+  .command("plugin")
+  .description("[BETA] Manage arbiter plugins (API not yet stable)");
 
 plugin
   .command("add <pkg>")

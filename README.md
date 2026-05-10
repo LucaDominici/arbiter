@@ -147,6 +147,22 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 
 ---
 
+## Plugins (beta)
+
+> **Beta:** The plugin API is public but not stable. Breaking changes are possible before v1.0.
+
+Organizations can extend arbiter with framework-specific generators (Spring Boot, Rails, Django…) without forking:
+
+```bash
+arbiter plugin add my-spring-boot-plugin
+arbiter plugin list
+arbiter plugin remove my-spring-boot-plugin
+```
+
+A plugin is a normal npm package that exports an `ArbiterPlugin` object. See [`docs/ADR/031-plugin-api-v1.md`](docs/ADR/031-plugin-api-v1.md) for the contract and [`src/types/plugin.ts`](src/types/plugin.ts) for the TypeScript interfaces.
+
+---
+
 ## Design Decisions
 
 See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
