@@ -1,16 +1,26 @@
 #[cfg(test)]
 mod openapi_diff_tests {
+    use std::env;
     use std::path::Path;
     use std::process::Command;
 
+    /// Contract test: verify no breaking OpenAPI changes (INV-43).
+    /// Run exporter first: cargo run --bin export-openapi
+    /// Bootstrap first run: ALLOW_OPENAPI_BOOTSTRAP=1 cargo test
     #[test]
     fn no_breaking_changes() {
-        let reference = Path::new("contracts/openapi-reference.yaml");
         let current = Path::new("contracts/openapi-current.yaml");
+        let reference = Path::new("contracts/openapi-reference.yaml");
 
-        if !reference.exists() || !current.exists() {
-            println!("[WARN] OpenAPI spec files not found — skipping diff");
-            return;
+        if !current.exists() {
+            panic!("contracts/openapi-current.yaml not found — run exporter first (INV-43)");
+        }
+        if !reference.exists() {
+            if env::var("ALLOW_OPENAPI_BOOTSTRAP").as_deref() == Ok("1") {
+                println!("[INFO] ALLOW_OPENAPI_BOOTSTRAP=1 — bootstrap mode, skipping diff");
+                return;
+            }
+            panic!("contracts/openapi-reference.yaml not found — copy current spec as reference once (INV-43)");
         }
 
         let output = Command::new("npx")

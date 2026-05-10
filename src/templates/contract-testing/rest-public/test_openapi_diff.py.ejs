@@ -1,14 +1,24 @@
-import subprocess
+"""OpenAPI breaking-change contract test (INV-43).
+
+Run exporter first: python export_openapi.py
+Bootstrap first run: ALLOW_OPENAPI_BOOTSTRAP=1 pytest
+"""
 import os
-import pytest
+import subprocess
 
 
-@pytest.mark.skipif(
-    not (os.path.exists("contracts/openapi-reference.yaml") and
-         os.path.exists("contracts/openapi-current.yaml")),
-    reason="OpenAPI spec files not found — run export first",
-)
 def test_no_breaking_changes():
+    if not os.path.exists("contracts/openapi-current.yaml"):
+        raise AssertionError(
+            "contracts/openapi-current.yaml not found — run: python export_openapi.py (INV-43)"
+        )
+    if not os.path.exists("contracts/openapi-reference.yaml"):
+        if os.getenv("ALLOW_OPENAPI_BOOTSTRAP") == "1":
+            print("[INFO] ALLOW_OPENAPI_BOOTSTRAP=1 — bootstrap mode, skipping diff")
+            return
+        raise AssertionError(
+            "contracts/openapi-reference.yaml not found — copy current spec as reference once (INV-43)"
+        )
     result = subprocess.run(
         ["npx", "openapi-diff",
          "contracts/openapi-reference.yaml",

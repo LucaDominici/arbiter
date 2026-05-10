@@ -1,0 +1,13 @@
+// OpenAPI exporter — generates contracts/openapi-current.yaml (INV-43)
+// Run: ./gradlew generateOpenApiDocs
+plugins {
+    id 'org.springdoc.openapi-gradle-plugin' version '1.8.0'
+}
+
+openApi {
+    apiDocsUrl = 'http://localhost:8080/v3/api-docs'
+    outputDir = file('contracts')
+    outputFileName = 'openapi-current.yaml'
+    waitTimeInSeconds = 30
+    forkProperties = '-Dspring.profiles.active=openapi-export'
+}

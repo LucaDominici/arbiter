@@ -174,6 +174,93 @@ describe("contract-testing render: rest-public", () => {
     );
     expect(content).toContain("openapi-diff");
   });
+
+  // F6/INV-43: no-silent-skip — all 5 diff templates must hard-fail when files missing
+  it("openapi-diff.ts.ejs: hard-fails when files missing (no silent skip) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi-diff.ts.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+  });
+
+  it("OpenApiDiffIT.java.ejs: hard-fails when files missing (no silent skip) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/OpenApiDiffIT.java.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+  });
+
+  it("openapi_diff_test.go.ejs: hard-fails when files missing (no t.Skip) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi_diff_test.go.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+    expect(content).not.toContain("t.Skip(");
+  });
+
+  it("test_openapi_diff.py.ejs: hard-fails when files missing (no skipif) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/test_openapi_diff.py.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+    expect(content).not.toContain("pytest.mark.skipif");
+  });
+
+  it("openapi_diff_test.rs.ejs: hard-fails when files missing (no silent return) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi_diff_test.rs.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+  });
+});
+
+// ─── rest-public exporters (F6/INV-43) ───────────────────────────────────────
+
+describe("contract-testing render: rest-public exporters", () => {
+  it("export-openapi.mjs.ejs: renders and writes openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export-openapi.mjs.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export-openapi-java.gradle.ejs: renders and targets openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export-openapi-java.gradle.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export_openapi.py.ejs: renders FastAPI exporter writing openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export_openapi.py.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export_openapi.go.ejs: renders Go exporter writing openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export_openapi.go.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export_openapi.rs.ejs: renders Rust exporter writing openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export_openapi.rs.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
 });
 
 // ─── graphql templates (5 templates) ─────────────────────────────────────────

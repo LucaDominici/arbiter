@@ -68,6 +68,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-35:** Contract testing enforced when contractType is active
 - **INV-41:** Message-queue contract tests must call Schema Registry testCompatibility
 - **INV-42:** Pact broker glue must be env-gated — no silent runs against default URL
+- **INV-43:** OpenAPI exporter must run before diff; missing reference is HARD-fail
 
 ### Tier 5: Governance
 

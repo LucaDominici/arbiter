@@ -1,0 +1,29 @@
+// Export current OpenAPI spec to contracts/openapi-current.yaml (INV-43).
+// Run before contract diff: go run ./cmd/export-openapi/main.go
+// Requires: swaggo/swag — go install github.com/swaggo/swag/cmd/swag@latest
+//
+// Alternatively, if your router exposes /openapi.yaml:
+//   curl http://localhost:8080/openapi.yaml > contracts/openapi-current.yaml
+package main
+
+import (
+	"os"
+	"os/exec"
+)
+
+func main() {
+	if err := os.MkdirAll("contracts", 0o755); err != nil {
+		panic(err)
+	}
+	// Generate spec via swag and copy output to contracts/openapi-current.yaml
+	cmd := exec.Command("swag", "init", "--outputTypes", "yaml", "--output", "contracts", "--generalInfo", "main.go")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		panic("swag init failed: " + err.Error())
+	}
+	if err := os.Rename("contracts/swagger.yaml", "contracts/openapi-current.yaml"); err != nil {
+		_ = exec.Command("cp", "contracts/swagger.yaml", "contracts/openapi-current.yaml").Run()
+	}
+	println("[export-openapi] Written: contracts/openapi-current.yaml")
+}

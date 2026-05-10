@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+/**
+ * Export current OpenAPI spec to contracts/openapi-current.yaml (INV-43).
+ * Run before contract diff: node export-openapi.mjs
+ */
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { stringify } from 'yaml';
+
+// Import your app instance and call getOpenApiSpec() or equivalent.
+// Example for Express + swagger-jsdoc:
+//   import swaggerJsdoc from 'swagger-jsdoc';
+//   const spec = swaggerJsdoc({ definition: { openapi: '3.0.0', info: { title: '<%= projectName %>', version: '1.0.0' } }, apis: ['./src/**/*.ts'] });
+//
+// Adjust the import below to match your app's export mechanism.
+const spec = { openapi: '3.0.0', info: { title: '<%= projectName %>', version: '1.0.0' }, paths: {} };
+
+const outDir = resolve(process.cwd(), 'contracts');
+mkdirSync(outDir, { recursive: true });
+writeFileSync(resolve(outDir, 'openapi-current.yaml'), stringify(spec), 'utf-8');
+console.log('[export-openapi] Written: contracts/openapi-current.yaml');

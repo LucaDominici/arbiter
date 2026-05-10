@@ -650,4 +650,24 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "src/templates/github/workflows/ci.yml.ejs (if: vars.PACT_BROKER_BASE_URL != '' + env: block) + " +
       "src/templates/contract-testing/rest-owned/pact-deps.gradle.ejs (conditional system props)",
   },
+
+  {
+    id: "INV-43",
+    tier: "operational",
+    title:
+      "OpenAPI exporter must run before diff; missing reference is HARD-fail",
+    description:
+      "Generated OpenAPI diff tests must not silently skip when spec files are missing. " +
+      "If contracts/openapi-current.yaml is absent, the test fails HARD (exporter was not run). " +
+      "If contracts/openapi-reference.yaml is absent, the test fails HARD unless " +
+      "ALLOW_OPENAPI_BOOTSTRAP=1 is set (first-run escape hatch). " +
+      "A test that silently passes with missing files is not a contract test — it is dead code.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/contract-testing/rest-public/openapi-diff.ts.ejs + " +
+      "src/templates/contract-testing/rest-public/OpenApiDiffIT.java.ejs + " +
+      "src/templates/contract-testing/rest-public/openapi_diff_test.go.ejs + " +
+      "src/templates/contract-testing/rest-public/test_openapi_diff.py.ejs + " +
+      "src/templates/contract-testing/rest-public/openapi_diff_test.rs.ejs",
+  },
 ];
