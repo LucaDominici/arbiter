@@ -78,11 +78,13 @@ describe("stop-dangerous — empirical fire", () => {
 });
 
 describe("check-no-pii — empirical fire", () => {
-  const hookPath = join(STATIC_HOOKS_DIR, "check-no-pii.mjs");
   let dir: string;
+  let hooksDir: string;
+  let hookPath: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "arbiter-pii-"));
+    ({ dir, hooksDir } = makeHookDir());
+    hookPath = renderEjsHook(hooksDir, "check-no-pii.mjs.ejs");
   });
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });

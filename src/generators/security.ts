@@ -39,7 +39,7 @@ export function generateSecurity(
     results.push(
       writeFile(
         resolvedPath(base, ".claude", "hooks", "check-no-pii.mjs"),
-        renderTemplate("claude/hooks/check-no-pii.mjs", data),
+        renderTemplate("claude/hooks/check-no-pii.mjs.ejs", data),
         { skipIfExists: true },
       ),
     );

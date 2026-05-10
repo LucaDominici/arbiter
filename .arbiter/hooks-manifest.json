@@ -16,17 +16,12 @@
       "rationale": "INV-06: bare TODO without task ID is a gate violation"
     },
     {
-      "file": "check-no-pii.mjs",
+      "file": "check-no-pii.mjs.ejs",
       "classification": "HARD",
       "tools": ["claude", "codex"],
-      "spawnable": true,
+      "spawnable": false,
       "expectedExitCode": 1,
-      "fixture": {
-        "type": "file-with-content",
-        "content": "const contact = 'user@example.com';\n",
-        "envKey": "CLAUDE_TOOL_INPUT_PATH"
-      },
-      "rationale": "INV-12: PII patterns (email, phone, credit card) must not appear in committed files"
+      "rationale": "INV-12: PII patterns (email, phone, credit card) must not appear in committed files. EJS template rendered at init time; empirical coverage in __tests__/hooks/empirical/hook-fires.test.ts"
     },
     {
       "file": "enforce-read-only.mjs",
