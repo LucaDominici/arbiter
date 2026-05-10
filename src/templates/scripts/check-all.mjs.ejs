@@ -187,11 +187,15 @@ if (level === 'L2') {
 <% } %>
   runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings'], { soft: graceActive });
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
+<% if (coverageEnabled) { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q'], { soft: graceActive });
+<% } %>
   runCheck('pmd', './gradlew', ['pmdMain', '-q'], { soft: graceActive });
   runCheck('spotbugs', './gradlew', ['spotbugsMain', '-q'], { soft: graceActive });
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
+<% if (coverageEnabled) { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q'], { soft: graceActive });
+<% } %>
   runCheck('pmd', 'mvn', ['pmd:check', '-q'], { soft: graceActive });
   runCheck('spotbugs', 'mvn', ['com.github.spotbugs:spotbugs-maven-plugin:check', '-q'], { soft: graceActive });
 <% } %><% if (language === 'go') { %>

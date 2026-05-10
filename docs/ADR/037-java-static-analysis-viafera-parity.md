@@ -116,10 +116,9 @@ Considered. Viafera does not use it. Adding it would exceed parity without user 
   Gradle-execution test infrastructure not currently present. Deferred to follow-up issue.
 - **Maven-side fixture parity** — only Gradle fixture updated; Maven fixture work is a separate ticket.
 - **JaCoCo Maven vs Gradle exclusion divergence** — known but out of scope here.
-- **Java `coverageEnabled` guard missing** — `check-all.mjs.ejs` emits `jacocoTestCoverageVerification`
-  unconditionally for Java (unlike TypeScript/Rust/Go/Python which gate on `coverageEnabled`). A Java
-  project below the LOC threshold will still get a coverage gate. Pre-existing issue; deferred to
-  follow-up issue.
+- ~~**Java `coverageEnabled` guard missing**~~ — Fixed in follow-up commit (task/#404b):
+  `check-all.mjs.ejs` Java coverage blocks now wrapped in `<% if (coverageEnabled) { %>`,
+  matching all other languages. Tests added for both `coverageEnabled=true` and `false`.
 
 ---
 
