@@ -64,7 +64,6 @@ export interface ArbiterConfigV2 {
   contractType?: ContractType;
   invariantTiers?: InvariantTier[];
   worktree?: WorktreeConfig;
-  enableObsidianVault?: boolean;
   plugins?: string[];
   lanes?: Lane[];
 }

@@ -50,11 +50,6 @@ program
     false,
   )
   .option(
-    "--obsidian",
-    "Generate optional Obsidian vault at docs/vault/",
-    false,
-  )
-  .option(
     "--brownfield",
     "Auto-capture debt baseline after generation (locks current state as day-0 baseline)",
     false,
@@ -76,7 +71,6 @@ program
       level?: string;
       dir?: string;
       dryRun: boolean;
-      obsidian: boolean;
       brownfield: boolean;
       verify: boolean;
       acceptBetaTools: boolean;
@@ -92,7 +86,6 @@ program
         level: opts.level,
         dir: opts.dir,
         dryRun: opts.dryRun,
-        obsidian: opts.obsidian,
         brownfield: opts.brownfield,
         noVerify: !opts.verify,
         acceptBetaTools: opts.acceptBetaTools,
@@ -248,45 +241,6 @@ program
       if (opts.days !== undefined) upgradeOpts.days = opts.days;
       if (opts.dir !== undefined) upgradeOpts.dir = opts.dir;
       runUpgradeLevel(upgradeOpts);
-    },
-  );
-
-program
-  .command("obsidian")
-  .description("Generate or sync the optional Obsidian vault at docs/vault/")
-  .option(
-    "--sync",
-    "Update only files with the arbiter:generated marker",
-    false,
-  )
-  .option(
-    "--github-only",
-    "Refresh only github/ notes, skip module rescan",
-    false,
-  )
-  .option("--dry-run", "Preview writes without touching disk", false)
-  .option(
-    "--force",
-    "Overwrite non-generated files and ignore config flag",
-    false,
-  )
-  .option("--dir <dir>", "Target directory (default: current directory)")
-  .action(
-    async (opts: {
-      sync: boolean;
-      githubOnly: boolean;
-      dryRun: boolean;
-      force: boolean;
-      dir?: string;
-    }) => {
-      const { runObsidian } = await import("./commands/obsidian.js");
-      await runObsidian({
-        sync: opts.sync,
-        dryRun: opts.dryRun,
-        force: opts.force,
-        githubOnly: opts.githubOnly,
-        dir: opts.dir,
-      });
     },
   );
 

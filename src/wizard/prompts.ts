@@ -209,22 +209,7 @@ export async function runWizard(
       ? "github"
       : "markdown");
 
-  const { enableObsidianVault } = (await inquirer.prompt([
-    {
-      type: "confirm",
-      name: "enableObsidianVault",
-      message: "Generate optional Obsidian vault at docs/vault/?",
-      default: false,
-    },
-  ] as Parameters<typeof inquirer.prompt>[0])) as {
-    enableObsidianVault: boolean;
-  };
-
-  const config = buildConfigFromAnswers(
-    wizardInput,
-    answers,
-    enableObsidianVault,
-  );
+  const config = buildConfigFromAnswers(wizardInput, answers);
 
   if (flow === "brownfield") {
     const plan = buildMigrationPlan(
@@ -256,7 +241,6 @@ export async function runWizard(
 function buildConfigFromAnswers(
   input: WizardInput,
   answers: WizardAnswers,
-  enableObsidianVault: boolean,
 ): ProjectConfig {
   const tools =
     answers.tools.length > 0
@@ -299,7 +283,6 @@ function buildConfigFromAnswers(
     invariantTiers: presetToTiers(
       answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
     ),
-    enableObsidianVault,
     contractType:
       answers.contractType ??
       defaultContractType(answers.archetype, answers.hasPublicApi),

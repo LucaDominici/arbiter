@@ -87,7 +87,6 @@ function v2ToProjectConfig(
     ...(stored.strictnessTier !== undefined && {
       strictnessTier: stored.strictnessTier,
     }),
-    enableObsidianVault: stored.enableObsidianVault ?? false,
     contractType: detectorFields.contractType,
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
