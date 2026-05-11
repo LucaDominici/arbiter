@@ -134,7 +134,7 @@ if (level === 'L2') {
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration tests', 'cargo', ['test', '--test', '*integration*'], { soft: graceActive });
+  runCheck('integration tests', 'cargo', ['test', '--tests'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
 <% if (hasDatabase && governanceLevel !== 'L1') { %>

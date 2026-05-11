@@ -338,7 +338,7 @@ describe("generateIntegrationTesting", () => {
     }
   });
 
-  it("db_fixture.rs contains sqlx or DATABASE_URL", () => {
+  it("db_fixture.rs uses testcontainers (not sqlx/DATABASE_URL panic)", () => {
     const rustDir = createTestProject("rust");
     initGit(rustDir);
     try {
@@ -353,9 +353,8 @@ describe("generateIntegrationTesting", () => {
         join(rustDir, "tests", "db_fixture.rs"),
         "utf-8",
       );
-      expect(content.includes("sqlx") || content.includes("DATABASE_URL")).toBe(
-        true,
-      );
+      expect(content).toContain("testcontainers");
+      expect(content).not.toContain('panic!("DATABASE_URL"');
     } finally {
       cleanupTestProject(rustDir);
     }
@@ -553,5 +552,43 @@ describe("generateIntegrationTesting", () => {
     } finally {
       cleanupTestProject(javaDir);
     }
+  });
+});
+
+describe("generateIntegrationTesting — F10 Rust Cargo.toml dev-dep (#369)", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = createTestProject("rust");
+    initGit(dir);
+  });
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  it("appends testcontainers dev-dep to Cargo.toml for Rust+L2", () => {
+    const config = makeConfig(dir, {
+      hasDatabase: true,
+      governanceLevel: "L2",
+      language: "rust",
+      buildTool: "cargo",
+    });
+    generateIntegrationTesting(config);
+    const cargo = readFileSync(join(dir, "Cargo.toml"), "utf-8");
+    expect(cargo).toContain("[dev-dependencies]");
+    expect(cargo).toContain("testcontainers");
+  });
+
+  it("running twice does not duplicate the dev-dep (idempotent)", () => {
+    const config = makeConfig(dir, {
+      hasDatabase: true,
+      governanceLevel: "L2",
+      language: "rust",
+      buildTool: "cargo",
+    });
+    generateIntegrationTesting(config);
+    generateIntegrationTesting(config);
+    const cargo = readFileSync(join(dir, "Cargo.toml"), "utf-8");
+    const matches = cargo.match(/testcontainers/g) ?? [];
+    expect(matches.length).toBe(1);
   });
 });

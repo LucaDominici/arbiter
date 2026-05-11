@@ -242,3 +242,19 @@ describe("check-all.mjs.ejs — contract gate commands (F17)", () => {
     });
   }
 });
+
+describe("check-all.mjs.ejs — F10 cargo integration test flag (#369)", () => {
+  it("Rust L2: uses '--tests' flag not '*integration*' glob", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "rust",
+      buildTool: "cargo",
+      hasDatabase: true,
+      governanceLevel: "L2",
+      coverageEnabled: false,
+      coverageThreshold: 80,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("'--tests'");
+    expect(content).not.toContain("'*integration*'");
+  });
+});
