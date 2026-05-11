@@ -68,6 +68,16 @@ describe("generateRoot", () => {
     expect(content).toContain("npm test");
   });
 
+  it("emits CODEOWNERS with security paths at L2 (#204)", () => {
+    const result = generateRoot(
+      makeConfig(dir, { githubOwner: "owner", governanceLevel: "L2" }),
+    );
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("CODEOWNERS"))).toBe(true);
+    const content = readFileSync(join(dir, ".github", "CODEOWNERS"), "utf-8");
+    expect(content).toContain(".github/workflows/");
+  });
+
   it("generates commitlint.config.js (#202)", () => {
     const result = generateRoot(makeConfig(dir));
     const paths = result.files.map((f) => f.path);
