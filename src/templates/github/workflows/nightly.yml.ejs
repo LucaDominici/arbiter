@@ -111,6 +111,45 @@ jobs:
           scan-ref: '.'
           exit-code: '1'
 
+<% if (language !== 'go') { %>
+  sbom:
+    name: SBOM Generation
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm sbom --sbom-format cyclonedx --output-file sbom.json
+<% } %><% if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - run: ./gradlew cyclonedxBom
+<% } else { %>      - run: mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+<% } %><% } %><% if (language === 'rust') { %>
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-cyclonedx
+      - run: cargo cyclonedx --format json
+<% } %><% if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install cyclonedx-bom
+      - run: cyclonedx-py environment -o sbom.json
+<% } %>
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.run_id }}
+          path: sbom.json
+          retention-days: 90
+<% } %>
+
   load-test:
     name: Load Test (k6)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
@@ -126,7 +165,7 @@ jobs:
   evidence-collect:
     name: Collect Evidence
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    needs: [e2e-full, security-deep, load-test<% if (language !== 'go') { %>, mutation<% } %>]
+    needs: [e2e-full, security-deep, load-test<% if (language !== 'go') { %>, mutation, sbom<% } %>]
     if: always()
     steps:
       - uses: actions/checkout@v4

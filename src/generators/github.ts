@@ -61,6 +61,16 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
     );
   }
 
+  if (config.governanceLevel !== "L1") {
+    results.push(
+      writeFile(
+        join(issueTemplatesDir, "compliance-item.yml"),
+        renderTemplate("github/issue-templates/compliance-item.yml.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
   // Issue state automation — skip if exists
   results.push(
     writeFile(

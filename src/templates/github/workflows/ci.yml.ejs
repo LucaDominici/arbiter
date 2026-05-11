@@ -98,10 +98,19 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test -- --coverage
+      - run: npm test -- --coverage<% if (enableDebtGates) { %> --reporter=junit --outputFile=test-results/junit.xml<% } %>
 <% if (enableSecurityScanning) { %>
       - name: Dep audit (INV-13)
         run: npm audit --audit-level=high
+<% } %>
+<% if (enableDebtGates) { %>
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
 <% } %>
 <% } %><% if (language === 'rust') { %>
   lint-and-test:
@@ -143,11 +152,29 @@ jobs:
       - name: Dep audit OWASP DC (INV-13)
         run: ./gradlew dependencyCheckAnalyze
 <% } %>
+<% if (enableDebtGates) { %>
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: build/test-results/
+          retention-days: 7
+<% } %>
 <% } else { %>      - run: mvn checkstyle:check
       - run: mvn test
 <% if (enableSecurityScanning) { %>
       - name: Dep audit OWASP DC (INV-13)
         run: mvn org.owasp:dependency-check-maven:check
+<% } %>
+<% if (enableDebtGates) { %>
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: target/surefire-reports/
+          retention-days: 7
 <% } %>
 <% } %><% } %><% if (language === 'go') { %>
   lint-and-test:
@@ -181,10 +208,19 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest --cov
+      - run: pytest --cov --junitxml=test-results/junit.xml
 <% if (enableSecurityScanning) { %>
       - name: Dep audit (INV-13)
         run: pip-audit
+<% } %>
+<% if (enableDebtGates) { %>
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
 <% } %>
 <% } %>
 

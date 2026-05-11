@@ -42,7 +42,14 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test -- --coverage
+      - run: npm test -- --coverage --reporter=junit --outputFile=test-results/junit.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
       - name: Dep audit
         run: npm audit --audit-level=high
       - name: Circular dependency check

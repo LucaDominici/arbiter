@@ -22,11 +22,13 @@ describe("generateCheckAll", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("generates scripts/check-all.mjs", () => {
+  it("generates scripts/check-all.mjs and check-workflow-runners.mjs", () => {
     const result = generateCheckAll(makeConfig(dir));
-    expect(result.files).toHaveLength(1);
+    expect(result.files).toHaveLength(2);
     expect(result.files[0].path).toContain("check-all.mjs");
     expect(result.files[0].action).toBe("created");
+    expect(result.files[1].path).toContain("check-workflow-runners.mjs");
+    expect(result.files[1].action).toBe("created");
   });
 
   it("check-all.mjs has shebang line", () => {

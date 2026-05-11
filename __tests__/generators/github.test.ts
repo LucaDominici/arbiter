@@ -361,3 +361,88 @@ describe("security-early-fail CI job", () => {
     expect(needsLine).toContain("security-early-fail");
   });
 });
+
+describe("generateGithub — PR template Pipeline Artifacts (#198)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-github-pr-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("PULL_REQUEST_TEMPLATE.md contains Pipeline Artifacts section", () => {
+    generateGithub(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, ".github", "PULL_REQUEST_TEMPLATE.md"),
+      "utf-8",
+    );
+    expect(content).toContain("Pipeline Artifacts");
+  });
+});
+
+describe("generateGithub — compliance-item.yml issue template (#199)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-github-compliance-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("compliance-item.yml present at L2", () => {
+    generateGithub(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(
+      existsSync(join(dir, ".github", "ISSUE_TEMPLATE", "compliance-item.yml")),
+    ).toBe(true);
+  });
+
+  it("compliance-item.yml present at L3", () => {
+    generateGithub(makeConfig(dir, { governanceLevel: "L3" }));
+    expect(
+      existsSync(join(dir, ".github", "ISSUE_TEMPLATE", "compliance-item.yml")),
+    ).toBe(true);
+  });
+
+  it("compliance-item.yml absent at L1", () => {
+    generateGithub(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(
+      existsSync(join(dir, ".github", "ISSUE_TEMPLATE", "compliance-item.yml")),
+    ).toBe(false);
+  });
+});
+
+describe("generateGithub — dependabot groups (#200)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "arbiter-github-dependabot-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("dependabot.yml has groups for TypeScript", () => {
+    generateGithub(makeConfig(dir, { language: "typescript" }));
+    const content = readFileSync(
+      join(dir, ".github", "dependabot.yml"),
+      "utf-8",
+    );
+    expect(content).toContain("groups:");
+    expect(content).toContain("dev-dependencies");
+  });
+
+  it("dependabot.yml has no groups for Go", () => {
+    generateGithub(makeConfig(dir, { language: "go", buildTool: "go" }));
+    const content = readFileSync(
+      join(dir, ".github", "dependabot.yml"),
+      "utf-8",
+    );
+    expect(content).not.toContain("groups:");
+  });
+});
