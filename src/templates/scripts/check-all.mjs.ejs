@@ -240,6 +240,7 @@ if (level === 'L2') {
 <% } %>
   runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
   runCheck('circular deps', 'npx', ['madge', '--circular', 'src'], { soft: graceActive });
+  runCheck('arch boundaries', 'npm', ['run', 'check:arch'], { soft: graceActive });
 <% } %><% if (language === 'rust') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });

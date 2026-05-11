@@ -505,4 +505,54 @@ describe("generateDebtGates", () => {
     generateDebtGates(config);
     expect(existsSync(join(dir, "scripts", "verify-spotbugs.mjs"))).toBe(false);
   });
+
+  // ── dependency-cruiser (#216) ─────────────────────────────────────────────
+
+  it("emits .dependency-cruiser.cjs for TypeScript projects (#216)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    const result = generateDebtGates(config);
+    expect(
+      result.files.some((f) => f.path.endsWith(".dependency-cruiser.cjs")),
+    ).toBe(true);
+    expect(existsSync(join(dir, ".dependency-cruiser.cjs"))).toBe(true);
+  });
+
+  it(".dependency-cruiser.cjs contains no-circular and no-cross-layer rules (#216)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const content = readFileSync(join(dir, ".dependency-cruiser.cjs"), "utf-8");
+    expect(content).toContain("no-circular");
+    expect(content).toContain("no-cross-layer");
+    expect(content).toContain("module.exports");
+  });
+
+  it("injects check:arch script and dependency-cruiser devDep into package.json (#216)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf-8"),
+    ) as Record<string, Record<string, string>>;
+    expect(pkg.scripts?.["check:arch"]).toBe("depcruise src");
+    expect(pkg.devDependencies?.["dependency-cruiser"]).toMatch(/^\^16/);
+  });
+
+  it("does not emit .dependency-cruiser.cjs for Java projects (#216)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, ".dependency-cruiser.cjs"))).toBe(false);
+  });
 });

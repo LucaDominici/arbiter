@@ -1,3 +1,4 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
 import type { ProjectConfig } from "../wizard/types.js";
@@ -5,6 +6,28 @@ import type { WriteResult } from "../utils/fs.js";
 
 export interface DebtGatesGeneratorResult {
   files: WriteResult[];
+}
+
+function injectDepCruiserPackageJson(targetDir: string): void {
+  const pkgPath = resolvedPath(targetDir, "package.json");
+  if (!existsSync(pkgPath)) return;
+  let pkg: Record<string, unknown>;
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>;
+  if (!scripts["check:arch"]) {
+    scripts["check:arch"] = "depcruise src";
+    pkg.scripts = scripts;
+  }
+  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+  if (!devDeps["dependency-cruiser"]) {
+    devDeps["dependency-cruiser"] = "^16.0.0";
+    pkg.devDependencies = devDeps;
+  }
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
 }
 
 function pushJavaDebtGates(
@@ -84,6 +107,14 @@ export function generateDebtGates(
         { skipIfExists: true },
       ),
     );
+    results.push(
+      writeFile(
+        resolvedPath(base, ".dependency-cruiser.cjs"),
+        renderTemplate("static-analysis/.dependency-cruiser.cjs.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    injectDepCruiserPackageJson(base);
   }
 
   if (config.language === "rust") {
