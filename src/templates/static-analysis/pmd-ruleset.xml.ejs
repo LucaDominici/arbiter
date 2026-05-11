@@ -10,20 +10,20 @@
   <!-- ── DESIGN ──────────────────────────────────────────────────────────── -->
   <rule ref="category/java/design.xml/CyclomaticComplexity">
     <properties>
-      <property name="methodReportLevel" value="15"/>
+      <property name="methodReportLevel" value="<%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>"/>
       <property name="classReportLevel" value="80"/>
     </properties>
   </rule>
 
   <rule ref="category/java/design.xml/CognitiveComplexity">
     <properties>
-      <property name="reportLevel" value="15"/>
+      <property name="reportLevel" value="<%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>"/>
     </properties>
   </rule>
 
   <rule ref="category/java/design.xml/NcssCount">
     <properties>
-      <property name="methodReportLevel" value="50"/>
+      <property name="methodReportLevel" value="<%= locals.thresholds ? locals.thresholds.methodLength : 50 %>"/>
       <property name="classReportLevel" value="1000"/>
     </properties>
   </rule>
@@ -74,12 +74,8 @@
 
   <!-- ── BEST PRACTICES ──────────────────────────────────────────────────── -->
   <rule ref="category/java/bestpractices.xml">
-    <!-- DI-pattern: @Inject/@Autowired fields appear unused to PMD -->
-    <exclude name="UnusedPrivateField"/>
     <!-- Allow JUnit 5 public test methods -->
     <exclude name="JUnit4TestShouldUseTestAnnotation"/>
-    <!-- Allow test fixture methods that appear unused -->
-    <exclude name="UnusedPrivateMethod"/>
   </rule>
 
   <!-- ── PERFORMANCE ─────────────────────────────────────────────────────── -->

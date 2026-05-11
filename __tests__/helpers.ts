@@ -7,6 +7,7 @@ import {
   presetToTiers,
   defaultPresetForLevel,
 } from "../src/invariants/filter.js";
+export { DEFAULT_THRESHOLDS } from "../src/config/schema.js";
 
 /**
  * Create a temp directory with language-specific marker files.

@@ -3,6 +3,25 @@ import { renderTemplate } from "../../src/utils/render.js";
 import { makeConfig } from "../helpers.js";
 
 describe("check-all.mjs.ejs rendering — Java wiring (#404)", () => {
+  it("renders inline suppressions check when enableSuppressions=true (#367)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      enableSuppressions: true,
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("check-inline-suppressions.mjs");
+  });
+
+  it("renders inline suppressions check unconditionally even when enableSuppressions=false (CANON-09, #367)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      enableSuppressions: false,
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("check-inline-suppressions.mjs");
+  });
   it("Java Gradle L2 coverageEnabled=false: coverage check omitted", () => {
     const data = makeConfig("/tmp/test", {
       language: "java",
@@ -156,5 +175,86 @@ describe("check-all.mjs.ejs rendering — Python e2e gate (#366)", () => {
     }) as unknown as Record<string, unknown>;
     const content = renderTemplate("scripts/check-all.mjs.ejs", data);
     expect(content).not.toContain("runCheck('e2e', 'pytest', ['tests/e2e/']");
+  });
+});
+
+// F17 — contract gate command fixes (#376)
+describe("check-all.mjs.ejs — contract gate commands (F17)", () => {
+  const contractTypes = [
+    "rest-owned",
+    "rest-public",
+    "graphql",
+    "grpc",
+    "message-queue",
+  ] as const;
+
+  const rustTargets: Record<string, string> = {
+    "rest-owned": "pact_consumer_test",
+    "rest-public": "openapi_diff_test",
+    graphql: "graphql_schema_test",
+    grpc: "grpc_contract_test",
+    "message-queue": "schema_registry_test",
+  };
+
+  for (const ct of contractTypes) {
+    it(`Rust ${ct}: uses cargo test --test ${rustTargets[ct]}`, () => {
+      const data = makeConfig("/tmp/test", {
+        language: "rust",
+        contractType: ct,
+        governanceLevel: "L2",
+        coverageEnabled: false,
+        coverageThreshold: 80,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).toContain(`--test', '${rustTargets[ct]}'`);
+      expect(content).not.toContain("*contract*");
+    });
+  }
+
+  it("Go: uses go test -tags contract (no change needed, verified)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "go",
+      contractType: "rest-owned",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+      coverageThreshold: 80,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("'-tags', 'contract'");
+  });
+
+  for (const contractType of [
+    "rest-owned",
+    "graphql",
+    "grpc",
+    "message-queue",
+  ] as const) {
+    it(`Python ${contractType}: uses pytest tests/contract/ path`, () => {
+      const data = makeConfig("/tmp/test", {
+        language: "python",
+        contractType,
+        governanceLevel: "L2",
+        coverageEnabled: false,
+        coverageThreshold: 80,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).toContain("tests/contract/");
+    });
+  }
+});
+
+describe("check-all.mjs.ejs — F10 cargo integration test flag (#369)", () => {
+  it("Rust L2: uses '--tests' flag not '*integration*' glob", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "rust",
+      buildTool: "cargo",
+      hasDatabase: true,
+      governanceLevel: "L2",
+      coverageEnabled: false,
+      coverageThreshold: 80,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("'--tests'");
+    expect(content).not.toContain("'*integration*'");
   });
 });

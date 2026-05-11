@@ -126,6 +126,8 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 // ─── L1: Suppression expiry ───────────────────────────────────────────────────
 runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
 <% } %>
+// ─── L1: Inline suppression directives (INV-31) ──────────────────────────────
+runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 <% if (enableSecurityScanning) { %>
@@ -150,7 +152,7 @@ if (level === 'L2') {
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration tests', 'cargo', ['test', '--test', '*integration*'], { soft: graceActive });
+  runCheck('integration tests', 'cargo', ['test', '--tests'], { soft: graceActive });
 <% } %>
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
@@ -303,7 +305,17 @@ if (level === 'L2') {
   }
 <% } %>
 <% } else if (language === 'rust') { %>
-  runCheck('contract tests', 'cargo', ['test', '--test', '*contract*'], { soft: graceActive });
+<% if (contractType === 'rest-owned') { %>
+  runCheck('contract tests (Pact)', 'cargo', ['test', '--test', 'pact_consumer_test'], { soft: graceActive });
+<% } else if (contractType === 'rest-public') { %>
+  runCheck('contract tests (OpenAPI)', 'cargo', ['test', '--test', 'openapi_diff_test'], { soft: graceActive });
+<% } else if (contractType === 'graphql') { %>
+  runCheck('contract tests (GraphQL)', 'cargo', ['test', '--test', 'graphql_schema_test'], { soft: graceActive });
+<% } else if (contractType === 'grpc') { %>
+  runCheck('contract tests (gRPC)', 'cargo', ['test', '--test', 'grpc_contract_test'], { soft: graceActive });
+<% } else if (contractType === 'message-queue') { %>
+  runCheck('contract tests (schema registry)', 'cargo', ['test', '--test', 'schema_registry_test'], { soft: graceActive });
+<% } %>
 <% } else if (language === 'go') { %>
   runCheck('contract tests', 'go', ['test', '-tags', 'contract', '-run', 'Contract', './...'], { soft: graceActive });
 <% } else if (language === 'python') { %>

@@ -1,4 +1,6 @@
 {
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
   "env": {
     "es2022": true,
     "node": true
@@ -8,9 +10,10 @@
     "sourceType": "module"
   },
   "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
     "no-console": "error",
     "complexity": ["error", <%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>],
-    "max-params": ["error", <%= locals.thresholds ? locals.thresholds.maxParams : 5 %>],
+    "max-params": ["error", <%= locals.thresholds ? locals.thresholds.maxParams : 7 %>],
     "max-depth": ["error", 4],
     "max-lines-per-function": [
       "error",

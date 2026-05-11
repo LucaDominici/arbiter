@@ -467,14 +467,15 @@ export const INVARIANT_CATALOG: Invariant[] = [
     tier: "governance",
     title: "Suppressions must have mandatory expiry",
     description:
-      "Every suppression entry in dependency-check-suppressions.xml, .gitleaksignore, " +
-      "pii-allowlist.json, and archunit-baseline.json must carry four mandatory metadata " +
-      "fields: reason (≥10 chars), owner (@github-handle), expiresAt (ISO date), and scope. " +
-      "Entries with a past expiresAt block the L1 gate. There are no permanent suppressions — " +
+      "Every suppression entry — both file-based (dependency-check-suppressions.xml, .gitleaksignore, " +
+      "pii-allowlist.json, archunit-baseline.json) and inline comment directives " +
+      "(arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason=..., owner=@handle)) — must carry " +
+      "mandatory metadata: reason (≥10 chars), owner (@github-handle), and expiresAt/until (ISO date). " +
+      "Entries with a past expiry block the L1 gate. There are no permanent suppressions — " +
       "waivers must be renewed or removed when the underlying issue is resolved.",
     alwaysActive: true,
     enforcement:
-      "CI gate (scripts/check-suppressions.mjs — L1) + pre-commit hook",
+      "CI gate (scripts/check-suppressions.mjs + scripts/check-inline-suppressions.mjs — L1) + pre-commit hook",
   },
 
   // ─── Governance: Real-Project Matrix Coverage ───────────────────────────────

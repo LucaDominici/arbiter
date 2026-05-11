@@ -536,3 +536,40 @@ describe("generateArchUnit — hexagonal suite (M22)", () => {
     expect(content).toContain("com.example.myapp");
   });
 });
+
+describe("generateArchUnit — F11 unknown architectureStyle guard (#370)", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = createTestProject("java");
+  });
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  it("throws on unknown architectureStyle with helpful message (#370)", () => {
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      architectureStyle: "foo" as never,
+    });
+    expect(() => generateArchUnit(config)).toThrow(
+      /unknown architectureStyle/i,
+    );
+  });
+
+  it("does not throw on known styles: hexagonal, layered, modular-monolith, none", () => {
+    for (const style of [
+      "hexagonal",
+      "layered",
+      "modular-monolith",
+      "none",
+    ] as const) {
+      const config = makeConfig(dir, {
+        language: "java",
+        buildTool: "gradle",
+        architectureStyle: style,
+      });
+      expect(() => generateArchUnit(config)).not.toThrow();
+    }
+  });
+});

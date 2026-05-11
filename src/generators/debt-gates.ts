@@ -7,27 +7,42 @@ export interface DebtGatesGeneratorResult {
   files: WriteResult[];
 }
 
-function javaDebtGateFiles(base: string): [string, string][] {
-  return [
+function pushJavaDebtGates(
+  results: WriteResult[],
+  base: string,
+  data: Record<string, unknown>,
+): void {
+  const files: [string, string][] = [
     [
       resolvedPath(base, "config", "pmd-ruleset.xml"),
-      "debt-gates/pmd-ruleset.xml.ejs",
+      "static-analysis/pmd-ruleset.xml.ejs",
     ],
     [
       resolvedPath(base, "config", "checkstyle.xml"),
-      "debt-gates/checkstyle.xml.ejs",
+      "static-analysis/checkstyle.xml.ejs",
     ],
     [
       resolvedPath(base, "config", "spotbugs-exclude.xml"),
-      "debt-gates/spotbugs-exclude.xml.ejs",
+      "static-analysis/spotbugs-exclude.xml.ejs",
     ],
-    [resolvedPath(base, "spotless.gradle"), "debt-gates/spotless.gradle.ejs"],
+    [
+      resolvedPath(base, "spotless.gradle"),
+      "static-analysis/spotless.gradle.ejs",
+    ],
     [
       resolvedPath(base, "config", "pitest-setup.md"),
-      "debt-gates/pitest-setup.md.ejs",
+      "mutation/pitest-l2-setup.md.ejs",
     ],
-    [resolvedPath(base, "spotbugs.gradle"), "debt-gates/spotbugs.gradle.ejs"],
+    [
+      resolvedPath(base, "spotbugs.gradle"),
+      "static-analysis/spotbugs.gradle.ejs",
+    ],
   ];
+  for (const [path, tmpl] of files) {
+    results.push(
+      writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true }),
+    );
+  }
 }
 
 export function generateDebtGates(
@@ -43,21 +58,21 @@ export function generateDebtGates(
     results.push(
       writeFile(
         resolvedPath(base, "knip.json"),
-        renderTemplate("debt-gates/knip.json.ejs", data),
+        renderTemplate("static-analysis/knip.json.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, ".eslintrc-static.json"),
-        renderTemplate("debt-gates/eslintrc-static.json.ejs", data),
+        renderTemplate("static-analysis/eslintrc-static.json.ejs", data),
         { skipIfExists: true },
       ),
     );
     results.push(
       writeFile(
         resolvedPath(base, ".prettierrc.json"),
-        renderTemplate("debt-gates/prettierrc.json.ejs", data),
+        renderTemplate("static-analysis/prettierrc.json.ejs", data),
         { skipIfExists: true },
       ),
     );
@@ -67,7 +82,7 @@ export function generateDebtGates(
     results.push(
       writeFile(
         resolvedPath(base, "rustfmt.toml"),
-        renderTemplate("debt-gates/rustfmt.toml.ejs", data),
+        renderTemplate("static-analysis/rustfmt.toml.ejs", data),
         { skipIfExists: true },
       ),
     );
@@ -77,25 +92,21 @@ export function generateDebtGates(
     results.push(
       writeFile(
         resolvedPath(base, ".golangci.yml"),
-        renderTemplate("debt-gates/.golangci.yml.ejs", data),
+        renderTemplate("static-analysis/.golangci.yml.ejs", data),
         { skipIfExists: true },
       ),
     );
   }
 
   if (config.language === "java") {
-    for (const [path, tmpl] of javaDebtGateFiles(base)) {
-      results.push(
-        writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true }),
-      );
-    }
+    pushJavaDebtGates(results, base, data);
   }
 
   if (config.language === "python") {
     results.push(
       writeFile(
         resolvedPath(base, "ruff.toml"),
-        renderTemplate("debt-gates/ruff.toml.ejs", data),
+        renderTemplate("static-analysis/ruff.toml.ejs", data),
         { skipIfExists: true },
       ),
     );

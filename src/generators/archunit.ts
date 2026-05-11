@@ -89,10 +89,23 @@ function emitHexagonalSuite(
   return files;
 }
 
+const KNOWN_STYLES = new Set([
+  "hexagonal",
+  "layered",
+  "modular-monolith",
+  "none",
+]);
+
 export function generateArchUnit(
   config: ProjectConfig,
 ): ArchUnitGeneratorResult {
   if (config.language !== "java") return { files: [] };
+
+  if (!KNOWN_STYLES.has(config.architectureStyle)) {
+    throw new Error(
+      `archunit: unknown architectureStyle '${config.architectureStyle}'. Choose: hexagonal, layered, modular-monolith, or none.`,
+    );
+  }
 
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;
