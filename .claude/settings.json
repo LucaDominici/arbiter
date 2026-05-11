@@ -73,6 +73,11 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/check-no-unused-exports.mjs",
+            "timeout": 60
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/post-edit-dispatch.mjs",
             "timeout": 15
           }

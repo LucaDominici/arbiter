@@ -60,6 +60,11 @@
             "type": "command",
             "command": "node .claude/hooks/check-no-pii.mjs",
             "timeout": 5
+          }<% } %><% if (language === 'typescript') { %>,
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-unused-exports.mjs",
+            "timeout": 60
           }<% } %><% languageHooks.filter(h => h.name !== 'check-no-orphan-todo.mjs').forEach((hook, i) => { %>,
           {
             "type": "command",

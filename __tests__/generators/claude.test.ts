@@ -195,6 +195,36 @@ describe("generateClaude", () => {
     expect(raw).toContain("check-no-placeholders.mjs");
   });
 
+  it("check-no-unused-exports.mjs is emitted for TypeScript (#156)", () => {
+    const config = makeConfig(dir, { language: "typescript" });
+    generateClaude(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-unused-exports.mjs")),
+    ).toBe(true);
+  });
+
+  it("check-no-unused-exports.mjs is NOT emitted for non-TypeScript (#156)", () => {
+    const config = makeConfig(dir, { language: "rust" });
+    generateClaude(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-unused-exports.mjs")),
+    ).toBe(false);
+  });
+
+  it("check-no-unused-exports is wired in settings.json for TypeScript (#156)", () => {
+    const config = makeConfig(dir, { language: "typescript" });
+    generateClaude(config);
+    const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("check-no-unused-exports.mjs");
+  });
+
+  it("check-no-unused-exports is NOT in settings.json for non-TypeScript (#156)", () => {
+    const config = makeConfig(dir, { language: "go" });
+    generateClaude(config);
+    const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).not.toContain("check-no-unused-exports.mjs");
+  });
+
   it("guard-task-completion is wired in settings.json UserPromptSubmit at L2", () => {
     const config = makeConfig(dir, { governanceLevel: "L2" });
     generateClaude(config);

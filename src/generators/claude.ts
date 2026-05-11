@@ -126,6 +126,16 @@ function generateClaudeHooks(
     ),
   );
 
+  if (config.language === "typescript") {
+    results.push(
+      writeFile(
+        join(hooksDir, "check-no-unused-exports.mjs"),
+        renderTemplate("claude/hooks/check-no-unused-exports.mjs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
   for (const hook of config.languageHooks) {
     if (hook.name !== "check-no-orphan-todo.mjs") {
       results.push(
