@@ -30,6 +30,9 @@ select = [
 [lint.mccabe]
 max-complexity = <%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>
 
+[lint.pylint]
+max-args = <%= locals.thresholds ? locals.thresholds.maxParams : 7 %>
+
 [format]
 # Match Black defaults for consistency
 quote-style = "double"

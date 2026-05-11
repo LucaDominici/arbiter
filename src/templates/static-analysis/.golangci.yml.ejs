@@ -8,8 +8,9 @@ linters:
   disable-all: true
   enable:
     # Complexity
-    - gocyclo      # cyclomatic complexity (max 15)
+    - gocyclo      # cyclomatic complexity
     - gocognit     # cognitive complexity
+    - funlen       # function length
     # Dead code & unused
     - unused
     # Constants & duplication
@@ -29,6 +30,9 @@ linters-settings:
     min-complexity: <%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>
   gocognit:
     min-complexity: <%= locals.thresholds ? locals.thresholds.cyclomaticComplexity : 15 %>
+  funlen:
+    lines: <%= locals.thresholds ? locals.thresholds.methodLength : 65 %>
+    statements: <%= locals.thresholds ? locals.thresholds.methodLength : 65 %>
   goconst:
     min-len: 3
     min-occurrences: 3

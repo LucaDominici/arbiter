@@ -367,7 +367,7 @@ describe("generateContractTesting", () => {
     }
   });
 
-  it("generates tests/test_pact_consumer.py for rest-owned + python", () => {
+  it("generates tests/contract/test_pact_consumer.py for rest-owned + python (F17)", () => {
     const pyDir = createTestProject("python");
     initGit(pyDir);
     try {
@@ -378,9 +378,9 @@ describe("generateContractTesting", () => {
         buildTool: "pip",
       });
       generateContractTesting(config);
-      expect(existsSync(join(pyDir, "tests", "test_pact_consumer.py"))).toBe(
-        true,
-      );
+      expect(
+        existsSync(join(pyDir, "tests", "contract", "test_pact_consumer.py")),
+      ).toBe(true);
     } finally {
       cleanupTestProject(pyDir);
     }
@@ -507,9 +507,9 @@ describe("generateContractTesting", () => {
       });
       const result = generateContractTesting(config);
       expect(result.files).toHaveLength(2);
-      expect(existsSync(join(pyDir, "tests", "test_openapi_diff.py"))).toBe(
-        true,
-      );
+      expect(
+        existsSync(join(pyDir, "tests", "contract", "test_openapi_diff.py")),
+      ).toBe(true);
       expect(existsSync(join(pyDir, "CONTRACTS_POLICY.md"))).toBe(true);
     } finally {
       cleanupTestProject(pyDir);
@@ -653,9 +653,9 @@ describe("generateContractTesting", () => {
       });
       const result = generateContractTesting(config);
       expect(result.files).toHaveLength(2);
-      expect(existsSync(join(pyDir, "tests", "test_graphql_schema.py"))).toBe(
-        true,
-      );
+      expect(
+        existsSync(join(pyDir, "tests", "contract", "test_graphql_schema.py")),
+      ).toBe(true);
       expect(existsSync(join(pyDir, "CONTRACTS_POLICY.md"))).toBe(true);
     } finally {
       cleanupTestProject(pyDir);
@@ -790,9 +790,9 @@ describe("generateContractTesting", () => {
       });
       const result = generateContractTesting(config);
       expect(result.files).toHaveLength(4);
-      expect(existsSync(join(pyDir, "tests", "test_grpc_contract.py"))).toBe(
-        true,
-      );
+      expect(
+        existsSync(join(pyDir, "tests", "contract", "test_grpc_contract.py")),
+      ).toBe(true);
       expect(existsSync(join(pyDir, "CONTRACTS_POLICY.md"))).toBe(true);
     } finally {
       cleanupTestProject(pyDir);
@@ -907,9 +907,9 @@ describe("generateContractTesting", () => {
       });
       const result = generateContractTesting(config);
       expect(result.files).toHaveLength(2);
-      expect(existsSync(join(pyDir, "tests", "test_schema_registry.py"))).toBe(
-        true,
-      );
+      expect(
+        existsSync(join(pyDir, "tests", "contract", "test_schema_registry.py")),
+      ).toBe(true);
       expect(existsSync(join(pyDir, "CONTRACTS_POLICY.md"))).toBe(true);
     } finally {
       cleanupTestProject(pyDir);

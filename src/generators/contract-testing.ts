@@ -77,10 +77,10 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
       ),
     );
   } else {
-    // python
+    // python — contract tests live in tests/contract/ to match pytest discovery path
     out.push(
       writeFile(
-        resolvedPath(base, "tests", pyFile),
+        resolvedPath(base, "tests", "contract", pyFile),
         renderTemplate(`contract-testing/${templateDir}/${pyFile}.ejs`, data),
         skip,
       ),

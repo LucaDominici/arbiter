@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderTemplate } from "../../src/utils/render.js";
-import { makeConfig } from "../helpers.js";
+import { makeConfig, DEFAULT_THRESHOLDS } from "../helpers.js";
 
 describe("debt-gates config templates — rendering", () => {
   it("knip.json.ejs renders valid JSON with entry and project fields", () => {
@@ -9,7 +9,7 @@ describe("debt-gates config templates — rendering", () => {
       projectName: "my-project",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/knip.json.ejs", data);
+    const content = renderTemplate("static-analysis/knip.json.ejs", data);
     const parsed = JSON.parse(content) as Record<string, unknown>;
     expect(parsed).toHaveProperty("entry");
     expect(parsed).toHaveProperty("project");
@@ -21,7 +21,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "go",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/.golangci.yml.ejs", data);
+    const content = renderTemplate("static-analysis/.golangci.yml.ejs", data);
     expect(content).toContain("gocyclo");
     expect(content).toContain("15");
     expect(content).toContain("unused");
@@ -33,7 +33,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "go",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/.golangci.yml.ejs", data);
+    const content = renderTemplate("static-analysis/.golangci.yml.ejs", data);
     expect(content).toContain("gosec");
     expect(content).toContain("errcheck");
     expect(content).toContain("staticcheck");
@@ -46,7 +46,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/pmd-ruleset.xml.ejs", data);
+    const content = renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data);
     expect(content).toContain("CyclomaticComplexity");
     expect(content).toContain("<?xml");
   });
@@ -57,7 +57,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/pmd-ruleset.xml.ejs", data);
+    const content = renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data);
     expect(content).toContain("security.xml");
     expect(content).toContain("multithreading.xml");
     expect(content).toContain("errorprone.xml");
@@ -73,7 +73,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/checkstyle.xml.ejs", data);
+    const content = renderTemplate("static-analysis/checkstyle.xml.ejs", data);
     expect(content).not.toContain("<!DOCTYPE");
     expect(content).toContain("CyclomaticComplexity");
     expect(content).toContain("MethodLength");
@@ -92,7 +92,10 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/spotbugs-exclude.xml.ejs", data);
+    const content = renderTemplate(
+      "static-analysis/spotbugs-exclude.xml.ejs",
+      data,
+    );
     expect(content).toContain("NP_NONNULL_FIELD");
     expect(content).toContain("EI_EXPOSE_REP");
     expect(content).not.toContain("SQL_INJECTION");
@@ -107,7 +110,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/spotless.gradle.ejs", data);
+    const content = renderTemplate("static-analysis/spotless.gradle.ejs", data);
     expect(content).toContain("com.diffplug.spotless");
     expect(content).toContain("googleJavaFormat");
     expect(content).toContain("spotlessCheck");
@@ -119,16 +122,22 @@ describe("debt-gates config templates — rendering", () => {
       language: "typescript",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/eslintrc-static.json.ejs", data);
+    const content = renderTemplate(
+      "static-analysis/eslintrc-static.json.ejs",
+      data,
+    );
     const parsed = JSON.parse(content) as Record<string, unknown>;
     expect(parsed).toHaveProperty("rules");
     const rules = parsed.rules as Record<string, unknown>;
+    expect(rules).toHaveProperty("@typescript-eslint/no-explicit-any", "error");
     expect(rules).toHaveProperty("no-console");
     expect(rules).toHaveProperty("complexity");
     expect(rules).toHaveProperty("max-params");
     expect(rules).toHaveProperty("max-depth");
     expect(rules).toHaveProperty("max-lines-per-function");
     expect(rules).toHaveProperty("max-nested-callbacks");
+    expect(parsed).toHaveProperty("parser", "@typescript-eslint/parser");
+    expect(parsed).toHaveProperty("plugins");
   });
 
   it("eslintrc-static.json.ejs sets complexity to 15 and max-params to 5", () => {
@@ -136,7 +145,10 @@ describe("debt-gates config templates — rendering", () => {
       language: "typescript",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/eslintrc-static.json.ejs", data);
+    const content = renderTemplate(
+      "static-analysis/eslintrc-static.json.ejs",
+      data,
+    );
     expect(content).toContain("15");
     expect(content).toContain('"max-params"');
     expect(content).toContain("5");
@@ -148,7 +160,7 @@ describe("debt-gates config templates — rendering", () => {
       language: "typescript",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/prettierrc.json.ejs", data);
+    const content = renderTemplate("static-analysis/prettierrc.json.ejs", data);
     const parsed = JSON.parse(content) as Record<string, unknown>;
     expect(parsed).toHaveProperty("printWidth");
     expect(parsed).toHaveProperty("singleQuote");
@@ -162,7 +174,7 @@ describe("debt-gates config templates — rendering", () => {
       language: "python",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/ruff.toml.ejs", data);
+    const content = renderTemplate("static-analysis/ruff.toml.ejs", data);
     expect(content).toContain("C901");
     expect(content).toContain("PLR0911");
     expect(content).toContain("F401");
@@ -177,7 +189,7 @@ describe("debt-gates config templates — rendering", () => {
       enableDebtGates: true,
       architectureStyle: "hexagonal",
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/ruff.toml.ejs", data);
+    const content = renderTemplate("static-analysis/ruff.toml.ejs", data);
     expect(content).toContain("ruff-boundaries.toml");
   });
 
@@ -187,7 +199,7 @@ describe("debt-gates config templates — rendering", () => {
       enableDebtGates: true,
       architectureStyle: "layered",
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/ruff.toml.ejs", data);
+    const content = renderTemplate("static-analysis/ruff.toml.ejs", data);
     expect(content).not.toContain("ruff-boundaries.toml");
   });
 
@@ -198,7 +210,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/spotbugs.gradle.ejs", data);
+    const content = renderTemplate("static-analysis/spotbugs.gradle.ejs", data);
     expect(content).toContain("com.github.spotbugs");
     expect(content).toContain("effort");
     expect(content).toContain("excludeFilter");
@@ -213,7 +225,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/pmd-ruleset.xml.ejs", data);
+    const content = renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data);
     expect(content).toContain(
       "category/java/codestyle.xml/UnnecessaryFullyQualifiedName",
     );
@@ -231,7 +243,7 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/checkstyle.xml.ejs", data);
+    const content = renderTemplate("static-analysis/checkstyle.xml.ejs", data);
     expect(content).toContain("SuppressWarningsHolder");
     expect(content).toContain("SuppressWarningsFilter");
   });
@@ -243,10 +255,100 @@ describe("debt-gates config templates — rendering", () => {
       buildTool: "gradle",
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>;
-    const content = renderTemplate("debt-gates/spotbugs-exclude.xml.ejs", data);
+    const content = renderTemplate(
+      "static-analysis/spotbugs-exclude.xml.ejs",
+      data,
+    );
     expect(content).toContain("CT_CONSTRUCTOR_THROW");
     expect(content).toContain("URF_UNREAD_FIELD");
     expect(content).toContain("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE");
     expect(content).toContain("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD");
+  });
+
+  // F15 — threshold parity: all configs respect DEFAULT_THRESHOLDS per governance level
+  describe("threshold parity across stacks (F15)", () => {
+    const levels = [
+      { level: "L1" as const, cc: 20, ml: 100, mp: 8 },
+      { level: "L2" as const, cc: 15, ml: 65, mp: 7 },
+      { level: "L3" as const, cc: 10, ml: 40, mp: 5 },
+    ];
+
+    for (const { level, cc, ml, mp } of levels) {
+      it(`checkstyle.xml.ejs reflects ${level} thresholds (cc=${cc}, ml=${ml}, mp=${mp})`, () => {
+        const data = makeConfig("/tmp/test", {
+          language: "java",
+          governanceLevel: level,
+          enableDebtGates: true,
+          thresholds: DEFAULT_THRESHOLDS[level],
+        }) as unknown as Record<string, unknown>;
+        const content = renderTemplate(
+          "static-analysis/checkstyle.xml.ejs",
+          data,
+        );
+        expect(content).toContain(`value="${cc}"`);
+        expect(content).toContain(`value="${ml}"`);
+        expect(content).toContain(`value="${mp}"`);
+      });
+
+      it(`pmd-ruleset.xml.ejs reflects ${level} thresholds (cc=${cc}, ml=${ml})`, () => {
+        const data = makeConfig("/tmp/test", {
+          language: "java",
+          governanceLevel: level,
+          enableDebtGates: true,
+          thresholds: DEFAULT_THRESHOLDS[level],
+        }) as unknown as Record<string, unknown>;
+        const content = renderTemplate(
+          "static-analysis/pmd-ruleset.xml.ejs",
+          data,
+        );
+        expect(content).toContain(`value="${cc}"`);
+        expect(content).toContain(`value="${ml}"`);
+      });
+
+      it(`.golangci.yml.ejs reflects ${level} thresholds (cc=${cc}, ml=${ml})`, () => {
+        const data = makeConfig("/tmp/test", {
+          language: "go",
+          governanceLevel: level,
+          enableDebtGates: true,
+          thresholds: DEFAULT_THRESHOLDS[level],
+        }) as unknown as Record<string, unknown>;
+        const content = renderTemplate(
+          "static-analysis/.golangci.yml.ejs",
+          data,
+        );
+        expect(content).toContain(`min-complexity: ${cc}`);
+        expect(content).toContain(`lines: ${ml}`);
+      });
+
+      it(`ruff.toml.ejs reflects ${level} thresholds (cc=${cc}, mp=${mp})`, () => {
+        const data = makeConfig("/tmp/test", {
+          language: "python",
+          governanceLevel: level,
+          enableDebtGates: true,
+          thresholds: DEFAULT_THRESHOLDS[level],
+        }) as unknown as Record<string, unknown>;
+        const content = renderTemplate("static-analysis/ruff.toml.ejs", data);
+        expect(content).toContain(`max-complexity = ${cc}`);
+        expect(content).toContain(`max-args = ${mp}`);
+      });
+
+      it(`eslintrc-static.json.ejs reflects ${level} thresholds (cc=${cc}, mp=${mp})`, () => {
+        const data = makeConfig("/tmp/test", {
+          language: "typescript",
+          governanceLevel: level,
+          enableDebtGates: true,
+          thresholds: DEFAULT_THRESHOLDS[level],
+        }) as unknown as Record<string, unknown>;
+        const content = renderTemplate(
+          "static-analysis/eslintrc-static.json.ejs",
+          data,
+        );
+        const parsed = JSON.parse(content) as {
+          rules: Record<string, unknown>;
+        };
+        expect(parsed.rules["complexity"]).toContain(cc);
+        expect(parsed.rules["max-params"]).toContain(mp);
+      });
+    }
   });
 });

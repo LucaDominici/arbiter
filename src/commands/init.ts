@@ -148,9 +148,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   // Save config for future `arbiter update`
   saveConfig(targetDir, buildArbiterConfig(config));
 
-  if (options.brownfield && config.enableDebtGates) {
-    runBrownfieldCapture(targetDir);
-  }
+  maybeCaptureBaseline(config, targetDir, options.brownfield);
 
   if (!options.noVerify) {
     runToolchainVerify(targetDir);
@@ -281,7 +279,22 @@ function logExistingDetections(
     );
 }
 
-function runBrownfieldCapture(targetDir: string): void {
+function maybeCaptureBaseline(
+  config: ProjectConfig,
+  targetDir: string,
+  brownfield: boolean,
+): void {
+  if (config.governanceLevel === "L3" && config.enableDebtGates) {
+    runBrownfieldCapture(targetDir, { fatal: true });
+  } else if (brownfield && config.enableDebtGates) {
+    runBrownfieldCapture(targetDir);
+  }
+}
+
+function runBrownfieldCapture(
+  targetDir: string,
+  opts: { fatal: boolean } = { fatal: false },
+): void {
   console.log("\n  Capturing debt baseline (this may take a few minutes)…");
   try {
     runCli("node", ["scripts/capture-debt-baseline.mjs"], {
@@ -291,10 +304,15 @@ function runBrownfieldCapture(targetDir: string): void {
     console.log("  Baseline captured at scripts/debt-baseline.json");
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (opts.fatal) {
+      console.error(
+        `  [arbiter] GATE FAIL: Baseline capture failed (${msg}). Fix toolchain or run: node scripts/capture-debt-baseline.mjs`,
+      );
+      process.exit(1);
+    }
     console.warn(
       `  Baseline capture failed (${msg}). Re-run manually: node scripts/capture-debt-baseline.mjs`,
     );
-    // Non-fatal: generated files are on disk; toolchain may be incomplete
   }
 }
 

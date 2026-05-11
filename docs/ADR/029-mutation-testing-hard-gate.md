@@ -24,7 +24,7 @@ The enforcement philosophy (`docs/PRODUCT/ENFORCEMENT-PHILOSOPHY.md:8-12`) requi
 
 INV-30 moves from L2 to L3, expands from Java-only to java/typescript/rust/python (Go excluded), and raises the mutation threshold from 80% to 85%.
 
-The L2 advisory guide (`src/templates/debt-gates/pitest-setup.md.ejs`) is **kept at L2 unchanged** — projects at L2 still receive setup guidance. L3 projects receive enforced configuration fragments.
+The L2 advisory guide (`src/templates/mutation/pitest-l2-setup.md.ejs`) is **kept at L2 unchanged** — projects at L2 still receive setup guidance. L3 projects receive enforced configuration fragments.
 
 ### Per-stack tool selection
 
