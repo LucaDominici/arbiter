@@ -1,4 +1,5 @@
 import { runCli, runCliJson } from "../utils/run-cli.js";
+import { TIER_LABELS } from "../generators/labels.js";
 
 export interface Label {
   name: string;
@@ -26,6 +27,12 @@ const STANDARD_LABELS: Label[] = [
   },
   { name: "priority/P1", color: "ff9f1c", description: "High — next up" },
   { name: "priority/P2", color: "fbca04", description: "Normal — in backlog" },
+  // Task-tier labels (#237) — used by /task to pick plan depth + reviewer count.
+  ...TIER_LABELS.map((l) => ({
+    name: l.name,
+    color: l.color,
+    description: l.description,
+  })),
 ];
 
 export interface LabelProvisionResult {

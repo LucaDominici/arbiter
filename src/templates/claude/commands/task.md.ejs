@@ -4,6 +4,8 @@ argument-hint: '#NNN [--skip-review] [--dry-run]'
 ---
 <% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
 <% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; const _codeLanes = _lanes.filter(l => l !== 'docs'); %>
+<% const _defaultTiers = { XS: { planDepth: 'minimal', reviewAgentCount: 3 }, S: { planDepth: 'brief', reviewAgentCount: 3 }, Standard: { planDepth: 'full', reviewAgentCount: 4 } }; %>
+<% const _tiers = (typeof taskTiers !== 'undefined' && taskTiers) ? taskTiers : _defaultTiers; %>
 
 # /task #NNN
 
@@ -69,15 +71,29 @@ Full lifecycle: plan → STOP → implement → review → gate → commit → P
 <% if (governanceLevel !== 'L1') { %>
 ### Phase 2: Classification
 
-Classify the task:
+Classify the task into one of three tiers. Each tier sets the **plan depth**
+and the **minimum number of parallel code-review agents** to dispatch in
+Phase 6 below.
 
-| Tier | Criteria | Ceremony |
-|------|----------|----------|
-| **XS** | Single file, obvious scope | Minimal plan, 3 review agents |
-| **S** | 2-5 files, clear scope | Brief plan, 3 review agents |
-| **Standard** | Multi-file, complex logic, schema changes | Full plan, 4 review agents |
+### Tier XS
 
-Write tier to state file:
+- **Criteria:** Single file, obvious scope.
+- **Plan depth:** <%= _tiers.XS.planDepth %>
+- **Review agents:** <%= _tiers.XS.reviewAgentCount %> review agents minimum.
+
+### Tier S
+
+- **Criteria:** 2–5 files, clear scope.
+- **Plan depth:** <%= _tiers.S.planDepth %>
+- **Review agents:** <%= _tiers.S.reviewAgentCount %> review agents minimum.
+
+### Tier Standard
+
+- **Criteria:** Multi-file, complex logic, schema changes.
+- **Plan depth:** <%= _tiers.Standard.planDepth %>
+- **Review agents:** <%= _tiers.Standard.reviewAgentCount %> review agents minimum.
+
+Write the selected tier to the state file:
 ```bash
 echo "<tier>" > .claude/.task-tier
 ```
@@ -173,9 +189,10 @@ Before implementation: identify which lane(s) your change touches. If only one l
 <% if (governanceLevel !== 'L1') { %>
 ### Phase 6: Code Review (MANDATORY)
 
-**Agent minimums:**
-- XS/S: 3 agents minimum
-- Standard: 4 agents minimum
+**Agent minimums (from `taskTiers` config):**
+- XS: <%= _tiers.XS.reviewAgentCount %> agents minimum
+- S: <%= _tiers.S.reviewAgentCount %> agents minimum
+- Standard: <%= _tiers.Standard.reviewAgentCount %> agents minimum
 
 #### 6.1 — Dispatch parallel review agents (run ALL simultaneously)
 
