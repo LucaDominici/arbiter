@@ -128,6 +128,8 @@ runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
 <% } %>
 // ─── L1: Inline suppression directives (INV-31) ──────────────────────────────
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
+// ─── L1: Workflow runner label enforcement (#191) ────────────────────────────
+runCheck('workflow runners', 'node', ['scripts/check-workflow-runners.mjs']);
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 <% if (enableSecurityScanning) { %>

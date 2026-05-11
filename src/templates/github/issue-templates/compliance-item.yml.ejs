@@ -1,0 +1,75 @@
+name: Compliance Item
+description: Track a compliance requirement, audit finding, or regulatory obligation
+title: "[COMPLIANCE] "
+labels: ["compliance", "governance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to track compliance requirements, regulatory obligations, or audit findings.
+
+  - type: input
+    id: standard-reference
+    attributes:
+      label: Standard / Rule reference
+      description: "e.g. ISO 27001 A.8.1, SOC 2 CC6.1, GDPR Art. 32"
+      placeholder: "Standard name + control reference"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: compliance-type
+    attributes:
+      label: Compliance type
+      options:
+        - Regulatory (external law/standard)
+        - Internal policy
+        - Audit finding
+        - Security control
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk-level
+    attributes:
+      label: Risk level
+      description: Impact if this item is not addressed
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: input
+    id: deadline
+    attributes:
+      label: Deadline
+      description: When must this be resolved? (YYYY-MM-DD)
+      placeholder: "YYYY-MM-DD"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the compliance requirement or finding?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: How do we know when this is resolved?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification method
+      description: How will compliance be verified (audit, automated test, manual review)?

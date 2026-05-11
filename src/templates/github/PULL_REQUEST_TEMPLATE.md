@@ -15,6 +15,16 @@
 - [ ] Tests added/updated for changed code
 - [ ] Commit messages follow convention: `type(scope): summary`
 
+## Pipeline Artifacts
+
+<!-- Optional: link relevant artifacts from CI pipeline -->
+
+| Artifact     | Link |
+| ------------ | ---- |
+| Spec / Plan  |      |
+| Review score |      |
+| Log          |      |
+
 ## Test Plan
 
 <!-- How was this tested? What scenarios were covered? -->

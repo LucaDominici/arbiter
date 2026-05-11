@@ -18,6 +18,16 @@
 
 **Applicable CANON-NN:** <!-- list e.g. CANON-01, CANON-05 or "none" -->
 
+## Pipeline Artifacts
+
+<!-- Optional: link relevant artifacts from CI pipeline -->
+
+| Artifact     | Link |
+| ------------ | ---- |
+| Spec / Plan  |      |
+| Review score |      |
+| Log          |      |
+
 ## Test Plan
 
 <!-- How was this tested? What scenarios were covered? -->

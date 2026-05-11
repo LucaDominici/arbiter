@@ -73,3 +73,49 @@ describe("ci.yml.ejs rendering", () => {
     expect(rendered).toContain("spotbugs:check");
   });
 });
+
+describe("ci.yml.ejs — test-results artifact upload (#194)", () => {
+  it("TypeScript: upload-artifact for test-results when enableDebtGates=true", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      enableDebtGates: true,
+      governanceLevel: "L2",
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(rendered).toContain("test-results");
+    expect(rendered).toContain("upload-artifact");
+  });
+
+  it("TypeScript: no test-results upload in lint-and-test when enableDebtGates=false", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      enableDebtGates: false,
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(rendered).not.toContain("test-results");
+  });
+
+  it("Java Gradle: upload-artifact for test-results when enableDebtGates=true", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+      governanceLevel: "L2",
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(rendered).toContain("test-results");
+    expect(rendered).toContain("upload-artifact");
+  });
+
+  it("Python: upload-artifact for test-results when enableDebtGates=true", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "python",
+      enableDebtGates: true,
+      governanceLevel: "L2",
+    }) as unknown as Record<string, unknown>;
+    const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(rendered).toContain("test-results");
+    expect(rendered).toContain("upload-artifact");
+  });
+});

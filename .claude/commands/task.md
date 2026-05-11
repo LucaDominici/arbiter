@@ -59,11 +59,13 @@ Full lifecycle: plan → STOP → implement → review → gate → commit → P
 
 Classify the task:
 
-| Tier         | Criteria                                  | Ceremony                      |
-| ------------ | ----------------------------------------- | ----------------------------- |
-| **XS**       | Single file, obvious scope                | Minimal plan, 3 review agents |
-| **S**        | 2-5 files, clear scope                    | Brief plan, 3 review agents   |
-| **Standard** | Multi-file, complex logic, schema changes | Full plan, 4 review agents    |
+| Tier   | Criteria                                       | Ceremony                         |
+| ------ | ---------------------------------------------- | -------------------------------- |
+| **XS** | Single file, <20 lines, obvious scope          | Minimal plan, 3 review agents    |
+| **S**  | 2-5 files, clear scope, no schema changes      | Brief plan, 3 review agents      |
+| **M**  | 5-20 files, complex logic, some schema changes | Full plan, 4 review agents       |
+| **L**  | 20+ files, multiple subsystems                 | Full plan, 4+ agents, sub-agent  |
+| **XL** | Cross-repo, architectural change, or >50 files | STOP — decompose into sub-issues |
 
 Write tier to state file:
 
@@ -92,7 +94,18 @@ done
 echo "#NNN" > .claude/.task-id
 echo ".claude/plans/task-NNN.md" > .claude/.task-plan
 echo "plan" > .claude/.task-phase
+mkdir -p .claude/.task-NNN
+echo '{"phase":"plan","task":"#NNN","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > .claude/.task-NNN/status.json
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) plan" >> .claude/.task-NNN/log.md
 ```
+
+**Size routing before STOP:**
+
+| Tier   | Action                                                                                                           |
+| ------ | ---------------------------------------------------------------------------------------------------------------- |
+| XS/S/M | Proceed normally — STOP and await GO                                                                             |
+| L      | Dispatch sub-agent with full context brief: issue body, invariants, plan, file list. Do not edit files yourself. |
+| XL     | HARD STOP — do not edit any file. Decompose into ≤5 sub-issues and present list to user.                         |
 
 **STOP HERE** — await user GO before editing any file.
 
@@ -119,6 +132,8 @@ echo "plan" > .claude/.task-phase
 3. **Update phase**:
    ```bash
    echo "implementation" > .claude/.task-phase
+   echo '{"phase":"implementation","task":"#NNN","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > .claude/.task-NNN/status.json
+   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) implementation" >> .claude/.task-NNN/log.md
    ```
 
 ### Phase 5: Implementation (TDD)
@@ -131,12 +146,37 @@ echo "plan" > .claude/.task-phase
 - Keep commits atomic: one logical change per commit
 - Commit format: `type(#NNN): summary`
 
+**Checkpoint every 3 commits (mandatory):**
+
+```bash
+node scripts/check-all.mjs L1
+git diff origin/main --name-only | head -20
+```
+
+Scan diff for:
+
+- Any `any` type usage → fix immediately
+- Secrets or PII patterns → HARD STOP, remove before proceeding
+
+**Tech-debt detection:** If you discover a genuine debt item (not in scope of current task), do NOT fix it inline. Create a tracking issue:
+
+```bash
+gh issue create --label "tech-debt" --title "TD: <description>" --body "<context from current work>"
+```
+
+Then continue with current task without the inline fix.
+
 ### Phase 6: Code Review (MANDATORY)
 
 **Agent minimums:**
 
-- XS/S: 3 agents minimum
-- Standard: 4 agents minimum
+| Tier | Minimum agents        |
+| ---- | --------------------- |
+| XS   | 3                     |
+| S    | 3                     |
+| M    | 4                     |
+| L    | 4                     |
+| XL   | N/A (decompose first) |
 
 #### 6.1 — Dispatch parallel review agents (run ALL simultaneously)
 
@@ -162,6 +202,25 @@ echo "3" > .agents-dispatched   # or 4 for Standard
 #### 6.4 — Acceptance criteria verification
 
 Re-read the original GitHub issue. For each acceptance criterion, state: PASS / FAIL / NOT TESTED. If any FAIL, fix before proceeding.
+
+#### 6.5 — Score-based verdict (0–100)
+
+Score the implementation across four dimensions (0–25 each):
+
+| Dimension         | 0 (fail)             | 25 (full)                        |
+| ----------------- | -------------------- | -------------------------------- |
+| Correctness       | Logic bugs found     | No bugs found                    |
+| Test quality      | Happy path only      | Edge cases + error paths covered |
+| Domain compliance | Invariant violation  | All invariants satisfied         |
+| Silent failures   | Swallowed exceptions | All errors surfaced              |
+
+**Verdict:**
+
+| Score | Verdict | Action                            |
+| ----- | ------- | --------------------------------- |
+| ≥ 80  | PASS    | Proceed to Phase 7                |
+| 60–79 | REWORK  | Fix findings, re-run agents       |
+| < 60  | STOP    | Do not proceed — escalate to user |
 
 ### Phase 7: Adversarial Verifier (MANDATORY)
 
@@ -191,6 +250,8 @@ Update phase:
 
 ```bash
 echo "verification" > .claude/.task-phase
+echo '{"phase":"verification","task":"#NNN","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > .claude/.task-NNN/status.json
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) verification" >> .claude/.task-NNN/log.md
 ```
 
 ### Phase 9: Commit + Push
@@ -214,6 +275,8 @@ gh pr merge --squash
 ```bash
 gh issue close NNN
 echo "complete" > .claude/.task-phase
+echo '{"phase":"complete","task":"#NNN","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > .claude/.task-NNN/status.json
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) complete" >> .claude/.task-NNN/log.md
 ```
 
 If using worktree, close it:

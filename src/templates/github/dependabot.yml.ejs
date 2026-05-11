@@ -5,7 +5,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels: ["deps"]
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      prod-dependencies:
+        dependency-type: "production"
 <% } %><% if (buildTool === 'cargo') { %>
   - package-ecosystem: "cargo"
     directory: "/"
@@ -17,13 +23,23 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels: ["deps"]
+    groups:
+      build-plugins:
+        patterns: ["*plugin*", "org.gradle.*"]
+      prod-dependencies:
+        dependency-type: "production"
 <% } %><% if (buildTool === 'maven') { %>
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels: ["deps"]
+    groups:
+      prod-dependencies:
+        dependency-type: "production"
 <% } %><% if (buildTool === 'go') { %>
   - package-ecosystem: "gomod"
     directory: "/"
@@ -35,7 +51,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
     labels: ["deps"]
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      prod-dependencies:
+        dependency-type: "production"
 <% } %>
   - package-ecosystem: "github-actions"
     directory: "/"

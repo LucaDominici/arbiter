@@ -61,7 +61,7 @@ console.log("");
 console.log(`=== arbiter Quality Gate: ${level} ===`);
 console.log("");
 
-// ─── L1: Fast checks (9) ─────────────────────────────────────────────────────
+// ─── L1: Fast checks ─────────────────────────────────────────────────────────
 runCheck("typecheck", "npx", ["tsc", "--noEmit"]);
 runCheck("format", "npx", ["prettier", "--check", "."]);
 runCheck("lint", "npx", ["eslint", "src", "__tests__"]);
@@ -93,6 +93,7 @@ runCheck("docs", "node", ["scripts/check-docs.mjs"], DEFAULT_TIMEOUT_MS, {
   cwd: GIT_CWD,
 });
 runCheck("matrix fixtures", "node", ["scripts/check-matrix-fixtures.mjs"]);
+runCheck("workflow runners", "node", ["scripts/check-workflow-runners.mjs"]);
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {

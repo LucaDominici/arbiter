@@ -1,0 +1,43 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  sbom:
+    name: SBOM Generation
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci --legacy-peer-deps
+      - run: npm sbom --sbom-format cyclonedx --output-file sbom.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.run_id }}
+          path: sbom.json
+          retention-days: 90
+
+  security-deep:
+    name: Security Deep Scan (Trivy)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "config"
+          scan-ref: "."
+          exit-code: "1"

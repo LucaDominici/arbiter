@@ -33,7 +33,8 @@ export type GeneratorKey =
   | "playwright-python"
   | "ssot"
   | "githooks"
-  | "github-setup";
+  | "github-setup"
+  | "docs";
 
 export interface ConfigDiff {
   paths: string[];

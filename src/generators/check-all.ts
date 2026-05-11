@@ -37,5 +37,13 @@ export function generateCheckAll(
     }),
   );
 
+  results.push(
+    writeFile(
+      resolvedPath(base, "scripts", "check-workflow-runners.mjs"),
+      renderTemplate("scripts/check-workflow-runners.mjs.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }

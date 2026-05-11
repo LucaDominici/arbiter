@@ -187,3 +187,101 @@ describe("generateNightly — Python L3 mutation", () => {
     expect(content).toContain("mutmut");
   });
 });
+
+describe("generateNightly — SBOM job (#193)", () => {
+  it("nightly.yml contains sbom job for TypeScript L3", () => {
+    const config = makeConfig(createTestProject("typescript"), {
+      language: "typescript",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    expect(content).toContain("sbom");
+    expect(content).toContain("cyclonedx");
+  });
+
+  it("nightly.yml contains npm sbom command for TypeScript L3", () => {
+    const config = makeConfig(createTestProject("typescript"), {
+      language: "typescript",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    expect(content).toContain("npm sbom");
+  });
+
+  it("nightly.yml evidence-collect does not include sbom for Go", () => {
+    const config = makeConfig(createTestProject("go"), {
+      language: "go",
+      buildTool: "go",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    const evidenceCollect = content.split("evidence-collect:")[1] ?? "";
+    expect(evidenceCollect).not.toContain("sbom");
+  });
+
+  it("nightly.yml does not contain sbom job for Go", () => {
+    const config = makeConfig(createTestProject("go"), {
+      language: "go",
+      buildTool: "go",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    expect(content).not.toContain("SBOM Generation");
+  });
+
+  it("nightly.yml contains cyclonedxBom for Java Gradle", () => {
+    const config = makeConfig(createTestProject("java"), {
+      language: "java",
+      buildTool: "gradle",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    expect(content).toContain("cyclonedxBom");
+  });
+
+  it("nightly.yml contains cyclonedx-maven-plugin for Java Maven", () => {
+    const config = makeConfig(createTestProject("java"), {
+      language: "java",
+      buildTool: "maven",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    expect(content).toContain("cyclonedx-maven-plugin");
+  });
+
+  it("nightly.yml contains cargo cyclonedx for Rust", () => {
+    const config = makeConfig(createTestProject("rust"), {
+      language: "rust",
+      buildTool: "cargo",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    expect(content).toContain("cargo cyclonedx");
+  });
+
+  it("nightly.yml contains cyclonedx-py for Python", () => {
+    const config = makeConfig(createTestProject("python"), {
+      language: "python",
+      buildTool: "pip",
+      governanceLevel: "L3",
+    });
+    const result = generateNightly(config);
+    const f = result.files.find((f) => f.path.endsWith("nightly.yml"));
+    const content = readFileSync(f!.path, "utf-8");
+    expect(content).toContain("cyclonedx-py");
+  });
+});
