@@ -26,6 +26,81 @@ import {
   runWorkAdvance,
 } from "./commands/work.js";
 import type { WorkUnitPhase, WorkUnitStatus } from "./decomposition/types.js";
+import { appendEvidenceLine } from "./utils/evidence-log.js";
+import { runCli } from "./utils/run-cli.js";
+
+// ── Evidence logging setup ────────────────────────────────────────────────────
+
+/**
+ * Strip --no-evidence from argv before Commander sees it (Commander would
+ * reject it as an unknown option on subcommands), and capture the flag value.
+ */
+const _rawArgv = process.argv.slice(2);
+const _noEvidenceIdx = _rawArgv.indexOf("--no-evidence");
+const _noEvidence =
+  _noEvidenceIdx !== -1 || process.env["ARBITER_NO_EVIDENCE"] === "1";
+if (_noEvidenceIdx !== -1) {
+  process.argv.splice(2 + _noEvidenceIdx, 1);
+}
+
+/** Resolve git HEAD SHA once at startup; fall back to "unknown" in non-git dirs. */
+function resolveHeadSha(): string {
+  try {
+    return runCli("git", ["rev-parse", "--short", "HEAD"]).stdout.trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+const _headSha = _noEvidence ? "" : resolveHeadSha();
+const _startMs = Date.now();
+
+/**
+ * Derive cmd + args from process.argv (after Commander strips the node binary
+ * and script path).
+ * Convention: `cmd` = top-level subcommand (e.g. "init", "worktree open"),
+ *             `args` = remaining tokens after the subcommand.
+ */
+function parseCmdArgs(): { cmd: string; args: string[] } {
+  const tokens = process.argv.slice(2);
+  if (tokens.length === 0) return { cmd: "", args: [] };
+  // Handle nested commands like "worktree open" / "task advance" / "work list"
+  const nested: ReadonlySet<string> = new Set([
+    "worktree",
+    "wt",
+    "task",
+    "plugin",
+    "work",
+  ]);
+  const first = tokens[0] ?? "";
+  if (nested.has(first) && tokens.length >= 2) {
+    const sub = tokens[1] ?? "";
+    // Skip flags as second token (e.g. "worktree --help")
+    if (!sub.startsWith("-")) {
+      return { cmd: `${first} ${sub}`, args: tokens.slice(2) };
+    }
+  }
+  return { cmd: first, args: tokens.slice(1) };
+}
+
+const _parsedCmd = parseCmdArgs();
+
+let _evidenceLogged = false;
+
+process.on("exit", (code) => {
+  if (_evidenceLogged || _noEvidence) return;
+  _evidenceLogged = true;
+  appendEvidenceLine({
+    ts: new Date().toISOString(),
+    cmd: _parsedCmd.cmd,
+    args: _parsedCmd.args,
+    exit: code,
+    durationMs: Date.now() - _startMs,
+    headSha: _headSha,
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const program = new Command();
 

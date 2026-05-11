@@ -851,6 +851,45 @@ Commit this file so that `arbiter update` works in CI and for teammates.
 
 ---
 
+## Global Flags
+
+These flags apply to every `arbiter` command and are stripped before subcommand
+parsing.
+
+| Flag            | Description                                                   |
+| --------------- | ------------------------------------------------------------- |
+| `--no-evidence` | Skip writing to `.evidence/cmd-log.jsonl` for this invocation |
+
+---
+
+## Evidence Command Log (`.evidence/cmd-log.jsonl`)
+
+Every `arbiter` invocation appends one line to `.evidence/cmd-log.jsonl` in the
+working directory. The file uses JSONL format (one JSON object per line).
+
+**Schema:**
+
+| Field        | Type   | Description                                            |
+| ------------ | ------ | ------------------------------------------------------ |
+| `ts`         | string | ISO-8601 timestamp of the invocation                   |
+| `cmd`        | string | First command token (e.g. `init`, `diff`, `--version`) |
+| `args`       | array  | Remaining CLI tokens after `cmd`                       |
+| `exit`       | number | Process exit code                                      |
+| `durationMs` | number | Wall-clock milliseconds for the invocation             |
+| `headSha`    | string | Short git SHA at invocation time, or `"unknown"`       |
+
+**Rotation:** When `.evidence/cmd-log.jsonl` exceeds 10 MB, it is renamed to
+`cmd-log.jsonl.1` (single backup, no accumulation) and a new file is started.
+
+**Opt-out:** Pass `--no-evidence` to any command, or set `ARBITER_NO_EVIDENCE=1`
+in the environment, to suppress logging entirely.
+
+**Storage:** `.evidence/` is gitignored by default. The log is intended for
+local audit trails and CI evidence collection — not for committing to the
+repository.
+
+---
+
 ## Environment Variables
 
 | Variable                | Source | Usage                                                          |
@@ -858,6 +897,7 @@ Commit this file so that `arbiter update` works in CI and for teammates.
 | `PATH`                  | Shell  | Locates `gh`, `git`, `node`, build tools                       |
 | `HOME`                  | OS     | Resolves `~` in paths                                          |
 | `ARBITER_WORKTREES_DIR` | Shell  | Overrides `arbiter.json::worktree.base` for worktree placement |
+| `ARBITER_NO_EVIDENCE`   | Shell  | Set to `1` to disable command logging globally                 |
 
 ---
 
