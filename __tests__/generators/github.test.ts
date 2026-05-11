@@ -46,7 +46,7 @@ describe("generateGithub", () => {
       "utf-8",
     );
     expect(content).toContain("npm ci");
-    expect(content).toContain("npm test");
+    expect(content).toContain("test:unit");
   });
 
   it("CI workflow contains Java-specific steps", () => {

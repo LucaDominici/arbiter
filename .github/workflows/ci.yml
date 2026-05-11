@@ -29,9 +29,9 @@ jobs:
             --exit-code 1 --redact
 
   lint-and-test:
-    name: Lint + Test
+    name: Lint + Typecheck
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    timeout-minutes: 15
+    timeout-minutes: 10
     needs: [security-early-fail]
     steps:
       - uses: actions/checkout@v6
@@ -42,14 +42,6 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test -- --coverage --reporter=junit --outputFile=test-results/junit.xml
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ github.run_id }}
-          path: test-results/
-          retention-days: 7
       - name: Dep audit
         run: npm audit --audit-level=high
       - name: Circular dependency check
@@ -68,6 +60,27 @@ jobs:
       - name: Commit message lint
         if: github.event_name == 'pull_request'
         run: npx commitlint --from origin/main --to HEAD
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 10
+    needs: [lint-and-test]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci --legacy-peer-deps
+      - run: npm test -- --coverage --reporter=junit --outputFile=test-results/junit.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
 
   docs-check:
     name: Docs Check
@@ -103,7 +116,7 @@ jobs:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     timeout-minutes: 5
-    needs: [security-early-fail, lint-and-test, docs-check]
+    needs: [security-early-fail, lint-and-test, unit-tests, docs-check]
     if: always()
     steps:
       - run: |
@@ -113,6 +126,10 @@ jobs:
           fi
           if [[ "${{ needs.lint-and-test.result }}" != "success" ]]; then
             echo "lint-and-test failed"
+            exit 1
+          fi
+          if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
+            echo "unit-tests failed"
             exit 1
           fi
           if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then

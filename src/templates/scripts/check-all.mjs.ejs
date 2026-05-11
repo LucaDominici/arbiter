@@ -90,7 +90,7 @@ if (existsSync('.eslintrc-static.json')) {
 } else {
   console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }
-runCheck('unit tests', 'npm', ['test']);
+runCheck('unit tests', 'npm', ['run', 'test:unit']);
 <% } %><% if (language === 'rust') { %>
 runCheck('fmt', 'cargo', ['fmt', '--check']);
 runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
@@ -168,8 +168,11 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
+  runCheck('contract tests', 'npm', ['run', 'test:contract'], { soft: graceActive });
+  runCheck('integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
+  runCheck('behavioral tests', 'npm', ['run', 'test:behavioral'], { soft: graceActive });
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
+  runCheck('db integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
 <% } %>
 <% if ((archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1') { %>
   // ─── L2: Playwright E2E tests (matrix proven for frontend/backend-web-db) ──

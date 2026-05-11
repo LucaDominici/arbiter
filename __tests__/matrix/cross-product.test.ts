@@ -1201,7 +1201,7 @@ describe("cross-product: check-all.mjs — integration test step (M26, hasDataba
   // For L1, the check-all.mjs.ejs uses EJS-time `<% if (governanceLevel !== 'L1') %>`
   // guards (to be added in Task 5). Until then, the L1-absent tests correctly FAIL.
   const INTEGRATION_MARKERS: Record<Language, string> = {
-    typescript: "integration",
+    typescript: "db integration tests", // hasDatabase-gated block (#219: test:integration is always present)
     java: "integrationTest",
     rust: "integration",
     go: "integration",

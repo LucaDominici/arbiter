@@ -555,4 +555,42 @@ describe("generateDebtGates", () => {
     generateDebtGates(config);
     expect(existsSync(join(dir, ".dependency-cruiser.cjs"))).toBe(false);
   });
+
+  it("injects test:unit/contract/integration/behavioral scripts into package.json (#219)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf-8"),
+    ) as Record<string, Record<string, string>>;
+    expect(pkg.scripts?.["test:unit"]).toContain("vitest");
+    expect(pkg.scripts?.["test:contract"]).toContain("vitest");
+    expect(pkg.scripts?.["test:integration"]).toContain("vitest");
+    expect(pkg.scripts?.["test:behavioral"]).toContain("vitest");
+  });
+
+  it("does not overwrite existing test scripts (#219)", () => {
+    const pkgPath = join(dir, "package.json");
+    const existing = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<
+      string,
+      Record<string, string>
+    >;
+    existing.scripts["test:unit"] = "jest --testPathPattern unit";
+    require("node:fs").writeFileSync(
+      pkgPath,
+      JSON.stringify(existing, null, 2),
+    );
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<
+      string,
+      Record<string, string>
+    >;
+    expect(pkg.scripts?.["test:unit"]).toBe("jest --testPathPattern unit");
+  });
 });

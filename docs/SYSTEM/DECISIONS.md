@@ -213,6 +213,20 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
+## ADR-039: Parallel test category jobs in CI (#219)
+
+**Date:** 2026-05-11
+**Status:** Accepted
+**Reference:** Issue #219
+
+**Context:** The generated `ci.yml` ran all tests in a single sequential `lint-and-test` job. Contract test failures (fast, ~2min) waited behind unit tests (~8min) for feedback. Splitting into parallel jobs reduces mean-time-to-feedback.
+
+**Decision:** Split the TS and Java `lint-and-test` job into: `lint-and-test` (lint/typecheck only), `unit-tests`, `contract-tests` (parallel with unit), `integration-tests` (needs unit), `behavioral-tests` (needs unit). The `ci-required` aggregator waits for all. `check-all.mjs.ejs` L1 uses `npm run test:unit`; L2 runs all categories. `injectTestScripts()` in `debt-gates.ts` adds `test:unit/contract/integration/behavioral` scripts to target package.json.
+
+**Consequences:** Target projects gain parallelized feedback. The `test:unit` script isolates fast-only tests from slower integration/behavioral suites.
+
+---
+
 ## ADR-037: SpotBugs security hard-block baseline script (#212)
 
 **Date:** 2026-05-11

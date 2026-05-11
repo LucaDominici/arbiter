@@ -8,6 +8,35 @@ export interface DebtGatesGeneratorResult {
   files: WriteResult[];
 }
 
+function injectTestScripts(targetDir: string): void {
+  const pkgPath = resolvedPath(targetDir, "package.json");
+  if (!existsSync(pkgPath)) return;
+  let pkg: Record<string, unknown>;
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>;
+  const testScripts: Record<string, string> = {
+    "test:unit": "vitest run --project unit",
+    "test:contract": "vitest run --project contract",
+    "test:integration": "vitest run --project integration",
+    "test:behavioral": "vitest run --project behavioral",
+  };
+  let changed = false;
+  for (const [key, value] of Object.entries(testScripts)) {
+    if (!scripts[key]) {
+      scripts[key] = value;
+      changed = true;
+    }
+  }
+  if (changed) {
+    pkg.scripts = scripts;
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+  }
+}
+
 function injectDepCruiserPackageJson(targetDir: string): void {
   const pkgPath = resolvedPath(targetDir, "package.json");
   if (!existsSync(pkgPath)) return;
@@ -115,6 +144,7 @@ export function generateDebtGates(
       ),
     );
     injectDepCruiserPackageJson(base);
+    injectTestScripts(base);
   }
 
   if (config.language === "rust") {
