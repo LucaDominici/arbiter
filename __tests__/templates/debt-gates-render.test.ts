@@ -352,3 +352,35 @@ describe("debt-gates config templates — rendering", () => {
     }
   });
 });
+
+describe("pmd-ruleset.xml.ejs — F9 UnusedPrivate excludes removed (#368)", () => {
+  it("pmd-ruleset.xml.ejs does not exclude UnusedPrivateField (#368)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data);
+    expect(content).not.toContain("UnusedPrivateField");
+  });
+
+  it("pmd-ruleset.xml.ejs does not exclude UnusedPrivateMethod (#368)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data);
+    expect(content).not.toContain("UnusedPrivateMethod");
+  });
+
+  it("pmd-ruleset.xml.ejs still includes bestpractices.xml rule ref (#368)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data);
+    expect(content).toContain("bestpractices.xml");
+  });
+});

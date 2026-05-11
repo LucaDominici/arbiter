@@ -182,3 +182,17 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Decision:** Add `scripts/check-inline-suppressions.mjs` (and matching EJS template `src/templates/scripts/check-inline-suppressions.mjs.ejs`) that scans source files for `// arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason="...", owner=@handle)` directives and validates: non-expired `until=` date, `reason` ≥ 10 chars, `owner` present, INV-NN known in catalog. Wire this check unconditionally in the L1 gate (CANON-09) so it runs regardless of the `enableSuppressions` flag — CANON-01 dual-sided enforcement applies. Extend `check-no-any`, `check-no-orphan-todo`, and `check-no-pii` hooks to consult the inline suppression parser before blocking; hooks remain HARD when no directive or directive invalid/expired. Extract `parseArgs` (quote-aware comma tokenizer) to `scripts/lib/suppressions-shared.mjs` to eliminate divergence between the script and hook implementations.
 
 **Consequences:** INV-31 now covers both file-based and inline-comment suppressions. Hooks honor legitimate inline directives without becoming soft. `check-no-direct-spawn` and `check-no-placeholders` bypass wiring deferred to a follow-up (no catalog INV for direct-spawn; placeholder hook uses incompatible JSON env-var convention). INV-36 hardness-sentinel tests lock in the guarantee that all modified hooks still block on violations without a valid directive.
+
+---
+
+## ADR-036: Forensic fixes F9–F12 (issues #368–#371, from umbrella #344)
+
+**Date:** 2026-05-11
+**Status:** Accepted
+**Reference:** Issues #368, #369, #370, #371
+
+**Context:** Audit wave #344 surfaced four additional governance gaps: F9 — PMD `UnusedPrivateField`/`UnusedPrivateMethod` were unconditionally excluded (DI-pattern alibi no longer needed with file-based suppressions); F10 — Rust integration testing scaffold used `panic!` on missing `DATABASE_URL` instead of real testcontainers-rs setup, and the cargo invocation used an invalid `--test '*integration*'` glob (cargo doesn't support shell globs in `--test`); F11 — `generateArchUnit` accepted unknown `architectureStyle` values silently and the `ArchitectureTest.java.ejs` else-block emitted only a comment (silent vacuous green in test suite); F12 — PIT mutation testing templates did not set `failWhenNoMutations = true`, so a project with zero mutatable classes passed the mutation gate silently.
+
+**Decision:** F9: Remove both UnusedPrivate excludes from `pmd-ruleset.xml.ejs` — legitimate DI suppressions belong in file-based `suppressions/pmd-suppressions.xml`. F10: Rewrite `db_fixture.rs.ejs` to use `testcontainers::clients::Cli` + `GenericImage` with `WaitFor::message_on_stderr`; add `appendCargoDevDep` helper in `integration-testing.ts` that idempotently appends `testcontainers = "0.23"` to `[dev-dependencies]`; fix cargo integration test invocation to `['test', '--tests']`. F11: Add a `KNOWN_STYLES` guard in `generateArchUnit` that throws on unrecognised style; replace the silent else-block in `ArchitectureTest.java.ejs` with a `@Test` method calling `Assertions.fail(...)`. F12: Add `failWhenNoMutations = true` to both `pitest.gradle.ejs` and `pitest-maven-setup.md.ejs`.
+
+**Consequences:** All four gaps closed. PMD now flags unused private members by default. Rust integration tests use real container isolation. ArchUnit generator fails loud on misconfiguration at both generator level (throw) and runtime (failing test). PIT gate fails when no mutations exist, closing the silent-vacuous-green path.
