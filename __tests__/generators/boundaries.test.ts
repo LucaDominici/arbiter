@@ -142,4 +142,52 @@ describe("generateEslintBoundaries", () => {
     expect(result.files[0].action).toBe("skipped");
     expect(readFileSync(targetPath, "utf-8")).toBe("// existing content");
   });
+
+  // ── frontend-spa (#158) ─────────────────────────────────────────────────────
+
+  it("emits .eslintrc-frontend-spa.cjs for typescript + frontend-spa (#158)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      archetype: "frontend-spa",
+    });
+    const result = generateEslintBoundaries(config);
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0].path).toContain(".eslintrc-frontend-spa.cjs");
+    expect(existsSync(join(dir, ".eslintrc-frontend-spa.cjs"))).toBe(true);
+  });
+
+  it(".eslintrc-frontend-spa.cjs contains FSD layers (#158)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      archetype: "frontend-spa",
+    });
+    generateEslintBoundaries(config);
+    const content = readFileSync(
+      join(dir, ".eslintrc-frontend-spa.cjs"),
+      "utf-8",
+    );
+    expect(content).toContain("features");
+    expect(content).toContain("pages");
+    expect(content).toContain("widgets");
+    expect(content).toContain("entities");
+    expect(content).toContain("shared");
+  });
+
+  it("does NOT emit hexagonal config for frontend-spa (#158)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      archetype: "frontend-spa",
+    });
+    generateEslintBoundaries(config);
+    expect(existsSync(join(dir, ".eslintrc-boundaries.cjs"))).toBe(false);
+  });
+
+  it("frontend-spa with non-typescript emits no files (#158)", () => {
+    const config = makeConfig(dir, {
+      language: "rust",
+      archetype: "frontend-spa",
+    });
+    const result = generateEslintBoundaries(config);
+    expect(result.files).toHaveLength(0);
+  });
 });

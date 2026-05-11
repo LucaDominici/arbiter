@@ -110,6 +110,10 @@ runCheck('unit tests', 'pytest', []);
 // ─── L1: Test naming convention (M27) ────────────────────────────────────────
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 <% if (archetype === 'frontend-spa' && language === 'typescript') { %>
+// ─── L1: FSD layer boundaries (eslint-plugin-boundaries) ─────────────────────
+if (existsSync('.eslintrc-frontend-spa.cjs')) {
+  runCheck('fsd boundaries', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-frontend-spa.cjs', 'src/**/*.{ts,tsx}']);
+}
 // ─── L1: Playwright quality rules (M27) ──────────────────────────────────────
 // Requires: npm install -D eslint-plugin-playwright
 if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {

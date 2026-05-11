@@ -11,10 +11,23 @@ export function generateEslintBoundaries(
   config: ProjectConfig,
 ): BoundariesGeneratorResult {
   if (config.language !== "typescript") return { files: [] };
-  if (config.architectureStyle !== "hexagonal") return { files: [] };
 
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;
+
+  if (config.archetype === "frontend-spa") {
+    return {
+      files: [
+        writeFile(
+          resolvedPath(base, ".eslintrc-frontend-spa.cjs"),
+          renderTemplate("boundaries/.eslintrc-frontend-spa.cjs.ejs", data),
+          { skipIfExists: true },
+        ),
+      ],
+    };
+  }
+
+  if (config.architectureStyle !== "hexagonal") return { files: [] };
 
   return {
     files: [
