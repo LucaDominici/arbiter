@@ -258,3 +258,90 @@ describe("check-all.mjs.ejs — F10 cargo integration test flag (#369)", () => {
     expect(content).not.toContain("'*integration*'");
   });
 });
+
+// ─── Matrix proven tool gate assertions (#171) ─────────────────────────────
+
+describe("check-all.mjs.ejs — matrix proven tool gates (#171)", () => {
+  describe("govulncheck — Go L2 (proven in matrix)", () => {
+    it("Go L2 with security scanning: emits govulncheck", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "go",
+        governanceLevel: "L2",
+        enableSecurityScanning: true,
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).toContain("govulncheck");
+    });
+
+    it("Go L1: does NOT emit govulncheck", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "go",
+        governanceLevel: "L1",
+        enableSecurityScanning: false,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).not.toContain("govulncheck");
+    });
+
+    it("TypeScript L2: does NOT emit govulncheck", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "typescript",
+        governanceLevel: "L2",
+        enableSecurityScanning: true,
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).not.toContain("govulncheck");
+    });
+  });
+
+  describe("playwright test — TypeScript frontend-spa L2 (proven in matrix)", () => {
+    it("TypeScript frontend-spa L2: emits playwright test step", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "typescript",
+        archetype: "frontend-spa",
+        governanceLevel: "L2",
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).toContain(
+        "runCheck('playwright test', 'npx', ['playwright', 'test']",
+      );
+      expect(content).toContain("FAIL (@playwright/test not installed");
+    });
+
+    it("TypeScript library L2: does NOT emit playwright test step", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "typescript",
+        archetype: "library",
+        governanceLevel: "L2",
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).not.toContain("playwright test");
+    });
+
+    it("TypeScript frontend-spa L1: does NOT emit playwright test step at L2 block", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "typescript",
+        archetype: "frontend-spa",
+        governanceLevel: "L1",
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).not.toContain("playwright test");
+    });
+
+    it("Go frontend-spa L2: does NOT emit playwright test step", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "go",
+        archetype: "frontend-spa",
+        governanceLevel: "L2",
+        coverageEnabled: false,
+      }) as unknown as Record<string, unknown>;
+      const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+      expect(content).not.toContain("playwright test");
+    });
+  });
+});

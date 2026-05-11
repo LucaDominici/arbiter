@@ -177,6 +177,17 @@ function generateClaudeHooks(
       );
     }
   }
+
+  // TypeScript-only hooks — circular dep detection (INV-01)
+  if (config.language === "typescript") {
+    results.push(
+      writeFile(
+        join(hooksDir, "check-circular-deps.mjs"),
+        renderTemplate("claude/hooks/check-circular-deps.mjs.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
 }
 
 function generateClaudeRules(
