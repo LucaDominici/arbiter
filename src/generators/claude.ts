@@ -99,6 +99,7 @@ function generateClaudeHooks(
     "enforce-read-only.mjs",
     "pre-edit-ssot-guard.mjs",
     "check-no-orphan-todo.mjs",
+    "check-no-placeholders.mjs",
   ];
   for (const hookFile of staticHooks) {
     results.push(
@@ -124,6 +125,16 @@ function generateClaudeHooks(
       { skipIfExists: true },
     ),
   );
+
+  if (config.language === "typescript") {
+    results.push(
+      writeFile(
+        join(hooksDir, "check-no-unused-exports.mjs"),
+        renderTemplate("claude/hooks/check-no-unused-exports.mjs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
 
   for (const hook of config.languageHooks) {
     if (hook.name !== "check-no-orphan-todo.mjs") {

@@ -7,6 +7,44 @@ export interface DebtGatesGeneratorResult {
   files: WriteResult[];
 }
 
+function pushJavaDebtGates(
+  results: WriteResult[],
+  base: string,
+  data: Record<string, unknown>,
+): void {
+  const files: [string, string][] = [
+    [
+      resolvedPath(base, "config", "pmd-ruleset.xml"),
+      "static-analysis/pmd-ruleset.xml.ejs",
+    ],
+    [
+      resolvedPath(base, "config", "checkstyle.xml"),
+      "static-analysis/checkstyle.xml.ejs",
+    ],
+    [
+      resolvedPath(base, "config", "spotbugs-exclude.xml"),
+      "static-analysis/spotbugs-exclude.xml.ejs",
+    ],
+    [
+      resolvedPath(base, "spotless.gradle"),
+      "static-analysis/spotless.gradle.ejs",
+    ],
+    [
+      resolvedPath(base, "config", "pitest-setup.md"),
+      "mutation/pitest-l2-setup.md.ejs",
+    ],
+    [
+      resolvedPath(base, "spotbugs.gradle"),
+      "static-analysis/spotbugs.gradle.ejs",
+    ],
+  ];
+  for (const [path, tmpl] of files) {
+    results.push(
+      writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true }),
+    );
+  }
+}
+
 export function generateDebtGates(
   config: ProjectConfig,
 ): DebtGatesGeneratorResult {
@@ -40,6 +78,16 @@ export function generateDebtGates(
     );
   }
 
+  if (config.language === "rust") {
+    results.push(
+      writeFile(
+        resolvedPath(base, "rustfmt.toml"),
+        renderTemplate("static-analysis/rustfmt.toml.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
   if (config.language === "go") {
     results.push(
       writeFile(
@@ -51,48 +99,7 @@ export function generateDebtGates(
   }
 
   if (config.language === "java") {
-    results.push(
-      writeFile(
-        resolvedPath(base, "config", "pmd-ruleset.xml"),
-        renderTemplate("static-analysis/pmd-ruleset.xml.ejs", data),
-        { skipIfExists: true },
-      ),
-    );
-    results.push(
-      writeFile(
-        resolvedPath(base, "config", "checkstyle.xml"),
-        renderTemplate("static-analysis/checkstyle.xml.ejs", data),
-        { skipIfExists: true },
-      ),
-    );
-    results.push(
-      writeFile(
-        resolvedPath(base, "config", "spotbugs-exclude.xml"),
-        renderTemplate("static-analysis/spotbugs-exclude.xml.ejs", data),
-        { skipIfExists: true },
-      ),
-    );
-    results.push(
-      writeFile(
-        resolvedPath(base, "spotless.gradle"),
-        renderTemplate("static-analysis/spotless.gradle.ejs", data),
-        { skipIfExists: true },
-      ),
-    );
-    results.push(
-      writeFile(
-        resolvedPath(base, "config", "pitest-setup.md"),
-        renderTemplate("mutation/pitest-l2-setup.md.ejs", data),
-        { skipIfExists: true },
-      ),
-    );
-    results.push(
-      writeFile(
-        resolvedPath(base, "spotbugs.gradle"),
-        renderTemplate("static-analysis/spotbugs.gradle.ejs", data),
-        { skipIfExists: true },
-      ),
-    );
+    pushJavaDebtGates(results, base, data);
   }
 
   if (config.language === "python") {

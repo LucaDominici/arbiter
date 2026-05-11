@@ -185,6 +185,20 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
+## ADR-037: Batch gap-fill #127–#161 — publicApiSurface, static hooks, L3 fixtures, unused-exports, formatter configs, frontend-spa boundaries, Go mutation omission, classify-changes L2
+
+**Date:** 2026-05-11
+**Status:** Accepted
+**Reference:** Issues #127, #151, #153, #156, #157, #158, #160, #161
+
+**Context:** Bulk sweep of issues #127–#161. #154 and #155 were already shipped (closed as superseded). The remaining 8 issues covered gaps across five categories: (1) missing publicApiSurface metric in `debt-lib.mjs.ejs`; (2) `check-no-placeholders` and `check-no-unused-exports` hook templates not emitted; (3) L3 governance level absent from 15 real-project fixture manifests; (4) missing `rustfmt.toml` for Rust and `gofmt -l` gate for Go; (5) frontend-spa archetype lacking ESLint import-boundary enforcement; (6) no test asserting Go projects never emit a mutation gate; (7) `classify-changes` CI job gated on L3-only, leaving L2 single-lane projects without change-set awareness.
+
+**Decision (per issue):** #127 — add `<% if (metricsProfile.includePublicApiSurface) %>` block in `debt-lib.mjs.ejs` using `grep -rh ^export` to count exported symbols; scoped to `library` archetype. #151 — add `check-no-placeholders.mjs` as a language-agnostic static hook (always emitted); direct-spawn hook deferred (no catalog INV). #153 — add `"L3"` to `levels` in all 15 fixture manifests that lacked it. #156 — add `check-no-unused-exports.mjs` (knip-based) emitted for TypeScript only, with `.mts`/`.cts` extension guard and graceful ENOENT skip. #157 — emit `rustfmt.toml` (edition + max_width 100) for Rust; add `gofmt -l .` runCheck to Go branch of `check-all.mjs.ejs`. #158 — extend `src/generators/boundaries.ts` to emit `.eslintrc-frontend-spa.cjs` for `frontend-spa` archetype with FSD (Feature-Sliced Design) layer ordering. #160 — add explicit test asserting Go `check-all.mjs` never references `go-mutesting` at any governance level. #161 — change `classify-changes` emission guard from `L3 || multiLane` to `!== L1 || multiLane` so L2 single-lane projects receive the job and its consumers wire correctly.
+
+**Consequences:** debt-lib now tracks public API surface for library archetypes. Both new hook templates ship with all generated projects (placeholders) or TS projects (unused-exports). All 15 fixtures are L3-ready. Rust and Go projects now have formatter config/gate. frontend-spa projects enforce FSD layer import discipline. Go mutation omission is test-locked. L2 single-lane CI pipelines benefit from change-set-aware job skipping.
+
+---
+
 ## ADR-036: Forensic fixes F9–F12 (issues #368–#371, from umbrella #344)
 
 **Date:** 2026-05-11

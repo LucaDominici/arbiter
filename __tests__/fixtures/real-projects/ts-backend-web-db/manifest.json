@@ -2,7 +2,7 @@
   "language": "typescript",
   "archetype": "backend-web-db",
   "buildTool": null,
-  "levels": ["L1", "L2"],
+  "levels": ["L1", "L2", "L3"],
   "note": "TypeScript with fastify dep \u2192 detects as backend-web-db archetype",
   "enableSecurityScanning": true
 }

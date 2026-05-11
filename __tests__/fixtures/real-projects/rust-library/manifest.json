@@ -2,7 +2,7 @@
   "language": "rust",
   "archetype": "library",
   "buildTool": null,
-  "levels": ["L1", "L2"],
+  "levels": ["L1", "L2", "L3"],
   "note": "Minimal Rust library crate \u2014 no Tauri \u2192 detects as library archetype",
   "enableSecurityScanning": true
 }

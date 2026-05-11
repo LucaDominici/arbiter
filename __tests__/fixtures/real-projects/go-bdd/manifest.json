@@ -2,6 +2,6 @@
   "language": "go",
   "archetype": "library",
   "buildTool": null,
-  "levels": ["L1", "L2"],
+  "levels": ["L1", "L2", "L3"],
   "note": "Go BDD fixture with godog TestSuite"
 }

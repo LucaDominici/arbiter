@@ -484,6 +484,38 @@ describe("generateCheckAll", () => {
     );
   });
 
+  it("Go: gofmt -l gate present in L1 block (#157)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "go",
+        buildTool: "go",
+        governanceLevel: "L1",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("gofmt");
+    expect(content).toContain("'-l'");
+  });
+
+  it("frontend-spa TS: fsd boundaries gate present in check-all.mjs (#158)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "typescript",
+        archetype: "frontend-spa",
+        governanceLevel: "L1",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("fsd boundaries");
+    expect(content).toContain(".eslintrc-frontend-spa.cjs");
+  });
+
   it("enableSecurityScanning=false: no gitleaks, govulncheck, or OWASP DC step", () => {
     generateCheckAll(
       makeConfig(dir, {

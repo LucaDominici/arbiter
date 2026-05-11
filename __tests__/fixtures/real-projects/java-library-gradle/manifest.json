@@ -2,7 +2,7 @@
   "language": "java",
   "archetype": "library",
   "buildTool": "gradle",
-  "levels": ["L1", "L2"],
+  "levels": ["L1", "L2", "L3"],
   "note": "Minimal Java library with Gradle \u2014 no framework plugin \u2192 detects as library archetype",
   "enableSecurityScanning": true
 }

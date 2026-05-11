@@ -84,6 +84,20 @@ runCheck('checkstyle', 'mvn', ['checkstyle:check', '-q']);
 runCheck('format (spotless)', 'mvn', ['spotless:check', '-q']);
 runCheck('unit tests', 'mvn', ['test', '-q']);
 <% } %><% if (language === 'go') { %>
+{
+  process.stdout.write('[CHECK] fmt (gofmt) ... ');
+  const _gofmt = spawnSync('gofmt', ['-l', '.'], { encoding: 'utf-8', shell: false });
+  if (_gofmt.error?.code === 'ENOENT') {
+    console.log('FAIL (binary not found: gofmt)');
+    failed++;
+  } else if (_gofmt.stdout?.trim()) {
+    console.log('FAIL');
+    process.stdout.write('Files need gofmt formatting:\n' + _gofmt.stdout);
+    failed++;
+  } else {
+    console.log('PASS');
+  }
+}
 runCheck('vet', 'go', ['vet', './...']);
 runCheck('lint', 'golangci-lint', ['run']);
 runCheck('unit tests', 'go', ['test', './...']);
@@ -96,6 +110,10 @@ runCheck('unit tests', 'pytest', []);
 // ─── L1: Test naming convention (M27) ────────────────────────────────────────
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 <% if (archetype === 'frontend-spa' && language === 'typescript') { %>
+// ─── L1: FSD layer boundaries (eslint-plugin-boundaries) ─────────────────────
+if (existsSync('.eslintrc-frontend-spa.cjs')) {
+  runCheck('fsd boundaries', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-frontend-spa.cjs', 'src/**/*.{ts,tsx}']);
+}
 // ─── L1: Playwright quality rules (M27) ──────────────────────────────────────
 // Requires: npm install -D eslint-plugin-playwright
 if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {

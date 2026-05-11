@@ -50,11 +50,21 @@
             "type": "command",
             "command": "node .claude/hooks/check-no-orphan-todo.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-placeholders.mjs",
+            "timeout": 5
           }<% if (enableSecurityScanning) { %>,
           {
             "type": "command",
             "command": "node .claude/hooks/check-no-pii.mjs",
             "timeout": 5
+          }<% } %><% if (language === 'typescript') { %>,
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-unused-exports.mjs",
+            "timeout": 60
           }<% } %><% languageHooks.filter(h => h.name !== 'check-no-orphan-todo.mjs').forEach((hook, i) => { %>,
           {
             "type": "command",

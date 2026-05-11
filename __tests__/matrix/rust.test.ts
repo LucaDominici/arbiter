@@ -135,6 +135,21 @@ describe("matrix: Rust project", () => {
     expect(checkAll).toContain("pedantic");
   });
 
+  it("generates rustfmt.toml when enableDebtGates is true (#157)", () => {
+    const config = rustConfig({ enableDebtGates: true });
+    runGenerators(config);
+    expect(existsSync(join(dir, "rustfmt.toml"))).toBe(true);
+    const content = readFileSync(join(dir, "rustfmt.toml"), "utf-8");
+    expect(content).toContain("edition");
+    expect(content).toContain("max_width");
+  });
+
+  it("rustfmt.toml not generated when enableDebtGates is false (#157)", () => {
+    const config = rustConfig({ enableDebtGates: false });
+    runGenerators(config);
+    expect(existsSync(join(dir, "rustfmt.toml"))).toBe(false);
+  });
+
   it("CI workflow includes debt-gates job for Rust when enableDebtGates is true", () => {
     const config = rustConfig({ enableDebtGates: true });
     runGenerators(config);

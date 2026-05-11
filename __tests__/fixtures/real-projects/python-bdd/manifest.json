@@ -2,6 +2,6 @@
   "language": "python",
   "archetype": "library",
   "buildTool": null,
-  "levels": ["L1", "L2"],
+  "levels": ["L1", "L2", "L3"],
   "note": "Python BDD fixture with pytest-bdd step bindings"
 }
