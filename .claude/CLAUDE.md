@@ -34,6 +34,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write | `check-no-any.mjs`            | Block `any` types (INV-04)                    |
 | `PostToolUse` → Edit\|Write | `check-no-placeholders.mjs`   | Block placeholder/WIP patterns (#151)         |
 | `PostToolUse` → Edit\|Write | `check-no-unused-exports.mjs` | Block unused TS exports via knip (#156)       |
+| `PostToolUse` → Edit\|Write | `check-circular-deps.mjs`     | Detect circular deps via madge (INV-01, TS)   |
 
 ### Slash Commands
 

@@ -70,7 +70,12 @@
             "type": "command",
             "command": "node .claude/hooks/<%= hook.name %>",
             "timeout": 5
-          }<% }); %><% if (governanceLevel !== 'L1') { %>,
+          }<% }); %><% if (language === 'typescript') { %>,
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-circular-deps.mjs",
+            "timeout": 10
+          }<% } %><% if (governanceLevel !== 'L1') { %>,
           {
             "type": "command",
             "command": "node .claude/hooks/post-edit-dispatch.mjs",

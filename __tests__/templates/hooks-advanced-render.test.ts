@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { renderTemplate } from "../../src/utils/render.js";
+import { generateClaude } from "../../src/generators/claude.js";
 import { makeConfig } from "../helpers.js";
 import type { Language, GovernanceLevel } from "../../src/wizard/types.js";
 
@@ -564,4 +565,90 @@ describe("hooks/guard-task-completion.mjs.ejs", () => {
     );
     expect(out).toContain("process.exit(2)");
   });
+});
+
+// ─── check-circular-deps.mjs.ejs (#167) ────────────────────────────────────
+
+describe("hooks/check-circular-deps.mjs.ejs (#167)", () => {
+  it("renders without EJS leaks for TypeScript", () => {
+    const out = renderTemplate(
+      "claude/hooks/check-circular-deps.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("contains madge invocation", () => {
+    const out = renderTemplate(
+      "claude/hooks/check-circular-deps.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("madge");
+  });
+
+  it("contains circular check logic", () => {
+    const out = renderTemplate(
+      "claude/hooks/check-circular-deps.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("circular");
+  });
+
+  it("exits 2 on circular dep found", () => {
+    const out = renderTemplate(
+      "claude/hooks/check-circular-deps.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("process.exit(2)");
+  });
+
+  it("soft-skips when madge not installed", () => {
+    const out = renderTemplate(
+      "claude/hooks/check-circular-deps.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out.toLowerCase()).toMatch(/skip|existssync|node_modules/i);
+  });
+
+  it("uses --extensions ts,tsx,js,jsx for TypeScript file coverage", () => {
+    const out = renderTemplate(
+      "claude/hooks/check-circular-deps.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("--extensions");
+    expect(out).toContain("ts,tsx,js,jsx");
+  });
+});
+
+describe("generateClaude — check-circular-deps.mjs emission (#167)", () => {
+  it("emits check-circular-deps.mjs for TypeScript projects", () => {
+    const dir = mkdtempSync(join(tmpdir(), "arbiter-claude-ts-"));
+    try {
+      const config = makeConfig(dir, { language: "typescript" });
+      const result = generateClaude(config);
+      const paths = result.files.map((f) => f.path);
+      expect(paths.some((p) => p.endsWith("check-circular-deps.mjs"))).toBe(
+        true,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  for (const lang of ["java", "rust", "go", "python"] as Language[]) {
+    it(`does NOT emit check-circular-deps.mjs for ${lang} projects`, () => {
+      const dir = mkdtempSync(join(tmpdir(), `arbiter-claude-${lang}-`));
+      try {
+        const config = makeConfig(dir, { language: lang });
+        const result = generateClaude(config);
+        const paths = result.files.map((f) => f.path);
+        expect(paths.some((p) => p.endsWith("check-circular-deps.mjs"))).toBe(
+          false,
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
 });

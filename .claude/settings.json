@@ -78,6 +78,11 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/check-circular-deps.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/post-edit-dispatch.mjs",
             "timeout": 15
           }
