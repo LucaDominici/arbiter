@@ -617,6 +617,21 @@ export const INVARIANT_CATALOG: Invariant[] = [
   },
 
   {
+    id: "INV-40",
+    tier: "operational",
+    title: "BDD scenarios with @ignore tag are HARD-fail",
+    description:
+      "Generated check-all.mjs must scan feature files for the @ignore tag before running BDD " +
+      "scenarios. Any @ignore-tagged scenario causes the gate to exit non-zero immediately " +
+      "(soft: false), regardless of grace period. Ignored scenarios are dead specs — they " +
+      "silently pass and give false confidence about coverage.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/scripts/check-all.mjs.ejs (@ignore grep block, soft: false) + " +
+      "src/templates/behavioral-tests/bdd/example.feature.ejs (no @ignore in shipped example)",
+  },
+
+  {
     id: "INV-41",
     tier: "operational",
     title:

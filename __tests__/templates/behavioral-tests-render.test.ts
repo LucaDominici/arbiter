@@ -362,3 +362,75 @@ describe("behavioral-tests templates rendering", () => {
     });
   });
 });
+
+// ─── BDD templates (F2/#361) ─────────────────────────────────────────────────
+
+describe("BDD templates — real Gherkin + framework bindings", () => {
+  it("example.feature.ejs: contains Feature: and Scenario:", () => {
+    const out = renderBehavioral("behavioral-tests/bdd/example.feature.ejs");
+    expect(out).toContain("Feature:");
+    expect(out).toContain("Scenario:");
+  });
+
+  it("example.steps.ts.ejs: uses @cucumber/cucumber Given/When/Then", () => {
+    const out = renderBehavioral("behavioral-tests/bdd/example.steps.ts.ejs", {
+      language: "typescript",
+    });
+    expect(out).toContain("@cucumber/cucumber");
+    expect(out).toContain("Given(");
+    expect(out).toContain("When(");
+    expect(out).toContain("Then(");
+  });
+
+  it("test_example_bdd.py.ejs: uses pytest_bdd scenarios()", () => {
+    const out = renderBehavioral(
+      "behavioral-tests/bdd/test_example_bdd.py.ejs",
+      {
+        language: "python",
+      },
+    );
+    expect(out).toContain("pytest_bdd");
+    expect(out).toContain("scenarios(");
+  });
+
+  it("example_test.go.ejs: uses godog TestSuite", () => {
+    const out = renderBehavioral("behavioral-tests/bdd/example_test.go.ejs", {
+      language: "go",
+    });
+    expect(out).toContain("godog");
+    expect(out).toContain("TestSuite");
+  });
+
+  it("ExampleBddIT.java.ejs: uses cucumber-junit-platform-engine @Suite", () => {
+    const out = renderBehavioral("behavioral-tests/bdd/ExampleBddIT.java.ejs", {
+      language: "java",
+    });
+    expect(out).toContain("@Suite");
+    expect(out).toContain("@SelectClasspathResource");
+  });
+
+  it("example_bdd_test.rs.ejs: uses cucumber::World derive", () => {
+    const out = renderBehavioral(
+      "behavioral-tests/bdd/example_bdd_test.rs.ejs",
+      {
+        language: "rust",
+      },
+    );
+    expect(out).toContain("cucumber");
+    expect(out).toContain("World");
+  });
+
+  it("no BDD template contains @ignore tag", () => {
+    const templates = [
+      "behavioral-tests/bdd/example.steps.ts.ejs",
+      "behavioral-tests/bdd/test_example_bdd.py.ejs",
+      "behavioral-tests/bdd/example_test.go.ejs",
+      "behavioral-tests/bdd/ExampleBddIT.java.ejs",
+      "behavioral-tests/bdd/example_bdd_test.rs.ejs",
+    ];
+    for (const tpl of templates) {
+      const out = renderBehavioral(tpl);
+      expect(out, `${tpl} must not contain @ignore`).not.toContain("@ignore");
+    }
+  });
+});

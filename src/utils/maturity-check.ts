@@ -10,7 +10,8 @@ export type MaturityFeature =
   | "coverage"
   | "architecture"
   | "e2e"
-  | "security";
+  | "security"
+  | "bdd";
 
 interface MaturityEntry {
   tool: string;

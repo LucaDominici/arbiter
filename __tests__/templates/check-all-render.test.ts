@@ -66,3 +66,73 @@ describe("check-all.mjs.ejs rendering — Java wiring (#404)", () => {
     expect(spotbugsLines[0]).toContain("graceActive");
   });
 });
+
+describe("check-all.mjs.ejs rendering — BDD gate (#361)", () => {
+  it("TypeScript: emits cucumber-js BDD runCheck", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("runCheck('bdd', 'npx', ['cucumber-js']");
+  });
+
+  it("Python: emits pytest BDD runCheck", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "python",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain(
+      "runCheck('bdd', 'pytest', ['-m', 'bdd', 'tests/bdd/']",
+    );
+  });
+
+  it("Go: emits go test BDD runCheck", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "go",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain(
+      "runCheck('bdd', 'go', ['test', './internal/bdd/...']",
+    );
+  });
+
+  it("Java Gradle: emits cucumberTest BDD runCheck", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("runCheck('bdd', './gradlew', ['cucumberTest']");
+  });
+
+  it("Rust: emits cargo test BDD runCheck", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "rust",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain(
+      "runCheck('bdd', 'cargo', ['test', '--features', 'bdd']",
+    );
+  });
+
+  it("TypeScript: @ignore grep step is HARD-fail (soft: false)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("@ignore");
+    expect(content).toContain("soft: false");
+  });
+});

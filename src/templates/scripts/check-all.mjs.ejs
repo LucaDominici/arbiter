@@ -289,6 +289,31 @@ if (level === 'L2') {
   runCheck('contract tests (Pact)', 'pytest', ['tests/contract/'], { soft: graceActive });
 <% } %>
 <% } %>
+  // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
+  {
+    // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
+    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
+    process.stdout.write('[CHECK] BDD @ignore check ... ');
+    if (_bddIgnore.status === 0) {
+      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
+      failed++;
+    } else {
+      console.log('PASS');
+    }
+  }
+<% if (language === 'typescript') { %>
+  runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
+<% } else if (language === 'python') { %>
+  runCheck('bdd', 'pytest', ['-m', 'bdd', 'tests/bdd/'], { soft: graceActive });
+<% } else if (language === 'go') { %>
+  runCheck('bdd', 'go', ['test', './internal/bdd/...'], { soft: graceActive });
+<% } else if (language === 'java' && buildTool === 'gradle') { %>
+  runCheck('bdd', './gradlew', ['cucumberTest'], { soft: graceActive });
+<% } else if (language === 'java' && buildTool === 'maven') { %>
+  runCheck('bdd', 'mvn', ['test', '-Dtest=*BDD*'], { soft: graceActive });
+<% } else if (language === 'rust') { %>
+  runCheck('bdd', 'cargo', ['test', '--features', 'bdd'], { soft: graceActive });
+<% } %>
   // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
 <% const ratchetFlag = governanceLevel === 'L3' ? '--require-improvement' : '--gate'; %>

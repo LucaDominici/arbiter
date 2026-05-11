@@ -1,0 +1,13 @@
+{
+  "name": "ts-bdd-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bdd": "cucumber-js"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}

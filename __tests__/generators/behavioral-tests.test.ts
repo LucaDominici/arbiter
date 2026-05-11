@@ -21,14 +21,34 @@ describe("generateBehavioralTests", () => {
     cleanupTestProject(dir);
   });
 
-  // ─── TypeScript library: 3 files (example + policy + naming gate) ─────────
+  // ─── TypeScript library: 5 files (example + policy + naming gate + feature + steps) ─────────
 
-  it("returns 3 files for typescript library", () => {
+  it("returns 5 files for typescript library", () => {
     const config = makeConfig(dir, {
       language: "typescript",
       archetype: "library",
     });
-    expect(generateBehavioralTests(config).files).toHaveLength(3);
+    expect(generateBehavioralTests(config).files).toHaveLength(5);
+  });
+
+  it("generates BDD feature file for typescript", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      archetype: "library",
+    });
+    generateBehavioralTests(config);
+    expect(existsSync(join(dir, "features", "example.feature"))).toBe(true);
+  });
+
+  it("generates BDD step definitions for typescript", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      archetype: "library",
+    });
+    generateBehavioralTests(config);
+    expect(
+      existsSync(join(dir, "features", "step_definitions", "example.steps.ts")),
+    ).toBe(true);
   });
 
   it("generates behavioral test example for typescript", () => {
@@ -62,14 +82,14 @@ describe("generateBehavioralTests", () => {
     );
   });
 
-  // ─── TypeScript frontend-spa: 4 files (+ playwright config) ──────────────
+  // ─── TypeScript frontend-spa: 6 files (+ playwright config + BDD) ──────────────
 
-  it("returns 4 files for typescript frontend-spa", () => {
+  it("returns 6 files for typescript frontend-spa", () => {
     const config = makeConfig(dir, {
       language: "typescript",
       archetype: "frontend-spa",
     });
-    expect(generateBehavioralTests(config).files).toHaveLength(4);
+    expect(generateBehavioralTests(config).files).toHaveLength(6);
   });
 
   it("generates eslint-playwright.json for frontend-spa", () => {
@@ -124,9 +144,9 @@ describe("generateBehavioralTests", () => {
     ).toBe(true);
   });
 
-  // ─── Java: 3 files ────────────────────────────────────────────────────────
+  // ─── Java: 5 files (+ BDD feature + BDD suite) ────────────────────────────────────────────────────
 
-  it("returns 3 files for java", () => {
+  it("returns 5 files for java", () => {
     const javaDir = createTestProject("java");
     initGit(javaDir);
     try {
@@ -135,7 +155,64 @@ describe("generateBehavioralTests", () => {
         archetype: "backend-web-db",
         buildTool: "gradle",
       });
-      expect(generateBehavioralTests(config).files).toHaveLength(3);
+      expect(generateBehavioralTests(config).files).toHaveLength(5);
+    } finally {
+      cleanupTestProject(javaDir);
+    }
+  });
+
+  it("generates BDD feature file for java", () => {
+    const javaDir = createTestProject("java");
+    initGit(javaDir);
+    try {
+      const config = makeConfig(javaDir, {
+        language: "java",
+        archetype: "backend-web-db",
+        buildTool: "gradle",
+      });
+      generateBehavioralTests(config);
+      expect(
+        existsSync(
+          join(
+            javaDir,
+            "src",
+            "test",
+            "resources",
+            "features",
+            "example.feature",
+          ),
+        ),
+      ).toBe(true);
+    } finally {
+      cleanupTestProject(javaDir);
+    }
+  });
+
+  it("generates BDD suite class for java", () => {
+    const javaDir = createTestProject("java");
+    initGit(javaDir);
+    try {
+      const config = makeConfig(javaDir, {
+        language: "java",
+        archetype: "backend-web-db",
+        buildTool: "gradle",
+        basePackage: "com.example",
+      });
+      generateBehavioralTests(config);
+      expect(
+        existsSync(
+          join(
+            javaDir,
+            "src",
+            "test",
+            "java",
+            "com",
+            "example",
+            "bdd",
+            "ExampleBddIT.java",
+          ),
+        ),
+      ).toBe(true);
     } finally {
       cleanupTestProject(javaDir);
     }
@@ -228,9 +305,9 @@ describe("generateBehavioralTests", () => {
     }
   });
 
-  // ─── Rust: 3 files ────────────────────────────────────────────────────────
+  // ─── Rust: 5 files (+ BDD feature + BDD test) ────────────────────────────────────────────────────
 
-  it("returns 3 files for rust", () => {
+  it("returns 5 files for rust", () => {
     const rustDir = createTestProject("rust");
     initGit(rustDir);
     try {
@@ -238,7 +315,41 @@ describe("generateBehavioralTests", () => {
         language: "rust",
         archetype: "library",
       });
-      expect(generateBehavioralTests(config).files).toHaveLength(3);
+      expect(generateBehavioralTests(config).files).toHaveLength(5);
+    } finally {
+      cleanupTestProject(rustDir);
+    }
+  });
+
+  it("generates BDD feature file for rust", () => {
+    const rustDir = createTestProject("rust");
+    initGit(rustDir);
+    try {
+      const config = makeConfig(rustDir, {
+        language: "rust",
+        archetype: "library",
+      });
+      generateBehavioralTests(config);
+      expect(
+        existsSync(join(rustDir, "tests", "features", "example.feature")),
+      ).toBe(true);
+    } finally {
+      cleanupTestProject(rustDir);
+    }
+  });
+
+  it("generates BDD test file for rust", () => {
+    const rustDir = createTestProject("rust");
+    initGit(rustDir);
+    try {
+      const config = makeConfig(rustDir, {
+        language: "rust",
+        archetype: "library",
+      });
+      generateBehavioralTests(config);
+      expect(existsSync(join(rustDir, "tests", "example_bdd_test.rs"))).toBe(
+        true,
+      );
     } finally {
       cleanupTestProject(rustDir);
     }
@@ -280,9 +391,9 @@ describe("generateBehavioralTests", () => {
     }
   });
 
-  // ─── Go: 3 files ──────────────────────────────────────────────────────────
+  // ─── Go: 5 files (+ BDD feature + BDD test) ──────────────────────────────────────────────────────
 
-  it("returns 3 files for go", () => {
+  it("returns 5 files for go", () => {
     const goDir = createTestProject("go");
     initGit(goDir);
     try {
@@ -290,7 +401,39 @@ describe("generateBehavioralTests", () => {
         language: "go",
         archetype: "library",
       });
-      expect(generateBehavioralTests(config).files).toHaveLength(3);
+      expect(generateBehavioralTests(config).files).toHaveLength(5);
+    } finally {
+      cleanupTestProject(goDir);
+    }
+  });
+
+  it("generates BDD feature file for go", () => {
+    const goDir = createTestProject("go");
+    initGit(goDir);
+    try {
+      const config = makeConfig(goDir, {
+        language: "go",
+        archetype: "library",
+      });
+      generateBehavioralTests(config);
+      expect(existsSync(join(goDir, "features", "example.feature"))).toBe(true);
+    } finally {
+      cleanupTestProject(goDir);
+    }
+  });
+
+  it("generates BDD test file for go", () => {
+    const goDir = createTestProject("go");
+    initGit(goDir);
+    try {
+      const config = makeConfig(goDir, {
+        language: "go",
+        archetype: "library",
+      });
+      generateBehavioralTests(config);
+      expect(
+        existsSync(join(goDir, "internal", "bdd", "example_test.go")),
+      ).toBe(true);
     } finally {
       cleanupTestProject(goDir);
     }
@@ -332,9 +475,9 @@ describe("generateBehavioralTests", () => {
     }
   });
 
-  // ─── Python: 3 files ──────────────────────────────────────────────────────
+  // ─── Python: 5 files (+ BDD feature + BDD test) ──────────────────────────────────────────────────
 
-  it("returns 3 files for python", () => {
+  it("returns 5 files for python", () => {
     const pyDir = createTestProject("python");
     initGit(pyDir);
     try {
@@ -342,7 +485,41 @@ describe("generateBehavioralTests", () => {
         language: "python",
         archetype: "library",
       });
-      expect(generateBehavioralTests(config).files).toHaveLength(3);
+      expect(generateBehavioralTests(config).files).toHaveLength(5);
+    } finally {
+      cleanupTestProject(pyDir);
+    }
+  });
+
+  it("generates BDD feature file for python", () => {
+    const pyDir = createTestProject("python");
+    initGit(pyDir);
+    try {
+      const config = makeConfig(pyDir, {
+        language: "python",
+        archetype: "library",
+      });
+      generateBehavioralTests(config);
+      expect(
+        existsSync(join(pyDir, "tests", "bdd", "features", "example.feature")),
+      ).toBe(true);
+    } finally {
+      cleanupTestProject(pyDir);
+    }
+  });
+
+  it("generates BDD test file for python", () => {
+    const pyDir = createTestProject("python");
+    initGit(pyDir);
+    try {
+      const config = makeConfig(pyDir, {
+        language: "python",
+        archetype: "library",
+      });
+      generateBehavioralTests(config);
+      expect(
+        existsSync(join(pyDir, "tests", "bdd", "test_example_bdd.py")),
+      ).toBe(true);
     } finally {
       cleanupTestProject(pyDir);
     }

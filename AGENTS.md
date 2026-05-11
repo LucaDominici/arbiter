@@ -66,6 +66,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-19:** Resilient external calls — circuit breaker or retry required
 - **INV-20:** Health and readiness endpoints required for deployed services
 - **INV-35:** Contract testing enforced when contractType is active
+- **INV-40:** BDD scenarios with `@ignore` tag are HARD-fail
 - **INV-41:** Message-queue contract tests must call Schema Registry testCompatibility
 - **INV-42:** Pact broker glue must be env-gated — no silent runs against default URL
 - **INV-43:** OpenAPI exporter must run before diff; missing reference is HARD-fail
