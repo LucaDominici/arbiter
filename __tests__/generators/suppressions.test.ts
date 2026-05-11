@@ -92,7 +92,7 @@ describe("generateSuppressions — owasp + trivyignore (#208)", () => {
   });
 
   it("emits owasp-suppressions.xml + .trivyignore for Kotlin L2", () => {
-    const kotlinDir = createTestProject("java");
+    const kotlinDir = createTestProject("kotlin");
     initGit(kotlinDir);
     try {
       const config = makeConfig(kotlinDir, {
