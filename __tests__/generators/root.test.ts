@@ -95,6 +95,17 @@ describe("generateRoot", () => {
     expect(readFileSync(commitlintPath, "utf-8")).toBe("// custom content");
   });
 
+  it("skipIfExists on .editorconfig (#205, CANON-11)", () => {
+    const editorconfigPath = join(dir, ".editorconfig");
+    writeFileSync(editorconfigPath, "# custom editorconfig");
+    const result = generateRoot(makeConfig(dir));
+    const entry = result.files.find((f) => f.path.endsWith(".editorconfig"));
+    expect(entry?.action).toBe("skipped");
+    expect(readFileSync(editorconfigPath, "utf-8")).toBe(
+      "# custom editorconfig",
+    );
+  });
+
   it("emits .editorconfig with TS language override (#205)", () => {
     generateRoot(makeConfig(dir, { language: "typescript" }));
     const content = readFileSync(join(dir, ".editorconfig"), "utf-8");

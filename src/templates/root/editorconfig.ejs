@@ -15,7 +15,7 @@ trim_trailing_whitespace = false
 indent_style = tab
 <% if (language === 'typescript') { %>
 [*.{ts,tsx,js,jsx}]
-indent_size = 2
+max_line_length = 100
 <% } %>
 <% if (language === 'go') { %>
 [*.go]
@@ -31,5 +31,9 @@ indent_size = 4
 <% } %>
 <% if (language === 'java') { %>
 [*.{java,gradle,groovy}]
+indent_size = 4
+<% } %>
+<% if (language === 'kotlin') { %>
+[*.{kt,kts,gradle,groovy}]
 indent_size = 4
 <% } %>

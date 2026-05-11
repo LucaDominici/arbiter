@@ -11,10 +11,10 @@ function cfg(language: Language) {
 }
 
 describe("editorconfig.ejs (#205)", () => {
-  it("TypeScript render: contains TS section with indent_size = 2", () => {
+  it("TypeScript render: contains TS section with max_line_length = 100", () => {
     const out = renderTemplate("root/editorconfig.ejs", cfg("typescript"));
     expect(out).toContain("[*.{ts,tsx,js,jsx}]");
-    expect(out).toContain("indent_size = 2");
+    expect(out).toContain("max_line_length = 100");
   });
 
   it("Go render: contains Go section with indent_style = tab", () => {
@@ -70,5 +70,17 @@ describe("editorconfig.ejs (#205)", () => {
     const out = renderTemplate("root/editorconfig.ejs", cfg("typescript"));
     expect(out).not.toContain("[*.go]");
     expect(out).not.toContain("[*.py]");
+  });
+
+  it("Kotlin render: contains Kotlin section with indent_size = 4", () => {
+    const out = renderTemplate("root/editorconfig.ejs", cfg("kotlin"));
+    expect(out).toContain("[*.{kt,kts,gradle,groovy}]");
+    expect(out).toContain("indent_size = 4");
+  });
+
+  it("Kotlin render: no EJS leaks", () => {
+    const out = renderTemplate("root/editorconfig.ejs", cfg("kotlin"));
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
   });
 });
