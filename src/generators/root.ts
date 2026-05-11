@@ -61,5 +61,14 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
     );
   }
 
+  // commitlint.config.js — conventional commit config for all projects
+  results.push(
+    writeFile(
+      resolvedPath(base, "commitlint.config.js"),
+      renderTemplate("root/commitlint.config.js.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }

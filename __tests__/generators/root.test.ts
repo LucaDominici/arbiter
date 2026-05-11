@@ -67,4 +67,21 @@ describe("generateRoot", () => {
     expect(content).toContain("root-proj");
     expect(content).toContain("npm test");
   });
+
+  it("generates commitlint.config.js (#202)", () => {
+    const result = generateRoot(makeConfig(dir));
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("commitlint.config.js"))).toBe(true);
+  });
+
+  it("skipIfExists on commitlint.config.js (#202)", () => {
+    const commitlintPath = join(dir, "commitlint.config.js");
+    writeFileSync(commitlintPath, "// custom content");
+    const result = generateRoot(makeConfig(dir));
+    const entry = result.files.find((f) =>
+      f.path.endsWith("commitlint.config.js"),
+    );
+    expect(entry?.action).toBe("skipped");
+    expect(readFileSync(commitlintPath, "utf-8")).toBe("// custom content");
+  });
 });
