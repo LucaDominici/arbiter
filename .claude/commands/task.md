@@ -1,6 +1,6 @@
 ---
 description: Full task lifecycle — plan, implement, review, gate, merge
-argument-hint: "#NNN [--skip-review] [--dry-run]"
+argument-hint: "#NNN [--skip-review] [--dry-run] | --batch #N1 #N2 ... | --batch --label <labels>"
 ---
 
 # /task #NNN
@@ -10,6 +10,78 @@ Full lifecycle: plan → STOP → implement → review → gate → commit → P
 **Plan Mode Required:** Must run in plan mode. If not in plan mode, STOP and tell user to enter plan mode first.
 
 **Worktree Recommended:** Run from worktree (created via `/wt-open`). If on main or a non-task branch, STOP and suggest `/wt-open #NNN`.
+
+---
+
+## BATCH MODE — `/task --batch`
+
+Invoke as:
+
+```
+/task --batch #100 #101 #102
+/task --batch --label "size:XS,sprint:current"
+```
+
+Batch mode launches one isolated `Agent` per issue (clean context window each time), writes a structured report, and prints a summary table.
+
+### Orchestration steps
+
+1. **Resolve issues**: explicit IDs OR `gh issue list --label <labels> --state open --json number` (max 10).
+2. **Create report file**:
+   ```bash
+   mkdir -p .evidence
+   BATCH_ID="batch-$(date -u +%Y%m%d-%H%M)"
+   REPORT=".evidence/${BATCH_ID}/batch-report.json"
+   mkdir -p ".evidence/${BATCH_ID}"
+   echo '{"batchId":"'$BATCH_ID'","started":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","issues":[],"summary":{"total":0,"merged":0,"stopped":0}}' > "$REPORT"
+   ```
+3. **For each issue**: launch `Agent` (subagent_type: general-purpose, model: sonnet) with self-contained prompt:
+   > "Execute `/task #NNN` for issue #NNN in repository `$(pwd)`. Full lifecycle: plan → implement → gate → PR → merge. Return JSON: `{ \"issue\": NNN, \"result\": \"merged|STOP\", \"phase\": \"...\", \"reviewScore\": N, \"prUrl\": \"...\", \"reason\": \"...\", \"techDebtIssues\": [] }`"
+4. **After each agent returns**: append its JSON result to `batch-report.json`. STOP on one issue does NOT block subsequent issues.
+5. **Print summary** on completion.
+
+### Batch report schema
+
+```json
+{
+  "batchId": "batch-20260418-1030",
+  "started": "2026-04-18T10:30:00Z",
+  "completed": "2026-04-18T12:15:00Z",
+  "issues": [
+    {
+      "issue": 100,
+      "result": "merged",
+      "reviewScore": 84,
+      "prUrl": "...",
+      "techDebtIssues": []
+    },
+    {
+      "issue": 101,
+      "result": "STOP",
+      "phase": "tdd",
+      "reason": "gate failed: typecheck"
+    }
+  ],
+  "summary": { "total": 2, "merged": 1, "stopped": 1 }
+}
+```
+
+### Summary table format
+
+```
+═══ Batch Complete ═══
+Total: 3 | Merged: 2 | Stopped: 1
+#100 merged  score=84  pr=#213
+#101 merged  score=91  pr=#214
+#102 STOP    phase=tdd  reason=gate failed: typecheck
+Report: .evidence/batch-20260418-1030/batch-report.json
+```
+
+### Constraints
+
+- Max 10 issues per batch. Refuse if more than 10 issues resolved.
+- Each agent runs with current `CLAUDE.md` + `task.md` — inherits all invariants.
+- `.evidence/batch-*/` is gitignored (already in `.gitignore`).
 
 ---
 
@@ -284,6 +356,32 @@ If using worktree, close it:
 ```bash
 /wt-close NNN
 ```
+
+### Phase C1: Post-Merge Review (after ≥3 tasks merged in one session/batch)
+
+When ≥3 tasks merge in the same batch or sprint window, create a post-merge review document:
+
+```bash
+DATE=$(date -u +%Y-%m-%d)
+mkdir -p docs/testing
+# Fill template if it exists, otherwise create from scratch
+TEMPLATE="docs/testing/POST_MERGE_REVIEW_TEMPLATE.md"
+TARGET="docs/testing/POST_MERGE_REVIEW_${DATE}.md"
+if [ -f "$TEMPLATE" ]; then
+  cp "$TEMPLATE" "$TARGET"
+fi
+```
+
+**Required sections** (use `docs/testing/POST_MERGE_REVIEW_TEMPLATE.md` if present):
+
+- Scope: which task IDs merged, number of commits
+- Summary table: task ID, scope, review score, verdict
+- Bundle details: findings per task, known limitations
+- Finding classification (P1–P5 / PASS/CONCERNS/FAIL)
+
+**Verdict thresholds:** PASS ≥75 | CONCERNS 60–74 | FAIL <60. Security findings weighted 2×.
+
+Commit the document: `docs(batch): post-merge review YYYY-MM-DD`
 
 ## Gate Failure
 
