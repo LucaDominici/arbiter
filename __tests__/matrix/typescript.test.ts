@@ -63,7 +63,7 @@ describe("matrix: TypeScript project", () => {
     );
     expect(ci).toContain("npm ci");
     expect(ci).toContain("npm run lint");
-    expect(ci).toContain("npm test");
+    expect(ci).toContain("test:unit");
   });
 
   it("CI workflow sets up Node.js", () => {

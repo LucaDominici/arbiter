@@ -34,7 +34,8 @@ export type GeneratorKey =
   | "ssot"
   | "githooks"
   | "github-setup"
-  | "docs";
+  | "docs"
+  | "api-middleware";
 
 export interface ConfigDiff {
   paths: string[];

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -446,5 +446,160 @@ describe("generateDebtGates", () => {
     });
     generateDebtGates(config);
     expect(existsSync(join(dir, "config", "pitest-setup.md"))).toBe(false);
+  });
+
+  // ── SpotBugs baseline (#212) ────────────────────────────────────────────────
+
+  it("emits scripts/verify-spotbugs.mjs for Java projects (#212)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, "scripts", "verify-spotbugs.mjs"))).toBe(true);
+  });
+
+  it("verify-spotbugs.mjs contains security hard-block list (#212)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const content = readFileSync(
+      join(dir, "scripts", "verify-spotbugs.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("SQL_INJECTION");
+    expect(content).toContain("COMMAND_INJECTION");
+    expect(content).toContain("LDAP_INJECTION");
+  });
+
+  it("emits spotbugs-baseline.json for Java projects (#212)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, "spotbugs-baseline.json"))).toBe(true);
+    const parsed = JSON.parse(
+      readFileSync(join(dir, "spotbugs-baseline.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    expect(Array.isArray(parsed.baselined)).toBe(true);
+    expect((parsed.baselined as unknown[]).length).toBe(0);
+  });
+
+  it("does not emit verify-spotbugs.mjs for TypeScript projects (#212)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, "scripts", "verify-spotbugs.mjs"))).toBe(false);
+  });
+
+  // ── dependency-cruiser (#216) ─────────────────────────────────────────────
+
+  it("emits .dependency-cruiser.cjs for TypeScript projects (#216)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    const result = generateDebtGates(config);
+    expect(
+      result.files.some((f) => f.path.endsWith(".dependency-cruiser.cjs")),
+    ).toBe(true);
+    expect(existsSync(join(dir, ".dependency-cruiser.cjs"))).toBe(true);
+  });
+
+  it(".dependency-cruiser.cjs contains no-circular and no-cross-layer rules (#216)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const content = readFileSync(join(dir, ".dependency-cruiser.cjs"), "utf-8");
+    expect(content).toContain("no-circular");
+    expect(content).toContain("no-cross-layer");
+    expect(content).toContain("module.exports");
+  });
+
+  it("injects check:arch script and dependency-cruiser devDep into package.json (#216)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf-8"),
+    ) as Record<string, Record<string, string>>;
+    expect(pkg.scripts?.["check:arch"]).toBe("depcruise src");
+    expect(pkg.devDependencies?.["dependency-cruiser"]).toMatch(/^\^16/);
+  });
+
+  it("does not emit .dependency-cruiser.cjs for Java projects (#216)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, ".dependency-cruiser.cjs"))).toBe(false);
+  });
+
+  it("injects test:unit/contract/integration/behavioral scripts into package.json (#219)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf-8"),
+    ) as Record<string, Record<string, string>>;
+    expect(pkg.scripts?.["test:unit"]).toContain("vitest");
+    expect(pkg.scripts?.["test:contract"]).toContain("vitest");
+    expect(pkg.scripts?.["test:integration"]).toContain("vitest");
+    expect(pkg.scripts?.["test:behavioral"]).toContain("vitest");
+  });
+
+  it("injects test scripts even when enableDebtGates is false (#219)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: false,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf-8"),
+    ) as Record<string, Record<string, string>>;
+    expect(pkg.scripts?.["test:unit"]).toContain("vitest");
+  });
+
+  it("does not overwrite existing test scripts (#219)", () => {
+    const pkgPath = join(dir, "package.json");
+    const existing = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<
+      string,
+      Record<string, string>
+    >;
+    existing.scripts["test:unit"] = "jest --testPathPattern unit";
+    writeFileSync(pkgPath, JSON.stringify(existing, null, 2));
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<
+      string,
+      Record<string, string>
+    >;
+    expect(pkg.scripts?.["test:unit"]).toBe("jest --testPathPattern unit");
   });
 });

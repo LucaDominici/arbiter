@@ -32,6 +32,7 @@ import { generatePlaywrightPython } from "./playwright-python.js";
 import { generateGithooks } from "./githooks.js";
 import { generateGithubSetup } from "./github-setup.js";
 import { generateDocs } from "./docs.js";
+import { generateApiMiddleware } from "./api-middleware.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import type { GeneratorKey } from "../config/diff.js";
@@ -145,6 +146,11 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: "docs",
       enabled: config.governanceLevel !== "L1",
       run: () => generateDocs(config).files,
+    },
+    {
+      key: "api-middleware",
+      enabled: config.hasPublicApi,
+      run: () => generateApiMiddleware(config).files,
     },
   ];
 }

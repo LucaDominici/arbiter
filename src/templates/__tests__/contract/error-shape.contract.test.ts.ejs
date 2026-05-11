@@ -1,0 +1,47 @@
+import { describe, it, expect } from "vitest";
+import supertest from "supertest";
+import express from "express";
+import { correlationIdMiddleware } from "../../src/middleware/correlation-id.js";
+import { errorHandler, AppError } from "../../src/middleware/error-handler.js";
+
+const app = express();
+app.use(correlationIdMiddleware);
+app.get("/error", (_req, _res, next) => {
+  next(new AppError(422, "Validation Error", "field 'email' is required"));
+});
+app.get("/unknown-error", (_req, _res, next) => {
+  next(new Error("something unexpected"));
+});
+app.use(errorHandler);
+
+describe("RFC 7807 error shape contract", () => {
+  it("AppError produces problem+json with correct shape", async () => {
+    const res = await supertest(app).get("/error");
+    expect(res.status).toBe(422);
+    expect(res.headers["content-type"]).toMatch(/application\/problem\+json/);
+    const body = res.body as Record<string, unknown>;
+    expect(body).toHaveProperty("type");
+    expect(body).toHaveProperty("title");
+    expect(body).toHaveProperty("status", 422);
+    expect(body).toHaveProperty("correlationId");
+    expect(body).not.toHaveProperty("stack");
+  });
+
+  it("unknown error produces 500 with problem+json shape", async () => {
+    const res = await supertest(app).get("/unknown-error");
+    expect(res.status).toBe(500);
+    const body = res.body as Record<string, unknown>;
+    expect(body).toHaveProperty("status", 500);
+    expect(body).toHaveProperty("correlationId");
+    expect(body).not.toHaveProperty("stack");
+  });
+
+  it("correlationId echoed in response header", async () => {
+    const res = await supertest(app)
+      .get("/error")
+      .set("X-Correlation-ID", "test-id-123");
+    expect(res.headers["x-correlation-id"]).toBe("test-id-123");
+    const body = res.body as Record<string, unknown>;
+    expect(body["correlationId"]).toBe("test-id-123");
+  });
+});

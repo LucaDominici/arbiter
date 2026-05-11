@@ -84,12 +84,13 @@ jobs:
 <% } %>
 <% } %>
 <% if (language === 'typescript') { %>
+<% const _tsNeeds=[]; if(enableSecurityScanning) _tsNeeds.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _tsNeeds.push('classify-changes'); %>
   lint-and-test:
-    name: Lint + Test
+    name: Lint + Typecheck
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% if(_tsNeeds.length){ %>    needs: [<%= _tsNeeds.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } } %>    steps:
+<% } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -98,20 +99,76 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test -- --coverage<% if (enableDebtGates) { %> --reporter=junit --outputFile=test-results/junit.xml<% } %>
 <% if (enableSecurityScanning) { %>
       - name: Dep audit (INV-13)
         run: npm audit --audit-level=high
 <% } %>
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [lint-and-test]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:unit<% if (enableDebtGates) { %> -- --reporter=junit --outputFile=test-results/junit.xml<% } %>
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ github.run_id }}
+          name: test-results-unit-${{ github.run_id }}
           path: test-results/
           retention-days: 7
 <% } %>
+
+  contract-tests:
+    name: Contract Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [lint-and-test]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:contract
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [unit-tests]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:integration
+
+  behavioral-tests:
+    name: Behavioral Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [unit-tests]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:behavioral
+
 <% } %><% if (language === 'rust') { %>
   lint-and-test:
     name: Lint + Test (Rust)
@@ -134,12 +191,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 <% } %>
 <% } %><% if (language === 'java') { %>
+<% const _javaNeeds=[]; if(enableSecurityScanning) _javaNeeds.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _javaNeeds.push('classify-changes'); %>
   lint-and-test:
-    name: Lint + Test (Java)
+    name: Lint (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% if(_javaNeeds.length){ %>    needs: [<%= _javaNeeds.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
-<% } } %>    steps:
+<% } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
@@ -147,36 +205,100 @@ jobs:
           distribution: 'temurin'
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
       - run: ./gradlew checkstyleMain
-      - run: ./gradlew test
 <% if (enableSecurityScanning) { %>
       - name: Dep audit OWASP DC (INV-13)
         run: ./gradlew dependencyCheckAnalyze
 <% } %>
-<% if (enableDebtGates) { %>
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ github.run_id }}
-          path: build/test-results/
-          retention-days: 7
-<% } %>
 <% } else { %>      - run: mvn checkstyle:check
-      - run: mvn test
 <% if (enableSecurityScanning) { %>
       - name: Dep audit OWASP DC (INV-13)
         run: mvn org.owasp:dependency-check-maven:check
 <% } %>
+<% } %>
+
+  unit-tests:
+    name: Unit Tests (Java)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [lint-and-test]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
+      - run: ./gradlew test
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ github.run_id }}
+          name: test-results-unit-${{ github.run_id }}
+          path: build/test-results/
+          retention-days: 7
+<% } %>
+<% } else { %>      - run: mvn test -Punit
+<% if (enableDebtGates) { %>
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit-${{ github.run_id }}
           path: target/surefire-reports/
           retention-days: 7
 <% } %>
-<% } %><% } %><% if (language === 'go') { %>
+<% } %>
+
+  contract-tests:
+    name: Contract Tests (Java)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [lint-and-test]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
+      - run: ./gradlew contractTest
+<% } else { %>      - run: mvn test -Pcontract
+<% } %>
+
+  integration-tests:
+    name: Integration Tests (Java)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [unit-tests]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
+      - run: ./gradlew integrationTest
+<% } else { %>      - run: mvn test -Pintegration
+<% } %>
+
+  behavioral-tests:
+    name: Behavioral Tests (Java)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [unit-tests]
+<% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } %>    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@v3
+      - run: ./gradlew behavioralTest
+<% } else { %>      - run: mvn test -Pbehavioral
+<% } %>
+
+<% } %><% if (language === 'go') { %>
   lint-and-test:
     name: Lint + Test (Go)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
@@ -454,14 +576,44 @@ jobs:
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    needs: [lint-and-test<% if (enableSecurityScanning) { %>, security-early-fail<% } %><% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>, contract-verify<% } %><% if (governanceLevel !== 'L1' || _multiLane) { %>, classify-changes<% } %><% if (_multiLane) { %>, cross-stack-guard<% } %>]
+<%
+  const _ciNeeds = ['lint-and-test'];
+  if (language === 'typescript' || language === 'java') {
+    _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
+  }
+  if (enableSecurityScanning) _ciNeeds.push('security-early-fail');
+  if (governanceLevel !== 'L1') _ciNeeds.push('docs-check');
+  if (enableDebtGates) _ciNeeds.push('debt-gates', 'debt-ratchet');
+  if (contractType && contractType !== 'none' && governanceLevel !== 'L1') _ciNeeds.push('contract-verify');
+  if (governanceLevel !== 'L1' || _multiLane) _ciNeeds.push('classify-changes');
+  if (_multiLane) _ciNeeds.push('cross-stack-guard');
+%>
+    needs: [<%= _ciNeeds.join(', ') %>]
     if: always()
     steps:
       - run: |
           if [[ "${{ needs.lint-and-test.result }}" != "success" ]]; then
             echo "lint-and-test failed"
             exit 1
-          fi<% if (enableSecurityScanning) { %>
+          fi
+<% if (language === 'typescript' || language === 'java') { %>
+          if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
+            echo "unit-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.contract-tests.result }}" != "success" ]]; then
+            echo "contract-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.integration-tests.result }}" != "success" ]]; then
+            echo "integration-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.behavioral-tests.result }}" != "success" ]]; then
+            echo "behavioral-tests failed"
+            exit 1
+          fi
+<% } %><% if (enableSecurityScanning) { %>
           if [[ "${{ needs.security-early-fail.result }}" != "success" ]]; then
             echo "security-early-fail failed"
             exit 1

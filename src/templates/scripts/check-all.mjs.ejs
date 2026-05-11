@@ -90,7 +90,7 @@ if (existsSync('.eslintrc-static.json')) {
 } else {
   console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }
-runCheck('unit tests', 'npm', ['test']);
+runCheck('unit tests', 'npm', ['run', 'test:unit']);
 <% } %><% if (language === 'rust') { %>
 runCheck('fmt', 'cargo', ['fmt', '--check']);
 runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
@@ -168,8 +168,11 @@ if (level === 'L2') {
 <% if (architectureStyle === 'hexagonal') { %>
   runCheck('boundaries', 'node', ['scripts/check-boundaries.mjs'], { soft: graceActive });
 <% } %>
+  runCheck('contract tests', 'npm', ['run', 'test:contract'], { soft: graceActive });
+  runCheck('integration tests', 'npm', ['run', 'test:integration'], { soft: graceActive });
+  runCheck('behavioral tests', 'npm', ['run', 'test:behavioral'], { soft: graceActive });
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
-  runCheck('integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
+  runCheck('db integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
 <% } %>
 <% if ((archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1') { %>
   // ─── L2: Playwright E2E tests (matrix proven for frontend/backend-web-db) ──
@@ -240,6 +243,7 @@ if (level === 'L2') {
 <% } %>
   runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
   runCheck('circular deps', 'npx', ['madge', '--circular', 'src'], { soft: graceActive });
+  runCheck('arch boundaries', 'npm', ['run', 'check:arch'], { soft: graceActive });
 <% } %><% if (language === 'rust') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });
@@ -251,12 +255,14 @@ if (level === 'L2') {
 <% } %>
   runCheck('pmd', './gradlew', ['pmdMain', '-q'], { soft: graceActive });
   runCheck('spotbugs', './gradlew', ['spotbugsMain', '-q'], { soft: graceActive });
+  runCheck('spotbugs baseline (INV-44)', 'node', ['scripts/verify-spotbugs.mjs'], { soft: graceActive });
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q'], { soft: graceActive });
 <% } %>
   runCheck('pmd', 'mvn', ['pmd:check', '-q'], { soft: graceActive });
   runCheck('spotbugs', 'mvn', ['com.github.spotbugs:spotbugs-maven-plugin:check', '-q'], { soft: graceActive });
+  runCheck('spotbugs baseline (INV-44)', 'node', ['scripts/verify-spotbugs.mjs'], { soft: graceActive });
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...'], { soft: graceActive });

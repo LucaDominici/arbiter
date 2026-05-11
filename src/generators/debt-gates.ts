@@ -1,3 +1,4 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
 import type { ProjectConfig } from "../wizard/types.js";
@@ -5,6 +6,67 @@ import type { WriteResult } from "../utils/fs.js";
 
 export interface DebtGatesGeneratorResult {
   files: WriteResult[];
+}
+
+function injectTestScripts(targetDir: string): void {
+  const pkgPath = resolvedPath(targetDir, "package.json");
+  if (!existsSync(pkgPath)) return;
+  let pkg: Record<string, unknown>;
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
+  } catch (err) {
+    console.warn("[injectTestScripts] failed to parse package.json:", err);
+    return;
+  }
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>;
+  const testScripts: Record<string, string> = {
+    "test:unit": "vitest run --project unit",
+    "test:contract": "vitest run --project contract",
+    "test:integration": "vitest run --project integration",
+    "test:behavioral": "vitest run --project behavioral",
+  };
+  let changed = false;
+  for (const [key, value] of Object.entries(testScripts)) {
+    if (!scripts[key]) {
+      scripts[key] = value;
+      changed = true;
+    }
+  }
+  if (changed) {
+    pkg.scripts = scripts;
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+  }
+}
+
+function injectDepCruiserPackageJson(targetDir: string): void {
+  const pkgPath = resolvedPath(targetDir, "package.json");
+  if (!existsSync(pkgPath)) return;
+  let pkg: Record<string, unknown>;
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
+  } catch (err) {
+    console.warn(
+      "[injectDepCruiserPackageJson] failed to parse package.json:",
+      err,
+    );
+    return;
+  }
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>;
+  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+  let changed = false;
+  if (!scripts["check:arch"]) {
+    scripts["check:arch"] = "depcruise src";
+    pkg.scripts = scripts;
+    changed = true;
+  }
+  if (!devDeps["dependency-cruiser"]) {
+    devDeps["dependency-cruiser"] = "^16.0.0";
+    pkg.devDependencies = devDeps;
+    changed = true;
+  }
+  if (changed) {
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+  }
 }
 
 function pushJavaDebtGates(
@@ -37,6 +99,14 @@ function pushJavaDebtGates(
       resolvedPath(base, "spotbugs.gradle"),
       "static-analysis/spotbugs.gradle.ejs",
     ],
+    [
+      resolvedPath(base, "scripts", "verify-spotbugs.mjs"),
+      "scripts/verify-spotbugs.mjs.ejs",
+    ],
+    [
+      resolvedPath(base, "spotbugs-baseline.json"),
+      "scripts/spotbugs-baseline.json.ejs",
+    ],
   ];
   for (const [path, tmpl] of files) {
     results.push(
@@ -48,6 +118,10 @@ function pushJavaDebtGates(
 export function generateDebtGates(
   config: ProjectConfig,
 ): DebtGatesGeneratorResult {
+  if (config.language === "typescript") {
+    injectTestScripts(config.targetDir);
+  }
+
   if (!config.enableDebtGates) return { files: [] };
 
   const results: WriteResult[] = [];
@@ -76,6 +150,14 @@ export function generateDebtGates(
         { skipIfExists: true },
       ),
     );
+    results.push(
+      writeFile(
+        resolvedPath(base, ".dependency-cruiser.cjs"),
+        renderTemplate("static-analysis/.dependency-cruiser.cjs.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    injectDepCruiserPackageJson(base);
   }
 
   if (config.language === "rust") {
