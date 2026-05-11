@@ -713,7 +713,7 @@ describe("generateCheckAll", () => {
     });
 
     // Rust
-    it("Rust: includes cargo test *integration* step at L2 when hasDatabase=true", () => {
+    it("Rust: includes cargo test --tests step at L2 when hasDatabase=true", () => {
       generateCheckAll(
         makeConfig(dir, {
           language: "rust",
@@ -726,10 +726,11 @@ describe("generateCheckAll", () => {
         join(dir, "scripts", "check-all.mjs"),
         "utf-8",
       );
-      expect(content).toContain("'*integration*'");
+      expect(content).toContain("'--tests'");
+      expect(content).not.toContain("'*integration*'");
     });
 
-    it("Rust: omits cargo test *integration* step at L2 when hasDatabase=false", () => {
+    it("Rust: omits cargo --tests step at L2 when hasDatabase=false", () => {
       generateCheckAll(
         makeConfig(dir, {
           language: "rust",
@@ -742,10 +743,10 @@ describe("generateCheckAll", () => {
         join(dir, "scripts", "check-all.mjs"),
         "utf-8",
       );
-      expect(content).not.toContain("'*integration*'");
+      expect(content).not.toContain("'--tests'");
     });
 
-    it("Rust: omits cargo test *integration* step at L1 even when hasDatabase=true", () => {
+    it("Rust: omits cargo --tests step at L1 even when hasDatabase=true", () => {
       generateCheckAll(
         makeConfig(dir, {
           language: "rust",
@@ -758,7 +759,7 @@ describe("generateCheckAll", () => {
         join(dir, "scripts", "check-all.mjs"),
         "utf-8",
       );
-      expect(content).not.toContain("'*integration*'");
+      expect(content).not.toContain("'--tests'");
     });
 
     // Go

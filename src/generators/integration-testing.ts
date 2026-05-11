@@ -1,7 +1,31 @@
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, resolvedPath } from "../utils/fs.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
+
+function appendCargoDevDep(base: string, name: string, version: string): void {
+  const cargoPath = join(base, "Cargo.toml");
+  if (!existsSync(cargoPath)) return;
+  const content = readFileSync(cargoPath, "utf-8");
+  if (content.includes(name)) return;
+  const section = "[dev-dependencies]";
+  const entry = `${name} = "${version}"\n`;
+  if (content.includes(section)) {
+    writeFileSync(
+      cargoPath,
+      content.replace(section, `${section}\n${entry}`),
+      "utf-8",
+    );
+  } else {
+    writeFileSync(
+      cargoPath,
+      `${content.trimEnd()}\n\n${section}\n${entry}`,
+      "utf-8",
+    );
+  }
+}
 
 export interface IntegrationTestingGeneratorResult {
   files: WriteResult[];
@@ -74,6 +98,7 @@ export function generateIntegrationTesting(
         { skipIfExists: true },
       ),
     );
+    appendCargoDevDep(base, "testcontainers", "0.23");
   } else if (config.language === "go") {
     results.push(
       writeFile(

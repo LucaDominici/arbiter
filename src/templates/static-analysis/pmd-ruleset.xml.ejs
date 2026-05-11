@@ -74,12 +74,8 @@
 
   <!-- ── BEST PRACTICES ──────────────────────────────────────────────────── -->
   <rule ref="category/java/bestpractices.xml">
-    <!-- DI-pattern: @Inject/@Autowired fields appear unused to PMD -->
-    <exclude name="UnusedPrivateField"/>
     <!-- Allow JUnit 5 public test methods -->
     <exclude name="JUnit4TestShouldUseTestAnnotation"/>
-    <!-- Allow test fixture methods that appear unused -->
-    <exclude name="UnusedPrivateMethod"/>
   </rule>
 
   <!-- ── PERFORMANCE ─────────────────────────────────────────────────────── -->
