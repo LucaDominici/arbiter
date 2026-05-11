@@ -59,6 +59,14 @@ describe("SECURE_CODING_CHECKLIST.md.ejs rendering (#203)", () => {
       );
       expect(out).not.toContain("Cryptography");
     });
+
+    it("contains Logging & PII section at L2", () => {
+      const out = renderTemplate(
+        "docs/SECURE_CODING_CHECKLIST.md.ejs",
+        cfg({ governanceLevel: "L2" }),
+      );
+      expect(out).toContain("Logging & PII");
+    });
   });
 
   describe("L3 render", () => {
