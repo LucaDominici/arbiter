@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Arbiter hook: block orphan TODO comments (INV-06)
+// Arbiter hook: block orphan TODO comments (INV-21)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from "node:fs";
+import { findInlineSuppression } from "./lib.mjs";
 
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 if (!file || !existsSync(file)) process.exit(0);
@@ -32,17 +33,16 @@ try {
 }
 
 // Find TODOs without task IDs like TODO(#123)
-const offending = content
-  .split("\n")
-  .flatMap((line, i) =>
-    /\bTODO\b/.test(line) && !/\bTODO\b.*\(#\d+\)/.test(line)
-      ? [`${i + 1}: ${line.trim()}`]
-      : [],
-  );
+const lines = content.split("\n");
+const offending = lines.flatMap((line, i) => {
+  if (!/\bTODO\b/.test(line) || /\bTODO\b.*\(#\d+\)/.test(line)) return [];
+  if (findInlineSuppression(content, i, "INV-21")) return [];
+  return [`${i + 1}: ${line.trim()}`];
+});
 
 if (offending.length > 0) {
   process.stderr.write(
-    `[arbiter] INV-06: Orphan TODO found in ${file} (must reference task ID like TODO(#123)):\n`,
+    `[arbiter] INV-21: Orphan TODO found in ${file} (must reference task ID like TODO(#123)):\n`,
   );
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`));
   process.exit(1);
