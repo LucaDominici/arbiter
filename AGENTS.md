@@ -93,6 +93,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-27:** Evidence artifacts must be generated for all L3 gate runs (CI evidence collection step)
 - **INV-28:** SSOT documents must not contradict — run drift check before L3 merge
 - **INV-33:** L3 merges require valid evidence bundle with `obs_gate == PASS`
+- **INV-45:** Self-dogfood check — every `.ejs` template must render to match its materialized `.claude/` file (run `node scripts/check-self-dogfood.mjs` at L2)
 
 ---
 

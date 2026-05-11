@@ -132,6 +132,7 @@ if (level === "L2" || level === "L3") {
     "--exit-code",
     "1",
   ]);
+  runCheck("dogfood", "node", ["scripts/check-self-dogfood.mjs"]);
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

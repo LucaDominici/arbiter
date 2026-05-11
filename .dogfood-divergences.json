@@ -1,0 +1,54 @@
+[
+  {
+    "path": "CLAUDE.md",
+    "reason": "Arbiter self-dogfood: hooks table contains additional rows for check-no-any.mjs, check-no-placeholders.mjs, check-no-unused-exports.mjs, check-circular-deps.mjs, pre-edit-plan-anchor.mjs, check-no-direct-spawn.mjs, check-no-pii.mjs, post-edit-dispatch.mjs, skill-forced-eval.mjs, debug-state-on-failure.mjs, pre-compact.mjs and slash commands /status and /replay phase. These arbiter-internal extensions are not shipped to target projects."
+  },
+  {
+    "path": "commands/task.md",
+    "reason": "Arbiter self-dogfood: extended with full BATCH MODE section (/task --batch) and orchestration steps. Template ships minimal single-task lifecycle; batch mode is arbiter-specific workflow."
+  },
+  {
+    "path": "commands/wt-close.md",
+    "reason": "Arbiter self-dogfood: extended with improved descriptions referencing .arbiter/worktree-open.log.json and condensed flag documentation. Template ships a simpler description."
+  },
+  {
+    "path": "commands/wt-list.md",
+    "reason": "Arbiter self-dogfood: extended with cross-reference to .arbiter/worktree-open.log.json for task ID mapping. Template ships a simpler description."
+  },
+  {
+    "path": "commands/wt-open.md",
+    "reason": "Arbiter self-dogfood: extended with condensed argument parsing style. Template ships verbose style."
+  },
+  {
+    "path": "commands/wt-prune.md",
+    "reason": "Arbiter self-dogfood: extended with .arbiter/worktree-open.log.json cleanup step and additional Read/Write tool permissions. Template ships a simpler version."
+  },
+  {
+    "path": "hooks/check-circular-deps.mjs",
+    "reason": "Arbiter self-dogfood: materialized file has been auto-formatted by Prettier into a different but semantically-equivalent spawnSync argument style (compact object literal vs expanded). Prettier produces different stable outputs from these two equivalent forms; divergence is purely cosmetic."
+  },
+  {
+    "path": "hooks/check-no-pii.mjs",
+    "reason": "Arbiter self-dogfood: uses findInlineSuppression() from lib.mjs for INV-12 inline suppression support. Target template does not have this dependency yet."
+  },
+  {
+    "path": "hooks/guard-task-completion.mjs",
+    "reason": "Arbiter self-dogfood: inlines getRepoRoot() and readTaskState() instead of importing from lib.mjs, making it self-contained for the arbiter repo's own task-lifecycle enforcement."
+  },
+  {
+    "path": "hooks/lib.mjs",
+    "reason": "Arbiter self-dogfood: imports suppressions-shared.mjs and exports findInlineSuppression for inline-suppression directive support (INV-31). These arbiter-internal imports must not be back-ported to the template shipped to target projects."
+  },
+  {
+    "path": "hooks/post-edit-dispatch.mjs",
+    "reason": "Arbiter self-dogfood: uses 'npx prettier --check .' instead of 'npx prettier --write .' — arbiter validates format rather than auto-fixing to avoid silent file changes. Template uses the formatCommand variable which defaults to --write."
+  },
+  {
+    "path": "rules/90-exec-protocol.md",
+    "reason": "Arbiter self-dogfood: contains CI Linux runner note specific to arbiter repo: 'CI Linux jobs run on self-hosted runner docker-ci-build via repo variable CI_BUILD_RUNNER_LABEL'. This is arbiter-specific infrastructure context, not appropriate for target project templates."
+  },
+  {
+    "path": "settings.json",
+    "reason": "Arbiter self-dogfood: includes check-no-direct-spawn.mjs (arbiter-internal hook with no .ejs template yet) and check-no-any.mjs (generated from languageHook body not .ejs template), and a different UserPromptSubmit structure with matcher:* group. These were added directly to arbiter's .claude/settings.json without being back-ported to the template."
+  }
+]
