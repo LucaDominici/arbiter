@@ -28,6 +28,7 @@ import { generateSkills } from "./skills.js";
 import { generateAgentsClaude } from "./agents-claude.js";
 import { generateSsot } from "./ssot.js";
 import { generateBehavioralTests } from "./behavioral-tests.js";
+import { generatePlaywrightPython } from "./playwright-python.js";
 import { generateGithooks } from "./githooks.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
@@ -193,6 +194,14 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: "behavioral-tests",
       enabled: true,
       run: () => generateBehavioralTests(config).files,
+    },
+    {
+      key: "playwright-python",
+      enabled:
+        config.language === "python" &&
+        (config.archetype === "frontend-spa" ||
+          config.archetype === "backend-web-db"),
+      run: () => generatePlaywrightPython(config).files,
     },
     { key: "ssot", enabled: true, run: () => generateSsot(config).files },
   ];

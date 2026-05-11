@@ -3,11 +3,14 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 /**
- * Contract test: verify no breaking changes in the OpenAPI spec.
+ * Contract test: verify no breaking changes in the OpenAPI spec (INV-43).
  *
- * Requires openapi-diff CLI: npm install -g openapi-diff
- * Reference spec stored at: contracts/openapi-reference.yaml
- * Current spec served by the running app or exported to: contracts/openapi-current.yaml
+ * Run the exporter first: node export-openapi.mjs
+ * Reference spec: contracts/openapi-reference.yaml
+ * Current spec:   contracts/openapi-current.yaml
+ *
+ * First-run bootstrap: ALLOW_OPENAPI_BOOTSTRAP=1 skips the diff until
+ * openapi-reference.yaml is committed.
  */
 describe('<%= projectName %> OpenAPI breaking-change detection', () => {
   const contractsDir = path.resolve(process.cwd(), 'contracts');
@@ -15,9 +18,19 @@ describe('<%= projectName %> OpenAPI breaking-change detection', () => {
   const currentSpec = path.join(contractsDir, 'openapi-current.yaml');
 
   it('has no breaking changes vs the reference spec', () => {
-    if (!existsSync(referenceSpec) || !existsSync(currentSpec)) {
-      console.warn('[WARN] OpenAPI spec files not found — skipping diff (run export first)');
-      return;
+    if (!existsSync(currentSpec)) {
+      throw new Error(
+        'contracts/openapi-current.yaml not found — run: node export-openapi.mjs (INV-43)',
+      );
+    }
+    if (!existsSync(referenceSpec)) {
+      if (process.env.ALLOW_OPENAPI_BOOTSTRAP === '1') {
+        console.warn('[INFO] ALLOW_OPENAPI_BOOTSTRAP=1 — bootstrap mode, skipping diff');
+        return;
+      }
+      throw new Error(
+        'contracts/openapi-reference.yaml not found — copy current spec as reference once (INV-43)',
+      );
     }
     const result = execFileSync(
       'npx',

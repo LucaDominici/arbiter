@@ -1,0 +1,7 @@
+{
+  "language": "typescript",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "note": "TypeScript BDD fixture with @cucumber/cucumber step definitions"
+}

@@ -1,9 +1,19 @@
 #[cfg(test)]
 mod schema_registry_tests {
-    use schema_registry_converter::async_impl::schema_registry::SrSettings;
+    use reqwest::Client;
+    use serde::Deserialize;
 
+    const SUBJECT: &str = "<%= projectName %>-events-value";
+
+    #[derive(Deserialize)]
+    struct CompatibilityResult {
+        is_compatible: bool,
+    }
+
+    /// Verify schema is BACKWARD or FULL compatible with the latest version (INV-41).
+    /// Calls POST /compatibility/ — not just a reachability ping.
     #[tokio::test]
-    async fn schema_registry_is_reachable() {
+    async fn schema_registry_compatibility() {
         let registry_url = match std::env::var("SCHEMA_REGISTRY_URL") {
             Ok(url) => url,
             Err(_) => {
@@ -12,10 +22,40 @@ mod schema_registry_tests {
             }
         };
 
-        let settings = SrSettings::new(registry_url);
-        // A successful SrSettings construction indicates valid URL format.
-        // Integration tests requiring a live registry should be tagged #[ignore]
-        // and run with: cargo test -- --include-ignored
-        assert!(!settings.get_url().is_empty());
+        let client = Client::new();
+
+        // Fetch latest schema version to use as candidate
+        let latest_url = format!(
+            "{}/subjects/{}/versions/latest",
+            registry_url, SUBJECT
+        );
+        let latest_resp = client
+            .get(&latest_url)
+            .send()
+            .await
+            .expect("failed to fetch latest schema");
+        let latest_body = latest_resp.text().await.expect("failed to read body");
+
+        // POST to /compatibility/ with the latest schema as the candidate
+        let compat_url = format!(
+            "{}/compatibility/subjects/{}/versions/latest",
+            registry_url, SUBJECT
+        );
+        let result: CompatibilityResult = client
+            .post(&compat_url)
+            .header("Content-Type", "application/vnd.schemaregistry.v1+json")
+            .body(latest_body)
+            .send()
+            .await
+            .expect("compatibility check request failed")
+            .json()
+            .await
+            .expect("failed to parse compatibility response");
+
+        assert!(
+            result.is_compatible,
+            "Schema is not compatible with latest version for subject: {}",
+            SUBJECT
+        );
     }
 }

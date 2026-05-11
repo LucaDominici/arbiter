@@ -101,4 +101,86 @@ describe("real-project fixture regressions", () => {
     expect(lib).toMatch(/#\[must_use\]\s+pub fn add/);
     expect(lib).toMatch(/#\[must_use\]\s+pub fn multiply/);
   });
+
+  it("ts-bdd fixture has @cucumber/cucumber dep and feature file", () => {
+    const pkg = JSON.parse(
+      readFixture("__tests__/fixtures/real-projects/ts-bdd/package.json"),
+    ) as { devDependencies?: Record<string, string> };
+    expect(pkg.devDependencies?.["@cucumber/cucumber"]).toBeDefined();
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/ts-bdd/features/example.feature",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("python-bdd fixture has pytest-bdd dep and feature file", () => {
+    const pyproject = readFixture(
+      "__tests__/fixtures/real-projects/python-bdd/pyproject.toml",
+    );
+    expect(pyproject).toContain("pytest-bdd");
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/python-bdd/tests/bdd/features/example.feature",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("go-bdd fixture has godog dep and feature file", () => {
+    const goMod = readFixture("__tests__/fixtures/real-projects/go-bdd/go.mod");
+    expect(goMod).toContain("cucumber/godog");
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/go-bdd/features/example.feature",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("java-bdd-gradle fixture has cucumber-jvm dep and feature file", () => {
+    const buildGradle = readFixture(
+      "__tests__/fixtures/real-projects/java-bdd-gradle/build.gradle",
+    );
+    expect(buildGradle).toContain("cucumber-java");
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/java-bdd-gradle/src/test/resources/features/example.feature",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("rust-bdd fixture has cucumber dep and feature file", () => {
+    const cargoToml = readFixture(
+      "__tests__/fixtures/real-projects/rust-bdd/Cargo.toml",
+    );
+    expect(cargoToml).toContain("cucumber");
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/rust-bdd/tests/features/example.feature",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("python-backend-web fixture has pytest-playwright dep and e2e test", () => {
+    const pyproject = readFixture(
+      "__tests__/fixtures/real-projects/python-backend-web/pyproject.toml",
+    );
+    expect(pyproject).toContain("pytest-playwright");
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/python-backend-web/tests/e2e/test_smoke.py",
+        ),
+      ),
+    ).toBe(true);
+  });
 });

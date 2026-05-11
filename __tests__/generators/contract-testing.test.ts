@@ -145,13 +145,13 @@ describe("generateContractTesting", () => {
 
   // ─── rest-owned × typescript: 2 files ────────────────────────────────────
 
-  it("returns 2 files for rest-owned + typescript", () => {
+  it("returns 4 files for rest-owned + typescript (.env.pact + pacts/.gitkeep added)", () => {
     const config = makeConfig(dir, {
       contractType: "rest-owned",
       governanceLevel: "L2",
       language: "typescript",
     });
-    expect(generateContractTesting(config).files).toHaveLength(2);
+    expect(generateContractTesting(config).files).toHaveLength(4);
   });
 
   it("generates CONTRACTS_POLICY.md for rest-owned + typescript", () => {
@@ -180,7 +180,7 @@ describe("generateContractTesting", () => {
 
   // ─── rest-owned × java: 3 files ──────────────────────────────────────────
 
-  it("returns 3 files for rest-owned + java (no basePackage)", () => {
+  it("returns 5 files for rest-owned + java (.env.pact + pacts/.gitkeep added)", () => {
     const javaDir = createTestProject("java");
     initGit(javaDir);
     try {
@@ -190,7 +190,7 @@ describe("generateContractTesting", () => {
         language: "java",
         buildTool: "gradle",
       });
-      expect(generateContractTesting(config).files).toHaveLength(3);
+      expect(generateContractTesting(config).files).toHaveLength(5);
     } finally {
       cleanupTestProject(javaDir);
     }
@@ -277,7 +277,7 @@ describe("generateContractTesting", () => {
 
   // ─── rest-owned × rust: 2 files ──────────────────────────────────────────
 
-  it("returns 2 files for rest-owned + rust", () => {
+  it("returns 4 files for rest-owned + rust (.env.pact + pacts/.gitkeep added)", () => {
     const rustDir = createTestProject("rust");
     initGit(rustDir);
     try {
@@ -287,7 +287,7 @@ describe("generateContractTesting", () => {
         language: "rust",
         buildTool: "cargo",
       });
-      expect(generateContractTesting(config).files).toHaveLength(2);
+      expect(generateContractTesting(config).files).toHaveLength(4);
     } finally {
       cleanupTestProject(rustDir);
     }
@@ -314,7 +314,7 @@ describe("generateContractTesting", () => {
 
   // ─── rest-owned × go: 2 files ────────────────────────────────────────────
 
-  it("returns 2 files for rest-owned + go", () => {
+  it("returns 4 files for rest-owned + go (.env.pact + pacts/.gitkeep added)", () => {
     const goDir = createTestProject("go");
     initGit(goDir);
     try {
@@ -324,7 +324,7 @@ describe("generateContractTesting", () => {
         language: "go",
         buildTool: "go",
       });
-      expect(generateContractTesting(config).files).toHaveLength(2);
+      expect(generateContractTesting(config).files).toHaveLength(4);
     } finally {
       cleanupTestProject(goDir);
     }
@@ -351,7 +351,7 @@ describe("generateContractTesting", () => {
 
   // ─── rest-owned × python: 2 files ────────────────────────────────────────
 
-  it("returns 2 files for rest-owned + python", () => {
+  it("returns 4 files for rest-owned + python (.env.pact + pacts/.gitkeep added)", () => {
     const pyDir = createTestProject("python");
     initGit(pyDir);
     try {
@@ -361,7 +361,7 @@ describe("generateContractTesting", () => {
         language: "python",
         buildTool: "pip",
       });
-      expect(generateContractTesting(config).files).toHaveLength(2);
+      expect(generateContractTesting(config).files).toHaveLength(4);
     } finally {
       cleanupTestProject(pyDir);
     }

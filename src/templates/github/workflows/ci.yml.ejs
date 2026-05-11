@@ -354,7 +354,11 @@ jobs:
       - run: npm ci
 <% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
       - name: Run Pact contract tests
+        if: vars.PACT_BROKER_BASE_URL != ''
         run: npx pact-broker can-i-deploy --pacticipant <%= projectName %> --latest
+        env:
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACT_BROKER_TOKEN }}
 <% } else if (contractType === 'graphql') { %>
       - name: Run GraphQL schema contract tests
         run: npx graphql-inspector diff schema.graphql
@@ -363,7 +367,11 @@ jobs:
         run: npx buf breaking --against .git#branch=main
 <% } else if (contractType === 'message-queue') { %>
       - name: Run Pact messaging contract tests
+        if: vars.PACT_BROKER_BASE_URL != ''
         run: npx pact-broker can-i-deploy --pacticipant <%= projectName %> --latest
+        env:
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACT_BROKER_TOKEN }}
 <% } %>
 <% } else if (language === 'java') { %>
       - uses: actions/setup-java@v4
@@ -374,7 +382,11 @@ jobs:
 <% } %>
 <% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
       - name: Run Pact contract tests
+        if: vars.PACT_BROKER_BASE_URL != ''
         run: <%= buildTool === 'gradle' ? './gradlew pactPublish pactVerify' : 'mvn pact:publish pact:verify' %>
+        env:
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACT_BROKER_TOKEN }}
 <% } else if (contractType === 'graphql') { %>
       - name: Run GraphQL contract tests
         run: <%= buildTool === 'gradle' ? './gradlew test --tests *.graphql.*' : 'mvn test -Dtest=*GraphQL*' %>

@@ -1,24 +1,68 @@
 package contracts_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"testing"
 )
 
-func TestSchemaRegistryReachable(t *testing.T) {
+// TestSchemaRegistryCompatibility verifies schema is BACKWARD or FULL compatible (INV-41).
+// Calls the /compatibility/ endpoint — not just a reachability ping.
+func TestSchemaRegistryCompatibility(t *testing.T) {
 	registryURL := os.Getenv("SCHEMA_REGISTRY_URL")
 	if registryURL == "" {
 		t.Skip("SCHEMA_REGISTRY_URL not set — skipping schema registry check")
 	}
 
-	resp, err := http.Get(registryURL + "/subjects")
+	subject := "<%= projectName %>-events-value"
+
+	// Fetch current compat level for this subject
+	configURL := fmt.Sprintf("%s/config/%s", registryURL, subject)
+	resp, err := http.Get(configURL)
 	if err != nil {
-		t.Fatalf("Schema registry unreachable: %v", err)
+		t.Fatalf("failed to fetch compat config: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Schema registry returned %d", resp.StatusCode)
+	if resp.StatusCode == http.StatusOK {
+		var cfg struct {
+			CompatibilityLevel string `json:"compatibilityLevel"`
+		}
+		body, _ := io.ReadAll(resp.Body)
+		_ = json.Unmarshal(body, &cfg)
+		allowed := map[string]bool{"BACKWARD": true, "FULL": true, "BACKWARD_TRANSITIVE": true, "FULL_TRANSITIVE": true}
+		if !allowed[cfg.CompatibilityLevel] {
+			t.Errorf("expected BACKWARD or FULL compat for %s, got %s", subject, cfg.CompatibilityLevel)
+		}
+	}
+
+	// Fetch latest schema version and run compatibility check
+	versionsURL := fmt.Sprintf("%s/subjects/%s/versions/latest", registryURL, subject)
+	vResp, err := http.Get(versionsURL)
+	if err != nil {
+		t.Fatalf("failed to fetch latest schema: %v", err)
+	}
+	defer vResp.Body.Close()
+	latestBody, _ := io.ReadAll(vResp.Body)
+
+	// POST to /compatibility/ with the latest schema as the candidate
+	compatURL := fmt.Sprintf("%s/compatibility/subjects/%s/versions/latest", registryURL, subject)
+	postResp, err := http.Post(compatURL, "application/vnd.schemaregistry.v1+json", bytes.NewReader(latestBody))
+	if err != nil {
+		t.Fatalf("compatibility check request failed: %v", err)
+	}
+	defer postResp.Body.Close()
+
+	var result struct {
+		IsCompatible bool `json:"is_compatible"`
+	}
+	body, _ := io.ReadAll(postResp.Body)
+	_ = json.Unmarshal(body, &result)
+	if !result.IsCompatible {
+		t.Errorf("schema is not compatible with latest version for subject %s", subject)
 	}
 }

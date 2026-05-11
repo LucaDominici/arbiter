@@ -1,0 +1,7 @@
+{
+  "language": "rust",
+  "archetype": "library",
+  "buildTool": null,
+  "levels": ["L1", "L2"],
+  "note": "Rust BDD fixture with cucumber-rs World derive"
+}

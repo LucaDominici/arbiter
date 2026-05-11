@@ -1,0 +1,51 @@
+// Requires in Cargo.toml:
+//   [[test]]
+//   name = "example_bdd_test"
+//   harness = false
+use cucumber::{given, then, when, World};
+
+#[derive(Debug, Default, World)]
+pub struct ExampleWorld {
+    input: String,
+    result: String,
+    error: Option<String>,
+}
+
+#[given("a valid input")]
+async fn valid_input(world: &mut ExampleWorld) {
+    world.input = "valid".to_string();
+    world.error = None;
+}
+
+#[given("an invalid input")]
+async fn invalid_input(world: &mut ExampleWorld) {
+    world.input = "invalid".to_string();
+    world.error = None;
+}
+
+#[when("the operation is executed")]
+async fn execute_operation(world: &mut ExampleWorld) {
+    if world.input == "valid" {
+        world.result = "success".to_string();
+        world.error = None;
+    } else {
+        world.result = String::new();
+        world.error = Some("invalid input".to_string());
+    }
+}
+
+#[then("the result is successful")]
+async fn result_is_successful(world: &mut ExampleWorld) {
+    assert_eq!(world.result, "success");
+    assert!(world.error.is_none());
+}
+
+#[then("an error is returned")]
+async fn error_is_returned(world: &mut ExampleWorld) {
+    assert!(world.error.is_some(), "Expected an error but got none");
+}
+
+#[tokio::main]
+async fn main() {
+    ExampleWorld::run("tests/features/example.feature").await;
+}

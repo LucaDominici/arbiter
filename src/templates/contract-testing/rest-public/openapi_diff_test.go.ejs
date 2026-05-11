@@ -6,12 +6,19 @@ import (
 	"testing"
 )
 
+// TestNoBreakingOpenAPIChanges verifies OpenAPI backwards compatibility (INV-43).
+// Run exporter first: go run ./cmd/export-openapi/main.go
+// Bootstrap first run: ALLOW_OPENAPI_BOOTSTRAP=1 go test ./...
 func TestNoBreakingOpenAPIChanges(t *testing.T) {
-	if _, err := os.Stat("contracts/openapi-reference.yaml"); os.IsNotExist(err) {
-		t.Skip("OpenAPI reference spec not found — skipping diff")
-	}
 	if _, err := os.Stat("contracts/openapi-current.yaml"); os.IsNotExist(err) {
-		t.Skip("OpenAPI current spec not found — skipping diff")
+		t.Fatal("contracts/openapi-current.yaml not found — run exporter first (INV-43)")
+	}
+	if _, err := os.Stat("contracts/openapi-reference.yaml"); os.IsNotExist(err) {
+		if os.Getenv("ALLOW_OPENAPI_BOOTSTRAP") == "1" {
+			t.Log("[INFO] ALLOW_OPENAPI_BOOTSTRAP=1 — bootstrap mode, skipping diff")
+			return
+		}
+		t.Fatal("contracts/openapi-reference.yaml not found — copy current spec as reference once (INV-43)")
 	}
 
 	cmd := exec.Command("npx", "openapi-diff",

@@ -1,24 +1,29 @@
 package <%= basePackage || 'com.example' %>.contracts;
 
-import graphql.schema.idl.SchemaParser;
-import graphql.schema.idl.TypeDefinitionRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class GraphqlSchemaTest {
 
     @Test
-    void schemaIsValid() {
-        File schemaFile = new File("contracts/schema-current.graphql");
-        if (!schemaFile.exists()) {
-            System.out.println("[WARN] GraphQL schema not found — skipping validation");
+    void schemaHasNoBreakingChanges() throws IOException, InterruptedException {
+        File reference = new File("contracts/schema-reference.graphql");
+        File current = new File("contracts/schema-current.graphql");
+        if (!reference.exists() || !current.exists()) {
+            System.out.println("[WARN] GraphQL schema files not found — skipping diff");
             return;
         }
-        SchemaParser parser = new SchemaParser();
-        TypeDefinitionRegistry registry = parser.parse(schemaFile);
-        assertNotNull(registry, "GraphQL schema failed to parse");
+        ProcessBuilder pb = new ProcessBuilder(
+            "npx", "@graphql-inspector/cli", "diff",
+            "contracts/schema-reference.graphql",
+            "contracts/schema-current.graphql"
+        );
+        pb.inheritIO();
+        int exitCode = pb.start().waitFor();
+        assertEquals(0, exitCode, "GraphQL schema has breaking changes — see diff output above");
     }
 }

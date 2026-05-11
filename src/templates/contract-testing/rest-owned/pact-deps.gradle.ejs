@@ -7,4 +7,9 @@ dependencies {
 test {
     systemProperty 'pact.provider.version', project.version
     systemProperty 'pact.verifier.publishResults', System.getProperty('pact.verifier.publishResults', 'false')
+    // INV-42: broker URL/token read from env — gate skips when PACT_BROKER_BASE_URL unset
+    if (System.getenv('PACT_BROKER_BASE_URL')) {
+        systemProperty 'pact.broker.url', System.getenv('PACT_BROKER_BASE_URL')
+        systemProperty 'pact.broker.auth.token', System.getenv('PACT_BROKER_TOKEN') ?: ''
+    }
 }

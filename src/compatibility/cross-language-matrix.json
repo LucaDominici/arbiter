@@ -1,6 +1,6 @@
 {
   "_comment": "Machine-readable maturity index for the cross-language enforcement matrix. Values: proven | beta | unsafe | unavailable. Consumed by src/utils/maturity-check.ts.",
-  "_lastUpdated": "2026-04-18",
+  "_lastUpdated": "2026-05-11",
   "static_analysis": {
     "java": {
       "tool": "checkstyle+pmd+spotbugs+spotless",
@@ -188,6 +188,33 @@
       "tool": "pip-audit",
       "maturity": "proven",
       "reason": "pip-audit is stable and maintained by PyPA"
+    }
+  },
+  "bdd": {
+    "java": {
+      "tool": "cucumber-jvm",
+      "maturity": "proven",
+      "reason": "stable JUnit5 integration in Spring Boot stacks"
+    },
+    "typescript": {
+      "tool": "@cucumber/cucumber",
+      "maturity": "proven",
+      "reason": "official cucumber-js with native TS support is stable on Node 18+"
+    },
+    "python": {
+      "tool": "pytest-bdd",
+      "maturity": "proven",
+      "reason": "pytest-bdd scenarios() reuses pytest fixtures cleanly"
+    },
+    "go": {
+      "tool": "godog",
+      "maturity": "beta",
+      "reason": "godog v0.14 stable but generic step bindings rough"
+    },
+    "rust": {
+      "tool": "cucumber-rs",
+      "maturity": "beta",
+      "reason": "cucumber-rs 0.20 stable for sync; async World still evolving"
     }
   }
 }

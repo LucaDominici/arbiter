@@ -95,19 +95,29 @@ function generateRestOwned(
   config: ProjectConfig,
   data: Record<string, unknown>,
 ): WriteResult[] {
-  const extra =
-    config.language === "java"
-      ? [
-          writeFile(
-            resolvedPath(base, "config", "pact-deps.gradle"),
-            renderTemplate(
-              "contract-testing/rest-owned/pact-deps.gradle.ejs",
-              data,
-            ),
-            { skipIfExists: true },
-          ),
-        ]
-      : [];
+  const extra: WriteResult[] = [
+    writeFile(
+      resolvedPath(base, ".env.pact"),
+      renderTemplate("contract-testing/env/.env.pact.ejs", data),
+      { skipIfExists: true },
+    ),
+    writeFile(resolvedPath(base, "pacts", ".gitkeep"), "", {
+      skipIfExists: true,
+    }),
+  ];
+
+  if (config.language === "java") {
+    extra.push(
+      writeFile(
+        resolvedPath(base, "config", "pact-deps.gradle"),
+        renderTemplate(
+          "contract-testing/rest-owned/pact-deps.gradle.ejs",
+          data,
+        ),
+        { skipIfExists: true },
+      ),
+    );
+  }
 
   return contractFile({
     base,

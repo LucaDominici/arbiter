@@ -1,0 +1,32 @@
+// Export current OpenAPI spec to contracts/openapi-current.yaml (INV-43).
+// Run before contract diff: cargo run --bin export-openapi
+// Requires: utoipa, serde_yaml
+//
+// Add to Cargo.toml:
+//   [[bin]]
+//   name = "export-openapi"
+//   path = "src/bin/export_openapi.rs"
+//
+//   [dependencies]
+//   utoipa = { version = "4", features = ["actix_extras"] }
+//   serde_yaml = "0.9"
+
+use std::fs;
+
+fn main() {
+    // Import your ApiDoc struct that derives utoipa::OpenApi:
+    // use crate::ApiDoc;
+    // let spec = ApiDoc::openapi();
+    //
+    // Placeholder — replace with your actual spec:
+    let spec = serde_json::json!({
+        "openapi": "3.0.0",
+        "info": { "title": "<%= projectName %>", "version": "1.0.0" },
+        "paths": {}
+    });
+
+    fs::create_dir_all("contracts").expect("Failed to create contracts dir");
+    let yaml = serde_yaml::to_string(&spec).expect("Failed to serialize spec");
+    fs::write("contracts/openapi-current.yaml", yaml).expect("Failed to write openapi-current.yaml");
+    println!("[export-openapi] Written: contracts/openapi-current.yaml");
+}

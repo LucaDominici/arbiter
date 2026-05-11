@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderTemplate } from "../../src/utils/render.js";
+import { makeConfig } from "../helpers.js";
 
 /**
  * CANON-04 compliance: every .ejs template in src/templates/contract-testing/
@@ -173,6 +174,93 @@ describe("contract-testing render: rest-public", () => {
     );
     expect(content).toContain("openapi-diff");
   });
+
+  // F6/INV-43: no-silent-skip — all 5 diff templates must hard-fail when files missing
+  it("openapi-diff.ts.ejs: hard-fails when files missing (no silent skip) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi-diff.ts.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+  });
+
+  it("OpenApiDiffIT.java.ejs: hard-fails when files missing (no silent skip) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/OpenApiDiffIT.java.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+  });
+
+  it("openapi_diff_test.go.ejs: hard-fails when files missing (no t.Skip) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi_diff_test.go.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+    expect(content).not.toContain("t.Skip(");
+  });
+
+  it("test_openapi_diff.py.ejs: hard-fails when files missing (no skipif) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/test_openapi_diff.py.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+    expect(content).not.toContain("pytest.mark.skipif");
+  });
+
+  it("openapi_diff_test.rs.ejs: hard-fails when files missing (no silent return) — INV-43", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/openapi_diff_test.rs.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("ALLOW_OPENAPI_BOOTSTRAP");
+  });
+});
+
+// ─── rest-public exporters (F6/INV-43) ───────────────────────────────────────
+
+describe("contract-testing render: rest-public exporters", () => {
+  it("export-openapi.mjs.ejs: renders and writes openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export-openapi.mjs.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export-openapi-java.gradle.ejs: renders and targets openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export-openapi-java.gradle.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export_openapi.py.ejs: renders FastAPI exporter writing openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export_openapi.py.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export_openapi.go.ejs: renders Go exporter writing openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export_openapi.go.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
+
+  it("export_openapi.rs.ejs: renders Rust exporter writing openapi-current.yaml", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-public/export_openapi.rs.ejs",
+      { ...baseData, contractType: "rest-public" },
+    );
+    expect(content).toContain("openapi-current.yaml");
+  });
 });
 
 // ─── graphql templates (5 templates) ─────────────────────────────────────────
@@ -186,12 +274,15 @@ describe("contract-testing render: graphql", () => {
     expect(content).toContain("graphql-inspector");
   });
 
-  it("GraphqlSchemaTest.java.ejs: contains 'graphql'", () => {
+  it("GraphqlSchemaTest.java.ejs: uses @graphql-inspector/cli via ProcessBuilder (F4/INV parity)", () => {
     const content = renderTemplate(
       "contract-testing/graphql/GraphqlSchemaTest.java.ejs",
       { ...baseData, contractType: "graphql" },
     );
-    expect(content.toLowerCase()).toContain("graphql");
+    expect(content).toContain("@graphql-inspector/cli");
+    expect(content).toContain("ProcessBuilder");
+    expect(content).toContain("schema-reference.graphql");
+    expect(content).toContain("schema-current.graphql");
   });
 
   it("graphql_schema_test.rs.ejs: contains 'graphql-inspector'", () => {
@@ -279,48 +370,141 @@ describe("contract-testing render: grpc", () => {
   });
 });
 
+// ─── F5 (#364): Pact broker env-gate + argv split (INV-42) ──────────────────
+
+describe("contract-testing render: F5 Pact broker glue (INV-42)", () => {
+  it("pact-deps.gradle.ejs: contains PACT_BROKER_BASE_URL system property", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact-deps.gradle.ejs",
+      { ...baseData, language: "java", buildTool: "gradle" },
+    );
+    expect(content).toContain("PACT_BROKER_BASE_URL");
+  });
+
+  it("pact-deps.gradle.ejs: contains pact.broker.url system property config", () => {
+    const content = renderTemplate(
+      "contract-testing/rest-owned/pact-deps.gradle.ejs",
+      { ...baseData, language: "java", buildTool: "gradle" },
+    );
+    expect(content).toContain("pact.broker.url");
+  });
+
+  it("check-all.mjs.ejs Java Gradle rest-owned: argv has 'pactPublish' and 'pactVerify' as separate elements", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "java",
+      buildTool: "gradle",
+      governanceLevel: "L2",
+      contractType: "rest-owned",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("'pactPublish'");
+    expect(content).toContain("'pactVerify'");
+    expect(content).not.toContain("'pactPublish pactVerify'");
+  });
+
+  it("check-all.mjs.ejs TypeScript rest-owned: has PACT_BROKER_BASE_URL env-gate", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      buildTool: "npm",
+      governanceLevel: "L2",
+      contractType: "rest-owned",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("PACT_BROKER_BASE_URL");
+  });
+
+  it(".env.pact.ejs: renders PACT_BROKER_BASE_URL and PACT_BROKER_TOKEN placeholders", () => {
+    const content = renderTemplate("contract-testing/env/.env.pact.ejs", {
+      ...baseData,
+    });
+    expect(content).toContain("PACT_BROKER_BASE_URL=");
+    expect(content).toContain("PACT_BROKER_TOKEN=");
+  });
+
+  it("ci.yml.ejs TS rest-owned: Pact step has PACT_BROKER_BASE_URL conditional", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      buildTool: "npm",
+      governanceLevel: "L2",
+      contractType: "rest-owned",
+      useGitHub: true,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("github/workflows/ci.yml.ejs", data);
+    expect(content).toContain("PACT_BROKER_BASE_URL");
+  });
+});
+
 // ─── message-queue templates (5 templates) ───────────────────────────────────
 
 describe("contract-testing render: message-queue", () => {
-  it("schema-registry-check.ts.ejs: contains 'SchemaRegistry' or 'schema-registry'", () => {
+  it("schema-registry-check.ts.ejs: calls testCompatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/schema-registry-check.ts.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(
-      content.includes("schema-registry") || content.includes("SchemaRegistry"),
-    ).toBe(true);
+    expect(content).toContain("testCompatibility");
   });
 
-  it("SchemaRegistryCheckIT.java.ejs: contains 'SchemaRegistry'", () => {
+  it("schema-registry-check.ts.ejs: asserts BACKWARD or FULL compat level", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/schema-registry-check.ts.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content.includes("BACKWARD") || content.includes("FULL")).toBe(true);
+  });
+
+  it("SchemaRegistryCheckIT.java.ejs: calls testCompatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("SchemaRegistry");
+    expect(content).toContain("testCompatibility");
   });
 
-  it("schema_registry_test.rs.ejs: contains 'schema_registry'", () => {
+  it("SchemaRegistryCheckIT.java.ejs: asserts BACKWARD or FULL compat level", () => {
+    const content = renderTemplate(
+      "contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs",
+      { ...baseData, contractType: "message-queue" },
+    );
+    expect(content.includes("BACKWARD") || content.includes("FULL")).toBe(true);
+  });
+
+  it("schema_registry_test.rs.ejs: calls post_schema_compatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/schema_registry_test.rs.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("schema_registry");
+    expect(content).toContain("compatibility");
   });
 
-  it("schema_registry_test.go.ejs: contains 'SCHEMA_REGISTRY_URL'", () => {
+  it("schema_registry_test.go.ejs: POSTs to /compatibility/ endpoint (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/schema_registry_test.go.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("SCHEMA_REGISTRY_URL");
+    expect(content).toContain("/compatibility/");
   });
 
-  it("test_schema_registry.py.ejs: contains 'SCHEMA_REGISTRY_URL'", () => {
+  it("test_schema_registry.py.ejs: calls test_compatibility (F3/INV-41)", () => {
     const content = renderTemplate(
       "contract-testing/message-queue/test_schema_registry.py.ejs",
       { ...baseData, contractType: "message-queue" },
     );
-    expect(content).toContain("SCHEMA_REGISTRY_URL");
+    expect(content).toContain("test_compatibility");
+  });
+
+  it("check-all.mjs.ejs TS message-queue: wired to Schema Registry not Pact", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      buildTool: "npm",
+      governanceLevel: "L2",
+      contractType: "message-queue",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("Schema Registry");
+    expect(content).not.toContain("Pact messaging");
   });
 });

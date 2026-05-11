@@ -172,6 +172,9 @@ if (level === 'L2') {
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
   runCheck('integration tests', 'pytest', ['tests/integration/'], { soft: graceActive });
 <% } %>
+<% if (archetype === 'frontend-spa' || archetype === 'backend-web-db') { %>
+  runCheck('e2e', 'pytest', ['tests/e2e/'], { soft: graceActive });
+<% } %>
 <% } %>
 <% if (enableDebtGates) { %>
   // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────
@@ -239,23 +242,47 @@ if (level === 'L2') {
   // ─── L2: Contract testing gate (INV-35) ──────────────────────────────────────
 <% if (language === 'typescript') { %>
 <% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
-  runCheck('contract tests (Pact)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+  if (!process.env.PACT_BROKER_BASE_URL) {
+    console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');
+  } else {
+    runCheck('contract tests (Pact)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+  }
 <% } else if (contractType === 'graphql') { %>
   runCheck('contract tests (GraphQL schema)', 'npx', ['graphql-inspector', 'diff', 'schema.graphql'], { soft: graceActive });
 <% } else if (contractType === 'grpc') { %>
   runCheck('contract tests (gRPC)', 'npx', ['buf', 'breaking', '--against', '.git#branch=main'], { soft: graceActive });
 <% } else if (contractType === 'message-queue') { %>
-  runCheck('contract tests (Pact messaging)', 'npx', ['pact-broker', 'can-i-deploy', '--pacticipant', '<%= projectName %>', '--latest'], { soft: graceActive });
+  if (!process.env.SCHEMA_REGISTRY_URL) {
+    console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');
+  } else {
+    runCheck('contract tests (Schema Registry)', 'npx', ['vitest', 'run', '--testPathPattern=schema-registry'], { soft: graceActive });
+  }
 <% } %>
 <% } else if (language === 'java') { %>
 <% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
-  runCheck('contract tests (Pact)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "pactPublish pactVerify" : "pact:publish pact:verify" %>'], { soft: graceActive });
+  if (!process.env.PACT_BROKER_BASE_URL) {
+    console.log('[CHECK] contract tests (Pact) ... SKIP — PACT_BROKER_BASE_URL unset');
+  } else {
+<% if (buildTool === 'gradle') { %>
+    runCheck('contract tests (Pact)', './gradlew', ['pactPublish', 'pactVerify'], { soft: graceActive });
+<% } else { %>
+    runCheck('contract tests (Pact)', 'mvn', ['pact:publish', 'pact:verify'], { soft: graceActive });
+<% } %>
+  }
 <% } else if (contractType === 'graphql') { %>
   runCheck('contract tests (GraphQL)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.graphql.*" : "test -Dtest=*GraphQL*" %>'], { soft: graceActive });
 <% } else if (contractType === 'grpc') { %>
   runCheck('contract tests (gRPC)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "test --tests *.grpc.*" : "test -Dtest=*Grpc*" %>'], { soft: graceActive });
 <% } else if (contractType === 'message-queue') { %>
-  runCheck('contract tests (Pact messaging)', '<%= buildTool === "gradle" ? "./gradlew" : "mvn" %>', ['<%= buildTool === "gradle" ? "pactPublish pactVerify" : "pact:publish pact:verify" %>'], { soft: graceActive });
+  if (!process.env.SCHEMA_REGISTRY_URL) {
+    console.log('[CHECK] contract tests (Schema Registry) ... SKIP — SCHEMA_REGISTRY_URL unset');
+  } else {
+<% if (buildTool === 'gradle') { %>
+    runCheck('contract tests (Schema Registry)', './gradlew', ['test', '--tests', '*SchemaRegistry*'], { soft: graceActive });
+<% } else { %>
+    runCheck('contract tests (Schema Registry)', 'mvn', ['test', '-Dtest=*SchemaRegistry*'], { soft: graceActive });
+<% } %>
+  }
 <% } %>
 <% } else if (language === 'rust') { %>
   runCheck('contract tests', 'cargo', ['test', '--test', '*contract*'], { soft: graceActive });
@@ -264,6 +291,37 @@ if (level === 'L2') {
 <% } else if (language === 'python') { %>
   runCheck('contract tests (Pact)', 'pytest', ['tests/contract/'], { soft: graceActive });
 <% } %>
+<% } %>
+  // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
+  {
+    // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
+    const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
+    process.stdout.write('[CHECK] BDD @ignore check ... ');
+    if (_bddIgnore.error?.code === 'ENOENT') {
+      console.log('FAIL (grep not found — cannot check @ignore tags)');
+      failed++;
+    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
+      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
+      failed++;
+    } else if (_bddIgnore.status === 0) {
+      console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
+      failed++;
+    } else {
+      console.log('PASS');
+    }
+  }
+<% if (language === 'typescript') { %>
+  runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
+<% } else if (language === 'python') { %>
+  runCheck('bdd', 'pytest', ['tests/bdd/'], { soft: graceActive });
+<% } else if (language === 'go') { %>
+  runCheck('bdd', 'go', ['test', './internal/bdd/...'], { soft: graceActive });
+<% } else if (language === 'java' && buildTool === 'gradle') { %>
+  runCheck('bdd', './gradlew', ['cucumberTest'], { soft: graceActive });
+<% } else if (language === 'java' && buildTool === 'maven') { %>
+  runCheck('bdd', 'mvn', ['test', '-Dtest=*BDD*'], { soft: graceActive });
+<% } else if (language === 'rust') { %>
+  runCheck('bdd', 'cargo', ['test', '--features', 'bdd'], { soft: graceActive });
 <% } %>
   // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)

@@ -8,7 +8,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+/**
+ * Contract test: verify no breaking OpenAPI changes (INV-43).
+ *
+ * Run the exporter first: ./gradlew generateOpenApiDocs
+ * Bootstrap first run:    ALLOW_OPENAPI_BOOTSTRAP=1 ./gradlew test
+ */
 class OpenApiDiffIT {
 
     @Test
@@ -17,9 +24,15 @@ class OpenApiDiffIT {
         Path referenceSpec = contractsDir.resolve("openapi-reference.yaml");
         Path currentSpec = contractsDir.resolve("openapi-current.yaml");
 
-        if (!referenceSpec.toFile().exists() || !currentSpec.toFile().exists()) {
-            System.out.println("[WARN] OpenAPI spec files not found — skipping diff");
-            return;
+        if (!currentSpec.toFile().exists()) {
+            fail("contracts/openapi-current.yaml not found — run: ./gradlew generateOpenApiDocs (INV-43)");
+        }
+        if (!referenceSpec.toFile().exists()) {
+            if ("1".equals(System.getenv("ALLOW_OPENAPI_BOOTSTRAP"))) {
+                System.out.println("[INFO] ALLOW_OPENAPI_BOOTSTRAP=1 — bootstrap mode, skipping diff");
+                return;
+            }
+            fail("contracts/openapi-reference.yaml not found — copy current spec as reference once (INV-43)");
         }
 
         ChangedOpenApi diff = OpenApiCompare.fromLocations(

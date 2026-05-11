@@ -1,15 +1,31 @@
 import os
 import pytest
-import requests
+from confluent_kafka.schema_registry import SchemaRegistryClient
 
 
 @pytest.mark.skipif(
     not os.environ.get("SCHEMA_REGISTRY_URL"),
     reason="SCHEMA_REGISTRY_URL not set — skipping schema registry check",
 )
-def test_schema_registry_reachable():
+def test_schema_registry_compatibility():
+    """Verify schema is BACKWARD or FULL compatible with the latest version (INV-41)."""
     url = os.environ["SCHEMA_REGISTRY_URL"]
-    response = requests.get(f"{url}/subjects", timeout=10)
-    assert response.status_code == 200, (
-        f"Schema registry returned {response.status_code}"
+    client = SchemaRegistryClient({"url": url})
+
+    subject = "<%= projectName %>-events-value"
+
+    # Verify compat level is BACKWARD or FULL
+    allowed = {"BACKWARD", "FULL", "BACKWARD_TRANSITIVE", "FULL_TRANSITIVE"}
+    compat = client.get_compatibility(subject_name=subject)
+    assert compat in allowed, (
+        f"Expected BACKWARD or FULL compat for {subject}, got {compat}"
+    )
+
+    # Fetch latest schema and run real compatibility check
+    latest = client.get_latest_version(subject)
+    is_compatible = client.test_compatibility(
+        subject_name=subject, schema=latest.schema
+    )
+    assert is_compatible, (
+        f"Schema is not compatible with latest version for subject: {subject}"
     )

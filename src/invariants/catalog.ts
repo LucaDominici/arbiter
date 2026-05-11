@@ -615,4 +615,74 @@ export const INVARIANT_CATALOG: Invariant[] = [
     enforcement:
       "__tests__/hooks/empirical/hook-fires.test.ts (22 tests covering all 14 hook templates)",
   },
+
+  {
+    id: "INV-40",
+    tier: "operational",
+    title: "BDD scenarios with @ignore tag are HARD-fail",
+    description:
+      "Generated check-all.mjs must scan feature files for the @ignore tag before running BDD " +
+      "scenarios. Any @ignore-tagged scenario causes the gate to exit non-zero immediately " +
+      "(soft: false), regardless of grace period. Ignored scenarios are dead specs — they " +
+      "silently pass and give false confidence about coverage.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/scripts/check-all.mjs.ejs (@ignore grep block, soft: false) + " +
+      "src/templates/behavioral-tests/bdd/example.feature.ejs (no @ignore in shipped example)",
+  },
+
+  {
+    id: "INV-41",
+    tier: "operational",
+    title:
+      "Message-queue contract tests must call Schema Registry testCompatibility",
+    description:
+      "Schema Registry contract tests must invoke testCompatibility() against the registered schema, " +
+      "not merely check reachability (HTTP-200 on /subjects). The compatibility level must be BACKWARD " +
+      "or FULL. A test that only GETs /subjects is not a contract test — it is a health check.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/contract-testing/message-queue/schema-registry-check.ts.ejs + " +
+      "src/templates/contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs + " +
+      "src/templates/contract-testing/message-queue/schema_registry_test.go.ejs + " +
+      "src/templates/contract-testing/message-queue/test_schema_registry.py.ejs + " +
+      "src/templates/contract-testing/message-queue/schema_registry_test.rs.ejs",
+  },
+
+  {
+    id: "INV-42",
+    tier: "operational",
+    title:
+      "Pact broker glue must be env-gated; no silent runs against default URL",
+    description:
+      "Generated Pact contract gates in check-all.mjs and CI workflows must be wrapped in a " +
+      "PACT_BROKER_BASE_URL environment check. When the variable is unset the step skips with a " +
+      "visible log line. When set, PACT_BROKER_TOKEN is forwarded to the Gradle/Maven/npx process " +
+      "as a system property or env var. No hardcoded broker URL is permitted.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/scripts/check-all.mjs.ejs (env-gate block around Pact runCheck calls) + " +
+      "src/templates/github/workflows/ci.yml.ejs (if: vars.PACT_BROKER_BASE_URL != '' + env: block) + " +
+      "src/templates/contract-testing/rest-owned/pact-deps.gradle.ejs (conditional system props)",
+  },
+
+  {
+    id: "INV-43",
+    tier: "operational",
+    title:
+      "OpenAPI exporter must run before diff; missing reference is HARD-fail",
+    description:
+      "Generated OpenAPI diff tests must not silently skip when spec files are missing. " +
+      "If contracts/openapi-current.yaml is absent, the test fails HARD (exporter was not run). " +
+      "If contracts/openapi-reference.yaml is absent, the test fails HARD unless " +
+      "ALLOW_OPENAPI_BOOTSTRAP=1 is set (first-run escape hatch). " +
+      "A test that silently passes with missing files is not a contract test — it is dead code.",
+    alwaysActive: false,
+    enforcement:
+      "src/templates/contract-testing/rest-public/openapi-diff.ts.ejs + " +
+      "src/templates/contract-testing/rest-public/OpenApiDiffIT.java.ejs + " +
+      "src/templates/contract-testing/rest-public/openapi_diff_test.go.ejs + " +
+      "src/templates/contract-testing/rest-public/test_openapi_diff.py.ejs + " +
+      "src/templates/contract-testing/rest-public/openapi_diff_test.rs.ejs",
+  },
 ];

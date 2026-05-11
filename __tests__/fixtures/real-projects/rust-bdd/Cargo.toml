@@ -1,0 +1,12 @@
+[package]
+name = "rust-bdd-fixture"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+cucumber = { version = "0.20", features = ["tokio"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[[test]]
+name = "example_bdd_test"
+harness = false
