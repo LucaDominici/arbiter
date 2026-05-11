@@ -44,4 +44,16 @@ describe("pre-edit-ssot-guard", () => {
     const result = run("AGENTS.md", { ARBITER_SSOT_BYPASS: "1" });
     expect(result.status).toBe(0);
   });
+
+  it("exits 0 for AGENTS.md outside the repo root (#173 repoRoot anchor)", () => {
+    // Simulate an absolute path to an AGENTS.md in a completely different directory
+    const result = run("/tmp/other-project/AGENTS.md");
+    expect(result.status).toBe(0);
+  });
+
+  it("exits 2 for absolute path to AGENTS.md inside repo root (#173)", () => {
+    const repoRoot = process.cwd();
+    const result = run(join(repoRoot, "AGENTS.md"));
+    expect(result.status).toBe(2);
+  });
 });

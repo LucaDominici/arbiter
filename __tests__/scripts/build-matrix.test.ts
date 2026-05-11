@@ -172,7 +172,7 @@ describe("build-matrix.mjs", () => {
     expect(result.status).toBe(0);
     const line = result.stdout.split("\n").find((l) => l.startsWith("matrix="));
     const json = JSON.parse(line!.replace("matrix=", ""));
-    // 16 fixtures × 3 levels each = 48 (#153: all fixtures now include L3)
-    expect(json.include).toHaveLength(48);
+    // 16 orig × 3 + rust-cli × 3 + python-data-pipeline × 3 + rust-embedded × 1 = 55
+    expect(json.include).toHaveLength(55);
   });
 });
