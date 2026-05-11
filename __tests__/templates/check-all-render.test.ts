@@ -85,9 +85,7 @@ describe("check-all.mjs.ejs rendering — BDD gate (#361)", () => {
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>;
     const content = renderTemplate("scripts/check-all.mjs.ejs", data);
-    expect(content).toContain(
-      "runCheck('bdd', 'pytest', ['-m', 'bdd', 'tests/bdd/']",
-    );
+    expect(content).toContain("runCheck('bdd', 'pytest', ['tests/bdd/']");
   });
 
   it("Go: emits go test BDD runCheck", () => {

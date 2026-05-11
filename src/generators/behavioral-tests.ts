@@ -17,7 +17,7 @@ function emitJavaBdd(
     : "src/test/java/example";
   const bddPkg = config.basePackage
     ? `src/test/java/${config.basePackage.replace(/\./g, "/")}/bdd`
-    : "src/test/java/bdd";
+    : "src/test/java/com/example/bdd";
   return [
     writeFile(
       resolvedPath(base, testPkg, "ExampleBehavioralTest.java"),

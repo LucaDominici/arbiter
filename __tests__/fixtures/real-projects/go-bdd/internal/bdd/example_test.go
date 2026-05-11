@@ -63,7 +63,7 @@ func TestSuite(t *testing.T) {
 	suite := godog.TestSuite{
 		Name:                "example",
 		ScenarioInitializer: InitializeScenario,
-		Options:             &godog.Options{Format: "pretty", Paths: []string{"features"}},
+		Options:             &godog.Options{Format: "pretty", Paths: []string{"../../features"}},
 	}
 	if suite.Run() != 0 {
 		t.Fatal("BDD scenarios failed")

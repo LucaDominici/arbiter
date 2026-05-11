@@ -297,7 +297,13 @@ if (level === 'L2') {
     // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
     const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
     process.stdout.write('[CHECK] BDD @ignore check ... ');
-    if (_bddIgnore.status === 0) {
+    if (_bddIgnore.error?.code === 'ENOENT') {
+      console.log('FAIL (grep not found — cannot check @ignore tags)');
+      failed++;
+    } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
+      console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
+      failed++;
+    } else if (_bddIgnore.status === 0) {
       console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
       failed++;
     } else {
@@ -307,7 +313,7 @@ if (level === 'L2') {
 <% if (language === 'typescript') { %>
   runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
 <% } else if (language === 'python') { %>
-  runCheck('bdd', 'pytest', ['-m', 'bdd', 'tests/bdd/'], { soft: graceActive });
+  runCheck('bdd', 'pytest', ['tests/bdd/'], { soft: graceActive });
 <% } else if (language === 'go') { %>
   runCheck('bdd', 'go', ['test', './internal/bdd/...'], { soft: graceActive });
 <% } else if (language === 'java' && buildTool === 'gradle') { %>
