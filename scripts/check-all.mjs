@@ -19,6 +19,19 @@ let failed = 0;
 // git-dependent checks (commitlint, docs) must run from the original repo path.
 const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD;
 
+const IS_CI =
+  process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+const NO_COLOR = IS_CI || process.env.NO_COLOR === "1";
+
+// Strips ANSI escape sequences from a string
+function stripAnsi(str) {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;]*m/g, "");
+}
+
+/** @type {{ name: string; status: string; elapsed: number }[]} */
+const results = [];
+
 function runCheck(name, cmd, args, timeoutMs = DEFAULT_TIMEOUT_MS, opts = {}) {
   const start = Date.now();
   process.stdout.write(`[CHECK] ${name} ... `);
@@ -32,28 +45,35 @@ function runCheck(name, cmd, args, timeoutMs = DEFAULT_TIMEOUT_MS, opts = {}) {
 
   if (r.error && r.error.code === "ENOENT") {
     console.log(`FAIL (${elapsed}ms)`);
+    if (IS_CI) console.log(`::error::${name}::command not found: ${cmd}`);
     console.error(`  command not found: ${cmd}`);
+    results.push({ name, status: "FAIL", elapsed });
     failed++;
     return;
   }
 
   if (r.error && r.error.code === "ETIMEDOUT") {
     console.log(`FAIL (timeout after ${elapsed}ms)`);
+    if (IS_CI) console.log(`::error::${name}::timeout after ${elapsed}ms`);
     console.error(
       `  command exceeded ${timeoutMs}ms: ${cmd} ${args.join(" ")}`,
     );
+    results.push({ name, status: "FAIL", elapsed });
     failed++;
     return;
   }
 
   if (r.status === 0) {
     console.log(`PASS (${elapsed}ms)`);
+    results.push({ name, status: "PASS", elapsed });
     return;
   }
 
   console.log(`FAIL (exit ${r.status}, ${elapsed}ms)`);
-  if (r.stdout) process.stdout.write(r.stdout);
-  if (r.stderr) process.stderr.write(r.stderr);
+  if (IS_CI) console.log(`::error::${name}::exit ${r.status}`);
+  if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout);
+  if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr);
+  results.push({ name, status: "FAIL", elapsed });
   failed++;
 }
 
@@ -113,7 +133,27 @@ if (level === "L2" || level === "L3") {
   ]);
 }
 
+// ─── Summary ─────────────────────────────────────────────────────────────────
 console.log("");
+console.log("=== Summary ===");
+console.log("");
+
+const nameWidth = Math.max(6, ...results.map((r) => r.name.length));
+const header = `${"Check".padEnd(nameWidth)}  Status  Elapsed`;
+const divider = "-".repeat(header.length);
+console.log(header);
+console.log(divider);
+let totalElapsed = 0;
+for (const r of results) {
+  totalElapsed += r.elapsed;
+  console.log(
+    `${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms`,
+  );
+}
+console.log(divider);
+console.log(`${"Total".padEnd(nameWidth)}          ${totalElapsed}ms`);
+console.log("");
+
 if (failed > 0) {
   console.error(`=== FAILED: ${failed} check(s) ===\n`);
   process.exit(1);

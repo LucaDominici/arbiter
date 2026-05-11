@@ -243,6 +243,60 @@ describe("check-all.mjs.ejs — contract gate commands (F17)", () => {
   }
 });
 
+// ─── #210: summary table, CI detection, ANSI strip, ::error:: annotations ────
+
+describe("check-all.mjs.ejs rendering — summary table + CI annotations (#210, CANON-04)", () => {
+  it("rendered script contains IS_CI detection", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("IS_CI");
+  });
+
+  it("rendered script contains stripAnsi function", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("stripAnsi");
+  });
+
+  it("rendered script contains results array", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("results");
+    expect(content).toContain("results.push");
+  });
+
+  it("rendered script contains summary table", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("=== Summary ===");
+    expect(content).toContain("Elapsed");
+    expect(content).toContain("Total");
+  });
+
+  it("rendered script contains ::error:: CI annotation", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("::error::");
+  });
+});
+
 describe("check-all.mjs.ejs — F10 cargo integration test flag (#369)", () => {
   it("Rust L2: uses '--tests' flag not '*integration*' glob", () => {
     const data = makeConfig("/tmp/test", {

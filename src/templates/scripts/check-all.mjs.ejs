@@ -10,22 +10,42 @@ import { join } from 'node:path';
 const level = process.argv[2] ?? 'L2';
 let failed = 0;
 
+const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const NO_COLOR = IS_CI || process.env.NO_COLOR === '1';
+
+// Strips ANSI escape sequences from a string
+function stripAnsi(str) {
+  return str.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/** @type {{ name: string; status: string; elapsed: number }[]} */
+const results = [];
+
 function runCheck(name, cmd, args, { soft = false } = {}) {
+  const start = Date.now();
   process.stdout.write(`[CHECK] ${name} ... `);
   const r = spawnSync(cmd, args, { encoding: 'utf-8', shell: false });
+  const elapsed = Date.now() - start;
   if (r.error?.code === 'ENOENT') {
-    console.log(`FAIL (binary not found: ${cmd})`);
+    console.log(`FAIL (${elapsed}ms)`);
+    if (IS_CI) console.log(`::error::${name}::command not found: ${cmd}`);
+    console.error(`  command not found: ${cmd}`);
+    results.push({ name, status: 'FAIL', elapsed });
     failed++;
   } else if (r.status === 0) {
-    console.log('PASS');
+    console.log(`PASS (${elapsed}ms)`);
+    results.push({ name, status: 'PASS', elapsed });
   } else if (soft) {
-    console.log('WARN (grace period)');
-    if (r.stdout) process.stdout.write(r.stdout);
-    if (r.stderr) process.stderr.write(r.stderr);
+    console.log(`WARN (grace period, ${elapsed}ms)`);
+    if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout);
+    if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr);
+    results.push({ name, status: 'WARN', elapsed });
   } else {
-    console.log('FAIL');
-    if (r.stdout) process.stdout.write(r.stdout);
-    if (r.stderr) process.stderr.write(r.stderr);
+    console.log(`FAIL (exit ${r.status}, ${elapsed}ms)`);
+    if (IS_CI) console.log(`::error::${name}::exit ${r.status}`);
+    if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout);
+    if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr);
+    results.push({ name, status: 'FAIL', elapsed });
     failed++;
   }
 }
@@ -396,7 +416,25 @@ if (level === 'L2') {
 <% } %>
 }
 
+// ─── Summary ─────────────────────────────────────────────────────────────────
 console.log('');
+console.log('=== Summary ===');
+console.log('');
+
+const nameWidth = Math.max(6, ...results.map((r) => r.name.length));
+const header = `${'Check'.padEnd(nameWidth)}  Status  Elapsed`;
+const divider = '-'.repeat(header.length);
+console.log(header);
+console.log(divider);
+let totalElapsed = 0;
+for (const r of results) {
+  totalElapsed += r.elapsed;
+  console.log(`${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms`);
+}
+console.log(divider);
+console.log(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms`);
+console.log('');
+
 if (failed > 0) {
   console.error(`=== FAILED: ${failed} check(s) ===\n`);
   process.exit(1);
