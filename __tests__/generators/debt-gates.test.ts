@@ -329,7 +329,7 @@ describe("generateDebtGates", () => {
 
   // ── Rust ───────────────────────────────────────────────────────────────────
 
-  it("does not generate any debt-gate config files for Rust projects (clippy owned by boundaries)", () => {
+  it("generates rustfmt.toml for Rust projects (#157)", () => {
     cleanupTestProject(dir);
     dir = createTestProject("rust");
     const config = makeConfig(dir, {
@@ -338,7 +338,24 @@ describe("generateDebtGates", () => {
       enableDebtGates: true,
     });
     const result = generateDebtGates(config);
-    expect(result.files).toHaveLength(0);
+    expect(result.files.some((f) => f.path.endsWith("rustfmt.toml"))).toBe(
+      true,
+    );
+    expect(existsSync(join(dir, "rustfmt.toml"))).toBe(true);
+  });
+
+  it("rustfmt.toml contains edition and max_width (#157)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("rust");
+    const config = makeConfig(dir, {
+      language: "rust",
+      buildTool: "cargo",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const content = readFileSync(join(dir, "rustfmt.toml"), "utf-8");
+    expect(content).toContain("edition");
+    expect(content).toContain("max_width");
   });
 
   // ── Python ─────────────────────────────────────────────────────────────────

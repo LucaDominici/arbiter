@@ -484,6 +484,22 @@ describe("generateCheckAll", () => {
     );
   });
 
+  it("Go: gofmt -l gate present in L1 block (#157)", () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: "go",
+        buildTool: "go",
+        governanceLevel: "L1",
+      }),
+    );
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("gofmt");
+    expect(content).toContain("'-l'");
+  });
+
   it("enableSecurityScanning=false: no gitleaks, govulncheck, or OWASP DC step", () => {
     generateCheckAll(
       makeConfig(dir, {

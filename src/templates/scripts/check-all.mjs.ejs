@@ -84,6 +84,20 @@ runCheck('checkstyle', 'mvn', ['checkstyle:check', '-q']);
 runCheck('format (spotless)', 'mvn', ['spotless:check', '-q']);
 runCheck('unit tests', 'mvn', ['test', '-q']);
 <% } %><% if (language === 'go') { %>
+{
+  process.stdout.write('[CHECK] fmt (gofmt) ... ');
+  const _gofmt = spawnSync('gofmt', ['-l', '.'], { encoding: 'utf-8', shell: false });
+  if (_gofmt.error?.code === 'ENOENT') {
+    console.log('FAIL (binary not found: gofmt)');
+    failed++;
+  } else if (_gofmt.stdout?.trim()) {
+    console.log('FAIL');
+    process.stdout.write('Files need gofmt formatting:\n' + _gofmt.stdout);
+    failed++;
+  } else {
+    console.log('PASS');
+  }
+}
 runCheck('vet', 'go', ['vet', './...']);
 runCheck('lint', 'golangci-lint', ['run']);
 runCheck('unit tests', 'go', ['test', './...']);
