@@ -94,4 +94,17 @@ describe("generateRoot", () => {
     expect(entry?.action).toBe("skipped");
     expect(readFileSync(commitlintPath, "utf-8")).toBe("// custom content");
   });
+
+  it("emits .editorconfig with TS language override (#205)", () => {
+    generateRoot(makeConfig(dir, { language: "typescript" }));
+    const content = readFileSync(join(dir, ".editorconfig"), "utf-8");
+    expect(content).toContain("[*.{ts,tsx,js,jsx}]");
+  });
+
+  it("emits .editorconfig with Go tab override (#205)", () => {
+    generateRoot(makeConfig(dir, { language: "go" }));
+    const content = readFileSync(join(dir, ".editorconfig"), "utf-8");
+    expect(content).toContain("[*.go]");
+    expect(content).toContain("indent_style = tab");
+  });
 });

@@ -45,7 +45,7 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
   results.push(
     writeFile(
       resolvedPath(base, ".editorconfig"),
-      renderTemplate("root/editorconfig", data),
+      renderTemplate("root/editorconfig.ejs", data),
       { skipIfExists: true },
     ),
   );
