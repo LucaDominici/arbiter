@@ -180,6 +180,21 @@ describe("generateClaude", () => {
     ).toBe(false);
   });
 
+  it("check-no-placeholders.mjs is emitted at L1 (#151)", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateClaude(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-placeholders.mjs")),
+    ).toBe(true);
+  });
+
+  it("check-no-placeholders is wired in settings.json PostToolUse Edit|Write (#151)", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateClaude(config);
+    const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("check-no-placeholders.mjs");
+  });
+
   it("guard-task-completion is wired in settings.json UserPromptSubmit at L2", () => {
     const config = makeConfig(dir, { governanceLevel: "L2" });
     generateClaude(config);

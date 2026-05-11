@@ -16,6 +16,19 @@
       "rationale": "INV-06: bare TODO without task ID is a gate violation"
     },
     {
+      "file": "check-no-placeholders.mjs",
+      "classification": "HARD",
+      "tools": ["claude", "codex"],
+      "spawnable": true,
+      "expectedExitCode": 1,
+      "fixture": {
+        "type": "file-with-content",
+        "content": "const x = 'PLACEHOLDER';\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH"
+      },
+      "rationale": "Blocks placeholder/WIP/disabled-test patterns (PLACEHOLDER, FIXME, XXX, HACK, WIP, it.skip etc.) before save"
+    },
+    {
       "file": "check-no-pii.mjs.ejs",
       "classification": "HARD",
       "tools": ["claude", "codex"],

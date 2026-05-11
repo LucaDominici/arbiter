@@ -50,6 +50,11 @@
             "type": "command",
             "command": "node .claude/hooks/check-no-orphan-todo.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-placeholders.mjs",
+            "timeout": 5
           }<% if (enableSecurityScanning) { %>,
           {
             "type": "command",

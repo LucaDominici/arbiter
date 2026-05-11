@@ -21,7 +21,7 @@ const PATTERNS = [
 ];
 
 const EXTENSIONS = new Set([".ts", ".tsx", ".mjs", ".js"]);
-const SKIP_DIRS = new Set(["node_modules", "dist", ".git"]);
+const SKIP_DIRS = new Set(["node_modules", "dist", ".git", "templates"]);
 
 const scanDirs =
   process.argv.slice(2).length > 0 ? process.argv.slice(2) : [process.cwd()];

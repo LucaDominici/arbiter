@@ -35,6 +35,11 @@ matcher = "^apply_patch$"
 type = "command"
 command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-orphan-todo.mjs"
 timeout = 5
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "node .codex/codex-adapter.mjs .claude/hooks/check-no-placeholders.mjs"
+timeout = 5
 <% if (enableSecurityScanning) { %>
 [[hooks.PostToolUse.hooks]]
 type = "command"
