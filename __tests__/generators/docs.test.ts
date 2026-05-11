@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -59,5 +65,31 @@ describe("generateDocs — SECURE_CODING_CHECKLIST (#203)", () => {
     expect(existsSync(join(dir, "docs", "SECURE_CODING_CHECKLIST.md"))).toBe(
       false,
     );
+  });
+});
+
+describe("generateDocs — CODING_STANDARDS (#206)", () => {
+  it("emits CODING_STANDARDS.md at L2", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(existsSync(join(dir, "docs", "CODING_STANDARDS.md"))).toBe(true);
+  });
+
+  it("emits CODING_STANDARDS.md at L3", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L3" }));
+    expect(existsSync(join(dir, "docs", "CODING_STANDARDS.md"))).toBe(true);
+  });
+
+  it("does not emit CODING_STANDARDS.md at L1", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(existsSync(join(dir, "docs", "CODING_STANDARDS.md"))).toBe(false);
+  });
+
+  it("skipIfExists on docs/CODING_STANDARDS.md (#206, CANON-11)", () => {
+    const docsDir = join(dir, "docs");
+    mkdirSync(docsDir, { recursive: true });
+    const target = join(docsDir, "CODING_STANDARDS.md");
+    writeFileSync(target, "PREEXISTING");
+    generateDocs(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(readFileSync(target, "utf8")).toBe("PREEXISTING");
   });
 });

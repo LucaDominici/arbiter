@@ -34,5 +34,13 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     ),
   );
 
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "CODING_STANDARDS.md"),
+      renderTemplate("docs/CODING_STANDARDS.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }
