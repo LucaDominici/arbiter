@@ -1,0 +1,51 @@
+// Payload size limit middleware — Express/Node.js
+//
+// Usage:
+//   import { payloadSizeLimit } from "./middleware/payload-size-limit.js";
+//   app.use(payloadSizeLimit());           // default: 1 MiB
+//   app.use(payloadSizeLimit(512 * 1024)); // custom: 512 KiB
+//
+// Override at runtime via environment variable:
+//   MAX_REQUEST_BYTES=2097152 node server.js
+//
+// Known limitation:
+//   This middleware checks the Content-Length request header to enforce the
+//   limit. Requests that use Transfer-Encoding: chunked carry no Content-Length
+//   header — the body arrives in frames with no declared total size. Chunked
+//   requests are NOT blocked by this middleware. Full stream-level limiting
+//   requires wrapping the IncomingMessage socket or using an
+//   http.IncomingMessage transform (deferred).
+
+import type { Request, Response, NextFunction } from "express";
+
+const DEFAULT_MAX_BYTES = 1_048_576; // 1 MiB
+
+function resolvedMaxBytes(): number {
+  const n = Number(process.env.MAX_REQUEST_BYTES ?? DEFAULT_MAX_BYTES);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_BYTES;
+}
+
+export function payloadSizeLimit(
+  maxBytes: number = resolvedMaxBytes(),
+): (req: Request, res: Response, next: NextFunction) => void {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const contentLength = req.headers["content-length"];
+    if (contentLength !== undefined && Number(contentLength) > maxBytes) {
+      const rawCorrelationId = req.headers["x-correlation-id"];
+      const correlationId =
+        (Array.isArray(rawCorrelationId)
+          ? rawCorrelationId[0]
+          : rawCorrelationId) ?? "unknown";
+      res.status(413).contentType("application/problem+json").json({
+        type: "https://errors.example.com/problem-type/payload-too-large",
+        title: "Payload Too Large",
+        status: 413,
+        detail: `Request body exceeds the ${maxBytes}-byte limit.`,
+        instance: req.path,
+        correlationId,
+      });
+      return;
+    }
+    next();
+  };
+}

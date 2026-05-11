@@ -47,6 +47,13 @@ export function generateApiMiddleware(
     );
     results.push(
       writeFile(
+        resolvedPath(base, "src", "middleware", "payload-size-limit.ts"),
+        renderTemplate("middleware/payload-size-limit.ts.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    results.push(
+      writeFile(
         resolvedPath(
           base,
           "__tests__",
