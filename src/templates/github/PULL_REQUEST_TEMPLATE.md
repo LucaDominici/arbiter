@@ -28,3 +28,9 @@
 ## Test Plan
 
 <!-- How was this tested? What scenarios were covered? -->
+
+## Security Checklist
+
+<!-- L2/L3 projects: verify SECURE_CODING_CHECKLIST.md before merging -->
+
+- [ ] Reviewed `docs/SECURE_CODING_CHECKLIST.md` (if present in this project)

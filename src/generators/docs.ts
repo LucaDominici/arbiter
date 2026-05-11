@@ -26,5 +26,13 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     ),
   );
 
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "SECURE_CODING_CHECKLIST.md"),
+      renderTemplate("docs/SECURE_CODING_CHECKLIST.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }

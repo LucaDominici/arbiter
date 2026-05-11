@@ -38,3 +38,26 @@ describe("generateDocs — ADR template (#192)", () => {
     );
   });
 });
+
+describe("generateDocs — SECURE_CODING_CHECKLIST (#203)", () => {
+  it("emits SECURE_CODING_CHECKLIST.md at L2", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(existsSync(join(dir, "docs", "SECURE_CODING_CHECKLIST.md"))).toBe(
+      true,
+    );
+  });
+
+  it("emits SECURE_CODING_CHECKLIST.md at L3", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L3" }));
+    expect(existsSync(join(dir, "docs", "SECURE_CODING_CHECKLIST.md"))).toBe(
+      true,
+    );
+  });
+
+  it("does not emit SECURE_CODING_CHECKLIST.md at L1", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(existsSync(join(dir, "docs", "SECURE_CODING_CHECKLIST.md"))).toBe(
+      false,
+    );
+  });
+});
