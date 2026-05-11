@@ -8,6 +8,7 @@ import {
 import { join, resolve } from "node:path";
 import { runCli, CliError } from "../utils/run-cli.js";
 import { loadConfig } from "../utils/config.js";
+import { jsonOutput } from "../utils/json-output.js";
 import {
   sanitizeTaskId,
   branchNameFor,
@@ -116,6 +117,7 @@ export interface WorktreeOpenOptions {
   cwd?: string;
   /** Override the worktrees base directory (used in tests; normally via env). */
   worktreesDir?: string;
+  json?: boolean | undefined;
 }
 
 export interface WorktreeCloseOptions {
@@ -133,12 +135,14 @@ export interface WorktreeCloseOptions {
   harvestAll?: boolean;
   /** Callback for each harvested file (used in tests). */
   onHarvestFile?: HarvestOptions["onFile"];
+  json?: boolean | undefined;
 }
 
 export interface WorktreeListOptions {
   cwd?: string;
   /** Receive output lines instead of printing them (used in tests). */
   onLine?: (line: string) => void;
+  json?: boolean | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +292,15 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
   });
   writeJsonArray(logPath, entries);
 
+  if (opts.json) {
+    jsonOutput("worktree-open", "ok", {
+      worktreePath,
+      branch: branchName,
+      baseBranch,
+      baseRef,
+    });
+    return;
+  }
   console.log(`\nWorktree ready: ${worktreePath}`);
   console.log(`Branch:         ${branchName}`);
   console.log(`Base:           ${baseBranch} @ ${baseRef}`);
@@ -551,18 +564,32 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
     }
   }
 
-  const closeLogPath = join(arbiterLogDir(gitRoot), "worktree-close.log.json");
-  const closeEntries = readJsonArray(closeLogPath) as CloseLogEntry[];
-  closeEntries.push({
+  appendCloseLogEntry(join(arbiterLogDir(gitRoot), "worktree-close.log.json"), {
     taskId,
     branch,
     worktreePath,
     closedAt: new Date().toISOString(),
     force: effectiveForce,
   });
-  writeJsonArray(closeLogPath, closeEntries);
 
-  console.log(`\nWorktree closed: ${worktreePath}`);
+  emitCloseResult(opts.json, { worktreePath, branch, taskId });
+}
+
+function appendCloseLogEntry(logPath: string, entry: CloseLogEntry): void {
+  const entries = readJsonArray(logPath) as CloseLogEntry[];
+  entries.push(entry);
+  writeJsonArray(logPath, entries);
+}
+
+function emitCloseResult(
+  json: boolean | undefined,
+  result: { worktreePath: string; branch: string; taskId: string },
+): void {
+  if (json) {
+    jsonOutput("worktree-close", "ok", result);
+    return;
+  }
+  console.log(`\nWorktree closed: ${result.worktreePath}`);
   console.log();
 }
 
@@ -607,6 +634,11 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
   const taskWorktrees = worktrees
     .slice(1)
     .filter((w) => w.branch?.startsWith("task/"));
+
+  if (opts.json) {
+    jsonOutput("worktree-list", "ok", { worktrees: taskWorktrees });
+    return;
+  }
 
   if (taskWorktrees.length === 0) {
     emit("\nNo open task worktrees.\n");

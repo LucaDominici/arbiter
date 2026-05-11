@@ -1,11 +1,13 @@
 import { resolve } from "node:path";
 import { loadConfig, saveConfig } from "../utils/config.js";
 import { validateConfig } from "../config/schema.js";
+import { jsonOutput } from "../utils/json-output.js";
 import type { ArbiterConfigV2 } from "../config/schema.js";
 
 export interface ConfigureOptions {
   dir?: string | undefined;
   sets: string[];
+  json?: boolean | undefined;
 }
 
 const ALLOWED_PATHS = new Set([
@@ -94,6 +96,13 @@ export function runConfigure(options: ConfigureOptions): void {
   const targetDir = resolve(options.dir ?? process.cwd());
   const stored = loadConfig(targetDir);
   if (!stored) {
+    if (options.json) {
+      jsonOutput("configure", "error", {}, [
+        "No arbiter.json found. Run `arbiter init` first.",
+      ]);
+      process.exit(1);
+      return;
+    }
     throw new Error("No arbiter.json found. Run `arbiter init` first.");
   }
 
@@ -125,5 +134,10 @@ export function runConfigure(options: ConfigureOptions): void {
   }
 
   saveConfig(targetDir, result.config);
+
+  if (options.json) {
+    jsonOutput("configure", "ok", { updated: options.sets });
+    return;
+  }
   console.log(`  Updated: ${options.sets.join(", ")}`);
 }

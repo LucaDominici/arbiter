@@ -4,6 +4,7 @@ import type { GovernanceLevel } from "../wizard/types.js";
 import { loadConfig, saveConfig } from "../utils/config.js";
 import type { ArbiterConfig } from "../utils/config.js";
 import { runCli } from "../utils/run-cli.js";
+import { jsonOutput } from "../utils/json-output.js";
 
 export interface UpgradeLevelOptions {
   dir?: string;
@@ -11,6 +12,7 @@ export interface UpgradeLevelOptions {
   target?: GovernanceLevel;
   extend?: boolean;
   days?: number;
+  json?: boolean | undefined;
 }
 
 const LEVEL_RANK: Record<GovernanceLevel, number> = { L1: 1, L2: 2, L3: 3 };
@@ -21,11 +23,18 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   const stored = loadConfig(dir);
 
   if (!stored) {
+    if (opts.json) {
+      jsonOutput("upgrade-level", "error", {}, [
+        "No arbiter.json found. Run arbiter init first.",
+      ]);
+      process.exit(1);
+      return;
+    }
     throw new Error("No arbiter.json found. Run arbiter init first.");
   }
 
   if (opts.extend) {
-    handleExtend(dir, stored, opts.days ?? DEFAULT_GRACE_DAYS);
+    handleExtend(dir, stored, opts.days ?? DEFAULT_GRACE_DAYS, opts.json);
     return;
   }
 
@@ -60,6 +69,16 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
     graceEndsAt,
   });
 
+  if (opts.json) {
+    jsonOutput("upgrade-level", "ok", {
+      from: current,
+      to: target,
+      graceEndsAt,
+      graceDays: days,
+    });
+    return;
+  }
+
   const endsDate = graceEndsAt.slice(0, 10);
   if (current === "L1") {
     console.log(
@@ -75,7 +94,12 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   }
 }
 
-function handleExtend(dir: string, stored: ArbiterConfig, days: number): void {
+function handleExtend(
+  dir: string,
+  stored: ArbiterConfig,
+  days: number,
+  json: boolean | undefined,
+): void {
   const existing = stored.graceEndsAt;
   if (!existing || Date.parse(existing) <= Date.now()) {
     throw new Error("No grace period to extend (none set or already expired).");
@@ -106,6 +130,15 @@ function handleExtend(dir: string, stored: ArbiterConfig, days: number): void {
   writeFileSync(logPath, JSON.stringify(log, null, 2) + "\n", "utf-8");
 
   saveConfig(dir, { ...stored, graceEndsAt: newEndsAt });
+
+  if (json) {
+    jsonOutput("upgrade-level", "ok", {
+      action: "extend",
+      newEndsAt,
+      extensionDays: days,
+    });
+    return;
+  }
 
   const endsDate = newEndsAt.slice(0, 10);
   console.log(`Grace extended to ${endsDate} (+${days} days).`);

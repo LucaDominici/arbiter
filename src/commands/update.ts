@@ -1,5 +1,6 @@
 import { resolve, basename } from "node:path";
 import type { WriteResult } from "../utils/fs.js";
+import { jsonOutput } from "../utils/json-output.js";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
 import { detectFramework } from "../detectors/framework.js";
@@ -30,6 +31,7 @@ import type { ArbiterConfigV2 } from "../utils/config.js";
 export interface UpdateOptions {
   dir: string | undefined;
   github: boolean;
+  json?: boolean | undefined;
 }
 
 export interface UpdateResult {
@@ -130,37 +132,33 @@ function selectAndRun(
   return { results: runGeneratorsSelective(specs, keys), keysRun: keys };
 }
 
-export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
-  const targetDir = resolve(options.dir ?? process.cwd());
-  const projectName = basename(targetDir);
-
-  console.log("\n  Arbiter — update\n");
-
-  const stored = loadConfig(targetDir);
-  if (!stored) {
-    console.log("  No arbiter.json found. Run `arbiter init` first.\n");
-    process.exit(1);
-  }
-
-  console.log("  Detecting project...");
+function detectProjectInfo(
+  targetDir: string,
+  projectName: string,
+  stored: ArbiterConfigV2,
+  options: UpdateOptions,
+  log: (msg: string) => void,
+): {
+  config: ReturnType<typeof v2ToProjectConfig>;
+  specs: ReturnType<typeof buildRegistry>;
+  useGitHub: boolean;
+  axisFields: ReturnType<typeof resolveAxisFields>;
+} {
+  log("  Detecting project...");
   const language = detectLanguage(targetDir);
   const framework = detectFramework(targetDir, language);
   const buildCmds = detectBuildCommands(targetDir, language);
   const gitInfo = detectGitInfo(targetDir);
   const existing = detectExisting(targetDir);
   const githubAccess = detectGithubAccess();
-
-  console.log(
-    `  ├── Language: ${language}${framework ? ` / ${framework}` : ""}`,
-  );
-  console.log(
+  log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ""}`);
+  log(
     `  ├── Config: tools=[${stored.tools.join(",")}] level=${stored.governanceLevel}`,
   );
-
   const useGitHub = options.github
     ? githubAccess.authenticated
     : stored.useGitHub && githubAccess.authenticated;
-
+  const axisFields = resolveAxisFields(stored, targetDir, language, framework);
   const {
     archetype,
     architectureStyle,
@@ -169,8 +167,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     hasPublicApi,
     contractType,
     lanes,
-  } = resolveAxisFields(stored, targetDir, language, framework);
-
+  } = axisFields;
   const detectorFields = {
     targetDir,
     projectName,
@@ -194,12 +191,54 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     contractType,
     lanes,
   };
-
   const config = v2ToProjectConfig(stored, detectorFields);
   const specs = buildRegistry(config);
-  const snapshot = loadSnapshot(targetDir);
+  return { config, specs, useGitHub, axisFields };
+}
 
-  console.log("\n  Updating...");
+export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
+  const targetDir = resolve(options.dir ?? process.cwd());
+  const projectName = basename(targetDir);
+  const log: (msg: string) => void = options.json
+    ? (): void => {}
+    : (msg: string): void => {
+        console.log(msg);
+      };
+
+  log("\n  Arbiter — update\n");
+
+  const stored = loadConfig(targetDir);
+  if (!stored) {
+    if (options.json) {
+      jsonOutput("update", "error", {}, [
+        "No arbiter.json found. Run `arbiter init` first.",
+      ]);
+    } else {
+      log("  No arbiter.json found. Run `arbiter init` first.\n");
+    }
+    process.exit(1);
+    return { keysRun: null };
+  }
+
+  const { config, specs, useGitHub, axisFields } = detectProjectInfo(
+    targetDir,
+    projectName,
+    stored,
+    options,
+    log,
+  );
+  const {
+    archetype,
+    architectureStyle,
+    isMultiTenant,
+    hasDatabase,
+    hasPublicApi,
+    contractType,
+    lanes,
+  } = axisFields;
+
+  const snapshot = loadSnapshot(targetDir);
+  log("\n  Updating...");
 
   const { results, keysRun } = selectAndRun(specs, snapshot, stored);
   const pluginResults = await runPlugins(
@@ -209,8 +248,10 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   );
   results.push(...pluginResults);
 
-  printResults(results, targetDir);
-  printStats(results);
+  if (!options.json) {
+    printResults(results, targetDir);
+    printStats(results);
+  }
 
   runGithubSetup(config);
 
@@ -228,15 +269,32 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
   const validation = validateConfig(nextConfig);
   if (!validation.ok) {
-    console.error(
-      `  [arbiter] Config invalid after update: ${validation.errors.join("; ")}`,
-    );
+    if (options.json) {
+      jsonOutput("update", "error", {}, [
+        `Config invalid after update: ${validation.errors.join("; ")}`,
+      ]);
+    } else {
+      console.error(
+        `  [arbiter] Config invalid after update: ${validation.errors.join("; ")}`,
+      );
+    }
     process.exit(1);
   }
 
   saveConfig(targetDir, validation.config);
   saveSnapshot(targetDir, validation.config);
-  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
+
+  const created = results.filter((r) => r.action === "created").length;
+  const updated = results.filter(
+    (r) => r.action === "backed-up-and-replaced",
+  ).length;
+  const skipped = results.filter((r) => r.action === "skipped").length;
+
+  if (options.json) {
+    jsonOutput("update", "ok", { created, updated, skipped });
+  } else {
+    console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
+  }
 
   return { keysRun };
 }

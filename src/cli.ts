@@ -64,6 +64,7 @@ program
     "--backend <backend>",
     "Decomposition backend: github or markdown (overrides gh auth detection)",
   )
+  .option("--json", "Emit machine-readable JSON output (requires --yes)", false)
   .action(
     async (opts: {
       yes: boolean;
@@ -75,6 +76,7 @@ program
       verify: boolean;
       acceptBetaTools: boolean;
       backend?: string;
+      json: boolean;
     }) => {
       const backend =
         opts.backend === "github" || opts.backend === "markdown"
@@ -90,6 +92,7 @@ program
         noVerify: !opts.verify,
         acceptBetaTools: opts.acceptBetaTools,
         ...(backend !== undefined ? { backend } : {}),
+        json: opts.json,
       });
     },
   );
@@ -105,10 +108,12 @@ program
     "Force GitHub setup even if disabled in stored config",
     false,
   )
-  .action(async (opts: { dir?: string; github: boolean }) => {
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(async (opts: { dir?: string; github: boolean; json: boolean }) => {
     await runUpdate({
       dir: opts.dir,
       github: opts.github,
+      json: opts.json,
     });
   });
 
@@ -122,16 +127,20 @@ program
     (v, acc: string[]) => [...acc, v],
     [] as string[],
   )
-  .action((opts: { dir?: string | undefined; set: string[] }) => {
-    runConfigure({ dir: opts.dir, sets: opts.set });
-  });
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(
+    (opts: { dir?: string | undefined; set: string[]; json: boolean }) => {
+      runConfigure({ dir: opts.dir, sets: opts.set, json: opts.json });
+    },
+  );
 
 program
   .command("diff")
   .description("Show what arbiter update would change (dry run)")
   .option("--dir <dir>", "Target directory (default: current directory)")
-  .action((opts: { dir?: string }) => {
-    runDiff({ dir: opts.dir });
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    runDiff({ dir: opts.dir, json: opts.json });
   });
 
 const worktree = program
@@ -145,12 +154,18 @@ worktree
     "Create a sibling worktree with a task branch and symlinked local files",
   )
   .option("--base <branch>", "Base branch to branch from", "main")
+  .option("--json", "Emit machine-readable JSON output", false)
   .action(
-    (taskId: string, slug: string | undefined, opts: { base: string }) => {
+    (
+      taskId: string,
+      slug: string | undefined,
+      opts: { base: string; json: boolean },
+    ) => {
       runWorktreeOpen({
         taskId,
         ...(slug !== undefined ? { slug } : {}),
         base: opts.base,
+        json: opts.json,
       });
     },
   );
@@ -171,6 +186,7 @@ worktree
     "Harvest all files and skip merge check (implies --force for cleanup)",
     false,
   )
+  .option("--json", "Emit machine-readable JSON output", false)
   .action(
     (
       taskId: string,
@@ -180,6 +196,7 @@ worktree
         fetch: boolean;
         harvest: boolean;
         harvestAll: boolean;
+        json: boolean;
       },
     ) => {
       runWorktreeClose({
@@ -189,6 +206,7 @@ worktree
         noFetch: !opts.fetch,
         harvest: opts.harvest,
         harvestAll: opts.harvestAll,
+        json: opts.json,
       });
     },
   );
@@ -196,8 +214,9 @@ worktree
 worktree
   .command("list")
   .description("List open task worktrees")
-  .action(() => {
-    runWorktreeList();
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action((opts: { json: boolean }) => {
+    runWorktreeList({ json: opts.json });
   });
 
 program
@@ -220,15 +239,17 @@ program
   )
   .option("--days <n>", "Grace period length in days (default: 30)", parseInt)
   .option("--dir <dir>", "Target directory (default: current directory)")
+  .option("--json", "Emit machine-readable JSON output", false)
   .action(
     (opts: {
       target?: string;
       extend: boolean;
       days?: number;
       dir?: string;
+      json: boolean;
     }) => {
       const upgradeOpts: import("./commands/upgrade-level.js").UpgradeLevelOptions =
-        { extend: opts.extend };
+        { extend: opts.extend, json: opts.json };
       if (opts.target) {
         if (opts.target !== "L2" && opts.target !== "L3") {
           console.error(
@@ -273,10 +294,12 @@ plugin
     "Add a plugin to this project (validates it is resolvable first)",
   )
   .option("--dir <dir>", "Target directory (default: current directory)")
-  .action(async (pkg: string, opts: { dir?: string }) => {
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(async (pkg: string, opts: { dir?: string; json: boolean }) => {
     await runPluginAdd({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       pkg,
+      json: opts.json,
     });
   });
 
@@ -284,10 +307,12 @@ plugin
   .command("remove <pkg>")
   .description("Remove a plugin from this project")
   .option("--dir <dir>", "Target directory (default: current directory)")
-  .action((pkg: string, opts: { dir?: string }) => {
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action((pkg: string, opts: { dir?: string; json: boolean }) => {
     runPluginRemove({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       pkg,
+      json: opts.json,
     });
   });
 
@@ -295,9 +320,11 @@ plugin
   .command("list")
   .description("List plugins configured for this project")
   .option("--dir <dir>", "Target directory (default: current directory)")
-  .action(async (opts: { dir?: string }) => {
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(async (opts: { dir?: string; json: boolean }) => {
     await runPluginList({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
     });
   });
 
