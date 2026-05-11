@@ -19,9 +19,9 @@ describe("ci.yml.ejs lane awareness", () => {
     expect(rendered).not.toContain("cross-stack-guard");
   });
 
-  it("single-lane L2: no classify-changes job", () => {
+  it("single-lane L2: classify-changes present, no cross-stack-guard (#161)", () => {
     const rendered = renderCi({ lanes: [], governanceLevel: "L2" });
-    expect(rendered).not.toContain("classify-changes");
+    expect(rendered).toContain("classify-changes");
     expect(rendered).not.toContain("cross-stack-guard");
   });
 

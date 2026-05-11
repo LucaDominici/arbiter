@@ -1441,3 +1441,48 @@ describe("cross-product: single-lane (#403) — ci.yml unchanged for lanes:[]", 
     }
   }
 });
+
+// ── #161: classify-changes gate extends to L2 single-lane ────────────────────
+
+describe("cross-product: classify-changes gate (#161) — L2+ single-lane", () => {
+  for (const lang of ["typescript", "java", "go"] as Language[]) {
+    it(`${lang}+L2+lanes[]: ci.yml includes classify-changes job`, () => {
+      const rendered = renderTemplate(
+        "github/workflows/ci.yml.ejs",
+        makeConfig("/tmp/test", {
+          language: lang,
+          governanceLevel: "L2",
+          lanes: [],
+          ...STACK_CONFIG[lang],
+        }) as unknown as Record<string, unknown>,
+      );
+      expect(rendered).toContain("classify-changes:");
+    });
+
+    it(`${lang}+L3+lanes[]: ci.yml includes classify-changes job`, () => {
+      const rendered = renderTemplate(
+        "github/workflows/ci.yml.ejs",
+        makeConfig("/tmp/test", {
+          language: lang,
+          governanceLevel: "L3",
+          lanes: [],
+          ...STACK_CONFIG[lang],
+        }) as unknown as Record<string, unknown>,
+      );
+      expect(rendered).toContain("classify-changes:");
+    });
+
+    it(`${lang}+L1+lanes[]: ci.yml does NOT include classify-changes job`, () => {
+      const rendered = renderTemplate(
+        "github/workflows/ci.yml.ejs",
+        makeConfig("/tmp/test", {
+          language: lang,
+          governanceLevel: "L1",
+          lanes: [],
+          ...STACK_CONFIG[lang],
+        }) as unknown as Record<string, unknown>,
+      );
+      expect(rendered).not.toContain("classify-changes:");
+    });
+  }
+});
