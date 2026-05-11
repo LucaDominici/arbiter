@@ -79,3 +79,29 @@ All hard stops from `AGENTS.md` apply. Additionally:
 - Never edit without a plan in `.agents/plan/PLAN.json`
 - Never commit directly to `main`
 - Never skip the gate
+
+---
+
+## Known Limitations — Codex Governance Parity
+
+Codex does not have a hook system. The following enforcement mechanisms exist in
+Claude Code but have **no real-time Codex equivalent**. Gate-time enforcement
+(`node scripts/check-all.mjs`) covers most of these at L1/L2.
+
+| Claude Code Hook | What it enforces | Codex equivalent |
+|-----------------|-----------------|------------------|
+| `check-no-any.mjs` | Blocks TypeScript `any` types (INV-04) | Gate: `tsc --strict` |
+| `check-no-orphan-todo.mjs` | Blocks bare TODO without task ID (INV-06) | Gate: `check-all.mjs` grep step |
+| `check-no-pii.mjs` | Blocks PII patterns in source (real-time) | Gate: `scripts/pii-scan.mjs` |
+| `pre-edit-ssot-guard.mjs` | Warns on SSOT/governance file edits | None — manual discipline |
+| `pre-edit-plan-anchor.mjs` | Requires plan file in implementation phase | `.agents/plan/PLAN.json` protocol |
+| `debug-state-on-failure.mjs` | Persists debug state on gate failure | None — manual logging |
+| `skill-forced-eval.mjs` | Forces skill invocation before task start | None — manual discipline |
+| `post-edit-dispatch.mjs` | Runs post-edit agents for quality checks | None — manual code review |
+| `guard-task-completion.mjs` | Blocks premature done claims | None — manual discipline |
+| `check-circular-deps.mjs` | Detects circular deps per-edit (INV-01) | Gate: `madge --circular src` |
+
+**Decision:** This gap is intentional. OpenAI Codex has no plugin/hook extension
+point at the time of writing. When Codex adds a hook system, `codex-adapter.mjs`
+should be extended to bridge these checks. Gate-level enforcement catches all
+critical violations before merge.

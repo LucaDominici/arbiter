@@ -79,6 +79,28 @@ describe("codex CODEX.md — workflow section", () => {
   }
 });
 
+describe("codex CODEX.md — Known Limitations parity section (#162)", () => {
+  it("renders check-circular-deps in Known Limitations table", () => {
+    const content = renderCodexMd("typescript");
+    expect(content).toContain("check-circular-deps.mjs");
+  });
+
+  it("renders INV-01 in Known Limitations table", () => {
+    const content = renderCodexMd("typescript");
+    expect(content).toContain("INV-01");
+  });
+
+  it("renders madge workaround in Known Limitations table", () => {
+    const content = renderCodexMd("typescript");
+    expect(content).toContain("madge --circular src");
+  });
+
+  it("renders Known Limitations heading", () => {
+    const content = renderCodexMd("typescript");
+    expect(content).toContain("Known Limitations");
+  });
+});
+
 describe("cursor .cursorrules — workflow section", () => {
   it("includes workflow/task lifecycle section", () => {
     const content = renderCursorrules("typescript");
