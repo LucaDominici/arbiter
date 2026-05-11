@@ -10,22 +10,42 @@ import { join } from 'node:path';
 const level = process.argv[2] ?? 'L2';
 let failed = 0;
 
+const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const NO_COLOR = IS_CI || process.env.NO_COLOR === '1';
+
+// Strips ANSI escape sequences from a string
+function stripAnsi(str) {
+  return str.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/** @type {{ name: string; status: string; elapsed: number }[]} */
+const results = [];
+
 function runCheck(name, cmd, args, { soft = false } = {}) {
+  const start = Date.now();
   process.stdout.write(`[CHECK] ${name} ... `);
   const r = spawnSync(cmd, args, { encoding: 'utf-8', shell: false });
+  const elapsed = Date.now() - start;
   if (r.error?.code === 'ENOENT') {
-    console.log(`FAIL (binary not found: ${cmd})`);
+    console.log(`FAIL (${elapsed}ms)`);
+    if (IS_CI) console.log(`::error::${name}::command not found: ${cmd}`);
+    console.error(`  command not found: ${cmd}`);
+    results.push({ name, status: 'FAIL', elapsed });
     failed++;
   } else if (r.status === 0) {
-    console.log('PASS');
+    console.log(`PASS (${elapsed}ms)`);
+    results.push({ name, status: 'PASS', elapsed });
   } else if (soft) {
-    console.log('WARN (grace period)');
-    if (r.stdout) process.stdout.write(r.stdout);
-    if (r.stderr) process.stderr.write(r.stderr);
+    console.log(`WARN (grace period, ${elapsed}ms)`);
+    if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout);
+    if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr);
+    results.push({ name, status: 'WARN', elapsed });
   } else {
-    console.log('FAIL');
-    if (r.stdout) process.stdout.write(r.stdout);
-    if (r.stderr) process.stderr.write(r.stderr);
+    console.log(`FAIL (exit ${r.status}, ${elapsed}ms)`);
+    if (IS_CI) console.log(`::error::${name}::exit ${r.status}`);
+    if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout);
+    if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr);
+    results.push({ name, status: 'FAIL', elapsed });
     failed++;
   }
 }
@@ -85,18 +105,23 @@ runCheck('format (spotless)', 'mvn', ['spotless:check', '-q']);
 runCheck('unit tests', 'mvn', ['test', '-q']);
 <% } %><% if (language === 'go') { %>
 {
+  const _gofmtStart = Date.now();
   process.stdout.write('[CHECK] fmt (gofmt) ... ');
   const _gofmt = spawnSync('gofmt', ['-l', '.'], { encoding: 'utf-8', shell: false });
+  let _gofmtStatus = 'PASS';
   if (_gofmt.error?.code === 'ENOENT') {
     console.log('FAIL (binary not found: gofmt)');
+    _gofmtStatus = 'FAIL';
     failed++;
   } else if (_gofmt.stdout?.trim()) {
     console.log('FAIL');
     process.stdout.write('Files need gofmt formatting:\n' + _gofmt.stdout);
+    _gofmtStatus = 'FAIL';
     failed++;
   } else {
     console.log('PASS');
   }
+  results.push({ name: 'fmt (gofmt)', status: _gofmtStatus, elapsed: Date.now() - _gofmtStart });
 }
 runCheck('vet', 'go', ['vet', './...']);
 runCheck('lint', 'golangci-lint', ['run']);
@@ -235,28 +260,34 @@ if (level === 'L2') {
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...'], { soft: graceActive });
+  const _coverThreshStart = Date.now();
   process.stdout.write('[CHECK] coverage threshold ... ');
   const coverResult = spawnSync('go', ['tool', 'cover', '-func=coverage.out'], { encoding: 'utf-8', shell: false });
+  let _coverThreshStatus = 'PASS';
   if (coverResult.status !== 0) {
     console.log(graceActive ? 'WARN (grace period)' : 'FAIL (could not parse coverage)');
-    if (!graceActive) failed++;
+    if (!graceActive) { _coverThreshStatus = 'FAIL'; failed++; }
   } else {
     const match = coverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
     const pct = match ? parseFloat(match[1]) : 0;
     if (pct < <%= coverageThreshold %>) {
       console.log(graceActive ? `WARN (grace period, ${pct.toFixed(1)}% < <%= coverageThreshold %>%)` : `FAIL (${pct.toFixed(1)}% < <%= coverageThreshold %>%)`);
-      if (!graceActive) failed++;
+      if (!graceActive) { _coverThreshStatus = 'FAIL'; failed++; }
     } else { console.log(`PASS (${pct.toFixed(1)}%)`); }
   }
+  results.push({ name: 'coverage threshold', status: _coverThreshStatus, elapsed: Date.now() - _coverThreshStart });
   if (existsSync('coverage.out')) {
     mkdirSync('coverage', { recursive: true });
+    const _coverHtmlStart = Date.now();
     process.stdout.write('[CHECK] coverage HTML report ... ');
     const htmlResult = spawnSync('go', ['tool', 'cover', '-html=coverage.out', '-o', 'coverage/coverage.html'], { encoding: 'utf-8', shell: false });
+    let _coverHtmlStatus = 'PASS';
     if (htmlResult.status !== 0) {
       console.log('FAIL (go tool cover -html)');
       if (htmlResult.stderr) process.stderr.write(htmlResult.stderr);
-      if (!graceActive) failed++;
+      if (!graceActive) { _coverHtmlStatus = 'FAIL'; failed++; }
     } else { console.log('PASS'); }
+    results.push({ name: 'coverage HTML report', status: _coverHtmlStatus, elapsed: Date.now() - _coverHtmlStart });
   }
 <% } %>
   runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,unused'], { soft: graceActive });
@@ -336,20 +367,26 @@ if (level === 'L2') {
   // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
   {
     // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
+    const _bddIgnoreStart = Date.now();
     const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
     process.stdout.write('[CHECK] BDD @ignore check ... ');
+    let _bddIgnoreStatus = 'PASS';
     if (_bddIgnore.error?.code === 'ENOENT') {
       console.log('FAIL (grep not found — cannot check @ignore tags)');
+      _bddIgnoreStatus = 'FAIL';
       failed++;
     } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
       console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
+      _bddIgnoreStatus = 'FAIL';
       failed++;
     } else if (_bddIgnore.status === 0) {
       console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
+      _bddIgnoreStatus = 'FAIL';
       failed++;
     } else {
       console.log('PASS');
     }
+    results.push({ name: 'BDD @ignore check', status: _bddIgnoreStatus, elapsed: Date.now() - _bddIgnoreStart });
   }
 <% if (language === 'typescript') { %>
   runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
@@ -373,6 +410,8 @@ if (level === 'L2') {
   // ─── L3: Evidence gate (INV-33) ─────────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
   // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  const _evidenceStart = Date.now();
+  let _evidenceStatus = 'PASS';
   process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
   {
     const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
@@ -385,18 +424,39 @@ if (level === 'L2') {
           console.log('PASS');
         } else {
           console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
+          _evidenceStatus = 'FAIL';
           failed++;
         }
       } catch {
         console.log('FAIL (could not parse .evidence/SUMMARY.json)');
+        _evidenceStatus = 'FAIL';
         failed++;
       }
     }
   }
+  results.push({ name: 'evidence gate (INV-33)', status: _evidenceStatus, elapsed: Date.now() - _evidenceStart });
 <% } %>
 }
 
+// ─── Summary ─────────────────────────────────────────────────────────────────
 console.log('');
+console.log('=== Summary ===');
+console.log('');
+
+const nameWidth = Math.max(6, ...results.map((r) => r.name.length));
+const header = `${'Check'.padEnd(nameWidth)}  Status  Elapsed`;
+const divider = '-'.repeat(header.length);
+console.log(header);
+console.log(divider);
+let totalElapsed = 0;
+for (const r of results) {
+  totalElapsed += r.elapsed;
+  console.log(`${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms`);
+}
+console.log(divider);
+console.log(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms`);
+console.log('');
+
 if (failed > 0) {
   console.error(`=== FAILED: ${failed} check(s) ===\n`);
   process.exit(1);

@@ -15,43 +15,62 @@ export function generateSuppressions(
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;
 
-  return {
-    files: [
-      // User-edited data stores — skip on update to preserve live suppression entries
+  const results: WriteResult[] = [
+    // User-edited data stores — skip on update to preserve live suppression entries
+    writeFile(
+      resolvedPath(base, "suppressions", "dependency-check-suppressions.xml"),
+      renderTemplate(
+        "suppressions/dependency-check-suppressions.xml.ejs",
+        data,
+      ),
+      { skipIfExists: true },
+    ),
+    writeFile(
+      resolvedPath(base, "suppressions", ".gitleaksignore"),
+      renderTemplate("suppressions/gitleaksignore.ejs", data),
+      { skipIfExists: true },
+    ),
+    writeFile(
+      resolvedPath(base, "suppressions", "pii-allowlist.json"),
+      renderTemplate("suppressions/pii-allowlist.json.ejs", data),
+      { skipIfExists: true },
+    ),
+    writeFile(
+      resolvedPath(base, "suppressions", "archunit-baseline.json"),
+      renderTemplate("suppressions/archunit-baseline.json.ejs", data),
+      { skipIfExists: true },
+    ),
+    // Arbiter-managed files — always regenerate to pick up gate script changes
+    writeFile(
+      resolvedPath(base, "suppressions", "suppressions-schema.json"),
+      renderTemplate("suppressions/suppressions-schema.json.ejs", data),
+      { skipIfExists: false },
+    ),
+    writeFile(
+      resolvedPath(base, "scripts", "check-suppressions.mjs"),
+      renderTemplate("scripts/check-suppressions.mjs.ejs", data),
+      { skipIfExists: false },
+    ),
+  ];
+
+  // Java/Kotlin L2+ only: OWASP dependency-check and Trivy suppression files
+  if (
+    (config.language === "java" || config.language === "kotlin") &&
+    config.governanceLevel !== "L1"
+  ) {
+    results.push(
       writeFile(
-        resolvedPath(base, "suppressions", "dependency-check-suppressions.xml"),
-        renderTemplate(
-          "suppressions/dependency-check-suppressions.xml.ejs",
-          data,
-        ),
+        resolvedPath(base, "suppressions", "owasp-suppressions.xml"),
+        renderTemplate("suppressions/owasp-suppressions.xml.ejs", data),
         { skipIfExists: true },
       ),
       writeFile(
-        resolvedPath(base, "suppressions", ".gitleaksignore"),
-        renderTemplate("suppressions/gitleaksignore.ejs", data),
+        resolvedPath(base, "suppressions", ".trivyignore"),
+        renderTemplate("suppressions/trivyignore.ejs", data),
         { skipIfExists: true },
       ),
-      writeFile(
-        resolvedPath(base, "suppressions", "pii-allowlist.json"),
-        renderTemplate("suppressions/pii-allowlist.json.ejs", data),
-        { skipIfExists: true },
-      ),
-      writeFile(
-        resolvedPath(base, "suppressions", "archunit-baseline.json"),
-        renderTemplate("suppressions/archunit-baseline.json.ejs", data),
-        { skipIfExists: true },
-      ),
-      // Arbiter-managed files — always regenerate to pick up gate script changes
-      writeFile(
-        resolvedPath(base, "suppressions", "suppressions-schema.json"),
-        renderTemplate("suppressions/suppressions-schema.json.ejs", data),
-        { skipIfExists: false },
-      ),
-      writeFile(
-        resolvedPath(base, "scripts", "check-suppressions.mjs"),
-        renderTemplate("scripts/check-suppressions.mjs.ejs", data),
-        { skipIfExists: false },
-      ),
-    ],
-  };
+    );
+  }
+
+  return { files: results };
 }

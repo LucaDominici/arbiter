@@ -43,7 +43,7 @@ function runGate(dir: string): { status: number; output: string } {
     encoding: "utf-8",
     cwd: dir,
     timeout: 120_000,
-    env: { ...process.env, CI: "1" },
+    env: { ...process.env, CI: "true" },
   });
   return { status: r.status ?? 1, output: (r.stdout ?? "") + (r.stderr ?? "") };
 }

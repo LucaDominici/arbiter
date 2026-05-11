@@ -11,7 +11,10 @@ plugins {
 
 dependencyCheck {
     failBuildOnCVSS = 7.0f
-    suppressionFile = 'suppressions/dependency-check-suppressions.xml'
+    suppressionFiles = [
+        'suppressions/dependency-check-suppressions.xml',
+        'suppressions/owasp-suppressions.xml',
+    ]
     format = 'HTML'
     outputDirectory = 'build/reports/dependency-check'
     nvd {

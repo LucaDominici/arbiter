@@ -67,4 +67,55 @@ describe("generateRoot", () => {
     expect(content).toContain("root-proj");
     expect(content).toContain("npm test");
   });
+
+  it("emits CODEOWNERS with security paths at L2 (#204)", () => {
+    const result = generateRoot(
+      makeConfig(dir, { githubOwner: "owner", governanceLevel: "L2" }),
+    );
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("CODEOWNERS"))).toBe(true);
+    const content = readFileSync(join(dir, ".github", "CODEOWNERS"), "utf-8");
+    expect(content).toContain(".github/workflows/");
+  });
+
+  it("generates commitlint.config.js (#202)", () => {
+    const result = generateRoot(makeConfig(dir));
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("commitlint.config.js"))).toBe(true);
+  });
+
+  it("skipIfExists on commitlint.config.js (#202)", () => {
+    const commitlintPath = join(dir, "commitlint.config.js");
+    writeFileSync(commitlintPath, "// custom content");
+    const result = generateRoot(makeConfig(dir));
+    const entry = result.files.find((f) =>
+      f.path.endsWith("commitlint.config.js"),
+    );
+    expect(entry?.action).toBe("skipped");
+    expect(readFileSync(commitlintPath, "utf-8")).toBe("// custom content");
+  });
+
+  it("skipIfExists on .editorconfig (#205, CANON-11)", () => {
+    const editorconfigPath = join(dir, ".editorconfig");
+    writeFileSync(editorconfigPath, "# custom editorconfig");
+    const result = generateRoot(makeConfig(dir));
+    const entry = result.files.find((f) => f.path.endsWith(".editorconfig"));
+    expect(entry?.action).toBe("skipped");
+    expect(readFileSync(editorconfigPath, "utf-8")).toBe(
+      "# custom editorconfig",
+    );
+  });
+
+  it("emits .editorconfig with TS language override (#205)", () => {
+    generateRoot(makeConfig(dir, { language: "typescript" }));
+    const content = readFileSync(join(dir, ".editorconfig"), "utf-8");
+    expect(content).toContain("[*.{ts,tsx,js,jsx}]");
+  });
+
+  it("emits .editorconfig with Go tab override (#205)", () => {
+    generateRoot(makeConfig(dir, { language: "go" }));
+    const content = readFileSync(join(dir, ".editorconfig"), "utf-8");
+    expect(content).toContain("[*.go]");
+    expect(content).toContain("indent_style = tab");
+  });
 });

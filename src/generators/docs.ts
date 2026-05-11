@@ -26,5 +26,29 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     ),
   );
 
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "SECURE_CODING_CHECKLIST.md"),
+      renderTemplate("docs/SECURE_CODING_CHECKLIST.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "CODING_STANDARDS.md"),
+      renderTemplate("docs/CODING_STANDARDS.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "MASTER_TEST_PLAN.md"),
+      renderTemplate("docs/MASTER_TEST_PLAN.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }

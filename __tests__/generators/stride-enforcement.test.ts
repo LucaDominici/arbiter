@@ -30,9 +30,51 @@ describe("generateStrideEnforcement", () => {
     cleanupTestProject(dir);
   });
 
-  it("generates 3 files", () => {
+  it("generates 3 files at L2 (default)", () => {
     const config = makeConfig(dir);
     expect(generateStrideEnforcement(config).files).toHaveLength(3);
+  });
+
+  it("generates 4 files at L3", () => {
+    const config = makeConfig(dir, { governanceLevel: "L3" });
+    expect(generateStrideEnforcement(config).files).toHaveLength(4);
+  });
+
+  it("generates docs/SECURITY/RISK_ASSESSMENT.md at L3", () => {
+    generateStrideEnforcement(makeConfig(dir, { governanceLevel: "L3" }));
+    expect(
+      existsSync(join(dir, "docs", "SECURITY", "RISK_ASSESSMENT.md")),
+    ).toBe(true);
+  });
+
+  it("does NOT generate RISK_ASSESSMENT.md at L1", () => {
+    generateStrideEnforcement(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(
+      existsSync(join(dir, "docs", "SECURITY", "RISK_ASSESSMENT.md")),
+    ).toBe(false);
+  });
+
+  it("does NOT generate RISK_ASSESSMENT.md at L2", () => {
+    generateStrideEnforcement(makeConfig(dir));
+    expect(
+      existsSync(join(dir, "docs", "SECURITY", "RISK_ASSESSMENT.md")),
+    ).toBe(false);
+  });
+
+  it("skipIfExists on RISK_ASSESSMENT.md (CANON-11)", () => {
+    // Pre-write a file to simulate existing content
+    const riskPath = join(dir, "docs", "SECURITY", "RISK_ASSESSMENT.md");
+    mkdirSync(join(dir, "docs", "SECURITY"), { recursive: true });
+    writeFileSync(riskPath, "EXISTING");
+    // Run generator at L3
+    const result = generateStrideEnforcement(
+      makeConfig(dir, { governanceLevel: "L3" }),
+    );
+    const riskFile = result.files.find((f) =>
+      f.path.endsWith("RISK_ASSESSMENT.md"),
+    );
+    expect(riskFile?.action).toBe("skipped");
+    expect(readFileSync(riskPath, "utf-8")).toBe("EXISTING");
   });
 
   it("generates docs/SECURITY/STRIDE.md", () => {

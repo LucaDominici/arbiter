@@ -289,7 +289,7 @@ describe("generateCheckAll", () => {
       "utf-8",
     );
     expect(content).toContain("ENOENT");
-    expect(content).toContain("binary not found");
+    expect(content).toContain("command not found");
   });
 
   it("generated script includes grace guard block reading arbiter.json", () => {
@@ -310,7 +310,7 @@ describe("generateCheckAll", () => {
       join(dir, "scripts", "check-all.mjs"),
       "utf-8",
     );
-    expect(content).toContain("WARN (grace period)");
+    expect(content).toContain("WARN (grace period,");
   });
 
   it("generated L2 audit call passes soft option", () => {

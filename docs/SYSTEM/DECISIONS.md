@@ -185,6 +185,20 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
+## ADR-038: Add commitlint.config.js.ejs template and wire into root generator (#202)
+
+**Date:** 2026-05-11
+**Status:** Accepted
+**Reference:** Issue #202
+
+**Context:** `src/generators/githooks.ts` emits `commit-msg` and `pre-push` hooks to target projects that reference commitlint, but no `commitlint.config.js.ejs` template existed. Generated target projects were referencing commitlint without shipping the configuration file that defines the ruleset.
+
+**Decision:** Add `src/templates/root/commitlint.config.js.ejs` with a static `@commitlint/config-conventional` config (no EJS variables — pure static content). Wire emission via `src/generators/root.ts` for all projects (no language or governance gate) using `skipIfExists: true` for brownfield safety. Add CANON-04-required render test at `__tests__/templates/commitlint-render.test.ts` and CANON-05-required generator tests in `__tests__/generators/root.test.ts`.
+
+**Consequences:** All generated target projects now receive a `commitlint.config.js` that correctly configures the commit-msg hook already emitted by githooks.ts. Brownfield projects with a custom config are unaffected (skipIfExists). Gate passes with no regressions.
+
+---
+
 ## ADR-037: Batch gap-fill #127–#161 — publicApiSurface, static hooks, L3 fixtures, unused-exports, formatter configs, frontend-spa boundaries, Go mutation omission, classify-changes L2
 
 **Date:** 2026-05-11

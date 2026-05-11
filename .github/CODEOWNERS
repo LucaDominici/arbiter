@@ -1,1 +1,10 @@
 * @LucaDominici
+# Security-sensitive paths require owner approval
+.github/workflows/ @LucaDominici
+.githooks/ @LucaDominici
+scripts/check-all.mjs @LucaDominici
+AGENTS.md @LucaDominici
+# Governance and security documentation
+docs/SECURITY/ @LucaDominici
+docs/GOVERNANCE/ @LucaDominici
+docs/SECURE_CODING_CHECKLIST.md @LucaDominici
