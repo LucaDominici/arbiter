@@ -306,3 +306,88 @@ describe("matrix: Go project", () => {
     });
   });
 });
+
+// ── Go has no mutation gate (go-mutesting = unsafe in matrix) ────────────────
+
+describe("matrix: Go mutation omission (go-mutesting = unsafe)", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = createTestProject("go");
+    initGit(dir);
+  });
+
+  afterEach(() => {
+    cleanupTestProject(dir);
+  });
+
+  function goMutConfig(
+    overrides: Partial<Parameters<typeof makeConfig>[1]> = {},
+  ) {
+    return makeConfig(dir, {
+      language: "go",
+      framework: null,
+      buildTool: "go",
+      buildCommand: "go build ./...",
+      testCommand: "go test ./...",
+      lintCommand: "golangci-lint run",
+      formatCommand: "gofmt -l .",
+      tools: ["claude"],
+      useGitHub: true,
+      githubOwner: "test-owner",
+      githubRepo: "test-repo",
+      languageHooks: getLanguageHooks("go"),
+      ...overrides,
+    });
+  }
+
+  it("check-all.mjs does NOT reference go-mutesting at L1", () => {
+    const config = goMutConfig({ governanceLevel: "L1" });
+    runGenerators(config);
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("go-mutesting");
+    expect(content).not.toContain("mutesting");
+  });
+
+  it("check-all.mjs does NOT reference go-mutesting at L2", () => {
+    const config = goMutConfig({ governanceLevel: "L2" });
+    runGenerators(config);
+    const content = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(content).not.toContain("go-mutesting");
+    expect(content).not.toContain("mutesting");
+  });
+
+  it("throws unsafe error at L3 even with acceptBetaTools (go-mutesting = unsafe, not beta)", () => {
+    const config = goMutConfig({
+      governanceLevel: "L3",
+      acceptBetaTools: true,
+    });
+    expect(() => runGenerators(config)).toThrow(/unsafe/i);
+  });
+
+  it("no go-mutesting config file emitted at L1", () => {
+    runGenerators(goMutConfig({ governanceLevel: "L1" }));
+    expect(existsSync(join(dir, "go-mutesting.toml"))).toBe(false);
+    expect(existsSync(join(dir, ".go-mutesting"))).toBe(false);
+  });
+
+  it("no go-mutesting config file emitted at L2", () => {
+    runGenerators(goMutConfig({ governanceLevel: "L2" }));
+    expect(existsSync(join(dir, "go-mutesting.toml"))).toBe(false);
+    expect(existsSync(join(dir, ".go-mutesting"))).toBe(false);
+  });
+
+  it("throws unsafe error at L3 — go-mutesting is abandoned upstream, --accept-beta-tools does not override", () => {
+    expect(() =>
+      runGenerators(
+        goMutConfig({ governanceLevel: "L3", acceptBetaTools: true }),
+      ),
+    ).toThrow(/unsafe/i);
+  });
+});
