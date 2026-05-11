@@ -79,7 +79,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-24:** Gate must pass before commit: `node scripts/check-all.mjs L1`
 - **INV-25:** Gate must pass before push: `node scripts/check-all.mjs L2`
 - **INV-26:** TDD mandatory — test first, then implement
-- **INV-31:** Suppressions must have mandatory expiry
+- **INV-31:** Suppressions (file-based AND inline arbiter-suppress directives) must have mandatory expiry, reason, and owner
 - **INV-32:** Every 'proven' language must have a nightly real-project fixture
 - **INV-36:** Hook hardness manifest — every hook must declare intent; HARD hooks must empirically block
 - **INV-37:** Generated githooks

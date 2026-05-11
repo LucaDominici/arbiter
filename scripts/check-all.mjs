@@ -15,13 +15,18 @@ const level = process.argv[2] ?? "L2";
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes per check
 let failed = 0;
 
-function runCheck(name, cmd, args, timeoutMs = DEFAULT_TIMEOUT_MS) {
+// When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
+// git-dependent checks (commitlint, docs) must run from the original repo path.
+const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD;
+
+function runCheck(name, cmd, args, timeoutMs = DEFAULT_TIMEOUT_MS, opts = {}) {
   const start = Date.now();
   process.stdout.write(`[CHECK] ${name} ... `);
   const r = spawnSync(cmd, args, {
     encoding: "utf-8",
     shell: false,
     timeout: timeoutMs,
+    ...(opts.cwd ? { cwd: opts.cwd } : {}),
   });
   const elapsed = Date.now() - start;
 
@@ -70,18 +75,23 @@ runCheck("circular deps", "npx", [
 ]);
 runCheck("placeholders", "node", ["scripts/check-no-placeholders.mjs", "src"]);
 runCheck("orphan TODOs", "node", ["scripts/check-no-orphan-todo.mjs"]);
-runCheck("commitlint", "npx", [
-  "commitlint",
-  "--from",
-  "origin/main",
-  "--to",
-  "HEAD",
+runCheck("inline suppressions", "node", [
+  "scripts/check-inline-suppressions.mjs",
 ]);
+runCheck(
+  "commitlint",
+  "npx",
+  ["commitlint", "--from", "origin/main", "--to", "HEAD"],
+  DEFAULT_TIMEOUT_MS,
+  { cwd: GIT_CWD },
+);
 runCheck("test naming", "node", ["scripts/check-test-naming.mjs"]);
 runCheck("hardness inventory", "node", [
   "scripts/check-hardness-inventory.mjs",
 ]);
-runCheck("docs", "node", ["scripts/check-docs.mjs"]);
+runCheck("docs", "node", ["scripts/check-docs.mjs"], DEFAULT_TIMEOUT_MS, {
+  cwd: GIT_CWD,
+});
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {
