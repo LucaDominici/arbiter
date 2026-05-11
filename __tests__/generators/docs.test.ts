@@ -142,3 +142,26 @@ describe("generateDocs — ISO27001_ANNEX_A (#217)", () => {
     ).toBe(false);
   });
 });
+
+describe("generateDocs — POST_MERGE_REVIEW_TEMPLATE (#218)", () => {
+  it("emits docs/testing/POST_MERGE_REVIEW_TEMPLATE.md at L2", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(
+      existsSync(join(dir, "docs", "testing", "POST_MERGE_REVIEW_TEMPLATE.md")),
+    ).toBe(true);
+  });
+
+  it("emits docs/testing/POST_MERGE_REVIEW_TEMPLATE.md at L3", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L3" }));
+    expect(
+      existsSync(join(dir, "docs", "testing", "POST_MERGE_REVIEW_TEMPLATE.md")),
+    ).toBe(true);
+  });
+
+  it("does not emit POST_MERGE_REVIEW_TEMPLATE.md at L1", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(
+      existsSync(join(dir, "docs", "testing", "POST_MERGE_REVIEW_TEMPLATE.md")),
+    ).toBe(false);
+  });
+});

@@ -50,6 +50,14 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     ),
   );
 
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "testing", "POST_MERGE_REVIEW_TEMPLATE.md"),
+      renderTemplate("docs/POST_MERGE_REVIEW_TEMPLATE.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   if (config.governanceLevel === "L3") {
     results.push(
       writeFile(
