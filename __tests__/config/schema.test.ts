@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  validateConfig,
-  migrateV1ToV2,
-  DEFAULT_THRESHOLDS,
-} from "../../src/config/schema.js";
+import { validateConfig, DEFAULT_THRESHOLDS } from "../../src/config/schema.js";
+import { migrateV1ToV2 } from "../../src/config/migrations/v1-to-v2.js";
 
 describe("validateConfig — valid v2", () => {
   it("accepts a well-formed v2 config", () => {

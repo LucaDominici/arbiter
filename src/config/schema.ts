@@ -15,16 +15,6 @@ import type {
 
 export type { ThresholdsV2 };
 
-let _useGitHubWarnEmitted = false;
-
-function warnUseGitHubDeprecated(): void {
-  if (_useGitHubWarnEmitted) return;
-  _useGitHubWarnEmitted = true;
-  process.stderr.write(
-    '[arbiter] Warning: `useGitHub` is deprecated. Use `decomposition.backend: "github"|"markdown"` instead.\n',
-  );
-}
-
 export interface FeatureFlags {
   contractTesting: boolean;
   mutationTesting: boolean;
@@ -237,101 +227,4 @@ function validateDecomposition(raw: unknown, errors: string[]): void {
       `decomposition.backend must be "github" or "markdown" — got ${typeof backend === "string" ? backend : JSON.stringify(backend)}`,
     );
   }
-}
-
-interface LegacyEvidenceRetention {
-  enabled?: boolean;
-}
-
-function deriveEvidenceHarness(
-  evidenceRetention: unknown,
-  level: string,
-): boolean {
-  if (isRecord(evidenceRetention)) {
-    const legacy = evidenceRetention as LegacyEvidenceRetention;
-    if (typeof legacy.enabled === "boolean") {
-      return legacy.enabled;
-    }
-  }
-  return level === "L3";
-}
-
-function applyDecompositionAlias(cfg: ArbiterConfigV2): ArbiterConfigV2 {
-  if (cfg.decomposition?.backend) return cfg;
-  warnUseGitHubDeprecated();
-  const backend: DecompositionBackendId = cfg.useGitHub ? "github" : "markdown";
-  return { ...cfg, decomposition: { backend } };
-}
-
-export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
-  if (!isRecord(raw)) {
-    throw new Error("arbiter.json must be a non-null object");
-  }
-
-  if (raw["version"] === "0.2") {
-    const result = validateConfig(raw);
-    if (result.ok) return applyDecompositionAlias(result.config);
-    throw new Error(
-      `arbiter.json v0.2 is invalid: ${result.errors.join("; ")}`,
-    );
-  }
-
-  const rawLevel = raw["governanceLevel"];
-  const level: GovernanceLevel =
-    rawLevel === "L1" || rawLevel === "L2" || rawLevel === "L3"
-      ? rawLevel
-      : "L2";
-  const nonL1 = level !== "L1";
-
-  const features: FeatureFlags = {
-    debtGates:
-      typeof raw["enableDebtGates"] === "boolean"
-        ? raw["enableDebtGates"]
-        : nonL1,
-    securityScanning:
-      typeof raw["enableSecurityScanning"] === "boolean"
-        ? raw["enableSecurityScanning"]
-        : nonL1,
-    suppressions:
-      typeof raw["enableSuppressions"] === "boolean"
-        ? raw["enableSuppressions"]
-        : true,
-    mutationTesting: nonL1,
-    contractTesting:
-      typeof raw["contractType"] === "string" && raw["contractType"] !== "none",
-    evidenceHarness: deriveEvidenceHarness(raw["evidenceRetention"], level),
-  };
-
-  const thresholds: ThresholdsV2 = DEFAULT_THRESHOLDS[level];
-
-  const stripKeys = new Set([
-    "version",
-    "enableDebtGates",
-    "enableSecurityScanning",
-    "enableSuppressions",
-  ]);
-  const rest = Object.fromEntries(
-    Object.entries(raw).filter(([k]) => !stripKeys.has(k)),
-  );
-
-  const useGitHub =
-    typeof raw["useGitHub"] === "boolean" ? raw["useGitHub"] : false;
-  const migratedBackend: DecompositionBackendId = useGitHub
-    ? "github"
-    : "markdown";
-
-  return {
-    ...rest,
-    version: "0.2",
-    tools: Array.isArray(raw["tools"])
-      ? (raw["tools"] as unknown[]).filter((t): t is AiTool =>
-          AI_TOOLS.has(t as string),
-        )
-      : (["claude", "codex"] as AiTool[]),
-    governanceLevel: level,
-    useGitHub,
-    decomposition: { backend: migratedBackend },
-    features,
-    thresholds,
-  };
 }
