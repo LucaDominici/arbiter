@@ -6,7 +6,8 @@ import { execSync } from "node:child_process";
 
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 if (!file || !existsSync(file)) process.exit(0);
-if (!file.endsWith(".ts") && !file.endsWith(".tsx")) process.exit(0);
+const TS_EXTS = [".ts", ".tsx", ".mts", ".cts"];
+if (!TS_EXTS.some((ext) => file.endsWith(ext))) process.exit(0);
 
 let raw = "";
 try {
@@ -15,7 +16,14 @@ try {
     { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 60_000 },
   );
 } catch (e) {
-  raw = e && typeof e === "object" && "stdout" in e ? String(e.stdout) : "";
+  const err = e && typeof e === "object" ? e : {};
+  if ("code" in err && err.code === "ENOENT") {
+    process.stderr.write(
+      "[check-no-unused-exports] knip not found — skipping. Run: npm install knip\n",
+    );
+    process.exit(0);
+  }
+  raw = "stdout" in err && err.stdout != null ? String(err.stdout) : "";
 }
 
 if (!raw.trim()) process.exit(0);
@@ -27,7 +35,9 @@ try {
   process.exit(0);
 }
 
-const fileIssues = (report?.issues ?? []).filter(
+if (!Array.isArray(report?.issues)) process.exit(0);
+
+const fileIssues = report.issues.filter(
   (f) => (f.exports?.length ?? 0) + (f.types?.length ?? 0) > 0,
 );
 if (fileIssues.length === 0) process.exit(0);

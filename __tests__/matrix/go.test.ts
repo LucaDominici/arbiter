@@ -214,6 +214,16 @@ describe("matrix: Go project", () => {
     expect(checkAll).toContain("'-l'");
   });
 
+  it("generates check-no-placeholders.mjs static hook for Go (#151 always-on)", () => {
+    const config = goConfig();
+    runGenerators(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-placeholders.mjs")),
+    ).toBe(true);
+    const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("check-no-placeholders.mjs");
+  });
+
   describe("hexagonal architecture variant", () => {
     function hexConfig() {
       return goConfig({ architectureStyle: "hexagonal" });

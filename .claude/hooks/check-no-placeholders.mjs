@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Claude hook: blocks placeholder patterns in files being written/edited.
-// Reads the file path from CLAUDE_TOOL_INPUT (JSON with file_path field).
-import { readFileSync } from "node:fs";
+// Fires on: PostToolUse → Edit|Write
+import { readFileSync, existsSync } from "node:fs";
 
 const PATTERNS = [
   { re: /\bPLACEHOLDER\b/i, label: "PLACEHOLDER" },
@@ -18,22 +18,12 @@ const PATTERNS = [
   { re: /\b(xit|xdescribe|xtest)\s*\(/, label: "xit/xdescribe/xtest" },
 ];
 
-const inputPath = process.env["CLAUDE_TOOL_INPUT_PATH"];
-if (!inputPath) process.exit(0);
-
-let input;
-try {
-  input = JSON.parse(readFileSync(inputPath, "utf-8"));
-} catch {
-  process.exit(0);
-}
-
-const filePath = input["file_path"] ?? input["path"];
-if (!filePath || typeof filePath !== "string") process.exit(0);
+const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
+if (!file || !existsSync(file)) process.exit(0);
 
 let content;
 try {
-  content = readFileSync(filePath, "utf-8");
+  content = readFileSync(file, "utf-8");
 } catch {
   process.exit(0);
 }
@@ -52,7 +42,7 @@ for (let i = 0; i < lines.length; i++) {
 }
 
 if (found.length > 0) {
-  console.error(`Placeholder patterns found in ${filePath}:`);
+  console.error(`Placeholder patterns found in ${file}:`);
   for (const msg of found) console.error(msg);
   console.error(
     "\nRemove placeholder/WIP/disabled-test patterns before saving.",

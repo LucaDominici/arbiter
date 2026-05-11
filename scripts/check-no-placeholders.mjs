@@ -31,11 +31,22 @@ const baseDir = process.cwd();
 let violations = 0;
 
 function scan(dir) {
-  for (const entry of readdirSync(dir)) {
+  let entries;
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
     if (SKIP_DIRS.has(entry)) continue;
     const full = join(dir, entry);
     if (SKIP_PATHS.has(relative(baseDir, full))) continue;
-    const stat = statSync(full);
+    let stat;
+    try {
+      stat = statSync(full);
+    } catch {
+      continue;
+    }
     if (stat.isDirectory()) {
       scan(full);
     } else if (EXTENSIONS.has(full.slice(full.lastIndexOf(".")))) {
@@ -45,7 +56,12 @@ function scan(dir) {
 }
 
 function scanFile(filePath) {
-  const content = readFileSync(filePath, "utf-8");
+  let content;
+  try {
+    content = readFileSync(filePath, "utf-8");
+  } catch {
+    return;
+  }
   const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];

@@ -225,6 +225,22 @@ describe("generateClaude", () => {
     expect(raw).not.toContain("check-no-unused-exports.mjs");
   });
 
+  it("check-no-unused-exports.mjs is NOT emitted for Java (#156)", () => {
+    const config = makeConfig(dir, { language: "java" });
+    generateClaude(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-unused-exports.mjs")),
+    ).toBe(false);
+  });
+
+  it("check-no-unused-exports.mjs is NOT emitted for Python (#156)", () => {
+    const config = makeConfig(dir, { language: "python" });
+    generateClaude(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-unused-exports.mjs")),
+    ).toBe(false);
+  });
+
   it("guard-task-completion is wired in settings.json UserPromptSubmit at L2", () => {
     const config = makeConfig(dir, { governanceLevel: "L2" });
     generateClaude(config);
