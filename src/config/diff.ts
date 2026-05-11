@@ -30,6 +30,7 @@ export type GeneratorKey =
   | "evidence-retention"
   | "test-taxonomy"
   | "behavioral-tests"
+  | "playwright-python"
   | "ssot"
   | "githooks";
 

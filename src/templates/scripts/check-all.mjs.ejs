@@ -172,6 +172,9 @@ if (level === 'L2') {
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
   runCheck('integration tests', 'pytest', ['tests/integration/'], { soft: graceActive });
 <% } %>
+<% if (archetype === 'frontend-spa' || archetype === 'backend-web-db') { %>
+  runCheck('e2e', 'pytest', ['tests/e2e/'], { soft: graceActive });
+<% } %>
 <% } %>
 <% if (enableDebtGates) { %>
   // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────

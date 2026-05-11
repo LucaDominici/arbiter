@@ -166,13 +166,13 @@ describe("build-matrix.mjs", () => {
     }
   });
 
-  it("produces 31 entries for the real fixture set", () => {
+  it("produces 33 entries for the real fixture set", () => {
     const fixturesDir = resolve("__tests__/fixtures/real-projects");
     const result = run(fixturesDir);
     expect(result.status).toBe(0);
     const line = result.stdout.split("\n").find((l) => l.startsWith("matrix="));
     const json = JSON.parse(line!.replace("matrix=", ""));
-    // 14 fixtures × 2 levels each = 28; multi-lane-fe-be adds 3 levels = 31
-    expect(json.include).toHaveLength(31);
+    // 15 fixtures × 2 levels each = 30; multi-lane-fe-be adds 3 levels = 33
+    expect(json.include).toHaveLength(33);
   });
 });

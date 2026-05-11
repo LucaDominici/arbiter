@@ -136,3 +136,27 @@ describe("check-all.mjs.ejs rendering — BDD gate (#361)", () => {
     expect(content).toContain("soft: false");
   });
 });
+
+describe("check-all.mjs.ejs rendering — Python e2e gate (#366)", () => {
+  it("Python frontend-spa: emits pytest e2e runCheck", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "python",
+      archetype: "frontend-spa",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("runCheck('e2e', 'pytest', ['tests/e2e/']");
+  });
+
+  it("Python library: does NOT emit pytest e2e runCheck", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "python",
+      archetype: "library",
+      governanceLevel: "L2",
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).not.toContain("runCheck('e2e', 'pytest', ['tests/e2e/']");
+  });
+});

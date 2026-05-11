@@ -169,4 +169,18 @@ describe("real-project fixture regressions", () => {
       ),
     ).toBe(true);
   });
+
+  it("python-backend-web fixture has pytest-playwright dep and e2e test", () => {
+    const pyproject = readFixture(
+      "__tests__/fixtures/real-projects/python-backend-web/pyproject.toml",
+    );
+    expect(pyproject).toContain("pytest-playwright");
+    expect(
+      existsSync(
+        resolve(
+          "__tests__/fixtures/real-projects/python-backend-web/tests/e2e/test_smoke.py",
+        ),
+      ),
+    ).toBe(true);
+  });
 });
