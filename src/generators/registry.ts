@@ -197,7 +197,10 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: "playwright-python",
-      enabled: config.language === "python",
+      enabled:
+        config.language === "python" &&
+        (config.archetype === "frontend-spa" ||
+          config.archetype === "backend-web-db"),
       run: () => generatePlaywrightPython(config).files,
     },
     { key: "ssot", enabled: true, run: () => generateSsot(config).files },
