@@ -92,6 +92,7 @@ runCheck("hardness inventory", "node", [
 runCheck("docs", "node", ["scripts/check-docs.mjs"], DEFAULT_TIMEOUT_MS, {
   cwd: GIT_CWD,
 });
+runCheck("matrix fixtures", "node", ["scripts/check-matrix-fixtures.mjs"]);
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {

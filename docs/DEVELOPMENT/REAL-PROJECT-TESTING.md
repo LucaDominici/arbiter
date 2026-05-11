@@ -72,18 +72,27 @@ Three fields are required: `language`, `archetype`, and `levels`. `buildTool` is
 
 ## v1 Fixture Set
 
-| Fixture                      | Language   | Archetype      | Levels |
-| ---------------------------- | ---------- | -------------- | ------ |
-| `ts-library`                 | typescript | library        | L1, L2 |
-| `ts-backend-web-db`          | typescript | backend-web-db | L1, L2 |
-| `ts-frontend-spa`            | typescript | frontend-spa   | L1, L2 |
-| `java-library-gradle`        | java       | library        | L1, L2 |
-| `java-backend-web-db-gradle` | java       | backend-web-db | L1, L2 |
-| `rust-library`               | rust       | library        | L1, L2 |
-| `go-library`                 | go         | library        | L1, L2 |
-| `python-library`             | python     | library        | L1, L2 |
+| Fixture                      | Language   | Archetype      | Levels     |
+| ---------------------------- | ---------- | -------------- | ---------- |
+| `ts-library`                 | typescript | library        | L1, L2     |
+| `ts-backend-web-db`          | typescript | backend-web-db | L1, L2     |
+| `ts-frontend-spa`            | typescript | frontend-spa   | L1, L2     |
+| `java-library-gradle`        | java       | library        | L1, L2     |
+| `java-backend-web-db-gradle` | java       | backend-web-db | L1, L2     |
+| `rust-library`               | rust       | library        | L1, L2     |
+| `rust-cli`                   | rust       | cli            | L1, L2, L3 |
+| `rust-embedded`              | rust       | embedded       | L1         |
+| `go-library`                 | go         | library        | L1, L2     |
+| `python-library`             | python     | library        | L1, L2     |
+| `python-data-pipeline`       | python     | data-pipeline  | L1, L2, L3 |
 
-8 fixtures × 2 levels = 16 matrix jobs. The aggregate step requires ≥10 to pass.
+11 fixtures (with varying levels) = 25 matrix jobs. The aggregate step requires ≥10 to pass.
+
+Notes on archetype-specific fixtures:
+
+- `rust-embedded`: `#![no_std]` library for Cortex-M targets (`thumbv7em-none-eabihf`). L1 only — cross-compilation requires `rustup target add thumbv7em-none-eabihf`. Tests run with the native toolchain via `#![cfg_attr(not(test), no_std)]`.
+- `rust-cli`: binary crate with `clap` arg parsing. Buildable with stable Rust toolchain.
+- `python-data-pipeline`: ETL module (read → transform → emit) with pytest. No build tool (`buildTool: null`).
 
 ---
 

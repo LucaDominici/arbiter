@@ -1,0 +1,8 @@
+{
+  "language": "rust",
+  "archetype": "embedded",
+  "buildTool": "cargo",
+  "levels": ["L1"],
+  "note": "Minimal no_std Rust library for embedded targets (cortex-m). Build requires: rustup target add thumbv7em-none-eabihf. L1 only: cargo check --target thumbv7em-none-eabihf.",
+  "embeddedTarget": "thumbv7em-none-eabihf"
+}

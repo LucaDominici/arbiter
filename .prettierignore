@@ -1,0 +1,5 @@
+node_modules/
+dist/
+coverage/
+__tests__/fixtures/real-projects/**/target/
+__tests__/fixtures/real-projects/**/.pytest_cache/

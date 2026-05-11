@@ -57,6 +57,8 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-11:** No secrets in source code
 - **INV-12:** No PII in code, tests, or logs
 - **INV-13:** Dependencies scanned for known vulnerabilities
+- **INV-14:** No dynamic code execution with untrusted input — no `eval`/`exec`/shell with user data
+- **INV-15:** Authentication required at every entry point — default-deny, explicit ADR to opt out
 
 ### Tier 4: Operational Excellence
 
@@ -70,6 +72,8 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-41:** Message-queue contract tests must call Schema Registry testCompatibility
 - **INV-42:** Pact broker glue must be env-gated — no silent runs against default URL
 - **INV-43:** OpenAPI exporter must run before diff; missing reference is HARD-fail
+- **INV-29:** No MockMvc — use RestAssured for Java integration tests (Java)
+- **INV-30:** Mutation testing required — PIT/pitest for Java projects (L2+)
 
 ### Tier 5: Governance
 
@@ -84,6 +88,10 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-36:** Hook hardness manifest — every hook must declare intent; HARD hooks must empirically block
 - **INV-37:** Generated githooks
 - **INV-38:** Phase-tracked lifecycle enforcement
+- **INV-39:** Hook templates require empirical fire-tests in `__tests__/hooks/empirical/`
+- **INV-27:** Evidence artifacts must be generated for all L3 gate runs (CI evidence collection step)
+- **INV-28:** SSOT documents must not contradict — run drift check before L3 merge
+- **INV-33:** L3 merges require valid evidence bundle with `obs_gate == PASS`
 
 ---
 
