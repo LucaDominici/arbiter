@@ -2,6 +2,6 @@
   "language": "java",
   "archetype": "backend-web-db",
   "buildTool": "gradle",
-  "levels": ["L1", "L2"],
+  "levels": ["L1", "L2", "L3"],
   "note": "Java BDD fixture with cucumber-jvm JUnit5 suite"
 }
