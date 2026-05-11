@@ -93,3 +93,29 @@ describe("generateDocs — CODING_STANDARDS (#206)", () => {
     expect(readFileSync(target, "utf8")).toBe("PREEXISTING");
   });
 });
+
+describe("generateDocs — MASTER_TEST_PLAN (#209)", () => {
+  it("emits MASTER_TEST_PLAN.md at L2", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(existsSync(join(dir, "docs", "MASTER_TEST_PLAN.md"))).toBe(true);
+  });
+
+  it("emits MASTER_TEST_PLAN.md at L3", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L3" }));
+    expect(existsSync(join(dir, "docs", "MASTER_TEST_PLAN.md"))).toBe(true);
+  });
+
+  it("does not emit MASTER_TEST_PLAN.md at L1", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(existsSync(join(dir, "docs", "MASTER_TEST_PLAN.md"))).toBe(false);
+  });
+
+  it("skipIfExists on docs/MASTER_TEST_PLAN.md (#209, CANON-11)", () => {
+    const docsDir = join(dir, "docs");
+    mkdirSync(docsDir, { recursive: true });
+    const target = join(docsDir, "MASTER_TEST_PLAN.md");
+    writeFileSync(target, "PREEXISTING");
+    generateDocs(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(readFileSync(target, "utf8")).toBe("PREEXISTING");
+  });
+});

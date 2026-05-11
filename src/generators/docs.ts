@@ -42,5 +42,13 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     ),
   );
 
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "MASTER_TEST_PLAN.md"),
+      renderTemplate("docs/MASTER_TEST_PLAN.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }
