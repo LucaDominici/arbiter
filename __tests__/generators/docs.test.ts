@@ -119,3 +119,26 @@ describe("generateDocs — MASTER_TEST_PLAN (#209)", () => {
     expect(readFileSync(target, "utf8")).toBe("PREEXISTING");
   });
 });
+
+describe("generateDocs — ISO27001_ANNEX_A (#217)", () => {
+  it("emits docs/SECURITY/ISO27001_ANNEX_A.md at L3", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L3" }));
+    expect(
+      existsSync(join(dir, "docs", "SECURITY", "ISO27001_ANNEX_A.md")),
+    ).toBe(true);
+  });
+
+  it("does not emit ISO27001_ANNEX_A.md at L2", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L2" }));
+    expect(
+      existsSync(join(dir, "docs", "SECURITY", "ISO27001_ANNEX_A.md")),
+    ).toBe(false);
+  });
+
+  it("does not emit ISO27001_ANNEX_A.md at L1", () => {
+    generateDocs(makeConfig(dir, { governanceLevel: "L1" }));
+    expect(
+      existsSync(join(dir, "docs", "SECURITY", "ISO27001_ANNEX_A.md")),
+    ).toBe(false);
+  });
+});

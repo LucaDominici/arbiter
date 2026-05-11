@@ -50,5 +50,15 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     ),
   );
 
+  if (config.governanceLevel === "L3") {
+    results.push(
+      writeFile(
+        resolvedPath(base, "docs", "SECURITY", "ISO27001_ANNEX_A.md"),
+        renderTemplate("docs/ISO27001_ANNEX_A.md.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
   return { files: results };
 }
