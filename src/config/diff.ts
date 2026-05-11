@@ -35,7 +35,8 @@ export type GeneratorKey =
   | "githooks"
   | "github-setup"
   | "docs"
-  | "api-middleware";
+  | "api-middleware"
+  | "seed";
 
 export interface ConfigDiff {
   paths: string[];
@@ -108,6 +109,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   "thresholds.methodLength": ["debt-gates"],
   "thresholds.maxParams": ["debt-gates"],
   invariantTiers: ["global-invariants", "agents-md"],
+  hasPublicApi: ["api-middleware"],
 };
 
 function diffLeaf(

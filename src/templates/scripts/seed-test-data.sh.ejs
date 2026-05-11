@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Deterministic test-data seed script — SHA-256 UUID namespacing + idempotent HTTP seeding.
+#
+# Usage:
+#   SEED_BASE_URL=http://localhost:8080 SEED_TOKEN=<jwt> ./scripts/seed-test-data.sh
+#
+# Requirements:
+#   - bash >= 4.0
+#   - curl
+#   - sha256sum (Linux) or shasum (macOS)
+#   - python3 (for JWT expiry check)
+#
+# Design:
+#   UUIDs are deterministic: gen_uuid("project-seed-v1-<entity>", <index>) always
+#   produces the same UUID across runs, enabling k6 scripts to hardcode entity IDs.
+#
+#   Idempotency: 201 Created → entity counted; 409 Conflict → silently skipped (safe
+#   to re-run). Any other HTTP status → logged and script exits non-zero.
+#
+# Known limitation:
+#   HTTP helpers buffer the full server response to /tmp/_seed_body.
+#   Responses using Transfer-Encoding: chunked are read in full before status
+#   is evaluated. For seed payloads (small JSON) this is safe; add
+#   --max-filesize to the curl call if guarding against runaway API responses.
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/seed-common.sh
+source "${SCRIPT_DIR}/lib/seed-common.sh"
+
+# ---------------------------------------------------------------------------
+# Configuration (override via environment)
+# ---------------------------------------------------------------------------
+SEED_BASE_URL="${SEED_BASE_URL:-http://localhost:8080}"
+SEED_TOKEN="${SEED_TOKEN:-}"
+SEED_NAMESPACE="${SEED_NAMESPACE:-project-seed-v1}"
+SEED_USER_COUNT="${SEED_USER_COUNT:-20}"
+SEED_ESTIMATED_RUN_SECONDS="${SEED_ESTIMATED_RUN_SECONDS:-120}"
+LOG_INTERVAL=50
+
+# ---------------------------------------------------------------------------
+# Pre-flight checks
+# ---------------------------------------------------------------------------
+if [ -z "$SEED_TOKEN" ]; then
+  echo "ERROR: SEED_TOKEN is required. Export a valid JWT before running." >&2
+  exit 1
+fi
+
+check_jwt_expiry "$SEED_TOKEN" "$SEED_ESTIMATED_RUN_SECONDS"
+check_connectivity "$SEED_BASE_URL"
+
+# ---------------------------------------------------------------------------
+# Seeding
+# ---------------------------------------------------------------------------
+created=0
+skipped=0
+failed=0
+
+seed_entity() {
+  local entity_type="$1" index="$2" body="$3"
+  local uuid
+  uuid=$(gen_uuid "${SEED_NAMESPACE}-${entity_type}" "$index")
+  http_post "/api/${entity_type}s" "$body"
+  case "$LAST_HTTP_STATUS" in
+    201) (( ++created )) ;;
+    409) (( ++skipped )) ;;
+    *)
+      echo "ERROR: POST /api/${entity_type}s index=${index} → HTTP ${LAST_HTTP_STATUS}: ${LAST_HTTP_BODY}" >&2
+      (( ++failed ))
+      ;;
+  esac
+  local total=$(( created + skipped + failed ))
+  if (( total % LOG_INTERVAL == 0 )); then
+    echo "Progress: ${total} processed (${created} created, ${skipped} skipped, ${failed} failed)"
+  fi
+}
+
+echo "Seeding ${SEED_USER_COUNT} users against ${SEED_BASE_URL}..."
+
+for i in $(seq 0 $(( SEED_USER_COUNT - 1 ))); do
+  uuid=$(gen_uuid "${SEED_NAMESPACE}-user" "$i")
+  seed_entity "user" "$i" "{\"id\":\"${uuid}\",\"name\":\"seed-user-${i}\",\"email\":\"seed-user-${i}@example.invalid\"}"
+done
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+total=$(( created + skipped + failed ))
+echo ""
+echo "Seed complete: ${total} entities processed"
+echo "  Created : ${created}"
+echo "  Skipped : ${skipped} (already existed — idempotent)"
+echo "  Failed  : ${failed}"
+
+if [ "$failed" -gt 0 ]; then
+  echo "ERROR: ${failed} entities failed to seed. Check logs above." >&2
+  exit 1
+fi

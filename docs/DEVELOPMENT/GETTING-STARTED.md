@@ -81,6 +81,8 @@ src/
     github.ts             # .github/ tree + branch protection + labels
     root.ts               # CODEOWNERS, SECURITY.md, CONTRIBUTING.md, .editorconfig
     check-all.ts          # scripts/check-all.mjs
+    api-middleware.ts     # payload-size-limit, deprecation, correlation-id (API archetype)
+    seed.ts               # scripts/seed-test-data.sh + lib/seed-common.sh (backend-web-db L2/L3)
   wizard/
     index.ts              # Interactive prompts (inquirer)
     defaults.ts           # --yes mode defaults

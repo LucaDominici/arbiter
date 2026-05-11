@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Shared helpers for seed scripts.
+# Source this file: source "$(dirname "$0")/lib/seed-common.sh"
+#
+# Portability: requires bash >= 4.0 and either sha256sum (Linux) or shasum (macOS).
+# NOTE: HTTP helpers use global vars (LAST_HTTP_STATUS / LAST_HTTP_BODY) to avoid
+# subshell variable-propagation issues. Always call as `http_post ...` (no command
+# substitution) and then read $LAST_HTTP_STATUS / $LAST_HTTP_BODY.
+
+# ---------------------------------------------------------------------------
+# SHA-256 probe (cross-platform)
+# ---------------------------------------------------------------------------
+if command -v sha256sum &>/dev/null; then
+  _sha256() { sha256sum; }
+elif command -v shasum &>/dev/null; then
+  _sha256() { shasum -a 256; }
+else
+  echo "ERROR: neither sha256sum nor shasum found. Install coreutils (Linux) or use macOS built-in shasum." >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# gen_uuid <namespace> <index>
+# Produces a deterministic, collision-safe UUID v4 from SHA-256 of "<namespace>-<index>".
+# RFC 4122 v4: version nibble = 4, variant nibble = 8 (binary 1000).
+# ---------------------------------------------------------------------------
+gen_uuid() {
+  local namespace="$1" index="$2"
+  local hash
+  hash=$(printf '%s-%s' "$namespace" "$index" | _sha256 | cut -c1-32)
+  printf '%s-%s-4%s-8%s-%s\n' \
+    "${hash:0:8}" "${hash:8:4}" "${hash:12:3}" "${hash:15:3}" "${hash:18:12}"
+}
+
+# ---------------------------------------------------------------------------
+# HTTP helpers — global output vars: LAST_HTTP_STATUS, LAST_HTTP_BODY
+# ---------------------------------------------------------------------------
+LAST_HTTP_STATUS=""
+LAST_HTTP_BODY=""
+
+http_post() {
+  local path="$1" body="$2"
+  LAST_HTTP_STATUS=$(curl -s -o /tmp/_seed_body -w "%{http_code}" \
+    -H "Authorization: Bearer ${SEED_TOKEN:-}" \
+    -H "Content-Type: application/json" \
+    -d "$body" \
+    "${SEED_BASE_URL}${path}")
+  LAST_HTTP_BODY=$(cat /tmp/_seed_body)
+}
+
+http_get() {
+  local path="$1"
+  LAST_HTTP_STATUS=$(curl -s -o /tmp/_seed_body -w "%{http_code}" \
+    -H "Authorization: Bearer ${SEED_TOKEN:-}" \
+    "${SEED_BASE_URL}${path}")
+  LAST_HTTP_BODY=$(cat /tmp/_seed_body)
+}
+
+# ---------------------------------------------------------------------------
+# check_jwt_expiry <token> <estimated_run_seconds>
+# Exits 1 if the JWT will expire before the estimated run completes.
+# Graceful pass-through if the token is not a valid JWT or has no exp claim.
+# ---------------------------------------------------------------------------
+check_jwt_expiry() {
+  local token="$1" estimated_run_seconds="$2"
+  local payload exp now remaining
+  command -v python3 &>/dev/null || { echo "WARNING: python3 not found, skipping JWT expiry check." >&2; return 0; }
+  payload=$(printf '%s' "$token" | cut -d. -f2 | tr -- '-_' '+/' | base64 -d 2>/dev/null || true)
+  [ -z "$payload" ] && return 0
+  exp=$(printf '%s' "$payload" | python3 -c \
+    "import sys,json; d=json.load(sys.stdin); print(d.get('exp',''))" 2>/dev/null || true)
+  [ -z "$exp" ] && return 0
+  now=$(date +%s)
+  remaining=$(( exp - now ))
+  if [ "$remaining" -lt "$estimated_run_seconds" ]; then
+    echo "WARNING: JWT expires in ${remaining}s but seed is estimated to take ${estimated_run_seconds}s. Re-fetch token before seeding." >&2
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# check_connectivity <url>
+# Exits 1 if the target URL is unreachable.
+# ---------------------------------------------------------------------------
+check_connectivity() {
+  local url="$1"
+  if ! curl -s --max-time 5 "$url" &>/dev/null; then
+    echo "ERROR: Cannot reach $url. Check SEED_BASE_URL and network." >&2
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# date_offset <days>
+# Prints an ISO-8601 date offset by <days> from today (positive = future).
+# ---------------------------------------------------------------------------
+date_offset() {
+  local days="$1"
+  if command -v gdate &>/dev/null; then
+    gdate -d "${days} days" +"%Y-%m-%d"
+  else
+    date -d "${days} days" +"%Y-%m-%d" 2>/dev/null \
+      || date -v "${days}d" +"%Y-%m-%d"
+  fi
+}
