@@ -28,7 +28,7 @@ describe("CODING_STANDARDS.md.ejs rendering (#206)", () => {
         TEMPLATE,
         cfg({ governanceLevel: "L2", language: "typescript" }),
       );
-      expect(out.toLowerCase()).toContain("any");
+      expect(out).toContain("No `any` type");
     });
 
     it("contains knip reference", () => {
@@ -174,6 +174,29 @@ describe("CODING_STANDARDS.md.ejs rendering (#206)", () => {
         cfg({ governanceLevel: "L2", language: "rust" }),
       );
       expect(out.toLowerCase()).toContain("clippy");
+    });
+  });
+
+  describe("unknown language L2", () => {
+    it("renders without EJS leaks", () => {
+      const out = renderTemplate(
+        TEMPLATE,
+        cfg({ governanceLevel: "L2", language: "unknown" }),
+      );
+      expect(out).not.toContain("<%");
+      expect(out).not.toContain("%>");
+    });
+
+    it("contains only the General section", () => {
+      const out = renderTemplate(
+        TEMPLATE,
+        cfg({ governanceLevel: "L2", language: "unknown" }),
+      );
+      expect(out).toContain("## General");
+      expect(out).not.toContain("SpotBugs");
+      expect(out).not.toContain("Knip");
+      expect(out).not.toContain("clippy");
+      expect(out).not.toContain("gofmt");
     });
   });
 
