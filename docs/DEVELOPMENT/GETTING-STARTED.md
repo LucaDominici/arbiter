@@ -91,7 +91,8 @@ src/
     fs.ts                 # writeFile, mergeSettingsJson, resolvedPath
     render.ts             # renderTemplate, renderString (EJS wrapper)
     config.ts             # save/load arbiter.json
-  templates/              # 32 template files (.ejs + static)
+  templates/              # EJS + static templates (230+ files across archetypes/languages/levels)
+    middleware/           # API middleware: payload-size-limit, correlation-id, deprecation, error-handler
 __tests__/
   detectors/              # Unit tests for each detector
   utils/                  # Unit tests for merge, config

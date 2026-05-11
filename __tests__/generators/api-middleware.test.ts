@@ -81,6 +81,20 @@ describe("generateApiMiddleware (#215)", () => {
     ).toBe(true);
   });
 
+  it("emits payload-size-limit.ts for TypeScript API projects (#222)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      hasPublicApi: true,
+    });
+    const result = generateApiMiddleware(config);
+    expect(
+      result.files.some((f) => f.path.endsWith("payload-size-limit.ts")),
+    ).toBe(true);
+    expect(
+      existsSync(join(dir, "src", "middleware", "payload-size-limit.ts")),
+    ).toBe(true);
+  });
+
   it("emits error-shape.contract.test.ts for TypeScript API projects (#220)", () => {
     const config = makeConfig(dir, {
       language: "typescript",
