@@ -576,7 +576,19 @@ jobs:
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-    needs: [lint-and-test, unit-tests, contract-tests, integration-tests, behavioral-tests<% if (enableSecurityScanning) { %>, security-early-fail<% } %><% if (governanceLevel !== 'L1') { %>, docs-check<% } %><% if (enableDebtGates) { %>, debt-gates, debt-ratchet<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>, contract-verify<% } %><% if (governanceLevel !== 'L1' || _multiLane) { %>, classify-changes<% } %><% if (_multiLane) { %>, cross-stack-guard<% } %>]
+<%
+  const _ciNeeds = ['lint-and-test'];
+  if (language === 'typescript' || language === 'java') {
+    _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
+  }
+  if (enableSecurityScanning) _ciNeeds.push('security-early-fail');
+  if (governanceLevel !== 'L1') _ciNeeds.push('docs-check');
+  if (enableDebtGates) _ciNeeds.push('debt-gates', 'debt-ratchet');
+  if (contractType && contractType !== 'none' && governanceLevel !== 'L1') _ciNeeds.push('contract-verify');
+  if (governanceLevel !== 'L1' || _multiLane) _ciNeeds.push('classify-changes');
+  if (_multiLane) _ciNeeds.push('cross-stack-guard');
+%>
+    needs: [<%= _ciNeeds.join(', ') %>]
     if: always()
     steps:
       - run: |
@@ -584,6 +596,7 @@ jobs:
             echo "lint-and-test failed"
             exit 1
           fi
+<% if (language === 'typescript' || language === 'java') { %>
           if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
             echo "unit-tests failed"
             exit 1
@@ -599,7 +612,8 @@ jobs:
           if [[ "${{ needs.behavioral-tests.result }}" != "success" ]]; then
             echo "behavioral-tests failed"
             exit 1
-          fi<% if (enableSecurityScanning) { %>
+          fi
+<% } %><% if (enableSecurityScanning) { %>
           if [[ "${{ needs.security-early-fail.result }}" != "success" ]]; then
             echo "security-early-fail failed"
             exit 1

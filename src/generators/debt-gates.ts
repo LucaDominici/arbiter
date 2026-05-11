@@ -14,7 +14,8 @@ function injectTestScripts(targetDir: string): void {
   let pkg: Record<string, unknown>;
   try {
     pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    console.warn("[injectTestScripts] failed to parse package.json:", err);
     return;
   }
   const scripts = (pkg.scripts ?? {}) as Record<string, string>;
@@ -43,20 +44,29 @@ function injectDepCruiserPackageJson(targetDir: string): void {
   let pkg: Record<string, unknown>;
   try {
     pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    console.warn(
+      "[injectDepCruiserPackageJson] failed to parse package.json:",
+      err,
+    );
     return;
   }
   const scripts = (pkg.scripts ?? {}) as Record<string, string>;
+  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
+  let changed = false;
   if (!scripts["check:arch"]) {
     scripts["check:arch"] = "depcruise src";
     pkg.scripts = scripts;
+    changed = true;
   }
-  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
   if (!devDeps["dependency-cruiser"]) {
     devDeps["dependency-cruiser"] = "^16.0.0";
     pkg.devDependencies = devDeps;
+    changed = true;
   }
-  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+  if (changed) {
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+  }
 }
 
 function pushJavaDebtGates(
@@ -108,6 +118,10 @@ function pushJavaDebtGates(
 export function generateDebtGates(
   config: ProjectConfig,
 ): DebtGatesGeneratorResult {
+  if (config.language === "typescript") {
+    injectTestScripts(config.targetDir);
+  }
+
   if (!config.enableDebtGates) return { files: [] };
 
   const results: WriteResult[] = [];
@@ -144,7 +158,6 @@ export function generateDebtGates(
       ),
     );
     injectDepCruiserPackageJson(base);
-    injectTestScripts(base);
   }
 
   if (config.language === "rust") {

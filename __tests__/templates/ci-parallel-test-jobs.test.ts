@@ -67,6 +67,33 @@ describe("ci.yml.ejs — parallel test category jobs (#219)", () => {
     });
   });
 
+  describe("Rust L2 — ci-required must NOT reference unit-tests", () => {
+    it("ci-required does not include unit-tests/contract-tests for Rust", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "rust",
+        buildTool: "cargo",
+        governanceLevel: "L2",
+      }) as unknown as Record<string, unknown>;
+      const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+      const ciRequired = rendered.split("ci-required:")[1];
+      expect(ciRequired).not.toContain("unit-tests");
+      expect(ciRequired).not.toContain("contract-tests");
+      expect(ciRequired).not.toContain("integration-tests");
+      expect(ciRequired).not.toContain("behavioral-tests");
+    });
+
+    it("Rust ci-required only needs lint-and-test", () => {
+      const data = makeConfig("/tmp/test", {
+        language: "rust",
+        buildTool: "cargo",
+        governanceLevel: "L1",
+      }) as unknown as Record<string, unknown>;
+      const rendered = renderTemplate("github/workflows/ci.yml.ejs", data);
+      const ciRequired = rendered.split("ci-required:")[1];
+      expect(ciRequired).toContain("lint-and-test");
+    });
+  });
+
   describe("Java L2 (Maven)", () => {
     it("has unit-tests job", () => {
       const data = makeConfig("/tmp/test", {

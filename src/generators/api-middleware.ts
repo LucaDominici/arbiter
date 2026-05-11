@@ -45,12 +45,25 @@ export function generateApiMiddleware(
         { skipIfExists: true },
       ),
     );
+    results.push(
+      writeFile(
+        resolvedPath(
+          base,
+          "__tests__",
+          "contract",
+          "error-shape.contract.test.ts",
+        ),
+        renderTemplate(
+          "__tests__/contract/error-shape.contract.test.ts.ejs",
+          data,
+        ),
+        { skipIfExists: true },
+      ),
+    );
   }
 
-  if (config.language === "java") {
-    const pkgPath = config.basePackage
-      ? config.basePackage.replace(/\./g, "/")
-      : "";
+  if (config.language === "java" && config.basePackage) {
+    const pkgPath = config.basePackage.replace(/\./g, "/");
     results.push(
       writeFile(
         resolvedPath(

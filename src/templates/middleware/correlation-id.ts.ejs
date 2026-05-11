@@ -23,7 +23,7 @@ export function correlationIdMiddleware(
     req.headers["X-Correlation-ID"];
 
   const correlationId = Array.isArray(incoming)
-    ? incoming[0]
+    ? (incoming[0] ?? randomUUID())
     : (incoming ?? randomUUID());
 
   req.correlationId = correlationId;

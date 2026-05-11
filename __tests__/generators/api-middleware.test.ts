@@ -81,6 +81,36 @@ describe("generateApiMiddleware (#215)", () => {
     ).toBe(true);
   });
 
+  it("emits error-shape.contract.test.ts for TypeScript API projects (#220)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      hasPublicApi: true,
+    });
+    const result = generateApiMiddleware(config);
+    expect(
+      result.files.some((f) => f.path.endsWith("error-shape.contract.test.ts")),
+    ).toBe(true);
+    expect(
+      existsSync(
+        join(dir, "__tests__", "contract", "error-shape.contract.test.ts"),
+      ),
+    ).toBe(true);
+  });
+
+  it("Java + hasPublicApi but no basePackage: silently skips Java file with no crash", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      hasPublicApi: true,
+      basePackage: undefined,
+    });
+    const result = generateApiMiddleware(config);
+    expect(
+      result.files.some((f) => f.path.endsWith("DeprecationInterceptor.java")),
+    ).toBe(false);
+  });
+
   it("does not emit for TypeScript non-API projects", () => {
     const config = makeConfig(dir, {
       language: "typescript",

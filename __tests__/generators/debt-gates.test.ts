@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   createTestProject,
@@ -571,6 +571,18 @@ describe("generateDebtGates", () => {
     expect(pkg.scripts?.["test:behavioral"]).toContain("vitest");
   });
 
+  it("injects test scripts even when enableDebtGates is false (#219)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: false,
+    });
+    generateDebtGates(config);
+    const pkg = JSON.parse(
+      readFileSync(join(dir, "package.json"), "utf-8"),
+    ) as Record<string, Record<string, string>>;
+    expect(pkg.scripts?.["test:unit"]).toContain("vitest");
+  });
+
   it("does not overwrite existing test scripts (#219)", () => {
     const pkgPath = join(dir, "package.json");
     const existing = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<
@@ -578,10 +590,7 @@ describe("generateDebtGates", () => {
       Record<string, string>
     >;
     existing.scripts["test:unit"] = "jest --testPathPattern unit";
-    require("node:fs").writeFileSync(
-      pkgPath,
-      JSON.stringify(existing, null, 2),
-    );
+    writeFileSync(pkgPath, JSON.stringify(existing, null, 2));
     const config = makeConfig(dir, {
       language: "typescript",
       enableDebtGates: true,
