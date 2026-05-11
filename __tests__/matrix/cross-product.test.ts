@@ -1484,5 +1484,18 @@ describe("cross-product: classify-changes gate (#161) — L2+ single-lane", () =
       );
       expect(rendered).not.toContain("classify-changes:");
     });
+
+    it(`${lang}+L2+lanes[]: lint-and-test needs classify-changes and checks docs_only (#161)`, () => {
+      const rendered = renderTemplate(
+        "github/workflows/ci.yml.ejs",
+        makeConfig("/tmp/test", {
+          language: lang,
+          governanceLevel: "L2",
+          lanes: [],
+          ...STACK_CONFIG[lang],
+        }) as unknown as Record<string, unknown>,
+      );
+      expect(rendered).toContain("needs.classify-changes.outputs.docs_only");
+    });
   }
 });

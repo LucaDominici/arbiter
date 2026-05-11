@@ -87,8 +87,8 @@ jobs:
   lint-and-test:
     name: Lint + Test
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -107,8 +107,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Rust)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -128,8 +128,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -153,8 +153,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Go)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -171,8 +171,8 @@ jobs:
   lint-and-test:
     name: Lint + Test (Python)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
-<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel==='L3' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
-<% } if(governanceLevel==='L3' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
+<% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
