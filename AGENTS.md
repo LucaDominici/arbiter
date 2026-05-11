@@ -72,6 +72,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-41:** Message-queue contract tests must call Schema Registry testCompatibility
 - **INV-42:** Pact broker glue must be env-gated — no silent runs against default URL
 - **INV-43:** OpenAPI exporter must run before diff; missing reference is HARD-fail
+- **INV-44:** SpotBugs security-category bugs MUST NEVER be suppressed or baselined (Java) — hard-block list: SQL_INJECTION, XSS, COMMAND_INJECTION, XXE, LDAP_INJECTION, HARD_CODE_PASSWORD
 - **INV-29:** No MockMvc — use RestAssured for Java integration tests (Java)
 - **INV-30:** Mutation testing required — PIT/pitest for Java projects (L2+)
 

@@ -251,12 +251,14 @@ if (level === 'L2') {
 <% } %>
   runCheck('pmd', './gradlew', ['pmdMain', '-q'], { soft: graceActive });
   runCheck('spotbugs', './gradlew', ['spotbugsMain', '-q'], { soft: graceActive });
+  runCheck('spotbugs baseline (INV-44)', 'node', ['scripts/verify-spotbugs.mjs'], { soft: graceActive });
 <% } %><% if (language === 'java' && buildTool === 'maven') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage', 'mvn', ['verify', '-Pjacoco', '-q'], { soft: graceActive });
 <% } %>
   runCheck('pmd', 'mvn', ['pmd:check', '-q'], { soft: graceActive });
   runCheck('spotbugs', 'mvn', ['com.github.spotbugs:spotbugs-maven-plugin:check', '-q'], { soft: graceActive });
+  runCheck('spotbugs baseline (INV-44)', 'node', ['scripts/verify-spotbugs.mjs'], { soft: graceActive });
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...'], { soft: graceActive });

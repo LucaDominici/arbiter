@@ -447,4 +447,62 @@ describe("generateDebtGates", () => {
     generateDebtGates(config);
     expect(existsSync(join(dir, "config", "pitest-setup.md"))).toBe(false);
   });
+
+  // ── SpotBugs baseline (#212) ────────────────────────────────────────────────
+
+  it("emits scripts/verify-spotbugs.mjs for Java projects (#212)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, "scripts", "verify-spotbugs.mjs"))).toBe(true);
+  });
+
+  it("verify-spotbugs.mjs contains security hard-block list (#212)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    const content = readFileSync(
+      join(dir, "scripts", "verify-spotbugs.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("SQL_INJECTION");
+    expect(content).toContain("COMMAND_INJECTION");
+    expect(content).toContain("LDAP_INJECTION");
+  });
+
+  it("emits spotbugs-baseline.json for Java projects (#212)", () => {
+    cleanupTestProject(dir);
+    dir = createTestProject("java");
+    const config = makeConfig(dir, {
+      language: "java",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, "spotbugs-baseline.json"))).toBe(true);
+    const parsed = JSON.parse(
+      readFileSync(join(dir, "spotbugs-baseline.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    expect(Array.isArray(parsed.baselined)).toBe(true);
+    expect((parsed.baselined as unknown[]).length).toBe(0);
+  });
+
+  it("does not emit verify-spotbugs.mjs for TypeScript projects (#212)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      enableDebtGates: true,
+    });
+    generateDebtGates(config);
+    expect(existsSync(join(dir, "scripts", "verify-spotbugs.mjs"))).toBe(false);
+  });
 });

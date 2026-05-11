@@ -37,6 +37,14 @@ function pushJavaDebtGates(
       resolvedPath(base, "spotbugs.gradle"),
       "static-analysis/spotbugs.gradle.ejs",
     ],
+    [
+      resolvedPath(base, "scripts", "verify-spotbugs.mjs"),
+      "scripts/verify-spotbugs.mjs.ejs",
+    ],
+    [
+      resolvedPath(base, "spotbugs-baseline.json"),
+      "scripts/spotbugs-baseline.json.ejs",
+    ],
   ];
   for (const [path, tmpl] of files) {
     results.push(
