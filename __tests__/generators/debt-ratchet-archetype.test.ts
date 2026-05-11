@@ -165,4 +165,45 @@ describe("generateDebtRatchet with metricsProfile", () => {
       }
     });
   }
+
+  it("TS+library: debt-lib.mjs contains publicApiSurface metric (#127)", () => {
+    const libraryDir = createTestProject("typescript");
+    initGit(libraryDir);
+    try {
+      const config = makeConfig(libraryDir, {
+        language: "typescript",
+        archetype: "library",
+        enableDebtGates: true,
+      });
+      generateDebtRatchet(config);
+      const content = readFileSync(
+        join(libraryDir, "scripts", "debt-lib.mjs"),
+        "utf-8",
+      );
+      expect(content).toContain("publicApiSurface");
+      expect(content).toContain("^export");
+    } finally {
+      cleanupTestProject(libraryDir);
+    }
+  });
+
+  it("TS+backend-web-db: debt-lib.mjs does NOT contain publicApiSurface (#127)", () => {
+    const serviceDir = createTestProject("typescript");
+    initGit(serviceDir);
+    try {
+      const config = makeConfig(serviceDir, {
+        language: "typescript",
+        archetype: "backend-web-db",
+        enableDebtGates: true,
+      });
+      generateDebtRatchet(config);
+      const content = readFileSync(
+        join(serviceDir, "scripts", "debt-lib.mjs"),
+        "utf-8",
+      );
+      expect(content).not.toContain("publicApiSurface");
+    } finally {
+      cleanupTestProject(serviceDir);
+    }
+  });
 });

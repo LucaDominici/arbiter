@@ -145,6 +145,16 @@ export function collectMetrics(cwd) {
     }
   }
 <% } %>
+<% if (metricsProfile.includePublicApiSurface) { %>
+  // ── Public API surface (library archetype — count of top-level exports) ───
+  {
+    const grepOut = run('grep', ['-r', '--include=*.ts', '--include=*.mts', '^export', 'src/'], { cwd });
+    metrics.publicApiSurface = {
+      value: grepOut.stdout ? grepOut.stdout.split('\n').filter(Boolean).length : 0,
+      unit: 'count', direction: 'lower-is-better',
+    };
+  }
+<% } %>
 
   return metrics;
 }
