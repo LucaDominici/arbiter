@@ -78,6 +78,45 @@ describe("runVerify (#174)", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it("includes effectiveConfig in JSON output (#233)", async () => {
+    probesSpy.mockReturnValue(makeReport());
+    const captured: string[] = [];
+    stdoutSpy.mockImplementation((chunk: unknown) => {
+      captured.push(String(chunk));
+      return true;
+    });
+    const cfgUtils = await import("../../src/utils/config.js");
+    vi.spyOn(cfgUtils, "loadConfig").mockReturnValue({
+      version: "0.2",
+      tools: ["claude"],
+      governanceLevel: "L2",
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: true,
+        securityScanning: true,
+        evidenceHarness: false,
+        debtGates: true,
+        suppressions: true,
+      },
+      thresholds: {
+        lineCoverage: 80,
+        branchCoverage: 70,
+        mutationScore: 80,
+        cyclomaticComplexity: 15,
+        methodLength: 65,
+        maxParams: 7,
+      },
+    });
+
+    const { runVerify } = await import("../../src/commands/verify.js");
+    runVerify({ json: true });
+
+    const joined = captured.join("");
+    expect(joined).toContain("effectiveConfig");
+    expect(joined).toContain('"governanceLevel": "L2"');
+  });
+
   it("resolves dir relative to cwd when opts.dir is provided", async () => {
     probesSpy.mockReturnValue(makeReport());
     vi.spyOn(report, "formatText").mockReturnValue("");
