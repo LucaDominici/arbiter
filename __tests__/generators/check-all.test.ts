@@ -22,13 +22,26 @@ describe("generateCheckAll", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("generates scripts/check-all.mjs and check-workflow-runners.mjs", () => {
+  it("generates scripts/check-all.mjs, check-workflow-runners.mjs, and check-ci-alignment.mjs", () => {
     const result = generateCheckAll(makeConfig(dir));
-    expect(result.files).toHaveLength(2);
+    expect(result.files).toHaveLength(3);
     expect(result.files[0].path).toContain("check-all.mjs");
     expect(result.files[0].action).toBe("created");
     expect(result.files[1].path).toContain("check-workflow-runners.mjs");
     expect(result.files[1].action).toBe("created");
+    expect(result.files[2].path).toContain("check-ci-alignment.mjs");
+    expect(result.files[2].action).toBe("created");
+  });
+
+  it("check-ci-alignment.mjs has shebang line and correct header", () => {
+    generateCheckAll(makeConfig(dir));
+    const content = readFileSync(
+      join(dir, "scripts", "check-ci-alignment.mjs"),
+      "utf-8",
+    );
+    expect(content).toMatch(/^#!/);
+    expect(content).toContain("DESIGN_EXEMPTIONS");
+    expect(content).toContain("extractManifestGates");
   });
 
   it("check-all.mjs has shebang line", () => {

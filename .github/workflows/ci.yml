@@ -40,8 +40,8 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci --legacy-peer-deps
-      - run: npm run typecheck
-      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npx eslint src __tests__
       - name: Dep audit
         run: npm audit --audit-level=high
       - name: Circular dependency check
@@ -50,6 +50,18 @@ jobs:
         run: node scripts/check-no-placeholders.mjs src
       - name: Orphan TODO check
         run: node scripts/check-no-orphan-todo.mjs
+      - name: Format check
+        run: npx prettier --check .
+      - name: Inline suppression check
+        run: node scripts/check-inline-suppressions.mjs
+      - name: Test naming convention check
+        run: node scripts/check-test-naming.mjs
+      - name: Hardness inventory check
+        run: node scripts/check-hardness-inventory.mjs
+      - name: Workflow runner label check
+        run: node scripts/check-workflow-runners.mjs
+      - name: CI/manifest gate alignment check (#240)
+        run: node scripts/check-ci-alignment.mjs
       - name: Dead code check
         run: npx knip
       - name: Matrix fixture coverage (INV-32)
