@@ -32,7 +32,8 @@ export type GeneratorKey =
   | "behavioral-tests"
   | "playwright-python"
   | "ssot"
-  | "githooks";
+  | "githooks"
+  | "github-setup";
 
 export interface ConfigDiff {
   paths: string[];
