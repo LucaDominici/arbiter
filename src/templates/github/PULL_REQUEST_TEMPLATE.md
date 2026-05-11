@@ -34,3 +34,4 @@
 <!-- L2/L3 projects: verify SECURE_CODING_CHECKLIST.md before merging -->
 
 - [ ] Reviewed `docs/SECURE_CODING_CHECKLIST.md` (if present in this project)
+- [ ] No deprecated endpoints added without `Sunset` header (RFC 8594) — N/A if no public API changes

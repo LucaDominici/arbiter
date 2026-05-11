@@ -1,0 +1,45 @@
+import type { Request, Response, NextFunction } from "express";
+
+export interface DeprecationOptions {
+  sunsetDate: Date;
+  successorUrl?: string;
+  link?: string;
+}
+
+/**
+ * RFC 8594-compliant deprecation middleware.
+ * Sets Sunset, Deprecation, and Link headers on every response.
+ * Mount per-route or globally for versioned APIs.
+ */
+export function deprecationMiddleware(options: DeprecationOptions) {
+  return (_req: Request, res: Response, next: NextFunction): void => {
+    res.setHeader("Deprecation", "true");
+    res.setHeader("Sunset", options.sunsetDate.toUTCString());
+
+    if (options.successorUrl) {
+      res.setHeader(
+        "Link",
+        `<${options.successorUrl}>; rel="successor-version"`,
+      );
+    } else if (options.link) {
+      res.setHeader("Link", options.link);
+    }
+
+    next();
+  };
+}
+
+/**
+ * Build a deprecation middleware bound to a fixed sunset date string.
+ * Accepts ISO-8601 strings ("2025-12-31") or Date objects.
+ */
+export function deprecateEndpoint(
+  sunsetDateOrString: Date | string,
+  successorUrl?: string,
+) {
+  const sunsetDate =
+    sunsetDateOrString instanceof Date
+      ? sunsetDateOrString
+      : new Date(sunsetDateOrString);
+  return deprecationMiddleware({ sunsetDate, successorUrl });
+}

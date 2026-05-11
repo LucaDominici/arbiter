@@ -1,0 +1,41 @@
+import type { Request, Response } from "express";
+
+export interface GoneResponse {
+  status: 410;
+  error: "Gone";
+  message: string;
+  removedAt?: string;
+  successorUrl?: string;
+}
+
+/**
+ * Handler for permanently removed API endpoints (HTTP 410 Gone).
+ * Use instead of 404 when an endpoint was intentionally decommissioned.
+ * Optionally points clients to the successor resource via Link header.
+ */
+export function goneHandler(options?: {
+  message?: string;
+  removedAt?: string;
+  successorUrl?: string;
+}) {
+  return (_req: Request, res: Response): void => {
+    if (options?.successorUrl) {
+      res.setHeader(
+        "Link",
+        `<${options.successorUrl}>; rel="successor-version"`,
+      );
+    }
+
+    const body: GoneResponse = {
+      status: 410,
+      error: "Gone",
+      message:
+        options?.message ??
+        "This endpoint has been permanently removed. Please consult the API changelog.",
+      ...(options?.removedAt ? { removedAt: options.removedAt } : {}),
+      ...(options?.successorUrl ? { successorUrl: options.successorUrl } : {}),
+    };
+
+    res.status(410).json(body);
+  };
+}
