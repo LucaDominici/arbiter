@@ -62,6 +62,8 @@ jobs:
         run: node scripts/check-workflow-runners.mjs
       - name: CI/manifest gate alignment check (#240)
         run: node scripts/check-ci-alignment.mjs
+      - name: Self-dogfood template check (INV-45, #239)
+        run: node scripts/check-self-dogfood.mjs
       - name: Dead code check
         run: npx knip
       - name: Matrix fixture coverage (INV-32)

@@ -705,4 +705,22 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "src/templates/scripts/verify-spotbugs.mjs.ejs (SECURITY_HARD_BLOCK set + exit 1) + " +
       "src/templates/scripts/check-all.mjs.ejs (spotbugs baseline check at L2, Java)",
   },
+
+  {
+    id: "INV-45",
+    tier: "governance",
+    title:
+      "Self-dogfood check — every EJS template must render to match its materialized .claude/ file",
+    description:
+      "Every EJS template under src/templates/claude/ must render (with arbiter's own config) " +
+      "to content that matches the corresponding materialized .claude/ file. " +
+      "Files listed in .dogfood-divergences.json are explicitly exempted (intentional arbiter-internal " +
+      "extensions not appropriate for target projects). Config-gated templates are skipped when " +
+      "the relevant feature flag is disabled in arbiter.json. " +
+      "This invariant prevents arbiter from shipping stale template skeletons that diverge from " +
+      "its own governance without an explicit documented reason.",
+    alwaysActive: true,
+    enforcement:
+      "scripts/check-self-dogfood.mjs (L2 gate check) — exits 1 on unexpected drift",
+  },
 ];
