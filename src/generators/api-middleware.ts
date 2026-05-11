@@ -31,6 +31,20 @@ export function generateApiMiddleware(
         { skipIfExists: true },
       ),
     );
+    results.push(
+      writeFile(
+        resolvedPath(base, "src", "middleware", "error-handler.ts"),
+        renderTemplate("middleware/error-handler.ts.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+    results.push(
+      writeFile(
+        resolvedPath(base, "src", "middleware", "correlation-id.ts"),
+        renderTemplate("middleware/correlation-id.ts.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
   }
 
   if (config.language === "java") {

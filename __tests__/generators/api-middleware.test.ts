@@ -61,6 +61,26 @@ describe("generateApiMiddleware (#215)", () => {
     ).toBe(true);
   });
 
+  it("emits error-handler.ts and correlation-id.ts for TypeScript API projects (#220)", () => {
+    const config = makeConfig(dir, {
+      language: "typescript",
+      hasPublicApi: true,
+    });
+    const result = generateApiMiddleware(config);
+    expect(result.files.some((f) => f.path.endsWith("error-handler.ts"))).toBe(
+      true,
+    );
+    expect(result.files.some((f) => f.path.endsWith("correlation-id.ts"))).toBe(
+      true,
+    );
+    expect(existsSync(join(dir, "src", "middleware", "error-handler.ts"))).toBe(
+      true,
+    );
+    expect(
+      existsSync(join(dir, "src", "middleware", "correlation-id.ts")),
+    ).toBe(true);
+  });
+
   it("does not emit for TypeScript non-API projects", () => {
     const config = makeConfig(dir, {
       language: "typescript",

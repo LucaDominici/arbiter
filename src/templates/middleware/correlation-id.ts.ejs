@@ -1,0 +1,32 @@
+import { randomUUID } from "node:crypto";
+import type { Request, Response, NextFunction } from "express";
+
+declare module "express-serve-static-core" {
+  interface Request {
+    correlationId: string;
+  }
+}
+
+/**
+ * Correlation ID middleware.
+ * Reads X-Correlation-ID from incoming request headers; generates a UUID v4
+ * if absent. Attaches the value to req.correlationId and echoes it back in
+ * the response X-Correlation-ID header.
+ */
+export function correlationIdMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const incoming =
+    req.headers["x-correlation-id"] ??
+    req.headers["X-Correlation-ID"];
+
+  const correlationId = Array.isArray(incoming)
+    ? incoming[0]
+    : (incoming ?? randomUUID());
+
+  req.correlationId = correlationId;
+  res.setHeader("X-Correlation-ID", correlationId);
+  next();
+}

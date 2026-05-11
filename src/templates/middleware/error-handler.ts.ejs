@@ -1,0 +1,67 @@
+import type { Request, Response, NextFunction } from "express";
+
+/**
+ * RFC 7807 Problem Details shape.
+ * https://datatracker.ietf.org/doc/html/rfc7807
+ */
+export interface ProblemDetails {
+  type: string;
+  title: string;
+  status: number;
+  detail?: string;
+  instance?: string;
+  correlationId: string;
+}
+
+export class AppError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly title: string,
+    public readonly detail?: string,
+    public readonly type = "about:blank",
+  ) {
+    super(title);
+    this.name = "AppError";
+  }
+}
+
+/**
+ * Express error-handling middleware that produces RFC 7807 Problem Details
+ * responses. Attach as the last middleware in the chain.
+ *
+ * Never exposes stack traces to clients — logs internally only.
+ */
+export function errorHandler(
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
+  const correlationId =
+    (req as Request & { correlationId?: string }).correlationId ?? "unknown";
+
+  if (err instanceof AppError) {
+    const body: ProblemDetails = {
+      type: err.type,
+      title: err.title,
+      status: err.status,
+      detail: err.detail,
+      instance: req.path,
+      correlationId,
+    };
+    res
+      .status(err.status)
+      .contentType("application/problem+json")
+      .json(body);
+    return;
+  }
+
+  const body: ProblemDetails = {
+    type: "about:blank",
+    title: "Internal Server Error",
+    status: 500,
+    instance: req.path,
+    correlationId,
+  };
+  res.status(500).contentType("application/problem+json").json(body);
+}
