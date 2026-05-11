@@ -30,6 +30,7 @@ import { generateSsot } from "./ssot.js";
 import { generateBehavioralTests } from "./behavioral-tests.js";
 import { generatePlaywrightPython } from "./playwright-python.js";
 import { generateGithooks } from "./githooks.js";
+import { generateGithubSetup } from "./github-setup.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import type { GeneratorKey } from "../config/diff.js";
@@ -133,6 +134,11 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: "githooks",
       enabled: true,
       run: () => generateGithooks(config).files,
+    },
+    {
+      key: "github-setup",
+      enabled: config.useGitHub && config.governanceLevel !== "L1",
+      run: () => generateGithubSetup(config).files,
     },
   ];
 }
