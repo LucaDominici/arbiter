@@ -5,9 +5,9 @@ import {
   type ArbiterConfigV2,
   type FeatureFlags,
   type ThresholdsV2,
-  migrateV1ToV2,
   DEFAULT_THRESHOLDS,
 } from "../config/schema.js";
+import { migrate } from "../config/migrations/index.js";
 
 export type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 };
 export type ArbiterConfig = ArbiterConfigV2;
@@ -53,7 +53,7 @@ export function loadConfig(dir: string): ArbiterConfig | null {
     return null;
   }
   try {
-    return migrateV1ToV2(raw);
+    return migrate(raw);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(
