@@ -50,5 +50,16 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
     ),
   );
 
+  // tsconfig.json — TypeScript greenfield baseline (skipIfExists for brownfield)
+  if (config.language === "typescript") {
+    results.push(
+      writeFile(
+        resolvedPath(base, "tsconfig.json"),
+        renderTemplate("root/tsconfig.json.ejs", data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
   return { files: results };
 }
