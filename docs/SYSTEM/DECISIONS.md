@@ -5,6 +5,27 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#240): check-ci-alignment.mjs — L1 CI/manifest gate parity check (2026-05-11)
+
+Adds `scripts/check-ci-alignment.mjs` as an L1 gate that parses
+`scripts/check-all.mjs` (manifest) and `.github/workflows/ci.yml` (CI),
+derives normalized gate keys, and fails if any gate is present in one but
+not the other.
+
+Key design decisions:
+
+- **DESIGN_EXEMPTIONS**: `scripts/check-docs.mjs` (CI runs inline shell),
+  `npx:commitlint` (conditional PR-only), `npm:test` (CI splits into jobs),
+  `npm:audit` (CI before L2), `npx:knip` (CI in lint-and-test).
+- **Block scalar parsing**: `run: |` detected before single-line `run:`.
+- **Target only `ci.yml`**: Avoids false positives from matrix workflows.
+- **CI alignment fix**: Added 5 missing L1 steps; replaced npm scripts with
+  direct binary calls for key matching.
+- **Generator**: `src/generators/check-all.ts` emits `check-ci-alignment.mjs`
+  via new EJS template (CANON-05, CANON-11 satisfied).
+
+---
+
 ## feat(#398): ArchUnit hexagonal suite parity — 3 new templates (2026-05-10)
 
 Adds `NamingConventionsTest.java.ejs`, `AntiCyclicTest.java.ejs`, and

@@ -45,5 +45,13 @@ export function generateCheckAll(
     ),
   );
 
+  results.push(
+    writeFile(
+      resolvedPath(base, "scripts", "check-ci-alignment.mjs"),
+      renderTemplate("scripts/check-ci-alignment.mjs.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }
