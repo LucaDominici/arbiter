@@ -59,6 +59,11 @@ describe("MASTER_TEST_PLAN.md.ejs rendering (#209)", () => {
       out = renderTemplate(TEMPLATE, cfg({ governanceLevel: "L2" }));
       expect(out).not.toContain("Concurrency");
     });
+
+    it("does NOT contain Chaos / Soak at L2", () => {
+      out = renderTemplate(TEMPLATE, cfg({ governanceLevel: "L2" }));
+      expect(out).not.toContain("Chaos");
+    });
   });
 
   describe("L3 render", () => {
@@ -77,6 +82,11 @@ describe("MASTER_TEST_PLAN.md.ejs rendering (#209)", () => {
     it("contains Concurrency at L3", () => {
       out = renderTemplate(TEMPLATE, cfg({ governanceLevel: "L3" }));
       expect(out).toContain("Concurrency");
+    });
+
+    it("contains Chaos / Soak at L3", () => {
+      out = renderTemplate(TEMPLATE, cfg({ governanceLevel: "L3" }));
+      expect(out).toContain("Chaos / Soak");
     });
   });
 });
