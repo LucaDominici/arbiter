@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { resolve, basename, join } from "node:path";
+import { jsonOutput } from "../utils/json-output.js";
 import { runProbes } from "../compatibility/probe.js";
 import { formatText } from "../compatibility/report.js";
 import { detectLanguage } from "../detectors/language.js";
@@ -58,14 +59,31 @@ export interface InitOptions {
   acceptBetaTools?: boolean;
   /** Override decomposition backend (github|markdown). If absent, derived from gh auth status. */
   backend?: "github" | "markdown";
+  /** Emit machine-readable JSON envelope instead of human output. Requires --yes (wizard is incompatible). */
+  json?: boolean | undefined;
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd());
   const projectName = basename(targetDir);
+  const log: (msg: string) => void = options.json
+    ? (): void => {}
+    : (msg: string): void => {
+        console.log(msg);
+      };
 
-  console.log("\n  Arbiter — AI Development Governance Framework\n");
-  console.log("  Detecting project...");
+  // --json requires --yes: interactive wizard reads stdin which is incompatible with
+  // machine-readable output. Fail fast with a clear JSON error.
+  if (options.json && !options.yes) {
+    jsonOutput("init", "error", {}, [
+      "--json requires --yes (interactive wizard is incompatible with machine-readable output)",
+    ]);
+    process.exit(1);
+    return;
+  }
+
+  log("\n  Arbiter — AI Development Governance Framework\n");
+  log("  Detecting project...");
 
   const language = detectLanguage(targetDir);
   const framework = detectFramework(targetDir, language);
@@ -75,26 +93,100 @@ export async function runInit(options: InitOptions): Promise<void> {
   const githubAccess = detectGithubAccess();
   const lanesResult = detectLanes(targetDir);
 
-  console.log(
-    `  ├── Language: ${language}${framework ? ` / ${framework}` : ""}`,
-  );
-  console.log(`  ├── Build: ${buildCmds.buildTool}`);
-  console.log(
+  log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ""}`);
+  log(`  ├── Build: ${buildCmds.buildTool}`);
+  log(
     `  ├── Git: ${gitInfo.isGitRepo ? "yes" : "no"}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ""}`,
   );
   if (githubAccess.authenticated)
-    console.log(
-      `  ├── GitHub: authenticated as ${githubAccess.username ?? "unknown"}`,
-    );
-  logExistingDetections(existing);
+    log(`  ├── GitHub: authenticated as ${githubAccess.username ?? "unknown"}`);
+  if (!options.json) logExistingDetections(existing);
 
-  let config: ProjectConfig;
+  const config = await resolveConfig({
+    options,
+    targetDir,
+    projectName,
+    language,
+    framework,
+    buildCmds,
+    gitInfo,
+    existing,
+    githubAccess,
+    lanes: lanesResult.lanes,
+    log,
+  });
+  if (config === null) return;
+
+  if (options.dryRun) {
+    displayDryRunPreview(config);
+    return;
+  }
+
+  checkL3MaturityGates(config);
+  generateAndFinalize(config, targetDir, options, log);
+}
+
+function generateAndFinalize(
+  config: ProjectConfig,
+  targetDir: string,
+  options: InitOptions,
+  log: (msg: string) => void,
+): void {
+  log("\n  Generating...");
+  const allResults = runGenerators(config);
+  if (!options.json) printResults(allResults, targetDir);
+
+  const created = allResults.filter((r) => r.action === "created").length;
+  const skipped = allResults.filter((r) => r.action === "skipped").length;
+  log(`\n  Done! ${created} files created, ${skipped} skipped.`);
+
+  runBackendSetup(config);
+  saveConfig(targetDir, buildArbiterConfig(config));
+  maybeCaptureBaseline(config, targetDir, options.brownfield);
+
+  if (!options.noVerify) {
+    runToolchainVerify(targetDir);
+  }
+
+  if (options.json) {
+    jsonOutput("init", "ok", { created, skipped });
+    return;
+  }
+  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
+}
+
+async function resolveConfig(args: {
+  options: InitOptions;
+  targetDir: string;
+  projectName: string;
+  language: ReturnType<typeof detectLanguage>;
+  framework: string | null;
+  buildCmds: ReturnType<typeof detectBuildCommands>;
+  gitInfo: ReturnType<typeof detectGitInfo>;
+  existing: ReturnType<typeof detectExisting>;
+  githubAccess: ReturnType<typeof detectGithubAccess>;
+  lanes: import("../wizard/types.js").Lane[];
+  log: (msg: string) => void;
+}): Promise<ProjectConfig | null> {
+  const {
+    options,
+    targetDir,
+    projectName,
+    language,
+    framework,
+    buildCmds,
+    gitInfo,
+    existing,
+    githubAccess,
+    lanes,
+    log,
+  } = args;
   if (options.yes) {
     const useGitHub =
       options.backend !== undefined
         ? options.backend === "github"
         : githubAccess.authenticated;
-    config = buildDefaultConfig({
+    return buildDefaultConfig({
       targetDir,
       projectName,
       language,
@@ -106,55 +198,25 @@ export async function runInit(options: InitOptions): Promise<void> {
       governanceLevel: parseLevel(options.level),
       useGitHub,
       acceptBetaTools: options.acceptBetaTools ?? false,
-      lanes: lanesResult.lanes,
+      lanes,
     });
-  } else {
-    const wizardResult = await runWizard({
-      targetDir,
-      projectName,
-      language,
-      framework,
-      buildCmds,
-      gitInfo,
-      existing,
-      githubAccess,
-      detectedLanes: lanesResult.lanes,
-    });
-    if (wizardResult === null) {
-      console.log("\n  Cancelled.\n");
-      return;
-    }
-    config = wizardResult;
   }
-
-  if (options.dryRun) {
-    displayDryRunPreview(config);
-    return;
+  const wizardResult = await runWizard({
+    targetDir,
+    projectName,
+    language,
+    framework,
+    buildCmds,
+    gitInfo,
+    existing,
+    githubAccess,
+    detectedLanes: lanes,
+  });
+  if (wizardResult === null) {
+    log("\n  Cancelled.\n");
+    return null;
   }
-
-  checkL3MaturityGates(config);
-
-  console.log("\n  Generating...");
-  const allResults = runGenerators(config);
-
-  printResults(allResults, targetDir);
-
-  const created = allResults.filter((r) => r.action === "created").length;
-  const skipped = allResults.filter((r) => r.action === "skipped").length;
-  console.log(`\n  Done! ${created} files created, ${skipped} skipped.`);
-
-  runBackendSetup(config);
-
-  // Save config for future `arbiter update`
-  saveConfig(targetDir, buildArbiterConfig(config));
-
-  maybeCaptureBaseline(config, targetDir, options.brownfield);
-
-  if (!options.noVerify) {
-    runToolchainVerify(targetDir);
-  }
-
-  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
+  return wizardResult;
 }
 
 export function runGenerators(config: ProjectConfig): WriteResult[] {

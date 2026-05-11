@@ -10,6 +10,7 @@ import { resolveAxisFields } from "../detectors/axis.js";
 import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
+import { jsonOutput, statusToExitCode } from "../utils/json-output.js";
 import type { ProjectConfig, InvariantTier } from "../wizard/types.js";
 import {
   presetToTiers,
@@ -28,6 +29,7 @@ const TIER_LABELS: Record<InvariantTier, string> = {
 
 export interface DiffOptions {
   dir: string | undefined;
+  json?: boolean | undefined;
 }
 
 interface DiffCheck {
@@ -40,10 +42,19 @@ export function runDiff(options: DiffOptions): void {
   const targetDir = resolve(options.dir ?? process.cwd());
   const projectName = basename(targetDir);
 
-  console.log("\n  Arbiter — diff (dry run)\n");
+  if (!options.json) {
+    console.log("\n  Arbiter — diff (dry run)\n");
+  }
 
   const stored = loadConfig(targetDir);
   if (!stored) {
+    if (options.json) {
+      jsonOutput("diff", "error", {}, [
+        "No arbiter.json found. Run `arbiter init` first.",
+      ]);
+      process.exit(1);
+      return;
+    }
     console.log("  No arbiter.json found. Run `arbiter init` first.\n");
     process.exit(1);
   }
@@ -62,21 +73,36 @@ export function runDiff(options: DiffOptions): void {
   };
   const checks = buildDiffChecks(targetDir, config, data);
 
+  const files: Array<{ key: string; status: "new" | "changed" | "unchanged" }> =
+    [];
   let hasChanges = false;
+
   for (const check of checks) {
     const incoming = check.content();
     if (!existsSync(check.path)) {
-      console.log(`  + ${check.templateKey}  (new file)`);
+      files.push({ key: check.templateKey, status: "new" });
       hasChanges = true;
+      if (!options.json) console.log(`  + ${check.templateKey}  (new file)`);
     } else {
       const current = readFileSync(check.path, "utf-8");
       if (current !== incoming) {
-        console.log(`  ~ ${check.templateKey}  (would update)`);
+        files.push({ key: check.templateKey, status: "changed" });
         hasChanges = true;
+        if (!options.json)
+          console.log(`  ~ ${check.templateKey}  (would update)`);
       } else {
-        console.log(`  = ${check.templateKey}  (unchanged)`);
+        files.push({ key: check.templateKey, status: "unchanged" });
+        if (!options.json) console.log(`  = ${check.templateKey}  (unchanged)`);
       }
     }
+  }
+
+  if (options.json) {
+    const status = hasChanges ? "warning" : "ok";
+    jsonOutput("diff", status, { hasChanges, files });
+    const code = statusToExitCode(status);
+    if (code !== 0) process.exit(code);
+    return;
   }
 
   if (!hasChanges) {

@@ -20,6 +20,7 @@ arbiter init [options]
 | `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory)         |
 | `--dry-run`       | boolean | `false`        | Preview what would be generated without writing files |
 | `--no-verify`     | boolean | `false`        | Skip toolchain compatibility probes after generation  |
+| `--json`          | boolean | `false`        | Emit machine-readable JSON output (requires `--yes`)  |
 | `-h, --help`      | —       | —              | Show help                                             |
 
 **Examples:**
@@ -165,6 +166,67 @@ If `gh` is unavailable or not authenticated, GitHub setup is skipped with a diag
 
 ---
 
+## JSON Output (`--json`)
+
+All commands support `--json` for machine-readable output. When `--json` is passed:
+
+- All human-readable console output is suppressed
+- A single JSON line is written to stdout on completion
+- Exit codes map to: `0` = ok, `1` = error, `2` = warning
+
+**Envelope schema:**
+
+```json
+{
+  "command": "configure",
+  "version": "1",
+  "status": "ok | warning | error",
+  "data": { ... },
+  "errors": ["..."]
+}
+```
+
+Fields:
+
+- `command` — kebab-case command name (e.g. `init`, `configure`, `plugin-add`, `worktree-list`)
+- `version` — always `"1"` (schema version)
+- `status` — `"ok"` (success), `"warning"` (partial/advisory), or `"error"` (fatal)
+- `data` — command-specific output (see per-command schemas below)
+- `errors` — present only when `status` is `"error"`; array of error message strings
+
+**Exit codes:**
+
+| Code | Status    | Meaning                        |
+| ---- | --------- | ------------------------------ |
+| 0    | `ok`      | Command completed successfully |
+| 1    | `error`   | Fatal error                    |
+| 2    | `warning` | Completed with warnings        |
+
+**Per-command JSON data schemas:**
+
+| Command          | `data` fields                                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `init`           | `{ created: number, skipped: number }`                                                                                                     |
+| `update`         | `{ created: number, updated: number, skipped: number }`                                                                                    |
+| `diff`           | `{ hasChanges: boolean, files: [{key: string, status: "new" \| "changed" \| "unchanged"}] }`                                               |
+| `configure`      | `{ updated: string[] }`                                                                                                                    |
+| `upgrade-level`  | `{ from: string, to: string, graceEndsAt: string, graceDays: number }` or `{ action: "extend", newEndsAt: string, extensionDays: number }` |
+| `plugin-add`     | `{ pkg: string }`                                                                                                                          |
+| `plugin-remove`  | `{ pkg: string }`                                                                                                                          |
+| `plugin-list`    | `{ plugins: [{pkg: string, status: string}] }`                                                                                             |
+| `worktree-open`  | `{ worktreePath: string, branch: string, baseBranch: string, baseRef: string }`                                                            |
+| `worktree-close` | `{ worktreePath: string, branch: string, taskId: string }`                                                                                 |
+| `worktree-list`  | `{ worktrees: [{path: string, branch: string \| null}] }`                                                                                  |
+| `verify`         | see verify section (existing shape; not wrapped in envelope)                                                                               |
+
+**Note on `init --json`:** requires `--yes`. The interactive wizard reads stdin and is incompatible with machine-readable output. Passing `--json` without `--yes` emits an error envelope and exits 1.
+
+**Note on `diff --json`:** `status` is `"warning"` when `hasChanges` is true (there are pending changes). Exit code 2 indicates changes detected.
+
+**Note on `verify`:** the `verify` command already had `--json` before this release and uses a different direct-object format (not the standard envelope). It is unchanged to preserve existing consumers.
+
+---
+
 ## `arbiter verify`
 
 Probe toolchain compatibility for the detected project stack. Reads the project directory, detects the language (TypeScript, Java, Rust, Go, or Python), and checks that the installed tool versions fall within Arbiter's supported ranges. Also runs a per-stack build invocation probe to confirm the build toolchain is functional.
@@ -305,6 +367,7 @@ arbiter upgrade-level [options]
 | `--extend`      | boolean | `false` | Extend an existing active grace period by `--days`                 |
 | `--days <n>`    | number  | `30`    | Grace period length in days                                        |
 | `--dir <path>`  | string  | `cwd`   | Target directory                                                   |
+| `--json`        | boolean | `false` | Emit machine-readable JSON output                                  |
 
 **Behavior:**
 
@@ -353,6 +416,7 @@ arbiter update [options]
 | -------------- | ------- | ------- | ---------------------------------------------------- |
 | `--dir <path>` | string  | `cwd`   | Target directory                                     |
 | `--github`     | boolean | `false` | Force GitHub setup even if disabled in stored config |
+| `--json`       | boolean | `false` | Emit machine-readable JSON output                    |
 
 **Behavior:**
 
@@ -376,10 +440,11 @@ arbiter configure --set <path>=<value> [--set <path>=<value> ...]
 
 **Options:**
 
-| Flag           | Type   | Default | Description                                    |
-| -------------- | ------ | ------- | ---------------------------------------------- |
-| `--set <kv>`   | string | —       | `path=value` assignment (repeatable); required |
-| `--dir <path>` | string | `cwd`   | Target directory                               |
+| Flag           | Type    | Default | Description                                    |
+| -------------- | ------- | ------- | ---------------------------------------------- |
+| `--set <kv>`   | string  | —       | `path=value` assignment (repeatable); required |
+| `--dir <path>` | string  | `cwd`   | Target directory                               |
+| `--json`       | boolean | `false` | Emit machine-readable JSON output              |
 
 **Supported paths:**
 
@@ -439,9 +504,10 @@ arbiter diff [options]
 
 **Options:**
 
-| Flag           | Type   | Default | Description      |
-| -------------- | ------ | ------- | ---------------- |
-| `--dir <path>` | string | `cwd`   | Target directory |
+| Flag           | Type    | Default | Description                       |
+| -------------- | ------- | ------- | --------------------------------- |
+| `--dir <path>` | string  | `cwd`   | Target directory                  |
+| `--json`       | boolean | `false` | Emit machine-readable JSON output |
 
 **Output symbols:**
 
@@ -482,9 +548,10 @@ arbiter wt open <task-id> [slug] [options]
 
 **Options:**
 
-| Flag              | Type   | Default | Description                         |
-| ----------------- | ------ | ------- | ----------------------------------- |
-| `--base <branch>` | string | `main`  | Base branch to create the task from |
+| Flag              | Type    | Default | Description                         |
+| ----------------- | ------- | ------- | ----------------------------------- |
+| `--base <branch>` | string  | `main`  | Base branch to create the task from |
+| `--json`          | boolean | `false` | Emit machine-readable JSON output   |
 
 **Behaviour:**
 
@@ -533,6 +600,7 @@ arbiter wt close <task-id> [options]
 | `--no-fetch`    | boolean | `false` | Skip `git fetch origin` before the merge check                                                 |
 | `--harvest`     | boolean | `false` | Copy modified/untracked files from worktree back to main repo before closing                   |
 | `--harvest-all` | boolean | `false` | Like `--harvest` but auto-confirms all files and skips merge check (implies force for cleanup) |
+| `--json`        | boolean | `false` | Emit machine-readable JSON output                                                              |
 
 **Sequence:**
 
@@ -623,9 +691,10 @@ arbiter plugin add @company/arbiter-spring-boot
 
 **Options:**
 
-| Flag           | Type   | Default | Description      |
-| -------------- | ------ | ------- | ---------------- |
-| `--dir <path>` | string | `cwd`   | Target directory |
+| Flag           | Type    | Default | Description                       |
+| -------------- | ------- | ------- | --------------------------------- |
+| `--dir <path>` | string  | `cwd`   | Target directory                  |
+| `--json`       | boolean | `false` | Emit machine-readable JSON output |
 
 **Behavior:**
 
@@ -655,9 +724,10 @@ arbiter plugin remove <pkg> [options]
 
 **Options:**
 
-| Flag           | Type   | Default | Description      |
-| -------------- | ------ | ------- | ---------------- |
-| `--dir <path>` | string | `cwd`   | Target directory |
+| Flag           | Type    | Default | Description                       |
+| -------------- | ------- | ------- | --------------------------------- |
+| `--dir <path>` | string  | `cwd`   | Target directory                  |
+| `--json`       | boolean | `false` | Emit machine-readable JSON output |
 
 ---
 
@@ -671,9 +741,10 @@ arbiter plugin list [options]
 
 **Options:**
 
-| Flag           | Type   | Default | Description      |
-| -------------- | ------ | ------- | ---------------- |
-| `--dir <path>` | string | `cwd`   | Target directory |
+| Flag           | Type    | Default | Description                       |
+| -------------- | ------- | ------- | --------------------------------- |
+| `--dir <path>` | string  | `cwd`   | Target directory                  |
+| `--json`       | boolean | `false` | Emit machine-readable JSON output |
 
 **Example output:**
 
@@ -792,10 +863,13 @@ Commit this file so that `arbiter update` works in CI and for teammates.
 
 ## Exit Codes
 
-| Code | Meaning                                                                   |
-| ---- | ------------------------------------------------------------------------- |
-| 0    | Success                                                                   |
-| 1    | Fatal error (template not found, permission denied, arbiter.json missing) |
+| Code | Meaning                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------------ |
+| 0    | Success                                                                                          |
+| 1    | Fatal error (template not found, permission denied, arbiter.json missing)                        |
+| 2    | Warning — command completed but advisory conditions detected (e.g. `diff` found pending changes) |
+
+Exit code 2 is only emitted when `--json` is used and the JSON status is `"warning"`. In human-readable mode, warnings are printed but the exit code is 0.
 
 Label provisioning and branch protection errors are non-fatal (logged, not thrown).
 
