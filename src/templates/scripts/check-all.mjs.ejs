@@ -105,18 +105,23 @@ runCheck('format (spotless)', 'mvn', ['spotless:check', '-q']);
 runCheck('unit tests', 'mvn', ['test', '-q']);
 <% } %><% if (language === 'go') { %>
 {
+  const _gofmtStart = Date.now();
   process.stdout.write('[CHECK] fmt (gofmt) ... ');
   const _gofmt = spawnSync('gofmt', ['-l', '.'], { encoding: 'utf-8', shell: false });
+  let _gofmtStatus = 'PASS';
   if (_gofmt.error?.code === 'ENOENT') {
     console.log('FAIL (binary not found: gofmt)');
+    _gofmtStatus = 'FAIL';
     failed++;
   } else if (_gofmt.stdout?.trim()) {
     console.log('FAIL');
     process.stdout.write('Files need gofmt formatting:\n' + _gofmt.stdout);
+    _gofmtStatus = 'FAIL';
     failed++;
   } else {
     console.log('PASS');
   }
+  results.push({ name: 'fmt (gofmt)', status: _gofmtStatus, elapsed: Date.now() - _gofmtStart });
 }
 runCheck('vet', 'go', ['vet', './...']);
 runCheck('lint', 'golangci-lint', ['run']);
@@ -255,28 +260,34 @@ if (level === 'L2') {
 <% } %><% if (language === 'go') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage profile', 'go', ['test', '-coverprofile=coverage.out', '-covermode=atomic', './...'], { soft: graceActive });
+  const _coverThreshStart = Date.now();
   process.stdout.write('[CHECK] coverage threshold ... ');
   const coverResult = spawnSync('go', ['tool', 'cover', '-func=coverage.out'], { encoding: 'utf-8', shell: false });
+  let _coverThreshStatus = 'PASS';
   if (coverResult.status !== 0) {
     console.log(graceActive ? 'WARN (grace period)' : 'FAIL (could not parse coverage)');
-    if (!graceActive) failed++;
+    if (!graceActive) { _coverThreshStatus = 'FAIL'; failed++; }
   } else {
     const match = coverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
     const pct = match ? parseFloat(match[1]) : 0;
     if (pct < <%= coverageThreshold %>) {
       console.log(graceActive ? `WARN (grace period, ${pct.toFixed(1)}% < <%= coverageThreshold %>%)` : `FAIL (${pct.toFixed(1)}% < <%= coverageThreshold %>%)`);
-      if (!graceActive) failed++;
+      if (!graceActive) { _coverThreshStatus = 'FAIL'; failed++; }
     } else { console.log(`PASS (${pct.toFixed(1)}%)`); }
   }
+  results.push({ name: 'coverage threshold', status: _coverThreshStatus, elapsed: Date.now() - _coverThreshStart });
   if (existsSync('coverage.out')) {
     mkdirSync('coverage', { recursive: true });
+    const _coverHtmlStart = Date.now();
     process.stdout.write('[CHECK] coverage HTML report ... ');
     const htmlResult = spawnSync('go', ['tool', 'cover', '-html=coverage.out', '-o', 'coverage/coverage.html'], { encoding: 'utf-8', shell: false });
+    let _coverHtmlStatus = 'PASS';
     if (htmlResult.status !== 0) {
       console.log('FAIL (go tool cover -html)');
       if (htmlResult.stderr) process.stderr.write(htmlResult.stderr);
-      if (!graceActive) failed++;
+      if (!graceActive) { _coverHtmlStatus = 'FAIL'; failed++; }
     } else { console.log('PASS'); }
+    results.push({ name: 'coverage HTML report', status: _coverHtmlStatus, elapsed: Date.now() - _coverHtmlStart });
   }
 <% } %>
   runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,unused'], { soft: graceActive });
@@ -356,20 +367,26 @@ if (level === 'L2') {
   // ─── L2: BDD gate (INV-40) ──────────────────────────────────────────────────
   {
     // @ignore-tagged scenarios are HARD-fail (soft: false per INV-40 — never graced)
+    const _bddIgnoreStart = Date.now();
     const _bddIgnore = spawnSync('grep', ['-rql', '--include=*.feature', '@ignore', '.'], { encoding: 'utf-8', shell: false });
     process.stdout.write('[CHECK] BDD @ignore check ... ');
+    let _bddIgnoreStatus = 'PASS';
     if (_bddIgnore.error?.code === 'ENOENT') {
       console.log('FAIL (grep not found — cannot check @ignore tags)');
+      _bddIgnoreStatus = 'FAIL';
       failed++;
     } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
       console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
+      _bddIgnoreStatus = 'FAIL';
       failed++;
     } else if (_bddIgnore.status === 0) {
       console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
+      _bddIgnoreStatus = 'FAIL';
       failed++;
     } else {
       console.log('PASS');
     }
+    results.push({ name: 'BDD @ignore check', status: _bddIgnoreStatus, elapsed: Date.now() - _bddIgnoreStart });
   }
 <% if (language === 'typescript') { %>
   runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
@@ -393,6 +410,8 @@ if (level === 'L2') {
   // ─── L3: Evidence gate (INV-33) ─────────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
   // Warns when absent (first run); fails when present but obs_gate !== 'PASS'.
+  const _evidenceStart = Date.now();
+  let _evidenceStatus = 'PASS';
   process.stdout.write('[CHECK] evidence gate (INV-33) ... ');
   {
     const _summaryPath = join(process.cwd(), '.evidence', 'SUMMARY.json');
@@ -405,14 +424,17 @@ if (level === 'L2') {
           console.log('PASS');
         } else {
           console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
+          _evidenceStatus = 'FAIL';
           failed++;
         }
       } catch {
         console.log('FAIL (could not parse .evidence/SUMMARY.json)');
+        _evidenceStatus = 'FAIL';
         failed++;
       }
     }
   }
+  results.push({ name: 'evidence gate (INV-33)', status: _evidenceStatus, elapsed: Date.now() - _evidenceStart });
 <% } %>
 }
 
