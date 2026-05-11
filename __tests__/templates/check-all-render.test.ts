@@ -3,6 +3,25 @@ import { renderTemplate } from "../../src/utils/render.js";
 import { makeConfig } from "../helpers.js";
 
 describe("check-all.mjs.ejs rendering — Java wiring (#404)", () => {
+  it("renders inline suppressions check when enableSuppressions=true (#367)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      enableSuppressions: true,
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("check-inline-suppressions.mjs");
+  });
+
+  it("renders inline suppressions check unconditionally even when enableSuppressions=false (CANON-09, #367)", () => {
+    const data = makeConfig("/tmp/test", {
+      language: "typescript",
+      enableSuppressions: false,
+      governanceLevel: "L1",
+    }) as unknown as Record<string, unknown>;
+    const content = renderTemplate("scripts/check-all.mjs.ejs", data);
+    expect(content).toContain("check-inline-suppressions.mjs");
+  });
   it("Java Gradle L2 coverageEnabled=false: coverage check omitted", () => {
     const data = makeConfig("/tmp/test", {
       language: "java",

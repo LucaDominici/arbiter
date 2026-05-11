@@ -33,11 +33,11 @@ const patterns = [
   /require\(['"]node:child_process['"]\)/,
 ];
 
-const offending = content
-  .split("\n")
-  .flatMap((line, i) =>
-    patterns.some((p) => p.test(line)) ? [`${i + 1}: ${line.trim()}`] : [],
-  );
+const lines = content.split("\n");
+const offending = lines.flatMap((line, i) => {
+  if (!patterns.some((p) => p.test(line))) return [];
+  return [`${i + 1}: ${line.trim()}`];
+});
 
 if (offending.length > 0) {
   process.stderr.write(

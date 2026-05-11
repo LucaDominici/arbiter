@@ -12,16 +12,25 @@ if (r.status !== 0) {
   process.exit(1);
 }
 
+// Also include staged files so a docs-only commit passes pre-commit (staged
+// but not yet in HEAD).
+const rStaged = spawnSync("git", ["diff", "--name-only", "--cached"], {
+  encoding: "utf8",
+});
+const staged =
+  rStaged.status === 0 ? rStaged.stdout.trim().split("\n").filter(Boolean) : [];
+
 const changed = r.stdout.trim().split("\n").filter(Boolean);
-const hasCode = changed.some(
+const all = [...new Set([...changed, ...staged])];
+const hasCode = all.some(
   (f) => f.startsWith("src/") || f.startsWith("__tests__/"),
 );
-const hasDocs = changed.some((f) => f.startsWith("docs/") || f === "README.md");
+const hasDocs = all.some((f) => f.startsWith("docs/") || f === "README.md");
 
 if (hasCode && !hasDocs) {
   console.error("Code changed without documentation update.");
   console.error("Files changed in src/ or __tests__/:");
-  changed
+  all
     .filter((f) => f.startsWith("src/") || f.startsWith("__tests__/"))
     .forEach((f) => console.error(" ", f));
   console.error("Update docs/ or README.md to explain the change.");

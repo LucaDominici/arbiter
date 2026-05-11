@@ -168,3 +168,17 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Decision (INV-42):** All Pact broker runCheck invocations in `check-all.mjs.ejs` and CI workflow steps must be wrapped in a `PACT_BROKER_BASE_URL` environment check. When unset, the gate emits a visible SKIP log and does not error. When set, `PACT_BROKER_TOKEN` is forwarded as a system property or env var. No hardcoded broker URL is permitted.
 
 **Consequences:** Message-queue contract tests now provide genuine schema evolution safety. Pact broker steps no longer silently fail against a missing broker. The `.env.pact` scaffold (committed with empty values) and `.gitignore` pattern ensure tokens are never committed to source control.
+
+---
+
+## ADR-035: Inline arbiter-suppress directive parser (F8 from #344, INV-31 extension)
+
+**Date:** 2026-05-11
+**Status:** Accepted
+**Reference:** Issue #367
+
+**Context:** Audit finding F8 identified that INV-31 (suppression expiry) was only enforced for file-based `suppressions/` entries. Inline comment suppressions (e.g. `// arbiter-suppress(INV-04, ...)`) were silently vacuous — no validator ran, so any expired or malformed directive passed undetected. Additionally, five PostToolUse hooks (`check-no-any`, `check-no-orphan-todo`, `check-no-pii`, `check-no-direct-spawn`, `check-no-placeholders`) blocked violations with no escape hatch, making it impossible to legitimately suppress a finding in source code.
+
+**Decision:** Add `scripts/check-inline-suppressions.mjs` (and matching EJS template `src/templates/scripts/check-inline-suppressions.mjs.ejs`) that scans source files for `// arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason="...", owner=@handle)` directives and validates: non-expired `until=` date, `reason` ≥ 10 chars, `owner` present, INV-NN known in catalog. Wire this check unconditionally in the L1 gate (CANON-09) so it runs regardless of the `enableSuppressions` flag — CANON-01 dual-sided enforcement applies. Extend `check-no-any`, `check-no-orphan-todo`, and `check-no-pii` hooks to consult the inline suppression parser before blocking; hooks remain HARD when no directive or directive invalid/expired. Extract `parseArgs` (quote-aware comma tokenizer) to `scripts/lib/suppressions-shared.mjs` to eliminate divergence between the script and hook implementations.
+
+**Consequences:** INV-31 now covers both file-based and inline-comment suppressions. Hooks honor legitimate inline directives without becoming soft. `check-no-direct-spawn` and `check-no-placeholders` bypass wiring deferred to a follow-up (no catalog INV for direct-spawn; placeholder hook uses incompatible JSON env-var convention). INV-36 hardness-sentinel tests lock in the guarantee that all modified hooks still block on violations without a valid directive.

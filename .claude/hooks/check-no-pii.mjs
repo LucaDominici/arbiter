@@ -2,6 +2,7 @@
 // Arbiter hook: block PII patterns in edited files (INV-12)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from "node:fs";
+import { findInlineSuppression } from "./lib.mjs";
 
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 if (!file || !existsSync(file)) process.exit(0);
@@ -41,10 +42,10 @@ const PII_PATTERNS = [
 ];
 
 const findings = [];
+const lines = content.split("\n");
 for (const { label, re } of PII_PATTERNS) {
-  const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    if (re.test(lines[i])) {
+    if (re.test(lines[i]) && !findInlineSuppression(content, i, "INV-12")) {
       findings.push(
         `  line ${i + 1} [${label}]: ${lines[i].trim().slice(0, 80)}`,
       );

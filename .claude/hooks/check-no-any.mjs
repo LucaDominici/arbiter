@@ -2,6 +2,7 @@
 // Arbiter hook: block explicit 'any' types in TypeScript (INV-04)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from "node:fs";
+import { findInlineSuppression } from "./lib.mjs";
 
 const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
 if (!file || !existsSync(file)) process.exit(0);
@@ -18,11 +19,12 @@ try {
   process.exit(0);
 }
 
-const offending = content
-  .split("\n")
-  .flatMap((line, i) =>
-    /:\s*any\b/.test(line) ? [`${i + 1}: ${line.trim()}`] : [],
-  );
+const lines = content.split("\n");
+const offending = lines.flatMap((line, i) => {
+  if (!/:\s*any\b/.test(line)) return [];
+  if (findInlineSuppression(content, i, "INV-04")) return [];
+  return [`${i + 1}: ${line.trim()}`];
+});
 
 if (offending.length > 0) {
   process.stderr.write(`[arbiter] INV-04: No 'any' type allowed in ${file}:\n`);

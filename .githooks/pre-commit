@@ -29,7 +29,7 @@ if [[ "$PWD" == *"#"* ]]; then
   TMP_DIR=$(mktemp -d /tmp/arbiter-hook-XXXXXX)
   trap 'rm -rf "$TMP_DIR"' EXIT
   rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
-  ln -sfn "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
+  cp -al "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
   cd "$TMP_DIR"
   ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L1
   exit $?

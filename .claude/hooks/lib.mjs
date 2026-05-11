@@ -3,6 +3,7 @@
 import { mkdirSync, appendFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { parseArgs } from "../../scripts/lib/suppressions-shared.mjs";
 
 const PROJECT = "arbiter";
 const LOG_DIR = ".claude/hooks/logs";
@@ -18,6 +19,58 @@ function logEvent(level, message) {
 export const logInfo = (msg) => logEvent("INFO", msg);
 export const logWarn = (msg) => logEvent("WARN", msg);
 export const logError = (msg) => logEvent("ERROR", msg);
+
+/**
+ * Checks whether an inline arbiter-suppress directive on the same or previous line
+ * covers the given invariant ID. Returns true if a valid, non-expired directive is found.
+ * @param {string} fileContent - full file content
+ * @param {number} lineIndex - 0-based line index of the violation
+ * @param {string|null} invId - e.g. "INV-04", or null to match any valid directive
+ */
+export function findInlineSuppression(fileContent, lineIndex, invId) {
+  const lines = fileContent.split("\n");
+  const candidateLines = [lines[lineIndex]];
+  if (lineIndex > 0) candidateLines.unshift(lines[lineIndex - 1]);
+
+  const SUPPRESS_RE = /\/\/\s*arbiter-suppress\(([^)]+)\)/;
+
+  for (const line of candidateLines) {
+    const m = SUPPRESS_RE.test(line) ? line.match(SUPPRESS_RE) : null;
+    if (!m) continue;
+
+    const argsStr = m[1];
+    const parts = parseArgs(argsStr);
+    if (parts.length === 0) continue;
+
+    const firstPart = parts[0];
+    if (invId !== null && firstPart !== invId) continue;
+
+    const kvPairs = {};
+    for (let i = 1; i < parts.length; i++) {
+      const eqIdx = parts[i].indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = parts[i].slice(0, eqIdx).trim();
+      let val = parts[i].slice(eqIdx + 1).trim();
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      kvPairs[key] = val;
+    }
+
+    if (!kvPairs.until || !kvPairs.reason || !kvPairs.owner) continue;
+
+    const expiry = new Date(kvPairs.until);
+    if (isNaN(expiry.getTime())) continue;
+    if (expiry.getTime() < Date.now()) continue;
+    if (kvPairs.reason.length < 10) continue;
+
+    return true;
+  }
+  return false;
+}
 
 /** Returns the git repository root, falling back to process.cwd(). */
 export function getRepoRoot() {
