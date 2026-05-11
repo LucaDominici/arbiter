@@ -153,6 +153,46 @@ describe("matrix: TypeScript project", () => {
     expect(raw).toContain("check-no-any.mjs");
   });
 
+  it("generates check-no-placeholders.mjs static hook (#151)", () => {
+    const config = tsConfig();
+    runGenerators(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-placeholders.mjs")),
+    ).toBe(true);
+    const hook = readFileSync(
+      join(dir, ".claude", "hooks", "check-no-placeholders.mjs"),
+      "utf-8",
+    );
+    expect(hook).toContain("PLACEHOLDER");
+  });
+
+  it("settings.json includes check-no-placeholders.mjs hook entry (#151)", () => {
+    const config = tsConfig();
+    runGenerators(config);
+    const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("check-no-placeholders.mjs");
+  });
+
+  it("generates check-no-unused-exports.mjs hook for TypeScript (#156)", () => {
+    const config = tsConfig();
+    runGenerators(config);
+    expect(
+      existsSync(join(dir, ".claude", "hooks", "check-no-unused-exports.mjs")),
+    ).toBe(true);
+    const hook = readFileSync(
+      join(dir, ".claude", "hooks", "check-no-unused-exports.mjs"),
+      "utf-8",
+    );
+    expect(hook).toContain("knip");
+  });
+
+  it("settings.json includes check-no-unused-exports.mjs hook entry for TypeScript (#156)", () => {
+    const config = tsConfig();
+    runGenerators(config);
+    const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
+    expect(raw).toContain("check-no-unused-exports.mjs");
+  });
+
   it("AGENTS.md coding standards section is TypeScript-specific", () => {
     const config = tsConfig();
     runGenerators(config);

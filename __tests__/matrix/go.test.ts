@@ -203,6 +203,17 @@ describe("matrix: Go project", () => {
     expect(dependabot).toContain("gomod");
   });
 
+  it("check-all.mjs includes gofmt format gate (#157)", () => {
+    const config = goConfig();
+    runGenerators(config);
+    const checkAll = readFileSync(
+      join(dir, "scripts", "check-all.mjs"),
+      "utf-8",
+    );
+    expect(checkAll).toContain("gofmt");
+    expect(checkAll).toContain("'-l'");
+  });
+
   describe("hexagonal architecture variant", () => {
     function hexConfig() {
       return goConfig({ architectureStyle: "hexagonal" });

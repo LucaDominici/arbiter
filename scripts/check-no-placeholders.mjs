@@ -21,7 +21,9 @@ const PATTERNS = [
 ];
 
 const EXTENSIONS = new Set([".ts", ".tsx", ".mjs", ".js"]);
-const SKIP_DIRS = new Set(["node_modules", "dist", ".git", "templates"]);
+const SKIP_DIRS = new Set(["node_modules", "dist", ".git"]);
+// Skip EJS template trees by relative path — they contain pattern strings, not violations
+const SKIP_PATHS = new Set(["src/templates"]);
 
 const scanDirs =
   process.argv.slice(2).length > 0 ? process.argv.slice(2) : [process.cwd()];
@@ -32,6 +34,7 @@ function scan(dir) {
   for (const entry of readdirSync(dir)) {
     if (SKIP_DIRS.has(entry)) continue;
     const full = join(dir, entry);
+    if (SKIP_PATHS.has(relative(baseDir, full))) continue;
     const stat = statSync(full);
     if (stat.isDirectory()) {
       scan(full);
