@@ -144,6 +144,15 @@ if (level === 'L2') {
 <% if (hasDatabase && governanceLevel !== 'L1') { %>
   runCheck('integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
 <% } %>
+<% if ((archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1') { %>
+  // ─── L2: Playwright E2E tests (matrix proven for frontend/backend-web-db) ──
+  if (existsSync(join('node_modules', '.bin', 'playwright'))) {
+    runCheck('playwright test', 'npx', ['playwright', 'test'], { soft: graceActive });
+  } else {
+    console.log('[CHECK] playwright test ... FAIL (@playwright/test not installed — required for this archetype; run: npm install -D @playwright/test)');
+    failed++;
+  }
+<% } %>
 <% } %><% if (language === 'rust') { %>
 <% if (enableSecurityScanning) { %>
   runCheck('audit', 'cargo', ['audit'], { soft: graceActive });
