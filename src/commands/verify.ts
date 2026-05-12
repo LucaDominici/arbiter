@@ -36,17 +36,52 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * Pattern enforced on `E2E_RISK_SKIP` reasons:
+ *   <category>:#<issue>[:<slug>]
+ * where <category> ∈ {flake, infra, external} and <issue> is digits.
+ * Examples:
+ *   flake:#123
+ *   infra:#456:db-outage
+ *   external:#789
+ *
+ * Any other value is REFUSED — the skip falls through to normal
+ * verification. Unconstrained string bypasses (e.g. "lol") are not
+ * allowed because the skip silently disables an auditing gate.
+ */
+const SKIP_REASON_PATTERN = /^(?:flake|infra|external):#\d+(?::[\w-]+)?$/;
+
+function isValidSkipReason(raw: string): boolean {
+  return SKIP_REASON_PATTERN.test(raw);
+}
+
+/**
+ * Append a single JSONL entry to `.evidence/skip-log.jsonl` for audit.
+ *
+ * If the write fails we cannot honour the skip — silently disabling the
+ * audit trail would be exactly the footgun the gate exists to prevent —
+ * so the error is surfaced to stderr and re-thrown.
+ */
 function writeSkipEntry(dir: string, reason: string): void {
+  const evidenceDir = join(dir, ".evidence");
+  const logPath = join(evidenceDir, "skip-log.jsonl");
   try {
-    const evidenceDir = join(dir, ".evidence");
     mkdirSync(evidenceDir, { recursive: true });
     appendFileSync(
-      join(evidenceDir, "skip-log.jsonl"),
+      logPath,
       JSON.stringify({ ts: new Date().toISOString(), reason }) + "\n",
       "utf-8",
     );
-  } catch {
-    // Skip-log writes are best-effort — never break the command.
+  } catch (err) {
+    const errno =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: unknown }).code)
+        : "unknown";
+    process.stderr.write(
+      `arbiter verify evidence: refusing to honour E2E_RISK_SKIP — ` +
+        `audit log write failed (${errno}) at ${logPath}\n`,
+    );
+    throw err;
   }
 }
 
@@ -131,8 +166,22 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
   const dir = resolve(opts.dir ?? ".");
   const skip = process.env["E2E_RISK_SKIP"];
   if (skip && skip.trim() !== "") {
-    writeSkipEntry(dir, skip);
-    return { status: "ok", exitCode: 0, skipped: true, reason: skip };
+    const trimmed = skip.trim();
+    if (isValidSkipReason(trimmed)) {
+      writeSkipEntry(dir, trimmed);
+      // Loud stderr WARN so the bypass is visible in CI logs.
+      process.stderr.write(
+        `arbiter verify evidence: E2E_RISK_SKIP honoured — ` +
+          `reason="${trimmed}" log=${join(dir, ".evidence", "skip-log.jsonl")}\n`,
+      );
+      return { status: "ok", exitCode: 0, skipped: true, reason: trimmed };
+    }
+    // Invalid skip pattern → refuse, fall through to normal verification.
+    process.stderr.write(
+      `arbiter verify evidence: E2E_RISK_SKIP="${trimmed}" rejected — ` +
+        `must match <flake|infra|external>:#<issue>[:<slug>] (e.g. flake:#123). ` +
+        `Falling through to normal verification.\n`,
+    );
   }
 
   const summaryPath = join(dir, ".evidence", "SUMMARY.json");

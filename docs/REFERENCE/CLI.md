@@ -298,8 +298,12 @@ Risk gating (highest level across `files[]` wins):
 When `files[]` is absent, risk gating is skipped and stale evidence is
 always advisory (exit 1).
 
-The check is skipped when `E2E_RISK_SKIP=<reason>` is set; one JSONL
-entry is appended to `.evidence/skip-log.jsonl` for audit.
+The check is skipped only when `E2E_RISK_SKIP` matches the audited
+pattern `<category>:#<issue>[:<slug>]` where `<category>` ∈ `flake`,
+`infra`, `external` — e.g. `flake:#123`, `infra:#456:db-outage`. One
+JSONL entry is appended to `.evidence/skip-log.jsonl` for audit. Any
+other value (e.g. `lol`) is refused with a loud stderr warning and the
+command falls through to normal verification.
 
 ## `arbiter review`
 

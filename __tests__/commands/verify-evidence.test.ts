@@ -135,11 +135,11 @@ describe("runVerifyEvidence (#238)", () => {
     expect(result.status).toBe("error");
   });
 
-  it("respects E2E_RISK_SKIP env and writes skip-log entry", () => {
+  it("respects E2E_RISK_SKIP env with valid <cat>:#<issue> reason", () => {
     const { serialised } = makeSummary();
     writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
     const orig = process.env["E2E_RISK_SKIP"];
-    process.env["E2E_RISK_SKIP"] = "flaky-on-ci";
+    process.env["E2E_RISK_SKIP"] = "flake:#123";
     try {
       const result = runVerifyEvidence({ dir });
       expect(result.skipped).toBe(true);
@@ -149,8 +149,66 @@ describe("runVerifyEvidence (#238)", () => {
       const line =
         readFileSync(skipLog, "utf-8").trim().split("\n").pop() ?? "";
       const parsed = JSON.parse(line);
-      expect(parsed.reason).toBe("flaky-on-ci");
+      expect(parsed.reason).toBe("flake:#123");
       expect(typeof parsed.ts).toBe("string");
+    } finally {
+      if (orig === undefined) {
+        delete process.env["E2E_RISK_SKIP"];
+      } else {
+        process.env["E2E_RISK_SKIP"] = orig;
+      }
+    }
+  });
+
+  it("accepts E2E_RISK_SKIP with optional slug (infra:#456:db-outage)", () => {
+    const { serialised } = makeSummary();
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    const orig = process.env["E2E_RISK_SKIP"];
+    process.env["E2E_RISK_SKIP"] = "infra:#456:db-outage";
+    try {
+      const result = runVerifyEvidence({ dir });
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe("infra:#456:db-outage");
+    } finally {
+      if (orig === undefined) {
+        delete process.env["E2E_RISK_SKIP"];
+      } else {
+        process.env["E2E_RISK_SKIP"] = orig;
+      }
+    }
+  });
+
+  it("REFUSES unconstrained E2E_RISK_SKIP (falls through to normal verification)", () => {
+    const { serialised } = makeSummary();
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    const orig = process.env["E2E_RISK_SKIP"];
+    process.env["E2E_RISK_SKIP"] = "lol";
+    try {
+      const result = runVerifyEvidence({ dir });
+      // Verification ran normally — no skip honoured
+      expect(result.skipped).toBeUndefined();
+      // SUMMARY is valid → ok
+      expect(result.exitCode).toBe(0);
+      // Skip log was NOT written
+      const skipLog = join(dir, ".evidence", "skip-log.jsonl");
+      expect(existsSync(skipLog)).toBe(false);
+    } finally {
+      if (orig === undefined) {
+        delete process.env["E2E_RISK_SKIP"];
+      } else {
+        process.env["E2E_RISK_SKIP"] = orig;
+      }
+    }
+  });
+
+  it("REFUSES E2E_RISK_SKIP with unknown category (foo:#123)", () => {
+    const { serialised } = makeSummary();
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    const orig = process.env["E2E_RISK_SKIP"];
+    process.env["E2E_RISK_SKIP"] = "foo:#123";
+    try {
+      const result = runVerifyEvidence({ dir });
+      expect(result.skipped).toBeUndefined();
     } finally {
       if (orig === undefined) {
         delete process.env["E2E_RISK_SKIP"];
