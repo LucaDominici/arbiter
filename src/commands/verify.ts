@@ -75,7 +75,7 @@ function writeSkipEntry(dir: string, reason: string): void {
   } catch (err) {
     const errno =
       err && typeof err === "object" && "code" in err
-        ? String((err as { code: unknown }).code)
+        ? String((err as Record<string, unknown>)["code"])
         : "unknown";
     process.stderr.write(
       `arbiter verify evidence: refusing to honour E2E_RISK_SKIP — ` +
@@ -100,10 +100,7 @@ const KNOWN_STACKS: ReadonlySet<Language> = new Set<Language>([
  *   1. The `stack` field embedded in SUMMARY.json (signed by the SHA)
  *   2. `detectLanguage(dir)` from the project on disk
  */
-function resolveStack(
-  summary: Record<string, unknown>,
-  dir: string,
-): Language {
+function resolveStack(summary: Record<string, unknown>, dir: string): Language {
   const stored = summary["stack"];
   if (typeof stored === "string" && KNOWN_STACKS.has(stored as Language)) {
     return stored as Language;
@@ -147,6 +144,100 @@ function staleSeverity(level: RiskLevel): {
   return { exitCode: 1, status: "warning" };
 }
 
+/** Handle the `E2E_RISK_SKIP` env override. Returns the result envelope
+ *  to short-circuit with, or null when verification should proceed. */
+function handleRiskSkip(dir: string): VerifyEvidenceResult | null {
+  const skip = process.env["E2E_RISK_SKIP"];
+  if (!skip || skip.trim() === "") return null;
+  const trimmed = skip.trim();
+  if (isValidSkipReason(trimmed)) {
+    writeSkipEntry(dir, trimmed);
+    process.stderr.write(
+      `arbiter verify evidence: E2E_RISK_SKIP honoured — ` +
+        `reason="${trimmed}" log=${join(dir, ".evidence", "skip-log.jsonl")}\n`,
+    );
+    return { status: "ok", exitCode: 0, skipped: true, reason: trimmed };
+  }
+  // Invalid skip pattern → refuse, fall through to normal verification.
+  process.stderr.write(
+    `arbiter verify evidence: E2E_RISK_SKIP="${trimmed}" rejected — ` +
+      `must match <flake|infra|external>:#<issue>[:<slug>] (e.g. flake:#123). ` +
+      `Falling through to normal verification.\n`,
+  );
+  return null;
+}
+
+/** Load and validate the SUMMARY.json file. Returns the parsed body OR
+ *  an early-exit result envelope. */
+function loadSummary(
+  summaryPath: string,
+): Record<string, unknown> | VerifyEvidenceResult {
+  if (!existsSync(summaryPath)) {
+    return {
+      status: "error",
+      exitCode: 1,
+      reason: ".evidence/SUMMARY.json not found",
+    };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(summaryPath, "utf-8"));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { status: "error", exitCode: 1, reason: `invalid JSON: ${msg}` };
+  }
+  if (!isRecord(parsed)) {
+    return {
+      status: "error",
+      exitCode: 1,
+      reason: "SUMMARY.json root must be an object",
+    };
+  }
+  return parsed;
+}
+
+function isResult(
+  v: Record<string, unknown> | VerifyEvidenceResult,
+): v is VerifyEvidenceResult {
+  return "exitCode" in v && "status" in v;
+}
+
+/** Decide the stale-evidence envelope for a given risk level + age string. */
+function makeStaleResult(
+  riskLevel: RiskLevel | null,
+  ageStr: string,
+): VerifyEvidenceResult {
+  if (riskLevel === null) {
+    return { status: "warning", exitCode: 1, reason: ageStr };
+  }
+  const sev = staleSeverity(riskLevel);
+  return {
+    status: sev.status,
+    exitCode: sev.exitCode,
+    riskLevel,
+    reason:
+      sev.exitCode === 2
+        ? `${ageStr}; high-risk change set requires fresh evidence`
+        : ageStr,
+  };
+}
+
+/** Compute the freshness envelope from the SUMMARY timestamp + risk level.
+ *  Returns null when timestamp is missing/unreadable or evidence is fresh. */
+function checkFreshness(
+  summary: Record<string, unknown>,
+  riskLevel: RiskLevel | null,
+): VerifyEvidenceResult | null {
+  const ts = summary["timestamp"];
+  if (typeof ts !== "string") return null;
+  const tsMs = Date.parse(ts);
+  if (!Number.isFinite(tsMs)) return null;
+  const ageDays = (Date.now() - tsMs) / MS_PER_DAY;
+  if (ageDays <= FRESHNESS_DAYS) return null;
+  const ageStr = `summary is ${ageDays.toFixed(1)} days old (>${FRESHNESS_DAYS})`;
+  return makeStaleResult(riskLevel, ageStr);
+}
+
 /**
  * Verify an existing `.evidence/SUMMARY.json` snapshot. Returns a result
  * envelope so callers (CLI / programmatic) can decide how to surface it.
@@ -164,55 +255,15 @@ function staleSeverity(level: RiskLevel): {
  */
 export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
   const dir = resolve(opts.dir ?? ".");
-  const skip = process.env["E2E_RISK_SKIP"];
-  if (skip && skip.trim() !== "") {
-    const trimmed = skip.trim();
-    if (isValidSkipReason(trimmed)) {
-      writeSkipEntry(dir, trimmed);
-      // Loud stderr WARN so the bypass is visible in CI logs.
-      process.stderr.write(
-        `arbiter verify evidence: E2E_RISK_SKIP honoured — ` +
-          `reason="${trimmed}" log=${join(dir, ".evidence", "skip-log.jsonl")}\n`,
-      );
-      return { status: "ok", exitCode: 0, skipped: true, reason: trimmed };
-    }
-    // Invalid skip pattern → refuse, fall through to normal verification.
-    process.stderr.write(
-      `arbiter verify evidence: E2E_RISK_SKIP="${trimmed}" rejected — ` +
-        `must match <flake|infra|external>:#<issue>[:<slug>] (e.g. flake:#123). ` +
-        `Falling through to normal verification.\n`,
-    );
-  }
+
+  const skipResult = handleRiskSkip(dir);
+  if (skipResult) return skipResult;
 
   const summaryPath = join(dir, ".evidence", "SUMMARY.json");
-  if (!existsSync(summaryPath)) {
-    return {
-      status: "error",
-      exitCode: 1,
-      reason: ".evidence/SUMMARY.json not found",
-    };
-  }
+  const loaded = loadSummary(summaryPath);
+  if (isResult(loaded)) return loaded;
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(summaryPath, "utf-8"));
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      status: "error",
-      exitCode: 1,
-      reason: `invalid JSON: ${msg}`,
-    };
-  }
-  if (!isRecord(parsed)) {
-    return {
-      status: "error",
-      exitCode: 1,
-      reason: "SUMMARY.json root must be an object",
-    };
-  }
-
-  const shaResult = verifySummarySha(parsed);
+  const shaResult = verifySummarySha(loaded);
   if (!shaResult.ok) {
     return {
       status: "error",
@@ -224,46 +275,25 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
   // Classify the change set (if any files are listed) so we can scale
   // freshness severity to risk. Absent files[] → no risk gating possible
   // and we fall back to the legacy advisory-only stale behaviour.
-  const stack = resolveStack(parsed, dir);
-  const riskLevel = classifyFiles(parsed, stack);
+  const stack = resolveStack(loaded, dir);
+  const aggregated = classifyFiles(loaded, stack);
 
   // UNCLASSIFIED in the changeset means the consumer must decide — we
   // refuse to fail open. Surfaces as advisory (exit 1) with a clear reason.
-  if (riskLevel === UNCLASSIFIED_LEVEL) {
+  if (aggregated === UNCLASSIFIED_LEVEL) {
     return {
       status: "warning",
       exitCode: 1,
-      riskLevel,
+      riskLevel: aggregated,
       reason:
         "one or more files could not be classified — manual review required",
     };
   }
 
-  const ts = parsed["timestamp"];
-  if (typeof ts === "string") {
-    const tsMs = Date.parse(ts);
-    if (Number.isFinite(tsMs)) {
-      const ageDays = (Date.now() - tsMs) / MS_PER_DAY;
-      if (ageDays > FRESHNESS_DAYS) {
-        // Stale: severity scales with risk. Low-risk changes are advisory,
-        // higher-risk changes block (CI must fail).
-        const sev = riskLevel === null ? null : staleSeverity(riskLevel);
-        const ageStr = `summary is ${ageDays.toFixed(1)} days old (>${FRESHNESS_DAYS})`;
-        if (sev === null) {
-          return { status: "warning", exitCode: 1, reason: ageStr };
-        }
-        return {
-          status: sev.status,
-          exitCode: sev.exitCode,
-          riskLevel,
-          reason:
-            sev.exitCode === 2
-              ? `${ageStr}; high-risk change set requires fresh evidence`
-              : ageStr,
-        };
-      }
-    }
-  }
+  // Narrow: `aggregated` is now RiskLevel | null (UNCLASSIFIED handled above).
+  const riskLevel: RiskLevel | null = aggregated;
+  const stale = checkFreshness(loaded, riskLevel);
+  if (stale) return stale;
 
   const result: VerifyEvidenceResult = { status: "ok", exitCode: 0 };
   if (riskLevel !== null) result.riskLevel = riskLevel;

@@ -4,11 +4,11 @@
 
 All `arbiter` subcommands obey one exit-code convention:
 
-| Code | Meaning              | CI semantics                            |
-| ---- | -------------------- | --------------------------------------- |
-| `0`  | ok                   | must pass                               |
-| `1`  | warning / advisory   | CI should pass but surface a flag       |
-| `2`  | error / blocker      | CI must fail (hard stop)                |
+| Code | Meaning            | CI semantics                      |
+| ---- | ------------------ | --------------------------------- |
+| `0`  | ok                 | must pass                         |
+| `1`  | warning / advisory | CI should pass but surface a flag |
+| `2`  | error / blocker    | CI must fail (hard stop)          |
 
 The mapping `ok ↔ 0`, `warning ↔ 1`, `error ↔ 2` is encoded in
 `src/utils/json-output.ts::statusToExitCode` and applies to every
@@ -280,20 +280,20 @@ run (#238). Each file in `SUMMARY.json.files[]` is classified by
 arbiter verify evidence [--json] [--dir <path>]
 ```
 
-| Code | Meaning                                                                                |
-| ---- | -------------------------------------------------------------------------------------- |
-| 0    | SUMMARY.json present, sha matches, age ≤ 7 days                                        |
-| 1    | SUMMARY.json missing / unreadable / unclassified files / stale on low-risk (R3/R4)     |
-| 2    | sha mismatch (tampered) OR stale (>7 days) on medium/high-risk (R0/R1/R2) change sets  |
+| Code | Meaning                                                                               |
+| ---- | ------------------------------------------------------------------------------------- |
+| 0    | SUMMARY.json present, sha matches, age ≤ 7 days                                       |
+| 1    | SUMMARY.json missing / unreadable / unclassified files / stale on low-risk (R3/R4)    |
+| 2    | sha mismatch (tampered) OR stale (>7 days) on medium/high-risk (R0/R1/R2) change sets |
 
 Risk gating (highest level across `files[]` wins):
 
-| Risk        | Stale severity     |
-| ----------- | ------------------ |
-| R0 / R1     | exit 2 (blocker)   |
-| R2          | exit 2 (blocker)   |
-| R3 / R4     | exit 1 (advisory)  |
-| UNCLASSIFIED| exit 1 (manual review required — refuse to fail open) |
+| Risk         | Stale severity                                        |
+| ------------ | ----------------------------------------------------- |
+| R0 / R1      | exit 2 (blocker)                                      |
+| R2           | exit 2 (blocker)                                      |
+| R3 / R4      | exit 1 (advisory)                                     |
+| UNCLASSIFIED | exit 1 (manual review required — refuse to fail open) |
 
 When `files[]` is absent, risk gating is skipped and stale evidence is
 always advisory (exit 1).

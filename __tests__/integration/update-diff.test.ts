@@ -173,7 +173,8 @@ describe("arbiter diff", () => {
       rmSync(freshDir, { recursive: true, force: true });
     }
 
-    expect(exitCode).toBe(1);
+    // Canonical convention: missing config is an error (blocker) → exit 2.
+    expect(exitCode).toBe(2);
   });
 });
 
