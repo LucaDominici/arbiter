@@ -34,7 +34,7 @@ jobs:
         id: issue
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           result-encoding: string
           script: |
@@ -54,7 +54,7 @@ jobs:
           (github.event.action == 'opened' || github.event.action == 'ready_for_review')
         env:
           ISSUE_NUMBER: ${{ steps.issue.outputs.result }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
@@ -81,7 +81,7 @@ jobs:
           github.event.pull_request.base.ref == 'main'
         env:
           ISSUE_NUMBER: ${{ steps.issue.outputs.result }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
