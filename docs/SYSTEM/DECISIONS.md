@@ -5,6 +5,29 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#241,#242,#243): evidence schema hardening, INV-31 suppression wiring, BACKLOG generator (2026-05-12)
+
+**#241 — EvidenceSummary schema enforcement:**
+`head_sha`, `head_sha_short`, `obs_gate`, `tests`, `coverage`, `mutation`, `security`
+promoted to REQUIRED fields in `src/evidence/summary.ts`. `validateSummarySchema`
+now wired into `runVerifyEvidence` (after SHA check) so the L2 gate actually rejects
+malformed SUMMARY.json. `evidence-collect.mjs.ejs` emits both SHA fields inline.
+
+**#242 — INV-31 suppression expiry wiring (CANON-09):**
+`check-suppressions.mjs` added unconditionally to `scripts/check-all.mjs` and CI
+(was missing; AGENTS.md claimed enforcement but script was never called). Registry
+`suppressions` entry changed to `enabled: true`; generator internally guards
+file-based suppression files on `enableSuppressions`, but always emits
+`check-inline-suppressions.mjs`.
+
+**#243 — BACKLOG.md generator:**
+New `evidence-backlog` generator emits `.evidence/BACKLOG.md.template` at L2+
+(`skipIfExists: true`). Registered in registry with `GeneratorKey "evidence-backlog"`.
+`task.md.ejs` Phase 1 step 5 instructs Standard-tier tasks to copy template into
+task-scoped evidence directory.
+
+---
+
 ## feat(#240): check-ci-alignment.mjs — L1 CI/manifest gate parity check (2026-05-11)
 
 Adds `scripts/check-ci-alignment.mjs` as an L1 gate that parses

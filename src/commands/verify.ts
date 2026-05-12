@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { runProbes } from "../compatibility/probe.js";
 import { formatText, formatJson } from "../compatibility/report.js";
@@ -13,6 +13,8 @@ import {
   type RiskLevel,
 } from "../risk/classifier.js";
 import type { Language } from "../wizard/types.js";
+import { loadSummaryFile } from "../evidence/load.js";
+import { validateSummarySchema } from "../evidence/summary.js";
 
 export interface VerifyOptions {
   dir?: string | undefined;
@@ -31,10 +33,6 @@ export interface VerifyEvidenceResult {
 
 const FRESHNESS_DAYS = 7;
 const MS_PER_DAY = 86_400_000;
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
 
 /**
  * Pattern enforced on `E2E_RISK_SKIP` reasons:
@@ -167,33 +165,14 @@ function handleRiskSkip(dir: string): VerifyEvidenceResult | null {
   return null;
 }
 
-/** Load and validate the SUMMARY.json file. Returns the parsed body OR
- *  an early-exit result envelope. */
 function loadSummary(
   summaryPath: string,
 ): Record<string, unknown> | VerifyEvidenceResult {
-  if (!existsSync(summaryPath)) {
-    return {
-      status: "error",
-      exitCode: 1,
-      reason: ".evidence/SUMMARY.json not found",
-    };
+  const loaded = loadSummaryFile(summaryPath);
+  if (!loaded.ok) {
+    return { status: "error", exitCode: 1, reason: loaded.reason };
   }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(summaryPath, "utf-8"));
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { status: "error", exitCode: 1, reason: `invalid JSON: ${msg}` };
-  }
-  if (!isRecord(parsed)) {
-    return {
-      status: "error",
-      exitCode: 1,
-      reason: "SUMMARY.json root must be an object",
-    };
-  }
-  return parsed;
+  return loaded.body;
 }
 
 function isResult(
@@ -270,6 +249,11 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
       exitCode: 2,
       reason: shaResult.reason ?? "sha mismatch",
     };
+  }
+
+  const schema = validateSummarySchema(loaded);
+  if (!schema.ok) {
+    return { status: "error", exitCode: 1, reason: schema.errors.join("; ") };
   }
 
   // Classify the change set (if any files are listed) so we can scale

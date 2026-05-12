@@ -28,4 +28,19 @@ describe("buildRegistry", () => {
     expect(find(withGitHub, "github")?.enabled).toBe(true);
     expect(find(withoutGitHub, "github")?.enabled).toBe(false);
   });
+
+  it("suppressions is always enabled regardless of enableSuppressions (#242)", () => {
+    const withSuppression = buildRegistry(
+      makeConfig("/tmp", { enableSuppressions: true }),
+    );
+    const withoutSuppression = buildRegistry(
+      makeConfig("/tmp", { enableSuppressions: false }),
+    );
+
+    const find = (specs: ReturnType<typeof buildRegistry>, key: string) =>
+      specs.find((s) => s.key === key);
+
+    expect(find(withSuppression, "suppressions")?.enabled).toBe(true);
+    expect(find(withoutSuppression, "suppressions")?.enabled).toBe(true);
+  });
 });

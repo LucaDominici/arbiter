@@ -10,12 +10,21 @@ export interface SuppressionsGeneratorResult {
 export function generateSuppressions(
   config: ProjectConfig,
 ): SuppressionsGeneratorResult {
-  if (!config.enableSuppressions) return { files: [] };
-
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;
 
+  // Always emit — inline comment directives (INV-31) are unconditional in check-all.mjs.ejs (#242)
   const results: WriteResult[] = [
+    writeFile(
+      resolvedPath(base, "scripts", "check-inline-suppressions.mjs"),
+      renderTemplate("scripts/check-inline-suppressions.mjs.ejs", data),
+      { skipIfExists: false },
+    ),
+  ];
+
+  if (!config.enableSuppressions) return { files: results };
+
+  results.push(
     // User-edited data stores — skip on update to preserve live suppression entries
     writeFile(
       resolvedPath(base, "suppressions", "dependency-check-suppressions.xml"),
@@ -51,7 +60,7 @@ export function generateSuppressions(
       renderTemplate("scripts/check-suppressions.mjs.ejs", data),
       { skipIfExists: false },
     ),
-  ];
+  );
 
   // Java/Kotlin L2+ only: OWASP dependency-check and Trivy suppression files
   if (

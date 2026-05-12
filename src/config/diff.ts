@@ -36,7 +36,8 @@ export type GeneratorKey =
   | "github-setup"
   | "docs"
   | "api-middleware"
-  | "seed";
+  | "seed"
+  | "evidence-backlog";
 
 export interface ConfigDiff {
   paths: string[];

@@ -20,6 +20,13 @@ function makeSummary(overrides: Record<string, unknown> = {}): {
     stack: "typescript",
     files: ["src/api/users.ts", "docs/intro.md"],
     timestamp: new Date().toISOString(),
+    head_sha: "abc123def456abc123def456abc123def456abc1",
+    head_sha_short: "abc123d",
+    obs_gate: "PASS",
+    tests: { passed: 10, failed: 0, total: 10 },
+    coverage: { line: 90, branch: 85 },
+    mutation: { score: 82 },
+    security: { critical: 0, high: 0 },
     ...overrides,
   };
   const sha = computeSummarySha(body);
@@ -216,5 +223,18 @@ describe("runVerifyEvidence (#238)", () => {
         process.env["E2E_RISK_SKIP"] = orig;
       }
     }
+  });
+
+  it("rejects SUMMARY.json missing required schema fields (#241)", () => {
+    // SHA is valid but required fields are absent
+    const { serialised } = makeSummary({
+      head_sha: undefined,
+      obs_gate: undefined,
+    });
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    const result = runVerifyEvidence({ dir });
+    expect(result.status).toBe("error");
+    expect(result.exitCode).toBe(1);
+    expect(result.reason).toMatch(/missing required field/);
   });
 });
