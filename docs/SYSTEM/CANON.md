@@ -214,6 +214,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Why:** Unchecked file creation is the primary source of near-duplicate abstractions, bloated generator counts, and redundant templates. A senior developer asks "does this already exist?" before building. Without a documented survey, AI agents default to creation because it is lower-friction than refactoring.
 
-**Enforcement:** `.claude/rules/35-refactor-first.md` — plan-phase review. Plans without an "Existing Code Survey" section are incomplete and must be rejected before implementation begins.
+**Enforcement:** `pre-edit-plan-anchor.mjs` hard-blocks (exit 2) `Write` to any new `src/` file if the active plan lacks a valid `## Existing Code Survey` block for that file (Target anchor, Decision keyword, ≥3 evidence rows, ≥200-char Rationale). L2: `jscpd` duplication detector. L1: bloat ratchet (`check-bloat-ratchet.mjs`). See ADR-041, INV-46.
+
+**Promoted to:** INV-46
 
 **Source issues:** audit 2026-05-12 (determinism + anti-bloat analysis)

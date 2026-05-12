@@ -1,9 +1,13 @@
 import js from "@eslint/js";
+import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
+  {
+    plugins: { sonarjs },
+  },
   {
     languageOptions: {
       parserOptions: {
@@ -23,10 +27,12 @@ export default tseslint.config(
       ],
     },
   },
-  // Complexity rules for source files
+  // Complexity + duplication rules for source files (not templates — EJS variants share scaffolding)
   {
     files: ["src/**/*.ts"],
     rules: {
+      "sonarjs/no-identical-functions": "error",
+      "sonarjs/no-duplicate-string": "warn",
       complexity: ["error", 15],
       "max-params": ["error", 5],
       "max-depth": ["error", 4],

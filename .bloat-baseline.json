@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-05-12T19:12:24.954Z",
+  "buckets": {
+    "srcDirect": {
+      "files": 1,
+      "loc": 608
+    },
+    "generators": {
+      "files": 43,
+      "loc": 3331
+    },
+    "commands": {
+      "files": 11,
+      "loc": 3026
+    },
+    "templates": {
+      "files": 225,
+      "loc": 13741
+    }
+  }
+}

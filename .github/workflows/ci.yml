@@ -62,12 +62,16 @@ jobs:
         run: node scripts/check-hardness-inventory.mjs
       - name: Workflow runner label check
         run: node scripts/check-workflow-runners.mjs
+      - name: Bloat ratchet (CANON-16, INV-46)
+        run: node scripts/check-bloat-ratchet.mjs
       - name: CI/manifest gate alignment check (#240)
         run: node scripts/check-ci-alignment.mjs
       - name: Self-dogfood template check (INV-45, #239)
         run: node scripts/check-self-dogfood.mjs
       - name: Dead code check
         run: npx knip
+      - name: Duplication check (CANON-16, INV-46)
+        run: npx jscpd --silent
       - name: Matrix fixture coverage (INV-32)
         run: node scripts/check-matrix-fixtures.mjs
       - name: Fetch base branch for commitlint

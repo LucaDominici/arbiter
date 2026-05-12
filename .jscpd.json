@@ -1,0 +1,15 @@
+{
+  "threshold": 5,
+  "minTokens": 50,
+  "reporters": ["json", "consoleFull"],
+  "absolute": true,
+  "ignore": [
+    "**/node_modules/**",
+    "dist/**",
+    "coverage/**",
+    "__tests__/fixtures/**",
+    "src/templates/**",
+    ".claude/hooks/logs/**"
+  ],
+  "pattern": "{src,scripts,.claude/hooks}/**/*.{ts,mjs,js}"
+}

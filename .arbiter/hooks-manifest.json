@@ -85,7 +85,7 @@
       "tools": ["claude"],
       "spawnable": false,
       "expectedExitCode": 2,
-      "rationale": "EJS template rendered at arbiter init time. Empirical exit-2 coverage in __tests__/hooks/empirical/plan-anchor.test.ts. Blocks implementation-phase edits with no active plan. Fixed in #405."
+      "rationale": "EJS template rendered at arbiter init time. Empirical exit-2 coverage in __tests__/hooks/empirical/plan-anchor.test.ts. Two hard-block paths: (1) implementation phase with no active plan (INV-38); (2) Write to new src/ file lacking a valid Existing Code Survey (CANON-16, INV-46). Fixed in #405, extended in #458."
     },
     {
       "file": "debug-state-on-failure.mjs.ejs",

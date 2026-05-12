@@ -93,14 +93,19 @@ Ensure the hook still exits non-zero on the fixture defined in the manifest. Cha
 
 ### SSOT and plan bypass env vars
 
-Two hooks block edits to high-authority documents. For legitimate edits, use session-scoped bypass:
+Hooks block edits to high-authority documents and enforce anti-bloat invariants. For legitimate bypasses, use session-scoped env vars:
 
-| Hook                       | Guards                                                                                        | Bypass                             |
-| -------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`, `.agents/CODEX.md` | `ARBITER_SSOT_BYPASS=1 claude ...` |
-| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan                                             | `ARBITER_PLAN_BYPASS=1 claude ...` |
+| Hook / Check               | Guards                                                                                           | Bypass                                     |
+| -------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| `pre-edit-ssot-guard.mjs`  | `AGENTS.md`, `.claude/CLAUDE.md`, `docs/METHOD/`, `docs/SYSTEM/DECISIONS`, `.agents/CODEX.md`    | `ARBITER_SSOT_BYPASS=1 claude ...`         |
+| `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan; new `src/` file without Survey block (INV-46) | `ARBITER_PLAN_BYPASS=1 claude ...`         |
+| `check-bloat-ratchet.mjs`  | `src/` file/LOC ceiling per bucket (INV-46)                                                      | `ALLOW_BLOAT=1 node scripts/check-all.mjs` |
 
-**Warning:** Do not set these in your shell profile — session-scoped only. Legitimate edits should reference a corresponding ADR or amendment in the commit message.
+**`ARBITER_PLAN_BYPASS=1`** — bypasses both the plan-anchor check (no plan required) and the CANON-16 Survey gate (no Existing Code Survey required). Use when updating the plan infrastructure itself or bootstrapping a new task environment.
+
+**`ALLOW_BLOAT=1`** — bypasses the bloat ratchet check. Use when a legitimate architectural expansion requires more than the per-bucket threshold (e.g., adding a new language to `src/generators/`). Advance the baseline with `node scripts/update-bloat-baseline.mjs --task=#NNN` after the legitimate expansion.
+
+**Warning:** Do not set these in your shell profile — session-scoped only. Legitimate bypasses should reference the corresponding task ID and ADR in the commit message.
 
 ## Pull Requests
 
