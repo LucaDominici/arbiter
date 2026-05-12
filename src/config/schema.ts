@@ -7,13 +7,16 @@ import type {
   GovernanceLevel,
   InvariantTier,
   Lane,
+  PlanDepth,
   StrictnessTier,
+  TaskTierConfig,
+  TaskTiers,
   ThresholdProfile,
   ThresholdsV2,
   WorktreeConfig,
 } from "../wizard/types.js";
 
-export type { ThresholdsV2 };
+export type { ThresholdsV2, TaskTiers, TaskTierConfig, PlanDepth };
 
 export interface FeatureFlags {
   contractTesting: boolean;
@@ -25,6 +28,12 @@ export interface FeatureFlags {
 }
 
 export type DecompositionBackendId = "github" | "markdown";
+
+export const DEFAULT_TASK_TIERS: TaskTiers = {
+  XS: { planDepth: "minimal", reviewAgentCount: 3 },
+  S: { planDepth: "brief", reviewAgentCount: 3 },
+  Standard: { planDepth: "full", reviewAgentCount: 4 },
+};
 
 export interface DecompositionConfig {
   backend: DecompositionBackendId;
@@ -56,6 +65,7 @@ export interface ArbiterConfigV2 {
   worktree?: WorktreeConfig;
   plugins?: string[];
   lanes?: Lane[];
+  taskTiers?: TaskTiers;
 }
 
 export type ValidateResult =
@@ -186,6 +196,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateThresholds(raw["thresholds"], errors);
   validateDecomposition(raw["decomposition"], errors);
   validateLanes(raw["lanes"], errors);
+  validateTaskTiers(raw["taskTiers"], errors);
 
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -212,6 +223,51 @@ function validateLanes(raw: unknown, errors: string[]): void {
     if (!VALID_LANES.has(v as string)) {
       errors.push(`lanes contains invalid value: ${String(v)}`);
     }
+  }
+}
+
+const VALID_PLAN_DEPTHS: ReadonlySet<string> = new Set([
+  "minimal",
+  "brief",
+  "full",
+]);
+
+function validateOneTier(
+  tierName: "XS" | "S" | "Standard",
+  raw: unknown,
+  errors: string[],
+): void {
+  if (!isRecord(raw)) {
+    errors.push(`taskTiers.${tierName} must be an object`);
+    return;
+  }
+  const planDepth = raw["planDepth"];
+  if (typeof planDepth !== "string" || !VALID_PLAN_DEPTHS.has(planDepth)) {
+    errors.push(
+      `taskTiers.${tierName}.planDepth must be one of minimal, brief, full`,
+    );
+  }
+  const count = raw["reviewAgentCount"];
+  if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
+    errors.push(
+      `taskTiers.${tierName}.reviewAgentCount must be a positive integer`,
+    );
+  }
+}
+
+function validateTaskTiers(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return;
+  if (!isRecord(raw)) {
+    errors.push("taskTiers must be an object");
+    return;
+  }
+  const required: ("XS" | "S" | "Standard")[] = ["XS", "S", "Standard"];
+  for (const tier of required) {
+    if (!(tier in raw)) {
+      errors.push(`taskTiers.${tier} is required`);
+      continue;
+    }
+    validateOneTier(tier, raw[tier], errors);
   }
 }
 

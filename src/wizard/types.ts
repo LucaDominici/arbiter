@@ -226,6 +226,21 @@ export interface ProjectConfig {
   thresholds?: ThresholdsV2;
   /** Detected project lanes (FE/BE/docs). Empty array = single-lane / no lane awareness. */
   lanes: Lane[];
+  /** Task-tier configuration (XS/S/Standard) — review agent count + plan depth (#237). */
+  taskTiers?: TaskTiers;
+}
+
+export type PlanDepth = "minimal" | "brief" | "full";
+
+export interface TaskTierConfig {
+  planDepth: PlanDepth;
+  reviewAgentCount: number;
+}
+
+export interface TaskTiers {
+  XS: TaskTierConfig;
+  S: TaskTierConfig;
+  Standard: TaskTierConfig;
 }
 
 export interface ThresholdsV2 {

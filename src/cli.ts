@@ -9,7 +9,10 @@ import {
   runWorktreeClose,
   runWorktreeList,
 } from "./commands/worktree.js";
-import { runVerify } from "./commands/verify.js";
+import { runVerify, runVerifyEvidence } from "./commands/verify.js";
+import { runReviewPlan } from "./commands/review.js";
+import { jsonOutput } from "./utils/json-output.js";
+import type { ReviewTier } from "./review/tier-constants.js";
 import { runUpgradeLevel } from "./commands/upgrade-level.js";
 import {
   runPluginAdd,
@@ -294,13 +297,75 @@ worktree
     runWorktreeList({ json: opts.json });
   });
 
-program
+const review = program
+  .command("review")
+  .description("Review artefacts (plans, code) against governance invariants");
+
+review
+  .command("plan <file>")
+  .description("Review a plan markdown file via a Claude subagent (#235)")
+  .option("--dir <dir>", "Project root (default: current directory)")
+  .option("--tier <tier>", "Review tier: XS, S, or Standard (default: S)")
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(
+    (file: string, opts: { dir?: string; tier?: string; json: boolean }) => {
+      const tier: ReviewTier | undefined =
+        opts.tier === "XS" || opts.tier === "S" || opts.tier === "Standard"
+          ? opts.tier
+          : undefined;
+      if (opts.tier !== undefined && tier === undefined) {
+        console.error(
+          `  Error: invalid --tier "${opts.tier}". Valid: XS, S, Standard.`,
+        );
+        process.exit(1);
+      }
+      const result = runReviewPlan({
+        file,
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(tier !== undefined ? { tier } : {}),
+        json: opts.json,
+      });
+      process.exit(result.exitCode);
+    },
+  );
+
+const verify = program
   .command("verify")
   .description("Probe toolchain compatibility for the detected stack")
   .option("--json", "Emit JSON report", false)
   .option("--dir <dir>", "Target directory (default: current directory)")
   .action((opts: { json: boolean; dir?: string }) => {
     runVerify({ json: opts.json, dir: opts.dir });
+  });
+
+verify
+  .command("evidence")
+  .description(
+    "Verify the .evidence/SUMMARY.json snapshot (SHA + freshness window).",
+  )
+  .option("--json", "Emit machine-readable JSON output", false)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { json: boolean; dir?: string }) => {
+    const result = runVerifyEvidence({ dir: opts.dir });
+    if (opts.json) {
+      jsonOutput(
+        "verify evidence",
+        result.status,
+        {
+          exitCode: result.exitCode,
+          ...(result.skipped !== undefined ? { skipped: result.skipped } : {}),
+          ...(result.reason !== undefined ? { reason: result.reason } : {}),
+        },
+        result.status === "error" && result.reason !== undefined
+          ? [result.reason]
+          : undefined,
+      );
+    } else {
+      const label = result.status === "ok" ? "OK" : result.status.toUpperCase();
+      const tail = result.reason ? ` — ${result.reason}` : "";
+      process.stdout.write(`verify evidence: ${label}${tail}\n`);
+    }
+    process.exit(result.exitCode);
   });
 
 program

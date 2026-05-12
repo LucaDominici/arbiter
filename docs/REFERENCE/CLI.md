@@ -244,12 +244,81 @@ arbiter verify [options]
 | `--dir <path>` | string  | `cwd`   | Target directory to detect the stack from         |
 | `--json`       | boolean | `false` | Emit JSON report instead of human-readable output |
 
+When `--json` is passed, the report includes an `effectiveConfig` field
+holding the fully-resolved post-env-override `arbiter.json` snapshot — see
+`Environment overrides` below (#233).
+
 **Exit codes:**
 
 | Code | Meaning                                                     |
 | ---- | ----------------------------------------------------------- |
 | 0    | All probes passed or skipped (toolchain not installed)      |
 | 1    | One or more probes failed (version outside supported range) |
+
+### `arbiter verify evidence`
+
+Validate the `.evidence/SUMMARY.json` snapshot produced by an evidence
+run (#238).
+
+```
+arbiter verify evidence [--json] [--dir <path>]
+```
+
+| Code | Meaning                                                    |
+| ---- | ---------------------------------------------------------- |
+| 0    | SUMMARY.json present, sha matches, age ≤ 7 days            |
+| 1    | SUMMARY.json missing / unreadable / status warning (stale) |
+| 2    | sha mismatch (file tampered or state diverged)             |
+
+The check is skipped when `E2E_RISK_SKIP=<reason>` is set; one JSONL
+entry is appended to `.evidence/skip-log.jsonl` for audit.
+
+## `arbiter review`
+
+### `arbiter review plan <file>`
+
+Run a Claude subagent over a plan markdown file (#235). Builds an XML
+prompt that embeds the plan plus the SHA-256 digest of `AGENTS.md`
+(SSOT anchor) and dispatches it via `runCli` (INV-12). The prompt is
+persisted under `.evidence/review-<timestamp>/plan-review-prompt.txt`.
+
+```
+arbiter review plan <file> [--tier XS|S|Standard] [--json]
+```
+
+| Verdict | Meaning                                  | Exit code |
+| ------- | ---------------------------------------- | --------- |
+| `PASS`  | Plan is implementable as written         | 0         |
+| `WARN`  | Fixable gaps; up to 2 revise-cycles      | 1         |
+| `FAIL`  | Plan violates an invariant or incoherent | 2         |
+
+## Environment overrides
+
+`arbiter` honours a thin env-variable override layer applied after
+config migration (precedence: **env > file > defaults** — #233):
+
+| Pattern                      | Type    | Example                                  |
+| ---------------------------- | ------- | ---------------------------------------- |
+| `ARBITER_THRESHOLD__<FIELD>` | number  | `ARBITER_THRESHOLD__LINE_COVERAGE=85`    |
+| `ARBITER_FEATURE__<FLAG>`    | boolean | `ARBITER_FEATURE__CONTRACT_TESTING=true` |
+| `ARBITER_GOVERNANCE_LEVEL`   | enum    | `ARBITER_GOVERNANCE_LEVEL=L3`            |
+
+Unknown keys, malformed values, and unrelated env vars are silently
+ignored — env overrides cannot turn a valid config into an invalid one.
+
+## Task tiers
+
+Task tiers (XS / S / Standard) control plan depth and review-agent count
+in the generated `/task` slash-command (#237). Defaults:
+
+| Tier     | planDepth | reviewAgentCount |
+| -------- | --------- | ---------------- |
+| XS       | minimal   | 3                |
+| S        | brief     | 3                |
+| Standard | full      | 4                |
+
+Override via `taskTiers` in `arbiter.json`. GitHub-backed projects get
+`size:XS`, `size:S` and `size:Standard` labels provisioned at init.
 
 **Probe states:**
 

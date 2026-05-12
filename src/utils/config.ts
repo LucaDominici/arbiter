@@ -8,6 +8,7 @@ import {
   DEFAULT_THRESHOLDS,
 } from "../config/schema.js";
 import { migrate } from "../config/migrations/index.js";
+import { applyEnvOverrides } from "../config/env-overrides.js";
 
 export type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 };
 export type ArbiterConfig = ArbiterConfigV2;
@@ -53,7 +54,8 @@ export function loadConfig(dir: string): ArbiterConfig | null {
     return null;
   }
   try {
-    return migrate(raw);
+    const migrated = migrate(raw);
+    return applyEnvOverrides(migrated, process.env);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(
