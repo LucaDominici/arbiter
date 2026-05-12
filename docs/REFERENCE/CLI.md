@@ -273,17 +273,30 @@ holding the fully-resolved post-env-override `arbiter.json` snapshot — see
 ### `arbiter verify evidence`
 
 Validate the `.evidence/SUMMARY.json` snapshot produced by an evidence
-run (#238).
+run (#238). Each file in `SUMMARY.json.files[]` is classified by
+`src/risk/classifier.ts`; the highest-risk level drives gate strictness.
 
 ```
 arbiter verify evidence [--json] [--dir <path>]
 ```
 
-| Code | Meaning                                                    |
-| ---- | ---------------------------------------------------------- |
-| 0    | SUMMARY.json present, sha matches, age ≤ 7 days            |
-| 1    | SUMMARY.json missing / unreadable / status warning (stale) |
-| 2    | sha mismatch (file tampered or state diverged)             |
+| Code | Meaning                                                                                |
+| ---- | -------------------------------------------------------------------------------------- |
+| 0    | SUMMARY.json present, sha matches, age ≤ 7 days                                        |
+| 1    | SUMMARY.json missing / unreadable / unclassified files / stale on low-risk (R3/R4)     |
+| 2    | sha mismatch (tampered) OR stale (>7 days) on medium/high-risk (R0/R1/R2) change sets  |
+
+Risk gating (highest level across `files[]` wins):
+
+| Risk        | Stale severity     |
+| ----------- | ------------------ |
+| R0 / R1     | exit 2 (blocker)   |
+| R2          | exit 2 (blocker)   |
+| R3 / R4     | exit 1 (advisory)  |
+| UNCLASSIFIED| exit 1 (manual review required — refuse to fail open) |
+
+When `files[]` is absent, risk gating is skipped and stale evidence is
+always advisory (exit 1).
 
 The check is skipped when `E2E_RISK_SKIP=<reason>` is set; one JSONL
 entry is appended to `.evidence/skip-log.jsonl` for audit.

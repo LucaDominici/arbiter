@@ -45,6 +45,17 @@ describe("runVerifyEvidence (#238)", () => {
     expect(result.status).toBe("ok");
   });
 
+  it("surfaces aggregate riskLevel computed from files[]", () => {
+    // src/auth/login.ts → R1, docs/intro.md → R4 → highest = R1
+    const { serialised } = makeSummary({
+      files: ["src/auth/login.ts", "docs/intro.md"],
+    });
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    const result = runVerifyEvidence({ dir });
+    expect(result.exitCode).toBe(0);
+    expect(result.riskLevel).toBe("R1");
+  });
+
   it("returns error+exit 2 when SUMMARY.json sha is corrupted", () => {
     const { body } = makeSummary();
     const tampered = { ...body, files: ["mutated"] }; // sha now stale
@@ -57,13 +68,65 @@ describe("runVerifyEvidence (#238)", () => {
     expect(result.status).toBe("error");
   });
 
-  it("returns warning + exit 1 when summary is older than 7 days (stale)", () => {
+  it("blocks (exit 2) when stale evidence covers an R2 (medium-risk) change set", () => {
+    // Default fixture files include src/api/users.ts → R2
     const oldTs = new Date(Date.now() - 8 * 86_400_000).toISOString();
     const { serialised } = makeSummary({ timestamp: oldTs });
     writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
     const result = runVerifyEvidence({ dir });
+    expect(result.status).toBe("error");
+    expect(result.exitCode).toBe(2);
+    expect(result.riskLevel).toBe("R2");
+    expect(result.reason).toMatch(/high-risk/);
+  });
+
+  it("advises (exit 1) when stale evidence covers only low-risk files (R4)", () => {
+    const oldTs = new Date(Date.now() - 8 * 86_400_000).toISOString();
+    const { serialised } = makeSummary({
+      timestamp: oldTs,
+      files: ["docs/intro.md", "README.md"],
+    });
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    const result = runVerifyEvidence({ dir });
     expect(result.status).toBe("warning");
     expect(result.exitCode).toBe(1);
+    expect(result.riskLevel).toBe("R4");
+  });
+
+  it("advises (exit 1) and refuses to fail open on UNCLASSIFIED files", () => {
+    const { serialised } = makeSummary({
+      files: ["random/file.unknown-ext"],
+    });
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    const result = runVerifyEvidence({ dir });
+    expect(result.status).toBe("warning");
+    expect(result.exitCode).toBe(1);
+    expect(result.riskLevel).toBe("R-unknown");
+    expect(result.reason).toMatch(/manual review/);
+  });
+
+  it("falls back to legacy warning-only stale when files[] is absent", () => {
+    // No files[] = cannot risk-gate, preserve advisory behaviour.
+    const oldTs = new Date(Date.now() - 8 * 86_400_000).toISOString();
+    const body: Record<string, unknown> = {
+      stack: "typescript",
+      timestamp: oldTs,
+    };
+    const { serialised } = makeSummary(body);
+    writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
+    // Wipe files key (makeSummary preserves it from defaults — override fully)
+    const parsed = JSON.parse(serialised) as Record<string, unknown>;
+    delete parsed["files"];
+    delete parsed["sha"];
+    const sha = computeSummarySha(parsed);
+    writeFileSync(
+      join(dir, ".evidence", "SUMMARY.json"),
+      JSON.stringify({ ...parsed, sha }, null, 2),
+    );
+    const result = runVerifyEvidence({ dir });
+    expect(result.status).toBe("warning");
+    expect(result.exitCode).toBe(1);
+    expect(result.riskLevel).toBeUndefined();
   });
 
   it("returns error when SUMMARY.json is missing", () => {
