@@ -95,7 +95,13 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-33:** L3 merges require valid evidence bundle with `obs_gate == PASS`
 - **INV-45:** Self-dogfood check — every `.ejs` template must render to match its materialized `.claude/` file (run `node scripts/check-self-dogfood.mjs` at L2)
 - **INV-46:** Anti-bloat enforcement — new `src/` files require a valid Existing Code Survey in the plan (`pre-edit-plan-anchor.mjs` hard-blocks, exit 2); L1: `check-bloat-ratchet.mjs` (file/LOC ceiling); L2: `jscpd` (duplication ≤5%); bypasses: `ARBITER_PLAN_BYPASS=1`, `ALLOW_BLOAT=1`
-- **INV-47:** Exit-code universal contract — every Arbiter-emitted script must exit `0=PASS / 1=FAIL / 2=ERROR`; L1: `check-exit-code-contract.mjs` blocks any `process.exit(N)` where N ∉ {0,1,2}; L2: `self-validation.mjs` A/B/C drill proves each gate distinguishes all three codes
+- **INV-47:** Matrix proven cell requires gate invocation — every `proven` tool in `cross-language-matrix.json` must appear in `check-all.mjs.ejs`; pre-existing gaps tracked in `.matrix-proven-cells-exceptions.json` (`check-matrix-proven-cells.mjs` L1)
+- **INV-48:** EJS template render-test ratchet — count of untested EJS files must not exceed `.template-tests-baseline.txt`; run `check-template-tests.mjs --update-baseline` when adding tests (`check-template-tests.mjs` L1)
+- **INV-49:** Every `src/generators/*.ts` must have `__tests__/generators/<name>.test.ts` — untested generators silently emit wrong governance content (`check-generator-tests.mjs` L1)
+- **INV-50:** Every `src/commands/*.ts` must have at least one `__tests__/commands/<name>*.test.ts` — prefix-match covers split test files (e.g. `review-code.test.ts` covers `review.ts`) (`check-command-tests.mjs` L1)
+- **INV-51:** Catalog↔AGENTS.md parity — every INV-NN in `catalog.ts` must appear in `AGENTS.md` §Invariants; undocumented invariants are invisible governance (`check-catalog-agents-parity.mjs` L1)
+- **INV-52:** Enforcement scripts cited in catalog must be wired in `check-all.mjs` — claimed enforcement that is not wired is a false guarantee (`check-inv-enforcement-wired.mjs` L1)
+- **INV-53:** Exit-code universal contract — every Arbiter-emitted script must exit `0=PASS / 1=FAIL / 2=ERROR`; L1: `check-exit-code-contract.mjs` blocks any `process.exit(N)` where N ∉ {0,1,2}; L2: `self-validation.mjs` A/B/C drill proves each gate distinguishes all three codes
 
 ---
 

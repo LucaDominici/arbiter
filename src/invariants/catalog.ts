@@ -752,6 +752,83 @@ export const INVARIANT_CATALOG: Invariant[] = [
   {
     id: "INV-47",
     tier: "governance",
+    title: "Matrix proven cell requires a gate invocation in check-all.mjs.ejs",
+    description:
+      "Every tool cell marked 'proven' in src/compatibility/cross-language-matrix.json must " +
+      "produce a concrete invocation step in src/templates/scripts/check-all.mjs.ejs at the " +
+      "correct gate level (L1, L2, or L3). Pre-existing gaps (e.g. mutation testing) are tracked " +
+      "in .matrix-proven-cells-exceptions.json with TODO references to the wiring issue.",
+    alwaysActive: true,
+    enforcement: "scripts/check-matrix-proven-cells.mjs (L1 gate)",
+  },
+
+  {
+    id: "INV-48",
+    tier: "governance",
+    title: "EJS template render-test coverage must not regress",
+    description:
+      "Every template file under src/templates/ should be asserted by at least one test in " +
+      "__tests__/templates/ that renders the template and checks concrete output strings. " +
+      "Enforced via ratchet: the count of untested EJS files must not exceed the committed " +
+      "baseline (.template-tests-baseline.txt). Run with --update-baseline when adding tests.",
+    alwaysActive: true,
+    enforcement: "scripts/check-template-tests.mjs (L1 ratchet gate)",
+  },
+
+  {
+    id: "INV-49",
+    tier: "governance",
+    title: "Every generator in src/generators/ must have a unit test",
+    description:
+      "Every file under src/generators/ requires a corresponding __tests__/generators/*.test.ts " +
+      "covering the happy path, idempotency, and at least one negative case. " +
+      "Untested generators can silently emit wrong governance content into target projects.",
+    alwaysActive: true,
+    enforcement: "scripts/check-generator-tests.mjs (L1 gate)",
+  },
+
+  {
+    id: "INV-50",
+    tier: "governance",
+    title: "Every command in src/commands/ must have a test",
+    description:
+      "Every file under src/commands/ requires at least one corresponding " +
+      "__tests__/commands/*.test.ts (prefix-match: review.ts is covered by review-code.test.ts). " +
+      "CLI commands are the user entry point; untested commands cannot be refactored safely.",
+    alwaysActive: true,
+    enforcement: "scripts/check-command-tests.mjs (L1 gate)",
+  },
+
+  {
+    id: "INV-51",
+    tier: "governance",
+    title: "Every catalog invariant must appear in AGENTS.md §Invariants",
+    description:
+      "Every invariant in src/invariants/catalog.ts must have a matching entry in " +
+      "AGENTS.md §Invariants. AGENTS.md is the canonical governance document read by all " +
+      "AI agents and new contributors. Invariants that exist only in code are invisible " +
+      "to the governance layer.",
+    alwaysActive: true,
+    enforcement: "scripts/check-catalog-agents-parity.mjs (L1 gate)",
+  },
+
+  {
+    id: "INV-52",
+    tier: "governance",
+    title:
+      "Catalog enforcement script citations must be wired in check-all.mjs",
+    description:
+      "If the enforcement field of a catalog invariant references a scripts/*.mjs file, " +
+      "that script must be called in scripts/check-all.mjs. Claimed enforcement that is " +
+      "not wired is a false guarantee — callers of the gate will believe it checks " +
+      "something it does not.",
+    alwaysActive: true,
+    enforcement: "scripts/check-inv-enforcement-wired.mjs (L1 gate)",
+  },
+
+  {
+    id: "INV-53",
+    tier: "governance",
     title:
       "Exit-code universal contract — every Arbiter-emitted script exits 0=PASS / 1=FAIL / 2=ERROR",
     description:

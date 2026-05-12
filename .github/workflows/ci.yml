@@ -80,6 +80,18 @@ jobs:
         run: npx jscpd --silent
       - name: Matrix fixture coverage (INV-32)
         run: node scripts/check-matrix-fixtures.mjs
+      - name: Matrix proven cells (INV-47)
+        run: node scripts/check-matrix-proven-cells.mjs
+      - name: Template test ratchet (INV-48)
+        run: node scripts/check-template-tests.mjs
+      - name: Generator test coverage (INV-49)
+        run: node scripts/check-generator-tests.mjs
+      - name: Command test coverage (INV-50)
+        run: node scripts/check-command-tests.mjs
+      - name: Catalog parity (INV-51)
+        run: node scripts/check-catalog-agents-parity.mjs
+      - name: Enforcement wired (INV-52)
+        run: node scripts/check-inv-enforcement-wired.mjs
       - name: Fetch base branch for commitlint
         if: github.event_name == 'pull_request'
         run: git fetch origin main --depth=1

@@ -1,6 +1,6 @@
 # Self-Validation Protocol — A/B/C Drill
 
-> **INV-47** | Governance | `scripts/check-exit-code-contract.mjs` (L1) + `scripts/self-validation.mjs` (L2)
+> **INV-53** | Governance | `scripts/check-exit-code-contract.mjs` (L1) + `scripts/self-validation.mjs` (L2)
 
 ## Purpose
 
@@ -99,7 +99,7 @@ diff src/templates/scripts/self-validation.mjs.ejs scripts/self-validation.mjs
 
 ## Staged Rollout
 
-Initial coverage (shipped with INV-47, issue #258):
+Initial coverage (shipped with INV-53, issue #258):
 
 - `exit-code-contract` — checks the contract lint itself
 - `pipe/tee-hazard` — advisory check, always exits 0

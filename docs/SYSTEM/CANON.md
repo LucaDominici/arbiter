@@ -50,6 +50,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Source issues:** #155, #160, #171
 
+**Promoted to:** INV-47
+
 ---
 
 ## CANON-03 — Proven cell ⇒ fixture
@@ -74,6 +76,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Source issues:** #166, #175
 
+**Promoted to:** INV-48
+
 ---
 
 ## CANON-05 — Every generator has a unit test
@@ -86,6 +90,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Source issues:** #118, #181, #175
 
+**Promoted to:** INV-49
+
 ---
 
 ## CANON-06 — Every CLI command has a test
@@ -97,6 +103,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Enforcement:** Prose — checked at PR review.
 
 **Source issues:** #174, #186
+
+**Promoted to:** INV-50
 
 ---
 
@@ -122,6 +130,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Source issues:** #180
 
+**Promoted to:** INV-51
+
 ---
 
 ## CANON-09 — Invariant enforcement claim = wired gate step
@@ -133,6 +143,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Enforcement:** Prose — verify by grepping `check-all.mjs` for the script name whenever AGENTS.md enforcement claims change.
 
 **Source issues:** #179
+
+**Promoted to:** INV-52
 
 ---
 
