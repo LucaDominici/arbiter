@@ -153,6 +153,26 @@ Produce a plan containing:
 2. **Test plan**: What tests to write first (TDD)
 3. **Gate command**: `node scripts/check-all.mjs L2`
 4. **Risk**: What could break (at least 1 item)
+5. **Existing Code Survey** (CANON-16 — required for every new file under `src/`):
+
+```markdown
+## Existing Code Survey
+
+- **Target:** `src/<relative/path>.ts`
+- **Decision:** `<refactor-applied | refactor-rejected | extend | extract | new file justified | no-similar-code>`
+
+### Evidence
+
+- `grep "export.*<Name>" src/ --include="*.ts" -l` → `<result>`
+- `grep "<keyword>" src/ --include="*.ts" -l` → `<result>`
+- `ls src/<sibling>/` → `<result>`
+
+### Rationale
+
+<2–4 sentences: what exists, why refactor was/wasn't viable, why new file justified. ≥200 non-whitespace chars.>
+```
+
+Run `/senior-survey` to generate this block.
 
 Write state files:
 

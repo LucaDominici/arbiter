@@ -50,5 +50,9 @@
   {
     "path": "settings.json",
     "reason": "Arbiter self-dogfood: includes check-no-direct-spawn.mjs (arbiter-internal hook with no .ejs template yet) and check-no-any.mjs (generated from languageHook body not .ejs template), and a different UserPromptSubmit structure with matcher:* group. These were added directly to arbiter's .claude/settings.json without being back-ported to the template."
+  },
+  {
+    "path": "hooks/pre-edit-plan-anchor.mjs",
+    "reason": "Arbiter self-dogfood: CANON-16 Survey gate (#458) is implemented in both arbiter's materialized hook and the EJS template; the logic is identical. Cosmetic divergence only: Prettier formats the materialized hook with double quotes and the EJS template with single quotes. Functionally equivalent."
   }
 ]

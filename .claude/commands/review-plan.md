@@ -42,3 +42,14 @@ The prompt sent to the subagent is persisted under
 - Plan file missing → exit 2 with `verdict: ERROR`.
 - Subagent reports `FAIL` → no retry; exit 2 immediately.
 - Subagent reports `WARN` twice after revision → exit 1; user must revise plan.
+
+## CANON-16 checklist
+
+If the plan creates any new file under `src/`, the reviewer MUST verify each new file has an `## Existing Code Survey` section with:
+
+- `- **Target:** \`<relpath>\`` matching the file path
+- `- **Decision:** \`<keyword>\``(one of:`refactor-applied`, `refactor-rejected`, `extend`, `extract`, `new file justified`, `no-similar-code`)
+- `### Evidence` subsection with ≥3 grep/ls rows
+- `### Rationale` subsection with ≥200 non-whitespace chars
+
+Missing or thin Survey → verdict=`FAIL`, reason=`CANON-16 violation`.
