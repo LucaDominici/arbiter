@@ -131,6 +131,10 @@ runCheck("exit code contract", "node", [
   "scripts/check-exit-code-contract.mjs",
 ]);
 runCheck("pipe/tee hazard", "node", ["scripts/check-pipe-tee-hazard.mjs"]);
+runCheck("ssot core", "node", ["scripts/check-ssot-core.mjs"]);
+runCheck("doc links", "node", ["scripts/check-doc-links.mjs"]);
+runCheck("knowledge map", "node", ["scripts/check-knowledge-map.mjs"]);
+runCheck("canonical paths", "node", ["scripts/check-canonical-paths.mjs"]);
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {

@@ -16,7 +16,7 @@
 
 - `docs/METHOD/KNOWLEDGE_MAP.md` — Navigation index for heavy documentation; read this before opening large docs
 - `docs/METHOD/SSOT_CORE_SET.md` — This file (authoritative SSOT inventory)
-
+- `docs/METHOD/CANONICAL_PATHS.md` — Aliasing registry for moved/renamed documents; check before reporting broken links
 - `docs/METHOD/ENGINEERING_DEFAULTS.md` — SOLID principles, coding standards, complexity limits
 
 ## System (HOW We Build It)

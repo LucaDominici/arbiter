@@ -503,4 +503,162 @@ describe("generateSsot", () => {
     expect(content).toContain("OPENAPI.yaml");
     expect(content).not.toMatch(/## \d+\./);
   });
+
+  // ── CANONICAL_PATHS.md (Aliasing pillar — #255) ───────────────────────────────
+
+  it("L1: generates CANONICAL_PATHS.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/CANONICAL_PATHS.md"))).toBe(true);
+  });
+
+  it("L2: generates CANONICAL_PATHS.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/CANONICAL_PATHS.md"))).toBe(true);
+  });
+
+  it("L3: generates CANONICAL_PATHS.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L3" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "docs/METHOD/CANONICAL_PATHS.md"))).toBe(true);
+  });
+
+  it("CANONICAL_PATHS.md contains project name", () => {
+    const config = makeConfig(dir, {
+      governanceLevel: "L1",
+      projectName: "my-app",
+    });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/CANONICAL_PATHS.md"),
+      "utf-8",
+    );
+    expect(content).toContain("my-app");
+  });
+
+  it("CANONICAL_PATHS.md is skipIfExists — preserves manual alias entries on re-run", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+
+    writeFileSync(
+      join(dir, "docs/METHOD/CANONICAL_PATHS.md"),
+      "# My custom aliases\n\nManually added redirects.\n",
+    );
+
+    const results = generateSsot(config);
+    const cpResult = results.files.find((r) =>
+      r.path.endsWith("CANONICAL_PATHS.md"),
+    );
+    expect(cpResult?.action).toBe("skipped");
+
+    const afterContent = readFileSync(
+      join(dir, "docs/METHOD/CANONICAL_PATHS.md"),
+      "utf-8",
+    );
+    expect(afterContent).toContain("Manually added redirects.");
+  });
+
+  it("SSOT_CORE_SET.md references CANONICAL_PATHS.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/SSOT_CORE_SET.md"),
+      "utf-8",
+    );
+    expect(content).toContain("CANONICAL_PATHS.md");
+  });
+
+  it("KNOWLEDGE_MAP.md references CANONICAL_PATHS.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
+      "utf-8",
+    );
+    expect(content).toContain("CANONICAL_PATHS.md");
+  });
+
+  it("KNOWLEDGE_MAP.md contains Lines placeholder for KM update", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "docs/METHOD/KNOWLEDGE_MAP.md"),
+      "utf-8",
+    );
+    expect(content).toContain("**Lines:**");
+  });
+
+  // ── SSOT gate scripts (#255) ──────────────────────────────────────────────────
+
+  it("L1: generates all five SSOT gate/update scripts", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const expected = [
+      "scripts/check-ssot-core.mjs",
+      "scripts/check-doc-links.mjs",
+      "scripts/check-knowledge-map.mjs",
+      "scripts/check-canonical-paths.mjs",
+      "scripts/knowledge-map-update.mjs",
+    ];
+    for (const p of expected) {
+      expect(existsSync(join(dir, p))).toBe(true);
+    }
+  });
+
+  it("L1: generates harness.mjs", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "scripts/harness.mjs"))).toBe(true);
+  });
+
+  it("L2: generates all SSOT scripts", () => {
+    const config = makeConfig(dir, { governanceLevel: "L2" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "scripts/check-ssot-core.mjs"))).toBe(true);
+    expect(existsSync(join(dir, "scripts/harness.mjs"))).toBe(true);
+  });
+
+  it("L3: generates all SSOT scripts", () => {
+    const config = makeConfig(dir, { governanceLevel: "L3" });
+    generateSsot(config);
+    expect(existsSync(join(dir, "scripts/check-canonical-paths.mjs"))).toBe(
+      true,
+    );
+    expect(existsSync(join(dir, "scripts/knowledge-map-update.mjs"))).toBe(
+      true,
+    );
+  });
+
+  it("SSOT scripts are skipIfExists — preserve manual edits on re-run", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+
+    const scriptPath = join(dir, "scripts/check-ssot-core.mjs");
+    writeFileSync(scriptPath, "# manually edited\n");
+
+    const results = generateSsot(config);
+    const scriptResult = results.files.find((r) =>
+      r.path.endsWith("check-ssot-core.mjs"),
+    );
+    expect(scriptResult?.action).toBe("skipped");
+    expect(readFileSync(scriptPath, "utf-8")).toContain("manually edited");
+  });
+
+  it("harness.mjs has Node shebang", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(join(dir, "scripts/harness.mjs"), "utf-8");
+    expect(content).toMatch(/^#!.*node/);
+  });
+
+  it("check-ssot-core.mjs references SSOT_CORE_SET.md", () => {
+    const config = makeConfig(dir, { governanceLevel: "L1" });
+    generateSsot(config);
+    const content = readFileSync(
+      join(dir, "scripts/check-ssot-core.mjs"),
+      "utf-8",
+    );
+    expect(content).toContain("SSOT_CORE_SET");
+  });
 });

@@ -848,4 +848,56 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "scripts/check-exit-code-contract.mjs (L1 gate) — exits 1 on violation; " +
       "scripts/self-validation.mjs (L2 A/B/C drill) — exits 1 if any gate fails its proof",
   },
+
+  {
+    id: "INV-54",
+    tier: "governance",
+    title: "SSOT core set integrity — all listed files must exist",
+    description:
+      "Every file listed in docs/METHOD/SSOT_CORE_SET.md must exist on disk. " +
+      "The gate exits 1 if any listed file is missing. " +
+      "Bootstrap mode: if SSOT_CORE_SET.md itself is absent, the gate exits 0 and skips.",
+    alwaysActive: true,
+    enforcement: "scripts/check-ssot-core.mjs (L1 gate, #255)",
+  },
+
+  {
+    id: "INV-55",
+    tier: "governance",
+    title: "Doc-links integrity — all markdown links must resolve",
+    description:
+      "Every local markdown link in docs/ must resolve to an existing file. " +
+      "Before failing, the gate checks CANONICAL_PATHS.md for a redirect alias. " +
+      "Links in .docs-links-ignore are exempt. " +
+      "Bootstrap mode: if no docs/ files are found, the gate exits 0.",
+    alwaysActive: true,
+    enforcement: "scripts/check-doc-links.mjs (L1 gate, #255)",
+  },
+
+  {
+    id: "INV-56",
+    tier: "governance",
+    title:
+      "Knowledge-map freshness — line counts must not drift beyond tolerance",
+    description:
+      "Every **Lines:** entry in docs/METHOD/KNOWLEDGE_MAP.md must match the actual " +
+      "line count of the referenced document within ±30% tolerance. " +
+      "Lines: 0 entries are skipped (not yet populated). " +
+      "Missing referenced files are skipped. " +
+      "Run knowledge-map-update.mjs to refresh counts.",
+    alwaysActive: true,
+    enforcement: "scripts/check-knowledge-map.mjs (L1 gate, #255)",
+  },
+
+  {
+    id: "INV-57",
+    tier: "governance",
+    title: "Canonical-paths integrity — all redirect targets must exist",
+    description:
+      "Every redirect target in docs/METHOD/CANONICAL_PATHS.md must exist on disk. " +
+      "A dangling alias (target missing) causes the gate to exit 1. " +
+      "Bootstrap mode: if CANONICAL_PATHS.md is absent, the gate exits 0.",
+    alwaysActive: true,
+    enforcement: "scripts/check-canonical-paths.mjs (L1 gate, #255)",
+  },
 ];

@@ -1,13 +1,14 @@
 # Knowledge Map — arbiter
 
 **Purpose:** Index of documentation files with section descriptions for context-efficient agent navigation. Read this before opening large docs — it tells you exactly where to look.
-**Maintenance:** Update this file whenever a new canonical document is added or a section's line range shifts significantly.
+**Maintenance:** Run `node scripts/knowledge-map-update.mjs` after adding or significantly editing a canonical document to keep line counts current.
 
 ---
 
 ## AGENTS.md
 
 **Location:** `AGENTS.md`
+**Lines:** 0
 **Purpose:** Canonical agent governance — invariants, coding standards, commit convention, gate commands.
 
 | Section           | Description                                                  |
@@ -22,6 +23,7 @@
 ## docs/METHOD/SSOT_CORE_SET.md
 
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
+**Lines:** 0
 **Purpose:** Authoritative inventory of all SSOT documents. Start here to discover what documentation exists.
 
 | Section    | Description                       |
@@ -32,9 +34,23 @@
 
 ---
 
+## docs/METHOD/CANONICAL_PATHS.md
+
+**Location:** `docs/METHOD/CANONICAL_PATHS.md`
+**Lines:** 0
+**Purpose:** Aliasing registry for moved/renamed documents. Check before reporting a broken link.
+
+| Section | Description                                    |
+| ------- | ---------------------------------------------- |
+| Aliases | Table of old path → current path redirects     |
+| Usage   | How to add new redirects when moving documents |
+
+---
+
 ## docs/METHOD/ENGINEERING_DEFAULTS.md
 
 **Location:** `docs/METHOD/ENGINEERING_DEFAULTS.md`
+**Lines:** 0
 **Purpose:** SOLID principles, coding standards, complexity limits. Read before designing new modules or reviewing code.
 
 | Section            | Description                                                      |

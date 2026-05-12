@@ -373,3 +373,23 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - _jscpd first-run_: Current codebase duplication is 1.55% (well below 5% threshold) — no grace period required. Baseline runs cleanly on the PR that ships the check.
 
 **Consequences:** New `src/` file creation requires a documented survey — agents can no longer silently add files. Duplication above 5% blocks L2. File/LOC growth above per-bucket thresholds blocks L1. Total bypass surfaces: two session-scoped env vars, both documented in CONTRIBUTING.md. `src/templates/` gets tighter ratchet to compensate for jscpd exclusion.
+
+---
+
+### ADR-042 — Four-Pillar SSOT Infrastructure (AC#1 Deviation)
+
+**Status:** Accepted
+**Reference:** Issue #255; INV-47..INV-50
+
+**Context:** Issue #255 (AC#1) named `src/generators/ssot-four-pillar.ts` as the implementation target for the four-pillar Viafera SSOT model (Authority / Routing / Aliasing / Gates). However, `src/generators/ssot.ts` already emits three of the four pillars via a clean dispatch over `ProjectConfig.governanceLevel`. Adding a fourth pillar (CANONICAL_PATHS) is a one-line extension to the existing `files.push(...)` loop.
+
+**Decision:** Extend `src/generators/ssot.ts` rather than create a new `ssot-four-pillar.ts` file. CANON-16 forbids new files when a refactor of an existing module is viable. The deviation from AC#1's naming is documented here per CANON-01.
+
+**Design choices:**
+
+- _CANONICAL_PATHS uses `skipIfExists`_: Like KNOWLEDGE_MAP, alias entries accumulate manual edits over time. Re-running `arbiter init` must not clobber user-defined redirects.
+- _Four gates as L1 checks_: INV-47 (ssot-core), INV-48 (doc-links), INV-49 (knowledge-map), INV-50 (canonical-paths) are all wired into the L1 block of `check-all.mjs`. Bootstrap mode (missing SSOT files) exits 0, so fresh projects are not blocked before the SSOT files are populated.
+- _CANON-01 dual-sided_: Each gate ships as both an arbiter-self script (`scripts/check-X.mjs`) and an emitted template (`src/templates/scripts/check-X.mjs.ejs`) for target projects.
+- _`arbiter harness --fast`_: CLI command wrapping the four gates for target project use. `--fast` stops at first failure; without the flag all four run and all failures are reported.
+
+**Consequences:** The Viafera four-pillar model (Authority / Routing / Aliasing / Gates) is fully realised in both arbiter-self and generated target projects. Moved/renamed docs no longer silently break links (CANONICAL_PATHS + check-canonical-paths). Missing SSOT entries are detected at L1 (check-ssot-core). KM line count drift is detected at L1 (check-knowledge-map). All four gates bootstrap safely on new projects.
