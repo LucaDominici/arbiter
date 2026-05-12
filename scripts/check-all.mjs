@@ -116,6 +116,7 @@ runCheck("docs", "node", ["scripts/check-docs.mjs"], DEFAULT_TIMEOUT_MS, {
 runCheck("matrix fixtures", "node", ["scripts/check-matrix-fixtures.mjs"]);
 runCheck("workflow runners", "node", ["scripts/check-workflow-runners.mjs"]);
 runCheck("ci alignment", "node", ["scripts/check-ci-alignment.mjs"]);
+runCheck("bloat ratchet", "node", ["scripts/check-bloat-ratchet.mjs"]);
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {

@@ -62,6 +62,8 @@ jobs:
         run: node scripts/check-hardness-inventory.mjs
       - name: Workflow runner label check
         run: node scripts/check-workflow-runners.mjs
+      - name: Bloat ratchet (CANON-16, INV-46)
+        run: node scripts/check-bloat-ratchet.mjs
       - name: CI/manifest gate alignment check (#240)
         run: node scripts/check-ci-alignment.mjs
       - name: Self-dogfood template check (INV-45, #239)
