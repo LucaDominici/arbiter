@@ -114,6 +114,16 @@ runCheck("docs", "node", ["scripts/check-docs.mjs"], DEFAULT_TIMEOUT_MS, {
   cwd: GIT_CWD,
 });
 runCheck("matrix fixtures", "node", ["scripts/check-matrix-fixtures.mjs"]);
+runCheck("matrix proven cells", "node", [
+  "scripts/check-matrix-proven-cells.mjs",
+]);
+runCheck("template tests", "node", ["scripts/check-template-tests.mjs"]);
+runCheck("generator tests", "node", ["scripts/check-generator-tests.mjs"]);
+runCheck("command tests", "node", ["scripts/check-command-tests.mjs"]);
+runCheck("catalog parity", "node", ["scripts/check-catalog-agents-parity.mjs"]);
+runCheck("enforcement wired", "node", [
+  "scripts/check-inv-enforcement-wired.mjs",
+]);
 runCheck("workflow runners", "node", ["scripts/check-workflow-runners.mjs"]);
 runCheck("ci alignment", "node", ["scripts/check-ci-alignment.mjs"]);
 runCheck("bloat ratchet", "node", ["scripts/check-bloat-ratchet.mjs"]);
