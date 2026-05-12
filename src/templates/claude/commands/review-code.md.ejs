@@ -28,17 +28,19 @@ Each agent's raw response is persisted under
 
 ## Tier guidance
 
-<% const _reviewerCount = { XS: 3, S: 3, Standard: 4 }; %>
+<% /* reviewerCount comes from src/review/tier-constants.ts via
+      buildRenderContext() in src/generators/claude.ts (SSOT, #236). */ %>
+<% const _rc = (typeof reviewerCount !== 'undefined' && reviewerCount) ? reviewerCount : { XS: 3, S: 3, Standard: 5 }; %>
 | Tier     | Reviewer agents |
 |----------|-----------------|
-| XS       | <%= _reviewerCount.XS %> |
-| S        | <%= _reviewerCount.S %> |
-| Standard | <%= _reviewerCount.Standard %> |
+| XS       | <%= _rc.XS %> |
+| S        | <%= _rc.S %> |
+| Standard | <%= _rc.Standard %> |
 
 ## Personas
 
 - **bugs** — logic, off-by-one, null-deref, race, edge cases
-- **type-safety** — type leaks, casts, `any`/`unknown` misuse (XS/S)
+- **type-safety** — type leaks, casts, `any`/`unknown` misuse
 - **domain-consistency** — drift vs `AGENTS.md` (Standard)
 - **silent-failure-hunter** — swallowed errors, empty catches, ignored rejections
 - **test-analyzer** — coverage and assertion quality (Standard)
