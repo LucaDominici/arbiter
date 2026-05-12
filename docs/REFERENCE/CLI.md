@@ -292,6 +292,39 @@ arbiter review plan <file> [--tier XS|S|Standard] [--json]
 | `WARN`  | Fixable gaps; up to 2 revise-cycles      | 1         |
 | `FAIL`  | Plan violates an invariant or incoherent | 2         |
 
+### `arbiter review code`
+
+Dispatch N parallel Claude subagents over the current diff (#236). Each
+agent has a distinct persona (`bugs`, `type-safety`, `domain-consistency`,
+`silent-failure-hunter`, `test-analyzer`); findings are aggregated into
+blocker/warning/note buckets. Each agent's response is persisted under
+`.evidence/review-<timestamp>/agent-<name>.json` for audit.
+
+```
+arbiter review code [--diff <ref>] [--tier XS|S|Standard]
+                    [--evidence-dir <path>] [--json]
+```
+
+The agent count is tier-driven (`TIER_REVIEWER_COUNT` —
+`src/review/tier-constants.ts`):
+
+| Tier     | Reviewer agents |
+| -------- | --------------- |
+| XS       | 3               |
+| S        | 3               |
+| Standard | 4               |
+
+Exit codes:
+
+| State               | Exit code |
+| ------------------- | --------- |
+| No findings (clean) | 0         |
+| Warnings only       | 1         |
+| Any blocker finding | 2         |
+
+Failures (dispatcher exception, timeout, malformed JSON) surface as a
+blocker finding for the affected agent — never silently dropped.
+
 ## Environment overrides
 
 `arbiter` honours a thin env-variable override layer applied after

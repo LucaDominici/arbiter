@@ -10,7 +10,7 @@ import {
   runWorktreeList,
 } from "./commands/worktree.js";
 import { runVerify, runVerifyEvidence } from "./commands/verify.js";
-import { runReviewPlan } from "./commands/review.js";
+import { runReviewCode, runReviewPlan } from "./commands/review.js";
 import { jsonOutput } from "./utils/json-output.js";
 import type { ReviewTier } from "./review/tier-constants.js";
 import { runUpgradeLevel } from "./commands/upgrade-level.js";
@@ -323,6 +323,53 @@ review
         file,
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         ...(tier !== undefined ? { tier } : {}),
+        json: opts.json,
+      });
+      process.exit(result.exitCode);
+    },
+  );
+
+review
+  .command("code")
+  .description(
+    "Multi-agent code review: dispatch N parallel reviewers based on tier (#236)",
+  )
+  .option("--dir <dir>", "Project root (default: current directory)")
+  .option(
+    "--tier <tier>",
+    "Review tier: XS, S, or Standard (default: Standard)",
+  )
+  .option("--diff <ref>", "Git ref to diff against (default: origin/main)")
+  .option(
+    "--evidence-dir <path>",
+    "Override evidence directory (default: .evidence/review-<timestamp>/)",
+  )
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(
+    async (opts: {
+      dir?: string;
+      tier?: string;
+      diff?: string;
+      evidenceDir?: string;
+      json: boolean;
+    }) => {
+      const tier: ReviewTier | undefined =
+        opts.tier === "XS" || opts.tier === "S" || opts.tier === "Standard"
+          ? opts.tier
+          : undefined;
+      if (opts.tier !== undefined && tier === undefined) {
+        console.error(
+          `  Error: invalid --tier "${opts.tier}". Valid: XS, S, Standard.`,
+        );
+        process.exit(1);
+      }
+      const result = await runReviewCode({
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(tier !== undefined ? { tier } : {}),
+        ...(opts.diff !== undefined ? { diffRef: opts.diff } : {}),
+        ...(opts.evidenceDir !== undefined
+          ? { evidenceDir: opts.evidenceDir }
+          : {}),
         json: opts.json,
       });
       process.exit(result.exitCode);

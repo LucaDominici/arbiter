@@ -1,0 +1,51 @@
+---
+description: Multi-agent code review via the arbiter review subagent dispatcher (#236)
+argument-hint: [--diff <ref>] [--tier XS|S|Standard]
+---
+
+# /review-code
+
+Dispatch N parallel Claude subagents over the current diff. Each agent
+focuses on a distinct concern; their findings are aggregated into
+blocker / warning / note buckets.
+
+| Severity  | Exit code |
+|-----------|-----------|
+| `blocker` | 2 (fail)  |
+| `warning` | 1         |
+| (clean)   | 0         |
+
+## Usage
+
+```bash
+arbiter review code --diff origin/main --tier S
+arbiter review code --json
+arbiter review code --evidence-dir .evidence/custom/
+```
+
+Each agent's raw response is persisted under
+`.evidence/review-<timestamp>/agent-<name>.json` for audit.
+
+## Tier guidance
+
+<% const _reviewerCount = { XS: 3, S: 3, Standard: 4 }; %>
+| Tier     | Reviewer agents |
+|----------|-----------------|
+| XS       | <%= _reviewerCount.XS %> |
+| S        | <%= _reviewerCount.S %> |
+| Standard | <%= _reviewerCount.Standard %> |
+
+## Personas
+
+- **bugs** — logic, off-by-one, null-deref, race, edge cases
+- **type-safety** — type leaks, casts, `any`/`unknown` misuse (XS/S)
+- **domain-consistency** — drift vs `AGENTS.md` (Standard)
+- **silent-failure-hunter** — swallowed errors, empty catches, ignored rejections
+- **test-analyzer** — coverage and assertion quality (Standard)
+
+## Hard stops
+
+- Any agent emits a `blocker` finding → exit 2, no merge.
+- Dispatcher exception / timeout / malformed JSON → surfaced as a blocker
+  finding (never silently dropped).
+- Tier flag is invalid → exit 1 with usage error.
