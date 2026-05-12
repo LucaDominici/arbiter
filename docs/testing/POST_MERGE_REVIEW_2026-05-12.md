@@ -9,16 +9,16 @@
 
 ## Summary
 
-| Bundle               | Scope                                                       | Score  | Verdict |
-| -------------------- | ----------------------------------------------------------- | ------ | ------- |
-| #447 (#240)          | check-ci-alignment.mjs L1 gate                              | 84/100 | PASS    |
-| #448 (#231)          | config migration framework v0/v1→v2                         | 76/100 | PASS    |
-| #449 (#234)          | evidence cmd-log JSONL                                      | 80/100 | PASS    |
-| #450 (#232)          | `--json` flag with structured envelopes (all commands)      | 78/100 | PASS    |
-| #451 (#239)          | self-dogfood check (INV-45)                                 | 72/100 | CONCERNS|
-| #452 (#233+#235+#237+#238) | Wave B: env overrides + review plan + task tiers + verify evidence | 70/100 | CONCERNS|
-| #453 (#236)          | multi-agent code review dispatcher                          | 71/100 | CONCERNS|
-| #454                 | adversarial-review hardening (all 13 blockers + 9 warnings) | 88/100 | PASS    |
+| Bundle                     | Scope                                                              | Score  | Verdict  |
+| -------------------------- | ------------------------------------------------------------------ | ------ | -------- |
+| #447 (#240)                | check-ci-alignment.mjs L1 gate                                     | 84/100 | PASS     |
+| #448 (#231)                | config migration framework v0/v1→v2                                | 76/100 | PASS     |
+| #449 (#234)                | evidence cmd-log JSONL                                             | 80/100 | PASS     |
+| #450 (#232)                | `--json` flag with structured envelopes (all commands)             | 78/100 | PASS     |
+| #451 (#239)                | self-dogfood check (INV-45)                                        | 72/100 | CONCERNS |
+| #452 (#233+#235+#237+#238) | Wave B: env overrides + review plan + task tiers + verify evidence | 70/100 | CONCERNS |
+| #453 (#236)                | multi-agent code review dispatcher                                 | 71/100 | CONCERNS |
+| #454                       | adversarial-review hardening (all 13 blockers + 9 warnings)        | 88/100 | PASS     |
 
 **Verdict thresholds:** PASS ≥75 | CONCERNS 60–74 | FAIL <60
 **Post-#454 effective scores:** all bundles now PASS (the deep-check fixes elevated CONCERNS bundles).
