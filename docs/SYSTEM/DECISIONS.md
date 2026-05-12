@@ -310,3 +310,17 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Decision:** Add `scripts/check-self-dogfood.mjs` — a Node.js script that renders every EJS template under `src/templates/claude/` with arbiter's own config (read from `arbiter.json`), normalizes both rendered and materialized content via Prettier, and diffs them line by line. Files with intentional divergences are registered in `.dogfood-divergences.json` with documented reasons. Config-gated templates (e.g. `guard-done-evidence.mjs` when `evidenceHarness=false`) are skipped. Wire the check into `scripts/check-all.mjs` L2 block. Codify as INV-45 (governance tier, alwaysActive) in the invariant catalog and AGENTS.md.
 
 **Consequences:** Future template modifications will be caught at L2 gate if the corresponding materialized file diverges without a documented reason in `.dogfood-divergences.json`. Intentional arbiter-internal extensions remain explicitly documented. The check prevents silent template drift in both directions.
+
+---
+
+## ADR-040: Hook audit + anti-bloat discipline (CANON-16)
+
+**Date:** 2026-05-12
+**Status:** Accepted
+**Reference:** Audit 2026-05-12
+
+**Context:** Audit of all 18 active Claude Code hooks revealed three weaknesses: (1) `post-commit-check.mjs` exited 0 (warning-only), making conventional commit enforcement advisory despite commitlint already running in the L1 gate; (2) `check-no-unused-exports.mjs` ran a full-project knip scan (60s) on every TypeScript file edit, including test files and configs — the hook served no purpose outside `src/`; (3) no process rule required AI agents to survey existing code before creating new files, causing gradual bloat via redundant abstractions. The `guard-done-evidence.mjs` absence from settings.json was confirmed as correct: it is config-gated behind `evidenceHarness=true`, which arbiter itself does not declare. The `check-circular-deps.mjs` soft-skip was confirmed non-issue: madge is a declared devDependency.
+
+**Decision:** (1) Upgrade `post-commit-check.mjs` to `process.exit(1)` — commits with non-conventional messages are now hard-blocked at the Claude Code hook level, consistent with the L1 commitlint gate. Template `src/templates/claude/hooks/post-commit-check.mjs.ejs` updated to match; adds guard for `git log` failure (non-git dirs) so the hook exits 0 when no commit is available to check. Empirical fire-tests updated: renamed "warning-only" test, added exit-1 and exit-0 cases with real git repos, added CANON-04 render test to `hooks-advanced-render.test.ts`. (2) Add early-exit to `check-no-unused-exports.mjs` when the edited file is not under `src/`; reduce timeout from 60s to 30s. Per CANON-14: `check-no-unused-exports.mjs.ejs` intentionally has no template — knip is a TypeScript-ecosystem meta tool that arbiter uses to self-govern, not a governance artifact emitted to target projects (which have their own coverage tools). (3) Add `.claude/rules/35-refactor-first.md` implementing CANON-16: every plan for new `src/` files must include an "Existing Code Survey" section. Add CANON-16 to `docs/SYSTEM/CANON.md`.
+
+**Consequences:** Commit messages are enforced at two levels (hook + gate). Unused-export scan overhead reduced by ~80% for non-src edits (0ms vs 60s). Template parity for post-commit-check is now maintained (materialized hook = rendered template). AI agents must document refactoring-vs-creation decisions in plans, creating a paper trail and imposing cognitive friction that favors refactoring.
