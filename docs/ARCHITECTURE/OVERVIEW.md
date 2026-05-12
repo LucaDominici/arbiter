@@ -127,10 +127,10 @@ node scripts/check-all.mjs       # defaults to L2
 
 ### Labels
 
-15 standard labels provisioned via `gh label create/edit`:
+14 standard labels provisioned via `gh label create/edit`:
 
 - **Type:** `bug`, `feature`, `task`, `docs`, `refactor`, `test`, `ci`, `deps`
-- **Size:** `size/XS`, `size/S`, `size/M`, `size/L`
+- **Task size:** `size:XS`, `size:S`, `size:Standard` (colon convention — #237)
 - **Priority:** `priority/P0`, `priority/P1`, `priority/P2`
 
 ### Branch Protection

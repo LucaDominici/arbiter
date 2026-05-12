@@ -10,13 +10,13 @@ GitHub labels are used for issue triage, capacity planning, and workflow automat
 
 ## Decision
 
-15 labels provisioned idempotently (`gh label create/edit`):
+14 labels provisioned idempotently (`gh label create/edit`):
 
-| Category     | Labels                                                             |
-| ------------ | ------------------------------------------------------------------ |
-| Type (8)     | `bug`, `feature`, `task`, `docs`, `refactor`, `test`, `ci`, `deps` |
-| Size (4)     | `size/XS`, `size/S`, `size/M`, `size/L`                            |
-| Priority (3) | `priority/P0`, `priority/P1`, `priority/P2`                        |
+| Category      | Labels                                                             |
+| ------------- | ------------------------------------------------------------------ |
+| Type (8)      | `bug`, `feature`, `task`, `docs`, `refactor`, `test`, `ci`, `deps` |
+| Task size (3) | `size:XS`, `size:S`, `size:Standard` (colon — see #237)            |
+| Priority (3)  | `priority/P0`, `priority/P1`, `priority/P2`                        |
 
 ## Rationale
 

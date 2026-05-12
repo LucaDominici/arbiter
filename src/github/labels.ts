@@ -1,5 +1,5 @@
 import { runCli, runCliJson } from "../utils/run-cli.js";
-import { TIER_LABELS } from "../generators/labels.js";
+import { TASK_SIZE_LABELS } from "../generators/labels.js";
 
 export interface Label {
   name: string;
@@ -7,6 +7,12 @@ export interface Label {
   description: string;
 }
 
+/**
+ * Canonical project labels. Task-size labels use the `size:` colon
+ * convention (e.g. `size:XS`) — see #237. We deliberately do NOT ship a
+ * parallel `size/*` slash taxonomy: one shape avoids the "which one do
+ * I pick" confusion that exists in many starter repos.
+ */
 const STANDARD_LABELS: Label[] = [
   { name: "bug", color: "d73a4a", description: "Something isn't working" },
   { name: "feature", color: "a2eeef", description: "New feature or request" },
@@ -16,10 +22,6 @@ const STANDARD_LABELS: Label[] = [
   { name: "test", color: "fbca04", description: "Test additions or fixes" },
   { name: "ci", color: "bfd4f2", description: "CI/CD changes" },
   { name: "deps", color: "0366d6", description: "Dependency updates" },
-  { name: "size/XS", color: "c2e0c6", description: "< 30 min" },
-  { name: "size/S", color: "c2e0c6", description: "30 min — 2 hours" },
-  { name: "size/M", color: "fef2c0", description: "2 — 8 hours" },
-  { name: "size/L", color: "f9d0c4", description: "1 — 3 days" },
   {
     name: "priority/P0",
     color: "b60205",
@@ -27,8 +29,8 @@ const STANDARD_LABELS: Label[] = [
   },
   { name: "priority/P1", color: "ff9f1c", description: "High — next up" },
   { name: "priority/P2", color: "fbca04", description: "Normal — in backlog" },
-  // Task-tier labels (#237) — used by /task to pick plan depth + reviewer count.
-  ...TIER_LABELS.map((l) => ({
+  // Task-size labels (#237) — used by /task to pick plan depth + reviewer count.
+  ...TASK_SIZE_LABELS.map((l) => ({
     name: l.name,
     color: l.color,
     description: l.description,
