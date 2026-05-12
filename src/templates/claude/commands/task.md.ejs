@@ -70,6 +70,9 @@ Full lifecycle: plan → STOP → implement → review → gate → commit → P
 <% } %>
 3. Check for existing plan: `ls .claude/plans/ | grep -i NNN`
 4. Identify scope: which files need to change?
+<% if (governanceLevel !== 'L1') { %>
+5. For Standard-tier tasks: `mkdir -p ".evidence/#NNN" && cp .evidence/BACKLOG.md.template ".evidence/#NNN/BACKLOG.md"`
+<% } %>
 
 <% if (governanceLevel !== 'L1') { %>
 ### Phase 2: Classification

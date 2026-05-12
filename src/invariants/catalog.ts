@@ -505,14 +505,18 @@ export const INVARIANT_CATALOG: Invariant[] = [
     description:
       "L3 governance mandates structured, machine-checkable evidence of deep validation " +
       "before merging. The evidence harness (scripts/evidence-collect.mjs) writes " +
-      ".evidence/SUMMARY.json containing an obs_gate field. A merge is blocked when " +
-      "obs_gate !== 'PASS', which indicates that tests failed, coverage dropped below " +
-      "threshold, mutation score is insufficient, or critical security findings exist. " +
-      "The nightly pipeline populates this evidence; the L3 check-all.mjs gate reads it.",
+      ".evidence/SUMMARY.json carrying the required schema " +
+      "{head_sha, head_sha_short, obs_gate, tests, coverage, mutation, security} " +
+      "plus a canonical sha field. A merge is blocked when obs_gate !== 'PASS', which " +
+      "indicates that tests failed, coverage dropped below threshold, mutation score is " +
+      "insufficient, or critical security findings exist. The L3 gate runs " +
+      "`arbiter verify evidence` which: (1) validates the schema via src/evidence/summary.ts, " +
+      "(2) verifies the embedded sha, (3) confirms head_sha matches `git rev-parse HEAD`, " +
+      "and (4) requires obs_gate === 'PASS'. Any failure blocks merge.",
     alwaysActive: true,
     minGovernanceLevel: "L3",
     enforcement:
-      "check-all.mjs L3 block (reads .evidence/SUMMARY.json) + nightly pipeline (evidence-collect.mjs)",
+      "check-all.mjs L3 block (reads .evidence/SUMMARY.json) + nightly pipeline (evidence-collect.mjs) + src/evidence/summary.ts validator",
   },
 
   // ─── Data: Real Database Enforcement ─────────────────────────────────────────

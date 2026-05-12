@@ -30,15 +30,33 @@ describe("generateSuppressions", () => {
     cleanupTestProject(dir);
   });
 
-  it("returns empty when enableSuppressions is false", () => {
+  it("emits check-inline-suppressions.mjs even when enableSuppressions is false (#242)", () => {
     const config = makeConfig(dir, { enableSuppressions: false });
-    expect(generateSuppressions(config).files).toHaveLength(0);
+    const result = generateSuppressions(config);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("check-inline-suppressions.mjs"))).toBe(
+      true,
+    );
   });
 
-  it("generates 6 files when enableSuppressions is true", () => {
+  it("emits check-inline-suppressions.mjs when enableSuppressions is true (#242)", () => {
     const config = makeConfig(dir, { enableSuppressions: true });
     const result = generateSuppressions(config);
-    expect(result.files).toHaveLength(6);
+    const paths = result.files.map((f) => f.path);
+    expect(paths.some((p) => p.endsWith("check-inline-suppressions.mjs"))).toBe(
+      true,
+    );
+  });
+
+  it("returns only inline-suppressions script when enableSuppressions is false (#242)", () => {
+    const config = makeConfig(dir, { enableSuppressions: false });
+    expect(generateSuppressions(config).files).toHaveLength(1);
+  });
+
+  it("generates 7 files when enableSuppressions is true (#242)", () => {
+    const config = makeConfig(dir, { enableSuppressions: true });
+    const result = generateSuppressions(config);
+    expect(result.files).toHaveLength(7);
   });
 
   for (const relPath of EXPECTED_FILES) {
@@ -50,7 +68,7 @@ describe("generateSuppressions", () => {
   }
 
   for (const lang of ["typescript", "rust", "go", "python"] as const) {
-    it(`generates 6 files for ${lang}`, () => {
+    it(`generates 7 files for ${lang}`, () => {
       const loopDir = createTestProject(lang);
       initGit(loopDir);
       try {
@@ -59,7 +77,7 @@ describe("generateSuppressions", () => {
           enableSuppressions: true,
         });
         const result = generateSuppressions(config);
-        expect(result.files).toHaveLength(6);
+        expect(result.files).toHaveLength(7);
       } finally {
         cleanupTestProject(loopDir);
       }
@@ -158,14 +176,14 @@ describe("generateSuppressions — owasp + trivyignore (#208)", () => {
     expect(paths.some((p) => p.endsWith("owasp-suppressions.xml"))).toBe(false);
   });
 
-  it("total files = 8 for Java L2 with enableSuppressions", () => {
+  it("total files = 9 for Java L2 with enableSuppressions", () => {
     const config = makeConfig(dir, {
       language: "java",
       governanceLevel: "L2",
       enableSuppressions: true,
     });
     const result = generateSuppressions(config);
-    expect(result.files).toHaveLength(8);
+    expect(result.files).toHaveLength(9);
   });
 
   it("skipIfExists on owasp-suppressions.xml (CANON-11)", () => {

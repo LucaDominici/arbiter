@@ -54,6 +54,8 @@ jobs:
         run: npx prettier --check .
       - name: Inline suppression check
         run: node scripts/check-inline-suppressions.mjs
+      - name: Suppressions expiry check
+        run: node scripts/check-suppressions.mjs
       - name: Test naming convention check
         run: node scripts/check-test-naming.mjs
       - name: Hardness inventory check

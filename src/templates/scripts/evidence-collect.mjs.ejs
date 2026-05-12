@@ -5,9 +5,25 @@
 //   .evidence/SUMMARY.md    — human-readable report
 // L3 gate: check-all.mjs L3 block fails when obs_gate !== "PASS"
 // Usage: node scripts/evidence-collect.mjs
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+// Mirrors src/risk/sha-check.ts — inline so this script runs without a build step.
+function canonicalise(v) {
+  if (Array.isArray(v)) return v.map(canonicalise);
+  if (v !== null && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v).sort()) out[k] = canonicalise(v[k]);
+    return out;
+  }
+  return v;
+}
+function computeSummarySha(body) {
+  const { sha: _ignored, ...rest } = body;
+  return createHash('sha256').update(JSON.stringify(canonicalise(rest))).digest('hex');
+}
 
 const EVIDENCE_DIR = '.evidence';
 const MUTATION_THRESHOLD = <%= mutationThreshold || 80 %>;
@@ -170,6 +186,9 @@ const duration = Math.round((Date.now() - start) / 1000);
 
 const commitResult = spawnSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf-8', shell: false });
 const commit = (commitResult.stdout || '').trim();
+const headShaResult = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8', shell: false });
+const head_sha = (headShaResult.stdout || '').trim();
+const head_sha_short = commit;
 
 const coverageOk = coverage.line >= COVERAGE_THRESHOLD / 100;
 const mutationOk = mutation.score >= MUTATION_THRESHOLD / 100;
@@ -178,7 +197,9 @@ const securityOk = security.critical === 0;
 
 const obs_gate = (coverageOk && mutationOk && testsOk && securityOk) ? 'PASS' : 'FAIL';
 
-const summary = {
+const summaryBody = {
+  head_sha,
+  head_sha_short,
   obs_gate,
   timestamp: new Date().toISOString(),
   commit,
@@ -194,6 +215,8 @@ const summary = {
   },
   security,
 };
+const sha = computeSummarySha(summaryBody);
+const summary = { ...summaryBody, sha };
 
 writeFileSync(join(EVIDENCE_DIR, 'SUMMARY.json'), JSON.stringify(summary, null, 2));
 

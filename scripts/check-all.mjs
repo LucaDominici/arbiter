@@ -98,6 +98,7 @@ runCheck("orphan TODOs", "node", ["scripts/check-no-orphan-todo.mjs"]);
 runCheck("inline suppressions", "node", [
   "scripts/check-inline-suppressions.mjs",
 ]);
+runCheck("suppressions expiry", "node", ["scripts/check-suppressions.mjs"]);
 runCheck(
   "commitlint",
   "npx",

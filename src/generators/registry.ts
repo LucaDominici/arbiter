@@ -34,6 +34,7 @@ import { generateGithubSetup } from "./github-setup.js";
 import { generateDocs } from "./docs.js";
 import { generateApiMiddleware } from "./api-middleware.js";
 import { generateSeed } from "./seed.js";
+import { generateEvidenceBacklog } from "./evidence-backlog.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import type { GeneratorKey } from "../config/diff.js";
@@ -120,7 +121,7 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: "suppressions",
-      enabled: config.enableSuppressions,
+      enabled: true,
       run: () => generateSuppressions(config).files,
     },
     {
@@ -210,6 +211,11 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: "evidence-retention",
       enabled: config.enableEvidenceHarness !== false,
       run: () => generateEvidenceRetention(config).files,
+    },
+    {
+      key: "evidence-backlog",
+      enabled: config.governanceLevel !== "L1",
+      run: () => generateEvidenceBacklog(config).files,
     },
     {
       key: "test-taxonomy",

@@ -47,3 +47,27 @@ describe("task.md.ejs taskTiers rendering (#237)", () => {
     expect(out).toMatch(/Tier Standard[\s\S]*?6 review agents/);
   });
 });
+
+describe("task.md.ejs BACKLOG step (#243)", () => {
+  it("includes BACKLOG step in Phase 1 at L2", () => {
+    const config = makeConfig("/tmp/test", {
+      governanceLevel: "L2",
+      testCommand: "npm test",
+    });
+    const out = renderTemplate("claude/commands/task.md.ejs", {
+      ...(config as unknown as Record<string, unknown>),
+    });
+    expect(out).toContain("BACKLOG.md");
+  });
+
+  it("does NOT include BACKLOG step at L1", () => {
+    const config = makeConfig("/tmp/test", {
+      governanceLevel: "L1",
+      testCommand: "npm test",
+    });
+    const out = renderTemplate("claude/commands/task.md.ejs", {
+      ...(config as unknown as Record<string, unknown>),
+    });
+    expect(out).not.toContain("BACKLOG.md");
+  });
+});
