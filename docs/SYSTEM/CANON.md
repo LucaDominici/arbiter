@@ -205,3 +205,15 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Enforcement:** Prose — checked at PR review for any new template that emits a tool config file.
 
 **Source issues:** #154, #175
+
+---
+
+## CANON-16 — Refactor-first before creating new source files
+
+**Rule:** Before creating any new file under `src/`, a plan must include an "Existing Code Survey" section documenting: what was grepped for, what similar code was found, and whether a refactor was chosen or rejected (with reason).
+
+**Why:** Unchecked file creation is the primary source of near-duplicate abstractions, bloated generator counts, and redundant templates. A senior developer asks "does this already exist?" before building. Without a documented survey, AI agents default to creation because it is lower-friction than refactoring.
+
+**Enforcement:** `.claude/rules/35-refactor-first.md` — plan-phase review. Plans without an "Existing Code Survey" section are incomplete and must be rejected before implementation begins.
+
+**Source issues:** audit 2026-05-12 (determinism + anti-bloat analysis)

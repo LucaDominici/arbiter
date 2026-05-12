@@ -652,3 +652,39 @@ describe("generateClaude — check-circular-deps.mjs emission (#167)", () => {
     });
   }
 });
+
+describe("hooks/post-commit-check.mjs.ejs", () => {
+  it("renders without EJS tag leaks", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-commit-check.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).not.toContain("<%");
+    expect(out).not.toContain("%>");
+  });
+
+  it("contains INV-22 citation", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-commit-check.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("INV-22");
+  });
+
+  it("contains exit(1) for non-conventional messages", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-commit-check.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("process.exit(1)");
+  });
+
+  it("contains conventional commit regex", () => {
+    const out = renderTemplate(
+      "claude/hooks/post-commit-check.mjs.ejs",
+      configFor("typescript"),
+    );
+    expect(out).toContain("CONVENTIONAL");
+    expect(out).toContain("feat|fix|refactor");
+  });
+});

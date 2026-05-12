@@ -211,9 +211,51 @@ describe("post-commit-check — empirical fire", () => {
     expect(r.status).toBe(0);
   });
 
-  it("exits 0 on valid conventional commit (warning-only hook)", () => {
+  it("exits 0 when git log fails (not a git repo)", () => {
     const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_COMMAND: "git commit -m 'feat(#1): init'",
+    });
+    expect(r.status).toBe(0);
+  });
+
+  it("exits 1 on non-conventional commit message (INV-22)", () => {
+    spawnSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+    spawnSync("git", ["config", "user.email", "test@arbiter.test"], {
+      cwd: dir,
+      encoding: "utf-8",
+    });
+    spawnSync("git", ["config", "user.name", "Arbiter Test"], {
+      cwd: dir,
+      encoding: "utf-8",
+    });
+    spawnSync("git", ["commit", "--allow-empty", "-m", "bad commit message"], {
+      cwd: dir,
+      encoding: "utf-8",
+    });
+    const r = spawnHook(hookPath, dir, {
+      CLAUDE_TOOL_INPUT_COMMAND: "git commit",
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/INV-22/);
+  });
+
+  it("exits 0 on valid conventional commit message", () => {
+    spawnSync("git", ["init"], { cwd: dir, encoding: "utf-8" });
+    spawnSync("git", ["config", "user.email", "test@arbiter.test"], {
+      cwd: dir,
+      encoding: "utf-8",
+    });
+    spawnSync("git", ["config", "user.name", "Arbiter Test"], {
+      cwd: dir,
+      encoding: "utf-8",
+    });
+    spawnSync(
+      "git",
+      ["commit", "--allow-empty", "-m", "feat(auth): add login"],
+      { cwd: dir, encoding: "utf-8" },
+    );
+    const r = spawnHook(hookPath, dir, {
+      CLAUDE_TOOL_INPUT_COMMAND: "git commit",
     });
     expect(r.status).toBe(0);
   });
