@@ -15,11 +15,7 @@
  * Issue: #233
  */
 
-import type {
-  ArbiterConfigV2,
-  FeatureFlags,
-  ThresholdsV2,
-} from "./schema.js";
+import type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 } from "./schema.js";
 
 type Env = Record<string, string | undefined>;
 
@@ -84,7 +80,7 @@ function applyThresholdOverride(
   }
   const value = parseNumericEnv(rawValue);
   if (value === undefined) return thresholds;
-  return { ...thresholds, [camel]: value } as ThresholdsV2;
+  return { ...thresholds, [camel]: value };
 }
 
 function applyFeatureOverride(
@@ -98,7 +94,7 @@ function applyFeatureOverride(
   }
   const value = parseBooleanEnv(rawValue);
   if (value === undefined) return features;
-  return { ...features, [camel]: value } as FeatureFlags;
+  return { ...features, [camel]: value };
 }
 
 /**

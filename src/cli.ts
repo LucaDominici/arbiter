@@ -10,7 +10,9 @@ import {
   runWorktreeList,
 } from "./commands/worktree.js";
 import { runVerify, runVerifyEvidence } from "./commands/verify.js";
+import { runReviewPlan } from "./commands/review.js";
 import { jsonOutput } from "./utils/json-output.js";
+import type { ReviewTier } from "./review/tier-constants.js";
 import { runUpgradeLevel } from "./commands/upgrade-level.js";
 import {
   runPluginAdd,
@@ -295,6 +297,38 @@ worktree
     runWorktreeList({ json: opts.json });
   });
 
+const review = program
+  .command("review")
+  .description("Review artefacts (plans, code) against governance invariants");
+
+review
+  .command("plan <file>")
+  .description("Review a plan markdown file via a Claude subagent (#235)")
+  .option("--dir <dir>", "Project root (default: current directory)")
+  .option("--tier <tier>", "Review tier: XS, S, or Standard (default: S)")
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(
+    (file: string, opts: { dir?: string; tier?: string; json: boolean }) => {
+      const tier: ReviewTier | undefined =
+        opts.tier === "XS" || opts.tier === "S" || opts.tier === "Standard"
+          ? opts.tier
+          : undefined;
+      if (opts.tier !== undefined && tier === undefined) {
+        console.error(
+          `  Error: invalid --tier "${opts.tier}". Valid: XS, S, Standard.`,
+        );
+        process.exit(1);
+      }
+      const result = runReviewPlan({
+        file,
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(tier !== undefined ? { tier } : {}),
+        json: opts.json,
+      });
+      process.exit(result.exitCode);
+    },
+  );
+
 const verify = program
   .command("verify")
   .description("Probe toolchain compatibility for the detected stack")
@@ -327,8 +361,7 @@ verify
           : undefined,
       );
     } else {
-      const label =
-        result.status === "ok" ? "OK" : result.status.toUpperCase();
+      const label = result.status === "ok" ? "OK" : result.status.toUpperCase();
       const tail = result.reason ? ` — ${result.reason}` : "";
       process.stdout.write(`verify evidence: ${label}${tail}\n`);
     }

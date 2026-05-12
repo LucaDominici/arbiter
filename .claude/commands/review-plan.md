@@ -1,0 +1,44 @@
+---
+description: Review a plan file via the arbiter review subagent (#235)
+argument-hint: <plan-file> [--tier XS|S|Standard]
+---
+
+# /review-plan <plan-file>
+
+Run a Claude subagent over the named plan file. The subagent will:
+
+1. Read `AGENTS.md` and compute its SHA-256 digest (SSOT anchor).
+2. Evaluate the plan against the active invariants.
+3. Emit one of three verdicts:
+
+| Verdict | Meaning                                     | Exit code |
+| ------- | ------------------------------------------- | --------- |
+| `PASS`  | Plan is implementable as written            | 0         |
+| `WARN`  | Plan has fixable gaps; reviser MAY revise   | 1         |
+| `FAIL`  | Plan violates an invariant or is incoherent | 2         |
+
+Up to **2 revise-cycles** are permitted on WARN before settling.
+
+## Usage
+
+```bash
+arbiter review plan path/to/plan.md --tier S
+arbiter review plan path/to/plan.md --json
+```
+
+The prompt sent to the subagent is persisted under
+`.evidence/review-<timestamp>/plan-review-prompt.txt` for audit.
+
+## Tier guidance
+
+| Tier     | Review passes |
+| -------- | ------------- |
+| XS       | 1             |
+| S        | 3             |
+| Standard | 5             |
+
+## Hard stops
+
+- Plan file missing → exit 2 with `verdict: ERROR`.
+- Subagent reports `FAIL` → no retry; exit 2 immediately.
+- Subagent reports `WARN` twice after revision → exit 1; user must revise plan.

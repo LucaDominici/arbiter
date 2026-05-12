@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { computeSummarySha } from "../../src/risk/sha-check.js";
@@ -75,7 +82,8 @@ describe("runVerifyEvidence (#238)", () => {
       expect(result.exitCode).toBe(0);
       const skipLog = join(dir, ".evidence", "skip-log.jsonl");
       expect(existsSync(skipLog)).toBe(true);
-      const line = readFileSync(skipLog, "utf-8").trim().split("\n").pop() ?? "";
+      const line =
+        readFileSync(skipLog, "utf-8").trim().split("\n").pop() ?? "";
       const parsed = JSON.parse(line);
       expect(parsed.reason).toBe("flaky-on-ci");
       expect(typeof parsed.ts).toBe("string");
