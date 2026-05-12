@@ -139,6 +139,20 @@ describe("runReviewCode (#236)", () => {
     }
   });
 
+  it("wraps infra failure (resolveDiff) as blocker finding with exit 2 (W-2)", async () => {
+    // No diffOverride and no dispatcher → resolveDiff will spawn `git diff`,
+    // which fails in our empty tmp env (no git repo). The error must NOT
+    // escape as a generic exit 1 — it must surface as a blocker.
+    const result = await runReviewCode({
+      dir: env.dir,
+      tier: "S",
+    });
+    expect(result.exitCode).toBe(2);
+    expect(result.aggregated.blockers.length).toBeGreaterThan(0);
+    expect(result.aggregated.blockers[0]?.agent).toBe("infrastructure");
+    expect(result.aggregated.blockers[0]?.message).toMatch(/infra failure/);
+  });
+
   it("Standard tier dispatches 5 agents", async () => {
     const calls: string[] = [];
     const result = await runReviewCode({

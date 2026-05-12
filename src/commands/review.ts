@@ -169,6 +169,32 @@ function resolveDiff(opts: ReviewCodeOptions, dir: string): string {
   return result.stdout;
 }
 
+/**
+ * Build a synthetic blocker-finding result envelope for an infrastructure
+ * failure (git diff, prompt build, evidence-dir creation, etc.). These
+ * are not agent verdicts — they are pre-dispatch errors that must NOT
+ * silently exit with the "no findings" exit code.
+ */
+function infraFailureResult(
+  err: unknown,
+  evidenceDir: string,
+): ReviewCodeResult {
+  const message = err instanceof Error ? err.message : String(err);
+  const finding = {
+    severity: "blocker" as const,
+    agent: "infrastructure",
+    message: `review-code infra failure: ${message}`,
+  };
+  const aggregated = {
+    blockers: [finding],
+    warnings: [],
+    notes: [],
+    passCount: 0,
+    totalAgents: 0,
+  };
+  return { exitCode: 2, aggregated, evidenceDir };
+}
+
 export async function runReviewCode(
   opts: ReviewCodeOptions,
 ): Promise<ReviewCodeResult> {
@@ -176,8 +202,32 @@ export async function runReviewCode(
   const tier: ReviewTier = opts.tier ?? "Standard";
   const evidenceDir = opts.evidenceDir ?? makeCodeReviewEvidenceDir(dir);
 
-  const diff = resolveDiff(opts, dir);
-  const prompts = buildAgentPrompts({ diff, dir, tier });
+  let diff: string;
+  let prompts: ReturnType<typeof buildAgentPrompts>;
+  try {
+    diff = resolveDiff(opts, dir);
+    prompts = buildAgentPrompts({ diff, dir, tier });
+  } catch (err) {
+    const failure = infraFailureResult(err, evidenceDir);
+    if (opts.json) {
+      jsonOutput("review code", "error", {
+        tier,
+        exitCode: failure.exitCode,
+        blockers: failure.aggregated.blockers,
+        warnings: [],
+        notes: [],
+        passCount: 0,
+        totalAgents: 0,
+        evidenceDir,
+      });
+    } else {
+      const fst = failure.aggregated.blockers[0];
+      process.stderr.write(
+        `review code: infrastructure failure — ${fst?.message ?? "unknown"}\n`,
+      );
+    }
+    return failure;
+  }
 
   const dispatcher: DispatchFn =
     opts.dispatcher ?? dispatchClaudeAgent({ evidenceDir });
