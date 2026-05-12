@@ -23,9 +23,7 @@
  *   - timeout                → blocker finding
  */
 
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { computeSsotDigest, escapeXml } from "./ssot.js";
 import { TIER_REVIEWER_COUNT, type ReviewTier } from "./tier-constants.js";
 
 /** Severity of a single review finding. */
@@ -133,17 +131,6 @@ export const AGENT_PERSONAS: readonly AgentPersona[] = [
       "Analyse test coverage and assertion quality for the diffed code. Flag missing tests for new branches, weak asserts, and tests that pass without exercising the intended path.",
   },
 ];
-
-function computeSsotDigest(dir: string): string {
-  const agentsPath = join(dir, "AGENTS.md");
-  if (!existsSync(agentsPath)) return "0".repeat(64);
-  const body = readFileSync(agentsPath, "utf-8");
-  return createHash("sha256").update(body).digest("hex");
-}
-
-function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 function selectPersonas(tier: ReviewTier): AgentPersona[] {
   const target = TIER_REVIEWER_COUNT[tier];

@@ -14,11 +14,11 @@
  * tests inject a fake dispatcher to avoid spawning real CLIs.
  */
 
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CliError, runCli } from "../utils/run-cli.js";
 import type { AgentReport, AgentResult, Finding } from "./multi-agent.js";
+import { computeSsotDigest, escapeXml } from "./ssot.js";
 import { TIER_PASS_COUNT, type ReviewTier } from "./tier-constants.js";
 
 export type Verdict = "PASS" | "WARN" | "FAIL";
@@ -51,17 +51,6 @@ export interface DispatchResult {
 }
 
 const MAX_REVISE_CYCLES = 2;
-
-function computeSsotDigest(dir: string): string {
-  const agentsPath = join(dir, "AGENTS.md");
-  if (!existsSync(agentsPath)) return "0".repeat(64);
-  const body = readFileSync(agentsPath, "utf-8");
-  return createHash("sha256").update(body).digest("hex");
-}
-
-function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 export function buildReviewPrompt(opts: BuildPromptOptions): string {
   const digest = computeSsotDigest(opts.dir);

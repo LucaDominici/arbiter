@@ -195,6 +195,31 @@ function infraFailureResult(
   return { exitCode: 2, aggregated, evidenceDir };
 }
 
+function reportInfraFailure(
+  failure: ReviewCodeResult,
+  tier: ReviewTier,
+  evidenceDir: string,
+  json: boolean | undefined,
+): void {
+  if (json) {
+    jsonOutput("review code", "error", {
+      tier,
+      exitCode: failure.exitCode,
+      blockers: failure.aggregated.blockers,
+      warnings: [],
+      notes: [],
+      passCount: 0,
+      totalAgents: 0,
+      evidenceDir,
+    });
+    return;
+  }
+  const fst = failure.aggregated.blockers[0];
+  process.stderr.write(
+    `review code: infrastructure failure — ${fst?.message ?? "unknown"}\n`,
+  );
+}
+
 export async function runReviewCode(
   opts: ReviewCodeOptions,
 ): Promise<ReviewCodeResult> {
@@ -209,23 +234,7 @@ export async function runReviewCode(
     prompts = buildAgentPrompts({ diff, dir, tier });
   } catch (err) {
     const failure = infraFailureResult(err, evidenceDir);
-    if (opts.json) {
-      jsonOutput("review code", "error", {
-        tier,
-        exitCode: failure.exitCode,
-        blockers: failure.aggregated.blockers,
-        warnings: [],
-        notes: [],
-        passCount: 0,
-        totalAgents: 0,
-        evidenceDir,
-      });
-    } else {
-      const fst = failure.aggregated.blockers[0];
-      process.stderr.write(
-        `review code: infrastructure failure — ${fst?.message ?? "unknown"}\n`,
-      );
-    }
+    reportInfraFailure(failure, tier, evidenceDir, opts.json);
     return failure;
   }
 

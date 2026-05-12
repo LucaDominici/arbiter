@@ -269,9 +269,8 @@ describe("generateClaude", () => {
         join(dir, ".claude", "commands", "review-code.md"),
         "utf-8",
       );
-      const { TIER_REVIEWER_COUNT } = await import(
-        "../../src/review/tier-constants.js"
-      );
+      const { TIER_REVIEWER_COUNT } =
+        await import("../../src/review/tier-constants.js");
       // The rendered table must contain each tier's SSOT count.
       expect(content).toMatch(
         new RegExp(`\\| XS\\s+\\| ${TIER_REVIEWER_COUNT.XS} \\|`),
