@@ -121,6 +121,7 @@ runCheck("ci alignment", "node", ["scripts/check-ci-alignment.mjs"]);
 if (level === "L2" || level === "L3") {
   runCheck("coverage", "npm", ["test", "--", "--coverage"]);
   runCheck("dead code", "npx", ["knip"]);
+  runCheck("duplication", "npx", ["jscpd", "--silent"]);
   runCheck("audit", "npm", ["audit", "--audit-level=high"]);
   runCheck("gitleaks", "gitleaks", [
     "detect",

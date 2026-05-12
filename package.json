@@ -39,6 +39,8 @@
     "@types/node": "^25.7.0",
     "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^10.3.0",
+    "eslint-plugin-sonarjs": "^4.0.3",
+    "jscpd": "^4.1.1",
     "knip": "^6.12.2",
     "madge": "^8.0.0",
     "prettier": "^3.8.3",

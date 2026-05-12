@@ -68,6 +68,8 @@ jobs:
         run: node scripts/check-self-dogfood.mjs
       - name: Dead code check
         run: npx knip
+      - name: Duplication check (CANON-16, INV-46)
+        run: npx jscpd --silent
       - name: Matrix fixture coverage (INV-32)
         run: node scripts/check-matrix-fixtures.mjs
       - name: Fetch base branch for commitlint
