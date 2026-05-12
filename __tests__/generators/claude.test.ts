@@ -6,11 +6,24 @@ import {
   readFileSync,
   existsSync,
   rmSync,
+  readdirSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { generateClaude } from "../../src/generators/claude.js";
 import { makeConfig } from "../helpers.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const COMMANDS_TEMPLATE_DIR = join(
+  __dirname,
+  "..",
+  "..",
+  "src",
+  "templates",
+  "claude",
+  "commands",
+);
 
 describe("generateClaude", () => {
   let dir: string;
@@ -247,6 +260,38 @@ describe("generateClaude", () => {
     const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
     expect(raw).toContain("guard-task-completion.mjs");
     expect(raw).toContain("UserPromptSubmit");
+  });
+
+  describe("command template drift guard (#236)", () => {
+    it("every .ejs in src/templates/claude/commands/ is materialized", () => {
+      generateClaude(makeConfig(dir));
+      const templates = readdirSync(COMMANDS_TEMPLATE_DIR)
+        .filter((f) => f.endsWith(".md.ejs"))
+        .map((f) => f.replace(/\.ejs$/, ""));
+      const commandsDir = join(dir, ".claude", "commands");
+      const materialized = existsSync(commandsDir)
+        ? readdirSync(commandsDir)
+        : [];
+      // Every template must have a materialized counterpart — prevents
+      // adding a new commands/*.ejs without listing it in claude.ts.
+      for (const t of templates) {
+        expect(materialized).toContain(t);
+      }
+      // Every materialized .md must have a corresponding template — sanity
+      // check the reverse direction too.
+      for (const m of materialized) {
+        if (m.endsWith(".md")) {
+          expect(templates).toContain(m);
+        }
+      }
+    });
+
+    it("review-code.md is materialized (regression: #236 wiring)", () => {
+      generateClaude(makeConfig(dir));
+      expect(
+        existsSync(join(dir, ".claude", "commands", "review-code.md")),
+      ).toBe(true);
+    });
   });
 
   describe("taskTiers wiring (#237)", () => {

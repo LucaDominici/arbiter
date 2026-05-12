@@ -266,6 +266,7 @@ function generateClaudeCommands(
     "wt-list.md",
     "wt-prune.md",
     "review-plan.md",
+    "review-code.md",
   ];
   for (const cmd of commands) {
     results.push(
