@@ -57,12 +57,13 @@ describe("runVerifyEvidence (#238)", () => {
     expect(result.status).toBe("error");
   });
 
-  it("returns warning when summary is older than 7 days", () => {
+  it("returns warning + exit 1 when summary is older than 7 days (stale)", () => {
     const oldTs = new Date(Date.now() - 8 * 86_400_000).toISOString();
     const { serialised } = makeSummary({ timestamp: oldTs });
     writeFileSync(join(dir, ".evidence", "SUMMARY.json"), serialised);
     const result = runVerifyEvidence({ dir });
     expect(result.status).toBe("warning");
+    expect(result.exitCode).toBe(1);
   });
 
   it("returns error when SUMMARY.json is missing", () => {

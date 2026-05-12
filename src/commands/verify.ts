@@ -42,10 +42,10 @@ function writeSkipEntry(dir: string, reason: string): void {
  * Verify an existing `.evidence/SUMMARY.json` snapshot. Returns a result
  * envelope so callers (CLI / programmatic) can decide how to surface it.
  *
- * Exit code conventions:
- *   0 = ok (or E2E_RISK_SKIP set)
- *   1 = missing/unreadable SUMMARY.json or stale (>FRESHNESS_DAYS)
- *   2 = SHA mismatch (tampered or stale state)
+ * Exit code conventions (canonical CLI convention — see CLI.md §Exit codes):
+ *   0 = ok (or E2E_RISK_SKIP set with a valid reason)
+ *   1 = missing/unreadable SUMMARY.json, invalid JSON, or stale (>FRESHNESS_DAYS) — advisory
+ *   2 = SHA mismatch (blocker — tampered or state diverged)
  *
  * #238
  */
@@ -100,9 +100,11 @@ export function runVerifyEvidence(opts: VerifyOptions): VerifyEvidenceResult {
     if (Number.isFinite(tsMs)) {
       const ageDays = (Date.now() - tsMs) / MS_PER_DAY;
       if (ageDays > FRESHNESS_DAYS) {
+        // Stale evidence is an advisory failure (exit 1, not 0):
+        // CI should flag it but downstream callers may still pass.
         return {
           status: "warning",
-          exitCode: 0,
+          exitCode: 1,
           reason: `summary is ${ageDays.toFixed(1)} days old (>${FRESHNESS_DAYS})`,
         };
       }
