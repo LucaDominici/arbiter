@@ -727,4 +727,25 @@ export const INVARIANT_CATALOG: Invariant[] = [
     enforcement:
       "scripts/check-self-dogfood.mjs (L2 gate check) — exits 1 on unexpected drift",
   },
+
+  {
+    id: "INV-46",
+    tier: "architectural",
+    title:
+      "Anti-bloat enforcement — Survey gate + duplication detector + LOC ratchet",
+    description:
+      "Before any new file is written under src/, a valid Existing Code Survey block must exist " +
+      "in the active plan (Target anchor, Decision keyword, ≥3 evidence rows, ≥200-char Rationale). " +
+      "The pre-edit hook hard-blocks (exit 2) any Write that lacks the survey. " +
+      "L2: jscpd detects code duplication above 5% threshold. " +
+      "L1: check-bloat-ratchet.mjs enforces file-count and LOC ceilings per src/ bucket " +
+      "(default +10%/+5 files; src/templates tighter at +5%/+3 files). " +
+      "Bypass surfaces: ARBITER_PLAN_BYPASS=1 (Survey gate) and ALLOW_BLOAT=1 (ratchet), " +
+      "both session-scoped and documented in CONTRIBUTING.md.",
+    alwaysActive: true,
+    enforcement:
+      ".claude/hooks/pre-edit-plan-anchor.mjs (CANON-16 Survey gate, exit 2) + " +
+      "scripts/check-bloat-ratchet.mjs (L1 ratchet) + " +
+      "npx jscpd (L2 duplication, see .jscpd.json)",
+  },
 ];

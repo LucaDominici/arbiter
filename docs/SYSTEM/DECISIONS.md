@@ -324,3 +324,27 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Decision:** (1) Upgrade `post-commit-check.mjs` to `process.exit(1)` — commits with non-conventional messages are now hard-blocked at the Claude Code hook level, consistent with the L1 commitlint gate. Template `src/templates/claude/hooks/post-commit-check.mjs.ejs` updated to match; adds guard for `git log` failure (non-git dirs) so the hook exits 0 when no commit is available to check. Empirical fire-tests updated: renamed "warning-only" test, added exit-1 and exit-0 cases with real git repos, added CANON-04 render test to `hooks-advanced-render.test.ts`. (2) Add early-exit to `check-no-unused-exports.mjs` when the edited file is not under `src/`; reduce timeout from 60s to 30s. Per CANON-14: `check-no-unused-exports.mjs.ejs` intentionally has no template — knip is a TypeScript-ecosystem meta tool that arbiter uses to self-govern, not a governance artifact emitted to target projects (which have their own coverage tools). (3) Add `.claude/rules/35-refactor-first.md` implementing CANON-16: every plan for new `src/` files must include an "Existing Code Survey" section. Add CANON-16 to `docs/SYSTEM/CANON.md`.
 
 **Consequences:** Commit messages are enforced at two levels (hook + gate). Unused-export scan overhead reduced by ~80% for non-src edits (0ms vs 60s). Template parity for post-commit-check is now maintained (materialized hook = rendered template). AI agents must document refactoring-vs-creation decisions in plans, creating a paper trail and imposing cognitive friction that favors refactoring.
+
+## ADR-041: Anti-bloat enforcement automation (INV-46)
+
+**Date:** 2026-05-12
+**Status:** Accepted
+**Reference:** Issue #458; ADR-040
+
+**Context:** ADR-040 introduced CANON-16 (Refactor-First Rule) as a prose rule enforced only at human review time. The rule required an "Existing Code Survey" in every plan that creates `src/` files, but nothing prevented an agent from bypassing it. Three additional enforcement gaps: (1) no automated duplication detector caught near-identical functions across `src/generators/` (40+ files) or `scripts/`; (2) no file-count or LOC ceiling existed — `src/templates/` had grown to 225+ files without a metric ceiling; (3) `src/templates/` could not be scanned by jscpd (EJS syntax), so a tighter per-bucket ratchet was needed to compensate.
+
+**Decision:** Four enforcement layers (INV-46):
+
+- **L1 — Survey gate**: `pre-edit-plan-anchor.mjs` hard-blocks (exit 2) any `Write` to a new `src/` file if the active plan lacks a valid `## Existing Code Survey` block matching that file's exact relative path. Deterministic parse (h2-section split) — not regex theater. Block requires: Target anchor, Decision keyword (one of six), ≥3 grep/ls evidence rows, ≥200 non-whitespace-char Rationale. Bypass: `ARBITER_PLAN_BYPASS=1`. Scope: all new `src/` files, excluding `__tests__/`, `*.test.*`, `*.spec.*` (EJS templates are NOT excluded — they count as `src/` scope).
+- **L2 — Duplication**: `jscpd` (threshold 5%, minTokens 50). `src/templates/**` excluded — EJS variants across 20+ language stacks intentionally share scaffolding; scanning erodes signal. `eslint-plugin-sonarjs`: `no-identical-functions: error`, `no-duplicate-string: warn` scoped to `src/**/*.ts`.
+- **L1 — Bloat ratchet**: `check-bloat-ratchet.mjs` measures 4 disjoint buckets: (a) `src/` direct children only, (b) `src/generators/`, (c) `src/commands/`, (d) `src/templates/`. Default threshold: +10% or +5 files per bucket. `src/templates/` tighter: +5% or +3 files (compensates for jscpd exclusion). Bypass: `ALLOW_BLOAT=1` env var (not commit footer — L1 runs pre-commit; no commit exists yet). Baseline advanced with `node scripts/update-bloat-baseline.mjs --task=#NNN`.
+- **L4 — Doctrine**: `senior-survey` skill emits canonical parseable Survey block; `task.md` + `review-plan.md` updated with Survey template; INV-46 in catalog; this ADR.
+
+**Design choices:**
+
+- _Structured-block parse vs regex_: The skill emits a canonical block with exact anchor text; the hook validates by h2-section split + field extraction. Regex on free-form text is easy to fool by coincidental match; section-split is deterministic and survives whitespace variation.
+- _ALLOW_BLOAT env var vs commit footer_: L1 gate runs in `pre-commit` context before a commit exists; commit-footer bypass (`ALLOW_BLOAT=true`) is unreachable at that point. Env var is the correct surface.
+- _CANON-01/14 generated-project exemption_: The Survey hook is arbiter's internal harness. Generated projects receive CANON-16 doctrine (`.claude/rules/35-refactor-first.md`) but NOT the hook validator — generated projects have different plan file conventions and the hook would false-positive on their plans. Divergence documented in `.dogfood-divergences.json`.
+- _jscpd first-run_: Current codebase duplication is 1.55% (well below 5% threshold) — no grace period required. Baseline runs cleanly on the PR that ships the check.
+
+**Consequences:** New `src/` file creation requires a documented survey — agents can no longer silently add files. Duplication above 5% blocks L2. File/LOC growth above per-bucket thresholds blocks L1. Total bypass surfaces: two session-scoped env vars, both documented in CONTRIBUTING.md. `src/templates/` gets tighter ratchet to compensate for jscpd exclusion.

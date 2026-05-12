@@ -94,6 +94,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-28:** SSOT documents must not contradict — run drift check before L3 merge
 - **INV-33:** L3 merges require valid evidence bundle with `obs_gate == PASS`
 - **INV-45:** Self-dogfood check — every `.ejs` template must render to match its materialized `.claude/` file (run `node scripts/check-self-dogfood.mjs` at L2)
+- **INV-46:** Anti-bloat enforcement — new `src/` files require a valid Existing Code Survey in the plan (`pre-edit-plan-anchor.mjs` hard-blocks, exit 2); L1: `check-bloat-ratchet.mjs` (file/LOC ceiling); L2: `jscpd` (duplication ≤5%); bypasses: `ARBITER_PLAN_BYPASS=1`, `ALLOW_BLOAT=1`
 
 ---
 
