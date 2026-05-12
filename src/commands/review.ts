@@ -6,10 +6,9 @@
  *
  *   0 = PASS     1 = WARN     2 = FAIL
  *
- * Note: this exit-code convention deliberately differs from the project
- * default `statusToExitCode` (which uses 2 for warning) because plan
- * review treats a missing/incomplete plan (FAIL) as the harder failure
- * mode that should block CI.
+ * Matches the canonical CLI exit-code convention (0=ok, 1=warning,
+ * 2=error/blocker — see `src/utils/json-output.ts::statusToExitCode`
+ * and `docs/REFERENCE/CLI.md` §Exit codes).
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -170,6 +169,57 @@ function resolveDiff(opts: ReviewCodeOptions, dir: string): string {
   return result.stdout;
 }
 
+/**
+ * Build a synthetic blocker-finding result envelope for an infrastructure
+ * failure (git diff, prompt build, evidence-dir creation, etc.). These
+ * are not agent verdicts — they are pre-dispatch errors that must NOT
+ * silently exit with the "no findings" exit code.
+ */
+function infraFailureResult(
+  err: unknown,
+  evidenceDir: string,
+): ReviewCodeResult {
+  const message = err instanceof Error ? err.message : String(err);
+  const finding = {
+    severity: "blocker" as const,
+    agent: "infrastructure",
+    message: `review-code infra failure: ${message}`,
+  };
+  const aggregated = {
+    blockers: [finding],
+    warnings: [],
+    notes: [],
+    passCount: 0,
+    totalAgents: 0,
+  };
+  return { exitCode: 2, aggregated, evidenceDir };
+}
+
+function reportInfraFailure(
+  failure: ReviewCodeResult,
+  tier: ReviewTier,
+  evidenceDir: string,
+  json: boolean | undefined,
+): void {
+  if (json) {
+    jsonOutput("review code", "error", {
+      tier,
+      exitCode: failure.exitCode,
+      blockers: failure.aggregated.blockers,
+      warnings: [],
+      notes: [],
+      passCount: 0,
+      totalAgents: 0,
+      evidenceDir,
+    });
+    return;
+  }
+  const fst = failure.aggregated.blockers[0];
+  process.stderr.write(
+    `review code: infrastructure failure — ${fst?.message ?? "unknown"}\n`,
+  );
+}
+
 export async function runReviewCode(
   opts: ReviewCodeOptions,
 ): Promise<ReviewCodeResult> {
@@ -177,8 +227,16 @@ export async function runReviewCode(
   const tier: ReviewTier = opts.tier ?? "Standard";
   const evidenceDir = opts.evidenceDir ?? makeCodeReviewEvidenceDir(dir);
 
-  const diff = resolveDiff(opts, dir);
-  const prompts = buildAgentPrompts({ diff, dir, tier });
+  let diff: string;
+  let prompts: ReturnType<typeof buildAgentPrompts>;
+  try {
+    diff = resolveDiff(opts, dir);
+    prompts = buildAgentPrompts({ diff, dir, tier });
+  } catch (err) {
+    const failure = infraFailureResult(err, evidenceDir);
+    reportInfraFailure(failure, tier, evidenceDir, opts.json);
+    return failure;
+  }
 
   const dispatcher: DispatchFn =
     opts.dispatcher ?? dispatchClaudeAgent({ evidenceDir });

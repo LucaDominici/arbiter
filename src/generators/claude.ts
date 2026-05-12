@@ -2,6 +2,12 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { renderTemplate } from "../utils/render.js";
 import { writeFile, mergeSettingsJson, resolvedPath } from "../utils/fs.js";
+import { DEFAULT_TASK_TIERS } from "../config/schema.js";
+import {
+  TIER_REVIEWER_COUNT,
+  type ReviewTier,
+} from "../review/tier-constants.js";
+import { AGENT_PERSONAS } from "../review/multi-agent.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 
@@ -9,10 +15,36 @@ export interface ClaudeGeneratorResult {
   files: WriteResult[];
 }
 
+/**
+ * Build the EJS render context for `.claude/*.ejs` templates.
+ *
+ * We inject SSOT-derived data here so templates never duplicate magic
+ * numbers (#235, #236, #237):
+ *   - `taskTiers`     → resolved from config or DEFAULT_TASK_TIERS
+ *   - `reviewerCount` → from TIER_REVIEWER_COUNT (review-code SSOT)
+ *   - `personasForTier` → AGENT_PERSONAS filtered per tier, for prompt rendering
+ */
+function buildRenderContext(config: ProjectConfig): Record<string, unknown> {
+  const taskTiers = config.taskTiers ?? DEFAULT_TASK_TIERS;
+  const personasForTier: Record<ReviewTier, readonly string[]> = {
+    XS: AGENT_PERSONAS.filter((p) => p.tiers.includes("XS")).map((p) => p.name),
+    S: AGENT_PERSONAS.filter((p) => p.tiers.includes("S")).map((p) => p.name),
+    Standard: AGENT_PERSONAS.filter((p) => p.tiers.includes("Standard")).map(
+      (p) => p.name,
+    ),
+  };
+  return {
+    ...(config as unknown as Record<string, unknown>),
+    taskTiers,
+    reviewerCount: TIER_REVIEWER_COUNT,
+    personasForTier,
+  };
+}
+
 export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
   const results: WriteResult[] = [];
   const base = config.targetDir;
-  const data = config as unknown as Record<string, unknown>;
+  const data = buildRenderContext(config);
 
   // CLAUDE.md — always rewrite (thin pointer)
   results.push(
@@ -234,6 +266,7 @@ function generateClaudeCommands(
     "wt-list.md",
     "wt-prune.md",
     "review-plan.md",
+    "review-code.md",
   ];
   for (const cmd of commands) {
     results.push(

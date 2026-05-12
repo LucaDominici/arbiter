@@ -184,14 +184,44 @@ export async function normalizeLines(content, filePath) {
 
 /**
  * Compute line-level diff between expected and actual.
- * Returns null when equal, or {added, removed} when there is drift.
+ *
+ * Position-aware via occurrence counts: an extra duplicate of a line
+ * in `actual` (e.g. [x,y,x] vs [x,y]) counts as drift, not a no-op.
+ * A Set-based comparison would silently consider them equal because
+ * both contain the same UNIQUE set of lines — INV-45 would pass on
+ * duplicate-line drift.
+ *
+ * Returns null when the line bags are identical (same count per line),
+ * or {added, removed} where `removed` lists lines present in `expected`
+ * but missing/short in `actual`, and `added` lists the converse.
  */
 export function computeDiff(expected, actual) {
-  const expectedSet = new Set(expected);
-  const actualSet = new Set(actual);
+  /** @param {string[]} arr */
+  function toCounts(arr) {
+    const m = new Map();
+    for (const line of arr) m.set(line, (m.get(line) ?? 0) + 1);
+    return m;
+  }
 
-  const removed = expected.filter((l) => !actualSet.has(l));
-  const added = actual.filter((l) => !expectedSet.has(l));
+  const expectedCounts = toCounts(expected);
+  const actualCounts = toCounts(actual);
+
+  const removed = [];
+  const added = [];
+
+  for (const [line, ec] of expectedCounts) {
+    const ac = actualCounts.get(line) ?? 0;
+    if (ec > ac) {
+      // expected has ec copies, actual has ac (< ec) → ec - ac removed.
+      for (let i = 0; i < ec - ac; i++) removed.push(line);
+    }
+  }
+  for (const [line, ac] of actualCounts) {
+    const ec = expectedCounts.get(line) ?? 0;
+    if (ac > ec) {
+      for (let i = 0; i < ac - ec; i++) added.push(line);
+    }
+  }
 
   if (removed.length === 0 && added.length === 0) return null;
   return { added, removed };

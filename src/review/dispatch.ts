@@ -14,11 +14,11 @@
  * tests inject a fake dispatcher to avoid spawning real CLIs.
  */
 
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CliError, runCli } from "../utils/run-cli.js";
 import type { AgentReport, AgentResult, Finding } from "./multi-agent.js";
+import { computeSsotDigest, escapeXml } from "./ssot.js";
 import { TIER_PASS_COUNT, type ReviewTier } from "./tier-constants.js";
 
 export type Verdict = "PASS" | "WARN" | "FAIL";
@@ -51,17 +51,6 @@ export interface DispatchResult {
 }
 
 const MAX_REVISE_CYCLES = 2;
-
-function computeSsotDigest(dir: string): string {
-  const agentsPath = join(dir, "AGENTS.md");
-  if (!existsSync(agentsPath)) return "0".repeat(64);
-  const body = readFileSync(agentsPath, "utf-8");
-  return createHash("sha256").update(body).digest("hex");
-}
-
-function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 export function buildReviewPrompt(opts: BuildPromptOptions): string {
   const digest = computeSsotDigest(opts.dir);
@@ -151,11 +140,52 @@ function isFinding(v: unknown): v is Finding {
   return true;
 }
 
-function parseAgentReport(stdout: string, agent: string): AgentReport {
-  // Allow surrounding noise — grab the first {...} block.
+/**
+ * Extract the first balanced `{...}` block from `s`.
+ *
+ * Walks the string tracking brace depth, ignoring braces inside JSON
+ * string literals (handles escaped quotes). Returns the substring or
+ * null when no balanced block is found.
+ *
+ * Why not regex: the greedy `/\{[\s\S]*\}/` would consume everything
+ * between the first `{` and the LAST `}` — fine for clean input, but
+ * agents are allowed to follow JSON output with prose, and that prose
+ * is allowed to contain `}` characters. Brace-depth scanning is the
+ * minimal correct approach.
+ */
+export function extractFirstJsonObject(s: string): string | null {
+  const start = s.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+export function parseAgentReport(stdout: string, agent: string): AgentReport {
   const trimmed = stdout.trim();
-  const match = trimmed.match(/\{[\s\S]*\}/);
-  const payload = match ? match[0] : trimmed;
+  const payload = extractFirstJsonObject(trimmed) ?? trimmed;
   const parsed: unknown = JSON.parse(payload);
   if (!isRecord(parsed)) {
     throw new Error(`agent "${agent}" returned non-object payload`);

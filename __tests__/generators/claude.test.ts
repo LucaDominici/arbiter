@@ -6,11 +6,24 @@ import {
   readFileSync,
   existsSync,
   rmSync,
+  readdirSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { generateClaude } from "../../src/generators/claude.js";
 import { makeConfig } from "../helpers.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const COMMANDS_TEMPLATE_DIR = join(
+  __dirname,
+  "..",
+  "..",
+  "src",
+  "templates",
+  "claude",
+  "commands",
+);
 
 describe("generateClaude", () => {
   let dir: string;
@@ -247,6 +260,92 @@ describe("generateClaude", () => {
     const raw = readFileSync(join(dir, ".claude", "settings.json"), "utf-8");
     expect(raw).toContain("guard-task-completion.mjs");
     expect(raw).toContain("UserPromptSubmit");
+  });
+
+  describe("review-code.md SSOT (#236, BLOCKER-10)", () => {
+    it("renders TIER_REVIEWER_COUNT values literally — no template drift", async () => {
+      generateClaude(makeConfig(dir));
+      const content = readFileSync(
+        join(dir, ".claude", "commands", "review-code.md"),
+        "utf-8",
+      );
+      const { TIER_REVIEWER_COUNT } =
+        await import("../../src/review/tier-constants.js");
+      // The rendered table must contain each tier's SSOT count.
+      expect(content).toMatch(
+        new RegExp(`\\| XS\\s+\\| ${TIER_REVIEWER_COUNT.XS} \\|`),
+      );
+      expect(content).toMatch(
+        new RegExp(`\\| S\\s+\\| ${TIER_REVIEWER_COUNT.S} \\|`),
+      );
+      expect(content).toMatch(
+        new RegExp(`\\| Standard \\| ${TIER_REVIEWER_COUNT.Standard} \\|`),
+      );
+    });
+  });
+
+  describe("command template drift guard (#236)", () => {
+    it("every .ejs in src/templates/claude/commands/ is materialized", () => {
+      generateClaude(makeConfig(dir));
+      const templates = readdirSync(COMMANDS_TEMPLATE_DIR)
+        .filter((f) => f.endsWith(".md.ejs"))
+        .map((f) => f.replace(/\.ejs$/, ""));
+      const commandsDir = join(dir, ".claude", "commands");
+      const materialized = existsSync(commandsDir)
+        ? readdirSync(commandsDir)
+        : [];
+      // Every template must have a materialized counterpart — prevents
+      // adding a new commands/*.ejs without listing it in claude.ts.
+      for (const t of templates) {
+        expect(materialized).toContain(t);
+      }
+      // Every materialized .md must have a corresponding template — sanity
+      // check the reverse direction too.
+      for (const m of materialized) {
+        if (m.endsWith(".md")) {
+          expect(templates).toContain(m);
+        }
+      }
+    });
+
+    it("review-code.md is materialized (regression: #236 wiring)", () => {
+      generateClaude(makeConfig(dir));
+      expect(
+        existsSync(join(dir, ".claude", "commands", "review-code.md")),
+      ).toBe(true);
+    });
+  });
+
+  describe("taskTiers wiring (#237)", () => {
+    it("renders default taskTiers when config.taskTiers is undefined", () => {
+      generateClaude(makeConfig(dir));
+      const content = readFileSync(
+        join(dir, ".claude", "commands", "task.md"),
+        "utf-8",
+      );
+      // DEFAULT_TASK_TIERS: XS=3, S=3, Standard=4
+      expect(content).toMatch(/Tier XS[\s\S]*?3 review agents/);
+      expect(content).toMatch(/Tier S[\s\S]*?3 review agents/);
+      expect(content).toMatch(/Tier Standard[\s\S]*?4 review agents/);
+    });
+
+    it("renders custom taskTiers from config end-to-end", () => {
+      const config = makeConfig(dir, {
+        taskTiers: {
+          XS: { planDepth: "minimal", reviewAgentCount: 2 },
+          S: { planDepth: "brief", reviewAgentCount: 5 },
+          Standard: { planDepth: "full", reviewAgentCount: 9 },
+        },
+      });
+      generateClaude(config);
+      const content = readFileSync(
+        join(dir, ".claude", "commands", "task.md"),
+        "utf-8",
+      );
+      expect(content).toMatch(/Tier XS[\s\S]*?2 review agents/);
+      expect(content).toMatch(/Tier S[\s\S]*?5 review agents/);
+      expect(content).toMatch(/Tier Standard[\s\S]*?9 review agents/);
+    });
   });
 
   describe("existing settings.json — parse guard (#297)", () => {

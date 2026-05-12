@@ -4,8 +4,11 @@ argument-hint: '#NNN [--skip-review] [--dry-run]'
 ---
 <% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
 <% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; const _codeLanes = _lanes.filter(l => l !== 'docs'); %>
-<% const _defaultTiers = { XS: { planDepth: 'minimal', reviewAgentCount: 3 }, S: { planDepth: 'brief', reviewAgentCount: 3 }, Standard: { planDepth: 'full', reviewAgentCount: 4 } }; %>
-<% const _tiers = (typeof taskTiers !== 'undefined' && taskTiers) ? taskTiers : _defaultTiers; %>
+<% /* taskTiers comes from buildRenderContext() in src/generators/claude.ts,
+      which always injects DEFAULT_TASK_TIERS when config.taskTiers is unset.
+      _safetyNet is only triggered for out-of-band renders (e.g. check-self-dogfood). */ %>
+<% const _safetyNet = { XS: { planDepth: 'minimal', reviewAgentCount: 3 }, S: { planDepth: 'brief', reviewAgentCount: 3 }, Standard: { planDepth: 'full', reviewAgentCount: 4 } }; %>
+<% const _tiers = (typeof taskTiers !== 'undefined' && taskTiers) ? taskTiers : _safetyNet; %>
 
 # /task #NNN
 

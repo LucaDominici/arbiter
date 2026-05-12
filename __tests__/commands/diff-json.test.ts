@@ -110,7 +110,7 @@ describe("diff --json", () => {
     vi.restoreAllMocks();
   });
 
-  it("emits JSON envelope with new files as warning status and exits 2", () => {
+  it("emits JSON envelope with new files as warning status and exits 1 (canonical)", () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG });
     mockExistsSync.mockReturnValue(false); // all files new
     const exitSpy = vi.spyOn(process, "exit").mockImplementation((): never => {
@@ -126,7 +126,7 @@ describe("diff --json", () => {
     const data = parsed.data as Record<string, unknown>;
     expect(data.hasChanges).toBe(true);
     expect(Array.isArray(data.files)).toBe(true);
-    expect(exitSpy).toHaveBeenCalledWith(2);
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   it("emits ok status when files are unchanged", () => {
@@ -158,6 +158,6 @@ describe("diff --json", () => {
 
     const parsed = JSON.parse(written) as Record<string, unknown>;
     expect(parsed.status).toBe("error");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(exitSpy).toHaveBeenCalledWith(2);
   });
 });

@@ -86,6 +86,13 @@ function applySet(
 
 export function runConfigure(options: ConfigureOptions): void {
   if (options.sets.length === 0) {
+    if (options.json) {
+      jsonOutput("configure", "error", {}, [
+        "--set is required (non-interactive usage)",
+      ]);
+      process.exit(1);
+      return;
+    }
     console.error(
       "  Usage: arbiter configure --set <path>=<value>\n" +
         "  Interactive mode requires a TTY. Non-interactive usage requires --set.\n",

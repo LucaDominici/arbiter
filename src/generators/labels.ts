@@ -1,10 +1,9 @@
 /**
- * Label generator for GitHub-backed task tiers (#237).
+ * Task-tier label specs for GitHub-backed projects (#237).
  *
- * Emits `gh label create size:XS|S|Standard` commands. Used by `arbiter init`
- * when useGitHub is true and the labels aren't already present.
- *
- * Idempotent via `--force` (gh updates existing labels rather than failing).
+ * Used by `src/github/labels.ts::provisionLabels` to install
+ * `size:XS|S|Standard` labels on the project repo. The actual `gh label`
+ * invocations live in the github layer, not here.
  */
 
 export interface LabelSpec {
@@ -14,7 +13,7 @@ export interface LabelSpec {
   color: string;
 }
 
-export const TIER_LABELS: readonly LabelSpec[] = [
+export const TASK_SIZE_LABELS: readonly LabelSpec[] = [
   {
     name: "size:XS",
     description: "Tiny task — single file, minimal plan, 3 review agents",
@@ -27,18 +26,7 @@ export const TIER_LABELS: readonly LabelSpec[] = [
   },
   {
     name: "size:Standard",
-    description: "Standard task — multi-file, full plan, 4 review agents",
+    description: "Standard task — multi-file, full plan, 5 review agents",
     color: "fbca04",
   },
 ] as const;
-
-/**
- * Build the shell commands needed to install task-tier labels in a GitHub repo.
- * Returns one command string per label.
- */
-export function generateLabelCommands(): string[] {
-  return TIER_LABELS.map(
-    (label) =>
-      `gh label create "${label.name}" --color "${label.color}" --description "${label.description}" --force`,
-  );
-}

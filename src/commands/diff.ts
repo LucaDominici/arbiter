@@ -11,21 +11,14 @@ import { loadConfig } from "../utils/config.js";
 import { renderTemplate } from "../utils/render.js";
 import { resolvedPath } from "../utils/fs.js";
 import { jsonOutput, statusToExitCode } from "../utils/json-output.js";
-import type { ProjectConfig, InvariantTier } from "../wizard/types.js";
+import type { ProjectConfig } from "../wizard/types.js";
 import {
   presetToTiers,
   defaultPresetForLevel,
   getFilteredInvariants,
   getInvariantsByTier,
 } from "../invariants/filter.js";
-
-const TIER_LABELS: Record<InvariantTier, string> = {
-  architectural: "Tier 1: Architectural Integrity",
-  data: "Tier 2: Data Integrity",
-  security: "Tier 3: Security & Compliance",
-  operational: "Tier 4: Operational Excellence",
-  governance: "Tier 5: Governance",
-};
+import { TIER_LABELS } from "../invariants/tiers.js";
 
 export interface DiffOptions {
   dir: string | undefined;
@@ -52,11 +45,11 @@ export function runDiff(options: DiffOptions): void {
       jsonOutput("diff", "error", {}, [
         "No arbiter.json found. Run `arbiter init` first.",
       ]);
-      process.exit(1);
+      process.exit(statusToExitCode("error"));
       return;
     }
     console.log("  No arbiter.json found. Run `arbiter init` first.\n");
-    process.exit(1);
+    process.exit(statusToExitCode("error"));
   }
 
   const config = buildDiffConfig(targetDir, projectName, stored);

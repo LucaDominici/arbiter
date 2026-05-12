@@ -9,10 +9,8 @@ interface JsonEnvelope {
 }
 
 /**
- * Emit a structured JSON envelope to stdout and exit with the appropriate
- * code: 0 = ok, 1 = error, 2 = warning.
- *
- * Call site is responsible for calling process.exit() after if needed;
+ * Emit a structured JSON envelope to stdout. The caller is responsible for
+ * calling `process.exit()` (typically via `statusToExitCode`) if needed;
  * this function only writes output and does NOT exit.
  */
 export function jsonOutput(
@@ -32,11 +30,22 @@ export function jsonOutput(
 }
 
 /**
- * Map a JSON status to a process exit code.
- * ok → 0, error → 1, warning → 2
+ * Map a JSON envelope status to the project's canonical CLI exit-code convention:
+ *
+ *   0 = ok               — CI must pass.
+ *   1 = warning          — CI should pass but surface a flag (advisory).
+ *   2 = error / blocker  — CI must fail (hard stop).
+ *
+ * Use this helper for commands whose pass/warn/fail map cleanly onto the
+ * `JsonStatus` triple (diff, configure, init, plugin, etc.).
+ *
+ * Commands with richer verdict spaces (e.g. `review plan`'s PASS/WARN/FAIL,
+ * `review code`'s blocker-vs-warning split) compute exit codes directly and
+ * intentionally diverge — but they MUST still obey the canonical convention
+ * (0 / 1 / 2 ↔ ok / warning / error). See `docs/REFERENCE/CLI.md` §Exit codes.
  */
 export function statusToExitCode(status: JsonStatus): number {
-  if (status === "error") return 1;
-  if (status === "warning") return 2;
+  if (status === "error") return 2;
+  if (status === "warning") return 1;
   return 0;
 }

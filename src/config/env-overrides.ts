@@ -15,6 +15,7 @@
  * Issue: #233
  */
 
+import { parseBooleanEnv } from "../utils/env.js";
 import type { ArbiterConfigV2, FeatureFlags, ThresholdsV2 } from "./schema.js";
 
 type Env = Record<string, string | undefined>;
@@ -60,13 +61,6 @@ function parseNumericEnv(raw: string): number | undefined {
   const n = Number(trimmed);
   if (Number.isNaN(n) || !Number.isFinite(n)) return undefined;
   return n;
-}
-
-function parseBooleanEnv(raw: string): boolean | undefined {
-  const v = raw.trim().toLowerCase();
-  if (v === "true" || v === "1" || v === "yes" || v === "on") return true;
-  if (v === "false" || v === "0" || v === "no" || v === "off") return false;
-  return undefined;
 }
 
 function applyThresholdOverride(

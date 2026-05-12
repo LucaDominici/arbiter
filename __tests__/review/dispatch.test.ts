@@ -11,6 +11,8 @@ import { join } from "node:path";
 import {
   buildReviewPrompt,
   dispatchPlanReview,
+  extractFirstJsonObject,
+  parseAgentReport,
   type SubagentDispatcher,
 } from "../../src/review/dispatch.js";
 
@@ -186,5 +188,99 @@ describe("dispatchPlanReview (#235)", () => {
       dispatcher,
     });
     expect(calls).toBe(1);
+  });
+});
+
+describe("extractFirstJsonObject (W-1, brace-depth scanner)", () => {
+  it("returns null when no { is present", () => {
+    expect(extractFirstJsonObject("no braces here")).toBeNull();
+  });
+
+  it("extracts a simple balanced object", () => {
+    expect(extractFirstJsonObject('{"a":1}')).toBe('{"a":1}');
+  });
+
+  it("stops at the first balanced close (not last) when prose follows", () => {
+    // Greedy regex would consume through the last } including the prose.
+    const s = '{"findings":[]} blah blah } more prose';
+    expect(extractFirstJsonObject(s)).toBe('{"findings":[]}');
+  });
+
+  it("handles nested objects correctly", () => {
+    const s = '{"a":{"b":{"c":1}}, "d":[1,2]}';
+    expect(extractFirstJsonObject(`prefix ${s} suffix`)).toBe(s);
+  });
+
+  it("ignores } characters inside string literals", () => {
+    const s = '{"msg":"closing }"}';
+    expect(extractFirstJsonObject(s)).toBe(s);
+  });
+
+  it("handles escaped quotes inside strings", () => {
+    const s = '{"msg":"escaped \\" inside"}';
+    expect(extractFirstJsonObject(s)).toBe(s);
+  });
+
+  it("returns null when braces are unbalanced (no closing brace)", () => {
+    expect(extractFirstJsonObject('{"a":1')).toBeNull();
+  });
+});
+
+describe("parseAgentReport (W-6, direct tests)", () => {
+  it("parses a clean envelope", () => {
+    const r = parseAgentReport('{"findings":[],"passed":true}', "bugs");
+    expect(r.passed).toBe(true);
+    expect(r.findings).toEqual([]);
+  });
+
+  it("parses a finding correctly", () => {
+    const r = parseAgentReport(
+      '{"findings":[{"severity":"warning","agent":"bugs","message":"x"}],"passed":false}',
+      "bugs",
+    );
+    expect(r.findings).toHaveLength(1);
+    expect(r.findings[0]?.severity).toBe("warning");
+  });
+
+  it("tolerates surrounding prose (brace-depth scan)", () => {
+    const r = parseAgentReport(
+      'Some prose here.\n{"findings":[],"passed":true}\nMore prose.',
+      "bugs",
+    );
+    expect(r.passed).toBe(true);
+  });
+
+  it("throws on malformed JSON", () => {
+    expect(() => parseAgentReport("{not json}", "bugs")).toThrow();
+  });
+
+  it("throws when payload is not an object", () => {
+    // JSON.parse succeeds on "[]" but it's an array → non-object payload
+    // brace-extractor will not match "[]" so the trimmed array passes to JSON.parse
+    expect(() => parseAgentReport("[]", "bugs")).toThrow(/non-object payload/);
+  });
+
+  it("throws when findings is missing", () => {
+    expect(() => parseAgentReport('{"passed":true}', "bugs")).toThrow(
+      /missing "findings" array/,
+    );
+  });
+
+  it("throws on malformed finding (bad severity)", () => {
+    expect(() =>
+      parseAgentReport(
+        '{"findings":[{"severity":"oops","agent":"bugs","message":"x"}],"passed":false}',
+        "bugs",
+      ),
+    ).toThrow(/malformed finding/);
+  });
+
+  it("throws on malformed finding (missing message)", () => {
+    expect(() =>
+      parseAgentReport(
+        '{"findings":[{"severity":"note","agent":"bugs"}],"passed":false}',
+        "bugs",
+      ),
+    ).toThrow(/malformed finding/);
   });
 });

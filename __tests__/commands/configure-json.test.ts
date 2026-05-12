@@ -92,4 +92,22 @@ describe("configure --json", () => {
     expect(written).toBe("");
     consoleSpy.mockRestore();
   });
+
+  it("emits JSON error envelope on empty --set with --json (BLOCKER-9)", () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    expect(() => runConfigure({ sets: [], json: true })).toThrow(
+      "process.exit",
+    );
+
+    const parsed = JSON.parse(written) as Record<string, unknown>;
+    expect(parsed.command).toBe("configure");
+    expect(parsed.status).toBe("error");
+    expect(parsed.errors).toEqual([
+      "--set is required (non-interactive usage)",
+    ]);
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
 });

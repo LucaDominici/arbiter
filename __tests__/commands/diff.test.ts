@@ -119,13 +119,13 @@ describe("runDiff", () => {
     cleanupTestProject(dir);
   });
 
-  it("exits 1 with message when no arbiter.json found", async () => {
+  it("exits 2 (error) with message when no arbiter.json found", async () => {
     mockLoadConfig.mockReturnValue(null);
     exitSpy.mockImplementation((code?: number) => {
       throw new Error(`process.exit(${code})`);
     });
     const { runDiff } = await import("../../src/commands/diff.js");
-    expect(() => runDiff({ dir })).toThrow("process.exit(1)");
+    expect(() => runDiff({ dir })).toThrow("process.exit(2)");
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining("No arbiter.json"),
     );

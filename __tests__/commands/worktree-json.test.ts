@@ -1,89 +1,106 @@
-import { describe, it, expect, vi } from "vitest";
-import {
-  runWorktreeOpen,
-  runWorktreeClose,
-  runWorktreeList,
-} from "../../src/commands/worktree.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { runWorktreeList } from "../../src/commands/worktree.js";
 
-// Heavy mocking — worktree command has many git operations
 vi.mock("../../src/utils/run-cli.js", () => ({
-  runCli: vi.fn().mockReturnValue({ stdout: "", stderr: "", exitCode: 0 }),
+  runCli: vi.fn(),
   CliError: class CliError extends Error {
-    stdout: string;
-    stderr: string;
-    exitCode: number;
-    constructor(msg: string) {
-      super(msg);
-      this.stdout = "";
-      this.stderr = "";
-      this.exitCode = 1;
-    }
+    stdout = "";
+    stderr = "";
+    exitCode = 1;
   },
 }));
-vi.mock("../../src/utils/config.js", () => ({
-  loadConfig: vi.fn().mockReturnValue({ worktree: null }),
-}));
-vi.mock("../../src/worktree/paths.js", () => ({
-  sanitizeTaskId: vi.fn((id: string) => id),
-  branchNameFor: vi.fn(
-    (id: string, slug?: string) => `task/${id}${slug ? "-" + slug : ""}`,
-  ),
-  resolveWorktreeBase: vi
-    .fn()
-    .mockReturnValue("/tmp/arbiter/.claude/worktrees"),
-  worktreePathFor: vi.fn(
-    (_base: string, id: string) => `/tmp/arbiter/.claude/worktrees/${id}`,
-  ),
-}));
-vi.mock("../../src/worktree/links.js", () => ({
-  materializeLink: vi.fn(),
-  checkLinkIntegrity: vi.fn().mockReturnValue([]),
-}));
-vi.mock("../../src/worktree/harvest.js", () => ({
-  harvestFiles: vi.fn().mockReturnValue([]),
-}));
-vi.mock("../../src/worktree/validate.js", () => ({
-  isRunningFromMainRepo: vi.fn().mockReturnValue(true),
-  workingTreeDirty: vi.fn().mockReturnValue(false),
-  branchFullyMerged: vi.fn().mockReturnValue(true),
-}));
-vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs")>();
-  return {
-    ...actual,
-    existsSync: vi.fn().mockReturnValue(false),
-    mkdirSync: vi.fn(),
-    writeFileSync: vi.fn(),
-    readFileSync: vi.fn().mockReturnValue("[]"),
-    renameSync: vi.fn(),
-  };
-});
 
-describe("worktree --json interface shape", () => {
-  // These tests are pure structural/type checks — no command is invoked,
-  // so no output is produced. No stdout or console spying needed.
+import { runCli } from "../../src/utils/run-cli.js";
 
-  it("WorktreeOpenOptions accepts json field", () => {
-    // Structural: if json is not in the interface, this would be a TS compile error
-    const opts: Parameters<typeof runWorktreeOpen>[0] = {
-      taskId: "123",
-      json: true,
-    };
-    expect(opts.json).toBe(true);
+const mockRunCli = runCli as ReturnType<typeof vi.fn>;
+
+describe("runWorktreeList --json envelope shape (W-4)", () => {
+  let written: string;
+
+  beforeEach(() => {
+    written = "";
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
+      written += String(chunk);
+      return true;
+    });
   });
 
-  it("WorktreeCloseOptions accepts json field", () => {
-    const opts: Parameters<typeof runWorktreeClose>[0] = {
-      taskId: "123",
-      json: true,
-    };
-    expect(opts.json).toBe(true);
+  afterEach(() => {
+    vi.restoreAllMocks();
+    mockRunCli.mockReset();
   });
 
-  it("WorktreeListOptions accepts json field", () => {
-    const opts: Parameters<typeof runWorktreeList>[0] = {
-      json: true,
+  function fakeWorktreeList(porcelain: string): void {
+    mockRunCli.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "git" && args[0] === "worktree") {
+        return { stdout: porcelain, stderr: "", exitCode: 0 };
+      }
+      if (cmd === "git" && args[0] === "rev-parse") {
+        return { stdout: "/tmp/fake-repo\n", stderr: "", exitCode: 0 };
+      }
+      return { stdout: "", stderr: "", exitCode: 0 };
+    });
+  }
+
+  it("emits an empty worktrees array when no task branches exist", () => {
+    fakeWorktreeList(
+      `worktree /tmp/fake-repo\nHEAD abc\nbranch refs/heads/main\n`,
+    );
+    runWorktreeList({ json: true, cwd: "/tmp/fake-repo" });
+    const parsed = JSON.parse(written) as Record<string, unknown>;
+    expect(parsed.command).toBe("worktree-list");
+    expect(parsed.version).toBe("1");
+    expect(parsed.status).toBe("ok");
+    const data = parsed.data as { worktrees: unknown[] };
+    expect(data.worktrees).toEqual([]);
+  });
+
+  it("emits task worktrees with path + branch fields", () => {
+    fakeWorktreeList(
+      `worktree /tmp/fake-repo\n` +
+        `HEAD abc\n` +
+        `branch refs/heads/main\n\n` +
+        `worktree /tmp/fake-repo.worktrees/123\n` +
+        `HEAD def\n` +
+        `branch refs/heads/task/#123-fix\n\n` +
+        `worktree /tmp/fake-repo.worktrees/124\n` +
+        `HEAD ghi\n` +
+        `branch refs/heads/task/#124-feat\n`,
+    );
+    runWorktreeList({ json: true, cwd: "/tmp/fake-repo" });
+    const parsed = JSON.parse(written) as Record<string, unknown>;
+    const data = parsed.data as {
+      worktrees: Array<{ path: string; branch: string }>;
     };
-    expect(opts?.json).toBe(true);
+    expect(data.worktrees).toHaveLength(2);
+    expect(data.worktrees[0]).toMatchObject({
+      path: "/tmp/fake-repo.worktrees/123",
+      branch: "task/#123-fix",
+    });
+    expect(data.worktrees[1]).toMatchObject({
+      path: "/tmp/fake-repo.worktrees/124",
+      branch: "task/#124-feat",
+    });
+  });
+
+  it("skips non-task branches (e.g. release/*) from --json output", () => {
+    fakeWorktreeList(
+      `worktree /tmp/fake-repo\n` +
+        `HEAD abc\n` +
+        `branch refs/heads/main\n\n` +
+        `worktree /tmp/fake-repo.worktrees/rel\n` +
+        `HEAD def\n` +
+        `branch refs/heads/release/v1\n\n` +
+        `worktree /tmp/fake-repo.worktrees/123\n` +
+        `HEAD ghi\n` +
+        `branch refs/heads/task/#123-x\n`,
+    );
+    runWorktreeList({ json: true, cwd: "/tmp/fake-repo" });
+    const parsed = JSON.parse(written) as Record<string, unknown>;
+    const data = parsed.data as {
+      worktrees: Array<{ path: string; branch: string }>;
+    };
+    expect(data.worktrees).toHaveLength(1);
+    expect(data.worktrees[0]?.branch).toBe("task/#123-x");
   });
 });

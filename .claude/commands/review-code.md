@@ -32,12 +32,12 @@ Each agent's raw response is persisted under
 | -------- | --------------- |
 | XS       | 3               |
 | S        | 3               |
-| Standard | 4               |
+| Standard | 5               |
 
 ## Personas
 
 - **bugs** — logic, off-by-one, null-deref, race, edge cases
-- **type-safety** — type leaks, casts, `any`/`unknown` misuse (XS/S)
+- **type-safety** — type leaks, casts, `any`/`unknown` misuse
 - **domain-consistency** — drift vs `AGENTS.md` (Standard)
 - **silent-failure-hunter** — swallowed errors, empty catches, ignored rejections
 - **test-analyzer** — coverage and assertion quality (Standard)

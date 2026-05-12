@@ -1,5 +1,20 @@
 # Arbiter CLI Reference
 
+## Exit codes (canonical convention)
+
+All `arbiter` subcommands obey one exit-code convention:
+
+| Code | Meaning            | CI semantics                      |
+| ---- | ------------------ | --------------------------------- |
+| `0`  | ok                 | must pass                         |
+| `1`  | warning / advisory | CI should pass but surface a flag |
+| `2`  | error / blocker    | CI must fail (hard stop)          |
+
+The mapping `ok ↔ 0`, `warning ↔ 1`, `error ↔ 2` is encoded in
+`src/utils/json-output.ts::statusToExitCode` and applies to every
+command that emits a `--json` envelope. Per-command verdict tables below
+(e.g. `review plan` PASS/WARN/FAIL) are aliases of this same triple.
+
 ## Commands
 
 ### `arbiter init`
@@ -258,20 +273,37 @@ holding the fully-resolved post-env-override `arbiter.json` snapshot — see
 ### `arbiter verify evidence`
 
 Validate the `.evidence/SUMMARY.json` snapshot produced by an evidence
-run (#238).
+run (#238). Each file in `SUMMARY.json.files[]` is classified by
+`src/risk/classifier.ts`; the highest-risk level drives gate strictness.
 
 ```
 arbiter verify evidence [--json] [--dir <path>]
 ```
 
-| Code | Meaning                                                    |
-| ---- | ---------------------------------------------------------- |
-| 0    | SUMMARY.json present, sha matches, age ≤ 7 days            |
-| 1    | SUMMARY.json missing / unreadable / status warning (stale) |
-| 2    | sha mismatch (file tampered or state diverged)             |
+| Code | Meaning                                                                               |
+| ---- | ------------------------------------------------------------------------------------- |
+| 0    | SUMMARY.json present, sha matches, age ≤ 7 days                                       |
+| 1    | SUMMARY.json missing / unreadable / unclassified files / stale on low-risk (R3/R4)    |
+| 2    | sha mismatch (tampered) OR stale (>7 days) on medium/high-risk (R0/R1/R2) change sets |
 
-The check is skipped when `E2E_RISK_SKIP=<reason>` is set; one JSONL
-entry is appended to `.evidence/skip-log.jsonl` for audit.
+Risk gating (highest level across `files[]` wins):
+
+| Risk         | Stale severity                                        |
+| ------------ | ----------------------------------------------------- |
+| R0 / R1      | exit 2 (blocker)                                      |
+| R2           | exit 2 (blocker)                                      |
+| R3 / R4      | exit 1 (advisory)                                     |
+| UNCLASSIFIED | exit 1 (manual review required — refuse to fail open) |
+
+When `files[]` is absent, risk gating is skipped and stale evidence is
+always advisory (exit 1).
+
+The check is skipped only when `E2E_RISK_SKIP` matches the audited
+pattern `<category>:#<issue>[:<slug>]` where `<category>` ∈ `flake`,
+`infra`, `external` — e.g. `flake:#123`, `infra:#456:db-outage`. One
+JSONL entry is appended to `.evidence/skip-log.jsonl` for audit. Any
+other value (e.g. `lol`) is refused with a loud stderr warning and the
+command falls through to normal verification.
 
 ## `arbiter review`
 
@@ -312,7 +344,7 @@ The agent count is tier-driven (`TIER_REVIEWER_COUNT` —
 | -------- | --------------- |
 | XS       | 3               |
 | S        | 3               |
-| Standard | 4               |
+| Standard | 5               |
 
 Exit codes:
 
