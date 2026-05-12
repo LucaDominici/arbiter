@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runReviewPlan } from "../../src/commands/review.js";
-import type { SubagentDispatcher } from "../../src/review/dispatch.js";
+import {
+  buildReviewPrompt,
+  type SubagentDispatcher,
+} from "../../src/review/dispatch.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(__dirname, "..", "fixtures", "plans");
@@ -65,5 +68,30 @@ describe("runReviewPlan (#235)", () => {
     });
     expect(result.exitCode).toBe(2);
     expect(result.verdict).toBe("ERROR");
+  });
+
+  it("buildReviewPrompt embeds the real pass.md fixture verbatim (W-5)", () => {
+    // Snapshot lock for the XML prompt builder against a known fixture.
+    // Any future regression in escapeXml, tier wiring, or envelope shape
+    // surfaces here.
+    const planContent = readFileSync(join(FIXTURES, "pass.md"), "utf-8");
+    const prompt = buildReviewPrompt({
+      planContent,
+      dir: env.dir,
+      tier: "Standard",
+    });
+    // Envelope frame
+    expect(prompt).toMatch(/^<review version="1">/);
+    expect(prompt).toMatch(/<\/review>$/);
+    // Tier + passCount wiring
+    expect(prompt).toContain("<tier>Standard</tier>");
+    expect(prompt).toMatch(/<passCount>\d+<\/passCount>/);
+    // SSOT digest is a real SHA-256 (64 hex), not the all-zeros fallback
+    expect(prompt).toMatch(/<ssotDigest>[0-9a-f]{64}<\/ssotDigest>/);
+    expect(prompt).not.toContain("<ssotDigest>" + "0".repeat(64));
+    // Fixture text appears inside the <plan> block (escaping leaves
+    // alphanumerics untouched)
+    expect(prompt).toContain("Add user-profile endpoint");
+    expect(prompt).toContain("assertTenantOwns(userId)");
   });
 });
