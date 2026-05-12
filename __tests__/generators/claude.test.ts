@@ -249,6 +249,38 @@ describe("generateClaude", () => {
     expect(raw).toContain("UserPromptSubmit");
   });
 
+  describe("taskTiers wiring (#237)", () => {
+    it("renders default taskTiers when config.taskTiers is undefined", () => {
+      generateClaude(makeConfig(dir));
+      const content = readFileSync(
+        join(dir, ".claude", "commands", "task.md"),
+        "utf-8",
+      );
+      // DEFAULT_TASK_TIERS: XS=3, S=3, Standard=4
+      expect(content).toMatch(/Tier XS[\s\S]*?3 review agents/);
+      expect(content).toMatch(/Tier S[\s\S]*?3 review agents/);
+      expect(content).toMatch(/Tier Standard[\s\S]*?4 review agents/);
+    });
+
+    it("renders custom taskTiers from config end-to-end", () => {
+      const config = makeConfig(dir, {
+        taskTiers: {
+          XS: { planDepth: "minimal", reviewAgentCount: 2 },
+          S: { planDepth: "brief", reviewAgentCount: 5 },
+          Standard: { planDepth: "full", reviewAgentCount: 9 },
+        },
+      });
+      generateClaude(config);
+      const content = readFileSync(
+        join(dir, ".claude", "commands", "task.md"),
+        "utf-8",
+      );
+      expect(content).toMatch(/Tier XS[\s\S]*?2 review agents/);
+      expect(content).toMatch(/Tier S[\s\S]*?5 review agents/);
+      expect(content).toMatch(/Tier Standard[\s\S]*?9 review agents/);
+    });
+  });
+
   describe("existing settings.json — parse guard (#297)", () => {
     function seedExistingSettings(content: string): void {
       const claudeDir = join(dir, ".claude");

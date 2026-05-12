@@ -510,6 +510,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       : {}),
     contractType: config.contractType,
     ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
+    ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
   };
 }
 

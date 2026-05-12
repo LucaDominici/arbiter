@@ -92,6 +92,7 @@ function v2ToProjectConfig(
     contractType: detectorFields.contractType,
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
+    ...(stored.taskTiers !== undefined && { taskTiers: stored.taskTiers }),
   };
 }
 

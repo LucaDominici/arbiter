@@ -15,7 +15,7 @@ function render(taskTiers?: unknown): string {
   return renderTemplate("claude/commands/task.md.ejs", data);
 }
 
-describe("task.md.ejs tier-conditional Phase 0A' (#237)", () => {
+describe("task.md.ejs taskTiers rendering (#237)", () => {
   it("renders default tier guidance when taskTiers is undefined", () => {
     const out = render(undefined);
     // Default falls back to canonical XS:3, S:3, Standard:4
