@@ -209,4 +209,33 @@ describe("computeDiff", () => {
   it("returns null for empty arrays", () => {
     expect(computeDiff([], [])).toBeNull();
   });
+
+  it("DETECTS duplicate-line drift (regression: BLOCKER-8, INV-45)", () => {
+    // Set-based diff would consider these equal (same UNIQUE lines).
+    // Position-aware diff must flag the extra "x" as added drift.
+    const expected = ["x", "y"];
+    const actual = ["x", "y", "x"];
+    const diff = computeDiff(expected, actual);
+    expect(diff).not.toBeNull();
+    expect(diff?.added).toEqual(["x"]);
+    expect(diff?.removed).toHaveLength(0);
+  });
+
+  it("DETECTS missing duplicate-line drift (mirror case)", () => {
+    const expected = ["x", "y", "x"];
+    const actual = ["x", "y"];
+    const diff = computeDiff(expected, actual);
+    expect(diff).not.toBeNull();
+    expect(diff?.removed).toEqual(["x"]);
+    expect(diff?.added).toHaveLength(0);
+  });
+
+  it("preserves multiset semantics on multi-line counts", () => {
+    // expected has 3 of "a", actual has 1 → 2 should be removed
+    const expected = ["a", "a", "a", "b"];
+    const actual = ["a", "b"];
+    const diff = computeDiff(expected, actual);
+    expect(diff?.removed).toEqual(["a", "a"]);
+    expect(diff?.added).toHaveLength(0);
+  });
 });
