@@ -1,0 +1,17 @@
+{
+  "_comment": "Pre-existing CANON-02 gaps awaiting template wiring in #247 (gate-script dispatcher)",
+  "exceptions": [
+    {
+      "category": "mutation",
+      "language": "java",
+      "tool": "pitest",
+      "reason": "TODO(#247): wire pitest gate invocation to check-all.mjs.ejs"
+    },
+    {
+      "category": "mutation",
+      "language": "typescript",
+      "tool": "stryker",
+      "reason": "TODO(#247): wire stryker gate invocation to check-all.mjs.ejs"
+    }
+  ]
+}
