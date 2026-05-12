@@ -102,6 +102,10 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-51:** Catalog↔AGENTS.md parity — every INV-NN in `catalog.ts` must appear in `AGENTS.md` §Invariants; undocumented invariants are invisible governance (`check-catalog-agents-parity.mjs` L1)
 - **INV-52:** Enforcement scripts cited in catalog must be wired in `check-all.mjs` — claimed enforcement that is not wired is a false guarantee (`check-inv-enforcement-wired.mjs` L1)
 - **INV-53:** Exit-code universal contract — every Arbiter-emitted script must exit `0=PASS / 1=FAIL / 2=ERROR`; L1: `check-exit-code-contract.mjs` blocks any `process.exit(N)` where N ∉ {0,1,2}; L2: `self-validation.mjs` A/B/C drill proves each gate distinguishes all three codes
+- **INV-54:** SSOT core set integrity — every file listed in `docs/METHOD/SSOT_CORE_SET.md` must exist on disk; `scripts/check-ssot-core.mjs` exits 1 on missing entries (L1 gate, #255)
+- **INV-55:** Doc-links integrity — every local markdown link in `docs/` must resolve to an existing file; `scripts/check-doc-links.mjs` follows CANONICAL_PATHS redirects before failing (L1 gate, #255)
+- **INV-56:** Knowledge-map freshness — `**Lines:**` entries in `docs/METHOD/KNOWLEDGE_MAP.md` must not drift >30% from actual doc size; `scripts/check-knowledge-map.mjs` enforces this; run `knowledge-map-update.mjs` to refresh (L1 gate, #255)
+- **INV-57:** Canonical-paths integrity — every redirect target in `docs/METHOD/CANONICAL_PATHS.md` must exist on disk; `scripts/check-canonical-paths.mjs` exits 1 on dangling aliases (L1 gate, #255)
 
 ---
 

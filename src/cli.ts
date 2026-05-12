@@ -21,6 +21,8 @@ import {
 } from "./commands/plugin.js";
 import { runTaskAdvance } from "./commands/task.js";
 import type { TaskPhase } from "./commands/task.js";
+import { runHarness } from "./commands/harness.js";
+import { runKnowledgeMapUpdate } from "./commands/knowledge-map.js";
 import {
   runWorkList,
   runWorkCreate,
@@ -597,6 +599,31 @@ work
     await runWorkAdvance({
       id,
       phase: opts.phase as WorkUnitPhase,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
+
+program
+  .command("harness")
+  .description(
+    "Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)",
+  )
+  .option("--fast", "Stop at first gate failure", false)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { fast: boolean; dir?: string }) => {
+    const result = runHarness({
+      fast: opts.fast,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+    process.exit(result.exitCode);
+  });
+
+program
+  .command("knowledge-map")
+  .description("Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { dir?: string }) => {
+    runKnowledgeMapUpdate({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
     });
   });

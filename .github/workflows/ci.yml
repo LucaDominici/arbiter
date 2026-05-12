@@ -66,8 +66,16 @@ jobs:
         run: node scripts/check-bloat-ratchet.mjs
       - name: Exit-code contract check (INV-47, #258)
         run: node scripts/check-exit-code-contract.mjs
-      - name: Pipe/tee hazard advisory (INV-47, #258)
+      - name: Pipe/tee hazard advisory (INV-48, #258)
         run: node scripts/check-pipe-tee-hazard.mjs
+      - name: SSOT core set integrity (INV-54, #255)
+        run: node scripts/check-ssot-core.mjs
+      - name: Doc-links integrity (INV-55, #255)
+        run: node scripts/check-doc-links.mjs
+      - name: Knowledge-map freshness (INV-56, #255)
+        run: node scripts/check-knowledge-map.mjs
+      - name: Canonical-paths integrity (INV-57, #255)
+        run: node scripts/check-canonical-paths.mjs
       - name: CI/manifest gate alignment check (#240)
         run: node scripts/check-ci-alignment.mjs
       - name: Self-dogfood template check (INV-45, #239)

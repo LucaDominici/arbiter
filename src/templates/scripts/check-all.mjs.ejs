@@ -159,6 +159,11 @@ runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
 // ─── L1: Workflow runner label enforcement (#191) ────────────────────────────
 runCheck('workflow runners', 'node', ['scripts/check-workflow-runners.mjs']);
+// ─── L1: SSOT infrastructure gates (INV-54–57, #255) ─────────────────────────
+runCheck('ssot core set', 'node', ['scripts/check-ssot-core.mjs']);
+runCheck('doc links', 'node', ['scripts/check-doc-links.mjs']);
+runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs']);
+runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 <% if (enableSecurityScanning) { %>

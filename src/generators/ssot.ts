@@ -52,5 +52,42 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
     );
   }
 
+  // CANONICAL_PATHS.md — all levels; skipIfExists so user alias entries are preserved (#255)
+  results.push(
+    writeFile(
+      resolvedPath(base, "docs", "METHOD", "CANONICAL_PATHS.md"),
+      renderTemplate("root/docs/METHOD/CANONICAL_PATHS.md.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
+  // SSOT gate scripts — emitted alongside the SSOT pillar docs they verify (#255)
+  const ssotScripts = [
+    "check-ssot-core",
+    "check-doc-links",
+    "check-knowledge-map",
+    "check-canonical-paths",
+    "knowledge-map-update",
+  ] as const;
+
+  for (const name of ssotScripts) {
+    results.push(
+      writeFile(
+        resolvedPath(base, "scripts", `${name}.mjs`),
+        renderTemplate(`scripts/${name}.mjs.ejs`, data),
+        { skipIfExists: true },
+      ),
+    );
+  }
+
+  // harness.mjs — convenience runner for all four SSOT gates (#255)
+  results.push(
+    writeFile(
+      resolvedPath(base, "scripts", "harness.mjs"),
+      renderTemplate("scripts/harness.mjs.ejs", data),
+      { skipIfExists: true },
+    ),
+  );
+
   return { files: results };
 }
