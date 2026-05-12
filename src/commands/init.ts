@@ -464,6 +464,7 @@ function buildDefaultConfig(opts: {
     enableContractTesting:
       defaultContractType(archetype, hasPublicApi) !== "none",
     enableEvidenceHarness: opts.governanceLevel !== "L1",
+    enableSelfValidationHarness: true,
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     acceptBetaTools: opts.acceptBetaTools ?? false,
     contractType: defaultContractType(archetype, hasPublicApi),
@@ -490,6 +491,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       mutationTesting: config.enableMutationTesting !== false,
       contractTesting: config.enableContractTesting !== false,
       evidenceHarness: config.enableEvidenceHarness === true,
+      selfValidationHarness: config.enableSelfValidationHarness !== false,
     },
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],
     invariantTiers: config.invariantTiers,

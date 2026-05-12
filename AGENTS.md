@@ -101,6 +101,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-50:** Every `src/commands/*.ts` must have at least one `__tests__/commands/<name>*.test.ts` — prefix-match covers split test files (e.g. `review-code.test.ts` covers `review.ts`) (`check-command-tests.mjs` L1)
 - **INV-51:** Catalog↔AGENTS.md parity — every INV-NN in `catalog.ts` must appear in `AGENTS.md` §Invariants; undocumented invariants are invisible governance (`check-catalog-agents-parity.mjs` L1)
 - **INV-52:** Enforcement scripts cited in catalog must be wired in `check-all.mjs` — claimed enforcement that is not wired is a false guarantee (`check-inv-enforcement-wired.mjs` L1)
+- **INV-53:** Exit-code universal contract — every Arbiter-emitted script must exit `0=PASS / 1=FAIL / 2=ERROR`; L1: `check-exit-code-contract.mjs` blocks any `process.exit(N)` where N ∉ {0,1,2}; L2: `self-validation.mjs` A/B/C drill proves each gate distinguishes all three codes
 
 ---
 

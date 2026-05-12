@@ -79,6 +79,7 @@ export function defaultConfig(): ArbiterConfig {
       mutationTesting: true,
       contractTesting: false,
       evidenceHarness: false,
+      selfValidationHarness: true,
     },
     thresholds: DEFAULT_THRESHOLDS[governanceLevel],
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),

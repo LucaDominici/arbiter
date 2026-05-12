@@ -23,6 +23,7 @@ export interface FeatureFlags {
   mutationTesting: boolean;
   securityScanning: boolean;
   evidenceHarness: boolean;
+  selfValidationHarness?: boolean;
   debtGates: boolean;
   suppressions: boolean;
 }
@@ -159,6 +160,14 @@ function validateFeatures(raw: unknown, errors: string[]): boolean {
       errors.push(`features.${key} must be a boolean`);
       ok = false;
     }
+  }
+  // selfValidationHarness is optional for forward-compat; validate only if present
+  if (
+    "selfValidationHarness" in raw &&
+    typeof raw["selfValidationHarness"] !== "boolean"
+  ) {
+    errors.push("features.selfValidationHarness must be a boolean");
+    ok = false;
   }
   return ok;
 }

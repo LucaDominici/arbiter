@@ -134,6 +134,10 @@ runCheck('unit tests', 'pytest', []);
 
 // ─── L1: Test naming convention (M27) ────────────────────────────────────────
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
+// ─── L1: Exit-code universal contract (INV-53) ────────────────────────────────
+runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
+// ─── L1: Pipe/tee hazard (advisory — always exits 0) ─────────────────────────
+runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
 <% if (archetype === 'frontend-spa' && language === 'typescript') { %>
 // ─── L1: FSD layer boundaries (eslint-plugin-boundaries) ─────────────────────
 if (existsSync('.eslintrc-frontend-spa.cjs')) {

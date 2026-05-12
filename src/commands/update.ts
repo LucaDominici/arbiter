@@ -77,6 +77,7 @@ function v2ToProjectConfig(
     enableMutationTesting: stored.features.mutationTesting,
     enableContractTesting: stored.features.contractTesting,
     enableEvidenceHarness: stored.features.evidenceHarness,
+    enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
     invariantTiers:
       stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(level)),
     acceptBetaTools: stored.acceptBetaTools ?? false,
