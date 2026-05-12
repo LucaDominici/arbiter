@@ -21,7 +21,7 @@ export const TIER_PASS_COUNT = {
 export const TIER_REVIEWER_COUNT = {
   XS: 3,
   S: 3,
-  Standard: 4,
+  Standard: 5,
 } as const;
 
 export type ReviewTier = keyof typeof TIER_PASS_COUNT;

@@ -49,15 +49,16 @@ describe("buildAgentPrompts (#236)", () => {
     expect(prompts).toHaveLength(3);
   });
 
-  it("returns 4 prompts for Standard tier including test-analyzer", () => {
+  it("returns 5 prompts for Standard tier including test-analyzer and type-safety", () => {
     const prompts = buildAgentPrompts({
       diff: DIFF_SAMPLE,
       dir: env.dir,
       tier: "Standard",
     });
-    expect(prompts).toHaveLength(4);
+    expect(prompts).toHaveLength(5);
     const names = prompts.map((p) => p.name);
     expect(names).toContain("test-analyzer");
+    expect(names).toContain("type-safety");
   });
 
   it("XS/S tiers exclude test-analyzer", () => {
@@ -85,7 +86,7 @@ describe("buildAgentPrompts (#236)", () => {
     }
   });
 
-  it("always includes the four core personas at Standard", () => {
+  it("Standard tier is a superset of S — includes every S persona plus domain-consistency and test-analyzer", () => {
     const prompts = buildAgentPrompts({
       diff: DIFF_SAMPLE,
       dir: env.dir,
@@ -98,8 +99,25 @@ describe("buildAgentPrompts (#236)", () => {
         "domain-consistency",
         "silent-failure-hunter",
         "test-analyzer",
+        "type-safety",
       ].sort(),
     );
+  });
+
+  it("Standard tier strictly contains the S-tier persona set (superset invariant)", () => {
+    const s = new Set(
+      buildAgentPrompts({ diff: DIFF_SAMPLE, dir: env.dir, tier: "S" }).map(
+        (p) => p.name,
+      ),
+    );
+    const standard = new Set(
+      buildAgentPrompts({
+        diff: DIFF_SAMPLE,
+        dir: env.dir,
+        tier: "Standard",
+      }).map((p) => p.name),
+    );
+    for (const name of s) expect(standard.has(name)).toBe(true);
   });
 
   it("registry exposes all five personas", () => {
@@ -140,13 +158,14 @@ describe("dispatchAgents (#236)", () => {
       tier: "Standard",
     });
     const results = await dispatchAgents(prompts, { dispatch: fakeDispatch });
-    expect(results).toHaveLength(4);
+    expect(results).toHaveLength(5);
     expect(calls.sort()).toEqual(
       [
         "bugs",
         "domain-consistency",
         "silent-failure-hunter",
         "test-analyzer",
+        "type-safety",
       ].sort(),
     );
   });
@@ -173,7 +192,7 @@ describe("dispatchAgents (#236)", () => {
       tier: "Standard",
     });
     await dispatchAgents(prompts, { dispatch: fakeDispatch });
-    expect(maxConcurrent).toBe(4);
+    expect(maxConcurrent).toBe(5);
   });
 
   it("dispatcher errors surface as blocker findings (no silent failure)", async () => {

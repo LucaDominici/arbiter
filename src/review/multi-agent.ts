@@ -6,11 +6,11 @@
  * and aggregates findings into blocker/warning/note buckets.
  *
  * Tier → agent count map lives in `tier-constants.ts` (TIER_REVIEWER_COUNT).
- * Personas:
- *   - bugs                   (always)
- *   - type-safety            (always)
- *   - domain-consistency     (always)
- *   - silent-failure-hunter  (always)
+ * Personas (must reflect AGENT_PERSONAS.tiers below):
+ *   - bugs                   (XS, S, Standard)
+ *   - type-safety            (XS, S, Standard)
+ *   - silent-failure-hunter  (XS, S, Standard)
+ *   - domain-consistency     (Standard only)
  *   - test-analyzer          (Standard only)
  *
  * Dispatch is injectable (DispatchFn) so tests can run without spawning
@@ -107,7 +107,7 @@ export const AGENT_PERSONAS: readonly AgentPersona[] = [
   {
     name: "type-safety",
     description: "Type leaks, unchecked casts, `any`/`unknown` misuse.",
-    tiers: ["XS", "S"],
+    tiers: ["XS", "S", "Standard"],
     focus:
       "Hunt for type leaks: `any` usage, unchecked casts, missing narrowing at boundaries, and structural type drift relative to declared interfaces.",
   },

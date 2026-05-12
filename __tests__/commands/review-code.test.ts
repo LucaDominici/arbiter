@@ -139,7 +139,7 @@ describe("runReviewCode (#236)", () => {
     }
   });
 
-  it("Standard tier dispatches 4 agents", async () => {
+  it("Standard tier dispatches 5 agents", async () => {
     const calls: string[] = [];
     const result = await runReviewCode({
       dir: env.dir,
@@ -156,7 +156,7 @@ describe("runReviewCode (#236)", () => {
         };
       },
     });
-    expect(result.aggregated.totalAgents).toBe(4);
-    expect(calls).toHaveLength(4);
+    expect(result.aggregated.totalAgents).toBe(5);
+    expect(calls).toHaveLength(5);
   });
 });

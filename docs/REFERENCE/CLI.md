@@ -327,7 +327,7 @@ The agent count is tier-driven (`TIER_REVIEWER_COUNT` —
 | -------- | --------------- |
 | XS       | 3               |
 | S        | 3               |
-| Standard | 4               |
+| Standard | 5               |
 
 Exit codes:
 
