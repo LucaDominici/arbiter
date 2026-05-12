@@ -52,11 +52,11 @@ export function runDiff(options: DiffOptions): void {
       jsonOutput("diff", "error", {}, [
         "No arbiter.json found. Run `arbiter init` first.",
       ]);
-      process.exit(1);
+      process.exit(statusToExitCode("error"));
       return;
     }
     console.log("  No arbiter.json found. Run `arbiter init` first.\n");
-    process.exit(1);
+    process.exit(statusToExitCode("error"));
   }
 
   const config = buildDiffConfig(targetDir, projectName, stored);

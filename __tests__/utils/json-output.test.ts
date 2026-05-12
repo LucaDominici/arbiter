@@ -47,16 +47,16 @@ describe("jsonOutput", () => {
   });
 });
 
-describe("statusToExitCode", () => {
+describe("statusToExitCode (canonical convention: 0=ok, 1=warning, 2=error)", () => {
   it("maps ok → 0", () => {
     expect(statusToExitCode("ok")).toBe(0);
   });
 
-  it("maps error → 1", () => {
-    expect(statusToExitCode("error")).toBe(1);
+  it("maps warning → 1 (CI advisory, should pass)", () => {
+    expect(statusToExitCode("warning")).toBe(1);
   });
 
-  it("maps warning → 2", () => {
-    expect(statusToExitCode("warning")).toBe(2);
+  it("maps error → 2 (CI blocker, must fail)", () => {
+    expect(statusToExitCode("error")).toBe(2);
   });
 });

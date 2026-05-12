@@ -6,10 +6,9 @@
  *
  *   0 = PASS     1 = WARN     2 = FAIL
  *
- * Note: this exit-code convention deliberately differs from the project
- * default `statusToExitCode` (which uses 2 for warning) because plan
- * review treats a missing/incomplete plan (FAIL) as the harder failure
- * mode that should block CI.
+ * Matches the canonical CLI exit-code convention (0=ok, 1=warning,
+ * 2=error/blocker — see `src/utils/json-output.ts::statusToExitCode`
+ * and `docs/REFERENCE/CLI.md` §Exit codes).
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

@@ -1,5 +1,20 @@
 # Arbiter CLI Reference
 
+## Exit codes (canonical convention)
+
+All `arbiter` subcommands obey one exit-code convention:
+
+| Code | Meaning              | CI semantics                            |
+| ---- | -------------------- | --------------------------------------- |
+| `0`  | ok                   | must pass                               |
+| `1`  | warning / advisory   | CI should pass but surface a flag       |
+| `2`  | error / blocker      | CI must fail (hard stop)                |
+
+The mapping `ok ↔ 0`, `warning ↔ 1`, `error ↔ 2` is encoded in
+`src/utils/json-output.ts::statusToExitCode` and applies to every
+command that emits a `--json` envelope. Per-command verdict tables below
+(e.g. `review plan` PASS/WARN/FAIL) are aliases of this same triple.
+
 ## Commands
 
 ### `arbiter init`
