@@ -7,9 +7,6 @@ vi.mock("../../src/utils/run-cli.js", () => ({
     stdout = "";
     stderr = "";
     exitCode = 1;
-    constructor(msg: string) {
-      super(msg);
-    }
   },
 }));
 
@@ -46,7 +43,9 @@ describe("runWorktreeList --json envelope shape (W-4)", () => {
   }
 
   it("emits an empty worktrees array when no task branches exist", () => {
-    fakeWorktreeList(`worktree /tmp/fake-repo\nHEAD abc\nbranch refs/heads/main\n`);
+    fakeWorktreeList(
+      `worktree /tmp/fake-repo\nHEAD abc\nbranch refs/heads/main\n`,
+    );
     runWorktreeList({ json: true, cwd: "/tmp/fake-repo" });
     const parsed = JSON.parse(written) as Record<string, unknown>;
     expect(parsed.command).toBe("worktree-list");
