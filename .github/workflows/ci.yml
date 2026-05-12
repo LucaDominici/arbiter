@@ -64,10 +64,16 @@ jobs:
         run: node scripts/check-workflow-runners.mjs
       - name: Bloat ratchet (CANON-16, INV-46)
         run: node scripts/check-bloat-ratchet.mjs
+      - name: Exit-code contract check (INV-47, #258)
+        run: node scripts/check-exit-code-contract.mjs
+      - name: Pipe/tee hazard advisory (INV-47, #258)
+        run: node scripts/check-pipe-tee-hazard.mjs
       - name: CI/manifest gate alignment check (#240)
         run: node scripts/check-ci-alignment.mjs
       - name: Self-dogfood template check (INV-45, #239)
         run: node scripts/check-self-dogfood.mjs
+      - name: Self-validation A/B/C drill (INV-47, #258)
+        run: node scripts/self-validation.mjs
       - name: Dead code check
         run: npx knip
       - name: Duplication check (CANON-16, INV-46)

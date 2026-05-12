@@ -748,4 +748,27 @@ export const INVARIANT_CATALOG: Invariant[] = [
       "scripts/check-bloat-ratchet.mjs (L1 ratchet) + " +
       "npx jscpd (L2 duplication, see .jscpd.json)",
   },
+
+  {
+    id: "INV-47",
+    tier: "governance",
+    title:
+      "Exit-code universal contract — every Arbiter-emitted script exits 0=PASS / 1=FAIL / 2=ERROR",
+    description:
+      "Every script emitted by Arbiter (scripts/*.mjs, src/templates/scripts/*.ejs) must use " +
+      "exactly three exit codes: 0=PASS, 1=FAIL, 2=ERROR. " +
+      "That is: 0 for success, 1 for detected failure, 2 for invocation error " +
+      "(bad arguments, missing required inputs, environment not ready). " +
+      "Any other exit code is a violation. " +
+      "This contract makes every gate composable: callers can distinguish a clean run (0), " +
+      "a caught violation (1), and an unconfigured/broken environment (2) without parsing output. " +
+      "Enforced by scripts/check-exit-code-contract.mjs (L1 gate) which scans all emitted scripts " +
+      "and fails on any process.exit(N) where N ∉ {0, 1, 2}. " +
+      "The self-validation drill (scripts/self-validation.mjs, L2) proves the contract holds " +
+      "by running each gate against clean, drift, and error fixtures and asserting the expected exit.",
+    alwaysActive: true,
+    enforcement:
+      "scripts/check-exit-code-contract.mjs (L1 gate) — exits 1 on violation; " +
+      "scripts/self-validation.mjs (L2 A/B/C drill) — exits 1 if any gate fails its proof",
+  },
 ];

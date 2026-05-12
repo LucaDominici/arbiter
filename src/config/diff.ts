@@ -37,7 +37,8 @@ export type GeneratorKey =
   | "docs"
   | "api-middleware"
   | "seed"
-  | "evidence-backlog";
+  | "evidence-backlog"
+  | "self-validation";
 
 export interface ConfigDiff {
   paths: string[];
@@ -102,6 +103,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     "github",
   ],
   "features.evidenceHarness": ["evidence-retention", "nightly"],
+  "features.selfValidationHarness": ["self-validation"],
   "features.suppressions": ["suppressions"],
   "thresholds.lineCoverage": ["check-all", "coverage"],
   "thresholds.branchCoverage": ["check-all", "coverage"],

@@ -181,6 +181,8 @@ export interface ProjectConfig {
   enableContractTesting?: boolean;
   /** Whether to generate evidence retention configuration. Default true for L3. */
   enableEvidenceHarness?: boolean;
+  /** Whether to generate the A/B/C self-validation drill harness. Default true. */
+  enableSelfValidationHarness?: boolean;
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.

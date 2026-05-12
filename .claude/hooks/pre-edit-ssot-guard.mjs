@@ -14,9 +14,11 @@ if (process.env.ARBITER_SSOT_BYPASS === "1") process.exit(0);
 const gitResult = spawnSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf-8",
 });
-const repoRoot = gitResult.stdout.trim();
+const repoRoot = gitResult.stdout?.trim() ?? "";
 const absFile = resolve(file);
-const rel = repoRoot ? relative(repoRoot, absFile) : absFile;
+// Fall back to CWD when git is unavailable (e.g., temp dir without .git).
+const anchor = repoRoot || process.cwd();
+const rel = relative(anchor, absFile);
 
 // If file is outside the repo, allow it.
 if (rel.startsWith("..")) process.exit(0);

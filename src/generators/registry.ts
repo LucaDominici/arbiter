@@ -35,6 +35,7 @@ import { generateDocs } from "./docs.js";
 import { generateApiMiddleware } from "./api-middleware.js";
 import { generateSeed } from "./seed.js";
 import { generateEvidenceBacklog } from "./evidence-backlog.js";
+import { generateSelfValidation } from "./self-validation.js";
 import type { ProjectConfig } from "../wizard/types.js";
 import type { WriteResult } from "../utils/fs.js";
 import type { GeneratorKey } from "../config/diff.js";
@@ -160,6 +161,11 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
         config.archetype === "backend-web-db" &&
         config.governanceLevel !== "L1",
       run: () => generateSeed(config).files,
+    },
+    {
+      key: "self-validation",
+      enabled: config.enableSelfValidationHarness !== false,
+      run: () => generateSelfValidation(config).files,
     },
   ];
 }

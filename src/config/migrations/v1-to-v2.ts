@@ -80,6 +80,7 @@ function deriveFeatureFlags(
     contractTesting:
       typeof raw["contractType"] === "string" && raw["contractType"] !== "none",
     evidenceHarness: deriveEvidenceHarness(raw["evidenceRetention"], level),
+    selfValidationHarness: true,
   };
 }
 

@@ -117,6 +117,10 @@ runCheck("matrix fixtures", "node", ["scripts/check-matrix-fixtures.mjs"]);
 runCheck("workflow runners", "node", ["scripts/check-workflow-runners.mjs"]);
 runCheck("ci alignment", "node", ["scripts/check-ci-alignment.mjs"]);
 runCheck("bloat ratchet", "node", ["scripts/check-bloat-ratchet.mjs"]);
+runCheck("exit code contract", "node", [
+  "scripts/check-exit-code-contract.mjs",
+]);
+runCheck("pipe/tee hazard", "node", ["scripts/check-pipe-tee-hazard.mjs"]);
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {
@@ -136,6 +140,7 @@ if (level === "L2" || level === "L3") {
     "1",
   ]);
   runCheck("dogfood", "node", ["scripts/check-self-dogfood.mjs"]);
+  runCheck("self-validation drill", "node", ["scripts/self-validation.mjs"]);
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
