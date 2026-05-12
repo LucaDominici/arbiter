@@ -1,0 +1,10 @@
+{
+  "stack": "rust",
+  "cases": [
+    { "path": "src/core/unsafe_ops.rs", "expected": "R0" },
+    { "path": "migrations/0001.sql", "expected": "R0" },
+    { "path": "src/server/router.rs", "expected": "R2" },
+    { "path": "src/lib.rs", "expected": "R2" },
+    { "path": "README.md", "expected": "R4" }
+  ]
+}

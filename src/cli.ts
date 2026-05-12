@@ -9,7 +9,8 @@ import {
   runWorktreeClose,
   runWorktreeList,
 } from "./commands/worktree.js";
-import { runVerify } from "./commands/verify.js";
+import { runVerify, runVerifyEvidence } from "./commands/verify.js";
+import { jsonOutput } from "./utils/json-output.js";
 import { runUpgradeLevel } from "./commands/upgrade-level.js";
 import {
   runPluginAdd,
@@ -294,13 +295,44 @@ worktree
     runWorktreeList({ json: opts.json });
   });
 
-program
+const verify = program
   .command("verify")
   .description("Probe toolchain compatibility for the detected stack")
   .option("--json", "Emit JSON report", false)
   .option("--dir <dir>", "Target directory (default: current directory)")
   .action((opts: { json: boolean; dir?: string }) => {
     runVerify({ json: opts.json, dir: opts.dir });
+  });
+
+verify
+  .command("evidence")
+  .description(
+    "Verify the .evidence/SUMMARY.json snapshot (SHA + freshness window).",
+  )
+  .option("--json", "Emit machine-readable JSON output", false)
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { json: boolean; dir?: string }) => {
+    const result = runVerifyEvidence({ dir: opts.dir });
+    if (opts.json) {
+      jsonOutput(
+        "verify evidence",
+        result.status,
+        {
+          exitCode: result.exitCode,
+          ...(result.skipped !== undefined ? { skipped: result.skipped } : {}),
+          ...(result.reason !== undefined ? { reason: result.reason } : {}),
+        },
+        result.status === "error" && result.reason !== undefined
+          ? [result.reason]
+          : undefined,
+      );
+    } else {
+      const label =
+        result.status === "ok" ? "OK" : result.status.toUpperCase();
+      const tail = result.reason ? ` — ${result.reason}` : "";
+      process.stdout.write(`verify evidence: ${label}${tail}\n`);
+    }
+    process.exit(result.exitCode);
   });
 
 program

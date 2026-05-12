@@ -1,0 +1,12 @@
+{
+  "stack": "typescript",
+  "cases": [
+    { "path": "src/db/migrations/0001_init.sql", "expected": "R0" },
+    { "path": "src/auth/login.ts", "expected": "R1" },
+    { "path": "src/payments/charge.ts", "expected": "R1" },
+    { "path": "src/api/users.ts", "expected": "R2" },
+    { "path": "src/components/Button.tsx", "expected": "R3" },
+    { "path": "README.md", "expected": "R4" },
+    { "path": "__tests__/foo.test.ts", "expected": "R4" }
+  ]
+}

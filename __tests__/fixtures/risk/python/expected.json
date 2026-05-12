@@ -1,0 +1,11 @@
+{
+  "stack": "python",
+  "cases": [
+    { "path": "alembic/versions/001_init.py", "expected": "R0" },
+    { "path": "migrations/0002_rename.py", "expected": "R0" },
+    { "path": "app/auth/middleware.py", "expected": "R1" },
+    { "path": "app/api/users.py", "expected": "R2" },
+    { "path": "tests/test_users.py", "expected": "R4" },
+    { "path": "docs/intro.md", "expected": "R4" }
+  ]
+}
