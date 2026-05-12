@@ -30,6 +30,7 @@ import {
 } from "./commands/work.js";
 import type { WorkUnitPhase, WorkUnitStatus } from "./decomposition/types.js";
 import { appendEvidenceLine } from "./utils/evidence-log.js";
+import { parseBooleanEnv } from "./utils/env.js";
 import { runCli } from "./utils/run-cli.js";
 
 // ── Evidence logging setup ────────────────────────────────────────────────────
@@ -41,7 +42,8 @@ import { runCli } from "./utils/run-cli.js";
 const _rawArgv = process.argv.slice(2);
 const _noEvidenceIdx = _rawArgv.indexOf("--no-evidence");
 const _noEvidence =
-  _noEvidenceIdx !== -1 || process.env["ARBITER_NO_EVIDENCE"] === "1";
+  _noEvidenceIdx !== -1 ||
+  parseBooleanEnv(process.env["ARBITER_NO_EVIDENCE"]) === true;
 if (_noEvidenceIdx !== -1) {
   process.argv.splice(2 + _noEvidenceIdx, 1);
 }
