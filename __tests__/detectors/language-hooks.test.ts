@@ -148,4 +148,16 @@ describe('getLanguageHooks', () => {
       }
     }
   })
+
+  it('check-no-raw-types skips import/package lines (#278 #6)', () => {
+    const hooks = getLanguageHooks('java')
+    const hook = hooks.find((h) => h.name === 'check-no-raw-types.mjs')!
+    // The hook body must contain the import/package exclusion clause introduced
+    // for #278 #6. We assert via source-level regex since the hook is emitted
+    // as a string to be written to disk in target projects.
+    expect(hook.body).toMatch(/import /)
+    expect(hook.body).toMatch(/package /)
+    expect(hook.body).toContain("t.startsWith('import ')")
+    expect(hook.body).toContain("t.startsWith('package ')")
+  })
 })

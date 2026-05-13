@@ -160,9 +160,12 @@ describe('detectFramework', () => {
       expect(detectFramework(dir, 'java')).toBe('quarkus')
     })
 
-    it('returns java for plain gradle project', () => {
+    it('returns null for plain gradle project (no spring/quarkus marker) (#278 #2)', () => {
+      // Previously returned the literal "java" sentinel, which conflicts with the
+      // sibling detectors' null-for-unknown contract. Callers now fall through to
+      // LANGUAGE_FALLBACK_ARCHETYPE.
       writeFileSync(join(dir, 'build.gradle'), 'plugins { id "java" }')
-      expect(detectFramework(dir, 'java')).toBe('java')
+      expect(detectFramework(dir, 'java')).toBeNull()
     })
 
     it('detects spring-boot from pom.xml', () => {
@@ -171,6 +174,24 @@ describe('detectFramework', () => {
         '<parent><artifactId>spring-boot-starter-parent</artifactId></parent>',
       )
       expect(detectFramework(dir, 'java')).toBe('spring-boot')
+    })
+
+    it('detects spring-boot from build.gradle.kts (Kotlin DSL) (#278 #1)', () => {
+      writeFileSync(
+        join(dir, 'build.gradle.kts'),
+        'plugins { id("org.springframework.boot") version "3.0.0" }',
+      )
+      expect(detectFramework(dir, 'java')).toBe('spring-boot')
+    })
+
+    it('detects quarkus from build.gradle.kts (Kotlin DSL) (#278 #1)', () => {
+      writeFileSync(join(dir, 'build.gradle.kts'), 'plugins { id("io.quarkus") }')
+      expect(detectFramework(dir, 'java')).toBe('quarkus')
+    })
+
+    it('returns null for plain Kotlin-DSL gradle project (#278 #1)', () => {
+      writeFileSync(join(dir, 'build.gradle.kts'), 'plugins { kotlin("jvm") }')
+      expect(detectFramework(dir, 'java')).toBeNull()
     })
   })
 
@@ -214,11 +235,19 @@ describe('detectFramework', () => {
 
     it('returns TS framework when only TS side detected (#473)', () => {
       writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { express: '^4' } }))
-      // No build.gradle / pom.xml → Java detection returns 'java' (fallback)
-      // But to avoid the fallback we want truly multi without Java build file
-      // The current Java detector returns 'java' for ANY java project — that's
-      // misleading for multi. We treat Java side as "not present" when no build file exists.
+      // No build.gradle / pom.xml → Java side absent (detectJavaFramework not invoked).
+      // Previously the detector returned a `"java"` sentinel even with no build file;
+      // #278 #2 fixed this to return null, so multi cleanly defers to the TS side.
       expect(detectFramework(dir, 'multi')).toBe('express')
+    })
+
+    it('combines TS and Kotlin-DSL Java frameworks (#278 #1)', () => {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { express: '^4' } }))
+      writeFileSync(
+        join(dir, 'build.gradle.kts'),
+        'plugins { id("org.springframework.boot") version "3.0.0" }',
+      )
+      expect(detectFramework(dir, 'multi')).toBe('express+spring-boot')
     })
   })
 })
@@ -260,8 +289,8 @@ describe('detectArchetypeHint', () => {
   })
 
   describe('language fallbacks (no framework match)', () => {
-    it('java with unmapped framework falls back to library', () => {
-      expect(detectArchetypeHint(ANY_DIR, 'java', 'java')).toBe('library')
+    it('java with null framework falls back to library (#278 #2)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'java', null)).toBe('library')
     })
 
     it('typescript with null framework falls back to library', () => {

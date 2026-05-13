@@ -47,6 +47,55 @@ describe('detectBuildCommands', () => {
       const result = detectBuildCommands(dir, 'typescript')
       expect(result.formatCommand).toBe('echo "no formatter configured"')
     })
+
+    it('does NOT report prettier when only eslint-config-prettier is present (#278 #9)', () => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({
+          scripts: {},
+          devDependencies: { 'eslint-config-prettier': '^9.0.0' },
+        }),
+      )
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.formatCommand).toBe('echo "no formatter configured"')
+    })
+
+    it('does NOT report prettier when only prettier-eslint is present (#278 #9)', () => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({
+          scripts: {},
+          devDependencies: { 'prettier-eslint': '^16.0.0' },
+        }),
+      )
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.formatCommand).toBe('echo "no formatter configured"')
+    })
+
+    it('does NOT report prettier when "prettier" appears only in description (#278 #9)', () => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({
+          description: 'A project that uses prettier-like formatting',
+          scripts: {},
+          devDependencies: {},
+        }),
+      )
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.formatCommand).toBe('echo "no formatter configured"')
+    })
+
+    it('reports prettier when first-party prettier-plugin-* is present (#278 #9)', () => {
+      writeFileSync(
+        join(dir, 'package.json'),
+        JSON.stringify({
+          scripts: {},
+          devDependencies: { prettier: '^3.0.0', 'prettier-plugin-tailwindcss': '^0.5.0' },
+        }),
+      )
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.formatCommand).toBe('npx prettier --check .')
+    })
   })
 
   describe('rust', () => {
