@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  copyFileSync,
-  constants,
-} from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, mergeSettingsJson, resolvedPath } from '../utils/fs.js'
@@ -103,12 +96,9 @@ function generateClaudeSettings(
       unknown
     >
     const merged = mergeSettingsJson(existing, incoming)
-    // COPYFILE_EXCL: skip if backup already exists — the first-run backup is the most valuable.
-    try {
-      copyFileSync(settingsPath, `${settingsPath}.arbiter-backup`, constants.COPYFILE_EXCL)
-    } catch {
-      // Backup already exists; preserve original, do not overwrite.
-    }
+    // Always overwrite the backup with the current pre-merge state so users can undo
+    // this specific merge. Long-term history lives in git, not in .arbiter-backup (#285).
+    copyFileSync(settingsPath, `${settingsPath}.arbiter-backup`)
     writeFileSync(settingsPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
     results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
   } else {
