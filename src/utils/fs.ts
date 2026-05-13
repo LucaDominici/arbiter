@@ -56,6 +56,8 @@ export function copyStaticFile(
 
 /**
  * Deeply merge two settings.json objects. Arrays are unioned (no duplicates by 'command').
+ * All top-level keys from `existing` are preserved unchanged unless arbiter manages them
+ * (currently: `hooks`, `permissions`). No data is ever silently dropped.
  */
 export function mergeSettingsJson(
   existing: Record<string, unknown>,

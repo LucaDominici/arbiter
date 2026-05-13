@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile, copyStaticFile, resolvedPath } from '../../src/utils/fs.js'
+import { writeFile, copyStaticFile, resolvedPath, mergeSettingsJson } from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('writeFile', () => {
@@ -118,5 +118,34 @@ describe('resolvedPath', () => {
 
   it('handles multiple parts', () => {
     expect(resolvedPath('/root', 'a', 'b', 'c')).toBe(join('/root', 'a', 'b', 'c'))
+  })
+})
+
+describe('mergeSettingsJson (#286)', () => {
+  it('preserves unknown top-level keys from existing settings without warning (#286)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const existing = { myCustomSetting: true, hooks: {}, permissions: { allow: [] } }
+    const incoming = { hooks: {}, permissions: { allow: [] } }
+    const result = mergeSettingsJson(existing, incoming)
+    // No keys are dropped, so no warn should ever fire
+    expect(warnSpy).not.toHaveBeenCalled()
+    expect(result).toHaveProperty('myCustomSetting', true)
+    vi.restoreAllMocks()
+  })
+
+  it('does not emit console.warn for known keys (hooks, permissions) (#286)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const existing = { hooks: {}, permissions: { allow: ['npm run build'] } }
+    const incoming = { hooks: {}, permissions: { allow: ['npm test'] } }
+    mergeSettingsJson(existing, incoming)
+    expect(warnSpy).not.toHaveBeenCalled()
+    vi.restoreAllMocks()
+  })
+
+  it('preserves unknown keys in the merged output (#286)', () => {
+    const existing = { myCustomSetting: true, hooks: {} }
+    const incoming = { hooks: {} }
+    const result = mergeSettingsJson(existing, incoming)
+    expect(result).toHaveProperty('myCustomSetting', true)
   })
 })
