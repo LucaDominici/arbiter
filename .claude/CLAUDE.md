@@ -28,10 +28,13 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PreToolUse` → Bash         | `stop-dangerous.mjs`        | Block dangerous commands (rm -rf, force push) |
 | `PreToolUse` → Edit\|Write  | `enforce-read-only.mjs`     | Guard read-only files                         |
 | `PreToolUse` → Edit\|Write  | `pre-edit-ssot-guard.mjs`   | Prevent unauthorized SSOT edits               |
+| `PreToolUse` → Edit\|Write  | `pre-edit-plan-anchor.mjs`  | Require plan anchor before editing (CANON-14) |
 | `PostToolUse` → Bash        | `post-commit-check.mjs`     | Verify commit format after git commits        |
+| `PostToolUse` → Edit\|Write | `check-no-direct-spawn.mjs` | Block direct child_process usage (INV-12)     |
 | `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs`  | Block orphan TODOs (INV-21)                   |
-| `UserPromptSubmit` → \*     | `guard-task-completion.mjs` | Warn on premature task-completion claims      |
 | `PostToolUse` → Edit\|Write | `check-no-any.mjs`          | Block `any` types (INV-04)                    |
+| `UserPromptSubmit` → \*     | `guard-task-completion.mjs` | Warn on premature task-completion claims      |
+| `PreCompact` → \*           | `pre-compact.mjs`           | Persist context before auto-compaction        |
 
 ### Slash Commands
 
