@@ -216,5 +216,12 @@
       "maturity": "beta",
       "reason": "cucumber-rs 0.20 stable for sync; async World still evolving"
     }
+  },
+  "style_tokens": {
+    "typescript": {
+      "tool": "stylelint",
+      "maturity": "proven",
+      "reason": "stylelint 16+ enforces color-no-hex and design-token discipline; widely adopted in ts-frontend-spa stacks (haben pattern, #352)"
+    }
   }
 }

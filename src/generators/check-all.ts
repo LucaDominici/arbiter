@@ -58,5 +58,36 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
     )
   }
 
+  // #360 (CANON-02): Rust context-aware INV-04 checkers — no .unwrap()/.expect() and no `unsafe`.
+  // Emitted only for rust projects, invoked at L1 from check-all.mjs.ejs.
+  if (config.language === 'rust') {
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'checks', 'check-rust-no-unwrap.mjs'),
+        renderTemplate('scripts/checks/check-rust-no-unwrap.mjs.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'checks', 'check-rust-no-unsafe.mjs'),
+        renderTemplate('scripts/checks/check-rust-no-unsafe.mjs.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
+  // #356 (CANON-01): rebased-aware docs-check script + [skip-docs] bypass.
+  // Mirrors CI docs-check job so the gate fires locally pre-push. L2+ only (matches CI gating).
+  if (config.governanceLevel !== 'L1') {
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'check-docs.mjs'),
+        renderTemplate('scripts/check-docs.mjs.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
   return { files: results }
 }
