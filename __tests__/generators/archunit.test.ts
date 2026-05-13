@@ -122,6 +122,7 @@ describe('generateArchUnit', () => {
       language: 'java',
       buildTool: 'gradle',
       architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
     })
     const result = generateArchUnit(config)
     const archTest = result.files.find((f) => f.path.endsWith('ArchitectureTest.java'))
@@ -136,6 +137,7 @@ describe('generateArchUnit', () => {
       language: 'java',
       buildTool: 'gradle',
       architectureStyle: 'layered',
+      basePackage: 'com.example.myapp',
     })
     const result = generateArchUnit(config)
     const archTest = result.files.find((f) => f.path.endsWith('ArchitectureTest.java'))
@@ -150,12 +152,37 @@ describe('generateArchUnit', () => {
       language: 'java',
       buildTool: 'gradle',
       architectureStyle: 'modular-monolith',
+      basePackage: 'com.example.myapp',
     })
     const result = generateArchUnit(config)
     const archTest = result.files.find((f) => f.path.endsWith('ArchitectureTest.java'))
     expect(archTest).toBeDefined()
     const content = readFileSync(archTest!.path, 'utf-8')
     expect(content).toContain('no_cross_module_internal_access')
+  })
+
+  it('does NOT generate ArchitectureTest.java for layered when basePackage is absent (#284)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'layered',
+      basePackage: undefined,
+    })
+    const result = generateArchUnit(config)
+    const archTest = result.files.find((f) => f.path.endsWith('ArchitectureTest.java'))
+    expect(archTest).toBeUndefined()
+  })
+
+  it('does NOT generate ArchitectureTest.java for modular-monolith when basePackage is absent (#284)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'modular-monolith',
+      basePackage: undefined,
+    })
+    const result = generateArchUnit(config)
+    const archTest = result.files.find((f) => f.path.endsWith('ArchitectureTest.java'))
+    expect(archTest).toBeUndefined()
   })
 
   it('generates NoMockMvcTest.java for all architectureStyles when basePackage is set (#283)', () => {

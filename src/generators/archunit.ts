@@ -86,8 +86,9 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
     )
   }
 
-  // Architecture style rules — only when user explicitly chose a style (ADR-021 gate rule)
-  if (config.architectureStyle !== 'none') {
+  // Architecture style rules — only when user explicitly chose a style (ADR-021 gate rule) AND basePackage set.
+  // basePackage required to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath (#284).
+  if (config.architectureStyle !== 'none' && config.basePackage) {
     files.push(
       writeFile(
         resolvedPath(base, 'src', 'test', 'java', packagePath, 'ArchitectureTest.java'),
