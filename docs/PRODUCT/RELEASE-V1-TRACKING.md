@@ -3,7 +3,7 @@
 > **Plan:** `/home/luca/.claude/plans/fluffy-honking-fox.md`
 > **Tracking label:** [`release/v1-public`](https://github.com/LucaDominici/arbiter/labels/release%2Fv1-public)
 > **Created:** 2026-05-13
-> **Total issues:** 156 (141 children + 15 umbrellas)
+> **Total issues:** 172 (156 children + 16 umbrellas), plus 7 extension comments on existing issues
 > **State file:** `/tmp/release-v1-state.json`
 
 ## Locked Decisions
@@ -22,6 +22,9 @@
 | Distribution channels | Three npm dist-tags — `latest` (stable) / `beta` (RC) / `canary` (every main merge) (EPIC-Q) |
 | Positioning | No quantitative ROI claims; honest counter-marketing (EPIC-R) |
 | i18n | Scaffolded in v1 (en only); contribution path documented; translations community-driven post-v1 (EPIC-P) |
+| Workflow maturity | Production-tested patterns ported from `/home/luca/Downloads/claude` (`/auto` skill) + viafera (`context-rot-management`, `plan-reviewer`, `AGENT_REGISTRY`) — DETECT-REFERENCE only, arbiter-authored re-implementations (EPIC-S) |
+| Phase 3.5 handoff | Full port: Opus planning → /clear → Sonnet implementation with host-capability detection + cost monitor (EPIC-S.S15, size/XL) |
+| Worktree placement | Default `.git/worktrees/` preserved; `--sibling` opt-in flag with auto-symlinks (EPIC-S.S10) |
 
 ## Epic Index
 
@@ -42,6 +45,7 @@
 | P | i18n scaffolding | 3 | [#671](https://github.com/LucaDominici/arbiter/issues/671) |
 | Q | Update-channel infrastructure | 1 | [#672](https://github.com/LucaDominici/arbiter/issues/672) |
 | R | Anti-overclaim positioning | 2 | [#673](https://github.com/LucaDominici/arbiter/issues/673) |
+| S | Workflow Maturity Port (Downloads/claude + viafera) | 1 | [#704](https://github.com/LucaDominici/arbiter/issues/704) |
 
 ## Tier 1 — Release-Blocker
 
@@ -152,6 +156,38 @@
 | Q3 | [#662](https://github.com/LucaDominici/arbiter/issues/662) | 2 | arbiter --channel flag for update opt-in |
 | Q4 | [#663](https://github.com/LucaDominici/arbiter/issues/663) | 2 | Channel switching doc + rollback path |
 | Q5 | [#664](https://github.com/LucaDominici/arbiter/issues/664) | 2 | Per-channel changelog generation |
+
+### EPIC-S — Workflow Maturity Port (from Downloads/claude + viafera) · Umbrella: [#704](https://github.com/LucaDominici/arbiter/issues/704)
+
+Ported from two production-validated sources: user's personal Claude config (`/home/luca/Downloads/claude/.claude/` with evolved `/auto` skill) + viafera (`/home/luca/work/repos/viafera/.claude/`). All ports are arbiter-authored re-implementations per the DETECT-REFERENCE legal posture.
+
+| ID | Issue | Tier | Title |
+|---|---|---|---|
+| S1 | [#689](https://github.com/LucaDominici/arbiter/issues/689) | 1 | Plan Context Block — self-contained recovery anchor in every plan |
+| S2 | [#690](https://github.com/LucaDominici/arbiter/issues/690) | 1 | status.json atomic session bridge + Recovery table per phase |
+| S3 | [#691](https://github.com/LucaDominici/arbiter/issues/691) | 1 | Phase 2.7 Red-Team adversarial review pre-implementation |
+| S4 | [#692](https://github.com/LucaDominici/arbiter/issues/692) | 2 | Intelligent auditor routing for review-code (tag + critical-path + skip-aware scoring) |
+| S5 | [#693](https://github.com/LucaDominici/arbiter/issues/693) | 1 | PreToolUse gate-marker hook (.arbiter/gate-pass.json SHA-pinned to HEAD) |
+| S6 | [#694](https://github.com/LucaDominici/arbiter/issues/694) | 1 | Context-rot management 3-layer recovery (BACKLOG.md + MCP checkpoints + git log) |
+| S7 | [#695](https://github.com/LucaDominici/arbiter/issues/695) | 1 | Plan Reviewer with tier-based passes count + max 2 revise |
+| S8 | [#696](https://github.com/LucaDominici/arbiter/issues/696) | 2 | Agent Registry doc with effort + model + interaction chains |
+| S9 | [#697](https://github.com/LucaDominici/arbiter/issues/697) | 2 | Glob-triggered memory loading (memory-impl pattern) |
+| S10 | [#698](https://github.com/LucaDominici/arbiter/issues/698) | 2 | Worktree --sibling opt-in flag + auto-symlinks |
+| S11 | [#699](https://github.com/LucaDominici/arbiter/issues/699) | 2 | Brainstorming terminal state at GH issue (no auto-implement) |
+| S12 | [#700](https://github.com/LucaDominici/arbiter/issues/700) | 2 | Visual verification skill — 5-way DOM Playwright across 3 viewports |
+| S13 | [#701](https://github.com/LucaDominici/arbiter/issues/701) | 2 | SSOT navigation skill — codified decision hierarchy |
+| S14 | [#702](https://github.com/LucaDominici/arbiter/issues/702) | 2 | Tech-debt → separate GH issue protocol during TDD |
+| S15 | [#703](https://github.com/LucaDominici/arbiter/issues/703) | 1 | Phase 3.5 full hard model-switch handoff **(size/XL, 1–2 weeks)** |
+
+**Extension comments posted on existing issues:**
+
+- [comment](https://github.com/LucaDominici/arbiter/issues/549#issuecomment-4445800479) on #549 (E1 — split implementation phase) — Phase 2.7 red-team + Phase 3.5 handoff coordination
+- [comment](https://github.com/LucaDominici/arbiter/issues/550#issuecomment-4445801116) on #550 (E2 — TDD skill) — Plan Context Block integration
+- [comment](https://github.com/LucaDominici/arbiter/issues/587#issuecomment-4445801636) on #587 (G5 — hook regression suite) — gate-marker hook coverage
+- [comment](https://github.com/LucaDominici/arbiter/issues/617#issuecomment-4445802070) on #617 (L7 — adverse git state) — gate marker invalidation coordination
+- [comment](https://github.com/LucaDominici/arbiter/issues/569#issuecomment-4445802600) on #569 (F6 — maintainer SLA) — Agent Registry interaction chains
+- [comment](https://github.com/LucaDominici/arbiter/issues/668#issuecomment-4445803060) on #668 (M umbrella — observability) — trace-ID + status.json runId
+- [comment](https://github.com/LucaDominici/arbiter/issues/560#issuecomment-4445803571) on #560 (E12 — frontend-design detection) — visual verification cross-link
 
 ## Tier 2 — Launch-Driver
 
