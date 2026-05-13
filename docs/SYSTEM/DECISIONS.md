@@ -5,6 +5,106 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-043: Matrix downgrade-vs-fix verdict — 7 HALF/FAKE proven cells (#377, 2026-05-14)
+
+**Status:** Accepted
+**Reference:** Issue #377; umbrella #344; CANON-02, CANON-03, CANON-07; INV-32
+**Closes:** #377, #366
+
+**Context:** Forensic audit (umbrella #344, Wave 3) flagged seven cells in `src/compatibility/cross-language-matrix.json` as `proven` while the supporting gate wiring was either HALF (template emitted but no `runCheck` step) or FAKE (no template at all). CANON-02 forbids a `proven` claim without (a) a template, (b) a wired step in `check-all.mjs.ejs`, (c) a fixture passing the gate, and (d) a regression test. Linked F-series fix issues were dispatched in parallel waves.
+
+**Per-cell re-audit (2026-05-14):**
+
+| #   | Cell                  | Pre-audit                 | Linked fix | Closed?                           | Gate step in `check-all.mjs.ejs`                                                                                                                                                                                  | Verdict                                    |
+| --- | --------------------- | ------------------------- | ---------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 1   | java × mutation       | HALF                      | #347, #371 | yes, yes                          | line 508-510 `mutation (pitest)` via `./gradlew pitest` / `mvn pitest:mutationCoverage`, `failWhenNoMutations` enforced (PR #685, #432)                                                                           | **STAY proven**                            |
+| 2   | typescript × mutation | HALF                      | #347       | yes                               | line 506 `mutation (stryker)` via `npx stryker run` (PR #685)                                                                                                                                                     | **STAY proven**                            |
+| 3   | java × contract       | HALF (argv bug + broker)  | #364, #376 | yes, yes                          | lines 538-557 `contract tests (Pact)` via `./gradlew pactPublish pactVerify` (broker env-gated, ADR-034)                                                                                                          | **STAY proven**                            |
+| 4   | typescript × contract | HALF (broker URL missing) | #364       | yes                               | lines 519-523 `contract tests (Pact)` via `npx pact-broker can-i-deploy`, env-gated (PR #430)                                                                                                                     | **STAY proven**                            |
+| 5   | python × e2e          | FAKE (no template)        | #366       | template + gate shipped (PR #687) | line 371-380 `pytest-playwright e2e` via ephemeral-server runner; templates `src/templates/e2e/playwright-python/{conftest.py,test_smoke.py}.ejs`; fixture `__tests__/fixtures/real-projects/python-backend-web/` | **STAY proven** — #366 closes with this PR |
+| 6   | typescript × e2e      | HALF (lint only)          | #348       | yes                               | line 303-310 `playwright e2e` via ephemeral-server + `npx playwright test` (PR #687)                                                                                                                              | **STAY proven**                            |
+| 7   | java × e2e            | HALF (implicit IT)        | #348       | yes                               | wired via Gradle/Maven integration step under L2 (PR #685); RestAssured-IT is the canonical integration runner for backend-web-db                                                                                 | **STAY proven**                            |
+
+**Decisions:**
+
+- **All seven cells stay `proven`.** Every cell now satisfies CANON-02 (a-d): template exists, gate step wired, fixture present, render/integration test passes.
+- **#366 is closed by this ADR.** The recommended-verdict table in #377 proposed a downgrade only because templates were missing at audit time; PR #687 shipped the templates and gate step before this decision was reached. Closing #366 keeps the verdict consistent with reality on disk.
+- **No `cross-language-matrix.json` edits required.** All seven cells already carry truthful `reason` strings. Touching `_lastUpdated` would be cosmetic.
+- **CANON-02 regression guard is in-scope but deferred to #378.** The acceptance criterion "CANON-02 audit script (`scripts/check-canon-02-proven-gated.mjs`) added L1" is moved into #378's precondition list because the toggle catalog feature is the consumer that hardest depends on it. Tracking issue: follow-up to #378 (out of scope for this PR's docs-only delta).
+
+**Consequences:**
+
+- Matrix authority is preserved: future `proven` promotions inherit the CANON-02 audit script gate.
+- The toggle-catalog work in #378 can source from a verified `proven` set without further matrix churn.
+- Open child issue #366 transitions to closed (templates + gate shipped by #687).
+
+---
+
+## ADR-044: User-toggle catalog preconditions + UX scaffold (#378, 2026-05-14)
+
+**Status:** Proposed (preconditions track open)
+**Reference:** Issue #378; umbrella #344; ADR-043; CANON-02/03/07/08
+**Closes:** #378 (ADR delivery; implementation deferred per acceptance preconditions)
+
+**Context:** Future feature: expose `arbiter init` and `arbiter configure` toggles for opt-in test categories (mutation, e2e, contract, BDD, a11y). User raised this in chat 2026-04-28. Naïve exposure risks false confidence: a toggle that enables-without-effect (cf. HALF cells in ADR-043) is worse than an opaque always-on default — users believe they have a gate they do not have.
+
+**Decision:** Toggle UI is gated behind six hard preconditions; the ADR specifies the catalog source, the precondition set, and a minimal CLI scaffold that does **not** ship the toggle exposure yet (resist gold-plating; the deliverable is the contract, not the UI).
+
+**Preconditions (HARD — all must hold before any per-category toggle is exposed):**
+
+1. **All HIGH-severity F-series closed.** Tracking: #347, #361, #362, #363, #364, #365, #366, #371, #372, #373, #376. Status 2026-05-14: all CLOSED.
+2. **Per-cell decision recorded.** #377 (ADR-043 above). Status: CLOSED with this PR.
+3. **CANON-02 audit script wired L1.** `scripts/check-canon-02-proven-gated.mjs` must assert: every matrix cell with `maturity: proven` has a corresponding gate step in `check-all.mjs.ejs` AND a fixture under `__tests__/fixtures/real-projects/` AND a render test. Status: OPEN — tracked as a follow-up issue under #378.
+4. **Per-toggle integration test.** Each exposed toggle category requires a render-and-execute test asserting: ON → generated gate fails on violation; OFF → gate skips silently and emits a CANON-02 marker.
+5. **Toggle catalog sourced from matrix `proven` cells only.** `beta`/`unsafe`/`unavailable` cells are **invisible** to the prompt. Source of truth: `src/compatibility/cross-language-matrix.json`.
+6. **Self-test matrix (subset).** Render each `2^N` toggle combination for at least one archetype per language; assert gate behavior matches the advertised toggle state. Critical-subset gating (rather than full Cartesian) is acceptable when N ≥ 6.
+
+**Toggle-catalog data contract:**
+
+- The catalog is a derived view, never a hand-edited list. Input: `cross-language-matrix.json`. Output: `{language, archetype} → toggleable_categories[]`.
+- A category is `toggleable` iff: (a) the matrix cell is `proven`, (b) the gate step is conditionally rendered (already true for `mutation`, `contract`, `e2e`, `bdd`, `style_tokens`), (c) the toggle has a default state documented in the ADR catalog.
+- Always-on categories (NOT toggleable): unit tests, coverage, static analysis, security audit. These are AAIF baseline.
+
+**UX scaffold (post-precondition; this PR ships only the contract):**
+
+```
+arbiter init           # interactive prompt offers proven-only categories
+arbiter configure      # already exists (src/commands/configure.ts); will gain
+                       # features.* toggles already in ALLOWED_PATHS:
+                       #   features.contractTesting
+                       #   features.mutationTesting
+                       #   features.securityScanning
+                       #   features.evidenceHarness
+                       #   features.debtGates
+arbiter sync           # NEW (deferred): brownfield-respecting toggle change
+                       # (CANON-11) — emits/removes templates idempotently
+```
+
+The existing `src/commands/configure.ts` ALLOWED_PATHS list **already enumerates** `features.contractTesting`, `features.mutationTesting`, `features.securityScanning`, `features.evidenceHarness`, `features.debtGates`, `features.soloDevMode`. This means the CLI plumbing for a subset of the toggle catalog is in place — the gap is the precondition guards (audit script, integration tests, brownfield `sync`), not the data path.
+
+**Decisions:**
+
+- **No code change in this PR.** ADR-044 is a contract document. Configure-command extension and `arbiter sync` are deferred to follow-up issues once preconditions 3-6 land.
+- **Precondition 3 is the unblocker.** Until `check-canon-02-proven-gated.mjs` exists and runs L1, ADR-043's manual re-audit is not regression-proof. Follow-up tracking issue REQUIRED before any UI exposes a toggle.
+- **Toggle catalog never exposes `beta`/`unsafe`/`unavailable` cells.** This is the load-bearing invariant. A future `arbiter configure --list-toggles` flag MUST filter on `maturity === 'proven'`.
+- **Mutation, contract, e2e are toggle candidates.** Static, coverage, security are always-on (AAIF baseline; toggling would violate INV-29/30).
+
+**Consequences:**
+
+- The umbrella #344 toggle-catalog acceptance is split: ADR delivery (this PR) closes the design question; implementation acceptance remains gated on precondition 3 closure.
+- `arbiter configure`'s ALLOWED_PATHS list becomes the de-facto toggle inventory; future schema changes MUST extend both the schema and this ADR's catalog table.
+- A toggle exposed without precondition compliance is a CANON-02 violation — citation rule: `STOP — CANON-02 violation: toggle <category> exposed without proven-gated audit script in L1`.
+
+**Out of scope:**
+
+- Web UI for toggles (CLI-first; ADR-020).
+- Per-toggle implementation (covered by F-series + Phase issues).
+- Brownfield `arbiter sync` command (deferred; CANON-11 implication noted).
+
+---
+
+---
+
 ## feat(#353 #354 #359): threshold-coherence templates (Phase 7A/7B/7G, 2026-05-14)
 
 **Status:** Accepted
