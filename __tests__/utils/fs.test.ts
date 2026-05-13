@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile, copyStaticFile, resolvedPath } from '../../src/utils/fs.js'
+import { writeFile, copyStaticFile, resolvedPath, mergeSettingsJson } from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('writeFile', () => {
@@ -118,5 +118,36 @@ describe('resolvedPath', () => {
 
   it('handles multiple parts', () => {
     expect(resolvedPath('/root', 'a', 'b', 'c')).toBe(join('/root', 'a', 'b', 'c'))
+  })
+})
+
+describe('mergeSettingsJson (#286)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('warns via console.warn for unknown top-level keys in existing settings (#286)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const existing = { myCustomSetting: true, hooks: {}, permissions: { allow: [] } }
+    const incoming = { hooks: {}, permissions: { allow: [] } }
+    mergeSettingsJson(existing, incoming, '/project/.claude/settings.json')
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('myCustomSetting'))
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('/project/.claude/settings.json'))
+  })
+
+  it('does NOT warn for known keys (hooks, permissions) (#286)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const existing = { hooks: {}, permissions: { allow: ['npm run build'] } }
+    const incoming = { hooks: {}, permissions: { allow: ['npm test'] } }
+    mergeSettingsJson(existing, incoming, '/project/.claude/settings.json')
+    expect(warnSpy).not.toHaveBeenCalled()
+  })
+
+  it('still preserves unknown keys in the merged output (#286)', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const existing = { myCustomSetting: true, hooks: {} }
+    const incoming = { hooks: {} }
+    const result = mergeSettingsJson(existing, incoming, '/project/.claude/settings.json')
+    expect(result).toHaveProperty('myCustomSetting', true)
   })
 })
