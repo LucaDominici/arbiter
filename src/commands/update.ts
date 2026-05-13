@@ -1,6 +1,6 @@
 import { resolve, basename } from "node:path";
 import type { WriteResult } from "../utils/fs.js";
-import { jsonOutput } from "../utils/json-output.js";
+import { jsonOutput, statusToExitCode } from "../utils/json-output.js";
 import { detectLanguage } from "../detectors/language.js";
 import { detectBuildCommands } from "../detectors/build.js";
 import { detectFramework } from "../detectors/framework.js";
@@ -256,7 +256,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     printStats(results);
   }
 
-  runGithubSetup(config);
+  const backendResult = runGithubSetup(config, log);
 
   const nextConfig: ArbiterConfigV2 = {
     ...stored,
@@ -294,7 +294,16 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const skipped = results.filter((r) => r.action === "skipped").length;
 
   if (options.json) {
-    jsonOutput("update", "ok", { created, updated, skipped });
+    const allWarnings = backendResult.warnings;
+    const status = allWarnings.length > 0 ? "warning" : "ok";
+    jsonOutput(
+      "update",
+      status,
+      { created, updated, skipped },
+      undefined,
+      allWarnings.length > 0 ? allWarnings : undefined,
+    );
+    if (status !== "ok") process.exit(statusToExitCode(status));
   } else {
     console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
   }

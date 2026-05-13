@@ -18,8 +18,16 @@ export function getFilteredInvariants(config: {
   invariantTiers: InvariantTier[];
 }): Invariant[] {
   return INVARIANT_CATALOG.filter((inv) => {
-    // Language filter: if the invariant requires specific languages, check
-    if (inv.languages && !inv.languages.includes(config.language)) return false;
+    // Language filter: if the invariant requires specific languages, check.
+    // multi-language projects match invariants scoped to java or typescript.
+    if (inv.languages && !inv.languages.includes(config.language)) {
+      if (
+        config.language !== "multi" ||
+        (!inv.languages.includes("java") &&
+          !inv.languages.includes("typescript"))
+      )
+        return false;
+    }
 
     // Governance level filter
     if (!meetsGovernanceLevel(inv.minGovernanceLevel, config.governanceLevel))

@@ -55,7 +55,7 @@ export function provisionLabels(
     errors: [],
   };
 
-  // Fetch existing labels once
+  // Fetch all existing labels — high limit avoids truncation on large repos
   let existingNames: Set<string>;
   try {
     const parsed = runCliJson("gh", [
@@ -63,12 +63,12 @@ export function provisionLabels(
       "list",
       "-R",
       `${owner}/${repo}`,
+      "--limit",
+      "1000",
       "--json",
       "name",
-      "--limit",
-      "200",
     ]) as Array<{ name: string }>;
-    existingNames = new Set(parsed.map((l) => l.name));
+    existingNames = new Set(parsed.map((l) => l.name.toLowerCase()));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push(`list labels failed: ${msg}`);
@@ -77,7 +77,7 @@ export function provisionLabels(
 
   for (const label of STANDARD_LABELS) {
     try {
-      if (existingNames.has(label.name)) {
+      if (existingNames.has(label.name.toLowerCase())) {
         // Update existing to ensure color/description are current
         runCli("gh", [
           "label",

@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,6 +44,20 @@ export function createTestProject(language: Language = "unknown"): string {
       break;
     case "python":
       writeFileSync(join(dir, "pyproject.toml"), '[project]\nname = "test"');
+      break;
+    case "multi":
+      writeFileSync(
+        join(dir, "package.json"),
+        JSON.stringify({
+          name: "test-project",
+          scripts: { build: "tsc", test: "vitest run", lint: "eslint ." },
+        }),
+      );
+      mkdirSync(join(dir, "backend"), { recursive: true });
+      writeFileSync(
+        join(dir, "backend", "build.gradle"),
+        'plugins { id "java" }',
+      );
       break;
   }
 

@@ -23,14 +23,23 @@ function hasKotlinSources(dir: string): boolean {
   }
 }
 
-export function detectLanguage(dir: string): Language {
-  if (existsSync(join(dir, "package.json"))) return "typescript";
-  if (existsSync(join(dir, "Cargo.toml"))) return "rust";
-  const hasJvmBuild =
+function hasJvmBuildFile(dir: string): boolean {
+  return (
     existsSync(join(dir, "pom.xml")) ||
     existsSync(join(dir, "build.gradle")) ||
-    existsSync(join(dir, "build.gradle.kts"));
-  if (hasJvmBuild) {
+    existsSync(join(dir, "build.gradle.kts"))
+  );
+}
+
+export function detectLanguage(dir: string): Language {
+  const hasTs = existsSync(join(dir, "package.json"));
+  const hasJvmAtRoot = hasJvmBuildFile(dir);
+  const hasJvmInBackend = hasJvmBuildFile(join(dir, "backend"));
+
+  if (hasTs && (hasJvmAtRoot || hasJvmInBackend)) return "multi";
+  if (hasTs) return "typescript";
+  if (existsSync(join(dir, "Cargo.toml"))) return "rust";
+  if (hasJvmAtRoot) {
     if (hasKotlinSources(dir)) return "kotlin";
     return "java";
   }

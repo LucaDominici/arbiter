@@ -147,4 +147,26 @@ describe("generateCoverage", () => {
     expect(result.files).toHaveLength(0);
     cleanupTestProject(goDir);
   });
+
+  // ── Multi (Java+TS monorepo) ────────────────────────────────────────────────
+
+  it("generates both vitest.config.ts and jacoco.gradle for multi projects", () => {
+    const multiDir = createTestProject("multi");
+    initGit(multiDir);
+    const config = makeConfig(multiDir, {
+      language: "multi",
+      buildTool: "gradle",
+      enableDebtGates: true,
+    });
+    const result = generateCoverage(config);
+    expect(result.files.some((f) => f.path.endsWith("vitest.config.ts"))).toBe(
+      true,
+    );
+    expect(result.files.some((f) => f.path.endsWith("jacoco.gradle"))).toBe(
+      true,
+    );
+    expect(existsSync(join(multiDir, "vitest.config.ts"))).toBe(true);
+    expect(existsSync(join(multiDir, "gradle", "jacoco.gradle"))).toBe(true);
+    cleanupTestProject(multiDir);
+  });
 });

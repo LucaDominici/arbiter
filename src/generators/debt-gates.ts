@@ -118,7 +118,7 @@ function pushJavaDebtGates(
 export function generateDebtGates(
   config: ProjectConfig,
 ): DebtGatesGeneratorResult {
-  if (config.language === "typescript") {
+  if (config.language === "typescript" || config.language === "multi") {
     injectTestScripts(config.targetDir);
   }
 
@@ -128,7 +128,7 @@ export function generateDebtGates(
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;
 
-  if (config.language === "typescript") {
+  if (config.language === "typescript" || config.language === "multi") {
     results.push(
       writeFile(
         resolvedPath(base, "knip.json"),
@@ -180,7 +180,7 @@ export function generateDebtGates(
     );
   }
 
-  if (config.language === "java") {
+  if (config.language === "java" || config.language === "multi") {
     pushJavaDebtGates(results, base, data);
   }
 

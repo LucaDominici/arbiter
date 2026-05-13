@@ -64,7 +64,9 @@ export function generateSuppressions(
 
   // Java/Kotlin L2+ only: OWASP dependency-check and Trivy suppression files
   if (
-    (config.language === "java" || config.language === "kotlin") &&
+    (config.language === "java" ||
+      config.language === "kotlin" ||
+      config.language === "multi") &&
     config.governanceLevel !== "L1"
   ) {
     results.push(

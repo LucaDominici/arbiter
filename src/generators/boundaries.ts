@@ -10,7 +10,8 @@ export interface BoundariesGeneratorResult {
 export function generateEslintBoundaries(
   config: ProjectConfig,
 ): BoundariesGeneratorResult {
-  if (config.language !== "typescript") return { files: [] };
+  if (config.language !== "typescript" && config.language !== "multi")
+    return { files: [] };
 
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;

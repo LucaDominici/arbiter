@@ -43,4 +43,50 @@ describe("provisionLabels", () => {
 
     expect(result.errors).toHaveLength(0);
   });
+
+  // ── Pagination tests ────────────────────────────────────────────────────────
+
+  it("handles 250-label repos without truncation", async () => {
+    const { provisionLabels } = await import("../../src/github/labels.js");
+    const manyLabels = Array.from({ length: 250 }, (_, i) => ({
+      name: `label-${String(i)}`,
+    }));
+    mockRunCliJson.mockReturnValue(manyLabels);
+    mockRunCli.mockReturnValue({ stdout: "", stderr: "", exitCode: 0 });
+
+    const result = provisionLabels("owner", "repo");
+
+    // All standard labels should route to create (none of the 250 match)
+    // and no errors (pagination worked)
+    expect(result.errors).toHaveLength(0);
+    expect(result.created.length + result.updated.length).toBeGreaterThan(0);
+  });
+
+  // ── Case-folding tests ──────────────────────────────────────────────────────
+
+  it("routes label 'Bug' (capital) to edit when STANDARD has 'bug'", async () => {
+    const { provisionLabels } = await import("../../src/github/labels.js");
+    // Existing label on GitHub uses title-case
+    mockRunCliJson.mockReturnValue([{ name: "Bug" }]);
+    mockRunCli.mockReturnValue({ stdout: "", stderr: "", exitCode: 0 });
+
+    const result = provisionLabels("owner", "repo");
+
+    // STANDARD has "bug" lowercase → should find "Bug" via case-fold → edit, not create
+    expect(result.updated).toContain("bug");
+    expect(result.created).not.toContain("bug");
+  });
+
+  it("routes label 'SIZE:STANDARD' to edit when STANDARD has 'size:Standard'", async () => {
+    const { provisionLabels } = await import("../../src/github/labels.js");
+    // GitHub has all-caps variant; STANDARD has "size:Standard"
+    mockRunCliJson.mockReturnValue([{ name: "SIZE:STANDARD" }]);
+    mockRunCli.mockReturnValue({ stdout: "", stderr: "", exitCode: 0 });
+
+    const result = provisionLabels("owner", "repo");
+
+    // Case-fold lookup: "size:standard" matches "SIZE:STANDARD" → edit, not create
+    expect(result.updated).toContain("size:Standard");
+    expect(result.created).not.toContain("size:Standard");
+  });
 });

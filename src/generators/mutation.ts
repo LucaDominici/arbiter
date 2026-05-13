@@ -8,6 +8,35 @@ export interface MutationGeneratorResult {
   files: WriteResult[];
 }
 
+function shouldEmit(
+  target: "java" | "typescript",
+  language: string,
+  acceptBeta: boolean,
+): boolean {
+  if (language === target) return true;
+  if (language !== "multi") return false;
+  return isL3Allowed(target, "mutation", acceptBeta).allowed;
+}
+
+function emitJavaMutation(
+  targetDir: string,
+  buildTool: string,
+  data: Record<string, unknown>,
+): WriteResult {
+  if (buildTool === "maven") {
+    return writeFile(
+      resolvedPath(targetDir, "docs", "mutation", "pitest-maven-setup.md"),
+      renderTemplate("mutation/pitest-maven-setup.md.ejs", data),
+      { skipIfExists: true },
+    );
+  }
+  return writeFile(
+    resolvedPath(targetDir, "gradle", "pitest.gradle"),
+    renderTemplate("mutation/pitest.gradle.ejs", data),
+    { skipIfExists: true },
+  );
+}
+
 export function generateMutation(
   config: ProjectConfig,
 ): MutationGeneratorResult {
@@ -15,9 +44,9 @@ export function generateMutation(
 
   const { language, targetDir, acceptBetaTools = false } = config;
 
-  const gate = isL3Allowed(language, "mutation", acceptBetaTools);
-  if (!gate.allowed) {
-    throw new Error(gate.errorMessage);
+  if (language !== "multi") {
+    const gate = isL3Allowed(language, "mutation", acceptBetaTools);
+    if (!gate.allowed) throw new Error(gate.errorMessage);
   }
 
   const data: Record<string, unknown> = {
@@ -29,25 +58,10 @@ export function generateMutation(
 
   const files: WriteResult[] = [];
 
-  if (language === "java") {
-    if (config.buildTool === "maven") {
-      files.push(
-        writeFile(
-          resolvedPath(targetDir, "docs", "mutation", "pitest-maven-setup.md"),
-          renderTemplate("mutation/pitest-maven-setup.md.ejs", data),
-          { skipIfExists: true },
-        ),
-      );
-    } else {
-      files.push(
-        writeFile(
-          resolvedPath(targetDir, "gradle", "pitest.gradle"),
-          renderTemplate("mutation/pitest.gradle.ejs", data),
-          { skipIfExists: true },
-        ),
-      );
-    }
-  } else if (language === "typescript") {
+  if (shouldEmit("java", language, acceptBetaTools)) {
+    files.push(emitJavaMutation(targetDir, config.buildTool, data));
+  }
+  if (shouldEmit("typescript", language, acceptBetaTools)) {
     files.push(
       writeFile(
         resolvedPath(targetDir, "stryker.conf.json"),
@@ -55,7 +69,8 @@ export function generateMutation(
         { skipIfExists: true },
       ),
     );
-  } else if (language === "rust") {
+  }
+  if (language === "rust") {
     files.push(
       writeFile(
         resolvedPath(targetDir, "cargo-mutants.toml"),

@@ -16,7 +16,7 @@ export function generateApiMiddleware(
   const base = config.targetDir;
   const data = config as unknown as Record<string, unknown>;
 
-  if (config.language === "typescript") {
+  if (config.language === "typescript" || config.language === "multi") {
     results.push(
       writeFile(
         resolvedPath(base, "src", "middleware", "deprecation.ts"),
@@ -69,7 +69,10 @@ export function generateApiMiddleware(
     );
   }
 
-  if (config.language === "java" && config.basePackage) {
+  if (
+    (config.language === "java" || config.language === "multi") &&
+    config.basePackage
+  ) {
     const pkgPath = config.basePackage.replace(/\./g, "/");
     results.push(
       writeFile(

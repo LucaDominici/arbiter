@@ -68,4 +68,106 @@ describe("createProjectBoard", () => {
     expect(result.created).toBe(false);
     expect(result.error).toContain("HTTP 403: Forbidden");
   });
+
+  // ── Idempotency tests ───────────────────────────────────────────────────────
+
+  it("returns created: false and existing URL when board already exists", async () => {
+    const { createProjectBoard } =
+      await import("../../src/github/project-board.js");
+    // First call: project list returns existing board matching title
+    mockRunCliJson.mockReturnValueOnce({
+      projects: [
+        {
+          number: 7,
+          title: "repo Board",
+          url: "https://github.com/orgs/owner/projects/7",
+        },
+      ],
+    });
+    // Second call: field-list returns both fields already present
+    mockRunCliJson.mockReturnValueOnce({
+      fields: [{ name: "Title" }, { name: "Priority" }, { name: "Size" }],
+    });
+
+    const result = createProjectBoard("owner", "repo");
+
+    expect(result.created).toBe(false);
+    expect(result.projectUrl).toBe("https://github.com/orgs/owner/projects/7");
+    expect(result.error).toBeNull();
+    // project create must NOT have been called
+    expect(
+      mockRunCliJson.mock.calls.some((c) => c[1]?.includes("create")),
+    ).toBe(false);
+  });
+
+  it("calls project create exactly once when no matching board exists", async () => {
+    const { createProjectBoard } =
+      await import("../../src/github/project-board.js");
+    // First call: project list returns empty
+    mockRunCliJson.mockReturnValueOnce({ projects: [] });
+    // Second call: project create
+    mockRunCliJson.mockReturnValueOnce({
+      number: 3,
+      url: "https://github.com/orgs/owner/projects/3",
+    });
+    mockRunCli.mockReturnValue({ stdout: "", stderr: "", exitCode: 0 });
+
+    const result = createProjectBoard("owner", "repo");
+
+    expect(result.created).toBe(true);
+    expect(result.projectUrl).toBe("https://github.com/orgs/owner/projects/3");
+    const createCalls = mockRunCliJson.mock.calls.filter((c) =>
+      c[1]?.includes("create"),
+    );
+    expect(createCalls).toHaveLength(1);
+  });
+
+  it("creates missing Priority field when board exists without it", async () => {
+    const { createProjectBoard } =
+      await import("../../src/github/project-board.js");
+    // Board exists, Size present but not Priority
+    mockRunCliJson.mockReturnValueOnce({
+      projects: [
+        {
+          number: 5,
+          title: "repo Board",
+          url: "https://github.com/orgs/owner/projects/5",
+        },
+      ],
+    });
+    mockRunCliJson.mockReturnValueOnce({
+      fields: [{ name: "Title" }, { name: "Size" }],
+    });
+    mockRunCli.mockReturnValue({ stdout: "", stderr: "", exitCode: 0 });
+
+    const result = createProjectBoard("owner", "repo");
+
+    expect(result.created).toBe(false);
+    const fieldCreateCalls = mockRunCli.mock.calls.filter((c) =>
+      c[1]?.includes("field-create"),
+    );
+    expect(fieldCreateCalls).toHaveLength(1);
+    expect(fieldCreateCalls[0][1]).toContain("Priority");
+  });
+
+  it("skips all field-create calls when board exists with both fields", async () => {
+    const { createProjectBoard } =
+      await import("../../src/github/project-board.js");
+    mockRunCliJson.mockReturnValueOnce({
+      projects: [
+        {
+          number: 9,
+          title: "repo Board",
+          url: "https://github.com/orgs/owner/projects/9",
+        },
+      ],
+    });
+    mockRunCliJson.mockReturnValueOnce({
+      fields: [{ name: "Title" }, { name: "Priority" }, { name: "Size" }],
+    });
+
+    createProjectBoard("owner", "repo");
+
+    expect(mockRunCli).not.toHaveBeenCalled();
+  });
 });

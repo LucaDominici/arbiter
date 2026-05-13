@@ -6,6 +6,7 @@ interface JsonEnvelope {
   status: JsonStatus;
   data: Record<string, unknown>;
   errors?: string[];
+  warnings?: string[];
 }
 
 /**
@@ -18,6 +19,7 @@ export function jsonOutput(
   status: JsonStatus,
   data: Record<string, unknown>,
   errors?: string[],
+  warnings?: string[],
 ): void {
   const envelope: JsonEnvelope = {
     command,
@@ -25,6 +27,7 @@ export function jsonOutput(
     status,
     data,
     ...(errors !== undefined && errors.length > 0 ? { errors } : {}),
+    ...(warnings !== undefined && warnings.length > 0 ? { warnings } : {}),
   };
   process.stdout.write(JSON.stringify(envelope) + "\n");
 }

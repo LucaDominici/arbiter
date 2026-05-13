@@ -20,6 +20,7 @@ export function detectBuildCommands(
     case "rust":
       return detectRustCommands(dir);
     case "java":
+    case "multi":
       return detectJavaCommands(dir);
     case "go":
       return {

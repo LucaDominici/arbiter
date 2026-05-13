@@ -43,7 +43,7 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
   const out: WriteResult[] = opts.extraFiles ?? [];
   const skip = { skipIfExists: true } as const;
 
-  if (config.language === "typescript") {
+  if (config.language === "typescript" || config.language === "multi") {
     out.push(
       writeFile(
         resolvedPath(base, "src", "test", "contracts", tsFile),
@@ -51,7 +51,8 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
         skip,
       ),
     );
-  } else if (config.language === "java") {
+  }
+  if (config.language === "java" || config.language === "multi") {
     const pkg = javaContractsPkg(config);
     out.push(
       writeFile(
@@ -60,7 +61,8 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
         skip,
       ),
     );
-  } else if (config.language === "rust") {
+  }
+  if (config.language === "rust") {
     out.push(
       writeFile(
         resolvedPath(base, "tests", rustFile),
@@ -76,7 +78,7 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
         skip,
       ),
     );
-  } else {
+  } else if (config.language === "python") {
     // python — contract tests live in tests/contract/ to match pytest discovery path
     out.push(
       writeFile(
@@ -106,7 +108,7 @@ function generateRestOwned(
     }),
   ];
 
-  if (config.language === "java") {
+  if (config.language === "java" || config.language === "multi") {
     extra.push(
       writeFile(
         resolvedPath(base, "config", "pact-deps.gradle"),

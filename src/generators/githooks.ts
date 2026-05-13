@@ -19,7 +19,7 @@ function writeHook(filePath: string, content: string): WriteResult {
 }
 
 function isTypeScript(config: ProjectConfig): boolean {
-  return config.language === "typescript";
+  return config.language === "typescript" || config.language === "multi";
 }
 
 /**

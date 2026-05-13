@@ -158,7 +158,7 @@ function generateClaudeHooks(
     ),
   );
 
-  if (config.language === "typescript") {
+  if (config.language === "typescript" || config.language === "multi") {
     results.push(
       writeFile(
         join(hooksDir, "check-no-unused-exports.mjs"),
@@ -210,8 +210,8 @@ function generateClaudeHooks(
     }
   }
 
-  // TypeScript-only hooks — circular dep detection (INV-01)
-  if (config.language === "typescript") {
+  // TypeScript hooks — circular dep detection (INV-01)
+  if (config.language === "typescript" || config.language === "multi") {
     results.push(
       writeFile(
         join(hooksDir, "check-circular-deps.mjs"),
