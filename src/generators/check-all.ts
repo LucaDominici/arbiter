@@ -20,10 +20,10 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
 
   const data = {
     ...config,
-    coverageThreshold: config.thresholds?.lineCoverage ?? computed.coverageThreshold,
+    coverageThreshold: config.thresholds?.lineCoverage || computed.coverageThreshold,
     coverageEnabled: computed.coverageEnabled,
     mutationEnabled: computed.mutationEnabled,
-    mutationThreshold: config.thresholds?.mutationScore ?? computed.mutationThreshold,
+    mutationThreshold: config.thresholds?.mutationScore || computed.mutationThreshold,
   } as unknown as Record<string, unknown>
 
   const scriptPath = resolvedPath(base, 'scripts', 'check-all.mjs')

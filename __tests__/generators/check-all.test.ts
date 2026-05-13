@@ -178,6 +178,27 @@ describe('generateCheckAll', () => {
     expect(content).toContain('coverage')
   })
 
+  it('zero lineCoverage threshold falls back to computed default — ?? bug (#299)', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: 'typescript',
+        enableDebtGates: true,
+        governanceLevel: 'L2',
+        thresholds: {
+          lineCoverage: 0,
+          branchCoverage: 70,
+          mutationScore: 80,
+          cyclomaticComplexity: 15,
+          methodLength: 50,
+          maxParams: 5,
+        },
+      }),
+    )
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).not.toContain('coverage.thresholds.lines=0')
+    expect(content).toContain('coverage.thresholds.lines=80')
+  })
+
   it('scaled profile + LoC<1000 omits coverage gate from generated script', () => {
     generateCheckAll(
       makeConfig(dir, {
