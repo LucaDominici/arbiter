@@ -182,8 +182,9 @@ describe('matrix: Go project', () => {
     const config = goConfig()
     runGenerators(config)
     expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-placeholders.mjs'))).toBe(true)
-    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('check-no-placeholders.mjs')
+    // settings.json uses dispatcher; individual hook names live in hooks.mjs config table (#248)
+    const dispatcher = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcher).toContain('check-no-placeholders.mjs')
   })
 
   describe('hexagonal architecture variant', () => {

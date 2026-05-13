@@ -94,9 +94,38 @@ function isPermissions(val: unknown): val is Permissions {
   return typeof val === 'object' && val !== null && !Array.isArray(val)
 }
 
+/**
+ * Known arbiter-managed hook basenames — used to clean up old entries when
+ * upgrading to the dispatcher pattern (#248).
+ */
+const ARBITER_HOOK_BASENAMES = new Set([
+  'stop-dangerous',
+  'enforce-read-only',
+  'pre-edit-ssot-guard',
+  'check-no-orphan-todo',
+  'check-no-placeholders',
+  'lib',
+  'post-commit-check',
+  'check-no-unused-exports',
+  'pre-edit-plan-anchor',
+  'pre-compact',
+  'post-edit-dispatch',
+  'debug-state-on-failure',
+  'skill-forced-eval',
+  'guard-task-completion',
+  'guard-done-evidence',
+  'check-circular-deps',
+  'check-no-pii',
+  'hooks',
+])
+
 function extractHookBasename(command: string): string | null {
   const match = command.match(/\.claude\/hooks\/([^./\s]+)\.\w+/)
   return match?.[1] ?? null
+}
+
+function isDispatcherCommand(command: string): boolean {
+  return /\.claude\/hooks\/hooks\.mjs\b/.test(command)
 }
 
 function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
@@ -122,14 +151,25 @@ function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
 }
 
 function mergeHookEntry(existingEntry: HookEntry, incomingEntry: HookEntry): void {
+  const hasDispatcherIncoming = incomingEntry.hooks.some((h) => isDispatcherCommand(h.command))
+
   for (const hook of incomingEntry.hooks) {
-    const incomingBasename = extractHookBasename(hook.command)
-    if (incomingBasename) {
-      // Remove old variants of the same hook (e.g. .sh → .mjs upgrade)
+    if (hasDispatcherIncoming && isDispatcherCommand(hook.command)) {
+      // Dispatcher upgrade: remove all previously arbiter-managed hook entries
+      // so old individual hook commands don't persist alongside the new dispatcher.
       existingEntry.hooks = existingEntry.hooks.filter((h) => {
-        const existingBasename = extractHookBasename(h.command)
-        return existingBasename !== incomingBasename
+        const basename = extractHookBasename(h.command)
+        return basename === null || !ARBITER_HOOK_BASENAMES.has(basename)
       })
+    } else {
+      const incomingBasename = extractHookBasename(hook.command)
+      if (incomingBasename) {
+        // Remove old variants of the same hook (e.g. .sh → .mjs upgrade)
+        existingEntry.hooks = existingEntry.hooks.filter((h) => {
+          const existingBasename = extractHookBasename(h.command)
+          return existingBasename !== incomingBasename
+        })
+      }
     }
     // Add the incoming hook if not already present
     const existingCommands = new Set(existingEntry.hooks.map((h) => h.command))

@@ -647,39 +647,45 @@ describe('cross-product: settings.json — advanced hooks governance gating', ()
     })
   }
 
-  // pre-edit-plan-anchor in PreToolUse at all levels
+  // pre-edit-plan-anchor in PreToolUse at all levels — via dispatcher (#248)
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: pre-edit-plan-anchor.mjs in PreToolUse`, () => {
-        const rendered = renderTemplate('claude/settings.json.ejs', configFor(lang, level))
-        expect(rendered).toContain('pre-edit-plan-anchor.mjs')
+        // settings.json uses dispatcher; hook name lives in hooks.mjs.ejs config table
+        const settingsRendered = renderTemplate('claude/settings.json.ejs', configFor(lang, level))
+        expect(settingsRendered).toContain('hooks.mjs PreToolUse:Edit|Write')
+        const dispatcherRendered = renderTemplate(
+          'claude/hooks/hooks.mjs.ejs',
+          configFor(lang, level),
+        )
+        expect(dispatcherRendered).toContain('pre-edit-plan-anchor.mjs')
       })
     }
   }
 
-  // post-edit-dispatch: L2+ only
+  // post-edit-dispatch: L2+ only — via dispatcher (#248)
   for (const lang of LANGUAGES) {
     it(`${lang}+L2: post-edit-dispatch.mjs in PostToolUse`, () => {
-      const rendered = renderTemplate('claude/settings.json.ejs', configFor(lang, 'L2'))
-      expect(rendered).toContain('post-edit-dispatch.mjs')
+      const dispatcherRendered = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor(lang, 'L2'))
+      expect(dispatcherRendered).toContain('post-edit-dispatch.mjs')
     })
 
     it(`${lang}+L1: post-edit-dispatch.mjs absent`, () => {
-      const rendered = renderTemplate('claude/settings.json.ejs', configFor(lang, 'L1'))
-      expect(rendered).not.toContain('post-edit-dispatch.mjs')
+      const dispatcherRendered = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor(lang, 'L1'))
+      expect(dispatcherRendered).not.toContain('post-edit-dispatch.mjs')
     })
   }
 
-  // debug-state-on-failure: L2+ only, PostToolUseFailure event
+  // debug-state-on-failure: L2+ only — via dispatcher (#248)
   for (const lang of LANGUAGES) {
     it(`${lang}+L2: debug-state-on-failure.mjs present`, () => {
-      const rendered = renderTemplate('claude/settings.json.ejs', configFor(lang, 'L2'))
-      expect(rendered).toContain('debug-state-on-failure.mjs')
+      const dispatcherRendered = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor(lang, 'L2'))
+      expect(dispatcherRendered).toContain('debug-state-on-failure.mjs')
     })
 
     it(`${lang}+L1: debug-state-on-failure.mjs absent`, () => {
-      const rendered = renderTemplate('claude/settings.json.ejs', configFor(lang, 'L1'))
-      expect(rendered).not.toContain('debug-state-on-failure.mjs')
+      const dispatcherRendered = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor(lang, 'L1'))
+      expect(dispatcherRendered).not.toContain('debug-state-on-failure.mjs')
     })
   }
 

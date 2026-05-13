@@ -67,7 +67,7 @@ describe('generateClaude', () => {
     expect(existsSync(join(dir, '.claude', 'hooks', 'lib.mjs'))).toBe(true)
   })
 
-  it('includes language hooks in settings.json when provided', () => {
+  it('includes language hooks in dispatcher config table when provided (#248)', () => {
     const config = makeConfig(dir, {
       languageHooks: [
         {
@@ -78,8 +78,29 @@ describe('generateClaude', () => {
       ],
     })
     generateClaude(config)
+    // Settings.json uses the dispatcher; individual hook names appear in hooks.mjs config table
     const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('check-no-any.mjs')
+    expect(raw).toContain('hooks.mjs')
+    const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcherContent).toContain('check-no-any.mjs')
+  })
+
+  it('emits hooks.mjs dispatcher at L1 (#248)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L1' })
+    generateClaude(config)
+    expect(existsSync(join(dir, '.claude', 'hooks', 'hooks.mjs'))).toBe(true)
+    const dispatcher = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcher).toContain('HANDLERS')
+    expect(dispatcher).toContain('PreToolUse:Bash')
+  })
+
+  it('settings.json uses dispatcher (hooks.mjs) not individual hook filenames (#248)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L1' })
+    generateClaude(config)
+    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
+    expect(raw).toContain('hooks.mjs')
+    expect(raw).not.toContain('stop-dangerous.mjs')
+    expect(raw).not.toContain('post-commit-check.mjs')
   })
 
   it('generates pre-compact.mjs and pre-edit-plan-anchor.mjs at L1', () => {
@@ -158,11 +179,14 @@ describe('generateClaude', () => {
     expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-placeholders.mjs'))).toBe(true)
   })
 
-  it('check-no-placeholders is wired in settings.json PostToolUse Edit|Write (#151)', () => {
+  it('check-no-placeholders is in dispatcher config table for PostToolUse Edit|Write (#151, #248)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L1' })
     generateClaude(config)
+    // Settings.json uses dispatcher; hook name appears in hooks.mjs config table
     const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('check-no-placeholders.mjs')
+    expect(raw).toContain('hooks.mjs')
+    const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcherContent).toContain('check-no-placeholders.mjs')
   })
 
   it('check-no-unused-exports.mjs is emitted for TypeScript (#156)', () => {
@@ -177,18 +201,21 @@ describe('generateClaude', () => {
     expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-unused-exports.mjs'))).toBe(false)
   })
 
-  it('check-no-unused-exports is wired in settings.json for TypeScript (#156)', () => {
+  it('check-no-unused-exports is in dispatcher config table for TypeScript (#156, #248)', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateClaude(config)
+    // Settings.json uses dispatcher; hook name appears in hooks.mjs config table
     const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('check-no-unused-exports.mjs')
+    expect(raw).toContain('hooks.mjs')
+    const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcherContent).toContain('check-no-unused-exports.mjs')
   })
 
-  it('check-no-unused-exports is NOT in settings.json for non-TypeScript (#156)', () => {
+  it('check-no-unused-exports is NOT in dispatcher config table for non-TypeScript (#156, #248)', () => {
     const config = makeConfig(dir, { language: 'go' })
     generateClaude(config)
-    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).not.toContain('check-no-unused-exports.mjs')
+    const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcherContent).not.toContain('check-no-unused-exports.mjs')
   })
 
   it('check-no-unused-exports.mjs is NOT emitted for Java (#156)', () => {
@@ -203,12 +230,16 @@ describe('generateClaude', () => {
     expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-unused-exports.mjs'))).toBe(false)
   })
 
-  it('guard-task-completion is wired in settings.json UserPromptSubmit at L2', () => {
+  it('guard-task-completion is in dispatcher config table and UserPromptSubmit in settings.json at L2 (#248)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L2' })
     generateClaude(config)
     const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('guard-task-completion.mjs')
+    // Dispatcher registered for UserPromptSubmit event
     expect(raw).toContain('UserPromptSubmit')
+    expect(raw).toContain('hooks.mjs')
+    // Handler name in dispatcher config table
+    const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcherContent).toContain('guard-task-completion.mjs')
   })
 
   describe('review-code.md SSOT (#236, BLOCKER-10)', () => {

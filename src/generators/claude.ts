@@ -112,6 +112,13 @@ function generateClaudeHooks(
   const hooksDir = resolvedPath(base, '.claude', 'hooks')
   mkdirSync(hooksDir, { recursive: true })
 
+  // Dispatcher (#248) — single entry point for all events; config table is baked in
+  results.push(
+    writeFile(join(hooksDir, 'hooks.mjs'), renderTemplate('claude/hooks/hooks.mjs.ejs', data), {
+      skipIfExists: true,
+    }),
+  )
+
   const staticHooks = [
     'stop-dangerous.mjs',
     'enforce-read-only.mjs',

@@ -495,3 +495,24 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - **Baseline updated**: Template-tests baseline updated from 128 → 127 (two templates removed, no new template added).
 
 **Consequences:** Each generated project receives a single `scripts/check-all.mjs` that self-contains all L1 gate logic. The two formerly-separate scripts are no longer emitted, reducing surface area and eliminating the risk of accidental deletion of a "helper" script that breaks the gate.
+
+---
+
+## feat(#248): hook dispatcher pattern — single entry point per event (#248) (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #248; CANON-04, CANON-05, CANON-14
+
+**Context:** Generated `.claude/hooks/` directories contained up to 17 separate hook files, each registered individually in `settings.json`. This created maintenance overhead (17 command entries per settings.json, per-hook conditional registrations in the EJS template) and made brownfield upgrades fragile — new hooks required both a new file AND a new settings.json entry.
+
+**Decisions:**
+
+- **`hooks.mjs.ejs` dispatcher template added**: A single entrypoint template emits `hooks.mjs` for every generated project. The file contains a `HANDLERS` config table mapping `"EventType:Matcher"` keys to ordered arrays of handler filenames. Handlers run sequentially via `spawnSync`; first non-zero exit aborts the chain. stdin is buffered once and forwarded to every handler that may need it.
+- **`settings.json.ejs` consolidated**: Instead of registering 4–10 individual hook commands per event, each event+matcher now registers one command: `node .claude/hooks/hooks.mjs <EventType:Matcher>`. This reduces the settings.json hook surface from 10–14 entries to 6 (one per event/matcher combination).
+- **EJS conditionals preserved in dispatcher**: `hooks.mjs.ejs` uses the same `language`, `governanceLevel`, `enableSecurityScanning`, `enableEvidenceHarness`, and `languageHooks` variables to conditionally include handler names — language/governance gating moves from settings.json into the dispatcher config table.
+- **Brownfield upgrade**: `mergeSettingsJson` updated to recognise the dispatcher pattern — when incoming entry has `hooks.mjs`, all previously arbiter-managed hook basenames are removed from the existing entry before the dispatcher is added. Non-arbiter custom hooks are preserved.
+- **`ARBITER_HOOK_BASENAMES` constant** added to `src/utils/fs.ts` — exhaustive list of all hook basenames arbiter may emit; used by the merge logic to distinguish arbiter-managed from user-custom entries.
+- **INV-48 baseline unchanged** (127): the new `hooks.mjs.ejs` template is covered by `__tests__/templates/hooks-dispatcher-render.test.ts`.
+- **Manifest updated**: `hooks.mjs.ejs` added to `.arbiter/hooks-manifest.json` with classification `ADVISORY` (the dispatcher itself is advisory; individual handlers carry their own HARD/ADVISORY classification).
+
+**Consequences:** Generated projects have a single dispatcher registered per event in settings.json. Adding or removing a handler requires editing `hooks.mjs` only (not settings.json). Brownfield projects that already have arbiter-managed hook entries are upgraded cleanly on the next `arbiter init` run. The 17-file hook surface is preserved on disk (individual handlers still emitted) but the registration surface collapses to 6 entries.

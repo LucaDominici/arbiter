@@ -119,11 +119,12 @@ describe('matrix: TypeScript project', () => {
     expect(ci).toContain('debt-gates:')
   })
 
-  it('settings.json includes check-no-any.mjs hook entry', () => {
+  it('dispatcher config table includes check-no-any.mjs hook entry (#248)', () => {
     const config = tsConfig()
     runGenerators(config)
-    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('check-no-any.mjs')
+    // settings.json uses dispatcher; individual hook names live in hooks.mjs config table
+    const dispatcher = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcher).toContain('check-no-any.mjs')
   })
 
   it('generates check-no-placeholders.mjs static hook (#151)', () => {
@@ -134,11 +135,12 @@ describe('matrix: TypeScript project', () => {
     expect(hook).toContain('PLACEHOLDER')
   })
 
-  it('settings.json includes check-no-placeholders.mjs hook entry (#151)', () => {
+  it('dispatcher config table includes check-no-placeholders.mjs hook entry (#151, #248)', () => {
     const config = tsConfig()
     runGenerators(config)
-    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('check-no-placeholders.mjs')
+    // settings.json uses dispatcher; individual hook names live in hooks.mjs config table
+    const dispatcher = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcher).toContain('check-no-placeholders.mjs')
   })
 
   it('generates check-no-unused-exports.mjs hook for TypeScript (#156)', () => {
@@ -149,11 +151,12 @@ describe('matrix: TypeScript project', () => {
     expect(hook).toContain('knip')
   })
 
-  it('settings.json includes check-no-unused-exports.mjs hook entry for TypeScript (#156)', () => {
+  it('dispatcher config table includes check-no-unused-exports.mjs hook entry for TypeScript (#156, #248)', () => {
     const config = tsConfig()
     runGenerators(config)
-    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
-    expect(raw).toContain('check-no-unused-exports.mjs')
+    // settings.json uses dispatcher; individual hook names live in hooks.mjs config table
+    const dispatcher = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcher).toContain('check-no-unused-exports.mjs')
   })
 
   it('AGENTS.md coding standards section is TypeScript-specific', () => {

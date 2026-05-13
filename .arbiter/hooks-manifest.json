@@ -145,6 +145,13 @@
       "spawnable": false,
       "expectedExitCode": 2,
       "rationale": "INV-01: circular TypeScript dependencies detected per-edit via madge; soft-skips when madge not installed. EJS template rendered at init time for TypeScript projects."
+    },
+    {
+      "file": "hooks.mjs.ejs",
+      "classification": "ADVISORY",
+      "tools": ["claude"],
+      "spawnable": false,
+      "rationale": "#248: Single dispatcher entrypoint — routes events to handler scripts via config table. EJS template renders with language/governance conditional entries. Delegates to individual HARD/ADVISORY handlers; exit code mirrors first non-zero handler."
     }
   ]
 }

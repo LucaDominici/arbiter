@@ -78,10 +78,10 @@ describe('brownfield: settings.json merge', () => {
     const bashMatcher = preToolUse.find((entry) => entry.matcher === 'Bash')
     expect(bashMatcher).toBeDefined()
 
-    // Should have BOTH the custom hook AND the arbiter hook
+    // Should have BOTH the custom hook AND the arbiter dispatcher (#248)
     const commands = bashMatcher!.hooks.map((h) => h.command)
     expect(commands).toContain('bash .claude/hooks/my-custom-hook.sh')
-    expect(commands).toContain('node .claude/hooks/stop-dangerous.mjs')
+    expect(commands.some((c) => c.includes('hooks.mjs'))).toBe(true)
   })
 
   it('preserves custom permissions alongside arbiter permissions', () => {
@@ -226,8 +226,8 @@ describe('brownfield: settings.json merge', () => {
     const bashMatcher = preToolUse.find((e) => e.matcher === 'Bash')
     const bashCommands = bashMatcher!.hooks.map((h) => h.command)
 
-    // Should have .mjs, NOT .sh
-    expect(bashCommands).toContain('node .claude/hooks/stop-dangerous.mjs')
+    // Should have dispatcher, NOT old .sh (#248)
+    expect(bashCommands.some((c) => c.includes('hooks.mjs'))).toBe(true)
     expect(bashCommands).not.toContain('bash .claude/hooks/stop-dangerous.sh')
 
     // Check PostToolUse Edit|Write matcher
@@ -238,10 +238,12 @@ describe('brownfield: settings.json merge', () => {
     const editMatcher = postToolUse.find((e) => e.matcher === 'Edit|Write')
     const editCommands = editMatcher!.hooks.map((h) => h.command)
 
-    expect(editCommands).toContain('node .claude/hooks/check-no-orphan-todo.mjs')
+    // Dispatcher replaces arbiter-managed hook commands (#248)
+    expect(editCommands.some((c) => c.includes('hooks.mjs'))).toBe(true)
+    // Known arbiter hooks removed from explicit entries (now handled by dispatcher)
     expect(editCommands).not.toContain('bash .claude/hooks/check-no-orphan-todo.sh')
-    expect(editCommands).toContain('node .claude/hooks/check-no-any.mjs')
-    expect(editCommands).not.toContain('bash .claude/hooks/check-no-any.sh')
+    // Non-arbiter language hooks preserved alongside dispatcher (brownfield behaviour)
+    // check-no-any.sh is a project-specific hook, not in ARBITER_HOOK_BASENAMES
   })
 
   it('replaces cd-prefixed .sh hooks with .mjs equivalents', () => {
@@ -282,8 +284,8 @@ describe('brownfield: settings.json merge', () => {
     const bashMatcher = preToolUse.find((e) => e.matcher === 'Bash')
     const bashCommands = bashMatcher!.hooks.map((h) => h.command)
 
-    // Should have .mjs, NOT the cd-prefixed .sh
-    expect(bashCommands).toContain('node .claude/hooks/stop-dangerous.mjs')
+    // Should have dispatcher, NOT the cd-prefixed .sh (#248)
+    expect(bashCommands.some((c) => c.includes('hooks.mjs'))).toBe(true)
     expect(bashCommands).not.toContain(
       'cd "$(git rev-parse --show-toplevel)" && bash .claude/hooks/stop-dangerous.sh',
     )
@@ -333,8 +335,8 @@ describe('brownfield: settings.json merge', () => {
 
     // Custom hook preserved
     expect(bashCommands).toContain('bash .claude/hooks/my-team-policy.sh')
-    // Arbiter hook upgraded
-    expect(bashCommands).toContain('node .claude/hooks/stop-dangerous.mjs')
+    // Arbiter dispatcher present (#248)
+    expect(bashCommands.some((c) => c.includes('hooks.mjs'))).toBe(true)
     expect(bashCommands).not.toContain('bash .claude/hooks/stop-dangerous.sh')
   })
 

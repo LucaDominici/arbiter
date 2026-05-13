@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/stop-dangerous.mjs",
+            "command": "node .claude/hooks/hooks.mjs PreToolUse:Bash",
             "timeout": 5
           }
         ]
@@ -16,18 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/enforce-read-only.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/pre-edit-ssot-guard.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/pre-edit-plan-anchor.mjs",
-            "timeout": 3
+            "command": "node .claude/hooks/hooks.mjs PreToolUse:Edit|Write",
+            "timeout": 10
           }
         ]
       }
@@ -38,8 +28,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/post-commit-check.mjs",
-            "timeout": 3
+            "command": "node .claude/hooks/hooks.mjs PostToolUse:Bash",
+            "timeout": 5
           }
         ]
       },
@@ -48,60 +38,30 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/check-no-orphan-todo.mjs",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-no-placeholders.mjs",
-            "timeout": 5
-          }<% if (enableSecurityScanning) { %>,
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-no-pii.mjs",
-            "timeout": 5
-          }<% } %><% if (language === 'typescript') { %>,
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-no-unused-exports.mjs",
-            "timeout": 60
-          }<% } %><% languageHooks.filter(h => h.name !== 'check-no-orphan-todo.mjs').forEach((hook, i) => { %>,
-          {
-            "type": "command",
-            "command": "node .claude/hooks/<%= hook.name %>",
-            "timeout": 5
-          }<% }); %><% if (language === 'typescript') { %>,
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-circular-deps.mjs",
-            "timeout": 10
-          }<% } %><% if (governanceLevel !== 'L1') { %>,
-          {
-            "type": "command",
-            "command": "node .claude/hooks/post-edit-dispatch.mjs",
-            "timeout": 15
-          }<% } %>
+            "command": "node .claude/hooks/hooks.mjs PostToolUse:Edit|Write",
+            "timeout": 90
+          }
         ]
       }
     ],
-    "PostToolUseFailure": [<% if (governanceLevel !== 'L1') { %>
+    "PostToolUseFailure": [
       {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/debug-state-on-failure.mjs",
+            "command": "node .claude/hooks/hooks.mjs PostToolUseFailure:Bash",
             "timeout": 5
           }
         ]
       }
-    <% } %>],
+    ],
     "PreCompact": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/pre-compact.mjs",
+            "command": "node .claude/hooks/hooks.mjs PreCompact",
             "timeout": 3
           }
         ]
@@ -112,18 +72,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/skill-forced-eval.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/guard-task-completion.mjs",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/guard-done-evidence.mjs",
-            "timeout": 5
+            "command": "node .claude/hooks/hooks.mjs UserPromptSubmit",
+            "timeout": 10
           }
         ]
       }
