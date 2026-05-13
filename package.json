@@ -2,6 +2,7 @@
   "name": "@arbiter/cli",
   "version": "0.1.0",
   "description": "AI development governance framework installer",
+  "license": "Apache-2.0",
   "type": "module",
   "bin": {
     "arbiter": "./dist/cli.js"

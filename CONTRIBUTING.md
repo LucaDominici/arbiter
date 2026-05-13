@@ -1,99 +1,119 @@
 # Contributing to arbiter
 
-Thank you for considering contributing to **arbiter**.
+Thank you for considering contributing to **arbiter**. This document is the on-ramp for new contributors. Read it once end to end before opening your first PR.
 
-## Getting Started
+arbiter is distributed under the [Apache License 2.0](./LICENSE). All contributors agree to the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
-1. Fork the repository
-2. Create a task branch: `git checkout -b task/#NNN-short-description`
-3. Make your changes following the guidelines below
-4. Run the quality gate: `npm run test`
-5. Commit with the [conventional format](#commit-format)
-6. Open a Pull Request
+---
 
-## Branch Naming
+## 1. Mental Model
 
-```
-task/#NNN-short-description
-```
+arbiter is a governance framework installer. One sentence: it generates a deterministic, opinionated quality-gate stack (lint, format, test, type-check, architecture, security, AI-agent rules) into target projects, then enforces those rules through edit-time hooks and pre-commit / pre-push / CI gates.
 
-Where `#NNN` is the GitHub issue number. No direct commits to `main`.
+Architecture in three sentences:
 
-## Commit Format
+1. **Detectors** inspect a target project and classify it by language, archetype, and build tool (`src/detectors/`).
+2. **Generators** translate that classification into a set of artifacts: gate scripts, hook scripts, AI-tool configs, CI workflows (`src/generators/`).
+3. **Templates** are EJS-rendered files that the generators emit (`src/templates/`).
 
-```
-type(scope): summary
+Everything else — invariants, plugins, the matrix, the CLI surface — exists to make detection deterministic and emission reproducible.
 
-- Detail of what changed
-- Detail of what changed
-```
+The canonical governance contract lives in [`AGENTS.md`](./AGENTS.md). Every other doc is a thin pointer to it. See [`docs/SYSTEM/DECISIONS.md`](./docs/SYSTEM/DECISIONS.md) for ADR-001 (AGENTS.md as SSOT) and ADR-002 (thin-pointer policy).
 
-**Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`
+---
 
-## Code Standards
+## 2. Self-Application Philosophy
 
-See `AGENTS.md` for the full coding standards, invariants, and testing policy.
+arbiter dogfoods at L3. The same gate that arbiter generates for target projects is the gate this repository must pass before any merge.
 
-Key rules:
+- The gate command is `node scripts/check-all.mjs L1` (fast, pre-commit) and `node scripts/check-all.mjs L2` (full, pre-push).
+- It is invoked by `.githooks/pre-commit` and `.githooks/pre-push`. CI re-runs the same script.
+- `--no-verify` is blocked by hook policy. If the gate fails, you fix the root cause; you do not skip.
 
-- All code must pass the quality gate before committing
-- No `any` types — use proper type annotations
-- No orphan TODOs — every `TODO` must reference a task ID (`TODO(#NNN)`)
-- Tests required for new functionality
+The development philosophy is documented in [`docs/SYSTEM/CANON.md`](./docs/SYSTEM/CANON.md). The 15 CANON-NN rules are not style preferences — they are process constraints derived from prior audit waves. Read CANON before adding a new generator, template, or hook.
 
-## Quality Gate
+---
+
+## 3. Contribution Paths
+
+Three contributor archetypes map to three concrete entry points.
+
+### A. Adding stack support (new language or archetype)
+
+1. Add a detector heuristic in `src/detectors/` (manifest-file lookup, dependency probe, file-extension scan).
+2. Add or extend a generator in `src/generators/` for the relevant archetype.
+3. Add templates under `src/templates/<language>/<archetype>/`.
+4. Register a fixture in `__tests__/fixtures/real-projects/<language>-<archetype>/` with a valid `manifest.json` listing `language`, `archetype`, `levels`. This is required by [INV-32](./AGENTS.md) once the matrix cell is promoted to `proven`.
+5. Update `src/compatibility/cross-language-matrix.json`. CANON-02 / CANON-03 apply when promoting cells.
+
+### B. Adding AI-tool support (new agent CLI, e.g. a future tool)
+
+1. Add a generator that emits the tool's config file (settings, hooks, rules).
+2. Add a template under `src/templates/<tool>/`.
+3. Wire the tool into `AGENTS.md` via a generated tool-specific imports block.
+4. CANON-15 governs config-file emission.
+
+### C. Adding plugins (per ADR-031)
+
+1. Scaffold a plugin with `arbiter plugin add <name>`.
+2. Implement the minimal contract exported from `@arbiter/cli/plugin`.
+3. See `examples/plugins/` and `examples/plugin-spring-boot/` for the current exemplar.
+
+---
+
+## 4. Local Development Workflow
 
 ```bash
-npm run test
+nvm use                       # respects .nvmrc (Node 22+)
+npm install                   # installs deps and wires git hooks via the prepare script
+npm run build                 # tsc + copy templates
+npm test                      # vitest unit suite
+npm run typecheck             # tsc --noEmit
+node scripts/check-all.mjs L1 # full L1 gate
+node scripts/check-all.mjs L2 # full L2 gate
 ```
 
-**Lint:** `npm run lint`
-**Format:** `echo &#34;no formatter configured&#34;`
+**Test on a real project:**
 
-### Enforcement Chain
+```bash
+node dist/cli.js init --dir /path/to/some-project --tools claude --level L2
+```
 
-Code changes pass through four enforcement layers in sequence: edit-time Claude Code hooks (`.claude/hooks/`) block bad edits before they land on disk; pre-commit `.githooks/pre-commit` runs the L1 gate on every `git commit` regardless of editor; pre-push `.githooks/pre-push` runs the L2 gate before any push; and CI verifies all PRs. To activate the git hooks run `git config core.hooksPath .githooks` (Node projects also auto-install this via `npm install` through the `prepare` script; non-Node projects use `./scripts/setup-hooks.sh`).
+**Test layout by category:**
 
-### Task Lifecycle State Machine
+| Category    | Path                                | Purpose                               |
+| ----------- | ----------------------------------- | ------------------------------------- |
+| unit        | `__tests__/unit/`                   | Pure logic, no I/O                    |
+| contract    | `__tests__/contract/`               | Generator output shapes               |
+| integration | `__tests__/integration/`            | CLI end-to-end against fixtures       |
+| behavioral  | `__tests__/behavioral/`             | Gate behavior on real projects        |
+| fixtures    | `__tests__/fixtures/real-projects/` | Per-stack reference projects (INV-32) |
 
-Arbiter tasks follow a validated five-phase lifecycle. Transitions are mechanical — not advisory:
+---
+
+## 5. PR Conventions
+
+- **Branch naming:** `task/#NNN-short-description` where `NNN` is the issue number. Direct commits to `main` are blocked.
+- **Commit format:** [Conventional Commits](https://www.conventionalcommits.org/), validated by `commitlint.config.js`. Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`.
+- **PR title:** Reference the issue ID, e.g. `feat(detectors): support Bun runtime (#NNN)`.
+- **PR body:** Use the template. Fill every section. The gate must pass in CI before review.
+- **`--no-verify`:** Forbidden. Blocked by hook policy. If the gate fails, fix the root cause.
+
+### Enforcement chain
+
+Edit-time hooks (`.claude/hooks/`) block bad edits before they reach disk. Pre-commit `.githooks/pre-commit` runs the L1 gate on every `git commit` regardless of editor. Pre-push `.githooks/pre-push` runs the L2 gate before any push. CI re-runs both on every PR. Hook installation is wired by `npm install` via the `prepare` script; non-Node projects use `./scripts/setup-hooks.sh`.
+
+### Task lifecycle
+
+Arbiter tasks follow a validated five-phase lifecycle:
 
 ```
 preflight → plan → implementation → verification → complete
 ```
 
-Advance the phase with:
-
-```bash
-arbiter task advance --to <phase>
-```
-
-Rules:
-
-- Forward-only by default. Skipping a phase (e.g. `preflight → implementation`) throws.
-- `--reverse` allows backward transitions for exceptional cases.
-- Each transition is appended to `.claude/.task-phase-history` with an ISO timestamp and `prev → next`.
-- Commits are blocked during `preflight` and `plan` phases by the generated pre-commit hook (INV-38).
-- Claiming task completion while phase is `implementation` or `verification` triggers the completion guard (exit 2, INV-38).
-
-## Hook Hardness Manifest
-
-All hooks in `src/templates/claude/hooks/` are classified in `.arbiter/hooks-manifest.json` with an explicit `classification` field (`HARD` or `ADVISORY`). The L1 gate verifies this classification empirically on every CI run (INV-36).
-
-**When adding a new hook:**
-
-1. Write the hook file.
-2. Add an entry to `.arbiter/hooks-manifest.json` with the correct `classification` and, if `HARD`, a `fixture` describing how to trigger a violation.
-3. Run `node scripts/check-hardness-inventory.mjs` — it must exit 0.
-4. Run the full gate: `node scripts/check-all.mjs L1`.
-
-**When modifying a HARD hook:**
-
-Ensure the hook still exits non-zero on the fixture defined in the manifest. Changing a HARD hook to exit 0 (advisory) without updating the manifest will fail CI.
+Advance with `arbiter task advance --to <phase>`. Forward-only by default; commits are blocked during `preflight` and `plan` (INV-38). Claiming completion while still in `implementation` or `verification` triggers the completion guard.
 
 ### SSOT and plan bypass env vars
-
-Hooks block edits to high-authority documents and enforce anti-bloat invariants. For legitimate bypasses, use session-scoped env vars:
 
 | Hook / Check               | Guards                                                                                           | Bypass                                     |
 | -------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------ |
@@ -101,19 +121,35 @@ Hooks block edits to high-authority documents and enforce anti-bloat invariants.
 | `pre-edit-plan-anchor.mjs` | Implementation-phase edits without an active plan; new `src/` file without Survey block (INV-46) | `ARBITER_PLAN_BYPASS=1 claude ...`         |
 | `check-bloat-ratchet.mjs`  | `src/` file/LOC ceiling per bucket (INV-46)                                                      | `ALLOW_BLOAT=1 node scripts/check-all.mjs` |
 
-**`ARBITER_PLAN_BYPASS=1`** — bypasses both the plan-anchor check (no plan required) and the CANON-16 Survey gate (no Existing Code Survey required). Use when updating the plan infrastructure itself or bootstrapping a new task environment.
+Bypasses are session-scoped and must reference the corresponding task ID and ADR in the commit message. Never set them in your shell profile.
 
-**`ALLOW_BLOAT=1`** — bypasses the bloat ratchet check. Use when a legitimate architectural expansion requires more than the per-bucket threshold (e.g., adding a new language to `src/generators/`). Advance the baseline with `node scripts/update-bloat-baseline.mjs --task=#NNN` after the legitimate expansion.
+---
 
-**Warning:** Do not set these in your shell profile — session-scoped only. Legitimate bypasses should reference the corresponding task ID and ADR in the commit message.
+## 6. Decision Process
 
-## Pull Requests
+Architectural decisions are recorded as ADRs in [`docs/SYSTEM/DECISIONS.md`](./docs/SYSTEM/DECISIONS.md). Before proposing a change that:
 
-- Fill out the PR template completely
-- Link the related issue
-- Ensure the gate passes in CI
-- Request review from a code owner
+- Adds or removes an invariant
+- Changes the gate semantics
+- Introduces a new top-level directory under `src/`
+- Adds a new external dependency
+- Changes the plugin contract
 
-## Questions?
+…open an issue first and reference the ADR you intend to add. Implementation PRs that change the contract must include the ADR entry in the same commit.
 
-Open a [discussion](https://github.com/LucaDominici/arbiter/discussions) or reach out to the maintainers.
+The 15 CANON-NN rules in `docs/SYSTEM/CANON.md` are the process-level counterpart: where ADRs record _what_ was decided, CANON records _how_ decisions are enforced.
+
+---
+
+## 7. Code of Conduct
+
+This project follows the [Contributor Covenant 2.1](./CODE_OF_CONDUCT.md). Report incidents to **ulfwerenar@gmail.com**.
+
+---
+
+## 8. Where to Start
+
+- Browse issues labeled `good first issue` or `help wanted`.
+- Read [`docs/DEVELOPMENT/GETTING-STARTED.md`](./docs/DEVELOPMENT/GETTING-STARTED.md) for a guided first build.
+- Try the end-to-end walkthroughs in [`examples/`](./examples/).
+- Questions: open a [discussion](https://github.com/LucaDominici/arbiter/discussions).
