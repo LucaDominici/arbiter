@@ -148,4 +148,27 @@ describe('mergeSettingsJson (#286)', () => {
     const result = mergeSettingsJson(existing, incoming)
     expect(result).toHaveProperty('myCustomSetting', true)
   })
+
+  it('emits console.warn listing dropped top-level keys on conflict (#286)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const existing = { env: { USER_VAR: '1' } }
+    const incoming = { env: { ARBITER_DEFAULT: 'on' } }
+    const result = mergeSettingsJson(existing, incoming)
+    // Existing value preserved (no clobber)
+    expect(result).toEqual({ env: { USER_VAR: '1' } })
+    // But user is warned that incoming was dropped
+    expect(warnSpy).toHaveBeenCalledOnce()
+    const msg = warnSpy.mock.calls[0]?.[0] ?? ''
+    expect(msg).toMatch(/env/)
+    vi.restoreAllMocks()
+  })
+
+  it('does NOT warn when only special keys (hooks/permissions) collide (#286)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const existing = { hooks: { PreToolUse: [] }, permissions: { allow: ['x'] } }
+    const incoming = { hooks: { PreToolUse: [] }, permissions: { allow: ['y'] } }
+    mergeSettingsJson(existing, incoming)
+    expect(warnSpy).not.toHaveBeenCalled()
+    vi.restoreAllMocks()
+  })
 })

@@ -329,6 +329,19 @@ describe('generateClaude', () => {
       generateClaude(makeConfig(dir))
       expect(existsSync(`${settingsPath}.arbiter-backup`)).toBe(false)
     })
+
+    it('overwrites .arbiter-backup with current pre-merge state on subsequent runs (#285)', () => {
+      const settingsPath = join(dir, '.claude', 'settings.json')
+      // First run: seed an initial settings.json
+      seedExistingSettingsForBackup(JSON.stringify({ permissions: { allow: ['v1'] } }))
+      generateClaude(makeConfig(dir))
+      // Mutate settings.json between runs to simulate user edits
+      const interim = JSON.stringify({ permissions: { allow: ['v2-user-edit'] } })
+      writeFileSync(settingsPath, interim, 'utf-8')
+      // Second run: backup must capture the latest pre-merge state, not the first-run snapshot
+      generateClaude(makeConfig(dir))
+      expect(readFileSync(`${settingsPath}.arbiter-backup`, 'utf-8')).toBe(interim)
+    })
   })
 
   describe('existing settings.json — parse guard (#297)', () => {

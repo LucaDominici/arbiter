@@ -57,13 +57,18 @@ export function copyStaticFile(
 /**
  * Deeply merge two settings.json objects. Arrays are unioned (no duplicates by 'command').
  * All top-level keys from `existing` are preserved unchanged unless arbiter manages them
- * (currently: `hooks`, `permissions`). No data is ever silently dropped.
+ * (currently: `hooks`, `permissions`).
+ *
+ * When a non-special incoming key collides with a non-undefined existing value, the existing
+ * value wins (no clobber) but a console.warn is emitted listing the dropped keys so users
+ * can pick up the new arbiter defaults if they choose (#286).
  */
 export function mergeSettingsJson(
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
 ): Record<string, unknown> {
   const result = { ...existing }
+  const dropped: string[] = []
 
   for (const [key, incomingVal] of Object.entries(incoming)) {
     const existingVal = existing[key]
@@ -74,8 +79,17 @@ export function mergeSettingsJson(
       result[key] = mergePermissions(existingVal, incomingVal)
     } else if (existingVal === undefined) {
       result[key] = incomingVal
+    } else {
+      dropped.push(key)
     }
-    // If key exists and is not a special case, preserve existing value
+  }
+
+  if (dropped.length > 0) {
+    console.warn(
+      `[arbiter] settings.json merge preserved your existing values for these top-level keys; ` +
+        `arbiter's new defaults were NOT applied: ${dropped.join(', ')}. ` +
+        `Remove these keys from .claude/settings.json and re-run to pick up the new defaults.`,
+    )
   }
 
   return result
