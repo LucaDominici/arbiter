@@ -2,5 +2,6 @@ node_modules/
 dist/
 coverage/
 report/
+.claude/worktrees/
 __tests__/fixtures/real-projects/**/target/
 __tests__/fixtures/real-projects/**/.pytest_cache/

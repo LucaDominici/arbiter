@@ -18,20 +18,26 @@ describe('TEST_TAXONOMY.md.ejs', () => {
 
   // ─── cli ──────────────────────────────────────────────────────────────────
 
-  it('cli archetype does not mention Testcontainers', () => {
+  it('cli archetype does not mention Testcontainers in pyramid section', () => {
     const content = render({ archetype: 'cli' })
-    expect(content).not.toContain('Testcontainers')
+    // Scope to pyramid section only — universal type-codes table references Testcontainers
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection).not.toContain('Testcontainers')
   })
 
-  it('cli archetype does not mention database integration', () => {
+  it('cli archetype does not mention database integration in pyramid section', () => {
     const content = render({ archetype: 'cli' })
-    expect(content.toLowerCase()).not.toContain('testcontainer')
+    // Scope to pyramid section only — universal type-codes table references Testcontainers
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection.toLowerCase()).not.toContain('testcontainer')
   })
 
-  it('cli archetype does not mention Playwright or E2E', () => {
+  it('cli archetype does not mention Playwright or E2E in pyramid section', () => {
     const content = render({ archetype: 'cli' })
-    expect(content).not.toContain('Playwright')
-    expect(content).not.toContain('E2E')
+    // Scope to pyramid section only — the universal type-codes table (added by T1) contains these terms
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection).not.toContain('Playwright')
+    expect(pyramidSection).not.toContain('E2E')
   })
 
   it('cli archetype includes unit test section', () => {
@@ -46,15 +52,19 @@ describe('TEST_TAXONOMY.md.ejs', () => {
     expect(content.toLowerCase()).toContain('property')
   })
 
-  it('library archetype does not mention database', () => {
+  it('library archetype does not mention database in pyramid section', () => {
     const content = render({ archetype: 'library' })
-    expect(content.toLowerCase()).not.toContain('database')
-    expect(content).not.toContain('Testcontainers')
+    // Scope to pyramid section only — universal type-codes table references Testcontainers
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection.toLowerCase()).not.toContain('database')
+    expect(pyramidSection).not.toContain('Testcontainers')
   })
 
-  it('library archetype does not mention Playwright', () => {
+  it('library archetype does not mention Playwright in pyramid section', () => {
     const content = render({ archetype: 'library' })
-    expect(content).not.toContain('Playwright')
+    // Scope to pyramid section only — the universal type-codes table contains Playwright reference
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection).not.toContain('Playwright')
   })
 
   // ─── backend-web-db ───────────────────────────────────────────────────────
@@ -81,9 +91,11 @@ describe('TEST_TAXONOMY.md.ejs', () => {
     expect(content).toMatch(/Playwright|E2E|end-to-end/i)
   })
 
-  it('frontend-spa does not mention Testcontainers', () => {
+  it('frontend-spa does not mention Testcontainers in pyramid section', () => {
     const content = render({ archetype: 'frontend-spa' })
-    expect(content).not.toContain('Testcontainers')
+    // Scope to pyramid section only — universal type-codes table references Testcontainers
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection).not.toContain('Testcontainers')
   })
 
   // ─── data-pipeline ────────────────────────────────────────────────────────
@@ -93,22 +105,28 @@ describe('TEST_TAXONOMY.md.ejs', () => {
     expect(content.toLowerCase()).toContain('integration')
   })
 
-  it('data-pipeline does not mention Playwright', () => {
+  it('data-pipeline does not mention Playwright in pyramid section', () => {
     const content = render({ archetype: 'data-pipeline' })
-    expect(content).not.toContain('Playwright')
+    // Scope to pyramid section only — the universal type-codes table contains Playwright reference
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection).not.toContain('Playwright')
   })
 
   // ─── embedded ─────────────────────────────────────────────────────────────
 
-  it('embedded does not mention Playwright or E2E', () => {
+  it('embedded does not mention Playwright or E2E in pyramid section', () => {
     const content = render({ archetype: 'embedded' })
-    expect(content).not.toContain('Playwright')
-    expect(content).not.toContain('E2E')
+    // Scope to pyramid section only — the universal type-codes table contains these terms
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection).not.toContain('Playwright')
+    expect(pyramidSection).not.toContain('E2E')
   })
 
-  it('embedded does not mention Testcontainers', () => {
+  it('embedded does not mention Testcontainers in pyramid section', () => {
     const content = render({ archetype: 'embedded' })
-    expect(content).not.toContain('Testcontainers')
+    // Scope to pyramid section only — universal type-codes table references Testcontainers
+    const pyramidSection = content.split('## Test Type Codes')[0]
+    expect(pyramidSection).not.toContain('Testcontainers')
   })
 
   // ─── general ──────────────────────────────────────────────────────────────
