@@ -295,13 +295,21 @@ if (level === 'L2') {
   runCheck('db integration tests', 'npx', ['vitest', 'run', 'integration'], { soft: graceActive });
 <% } %>
 <% if ((archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1') { %>
-  // ─── L2: Playwright E2E tests (matrix proven for frontend/backend-web-db) ──
-  if (existsSync(join('node_modules', '.bin', 'playwright'))) {
-    runCheck('playwright test', 'npx', ['playwright', 'test'], { soft: graceActive });
-  } else {
-    pushResult('playwright test', 'FAIL', 0);
-    console.log('[CHECK] playwright test ... FAIL (@playwright/test not installed — required for this archetype; run: npm install -D @playwright/test)');
-  }
+  // ─── L2: Playwright E2E (#348, CANON-02) — matrix proven for TS frontend-spa / backend-web-db.
+  // Wrapped via scripts/lib/ephemeral-server.mjs (#358): the runner starts the
+  // server, polls TCP readiness, runs Playwright, then tears the server down.
+  // runToolCheck SKIPs locally when the binary is missing, FAILs in CI.
+  runToolCheck(
+    'playwright e2e',
+    'node',
+    [
+      'scripts/lib/ephemeral-server.mjs',
+      '--start', process.env.E2E_START_CMD || 'npm run start:test',
+      '--test',  'npx playwright test',
+      '--port',  process.env.E2E_PORT || '4173',
+    ],
+    { soft: graceActive },
+  );
 <% } %>
 <% } %><% if (language === 'rust') { %>
 <% if (enableSecurityScanning) { %>
@@ -355,7 +363,21 @@ if (level === 'L2') {
   runCheck('integration tests', 'pytest', ['tests/integration/'], { soft: graceActive });
 <% } %>
 <% if (archetype === 'frontend-spa' || archetype === 'backend-web-db') { %>
-  runCheck('e2e', 'pytest', ['tests/e2e/'], { soft: graceActive });
+  // ─── L2: pytest-playwright E2E (#348, CANON-02) — matrix proven for Python web archetypes.
+  // Wrapped via scripts/lib/ephemeral-server.mjs (#358) so the server is up
+  // before pytest collects the e2e tests. runToolCheck SKIPs locally when
+  // pytest is missing, FAILs in CI.
+  runToolCheck(
+    'pytest-playwright e2e',
+    'node',
+    [
+      'scripts/lib/ephemeral-server.mjs',
+      '--start', process.env.E2E_START_CMD || 'python -m uvicorn app.main:app --port 8000',
+      '--test',  'pytest tests/e2e',
+      '--port',  process.env.E2E_PORT || '8000',
+    ],
+    { soft: graceActive },
+  );
 <% } %>
 <% } %>
 <% if (enableDebtGates) { %>

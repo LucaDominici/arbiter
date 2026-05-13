@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+// Ephemeral-server runner (#358, CANON-02, CANON-15) — Phase 7F.
+//
+// Starts a server in the background, polls a TCP port for readiness, runs a
+// downstream test command, and tears the server down before exiting. The
+// runner's own exit code mirrors the test command's exit code so it composes
+// cleanly with the gate trinity (runCheck / runToolCheck).
+//
+// Usage:
+//   node scripts/lib/ephemeral-server.mjs \
+//     --start "<server command>" \
+//     --test  "<test command>" \
+//     --port  <port> \
+//     [--ready-timeout <ms>] \
+//     [--host <host>]
+//
+// Example (TS frontend-spa Playwright):
+//   node scripts/lib/ephemeral-server.mjs \
+//     --start "npm run preview -- --port 4173" \
+//     --test  "npx playwright test" \
+//     --port  4173
+//
+// Direct child_process use here is the documented exception for gate scripts
+// (mirrors scripts/check-all.mjs's carve-out); INV-12 applies to TS sources.
+import { spawn, spawnSync } from 'node:child_process';
+import net from 'node:net';
+
+const DEFAULT_READY_TIMEOUT_MS = 60 * 1000;
+const POLL_INTERVAL_MS = 250;
+
+function parseArgs(argv) {
+  const out = {
+    start: null,
+    test: null,
+    port: null,
+    host: '127.0.0.1',
+    readyTimeoutMs: DEFAULT_READY_TIMEOUT_MS,
+  };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--start') out.start = argv[++i];
+    else if (a === '--test') out.test = argv[++i];
+    else if (a === '--port') out.port = Number(argv[++i]);
+    else if (a === '--host') out.host = argv[++i];
+    else if (a === '--ready-timeout') out.readyTimeoutMs = Number(argv[++i]);
+  }
+  return out;
+}
+
+function usage(msg) {
+  if (msg) process.stderr.write(`ephemeral-server: ${msg}\n`);
+  process.stderr.write(
+    'Usage: node scripts/lib/ephemeral-server.mjs --start "<cmd>" --test "<cmd>" --port <n> [--host <h>] [--ready-timeout <ms>]\n',
+  );
+  process.exit(2);
+}
+
+function probePort(host, port) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    socket.once('connect', () => {
+      socket.end();
+      resolve(true);
+    });
+    socket.once('error', () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function waitForPort(host, port, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await probePort(host, port)) return true;
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  }
+  return false;
+}
+
+let serverProcess = null;
+
+function teardown() {
+  if (serverProcess && serverProcess.pid && serverProcess.exitCode === null) {
+    try {
+      serverProcess.kill('SIGTERM');
+    } catch {
+      /* already exited */
+    }
+  }
+}
+
+process.on('SIGINT', () => {
+  teardown();
+  // Exit-code contract: 0=PASS / 1=FAIL / 2=ERROR. Interrupted run is FAIL.
+  process.exit(1);
+});
+process.on('SIGTERM', () => {
+  teardown();
+  process.exit(1);
+});
+
+async function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  if (!opts.start) usage('missing --start');
+  if (!opts.test) usage('missing --test');
+  if (!opts.port || Number.isNaN(opts.port)) usage('missing or invalid --port');
+
+  process.stderr.write(`[ephemeral-server] starting: ${opts.start}\n`);
+  serverProcess = spawn(opts.start, {
+    shell: true,
+    stdio: 'inherit',
+    detached: false,
+  });
+  serverProcess.on('exit', (code, signal) => {
+    if (code !== null && code !== 0) {
+      process.stderr.write(`[ephemeral-server] server exited early code=${code}\n`);
+    } else if (signal) {
+      process.stderr.write(`[ephemeral-server] server signaled ${signal}\n`);
+    }
+  });
+
+  try {
+    process.stderr.write(
+      `[ephemeral-server] waiting for ${opts.host}:${opts.port} (timeout ${opts.readyTimeoutMs}ms)\n`,
+    );
+    const ready = await waitForPort(opts.host, opts.port, opts.readyTimeoutMs);
+    if (!ready) {
+      process.stderr.write('[ephemeral-server] readiness timeout\n');
+      process.exit(1);
+    }
+    process.stderr.write(`[ephemeral-server] ready — running: ${opts.test}\n`);
+    const testResult = spawnSync(opts.test, {
+      shell: true,
+      stdio: 'inherit',
+    });
+    const testStatus = typeof testResult.status === 'number' ? testResult.status : 1;
+    process.exit(testStatus);
+  } finally {
+    teardown();
+  }
+}
+
+main().catch((err) => {
+  process.stderr.write(`[ephemeral-server] error: ${err && err.message ? err.message : err}\n`);
+  teardown();
+  process.exit(1);
+});

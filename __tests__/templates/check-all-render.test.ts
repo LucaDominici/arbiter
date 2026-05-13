@@ -146,8 +146,8 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
   })
 })
 
-describe('check-all.mjs.ejs rendering — Python e2e gate (#366)', () => {
-  it('Python frontend-spa: emits pytest e2e runCheck', () => {
+describe('check-all.mjs.ejs rendering — Python e2e gate (#366, migrated by #348)', () => {
+  it('Python frontend-spa: emits pytest-playwright e2e via runToolCheck + ephemeral-server', () => {
     const data = makeConfig('/tmp/test', {
       language: 'python',
       archetype: 'frontend-spa',
@@ -155,10 +155,12 @@ describe('check-all.mjs.ejs rendering — Python e2e gate (#366)', () => {
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain("runCheck('e2e', 'pytest', ['tests/e2e/']")
+    expect(content).toMatch(/runToolCheck\(\s*'pytest-playwright e2e'/)
+    expect(content).toContain('scripts/lib/ephemeral-server.mjs')
+    expect(content).toContain('pytest tests/e2e')
   })
 
-  it('Python library: does NOT emit pytest e2e runCheck', () => {
+  it('Python library: does NOT emit pytest-playwright e2e step', () => {
     const data = makeConfig('/tmp/test', {
       language: 'python',
       archetype: 'library',
@@ -166,7 +168,7 @@ describe('check-all.mjs.ejs rendering — Python e2e gate (#366)', () => {
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).not.toContain("runCheck('e2e', 'pytest', ['tests/e2e/']")
+    expect(content).not.toContain("'pytest-playwright e2e'")
   })
 })
 
@@ -341,8 +343,8 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
     })
   })
 
-  describe('playwright test — TypeScript frontend-spa L2 (proven in matrix)', () => {
-    it('TypeScript frontend-spa L2: emits playwright test step', () => {
+  describe('playwright e2e — TypeScript frontend-spa L2 (proven in matrix, #348)', () => {
+    it('TypeScript frontend-spa L2: emits playwright e2e gate via runToolCheck + ephemeral-server', () => {
       const data = makeConfig('/tmp/test', {
         language: 'typescript',
         archetype: 'frontend-spa',
@@ -350,11 +352,12 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
       const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-      expect(content).toContain("runCheck('playwright test', 'npx', ['playwright', 'test']")
-      expect(content).toContain('FAIL (@playwright/test not installed')
+      expect(content).toMatch(/runToolCheck\(\s*'playwright e2e'/)
+      expect(content).toContain('scripts/lib/ephemeral-server.mjs')
+      expect(content).toContain('npx playwright test')
     })
 
-    it('TypeScript library L2: does NOT emit playwright test step', () => {
+    it('TypeScript library L2: does NOT emit playwright e2e step', () => {
       const data = makeConfig('/tmp/test', {
         language: 'typescript',
         archetype: 'library',
@@ -362,10 +365,10 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
       const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-      expect(content).not.toContain('playwright test')
+      expect(content).not.toContain("'playwright e2e'")
     })
 
-    it('TypeScript frontend-spa L1: does NOT emit playwright test step at L2 block', () => {
+    it('TypeScript frontend-spa L1: does NOT emit playwright e2e step at L2 block', () => {
       const data = makeConfig('/tmp/test', {
         language: 'typescript',
         archetype: 'frontend-spa',
@@ -373,10 +376,10 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
       const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-      expect(content).not.toContain('playwright test')
+      expect(content).not.toContain("'playwright e2e'")
     })
 
-    it('Go frontend-spa L2: does NOT emit playwright test step', () => {
+    it('Go frontend-spa L2: does NOT emit playwright e2e step', () => {
       const data = makeConfig('/tmp/test', {
         language: 'go',
         archetype: 'frontend-spa',
@@ -384,7 +387,7 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>
       const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-      expect(content).not.toContain('playwright test')
+      expect(content).not.toContain("'playwright e2e'")
     })
   })
 })

@@ -188,3 +188,23 @@ expect(content).toContain('uses: gradle/actions/setup-gradle@')
 ```
 
 This keeps Dependabot PRs green without requiring manual test updates on every action version bump.
+
+---
+
+## E2E Gate Wiring (#348 / #358, Phase 7F, CANON-02)
+
+Generated projects whose archetype exercises an HTTP surface get an E2E gate step at L2+:
+
+| Language   | Archetype                         | Gate step               | Test command          |
+| ---------- | --------------------------------- | ----------------------- | --------------------- |
+| typescript | `frontend-spa` / `backend-web-db` | `playwright e2e`        | `npx playwright test` |
+| python     | `frontend-spa` / `backend-web-db` | `pytest-playwright e2e` | `pytest tests/e2e`    |
+
+Both steps are wrapped by the **ephemeral-server runner** emitted at `scripts/lib/ephemeral-server.mjs` (#358). The runner:
+
+1. Spawns the server command (`--start "<cmd>"`) in the background.
+2. Polls TCP readiness on `--port <n>` (default timeout 60s).
+3. Runs the downstream test command (`--test "<cmd>"`) once the port accepts connections.
+4. Tears the server down on SIGTERM/SIGINT/exit and propagates the test command's exit code.
+
+The gate uses `runToolCheck` from `scripts/lib/run-helpers.mjs` (#351) so the step **SKIPs locally** when the Playwright binary is missing, and **FAILs in CI** — preserving CANON-02 (proven tools must be gated). Override `E2E_START_CMD` and `E2E_PORT` in the environment to customise the per-project invocation.

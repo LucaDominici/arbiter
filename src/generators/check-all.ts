@@ -43,6 +43,21 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
     }),
   )
 
+  // #358 (CANON-02, CANON-15, Phase 7F): emit ephemeral-server runner used by
+  // integration/e2e gate steps (Playwright TS, pytest-playwright Python) to
+  // bring up a server, poll for readiness, run tests, and tear it down. Only
+  // archetypes that exercise an HTTP surface at L2+ need the runner; library
+  // and L1 setups skip the emission to keep the generated tree minimal.
+  const archetypesNeedingServer = new Set(['frontend-spa', 'backend-web-db'])
+  if (config.governanceLevel !== 'L1' && archetypesNeedingServer.has(config.archetype)) {
+    const ephemeralPath = resolvedPath(base, 'scripts', 'lib', 'ephemeral-server.mjs')
+    results.push(
+      writeFile(ephemeralPath, renderTemplate('scripts/lib/ephemeral-server.mjs.ejs', data), {
+        skipIfExists: true,
+      }),
+    )
+  }
+
   // #360 (CANON-02): Rust context-aware INV-04 checkers — no .unwrap()/.expect() and no `unsafe`.
   // Emitted only for rust projects, invoked at L1 from check-all.mjs.ejs.
   if (config.language === 'rust') {
