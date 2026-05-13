@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // arbiter quality gate
 // Usage: node scripts/check-all.mjs [L1|L2|L3]
-// L1: typecheck, format, lint, tests, circular deps, placeholders, orphan TODOs, commitlint, test naming (9)
+// L1: typecheck, format, lint, tests, circular deps, placeholders, orphan TODOs, commitlint, test naming, node-version-ssot (10)
 // L2: L1 + coverage + dead code + npm audit + gitleaks secrets scan (13)
 // L3: L2 + full repo secrets scan (nightly/manual)
 //
@@ -126,6 +126,7 @@ runCheck("enforcement wired", "node", [
 ]);
 runCheck("workflow runners", "node", ["scripts/check-workflow-runners.mjs"]);
 runCheck("ci alignment", "node", ["scripts/check-ci-alignment.mjs"]);
+runCheck("node version ssot", "node", ["scripts/check-node-version-ssot.mjs"]);
 runCheck("bloat ratchet", "node", ["scripts/check-bloat-ratchet.mjs"]);
 runCheck("exit code contract", "node", [
   "scripts/check-exit-code-contract.mjs",

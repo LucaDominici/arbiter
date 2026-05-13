@@ -900,4 +900,19 @@ export const INVARIANT_CATALOG: Invariant[] = [
     alwaysActive: true,
     enforcement: "scripts/check-canonical-paths.mjs (L1 gate, #255)",
   },
+
+  {
+    id: "INV-58",
+    tier: "governance",
+    title:
+      "Node version SSOT — .nvmrc is canonical; all CI jobs use node-version-file",
+    description:
+      ".nvmrc at the repo root is the single source of truth for the Node.js version. " +
+      "All GitHub Actions workflows must use `node-version-file: '.nvmrc'` — never a literal version pin. " +
+      "The same applies to all EJS templates that emit CI workflows. " +
+      "process.version major at runtime must match .nvmrc major. " +
+      "Enforced by scripts/check-node-version-ssot.mjs (L1 gate, #470).",
+    alwaysActive: true,
+    enforcement: "scripts/check-node-version-ssot.mjs (L1 gate, #470)",
+  },
 ];

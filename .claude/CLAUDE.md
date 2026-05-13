@@ -7,6 +7,13 @@
 
 ---
 
+## Mission
+
+arbiter = framework del 2026. Obiettivo: 10k stelle su GitHub.
+Velocità, certezza del risultato, robustezza e coerenza. Uno strumento per esperti — INOX.
+
+---
+
 ## Quick Reference
 
 | Fact                | Value                                |

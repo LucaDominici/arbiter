@@ -106,6 +106,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-55:** Doc-links integrity — every local markdown link in `docs/` must resolve to an existing file; `scripts/check-doc-links.mjs` follows CANONICAL_PATHS redirects before failing (L1 gate, #255)
 - **INV-56:** Knowledge-map freshness — `**Lines:**` entries in `docs/METHOD/KNOWLEDGE_MAP.md` must not drift >30% from actual doc size; `scripts/check-knowledge-map.mjs` enforces this; run `knowledge-map-update.mjs` to refresh (L1 gate, #255)
 - **INV-57:** Canonical-paths integrity — every redirect target in `docs/METHOD/CANONICAL_PATHS.md` must exist on disk; `scripts/check-canonical-paths.mjs` exits 1 on dangling aliases (L1 gate, #255)
+- **INV-58:** Node version SSOT — `.nvmrc` is canonical; all CI workflows and EJS templates must use `node-version-file: '.nvmrc'` (no literal pins); `process.version` major must match `.nvmrc` major; `scripts/check-node-version-ssot.mjs` enforces (L1 gate, #470)
 
 ---
 

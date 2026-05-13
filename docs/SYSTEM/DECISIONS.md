@@ -5,6 +5,29 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#470): Node version SSOT — INV-58, .nvmrc canonical source (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #470; INV-58
+
+**Context:** Node 20 was hardcoded in 10 workflow files and 14 EJS templates. Local dev ran on Node 22. This made local↔CI parity impossible by construction — a prerequisite for the soloDevMode invariant (INV-59, coming in Phase B of #470).
+
+**Decisions:**
+
+- **INV-58 — Node version SSOT**: `.nvmrc` at repo root is the single source of truth. All CI workflows use `node-version-file: '.nvmrc'`. EJS templates emit the same pattern to target projects. `process.version` major must match `.nvmrc` major. Enforced by `scripts/check-node-version-ssot.mjs` (L1 gate).
+
+- **Version**: `22.21.1` (local dev version). `package.json#engines.node` bumped to `>=22.0.0`.
+
+- **Pre-push guard**: `.githooks/pre-push` and `src/templates/githooks/pre-push.ejs` now assert Node major matches `.nvmrc` before running the L2 gate. Fails fast with `nvm use` hint.
+
+- **GIT_COMMON_DIR fix**: `.githooks/pre-commit` and `src/templates/githooks/pre-commit.ejs` now unset `GIT_COMMON_DIR` alongside other git env vars. This was causing integration test timeouts in worktrees where `GIT_COMMON_DIR` leaked into spawned git processes.
+
+- **Template**: `src/templates/.nvmrc.ejs` emits a single-line `.nvmrc` to target projects via the github generator.
+
+**Consequences:** Local and CI now use the same Node major. The Node version drift defect (one of 6 blocking parity) is resolved. `check-node-version-ssot.mjs` fails the L1 gate if any literal `node-version: 'N'` pin is found anywhere in workflows or templates.
+
+---
+
 ## feat(#258): HA1 self-validation harness + exit-code universal contract (2026-05-12)
 
 **Status:** Accepted
