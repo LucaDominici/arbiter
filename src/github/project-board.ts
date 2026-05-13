@@ -17,7 +17,11 @@ interface GhField {
   name: string
 }
 
-function findExistingBoard(owner: string, title: string): { number: number; url: string } | null {
+function findExistingBoard(
+  owner: string,
+  title: string,
+  warnings: string[],
+): { number: number; url: string } | null {
   try {
     const raw = runCliJson('gh', [
       'project',
@@ -39,7 +43,12 @@ function findExistingBoard(owner: string, title: string): { number: number; url:
     const projects = rawObj['projects'] as GhProject[]
     const match = projects.find((p) => p.title === title)
     return match ? { number: match.number, url: match.url } : null
-  } catch {
+  } catch (err) {
+    // #474: surface the error rather than returning null silently so the caller
+    // can propagate the uncertainty (a transient failure here may leave the
+    // create path unable to detect a pre-existing board → duplicate boards).
+    const msg = err instanceof Error ? err.message : String(err)
+    warnings.push(`find-existing-board: ${msg}`)
     return null
   }
 }
@@ -110,7 +119,7 @@ export function createProjectBoard(owner: string, repo: string): ProjectBoardRes
   const boardTitle = `${repo} Board`
   const warnings: string[] = []
 
-  const existing = findExistingBoard(owner, boardTitle)
+  const existing = findExistingBoard(owner, boardTitle, warnings)
   if (existing) {
     const fieldNames = existingFieldNames(owner, existing.number)
     ensureField(
