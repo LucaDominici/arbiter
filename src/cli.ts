@@ -24,6 +24,10 @@ import { runTrace, type TraceFormat } from './commands/trace.js'
 import { runBlame, type BlameFormat } from './commands/blame.js'
 import { runCompare } from './commands/compare.js'
 import { runAgentRulesExport, runAgentRulesVerify } from './commands/agent-rules.js'
+import { runGauntletGenerate, runGauntletVerify } from './commands/gauntlet.js'
+import type { GauntletStack } from './commands/gauntlet.js'
+import { runCiPlan, runCiVerifyPlan } from './commands/ci.js'
+import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
 import {
   runWorkList,
   runWorkCreate,
@@ -813,6 +817,128 @@ program
     },
   )
 
+// ── gauntlet (#260) ──────────────────────────────────────────────────────────
+
+const gauntlet = program
+  .command('gauntlet')
+  .description('Pairwise/combinatorial test generation (#260)')
+
+gauntlet
+  .command('generate')
+  .description('Read YAML spec, run IPOG, write test files')
+  .requiredOption('--spec <path>', 'Path to gauntlet.yaml spec file')
+  .requiredOption('--out <dir>', 'Output directory for generated test files')
+  .option(
+    '--stack <stack>',
+    'Target stack: typescript | java | rust (default: typescript)',
+    'typescript',
+  )
+  .option('--dir <dir>', 'Project root (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { spec: string; out: string; stack: string; dir?: string; json: boolean }) => {
+    const stackRaw = opts.stack
+    const stack: GauntletStack =
+      stackRaw === 'typescript' || stackRaw === 'java' || stackRaw === 'rust'
+        ? stackRaw
+        : 'typescript'
+    const result = runGauntletGenerate({
+      spec: opts.spec,
+      out: opts.out,
+      stack,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+    if (opts.json) {
+      jsonOutput(
+        'gauntlet generate',
+        result.status,
+        {
+          exitCode: result.exitCode,
+          files: result.files,
+          rows: result.rows,
+          graphEdges: result.graphEdges,
+        },
+        result.reason !== undefined ? [result.reason] : undefined,
+      )
+    } else if (result.status === 'ok') {
+      process.stdout.write(
+        `gauntlet generate: OK (${result.rows} test cases → ${result.files.length} file(s))\n`,
+      )
+      for (const f of result.files) process.stdout.write(`  ${f}\n`)
+    } else {
+      process.stderr.write(`gauntlet generate: FAIL — ${result.reason ?? 'unknown error'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
+gauntlet
+  .command('verify')
+  .description('Check generated tests are in sync with spec hash')
+  .requiredOption('--spec <path>', 'Path to gauntlet.yaml spec file')
+  .requiredOption('--out <dir>', 'Directory of generated test files')
+  .option('--coverage <mode>', 'Coverage mode: pairwise | 3-way (default: pairwise)', 'pairwise')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { spec: string; out: string; coverage: string; json: boolean }) => {
+    const coverage = opts.coverage === '3-way' ? '3-way' : 'pairwise'
+    const result = runGauntletVerify({ spec: opts.spec, out: opts.out, coverage })
+    if (opts.json) {
+      jsonOutput(
+        'gauntlet verify',
+        result.status,
+        { exitCode: result.exitCode },
+        result.reason !== undefined ? [result.reason] : undefined,
+      )
+    } else if (result.status === 'ok') {
+      process.stdout.write(`gauntlet verify: OK\n`)
+    } else {
+      process.stderr.write(`gauntlet verify: FAIL — ${result.reason ?? 'unknown error'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
+// ── ci (#261) ─────────────────────────────────────────────────────────────────
+
+const ci = program.command('ci').description('Governance-aware CI planning (#261)')
+
+ci.command('plan')
+  .description('Compute affected invariants and required gates from changed files')
+  .option('--diff <ref>', 'Git ref to diff against (informational; use --files for testability)')
+  .option('--files <paths>', 'Comma-separated list of changed file paths')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--format <fmt>', 'Output format: json | mermaid (default: json)', 'json')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(
+    (opts: { diff?: string; files?: string; dir?: string; format: string; json: boolean }) => {
+      const changedFiles = opts.files
+        ? opts.files
+            .split(',')
+            .map((f) => f.trim())
+            .filter(Boolean)
+        : []
+      const format = opts.format === 'mermaid' ? 'mermaid' : 'json'
+      const result = runCiPlan({
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(opts.diff !== undefined ? { diff: opts.diff } : {}),
+        changedFiles,
+        format,
+      })
+      if (opts.json || format === 'json') {
+        jsonOutput(
+          'ci plan',
+          result.status,
+          {
+            exitCode: result.exitCode,
+            plan: result.plan,
+            ...(result.mermaid !== undefined ? { mermaid: result.mermaid } : {}),
+          },
+          result.reason !== undefined ? [result.reason] : undefined,
+        )
+      } else if (result.mermaid !== undefined) {
+        process.stdout.write(result.mermaid)
+      }
+      process.exit(result.exitCode)
+    },
+  )
+
 const agentRules = program
   .command('agent-rules')
   .description('Export or verify AI agent governance rules (#265)')
@@ -883,6 +1009,112 @@ agentRules
     }
     process.exit(result.exitCode)
   })
+
+ci.command('verify-plan')
+  .description('Verify that all required gates from a ci plan actually ran')
+  .requiredOption('--plan <path>', 'Path to ci plan JSON file')
+  .requiredOption('--ci-result <path>', 'Path to CI result JSON file ({"gates":[...]})')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(async (opts: { plan: string; ciResult: string; json: boolean }) => {
+    const { readFileSync: rfs } = await import('node:fs')
+    const plan = JSON.parse(rfs(opts.plan, 'utf-8')) as import('./commands/ci.js').CiPlan
+    const ciResult = JSON.parse(rfs(opts.ciResult, 'utf-8')) as { gates: string[] }
+    const result = runCiVerifyPlan({ plan, ciResult })
+    if (opts.json) {
+      jsonOutput(
+        'ci verify-plan',
+        result.status,
+        { exitCode: result.exitCode, missingGates: result.missingGates },
+        result.reason !== undefined ? [result.reason] : undefined,
+      )
+    } else if (result.status === 'ok') {
+      process.stdout.write(`ci verify-plan: OK\n`)
+    } else {
+      process.stderr.write(`ci verify-plan: FAIL — ${result.reason ?? 'unknown error'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
+// ── review diff (#262) ───────────────────────────────────────────────────────
+
+review
+  .command('diff')
+  .description('Semantic diff between two graph snapshots (#262)')
+  .option(
+    '--base <path>',
+    'Base graph snapshot path (default: reads from stdin or .arbiter/graph-base.json)',
+  )
+  .option('--head <path>', 'Head graph snapshot path (default: .arbiter/graph.json)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .option('--post-pr <number>', 'Post result as GitHub PR comment')
+  .action(
+    async (opts: {
+      base?: string
+      head?: string
+      dir?: string
+      json: boolean
+      postPr?: string
+    }) => {
+      const { readFileSync: rfs, existsSync: efs } = await import('node:fs')
+      const { resolve: res, join: pjoin } = await import('node:path')
+      const dir = res(opts.dir ?? '.')
+
+      const headPath =
+        opts.head !== undefined ? res(opts.head) : pjoin(dir, '.arbiter', 'graph.json')
+      const basePath =
+        opts.base !== undefined ? res(opts.base) : pjoin(dir, '.arbiter', 'graph-base.json')
+
+      if (!efs(headPath)) {
+        process.stderr.write(`review diff: FAIL — head graph not found at ${headPath}\n`)
+        process.exit(2)
+      }
+      if (!efs(basePath)) {
+        // No base — use empty snapshot
+        process.stderr.write(
+          `review diff: WARN — base graph not found at ${basePath}, using empty base\n`,
+        )
+      }
+
+      const head = JSON.parse(rfs(headPath, 'utf-8')) as import('./graph/model.js').GraphSnapshot
+      const base = efs(basePath)
+        ? (JSON.parse(rfs(basePath, 'utf-8')) as import('./graph/model.js').GraphSnapshot)
+        : { nodes: [], edges: [] }
+
+      const result = runReviewDiff({ base, head })
+
+      if (opts.json) {
+        jsonOutput(
+          'review diff',
+          result.status,
+          {
+            exitCode: result.exitCode,
+            recommendation: result.recommendation,
+            risk_delta: result.risk_delta,
+            changes: result.changes,
+            summary: result.summary,
+          },
+          result.reason !== undefined ? [result.reason] : undefined,
+        )
+      } else {
+        process.stdout.write(renderMarkdown(result) + '\n')
+      }
+
+      if (opts.postPr !== undefined) {
+        const { runCli: rc } = await import('./utils/run-cli.js')
+        const markdown = renderMarkdown(result)
+        try {
+          rc('gh', ['pr', 'comment', opts.postPr, '--body', markdown])
+        } catch (err) {
+          process.stderr.write(
+            `review diff: failed to post PR comment: ${err instanceof Error ? err.message : String(err)}\n`,
+          )
+        }
+      }
+
+      process.exit(result.exitCode)
+    },
+  )
 
 function printCompareResult(
   result: import('./commands/compare.js').CompareResult,

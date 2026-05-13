@@ -51,6 +51,63 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#262): Semantic Diff Review — review diff command design (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #262
+
+**Context:** Semantic diff review requires comparing two graph snapshots (base vs head). Building the snapshot at each git ref requires either checking out each ref or running the build in a temp dir. For the CLI command, we accept pre-built snapshot paths so the caller controls how snapshots are obtained (e.g., via CI artifact or local git stash). The `--post-pr` flag posts markdown via `gh pr comment`.
+
+**Decisions:**
+
+- `runReviewDiff` is a pure function over two `GraphSnapshot` objects — testable without git.
+- The CLI `review diff` accepts `--base` and `--head` paths (not git refs) to keep the command side-effect-free.
+- `renderMarkdown` is a separate export for use by the GitHub Actions step and `--post-pr`.
+- The workflow template `semantic-review.yml.ejs` is gated on `L2 | L3` only (light governance projects don't need it).
+- NodeKind closed set: existing kinds (INV, ADR, TEST, FILE, GATE, SYMBOL) are sufficient for all three issues. No new kinds needed.
+
+**Consequences:** The `review diff` command requires pre-built snapshots. CI must run `arbiter graph build` at base and head refs separately. The workflow template shows the canonical pattern.
+
+---
+
+## feat(#261): Governance-Aware Affected CI — ci plan design (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #261
+
+**Context:** `arbiter ci plan` needs to traverse the provenance graph from changed files to find impacted invariants and required gates. In Wave-1, only INV+GATE nodes exist (no FILE/SYMBOL builders yet). Graceful fallback is required.
+
+**Decisions:**
+
+- Fallback when no graph: emit `risk_class: R-unknown, fallback: true` — never error, always emit a plan.
+- Risk class is computed from file path patterns (same rules as `src/risk/classifier.ts`) independently of the graph traversal.
+- Changed files are passed as `changedFiles` parameter (not resolved from git) so the function is testable.
+- `ci verify-plan` accepts a plan JSON + CI result JSON — no filesystem side effects.
+- Catalog-touching files (invariants/catalog.ts, AGENTS.md) trigger all INVs as impacted.
+
+**Consequences:** When the graph has no FILE nodes (current Wave-1 state), `ci plan` falls back gracefully. Full traversal becomes useful after FILE/SYMBOL builders are added in future waves.
+
+---
+
+## feat(#260): Gauntlet pairwise test generator — algorithm and emitter design (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #260
+
+**Context:** Pairwise/combinatorial test generation requires an IPOG (In-Parameter-Order General) algorithm, per-stack emitters, and a hash-based sync gate.
+
+**Decisions:**
+
+- IPOG is a greedy deterministic algorithm — output is byte-stable across runs. Optimal row count is not guaranteed (worst case ~20% above theoretical minimum for 3×3×3 case).
+- YAML parsing is done with a bespoke minimal parser (no external dependency). Rationale: js-yaml uses ESM (`./dist/js-yaml.mjs`) which fails with `ERR_UNSUPPORTED_DIR_IMPORT` when the module resolver traverses a symlinked `node_modules` in worktrees with `#` in the path. The spec format is simple enough to parse without a full YAML library.
+- NodeKind closed set: gauntlet spec → `SYMBOL` (subkind: "gauntlet-spec"), tests → `TEST`. No new NodeKinds needed.
+- The hash gate uses SHA-256 over normalised spec text (normalised line endings, trailing whitespace stripped).
+- Stack emitters: TypeScript (Playwright `test.describe`/`for` loop), Java (JUnit5 `@ParameterizedTest` / `@MethodSource`), Rust (`#[rstest]` / `#[case]`).
+
+**Consequences:** The YAML parser supports the spec subset only. If the spec format grows (anchors, multiline strings, etc.), migrate to a proper YAML library. The IPOG implementation uses a greedy heuristic; for strict minimum row count, a backtracking solver would be needed.
+
+---
+
 ## feat(#470): soloDevMode — trade-offs and invariant design (2026-05-13)
 
 **Status:** Accepted

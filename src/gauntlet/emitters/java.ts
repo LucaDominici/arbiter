@@ -1,0 +1,70 @@
+/**
+ * Gauntlet Java JUnit5 emitter (#260).
+ *
+ * Emits a Java test class using `@ParameterizedTest` / `@MethodSource`.
+ * Each IPOG row becomes an entry in the arguments stream.
+ *
+ * Existing Code Survey: grepped src/generators/ for @ParameterizedTest.
+ * Found references in mutation.ts (pitest config) but no parameterised
+ * test emitter — new file justified.
+ */
+
+import type { GauntletSpec } from '../spec.js'
+import type { IpogRow } from '../ipog.js'
+
+export function emitJava(spec: GauntletSpec, rows: IpogRow[]): string {
+  const className = toPascalCase(spec.name) + 'GauntletTest'
+  const params = Object.keys(rows[0] ?? {})
+
+  const argStream = rows
+    .map((row) => {
+      const vals = params.map((p) => `"${row[p] ?? ''}"`)
+      return `      Arguments.of(${vals.join(', ')})`
+    })
+    .join(',\n')
+
+  const paramDecls = params.map((p) => `String ${toCamelCase(p)}`).join(', ')
+  const assertBody = params
+    .map((p) => `    assertNotNull(${toCamelCase(p)}, "${p} must not be null");`)
+    .join('\n')
+
+  return [
+    `package gauntlet;`,
+    ``,
+    `// Gauntlet-generated — do not edit manually. Re-generate with:`,
+    `//   arbiter gauntlet generate --spec gauntlet.yaml`,
+    `// spec: ${spec.name}  strategy: ${spec.strategy}  rows: ${rows.length}`,
+    ``,
+    `import org.junit.jupiter.params.ParameterizedTest;`,
+    `import org.junit.jupiter.params.provider.Arguments;`,
+    `import org.junit.jupiter.params.provider.MethodSource;`,
+    `import java.util.stream.Stream;`,
+    `import static org.junit.jupiter.api.Assertions.assertNotNull;`,
+    ``,
+    `public class ${className} {`,
+    ``,
+    `    static Stream<Arguments> matrix() {`,
+    `        return Stream.of(`,
+    argStream,
+    `        );`,
+    `    }`,
+    ``,
+    `    @ParameterizedTest`,
+    `    @MethodSource("matrix")`,
+    `    void test_${toCamelCase(spec.name)}(${paramDecls}) {`,
+    `        // TODO(#260): implement test body using params`,
+    assertBody,
+    `    }`,
+    `}`,
+    ``,
+  ].join('\n')
+}
+
+function toPascalCase(s: string): string {
+  return s.replace(/[-_\s]+(.)/g, (_, c: string) => (c as string).toUpperCase()).replace(/^./, (c) => c.toUpperCase())
+}
+
+function toCamelCase(s: string): string {
+  const pascal = toPascalCase(s)
+  return pascal.charAt(0).toLowerCase() + pascal.slice(1)
+}
