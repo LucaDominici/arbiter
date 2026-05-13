@@ -103,33 +103,39 @@ describe('generateCheckAll', () => {
     expect(content).not.toContain('debt-report.mjs')
   })
 
-  it('does NOT include pitest for Java + Gradle (mutation moved to nightly)', () => {
+  it('INCLUDES pitest for Java + Gradle at L2 (#347 — INV-30 wired)', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'java',
         buildTool: 'gradle',
         enableDebtGates: true,
         governanceLevel: 'L2',
+        enableMutationTesting: true,
+        thresholdProfile: 'fixed',
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('pitest')
+    expect(content).toContain("runCheck('mutation (pitest)', './gradlew', ['pitest', '-q']")
   })
 
-  it('does NOT include pitest for Java + Maven (mutation moved to nightly)', () => {
+  it('INCLUDES pitest for Java + Maven at L2 (#347 — INV-30 wired)', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'java',
         buildTool: 'maven',
         enableDebtGates: true,
         governanceLevel: 'L2',
+        enableMutationTesting: true,
+        thresholdProfile: 'fixed',
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('pitest')
+    expect(content).toContain(
+      "runCheck('mutation (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']",
+    )
   })
 
-  it('does not include pitest for Java at L1 (no debt gates)', () => {
+  it('does not include pitest for Java at L1 (no debt gates, mutation L2-only)', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'java',
@@ -139,21 +145,38 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('pitest')
+    expect(content).not.toContain("runCheck('mutation (pitest)'")
   })
 
-  it('does not include pitest for non-Java languages at L2', () => {
+  it('does not include pitest for non-Java languages at L2 (#347 — pitest is Java-only)', () => {
     for (const lang of ['typescript', 'rust', 'go', 'python'] as const) {
       generateCheckAll(
         makeConfig(dir, {
           language: lang,
           enableDebtGates: true,
           governanceLevel: 'L2',
+          enableMutationTesting: true,
+          thresholdProfile: 'fixed',
         }),
       )
       const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-      expect(content).not.toContain('pitest')
+      expect(content).not.toContain("runCheck('mutation (pitest)'")
     }
+  })
+
+  it('does not include mutation step when enableMutationTesting is false (#347)', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: 'java',
+        buildTool: 'gradle',
+        enableDebtGates: true,
+        governanceLevel: 'L2',
+        enableMutationTesting: false,
+        thresholdProfile: 'fixed',
+      }),
+    )
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).not.toContain("runCheck('mutation (pitest)'")
   })
 
   it('includes STRIDE/RACI traceability check at L2 when enableDebtGates is true', () => {

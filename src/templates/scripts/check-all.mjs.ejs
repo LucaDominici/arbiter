@@ -13,6 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 // inline ad-hoc gates that classify status outside of spawnSync.
 import {
   runCheck,
+  runToolCheck,
   pushResult,
   getResults,
   getFailed,
@@ -416,6 +417,23 @@ if (level === 'L2') {
 <% } %>
   runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.'], { soft: graceActive });
   runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.'], { soft: graceActive });
+<% } %>
+  // ─── L2: Mutation testing gate (#347, INV-30, CANON-02/09/15) ───────────────
+  // Proven cells: java (pitest), typescript (stryker). Rust/Python (beta) and Go (unsafe)
+  // are intentionally not wired — CANON-02 forbids gating beta/unsafe tools.
+  // Threshold (mutationThreshold) is rendered into the tool config (stryker.conf.json,
+  // pitest.gradle) by generateMutation at L3. At L2 the gate runs against whatever
+  // config is present locally; the helper is `runToolCheck` for stryker (npx auto-fetch
+  // may be absent locally → SKIP, FAIL only in CI) and `runCheck` for pitest (binary
+  // ships via gradle/maven plugin once the build file is wired).
+<% if ((typeof mutationEnabled !== 'undefined' && mutationEnabled) && (typeof enableMutationTesting === 'undefined' || enableMutationTesting !== false)) { %>
+<% if (language === 'typescript') { %>
+  runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run'], { soft: graceActive });
+<% } else if (language === 'java' && buildTool === 'gradle') { %>
+  runCheck('mutation (pitest)', './gradlew', ['pitest', '-q'], { soft: graceActive });
+<% } else if (language === 'java' && buildTool === 'maven') { %>
+  runCheck('mutation (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q'], { soft: graceActive });
+<% } %>
 <% } %>
   // ─── L2: STRIDE/RACI traceability ───────────────────────────────────────────
   runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'], { soft: graceActive });

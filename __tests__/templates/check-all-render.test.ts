@@ -473,3 +473,120 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
     expect(content).toContain('*.architecture.*')
   })
 })
+
+// ─── #347: Mutation gate wiring (CANON-02/09/15) ─────────────────────────────
+
+describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', () => {
+  it('TS L2 with mutationEnabled+enableMutationTesting: emits stryker runToolCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run']")
+  })
+
+  it('TS L1: does NOT emit stryker step (L2 only)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("'stryker'")
+  })
+
+  it('TS L2 with enableMutationTesting=false: does NOT emit stryker step', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: false,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("'stryker'")
+  })
+
+  it('TS L2 with mutationEnabled=false: does NOT emit stryker step', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = false
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("'stryker'")
+  })
+
+  it('Java Gradle L2: emits pitest gradle runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runCheck('mutation (pitest)', './gradlew', ['pitest', '-q']")
+  })
+
+  it('Java Maven L2: emits pitest maven runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'maven',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain(
+      "runCheck('mutation (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']",
+    )
+  })
+
+  it('Rust L2 (beta in matrix): does NOT emit mutation step (CANON-02)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'rust',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('cargo-mutants')
+    expect(content).not.toContain("'cargo', ['mutants'")
+  })
+
+  it('Go L2 (unsafe in matrix): does NOT emit mutation step (CANON-02)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'go',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('go-mutesting')
+    expect(content).not.toContain("'mutation (go-mutesting)'")
+  })
+
+  it('Python L2 (beta in matrix): does NOT emit mutation step (CANON-02)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'python',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('mutmut')
+  })
+})

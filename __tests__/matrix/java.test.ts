@@ -417,11 +417,11 @@ describe('matrix: Java L3 mutation gate (pitest)', () => {
     expect(content).toContain('mutationThreshold = 85')
   })
 
-  it('check-all.mjs does NOT invoke pitest (mutation moved to nightly)', () => {
+  it('check-all.mjs invokes pitest at L3 (#347 — INV-30 wired in L2 block, runs at L2+)', () => {
     const config = javaL3Config()
     runGenerators(config)
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('pitest')
+    expect(content).toContain("runCheck('mutation (pitest)', './gradlew', ['pitest', '-q']")
   })
 
   it('L2 Gradle config does NOT emit pitest.gradle', () => {
