@@ -6,7 +6,7 @@
 // --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 // Helper trinity (#351, CANON-01) — runCheck (HARD), runWarnCheck (info),
 // runToolCheck (CI-aware tool gate). pushResult/getResults/getFailed power the
@@ -369,6 +369,50 @@ if (level === 'L2') {
   runCheck('coverage threshold', 'cargo', ['tarpaulin', '--fail-under', '<%= coverageThreshold %>'], { soft: graceActive });
 <% } %>
   runCheck('clippy pedantic', 'cargo', ['clippy', '--', '-W', 'clippy::pedantic', '-D', 'warnings'], { soft: graceActive });
+<% if (archetype === 'cli' || archetype === 'embedded') { %>
+  // ── Binary size cap (#359, INV-60) ─────────────────────────────────────────
+  // Asserts the release binary stays under the archetype budget. Only emitted
+  // for archetypes that produce a binary (cli, embedded). Skips gracefully
+  // when the binary has not yet been built — the size budget only matters at
+  // release time, not pre-build.
+  {
+    const _binSizeStart = Date.now();
+    process.stdout.write('[CHECK] binary size ... ');
+    const _maxBytes = <%= binarySizeBytes %>;
+    let _binSizeStatus = 'PASS';
+    let _binPath = null;
+    try {
+      const _releaseDir = resolve(process.cwd(), 'target/release');
+      if (existsSync(_releaseDir)) {
+        const _entries = readdirSync(_releaseDir);
+        for (const _e of _entries) {
+          const _full = join(_releaseDir, _e);
+          const _st = statSync(_full);
+          if (_st.isFile() && (_st.mode & 0o111)) {
+            _binPath = _full;
+            const _bytes = _st.size;
+            if (_bytes > _maxBytes) {
+              console.log(graceActive
+                ? `WARN (grace period, ${_bytes} > ${_maxBytes})`
+                : `FAIL (${_bytes} > ${_maxBytes})`);
+              if (!graceActive) { _binSizeStatus = 'FAIL'; }
+            } else {
+              console.log(`PASS (${_bytes} bytes / ${_maxBytes} cap)`);
+            }
+            break;
+          }
+        }
+      }
+      if (_binPath === null) {
+        console.log('SKIP (no release binary built yet)');
+      }
+    } catch (_e) {
+      console.log(graceActive ? 'WARN (grace period, ' + _e.message + ')' : 'FAIL (' + _e.message + ')');
+      if (!graceActive) { _binSizeStatus = 'FAIL'; }
+    }
+    pushResult('binary size', _binSizeStatus, Date.now() - _binSizeStart);
+  }
+<% } %>
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
 <% if (coverageEnabled) { %>
   runCheck('coverage', './gradlew', ['jacocoTestCoverageVerification', '-q'], { soft: graceActive });

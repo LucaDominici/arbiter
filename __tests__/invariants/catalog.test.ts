@@ -22,19 +22,19 @@ const ALL_TIERS: InvariantTier[] = [
 // ---------------------------------------------------------------------------
 
 describe('INVARIANT_CATALOG', () => {
-  it('has exactly 59 entries', () => {
-    expect(INVARIANT_CATALOG).toHaveLength(59)
+  it('has exactly 60 entries', () => {
+    expect(INVARIANT_CATALOG).toHaveLength(60)
   })
 
   it('all IDs are unique', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(59)
+    expect(unique.size).toBe(60)
   })
 
-  it('all IDs match INV-XX pattern sequentially (INV-01..59)', () => {
+  it('all IDs match INV-XX pattern sequentially (INV-01..60)', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
-    for (let i = 1; i <= 59; i++) {
+    for (let i = 1; i <= 60; i++) {
       expect(ids).toContain(`INV-${String(i).padStart(2, '0')}`)
     }
   })
@@ -99,9 +99,9 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier3).toHaveLength(6)
   })
 
-  it('has exactly 11 Tier 4 invariants', () => {
+  it('has exactly 12 Tier 4 invariants', () => {
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(11)
+    expect(tier4).toHaveLength(12)
   })
 
   it('has exactly 29 Tier 5 invariants', () => {

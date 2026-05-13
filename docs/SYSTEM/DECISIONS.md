@@ -5,6 +5,27 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#353 #354 #359): threshold-coherence templates (Phase 7A/7B/7G, 2026-05-14)
+
+**Status:** Accepted
+**Reference:** Issues #353, #354, #359; INV-60; CANON-04, CANON-08, CANON-09
+
+**Context:** Three Phase 7 issues converge on threshold coherence across the generated coverage stack: #353 (TypeScript/vitest), #354 (Rust/tarpaulin coverage), #359 (Rust binary-size invariant). Each emits or modifies a tool config file gated by `governanceLevel` through the existing `computeThresholds` helper. PR #633 partially shipped #353 (`thresholdAutoUpdate:false`); this PR finishes the remaining curated-excludes scope and adds the two sibling templates.
+
+**Decisions:**
+
+- **Reuse `computeThresholds` (src/config/thresholds.ts) as the single threshold authority.** Issue spec mentions per-issue mappings (#353: L1 70 / L2 80 / L3 90; #354: L1 60 / L2 75 / L3 85) that diverge from the existing helper (fixed profile: L2 80, L3 85, L1 disables coverage). Aligning these is a cross-cutting policy decision with downstream impact (debt ratchet baselines, drift checks, AGENTS.md threshold tables). This PR reuses the helper as-is; threshold-spec drift is deferred to a follow-up issue.
+- **Vitest curated `coverage.exclude` (#353):** Five entries with rationale comments — `*.d.ts`, `*.config.*`, `**/index.ts`, `**/*.test.ts`, `**/*.spec.ts`. Each entry is intentionally excluded; an `check-coverage-excludes-rationale.mjs` lint script that enforces comment-per-entry is deferred to a follow-up issue (out of "template" scope).
+- **Tarpaulin `[default]` + `exclude-files` (#354):** Embeds `fail-under` in the toml so `cargo tarpaulin` hard-fails independently of the `--fail-under` CLI flag in `scripts/check-all.mjs`. Excludes carry rationale comments for `src/main.rs`, `src/lib.rs`, `build.rs`, `target/**`. The doc-vs-config parity check (`check-coverage-doc-parity.mjs`) is deferred — it is a standalone gate, not a template artefact.
+- **INV-60 release-binary-size cap (#359):** Tier 4 operational, Rust-only (`languages: ['rust']`, `minGovernanceLevel: 'L2'`). Per-archetype budgets: `cli` → 10 MB, `embedded` → 5 MB. Defaults are **inlined** in `src/generators/coverage.ts` and `src/generators/check-all.ts` (rather than exported from `src/config/thresholds.ts`) to avoid expanding the public API surface tracked by INV-02 / debt ratchet. The two copies are 4-line functions with matching signatures and a cross-reference comment.
+- **No new `rust-binary` archetype:** The #359 issue text references `rust-binary`/`rust-desktop` archetypes that do not exist in `src/wizard/types.ts` (current enum: `backend-web-db | cli | library | data-pipeline | frontend-spa | embedded`). The size step gates on `archetype === 'cli' || archetype === 'embedded'` rather than introducing a new wizard/detector/matrix-cutting Archetype value. A new archetype taxonomy is its own follow-up.
+- **Generated check-all.mjs size step:** Inline ad-hoc gate (pushResult/spawnSync pattern) inside the Rust L2 block. Skips when no release binary exists (freshly-cloned repo). Honours `graceActive` grace-period semantics consistent with the surrounding gates.
+- **Cargo.toml.profile.release.ejs materializes at `docs/coverage/Cargo.toml.profile.release`** rather than overwriting the project's `Cargo.toml`. Operators append the block manually; the path-segregated emission avoids collisions and surfaces the policy snippet as documentation.
+
+**Consequences:** Three thresholds now scale consistently with `governanceLevel` via a single computeThresholds call. INV-60 brings release binary sizes under explicit gate, with archetype defaults documented in the generated toml comment. The deferred items (rationale lint, doc-parity gate, threshold-policy realignment, new archetype enum value) are tracked as follow-ups rather than shipped half-done.
+
+---
+
 ## feat(#263): time-travel governance — arbiter blame (2026-05-13)
 
 **Status:** Accepted
