@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel in-progress CI runs on the same ref except for main. Main runs always
+# complete so post-merge status doesn't get truncated; task branches cancel
+# stale runs when pushed-over (#357).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
 <% if (enableSoloDevMode) { %>
   solo-dev-gate:

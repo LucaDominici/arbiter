@@ -39,6 +39,14 @@ describe('ci.yml.ejs rendering', () => {
     expect(rendered).toContain('--require-improvement')
   })
 
+  it('emits concurrency block that cancels in-progress runs except on main (#357)', () => {
+    const data = makeConfig('/tmp/test', {}) as unknown as Record<string, unknown>
+    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    expect(rendered).toContain('concurrency:')
+    expect(rendered).toContain('group: ci-${{ github.ref }}')
+    expect(rendered).toMatch(/cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/)
+  })
+
   it('debt-ratchet is listed in ci-required needs when enableDebtGates', () => {
     const data = makeConfig('/tmp/test', {
       enableDebtGates: true,
