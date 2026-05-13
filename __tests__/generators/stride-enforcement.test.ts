@@ -19,6 +19,12 @@ describe('generateStrideEnforcement', () => {
     cleanupTestProject(dir)
   })
 
+  it('returns no files at L1 — gate is L2+ only (#290)', () => {
+    // Override enableDebtGates to true to confirm the generator itself guards, not the registry
+    const config = makeConfig(dir, { governanceLevel: 'L1', enableDebtGates: true })
+    expect(generateStrideEnforcement(config).files).toHaveLength(0)
+  })
+
   it('generates 3 files at L2 (default)', () => {
     const config = makeConfig(dir)
     expect(generateStrideEnforcement(config).files).toHaveLength(3)

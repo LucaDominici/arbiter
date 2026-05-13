@@ -19,7 +19,7 @@ interface GhField {
 
 function findExistingBoard(owner: string, title: string): { number: number; url: string } | null {
   try {
-    const { projects } = runCliJson('gh', [
+    const raw = runCliJson('gh', [
       'project',
       'list',
       '--owner',
@@ -28,7 +28,15 @@ function findExistingBoard(owner: string, title: string): { number: number; url:
       'json',
       '--limit',
       '100',
-    ]) as { projects: GhProject[] }
+    ])
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      throw new Error(`Unexpected gh project list output: expected object with "projects" key`)
+    }
+    const rawObj = raw as Record<string, unknown>
+    if (!Array.isArray(rawObj['projects'])) {
+      throw new Error(`Unexpected gh project list output: "projects" field is not an array`)
+    }
+    const projects = rawObj['projects'] as GhProject[]
     const match = projects.find((p) => p.title === title)
     return match ? { number: match.number, url: match.url } : null
   } catch {
@@ -38,7 +46,7 @@ function findExistingBoard(owner: string, title: string): { number: number; url:
 
 function existingFieldNames(owner: string, projectNumber: number): Set<string> {
   try {
-    const { fields } = runCliJson('gh', [
+    const raw = runCliJson('gh', [
       'project',
       'field-list',
       String(projectNumber),
@@ -46,7 +54,15 @@ function existingFieldNames(owner: string, projectNumber: number): Set<string> {
       owner,
       '--format',
       'json',
-    ]) as { fields: GhField[] }
+    ])
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      throw new Error(`Unexpected gh project field-list output: expected object with "fields" key`)
+    }
+    const rawObj = raw as Record<string, unknown>
+    if (!Array.isArray(rawObj['fields'])) {
+      throw new Error(`Unexpected gh project field-list output: "fields" field is not an array`)
+    }
+    const fields = rawObj['fields'] as GhField[]
     return new Set(fields.map((f) => f.name))
   } catch {
     return new Set()
@@ -111,7 +127,7 @@ export function createProjectBoard(owner: string, repo: string): ProjectBoardRes
   let projectNumber: number
   let projectUrl: string
   try {
-    const parsed = runCliJson('gh', [
+    const raw = runCliJson('gh', [
       'project',
       'create',
       '--owner',
@@ -120,9 +136,16 @@ export function createProjectBoard(owner: string, repo: string): ProjectBoardRes
       boardTitle,
       '--format',
       'json',
-    ]) as { number: number; url: string }
-    projectNumber = parsed.number
-    projectUrl = parsed.url
+    ])
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      throw new Error(`Unexpected gh project create output: expected object`)
+    }
+    const rawObj = raw as Record<string, unknown>
+    if (typeof rawObj['number'] !== 'number' || typeof rawObj['url'] !== 'string') {
+      throw new Error(`Unexpected gh project create output: missing "number" or "url" fields`)
+    }
+    projectNumber = rawObj['number']
+    projectUrl = rawObj['url']
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { created: false, projectUrl: null, error: msg, warnings: [] }

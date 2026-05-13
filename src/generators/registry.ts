@@ -25,6 +25,9 @@ import { generateIntegrationTesting } from './integration-testing.js'
 import { generateContractTesting } from './contract-testing.js'
 import { generateGlobalInvariants } from './global-invariants.js'
 import { generateSkills } from './skills.js'
+import { generateGemini } from './gemini.js'
+import { generateWindsurf } from './windsurf.js'
+import { generateAider } from './aider.js'
 import { generateAgentsClaude } from './agents-claude.js'
 import { generateSsot } from './ssot.js'
 import { generateBehavioralTests } from './behavioral-tests.js'
@@ -74,6 +77,21 @@ function buildAiToolSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'copilot',
       enabled: noAiRulez && config.tools.includes('copilot'),
       run: () => generateCopilot(config).files,
+    },
+    {
+      key: 'gemini',
+      enabled: noAiRulez && config.tools.includes('gemini'),
+      run: () => generateGemini(config).files,
+    },
+    {
+      key: 'windsurf',
+      enabled: noAiRulez && config.tools.includes('windsurf'),
+      run: () => generateWindsurf(config).files,
+    },
+    {
+      key: 'aider',
+      enabled: noAiRulez && config.tools.includes('aider'),
+      run: () => generateAider(config).files,
     },
     {
       key: 'skills',

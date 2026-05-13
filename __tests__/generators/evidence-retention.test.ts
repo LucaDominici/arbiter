@@ -96,6 +96,24 @@ describe('generateEvidenceRetention', () => {
     expect(s2?.action).not.toBe('skipped')
   })
 
+  it('evidence-rotate.mjs creates .arbiter-backup on second run (#293)', () => {
+    const config = makeConfig(dir)
+    generateEvidenceRetention(config)
+    const r2 = generateEvidenceRetention(config)
+    const f = r2.files.find((x) => x.path.endsWith('evidence-rotate.mjs'))
+    expect(f?.action).toBe('backed-up-and-replaced')
+    expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
+  })
+
+  it('done-evidence.mjs creates .arbiter-backup on second run at L2+ (#293)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    generateEvidenceRetention(config)
+    const r2 = generateEvidenceRetention(config)
+    const f = r2.files.find((x) => x.path.endsWith('done-evidence.mjs'))
+    expect(f?.action).toBe('backed-up-and-replaced')
+    expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
+  })
+
   it('evidence-rotate.mjs has shebang', () => {
     generateEvidenceRetention(makeConfig(dir))
     const content = readFileSync(join(dir, 'scripts', 'evidence-rotate.mjs'), 'utf-8')

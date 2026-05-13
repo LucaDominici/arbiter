@@ -55,7 +55,7 @@ export function provisionLabels(owner: string, repo: string): LabelProvisionResu
   // Fetch all existing labels — high limit avoids truncation on large repos
   let existingNames: Set<string>
   try {
-    const parsed = runCliJson('gh', [
+    const raw = runCliJson('gh', [
       'label',
       'list',
       '-R',
@@ -64,7 +64,20 @@ export function provisionLabels(owner: string, repo: string): LabelProvisionResu
       '1000',
       '--json',
       'name',
-    ]) as Array<{ name: string }>
+    ])
+    if (!Array.isArray(raw)) {
+      throw new Error(`Unexpected gh label list output format: expected array, got ${typeof raw}`)
+    }
+    const parsed = raw.map((item, i) => {
+      if (
+        typeof item !== 'object' ||
+        item === null ||
+        typeof (item as Record<string, unknown>)['name'] !== 'string'
+      ) {
+        throw new Error(`Unexpected gh label list item at index ${i}: missing string "name" field`)
+      }
+      return item as { name: string }
+    })
     existingNames = new Set(parsed.map((l) => l.name.toLowerCase()))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

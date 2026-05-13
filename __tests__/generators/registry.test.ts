@@ -7,6 +7,72 @@ import {
 import type { GeneratorSpec } from '../../src/generators/registry.js'
 import { makeConfig } from '../helpers.js'
 
+describe('buildRegistry — gemini/windsurf/aider wired (#295)', () => {
+  it('gemini spec is enabled when tools includes gemini', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { tools: ['gemini'] }))
+    const spec = specs.find((s) => s.key === 'gemini')
+    expect(spec).toBeDefined()
+    expect(spec?.enabled).toBe(true)
+  })
+
+  it('gemini spec is disabled when tools does not include gemini', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { tools: ['claude'] }))
+    const spec = specs.find((s) => s.key === 'gemini')
+    expect(spec).toBeDefined()
+    expect(spec?.enabled).toBe(false)
+  })
+
+  it('windsurf spec is enabled when tools includes windsurf', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { tools: ['windsurf'] }))
+    const spec = specs.find((s) => s.key === 'windsurf')
+    expect(spec).toBeDefined()
+    expect(spec?.enabled).toBe(true)
+  })
+
+  it('windsurf spec is disabled when tools does not include windsurf', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { tools: ['claude'] }))
+    const spec = specs.find((s) => s.key === 'windsurf')
+    expect(spec).toBeDefined()
+    expect(spec?.enabled).toBe(false)
+  })
+
+  it('aider spec is enabled when tools includes aider', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { tools: ['aider'] }))
+    const spec = specs.find((s) => s.key === 'aider')
+    expect(spec).toBeDefined()
+    expect(spec?.enabled).toBe(true)
+  })
+
+  it('aider spec is disabled when tools does not include aider', () => {
+    const specs = buildRegistry(makeConfig('/tmp', { tools: ['claude'] }))
+    const spec = specs.find((s) => s.key === 'aider')
+    expect(spec).toBeDefined()
+    expect(spec?.enabled).toBe(false)
+  })
+
+  it('all three disabled when aiRulez is already managed', () => {
+    const specs = buildRegistry(
+      makeConfig('/tmp', {
+        tools: ['gemini', 'windsurf', 'aider'],
+        existing: {
+          agentsMd: false,
+          claudeDir: false,
+          agentsDir: false,
+          aiRulez: true,
+          settingsJson: false,
+          checkAllScript: false,
+          geminiDir: false,
+          windsurfRules: false,
+          aiderConf: false,
+        },
+      }),
+    )
+    expect(specs.find((s) => s.key === 'gemini')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'windsurf')?.enabled).toBe(false)
+    expect(specs.find((s) => s.key === 'aider')?.enabled).toBe(false)
+  })
+})
+
 describe('buildRegistry', () => {
   it('check-all is always enabled regardless of useGitHub', () => {
     const withGitHub = buildRegistry(makeConfig('/tmp', { useGitHub: true }))

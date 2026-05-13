@@ -8,6 +8,8 @@ export interface StrideEnforcementResult {
 }
 
 export function generateStrideEnforcement(config: ProjectConfig): StrideEnforcementResult {
+  if (config.governanceLevel === 'L1') return { files: [] }
+
   const base = config.targetDir
   const data = config as unknown as Record<string, unknown>
 

@@ -42,6 +42,30 @@ describe('provisionLabels', () => {
     expect(result.errors).toHaveLength(0)
   })
 
+  // ── Runtime validation tests (#296) ────────────────────────────────────────
+
+  it('surfaces error when gh label list returns non-array (#296)', async () => {
+    const { provisionLabels } = await import('../../src/github/labels.js')
+    mockRunCliJson.mockReturnValue({ labels: [] }) // object, not array
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
+
+    const result = provisionLabels('owner', 'repo')
+
+    expect(result.errors.some((e) => e.includes('list labels failed:'))).toBe(true)
+    expect(result.errors[0]).toContain('expected array')
+  })
+
+  it('surfaces error when gh label list item is missing "name" field (#296)', async () => {
+    const { provisionLabels } = await import('../../src/github/labels.js')
+    mockRunCliJson.mockReturnValue([{ id: 1 }]) // missing name
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
+
+    const result = provisionLabels('owner', 'repo')
+
+    expect(result.errors.some((e) => e.includes('list labels failed:'))).toBe(true)
+    expect(result.errors[0]).toContain('name')
+  })
+
   // ── Pagination tests ────────────────────────────────────────────────────────
 
   it('handles 250-label repos without truncation', async () => {
