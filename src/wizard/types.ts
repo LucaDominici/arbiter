@@ -22,6 +22,8 @@ export interface WizardAnswers {
   decompositionBackend?: "github" | "markdown";
   /** Phase 9.5 ML: set only when hasPublicApi=true. Absent = default "none". */
   contractType?: ContractType;
+  /** #470: solo-dev mode — skip PR CI, merge directly after local L2 gate passes. Default false. */
+  soloDevMode?: boolean;
 }
 
 export interface MigrationPlan {
