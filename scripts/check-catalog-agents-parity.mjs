@@ -50,6 +50,11 @@ for (const line of catalogSrc.split('\n')) {
     }
   }
 }
+// Guard: titlePending still set at EOF means title could not be parsed
+if (titlePending && currentId) {
+  console.error(`[check-catalog-agents-parity] ERROR: could not parse title for ${currentId}`)
+  process.exit(2)
+}
 
 // Extract {id, title} pairs from AGENTS.md: format is **INV-NN:** title
 const agentsEntries = new Map()

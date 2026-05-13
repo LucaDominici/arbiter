@@ -138,6 +138,37 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
     }
   })
 
+  it('correctly extracts multi-line title (titlePending path)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      writeFileSync(
+        catalog,
+        `  {\n    id: 'INV-36',\n    tier: 'governance',\n    title:\n      'Multi-line canonical title',\n  }`,
+      )
+      writeFileSync(agents, `## Invariants\n\n- **INV-36:** Multi-line canonical title`)
+      expect(run(catalog, agents).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 2 when titlePending at EOF (malformed catalog)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      // id: present, title: keyword present, but no string value follows
+      writeFileSync(catalog, `  {\n    id: 'INV-01',\n    tier: 'governance',\n    title:\n  }`)
+      writeFileSync(agents, makeAgents(['INV-01']))
+      const result = run(catalog, agents)
+      expect(result.status).toBe(2)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real catalog and AGENTS.md', () => {
     const result = run(resolve('src/invariants/catalog.ts'), resolve('AGENTS.md'))
     expect(result.status).toBe(0)

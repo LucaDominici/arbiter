@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { buildRegistry, runGeneratorsFromRegistry } from '../../src/generators/registry.js'
+import {
+  buildRegistry,
+  runGeneratorsFromRegistry,
+  runGeneratorsSelective,
+} from '../../src/generators/registry.js'
 import type { GeneratorSpec } from '../../src/generators/registry.js'
 import { makeConfig } from '../helpers.js'
 
@@ -106,5 +110,53 @@ describe('runGeneratorsFromRegistry', () => {
     const results = runGeneratorsFromRegistry(specs)
     expect(results).toHaveLength(1)
     expect(results[0].path).toBe('/ok')
+  })
+})
+
+describe('runGeneratorsSelective', () => {
+  it('selected generator failure does not abort other selected generators (#303)', () => {
+    const specs: GeneratorSpec[] = [
+      {
+        key: 'check-all',
+        enabled: true,
+        run: () => [{ path: '/check', content: 'ok', action: 'created' }],
+      },
+      {
+        key: 'github',
+        enabled: true,
+        run: () => {
+          throw new Error('github boom')
+        },
+      },
+      {
+        key: 'root',
+        enabled: true,
+        run: () => [{ path: '/root', content: 'ok', action: 'created' }],
+      },
+    ]
+    const results = runGeneratorsSelective(specs, new Set(['check-all', 'github', 'root']))
+    expect(results).toHaveLength(2)
+    expect(results.map((r) => r.path)).toContain('/check')
+    expect(results.map((r) => r.path)).toContain('/root')
+  })
+
+  it('wildcard selective run uses same isolation as full run (#303)', () => {
+    const specs: GeneratorSpec[] = [
+      {
+        key: 'check-all',
+        enabled: true,
+        run: () => {
+          throw new Error('boom')
+        },
+      },
+      {
+        key: 'root',
+        enabled: true,
+        run: () => [{ path: '/root', content: 'ok', action: 'created' }],
+      },
+    ]
+    const results = runGeneratorsSelective(specs, new Set(['*']))
+    expect(results).toHaveLength(1)
+    expect(results[0].path).toBe('/root')
   })
 })
