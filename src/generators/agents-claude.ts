@@ -12,7 +12,7 @@ const AGENT_NAMES = ['codebase-scanner', 'red-team', 'context-checker', 'bridge-
 export function generateAgentsClaude(config: ProjectConfig): AgentsClaudeGeneratorResult {
   if (!config.tools.includes('claude')) return { files: [] }
 
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const base = config.targetDir
 
   const files = AGENT_NAMES.map((name) =>

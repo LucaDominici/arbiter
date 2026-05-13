@@ -8,7 +8,7 @@ export interface AiderGeneratorResult {
 }
 
 export function generateAider(config: ProjectConfig): AiderGeneratorResult {
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   return {
     files: [
       writeFile(

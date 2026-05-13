@@ -15,7 +15,7 @@ export interface CodexHooksGeneratorResult {
 export function generateCodexHooks(config: ProjectConfig): CodexHooksGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   // .codex/config.toml — always rewrite so hook wiring stays current; backup preserves customizations
   results.push(

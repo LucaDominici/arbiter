@@ -8,7 +8,7 @@ export interface CopilotGeneratorResult {
 }
 
 export function generateCopilot(config: ProjectConfig): CopilotGeneratorResult {
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   return {
     files: [
       writeFile(

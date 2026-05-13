@@ -16,7 +16,7 @@ export function generateGithubSetup(config: ProjectConfig): GithubSetupGenerator
   }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const scriptPath = resolvedPath(base, 'scripts', 'setup-repo.sh')
 
   const result = writeFile(scriptPath, renderTemplate('scripts/setup-repo.sh.ejs', data), {

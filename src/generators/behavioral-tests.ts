@@ -7,11 +7,7 @@ export interface BehavioralTestsResult {
   files: WriteResult[]
 }
 
-function emitJavaBdd(
-  base: string,
-  data: Record<string, unknown>,
-  config: ProjectConfig,
-): WriteResult[] {
+function emitJavaBdd(base: string, data: object, config: ProjectConfig): WriteResult[] {
   const testPkg = config.basePackage
     ? `src/test/java/${config.basePackage.replace(/\./g, '/')}/example`
     : 'src/test/java/example'
@@ -37,7 +33,7 @@ function emitJavaBdd(
   ]
 }
 
-function emitTypeScriptBdd(base: string, data: Record<string, unknown>): WriteResult[] {
+function emitTypeScriptBdd(base: string, data: object): WriteResult[] {
   return [
     writeFile(
       resolvedPath(base, 'src', 'test', 'example.behavioral.test.ts'),
@@ -57,7 +53,7 @@ function emitTypeScriptBdd(base: string, data: Record<string, unknown>): WriteRe
   ]
 }
 
-function emitRustBdd(base: string, data: Record<string, unknown>): WriteResult[] {
+function emitRustBdd(base: string, data: object): WriteResult[] {
   return [
     writeFile(
       resolvedPath(base, 'tests', 'example_behavioral_test.rs'),
@@ -77,7 +73,7 @@ function emitRustBdd(base: string, data: Record<string, unknown>): WriteResult[]
   ]
 }
 
-function emitGoBdd(base: string, data: Record<string, unknown>): WriteResult[] {
+function emitGoBdd(base: string, data: object): WriteResult[] {
   return [
     writeFile(
       resolvedPath(base, 'internal', 'example_behavioral_test.go'),
@@ -97,7 +93,7 @@ function emitGoBdd(base: string, data: Record<string, unknown>): WriteResult[] {
   ]
 }
 
-function emitPythonBdd(base: string, data: Record<string, unknown>): WriteResult[] {
+function emitPythonBdd(base: string, data: object): WriteResult[] {
   return [
     writeFile(
       resolvedPath(base, 'tests', 'test_example_behavioral.py'),
@@ -119,7 +115,7 @@ function emitPythonBdd(base: string, data: Record<string, unknown>): WriteResult
 
 export function generateBehavioralTests(config: ProjectConfig): BehavioralTestsResult {
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const results: WriteResult[] = []
 
   if (config.language === 'java' || config.language === 'multi')

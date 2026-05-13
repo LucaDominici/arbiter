@@ -57,7 +57,7 @@ export function runDiff(options: DiffOptions): void {
     invariantTiers: config.invariantTiers,
   })
   const data = {
-    ...(config as unknown as Record<string, unknown>),
+    ...config,
     invariants,
     invariantsByTier: getInvariantsByTier(invariants),
     tierLabels: TIER_LABELS,

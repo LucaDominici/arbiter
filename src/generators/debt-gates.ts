@@ -66,11 +66,7 @@ function injectDepCruiserPackageJson(targetDir: string): void {
   }
 }
 
-function pushJavaDebtGates(
-  results: WriteResult[],
-  base: string,
-  data: Record<string, unknown>,
-): void {
+function pushJavaDebtGates(results: WriteResult[], base: string, data: object): void {
   const files: [string, string][] = [
     [resolvedPath(base, 'config', 'pmd-ruleset.xml'), 'static-analysis/pmd-ruleset.xml.ejs'],
     [resolvedPath(base, 'config', 'checkstyle.xml'), 'static-analysis/checkstyle.xml.ejs'],
@@ -98,7 +94,7 @@ export function generateDebtGates(config: ProjectConfig): DebtGatesGeneratorResu
 
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(

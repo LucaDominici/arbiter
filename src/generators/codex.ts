@@ -12,7 +12,7 @@ export interface CodexGeneratorResult {
 export function generateCodex(config: ProjectConfig): CodexGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   // CODEX.md — thin pointer + Codex-specific config
   results.push(

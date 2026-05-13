@@ -27,7 +27,7 @@ export function generateDebtRatchet(config: ProjectConfig): DebtRatchetGenerator
   const base = config.targetDir
   const metricsProfile = computeMetricsProfile(config)
   const data = {
-    ...(config as unknown as Record<string, unknown>),
+    ...config,
     metricsProfile,
   }
 

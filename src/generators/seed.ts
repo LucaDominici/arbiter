@@ -16,7 +16,7 @@ export function generateSeed(config: ProjectConfig): SeedGeneratorResult {
   }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   const seedScriptPath = resolvedPath(base, 'scripts', 'seed-test-data.sh')
   const commonLibPath = resolvedPath(base, 'scripts', 'lib', 'seed-common.sh')

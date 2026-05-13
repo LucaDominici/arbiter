@@ -7,7 +7,7 @@ export interface SecurityGeneratorResult {
   files: WriteResult[]
 }
 
-function renderSecurityTemplate(templatePath: string, data: Record<string, unknown>): string {
+function renderSecurityTemplate(templatePath: string, data: object): string {
   try {
     return renderTemplate(templatePath, data)
   } catch (err) {
@@ -22,7 +22,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
   if (!config.enableSecurityScanning) return { files: [] }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const results: WriteResult[] = []
 
   // PII scanner — always runs early-fail (HARD, no grace)

@@ -12,7 +12,7 @@ export function generatePythonBoundaries(config: ProjectConfig): BoundariesGener
   if (config.architectureStyle !== 'hexagonal') return { files: [] }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   return {
     files: [

@@ -11,7 +11,7 @@ export interface GithubGeneratorResult {
 export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const githubDir = resolvedPath(base, '.github')
 
   // CI workflow — always regenerate so soloDevMode toggles apply immediately

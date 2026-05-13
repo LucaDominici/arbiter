@@ -11,7 +11,7 @@ export function generateEvidenceBacklog(config: ProjectConfig): EvidenceBacklogR
   if (config.governanceLevel === 'L1') return { files: [] }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   return {
     files: [

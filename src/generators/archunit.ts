@@ -11,7 +11,7 @@ function emitHexagonalSuite(
   config: ProjectConfig,
   base: string,
   packagePath: string,
-  data: Record<string, unknown>,
+  data: object,
 ): WriteResult[] {
   const files: WriteResult[] = []
 
@@ -66,7 +66,7 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
   }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   const packagePath = config.basePackage
     ? config.basePackage.replace(/\./g, '/') + '/architecture'

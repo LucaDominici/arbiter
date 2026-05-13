@@ -24,7 +24,7 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
     coverageEnabled: computed.coverageEnabled,
     mutationEnabled: computed.mutationEnabled,
     mutationThreshold: config.thresholds?.mutationScore || computed.mutationThreshold,
-  } as unknown as Record<string, unknown>
+  }
 
   const scriptPath = resolvedPath(base, 'scripts', 'check-all.mjs')
   results.push(

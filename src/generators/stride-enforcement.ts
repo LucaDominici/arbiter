@@ -11,7 +11,7 @@ export function generateStrideEnforcement(config: ProjectConfig): StrideEnforcem
   if (config.governanceLevel === 'L1') return { files: [] }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   const results: WriteResult[] = [
     // User-edited governance docs — skip on regeneration to preserve threat entries

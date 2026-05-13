@@ -29,7 +29,7 @@ function buildRenderContext(config: ProjectConfig): Record<string, unknown> {
     Standard: AGENT_PERSONAS.filter((p) => p.tiers.includes('Standard')).map((p) => p.name),
   }
   return {
-    ...(config as unknown as Record<string, unknown>),
+    ...config,
     taskTiers,
     reviewerCount: TIER_REVIEWER_COUNT,
     personasForTier,
@@ -83,11 +83,7 @@ function parseExistingSettings(settingsPath: string): Record<string, unknown> {
   return parsed
 }
 
-function generateClaudeSettings(
-  base: string,
-  data: Record<string, unknown>,
-  results: WriteResult[],
-): void {
+function generateClaudeSettings(base: string, data: object, results: WriteResult[]): void {
   const settingsPath = resolvedPath(base, '.claude', 'settings.json')
   if (existsSync(settingsPath)) {
     const existing = parseExistingSettings(settingsPath)
@@ -108,7 +104,7 @@ function generateClaudeSettings(
 
 function generateClaudeHooks(
   base: string,
-  data: Record<string, unknown>,
+  data: object,
   config: ProjectConfig,
   results: WriteResult[],
 ): void {
@@ -208,11 +204,7 @@ function generateClaudeHooks(
   }
 }
 
-function generateClaudeRules(
-  base: string,
-  data: Record<string, unknown>,
-  results: WriteResult[],
-): void {
+function generateClaudeRules(base: string, data: object, results: WriteResult[]): void {
   const rulesDir = resolvedPath(base, '.claude', 'rules')
   const rules = [
     {
@@ -237,11 +229,7 @@ function generateClaudeRules(
   }
 }
 
-function generateClaudeCommands(
-  base: string,
-  data: Record<string, unknown>,
-  results: WriteResult[],
-): void {
+function generateClaudeCommands(base: string, data: object, results: WriteResult[]): void {
   const commandsDir = resolvedPath(base, '.claude', 'commands')
   const commands = [
     'task.md',

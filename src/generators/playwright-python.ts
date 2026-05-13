@@ -15,7 +15,7 @@ export function generatePlaywrightPython(config: ProjectConfig): PlaywrightPytho
   }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   return {
     files: [

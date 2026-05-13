@@ -12,7 +12,7 @@ export function generateApiMiddleware(config: ProjectConfig): ApiMiddlewareGener
 
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(

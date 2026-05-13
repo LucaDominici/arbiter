@@ -14,7 +14,7 @@ export function generateAgentsMd(config: ProjectConfig): WriteResult {
   const invariantsByTier = getInvariantsByTier(invariants)
 
   const data = {
-    ...(config as unknown as Record<string, unknown>),
+    ...config,
     invariants,
     invariantsByTier,
     tierLabels: TIER_LABELS,
