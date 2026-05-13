@@ -64,4 +64,9 @@ function validatePluginShape(plugin: unknown, pkg: string): void {
       `Plugin "${pkg}" detect field must be a function if present.`,
     );
   }
+  if ("verifyPlanRules" in p && !Array.isArray(p["verifyPlanRules"])) {
+    throw new Error(
+      `Plugin "${pkg}" field verifyPlanRules must be an array if present.`,
+    );
+  }
 }

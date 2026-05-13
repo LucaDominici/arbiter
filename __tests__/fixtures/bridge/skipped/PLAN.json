@@ -1,0 +1,6 @@
+{
+  "task_id": "#999",
+  "scope": { "track": "C" },
+  "files": [],
+  "review_bridge": { "enabled": false }
+}

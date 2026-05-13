@@ -1,8 +1,8 @@
 import { defineConfig } from "vitest/config";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 export default defineConfig({
-  root: fileURLToPath(new URL(".", import.meta.url)),
+  root: resolve("."),
   test: {
     globals: true,
     environment: "node",

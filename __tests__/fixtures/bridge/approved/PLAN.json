@@ -1,0 +1,19 @@
+{
+  "task_id": "#999",
+  "scope": { "track": "A", "paths": ["src/"] },
+  "files": [
+    {
+      "path": "src/foo.ts",
+      "operation": "modify",
+      "changes": {
+        "adds_tests": true,
+        "adds_todos": ["TODO(#999): fix later"]
+      }
+    }
+  ],
+  "review_bridge": {
+    "enabled": true,
+    "reviewer": "bridge-reviewer",
+    "fail_on_warn": false
+  }
+}
