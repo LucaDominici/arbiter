@@ -7,6 +7,7 @@ import { runGraphBuild, runVerifyGraph } from '../../src/commands/graph.js'
 import { buildInvNodes } from '../../src/graph/builders/inv.js'
 import type { Invariant } from '../../src/invariants/types.js'
 import type { GraphSnapshot } from '../../src/graph/model.js'
+import type { GraphFailure } from '../../src/commands/graph.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURES_DIR = join(__dirname, '..', 'fixtures', 'graph')
@@ -136,5 +137,203 @@ describe('verify graph (#259, AC-5)', () => {
     const result = runVerifyGraph({ dir })
     expect(result.status).toBe('error')
     expect(result.reason).toMatch(/failed to parse/)
+  })
+
+  it('result includes failures array (backward-compat)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'verify-graph-failures-'))
+    created.push(dir)
+    const store = buildInvNodes(loadFixture('catalog-clean.json'))
+    writeSnapshot(dir, store.snapshot())
+    const result = runVerifyGraph({ dir })
+    expect(Array.isArray(result.failures)).toBe(true)
+  })
+})
+
+describe('verify graph — new failure classes (#259-followup)', () => {
+  const created: string[] = []
+  afterEach(() => {
+    while (created.length > 0) {
+      const dir = created.pop()
+      if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('detects orphan-node: non-GATE node with no edges', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'verify-orphan-node-'))
+    created.push(dir)
+    const snap: GraphSnapshot = {
+      nodes: [
+        { id: 'INV-01', kind: 'INV', attrs: {} },
+        { id: 'GATE:foo', kind: 'GATE', attrs: {} },
+        // FILE node with no edges — should be flagged
+        { id: 'FILE:solo.ts', kind: 'FILE', attrs: {} },
+      ],
+      edges: [{ from: 'INV-01', to: 'GATE:foo', kind: 'enforces', attrs: {} }],
+    }
+    writeSnapshot(dir, snap)
+    const result = runVerifyGraph({ dir })
+    const orphanNodes = result.failures.filter((f: GraphFailure) => f.kind === 'orphan-node')
+    expect(orphanNodes.map((f: GraphFailure) => f.id)).toContain('FILE:solo.ts')
+  })
+
+  it('GATE nodes are exempt from orphan-node check', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'verify-gate-exempt-'))
+    created.push(dir)
+    const snap: GraphSnapshot = {
+      nodes: [
+        { id: 'INV-01', kind: 'INV', attrs: {} },
+        { id: 'GATE:foo', kind: 'GATE', attrs: {} },
+        // A standalone GATE with no edges — should NOT be flagged as orphan-node
+        { id: 'GATE:bar', kind: 'GATE', attrs: {} },
+      ],
+      edges: [{ from: 'INV-01', to: 'GATE:foo', kind: 'enforces', attrs: {} }],
+    }
+    writeSnapshot(dir, snap)
+    const result = runVerifyGraph({ dir })
+    const orphanNodes = result.failures.filter((f: GraphFailure) => f.kind === 'orphan-node')
+    expect(orphanNodes.map((f: GraphFailure) => f.id)).not.toContain('GATE:bar')
+  })
+
+  it('detects broken-ref: edge endpoint that does not exist', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'verify-broken-ref-'))
+    created.push(dir)
+    const snap = {
+      nodes: [{ id: 'INV-01', kind: 'INV', attrs: {} }],
+      edges: [{ from: 'INV-01', to: 'GATE:nonexistent', kind: 'enforces', attrs: {} }],
+    }
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'graph.json'),
+      JSON.stringify(snap, null, 2) + '\n',
+      'utf-8',
+    )
+    const result = runVerifyGraph({ dir })
+    const broken = result.failures.filter((f: GraphFailure) => f.kind === 'broken-ref')
+    expect(broken.length).toBeGreaterThan(0)
+    expect(broken[0]?.reason).toContain('GATE:nonexistent')
+  })
+
+  it('detects missing-evidence: INV enforces GATE that lacks a produces edge', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'verify-missing-evidence-'))
+    created.push(dir)
+    // For missing-evidence to trigger, the graph must have at least one produces edge
+    // (indicating evidence infrastructure), but the specific GATE has no EVIDENCE.
+    const snap: GraphSnapshot = {
+      nodes: [
+        { id: 'INV-01', kind: 'INV', attrs: {} },
+        { id: 'GATE:foo', kind: 'GATE', attrs: {} },
+        // GATE:bar has evidence; GATE:foo does not
+        { id: 'GATE:bar', kind: 'GATE', attrs: {} },
+        { id: 'EVIDENCE:abc', kind: 'EVIDENCE', attrs: {} },
+      ],
+      edges: [
+        { from: 'INV-01', to: 'GATE:foo', kind: 'enforces', attrs: {} },
+        // GATE:bar produces EVIDENCE but GATE:foo does not
+        { from: 'GATE:bar', to: 'EVIDENCE:abc', kind: 'produces', attrs: {} },
+      ],
+    }
+    writeSnapshot(dir, snap)
+    const result = runVerifyGraph({ dir })
+    const missing = result.failures.filter((f: GraphFailure) => f.kind === 'missing-evidence')
+    expect(missing.length).toBeGreaterThan(0)
+    expect(missing[0]?.id).toBe('INV-01')
+  })
+
+  it('no missing-evidence when every enforced GATE produces EVIDENCE', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'verify-has-evidence-'))
+    created.push(dir)
+    const snap: GraphSnapshot = {
+      nodes: [
+        { id: 'INV-01', kind: 'INV', attrs: {} },
+        { id: 'GATE:foo', kind: 'GATE', attrs: {} },
+        { id: 'EVIDENCE:abc', kind: 'EVIDENCE', attrs: {} },
+      ],
+      edges: [
+        { from: 'INV-01', to: 'GATE:foo', kind: 'enforces', attrs: {} },
+        { from: 'GATE:foo', to: 'EVIDENCE:abc', kind: 'produces', attrs: {} },
+      ],
+    }
+    writeSnapshot(dir, snap)
+    const result = runVerifyGraph({ dir })
+    const missing = result.failures.filter((f: GraphFailure) => f.kind === 'missing-evidence')
+    expect(missing).toHaveLength(0)
+  })
+
+  it('detects stale-prover: TEST node whose path does not exist on disk', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'verify-stale-prover-'))
+    created.push(dir)
+    const snap: GraphSnapshot = {
+      nodes: [
+        { id: 'INV-01', kind: 'INV', attrs: {} },
+        { id: 'GATE:foo', kind: 'GATE', attrs: {} },
+        { id: 'EVIDENCE:abc', kind: 'EVIDENCE', attrs: {} },
+        // TEST node with a path that does NOT exist on disk
+        {
+          id: 'TEST:__tests__/ghost.test.ts',
+          kind: 'TEST',
+          attrs: { path: '__tests__/ghost.test.ts' },
+        },
+      ],
+      edges: [
+        { from: 'INV-01', to: 'GATE:foo', kind: 'enforces', attrs: {} },
+        { from: 'GATE:foo', to: 'EVIDENCE:abc', kind: 'produces', attrs: {} },
+        { from: 'TEST:__tests__/ghost.test.ts', to: 'INV-01', kind: 'proves', attrs: {} },
+      ],
+    }
+    writeSnapshot(dir, snap)
+    const result = runVerifyGraph({ dir })
+    const stale = result.failures.filter((f: GraphFailure) => f.kind === 'stale-prover')
+    expect(stale.length).toBe(1)
+    expect(stale[0]?.id).toContain('ghost.test.ts')
+  })
+})
+
+describe('graph build — full-graph formats (#259-followup)', () => {
+  const created: string[] = []
+  afterEach(() => {
+    while (created.length > 0) {
+      const dir = created.pop()
+      if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('writes dot format when --format dot is specified', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'graph-dot-'))
+    created.push(dir)
+    const result = runGraphBuild({ dir, format: 'dot' })
+    expect(result.status).toBe('ok')
+    const content = readFileSync(result.path, 'utf-8')
+    expect(content.startsWith('digraph G {')).toBe(true)
+    expect(content).toContain('rankdir=LR')
+  })
+
+  it('writes mermaid format when --format mermaid is specified', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'graph-mermaid-'))
+    created.push(dir)
+    const result = runGraphBuild({ dir, format: 'mermaid' })
+    expect(result.status).toBe('ok')
+    const content = readFileSync(result.path, 'utf-8')
+    expect(content.startsWith('graph LR')).toBe(true)
+  })
+
+  it('defaults to json format', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'graph-default-'))
+    created.push(dir)
+    const result = runGraphBuild({ dir })
+    expect(result.path).toMatch(/\.json$/)
+    const content = readFileSync(result.path, 'utf-8')
+    const parsed: unknown = JSON.parse(content)
+    expect(parsed).toBeTypeOf('object')
+  })
+
+  it('uses different output paths for each format', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'graph-paths-'))
+    created.push(dir)
+    const jsonResult = runGraphBuild({ dir, format: 'json' })
+    const dotResult = runGraphBuild({ dir, format: 'dot' })
+    const mermaidResult = runGraphBuild({ dir, format: 'mermaid' })
+    expect(jsonResult.path).toMatch(/graph\.json$/)
+    expect(dotResult.path).toMatch(/graph\.dot$/)
+    expect(mermaidResult.path).toMatch(/graph\.mermaid$/)
   })
 })

@@ -28,6 +28,29 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#259): provenance graph followup — 6 builders + verify modes + full-graph formats (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #259; INV-54, INV-55, INV-56
+
+**Context:** Wave-1 (#259 core) shipped the INV builder and orphan-invariant verify mode. The followup ships the remaining graph infrastructure: 6 new builders that harvest ADR/REQ/AST/test/evidence/CANON nodes from the project, 4 new verify failure classes (orphan-node, broken-ref, missing-evidence, stale-prover), and dot/mermaid full-graph export.
+
+**Decisions:**
+
+- **6 builders added:** `adr` (DECISIONS.md), `req` (FEATURE_MATRIX.md / REQUIREMENTS_MATRIX.md), `ast` (JSDoc `@enforces`/`@invariant`), `test-nodes` (`[INV-NN]` tags in test titles), `evidence` (`.evidence/SUMMARY.json`), `canon` (CANON.md `## CANON-NN` sections). All degrade gracefully when source file is absent.
+
+- **Shared utils extracted:** `src/graph/builders/utils.ts` provides `walkFiles()` (deterministic sorted walk), `extractInvRefs()`, `unique()`. CANON-16 (refactor-first) satisfied: no prior utility existed.
+
+- **4 verify failure classes:** `orphan-node` (non-GATE node with zero edges), `broken-ref` (edge endpoint missing — detected via raw JSON scan before store construction to avoid throw), `missing-evidence` (INV enforces GATE without produces edge, gated on evidence infrastructure present), `stale-prover` (TEST node path absent on disk). `orphans` field preserved for backward compat.
+
+- **Full-graph formats:** `graph build --format dot|mermaid` writes to `.arbiter/graph.dot` / `.arbiter/graph.mermaid` alongside the default `graph.json`. `--format` wired into CLI.
+
+- **Regex-only AST scanner:** TypeScript compiler API rejected (runtime dep cost). `@enforces`/`@invariant` JSDoc tags are regex-matched; limitation documented (multi-line annotations may be missed).
+
+**Consequences:** The provenance graph now covers all 9 node kinds and 8 edge kinds. Verification surface expanded to 5 failure classes. Dot/mermaid export enables external visualization. All builders are non-fatal degrading — a missing source file yields 0 nodes for that domain without breaking the build.
+
+---
+
 ## feat(#470): soloDevMode — trade-offs and invariant design (2026-05-13)
 
 **Status:** Accepted

@@ -460,11 +460,13 @@ graph
   .description('Build the provenance graph from invariants and write .arbiter/graph.json')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--output <path>', 'Override output path (default: <dir>/.arbiter/graph.json)')
+  .option('--format <fmt>', 'Output format: json | dot | mermaid (default: json)', 'json')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; output?: string; json: boolean }) => {
+  .action((opts: { dir?: string; output?: string; format: string; json: boolean }) => {
     const buildOpts: import('./commands/graph.js').GraphBuildOptions = {}
     if (opts.dir !== undefined) buildOpts.dir = opts.dir
     if (opts.output !== undefined) buildOpts.output = opts.output
+    buildOpts.format = opts.format as import('./commands/graph.js').GraphFormat
     const result = runGraphBuild(buildOpts)
     if (opts.json) {
       jsonOutput(
