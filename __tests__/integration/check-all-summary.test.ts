@@ -8,18 +8,20 @@ import { makeConfig } from '../helpers.js'
 
 describe('check-all.mjs integration — summary table (#210, CANON-07)', () => {
   it('rendered check-all.mjs contains summary table logic', () => {
-    const rendered = renderTemplate(
-      'scripts/check-all.mjs.ejs',
-      makeConfig('/tmp/test', {
-        coverageEnabled: false,
-      }) as unknown as Record<string, unknown>,
-    )
+    const cfg = makeConfig('/tmp/test', { coverageEnabled: false }) as unknown as Record<
+      string,
+      unknown
+    >
+    const rendered = renderTemplate('scripts/check-all.mjs.ejs', cfg)
     expect(rendered).toContain('=== Summary ===')
     expect(rendered).toContain('IS_CI')
-    expect(rendered).toContain('::error::')
-    expect(rendered).toContain('stripAnsi')
     expect(rendered).toContain('Elapsed')
     expect(rendered).toContain('Total')
+    // #351 (CANON-01): stripAnsi + ::error:: live in the helper module now.
+    expect(rendered).toContain("from './lib/run-helpers.mjs'")
+    const lib = renderTemplate('scripts/lib/run-helpers.mjs.ejs', cfg)
+    expect(lib).toContain('::error::')
+    expect(lib).toContain('stripAnsi')
   })
 
   it('summary table appears in output of a minimal check-all script (passing)', () => {

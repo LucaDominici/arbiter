@@ -1,0 +1,130 @@
+// Gate runner trinity (#351, CANON-01) — runCheck / runWarnCheck / runToolCheck
+//
+// Three semantics for gate steps in scripts/check-all.mjs:
+//   runCheck      HARD — non-zero exit fails the gate.
+//                 { soft: true } coerces a single call to WARN
+//                 (used for grace-period: { soft: graceActive }).
+//   runWarnCheck  INFORMATIONAL — non-zero never fails the gate.
+//                 Use ONLY for checks NOT backed by an INV-NN.
+//   runToolCheck  CI-AWARE — missing binary: SKIP locally, FAIL in CI.
+//
+// Imported by scripts/check-all.mjs. Plain ESM (.mjs).
+import { spawnSync } from 'node:child_process';
+
+const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+
+const IS_CI = () => process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const NO_COLOR = () => IS_CI() || process.env.NO_COLOR === '1';
+
+function stripAnsi(str) {
+  return (str ?? '').replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+let results = [];
+let failed = 0;
+
+export function getResults() { return results; }
+export function getFailed() { return failed; }
+export function resetState() { results = []; failed = 0; }
+
+function spawn(name, cmd, args, opts) {
+  const start = Date.now();
+  process.stdout.write(`[CHECK] ${name} ... `);
+  const r = spawnSync(cmd, args, {
+    encoding: 'utf-8',
+    shell: false,
+    timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    ...(opts.cwd ? { cwd: opts.cwd } : {}),
+  });
+  return { r, elapsed: Date.now() - start };
+}
+
+function emitOutput(r) {
+  const noColor = NO_COLOR();
+  if (r.stdout) process.stdout.write(noColor ? stripAnsi(r.stdout) : r.stdout);
+  if (r.stderr) process.stderr.write(noColor ? stripAnsi(r.stderr) : r.stderr);
+}
+
+function recordFail(name, elapsed, msg) {
+  console.log(`FAIL (${msg}, ${elapsed}ms)`);
+  if (IS_CI()) console.log(`::error::${name}::${msg}`);
+  results.push({ name, status: 'FAIL', elapsed });
+  failed++;
+}
+
+function recordWarn(name, elapsed, msg) {
+  console.log(`WARN (${msg}, ${elapsed}ms)`);
+  results.push({ name, status: 'WARN', elapsed });
+}
+
+function recordSkip(name, elapsed, msg) {
+  console.log(`SKIP (${msg}, ${elapsed}ms)`);
+  results.push({ name, status: 'SKIP', elapsed });
+}
+
+function recordPass(name, elapsed) {
+  console.log(`PASS (${elapsed}ms)`);
+  results.push({ name, status: 'PASS', elapsed });
+}
+
+export function runCheck(name, cmd, args, opts = {}) {
+  const { r, elapsed } = spawn(name, cmd, args, opts);
+  if (r.error && r.error.code === 'ENOENT') {
+    recordFail(name, elapsed, `command not found: ${cmd}`);
+    return;
+  }
+  if (r.error && r.error.code === 'ETIMEDOUT') {
+    recordFail(name, elapsed, `timeout after ${elapsed}ms`);
+    return;
+  }
+  if (r.status === 0) { recordPass(name, elapsed); return; }
+  if (opts.soft) {
+    emitOutput(r);
+    recordWarn(name, elapsed, `grace period, exit ${r.status}`);
+    return;
+  }
+  emitOutput(r);
+  recordFail(name, elapsed, `exit ${r.status}`);
+}
+
+export function runWarnCheck(name, cmd, args, opts = {}) {
+  const { r, elapsed } = spawn(name, cmd, args, opts);
+  if (r.error && r.error.code === 'ENOENT') {
+    recordWarn(name, elapsed, `command not found: ${cmd}`);
+    return;
+  }
+  if (r.error && r.error.code === 'ETIMEDOUT') {
+    recordWarn(name, elapsed, `timeout after ${elapsed}ms`);
+    return;
+  }
+  if (r.status === 0) { recordPass(name, elapsed); return; }
+  emitOutput(r);
+  recordWarn(name, elapsed, `exit ${r.status}`);
+}
+
+export function runToolCheck(name, cmd, args, opts = {}) {
+  const { r, elapsed } = spawn(name, cmd, args, opts);
+  if (r.error && r.error.code === 'ENOENT') {
+    if (IS_CI()) {
+      recordFail(name, elapsed, `tool not installed in CI: ${cmd}`);
+    } else {
+      recordSkip(name, elapsed, `tool not installed locally: ${cmd}`);
+    }
+    return;
+  }
+  if (r.error && r.error.code === 'ETIMEDOUT') {
+    recordFail(name, elapsed, `timeout after ${elapsed}ms`);
+    return;
+  }
+  if (r.status === 0) { recordPass(name, elapsed); return; }
+  emitOutput(r);
+  recordFail(name, elapsed, `exit ${r.status}`);
+}
+
+/**
+ * Record an externally-classified result. Status 'FAIL' increments failed.
+ */
+export function pushResult(name, status, elapsed) {
+  results.push({ name, status, elapsed });
+  if (status === 'FAIL') failed++;
+}

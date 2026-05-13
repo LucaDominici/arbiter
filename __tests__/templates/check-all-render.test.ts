@@ -236,23 +236,29 @@ describe('check-all.mjs.ejs rendering — summary table + CI annotations (#210, 
     expect(content).toContain('IS_CI')
   })
 
-  it('rendered script contains stripAnsi function', () => {
+  it('rendered script imports helper trinity from ./lib/run-helpers.mjs (#351, CANON-01)', () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain('stripAnsi')
+    expect(content).toContain("from './lib/run-helpers.mjs'")
+    expect(content).toContain('runCheck')
+    expect(content).toContain('pushResult')
+    expect(content).toContain('getResults')
+    expect(content).toContain('getFailed')
   })
 
-  it('rendered script contains results array', () => {
+  it('rendered script uses pushResult for ad-hoc gates (replaces inline results.push)', () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain('results')
-    expect(content).toContain('results.push')
+    expect(content).toContain("pushResult('workflow runners'")
+    expect(content).toContain("pushResult('ci alignment'")
+    expect(content).not.toContain('results.push(')
+    expect(content).not.toMatch(/^\s*failed\+\+;\s*$/m)
   })
 
   it('rendered script contains summary table', () => {
@@ -267,14 +273,18 @@ describe('check-all.mjs.ejs rendering — summary table + CI annotations (#210, 
     expect(content).toContain('Total')
   })
 
-  it('rendered script contains ::error:: CI annotation', () => {
+  it('helper template (lib/run-helpers.mjs.ejs) carries CI annotations and stripAnsi (#351)', () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
-      coverageEnabled: false,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    const content = renderTemplate('scripts/lib/run-helpers.mjs.ejs', data)
+    expect(content).toContain('stripAnsi')
     expect(content).toContain('::error::')
+    expect(content).toContain('export function runCheck')
+    expect(content).toContain('export function runWarnCheck')
+    expect(content).toContain('export function runToolCheck')
+    expect(content).toContain('export function pushResult')
   })
 })
 

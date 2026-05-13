@@ -14,13 +14,13 @@
 //   Writes schema arbiter-gate-v1 with parityContentHash over static L1 gate subset.
 //
 // NOTE: this file runs without a build step and cannot import from src/.
-// src/ code goes through src/utils/run-cli.ts (INV-12). Gate scripts are
-// plain .mjs with their own inline helper that mirrors the same semantics:
-// timeout, structured failure reporting, and non-zero exit aggregation.
+// src/ code goes through src/utils/run-cli.ts (INV-12). Gate scripts use the
+// helper trinity in scripts/lib/run-helpers.mjs (#351, CANON-01): runCheck (HARD),
+// runWarnCheck (informational), runToolCheck (CI-aware tool gate).
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { runCheck, getResults, getFailed } from './lib/run-helpers.mjs'
 
 // Parse positional level arg and optional --json [path] flag
 let level = 'L2'
@@ -38,71 +38,13 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
   }
 }
 
-const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes per check
-let failed = 0
-
 // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
 // git-dependent checks (commitlint, docs) must run from the original repo path.
 const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
 
-const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
-const NO_COLOR = IS_CI || process.env.NO_COLOR === '1'
-
 // Gates excluded from parityContentHash (INV-59): these differ structurally between
 // local and CI environments — PR-only gates or tests run with different selectors.
 const PARITY_EXCLUDE = new Set(['commitlint', 'docs', 'unit tests'])
-
-// Strips ANSI escape sequences from a string
-function stripAnsi(str) {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*m/g, '')
-}
-
-/** @type {{ name: string; status: string; elapsed: number }[]} */
-const results = []
-
-function runCheck(name, cmd, args, timeoutMs = DEFAULT_TIMEOUT_MS, opts = {}) {
-  const start = Date.now()
-  process.stdout.write(`[CHECK] ${name} ... `)
-  const r = spawnSync(cmd, args, {
-    encoding: 'utf-8',
-    shell: false,
-    timeout: timeoutMs,
-    ...(opts.cwd ? { cwd: opts.cwd } : {}),
-  })
-  const elapsed = Date.now() - start
-
-  if (r.error && r.error.code === 'ENOENT') {
-    console.log(`FAIL (${elapsed}ms)`)
-    if (IS_CI) console.log(`::error::${name}::command not found: ${cmd}`)
-    console.error(`  command not found: ${cmd}`)
-    results.push({ name, status: 'FAIL', elapsed })
-    failed++
-    return
-  }
-
-  if (r.error && r.error.code === 'ETIMEDOUT') {
-    console.log(`FAIL (timeout after ${elapsed}ms)`)
-    if (IS_CI) console.log(`::error::${name}::timeout after ${elapsed}ms`)
-    console.error(`  command exceeded ${timeoutMs}ms: ${cmd} ${args.join(' ')}`)
-    results.push({ name, status: 'FAIL', elapsed })
-    failed++
-    return
-  }
-
-  if (r.status === 0) {
-    console.log(`PASS (${elapsed}ms)`)
-    results.push({ name, status: 'PASS', elapsed })
-    return
-  }
-
-  console.log(`FAIL (exit ${r.status}, ${elapsed}ms)`)
-  if (IS_CI) console.log(`::error::${name}::exit ${r.status}`)
-  if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout)
-  if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr)
-  results.push({ name, status: 'FAIL', elapsed })
-  failed++
-}
 
 console.log('')
 console.log(`=== arbiter Quality Gate: ${level} ===`)
@@ -119,18 +61,12 @@ runCheck('orphan TODOs', 'node', ['scripts/check-no-orphan-todo.mjs'])
 runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'])
 runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs'])
-runCheck(
-  'commitlint',
-  'npx',
-  ['commitlint', '--from', 'origin/main', '--to', 'HEAD'],
-  DEFAULT_TIMEOUT_MS,
-  { cwd: GIT_CWD },
-)
-runCheck('test naming', 'node', ['scripts/check-test-naming.mjs'])
-runCheck('hardness inventory', 'node', ['scripts/check-hardness-inventory.mjs'])
-runCheck('docs', 'node', ['scripts/check-docs.mjs'], DEFAULT_TIMEOUT_MS, {
+runCheck('commitlint', 'npx', ['commitlint', '--from', 'origin/main', '--to', 'HEAD'], {
   cwd: GIT_CWD,
 })
+runCheck('test naming', 'node', ['scripts/check-test-naming.mjs'])
+runCheck('hardness inventory', 'node', ['scripts/check-hardness-inventory.mjs'])
+runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
 runCheck('matrix fixtures', 'node', ['scripts/check-matrix-fixtures.mjs'])
 runCheck('matrix proven cells', 'node', ['scripts/check-matrix-proven-cells.mjs'])
 runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'])
@@ -150,7 +86,7 @@ runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
-const l1EndIdx = results.length
+const l1EndIdx = getResults().length
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === 'L2' || level === 'L3') {
@@ -180,6 +116,9 @@ if (level === 'L2' || level === 'L3') {
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
+const results = getResults()
+const failed = getFailed()
+
 console.log('')
 console.log('=== Summary ===')
 console.log('')

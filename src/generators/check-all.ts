@@ -33,5 +33,15 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
     }),
   )
 
+  // #351 (CANON-01): emit shared helper trinity alongside the gate script.
+  // check-all.mjs imports runCheck/runWarnCheck/runToolCheck/pushResult from
+  // ./lib/run-helpers.mjs; the file must always be present when check-all.mjs is.
+  const helpersPath = resolvedPath(base, 'scripts', 'lib', 'run-helpers.mjs')
+  results.push(
+    writeFile(helpersPath, renderTemplate('scripts/lib/run-helpers.mjs.ejs', data), {
+      skipIfExists: true,
+    }),
+  )
+
   return { files: results }
 }
