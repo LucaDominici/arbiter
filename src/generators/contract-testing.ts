@@ -1,5 +1,6 @@
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { isL3Allowed } from '../utils/maturity-check.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -223,6 +224,13 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     graphql: generateGraphql,
     grpc: generateGrpc,
     'message-queue': generateMessageQueue,
+  }
+
+  // #288: gate beta contract tools on acceptBetaTools flag
+  const { language, acceptBetaTools = false } = config
+  if (language !== 'multi') {
+    const gate = isL3Allowed(language, 'contract', acceptBetaTools)
+    if (!gate.allowed) return { files: [] }
   }
 
   // #287: throw on unknown contractType — unknown type must not silently write the policy file

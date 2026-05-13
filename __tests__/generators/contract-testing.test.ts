@@ -162,6 +162,76 @@ describe('generateContractTesting', () => {
     expect(existsSync(join(dir, 'CONTRACTS_POLICY.md'))).toBe(false)
   })
 
+  // ─── Gate: beta tools blocked when acceptBetaTools is false (#288) ─────────
+
+  it('returns empty for rust when acceptBetaTools is false (rest-owned)', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
+    try {
+      const config = makeConfig(rustDir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'rust',
+        buildTool: 'cargo',
+        acceptBetaTools: false,
+      })
+      expect(generateContractTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(rustDir)
+    }
+  })
+
+  it('returns empty for go when acceptBetaTools is false (rest-public)', () => {
+    const goDir = createTestProject('go')
+    initGit(goDir)
+    try {
+      const config = makeConfig(goDir, {
+        contractType: 'rest-public',
+        governanceLevel: 'L2',
+        language: 'go',
+        buildTool: 'go',
+        acceptBetaTools: false,
+      })
+      expect(generateContractTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(goDir)
+    }
+  })
+
+  it('returns empty for python when acceptBetaTools is false (graphql)', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
+    try {
+      const config = makeConfig(pyDir, {
+        contractType: 'graphql',
+        governanceLevel: 'L2',
+        language: 'python',
+        buildTool: 'pip',
+        acceptBetaTools: false,
+      })
+      expect(generateContractTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(pyDir)
+    }
+  })
+
+  it('emits files for rust when acceptBetaTools is true (rest-owned)', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
+    try {
+      const config = makeConfig(rustDir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'rust',
+        buildTool: 'cargo',
+        acceptBetaTools: true,
+      })
+      expect(generateContractTesting(config).files.length).toBeGreaterThan(0)
+    } finally {
+      cleanupTestProject(rustDir)
+    }
+  })
+
   // ─── rest-owned × typescript: 2 files ────────────────────────────────────
 
   it('returns 4 files for rest-owned + typescript (.env.pact + pacts/.gitkeep added)', () => {
@@ -290,6 +360,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        acceptBetaTools: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(4)
     } finally {
@@ -306,6 +377,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(rustDir, 'tests', 'pact_consumer_test.rs'))).toBe(true)
@@ -325,6 +397,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        acceptBetaTools: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(4)
     } finally {
@@ -341,6 +414,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(goDir, 'tests', 'pact_consumer_test.go'))).toBe(true)
@@ -360,6 +434,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        acceptBetaTools: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(4)
     } finally {
@@ -376,6 +451,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(pyDir, 'tests', 'contract', 'test_pact_consumer.py'))).toBe(true)
@@ -449,6 +525,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -468,6 +545,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -487,6 +565,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -569,6 +648,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -588,6 +668,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -607,6 +688,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -687,6 +769,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(4)
@@ -706,6 +789,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(4)
@@ -725,6 +809,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(4)
@@ -785,6 +870,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -804,6 +890,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -823,6 +910,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
