@@ -5,74 +5,69 @@
 // Skips non-source files (docs, config, lock files, generated dirs)
 // Always exits 0 (non-blocking, informational)
 
-import { getRepoRoot, logInfo, logWarn } from "./lib.mjs";
-import { readFileSync, existsSync } from "node:fs";
-import { extname } from "node:path";
-import { spawnSync } from "node:child_process";
+import { getRepoRoot, logInfo, logWarn } from './lib.mjs'
+import { readFileSync, existsSync } from 'node:fs'
+import { extname } from 'node:path'
+import { spawnSync } from 'node:child_process'
 
 // Read edited file path from tool input JSON
-const inputPath = process.env["CLAUDE_TOOL_INPUT_PATH"];
-if (!inputPath) process.exit(0);
+const inputPath = process.env['CLAUDE_TOOL_INPUT_PATH']
+if (!inputPath) process.exit(0)
 
-let filePath = "";
+let filePath = ''
 try {
-  const input = JSON.parse(readFileSync(inputPath, "utf-8"));
-  filePath = input["file_path"] ?? input["path"] ?? "";
+  const input = JSON.parse(readFileSync(inputPath, 'utf-8'))
+  filePath = input['file_path'] ?? input['path'] ?? ''
 } catch {
-  process.exit(0);
+  process.exit(0)
 }
-if (!filePath) process.exit(0);
+if (!filePath) process.exit(0)
 
 // Skip .md docs, .json config, lock files, build artifacts
-const SKIP_PATTERNS =
-  /\.(md|json|yaml|yml|txt|log|lock|toml|xml|html|css|svg|png|jpg|gif)$/i;
-const SKIP_DIRS =
-  /\/(node_modules|build|dist|target|\.git|\.cache|__pycache__|\.venv)\//;
+const SKIP_PATTERNS = /\.(md|json|yaml|yml|txt|log|lock|toml|xml|html|css|svg|png|jpg|gif)$/i
+const SKIP_DIRS = /\/(node_modules|build|dist|target|\.git|\.cache|__pycache__|\.venv)\//
 
-if (SKIP_PATTERNS.test(filePath) || SKIP_DIRS.test(filePath)) process.exit(0);
+if (SKIP_PATTERNS.test(filePath) || SKIP_DIRS.test(filePath)) process.exit(0)
 
 // Only process source files for this language
-const SOURCE_EXTS = [".ts", ".tsx", ".js", ".jsx"];
-if (
-  SOURCE_EXTS.length > 0 &&
-  !SOURCE_EXTS.includes(extname(filePath).toLowerCase())
-)
-  process.exit(0);
+const SOURCE_EXTS = ['.ts', '.tsx', '.js', '.jsx']
+if (SOURCE_EXTS.length > 0 && !SOURCE_EXTS.includes(extname(filePath).toLowerCase()))
+  process.exit(0)
 
-if (!existsSync(filePath)) process.exit(0);
+if (!existsSync(filePath)) process.exit(0)
 
-const root = getRepoRoot();
+const root = getRepoRoot()
 
 // ── Step 1: FORMAT ──────────────────────────────────────────────────────────
-const formatParts = "npx prettier --check .".split(" ");
+const formatParts = 'npx prettier --check .'.split(' ')
 const formatResult = spawnSync(formatParts[0], [...formatParts.slice(1)], {
-  encoding: "utf-8",
+  encoding: 'utf-8',
   cwd: root,
   shell: false,
   timeout: 10000,
-});
+})
 if (formatResult.status === 0) {
-  process.stderr.write(`[post-edit] Formatted: ${filePath.split("/").pop()}\n`);
-  logInfo(`post-edit-dispatch: formatted ${filePath}`);
+  process.stderr.write(`[post-edit] Formatted: ${filePath.split('/').pop()}\n`)
+  logInfo(`post-edit-dispatch: formatted ${filePath}`)
 } else {
   process.stderr.write(
-    `[post-edit] Format check issues in ${filePath.split("/").pop()} (non-blocking)\n`,
-  );
-  logWarn(`post-edit-dispatch: format-issues ${filePath}`);
+    `[post-edit] Format check issues in ${filePath.split('/').pop()} (non-blocking)\n`,
+  )
+  logWarn(`post-edit-dispatch: format-issues ${filePath}`)
 }
 
 // ── Step 2: LINT ────────────────────────────────────────────────────────────
-const lintParts = "npm run lint".split(" ");
+const lintParts = 'npm run lint'.split(' ')
 const lintResult = spawnSync(lintParts[0], [...lintParts.slice(1)], {
-  encoding: "utf-8",
+  encoding: 'utf-8',
   cwd: root,
   shell: false,
   timeout: 15000,
-});
+})
 if (lintResult.status === 0) {
-  process.stderr.write(`[post-edit] Lint passed\n`);
-  logInfo(`post-edit-dispatch: lint-passed ${filePath}`);
+  process.stderr.write(`[post-edit] Lint passed\n`)
+  logInfo(`post-edit-dispatch: lint-passed ${filePath}`)
 } else {
-  process.stderr.write(`[post-edit] Lint issues detected (non-blocking)\n`);
-  logWarn(`post-edit-dispatch: lint-issues ${filePath}`);
+  process.stderr.write(`[post-edit] Lint issues detected (non-blocking)\n`)
+  logWarn(`post-edit-dispatch: lint-issues ${filePath}`)
 }

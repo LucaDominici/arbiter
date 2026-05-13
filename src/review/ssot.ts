@@ -11,9 +11,9 @@
  * the canonical home — both callers must import from here.
  */
 
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 /**
  * SHA-256 of `<dir>/AGENTS.md`. Returns 64 zeros when AGENTS.md is
@@ -21,10 +21,10 @@ import { join } from "node:path";
  * expected to flag the all-zero digest as a missing-SSOT condition.
  */
 export function computeSsotDigest(dir: string): string {
-  const agentsPath = join(dir, "AGENTS.md");
-  if (!existsSync(agentsPath)) return "0".repeat(64);
-  const body = readFileSync(agentsPath, "utf-8");
-  return createHash("sha256").update(body).digest("hex");
+  const agentsPath = join(dir, 'AGENTS.md')
+  if (!existsSync(agentsPath)) return '0'.repeat(64)
+  const body = readFileSync(agentsPath, 'utf-8')
+  return createHash('sha256').update(body).digest('hex')
 }
 
 /**
@@ -33,5 +33,5 @@ export function computeSsotDigest(dir: string): string {
  * required because we never embed user content inside attributes.
  */
 export function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }

@@ -2,7 +2,7 @@ name: Real-Project Matrix
 
 on:
   schedule:
-    - cron: "0 3 * * *" # 03:00 UTC nightly
+    - cron: '0 3 * * *' # 03:00 UTC nightly
   workflow_dispatch: {}
 
 permissions:
@@ -24,8 +24,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
+          node-version-file: '.nvmrc'
+          cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - id: build
         name: Build matrix from fixture manifests
@@ -46,8 +46,8 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
+          node-version-file: '.nvmrc'
+          cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - run: npm run build
 
@@ -56,18 +56,18 @@ jobs:
       - if: matrix.language == 'java'
         uses: actions/setup-java@v5
         with:
-          java-version: "17"
-          distribution: "temurin"
+          java-version: '17'
+          distribution: 'temurin'
 
       - if: matrix.language == 'java'
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: "8.8"
+          gradle-version: '8.8'
 
       - if: matrix.language == 'go'
         uses: actions/setup-go@v6
         with:
-          go-version: "1.22"
+          go-version: '1.22'
 
       - if: matrix.language == 'go'
         name: Install golangci-lint
@@ -86,7 +86,7 @@ jobs:
       - if: matrix.language == 'python'
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
       - if: matrix.language == 'python' && matrix.level == 'L2'
         name: Install Python L2 analysis tools
@@ -168,13 +168,13 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
+          node-version-file: '.nvmrc'
+          cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - name: Require at least 10 successful matrix jobs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          MIN_PASS: "10"
+          MIN_PASS: '10'
         run: node scripts/aggregate-matrix-result.mjs

@@ -1,8 +1,8 @@
-import { runCli } from "../utils/run-cli.js";
+import { runCli } from '../utils/run-cli.js'
 
 export interface BranchProtectionResult {
-  applied: boolean;
-  error: string | null;
+  applied: boolean
+  error: string | null
 }
 
 /**
@@ -28,7 +28,7 @@ export function applyBranchProtection(
     : JSON.stringify({
         required_status_checks: {
           strict: true,
-          contexts: ["CI Required"],
+          contexts: ['CI Required'],
         },
         enforce_admins: false,
         required_pull_request_reviews: {
@@ -38,24 +38,17 @@ export function applyBranchProtection(
         restrictions: null,
         allow_force_pushes: false,
         allow_deletions: false,
-      });
+      })
 
   try {
     runCli(
-      "gh",
-      [
-        "api",
-        `repos/${owner}/${repo}/branches/main/protection`,
-        "--method",
-        "PUT",
-        "--input",
-        "-",
-      ],
+      'gh',
+      ['api', `repos/${owner}/${repo}/branches/main/protection`, '--method', 'PUT', '--input', '-'],
       { input: payload },
-    );
-    return { applied: true, error: null };
+    )
+    return { applied: true, error: null }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { applied: false, error: msg };
+    const msg = err instanceof Error ? err.message : String(err)
+    return { applied: false, error: msg }
   }
 }

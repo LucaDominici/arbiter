@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod'
 
 const FileChanges = z.object({
   adds_ui_strings: z.boolean().optional(),
@@ -7,58 +7,53 @@ const FileChanges = z.object({
   modifies_tests: z.boolean().optional(),
   skip_patterns: z.array(z.string()).optional(),
   adds_todos: z.array(z.string()).optional(),
-});
+})
 
 const PlanFile = z.object({
   path: z.string(),
-  operation: z.enum(["create", "modify", "delete"]),
+  operation: z.enum(['create', 'modify', 'delete']),
   changes: FileChanges.optional(),
-});
+})
 
 const ReviewBridge = z.object({
   enabled: z.boolean(),
-  reviewer: z.string().default("bridge-reviewer"),
+  reviewer: z.string().default('bridge-reviewer'),
   fail_on_warn: z.boolean().default(false),
-});
+})
 
 export const PlanJsonV1 = z.object({
   task_id: z.string().regex(/^#\d+$/),
   scope: z.object({
-    track: z.enum(["A", "B", "C", "D"]),
+    track: z.enum(['A', 'B', 'C', 'D']),
     boundaries: z.array(z.string()).optional(),
     paths: z.array(z.string()).optional(),
   }),
   files: z.array(PlanFile),
   invariants: z
     .object({
-      ui_language: z.literal("EN").optional(),
+      ui_language: z.literal('EN').optional(),
       no_skips: z.literal(true).optional(),
     })
     .optional(),
   notes: z.array(z.string()).optional(),
   review_bridge: ReviewBridge,
-});
-export type PlanJsonV1 = z.infer<typeof PlanJsonV1>;
+})
+export type PlanJsonV1 = z.infer<typeof PlanJsonV1>
 
-export const ReviewStatus = z.enum([
-  "APPROVED",
-  "REJECTED",
-  "SKIPPED",
-  "ERROR",
-]);
-export type ReviewStatus = z.infer<typeof ReviewStatus>;
+export const ReviewStatus = z.enum(['APPROVED', 'REJECTED', 'SKIPPED', 'ERROR'])
+export type ReviewStatus = z.infer<typeof ReviewStatus>
 
 const ViolationSchema = z.object({
   rule_id: z.string(),
-  severity: z.enum(["ERROR", "WARN"]),
+  severity: z.enum(['ERROR', 'WARN']),
   message: z.string(),
   ssot_pointer: z.object({ path: z.string(), anchor: z.string() }).nullable(),
   evidence: z.object({
     paths: z.array(z.string()),
     match: z.string().optional(),
   }),
-});
-export type Violation = z.infer<typeof ViolationSchema>;
+})
+export type Violation = z.infer<typeof ViolationSchema>
 
 export const ReviewJsonV1 = z.object({
   timestamp: z.string(),
@@ -73,5 +68,5 @@ export const ReviewJsonV1 = z.object({
   }),
   blocking: z.boolean(),
   blocking_reason: z.string().nullable(),
-});
-export type ReviewJsonV1 = z.infer<typeof ReviewJsonV1>;
+})
+export type ReviewJsonV1 = z.infer<typeof ReviewJsonV1>

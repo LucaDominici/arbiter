@@ -1,272 +1,261 @@
-import { generateAgentsMd } from "./agents-md.js";
-import { generateClaude } from "./claude.js";
-import { generateCodex } from "./codex.js";
-import { generateGithub } from "./github.js";
-import { generateRoot } from "./root.js";
-import { generateCheckAll } from "./check-all.js";
-import { generateCursor } from "./cursor.js";
-import { generateCopilot } from "./copilot.js";
-import { generateCoverage } from "./coverage.js";
-import { generateDebtGates } from "./debt-gates.js";
-import { generateDebtRatchet } from "./debt-ratchet.js";
-import { generateSuppressions } from "./suppressions.js";
-import { generateSecurity } from "./security.js";
-import { generateStrideEnforcement } from "./stride-enforcement.js";
-import { generateEvidenceRetention } from "./evidence-retention.js";
-import { generateTestTaxonomy } from "./test-taxonomy.js";
-import { generateArchUnit } from "./archunit.js";
-import { generateEslintBoundaries } from "./boundaries.js";
-import { generateRustBoundaries } from "./rust-boundaries.js";
-import { generateGoBoundaries } from "./go-boundaries.js";
-import { generatePythonBoundaries } from "./python-boundaries.js";
-import { generateMutation } from "./mutation.js";
-import { generateNightly } from "./nightly.js";
-import { generateIntegrationTesting } from "./integration-testing.js";
-import { generateContractTesting } from "./contract-testing.js";
-import { generateGlobalInvariants } from "./global-invariants.js";
-import { generateSkills } from "./skills.js";
-import { generateAgentsClaude } from "./agents-claude.js";
-import { generateSsot } from "./ssot.js";
-import { generateBehavioralTests } from "./behavioral-tests.js";
-import { generatePlaywrightPython } from "./playwright-python.js";
-import { generateGithooks } from "./githooks.js";
-import { generateGithubSetup } from "./github-setup.js";
-import { generateDocs } from "./docs.js";
-import { generateApiMiddleware } from "./api-middleware.js";
-import { generateSeed } from "./seed.js";
-import { generateEvidenceBacklog } from "./evidence-backlog.js";
-import { generateSelfValidation } from "./self-validation.js";
-import type { ProjectConfig } from "../wizard/types.js";
-import type { WriteResult } from "../utils/fs.js";
-import type { GeneratorKey } from "../config/diff.js";
+import { generateAgentsMd } from './agents-md.js'
+import { generateClaude } from './claude.js'
+import { generateCodex } from './codex.js'
+import { generateGithub } from './github.js'
+import { generateRoot } from './root.js'
+import { generateCheckAll } from './check-all.js'
+import { generateCursor } from './cursor.js'
+import { generateCopilot } from './copilot.js'
+import { generateCoverage } from './coverage.js'
+import { generateDebtGates } from './debt-gates.js'
+import { generateDebtRatchet } from './debt-ratchet.js'
+import { generateSuppressions } from './suppressions.js'
+import { generateSecurity } from './security.js'
+import { generateStrideEnforcement } from './stride-enforcement.js'
+import { generateEvidenceRetention } from './evidence-retention.js'
+import { generateTestTaxonomy } from './test-taxonomy.js'
+import { generateArchUnit } from './archunit.js'
+import { generateEslintBoundaries } from './boundaries.js'
+import { generateRustBoundaries } from './rust-boundaries.js'
+import { generateGoBoundaries } from './go-boundaries.js'
+import { generatePythonBoundaries } from './python-boundaries.js'
+import { generateMutation } from './mutation.js'
+import { generateNightly } from './nightly.js'
+import { generateIntegrationTesting } from './integration-testing.js'
+import { generateContractTesting } from './contract-testing.js'
+import { generateGlobalInvariants } from './global-invariants.js'
+import { generateSkills } from './skills.js'
+import { generateAgentsClaude } from './agents-claude.js'
+import { generateSsot } from './ssot.js'
+import { generateBehavioralTests } from './behavioral-tests.js'
+import { generatePlaywrightPython } from './playwright-python.js'
+import { generateGithooks } from './githooks.js'
+import { generateGithubSetup } from './github-setup.js'
+import { generateDocs } from './docs.js'
+import { generateApiMiddleware } from './api-middleware.js'
+import { generateSeed } from './seed.js'
+import { generateEvidenceBacklog } from './evidence-backlog.js'
+import { generateSelfValidation } from './self-validation.js'
+import type { ProjectConfig } from '../wizard/types.js'
+import type { WriteResult } from '../utils/fs.js'
+import type { GeneratorKey } from '../config/diff.js'
 
 export interface GeneratorSpec {
-  key: GeneratorKey;
-  enabled: boolean;
-  run: () => WriteResult[];
+  key: GeneratorKey
+  enabled: boolean
+  run: () => WriteResult[]
 }
 
 function buildAiToolSpecs(config: ProjectConfig): GeneratorSpec[] {
-  const noAiRulez = !config.existing.aiRulez;
+  const noAiRulez = !config.existing.aiRulez
   return [
-    { key: "agents-md", enabled: true, run: () => [generateAgentsMd(config)] },
+    { key: 'agents-md', enabled: true, run: () => [generateAgentsMd(config)] },
     {
-      key: "global-invariants",
+      key: 'global-invariants',
       enabled: true,
       run: () => [generateGlobalInvariants(config)],
     },
     {
-      key: "claude",
-      enabled: noAiRulez && config.tools.includes("claude"),
+      key: 'claude',
+      enabled: noAiRulez && config.tools.includes('claude'),
       run: () => generateClaude(config).files,
     },
     {
-      key: "codex",
-      enabled: noAiRulez && config.tools.includes("codex"),
+      key: 'codex',
+      enabled: noAiRulez && config.tools.includes('codex'),
       run: () => generateCodex(config).files,
     },
     {
-      key: "cursor",
-      enabled: noAiRulez && config.tools.includes("cursor"),
+      key: 'cursor',
+      enabled: noAiRulez && config.tools.includes('cursor'),
       run: () => generateCursor(config).files,
     },
     {
-      key: "copilot",
-      enabled: noAiRulez && config.tools.includes("copilot"),
+      key: 'copilot',
+      enabled: noAiRulez && config.tools.includes('copilot'),
       run: () => generateCopilot(config).files,
     },
     {
-      key: "skills",
+      key: 'skills',
       enabled: noAiRulez,
       run: () => generateSkills(config).files,
     },
     {
-      key: "agents-claude",
+      key: 'agents-claude',
       enabled: noAiRulez,
       run: () => generateAgentsClaude(config).files,
     },
-  ];
+  ]
 }
 
 function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     {
-      key: "github",
+      key: 'github',
       enabled: config.useGitHub,
       run: () => generateGithub(config).files,
     },
     {
-      key: "root",
+      key: 'root',
       enabled: config.useGitHub,
       run: () => generateRoot(config).files,
     },
     {
-      key: "check-all",
+      key: 'check-all',
       enabled: true,
       run: () => generateCheckAll(config).files,
     },
     {
-      key: "debt-gates",
+      key: 'debt-gates',
       enabled: config.enableDebtGates,
       run: () => generateDebtGates(config).files,
     },
     {
-      key: "debt-ratchet",
+      key: 'debt-ratchet',
       enabled: config.enableDebtGates,
       run: () => generateDebtRatchet(config).files,
     },
     {
-      key: "coverage",
+      key: 'coverage',
       enabled: config.enableDebtGates,
       run: () => generateCoverage(config).files,
     },
     {
-      key: "suppressions",
+      key: 'suppressions',
       enabled: true,
       run: () => generateSuppressions(config).files,
     },
     {
-      key: "security",
+      key: 'security',
       enabled: config.enableSecurityScanning,
       run: () => generateSecurity(config).files,
     },
     {
-      key: "stride-enforcement",
+      key: 'stride-enforcement',
       enabled: config.enableDebtGates,
       run: () => generateStrideEnforcement(config).files,
     },
     {
-      key: "githooks",
+      key: 'githooks',
       enabled: true,
       run: () => generateGithooks(config).files,
     },
     {
-      key: "github-setup",
-      enabled: config.useGitHub && config.governanceLevel !== "L1",
+      key: 'github-setup',
+      enabled: config.useGitHub && config.governanceLevel !== 'L1',
       run: () => generateGithubSetup(config).files,
     },
     {
-      key: "docs",
-      enabled: config.governanceLevel !== "L1",
+      key: 'docs',
+      enabled: config.governanceLevel !== 'L1',
       run: () => generateDocs(config).files,
     },
     {
-      key: "api-middleware",
+      key: 'api-middleware',
       enabled: config.hasPublicApi,
       run: () => generateApiMiddleware(config).files,
     },
     {
-      key: "seed",
-      enabled:
-        config.archetype === "backend-web-db" &&
-        config.governanceLevel !== "L1",
+      key: 'seed',
+      enabled: config.archetype === 'backend-web-db' && config.governanceLevel !== 'L1',
       run: () => generateSeed(config).files,
     },
     {
-      key: "self-validation",
+      key: 'self-validation',
       enabled: config.enableSelfValidationHarness !== false,
       run: () => generateSelfValidation(config).files,
     },
-  ];
+  ]
 }
 
 function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     {
-      key: "archunit",
+      key: 'archunit',
       enabled: true,
       run: () => generateArchUnit(config).files,
     },
     {
-      key: "eslint-boundaries",
+      key: 'eslint-boundaries',
       enabled: true,
       run: () => generateEslintBoundaries(config).files,
     },
     {
-      key: "rust-boundaries",
+      key: 'rust-boundaries',
       enabled: true,
       run: () => generateRustBoundaries(config).files,
     },
     {
-      key: "go-boundaries",
+      key: 'go-boundaries',
       enabled: true,
       run: () => generateGoBoundaries(config).files,
     },
     {
-      key: "python-boundaries",
+      key: 'python-boundaries',
       enabled: true,
       run: () => generatePythonBoundaries(config).files,
     },
     {
-      key: "mutation",
+      key: 'mutation',
       enabled: config.enableMutationTesting !== false,
       run: () => generateMutation(config).files,
     },
-    { key: "nightly", enabled: true, run: () => generateNightly(config).files },
+    { key: 'nightly', enabled: true, run: () => generateNightly(config).files },
     {
-      key: "integration-testing",
+      key: 'integration-testing',
       enabled: config.enableContractTesting !== false,
       run: () => generateIntegrationTesting(config).files,
     },
     {
-      key: "contract-testing",
+      key: 'contract-testing',
       enabled: config.enableContractTesting !== false,
       run: () => generateContractTesting(config).files,
     },
     {
-      key: "evidence-retention",
+      key: 'evidence-retention',
       enabled: config.enableEvidenceHarness !== false,
       run: () => generateEvidenceRetention(config).files,
     },
     {
-      key: "evidence-backlog",
-      enabled: config.governanceLevel !== "L1",
+      key: 'evidence-backlog',
+      enabled: config.governanceLevel !== 'L1',
       run: () => generateEvidenceBacklog(config).files,
     },
     {
-      key: "test-taxonomy",
+      key: 'test-taxonomy',
       enabled: true,
       run: () => generateTestTaxonomy(config).files,
     },
     {
-      key: "behavioral-tests",
+      key: 'behavioral-tests',
       enabled: true,
       run: () => generateBehavioralTests(config).files,
     },
     {
-      key: "playwright-python",
+      key: 'playwright-python',
       enabled:
-        config.language === "python" &&
-        (config.archetype === "frontend-spa" ||
-          config.archetype === "backend-web-db"),
+        config.language === 'python' &&
+        (config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db'),
       run: () => generatePlaywrightPython(config).files,
     },
-    { key: "ssot", enabled: true, run: () => generateSsot(config).files },
-  ];
+    { key: 'ssot', enabled: true, run: () => generateSsot(config).files },
+  ]
 }
 
 export function buildRegistry(config: ProjectConfig): GeneratorSpec[] {
-  return [
-    ...buildAiToolSpecs(config),
-    ...buildInfraSpecs(config),
-    ...buildAnalysisSpecs(config),
-  ];
+  return [...buildAiToolSpecs(config), ...buildInfraSpecs(config), ...buildAnalysisSpecs(config)]
 }
 
-export function runGeneratorsFromRegistry(
-  specs: GeneratorSpec[],
-): WriteResult[] {
-  return specs.filter((s) => s.enabled).flatMap((s) => s.run());
+export function runGeneratorsFromRegistry(specs: GeneratorSpec[]): WriteResult[] {
+  return specs.filter((s) => s.enabled).flatMap((s) => s.run())
 }
 
 export function runGeneratorsSelective(
   specs: GeneratorSpec[],
-  keys: Set<GeneratorKey | "*">,
+  keys: Set<GeneratorKey | '*'>,
 ): WriteResult[] {
-  if (keys.has("*")) {
-    return runGeneratorsFromRegistry(specs);
+  if (keys.has('*')) {
+    return runGeneratorsFromRegistry(specs)
   }
-  return specs
-    .filter((s) => s.enabled && keys.has(s.key))
-    .flatMap((s) => s.run());
+  return specs.filter((s) => s.enabled && keys.has(s.key)).flatMap((s) => s.run())
 }

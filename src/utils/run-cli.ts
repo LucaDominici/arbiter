@@ -1,87 +1,81 @@
-import { spawnSync } from "node:child_process";
+import { spawnSync } from 'node:child_process'
 
 export interface RunCliOptions {
-  cwd?: string;
-  env?: NodeJS.ProcessEnv;
-  timeoutMs?: number;
-  retries?: number;
-  retryDelayMs?: number;
-  input?: string;
+  cwd?: string
+  env?: NodeJS.ProcessEnv
+  timeoutMs?: number
+  retries?: number
+  retryDelayMs?: number
+  input?: string
 }
 
 export interface RunCliResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-  durationMs: number;
+  stdout: string
+  stderr: string
+  exitCode: number
+  durationMs: number
 }
 
 interface CliErrorDetails {
-  cmd: string;
-  args: readonly string[];
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-  timedOut: boolean;
-  notFound: boolean;
+  cmd: string
+  args: readonly string[]
+  exitCode: number
+  stdout: string
+  stderr: string
+  timedOut: boolean
+  notFound: boolean
 }
 
 export class CliError extends Error {
-  readonly cmd: string;
-  readonly args: readonly string[];
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly timedOut: boolean;
-  readonly notFound: boolean;
+  readonly cmd: string
+  readonly args: readonly string[]
+  readonly exitCode: number
+  readonly stdout: string
+  readonly stderr: string
+  readonly timedOut: boolean
+  readonly notFound: boolean
 
   constructor(details: CliErrorDetails, message?: string) {
-    super(message ?? formatMessage(details));
-    this.name = "CliError";
-    this.cmd = details.cmd;
-    this.args = details.args;
-    this.exitCode = details.exitCode;
-    this.stdout = details.stdout;
-    this.stderr = details.stderr;
-    this.timedOut = details.timedOut;
-    this.notFound = details.notFound;
+    super(message ?? formatMessage(details))
+    this.name = 'CliError'
+    this.cmd = details.cmd
+    this.args = details.args
+    this.exitCode = details.exitCode
+    this.stdout = details.stdout
+    this.stderr = details.stderr
+    this.timedOut = details.timedOut
+    this.notFound = details.notFound
   }
 }
 
-const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_TIMEOUT_MS = 60_000
 
-type Attempt =
-  | { ok: true; result: RunCliResult }
-  | { ok: false; error: CliError; fatal: boolean };
+type Attempt = { ok: true; result: RunCliResult } | { ok: false; error: CliError; fatal: boolean }
 
 interface RunOnceOptions {
-  cwd: string | undefined;
-  env: NodeJS.ProcessEnv | undefined;
-  input: string | undefined;
-  timeoutMs: number;
+  cwd: string | undefined
+  env: NodeJS.ProcessEnv | undefined
+  input: string | undefined
+  timeoutMs: number
 }
 
-function runOnce(
-  cmd: string,
-  args: readonly string[],
-  opts: RunOnceOptions,
-): Attempt {
-  const start = Date.now();
+function runOnce(cmd: string, args: readonly string[], opts: RunOnceOptions): Attempt {
+  const start = Date.now()
   const result = spawnSync(cmd, [...args], {
     cwd: opts.cwd,
     env: opts.env,
     timeout: opts.timeoutMs,
     input: opts.input,
-    encoding: "utf-8",
+    encoding: 'utf-8',
     shell: false,
-  });
-  const durationMs = Date.now() - start;
+  })
+  const durationMs = Date.now() - start
 
-  const stdout = result.stdout;
-  const stderr = result.stderr;
-  const errorCode = (result.error as NodeJS.ErrnoException | undefined)?.code;
+  const stdout = result.stdout
+  const stderr = result.stderr
+  const errorCode = (result.error as NodeJS.ErrnoException | undefined)?.code
 
-  if (errorCode === "ENOENT") {
+  if (errorCode === 'ENOENT') {
     return {
       ok: false,
       fatal: true,
@@ -97,10 +91,10 @@ function runOnce(
         },
         `Command not found: ${cmd}`,
       ),
-    };
+    }
   }
 
-  const timedOut = errorCode === "ETIMEDOUT" || result.signal === "SIGTERM";
+  const timedOut = errorCode === 'ETIMEDOUT' || result.signal === 'SIGTERM'
   if (timedOut) {
     return {
       ok: false,
@@ -114,7 +108,7 @@ function runOnce(
         timedOut: true,
         notFound: false,
       }),
-    };
+    }
   }
 
   if (result.status !== 0) {
@@ -130,10 +124,10 @@ function runOnce(
         timedOut: false,
         notFound: false,
       }),
-    };
+    }
   }
 
-  return { ok: true, result: { stdout, stderr, exitCode: 0, durationMs } };
+  return { ok: true, result: { stdout, stderr, exitCode: 0, durationMs } }
 }
 
 /**
@@ -145,27 +139,27 @@ export function runCli(
   args: readonly string[],
   opts: RunCliOptions = {},
 ): RunCliResult {
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const retries = opts.retries ?? 0;
-  const retryDelayMs = opts.retryDelayMs ?? 500;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  const retries = opts.retries ?? 0
+  const retryDelayMs = opts.retryDelayMs ?? 500
   const runOpts = {
     cwd: opts.cwd,
     env: opts.env,
     input: opts.input,
     timeoutMs,
-  };
-
-  let lastError: CliError | undefined;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const outcome = runOnce(cmd, args, runOpts);
-    if (outcome.ok) return outcome.result;
-    if (outcome.fatal) throw outcome.error;
-
-    lastError = outcome.error;
-    if (attempt < retries) sleepSync(retryDelayMs);
   }
 
-  throw lastError as CliError;
+  let lastError: CliError | undefined
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const outcome = runOnce(cmd, args, runOpts)
+    if (outcome.ok) return outcome.result
+    if (outcome.fatal) throw outcome.error
+
+    lastError = outcome.error
+    if (attempt < retries) sleepSync(retryDelayMs)
+  }
+
+  throw lastError as CliError
 }
 
 /**
@@ -177,9 +171,9 @@ export function runCliJson(
   args: readonly string[],
   opts: RunCliOptions = {},
 ): unknown {
-  const result = runCli(cmd, args, opts);
+  const result = runCli(cmd, args, opts)
   try {
-    return JSON.parse(result.stdout);
+    return JSON.parse(result.stdout)
   } catch (err) {
     throw new CliError(
       {
@@ -192,23 +186,21 @@ export function runCliJson(
         notFound: false,
       },
       `Invalid JSON output from ${cmd}: ${(err as Error).message}`,
-    );
+    )
   }
 }
 
 function formatMessage(details: CliErrorDetails): string {
-  const cmdStr = `${details.cmd} ${details.args.join(" ")}`.trim();
+  const cmdStr = `${details.cmd} ${details.args.join(' ')}`.trim()
   if (details.timedOut) {
-    return `Command timed out: ${cmdStr}`;
+    return `Command timed out: ${cmdStr}`
   }
-  const preview = details.stderr.trim().slice(0, 500);
-  return `Command failed (exit ${details.exitCode}): ${cmdStr}${
-    preview ? `\n${preview}` : ""
-  }`;
+  const preview = details.stderr.trim().slice(0, 500)
+  return `Command failed (exit ${details.exitCode}): ${cmdStr}${preview ? `\n${preview}` : ''}`
 }
 
 function sleepSync(ms: number): void {
-  if (ms <= 0) return;
-  const buf = new Int32Array(new SharedArrayBuffer(4));
-  Atomics.wait(buf, 0, 0, ms);
+  if (ms <= 0) return
+  const buf = new Int32Array(new SharedArrayBuffer(4))
+  Atomics.wait(buf, 0, 0, ms)
 }

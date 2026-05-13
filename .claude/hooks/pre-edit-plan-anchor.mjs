@@ -6,70 +6,63 @@
 // CANON-16: blocks Write to new src/ files lacking a valid Existing Code Survey
 // Exit 2: block — stderr returned to Claude as error context; user is NOT prompted
 // Bypass: ARBITER_PLAN_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
-import { readTaskState, getRepoRoot } from "./lib.mjs";
-import { readFileSync, existsSync } from "node:fs";
-import { join, basename, resolve, relative } from "node:path";
+import { readTaskState, getRepoRoot } from './lib.mjs'
+import { readFileSync, existsSync } from 'node:fs'
+import { join, basename, resolve, relative } from 'node:path'
 
-if (process.env.ARBITER_PLAN_BYPASS === "1") process.exit(0);
+if (process.env.ARBITER_PLAN_BYPASS === '1') process.exit(0)
 
-const root = getRepoRoot();
-const { phase, plan } = readTaskState(root);
+const root = getRepoRoot()
+const { phase, plan } = readTaskState(root)
 
-if (phase !== "implementation") process.exit(0);
+if (phase !== 'implementation') process.exit(0)
 
 // During implementation, plan is required
-const planPath =
-  !plan || plan === "unknown"
-    ? null
-    : plan.startsWith("/")
-      ? plan
-      : join(root, plan);
+const planPath = !plan || plan === 'unknown' ? null : plan.startsWith('/') ? plan : join(root, plan)
 
 if (!planPath || !existsSync(planPath)) {
   process.stderr.write(
     `[arbiter] PLAN ANCHOR: implementation phase requires .task-plan pointing to an existing plan file.\n` +
       `Set via: echo "<path>" > .claude/.task-plan (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
-  );
-  process.exit(2);
+  )
+  process.exit(2)
 }
 
-const planBody = readFileSync(planPath, "utf-8");
-const preview = planBody.split("\n").slice(0, 20).join("\n");
+const planBody = readFileSync(planPath, 'utf-8')
+const preview = planBody.split('\n').slice(0, 20).join('\n')
 
-process.stdout.write(
-  `=== ACTIVE PLAN (${basename(planPath)}) ===\n` + `${preview}\n` + `===\n`,
-);
+process.stdout.write(`=== ACTIVE PLAN (${basename(planPath)}) ===\n` + `${preview}\n` + `===\n`)
 
 // ─── CANON-16: Survey gate for new src/ files ─────────────────────────────────
-const targetRaw = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
+const targetRaw = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
 if (targetRaw) {
-  const absTarget = resolve(targetRaw);
-  const rel = relative(root, absTarget);
+  const absTarget = resolve(targetRaw)
+  const rel = relative(root, absTarget)
 
   const inScope =
     !existsSync(absTarget) && // new files only
-    rel.startsWith("src/") && // under src/
-    !rel.startsWith("src/..") && // no path escape
+    rel.startsWith('src/') && // under src/
+    !rel.startsWith('src/..') && // no path escape
     !/(?:^|\/)__tests__(?:\/|$)/.test(rel) && // exclude test dirs
     !/\.(test|spec)\.[cm]?[jt]s$/.test(rel) && // exclude test files
-    !/^docs\//.test(rel); // exclude docs
+    !/^docs\//.test(rel) // exclude docs
 
   if (inScope) {
     const VALID_DECISIONS = new Set([
-      "refactor-applied",
-      "refactor-rejected",
-      "extend",
-      "extract",
-      "new file justified",
-      "no-similar-code",
-    ]);
+      'refactor-applied',
+      'refactor-rejected',
+      'extend',
+      'extract',
+      'new file justified',
+      'no-similar-code',
+    ])
 
-    const targetLine = `- **Target:** \`${rel}\``;
+    const targetLine = `- **Target:** \`${rel}\``
     // Split plan into H2 sections; find Survey section containing this Target line
-    const h2Sections = planBody.split(/\n(?=## )/);
+    const h2Sections = planBody.split(/\n(?=## )/)
     const surveySection = h2Sections.find(
       (s) => /^## Existing Code Survey\b/.test(s) && s.includes(targetLine),
-    );
+    )
 
     if (!surveySection) {
       process.stderr.write(
@@ -81,48 +74,42 @@ if (targetRaw) {
           `  ### Evidence  (≥3 grep/ls rows)\n` +
           `  ### Rationale (≥200 chars)\n` +
           `Run /senior-survey or set ARBITER_PLAN_BYPASS=1 to bypass.\n`,
-      );
-      process.exit(2);
+      )
+      process.exit(2)
     }
 
     // Decision keyword
-    const decisionMatch = surveySection.match(
-      /[-*]\s+\*\*Decision:\*\*\s+`([^`]+)`/i,
-    );
-    const decision = decisionMatch?.[1]?.toLowerCase().trim() ?? "";
+    const decisionMatch = surveySection.match(/[-*]\s+\*\*Decision:\*\*\s+`([^`]+)`/i)
+    const decision = decisionMatch?.[1]?.toLowerCase().trim() ?? ''
     if (!VALID_DECISIONS.has(decision)) {
       process.stderr.write(
         `[arbiter] STOP — CANON-16 violation: Survey for \`${rel}\` has invalid or missing Decision keyword.\n` +
-          `Valid values: ${[...VALID_DECISIONS].join(" | ")}\n` +
-          `Found: ${decisionMatch ? `"${decisionMatch[1]}"` : "(none)"}\n`,
-      );
-      process.exit(2);
+          `Valid values: ${[...VALID_DECISIONS].join(' | ')}\n` +
+          `Found: ${decisionMatch ? `"${decisionMatch[1]}"` : '(none)'}\n`,
+      )
+      process.exit(2)
     }
 
     // Evidence rows: split into H3 subsections; find Evidence subsection; count rows
-    const h3Sections = surveySection.split(/\n(?=### )/);
-    const evidencePart =
-      h3Sections.find((s) => /^### Evidence\b/.test(s)) ?? "";
-    const evidenceRows = evidencePart
-      .split("\n")
-      .filter((l) => /^- `(?:grep|ls)\b/.test(l.trim()));
+    const h3Sections = surveySection.split(/\n(?=### )/)
+    const evidencePart = h3Sections.find((s) => /^### Evidence\b/.test(s)) ?? ''
+    const evidenceRows = evidencePart.split('\n').filter((l) => /^- `(?:grep|ls)\b/.test(l.trim()))
     if (evidenceRows.length < 3) {
       process.stderr.write(
         `[arbiter] STOP — CANON-16 violation: Survey for \`${rel}\` needs ≥3 evidence rows (grep/ls), found ${evidenceRows.length}.\n`,
-      );
-      process.exit(2);
+      )
+      process.exit(2)
     }
 
     // Rationale: ≥200 non-whitespace chars
-    const rationalePart =
-      h3Sections.find((s) => /^### Rationale\b/.test(s)) ?? "";
-    const rationaleLen = rationalePart.replace(/\s+/g, "").length;
+    const rationalePart = h3Sections.find((s) => /^### Rationale\b/.test(s)) ?? ''
+    const rationaleLen = rationalePart.replace(/\s+/g, '').length
     if (rationaleLen < 200) {
       process.stderr.write(
         `[arbiter] STOP — CANON-16 violation: Survey Rationale for \`${rel}\` is too thin (${rationaleLen} non-whitespace chars, need ≥200).\n` +
           `Explain: what exists, why refactor was/wasn't viable, what new responsibility justifies this file.\n`,
-      );
-      process.exit(2);
+      )
+      process.exit(2)
     }
   }
 }

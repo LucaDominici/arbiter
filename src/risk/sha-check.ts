@@ -10,29 +10,29 @@
  * itself, then SHA-256 the resulting JSON string.
  */
 
-import { createHash } from "node:crypto";
+import { createHash } from 'node:crypto'
 
 export interface SummaryVerifyResult {
-  ok: boolean;
-  expected?: string;
-  actual?: string;
-  reason?: string;
+  ok: boolean
+  expected?: string
+  actual?: string
+  reason?: string
 }
 
 function canonicalise(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map(canonicalise);
+    return value.map(canonicalise)
   }
-  if (value !== null && typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    const sortedKeys = Object.keys(obj).sort();
-    const out: Record<string, unknown> = {};
+  if (value !== null && typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    const sortedKeys = Object.keys(obj).sort()
+    const out: Record<string, unknown> = {}
     for (const k of sortedKeys) {
-      out[k] = canonicalise(obj[k]);
+      out[k] = canonicalise(obj[k])
     }
-    return out;
+    return out
   }
-  return value;
+  return value
 }
 
 /**
@@ -40,10 +40,10 @@ function canonicalise(value: unknown): unknown {
  * Any embedded `sha` field is excluded before hashing.
  */
 export function computeSummarySha(body: Record<string, unknown>): string {
-  const { sha: _ignored, ...rest } = body;
-  void _ignored;
-  const canonical = JSON.stringify(canonicalise(rest));
-  return createHash("sha256").update(canonical).digest("hex");
+  const { sha: _ignored, ...rest } = body
+  void _ignored
+  const canonical = JSON.stringify(canonicalise(rest))
+  return createHash('sha256').update(canonical).digest('hex')
 }
 
 /**
@@ -51,16 +51,14 @@ export function computeSummarySha(body: Record<string, unknown>): string {
  * canonical hash of the rest of its body. Missing/non-string `sha` is
  * treated as a mismatch (fail-closed).
  */
-export function verifySummarySha(
-  body: Record<string, unknown>,
-): SummaryVerifyResult {
-  const stored = body["sha"];
-  if (typeof stored !== "string") {
-    return { ok: false, reason: "missing or non-string sha field" };
+export function verifySummarySha(body: Record<string, unknown>): SummaryVerifyResult {
+  const stored = body['sha']
+  if (typeof stored !== 'string') {
+    return { ok: false, reason: 'missing or non-string sha field' }
   }
-  const expected = computeSummarySha(body);
+  const expected = computeSummarySha(body)
   if (expected !== stored) {
-    return { ok: false, expected, actual: stored, reason: "sha mismatch" };
+    return { ok: false, expected, actual: stored, reason: 'sha mismatch' }
   }
-  return { ok: true, expected, actual: stored };
+  return { ok: true, expected, actual: stored }
 }

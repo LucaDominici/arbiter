@@ -1,193 +1,177 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import {
-  createTestProject,
-  cleanupTestProject,
-  makeConfig,
-} from "../helpers.js";
-import { generateEslintBoundaries } from "../../src/generators/boundaries.js";
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
+import { generateEslintBoundaries } from '../../src/generators/boundaries.js'
 
-let dir: string;
+let dir: string
 
 beforeEach(() => {
-  dir = createTestProject("typescript");
-});
+  dir = createTestProject('typescript')
+})
 
 afterEach(() => {
-  cleanupTestProject(dir);
-});
+  cleanupTestProject(dir)
+})
 
-describe("generateEslintBoundaries", () => {
-  it("emits .eslintrc-boundaries.cjs and scripts/check-boundaries.mjs for typescript + hexagonal", () => {
+describe('generateEslintBoundaries', () => {
+  it('emits .eslintrc-boundaries.cjs and scripts/check-boundaries.mjs for typescript + hexagonal', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      architectureStyle: "hexagonal",
-    });
-    const result = generateEslintBoundaries(config);
-    expect(result.files.length).toBe(2);
-    expect(result.files[0].path).toContain(".eslintrc-boundaries.cjs");
-    expect(result.files[0].action).toBe("created");
-    expect(result.files[1].path).toContain("check-boundaries.mjs");
-    expect(result.files[1].action).toBe("created");
-    expect(existsSync(result.files[0].path)).toBe(true);
-    expect(existsSync(result.files[1].path)).toBe(true);
-  });
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    const result = generateEslintBoundaries(config)
+    expect(result.files.length).toBe(2)
+    expect(result.files[0].path).toContain('.eslintrc-boundaries.cjs')
+    expect(result.files[0].action).toBe('created')
+    expect(result.files[1].path).toContain('check-boundaries.mjs')
+    expect(result.files[1].action).toBe('created')
+    expect(existsSync(result.files[0].path)).toBe(true)
+    expect(existsSync(result.files[1].path)).toBe(true)
+  })
 
-  it("places .eslintrc-boundaries.cjs at project root", () => {
+  it('places .eslintrc-boundaries.cjs at project root', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      architectureStyle: "hexagonal",
-    });
-    generateEslintBoundaries(config);
-    expect(existsSync(join(dir, ".eslintrc-boundaries.cjs"))).toBe(true);
-  });
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    generateEslintBoundaries(config)
+    expect(existsSync(join(dir, '.eslintrc-boundaries.cjs'))).toBe(true)
+  })
 
-  it("emitted config contains boundaries/element-types rule", () => {
+  it('emitted config contains boundaries/element-types rule', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      architectureStyle: "hexagonal",
-    });
-    generateEslintBoundaries(config);
-    const content = readFileSync(
-      join(dir, ".eslintrc-boundaries.cjs"),
-      "utf-8",
-    );
-    expect(content).toContain("boundaries/element-types");
-    expect(content).toContain("domain");
-    expect(content).toContain("adapters");
-    expect(content).toContain("infrastructure");
-  });
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    generateEslintBoundaries(config)
+    const content = readFileSync(join(dir, '.eslintrc-boundaries.cjs'), 'utf-8')
+    expect(content).toContain('boundaries/element-types')
+    expect(content).toContain('domain')
+    expect(content).toContain('adapters')
+    expect(content).toContain('infrastructure')
+  })
 
-  it("emitted config blocks browser globals in domain", () => {
+  it('emitted config blocks browser globals in domain', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      architectureStyle: "hexagonal",
-    });
-    generateEslintBoundaries(config);
-    const content = readFileSync(
-      join(dir, ".eslintrc-boundaries.cjs"),
-      "utf-8",
-    );
-    expect(content).toContain("no-restricted-globals");
-    expect(content).toContain("window");
-    expect(content).toContain("document");
-  });
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    generateEslintBoundaries(config)
+    const content = readFileSync(join(dir, '.eslintrc-boundaries.cjs'), 'utf-8')
+    expect(content).toContain('no-restricted-globals')
+    expect(content).toContain('window')
+    expect(content).toContain('document')
+  })
 
-  it("emitted config blocks Node built-ins in domain via no-restricted-imports", () => {
+  it('emitted config blocks Node built-ins in domain via no-restricted-imports', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      architectureStyle: "hexagonal",
-    });
-    generateEslintBoundaries(config);
-    const content = readFileSync(
-      join(dir, ".eslintrc-boundaries.cjs"),
-      "utf-8",
-    );
-    expect(content).toContain("no-restricted-imports");
-    expect(content).toContain("node:fs");
-  });
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    generateEslintBoundaries(config)
+    const content = readFileSync(join(dir, '.eslintrc-boundaries.cjs'), 'utf-8')
+    expect(content).toContain('no-restricted-imports')
+    expect(content).toContain('node:fs')
+  })
 
-  it("returns no files for typescript + layered", () => {
+  it('returns no files for typescript + layered', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      architectureStyle: "layered",
-    });
-    const result = generateEslintBoundaries(config);
-    expect(result.files).toHaveLength(0);
-  });
+      language: 'typescript',
+      architectureStyle: 'layered',
+    })
+    const result = generateEslintBoundaries(config)
+    expect(result.files).toHaveLength(0)
+  })
 
-  it("returns no files for typescript + none (default)", () => {
-    const config = makeConfig(dir, { language: "typescript" });
-    const result = generateEslintBoundaries(config);
-    expect(result.files).toHaveLength(0);
-  });
+  it('returns no files for typescript + none (default)', () => {
+    const config = makeConfig(dir, { language: 'typescript' })
+    const result = generateEslintBoundaries(config)
+    expect(result.files).toHaveLength(0)
+  })
 
-  it("returns no files for java + hexagonal (language guard)", () => {
-    const javaDir = createTestProject("java");
+  it('returns no files for java + hexagonal (language guard)', () => {
+    const javaDir = createTestProject('java')
     try {
       const config = makeConfig(javaDir, {
-        language: "java",
-        architectureStyle: "hexagonal",
-      });
-      const result = generateEslintBoundaries(config);
-      expect(result.files).toHaveLength(0);
+        language: 'java',
+        architectureStyle: 'hexagonal',
+      })
+      const result = generateEslintBoundaries(config)
+      expect(result.files).toHaveLength(0)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
-  it("returns no files for rust + hexagonal (language guard)", () => {
-    const rustDir = createTestProject("rust");
+  it('returns no files for rust + hexagonal (language guard)', () => {
+    const rustDir = createTestProject('rust')
     try {
       const config = makeConfig(rustDir, {
-        language: "rust",
-        architectureStyle: "hexagonal",
-      });
-      const result = generateEslintBoundaries(config);
-      expect(result.files).toHaveLength(0);
+        language: 'rust',
+        architectureStyle: 'hexagonal',
+      })
+      const result = generateEslintBoundaries(config)
+      expect(result.files).toHaveLength(0)
     } finally {
-      cleanupTestProject(rustDir);
+      cleanupTestProject(rustDir)
     }
-  });
+  })
 
-  it("honors skipIfExists when .eslintrc-boundaries.cjs already exists", () => {
+  it('honors skipIfExists when .eslintrc-boundaries.cjs already exists', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      architectureStyle: "hexagonal",
-    });
-    const targetPath = join(dir, ".eslintrc-boundaries.cjs");
-    writeFileSync(targetPath, "// existing content");
-    const result = generateEslintBoundaries(config);
-    expect(result.files[0].action).toBe("skipped");
-    expect(readFileSync(targetPath, "utf-8")).toBe("// existing content");
-  });
+      language: 'typescript',
+      architectureStyle: 'hexagonal',
+    })
+    const targetPath = join(dir, '.eslintrc-boundaries.cjs')
+    writeFileSync(targetPath, '// existing content')
+    const result = generateEslintBoundaries(config)
+    expect(result.files[0].action).toBe('skipped')
+    expect(readFileSync(targetPath, 'utf-8')).toBe('// existing content')
+  })
 
   // ── frontend-spa (#158) ─────────────────────────────────────────────────────
 
-  it("emits .eslintrc-frontend-spa.cjs for typescript + frontend-spa (#158)", () => {
+  it('emits .eslintrc-frontend-spa.cjs for typescript + frontend-spa (#158)', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      archetype: "frontend-spa",
-    });
-    const result = generateEslintBoundaries(config);
-    expect(result.files).toHaveLength(1);
-    expect(result.files[0].path).toContain(".eslintrc-frontend-spa.cjs");
-    expect(existsSync(join(dir, ".eslintrc-frontend-spa.cjs"))).toBe(true);
-  });
+      language: 'typescript',
+      archetype: 'frontend-spa',
+    })
+    const result = generateEslintBoundaries(config)
+    expect(result.files).toHaveLength(1)
+    expect(result.files[0].path).toContain('.eslintrc-frontend-spa.cjs')
+    expect(existsSync(join(dir, '.eslintrc-frontend-spa.cjs'))).toBe(true)
+  })
 
-  it(".eslintrc-frontend-spa.cjs contains FSD layers (#158)", () => {
+  it('.eslintrc-frontend-spa.cjs contains FSD layers (#158)', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      archetype: "frontend-spa",
-    });
-    generateEslintBoundaries(config);
-    const content = readFileSync(
-      join(dir, ".eslintrc-frontend-spa.cjs"),
-      "utf-8",
-    );
-    expect(content).toContain("features");
-    expect(content).toContain("pages");
-    expect(content).toContain("widgets");
-    expect(content).toContain("entities");
-    expect(content).toContain("shared");
-  });
+      language: 'typescript',
+      archetype: 'frontend-spa',
+    })
+    generateEslintBoundaries(config)
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).toContain('features')
+    expect(content).toContain('pages')
+    expect(content).toContain('widgets')
+    expect(content).toContain('entities')
+    expect(content).toContain('shared')
+  })
 
-  it("does NOT emit hexagonal config for frontend-spa (#158)", () => {
+  it('does NOT emit hexagonal config for frontend-spa (#158)', () => {
     const config = makeConfig(dir, {
-      language: "typescript",
-      archetype: "frontend-spa",
-    });
-    generateEslintBoundaries(config);
-    expect(existsSync(join(dir, ".eslintrc-boundaries.cjs"))).toBe(false);
-  });
+      language: 'typescript',
+      archetype: 'frontend-spa',
+    })
+    generateEslintBoundaries(config)
+    expect(existsSync(join(dir, '.eslintrc-boundaries.cjs'))).toBe(false)
+  })
 
-  it("frontend-spa with non-typescript emits no files (#158)", () => {
+  it('frontend-spa with non-typescript emits no files (#158)', () => {
     const config = makeConfig(dir, {
-      language: "rust",
-      archetype: "frontend-spa",
-    });
-    const result = generateEslintBoundaries(config);
-    expect(result.files).toHaveLength(0);
-  });
-});
+      language: 'rust',
+      archetype: 'frontend-spa',
+    })
+    const result = generateEslintBoundaries(config)
+    expect(result.files).toHaveLength(0)
+  })
+})

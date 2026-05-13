@@ -48,7 +48,7 @@ jobs:
             return '';
 
       # PR opened or converted from draft → in-review (removes in-progress)
-      - name: "→ In Review"
+      - name: '→ In Review'
         if: |
           steps.issue.outputs.result != '' &&
           (github.event.action == 'opened' || github.event.action == 'ready_for_review')
@@ -73,7 +73,7 @@ jobs:
             console.log(`Issue #${issueNumber} → in-review`);
 
       # PR merged to main → close issue (removes in-review)
-      - name: "→ Done"
+      - name: '→ Done'
         if: |
           steps.issue.outputs.result != '' &&
           github.event.action == 'closed' &&

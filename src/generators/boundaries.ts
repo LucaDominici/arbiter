@@ -1,47 +1,44 @@
-import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
-import type { ProjectConfig } from "../wizard/types.js";
-import type { WriteResult } from "../utils/fs.js";
+import { renderTemplate } from '../utils/render.js'
+import { writeFile, resolvedPath } from '../utils/fs.js'
+import type { ProjectConfig } from '../wizard/types.js'
+import type { WriteResult } from '../utils/fs.js'
 
 export interface BoundariesGeneratorResult {
-  files: WriteResult[];
+  files: WriteResult[]
 }
 
-export function generateEslintBoundaries(
-  config: ProjectConfig,
-): BoundariesGeneratorResult {
-  if (config.language !== "typescript" && config.language !== "multi")
-    return { files: [] };
+export function generateEslintBoundaries(config: ProjectConfig): BoundariesGeneratorResult {
+  if (config.language !== 'typescript' && config.language !== 'multi') return { files: [] }
 
-  const base = config.targetDir;
-  const data = config as unknown as Record<string, unknown>;
+  const base = config.targetDir
+  const data = config as unknown as Record<string, unknown>
 
-  if (config.archetype === "frontend-spa") {
+  if (config.archetype === 'frontend-spa') {
     return {
       files: [
         writeFile(
-          resolvedPath(base, ".eslintrc-frontend-spa.cjs"),
-          renderTemplate("boundaries/.eslintrc-frontend-spa.cjs.ejs", data),
+          resolvedPath(base, '.eslintrc-frontend-spa.cjs'),
+          renderTemplate('boundaries/.eslintrc-frontend-spa.cjs.ejs', data),
           { skipIfExists: true },
         ),
       ],
-    };
+    }
   }
 
-  if (config.architectureStyle !== "hexagonal") return { files: [] };
+  if (config.architectureStyle !== 'hexagonal') return { files: [] }
 
   return {
     files: [
       writeFile(
-        resolvedPath(base, ".eslintrc-boundaries.cjs"),
-        renderTemplate("boundaries/.eslintrc-boundaries.cjs.ejs", data),
+        resolvedPath(base, '.eslintrc-boundaries.cjs'),
+        renderTemplate('boundaries/.eslintrc-boundaries.cjs.ejs', data),
         { skipIfExists: true },
       ),
       writeFile(
-        resolvedPath(base, "scripts/check-boundaries.mjs"),
-        renderTemplate("boundaries/check-boundaries.mjs.ejs", data),
+        resolvedPath(base, 'scripts/check-boundaries.mjs'),
+        renderTemplate('boundaries/check-boundaries.mjs.ejs', data),
         { skipIfExists: true },
       ),
     ],
-  };
+  }
 }

@@ -1,73 +1,73 @@
-import { describe, it, expect } from "vitest";
-import { renderTemplate } from "../../src/utils/render.js";
-import { makeConfig } from "../helpers.js";
-import { DEFAULT_TASK_TIERS } from "../../src/config/schema.js";
+import { describe, it, expect } from 'vitest'
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
+import { DEFAULT_TASK_TIERS } from '../../src/config/schema.js'
 
 function render(taskTiers?: unknown): string {
-  const config = makeConfig("/tmp/test", {
-    governanceLevel: "L2",
-    testCommand: "npm test",
-  });
+  const config = makeConfig('/tmp/test', {
+    governanceLevel: 'L2',
+    testCommand: 'npm test',
+  })
   const data = {
     ...(config as unknown as Record<string, unknown>),
     taskTiers,
-  };
-  return renderTemplate("claude/commands/task.md.ejs", data);
+  }
+  return renderTemplate('claude/commands/task.md.ejs', data)
 }
 
-describe("task.md.ejs taskTiers rendering (#237)", () => {
-  it("renders default tier guidance when taskTiers is undefined", () => {
-    const out = render(undefined);
+describe('task.md.ejs taskTiers rendering (#237)', () => {
+  it('renders default tier guidance when taskTiers is undefined', () => {
+    const out = render(undefined)
     // Default falls back to canonical XS:3, S:3, Standard:4
-    expect(out).toMatch(/Tier XS[\s\S]*?3 review agents/);
-    expect(out).toMatch(/Tier Standard[\s\S]*?4 review agents/);
-  });
+    expect(out).toMatch(/Tier XS[\s\S]*?3 review agents/)
+    expect(out).toMatch(/Tier Standard[\s\S]*?4 review agents/)
+  })
 
-  it("renders three distinct tier blocks", () => {
-    const out = render(DEFAULT_TASK_TIERS);
+  it('renders three distinct tier blocks', () => {
+    const out = render(DEFAULT_TASK_TIERS)
     // Headers for each tier
-    expect(out).toContain("### Tier XS");
-    expect(out).toContain("### Tier S");
-    expect(out).toContain("### Tier Standard");
+    expect(out).toContain('### Tier XS')
+    expect(out).toContain('### Tier S')
+    expect(out).toContain('### Tier Standard')
     // Plan depth qualifiers per tier
-    expect(out).toMatch(/Tier XS[\s\S]*?Plan depth.*minimal/);
-    expect(out).toMatch(/Tier S[\s\S]*?Plan depth.*brief/);
-    expect(out).toMatch(/Tier Standard[\s\S]*?Plan depth.*full/);
-  });
+    expect(out).toMatch(/Tier XS[\s\S]*?Plan depth.*minimal/)
+    expect(out).toMatch(/Tier S[\s\S]*?Plan depth.*brief/)
+    expect(out).toMatch(/Tier Standard[\s\S]*?Plan depth.*full/)
+  })
 
-  it("renders custom reviewAgentCount per tier", () => {
+  it('renders custom reviewAgentCount per tier', () => {
     const custom = {
-      XS: { planDepth: "minimal", reviewAgentCount: 2 },
-      S: { planDepth: "brief", reviewAgentCount: 5 },
-      Standard: { planDepth: "full", reviewAgentCount: 6 },
-    };
-    const out = render(custom);
-    expect(out).toMatch(/Tier XS[\s\S]*?2 review agents/);
-    expect(out).toMatch(/Tier S[\s\S]*?5 review agents/);
-    expect(out).toMatch(/Tier Standard[\s\S]*?6 review agents/);
-  });
-});
+      XS: { planDepth: 'minimal', reviewAgentCount: 2 },
+      S: { planDepth: 'brief', reviewAgentCount: 5 },
+      Standard: { planDepth: 'full', reviewAgentCount: 6 },
+    }
+    const out = render(custom)
+    expect(out).toMatch(/Tier XS[\s\S]*?2 review agents/)
+    expect(out).toMatch(/Tier S[\s\S]*?5 review agents/)
+    expect(out).toMatch(/Tier Standard[\s\S]*?6 review agents/)
+  })
+})
 
-describe("task.md.ejs BACKLOG step (#243)", () => {
-  it("includes BACKLOG step in Phase 1 at L2", () => {
-    const config = makeConfig("/tmp/test", {
-      governanceLevel: "L2",
-      testCommand: "npm test",
-    });
-    const out = renderTemplate("claude/commands/task.md.ejs", {
+describe('task.md.ejs BACKLOG step (#243)', () => {
+  it('includes BACKLOG step in Phase 1 at L2', () => {
+    const config = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+      testCommand: 'npm test',
+    })
+    const out = renderTemplate('claude/commands/task.md.ejs', {
       ...(config as unknown as Record<string, unknown>),
-    });
-    expect(out).toContain("BACKLOG.md");
-  });
+    })
+    expect(out).toContain('BACKLOG.md')
+  })
 
-  it("does NOT include BACKLOG step at L1", () => {
-    const config = makeConfig("/tmp/test", {
-      governanceLevel: "L1",
-      testCommand: "npm test",
-    });
-    const out = renderTemplate("claude/commands/task.md.ejs", {
+  it('does NOT include BACKLOG step at L1', () => {
+    const config = makeConfig('/tmp/test', {
+      governanceLevel: 'L1',
+      testCommand: 'npm test',
+    })
+    const out = renderTemplate('claude/commands/task.md.ejs', {
       ...(config as unknown as Record<string, unknown>),
-    });
-    expect(out).not.toContain("BACKLOG.md");
-  });
-});
+    })
+    expect(out).not.toContain('BACKLOG.md')
+  })
+})

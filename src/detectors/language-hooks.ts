@@ -1,8 +1,8 @@
-import type { Language, LanguageHook } from "../wizard/types.js";
+import type { Language, LanguageHook } from '../wizard/types.js'
 
 const TS_NO_ANY: LanguageHook = {
-  name: "check-no-any.mjs",
-  description: "No `any` type in TypeScript source files",
+  name: 'check-no-any.mjs',
+  description: 'No `any` type in TypeScript source files',
   body: `#!/usr/bin/env node
 // Fail if a TypeScript file was edited with an explicit 'any' type
 import { readFileSync, existsSync } from 'node:fs';
@@ -15,12 +15,11 @@ if (/:\\s*any\\b/.test(readFileSync(file, 'utf-8'))) {
   process.stderr.write(\`[arbiter] INV: No 'any' type allowed: \${file}\\n\`);
   process.exit(1);
 }`,
-};
+}
 
 const RUST_NO_UNWRAP: LanguageHook = {
-  name: "check-no-unwrap.mjs",
-  description:
-    "No `.unwrap()` calls in Rust source files (use `?` or proper error handling)",
+  name: 'check-no-unwrap.mjs',
+  description: 'No `.unwrap()` calls in Rust source files (use `?` or proper error handling)',
   body: `#!/usr/bin/env node
 // Fail if a Rust file was edited with an .unwrap() call
 import { readFileSync, existsSync } from 'node:fs';
@@ -33,12 +32,11 @@ if (/\\.unwrap\\(\\)/.test(readFileSync(file, 'utf-8'))) {
   process.stderr.write(\`[arbiter] INV: No .unwrap() allowed in Rust: \${file}\\n\`);
   process.exit(1);
 }`,
-};
+}
 
 const COMMON_NO_ORPHAN_TODO: LanguageHook = {
-  name: "check-no-orphan-todo.mjs",
-  description:
-    "Every TODO comment must reference a task ID (e.g., // TODO(#123))",
+  name: 'check-no-orphan-todo.mjs',
+  description: 'Every TODO comment must reference a task ID (e.g., // TODO(#123))',
   body: `#!/usr/bin/env node
 // Fail if a file has a TODO without a task reference
 import { readFileSync, existsSync } from 'node:fs';
@@ -55,10 +53,10 @@ if (offending.length > 0) {
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
   process.exit(1);
 }`,
-};
+}
 
 const GO_NO_UNCHECKED_ERR: LanguageHook = {
-  name: "check-no-unchecked-err.mjs",
+  name: 'check-no-unchecked-err.mjs',
   description:
     "No discarded error returns in Go source files (no '_ = ' patterns that ignore errors)",
   body: `#!/usr/bin/env node
@@ -78,12 +76,11 @@ if (offending.length > 0) {
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
   process.exit(1);
 }`,
-};
+}
 
 const PY_NO_BARE_EXCEPT: LanguageHook = {
-  name: "check-no-bare-except.mjs",
-  description:
-    "No bare except clauses in Python source files (always specify exception type)",
+  name: 'check-no-bare-except.mjs',
+  description: 'No bare except clauses in Python source files (always specify exception type)',
   body: `#!/usr/bin/env node
 // Fail if a Python file uses a bare 'except:' clause
 import { readFileSync, existsSync } from 'node:fs';
@@ -101,12 +98,11 @@ if (offending.length > 0) {
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
   process.exit(1);
 }`,
-};
+}
 
 const JAVA_NO_RAW_TYPES: LanguageHook = {
-  name: "check-no-raw-types.mjs",
-  description:
-    "No raw generic types in Java source files (always use type parameters)",
+  name: 'check-no-raw-types.mjs',
+  description: 'No raw generic types in Java source files (always use type parameters)',
   body: `#!/usr/bin/env node
 // Fail if a Java file uses raw generic types (unparameterized generics)
 import { readFileSync, existsSync } from 'node:fs';
@@ -126,12 +122,11 @@ if (offending.length > 0) {
   offending.slice(0, 3).forEach(l => process.stderr.write(\`  \${l}\\n\`));
   process.exit(1);
 }`,
-};
+}
 
 const JAVA_NO_MOCKMVC: LanguageHook = {
-  name: "check-no-mockmvc.mjs",
-  description:
-    "No MockMvc usage in Java test files — use RestAssured for integration tests",
+  name: 'check-no-mockmvc.mjs',
+  description: 'No MockMvc usage in Java test files — use RestAssured for integration tests',
   body: `#!/usr/bin/env node
 // Fail if a Java file imports or uses MockMvc (use RestAssured instead)
 import { readFileSync, existsSync } from 'node:fs';
@@ -145,15 +140,14 @@ if (/\\b(MockMvc|AutoConfigureMockMvc|MockMvcBuilders|MockMvcRequestBuilders|Moc
   process.stderr.write(\`[arbiter] INV-29: MockMvc is forbidden — use RestAssured for integration tests: \${file}\\n\`);
   process.exit(1);
 }`,
-};
+}
 
 export function getLanguageHooks(language: Language): LanguageHook[] {
-  const hooks: LanguageHook[] = [COMMON_NO_ORPHAN_TODO];
-  if (language === "typescript" || language === "multi") hooks.push(TS_NO_ANY);
-  if (language === "rust") hooks.push(RUST_NO_UNWRAP);
-  if (language === "go") hooks.push(GO_NO_UNCHECKED_ERR);
-  if (language === "python") hooks.push(PY_NO_BARE_EXCEPT);
-  if (language === "java" || language === "multi")
-    hooks.push(JAVA_NO_RAW_TYPES, JAVA_NO_MOCKMVC);
-  return hooks;
+  const hooks: LanguageHook[] = [COMMON_NO_ORPHAN_TODO]
+  if (language === 'typescript' || language === 'multi') hooks.push(TS_NO_ANY)
+  if (language === 'rust') hooks.push(RUST_NO_UNWRAP)
+  if (language === 'go') hooks.push(GO_NO_UNCHECKED_ERR)
+  if (language === 'python') hooks.push(PY_NO_BARE_EXCEPT)
+  if (language === 'java' || language === 'multi') hooks.push(JAVA_NO_RAW_TYPES, JAVA_NO_MOCKMVC)
+  return hooks
 }

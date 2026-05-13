@@ -1,19 +1,19 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     open-pull-requests-limit: 3
-    labels: ["deps"]
+    labels: ['deps']
     groups:
       dev-dependencies:
-        dependency-type: "development"
+        dependency-type: 'development'
       prod-dependencies:
-        dependency-type: "production"
+        dependency-type: 'production'
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-    labels: ["ci", "deps"]
+      interval: 'weekly'
+    labels: ['ci', 'deps']

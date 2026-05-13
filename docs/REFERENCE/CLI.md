@@ -897,33 +897,33 @@ A plugin is an npm package that exports an `ArbiterPlugin` object. Install types
 
 ```js
 // index.js
-const { join } = require("node:path");
+const { join } = require('node:path')
 
 /** @type {import("@arbiter/cli/plugin").ArbiterPlugin} */
 module.exports = {
-  name: "my-arbiter-plugin",
-  apiVersion: "1",
-  templateRoot: join(__dirname, "templates"),
+  name: 'my-arbiter-plugin',
+  apiVersion: '1',
+  templateRoot: join(__dirname, 'templates'),
 
   detect(config) {
-    return config.framework === "spring-boot";
+    return config.framework === 'spring-boot'
   },
 
   generate(ctx) {
-    const content = ctx.renderTemplate("Application.java.ejs", {
+    const content = ctx.renderTemplate('Application.java.ejs', {
       projectName: ctx.config.projectName,
-    });
+    })
     return {
       files: [
         {
-          path: join(ctx.targetDir, "Application.java"),
+          path: join(ctx.targetDir, 'Application.java'),
           content,
-          action: "create",
+          action: 'create',
         },
       ],
-    };
+    }
   },
-};
+}
 ```
 
 See `examples/plugin-spring-boot/` for a complete reference implementation.
@@ -957,15 +957,7 @@ Persisted config written by `arbiter init`, read by `arbiter update` and `arbite
 ```json
 {
   "version": "0.2",
-  "tools": [
-    "claude",
-    "codex",
-    "cursor",
-    "copilot",
-    "gemini",
-    "windsurf",
-    "aider"
-  ],
+  "tools": ["claude", "codex", "cursor", "copilot", "gemini", "windsurf", "aider"],
   "governanceLevel": "L2",
   "useGitHub": true,
   "plugins": ["@company/arbiter-spring-boot"],

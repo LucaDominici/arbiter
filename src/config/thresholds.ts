@@ -1,14 +1,14 @@
-import type { GovernanceLevel, ThresholdProfile } from "../wizard/types.js";
+import type { GovernanceLevel, ThresholdProfile } from '../wizard/types.js'
 
 export interface ThresholdSet {
   /** Whether to include a coverage gate in the generated check-all script. */
-  coverageEnabled: boolean;
+  coverageEnabled: boolean
   /** Whether to include a mutation gate in the generated check-all script. */
-  mutationEnabled: boolean;
+  mutationEnabled: boolean
   /** Line/statement coverage percentage to enforce. Only meaningful when coverageEnabled. */
-  coverageThreshold: number;
+  coverageThreshold: number
   /** Mutation score percentage to enforce. Only meaningful when mutationEnabled. */
-  mutationThreshold: number;
+  mutationThreshold: number
 }
 
 /**
@@ -29,33 +29,33 @@ export function computeThresholds(
   profile: ThresholdProfile,
   governanceLevel: GovernanceLevel,
 ): ThresholdSet {
-  const mutationThreshold = 85;
+  const mutationThreshold = 85
 
-  if (profile === "fixed") {
-    const coverageThreshold = governanceLevel === "L3" ? 85 : 80;
+  if (profile === 'fixed') {
+    const coverageThreshold = governanceLevel === 'L3' ? 85 : 80
     return {
       coverageEnabled: true,
       mutationEnabled: true,
       coverageThreshold,
       mutationThreshold,
-    };
+    }
   }
 
   // Scaled profile
-  const coverageEnabled = linesOfCode >= 1_000;
-  const mutationEnabled = linesOfCode >= 5_000;
+  const coverageEnabled = linesOfCode >= 1_000
+  const mutationEnabled = linesOfCode >= 5_000
 
   // Ramp: 60% at 1k LoC → 85% at 10k+ LoC (linear, clamped)
-  let coverageThreshold: number;
+  let coverageThreshold: number
   if (!coverageEnabled) {
-    coverageThreshold = 60; // not used, but set a sensible default
+    coverageThreshold = 60 // not used, but set a sensible default
   } else {
-    const MIN_LOC = 1_000;
-    const MAX_LOC = 10_000;
-    const MIN_PCT = 60;
-    const MAX_PCT = 85;
-    const t = Math.min(1, (linesOfCode - MIN_LOC) / (MAX_LOC - MIN_LOC));
-    coverageThreshold = Math.round(MIN_PCT + t * (MAX_PCT - MIN_PCT));
+    const MIN_LOC = 1_000
+    const MAX_LOC = 10_000
+    const MIN_PCT = 60
+    const MAX_PCT = 85
+    const t = Math.min(1, (linesOfCode - MIN_LOC) / (MAX_LOC - MIN_LOC))
+    coverageThreshold = Math.round(MIN_PCT + t * (MAX_PCT - MIN_PCT))
   }
 
   return {
@@ -63,5 +63,5 @@ export function computeThresholds(
     mutationEnabled,
     coverageThreshold,
     mutationThreshold,
-  };
+  }
 }

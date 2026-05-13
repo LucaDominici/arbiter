@@ -1,156 +1,150 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { writeFileSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
-import { detectBuildCommands } from "../../src/detectors/build.js";
-import { createTestProject, cleanupTestProject } from "../helpers.js";
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { writeFileSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
+import { detectBuildCommands } from '../../src/detectors/build.js'
+import { createTestProject, cleanupTestProject } from '../helpers.js'
 
-describe("detectBuildCommands", () => {
-  let dir: string;
+describe('detectBuildCommands', () => {
+  let dir: string
 
   afterEach(() => {
-    cleanupTestProject(dir);
-  });
+    cleanupTestProject(dir)
+  })
 
-  describe("typescript", () => {
+  describe('typescript', () => {
     beforeEach(() => {
-      dir = createTestProject("typescript");
-    });
+      dir = createTestProject('typescript')
+    })
 
-    it("detects build/test/lint from package.json scripts", () => {
-      const result = detectBuildCommands(dir, "typescript");
-      expect(result.buildTool).toBe("npm");
-      expect(result.buildCommand).toBe("npm run build");
-      expect(result.testCommand).toBe("npm run test");
-      expect(result.lintCommand).toBe("npm run lint");
-    });
+    it('detects build/test/lint from package.json scripts', () => {
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.buildTool).toBe('npm')
+      expect(result.buildCommand).toBe('npm run build')
+      expect(result.testCommand).toBe('npm run test')
+      expect(result.lintCommand).toBe('npm run lint')
+    })
 
-    it("detects prettier when present in dependencies", () => {
-      const result = detectBuildCommands(dir, "typescript");
-      expect(result.formatCommand).toBe("npx prettier --check .");
-    });
+    it('detects prettier when present in dependencies', () => {
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.formatCommand).toBe('npx prettier --check .')
+    })
 
-    it("falls back when no scripts exist", () => {
-      writeFileSync(join(dir, "package.json"), "{}");
-      const result = detectBuildCommands(dir, "typescript");
-      expect(result.buildCommand).toBe("npm run build");
-      expect(result.testCommand).toBe("npm test");
-    });
+    it('falls back when no scripts exist', () => {
+      writeFileSync(join(dir, 'package.json'), '{}')
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.buildCommand).toBe('npm run build')
+      expect(result.testCommand).toBe('npm test')
+    })
 
-    it("reports no lint when lint script missing", () => {
-      writeFileSync(
-        join(dir, "package.json"),
-        JSON.stringify({ scripts: { build: "tsc" } }),
-      );
-      const result = detectBuildCommands(dir, "typescript");
-      expect(result.lintCommand).toBe('echo "no lint configured"');
-    });
+    it('reports no lint when lint script missing', () => {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { build: 'tsc' } }))
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.lintCommand).toBe('echo "no lint configured"')
+    })
 
-    it("reports no formatter when prettier absent", () => {
-      writeFileSync(
-        join(dir, "package.json"),
-        JSON.stringify({ scripts: {}, devDependencies: {} }),
-      );
-      const result = detectBuildCommands(dir, "typescript");
-      expect(result.formatCommand).toBe('echo "no formatter configured"');
-    });
-  });
+    it('reports no formatter when prettier absent', () => {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: {}, devDependencies: {} }))
+      const result = detectBuildCommands(dir, 'typescript')
+      expect(result.formatCommand).toBe('echo "no formatter configured"')
+    })
+  })
 
-  describe("rust", () => {
+  describe('rust', () => {
     beforeEach(() => {
-      dir = createTestProject("rust");
-    });
+      dir = createTestProject('rust')
+    })
 
-    it("uses cargo commands", () => {
-      const result = detectBuildCommands(dir, "rust");
-      expect(result.buildTool).toBe("cargo");
-      expect(result.buildCommand).toBe("cargo build");
-      expect(result.testCommand).toBe("cargo test");
-      expect(result.lintCommand).toContain("cargo clippy");
-      expect(result.lintCommand).toContain("-D warnings");
-      expect(result.formatCommand).toContain("cargo fmt");
-      expect(result.formatCommand).toContain("--check");
-    });
-  });
+    it('uses cargo commands', () => {
+      const result = detectBuildCommands(dir, 'rust')
+      expect(result.buildTool).toBe('cargo')
+      expect(result.buildCommand).toBe('cargo build')
+      expect(result.testCommand).toBe('cargo test')
+      expect(result.lintCommand).toContain('cargo clippy')
+      expect(result.lintCommand).toContain('-D warnings')
+      expect(result.formatCommand).toContain('cargo fmt')
+      expect(result.formatCommand).toContain('--check')
+    })
+  })
 
-  describe("java", () => {
+  describe('java', () => {
     beforeEach(() => {
-      dir = createTestProject("java");
-    });
+      dir = createTestProject('java')
+    })
 
-    it("uses gradle with wrapper when gradlew exists", () => {
-      writeFileSync(join(dir, "gradlew"), "#!/bin/sh");
-      const result = detectBuildCommands(dir, "java");
-      expect(result.buildTool).toBe("gradle");
-      expect(result.buildCommand).toBe("./gradlew build -x test");
-      expect(result.testCommand).toBe("./gradlew test");
-      expect(result.lintCommand).toBe("./gradlew checkstyleMain");
-    });
+    it('uses gradle with wrapper when gradlew exists', () => {
+      writeFileSync(join(dir, 'gradlew'), '#!/bin/sh')
+      const result = detectBuildCommands(dir, 'java')
+      expect(result.buildTool).toBe('gradle')
+      expect(result.buildCommand).toBe('./gradlew build -x test')
+      expect(result.testCommand).toBe('./gradlew test')
+      expect(result.lintCommand).toBe('./gradlew checkstyleMain')
+    })
 
-    it("uses gradle without wrapper when gradlew missing", () => {
-      const result = detectBuildCommands(dir, "java");
-      expect(result.buildCommand).toBe("gradle build -x test");
-      expect(result.testCommand).toBe("gradle test");
-    });
+    it('uses gradle without wrapper when gradlew missing', () => {
+      const result = detectBuildCommands(dir, 'java')
+      expect(result.buildCommand).toBe('gradle build -x test')
+      expect(result.testCommand).toBe('gradle test')
+    })
 
-    it("uses maven when pom.xml exists and no gradle files", () => {
+    it('uses maven when pom.xml exists and no gradle files', () => {
       // createTestProject("java") creates build.gradle; remove it to test Maven-only layout
-      unlinkSync(join(dir, "build.gradle"));
-      writeFileSync(join(dir, "pom.xml"), "<project/>");
-      const result = detectBuildCommands(dir, "java");
-      expect(result.buildTool).toBe("maven");
-      expect(result.buildCommand).toBe("mvn package -DskipTests");
-      expect(result.testCommand).toBe("mvn test");
-      expect(result.lintCommand).toBe("mvn checkstyle:check");
-    });
+      unlinkSync(join(dir, 'build.gradle'))
+      writeFileSync(join(dir, 'pom.xml'), '<project/>')
+      const result = detectBuildCommands(dir, 'java')
+      expect(result.buildTool).toBe('maven')
+      expect(result.buildCommand).toBe('mvn package -DskipTests')
+      expect(result.testCommand).toBe('mvn test')
+      expect(result.lintCommand).toBe('mvn checkstyle:check')
+    })
 
-    it("prefers gradle over maven when both exist", () => {
-      writeFileSync(join(dir, "pom.xml"), "<project/>");
-      writeFileSync(join(dir, "gradlew"), "#!/bin/sh");
-      const result = detectBuildCommands(dir, "java");
-      expect(result.buildTool).toBe("gradle");
-    });
-  });
+    it('prefers gradle over maven when both exist', () => {
+      writeFileSync(join(dir, 'pom.xml'), '<project/>')
+      writeFileSync(join(dir, 'gradlew'), '#!/bin/sh')
+      const result = detectBuildCommands(dir, 'java')
+      expect(result.buildTool).toBe('gradle')
+    })
+  })
 
-  describe("go", () => {
+  describe('go', () => {
     beforeEach(() => {
-      dir = createTestProject("go");
-    });
+      dir = createTestProject('go')
+    })
 
-    it("uses go commands", () => {
-      const result = detectBuildCommands(dir, "go");
-      expect(result.buildTool).toBe("go");
-      expect(result.buildCommand).toBe("go build ./...");
-      expect(result.testCommand).toBe("go test ./...");
-      expect(result.lintCommand).toBe("golangci-lint run");
-      expect(result.formatCommand).toBe("gofmt -l .");
-    });
-  });
+    it('uses go commands', () => {
+      const result = detectBuildCommands(dir, 'go')
+      expect(result.buildTool).toBe('go')
+      expect(result.buildCommand).toBe('go build ./...')
+      expect(result.testCommand).toBe('go test ./...')
+      expect(result.lintCommand).toBe('golangci-lint run')
+      expect(result.formatCommand).toBe('gofmt -l .')
+    })
+  })
 
-  describe("python", () => {
+  describe('python', () => {
     beforeEach(() => {
-      dir = createTestProject("python");
-    });
+      dir = createTestProject('python')
+    })
 
-    it("uses pip/pytest/ruff commands", () => {
-      const result = detectBuildCommands(dir, "python");
-      expect(result.buildTool).toBe("pip");
-      expect(result.buildCommand).toBe("pip install -e .");
-      expect(result.testCommand).toBe("pytest");
-      expect(result.lintCommand).toBe("ruff check .");
-      expect(result.formatCommand).toBe("ruff format --check .");
-    });
-  });
+    it('uses pip/pytest/ruff commands', () => {
+      const result = detectBuildCommands(dir, 'python')
+      expect(result.buildTool).toBe('pip')
+      expect(result.buildCommand).toBe('pip install -e .')
+      expect(result.testCommand).toBe('pytest')
+      expect(result.lintCommand).toBe('ruff check .')
+      expect(result.formatCommand).toBe('ruff format --check .')
+    })
+  })
 
-  describe("unknown", () => {
+  describe('unknown', () => {
     beforeEach(() => {
-      dir = createTestProject("unknown");
-    });
+      dir = createTestProject('unknown')
+    })
 
-    it("returns placeholder commands", () => {
-      const result = detectBuildCommands(dir, "unknown");
-      expect(result.buildTool).toBe("unknown");
-      expect(result.buildCommand).toContain("configure");
-      expect(result.testCommand).toContain("configure");
-    });
-  });
-});
+    it('returns placeholder commands', () => {
+      const result = detectBuildCommands(dir, 'unknown')
+      expect(result.buildTool).toBe('unknown')
+      expect(result.buildCommand).toContain('configure')
+      expect(result.testCommand).toContain('configure')
+    })
+  })
+})

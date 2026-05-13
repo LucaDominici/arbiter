@@ -1,49 +1,49 @@
 #!/usr/bin/env node
 // Arbiter hook: block orphan TODO comments (INV-21)
 // Fires on: PostToolUse → Edit|Write
-import { readFileSync, existsSync } from "node:fs";
-import { findInlineSuppression } from "./lib.mjs";
+import { readFileSync, existsSync } from 'node:fs'
+import { findInlineSuppression } from './lib.mjs'
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? "";
-if (!file || !existsSync(file)) process.exit(0);
+const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+if (!file || !existsSync(file)) process.exit(0)
 
 // Only enforce on files within this repo
-const repoRoot = process.cwd();
-if (!file.startsWith(repoRoot)) process.exit(0);
+const repoRoot = process.cwd()
+if (!file.startsWith(repoRoot)) process.exit(0)
 
 // Skip binary files and lock files
 const SKIP_EXTENSIONS = [
-  ".lock",
-  ".lockb",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".svg",
-  ".wasm",
-  ".bin",
-];
-if (SKIP_EXTENSIONS.some((ext) => file.endsWith(ext))) process.exit(0);
+  '.lock',
+  '.lockb',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.wasm',
+  '.bin',
+]
+if (SKIP_EXTENSIONS.some((ext) => file.endsWith(ext))) process.exit(0)
 
-let content;
+let content
 try {
-  content = readFileSync(file, "utf-8");
+  content = readFileSync(file, 'utf-8')
 } catch {
-  process.exit(0);
+  process.exit(0)
 }
 
 // Find TODOs without task IDs like TODO(#123)
-const lines = content.split("\n");
+const lines = content.split('\n')
 const offending = lines.flatMap((line, i) => {
-  if (!/\bTODO\b/.test(line) || /\bTODO\b.*\(#\d+\)/.test(line)) return [];
-  if (findInlineSuppression(content, i, "INV-21")) return [];
-  return [`${i + 1}: ${line.trim()}`];
-});
+  if (!/\bTODO\b/.test(line) || /\bTODO\b.*\(#\d+\)/.test(line)) return []
+  if (findInlineSuppression(content, i, 'INV-21')) return []
+  return [`${i + 1}: ${line.trim()}`]
+})
 
 if (offending.length > 0) {
   process.stderr.write(
     `[arbiter] INV-21: Orphan TODO found in ${file} (must reference task ID like TODO(#123)):\n`,
-  );
-  offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`));
-  process.exit(1);
+  )
+  offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
+  process.exit(1)
 }

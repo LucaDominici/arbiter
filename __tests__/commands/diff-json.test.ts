@@ -1,38 +1,38 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { runDiff } from "../../src/commands/diff.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { runDiff } from '../../src/commands/diff.js'
 
-vi.mock("../../src/utils/config.js", () => ({
+vi.mock('../../src/utils/config.js', () => ({
   loadConfig: vi.fn(),
-}));
-vi.mock("../../src/detectors/language.js", () => ({
-  detectLanguage: vi.fn().mockReturnValue("typescript"),
-}));
-vi.mock("../../src/detectors/build.js", () => ({
+}))
+vi.mock('../../src/detectors/language.js', () => ({
+  detectLanguage: vi.fn().mockReturnValue('typescript'),
+}))
+vi.mock('../../src/detectors/build.js', () => ({
   detectBuildCommands: vi.fn().mockReturnValue({
-    buildTool: "tsc",
-    buildCommand: "tsc",
-    testCommand: "vitest",
-    lintCommand: "eslint",
-    formatCommand: "prettier",
+    buildTool: 'tsc',
+    buildCommand: 'tsc',
+    testCommand: 'vitest',
+    lintCommand: 'eslint',
+    formatCommand: 'prettier',
   }),
-}));
-vi.mock("../../src/detectors/framework.js", () => ({
+}))
+vi.mock('../../src/detectors/framework.js', () => ({
   detectFramework: vi.fn().mockReturnValue(null),
-}));
-vi.mock("../../src/detectors/git.js", () => ({
+}))
+vi.mock('../../src/detectors/git.js', () => ({
   detectGitInfo: vi.fn().mockReturnValue({
     isGitRepo: true,
     githubOwner: null,
     githubRepo: null,
   }),
-}));
-vi.mock("../../src/detectors/existing.js", () => ({
+}))
+vi.mock('../../src/detectors/existing.js', () => ({
   detectExisting: vi.fn().mockReturnValue({}),
-}));
-vi.mock("../../src/detectors/language-hooks.js", () => ({
+}))
+vi.mock('../../src/detectors/language-hooks.js', () => ({
   getLanguageHooks: vi.fn().mockReturnValue({}),
-}));
-vi.mock("../../src/detectors/axis.js", () => ({
+}))
+vi.mock('../../src/detectors/axis.js', () => ({
   resolveAxisFields: vi.fn().mockReturnValue({
     archetype: null,
     architectureStyle: null,
@@ -42,38 +42,38 @@ vi.mock("../../src/detectors/axis.js", () => ({
     contractType: null,
     lanes: [],
   }),
-}));
-vi.mock("../../src/invariants/filter.js", () => ({
+}))
+vi.mock('../../src/invariants/filter.js', () => ({
   presetToTiers: vi.fn().mockReturnValue([]),
-  defaultPresetForLevel: vi.fn().mockReturnValue("standard"),
+  defaultPresetForLevel: vi.fn().mockReturnValue('standard'),
   getFilteredInvariants: vi.fn().mockReturnValue([]),
   getInvariantsByTier: vi.fn().mockReturnValue({}),
-}));
-vi.mock("../../src/utils/render.js", () => ({
-  renderTemplate: vi.fn().mockReturnValue("content"),
-}));
-vi.mock("../../src/utils/fs.js", () => ({
-  resolvedPath: vi.fn((...args: string[]) => args.join("/")),
-}));
-vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs")>();
+}))
+vi.mock('../../src/utils/render.js', () => ({
+  renderTemplate: vi.fn().mockReturnValue('content'),
+}))
+vi.mock('../../src/utils/fs.js', () => ({
+  resolvedPath: vi.fn((...args: string[]) => args.join('/')),
+}))
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
   return {
     ...actual,
     existsSync: vi.fn().mockReturnValue(false),
-    readFileSync: vi.fn().mockReturnValue("mocked-content"),
-  };
-});
+    readFileSync: vi.fn().mockReturnValue('mocked-content'),
+  }
+})
 
-import { loadConfig } from "../../src/utils/config.js";
-import { existsSync, readFileSync } from "node:fs";
+import { loadConfig } from '../../src/utils/config.js'
+import { existsSync, readFileSync } from 'node:fs'
 
-const mockLoadConfig = loadConfig as ReturnType<typeof vi.fn>;
-const mockExistsSync = existsSync as ReturnType<typeof vi.fn>;
-const mockReadFileSync = readFileSync as ReturnType<typeof vi.fn>;
+const mockLoadConfig = loadConfig as ReturnType<typeof vi.fn>
+const mockExistsSync = existsSync as ReturnType<typeof vi.fn>
+const mockReadFileSync = readFileSync as ReturnType<typeof vi.fn>
 
 const BASE_CONFIG = {
-  governanceLevel: "L1" as const,
-  tools: ["claude"],
+  governanceLevel: 'L1' as const,
+  tools: ['claude'],
   useGitHub: false,
   features: {
     debtGates: false,
@@ -93,71 +93,69 @@ const BASE_CONFIG = {
   },
   invariantTiers: [],
   version: 2 as const,
-};
+}
 
-describe("diff --json", () => {
-  let written: string;
+describe('diff --json', () => {
+  let written: string
 
   beforeEach(() => {
-    written = "";
-    vi.spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
-      written += String(chunk);
-      return true;
-    });
-  });
+    written = ''
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      written += String(chunk)
+      return true
+    })
+  })
 
   afterEach(() => {
-    vi.restoreAllMocks();
-  });
+    vi.restoreAllMocks()
+  })
 
-  it("emits JSON envelope with new files as warning status and exits 1 (canonical)", () => {
-    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG });
-    mockExistsSync.mockReturnValue(false); // all files new
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation((): never => {
-      return undefined as never;
-    });
+  it('emits JSON envelope with new files as warning status and exits 1 (canonical)', () => {
+    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
+    mockExistsSync.mockReturnValue(false) // all files new
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((): never => {
+      return undefined as never
+    })
 
-    runDiff({ dir: "/tmp/fake", json: true });
+    runDiff({ dir: '/tmp/fake', json: true })
 
-    const parsed = JSON.parse(written) as Record<string, unknown>;
-    expect(parsed.command).toBe("diff");
-    expect(parsed.version).toBe("1");
-    expect(parsed.status).toBe("warning");
-    const data = parsed.data as Record<string, unknown>;
-    expect(data.hasChanges).toBe(true);
-    expect(Array.isArray(data.files)).toBe(true);
-    expect(exitSpy).toHaveBeenCalledWith(1);
-  });
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed.command).toBe('diff')
+    expect(parsed.version).toBe('1')
+    expect(parsed.status).toBe('warning')
+    const data = parsed.data as Record<string, unknown>
+    expect(data.hasChanges).toBe(true)
+    expect(Array.isArray(data.files)).toBe(true)
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
 
-  it("emits ok status when files are unchanged", () => {
-    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG });
-    mockExistsSync.mockReturnValue(true);
+  it('emits ok status when files are unchanged', () => {
+    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
+    mockExistsSync.mockReturnValue(true)
     // renderTemplate returns "content"; readFileSync also returns "content" → unchanged
-    mockReadFileSync.mockReturnValue("content");
+    mockReadFileSync.mockReturnValue('content')
 
-    runDiff({ dir: "/tmp/fake", json: true });
+    runDiff({ dir: '/tmp/fake', json: true })
 
-    const parsed = JSON.parse(written) as Record<string, unknown>;
-    expect(parsed.command).toBe("diff");
-    expect(parsed.version).toBe("1");
-    expect(parsed.status).toBe("ok");
-    const data = parsed.data as Record<string, unknown>;
-    expect(data.hasChanges).toBe(false);
-    expect(Array.isArray(data.files)).toBe(true);
-  });
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed.command).toBe('diff')
+    expect(parsed.version).toBe('1')
+    expect(parsed.status).toBe('ok')
+    const data = parsed.data as Record<string, unknown>
+    expect(data.hasChanges).toBe(false)
+    expect(Array.isArray(data.files)).toBe(true)
+  })
 
-  it("emits JSON error when no config found", () => {
-    mockLoadConfig.mockReturnValue(null);
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("process.exit");
-    });
+  it('emits JSON error when no config found', () => {
+    mockLoadConfig.mockReturnValue(null)
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit')
+    })
 
-    expect(() => runDiff({ dir: "/tmp/fake", json: true })).toThrow(
-      "process.exit",
-    );
+    expect(() => runDiff({ dir: '/tmp/fake', json: true })).toThrow('process.exit')
 
-    const parsed = JSON.parse(written) as Record<string, unknown>;
-    expect(parsed.status).toBe("error");
-    expect(exitSpy).toHaveBeenCalledWith(2);
-  });
-});
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed.status).toBe('error')
+    expect(exitSpy).toHaveBeenCalledWith(2)
+  })
+})

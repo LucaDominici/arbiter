@@ -1,4 +1,4 @@
-import type { Archetype, ContractType } from "./types.js";
+import type { Archetype, ContractType } from './types.js'
 
 /**
  * Derive the default contract testing strategy from archetype + hasPublicApi.
@@ -8,16 +8,16 @@ export function defaultContractType(
   archetype: Archetype | undefined,
   hasPublicApi: boolean,
 ): ContractType {
-  if (!hasPublicApi) return "none";
+  if (!hasPublicApi) return 'none'
   switch (archetype) {
-    case "backend-web-db":
-      return "rest-owned";
-    case "frontend-spa":
-      return "rest-public";
-    case "data-pipeline":
-      return "message-queue";
+    case 'backend-web-db':
+      return 'rest-owned'
+    case 'frontend-spa':
+      return 'rest-public'
+    case 'data-pipeline':
+      return 'message-queue'
     default:
-      return "none";
+      return 'none'
   }
 }
 
@@ -27,8 +27,6 @@ export function defaultContractType(
  * inquirer prompt delegates to this helper so it can be unit-tested
  * independently (inquirer `when` functions are not exercised by mock harness).
  */
-export function shouldAskContractType(answers: {
-  hasPublicApi?: boolean;
-}): boolean {
-  return answers.hasPublicApi === true;
+export function shouldAskContractType(answers: { hasPublicApi?: boolean }): boolean {
+  return answers.hasPublicApi === true
 }

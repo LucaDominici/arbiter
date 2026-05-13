@@ -1,6 +1,6 @@
 name: Feature Request
 description: Propose a new feature or improvement
-labels: ["feature"]
+labels: ['feature']
 body:
   - type: textarea
     id: problem
@@ -22,8 +22,8 @@ body:
     id: canon
     attributes:
       label: Applicable CANON-NN IDs
-      description: "Which canon rules gate this implementation? See docs/SYSTEM/CANON.md. Leave blank if none."
-      placeholder: "e.g. CANON-01, CANON-04"
+      description: 'Which canon rules gate this implementation? See docs/SYSTEM/CANON.md. Leave blank if none.'
+      placeholder: 'e.g. CANON-01, CANON-04'
 
   - type: textarea
     id: alternatives

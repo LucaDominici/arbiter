@@ -1,12 +1,12 @@
-export type JsonStatus = "ok" | "warning" | "error";
+export type JsonStatus = 'ok' | 'warning' | 'error'
 
 interface JsonEnvelope {
-  command: string;
-  version: "1";
-  status: JsonStatus;
-  data: Record<string, unknown>;
-  errors?: string[];
-  warnings?: string[];
+  command: string
+  version: '1'
+  status: JsonStatus
+  data: Record<string, unknown>
+  errors?: string[]
+  warnings?: string[]
 }
 
 /**
@@ -23,13 +23,13 @@ export function jsonOutput(
 ): void {
   const envelope: JsonEnvelope = {
     command,
-    version: "1",
+    version: '1',
     status,
     data,
     ...(errors !== undefined && errors.length > 0 ? { errors } : {}),
     ...(warnings !== undefined && warnings.length > 0 ? { warnings } : {}),
-  };
-  process.stdout.write(JSON.stringify(envelope) + "\n");
+  }
+  process.stdout.write(JSON.stringify(envelope) + '\n')
 }
 
 /**
@@ -48,7 +48,7 @@ export function jsonOutput(
  * (0 / 1 / 2 ↔ ok / warning / error). See `docs/REFERENCE/CLI.md` §Exit codes.
  */
 export function statusToExitCode(status: JsonStatus): number {
-  if (status === "error") return 2;
-  if (status === "warning") return 1;
-  return 0;
+  if (status === 'error') return 2
+  if (status === 'warning') return 1
+  return 0
 }

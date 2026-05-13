@@ -1,594 +1,543 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import {
-  createTestProject,
-  initGit,
-  cleanupTestProject,
-  makeConfig,
-} from "../helpers.js";
-import { generateIntegrationTesting } from "../../src/generators/integration-testing.js";
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
+import { generateIntegrationTesting } from '../../src/generators/integration-testing.js'
 
-describe("generateIntegrationTesting", () => {
-  let dir: string;
+describe('generateIntegrationTesting', () => {
+  let dir: string
 
   beforeEach(() => {
-    dir = createTestProject("typescript");
-    initGit(dir);
-  });
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
 
   afterEach(() => {
-    cleanupTestProject(dir);
-  });
+    cleanupTestProject(dir)
+  })
 
   // ─── Gate: hasDatabase=false → empty ────────────────────────────────────────
 
-  it("returns empty when hasDatabase is false", () => {
+  it('returns empty when hasDatabase is false', () => {
     const config = makeConfig(dir, {
       hasDatabase: false,
-      governanceLevel: "L2",
-      language: "typescript",
-    });
-    expect(generateIntegrationTesting(config).files).toHaveLength(0);
-  });
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    expect(generateIntegrationTesting(config).files).toHaveLength(0)
+  })
 
-  it("returns empty when hasDatabase is false even with language java", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('returns empty when hasDatabase is false even with language java', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: false,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(0);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(0)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
   // ─── Gate: L1 → empty (even with hasDatabase=true) ──────────────────────────
 
-  it("returns empty when governanceLevel is L1 with hasDatabase=true", () => {
+  it('returns empty when governanceLevel is L1 with hasDatabase=true', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L1",
-      language: "typescript",
-    });
-    expect(generateIntegrationTesting(config).files).toHaveLength(0);
-  });
+      governanceLevel: 'L1',
+      language: 'typescript',
+    })
+    expect(generateIntegrationTesting(config).files).toHaveLength(0)
+  })
 
-  it("returns empty when governanceLevel is L1 for java with hasDatabase=true", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('returns empty when governanceLevel is L1 for java with hasDatabase=true', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L1",
-        language: "java",
-        buildTool: "gradle",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(0);
+        governanceLevel: 'L1',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(0)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
   // ─── TypeScript: 2 files at L2 ───────────────────────────────────────────────
 
-  it("returns 2 files for typescript at L2 with hasDatabase=true", () => {
+  it('returns 2 files for typescript at L2 with hasDatabase=true', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L2",
-      language: "typescript",
-    });
-    expect(generateIntegrationTesting(config).files).toHaveLength(2);
-  });
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    expect(generateIntegrationTesting(config).files).toHaveLength(2)
+  })
 
-  it("generates test-setup.ts for typescript", () => {
+  it('generates test-setup.ts for typescript', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L2",
-      language: "typescript",
-    });
-    generateIntegrationTesting(config);
-    expect(existsSync(join(dir, "src", "test", "test-setup.ts"))).toBe(true);
-  });
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    generateIntegrationTesting(config)
+    expect(existsSync(join(dir, 'src', 'test', 'test-setup.ts'))).toBe(true)
+  })
 
-  it("generates eslint-no-fake-db.json for typescript", () => {
+  it('generates eslint-no-fake-db.json for typescript', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L2",
-      language: "typescript",
-    });
-    generateIntegrationTesting(config);
-    expect(existsSync(join(dir, ".eslintrc-no-fake-db.json"))).toBe(true);
-  });
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    generateIntegrationTesting(config)
+    expect(existsSync(join(dir, '.eslintrc-no-fake-db.json'))).toBe(true)
+  })
 
-  it("test-setup.ts contains PostgreSqlContainer", () => {
+  it('test-setup.ts contains PostgreSqlContainer', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L2",
-      language: "typescript",
-    });
-    generateIntegrationTesting(config);
-    const content = readFileSync(
-      join(dir, "src", "test", "test-setup.ts"),
-      "utf-8",
-    );
-    expect(content).toContain("PostgreSqlContainer");
-  });
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    generateIntegrationTesting(config)
+    const content = readFileSync(join(dir, 'src', 'test', 'test-setup.ts'), 'utf-8')
+    expect(content).toContain('PostgreSqlContainer')
+  })
 
   // ─── TypeScript: also passes at L3 ───────────────────────────────────────────
 
-  it("returns 2 files for typescript at L3 with hasDatabase=true", () => {
+  it('returns 2 files for typescript at L3 with hasDatabase=true', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L3",
-      language: "typescript",
-    });
-    expect(generateIntegrationTesting(config).files).toHaveLength(2);
-  });
+      governanceLevel: 'L3',
+      language: 'typescript',
+    })
+    expect(generateIntegrationTesting(config).files).toHaveLength(2)
+  })
 
   // ─── Java: 3 files at L3 ─────────────────────────────────────────────────────
 
-  it("returns 3 files for java at L3 with hasDatabase=true", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('returns 3 files for java at L3 with hasDatabase=true', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L3",
-        language: "java",
-        buildTool: "gradle",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(3);
+        governanceLevel: 'L3',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(3)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
   // ─── Java: 3 files at L2 ─────────────────────────────────────────────────────
 
-  it("returns 3 files for java at L2 with hasDatabase=true", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('returns 3 files for java at L2 with hasDatabase=true', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(3);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(3)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
-  it("generates AbstractIntegrationTest.java for java", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('generates AbstractIntegrationTest.java for java', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      generateIntegrationTesting(config);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      generateIntegrationTesting(config)
       expect(
-        existsSync(
-          join(
-            javaDir,
-            "src",
-            "test",
-            "java",
-            "support",
-            "AbstractIntegrationTest.java",
-          ),
-        ),
-      ).toBe(true);
+        existsSync(join(javaDir, 'src', 'test', 'java', 'support', 'AbstractIntegrationTest.java')),
+      ).toBe(true)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
-  it("generates NoH2ArchTest.java for java", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('generates NoH2ArchTest.java for java', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      generateIntegrationTesting(config);
-      expect(
-        existsSync(
-          join(javaDir, "src", "test", "java", "support", "NoH2ArchTest.java"),
-        ),
-      ).toBe(true);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      generateIntegrationTesting(config)
+      expect(existsSync(join(javaDir, 'src', 'test', 'java', 'support', 'NoH2ArchTest.java'))).toBe(
+        true,
+      )
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
-  it("generates testcontainers-deps.gradle for java", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('generates testcontainers-deps.gradle for java', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      generateIntegrationTesting(config);
-      expect(
-        existsSync(join(javaDir, "config", "testcontainers-deps.gradle")),
-      ).toBe(true);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      generateIntegrationTesting(config)
+      expect(existsSync(join(javaDir, 'config', 'testcontainers-deps.gradle'))).toBe(true)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
-  it("AbstractIntegrationTest.java contains @Testcontainers and PostgreSQLContainer", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('AbstractIntegrationTest.java contains @Testcontainers and PostgreSQLContainer', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      generateIntegrationTesting(config);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      generateIntegrationTesting(config)
       const content = readFileSync(
-        join(
-          javaDir,
-          "src",
-          "test",
-          "java",
-          "support",
-          "AbstractIntegrationTest.java",
-        ),
-        "utf-8",
-      );
-      expect(content).toContain("@Testcontainers");
-      expect(content).toContain("PostgreSQLContainer");
+        join(javaDir, 'src', 'test', 'java', 'support', 'AbstractIntegrationTest.java'),
+        'utf-8',
+      )
+      expect(content).toContain('@Testcontainers')
+      expect(content).toContain('PostgreSQLContainer')
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
-  it("NoH2ArchTest.java contains org.h2", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('NoH2ArchTest.java contains org.h2', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      generateIntegrationTesting(config);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      generateIntegrationTesting(config)
       const content = readFileSync(
-        join(javaDir, "src", "test", "java", "support", "NoH2ArchTest.java"),
-        "utf-8",
-      );
-      expect(content).toContain("org.h2");
+        join(javaDir, 'src', 'test', 'java', 'support', 'NoH2ArchTest.java'),
+        'utf-8',
+      )
+      expect(content).toContain('org.h2')
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
+  })
 
   // ─── Rust: 1 file at L3 ──────────────────────────────────────────────────────
 
-  it("returns 1 file for rust at L3 with hasDatabase=true", () => {
-    const rustDir = createTestProject("rust");
-    initGit(rustDir);
+  it('returns 1 file for rust at L3 with hasDatabase=true', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
     try {
       const config = makeConfig(rustDir, {
         hasDatabase: true,
-        governanceLevel: "L3",
-        language: "rust",
-        buildTool: "cargo",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(1);
+        governanceLevel: 'L3',
+        language: 'rust',
+        buildTool: 'cargo',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(1)
     } finally {
-      cleanupTestProject(rustDir);
+      cleanupTestProject(rustDir)
     }
-  });
+  })
 
   // ─── Rust: 1 file at L2 ──────────────────────────────────────────────────────
 
-  it("returns 1 file for rust at L2 with hasDatabase=true", () => {
-    const rustDir = createTestProject("rust");
-    initGit(rustDir);
+  it('returns 1 file for rust at L2 with hasDatabase=true', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
     try {
       const config = makeConfig(rustDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "rust",
-        buildTool: "cargo",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(1);
+        governanceLevel: 'L2',
+        language: 'rust',
+        buildTool: 'cargo',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(1)
     } finally {
-      cleanupTestProject(rustDir);
+      cleanupTestProject(rustDir)
     }
-  });
+  })
 
-  it("generates tests/db_fixture.rs for rust", () => {
-    const rustDir = createTestProject("rust");
-    initGit(rustDir);
+  it('generates tests/db_fixture.rs for rust', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
     try {
       const config = makeConfig(rustDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "rust",
-        buildTool: "cargo",
-      });
-      generateIntegrationTesting(config);
-      expect(existsSync(join(rustDir, "tests", "db_fixture.rs"))).toBe(true);
+        governanceLevel: 'L2',
+        language: 'rust',
+        buildTool: 'cargo',
+      })
+      generateIntegrationTesting(config)
+      expect(existsSync(join(rustDir, 'tests', 'db_fixture.rs'))).toBe(true)
     } finally {
-      cleanupTestProject(rustDir);
+      cleanupTestProject(rustDir)
     }
-  });
+  })
 
-  it("db_fixture.rs uses testcontainers (not sqlx/DATABASE_URL panic)", () => {
-    const rustDir = createTestProject("rust");
-    initGit(rustDir);
+  it('db_fixture.rs uses testcontainers (not sqlx/DATABASE_URL panic)', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
     try {
       const config = makeConfig(rustDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "rust",
-        buildTool: "cargo",
-      });
-      generateIntegrationTesting(config);
-      const content = readFileSync(
-        join(rustDir, "tests", "db_fixture.rs"),
-        "utf-8",
-      );
-      expect(content).toContain("testcontainers");
-      expect(content).not.toContain('panic!("DATABASE_URL"');
+        governanceLevel: 'L2',
+        language: 'rust',
+        buildTool: 'cargo',
+      })
+      generateIntegrationTesting(config)
+      const content = readFileSync(join(rustDir, 'tests', 'db_fixture.rs'), 'utf-8')
+      expect(content).toContain('testcontainers')
+      expect(content).not.toContain('panic!("DATABASE_URL"')
     } finally {
-      cleanupTestProject(rustDir);
+      cleanupTestProject(rustDir)
     }
-  });
+  })
 
   // ─── Go: 1 file at L3 ────────────────────────────────────────────────────────
 
-  it("returns 1 file for go at L3 with hasDatabase=true", () => {
-    const goDir = createTestProject("go");
-    initGit(goDir);
+  it('returns 1 file for go at L3 with hasDatabase=true', () => {
+    const goDir = createTestProject('go')
+    initGit(goDir)
     try {
       const config = makeConfig(goDir, {
         hasDatabase: true,
-        governanceLevel: "L3",
-        language: "go",
-        buildTool: "go",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(1);
+        governanceLevel: 'L3',
+        language: 'go',
+        buildTool: 'go',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(1)
     } finally {
-      cleanupTestProject(goDir);
+      cleanupTestProject(goDir)
     }
-  });
+  })
 
   // ─── Go: 1 file at L2 ────────────────────────────────────────────────────────
 
-  it("returns 1 file for go at L2 with hasDatabase=true", () => {
-    const goDir = createTestProject("go");
-    initGit(goDir);
+  it('returns 1 file for go at L2 with hasDatabase=true', () => {
+    const goDir = createTestProject('go')
+    initGit(goDir)
     try {
       const config = makeConfig(goDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "go",
-        buildTool: "go",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(1);
+        governanceLevel: 'L2',
+        language: 'go',
+        buildTool: 'go',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(1)
     } finally {
-      cleanupTestProject(goDir);
+      cleanupTestProject(goDir)
     }
-  });
+  })
 
-  it("generates tests/main_test.go for go", () => {
-    const goDir = createTestProject("go");
-    initGit(goDir);
+  it('generates tests/main_test.go for go', () => {
+    const goDir = createTestProject('go')
+    initGit(goDir)
     try {
       const config = makeConfig(goDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "go",
-        buildTool: "go",
-      });
-      generateIntegrationTesting(config);
-      expect(existsSync(join(goDir, "tests", "main_test.go"))).toBe(true);
+        governanceLevel: 'L2',
+        language: 'go',
+        buildTool: 'go',
+      })
+      generateIntegrationTesting(config)
+      expect(existsSync(join(goDir, 'tests', 'main_test.go'))).toBe(true)
     } finally {
-      cleanupTestProject(goDir);
+      cleanupTestProject(goDir)
     }
-  });
+  })
 
-  it("main_test.go contains testcontainers or PostgresContainer", () => {
-    const goDir = createTestProject("go");
-    initGit(goDir);
+  it('main_test.go contains testcontainers or PostgresContainer', () => {
+    const goDir = createTestProject('go')
+    initGit(goDir)
     try {
       const config = makeConfig(goDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "go",
-        buildTool: "go",
-      });
-      generateIntegrationTesting(config);
-      const content = readFileSync(
-        join(goDir, "tests", "main_test.go"),
-        "utf-8",
-      );
-      expect(
-        content.includes("testcontainers") ||
-          content.includes("PostgresContainer"),
-      ).toBe(true);
+        governanceLevel: 'L2',
+        language: 'go',
+        buildTool: 'go',
+      })
+      generateIntegrationTesting(config)
+      const content = readFileSync(join(goDir, 'tests', 'main_test.go'), 'utf-8')
+      expect(content.includes('testcontainers') || content.includes('PostgresContainer')).toBe(true)
     } finally {
-      cleanupTestProject(goDir);
+      cleanupTestProject(goDir)
     }
-  });
+  })
 
   // ─── Python: 1 file at L3 ────────────────────────────────────────────────────
 
-  it("returns 1 file for python at L3 with hasDatabase=true", () => {
-    const pyDir = createTestProject("python");
-    initGit(pyDir);
+  it('returns 1 file for python at L3 with hasDatabase=true', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
     try {
       const config = makeConfig(pyDir, {
         hasDatabase: true,
-        governanceLevel: "L3",
-        language: "python",
-        buildTool: "pip",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(1);
+        governanceLevel: 'L3',
+        language: 'python',
+        buildTool: 'pip',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(1)
     } finally {
-      cleanupTestProject(pyDir);
+      cleanupTestProject(pyDir)
     }
-  });
+  })
 
   // ─── Python: 1 file at L2 ────────────────────────────────────────────────────
 
-  it("returns 1 file for python at L2 with hasDatabase=true", () => {
-    const pyDir = createTestProject("python");
-    initGit(pyDir);
+  it('returns 1 file for python at L2 with hasDatabase=true', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
     try {
       const config = makeConfig(pyDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "python",
-        buildTool: "pip",
-      });
-      expect(generateIntegrationTesting(config).files).toHaveLength(1);
+        governanceLevel: 'L2',
+        language: 'python',
+        buildTool: 'pip',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(1)
     } finally {
-      cleanupTestProject(pyDir);
+      cleanupTestProject(pyDir)
     }
-  });
+  })
 
-  it("generates tests/conftest.py for python", () => {
-    const pyDir = createTestProject("python");
-    initGit(pyDir);
+  it('generates tests/conftest.py for python', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
     try {
       const config = makeConfig(pyDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "python",
-        buildTool: "pip",
-      });
-      generateIntegrationTesting(config);
-      expect(existsSync(join(pyDir, "tests", "conftest.py"))).toBe(true);
+        governanceLevel: 'L2',
+        language: 'python',
+        buildTool: 'pip',
+      })
+      generateIntegrationTesting(config)
+      expect(existsSync(join(pyDir, 'tests', 'conftest.py'))).toBe(true)
     } finally {
-      cleanupTestProject(pyDir);
+      cleanupTestProject(pyDir)
     }
-  });
+  })
 
-  it("conftest.py contains PostgreSQLContainer", () => {
-    const pyDir = createTestProject("python");
-    initGit(pyDir);
+  it('conftest.py contains PostgreSQLContainer', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
     try {
       const config = makeConfig(pyDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "python",
-        buildTool: "pip",
-      });
-      generateIntegrationTesting(config);
-      const content = readFileSync(
-        join(pyDir, "tests", "conftest.py"),
-        "utf-8",
-      );
-      expect(content).toContain("PostgreSQLContainer");
+        governanceLevel: 'L2',
+        language: 'python',
+        buildTool: 'pip',
+      })
+      generateIntegrationTesting(config)
+      const content = readFileSync(join(pyDir, 'tests', 'conftest.py'), 'utf-8')
+      expect(content).toContain('PostgreSQLContainer')
     } finally {
-      cleanupTestProject(pyDir);
+      cleanupTestProject(pyDir)
     }
-  });
+  })
 
   // ─── Negative: no cross-language file bleed ────────────────────────────────
 
-  it("does not emit java files for typescript", () => {
+  it('does not emit java files for typescript', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L2",
-      language: "typescript",
-    });
-    generateIntegrationTesting(config);
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    generateIntegrationTesting(config)
     expect(
-      existsSync(
-        join(
-          dir,
-          "src",
-          "test",
-          "java",
-          "support",
-          "AbstractIntegrationTest.java",
-        ),
-      ),
-    ).toBe(false);
-    expect(existsSync(join(dir, "config", "testcontainers-deps.gradle"))).toBe(
-      false,
-    );
-  });
+      existsSync(join(dir, 'src', 'test', 'java', 'support', 'AbstractIntegrationTest.java')),
+    ).toBe(false)
+    expect(existsSync(join(dir, 'config', 'testcontainers-deps.gradle'))).toBe(false)
+  })
 
-  it("does not emit python files for java", () => {
-    const javaDir = createTestProject("java");
-    initGit(javaDir);
+  it('does not emit python files for java', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
     try {
       const config = makeConfig(javaDir, {
         hasDatabase: true,
-        governanceLevel: "L2",
-        language: "java",
-        buildTool: "gradle",
-      });
-      generateIntegrationTesting(config);
-      expect(existsSync(join(javaDir, "tests", "conftest.py"))).toBe(false);
+        governanceLevel: 'L2',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      generateIntegrationTesting(config)
+      expect(existsSync(join(javaDir, 'tests', 'conftest.py'))).toBe(false)
     } finally {
-      cleanupTestProject(javaDir);
+      cleanupTestProject(javaDir)
     }
-  });
-});
+  })
+})
 
-describe("generateIntegrationTesting — F10 Rust Cargo.toml dev-dep (#369)", () => {
-  let dir: string;
+describe('generateIntegrationTesting — F10 Rust Cargo.toml dev-dep (#369)', () => {
+  let dir: string
   beforeEach(() => {
-    dir = createTestProject("rust");
-    initGit(dir);
-  });
+    dir = createTestProject('rust')
+    initGit(dir)
+  })
   afterEach(() => {
-    cleanupTestProject(dir);
-  });
+    cleanupTestProject(dir)
+  })
 
-  it("appends testcontainers dev-dep to Cargo.toml for Rust+L2", () => {
+  it('appends testcontainers dev-dep to Cargo.toml for Rust+L2', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L2",
-      language: "rust",
-      buildTool: "cargo",
-    });
-    generateIntegrationTesting(config);
-    const cargo = readFileSync(join(dir, "Cargo.toml"), "utf-8");
-    expect(cargo).toContain("[dev-dependencies]");
-    expect(cargo).toContain("testcontainers");
-  });
+      governanceLevel: 'L2',
+      language: 'rust',
+      buildTool: 'cargo',
+    })
+    generateIntegrationTesting(config)
+    const cargo = readFileSync(join(dir, 'Cargo.toml'), 'utf-8')
+    expect(cargo).toContain('[dev-dependencies]')
+    expect(cargo).toContain('testcontainers')
+  })
 
-  it("running twice does not duplicate the dev-dep (idempotent)", () => {
+  it('running twice does not duplicate the dev-dep (idempotent)', () => {
     const config = makeConfig(dir, {
       hasDatabase: true,
-      governanceLevel: "L2",
-      language: "rust",
-      buildTool: "cargo",
-    });
-    generateIntegrationTesting(config);
-    generateIntegrationTesting(config);
-    const cargo = readFileSync(join(dir, "Cargo.toml"), "utf-8");
-    const matches = cargo.match(/testcontainers/g) ?? [];
-    expect(matches.length).toBe(1);
-  });
-});
+      governanceLevel: 'L2',
+      language: 'rust',
+      buildTool: 'cargo',
+    })
+    generateIntegrationTesting(config)
+    generateIntegrationTesting(config)
+    const cargo = readFileSync(join(dir, 'Cargo.toml'), 'utf-8')
+    const matches = cargo.match(/testcontainers/g) ?? []
+    expect(matches.length).toBe(1)
+  })
+})

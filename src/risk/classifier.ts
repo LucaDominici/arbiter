@@ -22,23 +22,23 @@
  * before promotion.
  */
 
-import type { Language } from "../wizard/types.js";
+import type { Language } from '../wizard/types.js'
 
-export type RiskLevel = "R0" | "R1" | "R2" | "R3" | "R4";
+export type RiskLevel = 'R0' | 'R1' | 'R2' | 'R3' | 'R4'
 
 /**
  * Sentinel emitted when classification cannot be performed.
  * NOT a risk level — explicitly out-of-band.
  */
-export const UNCLASSIFIED_LEVEL = "R-unknown" as const;
-export type Unclassified = typeof UNCLASSIFIED_LEVEL;
+export const UNCLASSIFIED_LEVEL = 'R-unknown' as const
+export type Unclassified = typeof UNCLASSIFIED_LEVEL
 
-export type ClassifyResult = RiskLevel | Unclassified;
+export type ClassifyResult = RiskLevel | Unclassified
 
 interface Rule {
   /** Regex tested against the normalised forward-slash path. */
-  pattern: RegExp;
-  level: RiskLevel;
+  pattern: RegExp
+  level: RiskLevel
 }
 
 /**
@@ -47,44 +47,44 @@ interface Rule {
  */
 const RULES: Partial<Record<Language, Rule[]>> = {
   typescript: [
-    { pattern: /(^|\/)migrations?\//i, level: "R0" },
-    { pattern: /\.sql$/i, level: "R0" },
-    { pattern: /(^|\/)auth\//i, level: "R1" },
-    { pattern: /(^|\/)payment(s)?\//i, level: "R1" },
-    { pattern: /(^|\/)api\//i, level: "R2" },
-    { pattern: /(^|\/)server\//i, level: "R2" },
-    { pattern: /(^|\/)components?\//i, level: "R3" },
-    { pattern: /(^|\/)pages?\//i, level: "R3" },
-    { pattern: /\.md$/i, level: "R4" },
-    { pattern: /(^|\/)docs?\//i, level: "R4" },
-    { pattern: /(^|\/)__tests__\//, level: "R4" },
+    { pattern: /(^|\/)migrations?\//i, level: 'R0' },
+    { pattern: /\.sql$/i, level: 'R0' },
+    { pattern: /(^|\/)auth\//i, level: 'R1' },
+    { pattern: /(^|\/)payment(s)?\//i, level: 'R1' },
+    { pattern: /(^|\/)api\//i, level: 'R2' },
+    { pattern: /(^|\/)server\//i, level: 'R2' },
+    { pattern: /(^|\/)components?\//i, level: 'R3' },
+    { pattern: /(^|\/)pages?\//i, level: 'R3' },
+    { pattern: /\.md$/i, level: 'R4' },
+    { pattern: /(^|\/)docs?\//i, level: 'R4' },
+    { pattern: /(^|\/)__tests__\//, level: 'R4' },
   ],
   python: [
-    { pattern: /(^|\/)alembic\/versions\//i, level: "R0" },
-    { pattern: /(^|\/)migrations?\//i, level: "R0" },
-    { pattern: /(^|\/)auth\//i, level: "R1" },
-    { pattern: /(^|\/)api\//i, level: "R2" },
-    { pattern: /(^|\/)tests?\//i, level: "R4" },
-    { pattern: /\.md$/i, level: "R4" },
+    { pattern: /(^|\/)alembic\/versions\//i, level: 'R0' },
+    { pattern: /(^|\/)migrations?\//i, level: 'R0' },
+    { pattern: /(^|\/)auth\//i, level: 'R1' },
+    { pattern: /(^|\/)api\//i, level: 'R2' },
+    { pattern: /(^|\/)tests?\//i, level: 'R4' },
+    { pattern: /\.md$/i, level: 'R4' },
   ],
   rust: [
-    { pattern: /unsafe/i, level: "R0" },
-    { pattern: /(^|\/)migrations?\//i, level: "R0" },
-    { pattern: /\.rs$/i, level: "R2" },
-    { pattern: /\.md$/i, level: "R4" },
+    { pattern: /unsafe/i, level: 'R0' },
+    { pattern: /(^|\/)migrations?\//i, level: 'R0' },
+    { pattern: /\.rs$/i, level: 'R2' },
+    { pattern: /\.md$/i, level: 'R4' },
   ],
   java: [
-    { pattern: /(^|\/)migration(s)?\/.*\.sql$/i, level: "R0" },
-    { pattern: /(^|\/)security\//i, level: "R1" },
-    { pattern: /\.md$/i, level: "R4" },
+    { pattern: /(^|\/)migration(s)?\/.*\.sql$/i, level: 'R0' },
+    { pattern: /(^|\/)security\//i, level: 'R1' },
+    { pattern: /\.md$/i, level: 'R4' },
   ],
   go: [
-    { pattern: /(^|\/)migrations?\//i, level: "R0" },
-    { pattern: /(^|\/)auth\//i, level: "R1" },
-    { pattern: /\.go$/i, level: "R2" },
-    { pattern: /\.md$/i, level: "R4" },
+    { pattern: /(^|\/)migrations?\//i, level: 'R0' },
+    { pattern: /(^|\/)auth\//i, level: 'R1' },
+    { pattern: /\.go$/i, level: 'R2' },
+    { pattern: /\.md$/i, level: 'R4' },
   ],
-};
+}
 
 /**
  * Classify a single path. Returns `UNCLASSIFIED_LEVEL` when the path is
@@ -96,26 +96,26 @@ const RULES: Partial<Record<Language, Rule[]>> = {
  */
 export function classifyPath(path: string, stack: Language): ClassifyResult {
   try {
-    if (typeof path !== "string" || path.trim() === "") {
-      return UNCLASSIFIED_LEVEL;
+    if (typeof path !== 'string' || path.trim() === '') {
+      return UNCLASSIFIED_LEVEL
     }
-    const rules = RULES[stack];
-    if (!rules) return UNCLASSIFIED_LEVEL;
-    const norm = path.replace(/\\/g, "/");
+    const rules = RULES[stack]
+    if (!rules) return UNCLASSIFIED_LEVEL
+    const norm = path.replace(/\\/g, '/')
     for (const rule of rules) {
       if (rule.pattern.test(norm)) {
-        return rule.level;
+        return rule.level
       }
     }
-    return UNCLASSIFIED_LEVEL;
+    return UNCLASSIFIED_LEVEL
   } catch {
-    return UNCLASSIFIED_LEVEL;
+    return UNCLASSIFIED_LEVEL
   }
 }
 
 /** Type-guard: true when a `ClassifyResult` is a real RiskLevel (R0–R4). */
 export function isClassified(level: ClassifyResult): level is RiskLevel {
-  return level !== UNCLASSIFIED_LEVEL;
+  return level !== UNCLASSIFIED_LEVEL
 }
 
 /**
@@ -125,25 +125,22 @@ export function isClassified(level: ClassifyResult): level is RiskLevel {
  * Use this in evidence gating, CI gates, or any place where "no opinion"
  * must be treated as "block until a human classifies".
  */
-export function assertClassified(
-  level: ClassifyResult,
-  context?: string,
-): RiskLevel {
+export function assertClassified(level: ClassifyResult, context?: string): RiskLevel {
   if (level === UNCLASSIFIED_LEVEL) {
-    const where = context ? ` (${context})` : "";
+    const where = context ? ` (${context})` : ''
     throw new Error(
       `classifyPath returned UNCLASSIFIED${where} — refusing to fail open. ` +
         `Add a rule for this path/stack or treat as manual-review.`,
-    );
+    )
   }
-  return level;
+  return level
 }
 
 /**
  * Numeric ordering for risk comparison. Lower index = higher risk.
  * Useful for `Math.min`-style "pick the most dangerous level seen".
  */
-const RISK_ORDER: RiskLevel[] = ["R0", "R1", "R2", "R3", "R4"];
+const RISK_ORDER: RiskLevel[] = ['R0', 'R1', 'R2', 'R3', 'R4']
 
 /**
  * Return the highest-risk level among the inputs (R0 wins over R1, etc.).
@@ -153,13 +150,13 @@ const RISK_ORDER: RiskLevel[] = ["R0", "R1", "R2", "R3", "R4"];
  * Returns UNCLASSIFIED_LEVEL on empty input.
  */
 export function highestRisk(levels: readonly ClassifyResult[]): ClassifyResult {
-  if (levels.length === 0) return UNCLASSIFIED_LEVEL;
-  let best: RiskLevel | null = null;
+  if (levels.length === 0) return UNCLASSIFIED_LEVEL
+  let best: RiskLevel | null = null
   for (const l of levels) {
-    if (l === UNCLASSIFIED_LEVEL) return UNCLASSIFIED_LEVEL;
+    if (l === UNCLASSIFIED_LEVEL) return UNCLASSIFIED_LEVEL
     if (best === null || RISK_ORDER.indexOf(l) < RISK_ORDER.indexOf(best)) {
-      best = l;
+      best = l
     }
   }
-  return best ?? UNCLASSIFIED_LEVEL;
+  return best ?? UNCLASSIFIED_LEVEL
 }

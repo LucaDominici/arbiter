@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { validateConfig, DEFAULT_THRESHOLDS } from "../../src/config/schema.js";
-import { migrateV1ToV2 } from "../../src/config/migrations/v1-to-v2.js";
+import { describe, it, expect } from 'vitest'
+import { validateConfig, DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
+import { migrateV1ToV2 } from '../../src/config/migrations/v1-to-v2.js'
 
-describe("validateConfig — valid v2", () => {
-  it("accepts a well-formed v2 config", () => {
+describe('validateConfig — valid v2', () => {
+  it('accepts a well-formed v2 config', () => {
     const config = {
-      version: "0.2",
-      tools: ["claude", "codex"],
-      governanceLevel: "L2",
+      version: '0.2',
+      tools: ['claude', 'codex'],
+      governanceLevel: 'L2',
       useGitHub: true,
       features: {
         contractTesting: false,
@@ -25,20 +25,20 @@ describe("validateConfig — valid v2", () => {
         methodLength: 65,
         maxParams: 7,
       },
-    };
-    const result = validateConfig(config);
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.config.version).toBe("0.2");
-      expect(result.config.features.debtGates).toBe(true);
     }
-  });
+    const result = validateConfig(config)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.config.version).toBe('0.2')
+      expect(result.config.features.debtGates).toBe(true)
+    }
+  })
 
-  it("preserves unknown extra fields for forward-compat", () => {
+  it('preserves unknown extra fields for forward-compat', () => {
     const config = {
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L1",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L1',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -49,24 +49,22 @@ describe("validateConfig — valid v2", () => {
         suppressions: true,
       },
       thresholds: DEFAULT_THRESHOLDS.L1,
-      _experimentalFoo: "bar",
-    };
-    const result = validateConfig(config);
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(
-        (result.config as Record<string, unknown>)["_experimentalFoo"],
-      ).toBe("bar");
+      _experimentalFoo: 'bar',
     }
-  });
-});
+    const result = validateConfig(config)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect((result.config as Record<string, unknown>)['_experimentalFoo']).toBe('bar')
+    }
+  })
+})
 
-describe("validateConfig — rejection", () => {
-  it("rejects invalid governanceLevel", () => {
+describe('validateConfig — rejection', () => {
+  it('rejects invalid governanceLevel', () => {
     const result = validateConfig({
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L4",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L4',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -77,20 +75,18 @@ describe("validateConfig — rejection", () => {
         suppressions: true,
       },
       thresholds: DEFAULT_THRESHOLDS.L2,
-    });
-    expect(result.ok).toBe(false);
+    })
+    expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors.some((e) => e.includes("governanceLevel"))).toBe(
-        true,
-      );
+      expect(result.errors.some((e) => e.includes('governanceLevel'))).toBe(true)
     }
-  });
+  })
 
-  it("rejects non-string version field", () => {
+  it('rejects non-string version field', () => {
     const result = validateConfig({
       version: 2,
-      tools: ["claude"],
-      governanceLevel: "L2",
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -101,18 +97,18 @@ describe("validateConfig — rejection", () => {
         suppressions: true,
       },
       thresholds: DEFAULT_THRESHOLDS.L2,
-    });
-    expect(result.ok).toBe(false);
+    })
+    expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors.some((e) => e.includes("version"))).toBe(true);
+      expect(result.errors.some((e) => e.includes('version'))).toBe(true)
     }
-  });
+  })
 
-  it("rejects lineCoverage below 0", () => {
+  it('rejects lineCoverage below 0', () => {
     const result = validateConfig({
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -123,18 +119,18 @@ describe("validateConfig — rejection", () => {
         suppressions: true,
       },
       thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: -1 },
-    });
-    expect(result.ok).toBe(false);
+    })
+    expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors.some((e) => e.includes("lineCoverage"))).toBe(true);
+      expect(result.errors.some((e) => e.includes('lineCoverage'))).toBe(true)
     }
-  });
+  })
 
-  it("rejects lineCoverage equal to 0 (would silently disable coverage gate)", () => {
+  it('rejects lineCoverage equal to 0 (would silently disable coverage gate)', () => {
     const result = validateConfig({
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -145,18 +141,18 @@ describe("validateConfig — rejection", () => {
         suppressions: true,
       },
       thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 0 },
-    });
-    expect(result.ok).toBe(false);
+    })
+    expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors.some((e) => e.includes("lineCoverage"))).toBe(true);
+      expect(result.errors.some((e) => e.includes('lineCoverage'))).toBe(true)
     }
-  });
+  })
 
-  it("rejects branchCoverage equal to 0", () => {
+  it('rejects branchCoverage equal to 0', () => {
     const result = validateConfig({
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -167,20 +163,18 @@ describe("validateConfig — rejection", () => {
         suppressions: true,
       },
       thresholds: { ...DEFAULT_THRESHOLDS.L2, branchCoverage: 0 },
-    });
-    expect(result.ok).toBe(false);
+    })
+    expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors.some((e) => e.includes("branchCoverage"))).toBe(
-        true,
-      );
+      expect(result.errors.some((e) => e.includes('branchCoverage'))).toBe(true)
     }
-  });
+  })
 
-  it("rejects mutationScore equal to 0", () => {
+  it('rejects mutationScore equal to 0', () => {
     const result = validateConfig({
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -191,18 +185,18 @@ describe("validateConfig — rejection", () => {
         suppressions: true,
       },
       thresholds: { ...DEFAULT_THRESHOLDS.L2, mutationScore: 0 },
-    });
-    expect(result.ok).toBe(false);
+    })
+    expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors.some((e) => e.includes("mutationScore"))).toBe(true);
+      expect(result.errors.some((e) => e.includes('mutationScore'))).toBe(true)
     }
-  });
+  })
 
-  it("rejects lineCoverage above 100", () => {
+  it('rejects lineCoverage above 100', () => {
     const result = validateConfig({
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -213,187 +207,187 @@ describe("validateConfig — rejection", () => {
         suppressions: true,
       },
       thresholds: { ...DEFAULT_THRESHOLDS.L2, lineCoverage: 101 },
-    });
-    expect(result.ok).toBe(false);
+    })
+    expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors.some((e) => e.includes("lineCoverage"))).toBe(true);
+      expect(result.errors.some((e) => e.includes('lineCoverage'))).toBe(true)
     }
-  });
+  })
 
-  it("rejects non-object input", () => {
-    const result = validateConfig("not-an-object");
-    expect(result.ok).toBe(false);
-  });
-});
+  it('rejects non-object input', () => {
+    const result = validateConfig('not-an-object')
+    expect(result.ok).toBe(false)
+  })
+})
 
-describe("migrateV1ToV2 — feature flag derivation", () => {
-  it("migrates minimal v1 to v2 with L2 defaults", () => {
+describe('migrateV1ToV2 — feature flag derivation', () => {
+  it('migrates minimal v1 to v2 with L2 defaults', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.version).toBe("0.2");
-    expect(result.features.debtGates).toBe(true);
-    expect(result.features.securityScanning).toBe(true);
-    expect(result.features.suppressions).toBe(true);
-    expect(result.features.mutationTesting).toBe(true);
-    expect(result.features.contractTesting).toBe(false);
-    expect(result.features.evidenceHarness).toBe(false);
-  });
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.version).toBe('0.2')
+    expect(result.features.debtGates).toBe(true)
+    expect(result.features.securityScanning).toBe(true)
+    expect(result.features.suppressions).toBe(true)
+    expect(result.features.mutationTesting).toBe(true)
+    expect(result.features.contractTesting).toBe(false)
+    expect(result.features.evidenceHarness).toBe(false)
+  })
 
-  it("L1 v1 → all non-suppressions features false", () => {
+  it('L1 v1 → all non-suppressions features false', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L1",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L1',
       useGitHub: false,
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.debtGates).toBe(false);
-    expect(result.features.securityScanning).toBe(false);
-    expect(result.features.mutationTesting).toBe(false);
-    expect(result.features.evidenceHarness).toBe(false);
-    expect(result.features.suppressions).toBe(true);
-  });
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.debtGates).toBe(false)
+    expect(result.features.securityScanning).toBe(false)
+    expect(result.features.mutationTesting).toBe(false)
+    expect(result.features.evidenceHarness).toBe(false)
+    expect(result.features.suppressions).toBe(true)
+  })
 
-  it("v1 with enableDebtGates=false overrides L2 default", () => {
+  it('v1 with enableDebtGates=false overrides L2 default', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       enableDebtGates: false,
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.debtGates).toBe(false);
-  });
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.debtGates).toBe(false)
+  })
 
-  it("v1 with enableSecurityScanning=false overrides L2 default", () => {
+  it('v1 with enableSecurityScanning=false overrides L2 default', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       enableSecurityScanning: false,
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.securityScanning).toBe(false);
-  });
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.securityScanning).toBe(false)
+  })
 
-  it("v1 contractType grpc → features.contractTesting=true", () => {
+  it('v1 contractType grpc → features.contractTesting=true', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: true,
-      contractType: "grpc",
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.contractTesting).toBe(true);
-  });
+      contractType: 'grpc',
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.contractTesting).toBe(true)
+  })
 
-  it("v1 contractType none → features.contractTesting=false", () => {
+  it('v1 contractType none → features.contractTesting=false', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: true,
-      contractType: "none",
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.contractTesting).toBe(false);
-  });
+      contractType: 'none',
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.contractTesting).toBe(false)
+  })
 
-  it("v1 evidenceRetention.enabled=true → features.evidenceHarness=true", () => {
+  it('v1 evidenceRetention.enabled=true → features.evidenceHarness=true', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       evidenceRetention: { enabled: true, retentionDays: 30 },
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.evidenceHarness).toBe(true);
-  });
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.evidenceHarness).toBe(true)
+  })
 
-  it("v1 evidenceRetention.enabled=false → features.evidenceHarness=false (not object-presence)", () => {
+  it('v1 evidenceRetention.enabled=false → features.evidenceHarness=false (not object-presence)', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       evidenceRetention: { enabled: false, retentionDays: 30 },
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.evidenceHarness).toBe(false);
-  });
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.evidenceHarness).toBe(false)
+  })
 
-  it("L3 v1 → evidenceHarness defaults to true", () => {
+  it('L3 v1 → evidenceHarness defaults to true', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L3",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L3',
       useGitHub: false,
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.features.evidenceHarness).toBe(true);
-  });
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.features.evidenceHarness).toBe(true)
+  })
 
-  it("carries all v1 persisted fields verbatim", () => {
+  it('carries all v1 persisted fields verbatim', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
-      archetype: "backend-web-db",
-      architectureStyle: "hexagonal",
+      archetype: 'backend-web-db',
+      architectureStyle: 'hexagonal',
       isMultiTenant: true,
       hasDatabase: true,
       hasPublicApi: true,
       acceptBetaTools: true,
-      thresholdProfile: "fixed",
-      strictnessTier: "green",
-      graceEndsAt: "2026-06-01",
-      graceFromLevel: "L1",
+      thresholdProfile: 'fixed',
+      strictnessTier: 'green',
+      graceEndsAt: '2026-06-01',
+      graceFromLevel: 'L1',
       enableObsidianVault: true,
-      invariantTiers: ["architectural", "security"],
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.archetype).toBe("backend-web-db");
-    expect(result.architectureStyle).toBe("hexagonal");
-    expect(result.isMultiTenant).toBe(true);
-    expect(result.hasDatabase).toBe(true);
-    expect(result.hasPublicApi).toBe(true);
-    expect(result.acceptBetaTools).toBe(true);
-    expect(result.thresholdProfile).toBe("fixed");
-    expect(result.strictnessTier).toBe("green");
-    expect(result.graceEndsAt).toBe("2026-06-01");
-    expect(result.graceFromLevel).toBe("L1");
-    expect(result.enableObsidianVault).toBe(true);
-    expect(result.invariantTiers).toEqual(["architectural", "security"]);
-  });
+      invariantTiers: ['architectural', 'security'],
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.archetype).toBe('backend-web-db')
+    expect(result.architectureStyle).toBe('hexagonal')
+    expect(result.isMultiTenant).toBe(true)
+    expect(result.hasDatabase).toBe(true)
+    expect(result.hasPublicApi).toBe(true)
+    expect(result.acceptBetaTools).toBe(true)
+    expect(result.thresholdProfile).toBe('fixed')
+    expect(result.strictnessTier).toBe('green')
+    expect(result.graceEndsAt).toBe('2026-06-01')
+    expect(result.graceFromLevel).toBe('L1')
+    expect(result.enableObsidianVault).toBe(true)
+    expect(result.invariantTiers).toEqual(['architectural', 'security'])
+  })
 
-  it("uses DEFAULT_THRESHOLDS for target governance level", () => {
+  it('uses DEFAULT_THRESHOLDS for target governance level', () => {
     const v1 = {
-      version: "0.1",
-      tools: ["claude"],
-      governanceLevel: "L3",
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L3',
       useGitHub: false,
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.thresholds).toEqual(DEFAULT_THRESHOLDS.L3);
-  });
-});
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.thresholds).toEqual(DEFAULT_THRESHOLDS.L3)
+  })
+})
 
-describe("migrateV1ToV2 — already v2", () => {
-  it("returns a valid v2 config untouched when version is already 0.2", () => {
+describe('migrateV1ToV2 — already v2', () => {
+  it('returns a valid v2 config untouched when version is already 0.2', () => {
     const v2 = {
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -404,18 +398,18 @@ describe("migrateV1ToV2 — already v2", () => {
         suppressions: true,
       },
       thresholds: DEFAULT_THRESHOLDS.L2,
-    };
-    const result = migrateV1ToV2(v2);
-    expect(result.version).toBe("0.2");
-    expect(result.features.mutationTesting).toBe(true);
-  });
-});
+    }
+    const result = migrateV1ToV2(v2)
+    expect(result.version).toBe('0.2')
+    expect(result.features.mutationTesting).toBe(true)
+  })
+})
 
-describe("useGitHub soft-alias migration", () => {
+describe('useGitHub soft-alias migration', () => {
   const baseV2 = {
-    version: "0.2",
-    tools: ["claude"],
-    governanceLevel: "L2",
+    version: '0.2',
+    tools: ['claude'],
+    governanceLevel: 'L2',
     useGitHub: false,
     features: {
       contractTesting: false,
@@ -426,60 +420,56 @@ describe("useGitHub soft-alias migration", () => {
       suppressions: true,
     },
     thresholds: DEFAULT_THRESHOLDS.L2,
-  };
+  }
 
-  it("derives backend=github from useGitHub:true when decomposition absent", () => {
-    const result = migrateV1ToV2({ ...baseV2, useGitHub: true });
-    expect(result.decomposition?.backend).toBe("github");
-  });
+  it('derives backend=github from useGitHub:true when decomposition absent', () => {
+    const result = migrateV1ToV2({ ...baseV2, useGitHub: true })
+    expect(result.decomposition?.backend).toBe('github')
+  })
 
-  it("derives backend=markdown from useGitHub:false when decomposition absent", () => {
-    const result = migrateV1ToV2({ ...baseV2, useGitHub: false });
-    expect(result.decomposition?.backend).toBe("markdown");
-  });
+  it('derives backend=markdown from useGitHub:false when decomposition absent', () => {
+    const result = migrateV1ToV2({ ...baseV2, useGitHub: false })
+    expect(result.decomposition?.backend).toBe('markdown')
+  })
 
-  it("does not override explicit decomposition.backend", () => {
+  it('does not override explicit decomposition.backend', () => {
     const result = migrateV1ToV2({
       ...baseV2,
       useGitHub: true,
-      decomposition: { backend: "markdown" },
-    });
-    expect(result.decomposition?.backend).toBe("markdown");
-  });
+      decomposition: { backend: 'markdown' },
+    })
+    expect(result.decomposition?.backend).toBe('markdown')
+  })
 
-  it("v1 migration derives backend from useGitHub silently", () => {
+  it('v1 migration derives backend from useGitHub silently', () => {
     const v1 = {
-      governanceLevel: "L2",
+      governanceLevel: 'L2',
       useGitHub: true,
-      tools: ["claude"],
-    };
-    const result = migrateV1ToV2(v1);
-    expect(result.decomposition?.backend).toBe("github");
-  });
-});
+      tools: ['claude'],
+    }
+    const result = migrateV1ToV2(v1)
+    expect(result.decomposition?.backend).toBe('github')
+  })
+})
 
-describe("DEFAULT_THRESHOLDS", () => {
-  it("L2 has lineCoverage=80, branchCoverage=70, mutationScore=80", () => {
-    expect(DEFAULT_THRESHOLDS.L2.lineCoverage).toBe(80);
-    expect(DEFAULT_THRESHOLDS.L2.branchCoverage).toBe(70);
-    expect(DEFAULT_THRESHOLDS.L2.mutationScore).toBe(80);
-  });
+describe('DEFAULT_THRESHOLDS', () => {
+  it('L2 has lineCoverage=80, branchCoverage=70, mutationScore=80', () => {
+    expect(DEFAULT_THRESHOLDS.L2.lineCoverage).toBe(80)
+    expect(DEFAULT_THRESHOLDS.L2.branchCoverage).toBe(70)
+    expect(DEFAULT_THRESHOLDS.L2.mutationScore).toBe(80)
+  })
 
-  it("L3 has stricter values than L2", () => {
-    expect(DEFAULT_THRESHOLDS.L3.lineCoverage).toBeGreaterThan(
-      DEFAULT_THRESHOLDS.L2.lineCoverage,
-    );
+  it('L3 has stricter values than L2', () => {
+    expect(DEFAULT_THRESHOLDS.L3.lineCoverage).toBeGreaterThan(DEFAULT_THRESHOLDS.L2.lineCoverage)
     expect(DEFAULT_THRESHOLDS.L3.mutationScore).toBeGreaterThanOrEqual(
       DEFAULT_THRESHOLDS.L2.mutationScore,
-    );
-  });
+    )
+  })
 
-  it("L1 has more lenient values than L2", () => {
-    expect(DEFAULT_THRESHOLDS.L1.lineCoverage).toBeLessThan(
-      DEFAULT_THRESHOLDS.L2.lineCoverage,
-    );
+  it('L1 has more lenient values than L2', () => {
+    expect(DEFAULT_THRESHOLDS.L1.lineCoverage).toBeLessThan(DEFAULT_THRESHOLDS.L2.lineCoverage)
     expect(DEFAULT_THRESHOLDS.L1.cyclomaticComplexity).toBeGreaterThan(
       DEFAULT_THRESHOLDS.L2.cyclomaticComplexity,
-    );
-  });
-});
+    )
+  })
+})

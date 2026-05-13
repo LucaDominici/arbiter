@@ -40,50 +40,50 @@ Every template has access to the full `ProjectConfig` object. All fields are ava
 ```typescript
 interface ProjectConfig {
   // Core identity
-  targetDir: string; // Absolute path to the project being initialized
-  projectName: string; // Human-readable project name
-  description: string; // One-line project description
+  targetDir: string // Absolute path to the project being initialized
+  projectName: string // Human-readable project name
+  description: string // One-line project description
 
   // Stack
-  language: "typescript" | "java" | "rust" | "go" | "python" | "unknown";
-  framework: string; // e.g. 'next', 'vue', 'react', 'express', 'spring-boot', 'quarkus', 'tauri', ''
-  buildTool: string; // e.g. 'npm', 'gradle', 'cargo', 'go', 'pip', ''
+  language: 'typescript' | 'java' | 'rust' | 'go' | 'python' | 'unknown'
+  framework: string // e.g. 'next', 'vue', 'react', 'express', 'spring-boot', 'quarkus', 'tauri', ''
+  buildTool: string // e.g. 'npm', 'gradle', 'cargo', 'go', 'pip', ''
 
   // Commands (auto-detected or wizard-provided)
-  buildCommand: string; // e.g. 'npm run build'
-  testCommand: string; // e.g. 'npm test'
-  lintCommand: string; // e.g. 'npm run lint'
-  formatCommand: string; // e.g. 'npm run format'
+  buildCommand: string // e.g. 'npm run build'
+  testCommand: string // e.g. 'npm test'
+  lintCommand: string // e.g. 'npm run lint'
+  formatCommand: string // e.g. 'npm run format'
 
   // Tool selection
-  tools: Array<"claude" | "codex" | "cursor" | "copilot">;
+  tools: Array<'claude' | 'codex' | 'cursor' | 'copilot'>
 
   // Governance
-  governanceLevel: "L1" | "L2" | "L3";
+  governanceLevel: 'L1' | 'L2' | 'L3'
 
   // GitHub integration
-  useGitHub: boolean;
-  githubOwner: string; // GitHub username or org, '' if not available
-  githubRepo: string; // Repository name, '' if not available
+  useGitHub: boolean
+  githubOwner: string // GitHub username or org, '' if not available
+  githubRepo: string // Repository name, '' if not available
 
   // Existing state (detected before generation)
   existing: {
-    agentsMd: boolean; // AGENTS.md present in targetDir
-    claudeDir: boolean; // .claude/ directory present
-    agentsDir: boolean; // .agents/ directory present
-    aiRulez: boolean; // .ai-rulez/ or ai-rulez.yml present
-    settingsJson: boolean; // .claude/settings.json present
-    checkAllScript: boolean; // scripts/check-all script present
-  };
+    agentsMd: boolean // AGENTS.md present in targetDir
+    claudeDir: boolean // .claude/ directory present
+    agentsDir: boolean // .agents/ directory present
+    aiRulez: boolean // .ai-rulez/ or ai-rulez.yml present
+    settingsJson: boolean // .claude/settings.json present
+    checkAllScript: boolean // scripts/check-all script present
+  }
 
   // Language-specific hooks
-  languageHooks: LanguageHook[];
+  languageHooks: LanguageHook[]
 }
 
 interface LanguageHook {
-  name: string; // Hook display name
-  matcher: string; // File glob pattern for PreToolUse trigger
-  command: string; // Shell command to run
+  name: string // Hook display name
+  matcher: string // File glob pattern for PreToolUse trigger
+  command: string // Shell command to run
 }
 ```
 

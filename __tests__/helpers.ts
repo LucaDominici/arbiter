@@ -1,87 +1,78 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { execFileSync } from "node:child_process";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import type { Language, ProjectConfig } from "../src/wizard/types.js";
-import {
-  presetToTiers,
-  defaultPresetForLevel,
-} from "../src/invariants/filter.js";
-export { DEFAULT_THRESHOLDS } from "../src/config/schema.js";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import type { Language, ProjectConfig } from '../src/wizard/types.js'
+import { presetToTiers, defaultPresetForLevel } from '../src/invariants/filter.js'
+export { DEFAULT_THRESHOLDS } from '../src/config/schema.js'
 
 /**
  * Create a temp directory with language-specific marker files.
  */
-export function createTestProject(language: Language = "unknown"): string {
-  const dir = mkdtempSync(join(tmpdir(), `arbiter-test-${language}-`));
+export function createTestProject(language: Language = 'unknown'): string {
+  const dir = mkdtempSync(join(tmpdir(), `arbiter-test-${language}-`))
 
   switch (language) {
-    case "typescript":
+    case 'typescript':
       writeFileSync(
-        join(dir, "package.json"),
+        join(dir, 'package.json'),
         JSON.stringify({
-          name: "test-project",
-          scripts: { build: "tsc", test: "vitest run", lint: "eslint ." },
+          name: 'test-project',
+          scripts: { build: 'tsc', test: 'vitest run', lint: 'eslint .' },
           devDependencies: {
-            typescript: "^5.0.0",
-            eslint: "^9.0.0",
-            prettier: "^3.0.0",
+            typescript: '^5.0.0',
+            eslint: '^9.0.0',
+            prettier: '^3.0.0',
           },
         }),
-      );
-      break;
-    case "java":
-      writeFileSync(join(dir, "build.gradle"), 'plugins { id "java" }');
-      break;
-    case "rust":
+      )
+      break
+    case 'java':
+      writeFileSync(join(dir, 'build.gradle'), 'plugins { id "java" }')
+      break
+    case 'rust':
+      writeFileSync(join(dir, 'Cargo.toml'), '[package]\nname = "test"\nversion = "0.1.0"')
+      break
+    case 'go':
+      writeFileSync(join(dir, 'go.mod'), 'module example.com/test\n\ngo 1.22')
+      break
+    case 'python':
+      writeFileSync(join(dir, 'pyproject.toml'), '[project]\nname = "test"')
+      break
+    case 'multi':
       writeFileSync(
-        join(dir, "Cargo.toml"),
-        '[package]\nname = "test"\nversion = "0.1.0"',
-      );
-      break;
-    case "go":
-      writeFileSync(join(dir, "go.mod"), "module example.com/test\n\ngo 1.22");
-      break;
-    case "python":
-      writeFileSync(join(dir, "pyproject.toml"), '[project]\nname = "test"');
-      break;
-    case "multi":
-      writeFileSync(
-        join(dir, "package.json"),
+        join(dir, 'package.json'),
         JSON.stringify({
-          name: "test-project",
-          scripts: { build: "tsc", test: "vitest run", lint: "eslint ." },
+          name: 'test-project',
+          scripts: { build: 'tsc', test: 'vitest run', lint: 'eslint .' },
         }),
-      );
-      mkdirSync(join(dir, "backend"), { recursive: true });
-      writeFileSync(
-        join(dir, "backend", "build.gradle"),
-        'plugins { id "java" }',
-      );
-      break;
+      )
+      mkdirSync(join(dir, 'backend'), { recursive: true })
+      writeFileSync(join(dir, 'backend', 'build.gradle'), 'plugins { id "java" }')
+      break
   }
 
-  return dir;
+  return dir
 }
 
 /**
  * Initialize a git repo in the given directory.
  */
 export function initGit(dir: string, remote?: string): void {
-  execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
-  execFileSync("git", ["config", "user.email", "test@arbiter.dev"], {
+  execFileSync('git', ['init'], { cwd: dir, stdio: 'ignore' })
+  execFileSync('git', ['config', 'user.email', 'test@arbiter.dev'], {
     cwd: dir,
-    stdio: "ignore",
-  });
-  execFileSync("git", ["config", "user.name", "Arbiter Test"], {
+    stdio: 'ignore',
+  })
+  execFileSync('git', ['config', 'user.name', 'Arbiter Test'], {
     cwd: dir,
-    stdio: "ignore",
-  });
+    stdio: 'ignore',
+  })
   if (remote) {
-    execFileSync("git", ["remote", "add", "origin", remote], {
+    execFileSync('git', ['remote', 'add', 'origin', remote], {
       cwd: dir,
-      stdio: "ignore",
-    });
+      stdio: 'ignore',
+    })
   }
 }
 
@@ -89,35 +80,32 @@ export function initGit(dir: string, remote?: string): void {
  * Remove a test project directory.
  */
 export function cleanupTestProject(dir: string): void {
-  rmSync(dir, { recursive: true, force: true });
+  rmSync(dir, { recursive: true, force: true })
 }
 
 /**
  * Build a ProjectConfig fixture with sensible defaults.
  * Pass overrides for any field you need to vary.
  */
-export function makeConfig(
-  dir: string,
-  overrides: Partial<ProjectConfig> = {},
-): ProjectConfig {
-  const governanceLevel = overrides.governanceLevel ?? "L2";
+export function makeConfig(dir: string, overrides: Partial<ProjectConfig> = {}): ProjectConfig {
+  const governanceLevel = overrides.governanceLevel ?? 'L2'
   return {
     targetDir: dir,
-    projectName: "test-project",
-    description: "Test project",
-    language: "typescript",
+    projectName: 'test-project',
+    description: 'Test project',
+    language: 'typescript',
     framework: null,
-    archetype: "library",
-    architectureStyle: "none",
+    archetype: 'library',
+    architectureStyle: 'none',
     isMultiTenant: false,
     hasDatabase: false,
     hasPublicApi: false,
-    buildTool: "npm",
-    buildCommand: "npm run build",
-    testCommand: "npm test",
-    lintCommand: "npm run lint",
-    formatCommand: "npx prettier --check .",
-    tools: ["claude", "codex"],
+    buildTool: 'npm',
+    buildCommand: 'npm run build',
+    testCommand: 'npm test',
+    lintCommand: 'npm run lint',
+    formatCommand: 'npx prettier --check .',
+    tools: ['claude', 'codex'],
     governanceLevel,
     useGitHub: false,
     githubOwner: null,
@@ -134,14 +122,14 @@ export function makeConfig(
       aiderConf: false,
     },
     languageHooks: [],
-    enableDebtGates: governanceLevel !== "L1",
+    enableDebtGates: governanceLevel !== 'L1',
     enableSuppressions: true,
-    enableSecurityScanning: governanceLevel !== "L1",
+    enableSecurityScanning: governanceLevel !== 'L1',
     enableSoloDevMode: false,
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
     basePackage: undefined,
-    contractType: "none",
+    contractType: 'none',
     lanes: [],
     ...overrides,
-  };
+  }
 }

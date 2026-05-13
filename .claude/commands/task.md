@@ -1,6 +1,6 @@
 ---
 description: Full task lifecycle — plan, implement, review, gate, merge
-argument-hint: "#NNN [--skip-review] [--dry-run] | --batch #N1 #N2 ... | --batch --label <labels>"
+argument-hint: '#NNN [--skip-review] [--dry-run] | --batch #N1 #N2 ... | --batch --label <labels>'
 ---
 
 # /task #NNN

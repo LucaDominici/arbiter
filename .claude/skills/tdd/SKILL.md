@@ -26,16 +26,16 @@ npm run test
 **Test runner:** vitest
 
 ```typescript
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from 'vitest'
 
-describe("feature", () => {
-  it("does the expected thing", () => {
+describe('feature', () => {
+  it('does the expected thing', () => {
     // Arrange
     // Act
     // Assert
-    expect(result).toBe(expected);
-  });
-});
+    expect(result).toBe(expected)
+  })
+})
 ```
 
 ## Rules

@@ -1,20 +1,20 @@
-import type { Language, StrictnessTier } from "../wizard/types.js";
+import type { Language, StrictnessTier } from '../wizard/types.js'
 
 export interface StrictnessTierRules {
   /** TypeScript: enable noUncheckedIndexedAccess in tsconfig */
-  noUncheckedIndexedAccess: boolean;
+  noUncheckedIndexedAccess: boolean
   /** TypeScript: enable strictFunctionTypes */
-  strictFunctionTypes: boolean;
+  strictFunctionTypes: boolean
   /** TypeScript/ESLint: max cyclomatic complexity threshold */
-  eslintMaxComplexity: number;
+  eslintMaxComplexity: number
   /** Rust: pass -W clippy::pedantic to cargo clippy */
-  clippyPedantic: boolean;
+  clippyPedantic: boolean
   /** Java: extra Checkstyle rule modules beyond the standard set */
-  checkstyleExtraRules: string[];
+  checkstyleExtraRules: string[]
   /** Go: extra golangci-lint linters beyond the standard suite */
-  golangciExtraLinters: string[];
+  golangciExtraLinters: string[]
   /** Python: extra ruff rule prefixes to enforce */
-  ruffExtraRules: string[];
+  ruffExtraRules: string[]
 }
 
 const PRACTICAL_BASE: StrictnessTierRules = {
@@ -25,16 +25,16 @@ const PRACTICAL_BASE: StrictnessTierRules = {
   checkstyleExtraRules: [],
   golangciExtraLinters: [],
   ruffExtraRules: [],
-};
+}
 
 const PEDANTIC_OVERRIDES: Partial<StrictnessTierRules> = {
   noUncheckedIndexedAccess: true,
   eslintMaxComplexity: 10,
   clippyPedantic: true,
-  checkstyleExtraRules: ["MagicNumber", "VisibilityModifier", "FinalClass"],
-  golangciExtraLinters: ["exhaustruct", "wrapcheck", "ireturn"],
-  ruffExtraRules: ["ANN", "D", "TCH"],
-};
+  checkstyleExtraRules: ['MagicNumber', 'VisibilityModifier', 'FinalClass'],
+  golangciExtraLinters: ['exhaustruct', 'wrapcheck', 'ireturn'],
+  ruffExtraRules: ['ANN', 'D', 'TCH'],
+}
 
 /**
  * Return the enforcement rule set for a given language × strictness tier.
@@ -44,7 +44,7 @@ export function getStrictnessTierRules(
   _language: Language,
   tier: StrictnessTier,
 ): StrictnessTierRules {
-  if (tier === "practical") return { ...PRACTICAL_BASE };
+  if (tier === 'practical') return { ...PRACTICAL_BASE }
 
   // pedantic: start from practical, apply overrides
   const pedantic: StrictnessTierRules = {
@@ -54,7 +54,7 @@ export function getStrictnessTierRules(
     checkstyleExtraRules: [...(PEDANTIC_OVERRIDES.checkstyleExtraRules ?? [])],
     golangciExtraLinters: [...(PEDANTIC_OVERRIDES.golangciExtraLinters ?? [])],
     ruffExtraRules: [...(PEDANTIC_OVERRIDES.ruffExtraRules ?? [])],
-  };
+  }
 
-  return pedantic;
+  return pedantic
 }

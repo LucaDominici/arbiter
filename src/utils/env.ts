@@ -17,9 +17,9 @@
  * means "use the default" or "warn the user".
  */
 export function parseBooleanEnv(raw: string | undefined): boolean | undefined {
-  if (raw === undefined) return undefined;
-  const v = raw.trim().toLowerCase();
-  if (v === "true" || v === "1" || v === "yes" || v === "on") return true;
-  if (v === "false" || v === "0" || v === "no" || v === "off") return false;
-  return undefined;
+  if (raw === undefined) return undefined
+  const v = raw.trim().toLowerCase()
+  if (v === 'true' || v === '1' || v === 'yes' || v === 'on') return true
+  if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false
+  return undefined
 }

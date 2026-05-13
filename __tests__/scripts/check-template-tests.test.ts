@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 
-const SCRIPT = resolve("scripts/check-template-tests.mjs");
+const SCRIPT = resolve('scripts/check-template-tests.mjs')
 
 function run(
   templatesDir: string,
@@ -12,113 +12,105 @@ function run(
   baselineFile: string,
 ): { status: number; stdout: string; stderr: string } {
   const r = spawnSync(
-    "node",
-    [
-      SCRIPT,
-      `--templates=${templatesDir}`,
-      `--tests=${testsDir}`,
-      `--baseline=${baselineFile}`,
-    ],
-    { encoding: "utf-8", cwd: resolve(".") },
-  );
+    'node',
+    [SCRIPT, `--templates=${templatesDir}`, `--tests=${testsDir}`, `--baseline=${baselineFile}`],
+    { encoding: 'utf-8', cwd: resolve('.') },
+  )
   return {
     status: r.status ?? 1,
-    stdout: r.stdout ?? "",
-    stderr: r.stderr ?? "",
-  };
+    stdout: r.stdout ?? '',
+    stderr: r.stderr ?? '',
+  }
 }
 
 function makeTemp(): { dir: string; cleanup: () => void } {
-  const dir = mkdtempSync(join(tmpdir(), "canon04-test-"));
-  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  const dir = mkdtempSync(join(tmpdir(), 'canon04-test-'))
+  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
-describe("check-template-tests.mjs (INV-48 / CANON-04)", () => {
-  it("exits 0 when all EJS files appear in test files", () => {
-    const { dir, cleanup } = makeTemp();
+describe('check-template-tests.mjs (INV-48 / CANON-04)', () => {
+  it('exits 0 when all EJS files appear in test files', () => {
+    const { dir, cleanup } = makeTemp()
     try {
-      const tmplDir = join(dir, "templates");
-      const testDir = join(dir, "tests");
-      const baseline = join(dir, "baseline.txt");
-      mkdirSync(tmplDir);
-      mkdirSync(testDir);
-      writeFileSync(join(tmplDir, "foo.mjs.ejs"), "<%= name %>");
-      writeFileSync(
-        join(testDir, "foo.test.ts"),
-        'renderTemplate("foo.mjs.ejs", data)',
-      );
-      writeFileSync(baseline, "0");
-      expect(run(tmplDir, testDir, baseline).status).toBe(0);
+      const tmplDir = join(dir, 'templates')
+      const testDir = join(dir, 'tests')
+      const baseline = join(dir, 'baseline.txt')
+      mkdirSync(tmplDir)
+      mkdirSync(testDir)
+      writeFileSync(join(tmplDir, 'foo.mjs.ejs'), '<%= name %>')
+      writeFileSync(join(testDir, 'foo.test.ts'), 'renderTemplate("foo.mjs.ejs", data)')
+      writeFileSync(baseline, '0')
+      expect(run(tmplDir, testDir, baseline).status).toBe(0)
     } finally {
-      cleanup();
+      cleanup()
     }
-  });
+  })
 
-  it("exits 0 when untested count equals baseline (no regression)", () => {
-    const { dir, cleanup } = makeTemp();
+  it('exits 0 when untested count equals baseline (no regression)', () => {
+    const { dir, cleanup } = makeTemp()
     try {
-      const tmplDir = join(dir, "templates");
-      const testDir = join(dir, "tests");
-      const baseline = join(dir, "baseline.txt");
-      mkdirSync(tmplDir);
-      mkdirSync(testDir);
-      writeFileSync(join(tmplDir, "a.ejs"), "");
-      writeFileSync(join(tmplDir, "b.ejs"), "");
+      const tmplDir = join(dir, 'templates')
+      const testDir = join(dir, 'tests')
+      const baseline = join(dir, 'baseline.txt')
+      mkdirSync(tmplDir)
+      mkdirSync(testDir)
+      writeFileSync(join(tmplDir, 'a.ejs'), '')
+      writeFileSync(join(tmplDir, 'b.ejs'), '')
       // Only 'a' has a test — 1 missing, matches baseline
-      writeFileSync(join(testDir, "a.test.ts"), 'renderTemplate("a.ejs")');
-      writeFileSync(baseline, "1");
-      expect(run(tmplDir, testDir, baseline).status).toBe(0);
+      writeFileSync(join(testDir, 'a.test.ts'), 'renderTemplate("a.ejs")')
+      writeFileSync(baseline, '1')
+      expect(run(tmplDir, testDir, baseline).status).toBe(0)
     } finally {
-      cleanup();
+      cleanup()
     }
-  });
+  })
 
-  it("exits 1 when untested count exceeds baseline (regression)", () => {
-    const { dir, cleanup } = makeTemp();
+  it('exits 1 when untested count exceeds baseline (regression)', () => {
+    const { dir, cleanup } = makeTemp()
     try {
-      const tmplDir = join(dir, "templates");
-      const testDir = join(dir, "tests");
-      const baseline = join(dir, "baseline.txt");
-      mkdirSync(tmplDir);
-      mkdirSync(testDir);
-      writeFileSync(join(tmplDir, "a.ejs"), "");
-      writeFileSync(join(tmplDir, "b.ejs"), "");
-      writeFileSync(join(tmplDir, "c.ejs"), "");
+      const tmplDir = join(dir, 'templates')
+      const testDir = join(dir, 'tests')
+      const baseline = join(dir, 'baseline.txt')
+      mkdirSync(tmplDir)
+      mkdirSync(testDir)
+      writeFileSync(join(tmplDir, 'a.ejs'), '')
+      writeFileSync(join(tmplDir, 'b.ejs'), '')
+      writeFileSync(join(tmplDir, 'c.ejs'), '')
       // Only 'a' has a test — 2 missing, baseline was 1
-      writeFileSync(join(testDir, "a.test.ts"), 'renderTemplate("a.ejs")');
-      writeFileSync(baseline, "1");
-      const result = run(tmplDir, testDir, baseline);
-      expect(result.status).toBe(1);
-      expect(result.stdout).toContain("regression");
+      writeFileSync(join(testDir, 'a.test.ts'), 'renderTemplate("a.ejs")')
+      writeFileSync(baseline, '1')
+      const result = run(tmplDir, testDir, baseline)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('regression')
     } finally {
-      cleanup();
+      cleanup()
     }
-  });
+  })
 
-  it("exits 0 when untested count is below baseline (improvement)", () => {
-    const { dir, cleanup } = makeTemp();
+  it('exits 0 when untested count is below baseline (improvement)', () => {
+    const { dir, cleanup } = makeTemp()
     try {
-      const tmplDir = join(dir, "templates");
-      const testDir = join(dir, "tests");
-      const baseline = join(dir, "baseline.txt");
-      mkdirSync(tmplDir);
-      mkdirSync(testDir);
-      writeFileSync(join(tmplDir, "a.ejs"), "");
-      writeFileSync(join(testDir, "a.test.ts"), 'renderTemplate("a.ejs")');
+      const tmplDir = join(dir, 'templates')
+      const testDir = join(dir, 'tests')
+      const baseline = join(dir, 'baseline.txt')
+      mkdirSync(tmplDir)
+      mkdirSync(testDir)
+      writeFileSync(join(tmplDir, 'a.ejs'), '')
+      writeFileSync(join(testDir, 'a.test.ts'), 'renderTemplate("a.ejs")')
       // All tested — 0 missing vs baseline of 5
-      writeFileSync(baseline, "5");
-      expect(run(tmplDir, testDir, baseline).status).toBe(0);
+      writeFileSync(baseline, '5')
+      expect(run(tmplDir, testDir, baseline).status).toBe(0)
     } finally {
-      cleanup();
+      cleanup()
     }
-  });
+  })
 
-  it("passes against the real templates, tests, and baseline", () => {
+  it('passes against the real templates, tests, and baseline', () => {
     const result = run(
-      resolve("src/templates"),
-      resolve("__tests__/templates"),
-      resolve(".template-tests-baseline.txt"),
-    );
-    expect(result.status).toBe(0);
-  });
-});
+      resolve('src/templates'),
+      resolve('__tests__/templates'),
+      resolve('.template-tests-baseline.txt'),
+    )
+    expect(result.status).toBe(0)
+  })
+})

@@ -3,33 +3,29 @@
 // Captures tech debt metrics into scripts/debt-baseline.json (schema v2).
 // Run from project root: node scripts/capture-debt-baseline.mjs [--update]
 // --update: one-way ratchet — only tighten metrics, never loosen.
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
-import { collectMetrics, countTodos, getCommit } from "./debt-lib.mjs";
+import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { collectMetrics, countTodos, getCommit } from './debt-lib.mjs'
 
-const updateMode = process.argv.includes("--update");
-const cwd = process.cwd();
-const BASELINE_FILE = resolve(cwd, "scripts/debt-baseline.json");
+const updateMode = process.argv.includes('--update')
+const cwd = process.cwd()
+const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json')
 
 // ─── Collect current metrics ──────────────────────────────────────────────────
-const collected = collectMetrics(cwd);
-collected.todoCount = {
-  value: countTodos(cwd),
-  unit: "count",
-  direction: "lower-is-better",
-};
+const collected = collectMetrics(cwd)
+collected.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' }
 
 // ─── Load prior baseline (if --update mode) ───────────────────────────────────
 // Keys in existing.metrics that are absent from `collected` (e.g. tools not
 // installed on the current machine) MUST survive, otherwise --update silently
 // drops metrics when any capture tool is unavailable.
-let existing = { metrics: {} };
+let existing = { metrics: {} }
 if (updateMode && existsSync(BASELINE_FILE)) {
   try {
-    const parsed = JSON.parse(readFileSync(BASELINE_FILE, "utf-8"));
-    existing = { metrics: parsed.metrics ?? {} };
+    const parsed = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'))
+    existing = { metrics: parsed.metrics ?? {} }
   } catch (err) {
-    throw new Error(`Malformed baseline at ${BASELINE_FILE}: ${err.message}`);
+    throw new Error(`Malformed baseline at ${BASELINE_FILE}: ${err.message}`)
   }
 }
 
@@ -38,34 +34,34 @@ const baseline = {
   version: 2,
   capturedAt: new Date().toISOString(),
   commit: getCommit(cwd),
-  archetype: "library",
+  archetype: 'library',
   metrics: { ...existing.metrics },
-};
+}
 
 // One-way ratchet: for each currently-collected metric, keep the tighter value.
 // For metrics present only in `existing` (tool unavailable this run), the
 // spread above has already preserved them verbatim.
 for (const [key, current] of Object.entries(collected)) {
-  const prev = existing.metrics[key];
+  const prev = existing.metrics[key]
   // No prior value, or direction changed between runs — overwrite with current.
   if (!prev || prev.direction !== current.direction) {
-    baseline.metrics[key] = current;
-    continue;
+    baseline.metrics[key] = current
+    continue
   }
   // Strict comparison: on a tie, keep `prev` so sub-fields like `items`
   // (populated by archunitFailingRules on machines with test results) are
   // not silently overwritten when the current run produces an empty list.
-  if (current.direction === "higher-is-better") {
-    baseline.metrics[key] = current.value > prev.value ? current : prev;
-  } else if (current.direction === "lower-is-better") {
-    baseline.metrics[key] = current.value < prev.value ? current : prev;
+  if (current.direction === 'higher-is-better') {
+    baseline.metrics[key] = current.value > prev.value ? current : prev
+  } else if (current.direction === 'lower-is-better') {
+    baseline.metrics[key] = current.value < prev.value ? current : prev
   } else {
     // Unknown direction — overwrite (no ratchet applicable).
-    baseline.metrics[key] = current;
+    baseline.metrics[key] = current
   }
 }
 
 // ─── Write baseline ───────────────────────────────────────────────────────────
-writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2) + "\n", "utf-8");
-console.log(`[arbiter] Debt baseline captured → ${BASELINE_FILE}`);
-console.log(JSON.stringify(baseline.metrics, null, 2));
+writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2) + '\n', 'utf-8')
+console.log(`[arbiter] Debt baseline captured → ${BASELINE_FILE}`)
+console.log(JSON.stringify(baseline.metrics, null, 2))

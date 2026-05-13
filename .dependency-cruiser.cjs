@@ -1,0 +1,77 @@
+/** @type {import('dependency-cruiser').IConfiguration} */
+module.exports = {
+  forbidden: [
+    {
+      name: 'no-circular',
+      severity: 'error',
+      comment: 'Circular dependencies create tight coupling (INV-01)',
+      from: {},
+      to: {
+        circular: true,
+      },
+    },
+    {
+      name: 'no-orphan',
+      severity: 'warn',
+      comment: 'Orphan modules are unreachable dead code',
+      from: {
+        orphan: true,
+        pathNot: [
+          '\\.d\\.ts$',
+          '(^|/)index\\.(ts|js|cjs|mjs)$',
+          '\\.config\\.(ts|js|cjs|mjs)$',
+          '\\.test\\.(ts|js)$',
+          '\\.spec\\.(ts|js)$',
+        ],
+      },
+      to: {},
+    },
+    {
+      name: 'no-cross-layer',
+      severity: 'error',
+      comment: 'Domain must not import from services, repositories, or api layers (INV-03)',
+      from: {
+        path: '^(src/)?domain/',
+      },
+      to: {
+        path: '^(src/)?(services|repositories|api|infrastructure)/',
+      },
+    },
+    {
+      name: 'no-domain-to-infra',
+      severity: 'error',
+      comment: 'Domain layer must not import infrastructure adapters',
+      from: {
+        path: '^(src/)?domain/',
+      },
+      to: {
+        path: '^(src/)?infrastructure/',
+      },
+    },
+    {
+      name: 'no-repositories-to-api',
+      severity: 'error',
+      comment: 'Repository layer must not import from api layer',
+      from: {
+        path: '^(src/)?repositories?/',
+      },
+      to: {
+        path: '^(src/)?api/',
+      },
+    },
+  ],
+  options: {
+    doNotFollow: {
+      path: 'node_modules',
+    },
+    tsPreCompilationDeps: true,
+    tsConfig: {
+      fileName: 'tsconfig.json',
+    },
+    reporterOptions: {
+      text: {
+        highlightFocused: true,
+      },
+    },
+  },
+}

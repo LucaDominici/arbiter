@@ -1,16 +1,15 @@
-import { runCli } from "../utils/run-cli.js";
+import { runCli } from '../utils/run-cli.js'
 
 export interface GitInfo {
-  isGitRepo: boolean;
-  remoteUrl: string | null;
-  githubOwner: string | null;
-  githubRepo: string | null;
-  projectName: string | null;
+  isGitRepo: boolean
+  remoteUrl: string | null
+  githubOwner: string | null
+  githubRepo: string | null
+  projectName: string | null
 }
 
 export function detectGitInfo(dir: string): GitInfo {
-  const isGitRepo =
-    runCmd("git", ["rev-parse", "--is-inside-work-tree"], dir) === "true";
+  const isGitRepo = runCmd('git', ['rev-parse', '--is-inside-work-tree'], dir) === 'true'
   if (!isGitRepo) {
     return {
       isGitRepo: false,
@@ -18,11 +17,11 @@ export function detectGitInfo(dir: string): GitInfo {
       githubOwner: null,
       githubRepo: null,
       projectName: null,
-    };
+    }
   }
 
-  const remoteUrl = runCmd("git", ["remote", "get-url", "origin"], dir);
-  const { owner, repo } = parseGithubUrl(remoteUrl ?? "");
+  const remoteUrl = runCmd('git', ['remote', 'get-url', 'origin'], dir)
+  const { owner, repo } = parseGithubUrl(remoteUrl ?? '')
 
   return {
     isGitRepo: true,
@@ -30,28 +29,26 @@ export function detectGitInfo(dir: string): GitInfo {
     githubOwner: owner,
     githubRepo: repo,
     projectName: repo,
-  };
+  }
 }
 
 function parseGithubUrl(url: string): {
-  owner: string | null;
-  repo: string | null;
+  owner: string | null
+  repo: string | null
 } {
-  const sshMatch = /git@github\.com:([^/]+)\/([^.]+)(?:\.git)?/.exec(url);
-  if (sshMatch)
-    return { owner: sshMatch[1] ?? null, repo: sshMatch[2] ?? null };
+  const sshMatch = /git@github\.com:([^/]+)\/([^.]+)(?:\.git)?/.exec(url)
+  if (sshMatch) return { owner: sshMatch[1] ?? null, repo: sshMatch[2] ?? null }
 
-  const httpsMatch = /github\.com\/([^/]+)\/([^/.]+)(?:\.git)?/.exec(url);
-  if (httpsMatch)
-    return { owner: httpsMatch[1] ?? null, repo: httpsMatch[2] ?? null };
+  const httpsMatch = /github\.com\/([^/]+)\/([^/.]+)(?:\.git)?/.exec(url)
+  if (httpsMatch) return { owner: httpsMatch[1] ?? null, repo: httpsMatch[2] ?? null }
 
-  return { owner: null, repo: null };
+  return { owner: null, repo: null }
 }
 
 function runCmd(cmd: string, args: string[], cwd: string): string | null {
   try {
-    return runCli(cmd, args, { cwd }).stdout.trim();
+    return runCli(cmd, args, { cwd }).stdout.trim()
   } catch {
-    return null;
+    return null
   }
 }

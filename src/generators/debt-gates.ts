@@ -1,71 +1,68 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
-import type { ProjectConfig } from "../wizard/types.js";
-import type { WriteResult } from "../utils/fs.js";
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { renderTemplate } from '../utils/render.js'
+import { writeFile, resolvedPath } from '../utils/fs.js'
+import type { ProjectConfig } from '../wizard/types.js'
+import type { WriteResult } from '../utils/fs.js'
 
 export interface DebtGatesGeneratorResult {
-  files: WriteResult[];
+  files: WriteResult[]
 }
 
 function injectTestScripts(targetDir: string): void {
-  const pkgPath = resolvedPath(targetDir, "package.json");
-  if (!existsSync(pkgPath)) return;
-  let pkg: Record<string, unknown>;
+  const pkgPath = resolvedPath(targetDir, 'package.json')
+  if (!existsSync(pkgPath)) return
+  let pkg: Record<string, unknown>
   try {
-    pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
   } catch (err) {
-    console.warn("[injectTestScripts] failed to parse package.json:", err);
-    return;
+    console.warn('[injectTestScripts] failed to parse package.json:', err)
+    return
   }
-  const scripts = (pkg.scripts ?? {}) as Record<string, string>;
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>
   const testScripts: Record<string, string> = {
-    "test:unit": "vitest run --project unit",
-    "test:contract": "vitest run --project contract",
-    "test:integration": "vitest run --project integration",
-    "test:behavioral": "vitest run --project behavioral",
-  };
-  let changed = false;
+    'test:unit': 'vitest run --project unit',
+    'test:contract': 'vitest run --project contract',
+    'test:integration': 'vitest run --project integration',
+    'test:behavioral': 'vitest run --project behavioral',
+  }
+  let changed = false
   for (const [key, value] of Object.entries(testScripts)) {
     if (!scripts[key]) {
-      scripts[key] = value;
-      changed = true;
+      scripts[key] = value
+      changed = true
     }
   }
   if (changed) {
-    pkg.scripts = scripts;
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+    pkg.scripts = scripts
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
   }
 }
 
 function injectDepCruiserPackageJson(targetDir: string): void {
-  const pkgPath = resolvedPath(targetDir, "package.json");
-  if (!existsSync(pkgPath)) return;
-  let pkg: Record<string, unknown>;
+  const pkgPath = resolvedPath(targetDir, 'package.json')
+  if (!existsSync(pkgPath)) return
+  let pkg: Record<string, unknown>
   try {
-    pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as Record<string, unknown>;
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
   } catch (err) {
-    console.warn(
-      "[injectDepCruiserPackageJson] failed to parse package.json:",
-      err,
-    );
-    return;
+    console.warn('[injectDepCruiserPackageJson] failed to parse package.json:', err)
+    return
   }
-  const scripts = (pkg.scripts ?? {}) as Record<string, string>;
-  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
-  let changed = false;
-  if (!scripts["check:arch"]) {
-    scripts["check:arch"] = "depcruise src";
-    pkg.scripts = scripts;
-    changed = true;
+  const scripts = (pkg.scripts ?? {}) as Record<string, string>
+  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+  let changed = false
+  if (!scripts['check:arch']) {
+    scripts['check:arch'] = 'depcruise src'
+    pkg.scripts = scripts
+    changed = true
   }
-  if (!devDeps["dependency-cruiser"]) {
-    devDeps["dependency-cruiser"] = "^16.0.0";
-    pkg.devDependencies = devDeps;
-    changed = true;
+  if (!devDeps['dependency-cruiser']) {
+    devDeps['dependency-cruiser'] = '^16.0.0'
+    pkg.devDependencies = devDeps
+    changed = true
   }
   if (changed) {
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
   }
 }
 
@@ -75,124 +72,99 @@ function pushJavaDebtGates(
   data: Record<string, unknown>,
 ): void {
   const files: [string, string][] = [
+    [resolvedPath(base, 'config', 'pmd-ruleset.xml'), 'static-analysis/pmd-ruleset.xml.ejs'],
+    [resolvedPath(base, 'config', 'checkstyle.xml'), 'static-analysis/checkstyle.xml.ejs'],
     [
-      resolvedPath(base, "config", "pmd-ruleset.xml"),
-      "static-analysis/pmd-ruleset.xml.ejs",
+      resolvedPath(base, 'config', 'spotbugs-exclude.xml'),
+      'static-analysis/spotbugs-exclude.xml.ejs',
     ],
-    [
-      resolvedPath(base, "config", "checkstyle.xml"),
-      "static-analysis/checkstyle.xml.ejs",
-    ],
-    [
-      resolvedPath(base, "config", "spotbugs-exclude.xml"),
-      "static-analysis/spotbugs-exclude.xml.ejs",
-    ],
-    [
-      resolvedPath(base, "spotless.gradle"),
-      "static-analysis/spotless.gradle.ejs",
-    ],
-    [
-      resolvedPath(base, "config", "pitest-setup.md"),
-      "mutation/pitest-l2-setup.md.ejs",
-    ],
-    [
-      resolvedPath(base, "spotbugs.gradle"),
-      "static-analysis/spotbugs.gradle.ejs",
-    ],
-    [
-      resolvedPath(base, "scripts", "verify-spotbugs.mjs"),
-      "scripts/verify-spotbugs.mjs.ejs",
-    ],
-    [
-      resolvedPath(base, "spotbugs-baseline.json"),
-      "scripts/spotbugs-baseline.json.ejs",
-    ],
-  ];
+    [resolvedPath(base, 'spotless.gradle'), 'static-analysis/spotless.gradle.ejs'],
+    [resolvedPath(base, 'config', 'pitest-setup.md'), 'mutation/pitest-l2-setup.md.ejs'],
+    [resolvedPath(base, 'spotbugs.gradle'), 'static-analysis/spotbugs.gradle.ejs'],
+    [resolvedPath(base, 'scripts', 'verify-spotbugs.mjs'), 'scripts/verify-spotbugs.mjs.ejs'],
+    [resolvedPath(base, 'spotbugs-baseline.json'), 'scripts/spotbugs-baseline.json.ejs'],
+  ]
   for (const [path, tmpl] of files) {
-    results.push(
-      writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true }),
-    );
+    results.push(writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true }))
   }
 }
 
-export function generateDebtGates(
-  config: ProjectConfig,
-): DebtGatesGeneratorResult {
-  if (config.language === "typescript" || config.language === "multi") {
-    injectTestScripts(config.targetDir);
+export function generateDebtGates(config: ProjectConfig): DebtGatesGeneratorResult {
+  if (config.language === 'typescript' || config.language === 'multi') {
+    injectTestScripts(config.targetDir)
   }
 
-  if (!config.enableDebtGates) return { files: [] };
+  if (!config.enableDebtGates) return { files: [] }
 
-  const results: WriteResult[] = [];
-  const base = config.targetDir;
-  const data = config as unknown as Record<string, unknown>;
+  const results: WriteResult[] = []
+  const base = config.targetDir
+  const data = config as unknown as Record<string, unknown>
 
-  if (config.language === "typescript" || config.language === "multi") {
+  if (config.language === 'typescript' || config.language === 'multi') {
     results.push(
       writeFile(
-        resolvedPath(base, "knip.json"),
-        renderTemplate("static-analysis/knip.json.ejs", data),
+        resolvedPath(base, 'knip.json'),
+        renderTemplate('static-analysis/knip.json.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
     results.push(
       writeFile(
-        resolvedPath(base, ".eslintrc-static.json"),
-        renderTemplate("static-analysis/eslintrc-static.json.ejs", data),
+        resolvedPath(base, '.eslintrc-static.json'),
+        renderTemplate('static-analysis/eslintrc-static.json.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
     results.push(
       writeFile(
-        resolvedPath(base, ".prettierrc.json"),
-        renderTemplate("static-analysis/prettierrc.json.ejs", data),
+        resolvedPath(base, '.prettierrc.json'),
+        renderTemplate('static-analysis/prettierrc.json.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
     results.push(
       writeFile(
-        resolvedPath(base, ".dependency-cruiser.cjs"),
-        renderTemplate("static-analysis/.dependency-cruiser.cjs.ejs", data),
+        resolvedPath(base, '.dependency-cruiser.cjs'),
+        renderTemplate('static-analysis/.dependency-cruiser.cjs.ejs', data),
         { skipIfExists: true },
       ),
-    );
-    injectDepCruiserPackageJson(base);
+    )
+    injectDepCruiserPackageJson(base)
   }
 
-  if (config.language === "rust") {
+  if (config.language === 'rust') {
     results.push(
       writeFile(
-        resolvedPath(base, "rustfmt.toml"),
-        renderTemplate("static-analysis/rustfmt.toml.ejs", data),
+        resolvedPath(base, 'rustfmt.toml'),
+        renderTemplate('static-analysis/rustfmt.toml.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
   }
 
-  if (config.language === "go") {
+  if (config.language === 'go') {
     results.push(
       writeFile(
-        resolvedPath(base, ".golangci.yml"),
-        renderTemplate("static-analysis/.golangci.yml.ejs", data),
+        resolvedPath(base, '.golangci.yml'),
+        renderTemplate('static-analysis/.golangci.yml.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
   }
 
-  if (config.language === "java" || config.language === "multi") {
-    pushJavaDebtGates(results, base, data);
+  if (config.language === 'java' || config.language === 'multi') {
+    pushJavaDebtGates(results, base, data)
   }
 
-  if (config.language === "python") {
+  if (config.language === 'python') {
     results.push(
       writeFile(
-        resolvedPath(base, "ruff.toml"),
-        renderTemplate("static-analysis/ruff.toml.ejs", data),
+        resolvedPath(base, 'ruff.toml'),
+        renderTemplate('static-analysis/ruff.toml.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
   }
 
-  return { files: results };
+  return { files: results }
 }

@@ -1,21 +1,21 @@
-import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
-import type { ProjectConfig } from "../wizard/types.js";
-import type { WriteResult } from "../utils/fs.js";
+import { renderTemplate } from '../utils/render.js'
+import { writeFile, resolvedPath } from '../utils/fs.js'
+import type { ProjectConfig } from '../wizard/types.js'
+import type { WriteResult } from '../utils/fs.js'
 
 export interface CopilotGeneratorResult {
-  files: WriteResult[];
+  files: WriteResult[]
 }
 
 export function generateCopilot(config: ProjectConfig): CopilotGeneratorResult {
-  const data = config as unknown as Record<string, unknown>;
+  const data = config as unknown as Record<string, unknown>
   return {
     files: [
       writeFile(
-        resolvedPath(config.targetDir, ".github", "copilot-instructions.md"),
-        renderTemplate("copilot/copilot-instructions.md.ejs", data),
+        resolvedPath(config.targetDir, '.github', 'copilot-instructions.md'),
+        renderTemplate('copilot/copilot-instructions.md.ejs', data),
         { backup: true },
       ),
     ],
-  };
+  }
 }

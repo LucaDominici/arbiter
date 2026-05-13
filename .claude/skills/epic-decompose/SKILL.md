@@ -1,7 +1,7 @@
 ---
 name: epic-decompose
 description: Use when breaking down a large feature (epic) into independently deliverable tasks. Produces a sequenced task list with dependencies, acceptance criteria, and size estimates.
-argument-hint: "<epic title or description>"
+argument-hint: '<epic title or description>'
 ---
 
 # Epic Decompose

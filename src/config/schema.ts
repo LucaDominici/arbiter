@@ -14,65 +14,63 @@ import type {
   ThresholdProfile,
   ThresholdsV2,
   WorktreeConfig,
-} from "../wizard/types.js";
+} from '../wizard/types.js'
 
-export type { ThresholdsV2, TaskTiers, TaskTierConfig, PlanDepth };
+export type { ThresholdsV2, TaskTiers, TaskTierConfig, PlanDepth }
 
 export interface FeatureFlags {
-  contractTesting: boolean;
-  mutationTesting: boolean;
-  securityScanning: boolean;
-  evidenceHarness: boolean;
-  selfValidationHarness?: boolean;
-  debtGates: boolean;
-  suppressions: boolean;
-  soloDevMode?: boolean;
+  contractTesting: boolean
+  mutationTesting: boolean
+  securityScanning: boolean
+  evidenceHarness: boolean
+  selfValidationHarness?: boolean
+  debtGates: boolean
+  suppressions: boolean
+  soloDevMode?: boolean
 }
 
-export type DecompositionBackendId = "github" | "markdown";
+export type DecompositionBackendId = 'github' | 'markdown'
 
 export const DEFAULT_TASK_TIERS: TaskTiers = {
-  XS: { planDepth: "minimal", reviewAgentCount: 3 },
-  S: { planDepth: "brief", reviewAgentCount: 3 },
-  Standard: { planDepth: "full", reviewAgentCount: 4 },
-};
+  XS: { planDepth: 'minimal', reviewAgentCount: 3 },
+  S: { planDepth: 'brief', reviewAgentCount: 3 },
+  Standard: { planDepth: 'full', reviewAgentCount: 4 },
+}
 
 export interface DecompositionConfig {
-  backend: DecompositionBackendId;
-  markdown?: { dir: string };
-  github?: { owner: string; repo: string };
+  backend: DecompositionBackendId
+  markdown?: { dir: string }
+  github?: { owner: string; repo: string }
 }
 
 export interface ArbiterConfigV2 {
-  version: string;
-  tools: AiTool[];
-  governanceLevel: GovernanceLevel;
-  useGitHub: boolean;
-  decomposition?: DecompositionConfig;
-  features: FeatureFlags;
-  thresholds: ThresholdsV2;
-  archetype?: Archetype;
-  architectureStyle?: ArchitectureStyle;
-  isMultiTenant?: boolean;
-  hasDatabase?: boolean;
-  hasPublicApi?: boolean;
-  acceptBetaTools?: boolean;
-  evidenceRetention?: EvidenceRetentionConfig;
-  thresholdProfile?: ThresholdProfile;
-  strictnessTier?: StrictnessTier;
-  graceEndsAt?: string;
-  graceFromLevel?: GovernanceLevel;
-  contractType?: ContractType;
-  invariantTiers?: InvariantTier[];
-  worktree?: WorktreeConfig;
-  plugins?: string[];
-  lanes?: Lane[];
-  taskTiers?: TaskTiers;
+  version: string
+  tools: AiTool[]
+  governanceLevel: GovernanceLevel
+  useGitHub: boolean
+  decomposition?: DecompositionConfig
+  features: FeatureFlags
+  thresholds: ThresholdsV2
+  archetype?: Archetype
+  architectureStyle?: ArchitectureStyle
+  isMultiTenant?: boolean
+  hasDatabase?: boolean
+  hasPublicApi?: boolean
+  acceptBetaTools?: boolean
+  evidenceRetention?: EvidenceRetentionConfig
+  thresholdProfile?: ThresholdProfile
+  strictnessTier?: StrictnessTier
+  graceEndsAt?: string
+  graceFromLevel?: GovernanceLevel
+  contractType?: ContractType
+  invariantTiers?: InvariantTier[]
+  worktree?: WorktreeConfig
+  plugins?: string[]
+  lanes?: Lane[]
+  taskTiers?: TaskTiers
 }
 
-export type ValidateResult =
-  | { ok: true; config: ArbiterConfigV2 }
-  | { ok: false; errors: string[] };
+export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
 
 export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
   L1: {
@@ -99,203 +97,173 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
     methodLength: 40,
     maxParams: 5,
   },
-};
+}
 
-const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(["L1", "L2", "L3"]);
-const AI_TOOLS: ReadonlySet<string> = new Set([
-  "claude",
-  "codex",
-  "cursor",
-  "copilot",
-]);
+const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3'])
+const AI_TOOLS: ReadonlySet<string> = new Set(['claude', 'codex', 'cursor', 'copilot'])
 
 function isRecord(val: unknown): val is Record<string, unknown> {
-  return typeof val === "object" && val !== null && !Array.isArray(val);
+  return typeof val === 'object' && val !== null && !Array.isArray(val)
 }
 
 function validateThresholds(raw: unknown, errors: string[]): boolean {
   if (!isRecord(raw)) {
-    errors.push("thresholds must be an object");
-    return false;
+    errors.push('thresholds must be an object')
+    return false
   }
-  let ok = true;
-  const coverage = ["lineCoverage", "branchCoverage", "mutationScore"] as const;
+  let ok = true
+  const coverage = ['lineCoverage', 'branchCoverage', 'mutationScore'] as const
   for (const key of coverage) {
-    const v = raw[key];
-    if (typeof v !== "number" || v <= 0 || v > 100) {
-      errors.push(`thresholds.${key} must be a number between 1 and 100`);
-      ok = false;
+    const v = raw[key]
+    if (typeof v !== 'number' || v <= 0 || v > 100) {
+      errors.push(`thresholds.${key} must be a number between 1 and 100`)
+      ok = false
     }
   }
-  const positive = [
-    "cyclomaticComplexity",
-    "methodLength",
-    "maxParams",
-  ] as const;
+  const positive = ['cyclomaticComplexity', 'methodLength', 'maxParams'] as const
   for (const key of positive) {
-    const v = raw[key];
-    if (typeof v !== "number" || v <= 0) {
-      errors.push(`thresholds.${key} must be a positive number`);
-      ok = false;
+    const v = raw[key]
+    if (typeof v !== 'number' || v <= 0) {
+      errors.push(`thresholds.${key} must be a positive number`)
+      ok = false
     }
   }
-  return ok;
+  return ok
 }
 
 function validateFeatures(raw: unknown, errors: string[]): boolean {
   if (!isRecord(raw)) {
-    errors.push("features must be an object");
-    return false;
+    errors.push('features must be an object')
+    return false
   }
-  let ok = true;
+  let ok = true
   const flags = [
-    "contractTesting",
-    "mutationTesting",
-    "securityScanning",
-    "evidenceHarness",
-    "debtGates",
-    "suppressions",
-  ] as const;
+    'contractTesting',
+    'mutationTesting',
+    'securityScanning',
+    'evidenceHarness',
+    'debtGates',
+    'suppressions',
+  ] as const
   for (const key of flags) {
-    if (typeof raw[key] !== "boolean") {
-      errors.push(`features.${key} must be a boolean`);
-      ok = false;
+    if (typeof raw[key] !== 'boolean') {
+      errors.push(`features.${key} must be a boolean`)
+      ok = false
     }
   }
   // selfValidationHarness is optional for forward-compat; validate only if present
-  if (
-    "selfValidationHarness" in raw &&
-    typeof raw["selfValidationHarness"] !== "boolean"
-  ) {
-    errors.push("features.selfValidationHarness must be a boolean");
-    ok = false;
+  if ('selfValidationHarness' in raw && typeof raw['selfValidationHarness'] !== 'boolean') {
+    errors.push('features.selfValidationHarness must be a boolean')
+    ok = false
   }
   // soloDevMode is optional; validate only if present
-  if ("soloDevMode" in raw && typeof raw["soloDevMode"] !== "boolean") {
-    errors.push("features.soloDevMode must be a boolean");
-    ok = false;
+  if ('soloDevMode' in raw && typeof raw['soloDevMode'] !== 'boolean') {
+    errors.push('features.soloDevMode must be a boolean')
+    ok = false
   }
-  return ok;
+  return ok
 }
 
 export function validateConfig(raw: unknown): ValidateResult {
   if (!isRecord(raw)) {
-    return { ok: false, errors: ["config must be a non-null object"] };
+    return { ok: false, errors: ['config must be a non-null object'] }
   }
 
-  const errors: string[] = [];
+  const errors: string[] = []
 
-  if (typeof raw["version"] !== "string") {
-    errors.push("version must be a string");
+  if (typeof raw['version'] !== 'string') {
+    errors.push('version must be a string')
   }
 
-  const level = raw["governanceLevel"];
-  if (typeof level !== "string" || !GOVERNANCE_LEVELS.has(level)) {
-    errors.push(
-      `governanceLevel must be one of L1, L2, L3 — got ${String(level)}`,
-    );
+  const level = raw['governanceLevel']
+  if (typeof level !== 'string' || !GOVERNANCE_LEVELS.has(level)) {
+    errors.push(`governanceLevel must be one of L1, L2, L3 — got ${String(level)}`)
   }
 
   if (
-    !Array.isArray(raw["tools"]) ||
-    (raw["tools"] as unknown[]).some((t) => !AI_TOOLS.has(t as string))
+    !Array.isArray(raw['tools']) ||
+    (raw['tools'] as unknown[]).some((t) => !AI_TOOLS.has(t as string))
   ) {
-    errors.push("tools must be an array of valid AI tools");
+    errors.push('tools must be an array of valid AI tools')
   }
 
-  if (typeof raw["useGitHub"] !== "boolean") {
-    errors.push("useGitHub must be a boolean");
+  if (typeof raw['useGitHub'] !== 'boolean') {
+    errors.push('useGitHub must be a boolean')
   }
 
-  validateFeatures(raw["features"], errors);
-  validateThresholds(raw["thresholds"], errors);
-  validateDecomposition(raw["decomposition"], errors);
-  validateLanes(raw["lanes"], errors);
-  validateTaskTiers(raw["taskTiers"], errors);
+  validateFeatures(raw['features'], errors)
+  validateThresholds(raw['thresholds'], errors)
+  validateDecomposition(raw['decomposition'], errors)
+  validateLanes(raw['lanes'], errors)
+  validateTaskTiers(raw['taskTiers'], errors)
 
   if (errors.length > 0) {
-    return { ok: false, errors };
+    return { ok: false, errors }
   }
 
-  const config = { ...raw } as unknown as ArbiterConfigV2;
-  return { ok: true, config };
+  const config = { ...raw } as unknown as ArbiterConfigV2
+  return { ok: true, config }
 }
 
-const DECOMPOSITION_BACKENDS = new Set(["github", "markdown"]);
-const VALID_LANES: ReadonlySet<string> = new Set([
-  "frontend",
-  "backend",
-  "docs",
-]);
+const DECOMPOSITION_BACKENDS = new Set(['github', 'markdown'])
+const VALID_LANES: ReadonlySet<string> = new Set(['frontend', 'backend', 'docs'])
 
 function validateLanes(raw: unknown, errors: string[]): void {
-  if (raw === undefined || raw === null) return;
+  if (raw === undefined || raw === null) return
   if (!Array.isArray(raw)) {
-    errors.push("lanes must be an array");
-    return;
+    errors.push('lanes must be an array')
+    return
   }
   for (const v of raw) {
     if (!VALID_LANES.has(v as string)) {
-      errors.push(`lanes contains invalid value: ${String(v)}`);
+      errors.push(`lanes contains invalid value: ${String(v)}`)
     }
   }
 }
 
-const VALID_PLAN_DEPTHS: ReadonlySet<string> = new Set([
-  "minimal",
-  "brief",
-  "full",
-]);
+const VALID_PLAN_DEPTHS: ReadonlySet<string> = new Set(['minimal', 'brief', 'full'])
 
-function validateOneTier(
-  tierName: "XS" | "S" | "Standard",
-  raw: unknown,
-  errors: string[],
-): void {
+function validateOneTier(tierName: 'XS' | 'S' | 'Standard', raw: unknown, errors: string[]): void {
   if (!isRecord(raw)) {
-    errors.push(`taskTiers.${tierName} must be an object`);
-    return;
+    errors.push(`taskTiers.${tierName} must be an object`)
+    return
   }
-  const planDepth = raw["planDepth"];
-  if (typeof planDepth !== "string" || !VALID_PLAN_DEPTHS.has(planDepth)) {
-    errors.push(
-      `taskTiers.${tierName}.planDepth must be one of minimal, brief, full`,
-    );
+  const planDepth = raw['planDepth']
+  if (typeof planDepth !== 'string' || !VALID_PLAN_DEPTHS.has(planDepth)) {
+    errors.push(`taskTiers.${tierName}.planDepth must be one of minimal, brief, full`)
   }
-  const count = raw["reviewAgentCount"];
-  if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
-    errors.push(
-      `taskTiers.${tierName}.reviewAgentCount must be a positive integer`,
-    );
+  const count = raw['reviewAgentCount']
+  if (typeof count !== 'number' || !Number.isInteger(count) || count <= 0) {
+    errors.push(`taskTiers.${tierName}.reviewAgentCount must be a positive integer`)
   }
 }
 
 function validateTaskTiers(raw: unknown, errors: string[]): void {
-  if (raw === undefined || raw === null) return;
+  if (raw === undefined || raw === null) return
   if (!isRecord(raw)) {
-    errors.push("taskTiers must be an object");
-    return;
+    errors.push('taskTiers must be an object')
+    return
   }
-  const required: ("XS" | "S" | "Standard")[] = ["XS", "S", "Standard"];
+  const required: ('XS' | 'S' | 'Standard')[] = ['XS', 'S', 'Standard']
   for (const tier of required) {
     if (!(tier in raw)) {
-      errors.push(`taskTiers.${tier} is required`);
-      continue;
+      errors.push(`taskTiers.${tier} is required`)
+      continue
     }
-    validateOneTier(tier, raw[tier], errors);
+    validateOneTier(tier, raw[tier], errors)
   }
 }
 
 function validateDecomposition(raw: unknown, errors: string[]): void {
-  if (raw === undefined || raw === null) return;
+  if (raw === undefined || raw === null) return
   if (!isRecord(raw)) {
-    errors.push("decomposition must be an object");
-    return;
+    errors.push('decomposition must be an object')
+    return
   }
-  const backend = raw["backend"];
+  const backend = raw['backend']
   if (backend !== undefined && !DECOMPOSITION_BACKENDS.has(backend as string)) {
     errors.push(
-      `decomposition.backend must be "github" or "markdown" — got ${typeof backend === "string" ? backend : JSON.stringify(backend)}`,
-    );
+      `decomposition.backend must be "github" or "markdown" — got ${typeof backend === 'string' ? backend : JSON.stringify(backend)}`,
+    )
   }
 }

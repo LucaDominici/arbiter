@@ -43,6 +43,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-04:** No `any` type in TypeScript — use `unknown` and narrow, or create proper types
 - **INV-05:** Cyclomatic complexity ≤ 15 (ESLint `complexity` rule)
 - **INV-06:** No unused exports (Knip dead code analysis, zero findings)
+- **INV-46:** Anti-bloat enforcement — Survey gate + duplication detector + LOC ratchet
 
 ### Tier 2: Data Integrity
 
@@ -50,6 +51,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-08:** Input validation at system boundaries
 - **INV-09:** Audit trail for mutable entities
 - **INV-10:** Soft delete preferred over hard delete
+- **INV-33:** L3 merges require valid evidence with obs_gate == PASS
 - **INV-34:** Integration tests must use real database (L2+)
 
 ### Tier 3: Security & Compliance
@@ -57,8 +59,8 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-11:** No secrets in source code
 - **INV-12:** No PII in code, tests, or logs
 - **INV-13:** Dependencies scanned for known vulnerabilities
-- **INV-14:** No dynamic code execution with untrusted input — no `eval`/`exec`/shell with user data
-- **INV-15:** Authentication required at every entry point — default-deny, explicit ADR to opt out
+- **INV-14:** No dynamic code execution with untrusted input
+- **INV-15:** Authentication required at every entry point
 
 ### Tier 4: Operational Excellence
 
@@ -68,13 +70,11 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-19:** Resilient external calls — circuit breaker or retry required
 - **INV-20:** Health and readiness endpoints required for deployed services
 - **INV-35:** Contract testing enforced when contractType is active
-- **INV-40:** BDD scenarios with `@ignore` tag are HARD-fail
+- **INV-40:** BDD scenarios with @ignore tag are HARD-fail
 - **INV-41:** Message-queue contract tests must call Schema Registry testCompatibility
-- **INV-42:** Pact broker glue must be env-gated — no silent runs against default URL
+- **INV-42:** Pact broker glue must be env-gated; no silent runs against default URL
 - **INV-43:** OpenAPI exporter must run before diff; missing reference is HARD-fail
-- **INV-44:** SpotBugs security-category bugs MUST NEVER be suppressed or baselined (Java) — hard-block list: SQL_INJECTION, XSS, COMMAND_INJECTION, XXE, LDAP_INJECTION, HARD_CODE_PASSWORD
-- **INV-29:** No MockMvc — use RestAssured for Java integration tests (Java)
-- **INV-30:** Mutation testing required — PIT/pitest for Java projects (L2+)
+- **INV-44:** SpotBugs security-category bugs MUST NEVER be suppressed or baselined (Java)
 
 ### Tier 5: Governance
 
@@ -84,30 +84,30 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-24:** Gate must pass before commit: `node scripts/check-all.mjs L1`
 - **INV-25:** Gate must pass before push: `node scripts/check-all.mjs L2`
 - **INV-26:** TDD mandatory — test first, then implement
-- **INV-31:** Suppressions (file-based AND inline arbiter-suppress directives) must have mandatory expiry, reason, and owner
+- **INV-27:** Evidence artifacts must be generated for all gate runs
+- **INV-28:** SSOT documents must not contradict — run drift check before merge
+- **INV-29:** No MockMvc — use RestAssured for integration tests (Java)
+- **INV-30:** Mutation testing required — PIT/pitest (Java, L2+)
+- **INV-31:** Suppressions must have mandatory expiry
 - **INV-32:** Every 'proven' language must have a nightly real-project fixture
 - **INV-36:** Hook hardness manifest — every hook must declare intent; HARD hooks must empirically block
 - **INV-37:** Generated githooks
 - **INV-38:** Phase-tracked lifecycle enforcement
-- **INV-39:** Hook templates require empirical fire-tests in `__tests__/hooks/empirical/`
-- **INV-27:** Evidence artifacts must be generated for all L3 gate runs (CI evidence collection step)
-- **INV-28:** SSOT documents must not contradict — run drift check before L3 merge
-- **INV-33:** L3 merges require valid evidence bundle with `obs_gate == PASS`
-- **INV-45:** Self-dogfood check — every `.ejs` template must render to match its materialized `.claude/` file (run `node scripts/check-self-dogfood.mjs` at L2)
-- **INV-46:** Anti-bloat enforcement — new `src/` files require a valid Existing Code Survey in the plan (`pre-edit-plan-anchor.mjs` hard-blocks, exit 2); L1: `check-bloat-ratchet.mjs` (file/LOC ceiling); L2: `jscpd` (duplication ≤5%); bypasses: `ARBITER_PLAN_BYPASS=1`, `ALLOW_BLOAT=1`
-- **INV-47:** Matrix proven cell requires gate invocation — every `proven` tool in `cross-language-matrix.json` must appear in `check-all.mjs.ejs`; pre-existing gaps tracked in `.matrix-proven-cells-exceptions.json` (`check-matrix-proven-cells.mjs` L1)
-- **INV-48:** EJS template render-test ratchet — count of untested EJS files must not exceed `.template-tests-baseline.txt`; run `check-template-tests.mjs --update-baseline` when adding tests (`check-template-tests.mjs` L1)
-- **INV-49:** Every `src/generators/*.ts` must have `__tests__/generators/<name>.test.ts` — untested generators silently emit wrong governance content (`check-generator-tests.mjs` L1)
-- **INV-50:** Every `src/commands/*.ts` must have at least one `__tests__/commands/<name>*.test.ts` — prefix-match covers split test files (e.g. `review-code.test.ts` covers `review.ts`) (`check-command-tests.mjs` L1)
-- **INV-51:** Catalog↔AGENTS.md parity — every INV-NN in `catalog.ts` must appear in `AGENTS.md` §Invariants; undocumented invariants are invisible governance (`check-catalog-agents-parity.mjs` L1)
-- **INV-52:** Enforcement scripts cited in catalog must be wired in `check-all.mjs` — claimed enforcement that is not wired is a false guarantee (`check-inv-enforcement-wired.mjs` L1)
-- **INV-53:** Exit-code universal contract — every Arbiter-emitted script must exit `0=PASS / 1=FAIL / 2=ERROR`; L1: `check-exit-code-contract.mjs` blocks any `process.exit(N)` where N ∉ {0,1,2}; L2: `self-validation.mjs` A/B/C drill proves each gate distinguishes all three codes
-- **INV-54:** SSOT core set integrity — every file listed in `docs/METHOD/SSOT_CORE_SET.md` must exist on disk; `scripts/check-ssot-core.mjs` exits 1 on missing entries (L1 gate, #255)
-- **INV-55:** Doc-links integrity — every local markdown link in `docs/` must resolve to an existing file; `scripts/check-doc-links.mjs` follows CANONICAL_PATHS redirects before failing (L1 gate, #255)
-- **INV-56:** Knowledge-map freshness — `**Lines:**` entries in `docs/METHOD/KNOWLEDGE_MAP.md` must not drift >30% from actual doc size; `scripts/check-knowledge-map.mjs` enforces this; run `knowledge-map-update.mjs` to refresh (L1 gate, #255)
-- **INV-57:** Canonical-paths integrity — every redirect target in `docs/METHOD/CANONICAL_PATHS.md` must exist on disk; `scripts/check-canonical-paths.mjs` exits 1 on dangling aliases (L1 gate, #255)
-- **INV-58:** Node version SSOT — `.nvmrc` is canonical; all CI workflows and EJS templates must use `node-version-file: '.nvmrc'` (no literal pins); `process.version` major must match `.nvmrc` major; `scripts/check-node-version-ssot.mjs` enforces (L1 gate, #470)
-- **INV-59:** Gate result parity — `check-all.mjs` emits `.arbiter/gate/local-result.json` (schema `arbiter-gate-v1`) with `parityContentHash` over 27 static L1 gates; CI gate-aggregation job emits same artifact; `scripts/check-local-ci-parity.mjs` compares hashes (L2 gate, #470)
+- **INV-39:** Hook templates require empirical fire-tests
+- **INV-45:** Self-dogfood check — every EJS template must render to match its materialized .claude/ file
+- **INV-47:** Matrix proven cell requires a gate invocation in check-all.mjs.ejs
+- **INV-48:** EJS template render-test coverage must not regress
+- **INV-49:** Every generator in src/generators/ must have a unit test
+- **INV-50:** Every command in src/commands/ must have a test
+- **INV-51:** Every catalog invariant must appear in AGENTS.md §Invariants
+- **INV-52:** Catalog enforcement script citations must be wired in check-all.mjs
+- **INV-53:** Exit-code universal contract — every Arbiter-emitted script exits 0=PASS / 1=FAIL / 2=ERROR
+- **INV-54:** SSOT core set integrity — all listed files must exist
+- **INV-55:** Doc-links integrity — all markdown links must resolve
+- **INV-56:** Knowledge-map freshness — line counts must not drift beyond tolerance
+- **INV-57:** Canonical-paths integrity — all redirect targets must exist
+- **INV-58:** Node version SSOT — .nvmrc is canonical; all CI jobs use node-version-file
+- **INV-59:** Gate result parity — local L1 static gates must produce the same pass/fail pattern as CI
 
 ---
 

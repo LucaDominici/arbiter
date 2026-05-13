@@ -1,218 +1,205 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import {
-  createTestProject,
-  initGit,
-  cleanupTestProject,
-  makeConfig,
-} from "../helpers.js";
-import { generateSuppressions } from "../../src/generators/suppressions.js";
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
+import { generateSuppressions } from '../../src/generators/suppressions.js'
 
 const EXPECTED_FILES = [
-  join("suppressions", "dependency-check-suppressions.xml"),
-  join("suppressions", ".gitleaksignore"),
-  join("suppressions", "pii-allowlist.json"),
-  join("suppressions", "archunit-baseline.json"),
-  join("suppressions", "suppressions-schema.json"),
-  join("scripts", "check-suppressions.mjs"),
-];
+  join('suppressions', 'dependency-check-suppressions.xml'),
+  join('suppressions', '.gitleaksignore'),
+  join('suppressions', 'pii-allowlist.json'),
+  join('suppressions', 'archunit-baseline.json'),
+  join('suppressions', 'suppressions-schema.json'),
+  join('scripts', 'check-suppressions.mjs'),
+]
 
-describe("generateSuppressions", () => {
-  let dir: string;
+describe('generateSuppressions', () => {
+  let dir: string
 
   beforeEach(() => {
-    dir = createTestProject("typescript");
-    initGit(dir);
-  });
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
 
   afterEach(() => {
-    cleanupTestProject(dir);
-  });
+    cleanupTestProject(dir)
+  })
 
-  it("emits check-inline-suppressions.mjs even when enableSuppressions is false (#242)", () => {
-    const config = makeConfig(dir, { enableSuppressions: false });
-    const result = generateSuppressions(config);
-    const paths = result.files.map((f) => f.path);
-    expect(paths.some((p) => p.endsWith("check-inline-suppressions.mjs"))).toBe(
-      true,
-    );
-  });
+  it('emits check-inline-suppressions.mjs even when enableSuppressions is false (#242)', () => {
+    const config = makeConfig(dir, { enableSuppressions: false })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('check-inline-suppressions.mjs'))).toBe(true)
+  })
 
-  it("emits check-inline-suppressions.mjs when enableSuppressions is true (#242)", () => {
-    const config = makeConfig(dir, { enableSuppressions: true });
-    const result = generateSuppressions(config);
-    const paths = result.files.map((f) => f.path);
-    expect(paths.some((p) => p.endsWith("check-inline-suppressions.mjs"))).toBe(
-      true,
-    );
-  });
+  it('emits check-inline-suppressions.mjs when enableSuppressions is true (#242)', () => {
+    const config = makeConfig(dir, { enableSuppressions: true })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('check-inline-suppressions.mjs'))).toBe(true)
+  })
 
-  it("returns only inline-suppressions script when enableSuppressions is false (#242)", () => {
-    const config = makeConfig(dir, { enableSuppressions: false });
-    expect(generateSuppressions(config).files).toHaveLength(1);
-  });
+  it('returns only inline-suppressions script when enableSuppressions is false (#242)', () => {
+    const config = makeConfig(dir, { enableSuppressions: false })
+    expect(generateSuppressions(config).files).toHaveLength(1)
+  })
 
-  it("generates 7 files when enableSuppressions is true (#242)", () => {
-    const config = makeConfig(dir, { enableSuppressions: true });
-    const result = generateSuppressions(config);
-    expect(result.files).toHaveLength(7);
-  });
+  it('generates 7 files when enableSuppressions is true (#242)', () => {
+    const config = makeConfig(dir, { enableSuppressions: true })
+    const result = generateSuppressions(config)
+    expect(result.files).toHaveLength(7)
+  })
 
   for (const relPath of EXPECTED_FILES) {
     it(`generates ${relPath}`, () => {
-      const config = makeConfig(dir, { enableSuppressions: true });
-      generateSuppressions(config);
-      expect(existsSync(join(dir, relPath))).toBe(true);
-    });
+      const config = makeConfig(dir, { enableSuppressions: true })
+      generateSuppressions(config)
+      expect(existsSync(join(dir, relPath))).toBe(true)
+    })
   }
 
-  for (const lang of ["typescript", "rust", "go", "python"] as const) {
+  for (const lang of ['typescript', 'rust', 'go', 'python'] as const) {
     it(`generates 7 files for ${lang}`, () => {
-      const loopDir = createTestProject(lang);
-      initGit(loopDir);
+      const loopDir = createTestProject(lang)
+      initGit(loopDir)
       try {
         const config = makeConfig(loopDir, {
           language: lang,
           enableSuppressions: true,
-        });
-        const result = generateSuppressions(config);
-        expect(result.files).toHaveLength(7);
+        })
+        const result = generateSuppressions(config)
+        expect(result.files).toHaveLength(7)
       } finally {
-        cleanupTestProject(loopDir);
+        cleanupTestProject(loopDir)
       }
-    });
+    })
   }
-});
+})
 
-describe("generateSuppressions — owasp + trivyignore (#208)", () => {
-  let dir: string;
+describe('generateSuppressions — owasp + trivyignore (#208)', () => {
+  let dir: string
 
   beforeEach(() => {
-    dir = createTestProject("java");
-    initGit(dir);
-  });
+    dir = createTestProject('java')
+    initGit(dir)
+  })
 
   afterEach(() => {
-    cleanupTestProject(dir);
-  });
+    cleanupTestProject(dir)
+  })
 
-  it("emits owasp-suppressions.xml + .trivyignore for Java L2", () => {
+  it('emits owasp-suppressions.xml + .trivyignore for Java L2', () => {
     const config = makeConfig(dir, {
-      language: "java",
-      governanceLevel: "L2",
+      language: 'java',
+      governanceLevel: 'L2',
       enableSuppressions: true,
-    });
-    const result = generateSuppressions(config);
-    const paths = result.files.map((f) => f.path);
-    expect(paths.some((p) => p.endsWith("owasp-suppressions.xml"))).toBe(true);
-    expect(paths.some((p) => p.endsWith(".trivyignore"))).toBe(true);
-  });
+    })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('.trivyignore'))).toBe(true)
+  })
 
-  it("emits owasp-suppressions.xml + .trivyignore for Kotlin L2", () => {
-    const kotlinDir = createTestProject("kotlin");
-    initGit(kotlinDir);
+  it('emits owasp-suppressions.xml + .trivyignore for Kotlin L2', () => {
+    const kotlinDir = createTestProject('kotlin')
+    initGit(kotlinDir)
     try {
       const config = makeConfig(kotlinDir, {
-        language: "kotlin",
-        governanceLevel: "L2",
+        language: 'kotlin',
+        governanceLevel: 'L2',
         enableSuppressions: true,
-      });
-      const result = generateSuppressions(config);
-      const paths = result.files.map((f) => f.path);
-      expect(paths.some((p) => p.endsWith("owasp-suppressions.xml"))).toBe(
-        true,
-      );
-      expect(paths.some((p) => p.endsWith(".trivyignore"))).toBe(true);
+      })
+      const result = generateSuppressions(config)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(true)
+      expect(paths.some((p) => p.endsWith('.trivyignore'))).toBe(true)
     } finally {
-      cleanupTestProject(kotlinDir);
+      cleanupTestProject(kotlinDir)
     }
-  });
+  })
 
-  it("does NOT emit owasp-suppressions.xml for TypeScript L2", () => {
-    const tsDir = createTestProject("typescript");
-    initGit(tsDir);
+  it('does NOT emit owasp-suppressions.xml for TypeScript L2', () => {
+    const tsDir = createTestProject('typescript')
+    initGit(tsDir)
     try {
       const config = makeConfig(tsDir, {
-        language: "typescript",
-        governanceLevel: "L2",
+        language: 'typescript',
+        governanceLevel: 'L2',
         enableSuppressions: true,
-      });
-      const result = generateSuppressions(config);
-      const paths = result.files.map((f) => f.path);
-      expect(paths.some((p) => p.endsWith("owasp-suppressions.xml"))).toBe(
-        false,
-      );
+      })
+      const result = generateSuppressions(config)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(false)
     } finally {
-      cleanupTestProject(tsDir);
+      cleanupTestProject(tsDir)
     }
-  });
+  })
 
-  it("does NOT emit .trivyignore for TypeScript L2", () => {
-    const tsDir = createTestProject("typescript");
-    initGit(tsDir);
+  it('does NOT emit .trivyignore for TypeScript L2', () => {
+    const tsDir = createTestProject('typescript')
+    initGit(tsDir)
     try {
       const config = makeConfig(tsDir, {
-        language: "typescript",
-        governanceLevel: "L2",
+        language: 'typescript',
+        governanceLevel: 'L2',
         enableSuppressions: true,
-      });
-      const result = generateSuppressions(config);
-      const paths = result.files.map((f) => f.path);
-      expect(paths.some((p) => p.endsWith(".trivyignore"))).toBe(false);
+      })
+      const result = generateSuppressions(config)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('.trivyignore'))).toBe(false)
     } finally {
-      cleanupTestProject(tsDir);
+      cleanupTestProject(tsDir)
     }
-  });
+  })
 
-  it("does NOT emit owasp-suppressions.xml at L1 for Java", () => {
+  it('does NOT emit owasp-suppressions.xml at L1 for Java', () => {
     const config = makeConfig(dir, {
-      language: "java",
-      governanceLevel: "L1",
+      language: 'java',
+      governanceLevel: 'L1',
       enableSuppressions: true,
-    });
-    const result = generateSuppressions(config);
-    const paths = result.files.map((f) => f.path);
-    expect(paths.some((p) => p.endsWith("owasp-suppressions.xml"))).toBe(false);
-  });
+    })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('owasp-suppressions.xml'))).toBe(false)
+  })
 
-  it("total files = 9 for Java L2 with enableSuppressions", () => {
+  it('total files = 9 for Java L2 with enableSuppressions', () => {
     const config = makeConfig(dir, {
-      language: "java",
-      governanceLevel: "L2",
+      language: 'java',
+      governanceLevel: 'L2',
       enableSuppressions: true,
-    });
-    const result = generateSuppressions(config);
-    expect(result.files).toHaveLength(9);
-  });
+    })
+    const result = generateSuppressions(config)
+    expect(result.files).toHaveLength(9)
+  })
 
-  it("skipIfExists on owasp-suppressions.xml (CANON-11)", () => {
-    const suppressionsDir = join(dir, "suppressions");
-    mkdirSync(suppressionsDir, { recursive: true });
-    const target = join(suppressionsDir, "owasp-suppressions.xml");
-    writeFileSync(target, "PREEXISTING");
+  it('skipIfExists on owasp-suppressions.xml (CANON-11)', () => {
+    const suppressionsDir = join(dir, 'suppressions')
+    mkdirSync(suppressionsDir, { recursive: true })
+    const target = join(suppressionsDir, 'owasp-suppressions.xml')
+    writeFileSync(target, 'PREEXISTING')
     generateSuppressions(
       makeConfig(dir, {
-        language: "java",
-        governanceLevel: "L2",
+        language: 'java',
+        governanceLevel: 'L2',
         enableSuppressions: true,
       }),
-    );
-    expect(readFileSync(target, "utf8")).toBe("PREEXISTING");
-  });
+    )
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
 
-  it("skipIfExists on .trivyignore (CANON-11)", () => {
-    const suppressionsDir = join(dir, "suppressions");
-    mkdirSync(suppressionsDir, { recursive: true });
-    const target = join(suppressionsDir, ".trivyignore");
-    writeFileSync(target, "PREEXISTING");
+  it('skipIfExists on .trivyignore (CANON-11)', () => {
+    const suppressionsDir = join(dir, 'suppressions')
+    mkdirSync(suppressionsDir, { recursive: true })
+    const target = join(suppressionsDir, '.trivyignore')
+    writeFileSync(target, 'PREEXISTING')
     generateSuppressions(
       makeConfig(dir, {
-        language: "java",
-        governanceLevel: "L2",
+        language: 'java',
+        governanceLevel: 'L2',
         enableSuppressions: true,
       }),
-    );
-    expect(readFileSync(target, "utf8")).toBe("PREEXISTING");
-  });
-});
+    )
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+})

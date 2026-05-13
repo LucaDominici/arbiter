@@ -1,10 +1,10 @@
-import { renderTemplate } from "../utils/render.js";
-import { writeFile, resolvedPath } from "../utils/fs.js";
-import type { ProjectConfig } from "../wizard/types.js";
-import type { WriteResult } from "../utils/fs.js";
+import { renderTemplate } from '../utils/render.js'
+import { writeFile, resolvedPath } from '../utils/fs.js'
+import type { ProjectConfig } from '../wizard/types.js'
+import type { WriteResult } from '../utils/fs.js'
 
 export interface ArchUnitGeneratorResult {
-  files: WriteResult[];
+  files: WriteResult[]
 }
 
 function emitHexagonalSuite(
@@ -14,156 +14,113 @@ function emitHexagonalSuite(
   packagePath: string,
   data: Record<string, unknown>,
 ): WriteResult[] {
-  const files: WriteResult[] = [];
+  const files: WriteResult[] = []
 
   for (const name of [
-    "DomainPurityTest.java",
-    "DependencyFlowTest.java",
-    "PortsIndependenceTest.java",
-    "TestCoverageArchTest.java",
-    "NamingConventionsTest.java",
-    "AntiCyclicTest.java",
-    "NoH2ArchTest.java",
+    'DomainPurityTest.java',
+    'DependencyFlowTest.java',
+    'PortsIndependenceTest.java',
+    'TestCoverageArchTest.java',
+    'NamingConventionsTest.java',
+    'AntiCyclicTest.java',
+    'NoH2ArchTest.java',
   ] as const) {
     files.push(
       writeFile(
-        resolvedPath(base, "src", "test", "java", packagePath, name),
+        resolvedPath(base, 'src', 'test', 'java', packagePath, name),
         renderTemplate(`archunit/${name}.ejs`, data),
         { skipIfExists: true },
       ),
-    );
+    )
   }
 
   if (config.hasDatabase && config.hasPublicApi) {
-    const supportPath = basePackage.replace(/\./g, "/") + "/support";
+    const supportPath = basePackage.replace(/\./g, '/') + '/support'
 
     files.push(
       writeFile(
-        resolvedPath(
-          base,
-          "src",
-          "test",
-          "java",
-          supportPath,
-          "RestAssuredBaseIT.java",
-        ),
-        renderTemplate("archunit/RestAssuredBaseIT.java.ejs", data),
+        resolvedPath(base, 'src', 'test', 'java', supportPath, 'RestAssuredBaseIT.java'),
+        renderTemplate('archunit/RestAssuredBaseIT.java.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
 
     files.push(
       writeFile(
-        resolvedPath(
-          base,
-          "src",
-          "test",
-          "java",
-          packagePath,
-          "RestAssuredArchTest.java",
-        ),
-        renderTemplate("archunit/RestAssuredArchTest.java.ejs", data),
+        resolvedPath(base, 'src', 'test', 'java', packagePath, 'RestAssuredArchTest.java'),
+        renderTemplate('archunit/RestAssuredArchTest.java.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
   }
 
-  if (config.buildTool === "gradle") {
+  if (config.buildTool === 'gradle') {
     files.push(
       writeFile(
-        resolvedPath(base, "gradle", "arch-test-deps.gradle"),
-        renderTemplate("archunit/arch-test-deps.gradle.ejs", data),
+        resolvedPath(base, 'gradle', 'arch-test-deps.gradle'),
+        renderTemplate('archunit/arch-test-deps.gradle.ejs', data),
         { skipIfExists: true },
       ),
-    );
-  } else if (config.buildTool === "maven") {
+    )
+  } else if (config.buildTool === 'maven') {
     files.push(
       writeFile(
-        resolvedPath(base, "docs", "arch-test-deps-maven.md"),
-        renderTemplate("archunit/arch-test-deps-maven.md.ejs", data),
+        resolvedPath(base, 'docs', 'arch-test-deps-maven.md'),
+        renderTemplate('archunit/arch-test-deps-maven.md.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
   }
 
-  return files;
+  return files
 }
 
-const KNOWN_STYLES = new Set([
-  "hexagonal",
-  "layered",
-  "modular-monolith",
-  "none",
-]);
+const KNOWN_STYLES = new Set(['hexagonal', 'layered', 'modular-monolith', 'none'])
 
-export function generateArchUnit(
-  config: ProjectConfig,
-): ArchUnitGeneratorResult {
-  if (config.language !== "java") return { files: [] };
+export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult {
+  if (config.language !== 'java') return { files: [] }
 
   if (!KNOWN_STYLES.has(config.architectureStyle)) {
     throw new Error(
       `archunit: unknown architectureStyle '${config.architectureStyle}'. Choose: hexagonal, layered, modular-monolith, or none.`,
-    );
+    )
   }
 
-  const base = config.targetDir;
-  const data = config as unknown as Record<string, unknown>;
+  const base = config.targetDir
+  const data = config as unknown as Record<string, unknown>
 
   const packagePath = config.basePackage
-    ? config.basePackage.replace(/\./g, "/") + "/architecture"
-    : "architecture";
+    ? config.basePackage.replace(/\./g, '/') + '/architecture'
+    : 'architecture'
 
-  const files: WriteResult[] = [];
+  const files: WriteResult[] = []
 
   // INV-29: NoMockMvc rule — always emitted for Java (test-quality rule, not architecture-style)
   files.push(
     writeFile(
-      resolvedPath(
-        base,
-        "src",
-        "test",
-        "java",
-        packagePath,
-        "NoMockMvcTest.java",
-      ),
-      renderTemplate("archunit/NoMockMvcTest.java.ejs", data),
+      resolvedPath(base, 'src', 'test', 'java', packagePath, 'NoMockMvcTest.java'),
+      renderTemplate('archunit/NoMockMvcTest.java.ejs', data),
       { skipIfExists: true },
     ),
-  );
+  )
 
   // Architecture style rules — only when user explicitly chose a style (ADR-021 gate rule)
-  if (config.architectureStyle !== "none") {
+  if (config.architectureStyle !== 'none') {
     files.push(
       writeFile(
-        resolvedPath(
-          base,
-          "src",
-          "test",
-          "java",
-          packagePath,
-          "ArchitectureTest.java",
-        ),
-        renderTemplate("archunit/ArchitectureTest.java.ejs", data),
+        resolvedPath(base, 'src', 'test', 'java', packagePath, 'ArchitectureTest.java'),
+        renderTemplate('archunit/ArchitectureTest.java.ejs', data),
         { skipIfExists: true },
       ),
-    );
+    )
   }
 
   // M22: Hexagonal suite — requires hexagonal style AND basePackage.
   // basePackage is mandatory to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath.
   // layered/modular-monolith suites are deferred; only ArchitectureTest.java is emitted for those styles.
-  if (config.architectureStyle === "hexagonal" && config.basePackage) {
-    files.push(
-      ...emitHexagonalSuite(
-        config,
-        config.basePackage,
-        base,
-        packagePath,
-        data,
-      ),
-    );
+  if (config.architectureStyle === 'hexagonal' && config.basePackage) {
+    files.push(...emitHexagonalSuite(config, config.basePackage, base, packagePath, data))
   }
 
-  return { files };
+  return { files }
 }

@@ -5,32 +5,26 @@
  * once all open issues carry canon labels.
  */
 
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 
-const canonPath = resolve("docs/SYSTEM/CANON.md");
-const content = readFileSync(canonPath, "utf8");
+const canonPath = resolve('docs/SYSTEM/CANON.md')
+const content = readFileSync(canonPath, 'utf8')
 
-const definedIds = new Set(
-  [...content.matchAll(/^## (CANON-\d+)/gm)].map((m) => m[1]),
-);
+const definedIds = new Set([...content.matchAll(/^## (CANON-\d+)/gm)].map((m) => m[1]))
 
-const referencedIds = new Set(
-  [...content.matchAll(/CANON-(\d+)/g)].map((m) => `CANON-${m[1]}`),
-);
+const referencedIds = new Set([...content.matchAll(/CANON-(\d+)/g)].map((m) => `CANON-${m[1]}`))
 
-const undefinedRefs = [...referencedIds].filter((id) => !definedIds.has(id));
+const undefinedRefs = [...referencedIds].filter((id) => !definedIds.has(id))
 
 if (undefinedRefs.length > 0) {
   console.warn(
-    `[check-canon-references] WARNING: referenced but undefined CANON IDs: ${undefinedRefs.join(", ")}`,
-  );
-  console.warn(
-    "[check-canon-references] Add missing entries to docs/SYSTEM/CANON.md",
-  );
-  process.exit(0); // warn-only; change to process.exit(1) when promoted to gate
+    `[check-canon-references] WARNING: referenced but undefined CANON IDs: ${undefinedRefs.join(', ')}`,
+  )
+  console.warn('[check-canon-references] Add missing entries to docs/SYSTEM/CANON.md')
+  process.exit(0) // warn-only; change to process.exit(1) when promoted to gate
 }
 
 console.log(
   `[check-canon-references] OK — ${definedIds.size} CANON entries defined, all cross-references valid`,
-);
+)

@@ -66,6 +66,14 @@ Dead code is a maintenance liability — it misleads readers, bloats binaries, a
 
 ---
 
+### INV-46: Anti-bloat enforcement — Survey gate + duplication detector + LOC ratchet
+
+Before any new file is written under src/, a valid Existing Code Survey block must exist in the active plan (Target anchor, Decision keyword, ≥3 evidence rows, ≥200-char Rationale). The pre-edit hook hard-blocks (exit 2) any Write that lacks the survey. L2: jscpd detects code duplication above 5% threshold. L1: check-bloat-ratchet.mjs enforces file-count and LOC ceilings per src/ bucket (default +10%/+5 files; src/templates tighter at +5%/+3 files). Bypass surfaces: ARBITER_PLAN_BYPASS=1 (Survey gate) and ALLOW_BLOAT=1 (ratchet), both session-scoped and documented in CONTRIBUTING.md.
+
+**Enforcement:** .claude/hooks/pre-edit-plan-anchor.mjs (CANON-16 Survey gate, exit 2) + scripts/check-bloat-ratchet.mjs (L1 ratchet) + npx jscpd (L2 duplication, see .jscpd.json)
+
+---
+
 ## Tier 2: Data Integrity
 
 ### INV-07: Schema changes via versioned migrations only — no manual DDL
@@ -204,6 +212,38 @@ When contractType !== 'none', contract tests must run in CI at L2+ and are a HAR
 
 ---
 
+### INV-40: BDD scenarios with @ignore tag are HARD-fail
+
+Generated check-all.mjs must scan feature files for the @ignore tag before running BDD scenarios. Any @ignore-tagged scenario causes the gate to exit non-zero immediately (soft: false), regardless of grace period. Ignored scenarios are dead specs — they silently pass and give false confidence about coverage.
+
+**Enforcement:** src/templates/scripts/check-all.mjs.ejs (@ignore grep block, soft: false) + src/templates/behavioral-tests/bdd/example.feature.ejs (no @ignore in shipped example)
+
+---
+
+### INV-41: Message-queue contract tests must call Schema Registry testCompatibility
+
+Schema Registry contract tests must invoke testCompatibility() against the registered schema, not merely check reachability (HTTP-200 on /subjects). The compatibility level must be BACKWARD or FULL. A test that only GETs /subjects is not a contract test — it is a health check.
+
+**Enforcement:** src/templates/contract-testing/message-queue/schema-registry-check.ts.ejs + src/templates/contract-testing/message-queue/SchemaRegistryCheckIT.java.ejs + src/templates/contract-testing/message-queue/schema_registry_test.go.ejs + src/templates/contract-testing/message-queue/test_schema_registry.py.ejs + src/templates/contract-testing/message-queue/schema_registry_test.rs.ejs
+
+---
+
+### INV-42: Pact broker glue must be env-gated; no silent runs against default URL
+
+Generated Pact contract gates in check-all.mjs and CI workflows must be wrapped in a PACT_BROKER_BASE_URL environment check. When the variable is unset the step skips with a visible log line. When set, PACT_BROKER_TOKEN is forwarded to the Gradle/Maven/npx process as a system property or env var. No hardcoded broker URL is permitted.
+
+**Enforcement:** src/templates/scripts/check-all.mjs.ejs (env-gate block around Pact runCheck calls) + src/templates/github/workflows/ci.yml.ejs (if: vars.PACT_BROKER_BASE_URL != '' + env: block) + src/templates/contract-testing/rest-owned/pact-deps.gradle.ejs (conditional system props)
+
+---
+
+### INV-43: OpenAPI exporter must run before diff; missing reference is HARD-fail
+
+Generated OpenAPI diff tests must not silently skip when spec files are missing. If contracts/openapi-current.yaml is absent, the test fails HARD (exporter was not run). If contracts/openapi-reference.yaml is absent, the test fails HARD unless ALLOW_OPENAPI_BOOTSTRAP=1 is set (first-run escape hatch). A test that silently passes with missing files is not a contract test — it is dead code.
+
+**Enforcement:** src/templates/contract-testing/rest-public/openapi-diff.ts.ejs + src/templates/contract-testing/rest-public/OpenApiDiffIT.java.ejs + src/templates/contract-testing/rest-public/openapi_diff_test.go.ejs + src/templates/contract-testing/rest-public/test_openapi_diff.py.ejs + src/templates/contract-testing/rest-public/openapi_diff_test.rs.ejs
+
+---
+
 ## Tier 5: Governance
 
 ### INV-21: Every TODO comment must reference a task ID: `TODO(#NNN)`
@@ -258,9 +298,9 @@ Test-driven development forces explicit design thinking before coding and produc
 
 ### INV-31: Suppressions must have mandatory expiry
 
-Every suppression entry in dependency-check-suppressions.xml, .gitleaksignore, pii-allowlist.json, and archunit-baseline.json must carry four mandatory metadata fields: reason (≥10 chars), owner (@github-handle), expiresAt (ISO date), and scope. Entries with a past expiresAt block the L1 gate. There are no permanent suppressions — waivers must be renewed or removed when the underlying issue is resolved.
+Every suppression entry — both file-based (dependency-check-suppressions.xml, .gitleaksignore, pii-allowlist.json, archunit-baseline.json) and inline comment directives (arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason=..., owner=@handle)) — must carry mandatory metadata: reason (≥10 chars), owner (@github-handle), and expiresAt/until (ISO date). Entries with a past expiry block the L1 gate. There are no permanent suppressions — waivers must be renewed or removed when the underlying issue is resolved.
 
-**Enforcement:** CI gate (scripts/check-suppressions.mjs — L1) + pre-commit hook
+**Enforcement:** CI gate (scripts/check-suppressions.mjs + scripts/check-inline-suppressions.mjs — L1) + pre-commit hook
 
 ---
 
@@ -290,8 +330,128 @@ generateGithooks emits executable .githooks/{pre-commit,pre-push,commit-msg} for
 
 ### INV-38: Phase-tracked lifecycle enforcement
 
-Task lifecycle phase transitions are validated mechanically: completion guard exits 2 on premature claim (returns stderr to Claude as error context), pre-commit blocks commits during preflight/plan phases, and arbiter task advance validates forward-only transitions with audit log.
+Task lifecycle phase transitions are validated mechanically: completion guard exits 2 on premature claim (returns stderr to Claude as error context), pre-commit blocks commits during preflight/plan phases, and arbiter task advance validates forward-only transitions with audit log. Evidence guard (guard-done-evidence.mjs.ejs) additionally blocks done claims until SHA-pinned evidence (.claude/.last-done-evidence.json) is present, all_green, and SHAs match current tree. Evidence is captured by running node scripts/done-evidence.mjs (runs L2 gate + pins source SHAs).
 
-**Enforcement:** src/templates/claude/hooks/guard-task-completion.mjs.ejs (exit 2) + src/templates/githooks/pre-commit.ejs (phase guard) + src/commands/task.ts (advance validator)
+**Enforcement:** src/templates/claude/hooks/guard-task-completion.mjs.ejs (exit 2) + src/templates/claude/hooks/guard-done-evidence.mjs.ejs (exit 2, SHA-pin validation) + src/templates/scripts/done-evidence.mjs.ejs (evidence capture CLI) + src/templates/githooks/pre-commit.ejs (phase guard) + src/commands/task.ts (advance validator)
+
+---
+
+### INV-39: Hook templates require empirical fire-tests
+
+Every Claude Code hook template in src/templates/claude/hooks/ must have at least one empirical fire-test in **tests**/hooks/empirical/. Adding a hook template without a corresponding test is a gate violation.
+
+**Enforcement:** **tests**/hooks/empirical/hook-fires.test.ts (22 tests covering all 14 hook templates)
+
+---
+
+### INV-45: Self-dogfood check — every EJS template must render to match its materialized .claude/ file
+
+Every EJS template under src/templates/claude/ must render (with arbiter's own config) to content that matches the corresponding materialized .claude/ file. Files listed in .dogfood-divergences.json are explicitly exempted (intentional arbiter-internal extensions not appropriate for target projects). Config-gated templates are skipped when the relevant feature flag is disabled in arbiter.json. This invariant prevents arbiter from shipping stale template skeletons that diverge from its own governance without an explicit documented reason.
+
+**Enforcement:** scripts/check-self-dogfood.mjs (L2 gate check) — exits 1 on unexpected drift
+
+---
+
+### INV-47: Matrix proven cell requires a gate invocation in check-all.mjs.ejs
+
+Every tool cell marked 'proven' in src/compatibility/cross-language-matrix.json must produce a concrete invocation step in src/templates/scripts/check-all.mjs.ejs at the correct gate level (L1, L2, or L3). Pre-existing gaps (e.g. mutation testing) are tracked in .matrix-proven-cells-exceptions.json with TODO references to the wiring issue.
+
+**Enforcement:** scripts/check-matrix-proven-cells.mjs (L1 gate)
+
+---
+
+### INV-48: EJS template render-test coverage must not regress
+
+Every template file under src/templates/ should be asserted by at least one test in **tests**/templates/ that renders the template and checks concrete output strings. Enforced via ratchet: the count of untested EJS files must not exceed the committed baseline (.template-tests-baseline.txt). Run with --update-baseline when adding tests.
+
+**Enforcement:** scripts/check-template-tests.mjs (L1 ratchet gate)
+
+---
+
+### INV-49: Every generator in src/generators/ must have a unit test
+
+Every file under src/generators/ requires a corresponding **tests**/generators/\*.test.ts covering the happy path, idempotency, and at least one negative case. Untested generators can silently emit wrong governance content into target projects.
+
+**Enforcement:** scripts/check-generator-tests.mjs (L1 gate)
+
+---
+
+### INV-50: Every command in src/commands/ must have a test
+
+Every file under src/commands/ requires at least one corresponding **tests**/commands/\*.test.ts (prefix-match: review.ts is covered by review-code.test.ts). CLI commands are the user entry point; untested commands cannot be refactored safely.
+
+**Enforcement:** scripts/check-command-tests.mjs (L1 gate)
+
+---
+
+### INV-51: Every catalog invariant must appear in AGENTS.md §Invariants
+
+Every invariant in src/invariants/catalog.ts must have a matching entry in AGENTS.md §Invariants. AGENTS.md is the canonical governance document read by all AI agents and new contributors. Invariants that exist only in code are invisible to the governance layer.
+
+**Enforcement:** scripts/check-catalog-agents-parity.mjs (L1 gate)
+
+---
+
+### INV-52: Catalog enforcement script citations must be wired in check-all.mjs
+
+If the enforcement field of a catalog invariant references a scripts/\*.mjs file, that script must be called in scripts/check-all.mjs. Claimed enforcement that is not wired is a false guarantee — callers of the gate will believe it checks something it does not.
+
+**Enforcement:** scripts/check-inv-enforcement-wired.mjs (L1 gate)
+
+---
+
+### INV-53: Exit-code universal contract — every Arbiter-emitted script exits 0=PASS / 1=FAIL / 2=ERROR
+
+Every script emitted by Arbiter (scripts/_.mjs, src/templates/scripts/_.ejs) must use exactly three exit codes: 0=PASS, 1=FAIL, 2=ERROR. That is: 0 for success, 1 for detected failure, 2 for invocation error (bad arguments, missing required inputs, environment not ready). Any other exit code is a violation. This contract makes every gate composable: callers can distinguish a clean run (0), a caught violation (1), and an unconfigured/broken environment (2) without parsing output. Enforced by scripts/check-exit-code-contract.mjs (L1 gate) which scans all emitted scripts and fails on any process.exit(N) where N ∉ {0, 1, 2}. The self-validation drill (scripts/self-validation.mjs, L2) proves the contract holds by running each gate against clean, drift, and error fixtures and asserting the expected exit.
+
+**Enforcement:** scripts/check-exit-code-contract.mjs (L1 gate) — exits 1 on violation; scripts/self-validation.mjs (L2 A/B/C drill) — exits 1 if any gate fails its proof
+
+---
+
+### INV-54: SSOT core set integrity — all listed files must exist
+
+Every file listed in docs/METHOD/SSOT_CORE_SET.md must exist on disk. The gate exits 1 if any listed file is missing. Bootstrap mode: if SSOT_CORE_SET.md itself is absent, the gate exits 0 and skips.
+
+**Enforcement:** scripts/check-ssot-core.mjs (L1 gate, #255)
+
+---
+
+### INV-55: Doc-links integrity — all markdown links must resolve
+
+Every local markdown link in docs/ must resolve to an existing file. Before failing, the gate checks CANONICAL_PATHS.md for a redirect alias. Links in .docs-links-ignore are exempt. Bootstrap mode: if no docs/ files are found, the gate exits 0.
+
+**Enforcement:** scripts/check-doc-links.mjs (L1 gate, #255)
+
+---
+
+### INV-56: Knowledge-map freshness — line counts must not drift beyond tolerance
+
+Every **Lines:** entry in docs/METHOD/KNOWLEDGE_MAP.md must match the actual line count of the referenced document within ±30% tolerance. Lines: 0 entries are skipped (not yet populated). Missing referenced files are skipped. Run knowledge-map-update.mjs to refresh counts.
+
+**Enforcement:** scripts/check-knowledge-map.mjs (L1 gate, #255)
+
+---
+
+### INV-57: Canonical-paths integrity — all redirect targets must exist
+
+Every redirect target in docs/METHOD/CANONICAL_PATHS.md must exist on disk. A dangling alias (target missing) causes the gate to exit 1. Bootstrap mode: if CANONICAL_PATHS.md is absent, the gate exits 0.
+
+**Enforcement:** scripts/check-canonical-paths.mjs (L1 gate, #255)
+
+---
+
+### INV-58: Node version SSOT — .nvmrc is canonical; all CI jobs use node-version-file
+
+.nvmrc at the repo root is the single source of truth for the Node.js version. All GitHub Actions workflows must use `node-version-file: '.nvmrc'` — never a literal version pin. The same applies to all EJS templates that emit CI workflows. process.version major at runtime must match .nvmrc major. Enforced by scripts/check-node-version-ssot.mjs (L1 gate, #470).
+
+**Enforcement:** scripts/check-node-version-ssot.mjs (L1 gate, #470)
+
+---
+
+### INV-59: Gate result parity — local L1 static gates must produce the same pass/fail pattern as CI
+
+check-all.mjs emits a gate result JSON to .arbiter/gate/local-result.json on every run (schema: arbiter-gate-v1). The parityContentHash field is a sha256 of the static L1 gate subset (27 gates, sorted by name; excludes commitlint, docs, unit tests which differ structurally between local and CI environments). The CI gate-aggregation job runs check-all.mjs L1 --json gate-result.json and uploads it as an artifact named gate-result. scripts/check-local-ci-parity.mjs (L2 gate) downloads the latest CI artifact via gh CLI and compares parityContentHash. A mismatch means local and CI disagree on a static check — a prerequisite violation for features.soloDevMode (#470). Skip (exit 0) when gh CLI is unavailable or no CI artifact exists.
+
+**Enforcement:** scripts/check-local-ci-parity.mjs (L2 gate, #470) — exits 1 on hash mismatch; scripts/check-all.mjs --json flag emits the artifact that check-local-ci-parity.mjs reads
 
 ---

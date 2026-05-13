@@ -1,6 +1,6 @@
 name: Task Brief
 description: Implementation task for AI-assisted development
-labels: ["task"]
+labels: ['task']
 body:
   - type: textarea
     id: objective
@@ -33,17 +33,17 @@ body:
     id: canon
     attributes:
       label: Applicable CANON-NN IDs
-      description: "Which canon rules gate this implementation? See docs/SYSTEM/CANON.md. Leave blank if none."
-      placeholder: "e.g. CANON-05, CANON-11"
+      description: 'Which canon rules gate this implementation? See docs/SYSTEM/CANON.md. Leave blank if none.'
+      placeholder: 'e.g. CANON-05, CANON-11'
 
   - type: dropdown
     id: size
     attributes:
       label: Estimated size
       options:
-        - "XS (< 30 min)"
-        - "S (30 min — 2 hours)"
-        - "M (2 — 8 hours)"
-        - "L (1 — 3 days)"
+        - 'XS (< 30 min)'
+        - 'S (30 min — 2 hours)'
+        - 'M (2 — 8 hours)'
+        - 'L (1 — 3 days)'
     validations:
       required: true

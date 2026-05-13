@@ -12,7 +12,7 @@
  */
 
 function isRecord(val: unknown): val is Record<string, unknown> {
-  return typeof val === "object" && val !== null && !Array.isArray(val);
+  return typeof val === 'object' && val !== null && !Array.isArray(val)
 }
 
 /**
@@ -22,7 +22,7 @@ function isRecord(val: unknown): val is Record<string, unknown> {
  */
 export function migrateV0ToV1(raw: unknown): Record<string, unknown> {
   if (!isRecord(raw)) {
-    throw new Error("arbiter.json must be a non-null object");
+    throw new Error('arbiter.json must be a non-null object')
   }
-  return { ...raw, version: "0.1" };
+  return { ...raw, version: '0.1' }
 }

@@ -16,12 +16,12 @@ export const TIER_PASS_COUNT = {
   XS: 1,
   S: 3,
   Standard: 5,
-} as const;
+} as const
 
 export const TIER_REVIEWER_COUNT = {
   XS: 3,
   S: 3,
   Standard: 5,
-} as const;
+} as const
 
-export type ReviewTier = keyof typeof TIER_PASS_COUNT;
+export type ReviewTier = keyof typeof TIER_PASS_COUNT

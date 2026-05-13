@@ -1,10 +1,10 @@
-"use strict";
+'use strict'
 
 module.exports = {
-  name: "bad-apiversion-plugin",
-  apiVersion: "2",
+  name: 'bad-apiversion-plugin',
+  apiVersion: '2',
   templateRoot: __dirname,
   generate() {
-    return { files: [] };
+    return { files: [] }
   },
-};
+}

@@ -55,7 +55,7 @@ Named exports make imports explicit and easier to refactor. They also work corre
 - **`import type`** — use `import type { Foo }` for type-only imports. This is enforced by eslint's `@typescript-eslint/consistent-type-imports` rule.
 - **`.js` extension in imports** — Node ESM requires the `.js` extension even when the source is `.ts`. Always write:
   ```typescript
-  import { writeFile } from "../utils/fs.js";
+  import { writeFile } from '../utils/fs.js'
   ```
 
 ---
@@ -67,15 +67,15 @@ Arbiter is a CLI tool. Errors fall into two categories:
 **Fatal errors** (cannot continue): print to `stderr` and exit with code 1.
 
 ```typescript
-console.error(`[arbiter] Fatal: ${message}`);
-process.exit(1);
+console.error(`[arbiter] Fatal: ${message}`)
+process.exit(1)
 ```
 
 **Non-fatal errors** (operation can be skipped): catch and log a warning, continue.
 
 ```typescript
 try {
-  fs.chmodSync(scriptPath, 0o755);
+  fs.chmodSync(scriptPath, 0o755)
 } catch {
   // chmod can fail on some filesystems (e.g., Windows NTFS via WSL)
   // The file is still usable; skip silently.

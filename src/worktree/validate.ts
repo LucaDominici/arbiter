@@ -1,15 +1,15 @@
-import { existsSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { runCli, CliError } from "../utils/run-cli.js";
+import { existsSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { runCli, CliError } from '../utils/run-cli.js'
 
 /**
  * Returns true when `gitRoot/.git` is a directory — indicating a main (non-worktree) repo.
  * Git worktrees have a `.git` *file* (a gitdir pointer), not a directory.
  */
 export function isRunningFromMainRepo(gitRoot: string): boolean {
-  const gitPath = join(gitRoot, ".git");
-  if (!existsSync(gitPath)) return false;
-  return statSync(gitPath).isDirectory();
+  const gitPath = join(gitRoot, '.git')
+  if (!existsSync(gitPath)) return false
+  return statSync(gitPath).isDirectory()
 }
 
 /**
@@ -19,12 +19,8 @@ export function isRunningFromMainRepo(gitRoot: string): boolean {
 export function workingTreeDirty(cwd: string): boolean {
   // --untracked-files=no excludes untracked/gitignored files (e.g. .env, node_modules)
   // so untracked files don't block worktree creation on a real project.
-  const result = runCli(
-    "git",
-    ["status", "--porcelain", "--untracked-files=no"],
-    { cwd },
-  );
-  return result.stdout.trim().length > 0;
+  const result = runCli('git', ['status', '--porcelain', '--untracked-files=no'], { cwd })
+  return result.stdout.trim().length > 0
 }
 
 /**
@@ -43,23 +39,23 @@ export function branchFullyMerged(
 ): boolean {
   if (fetchFirst) {
     try {
-      runCli("git", ["fetch", "origin"], { cwd, timeoutMs: 30_000 });
+      runCli('git', ['fetch', 'origin'], { cwd, timeoutMs: 30_000 })
     } catch (err) {
-      const fetchMsg = err instanceof Error ? err.message : String(err);
+      const fetchMsg = err instanceof Error ? err.message : String(err)
       process.stderr.write(
         `Warning: git fetch failed (${fetchMsg}) — using cached refs, result may be stale\n`,
-      );
+      )
     }
   }
 
-  const targetRef = `origin/${baseBranch}`;
+  const targetRef = `origin/${baseBranch}`
   try {
-    runCli("git", ["merge-base", "--is-ancestor", branch, targetRef], { cwd });
-    return true;
+    runCli('git', ['merge-base', '--is-ancestor', branch, targetRef], { cwd })
+    return true
   } catch (err) {
     // Exit code 1 from merge-base means "not an ancestor" (expected negative case)
-    if (err instanceof CliError && err.exitCode === 1) return false;
+    if (err instanceof CliError && err.exitCode === 1) return false
     // Any other exit code (e.g. unknown ref) is a real error
-    throw err;
+    throw err
   }
 }

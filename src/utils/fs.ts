@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 export interface WriteResult {
-  path: string;
-  action: "created" | "skipped" | "backed-up-and-replaced";
+  path: string
+  action: 'created' | 'skipped' | 'backed-up-and-replaced'
 }
 
 /**
@@ -16,23 +16,23 @@ export function writeFile(
   content: string,
   opts: { skipIfExists?: boolean; backup?: boolean } = {},
 ): WriteResult {
-  const { skipIfExists = false, backup = false } = opts;
+  const { skipIfExists = false, backup = false } = opts
 
   if (existsSync(filePath)) {
     if (skipIfExists) {
-      return { path: filePath, action: "skipped" };
+      return { path: filePath, action: 'skipped' }
     }
     if (backup) {
-      copyFileSync(filePath, `${filePath}.arbiter-backup`);
+      copyFileSync(filePath, `${filePath}.arbiter-backup`)
     }
-    mkdirSync(dirname(filePath), { recursive: true });
-    writeFileSync(filePath, content, "utf-8");
-    return { path: filePath, action: "backed-up-and-replaced" };
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, content, 'utf-8')
+    return { path: filePath, action: 'backed-up-and-replaced' }
   }
 
-  mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, content, "utf-8");
-  return { path: filePath, action: "created" };
+  mkdirSync(dirname(filePath), { recursive: true })
+  writeFileSync(filePath, content, 'utf-8')
+  return { path: filePath, action: 'created' }
 }
 
 /**
@@ -44,14 +44,14 @@ export function copyStaticFile(
   opts: { skipIfExists?: boolean } = {},
 ): WriteResult {
   if (existsSync(dest) && opts.skipIfExists) {
-    return { path: dest, action: "skipped" };
+    return { path: dest, action: 'skipped' }
   }
-  mkdirSync(dirname(dest), { recursive: true });
-  copyFileSync(src, dest);
+  mkdirSync(dirname(dest), { recursive: true })
+  copyFileSync(src, dest)
   return {
     path: dest,
-    action: existsSync(dest) ? "backed-up-and-replaced" : "created",
-  };
+    action: existsSync(dest) ? 'backed-up-and-replaced' : 'created',
+  }
 }
 
 /**
@@ -61,110 +61,92 @@ export function mergeSettingsJson(
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
 ): Record<string, unknown> {
-  const result = { ...existing };
+  const result = { ...existing }
 
   for (const [key, incomingVal] of Object.entries(incoming)) {
-    const existingVal = existing[key];
+    const existingVal = existing[key]
 
-    if (
-      key === "hooks" &&
-      isHooksObject(incomingVal) &&
-      isHooksObject(existingVal)
-    ) {
-      result[key] = mergeHooks(existingVal, incomingVal);
-    } else if (
-      key === "permissions" &&
-      isPermissions(incomingVal) &&
-      isPermissions(existingVal)
-    ) {
-      result[key] = mergePermissions(existingVal, incomingVal);
+    if (key === 'hooks' && isHooksObject(incomingVal) && isHooksObject(existingVal)) {
+      result[key] = mergeHooks(existingVal, incomingVal)
+    } else if (key === 'permissions' && isPermissions(incomingVal) && isPermissions(existingVal)) {
+      result[key] = mergePermissions(existingVal, incomingVal)
     } else if (existingVal === undefined) {
-      result[key] = incomingVal;
+      result[key] = incomingVal
     }
     // If key exists and is not a special case, preserve existing value
   }
 
-  return result;
+  return result
 }
 
 type HookEntry = {
-  matcher: string;
-  hooks: { type: string; command: string; timeout?: number }[];
-};
-type HooksObject = Record<string, HookEntry[]>;
-type Permissions = { allow?: string[]; deny?: string[] };
+  matcher: string
+  hooks: { type: string; command: string; timeout?: number }[]
+}
+type HooksObject = Record<string, HookEntry[]>
+type Permissions = { allow?: string[]; deny?: string[] }
 
 function isHooksObject(val: unknown): val is HooksObject {
-  return typeof val === "object" && val !== null && !Array.isArray(val);
+  return typeof val === 'object' && val !== null && !Array.isArray(val)
 }
 
 function isPermissions(val: unknown): val is Permissions {
-  return typeof val === "object" && val !== null && !Array.isArray(val);
+  return typeof val === 'object' && val !== null && !Array.isArray(val)
 }
 
 function extractHookBasename(command: string): string | null {
-  const match = command.match(/\.claude\/hooks\/([^./\s]+)\.\w+/);
-  return match?.[1] ?? null;
+  const match = command.match(/\.claude\/hooks\/([^./\s]+)\.\w+/)
+  return match?.[1] ?? null
 }
 
 function mergeHooks(existing: HooksObject, incoming: HooksObject): HooksObject {
-  const result: HooksObject = { ...existing };
+  const result: HooksObject = { ...existing }
 
   for (const [event, incomingEntries] of Object.entries(incoming)) {
-    const existingEntries = existing[event] ?? [];
-    const merged = [...existingEntries];
+    const existingEntries = existing[event] ?? []
+    const merged = [...existingEntries]
 
     for (const incomingEntry of incomingEntries) {
-      const existingEntry = merged.find(
-        (e) => e.matcher === incomingEntry.matcher,
-      );
+      const existingEntry = merged.find((e) => e.matcher === incomingEntry.matcher)
       if (existingEntry) {
-        mergeHookEntry(existingEntry, incomingEntry);
+        mergeHookEntry(existingEntry, incomingEntry)
       } else {
-        merged.push(incomingEntry);
+        merged.push(incomingEntry)
       }
     }
 
-    result[event] = merged;
+    result[event] = merged
   }
 
-  return result;
+  return result
 }
 
-function mergeHookEntry(
-  existingEntry: HookEntry,
-  incomingEntry: HookEntry,
-): void {
+function mergeHookEntry(existingEntry: HookEntry, incomingEntry: HookEntry): void {
   for (const hook of incomingEntry.hooks) {
-    const incomingBasename = extractHookBasename(hook.command);
+    const incomingBasename = extractHookBasename(hook.command)
     if (incomingBasename) {
       // Remove old variants of the same hook (e.g. .sh → .mjs upgrade)
       existingEntry.hooks = existingEntry.hooks.filter((h) => {
-        const existingBasename = extractHookBasename(h.command);
-        return existingBasename !== incomingBasename;
-      });
+        const existingBasename = extractHookBasename(h.command)
+        return existingBasename !== incomingBasename
+      })
     }
     // Add the incoming hook if not already present
-    const existingCommands = new Set(existingEntry.hooks.map((h) => h.command));
+    const existingCommands = new Set(existingEntry.hooks.map((h) => h.command))
     if (!existingCommands.has(hook.command)) {
-      existingEntry.hooks.push(hook);
+      existingEntry.hooks.push(hook)
     }
   }
 }
 
-function mergePermissions(
-  existing: Permissions,
-  incoming: Permissions,
-): Permissions {
-  const unionArrays = (a: string[] = [], b: string[] = []): string[] => [
-    ...new Set([...a, ...b]),
-  ];
+function mergePermissions(existing: Permissions, incoming: Permissions): Permissions {
+  const unionArrays = (a: string[] = [], b: string[] = []): string[] => [...new Set([...a, ...b])]
   return {
     allow: unionArrays(existing.allow, incoming.allow),
     deny: unionArrays(existing.deny, incoming.deny),
-  };
+  }
 }
 
 export function resolvedPath(targetDir: string, ...parts: string[]): string {
-  return join(targetDir, ...parts);
+  return join(targetDir, ...parts)
 }

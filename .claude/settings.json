@@ -48,11 +48,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/check-no-placeholders.mjs",
-            "timeout": 5
-          },
-          {
-            "type": "command",
             "command": "node .claude/hooks/check-no-direct-spawn.mjs",
             "timeout": 5
           },
@@ -63,18 +58,23 @@
           },
           {
             "type": "command",
-            "command": "node .claude/hooks/check-no-pii.mjs",
+            "command": "node .claude/hooks/check-no-placeholders.mjs",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "node .claude/hooks/check-no-any.mjs",
+            "command": "node .claude/hooks/check-no-pii.mjs",
             "timeout": 5
           },
           {
             "type": "command",
             "command": "node .claude/hooks/check-no-unused-exports.mjs",
             "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-no-any.mjs",
+            "timeout": 5
           },
           {
             "type": "command",
@@ -111,6 +111,11 @@
             "type": "command",
             "command": "node .claude/hooks/guard-task-completion.mjs",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-done-evidence.mjs",
+            "timeout": 5
           }
         ]
       }

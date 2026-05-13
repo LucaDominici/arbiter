@@ -1,6 +1,6 @@
 name: Bug Report
 description: Report a defect or unexpected behavior
-labels: ["bug"]
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -12,17 +12,17 @@ body:
     attributes:
       label: Severity
       options:
-        - "Critical — data loss, security breach, or service down"
-        - "High — major feature broken, no workaround"
-        - "Medium — feature degraded, workaround exists"
-        - "Low — cosmetic or minor inconvenience"
+        - 'Critical — data loss, security breach, or service down'
+        - 'High — major feature broken, no workaround'
+        - 'Medium — feature degraded, workaround exists'
+        - 'Low — cosmetic or minor inconvenience'
     validations:
       required: true
 
   - type: textarea
     id: context
     attributes:
-      label: "1. Context"
+      label: '1. Context'
       description: Environment and relevant state when the bug was observed.
       placeholder: |
         **Environment:** Local / CI / Staging / Production
@@ -34,7 +34,7 @@ body:
   - type: textarea
     id: reproduction
     attributes:
-      label: "2. Steps to Reproduce / Observed vs Expected"
+      label: '2. Steps to Reproduce / Observed vs Expected'
       placeholder: |
         **Steps:**
         1.
@@ -49,7 +49,7 @@ body:
   - type: textarea
     id: invariant
     attributes:
-      label: "3. Related Invariant Violation (optional)"
+      label: '3. Related Invariant Violation (optional)'
       description: If this bug violates a known project invariant, reference it here.
       placeholder: |
         Violates INV-XX: description
@@ -57,7 +57,7 @@ body:
   - type: textarea
     id: evidence
     attributes:
-      label: "4. Evidence (optional)"
+      label: '4. Evidence (optional)'
       description: Logs, screenshots, stack traces, or links to artifacts.
       placeholder: |
         <paste stack trace or attach screenshot>
@@ -65,8 +65,8 @@ body:
   - type: checkboxes
     id: acceptance
     attributes:
-      label: "5. Acceptance Criteria"
+      label: '5. Acceptance Criteria'
       options:
-        - label: "Bug is no longer reproducible following the steps above"
-        - label: "Regression test added to prevent recurrence"
-        - label: "CI pipeline passes green"
+        - label: 'Bug is no longer reproducible following the steps above'
+        - label: 'Regression test added to prevent recurrence'
+        - label: 'CI pipeline passes green'

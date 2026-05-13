@@ -1,28 +1,28 @@
-import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
-import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { renderTemplate } from "../../src/utils/render.js";
-import { makeConfig } from "../helpers.js";
+import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { renderTemplate } from '../../src/utils/render.js'
+import { makeConfig } from '../helpers.js'
 
-describe("check-all.mjs integration — summary table (#210, CANON-07)", () => {
-  it("rendered check-all.mjs contains summary table logic", () => {
+describe('check-all.mjs integration — summary table (#210, CANON-07)', () => {
+  it('rendered check-all.mjs contains summary table logic', () => {
     const rendered = renderTemplate(
-      "scripts/check-all.mjs.ejs",
-      makeConfig("/tmp/test", {
+      'scripts/check-all.mjs.ejs',
+      makeConfig('/tmp/test', {
         coverageEnabled: false,
       }) as unknown as Record<string, unknown>,
-    );
-    expect(rendered).toContain("=== Summary ===");
-    expect(rendered).toContain("IS_CI");
-    expect(rendered).toContain("::error::");
-    expect(rendered).toContain("stripAnsi");
-    expect(rendered).toContain("Elapsed");
-    expect(rendered).toContain("Total");
-  });
+    )
+    expect(rendered).toContain('=== Summary ===')
+    expect(rendered).toContain('IS_CI')
+    expect(rendered).toContain('::error::')
+    expect(rendered).toContain('stripAnsi')
+    expect(rendered).toContain('Elapsed')
+    expect(rendered).toContain('Total')
+  })
 
-  it("summary table appears in output of a minimal check-all script (passing)", () => {
+  it('summary table appears in output of a minimal check-all script (passing)', () => {
     // Build a minimal check-all stub with the same summary-table logic
     // but only a trivial echo check — avoids recursive npm test invocation.
     const stub = `
@@ -92,32 +92,32 @@ if (failed > 0) {
 } else {
   console.log("=== ALL PASSED ===\\n");
 }
-`;
+`
 
-    const dir = mkdtempSync(join(tmpdir(), "arbiter-check-all-test-"));
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-check-all-test-'))
     try {
-      const stubPath = join(dir, "check-all.mjs");
-      writeFileSync(stubPath, stub, "utf-8");
+      const stubPath = join(dir, 'check-all.mjs')
+      writeFileSync(stubPath, stub, 'utf-8')
 
-      const result = spawnSync("node", [stubPath], {
-        encoding: "utf-8",
+      const result = spawnSync('node', [stubPath], {
+        encoding: 'utf-8',
         shell: false,
         timeout: 10_000,
-      });
+      })
 
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("=== Summary ===");
-      expect(result.stdout).toContain("Check");
-      expect(result.stdout).toContain("Elapsed");
-      expect(result.stdout).toContain("Total");
-      expect(result.stdout).toContain("PASS");
-      expect(result.stdout).toContain("=== ALL PASSED ===");
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('=== Summary ===')
+      expect(result.stdout).toContain('Check')
+      expect(result.stdout).toContain('Elapsed')
+      expect(result.stdout).toContain('Total')
+      expect(result.stdout).toContain('PASS')
+      expect(result.stdout).toContain('=== ALL PASSED ===')
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true })
     }
-  });
+  })
 
-  it("::error:: annotation emitted in CI mode when check fails", () => {
+  it('::error:: annotation emitted in CI mode when check fails', () => {
     const stub = `
 import { spawnSync } from "node:child_process";
 
@@ -173,27 +173,27 @@ if (failed > 0) {
   console.error(\`=== FAILED: \${failed} check(s) ===\\n\`);
   process.exit(1);
 }
-`;
+`
 
-    const dir = mkdtempSync(join(tmpdir(), "arbiter-check-all-ci-test-"));
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-check-all-ci-test-'))
     try {
-      const stubPath = join(dir, "check-all-ci.mjs");
-      writeFileSync(stubPath, stub, "utf-8");
+      const stubPath = join(dir, 'check-all-ci.mjs')
+      writeFileSync(stubPath, stub, 'utf-8')
 
-      const result = spawnSync("node", [stubPath], {
-        encoding: "utf-8",
+      const result = spawnSync('node', [stubPath], {
+        encoding: 'utf-8',
         shell: false,
         timeout: 10_000,
-        env: { ...process.env, GITHUB_ACTIONS: "true", NO_COLOR: "1" },
-      });
+        env: { ...process.env, GITHUB_ACTIONS: 'true', NO_COLOR: '1' },
+      })
 
-      expect(result.status).toBe(1);
-      const combined = result.stdout + result.stderr;
-      expect(combined).toContain("::error::failing step::exit 1");
-      expect(combined).toContain("=== Summary ===");
-      expect(combined).toContain("FAIL");
+      expect(result.status).toBe(1)
+      const combined = result.stdout + result.stderr
+      expect(combined).toContain('::error::failing step::exit 1')
+      expect(combined).toContain('=== Summary ===')
+      expect(combined).toContain('FAIL')
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true })
     }
-  });
-});
+  })
+})

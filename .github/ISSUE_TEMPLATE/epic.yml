@@ -1,11 +1,11 @@
 name: Epic
 description: A collection of related tasks delivering a larger capability
-labels: ["feature"]
+labels: ['feature']
 body:
   - type: textarea
     id: goal
     attributes:
-      label: "1. Goal & Business Value"
+      label: '1. Goal & Business Value'
       description: What does this epic achieve? Why does it matter?
       placeholder: |
         This epic delivers...
@@ -17,7 +17,7 @@ body:
   - type: textarea
     id: scope
     attributes:
-      label: "2. Scope & Boundaries"
+      label: '2. Scope & Boundaries'
       description: What is in scope and what is explicitly out of scope?
       placeholder: |
         **In scope:**
@@ -32,7 +32,7 @@ body:
   - type: textarea
     id: subtasks
     attributes:
-      label: "3. Sub-tasks"
+      label: '3. Sub-tasks'
       description: Link to the task-brief issues that make up this epic.
       placeholder: |
         - [ ] #NNN Task A
@@ -44,7 +44,7 @@ body:
   - type: textarea
     id: success
     attributes:
-      label: "4. Success Metrics / Definition of Done"
+      label: '4. Success Metrics / Definition of Done'
       description: How do we know the epic is complete?
       placeholder: |
         - All sub-tasks closed
@@ -56,7 +56,7 @@ body:
   - type: textarea
     id: risks
     attributes:
-      label: "5. Risks & Dependencies"
+      label: '5. Risks & Dependencies'
       description: External blockers, risky assumptions, or cross-team dependencies.
       placeholder: |
         **Dependencies:**

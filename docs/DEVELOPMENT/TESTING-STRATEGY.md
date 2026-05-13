@@ -52,19 +52,19 @@ Key scenarios covered in `init.test.ts`:
 Each test that touches the filesystem follows this pattern:
 
 ```typescript
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
-let tmpDir: string;
+let tmpDir: string
 
 beforeEach(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), "arbiter-test-"));
-});
+  tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-test-'))
+})
 
 afterEach(() => {
-  rmSync(tmpDir, { recursive: true, force: true });
-});
+  rmSync(tmpDir, { recursive: true, force: true })
+})
 ```
 
 **Why temp directories:**
@@ -130,12 +130,9 @@ When adding a new template that is parameterized by both `language` and `governa
 for (const lang of LANGUAGES) {
   for (const level of LEVELS) {
     it(`${lang}+${level}: <assertion>`, () => {
-      const content = renderTemplate(
-        "path/to/template.ejs",
-        configFor(lang, level),
-      );
-      expect(content).toContain(/* expected cross-product output */);
-    });
+      const content = renderTemplate('path/to/template.ejs', configFor(lang, level))
+      expect(content).toContain(/* expected cross-product output */)
+    })
   }
 }
 ```
@@ -184,10 +181,10 @@ When testing generated workflow files that reference tool versions (e.g. `gradle
 
 ```ts
 // bad — breaks on every Dependabot bump
-expect(content).toContain("uses: gradle/actions/setup-gradle@v3");
+expect(content).toContain('uses: gradle/actions/setup-gradle@v3')
 
 // good — survives future bumps
-expect(content).toContain("uses: gradle/actions/setup-gradle@");
+expect(content).toContain('uses: gradle/actions/setup-gradle@')
 ```
 
 This keeps Dependabot PRs green without requiring manual test updates on every action version bump.

@@ -24,3 +24,6 @@ __tests__/**/.gradle/
 __tests__/**/bin/
 .evidence/
 report/
+
+# Arbiter backup files created during update
+*.arbiter-backup

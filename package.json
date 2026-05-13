@@ -24,7 +24,8 @@
     "test:watch": "vitest",
     "lint": "eslint src __tests__",
     "typecheck": "tsc --noEmit",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "git config core.hooksPath .githooks",
+    "check:arch": "depcruise src"
   },
   "dependencies": {
     "commander": "^14.0.3",
@@ -49,7 +50,8 @@
     "tsx": "^4.7.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "dependency-cruiser": "^16.0.0"
   },
   "engines": {
     "node": ">=22.0.0"

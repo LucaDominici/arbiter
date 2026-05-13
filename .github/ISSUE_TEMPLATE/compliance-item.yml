@@ -1,7 +1,7 @@
 name: Compliance Item
 description: Track a compliance requirement, audit finding, or regulatory obligation
-title: "[COMPLIANCE] "
-labels: ["compliance", "governance"]
+title: '[COMPLIANCE] '
+labels: ['compliance', 'governance']
 body:
   - type: markdown
     attributes:
@@ -12,8 +12,8 @@ body:
     id: standard-reference
     attributes:
       label: Standard / Rule reference
-      description: "e.g. ISO 27001 A.8.1, SOC 2 CC6.1, GDPR Art. 32"
-      placeholder: "Standard name + control reference"
+      description: 'e.g. ISO 27001 A.8.1, SOC 2 CC6.1, GDPR Art. 32'
+      placeholder: 'Standard name + control reference'
     validations:
       required: true
 
@@ -47,7 +47,7 @@ body:
     attributes:
       label: Deadline
       description: When must this be resolved? (YYYY-MM-DD)
-      placeholder: "YYYY-MM-DD"
+      placeholder: 'YYYY-MM-DD'
 
   - type: textarea
     id: description

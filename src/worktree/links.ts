@@ -7,20 +7,15 @@ import {
   lstatSync,
   readlinkSync,
   statSync,
-} from "node:fs";
-import { dirname, resolve } from "node:path";
-import type { WorktreeLinkSpec } from "../wizard/types.js";
+} from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import type { WorktreeLinkSpec } from '../wizard/types.js'
 
-export type LinkResult =
-  | "LINKED"
-  | "LINKED_DIR"
-  | "COPIED_TEMPLATE"
-  | "COPIED_DIR"
-  | "MISSING";
+export type LinkResult = 'LINKED' | 'LINKED_DIR' | 'COPIED_TEMPLATE' | 'COPIED_DIR' | 'MISSING'
 
 export interface MaterializeResult {
-  spec: WorktreeLinkSpec;
-  result: LinkResult;
+  spec: WorktreeLinkSpec
+  result: LinkResult
 }
 
 /**
@@ -45,69 +40,63 @@ export function materializeLink(
   mainRepoPath: string,
   worktreePath: string,
 ): MaterializeResult {
-  const sourcePath = resolve(mainRepoPath, spec.path);
-  const destPath = resolve(worktreePath, spec.path);
-  const linkType = spec.type ?? "file";
+  const sourcePath = resolve(mainRepoPath, spec.path)
+  const destPath = resolve(worktreePath, spec.path)
+  const linkType = spec.type ?? 'file'
 
   // Idempotency — destination already present
   if (existsSync(destPath)) {
-    return { spec, result: linkType === "directory" ? "LINKED_DIR" : "LINKED" };
+    return { spec, result: linkType === 'directory' ? 'LINKED_DIR' : 'LINKED' }
   }
 
-  const sourceExists = existsSync(sourcePath);
+  const sourceExists = existsSync(sourcePath)
 
-  if (linkType === "directory") {
+  if (linkType === 'directory') {
     // --- Directory handling ---
     if (sourceExists) {
-      const sourceStat = statSync(sourcePath);
+      const sourceStat = statSync(sourcePath)
       if (!sourceStat.isDirectory()) {
-        throw new Error(
-          `Expected directory but found file at: ${spec.path} in ${mainRepoPath}`,
-        );
+        throw new Error(`Expected directory but found file at: ${spec.path} in ${mainRepoPath}`)
       }
-      mkdirSync(dirname(destPath), { recursive: true });
-      const strategy = spec.strategy ?? "symlink";
-      if (strategy === "symlink") {
-        symlinkSync(sourcePath, destPath);
-        return { spec, result: "LINKED_DIR" };
+      mkdirSync(dirname(destPath), { recursive: true })
+      const strategy = spec.strategy ?? 'symlink'
+      if (strategy === 'symlink') {
+        symlinkSync(sourcePath, destPath)
+        return { spec, result: 'LINKED_DIR' }
       }
       // strategy === "copy"
-      cpSync(sourcePath, destPath, { recursive: true });
-      return { spec, result: "COPIED_DIR" };
+      cpSync(sourcePath, destPath, { recursive: true })
+      return { spec, result: 'COPIED_DIR' }
     }
 
     if (spec.required === true) {
-      throw new Error(
-        `Required directory missing: ${spec.path} in ${mainRepoPath}`,
-      );
+      throw new Error(`Required directory missing: ${spec.path} in ${mainRepoPath}`)
     }
-    return { spec, result: "MISSING" };
+    return { spec, result: 'MISSING' }
   }
 
   // --- File handling (existing behaviour) ---
   if (sourceExists) {
-    mkdirSync(dirname(destPath), { recursive: true });
+    mkdirSync(dirname(destPath), { recursive: true })
     // Always use absolute symlink target to avoid cross-filesystem breakage
-    symlinkSync(sourcePath, destPath);
-    return { spec, result: "LINKED" };
+    symlinkSync(sourcePath, destPath)
+    return { spec, result: 'LINKED' }
   }
 
   if (spec.template) {
-    const templatePath = resolve(mainRepoPath, spec.template);
+    const templatePath = resolve(mainRepoPath, spec.template)
     if (existsSync(templatePath)) {
-      mkdirSync(dirname(destPath), { recursive: true });
-      copyFileSync(templatePath, destPath);
-      return { spec, result: "COPIED_TEMPLATE" };
+      mkdirSync(dirname(destPath), { recursive: true })
+      copyFileSync(templatePath, destPath)
+      return { spec, result: 'COPIED_TEMPLATE' }
     }
   }
 
   if (spec.required === true) {
-    throw new Error(
-      `Required link source missing: ${spec.path} in ${mainRepoPath}`,
-    );
+    throw new Error(`Required link source missing: ${spec.path} in ${mainRepoPath}`)
   }
 
-  return { spec, result: "MISSING" };
+  return { spec, result: 'MISSING' }
 }
 
 /**
@@ -115,24 +104,21 @@ export function materializeLink(
  * (symlinks whose targets no longer exist).
  * Does NOT modify the filesystem.
  */
-export function checkLinkIntegrity(
-  specs: WorktreeLinkSpec[],
-  worktreePath: string,
-): string[] {
-  const dangling: string[] = [];
+export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: string): string[] {
+  const dangling: string[] = []
   for (const spec of specs) {
-    const linkPath = resolve(worktreePath, spec.path);
+    const linkPath = resolve(worktreePath, spec.path)
     try {
-      const stat = lstatSync(linkPath);
+      const stat = lstatSync(linkPath)
       if (stat.isSymbolicLink()) {
-        const target = readlinkSync(linkPath);
+        const target = readlinkSync(linkPath)
         if (!existsSync(target)) {
-          dangling.push(`${spec.path} → ${target} (target missing)`);
+          dangling.push(`${spec.path} → ${target} (target missing)`)
         }
       }
     } catch {
       // Entry absent — not a dangling link, just never created
     }
   }
-  return dangling;
+  return dangling
 }

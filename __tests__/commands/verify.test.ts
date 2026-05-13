@@ -1,95 +1,89 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import * as probe from "../../src/compatibility/probe.js";
-import * as report from "../../src/compatibility/report.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import * as probe from '../../src/compatibility/probe.js'
+import * as report from '../../src/compatibility/report.js'
 
-type VerifyReport = ReturnType<typeof probe.runProbes>;
+type VerifyReport = ReturnType<typeof probe.runProbes>
 
 function makeReport(overrides: Partial<VerifyReport> = {}): VerifyReport {
   return {
-    dir: "/fake",
-    stack: "typescript",
+    dir: '/fake',
+    stack: 'typescript',
     probes: [],
     hasFailures: false,
     hasWarnings: false,
     ...overrides,
-  };
+  }
 }
 
-describe("runVerify (#174)", () => {
-  let stdoutSpy: ReturnType<typeof vi.spyOn>;
-  let exitSpy: ReturnType<typeof vi.spyOn>;
-  let probesSpy: ReturnType<typeof vi.spyOn>;
+describe('runVerify (#174)', () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>
+  let exitSpy: ReturnType<typeof vi.spyOn>
+  let probesSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    stdoutSpy = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
-    exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(() => undefined as never);
-    probesSpy = vi.spyOn(probe, "runProbes");
-  });
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    probesSpy = vi.spyOn(probe, 'runProbes')
+  })
 
   afterEach(() => {
-    vi.restoreAllMocks();
-  });
+    vi.restoreAllMocks()
+  })
 
-  it("writes text output and does not call exit when no failures", async () => {
-    probesSpy.mockReturnValue(makeReport({ hasFailures: false }));
-    vi.spyOn(report, "formatText").mockReturnValue("all good");
+  it('writes text output and does not call exit when no failures', async () => {
+    probesSpy.mockReturnValue(makeReport({ hasFailures: false }))
+    vi.spyOn(report, 'formatText').mockReturnValue('all good')
 
-    const { runVerify } = await import("../../src/commands/verify.js");
-    runVerify({});
+    const { runVerify } = await import('../../src/commands/verify.js')
+    runVerify({})
 
-    expect(stdoutSpy).toHaveBeenCalledWith("all good\n");
-    expect(exitSpy).not.toHaveBeenCalled();
-  });
+    expect(stdoutSpy).toHaveBeenCalledWith('all good\n')
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
 
-  it("calls process.exit(1) when report has failures", async () => {
-    probesSpy.mockReturnValue(makeReport({ hasFailures: true }));
-    vi.spyOn(report, "formatText").mockReturnValue("failed");
+  it('calls process.exit(1) when report has failures', async () => {
+    probesSpy.mockReturnValue(makeReport({ hasFailures: true }))
+    vi.spyOn(report, 'formatText').mockReturnValue('failed')
 
-    const { runVerify } = await import("../../src/commands/verify.js");
-    runVerify({});
+    const { runVerify } = await import('../../src/commands/verify.js')
+    runVerify({})
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
-  });
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
 
-  it("uses formatJson when opts.json is true", async () => {
-    probesSpy.mockReturnValue(makeReport());
-    const jsonSpy = vi
-      .spyOn(report, "formatJson")
-      .mockReturnValue('{"ok":true}');
+  it('uses formatJson when opts.json is true', async () => {
+    probesSpy.mockReturnValue(makeReport())
+    const jsonSpy = vi.spyOn(report, 'formatJson').mockReturnValue('{"ok":true}')
 
-    const { runVerify } = await import("../../src/commands/verify.js");
-    runVerify({ json: true });
+    const { runVerify } = await import('../../src/commands/verify.js')
+    runVerify({ json: true })
 
-    expect(jsonSpy).toHaveBeenCalled();
-    expect(stdoutSpy).toHaveBeenCalledWith('{"ok":true}\n');
-  });
+    expect(jsonSpy).toHaveBeenCalled()
+    expect(stdoutSpy).toHaveBeenCalledWith('{"ok":true}\n')
+  })
 
-  it("calls process.exit(1) when json mode has failures", async () => {
-    probesSpy.mockReturnValue(makeReport({ hasFailures: true }));
-    vi.spyOn(report, "formatJson").mockReturnValue('{"err":true}');
+  it('calls process.exit(1) when json mode has failures', async () => {
+    probesSpy.mockReturnValue(makeReport({ hasFailures: true }))
+    vi.spyOn(report, 'formatJson').mockReturnValue('{"err":true}')
 
-    const { runVerify } = await import("../../src/commands/verify.js");
-    runVerify({ json: true });
+    const { runVerify } = await import('../../src/commands/verify.js')
+    runVerify({ json: true })
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
-  });
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
 
-  it("includes effectiveConfig in JSON output (#233)", async () => {
-    probesSpy.mockReturnValue(makeReport());
-    const captured: string[] = [];
+  it('includes effectiveConfig in JSON output (#233)', async () => {
+    probesSpy.mockReturnValue(makeReport())
+    const captured: string[] = []
     stdoutSpy.mockImplementation((chunk: unknown) => {
-      captured.push(String(chunk));
-      return true;
-    });
-    const cfgUtils = await import("../../src/utils/config.js");
-    vi.spyOn(cfgUtils, "loadConfig").mockReturnValue({
-      version: "0.2",
-      tools: ["claude"],
-      governanceLevel: "L2",
+      captured.push(String(chunk))
+      return true
+    })
+    const cfgUtils = await import('../../src/utils/config.js')
+    vi.spyOn(cfgUtils, 'loadConfig').mockReturnValue({
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
       useGitHub: false,
       features: {
         contractTesting: false,
@@ -107,25 +101,23 @@ describe("runVerify (#174)", () => {
         methodLength: 65,
         maxParams: 7,
       },
-    });
+    })
 
-    const { runVerify } = await import("../../src/commands/verify.js");
-    runVerify({ json: true });
+    const { runVerify } = await import('../../src/commands/verify.js')
+    runVerify({ json: true })
 
-    const joined = captured.join("");
-    expect(joined).toContain("effectiveConfig");
-    expect(joined).toContain('"governanceLevel": "L2"');
-  });
+    const joined = captured.join('')
+    expect(joined).toContain('effectiveConfig')
+    expect(joined).toContain('"governanceLevel": "L2"')
+  })
 
-  it("resolves dir relative to cwd when opts.dir is provided", async () => {
-    probesSpy.mockReturnValue(makeReport());
-    vi.spyOn(report, "formatText").mockReturnValue("");
+  it('resolves dir relative to cwd when opts.dir is provided', async () => {
+    probesSpy.mockReturnValue(makeReport())
+    vi.spyOn(report, 'formatText').mockReturnValue('')
 
-    const { runVerify } = await import("../../src/commands/verify.js");
-    runVerify({ dir: "some/path" });
+    const { runVerify } = await import('../../src/commands/verify.js')
+    runVerify({ dir: 'some/path' })
 
-    expect(probesSpy).toHaveBeenCalledWith(
-      expect.stringContaining("some/path"),
-    );
-  });
-});
+    expect(probesSpy).toHaveBeenCalledWith(expect.stringContaining('some/path'))
+  })
+})
