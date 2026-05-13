@@ -293,14 +293,16 @@ describe('matrix: Rust L3 mutation gate (cargo-mutants)', () => {
     expect(existsSync(join(dir, 'cargo-mutants.toml'))).toBe(false)
   })
 
-  it('throws beta error when acceptBetaTools=false at L3', () => {
+  it('emits no mutation files when acceptBetaTools=false at L3 (cargo-mutants is beta)', () => {
     const config = rustL3Config({ acceptBetaTools: false })
-    expect(() => runGenerators(config)).toThrow(/beta/i)
+    runGenerators(config)
+    expect(existsSync(join(dir, 'cargo-mutants.toml'))).toBe(false)
   })
 
-  it('throws beta error when acceptBetaTools not set at L3', () => {
+  it('emits no mutation files when acceptBetaTools not set at L3 (cargo-mutants is beta)', () => {
     const config = rustL3Config({ acceptBetaTools: undefined })
-    expect(() => runGenerators(config)).toThrow(/beta/i)
+    runGenerators(config)
+    expect(existsSync(join(dir, 'cargo-mutants.toml'))).toBe(false)
   })
 
   it('AGENTS.md L3 mentions cargo-mutants and 85%', () => {

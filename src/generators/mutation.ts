@@ -40,7 +40,7 @@ export function generateMutation(config: ProjectConfig): MutationGeneratorResult
 
   if (language !== 'multi') {
     const gate = isL3Allowed(language, 'mutation', acceptBetaTools)
-    if (!gate.allowed) throw new Error(gate.errorMessage)
+    if (!gate.allowed) return { files: [] }
   }
 
   const data: Record<string, unknown> = {
