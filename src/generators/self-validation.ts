@@ -13,38 +13,25 @@ export function generateSelfValidation(config: ProjectConfig): SelfValidationGen
 
   const scriptPath = resolvedPath(base, 'scripts', 'self-validation.mjs')
   results.push(
-    writeFile(
-      scriptPath,
-      renderTemplate(
-        'scripts/self-validation.mjs.ejs',
-        config as unknown as Record<string, unknown>,
-      ),
-      { skipIfExists: true },
-    ),
+    writeFile(scriptPath, renderTemplate('scripts/self-validation.mjs.ejs', config), {
+      skipIfExists: true,
+    }),
   )
 
   const exitContractPath = resolvedPath(base, 'scripts', 'check-exit-code-contract.mjs')
   results.push(
     writeFile(
       exitContractPath,
-      renderTemplate(
-        'scripts/check-exit-code-contract.mjs.ejs',
-        config as unknown as Record<string, unknown>,
-      ),
+      renderTemplate('scripts/check-exit-code-contract.mjs.ejs', config),
       { skipIfExists: true },
     ),
   )
 
   const pipeTeeHazardPath = resolvedPath(base, 'scripts', 'check-pipe-tee-hazard.mjs')
   results.push(
-    writeFile(
-      pipeTeeHazardPath,
-      renderTemplate(
-        'scripts/check-pipe-tee-hazard.mjs.ejs',
-        config as unknown as Record<string, unknown>,
-      ),
-      { skipIfExists: true },
-    ),
+    writeFile(pipeTeeHazardPath, renderTemplate('scripts/check-pipe-tee-hazard.mjs.ejs', config), {
+      skipIfExists: true,
+    }),
   )
 
   return { files: results }

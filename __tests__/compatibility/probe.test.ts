@@ -373,7 +373,11 @@ describe('runProbes — unknown stack coverage gap', () => {
     mockExistsSync.mockReturnValue(false)
     const report = runProbes('/some/dir')
     expect(report.stack).toBe('multi')
-    expect(report.probes.some((p) => p.status === 'skipped' && /no matrix coverage/.test(p.reason ?? ''))).toBe(true)
+    expect(
+      report.probes.some(
+        (p) => p.status === 'skipped' && /no matrix coverage/.test(p.reason ?? ''),
+      ),
+    ).toBe(true)
   })
 })
 
