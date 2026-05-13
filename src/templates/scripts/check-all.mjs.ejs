@@ -77,6 +77,9 @@ runCheck('unit tests', 'npm', ['run', 'test:unit']);
 runCheck('fmt', 'cargo', ['fmt', '--check']);
 runCheck('clippy', 'cargo', ['clippy', '--', '-D', 'warnings']);
 runCheck('unit tests', 'cargo', ['test']);
+// #360 (CANON-02): context-aware Rust INV-04 checkers — no unwrap/expect/unsafe in production.
+runCheck('no .unwrap()/.expect()', 'node', ['scripts/checks/check-rust-no-unwrap.mjs']);
+runCheck('no unsafe', 'node', ['scripts/checks/check-rust-no-unsafe.mjs']);
 <% } %><% if (language === 'java' && buildTool === 'gradle') { %>
 runCheck('checkstyle', './gradlew', ['checkstyleMain', '-q']);
 runCheck('format (spotless)', './gradlew', ['spotlessCheck', '-q']);

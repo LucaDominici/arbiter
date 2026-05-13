@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+// <%= projectName %> — Rust context-aware INV-04 checker: no `unsafe` blocks in production code.
+// Ported from haben's `scripts/checks/inv-04-no-unsafe.sh`; rewritten in Node for cross-platform
+// portability (Windows targets) per issue #360.
+//
+// Context-aware behavior:
+//   1. Scans every `.rs` file under `src/` recursively.
+//   2. Strips comment-only lines (lines whose first non-whitespace token is `//`).
+//   3. Ignores `forbid(unsafe_code)` lint declarations (these are the *opposite* of a violation).
+//   4. Fails (exit 1) if any remaining line contains the bare `unsafe` keyword.
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+const SRC_DIR = 'src';
+
+function listRustFiles(dir) {
+  const out = [];
+  let entries;
+  try { entries = readdirSync(dir); } catch { return out; }
+  for (const name of entries) {
+    const full = join(dir, name);
+    let s;
+    try { s = statSync(full); } catch { continue; }
+    if (s.isDirectory()) {
+      out.push(...listRustFiles(full));
+    } else if (s.isFile() && name.endsWith('.rs')) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+function isViolation(line) {
+  // Strip comment-only lines.
+  if (/^\s*\/\//.test(line)) return false;
+  // `forbid(unsafe_code)` (with or without `#![...]` shebang) is a *declaration of safety*.
+  if (/forbid\s*\(\s*unsafe_code\s*\)/.test(line)) return false;
+  if (/deny\s*\(\s*unsafe_code\s*\)/.test(line)) return false;
+  if (/allow\s*\(\s*unsafe_code\s*\)/.test(line)) return false;
+  // Word-boundary match for the bare `unsafe` keyword.
+  return /\bunsafe\b/.test(line);
+}
+
+const offenders = [];
+for (const file of listRustFiles(SRC_DIR)) {
+  let text;
+  try { text = readFileSync(file, 'utf-8'); } catch { continue; }
+  const lines = text.split(/\r?\n/);
+  if (lines.some(isViolation)) offenders.push(file);
+}
+
+if (offenders.length > 0) {
+  console.error('INV-04 (Rust): `unsafe` keyword found in production code:');
+  for (const f of offenders) console.error('  ' + f);
+  console.error('Prefer safe abstractions; `#![forbid(unsafe_code)]` keeps modules safe by default.');
+  process.exit(1);
+}
+console.log('Rust no-unsafe check passed.');

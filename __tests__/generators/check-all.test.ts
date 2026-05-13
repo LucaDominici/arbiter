@@ -18,11 +18,18 @@ describe('generateCheckAll', () => {
 
   it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
     const result = generateCheckAll(makeConfig(dir))
-    expect(result.files).toHaveLength(2)
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('scripts/check-all.mjs'))).toBe(true)
     expect(paths.some((p) => p.endsWith('scripts/lib/run-helpers.mjs'))).toBe(true)
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
+  })
+
+  it('emits exactly 2 files at L1 (no rust checkers, no docs-check)', () => {
+    // L1: no docs-check; non-rust language: no Rust checkers → only check-all + run-helpers.
+    const result = generateCheckAll(
+      makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
+    )
+    expect(result.files).toHaveLength(2)
   })
 
   it('emits run-helpers.mjs with the trinity exports (#351)', () => {
