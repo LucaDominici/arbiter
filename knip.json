@@ -1,5 +1,6 @@
 {
   "project": ["src/**/*.ts", "!src/templates/**"],
-  "ignoreDependencies": ["prettier"],
+  "ignoreDependencies": ["prettier", "@commitlint/cli", "jscpd", "madge"],
+  "ignoreFiles": ["src/test/example.behavioral.test.ts"],
   "exclude": ["types", "nsTypes", "enumMembers"]
 }
