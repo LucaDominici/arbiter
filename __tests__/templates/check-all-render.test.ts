@@ -378,3 +378,88 @@ describe('check-all.mjs.ejs — matrix proven tool gates (#171)', () => {
     })
   })
 })
+
+// ─── #284: architecture tests gate broadened to layered + modular-monolith ───
+
+describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
+  it('Java Gradle layered + basePackage: emits architecture tests runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'layered',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runCheck('architecture tests'")
+    expect(content).toContain('*.architecture.*')
+  })
+
+  it('Java Gradle modular-monolith + basePackage: emits architecture tests runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'modular-monolith',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runCheck('architecture tests'")
+    expect(content).toContain('*.architecture.*')
+  })
+
+  it('Java Gradle hexagonal + basePackage: still emits architecture tests runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runCheck('architecture tests'")
+  })
+
+  it('Java Gradle none architectureStyle: does NOT emit architecture tests runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'none',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("runCheck('architecture tests'")
+  })
+
+  it('Java Gradle layered without basePackage: does NOT emit architecture tests runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'layered',
+      basePackage: undefined,
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("runCheck('architecture tests'")
+  })
+
+  it('Java Maven layered + basePackage: emits architecture tests runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'maven',
+      architectureStyle: 'layered',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runCheck('architecture tests'")
+    expect(content).toContain('*.architecture.*')
+  })
+})

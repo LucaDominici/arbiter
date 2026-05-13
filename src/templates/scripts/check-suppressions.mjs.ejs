@@ -133,7 +133,9 @@ function checkGitleaksFile(filePath) {
 }
 
 checkJsonFile('suppressions/pii-allowlist.json');
+<% if (language === 'java' || language === 'kotlin' || language === 'multi') { %>
 checkJsonFile('suppressions/archunit-baseline.json');
+<% } %>
 checkXmlFile('suppressions/dependency-check-suppressions.xml');
 checkGitleaksFile('suppressions/.gitleaksignore');
 
