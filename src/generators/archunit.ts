@@ -9,7 +9,6 @@ export interface ArchUnitGeneratorResult {
 
 function emitHexagonalSuite(
   config: ProjectConfig,
-  basePackage: string,
   base: string,
   packagePath: string,
   data: Record<string, unknown>,
@@ -29,26 +28,6 @@ function emitHexagonalSuite(
       writeFile(
         resolvedPath(base, 'src', 'test', 'java', packagePath, name),
         renderTemplate(`archunit/${name}.ejs`, data),
-        { skipIfExists: true },
-      ),
-    )
-  }
-
-  if (config.hasDatabase && config.hasPublicApi) {
-    const supportPath = basePackage.replace(/\./g, '/') + '/support'
-
-    files.push(
-      writeFile(
-        resolvedPath(base, 'src', 'test', 'java', supportPath, 'RestAssuredBaseIT.java'),
-        renderTemplate('archunit/RestAssuredBaseIT.java.ejs', data),
-        { skipIfExists: true },
-      ),
-    )
-
-    files.push(
-      writeFile(
-        resolvedPath(base, 'src', 'test', 'java', packagePath, 'RestAssuredArchTest.java'),
-        renderTemplate('archunit/RestAssuredArchTest.java.ejs', data),
         { skipIfExists: true },
       ),
     )
@@ -95,17 +74,21 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
 
   const files: WriteResult[] = []
 
-  // INV-29: NoMockMvc rule — always emitted for Java (test-quality rule, not architecture-style)
-  files.push(
-    writeFile(
-      resolvedPath(base, 'src', 'test', 'java', packagePath, 'NoMockMvcTest.java'),
-      renderTemplate('archunit/NoMockMvcTest.java.ejs', data),
-      { skipIfExists: true },
-    ),
-  )
+  // INV-29: NoMockMvc rule — emitted for Java when basePackage is set.
+  // basePackage required to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath (#283).
+  if (config.basePackage) {
+    files.push(
+      writeFile(
+        resolvedPath(base, 'src', 'test', 'java', packagePath, 'NoMockMvcTest.java'),
+        renderTemplate('archunit/NoMockMvcTest.java.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
 
-  // Architecture style rules — only when user explicitly chose a style (ADR-021 gate rule)
-  if (config.architectureStyle !== 'none') {
+  // Architecture style rules — only when user explicitly chose a style (ADR-021 gate rule) AND basePackage set.
+  // basePackage required to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath (#284).
+  if (config.architectureStyle !== 'none' && config.basePackage) {
     files.push(
       writeFile(
         resolvedPath(base, 'src', 'test', 'java', packagePath, 'ArchitectureTest.java'),
@@ -119,7 +102,29 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
   // basePackage is mandatory to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath.
   // layered/modular-monolith suites are deferred; only ArchitectureTest.java is emitted for those styles.
   if (config.architectureStyle === 'hexagonal' && config.basePackage) {
-    files.push(...emitHexagonalSuite(config, config.basePackage, base, packagePath, data))
+    files.push(...emitHexagonalSuite(config, base, packagePath, data))
+  }
+
+  // RestAssured scaffolding — emitted for ALL archetypes when hasDatabase + hasPublicApi + basePackage.
+  // basePackage required to avoid scanning the entire JVM classpath (same as hexagonal suite guard).
+  if (config.hasDatabase && config.hasPublicApi && config.basePackage) {
+    const supportPath = config.basePackage.replace(/\./g, '/') + '/support'
+
+    files.push(
+      writeFile(
+        resolvedPath(base, 'src', 'test', 'java', supportPath, 'RestAssuredBaseIT.java'),
+        renderTemplate('archunit/RestAssuredBaseIT.java.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+
+    files.push(
+      writeFile(
+        resolvedPath(base, 'src', 'test', 'java', packagePath, 'RestAssuredArchTest.java'),
+        renderTemplate('archunit/RestAssuredArchTest.java.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
   }
 
   return { files }

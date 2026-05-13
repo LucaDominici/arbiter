@@ -110,8 +110,17 @@ describe('check-suppressions.mjs', () => {
     expect(stderr).toMatch(/expires in/i)
   })
 
-  it('exits 1 when archunit-baseline.json has an expired entry', () => {
-    writeJson(dir, join('suppressions', 'archunit-baseline.json'), [
+  it('exits 1 when archunit-baseline.json has an expired entry (Java project)', () => {
+    // archunit-baseline.json is only checked for Java/Kotlin/multi — use Java config
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    const javaConfig = makeConfig(javaDir, {
+      language: 'java',
+      buildTool: 'gradle',
+      enableSuppressions: true,
+    })
+    generateSuppressions(javaConfig)
+    writeJson(javaDir, join('suppressions', 'archunit-baseline.json'), [
       {
         reason: 'Legacy package pending architectural cleanup in Q1',
         owner: '@luca',
@@ -119,7 +128,8 @@ describe('check-suppressions.mjs', () => {
         scope: 'com.example.legacy',
       },
     ])
-    const { status, stderr } = runScript(dir)
+    const { status, stderr } = runScript(javaDir)
+    cleanupTestProject(javaDir)
     expect(status).toBe(1)
     expect(stderr).toMatch(/expired/i)
   })
