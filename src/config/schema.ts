@@ -216,6 +216,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateDecomposition(raw['decomposition'], errors)
   validateLanes(raw['lanes'], errors)
   validateTaskTiers(raw['taskTiers'], errors)
+  validateContextPack(raw['contextPack'], errors)
 
   if (errors.length > 0) {
     return { ok: false, errors }
@@ -237,6 +238,33 @@ function validateLanes(raw: unknown, errors: string[]): void {
   for (const v of raw) {
     if (!VALID_LANES.has(v as string)) {
       errors.push(`lanes contains invalid value: ${String(v)}`)
+    }
+  }
+}
+
+function validateContextPack(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('contextPack must be an object')
+    return
+  }
+  const mappings = raw['adrMappings']
+  if (mappings === undefined || mappings === null) return
+  if (!Array.isArray(mappings)) {
+    errors.push('contextPack.adrMappings must be an array')
+    return
+  }
+  for (let i = 0; i < mappings.length; i++) {
+    const m: unknown = mappings[i]
+    if (!isRecord(m)) {
+      errors.push(`contextPack.adrMappings[${i}] must be an object`)
+      continue
+    }
+    if (typeof m['pattern'] !== 'string' || m['pattern'].length === 0) {
+      errors.push(`contextPack.adrMappings[${i}].pattern must be a non-empty string`)
+    }
+    if (typeof m['adr'] !== 'string' || m['adr'].length === 0) {
+      errors.push(`contextPack.adrMappings[${i}].adr must be a non-empty string`)
     }
   }
 }
