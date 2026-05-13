@@ -1,0 +1,14 @@
+{
+  "name": "@arbiter/example-plugin-claude-mem",
+  "version": "0.1.0",
+  "description": "Example ArbiterMemoryPlugin adapter (in-process stub)",
+  "main": "index.js",
+  "keywords": [
+    "arbiter",
+    "arbiter-plugin",
+    "memory"
+  ],
+  "peerDependencies": {
+    "@arbiter/cli": "*"
+  }
+}
