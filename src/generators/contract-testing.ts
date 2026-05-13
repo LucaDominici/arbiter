@@ -238,10 +238,11 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     if (!gate.allowed) return { files: [] }
   }
 
-  // #287: throw on unknown contractType — unknown type must not silently write the policy file
+  // #287: warn and skip on unknown contractType — throw is swallowed by safeRun; use warn+skip instead
   const handler = dispatchers[config.contractType]
   if (!handler) {
-    throw new Error(`Unknown contractType: ${config.contractType}`)
+    console.warn(`[contract-testing] Unknown contractType: ${config.contractType} — skipping`)
+    return { files: [] }
   }
 
   const base = config.targetDir

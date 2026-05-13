@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
@@ -143,30 +143,45 @@ describe('generateContractTesting', () => {
     expect(generateContractTesting(config).files).toHaveLength(0)
   })
 
-  // ─── Gate: unknown contractType → throws (#287) ───────────────────────────
+  // ─── Gate: unknown contractType → warn+skip (#287) ───────────────────────
 
-  it('throws on unknown contractType', () => {
-    const config = makeConfig(dir, {
-      contractType: 'rest-owned',
-      governanceLevel: 'L2',
-      language: 'typescript',
-      hasPublicApi: true,
-    })
-    // Override with unknown value via type cast
-    ;(config as unknown as Record<string, unknown>)['contractType'] = 'soap'
-    expect(() => generateContractTesting(config)).toThrow('Unknown contractType: soap')
+  it('warns and returns empty on unknown contractType', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const config = makeConfig(dir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'typescript',
+        hasPublicApi: true,
+      })
+      // Override with unknown value via type cast
+      ;(config as unknown as Record<string, unknown>)['contractType'] = 'soap'
+      const result = generateContractTesting(config)
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[contract-testing] Unknown contractType: soap — skipping',
+      )
+      expect(result).toEqual({ files: [] })
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 
   it('does not write CONTRACTS_POLICY.md when contractType is unknown', () => {
-    const config = makeConfig(dir, {
-      contractType: 'rest-owned',
-      governanceLevel: 'L2',
-      language: 'typescript',
-      hasPublicApi: true,
-    })
-    ;(config as unknown as Record<string, unknown>)['contractType'] = 'webhook'
-    expect(() => generateContractTesting(config)).toThrow()
-    expect(existsSync(join(dir, 'CONTRACTS_POLICY.md'))).toBe(false)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const config = makeConfig(dir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'typescript',
+        hasPublicApi: true,
+      })
+      ;(config as unknown as Record<string, unknown>)['contractType'] = 'webhook'
+      const result = generateContractTesting(config)
+      expect(result.files).toHaveLength(0)
+      expect(existsSync(join(dir, 'CONTRACTS_POLICY.md'))).toBe(false)
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 
   // ─── Gate: beta tools blocked when acceptBetaTools is false (#288) ─────────
@@ -1077,6 +1092,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(rustDir, 'src', 'test', 'contracts', 'pact-consumer.test.ts'))).toBe(
