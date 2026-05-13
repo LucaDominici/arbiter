@@ -62,11 +62,21 @@ export type EdgeKind =
  * "ADR-040", "src/graph/model.ts"). `attrs` carries free-form metadata
  * (title, description, governance level, file path) — typed as `unknown`
  * so callers must narrow.
+ *
+ * Temporal fields added in #263 (time-travel governance):
+ *   - `created_at` — ISO timestamp of first observed creation (optional)
+ *   - `commit_ref`  — git SHA of the commit that introduced this node (optional)
+ * Both fields are optional for backwards compatibility: existing snapshots
+ * without these fields continue to deserialise correctly.
  */
 export interface GraphNode {
   readonly id: string
   readonly kind: NodeKind
   readonly attrs: Readonly<Record<string, unknown>>
+  /** ISO 8601 timestamp of the first observed creation of this node. Optional. */
+  readonly created_at?: string
+  /** Git commit SHA that introduced this node. Optional. */
+  readonly commit_ref?: string
 }
 
 /**

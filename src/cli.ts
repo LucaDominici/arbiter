@@ -21,6 +21,7 @@ import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
 import { runNotaryCheck, runNotaryTemplate } from './commands/notary.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import { runTrace, type TraceFormat } from './commands/trace.js'
+import { runBlame, type BlameFormat } from './commands/blame.js'
 import {
   runWorkList,
   runWorkCreate,
@@ -511,6 +512,48 @@ program
         process.stdout.write(result.output + '\n')
       } else {
         process.stderr.write(`trace: FAIL — ${result.reason ?? 'unknown error'}\n`)
+      }
+      process.exit(result.exitCode)
+    },
+  )
+
+program
+  .command('blame')
+  .description(
+    'Time-travel governance — show blame timeline for a graph node (#263). Renders as text|json|mermaid|markdown-audit (default text)',
+  )
+  .requiredOption('--from <id>', 'Node id to blame (e.g. INV-05, FILE:src/auth/service.ts)')
+  .option(
+    '--format <fmt>',
+    'Output format: text | json | mermaid | markdown-audit (default: text)',
+    'text',
+  )
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--input <path>', 'Override graph snapshot path (default: <dir>/.arbiter/graph.json)')
+  .option('--git-dir <path>', 'Git repository directory for log harvesting (default: --dir)')
+  .option('--since <duration>', 'Informational: time window for violation query (e.g. 90d)')
+  .action(
+    (opts: {
+      from: string
+      format: string
+      dir?: string
+      input?: string
+      gitDir?: string
+      since?: string
+    }) => {
+      const blameOpts: import('./commands/blame.js').BlameOptions = {
+        from: opts.from,
+        format: opts.format as BlameFormat,
+      }
+      if (opts.dir !== undefined) blameOpts.dir = opts.dir
+      if (opts.input !== undefined) blameOpts.input = opts.input
+      if (opts.gitDir !== undefined) blameOpts.gitDir = opts.gitDir
+      if (opts.since !== undefined) blameOpts.since = opts.since
+      const result = runBlame(blameOpts)
+      if (result.status === 'ok') {
+        process.stdout.write(result.output + '\n')
+      } else {
+        process.stderr.write(`blame: FAIL — ${result.reason ?? 'unknown error'}\n`)
       }
       process.exit(result.exitCode)
     },

@@ -5,6 +5,29 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#263): time-travel governance — arbiter blame (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #263; CANON-16
+
+**Context:** The Provenance Graph (Wave-1, #259) captures static relationships between governance artefacts. Issue #263 extends it with a temporal dimension: given a node id (INV-NN, ADR-NNN, FILE:path), reconstruct its governance history from git commits and Notary footer records, and render a blame timeline.
+
+**Decisions:**
+
+- **`src/graph/history.ts` — temporal harvester**: Runs `git log --format=...` (via existing `runCli` utility, INV-12 compliant) and maps raw commit entries to `HistoryEvent` objects. For INV/ADR/CANON nodes, filters by node id appearing in commit subject or Notary `Intent:` field. For `FILE:` nodes, scopes the log to the file's pathspec for performance. Returns events sorted oldest-first; deterministic for the same repo state.
+- **`src/graph/blame.ts` — timeline builder + formatters**: Pure functions over `HistoryEvent[]`. `buildTimeline()` classifies each event (CREATED/ENFORCED/MODIFIED/MENTIONED/UNKNOWN) using keyword matching on commit text. Four renderers: `text` (human-readable), `json` (machine-readable), `mermaid` (timeline diagram), `markdown-audit` (table report).
+- **`src/commands/blame.ts` — CLI entry**: Mirrors the `trace.ts` pattern — load snapshot, resolve node, harvest history, render. `skipGitLog` flag for unit tests avoids git dependency in test environment. `BlameFormat` union type: `text | json | mermaid | markdown-audit`.
+- **`src/compliance/loader.ts` — optional compliance.yaml**: Reads `.arbiter/compliance.yaml` if present; maps INV IDs to SOC2/ISO/PCI control IDs. Custom minimal YAML parser — no external dependency. Returns `undefined` when file absent (graceful degradation).
+- **`GraphNode` temporal fields**: Extended `src/graph/model.ts` with optional `created_at?: string` and `commit_ref?: string` fields. Backwards-compatible: existing snapshots without these fields deserialise without change.
+- **NDJSON history store**: `.arbiter/graph.history.ndjson` (append-only) for future incremental harvesting. `appendHistoryEntry` / `readHistoryEntries` functions in `history.ts`. File is optional — blame falls back to real-time git log when absent.
+- **Performance**: Blame on single INV node < 2s enforced by integration test (5s CI budget). FILE: nodes use pathspec-scoped git log; INV/ADR nodes use full log filtered in memory. No git operations against remote.
+- **Dogfood**: `__tests__/integration/blame-dogfood.test.ts` runs blame on INV-01 against the arbiter repo itself and asserts non-empty output and < 5s wall time.
+- **CLI registration**: `arbiter blame` added to `src/cli.ts` after `arbiter trace`, consistent naming convention (top-level command, not nested).
+
+**Consequences:** `arbiter blame INV-NN` provides a full governance audit trail for any invariant. Optional `compliance.yaml` maps invariants to SOC2/ISO/PCI controls, enabling compliance reporting. The temporal extension is additive — no existing graph functionality is modified.
+
+---
+
 ## feat(#470): soloDevMode — trade-offs and invariant design (2026-05-13)
 
 **Status:** Accepted
