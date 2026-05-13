@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "file": "__tests__/",
+    "reason": "All emails under __tests__/ are fixture data (test@arbiter.dev, user@example.com, etc.) — fake addresses required by integration test inputs (init wizard, GitHub board owners, etc.); production source is scanned without exclusion.",
+    "owner": "core",
+    "expiresAt": "2026-06-13",
+    "scope": "pii-allowlist"
+  }
+]

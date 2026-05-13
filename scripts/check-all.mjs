@@ -116,6 +116,7 @@ runCheck('unit tests', 'npm', ['test'])
 runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts', 'src/'])
 runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
 runCheck('orphan TODOs', 'node', ['scripts/check-no-orphan-todo.mjs'])
+runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'])
 runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs'])
 runCheck(
@@ -169,6 +170,11 @@ if (level === 'L2' || level === 'L3') {
     '1',
   ])
   runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
+  runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
+  // STRIDE/RACI traceability deliberately NOT wired here yet: the docs/SECURITY/STRIDE.md
+  // and docs/GOVERNANCE/RACI.md tables have zero HIGH/CRITICAL rows, so the script
+  // would exit 0 unconditionally. Wiring a no-op gate would be a CANON-09 lie. Wire
+  // only after at least one threat/responsibility row is documented (#350-followup).
   runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
   runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
 }
