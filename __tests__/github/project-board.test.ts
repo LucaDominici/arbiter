@@ -38,10 +38,10 @@ describe('createProjectBoard', () => {
 
   it('returns empty warnings when both field-creates succeed', async () => {
     const { createProjectBoard } = await import('../../src/github/project-board.js')
-    mockRunCliJson.mockReturnValue({
-      number: 1,
-      url: 'https://github.com/orgs/o/projects/1',
-    })
+    mockRunCliJson
+      .mockReturnValueOnce({ projects: [] }) // findExistingBoard: no match
+      .mockReturnValueOnce({ number: 1, url: 'https://github.com/orgs/o/projects/1' }) // create
+      .mockReturnValueOnce({ fields: [] }) // existingFieldNames after create
     mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
 
     const result = createProjectBoard('owner', 'repo')
@@ -86,6 +86,22 @@ describe('createProjectBoard', () => {
 
     expect(result.error).toBeTruthy()
     expect(result.created).toBe(false)
+  })
+
+  it('surfaces findExistingBoard errors in warnings[] when create succeeds (#474)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    mockRunCliJson
+      .mockImplementationOnce(() => {
+        throw new Error('rate limit hit')
+      })
+      .mockReturnValueOnce({ number: 7, url: 'https://github.com/orgs/o/projects/7' })
+      .mockReturnValueOnce({ fields: [] })
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
+
+    const result = createProjectBoard('owner', 'repo')
+
+    expect(result.created).toBe(true)
+    expect(result.warnings.some((w) => /rate limit hit/.test(w))).toBe(true)
   })
 
   it('returns error when gh project create output missing number/url fields (#296)', async () => {
