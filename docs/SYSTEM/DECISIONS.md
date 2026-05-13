@@ -5,6 +5,29 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#470): soloDevMode — trade-offs and invariant design (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #470; INV-58, INV-59
+
+**Context:** Solo-dev workflow: single developer wants to merge directly after local L2 passes, without waiting for PR CI and review ceremony. Premise: "local gate ≡ CI gate, so CI on PR is redundant." Phase A–F of #470 reinforces parity first (INV-58 Node SSOT, INV-59 gate result hash), then introduces the option.
+
+**Decisions:**
+
+- **PR ceremony retained:** INV-23 (direct push to main banned) remains enforced. `soloDevMode` relaxes branch protection (no required reviews, no required CI status checks) but PR still exists. Merge is via `gh pr merge --admin --squash`.
+
+- **No-op CI on PR:** When `soloDevMode=true`, the generated `ci.yml` emits a solo-dev-gate job that exits immediately (echo only). Full CI still runs on push to `main`. Branch protection is permissive so the no-op job is sufficient to merge.
+
+- **Nightly drift shadow:** A separate `drift-shadow.yml` workflow runs nightly to catch parity regression (INV-59 hash comparison). On mismatch it opens a GitHub issue tagged `inv-59-drift`. This substitutes for the per-PR CI second opinion.
+
+- **Parity prerequisite:** `soloDevMode` is meaningful only when INV-59 parity holds. The feature flag is documented to require parity evidence; drift detected by the nightly shadow should block enabling solo mode.
+
+- **Team conversion risk:** Branch protection is permissive. If collaborators join the repo, `arbiter doctor` (future) should warn when `soloDevMode=true` and >1 collaborator detected.
+
+**Consequences:** Solo developer can merge PRs after local L2 green without PR CI delay. Nightly drift shadow catches environmental divergence within 24 hours. Parity invariant (INV-59) must hold for the premise to be valid.
+
+---
+
 ## feat(#470): Gate result parity — INV-59, parityContentHash, CI aggregation (2026-05-13)
 
 **Status:** Accepted
