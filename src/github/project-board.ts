@@ -7,16 +7,121 @@ export interface ProjectBoardResult {
   warnings: string[];
 }
 
+interface GhProject {
+  number: number;
+  title: string;
+  url: string;
+}
+
+interface GhField {
+  name: string;
+}
+
+function findExistingBoard(
+  owner: string,
+  title: string,
+): { number: number; url: string } | null {
+  try {
+    const { projects } = runCliJson("gh", [
+      "project",
+      "list",
+      "--owner",
+      owner,
+      "--format",
+      "json",
+      "--limit",
+      "100",
+    ]) as { projects: GhProject[] };
+    const match = projects.find((p) => p.title === title);
+    return match ? { number: match.number, url: match.url } : null;
+  } catch {
+    return null;
+  }
+}
+
+function existingFieldNames(owner: string, projectNumber: number): Set<string> {
+  try {
+    const { fields } = runCliJson("gh", [
+      "project",
+      "field-list",
+      String(projectNumber),
+      "--owner",
+      owner,
+      "--format",
+      "json",
+    ]) as { fields: GhField[] };
+    return new Set(fields.map((f) => f.name));
+  } catch {
+    return new Set();
+  }
+}
+
+interface FieldSpec {
+  name: string;
+  options: string;
+}
+
+function ensureField(
+  projectNumber: number,
+  owner: string,
+  spec: FieldSpec,
+  existingNames: Set<string>,
+  warnings: string[],
+): void {
+  if (existingNames.has(spec.name)) return;
+  try {
+    runCli("gh", [
+      "project",
+      "field-create",
+      String(projectNumber),
+      "--owner",
+      owner,
+      "--name",
+      spec.name,
+      "--data-type",
+      "SINGLE_SELECT",
+      "--single-select-options",
+      spec.options,
+    ]);
+  } catch (err) {
+    warnings.push(
+      `${spec.name} field: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 /**
  * Create a GitHub Project board with standard fields (Priority, Size).
- * Requires `gh` CLI with project scope. Fails gracefully if unavailable.
+ * Idempotent: reuses an existing board with the same title rather than
+ * creating a duplicate. Requires `gh` CLI with project scope.
  */
 export function createProjectBoard(
   owner: string,
   repo: string,
 ): ProjectBoardResult {
-  // Create the project
+  const boardTitle = `${repo} Board`;
   const warnings: string[] = [];
+
+  const existing = findExistingBoard(owner, boardTitle);
+  if (existing) {
+    const fieldNames = existingFieldNames(owner, existing.number);
+    ensureField(
+      existing.number,
+      owner,
+      { name: "Priority", options: "P0,P1,P2" },
+      fieldNames,
+      warnings,
+    );
+    ensureField(
+      existing.number,
+      owner,
+      { name: "Size", options: "XS,S,M,L" },
+      fieldNames,
+      warnings,
+    );
+    return { created: false, projectUrl: existing.url, error: null, warnings };
+  }
+
   let projectNumber: number;
   let projectUrl: string;
   try {
@@ -26,7 +131,7 @@ export function createProjectBoard(
       "--owner",
       owner,
       "--title",
-      `${repo} Board`,
+      boardTitle,
       "--format",
       "json",
     ]) as { number: number; url: string };
@@ -37,47 +142,21 @@ export function createProjectBoard(
     return { created: false, projectUrl: null, error: msg, warnings: [] };
   }
 
-  // Add Priority field
-  try {
-    runCli("gh", [
-      "project",
-      "field-create",
-      String(projectNumber),
-      "--owner",
-      owner,
-      "--name",
-      "Priority",
-      "--data-type",
-      "SINGLE_SELECT",
-      "--single-select-options",
-      "P0,P1,P2",
-    ]);
-  } catch (err) {
-    warnings.push(
-      `Priority field: ${err instanceof Error ? err.message : String(err)}`,
-    );
-  }
-
-  // Add Size field
-  try {
-    runCli("gh", [
-      "project",
-      "field-create",
-      String(projectNumber),
-      "--owner",
-      owner,
-      "--name",
-      "Size",
-      "--data-type",
-      "SINGLE_SELECT",
-      "--single-select-options",
-      "XS,S,M,L",
-    ]);
-  } catch (err) {
-    warnings.push(
-      `Size field: ${err instanceof Error ? err.message : String(err)}`,
-    );
-  }
+  const fieldNames = existingFieldNames(owner, projectNumber);
+  ensureField(
+    projectNumber,
+    owner,
+    { name: "Priority", options: "P0,P1,P2" },
+    fieldNames,
+    warnings,
+  );
+  ensureField(
+    projectNumber,
+    owner,
+    { name: "Size", options: "XS,S,M,L" },
+    fieldNames,
+    warnings,
+  );
 
   return { created: true, projectUrl, error: null, warnings };
 }
