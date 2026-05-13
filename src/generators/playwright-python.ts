@@ -3,7 +3,7 @@ import { writeFile, resolvedPath } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
-export interface PlaywrightPythonResult {
+interface PlaywrightPythonResult {
   files: WriteResult[]
 }
 
