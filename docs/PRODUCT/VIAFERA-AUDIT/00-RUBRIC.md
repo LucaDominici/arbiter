@@ -105,7 +105,7 @@ A file scores `CERIMONIA` when **any one** holds:
 ### Examples
 
 - **R-OBS-01** — `viafera/docs/99-ARCHIVE/superseded/*` (15 files) — explicitly superseded inside viafera. Premortem evidence: process produced more dead docs than living ones.
-- **R-OBS-02** — `viafera/docs/SYSTEM/SonarCloud-*` references → COMPLIANCE_MAPPING.md flags SonarCloud as _(deprecated 2026-01-18; PMD+SpotBugs are the active replacements)_.
+- **R-OBS-02** — `viafera/docs/SYSTEM/SonarCloud-*` references → COMPLIANCE*MAPPING.md flags SonarCloud as *(deprecated 2026-01-18; PMD+SpotBugs are the active replacements)\_.
 - **R-OBS-03** — `viafera/99-ARCHIVE/claude/` (1 md) — abandoned Claude-specific config.
 
 ---
