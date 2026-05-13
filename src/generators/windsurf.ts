@@ -8,7 +8,7 @@ export interface WindsurfGeneratorResult {
 }
 
 export function generateWindsurf(config: ProjectConfig): WindsurfGeneratorResult {
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   return {
     files: [
       writeFile(

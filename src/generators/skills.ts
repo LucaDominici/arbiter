@@ -21,7 +21,7 @@ const SKILL_NAMES = [
 export function generateSkills(config: ProjectConfig): SkillsGeneratorResult {
   if (!config.tools.includes('claude')) return { files: [] }
 
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const base = config.targetDir
 
   const files = SKILL_NAMES.map((name) =>

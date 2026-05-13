@@ -16,7 +16,7 @@ export function generateEvidenceRetention(config: ProjectConfig): EvidenceRetent
       mode: 'local-last-N',
       count: 5,
     },
-  } as unknown as Record<string, unknown>
+  }
 
   const files: WriteResult[] = [
     // Arbiter-managed rotation script — always regenerate to pick up changes

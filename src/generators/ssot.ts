@@ -10,7 +10,7 @@ export interface SsotGeneratorResult {
 export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   // SSOT_CORE_SET.md — always generated (authoritative doc inventory)
   results.push(

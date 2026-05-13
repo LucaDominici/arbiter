@@ -32,7 +32,7 @@ export function generateTestTaxonomy(config: ProjectConfig): TestTaxonomyResult 
   const domainDims = extractDomainDims(config)
   const path = resolvedPath(config.targetDir, 'docs', 'TEST_TAXONOMY.md')
   const content = renderTemplate('root/TEST_TAXONOMY.md.ejs', {
-    ...(config as unknown as Record<string, unknown>),
+    ...config,
     levels: profile.levels,
     hasContainerIntegration: profile.hasContainerIntegration,
     hasPropertyTests: profile.hasPropertyTests,

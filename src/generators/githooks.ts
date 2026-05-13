@@ -57,7 +57,7 @@ function injectPrepareScript(targetDir: string): void {
 export function generateGithooks(config: ProjectConfig): GithooksGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   const hooksDir = resolvedPath(base, '.githooks')
 

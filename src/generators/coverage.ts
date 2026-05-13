@@ -24,7 +24,7 @@ export function generateCoverage(config: ProjectConfig): CoverageGeneratorResult
     ...config,
     coverageThreshold: thresholds.coverageThreshold,
     coverageEnabled: thresholds.coverageEnabled,
-  } as unknown as Record<string, unknown>
+  }
 
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(

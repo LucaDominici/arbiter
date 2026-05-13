@@ -19,7 +19,7 @@ function javaContractsPkg(config: ProjectConfig): string {
 interface ContractFileOptions {
   base: string
   config: ProjectConfig
-  data: Record<string, unknown>
+  data: object
   templateDir: string
   tsFile: string
   javaFile: string
@@ -83,11 +83,7 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
   return out
 }
 
-function generateRestOwned(
-  base: string,
-  config: ProjectConfig,
-  data: Record<string, unknown>,
-): WriteResult[] {
+function generateRestOwned(base: string, config: ProjectConfig, data: object): WriteResult[] {
   const extra: WriteResult[] = [
     writeFile(
       resolvedPath(base, '.env.pact'),
@@ -123,11 +119,7 @@ function generateRestOwned(
   })
 }
 
-function generateRestPublic(
-  base: string,
-  config: ProjectConfig,
-  data: Record<string, unknown>,
-): WriteResult[] {
+function generateRestPublic(base: string, config: ProjectConfig, data: object): WriteResult[] {
   return contractFile({
     base,
     config,
@@ -141,11 +133,7 @@ function generateRestPublic(
   })
 }
 
-function generateGraphql(
-  base: string,
-  config: ProjectConfig,
-  data: Record<string, unknown>,
-): WriteResult[] {
+function generateGraphql(base: string, config: ProjectConfig, data: object): WriteResult[] {
   return contractFile({
     base,
     config,
@@ -159,11 +147,7 @@ function generateGraphql(
   })
 }
 
-function generateGrpc(
-  base: string,
-  config: ProjectConfig,
-  data: Record<string, unknown>,
-): WriteResult[] {
+function generateGrpc(base: string, config: ProjectConfig, data: object): WriteResult[] {
   const skip = { skipIfExists: true } as const
   const shared: WriteResult[] = [
     writeFile(
@@ -192,11 +176,7 @@ function generateGrpc(
   })
 }
 
-function generateMessageQueue(
-  base: string,
-  config: ProjectConfig,
-  data: Record<string, unknown>,
-): WriteResult[] {
+function generateMessageQueue(base: string, config: ProjectConfig, data: object): WriteResult[] {
   return contractFile({
     base,
     config,
@@ -217,7 +197,7 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
 
   const dispatchers: Record<
     string,
-    (base: string, config: ProjectConfig, data: Record<string, unknown>) => WriteResult[]
+    (base: string, config: ProjectConfig, data: object) => WriteResult[]
   > = {
     'rest-owned': generateRestOwned,
     'rest-public': generateRestPublic,
@@ -246,7 +226,7 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
   }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const results: WriteResult[] = [
     writeFile(
       resolvedPath(base, 'CONTRACTS_POLICY.md'),

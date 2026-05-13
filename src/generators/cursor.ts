@@ -8,7 +8,7 @@ export interface CursorGeneratorResult {
 }
 
 export function generateCursor(config: ProjectConfig): CursorGeneratorResult {
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   return {
     files: [
       writeFile(

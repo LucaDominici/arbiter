@@ -14,11 +14,7 @@ function shouldEmit(target: 'java' | 'typescript', language: string, acceptBeta:
   return isL3Allowed(target, 'mutation', acceptBeta).allowed
 }
 
-function emitJavaMutation(
-  targetDir: string,
-  buildTool: string,
-  data: Record<string, unknown>,
-): WriteResult {
+function emitJavaMutation(targetDir: string, buildTool: string, data: object): WriteResult {
   if (buildTool === 'maven') {
     return writeFile(
       resolvedPath(targetDir, 'docs', 'mutation', 'pitest-maven-setup.md'),
@@ -43,8 +39,8 @@ export function generateMutation(config: ProjectConfig): MutationGeneratorResult
     if (!gate.allowed) return { files: [] }
   }
 
-  const data: Record<string, unknown> = {
-    ...(config as unknown as Record<string, unknown>),
+  const data: object = {
+    ...config,
     mutationThreshold: config.thresholds?.mutationScore || 85,
     basePackage: config.basePackage ?? 'com.example',
     modulePath: config.projectName.replace(/-/g, '_'),

@@ -8,7 +8,7 @@ export interface GeminiGeneratorResult {
 }
 
 export function generateGemini(config: ProjectConfig): GeminiGeneratorResult {
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   return {
     files: [
       writeFile(

@@ -10,7 +10,7 @@ export interface RootGeneratorResult {
 export function generateRoot(config: ProjectConfig): RootGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   // CODEOWNERS — create if missing
   if (config.githubOwner) {

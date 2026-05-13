@@ -9,7 +9,7 @@ export interface SuppressionsGeneratorResult {
 
 export function generateSuppressions(config: ProjectConfig): SuppressionsGeneratorResult {
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   // Always emit — inline comment directives (INV-31) are unconditional in check-all.mjs.ejs (#242)
   const results: WriteResult[] = [

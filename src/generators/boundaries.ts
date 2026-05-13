@@ -11,7 +11,7 @@ export function generateEslintBoundaries(config: ProjectConfig): BoundariesGener
   if (config.language !== 'typescript' && config.language !== 'multi') return { files: [] }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
 
   if (config.archetype === 'frontend-spa') {
     return {

@@ -24,7 +24,7 @@ export function generateNightly(config: ProjectConfig): NightlyGeneratorResult {
     coverageThreshold: thresholds.coverageThreshold,
     mutationThreshold: thresholds.mutationThreshold,
     k6ScriptPath: config.k6ScriptPath ?? 'tests/load/default.js',
-  } as unknown as Record<string, unknown>
+  }
 
   return {
     files: [

@@ -32,7 +32,7 @@ export function generateIntegrationTesting(
   }
 
   const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
+  const data = config
   const results: WriteResult[] = []
 
   if (config.language === 'java' || config.language === 'multi') {
