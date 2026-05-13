@@ -116,9 +116,9 @@ export function parseRuffVersion(raw: string): SemVer | null {
   return { major: +maj, minor: +min, patch: +pat }
 }
 
-/** `kotlinc-jvm 1.9.23 (JRE 17.0.9+9)` */
+/** `kotlinc-jvm 1.9.23 (JRE 17.0.9+9)` or `info: kotlinc-jvm 1.9.23 (JRE 17.0.9+9)` */
 export function parseKotlinVersion(raw: string): SemVer | null {
-  const m = raw.trim().match(/^kotlinc-jvm\s+(\d+)\.(\d+)\.(\d+)/)
+  const m = raw.trim().match(/kotlinc-jvm\s+(\d+)\.(\d+)\.(\d+)/)
   if (!m) return null
   const [, maj, min, pat] = m
   if (maj === undefined || min === undefined || pat === undefined) return null
