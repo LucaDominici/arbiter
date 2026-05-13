@@ -34,6 +34,7 @@ export type GeneratorKey =
   | 'test-taxonomy'
   | 'behavioral-tests'
   | 'playwright-python'
+  | 'playwright-ts'
   | 'ssot'
   | 'githooks'
   | 'github-setup'

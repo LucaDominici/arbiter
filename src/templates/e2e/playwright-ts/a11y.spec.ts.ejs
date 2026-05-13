@@ -1,0 +1,20 @@
+// a11y.spec.ts — INV-61 (#349).
+//
+// Exercises the runAxe wrapper against representative views. Extend the
+// `views` array as new top-level routes ship.
+
+import { test } from '@playwright/test'
+import { runAxe } from './a11y/run-axe'
+
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:4173'
+
+const views: ReadonlyArray<{ label: string; path: string }> = [
+  { label: 'home', path: '/' },
+]
+
+for (const view of views) {
+  test(`a11y — ${view.label} (INV-61)`, async ({ page }) => {
+    await page.goto(`${BASE_URL}${view.path}`)
+    await runAxe(page, view.label)
+  })
+}

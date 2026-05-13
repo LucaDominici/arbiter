@@ -1,0 +1,72 @@
+// a11y axe-core wrapper — INV-61 (#349, CANON-02).
+//
+// Threshold policy (deliberate, not negotiable without an INV revision):
+//   - HARD-throw on impact === 'critical'
+//   - HARD-throw on unclassified impact (null / undefined) — never silently pass
+//   - LOG without throw on serious / moderate / minor — captured as evidence
+//
+// Downstream projects may ratchet the policy stricter (e.g. throw on
+// 'serious' too) by wrapping or replacing this helper. They may NOT loosen
+// it without recording a project-level exception that cites INV-61.
+//
+// Tag set: wcag2a + wcag2aa — the WCAG 2.1 AA baseline. Add 'wcag21aa' or
+// 'best-practice' tags if your team has ratcheted higher.
+
+import AxeBuilder from '@axe-core/playwright'
+import type { Page } from '@playwright/test'
+
+type ImpactLevel = 'critical' | 'serious' | 'moderate' | 'minor'
+
+interface AxeViolation {
+  id: string
+  impact?: ImpactLevel | null
+  description: string
+  help: string
+  helpUrl: string
+  nodes: ReadonlyArray<{ target: ReadonlyArray<string> }>
+}
+
+interface AxeResults {
+  violations: ReadonlyArray<AxeViolation>
+}
+
+const HARD_FAIL_IMPACTS = new Set<ImpactLevel>(['critical'])
+
+export async function runAxe(page: Page, label: string): Promise<void> {
+  const results = (await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze()) as unknown as AxeResults
+
+  const hardFailures: AxeViolation[] = []
+  const unclassified: AxeViolation[] = []
+  const soft: AxeViolation[] = []
+
+  for (const v of results.violations) {
+    if (v.impact == null) {
+      unclassified.push(v)
+    } else if (HARD_FAIL_IMPACTS.has(v.impact)) {
+      hardFailures.push(v)
+    } else {
+      soft.push(v)
+    }
+  }
+
+  for (const v of soft) {
+    // eslint-disable-next-line no-console
+    console.warn(`[a11y][${label}] ${v.impact ?? '?'}: ${v.id} — ${v.help}`)
+  }
+
+  if (unclassified.length > 0) {
+    const ids = unclassified.map((v) => v.id).join(', ')
+    throw new Error(
+      `[a11y][${label}] INV-61: unclassified-impact violations not permitted: ${ids}`,
+    )
+  }
+
+  if (hardFailures.length > 0) {
+    const summary = hardFailures
+      .map((v) => `${v.id} (${v.nodes.length} node${v.nodes.length === 1 ? '' : 's'})`)
+      .join(', ')
+    throw new Error(`[a11y][${label}] INV-61: critical violations detected: ${summary}`)
+  }
+}

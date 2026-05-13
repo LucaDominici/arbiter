@@ -938,4 +938,28 @@ export const INVARIANT_CATALOG: Invariant[] = [
       'generated docs/coverage/Cargo.toml.profile.release block (opt-level=s, lto, ' +
       'codegen-units=1, strip=symbols, panic=abort) keeps binaries within the cap',
   },
+
+  {
+    id: 'INV-61',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'a11y critical violations are HARD-fail at L2',
+    description:
+      'For TS web archetypes (frontend-spa, backend-web-db) the generated ' +
+      'tests/e2e/a11y/run-axe.ts wrapper runs @axe-core/playwright with the ' +
+      'wcag2a + wcag2aa tag set and throws on any violation whose impact is ' +
+      '`critical` OR unclassified (impact === null/undefined). serious / ' +
+      'moderate / minor violations are logged without throwing — they remain ' +
+      'evidence but do not block the gate. The default threshold matches the ' +
+      'axe-core WCAG 2.1 AA baseline; downstream projects can ratchet it ' +
+      'stricter by extending the wrapper. Matrix cell: a11y × typescript = ' +
+      'proven (axe-core/playwright). Python pairs with axe-playwright-python ' +
+      'at beta maturity. Other languages have no browser surface (unavailable).',
+    alwaysActive: false,
+    enforcement:
+      'Generated tests/e2e/a11y/run-axe.ts wrapper throws on critical / ' +
+      'unclassified impact — pytest/playwright surfaces the throw as a failed ' +
+      'spec, which fails the L2 playwright-e2e gate step in scripts/check-all.mjs',
+  },
 ]

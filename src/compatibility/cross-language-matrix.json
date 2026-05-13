@@ -223,5 +223,32 @@
       "maturity": "proven",
       "reason": "stylelint 16+ enforces color-no-hex and design-token discipline; widely adopted in ts-frontend-spa stacks (haben pattern, #352)"
     }
+  },
+  "a11y": {
+    "typescript": {
+      "tool": "axe-core/playwright",
+      "maturity": "proven",
+      "reason": "@axe-core/playwright 4.11+ ships a stable AxeBuilder; wcag2a+wcag2aa tag set is the industry baseline (INV-61, #349)"
+    },
+    "python": {
+      "tool": "axe-playwright-python",
+      "maturity": "beta",
+      "reason": "axe-playwright-python wraps the same axe-core rules but the API surface is small and tag selection less ergonomic than the TS binding"
+    },
+    "rust": {
+      "tool": "N/A",
+      "maturity": "unavailable",
+      "reason": "No browser surface for Rust CLI/embedded archetypes — a11y is a UI-layer concern"
+    },
+    "go": {
+      "tool": "N/A",
+      "maturity": "unavailable",
+      "reason": "No browser surface for Go CLI/server archetypes — a11y is a UI-layer concern"
+    },
+    "java": {
+      "tool": "N/A",
+      "maturity": "unavailable",
+      "reason": "Server-side Java archetypes have no rendered UI; pair with a TS frontend lane for a11y coverage"
+    }
   }
 }

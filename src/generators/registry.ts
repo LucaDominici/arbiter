@@ -32,6 +32,7 @@ import { generateAgentsClaude } from './agents-claude.js'
 import { generateSsot } from './ssot.js'
 import { generateBehavioralTests } from './behavioral-tests.js'
 import { generatePlaywrightPython } from './playwright-python.js'
+import { generatePlaywrightTs } from './playwright-ts.js'
 import { generateGithooks } from './githooks.js'
 import { generateGithubSetup } from './github-setup.js'
 import { generateDocs } from './docs.js'
@@ -255,6 +256,13 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
         config.language === 'python' &&
         (config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db'),
       run: () => generatePlaywrightPython(config).files,
+    },
+    {
+      key: 'playwright-ts',
+      enabled:
+        config.language === 'typescript' &&
+        (config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db'),
+      run: () => generatePlaywrightTs(config).files,
     },
     { key: 'ssot', enabled: true, run: () => generateSsot(config).files },
   ]
