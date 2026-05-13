@@ -1,10 +1,12 @@
+import os
+
 import pytest
 from playwright.sync_api import Page
 
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    return "http://localhost:8000"
+    return os.environ.get("E2E_BASE_URL", "http://localhost:8000")
 
 
 @pytest.fixture

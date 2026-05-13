@@ -1,12 +1,22 @@
+# pytest-playwright conftest — #366 (CANON-02/03).
+#
+# E2E_BASE_URL overrides the default for CI / non-localhost targets.
+# Pair with scripts/lib/ephemeral-server.mjs (#358): the runner brings up
+# the server, then invokes `pytest tests/e2e`, which picks up these fixtures.
+
+import os
+
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    return "http://localhost:8000"
+    return os.environ.get("E2E_BASE_URL", "http://localhost:8000")
 
 
 @pytest.fixture
 def page(page: Page) -> Page:
+    # Re-export the pytest-playwright `page` fixture so tests can request it
+    # without importing it from the plugin namespace directly.
     return page

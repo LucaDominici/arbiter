@@ -1,6 +1,21 @@
+# pytest-playwright smoke spec — #366.
+#
+# Liveness assertions: navigating to the home route must return a non-error
+# response, the document must have a non-empty title, and a <body> must be
+# visible. Failure here means the ephemeral server (#358) is up but the
+# application is dead — exactly the regression class the playwright gate
+# is meant to catch.
+
 import re
 
 from playwright.sync_api import Page, expect
+
+
+def test_home_page_status(page: Page, base_url: str) -> None:
+    response = page.goto(base_url)
+    assert response is not None, "page.goto returned no response"
+    status = response.status
+    assert status < 400, f"home returned HTTP {status} — server liveness regression"
 
 
 def test_home_page_title(page: Page, base_url: str) -> None:
@@ -8,6 +23,6 @@ def test_home_page_title(page: Page, base_url: str) -> None:
     expect(page).to_have_title(re.compile(r".+"))
 
 
-def test_home_page_loads(page: Page, base_url: str) -> None:
+def test_home_page_body_visible(page: Page, base_url: str) -> None:
     page.goto(base_url)
     expect(page.locator("body")).to_be_visible()
