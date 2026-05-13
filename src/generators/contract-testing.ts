@@ -1,5 +1,6 @@
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { isL3Allowed } from '../utils/maturity-check.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -214,16 +215,6 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     return { files: [] }
   }
 
-  const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
-  const results: WriteResult[] = [
-    writeFile(
-      resolvedPath(base, 'CONTRACTS_POLICY.md'),
-      renderTemplate('contract-testing/CONTRACTS_POLICY.md.ejs', data),
-      { skipIfExists: true },
-    ),
-  ]
-
   const dispatchers: Record<
     string,
     (base: string, config: ProjectConfig, data: Record<string, unknown>) => WriteResult[]
@@ -235,10 +226,36 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     'message-queue': generateMessageQueue,
   }
 
-  const handler = dispatchers[config.contractType]
-  if (handler) {
-    results.push(...handler(base, config, data))
+  // #289: contract testing is only meaningful for services with a public API
+  if (!config.hasPublicApi) {
+    return { files: [] }
   }
+
+  // #288: gate beta contract tools on acceptBetaTools flag
+  const { language, acceptBetaTools = false } = config
+  if (language !== 'multi') {
+    const gate = isL3Allowed(language, 'contract', acceptBetaTools)
+    if (!gate.allowed) return { files: [] }
+  }
+
+  // #287: warn and skip on unknown contractType — throw is swallowed by safeRun; use warn+skip instead
+  const handler = dispatchers[config.contractType]
+  if (!handler) {
+    console.warn(`[contract-testing] Unknown contractType: ${config.contractType} — skipping`)
+    return { files: [] }
+  }
+
+  const base = config.targetDir
+  const data = config as unknown as Record<string, unknown>
+  const results: WriteResult[] = [
+    writeFile(
+      resolvedPath(base, 'CONTRACTS_POLICY.md'),
+      renderTemplate('contract-testing/CONTRACTS_POLICY.md.ejs', data),
+      { skipIfExists: true },
+    ),
+  ]
+
+  results.push(...handler(base, config, data))
 
   return { files: results }
 }

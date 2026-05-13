@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
@@ -98,6 +98,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L1',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(0)
   })
@@ -107,6 +108,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-public',
       governanceLevel: 'L1',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(0)
   })
@@ -116,6 +118,7 @@ describe('generateContractTesting', () => {
       contractType: 'graphql',
       governanceLevel: 'L1',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(0)
   })
@@ -125,6 +128,7 @@ describe('generateContractTesting', () => {
       contractType: 'grpc',
       governanceLevel: 'L1',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(0)
   })
@@ -134,8 +138,157 @@ describe('generateContractTesting', () => {
       contractType: 'message-queue',
       governanceLevel: 'L1',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(0)
+  })
+
+  // ─── Gate: unknown contractType → warn+skip (#287) ───────────────────────
+
+  it('warns and returns empty on unknown contractType', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const config = makeConfig(dir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'typescript',
+        hasPublicApi: true,
+      })
+      // Override with unknown value via type cast
+      ;(config as unknown as Record<string, unknown>)['contractType'] = 'soap'
+      const result = generateContractTesting(config)
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[contract-testing] Unknown contractType: soap — skipping',
+      )
+      expect(result).toEqual({ files: [] })
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('does not write CONTRACTS_POLICY.md when contractType is unknown', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const config = makeConfig(dir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'typescript',
+        hasPublicApi: true,
+      })
+      ;(config as unknown as Record<string, unknown>)['contractType'] = 'webhook'
+      const result = generateContractTesting(config)
+      expect(result.files).toHaveLength(0)
+      expect(existsSync(join(dir, 'CONTRACTS_POLICY.md'))).toBe(false)
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  // ─── Gate: beta tools blocked when acceptBetaTools is false (#288) ─────────
+
+  it('returns empty for rust when acceptBetaTools is false (rest-owned)', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
+    try {
+      const config = makeConfig(rustDir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'rust',
+        buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: false,
+      })
+      expect(generateContractTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(rustDir)
+    }
+  })
+
+  it('returns empty for go when acceptBetaTools is false (rest-public)', () => {
+    const goDir = createTestProject('go')
+    initGit(goDir)
+    try {
+      const config = makeConfig(goDir, {
+        contractType: 'rest-public',
+        governanceLevel: 'L2',
+        language: 'go',
+        buildTool: 'go',
+        hasPublicApi: true,
+        acceptBetaTools: false,
+      })
+      expect(generateContractTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(goDir)
+    }
+  })
+
+  it('returns empty for python when acceptBetaTools is false (graphql)', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
+    try {
+      const config = makeConfig(pyDir, {
+        contractType: 'graphql',
+        governanceLevel: 'L2',
+        language: 'python',
+        buildTool: 'pip',
+        hasPublicApi: true,
+        acceptBetaTools: false,
+      })
+      expect(generateContractTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(pyDir)
+    }
+  })
+
+  it('emits files for rust when acceptBetaTools is true (rest-owned)', () => {
+    const rustDir = createTestProject('rust')
+    initGit(rustDir)
+    try {
+      const config = makeConfig(rustDir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'rust',
+        buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
+      })
+      expect(generateContractTesting(config).files.length).toBeGreaterThan(0)
+    } finally {
+      cleanupTestProject(rustDir)
+    }
+  })
+
+  // ─── Gate: hasPublicApi=false → empty (#289) ──────────────────────────────
+
+  it('returns empty when hasPublicApi is false (typescript, rest-owned)', () => {
+    const config = makeConfig(dir, {
+      contractType: 'rest-owned',
+      governanceLevel: 'L2',
+      language: 'typescript',
+      hasPublicApi: false,
+    })
+    expect(generateContractTesting(config).files).toHaveLength(0)
+  })
+
+  it('returns empty when hasPublicApi is absent (typescript, rest-public)', () => {
+    // makeConfig defaults hasPublicApi: false — so omitting it tests the absent case
+    const config = makeConfig(dir, {
+      contractType: 'rest-public',
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    expect(generateContractTesting(config).files).toHaveLength(0)
+  })
+
+  it('does not write CONTRACTS_POLICY.md when hasPublicApi is false', () => {
+    const config = makeConfig(dir, {
+      contractType: 'graphql',
+      governanceLevel: 'L2',
+      language: 'typescript',
+      hasPublicApi: false,
+    })
+    generateContractTesting(config)
+    expect(existsSync(join(dir, 'CONTRACTS_POLICY.md'))).toBe(false)
   })
 
   // ─── rest-owned × typescript: 2 files ────────────────────────────────────
@@ -145,6 +298,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(4)
   })
@@ -154,6 +308,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'CONTRACTS_POLICY.md'))).toBe(true)
@@ -164,6 +319,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'src', 'test', 'contracts', 'pact-consumer.test.ts'))).toBe(true)
@@ -180,6 +336,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(5)
     } finally {
@@ -196,6 +353,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       generateContractTesting(config)
       expect(
@@ -216,6 +374,7 @@ describe('generateContractTesting', () => {
         language: 'java',
         buildTool: 'gradle',
         basePackage: 'com.example.myapp',
+        hasPublicApi: true,
       })
       generateContractTesting(config)
       expect(
@@ -247,6 +406,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(javaDir, 'config', 'pact-deps.gradle'))).toBe(true)
@@ -266,6 +426,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(4)
     } finally {
@@ -282,6 +444,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(rustDir, 'tests', 'pact_consumer_test.rs'))).toBe(true)
@@ -301,6 +465,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(4)
     } finally {
@@ -317,6 +483,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(goDir, 'tests', 'pact_consumer_test.go'))).toBe(true)
@@ -336,6 +504,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(4)
     } finally {
@@ -352,6 +522,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(pyDir, 'tests', 'contract', 'test_pact_consumer.py'))).toBe(true)
@@ -367,6 +539,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-public',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(2)
   })
@@ -376,6 +549,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-public',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'src', 'test', 'contracts', 'openapi-diff.ts'))).toBe(true)
@@ -390,6 +564,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       expect(generateContractTesting(config).files).toHaveLength(2)
     } finally {
@@ -406,6 +581,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       generateContractTesting(config)
       expect(
@@ -425,6 +601,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -444,6 +622,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -463,6 +643,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -482,6 +664,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -500,6 +683,7 @@ describe('generateContractTesting', () => {
       contractType: 'graphql',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(2)
   })
@@ -509,6 +693,7 @@ describe('generateContractTesting', () => {
       contractType: 'graphql',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'src', 'test', 'contracts', 'graphql-inspector.test.ts'))).toBe(
@@ -525,6 +710,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -545,6 +731,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -564,6 +752,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -583,6 +773,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -600,6 +792,7 @@ describe('generateContractTesting', () => {
       contractType: 'grpc',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(4)
   })
@@ -609,6 +802,7 @@ describe('generateContractTesting', () => {
       contractType: 'grpc',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'proto', 'buf.yaml'))).toBe(true)
@@ -619,6 +813,7 @@ describe('generateContractTesting', () => {
       contractType: 'grpc',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'proto', 'buf-breaking.yml'))).toBe(true)
@@ -629,6 +824,7 @@ describe('generateContractTesting', () => {
       contractType: 'grpc',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'src', 'test', 'contracts', 'grpc-contract.test.ts'))).toBe(true)
@@ -643,6 +839,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(4)
@@ -663,6 +860,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(4)
@@ -682,6 +881,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(4)
@@ -701,6 +902,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(4)
@@ -718,6 +921,7 @@ describe('generateContractTesting', () => {
       contractType: 'message-queue',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     expect(generateContractTesting(config).files).toHaveLength(2)
   })
@@ -727,6 +931,7 @@ describe('generateContractTesting', () => {
       contractType: 'message-queue',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'src', 'test', 'contracts', 'schema-registry-check.ts'))).toBe(true)
@@ -741,6 +946,7 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'java',
         buildTool: 'gradle',
+        hasPublicApi: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -761,6 +967,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -780,6 +988,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'go',
         buildTool: 'go',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -799,6 +1009,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'python',
         buildTool: 'pip',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       const result = generateContractTesting(config)
       expect(result.files).toHaveLength(2)
@@ -820,6 +1032,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     const result = generateContractTesting(config)
 
@@ -842,6 +1055,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     const result = generateContractTesting(config)
 
@@ -860,6 +1074,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(
@@ -877,6 +1092,8 @@ describe('generateContractTesting', () => {
         governanceLevel: 'L2',
         language: 'rust',
         buildTool: 'cargo',
+        hasPublicApi: true,
+        acceptBetaTools: true,
       })
       generateContractTesting(config)
       expect(existsSync(join(rustDir, 'src', 'test', 'contracts', 'pact-consumer.test.ts'))).toBe(
@@ -892,6 +1109,7 @@ describe('generateContractTesting', () => {
       contractType: 'rest-owned',
       governanceLevel: 'L2',
       language: 'typescript',
+      hasPublicApi: true,
     })
     generateContractTesting(config)
     expect(existsSync(join(dir, 'proto', 'buf.yaml'))).toBe(false)
