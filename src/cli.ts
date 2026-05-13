@@ -26,6 +26,7 @@ import { runTaskAdvance } from "./commands/task.js";
 import type { TaskPhase } from "./commands/task.js";
 import { runHarness } from "./commands/harness.js";
 import { runKnowledgeMapUpdate } from "./commands/knowledge-map.js";
+import { runNotaryCheck, runNotaryTemplate } from "./commands/notary.js";
 import {
   runWorkList,
   runWorkCreate,
@@ -81,6 +82,7 @@ function parseCmdArgs(): { cmd: string; args: string[] } {
     "task",
     "plugin",
     "work",
+    "notary",
   ]);
   const first = tokens[0] ?? "";
   if (nested.has(first) && tokens.length >= 2) {
@@ -676,6 +678,32 @@ program
   .option("--dir <dir>", "Target directory (default: current directory)")
   .action((opts: { dir?: string }) => {
     runKnowledgeMapUpdate({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
+
+const notary = program
+  .command("notary")
+  .description("Notary commit-hygiene tools");
+
+notary
+  .command("check")
+  .description(
+    "Verify staged doc changes have a Notary footer in the commit message",
+  )
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { dir?: string }) => {
+    runNotaryCheck({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    });
+  });
+
+notary
+  .command("template")
+  .description("Print a Notary footer template for currently staged doc files")
+  .option("--dir <dir>", "Target directory (default: current directory)")
+  .action((opts: { dir?: string }) => {
+    runNotaryTemplate({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
     });
   });
