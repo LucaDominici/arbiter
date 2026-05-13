@@ -43,6 +43,24 @@ export interface DecompositionConfig {
   github?: { owner: string; repo: string }
 }
 
+/**
+ * File-pattern to ADR mapping for CONTEXT_PACK generation (#254).
+ * Pattern supports `*` (non-slash wildcard) and `**` (any-path wildcard).
+ */
+export interface ContextPackAdrMapping {
+  pattern: string
+  adr: string
+}
+
+/**
+ * Configuration for the CONTEXT_PACK generator (#254).
+ * Stored under `contextPack` in `arbiter.json`.
+ */
+export interface ContextPackConfig {
+  /** File-pattern to ADR mappings. Used by `arbiter context-pack` to annotate @source: citations. */
+  adrMappings?: ContextPackAdrMapping[]
+}
+
 export interface ArbiterConfigV2 {
   version: string
   tools: AiTool[]
@@ -68,6 +86,8 @@ export interface ArbiterConfigV2 {
   plugins?: string[]
   lanes?: Lane[]
   taskTiers?: TaskTiers
+  /** CONTEXT_PACK generator configuration (#254). */
+  contextPack?: ContextPackConfig
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }

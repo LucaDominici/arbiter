@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateAgentsClaude } from '../../src/generators/agents-claude.js'
 
-const AGENT_NAMES = ['codebase-scanner', 'red-team'] as const
+const AGENT_NAMES = ['codebase-scanner', 'red-team', 'context-checker', 'bridge-reviewer'] as const
 
 describe('generateAgentsClaude', () => {
   let dir: string
@@ -23,7 +23,7 @@ describe('generateAgentsClaude', () => {
     expect(result.files).toHaveLength(0)
   })
 
-  it('generates 2 agent files for claude projects', () => {
+  it('generates all agent files for claude projects', () => {
     const config = makeConfig(dir, { tools: ['claude'] })
     const result = generateAgentsClaude(config)
     expect(result.files).toHaveLength(AGENT_NAMES.length)
@@ -75,6 +75,6 @@ describe('generateAgentsClaude', () => {
   it('agent files are marked skipIfExists to avoid overwriting customizations', () => {
     const config = makeConfig(dir, { tools: ['claude'] })
     const result = generateAgentsClaude(config)
-    expect(result.files).toHaveLength(2)
+    expect(result.files).toHaveLength(AGENT_NAMES.length)
   })
 })

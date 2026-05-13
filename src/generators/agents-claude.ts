@@ -7,7 +7,7 @@ export interface AgentsClaudeGeneratorResult {
   files: WriteResult[]
 }
 
-const AGENT_NAMES = ['codebase-scanner', 'red-team'] as const
+const AGENT_NAMES = ['codebase-scanner', 'red-team', 'context-checker', 'bridge-reviewer'] as const
 
 export function generateAgentsClaude(config: ProjectConfig): AgentsClaudeGeneratorResult {
   if (!config.tools.includes('claude')) return { files: [] }

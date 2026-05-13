@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+.coverage-tmp/
 report/
 .claude/worktrees/
 __tests__/fixtures/real-projects/**/target/
