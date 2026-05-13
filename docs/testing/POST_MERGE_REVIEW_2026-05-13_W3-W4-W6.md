@@ -153,3 +153,108 @@ If continuing #277–#474 execution, recommended priority order:
 2. **#377 decision** — unblocks all of W4B
 3. **W3B/W3C/W3D** — feature-by-feature individual `/task` runs
 4. **W5 epics** — decompose with user input
+
+---
+
+## Session Continuation (2026-05-13 — 8 PRs total)
+
+Continued after the W4C merge into the W3B small-fixes surface.
+Additional PRs merged:
+
+### #629 — W3B #355 — universal commit-msg regex (haben pattern)
+
+`src/templates/githooks/commit-msg.ejs` enhanced with a two-layer
+validation: a universal bash regex (no Node required) accepting all
+11 `@commitlint/config-conventional` types plus `cluster` for
+arbiter's batch-merge convention, with a `Merge `/`Revert ` bypass;
+existing commitlint Layer 2 preserved for richer validation when
+`npx` is available. Behavioral tests `spawnSync` the rendered hook
+against representative messages with PATH stripped. Red-team
+blocked the original 6-type regex (would reject 78% of arbiter's
+own commits); the merged version follows conventional-commits +
+arbiter conventions.
+
+ADR-033 updated to reflect the cross-platform gap closure.
+
+### #630 — W3B #350 — dogfood emitted gates (PII scan + debt ratchet)
+
+`scripts/check-all.mjs` now invokes `scripts/pii-scan.mjs` (L1) and
+`scripts/debt-report.mjs --gate` (L2). CANON-01 dogfood compliance.
+Debt baseline recaptured to current state — historical regressions
+(complexity 40→58, publicApiSurface 470→604) become the new floor;
+future debt regressions block the gate.
+
+Red-team blocked two sev-7 issues fixed pre-merge:
+
+1. STRIDE/RACI traceability was initially wired but the STRIDE.md /
+   RACI.md tables have zero HIGH/CRITICAL rows, so the script
+   exited 0 unconditionally — a CANON-09 lie. STRIDE wiring removed
+   from this PR; #631 filed to wire after threat rows exist.
+2. PII allowlist `__tests__/` entry used `String.includes` match
+   which would leak into `src/templates/__tests__/*` — templates
+   shipped into every generated project. Matcher switched to
+   anchored prefix (`rel === entry.file || rel.startsWith(entry.file)`).
+
+Side-effect fixes: `pii-scan.mjs` SKIP_EXTENSIONS extended to
+common compiled binaries (.so/.dll/.dylib/.a/.o/.class/.jar/.pyc/
+.pyo/.exe/.node) which embed package-author metadata.
+
+### #632 — W3B #357 — CI workflow concurrency block
+
+`src/templates/github/workflows/ci.yml.ejs` gains a top-level
+concurrency block (`group: ci-${{ github.ref }}`, cancel-in-progress
+on non-main refs only). The `ci-required` aggregator job already
+existed with proper conditional needs and `if: always()` re-check
+loop, only the concurrency block was missing from the haben pattern.
+Self-applied to arbiter's own `.github/workflows/ci.yml`.
+
+### #633 — partial W3A #353 — vitest thresholdAutoUpdate:false
+
+Generated `vitest.config.ts` now sets `thresholdAutoUpdate:false`
+so coverage regressions stay visible until an operator explicitly
+edits the threshold. Remaining acceptance criteria for #353
+(coverage-excludes-rationale lint + L1 wiring) deferred — issue
+stays open.
+
+### Hygiene closures
+
+- #470 (soloDevMode + INV-53/54) — verifiably done in prior commits
+  17663eb / 26c4512.
+- #379 (CANON-02 audit script) — already implemented as
+  `scripts/check-matrix-proven-cells.mjs` (INV-47) wired at
+  `scripts/check-all.mjs:134`. CANON-02 enforcement is machine,
+  not prose.
+
+### Follow-up issues filed
+
+- #627 — 8 remaining undocumented hooks in CLAUDE.md (CANON-10)
+- #628 — composite framework strings have no archetype mapping
+- #631 — wire STRIDE/RACI gate once threat rows exist
+
+### Updated session stats
+
+- **PRs merged:** 8 (W3A, W1A, W6B, W4C, #355, #350, #357, #353-partial)
+- **Issues fully closed via PR:** 14 (#285, #286, #304, #333, #334,
+  #336, #337, #338, #350, #355, #357, #473, #474, ... and prior W3A)
+- **Issues partially merged (still open):** #353 (thresholdAutoUpdate
+  done; lint + L1 wiring deferred)
+- **Manual closes:** #470, #379
+- **Verified-closed via prior work:** W1B/C/D 12 issues
+- **Red-team follow-ups filed:** #627, #628, #631
+
+### Remaining open in #277–#474
+
+Feature-sized work that requires per-issue `/task` treatment, not
+the affinity-cluster protocol:
+
+- W3 features still open: #347 (mutation wiring), #348 (pytest-
+  playwright — half-wired for TS), #349 (a11y matrix), #351 (helper
+  trinity), #352 (stylelint template), #354 (tarpaulin.toml template
+  — gate wiring already done), #356 (docs-check rebased-aware
+  template), #358 (ephemeral-server), #359 (binary-size), #360
+  (awk-rust)
+- W3 partial: #353 (remaining lint check)
+- W4B (5 F-cluster issues, blocked by user decision #377)
+- W5 epics + decisions (need user GO)
+- W6A (#392–#395) — superseded by v1 release plan #505–#580
+
