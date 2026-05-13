@@ -109,6 +109,27 @@ jobs:
         if: github.event_name == 'pull_request'
         run: npx commitlint --from origin/main --to HEAD
 
+  gate-aggregation:
+    name: Gate Result (INV-59)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 15
+    needs: [lint-and-test]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - run: npm ci --legacy-peer-deps
+      - name: Emit L1 gate result artifact (INV-59, #470)
+        run: node scripts/check-all.mjs L1 --json gate-result.json
+      - name: Upload gate result artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: gate-result
+          path: gate-result.json
+          retention-days: 30
+
   unit-tests:
     name: Unit Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
@@ -210,6 +231,7 @@ jobs:
       [
         security-early-fail,
         lint-and-test,
+        gate-aggregation,
         unit-tests,
         contract-tests,
         integration-tests,
@@ -225,6 +247,10 @@ jobs:
           fi
           if [[ "${{ needs.lint-and-test.result }}" != "success" ]]; then
             echo "lint-and-test failed"
+            exit 1
+          fi
+          if [[ "${{ needs.gate-aggregation.result }}" != "success" ]]; then
+            echo "gate-aggregation failed"
             exit 1
           fi
           if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then

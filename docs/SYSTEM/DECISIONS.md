@@ -5,6 +5,29 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#470): Gate result parity — INV-59, parityContentHash, CI aggregation (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #470; INV-59
+
+**Context:** soloDevMode (Phases C-F of #470) requires proof that local L1 gate results are idempotent to CI gate results. Without a structured artifact and a hash comparison, "local ≡ CI" is an untested claim. Phase B addresses this: emit JSON on every gate run, compare hashes in L2.
+
+**Decisions:**
+
+- **Gate result JSON (schema `arbiter-gate-v1`)**: `check-all.mjs` now always writes `.arbiter/gate/local-result.json` (gitignored under `.arbiter/`). `--json <path>` overrides the destination (used by CI gate-aggregation to write `gate-result.json`).
+
+- **Parity subset (27 static L1 gates)**: `parityContentHash` = sha256 over sorted `[{name, pass}]` for deterministic L1 gates only. Excluded: `commitlint` (PR-only in CI), `docs` (PR-only in CI), `unit tests` (split 4-way in CI vs single `npm test` locally). All other 27 L1 gates are structurally identical in both environments.
+
+- **CI gate-aggregation job**: Runs `node scripts/check-all.mjs L1 --json gate-result.json` after `lint-and-test` passes, uploads `gate-result` artifact (30-day retention). Added to `ci-required` needs.
+
+- **INV-59 enforcement (`check-local-ci-parity.mjs`, L2)**: Downloads latest CI artifact via `gh run download`, compares `parityContentHash`. Neutral skip (exit 0) when `gh` unavailable, no CI artifact, or no local result — ensuring the gate doesn't block projects without CI configured. Hard fail (exit 1) on hash mismatch.
+
+- **`check-ci-alignment.mjs` exemptions**: Added `scripts/check-local-ci-parity.mjs` (local-only L2 gate) and `scripts/check-all.mjs` (CI aggregation runner, not a quality gate) to `DESIGN_EXEMPTIONS`.
+
+**Consequences:** Every `check-all.mjs` run (L1 or L2) now produces a machine-readable artifact. L2 includes a parity check. When parity drifts, the hash mismatch surfaces the specific differing gates. soloDevMode can now gate on `parityContentHash` equality as a prerequisite check.
+
+---
+
 ## feat(#470): Node version SSOT — INV-58, .nvmrc canonical source (2026-05-13)
 
 **Status:** Accepted

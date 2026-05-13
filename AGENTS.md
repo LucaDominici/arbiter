@@ -107,6 +107,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-56:** Knowledge-map freshness — `**Lines:**` entries in `docs/METHOD/KNOWLEDGE_MAP.md` must not drift >30% from actual doc size; `scripts/check-knowledge-map.mjs` enforces this; run `knowledge-map-update.mjs` to refresh (L1 gate, #255)
 - **INV-57:** Canonical-paths integrity — every redirect target in `docs/METHOD/CANONICAL_PATHS.md` must exist on disk; `scripts/check-canonical-paths.mjs` exits 1 on dangling aliases (L1 gate, #255)
 - **INV-58:** Node version SSOT — `.nvmrc` is canonical; all CI workflows and EJS templates must use `node-version-file: '.nvmrc'` (no literal pins); `process.version` major must match `.nvmrc` major; `scripts/check-node-version-ssot.mjs` enforces (L1 gate, #470)
+- **INV-59:** Gate result parity — `check-all.mjs` emits `.arbiter/gate/local-result.json` (schema `arbiter-gate-v1`) with `parityContentHash` over 27 static L1 gates; CI gate-aggregation job emits same artifact; `scripts/check-local-ci-parity.mjs` compares hashes (L2 gate, #470)
 
 ---
 

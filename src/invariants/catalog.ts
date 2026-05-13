@@ -915,4 +915,26 @@ export const INVARIANT_CATALOG: Invariant[] = [
     alwaysActive: true,
     enforcement: "scripts/check-node-version-ssot.mjs (L1 gate, #470)",
   },
+
+  {
+    id: "INV-59",
+    tier: "governance",
+    title:
+      "Gate result parity — local L1 static gates must produce the same pass/fail pattern as CI",
+    description:
+      "check-all.mjs emits a gate result JSON to .arbiter/gate/local-result.json on every run " +
+      "(schema: arbiter-gate-v1). The parityContentHash field is a sha256 of the static L1 " +
+      "gate subset (27 gates, sorted by name; excludes commitlint, docs, unit tests which differ " +
+      "structurally between local and CI environments). " +
+      "The CI gate-aggregation job runs check-all.mjs L1 --json gate-result.json and uploads it " +
+      "as an artifact named gate-result. " +
+      "scripts/check-local-ci-parity.mjs (L2 gate) downloads the latest CI artifact via gh CLI " +
+      "and compares parityContentHash. A mismatch means local and CI disagree on a static check — " +
+      "a prerequisite violation for features.soloDevMode (#470). " +
+      "Skip (exit 0) when gh CLI is unavailable or no CI artifact exists.",
+    alwaysActive: true,
+    enforcement:
+      "scripts/check-local-ci-parity.mjs (L2 gate, #470) — exits 1 on hash mismatch; " +
+      "scripts/check-all.mjs --json flag emits the artifact that check-local-ci-parity.mjs reads",
+  },
 ];

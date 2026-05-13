@@ -57,6 +57,15 @@ const DESIGN_EXEMPTIONS = new Set([
 
   // knip (dead code): same as audit — L2 in manifest, lint-and-test in CI.
   "npx:knip",
+
+  // local-ci parity: L2-only local gate; CI equivalent is the gate-aggregation
+  // artifact comparison. No corresponding CI step — intentionally local-only.
+  "scripts/check-local-ci-parity.mjs",
+
+  // check-all.mjs: CI gate-aggregation job runs `node scripts/check-all.mjs L1
+  // --json gate-result.json` to produce the canonical parity artifact. This is
+  // the aggregation runner, not a quality gate itself.
+  "scripts/check-all.mjs",
 ]);
 
 // ─── Extract gate keys from check-all.mjs ────────────────────────────────────
