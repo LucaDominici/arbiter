@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir as tmpdir_ } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -173,6 +177,67 @@ describe('githooks/commit-msg.ejs', () => {
   it('rust: guards on npx availability', () => {
     const out = renderTemplate('githooks/commit-msg.ejs', rustConfig())
     expect(out).toContain('command -v npx')
+  })
+
+  it('emits conventional-commits regex check that runs without Node (#355)', () => {
+    for (const cfg of [tsConfig(), rustConfig()]) {
+      const out = renderTemplate('githooks/commit-msg.ejs', cfg)
+      // All 11 commitlint-conventional types + arbiter's 'cluster' must appear
+      expect(out).toMatch(
+        /build\|chore\|ci\|cluster\|docs\|feat\|fix\|perf\|refactor\|revert\|style\|test/,
+      )
+    }
+  })
+
+  it('emits Merge/Revert bypass before regex enforcement (#355)', () => {
+    for (const cfg of [tsConfig(), rustConfig()]) {
+      const out = renderTemplate('githooks/commit-msg.ejs', cfg)
+      expect(out).toMatch(/Merge\|Revert/)
+    }
+  })
+
+  it('rejects malformed messages with exit 1 (#355)', () => {
+    for (const cfg of [tsConfig(), rustConfig()]) {
+      const out = renderTemplate('githooks/commit-msg.ejs', cfg)
+      expect(out).toContain('exit 1')
+    }
+  })
+
+  describe('behavioral verification of generated bash hook (#355)', () => {
+    // Renders the template, writes to a tmpfile, invokes bash with a fake
+    // $1 argument and asserts the hook's exit code for representative inputs.
+    const runHook = (rendered: string, msg: string): number => {
+      const tmpdir = mkdtempSync(join(tmpdir_(), 'commit-msg-'))
+      const hookPath = join(tmpdir, 'commit-msg')
+      const msgPath = join(tmpdir, 'msg')
+      writeFileSync(hookPath, rendered)
+      writeFileSync(msgPath, msg + '\n')
+      // Strip PATH so Layer 2 (npx/commitlint) is skipped — we only validate Layer 1.
+      // Create an empty dir and use it as the sole PATH entry so no commands resolve.
+      const emptyPathDir = mkdtempSync(join(tmpdir_(), 'empty-path-'))
+      const result = spawnSync('/usr/bin/bash', ['--noprofile', '--norc', hookPath, msgPath], {
+        encoding: 'utf-8',
+        env: { PATH: emptyPathDir },
+      })
+      if (result.error) throw result.error
+      return result.status ?? -1
+    }
+
+    it.each([
+      ['feat: add foo', 0],
+      ['fix(#262): correct bug', 0],
+      ['cluster(W3A): #333 #334 — probe + CANON', 0],
+      ['chore(deps-dev): bump zod', 0],
+      ['style: apply prettier formatting', 0],
+      ['Merge branch main into feature', 0],
+      ['Revert "feat: bad commit"', 0],
+      ['random commit message', 1],
+      ['FEAT: uppercase type', 1],
+      ['feat add space after type', 1],
+    ] as const)('exit code for %s = %s', (msg, expected) => {
+      const out = renderTemplate('githooks/commit-msg.ejs', rustConfig())
+      expect(runHook(out, msg)).toBe(expected)
+    })
   })
 })
 
