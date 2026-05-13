@@ -212,4 +212,54 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(saved?.graceEndsAt).toBeUndefined()
     expect(saved?.governanceLevel).toBe('L1')
   })
+
+  it('L1→L3 upgrade does NOT say "will WARN" — warn mode is L1→L2 only (#309)', () => {
+    seedConfig('L1')
+    const logs: string[] = []
+    vi.spyOn(console, 'log').mockImplementation((msg: string) => {
+      logs.push(msg)
+    })
+    runUpgradeLevel({ dir, target: 'L3' })
+    const combined = logs.join('\n')
+    expect(combined).not.toContain('will WARN')
+    expect(combined).toContain('immediately')
+  })
+
+  it('L1→L2 upgrade DOES say gates will WARN (#309)', () => {
+    seedConfig('L1')
+    const logs: string[] = []
+    vi.spyOn(console, 'log').mockImplementation((msg: string) => {
+      logs.push(msg)
+    })
+    runUpgradeLevel({ dir, target: 'L2' })
+    const combined = logs.join('\n')
+    expect(combined).toContain('will WARN')
+  })
+
+  it('upgrade-level runs validateConfig before saving (#310)', () => {
+    seedConfig('L1')
+    // A valid upgrade should succeed — verifies validateConfig path runs without error
+    expect(() => runUpgradeLevel({ dir, target: 'L2' })).not.toThrow()
+    const saved = loadConfig(dir)
+    expect(saved?.governanceLevel).toBe('L2')
+  })
+
+  it('--extend gives actionable error on malformed grace-log.json (#311)', () => {
+    const futureDate = new Date(Date.now() + 15 * 86400000).toISOString()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        version: '0.1',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        useGitHub: false,
+        graceEndsAt: futureDate,
+        graceFromLevel: 'L1',
+      }),
+    )
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', 'grace-log.json'), '{ BROKEN JSON')
+
+    expect(() => runUpgradeLevel({ dir, extend: true })).toThrow(/malformed/)
+  })
 })

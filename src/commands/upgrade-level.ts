@@ -5,6 +5,7 @@ import { loadConfig, saveConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { runCli } from '../utils/run-cli.js'
 import { jsonOutput } from '../utils/json-output.js'
+import { validateConfig } from '../config/schema.js'
 
 export interface UpgradeLevelOptions {
   dir?: string
@@ -58,12 +59,12 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
     cwd: dir,
   })
 
-  saveConfig(dir, {
-    ...stored,
-    governanceLevel: target,
-    graceFromLevel: current,
-    graceEndsAt,
-  })
+  const upgraded = { ...stored, governanceLevel: target, graceFromLevel: current, graceEndsAt }
+  const validation = validateConfig(upgraded)
+  if (!validation.ok) {
+    throw new Error(`Config invalid after upgrade: ${validation.errors.join('; ')}`)
+  }
+  saveConfig(dir, validation.config)
 
   if (opts.json) {
     jsonOutput('upgrade-level', 'ok', {
@@ -76,7 +77,7 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   }
 
   const endsDate = graceEndsAt.slice(0, 10)
-  if (current === 'L1') {
+  if (current === 'L1' && target === 'L2') {
     console.log(`Grace ends ${endsDate} (${days} days). ${target} gates will WARN until then.`)
   } else {
     console.log(`Upgraded to ${target}. Grace period recorded until ${endsDate} (${days} days).`)
@@ -105,9 +106,17 @@ function handleExtend(
   }
 
   const logPath = join(arbiterDir, 'grace-log.json')
-  const log: unknown[] = existsSync(logPath)
-    ? (JSON.parse(readFileSync(logPath, 'utf-8')) as unknown[])
-    : []
+  let log: unknown[] = []
+  if (existsSync(logPath)) {
+    try {
+      const raw: unknown = JSON.parse(readFileSync(logPath, 'utf-8'))
+      if (Array.isArray(raw)) {
+        log = raw
+      }
+    } catch {
+      throw new Error(`grace-log.json is malformed — delete ${logPath} to reset extend history`)
+    }
+  }
 
   log.push({
     action: 'extend',

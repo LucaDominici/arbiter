@@ -43,7 +43,7 @@ const BASE_CONFIG = {
     methodLength: 30,
     maxParams: 4,
   },
-  version: 2 as const,
+  version: '0.1',
 }
 
 describe('upgrade-level --json', () => {
