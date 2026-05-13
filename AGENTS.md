@@ -39,10 +39,10 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
 - **INV-01:** No circular dependencies between modules
 - **INV-02:** Public API surface must be intentional — no accidental exports
-- **INV-03:** Layer boundaries enforced — domain code must not import from infrastructure layers
-- **INV-04:** No `any` type in TypeScript — use `unknown` and narrow, or create proper types
-- **INV-05:** Cyclomatic complexity ≤ 15 (ESLint `complexity` rule)
-- **INV-06:** No unused exports (Knip dead code analysis, zero findings)
+- **INV-03:** Architecture boundary enforcement
+- **INV-04:** Language-specific type safety
+- **INV-05:** Complexity limits enforced
+- **INV-06:** No unused or dead code
 - **INV-46:** Anti-bloat enforcement — Survey gate + duplication detector + LOC ratchet
 
 ### Tier 2: Data Integrity
@@ -64,8 +64,8 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
 ### Tier 4: Operational Excellence
 
-- **INV-16:** No `console.log/warn/error` in production code — use structured logger
-- **INV-17:** Unhandled Promise rejections forbidden — always `.catch()` or `await` in `try/catch`
+- **INV-16:** Structured logging only — no raw print statements in production
+- **INV-17:** Explicit error handling — panics and unhandled errors are forbidden
 - **INV-18:** No hardcoded environment values
 - **INV-19:** Resilient external calls — circuit breaker or retry required
 - **INV-20:** Health and readiness endpoints required for deployed services
@@ -74,7 +74,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-41:** Message-queue contract tests must call Schema Registry testCompatibility
 - **INV-42:** Pact broker glue must be env-gated; no silent runs against default URL
 - **INV-43:** OpenAPI exporter must run before diff; missing reference is HARD-fail
-- **INV-44:** SpotBugs security-category bugs MUST NEVER be suppressed or baselined (Java)
+- **INV-44:** SpotBugs security-category bugs MUST NEVER be suppressed or baselined
 
 ### Tier 5: Governance
 

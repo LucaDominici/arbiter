@@ -122,13 +122,13 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ## CANON-08 — Catalog ↔ AGENTS.md parity
 
-**Rule:** Every invariant in `src/invariants/catalog.ts` must have a matching entry in `AGENTS.md` §Invariants. No undocumented invariants.
+**Rule:** Every invariant in `src/invariants/catalog.ts` must have a matching entry in `AGENTS.md` §Invariants, with the **exact same title**. No undocumented or title-drifted invariants.
 
-**Why:** AGENTS.md is the canonical governance document read by all AI agents and new contributors. Invariants that exist only in code are invisible to the governance layer.
+**Why:** AGENTS.md is the canonical governance document read by all AI agents and new contributors. Invariants that exist only in code are invisible to the governance layer. Title drift causes the governance doc to describe a different rule than the catalog enforces.
 
-**Enforcement:** Prose — checked at PR review whenever `catalog.ts` changes.
+**Enforcement:** `scripts/check-catalog-agents-parity.mjs` (L1 gate, catalogParity check) — validates both presence and title match. Run on every commit.
 
-**Source issues:** #180
+**Source issues:** #180, #346
 
 **Promoted to:** INV-51
 
