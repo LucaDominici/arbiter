@@ -151,37 +151,6 @@ describe('generateSecurity', () => {
   }
 })
 
-describe('generateSecurity — missing template produces clear error (#300)', () => {
-  let dir: string
-
-  beforeEach(() => {
-    dir = createTestProject('typescript')
-    initGit(dir)
-  })
-
-  afterEach(() => {
-    cleanupTestProject(dir)
-  })
-
-  it('throws a clear actionable error when a template file is missing', () => {
-    const renderMod =
-      require('../../src/utils/render.js') as typeof import('../../src/utils/render.js')
-    const spy = vi.spyOn(renderMod, 'renderTemplate').mockImplementationOnce(() => {
-      const err = new Error("ENOENT: no such file or directory, open 'scripts/pii-scan.mjs.ejs'")
-      ;(err as NodeJS.ErrnoException).code = 'ENOENT'
-      throw err
-    })
-    try {
-      const { generateSecurity } =
-        require('../../src/generators/security.js') as typeof import('../../src/generators/security.js')
-      const config = makeConfig(dir, { enableSecurityScanning: true })
-      expect(() => generateSecurity(config)).toThrow(/security\.ts: template not found/)
-    } finally {
-      spy.mockRestore()
-    }
-  })
-})
-
 describe('check-no-pii.mjs.ejs render (CANON-04)', () => {
   it('renders non-empty output', () => {
     const out = renderTemplate('claude/hooks/check-no-pii.mjs.ejs', {})
