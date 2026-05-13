@@ -2,5 +2,9 @@
   "project": ["src/**/*.ts", "!src/templates/**"],
   "ignoreDependencies": ["prettier", "@commitlint/cli", "jscpd", "madge"],
   "ignoreFiles": ["src/test/example.behavioral.test.ts"],
-  "exclude": ["types", "nsTypes", "enumMembers"]
+  "exclude": ["types", "nsTypes", "enumMembers"],
+  "ignoreIssues": {
+    "src/graph/history.ts": ["exports"],
+    "src/compliance/loader.ts": ["exports"]
+  }
 }
