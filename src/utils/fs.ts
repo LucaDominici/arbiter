@@ -54,17 +54,14 @@ export function copyStaticFile(
   }
 }
 
-const KNOWN_SETTINGS_KEYS = new Set(['hooks', 'permissions'])
-
 /**
  * Deeply merge two settings.json objects. Arrays are unioned (no duplicates by 'command').
- * Emits console.warn for any top-level key in `existing` that is not managed by arbiter,
- * so users are aware their customizations are preserved as-is.
+ * All top-level keys from `existing` are preserved unchanged unless arbiter manages them
+ * (currently: `hooks`, `permissions`). No data is ever silently dropped.
  */
 export function mergeSettingsJson(
   existing: Record<string, unknown>,
   incoming: Record<string, unknown>,
-  filePath?: string,
 ): Record<string, unknown> {
   const result = { ...existing }
 
@@ -79,16 +76,6 @@ export function mergeSettingsJson(
       result[key] = incomingVal
     }
     // If key exists and is not a special case, preserve existing value
-  }
-
-  // Warn about unknown top-level keys from existing that arbiter doesn't manage
-  for (const key of Object.keys(existing)) {
-    if (!KNOWN_SETTINGS_KEYS.has(key)) {
-      const location = filePath ? ` from ${filePath}` : ''
-      console.warn(
-        `[arbiter] mergeSettingsJson: unknown key "${key}"${location} — preserving as-is`,
-      )
-    }
   }
 
   return result
