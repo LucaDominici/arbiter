@@ -1,8 +1,15 @@
 import { defineConfig } from 'vitest/config'
 import { resolve } from 'node:path'
 
+// Worktree paths containing '#' break Vite's URL parsing (fragment separator).
+// Use VITEST_ROOT env var with a symlink path without '#' to work around this.
+const root = process.env.VITEST_ROOT ?? resolve('.')
+
 export default defineConfig({
-  root: resolve('.'),
+  root,
+  resolve: {
+    preserveSymlinks: true,
+  },
   test: {
     globals: true,
     environment: 'node',

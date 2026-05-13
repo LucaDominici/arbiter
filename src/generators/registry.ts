@@ -203,7 +203,7 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
     { key: 'nightly', enabled: true, run: () => generateNightly(config).files },
     {
       key: 'integration-testing',
-      enabled: config.enableContractTesting !== false,
+      enabled: config.hasDatabase,
       run: () => generateIntegrationTesting(config).files,
     },
     {
@@ -246,8 +246,19 @@ export function buildRegistry(config: ProjectConfig): GeneratorSpec[] {
   return [...buildAiToolSpecs(config), ...buildInfraSpecs(config), ...buildAnalysisSpecs(config)]
 }
 
+function safeRun(spec: GeneratorSpec): WriteResult[] {
+  try {
+    return spec.run()
+  } catch (err) {
+    console.warn(
+      `[registry] generator '${spec.key}' failed: ${err instanceof Error ? err.message : String(err)}`,
+    )
+    return []
+  }
+}
+
 export function runGeneratorsFromRegistry(specs: GeneratorSpec[]): WriteResult[] {
-  return specs.filter((s) => s.enabled).flatMap((s) => s.run())
+  return specs.filter((s) => s.enabled).flatMap(safeRun)
 }
 
 export function runGeneratorsSelective(
@@ -257,5 +268,5 @@ export function runGeneratorsSelective(
   if (keys.has('*')) {
     return runGeneratorsFromRegistry(specs)
   }
-  return specs.filter((s) => s.enabled && keys.has(s.key)).flatMap((s) => s.run())
+  return specs.filter((s) => s.enabled && keys.has(s.key)).flatMap(safeRun)
 }

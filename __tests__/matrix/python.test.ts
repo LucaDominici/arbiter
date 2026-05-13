@@ -328,14 +328,16 @@ describe('matrix: Python L3 mutation gate (mutmut)', () => {
     expect(existsSync(join(dir, 'mutmut-config.toml'))).toBe(false)
   })
 
-  it('throws beta error when acceptBetaTools=false at L3', () => {
+  it('emits no mutation files when acceptBetaTools=false at L3 (mutmut is beta)', () => {
     const config = pythonL3Config({ acceptBetaTools: false })
-    expect(() => runGenerators(config)).toThrow(/beta/i)
+    runGenerators(config)
+    expect(existsSync(join(dir, 'mutmut-config.toml'))).toBe(false)
   })
 
-  it('throws beta error when acceptBetaTools not set at L3', () => {
+  it('emits no mutation files when acceptBetaTools not set at L3 (mutmut is beta)', () => {
     const config = pythonL3Config({ acceptBetaTools: undefined })
-    expect(() => runGenerators(config)).toThrow(/beta/i)
+    runGenerators(config)
+    expect(existsSync(join(dir, 'mutmut-config.toml'))).toBe(false)
   })
 
   it('AGENTS.md L3 mentions mutmut and 85%', () => {

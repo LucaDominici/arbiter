@@ -325,12 +325,14 @@ describe('matrix: Go mutation omission (go-mutesting = unsafe)', () => {
     expect(content).not.toContain('mutesting')
   })
 
-  it('throws unsafe error at L3 even with acceptBetaTools (go-mutesting = unsafe, not beta)', () => {
+  it('emits no mutation files at L3 even with acceptBetaTools (go-mutesting = unsafe, not beta)', () => {
     const config = goMutConfig({
       governanceLevel: 'L3',
       acceptBetaTools: true,
     })
-    expect(() => runGenerators(config)).toThrow(/unsafe/i)
+    runGenerators(config)
+    expect(existsSync(join(dir, 'go-mutesting.toml'))).toBe(false)
+    expect(existsSync(join(dir, '.go-mutesting'))).toBe(false)
   })
 
   it('no go-mutesting config file emitted at L1', () => {
@@ -345,9 +347,9 @@ describe('matrix: Go mutation omission (go-mutesting = unsafe)', () => {
     expect(existsSync(join(dir, '.go-mutesting'))).toBe(false)
   })
 
-  it('throws unsafe error at L3 — go-mutesting is abandoned upstream, --accept-beta-tools does not override', () => {
-    expect(() =>
-      runGenerators(goMutConfig({ governanceLevel: 'L3', acceptBetaTools: true })),
-    ).toThrow(/unsafe/i)
+  it('emits no mutation files at L3 — go-mutesting is abandoned upstream, --accept-beta-tools does not override', () => {
+    runGenerators(goMutConfig({ governanceLevel: 'L3', acceptBetaTools: true }))
+    expect(existsSync(join(dir, 'go-mutesting.toml'))).toBe(false)
+    expect(existsSync(join(dir, '.go-mutesting'))).toBe(false)
   })
 })

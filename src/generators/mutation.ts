@@ -40,12 +40,12 @@ export function generateMutation(config: ProjectConfig): MutationGeneratorResult
 
   if (language !== 'multi') {
     const gate = isL3Allowed(language, 'mutation', acceptBetaTools)
-    if (!gate.allowed) throw new Error(gate.errorMessage)
+    if (!gate.allowed) return { files: [] }
   }
 
   const data: Record<string, unknown> = {
     ...(config as unknown as Record<string, unknown>),
-    mutationThreshold: config.thresholds?.mutationScore ?? 85,
+    mutationThreshold: config.thresholds?.mutationScore || 85,
     basePackage: config.basePackage ?? 'com.example',
     modulePath: config.projectName.replace(/-/g, '_'),
   }

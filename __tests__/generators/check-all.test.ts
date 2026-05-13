@@ -178,6 +178,68 @@ describe('generateCheckAll', () => {
     expect(content).toContain('coverage')
   })
 
+  it('zero lineCoverage threshold falls back to computed default — ?? bug (#299)', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: 'typescript',
+        enableDebtGates: true,
+        governanceLevel: 'L2',
+        thresholds: {
+          lineCoverage: 0,
+          branchCoverage: 70,
+          mutationScore: 80,
+          cyclomaticComplexity: 15,
+          methodLength: 50,
+          maxParams: 5,
+        },
+      }),
+    )
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).not.toContain('coverage.thresholds.lines=0')
+    expect(content).toContain('coverage.thresholds.lines=80')
+  })
+
+  it('zero mutationScore falls back to computed default — ?? bug (#299)', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: 'typescript',
+        enableDebtGates: true,
+        governanceLevel: 'L3',
+        thresholds: {
+          lineCoverage: 80,
+          branchCoverage: 70,
+          mutationScore: 0,
+          cyclomaticComplexity: 15,
+          methodLength: 50,
+          maxParams: 5,
+        },
+      }),
+    )
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).not.toContain('mutations.thresholds.mutationScore=0')
+    expect(content).not.toContain('MUTATION_THRESHOLD=0')
+  })
+
+  it('non-zero lineCoverage is used as-is — no fallback triggered (#299 regression)', () => {
+    generateCheckAll(
+      makeConfig(dir, {
+        language: 'typescript',
+        enableDebtGates: true,
+        governanceLevel: 'L2',
+        thresholds: {
+          lineCoverage: 75,
+          branchCoverage: 70,
+          mutationScore: 80,
+          cyclomaticComplexity: 15,
+          methodLength: 50,
+          maxParams: 5,
+        },
+      }),
+    )
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).toContain('coverage.thresholds.lines=75')
+  })
+
   it('scaled profile + LoC<1000 omits coverage gate from generated script', () => {
     generateCheckAll(
       makeConfig(dir, {

@@ -149,21 +149,21 @@ describe('generateMutation — Rust L3 beta', () => {
     expect(existsSync(mutantsFile!.path)).toBe(true)
   })
 
-  it('throws beta error when acceptBetaTools=false at L3', () => {
+  it('returns empty files when acceptBetaTools=false at L3 (graceful skip, #294)', () => {
     const config = makeConfig(dir, {
       language: 'rust',
       governanceLevel: 'L3',
       acceptBetaTools: false,
     })
-    expect(() => generateMutation(config)).toThrow(/beta/i)
+    expect(generateMutation(config).files).toHaveLength(0)
   })
 
-  it('throws beta error when acceptBetaTools not set at L3', () => {
+  it('returns empty files when acceptBetaTools not set at L3 (graceful skip, #294)', () => {
     const config = makeConfig(dir, {
       language: 'rust',
       governanceLevel: 'L3',
     })
-    expect(() => generateMutation(config)).toThrow(/beta/i)
+    expect(generateMutation(config).files).toHaveLength(0)
   })
 
   it('emits parse-mutants.mjs alongside cargo-mutants.toml', () => {
@@ -197,13 +197,13 @@ describe('generateMutation — Python L3 beta', () => {
     expect(existsSync(mutmutFile!.path)).toBe(true)
   })
 
-  it('throws beta error when acceptBetaTools=false at L3', () => {
+  it('returns empty files when acceptBetaTools=false at L3 (graceful skip, #294)', () => {
     const config = makeConfig(dir, {
       language: 'python',
       governanceLevel: 'L3',
       acceptBetaTools: false,
     })
-    expect(() => generateMutation(config)).toThrow(/beta/i)
+    expect(generateMutation(config).files).toHaveLength(0)
   })
 
   it('emits parse-mutmut.py alongside mutmut-config.toml', () => {
@@ -225,12 +225,12 @@ describe('generateMutation — Go L3 (blocked)', () => {
     dir = createTestProject('go')
   })
 
-  it('throws unsafe error for Go at L3', () => {
+  it('returns empty files for Go at L3 (graceful skip, #294)', () => {
     const config = makeConfig(dir, {
       language: 'go',
       governanceLevel: 'L3',
       acceptBetaTools: true,
     })
-    expect(() => generateMutation(config)).toThrow(/unsafe|unavailable/i)
+    expect(generateMutation(config).files).toHaveLength(0)
   })
 })
