@@ -515,6 +515,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.thresholdProfile !== undefined ? { thresholdProfile: config.thresholdProfile } : {}),
     ...(config.strictnessTier !== undefined ? { strictnessTier: config.strictnessTier } : {}),
     contractType: config.contractType,
+    ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
     ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
   }

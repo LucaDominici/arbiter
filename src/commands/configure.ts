@@ -27,9 +27,70 @@ const ALLOWED_PATHS = new Set([
   'governanceLevel',
   'useGitHub',
   'tools',
+  'archetype',
+  'architectureStyle',
+  'isMultiTenant',
+  'hasDatabase',
+  'hasPublicApi',
+  'contractType',
 ])
 
 const VALID_TOOLS = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
+
+const VALID_ARCHETYPES = new Set([
+  'backend-web-db',
+  'cli',
+  'library',
+  'data-pipeline',
+  'frontend-spa',
+  'embedded',
+])
+
+const VALID_ARCHITECTURE_STYLES = new Set(['hexagonal', 'layered', 'modular-monolith', 'none'])
+
+const VALID_CONTRACT_TYPES = new Set([
+  'rest-owned',
+  'rest-public',
+  'graphql',
+  'grpc',
+  'message-queue',
+  'none',
+])
+
+function parseAxisValue(path: string, raw: string): unknown {
+  if (path === 'archetype') {
+    if (!VALID_ARCHETYPES.has(raw))
+      throw new Error(`Invalid archetype: "${raw}". Valid: ${[...VALID_ARCHETYPES].join(', ')}`)
+    return raw
+  }
+  if (path === 'architectureStyle') {
+    if (!VALID_ARCHITECTURE_STYLES.has(raw))
+      throw new Error(
+        `Invalid architectureStyle: "${raw}". Valid: ${[...VALID_ARCHITECTURE_STYLES].join(', ')}`,
+      )
+    return raw
+  }
+  if (path === 'contractType') {
+    if (!VALID_CONTRACT_TYPES.has(raw))
+      throw new Error(
+        `Invalid contractType: "${raw}". Valid: ${[...VALID_CONTRACT_TYPES].join(', ')}`,
+      )
+    return raw
+  }
+  // isMultiTenant, hasDatabase, hasPublicApi
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+  throw new Error(`${path} must be true or false — got: ${raw}`)
+}
+
+const AXIS_PATHS = new Set([
+  'archetype',
+  'architectureStyle',
+  'isMultiTenant',
+  'hasDatabase',
+  'hasPublicApi',
+  'contractType',
+])
 
 function parseValue(path: string, raw: string): unknown {
   if (path.startsWith('features.')) {
@@ -56,6 +117,7 @@ function parseValue(path: string, raw: string): unknown {
     }
     return toolList
   }
+  if (AXIS_PATHS.has(path)) return parseAxisValue(path, raw)
   return raw
 }
 
