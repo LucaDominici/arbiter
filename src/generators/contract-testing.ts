@@ -226,6 +226,11 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     'message-queue': generateMessageQueue,
   }
 
+  // #289: contract testing is only meaningful for services with a public API
+  if (!config.hasPublicApi) {
+    return { files: [] }
+  }
+
   // #288: gate beta contract tools on acceptBetaTools flag
   const { language, acceptBetaTools = false } = config
   if (language !== 'multi') {
