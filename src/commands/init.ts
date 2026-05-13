@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { resolve, basename, join } from "node:path";
-import { jsonOutput } from "../utils/json-output.js";
+import { jsonOutput, statusToExitCode } from "../utils/json-output.js";
 import { runProbes } from "../compatibility/probe.js";
 import { formatText } from "../compatibility/report.js";
 import { detectLanguage } from "../detectors/language.js";
@@ -158,6 +158,7 @@ function generateAndFinalize(
       undefined,
       allWarnings.length > 0 ? allWarnings : undefined,
     );
+    if (status !== "ok") process.exit(statusToExitCode(status));
     return;
   }
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
@@ -330,10 +331,11 @@ export function runGithubSetup(
   );
   if (bp.applied) {
     log("  │   Branch protection applied.");
+  } else if (bp.error) {
+    log(`  │   Skipped (requires admin access): ${bp.error}`);
+    warnings.push(`branch protection skipped: ${bp.error}`);
   } else {
-    log(
-      `  │   Skipped (requires admin access): ${bp.error ?? "unknown error"}`,
-    );
+    log("  │   Skipped (requires admin access).");
   }
 
   log("  └── Creating project board...");
@@ -558,7 +560,7 @@ function detectedBasePackage(
   language: ReturnType<typeof detectLanguage>,
   targetDir: string,
 ): { basePackage: string } | Record<never, never> {
-  if (language !== "java") return {};
+  if (language !== "java" && language !== "multi") return {};
   const bp = detectBasePackage(targetDir);
   return bp !== undefined ? { basePackage: bp } : {};
 }

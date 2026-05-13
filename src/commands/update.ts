@@ -256,7 +256,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     printStats(results);
   }
 
-  runGithubSetup(config);
+  runGithubSetup(config, log);
 
   const nextConfig: ArbiterConfigV2 = {
     ...stored,

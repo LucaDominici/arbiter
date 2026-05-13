@@ -34,7 +34,10 @@ export function detectModules(
     case "typescript":
       return detectTsModules(dir);
     case "java":
+    case "kotlin":
       return detectJavaModules(dir);
+    case "multi":
+      return [...detectTsModules(dir), ...detectJavaModules(dir)];
     case "go":
       return detectGoModules(dir);
     case "rust":

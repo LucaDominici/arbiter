@@ -210,6 +210,9 @@ describe("init --json GitHub path", () => {
   });
 
   it("emits status:'warning' with warnings[] when provisionLabels returns errors", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((): never => {
+      throw new Error("process.exit");
+    });
     mockProvisionLabels.mockReturnValue({
       created: [],
       updated: [],
@@ -217,17 +220,20 @@ describe("init --json GitHub path", () => {
       errors: ["list labels failed: HTTP 401"],
     });
 
-    await runInit({
-      yes: true,
-      tools: undefined,
-      level: "L1",
-      dir: "/tmp/fake",
-      dryRun: false,
-      brownfield: false,
-      noVerify: true,
-      json: true,
-    });
+    await expect(
+      runInit({
+        yes: true,
+        tools: undefined,
+        level: "L1",
+        dir: "/tmp/fake",
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+        json: true,
+      }),
+    ).rejects.toThrow("process.exit");
 
+    expect(exitSpy).toHaveBeenCalledWith(1);
     const lines = written
       .trim()
       .split("\n")
@@ -287,5 +293,6 @@ describe("init --json GitHub path", () => {
 
     const logged = consoleSpy.mock.calls.map((c) => String(c[0]));
     expect(logged.some((s) => s.includes("list labels failed"))).toBe(true);
+    expect(written).not.toContain('"command"');
   });
 });
