@@ -66,7 +66,7 @@ vi.mock("../../src/generators/registry.js", () => ({
   runGeneratorsSelective: vi.fn().mockReturnValue([]),
 }));
 vi.mock("../../src/commands/init.js", () => ({
-  runGithubSetup: vi.fn(),
+  runGithubSetup: vi.fn().mockReturnValue({ warnings: [], errors: [] }),
   printResults: vi.fn(),
   runPlugins: vi.fn().mockResolvedValue([]),
 }));

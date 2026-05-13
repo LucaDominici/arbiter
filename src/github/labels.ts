@@ -55,13 +55,18 @@ export function provisionLabels(
     errors: [],
   };
 
-  // Fetch existing labels once — paginated to avoid truncation on large repos
+  // Fetch all existing labels — high limit avoids truncation on large repos
   let existingNames: Set<string>;
   try {
     const parsed = runCliJson("gh", [
-      "api",
-      `repos/${owner}/${repo}/labels`,
-      "--paginate",
+      "label",
+      "list",
+      "-R",
+      `${owner}/${repo}`,
+      "--limit",
+      "1000",
+      "--json",
+      "name",
     ]) as Array<{ name: string }>;
     existingNames = new Set(parsed.map((l) => l.name.toLowerCase()));
   } catch (err) {
