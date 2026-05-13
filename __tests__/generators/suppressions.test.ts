@@ -74,7 +74,7 @@ describe('generateSuppressions', () => {
     })
   }
 
-  it('generates 7 files for java (#292 — archunit-baseline.json included)', () => {
+  it('generates 9 files for java (#292 — archunit-baseline.json included)', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)
     try {
@@ -83,7 +83,7 @@ describe('generateSuppressions', () => {
         enableSuppressions: true,
       })
       const result = generateSuppressions(config)
-      expect(result.files).toHaveLength(7)
+      expect(result.files).toHaveLength(9)
     } finally {
       cleanupTestProject(javaDir)
     }
