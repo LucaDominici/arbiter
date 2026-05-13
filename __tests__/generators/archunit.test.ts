@@ -15,8 +15,12 @@ afterEach(() => {
 })
 
 describe('generateArchUnit', () => {
-  it('generates NoMockMvcTest.java for Java projects', () => {
-    const config = makeConfig(dir, { language: 'java', buildTool: 'gradle' })
+  it('generates NoMockMvcTest.java for Java projects with basePackage (#283)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      basePackage: 'com.example.myapp',
+    })
     const result = generateArchUnit(config)
     expect(result.files.length).toBeGreaterThan(0)
     const noMockMvcFile = result.files.find((f) => f.path.endsWith('NoMockMvcTest.java'))
@@ -25,15 +29,34 @@ describe('generateArchUnit', () => {
     expect(existsSync(noMockMvcFile!.path)).toBe(true)
   })
 
+  it('does NOT generate NoMockMvcTest.java when basePackage is absent (#283)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      basePackage: undefined,
+    })
+    const result = generateArchUnit(config)
+    const noMockMvcFile = result.files.find((f) => f.path.endsWith('NoMockMvcTest.java'))
+    expect(noMockMvcFile).toBeUndefined()
+  })
+
   it('places NoMockMvcTest.java in src/test/java tree', () => {
-    const config = makeConfig(dir, { language: 'java', buildTool: 'gradle' })
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      basePackage: 'com.example.myapp',
+    })
     const result = generateArchUnit(config)
     const noMockMvcFile = result.files.find((f) => f.path.endsWith('NoMockMvcTest.java'))
     expect(noMockMvcFile!.path).toContain('src/test/java')
   })
 
   it('NoMockMvcTest.java contains ArchUnit imports', () => {
-    const config = makeConfig(dir, { language: 'java', buildTool: 'gradle' })
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      basePackage: 'com.example.myapp',
+    })
     const result = generateArchUnit(config)
     const testDir = existsSync(join(dir, 'src', 'test', 'java'))
     expect(testDir).toBe(true)
@@ -70,7 +93,11 @@ describe('generateArchUnit', () => {
   })
 
   it('skips if file already exists', () => {
-    const config = makeConfig(dir, { language: 'java', buildTool: 'gradle' })
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      basePackage: 'com.example.myapp',
+    })
     generateArchUnit(config)
     const second = generateArchUnit(config)
     const secondFile = second.files.find((f) => f.path.endsWith('NoMockMvcTest.java'))
@@ -131,7 +158,7 @@ describe('generateArchUnit', () => {
     expect(content).toContain('no_cross_module_internal_access')
   })
 
-  it('always generates NoMockMvcTest.java regardless of architectureStyle', () => {
+  it('generates NoMockMvcTest.java for all architectureStyles when basePackage is set (#283)', () => {
     for (const style of ['none', 'hexagonal', 'layered', 'modular-monolith'] as const) {
       const styleDir = createTestProject('java')
       try {
@@ -139,6 +166,7 @@ describe('generateArchUnit', () => {
           language: 'java',
           buildTool: 'gradle',
           architectureStyle: style,
+          basePackage: 'com.example.myapp',
         })
         const result = generateArchUnit(config)
         const noMockMvc = result.files.find((f) => f.path.endsWith('NoMockMvcTest.java'))
@@ -269,7 +297,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
     expect(paths.some((p) => p.endsWith('DomainPurityTest.java'))).toBe(true)
   })
 
-  it('skips hexagonal suite when basePackage is absent', () => {
+  it('skips hexagonal suite and NoMockMvcTest when basePackage is absent (#283)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       buildTool: 'gradle',
@@ -280,7 +308,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('DomainPurityTest.java'))).toBe(false)
     expect(paths.some((p) => p.endsWith('arch-test-deps.gradle'))).toBe(false)
-    expect(paths.some((p) => p.endsWith('NoMockMvcTest.java'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('NoMockMvcTest.java'))).toBe(false)
   })
 
   it('emits RestAssuredBaseIT and RestAssuredArchTest when hasDatabase+hasPublicApi+hexagonal', () => {
