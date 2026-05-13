@@ -54,5 +54,9 @@
   {
     "path": "hooks/pre-edit-plan-anchor.mjs",
     "reason": "Arbiter self-dogfood: CANON-16 Survey gate (#458) is implemented in both arbiter's materialized hook and the EJS template; the logic is identical. Cosmetic divergence only: Prettier formats the materialized hook with double quotes and the EJS template with single quotes. Functionally equivalent."
+  },
+  {
+    "path": "hooks/hooks.mjs",
+    "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ — arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land."
   }
 ]
