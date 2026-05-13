@@ -8,6 +8,10 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**'],
       thresholds: {
+        // thresholdAutoUpdate:false prevents vitest from silently lowering the
+        // floor when coverage drops between runs — regressions must be an
+        // explicit edit, never auto-applied (#353, INV-30 spirit).
+        thresholdAutoUpdate: false,
         lines: <%= locals.thresholds ? locals.thresholds.lineCoverage : coverageThreshold %>,
         functions: <%= coverageThreshold %>,
         branches: <%= locals.thresholds ? locals.thresholds.branchCoverage : coverageThreshold %>,

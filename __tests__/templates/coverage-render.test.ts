@@ -79,6 +79,19 @@ describe('coverage config templates — rendering (CANON-04)', () => {
 
   // ── vitest.config.ts.ejs ───────────────────────────────────────────────────
 
+  it('vitest.config.ts.ejs disables thresholdAutoUpdate to prevent silent floor lowering (#353)', () => {
+    const data = {
+      ...makeConfig('/tmp/test', {
+        language: 'typescript',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>
+    const content = renderTemplate('coverage/vitest.config.ts.ejs', data)
+    expect(content).toContain('thresholdAutoUpdate: false')
+  })
+
   it('vitest.config.ts.ejs renders defineConfig with coverage section', () => {
     const data = {
       ...makeConfig('/tmp/test', {
