@@ -112,7 +112,8 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
       const stat = lstatSync(linkPath)
       if (stat.isSymbolicLink()) {
         const target = readlinkSync(linkPath)
-        if (!existsSync(target)) {
+        const resolvedTarget = resolve(dirname(linkPath), target)
+        if (!existsSync(resolvedTarget)) {
           dangling.push(`${spec.path} → ${target} (target missing)`)
         }
       }

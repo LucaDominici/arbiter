@@ -168,56 +168,78 @@ export function displayMigrationPlan(plan: MigrationPlan): void {
   }
 }
 
+function isUserCancellation(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === 'ExitPromptError' ||
+      err.message.includes('User force closed') ||
+      err.message === 'Prompt was cancelled')
+  )
+}
+
+async function promptConfirm(message: string): Promise<boolean> {
+  const { confirm } = (await inquirer.prompt([
+    { type: 'confirm', name: 'confirm', message, default: true },
+  ] as Parameters<typeof inquirer.prompt>[0])) as { confirm: boolean }
+  return confirm
+}
+
+function printFlowPreamble(wizardInput: WizardInput, flow: WizardFlow): void {
+  if (flow !== 'brownfield') return
+  console.log('  Existing governance detected:')
+  if (wizardInput.existing.agentsMd) console.log('  ├── AGENTS.md')
+  if (wizardInput.existing.claudeDir) console.log('  ├── .claude/ directory')
+  if (wizardInput.existing.agentsDir) console.log('  ├── .agents/ directory')
+  if (wizardInput.existing.geminiDir) console.log('  ├── .gemini/ directory')
+  if (wizardInput.existing.windsurfRules) console.log('  ├── windsurf-instructions.md')
+  if (wizardInput.existing.aiderConf) console.log('  ├── .aider.conf.yml')
+  console.log('')
+}
+
 export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig | null> {
   console.log('')
 
   const flow = determineFlow(wizardInput.existing)
+  printFlowPreamble(wizardInput, flow)
 
-  if (flow === 'brownfield') {
-    console.log('  Existing governance detected:')
-    if (wizardInput.existing.agentsMd) console.log('  ├── AGENTS.md')
-    if (wizardInput.existing.claudeDir) console.log('  ├── .claude/ directory')
-    if (wizardInput.existing.agentsDir) console.log('  ├── .agents/ directory')
-    if (wizardInput.existing.geminiDir) console.log('  ├── .gemini/ directory')
-    if (wizardInput.existing.windsurfRules) console.log('  ├── windsurf-instructions.md')
-    if (wizardInput.existing.aiderConf) console.log('  ├── .aider.conf.yml')
-    console.log('')
+  try {
+    const answers = (await inquirer.prompt(
+      buildMainQuestions(wizardInput) as Parameters<typeof inquirer.prompt>[0],
+    )) as WizardAnswers
+
+    const tools = answers.tools.length > 0 ? answers.tools : (['claude', 'codex'] as AiTool[])
+    const decompositionBackend: 'github' | 'markdown' =
+      answers.decompositionBackend ??
+      (wizardInput.githubAccess.available && wizardInput.githubAccess.authenticated
+        ? 'github'
+        : 'markdown')
+
+    const config = buildConfigFromAnswers(wizardInput, answers)
+
+    if (flow === 'brownfield') {
+      const plan = buildMigrationPlan(
+        wizardInput.existing,
+        tools,
+        decompositionBackend === 'github',
+      )
+      displayMigrationPlan(plan)
+    } else {
+      console.log(`\n  Will generate governance files for: ${tools.join(', ')}`)
+    }
+
+    const confirmMsg = flow === 'brownfield' ? 'Proceed with migration?' : 'Proceed?'
+    if (!(await promptConfirm(confirmMsg))) {
+      return null
+    }
+
+    return config
+  } catch (err) {
+    if (isUserCancellation(err)) {
+      console.log('\n  Cancelled.\n')
+      return null
+    }
+    throw err
   }
-
-  const answers = (await inquirer.prompt(
-    buildMainQuestions(wizardInput) as Parameters<typeof inquirer.prompt>[0],
-  )) as WizardAnswers
-
-  const tools = answers.tools.length > 0 ? answers.tools : (['claude', 'codex'] as AiTool[])
-  const decompositionBackend: 'github' | 'markdown' =
-    answers.decompositionBackend ??
-    (wizardInput.githubAccess.available && wizardInput.githubAccess.authenticated
-      ? 'github'
-      : 'markdown')
-
-  const config = buildConfigFromAnswers(wizardInput, answers)
-
-  if (flow === 'brownfield') {
-    const plan = buildMigrationPlan(wizardInput.existing, tools, decompositionBackend === 'github')
-    displayMigrationPlan(plan)
-  } else {
-    console.log(`\n  Will generate governance files for: ${tools.join(', ')}`)
-  }
-
-  const { confirm } = (await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'confirm',
-      message: flow === 'brownfield' ? 'Proceed with migration?' : 'Proceed?',
-      default: true,
-    },
-  ] as Parameters<typeof inquirer.prompt>[0])) as { confirm: boolean }
-
-  if (!confirm) {
-    return null
-  }
-
-  return config
 }
 
 function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswers): ProjectConfig {

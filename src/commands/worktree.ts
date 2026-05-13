@@ -55,6 +55,24 @@ function arbiterLogDir(gitRoot: string): string {
   return join(gitRoot, '.arbiter')
 }
 
+function hasLogEntryShape(x: unknown): boolean {
+  if (typeof x !== 'object' || x === null) return false
+  const e = x as Record<string, unknown>
+  return (
+    typeof e['taskId'] === 'string' &&
+    typeof e['worktreePath'] === 'string' &&
+    typeof e['branch'] === 'string'
+  )
+}
+
+function isOpenLogEntry(x: unknown): x is OpenLogEntry {
+  return hasLogEntryShape(x)
+}
+
+function isCloseLogEntry(x: unknown): x is CloseLogEntry {
+  return hasLogEntryShape(x)
+}
+
 function readJsonArray(path: string): unknown[] {
   if (!existsSync(path)) return []
   try {
@@ -261,7 +279,7 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
   const linkSummary = materializeLinks(wtConfig.links, gitRoot, worktreePath)
 
   const logPath = join(arbiterLogDir(gitRoot), 'worktree-open.log.json')
-  const entries = readJsonArray(logPath) as OpenLogEntry[]
+  const entries = readJsonArray(logPath).filter(isOpenLogEntry)
   entries.push({
     taskId,
     slug: slug ?? null,
@@ -428,7 +446,7 @@ function validateBeforeClose(params: CloseValidationParams): void {
 }
 
 function resolveOpenEntry(logPath: string, taskId: string): OpenLogEntry {
-  const openEntries = readJsonArray(logPath) as OpenLogEntry[]
+  const openEntries = readJsonArray(logPath).filter(isOpenLogEntry)
   const entry = openEntries.find((e) => e.taskId === taskId && existsSync(e.worktreePath))
   if (!entry) {
     const staleIdx = openEntries.findIndex(
@@ -533,7 +551,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 }
 
 function appendCloseLogEntry(logPath: string, entry: CloseLogEntry): void {
-  const entries = readJsonArray(logPath) as CloseLogEntry[]
+  const entries = readJsonArray(logPath).filter(isCloseLogEntry)
   entries.push(entry)
   writeJsonArray(logPath, entries)
 }

@@ -147,4 +147,26 @@ describe('harvestFiles', () => {
     expect(result.copied).toContain('some-dir/file.txt')
     expect(result.copied).not.toContain('some-dir')
   })
+
+  it('extracts destination path from rename entries (#312)', () => {
+    // Create a file in the worktree, commit it, then rename it
+    writeFileSync(join(worktree, 'old-name.ts'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+    runCli('git', ['commit', '-m', 'add old-name.ts'], { cwd: worktree })
+
+    // Rename using git mv — produces "R  old-name.ts -> new-name.ts" in porcelain
+    runCli('git', ['mv', 'old-name.ts', 'new-name.ts'], { cwd: worktree })
+
+    const files: string[] = []
+    harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      onFile: (file) => files.push(file),
+    })
+
+    // Should use destination ("new-name.ts"), not the raw "old-name.ts -> new-name.ts"
+    expect(files).toContain('new-name.ts')
+    expect(files).not.toContain('old-name.ts -> new-name.ts')
+    expect(files).not.toContain('old-name.ts')
+  })
 })

@@ -21,6 +21,32 @@ export interface HarvestOptions {
 }
 
 /**
+ * Parse `git status --porcelain` output into a list of file paths.
+ *
+ * Handles untracked ("?? path"), renamed/copied ("R  old -> new"), and
+ * staged/modified ("XY path") entries.  For rename/copy entries only the
+ * destination path is returned — the source no longer exists in the worktree.
+ */
+function parsePorcelainStatus(output: string): string[] {
+  const files: string[] = []
+  for (const line of output.split('\n')) {
+    if (!line) continue
+    const xy = line.slice(0, 2)
+    if (xy === '??') {
+      files.push(line.slice(3))
+    } else if (xy[0] === 'R' || xy[0] === 'C') {
+      // "R  old -> new" — extract destination after " -> "
+      const arrow = line.indexOf(' -> ')
+      if (arrow !== -1) files.push(line.slice(arrow + 4))
+    } else {
+      const filePath = line.slice(3)
+      if (filePath) files.push(filePath)
+    }
+  }
+  return files
+}
+
+/**
  * Copy modified and new files from a worktree back to the main repo.
  *
  * Uses `git status --porcelain` to find changed/untracked files in the worktree,
@@ -44,28 +70,7 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
     return result // No changes to harvest
   }
 
-  const changedFiles: string[] = []
-  for (const line of statusOutput.split('\n')) {
-    // Extract the filename from porcelain status.
-    // Format: "XY filename" where X and Y are each one character.
-    // X = staging area status, Y = working tree status.
-    // Examples: " M file" (unstaged mod), "M  file" (staged mod),
-    //           "?? file" (untracked), "A  file" (newly added)
-    // Do NOT trim — the leading space is significant (X=' ' means not staged).
-    if (!line) continue
-
-    // Untracked files: "?? path"
-    if (line.startsWith('?? ')) {
-      changedFiles.push(line.slice(3))
-      continue
-    }
-
-    // Staged or modified files: "XY path" — filename starts at column 3
-    const filePath = line.slice(3)
-    if (filePath) {
-      changedFiles.push(filePath)
-    }
-  }
+  const changedFiles = parsePorcelainStatus(statusOutput)
 
   if (changedFiles.length === 0) {
     return result
