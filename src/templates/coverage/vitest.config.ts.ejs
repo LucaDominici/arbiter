@@ -7,6 +7,22 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: './coverage',
       include: ['src/**'],
+      // Curated exclude list (#353, Phase 7A — haben parity).
+      // Every entry is intentionally excluded with a rationale; do NOT add
+      // bare paths. A future lint (`check-coverage-excludes-rationale.mjs`)
+      // will enforce the comment-per-entry rule.
+      exclude: [
+        // Generated type definitions — no executable code to cover.
+        '**/*.d.ts',
+        // Config files (vitest, eslint, tsup, etc.) — bootstrap-only, untestable.
+        '**/*.config.*',
+        // Barrel exports — re-export only; coverage is double-counted via the
+        // re-exported symbols themselves.
+        '**/index.ts',
+        // Test files exclude themselves by convention; listed for clarity.
+        '**/*.test.ts',
+        '**/*.spec.ts',
+      ],
       thresholds: {
         // thresholdAutoUpdate:false prevents vitest from silently lowering the
         // floor when coverage drops between runs — regressions must be an

@@ -1,0 +1,24 @@
+# Append this block to your Cargo.toml (#359, Phase 7G — haben parity).
+# Size-optimised release profile + binary-size invariant (INV-60).
+#
+# Binary size cap (enforced by scripts/check-all.mjs L2 step):
+#   <%= Math.round(binarySizeBytes / (1024 * 1024)) %> MB (= <%= binarySizeBytes %> bytes)
+#
+# Defaults differ per archetype:
+#   - cli       → 10 MB
+#   - embedded  →  5 MB
+# Override by setting `binarySizeBytes` on the generator data dict.
+
+[profile.release]
+# Optimise for small code size; "s" is the sweet spot for CLI binaries (vs "z"
+# which over-aggressively shrinks at runtime cost).
+opt-level = "s"
+# Link-time optimisation removes dead code across crate boundaries.
+lto = true
+# Single codegen unit unlocks the strongest LTO pass.
+codegen-units = 1
+# Strip debug symbols from the final binary.
+strip = "symbols"
+# Abort on panic — smaller code, no unwind tables. Required for the size budget
+# in cli/embedded archetypes; remove if your binary needs panic=unwind.
+panic = "abort"

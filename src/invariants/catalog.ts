@@ -917,4 +917,25 @@ export const INVARIANT_CATALOG: Invariant[] = [
       'scripts/check-local-ci-parity.mjs (L2 gate, #470) — exits 1 on hash mismatch; ' +
       'scripts/check-all.mjs --json flag emits the artifact that check-local-ci-parity.mjs reads',
   },
+
+  {
+    id: 'INV-60',
+    tier: 'operational',
+    languages: ['rust'],
+    minGovernanceLevel: 'L2',
+    title: 'Release binary size capped at archetype default',
+    description:
+      'For Rust archetypes that emit an executable (cli, embedded), the release ' +
+      'binary at target/release/<name> must stay under the archetype-default size ' +
+      'budget: cli → 10 MB, embedded → 5 MB. Defaults are inlined in the ' +
+      'src/generators/coverage.ts and src/generators/check-all.ts generators and ' +
+      'are passed to the generated check-all.mjs via the binarySizeBytes data field. ' +
+      'The generated script runs the size assertion in the L2 Rust block and skips ' +
+      'gracefully when the release binary has not been built (e.g. on a freshly-cloned repo).',
+    alwaysActive: false,
+    enforcement:
+      'Generated scripts/check-all.mjs L2 step (#359, Phase 7G); ' +
+      'generated docs/coverage/Cargo.toml.profile.release block (opt-level=s, lto, ' +
+      'codegen-units=1, strip=symbols, panic=abort) keeps binaries within the cap',
+  },
 ]

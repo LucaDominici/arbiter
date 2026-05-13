@@ -135,6 +135,39 @@ describe('coverage config templates — rendering (CANON-04)', () => {
     expect(content).toContain('85')
   })
 
+  it('vitest.config.ts.ejs threshold scales with governanceLevel (L2 80 → L3 85)', () => {
+    // Reuses computeThresholds (src/config/thresholds.ts) — fixed profile maps L2→80, L3→85.
+    // Render test asserts the value passed in flows through to the emitted config.
+    const l2 = renderTemplate('coverage/vitest.config.ts.ejs', {
+      ...makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    const l3 = renderTemplate('coverage/vitest.config.ts.ejs', {
+      ...makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true }),
+      coverageThreshold: 85,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(l2).toContain('lines: 80')
+    expect(l3).toContain('lines: 85')
+    expect(l2).not.toContain('lines: 85')
+  })
+
+  it('vitest.config.ts.ejs emits curated coverage.exclude list (#353)', () => {
+    // Per #353: vitest config must include a curated exclude block. Excludes
+    // boilerplate that distorts coverage (entrypoints, generated code, types).
+    const content = renderTemplate('coverage/vitest.config.ts.ejs', {
+      ...makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(content).toContain('exclude:')
+    // Curated entries documented in the template:
+    expect(content).toContain('**/*.d.ts')
+    expect(content).toContain('**/*.config.*')
+    expect(content).toContain('**/index.ts')
+  })
+
   // ── .tarpaulin.toml.ejs ────────────────────────────────────────────────────
 
   it('.tarpaulin.toml.ejs renders out array with Html and Xml', () => {
@@ -178,6 +211,68 @@ describe('coverage config templates — rendering (CANON-04)', () => {
     } as unknown as Record<string, unknown>
     const content = renderTemplate('coverage/.tarpaulin.toml.ejs', data)
     expect(content).toContain('80')
+  })
+
+  it('.tarpaulin.toml.ejs emits fail-under under [default] (#354)', () => {
+    // Per #354: tarpaulin.toml must carry fail-under so cargo tarpaulin
+    // hard-fails even when invoked without --fail-under (parity with the gate
+    // script invocation). The section name is [default] per cargo-tarpaulin
+    // config conventions.
+    const content = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(content).toContain('[default]')
+    expect(content).toContain('fail-under = 80')
+  })
+
+  it('.tarpaulin.toml.ejs fail-under scales with governanceLevel (L2 80 → L3 85)', () => {
+    const l2 = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    const l3 = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 85,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(l2).toContain('fail-under = 80')
+    expect(l3).toContain('fail-under = 85')
+    expect(l2).not.toContain('fail-under = 85')
+  })
+
+  it('.tarpaulin.toml.ejs emits curated exclude-files with rationale comments (#354)', () => {
+    // Per #354 (haben reference): excludes for Rust entrypoints and generated
+    // code, EACH preceded by a rationale comment.
+    const content = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(content).toContain('exclude-files')
+    expect(content).toContain('src/main.rs')
+    expect(content).toContain('src/lib.rs')
+    // Rationale comments must accompany excludes — convention: lines starting with '# '
+    // immediately above or beside the entry. Assert at least one rationale token.
+    expect(content).toMatch(/#.*entrypoint/i)
   })
 
   // ── .coveragerc.ejs ────────────────────────────────────────────────────────

@@ -108,6 +108,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-57:** Canonical-paths integrity — all redirect targets must exist
 - **INV-58:** Node version SSOT — .nvmrc is canonical; all CI jobs use node-version-file
 - **INV-59:** Gate result parity — local L1 static gates must produce the same pass/fail pattern as CI
+- **INV-60:** Release binary size capped at archetype default
 
 ---
 
