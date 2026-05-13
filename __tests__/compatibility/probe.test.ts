@@ -356,6 +356,27 @@ describe('runBuildProbe — empty requires → always run', () => {
   })
 })
 
+describe('runProbes — unknown stack coverage gap', () => {
+  it('emits a skipped probe when detectLanguage returns unknown (no matrix entry)', () => {
+    mockDetectLanguage.mockReturnValue('unknown')
+    mockExistsSync.mockReturnValue(false)
+    const report = runProbes('/some/dir')
+    expect(report.stack).toBe('unknown')
+    expect(report.probes).toHaveLength(1)
+    expect(report.probes[0]?.status).toBe('skipped')
+    expect(report.probes[0]?.reason).toMatch(/no matrix coverage for stack 'unknown'/)
+    expect(report.hasFailures).toBe(false)
+  })
+
+  it('emits a skipped probe when detectLanguage returns multi', () => {
+    mockDetectLanguage.mockReturnValue('multi')
+    mockExistsSync.mockReturnValue(false)
+    const report = runProbes('/some/dir')
+    expect(report.stack).toBe('multi')
+    expect(report.probes.some((p) => p.status === 'skipped' && /no matrix coverage/.test(p.reason ?? ''))).toBe(true)
+  })
+})
+
 describe('runProbes — kotlin dispatch', () => {
   it('runs java + kotlinc + gradle version probes when detectLanguage returns kotlin', () => {
     mockDetectLanguage.mockReturnValue('kotlin')
