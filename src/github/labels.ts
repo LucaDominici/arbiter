@@ -55,20 +55,15 @@ export function provisionLabels(
     errors: [],
   };
 
-  // Fetch existing labels once
+  // Fetch existing labels once — paginated to avoid truncation on large repos
   let existingNames: Set<string>;
   try {
     const parsed = runCliJson("gh", [
-      "label",
-      "list",
-      "-R",
-      `${owner}/${repo}`,
-      "--json",
-      "name",
-      "--limit",
-      "200",
+      "api",
+      `repos/${owner}/${repo}/labels`,
+      "--paginate",
     ]) as Array<{ name: string }>;
-    existingNames = new Set(parsed.map((l) => l.name));
+    existingNames = new Set(parsed.map((l) => l.name.toLowerCase()));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     result.errors.push(`list labels failed: ${msg}`);
@@ -77,7 +72,7 @@ export function provisionLabels(
 
   for (const label of STANDARD_LABELS) {
     try {
-      if (existingNames.has(label.name)) {
+      if (existingNames.has(label.name.toLowerCase())) {
         // Update existing to ensure color/description are current
         runCli("gh", [
           "label",
