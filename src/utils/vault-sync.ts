@@ -20,7 +20,7 @@ export function writeVaultFile(
     return { path: filePath, action: 'skipped' }
   }
 
-  mkdirSync(dirname(filePath), { recursive: true })
+  // Parent directory already exists because we just read the file (#277 #16).
   writeFileSync(filePath, content, 'utf-8')
   return { path: filePath, action: 'backed-up-and-replaced' }
 }
