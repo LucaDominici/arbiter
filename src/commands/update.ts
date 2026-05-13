@@ -86,6 +86,7 @@ function v2ToProjectConfig(
       strictnessTier: stored.strictnessTier,
     }),
     contractType: detectorFields.contractType,
+    ...(stored.basePackage !== undefined ? { basePackage: stored.basePackage } : {}),
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
     ...(stored.taskTiers !== undefined && { taskTiers: stored.taskTiers }),
@@ -235,7 +236,19 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const snapshot = loadSnapshot(targetDir)
   log('\n  Updating...')
 
-  const { results, keysRun } = selectAndRun(specs, snapshot, stored)
+  const nextConfig: ArbiterConfigV2 = {
+    ...stored,
+    useGitHub,
+    archetype,
+    architectureStyle,
+    isMultiTenant,
+    hasDatabase,
+    hasPublicApi,
+    contractType,
+    ...(lanes.length > 0 && { lanes }),
+  }
+
+  const { results, keysRun } = selectAndRun(specs, snapshot, nextConfig)
   const pluginResults = await runPlugins(
     targetDir,
     Array.isArray(stored.plugins) ? stored.plugins : [],
@@ -249,18 +262,6 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   }
 
   const backendResult = runGithubSetup(config, log)
-
-  const nextConfig: ArbiterConfigV2 = {
-    ...stored,
-    useGitHub,
-    archetype,
-    architectureStyle,
-    isMultiTenant,
-    hasDatabase,
-    hasPublicApi,
-    contractType,
-    ...(lanes.length > 0 && { lanes }),
-  }
 
   const validation = validateConfig(nextConfig)
   if (!validation.ok) {

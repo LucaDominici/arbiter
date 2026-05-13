@@ -81,6 +81,7 @@ export interface ArbiterConfigV2 {
   graceEndsAt?: string
   graceFromLevel?: GovernanceLevel
   contractType?: ContractType
+  basePackage?: string
   invariantTiers?: InvariantTier[]
   worktree?: WorktreeConfig
   plugins?: string[]

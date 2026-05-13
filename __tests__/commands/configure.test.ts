@@ -180,3 +180,143 @@ describe('runConfigure — tools', () => {
     expect(raw['tools']).toEqual(['copilot'])
   })
 })
+
+describe('runConfigure — axis fields (#324)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('sets archetype=library and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['archetype=library'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['archetype']).toBe('library')
+  })
+
+  it('rejects invalid archetype (#324)', () => {
+    writeV2Config(dir)
+    const before = readArbiterJson(dir)
+
+    expect(() => runConfigure({ dir, sets: ['archetype=invalid-archetype'] })).toThrow(
+      /invalid archetype/i,
+    )
+
+    expect(readArbiterJson(dir)).toEqual(before)
+  })
+
+  it('sets archetype=backend-web-db and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['archetype=backend-web-db'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['archetype']).toBe('backend-web-db')
+  })
+
+  it('sets architectureStyle=hexagonal and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['architectureStyle=hexagonal'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['architectureStyle']).toBe('hexagonal')
+  })
+
+  it('rejects invalid architectureStyle (#324)', () => {
+    writeV2Config(dir)
+    const before = readArbiterJson(dir)
+
+    expect(() => runConfigure({ dir, sets: ['architectureStyle=event-driven'] })).toThrow(
+      /invalid architecturestyle/i,
+    )
+
+    expect(readArbiterJson(dir)).toEqual(before)
+  })
+
+  it('sets hasDatabase=true and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['hasDatabase=true'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['hasDatabase']).toBe(true)
+  })
+
+  it('sets hasDatabase=false and persists (#324)', () => {
+    writeV2Config(dir, { hasDatabase: true })
+
+    runConfigure({ dir, sets: ['hasDatabase=false'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['hasDatabase']).toBe(false)
+  })
+
+  it('rejects invalid boolean for hasDatabase (#324)', () => {
+    writeV2Config(dir)
+    const before = readArbiterJson(dir)
+
+    expect(() => runConfigure({ dir, sets: ['hasDatabase=yes'] })).toThrow(
+      /hasDatabase must be true or false/i,
+    )
+
+    expect(readArbiterJson(dir)).toEqual(before)
+  })
+
+  it('sets isMultiTenant=true and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['isMultiTenant=true'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['isMultiTenant']).toBe(true)
+  })
+
+  it('sets hasPublicApi=true and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['hasPublicApi=true'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['hasPublicApi']).toBe(true)
+  })
+
+  it('sets contractType=graphql and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['contractType=graphql'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['contractType']).toBe('graphql')
+  })
+
+  it('sets contractType=rest-owned and persists (#324)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['contractType=rest-owned'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['contractType']).toBe('rest-owned')
+  })
+
+  it('rejects invalid contractType (#324)', () => {
+    writeV2Config(dir)
+    const before = readArbiterJson(dir)
+
+    expect(() => runConfigure({ dir, sets: ['contractType=openapi'] })).toThrow(
+      /invalid contracttype/i,
+    )
+
+    expect(readArbiterJson(dir)).toEqual(before)
+  })
+})
