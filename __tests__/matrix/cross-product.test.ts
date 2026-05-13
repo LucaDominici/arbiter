@@ -990,17 +990,18 @@ describe('cross-product: check-all.mjs — security scanning (M24)', () => {
   }
 })
 
-// ── M23/M25: mutation moved from check-all.mjs → nightly.yml ─────────────────
+// ── #347: mutation gate wired into check-all.mjs L2 for PROVEN cells only ────
+// Proven (matrix): typescript (stryker), java (pitest).
+// Beta/unsafe (NOT wired in check-all): rust (cargo-mutants), python (mutmut), go (go-mutesting).
 
-describe('cross-product: check-all.mjs — mutation commands absent at all levels (M25)', () => {
-  const MUTATION_MARKERS: Partial<Record<Language, string>> = {
-    typescript: 'stryker',
+describe('cross-product: check-all.mjs — mutation gate (proven=wired, beta/unsafe=not wired) (#347)', () => {
+  const NOT_WIRED_MARKERS: Partial<Record<Language, string>> = {
     rust: 'mutants',
     python: 'mutmut',
   }
 
-  for (const [lang, marker] of Object.entries(MUTATION_MARKERS) as [Language, string][]) {
-    it(`${lang}+L3: check-all.mjs does NOT contain "${marker}" (moved to nightly)`, () => {
+  for (const [lang, marker] of Object.entries(NOT_WIRED_MARKERS) as [Language, string][]) {
+    it(`${lang}+L3: check-all.mjs does NOT contain "${marker}" (beta tool, not wired per CANON-02)`, () => {
       const content = renderTemplate('scripts/check-all.mjs.ejs', {
         ...configFor(lang, 'L3'),
         enableDebtGates: true,

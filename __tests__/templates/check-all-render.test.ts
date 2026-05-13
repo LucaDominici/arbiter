@@ -473,3 +473,186 @@ describe('check-all.mjs.ejs — architecture tests gate (#284)', () => {
     expect(content).toContain('*.architecture.*')
   })
 })
+
+// ─── #347: Mutation gate wiring (CANON-02/09/15) ─────────────────────────────
+
+describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', () => {
+  it('TS L2 with mutationEnabled+enableMutationTesting: emits stryker runToolCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run']")
+  })
+
+  it('TS L1: does NOT emit stryker step (L2 only)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("'stryker'")
+  })
+
+  it('TS L2 with enableMutationTesting=false: does NOT emit stryker step', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: false,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("'stryker'")
+  })
+
+  it('TS L2 with mutationEnabled=false: does NOT emit stryker step', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = false
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain("'stryker'")
+  })
+
+  it('Java Gradle L2: emits pitest gradle runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runCheck('mutation (pitest)', './gradlew', ['pitest', '-q']")
+  })
+
+  it('Java Maven L2: emits pitest maven runCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'maven',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain(
+      "runCheck('mutation (pitest)', 'mvn', ['org.pitest:pitest-maven:mutationCoverage', '-q']",
+    )
+  })
+
+  it('Rust L2 (beta in matrix): does NOT emit mutation step (CANON-02)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'rust',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('cargo-mutants')
+    expect(content).not.toContain("'cargo', ['mutants'")
+  })
+
+  it('Go L2 (unsafe in matrix): does NOT emit mutation step (CANON-02)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'go',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('go-mutesting')
+    expect(content).not.toContain("'mutation (go-mutesting)'")
+  })
+
+  it('Python L2 (beta in matrix): does NOT emit mutation step (CANON-02)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'python',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+      enableMutationTesting: true,
+    }) as unknown as Record<string, unknown>
+    ;(data as Record<string, unknown>).mutationEnabled = true
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('mutmut')
+  })
+})
+
+// ─── #352: Stylelint + design-token enforcement (CANON-02/15) ────────────────
+
+describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () => {
+  it('TS frontend-spa L1: emits stylelint runToolCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']")
+  })
+
+  it('TS library L1: does NOT emit stylelint step (archetype gate)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'library',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('stylelint')
+  })
+
+  it('Rust frontend-spa L1: does NOT emit stylelint step (TS-only)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'rust',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('stylelint')
+  })
+
+  it('TS frontend-spa L2: still emits stylelint (L1 step always runs)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']")
+  })
+})
+
+describe('.stylelintrc.json.ejs template (#352)', () => {
+  it('renders valid JSON with color-no-hex and design-token guidance', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('css/.stylelintrc.json.ejs', data)
+    // valid JSON
+    const parsed = JSON.parse(content) as Record<string, unknown>
+    expect(parsed.rules).toBeDefined()
+    const rules = parsed.rules as Record<string, unknown>
+    // HARD rules per haben spec
+    expect(rules).toHaveProperty('color-no-hex')
+    expect(rules).toHaveProperty('length-zero-no-unit')
+    expect(rules).toHaveProperty('custom-property-no-missing-var-function')
+    // design-token message
+    expect(content).toMatch(/var\(--color/)
+  })
+})

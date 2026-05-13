@@ -13,6 +13,7 @@ export type MaturityFeature =
   | 'e2e'
   | 'security'
   | 'bdd'
+  | 'style_tokens'
 
 interface MaturityEntry {
   tool: string

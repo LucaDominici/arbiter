@@ -268,11 +268,11 @@ describe('matrix: TypeScript L3 mutation gate (Stryker)', () => {
     expect(content).toContain('vitest')
   })
 
-  it('check-all.mjs does NOT invoke stryker (mutation moved to nightly)', () => {
+  it('check-all.mjs invokes stryker at L3 (#347 — INV-30 wired in L2 block, runs at L2+)', () => {
     const config = tsL3Config()
     runGenerators(config)
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('stryker')
+    expect(content).toContain("runToolCheck('mutation (stryker)', 'npx', ['stryker', 'run']")
   })
 
   it('L2 config does NOT emit stryker.conf.json', () => {
