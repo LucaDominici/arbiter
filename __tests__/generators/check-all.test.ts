@@ -16,11 +16,22 @@ describe('generateCheckAll', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('generates only scripts/check-all.mjs (workflow-runners and ci-alignment inlined)', () => {
+  it('generates scripts/check-all.mjs AND scripts/lib/run-helpers.mjs (#351, CANON-01)', () => {
     const result = generateCheckAll(makeConfig(dir))
-    expect(result.files).toHaveLength(1)
-    expect(result.files[0].path).toContain('check-all.mjs')
-    expect(result.files[0].action).toBe('created')
+    expect(result.files).toHaveLength(2)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('scripts/check-all.mjs'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('scripts/lib/run-helpers.mjs'))).toBe(true)
+    expect(result.files.every((f) => f.action === 'created')).toBe(true)
+  })
+
+  it('emits run-helpers.mjs with the trinity exports (#351)', () => {
+    generateCheckAll(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'lib', 'run-helpers.mjs'), 'utf-8')
+    expect(content).toContain('export function runCheck')
+    expect(content).toContain('export function runWarnCheck')
+    expect(content).toContain('export function runToolCheck')
+    expect(content).toContain('export function pushResult')
   })
 
   it('check-all.mjs contains inlined workflow-runners and ci-alignment logic', () => {
@@ -68,7 +79,8 @@ describe('generateCheckAll', () => {
     writeFileSync(join(scriptsDir, 'check-all.mjs'), 'EXISTING')
 
     const result = generateCheckAll(makeConfig(dir))
-    expect(result.files[0].action).toBe('skipped')
+    const mainFile = result.files.find((f) => f.path.endsWith('scripts/check-all.mjs'))
+    expect(mainFile?.action).toBe('skipped')
     expect(readFileSync(join(scriptsDir, 'check-all.mjs'), 'utf-8')).toBe('EXISTING')
   })
 
@@ -286,9 +298,9 @@ describe('generateCheckAll', () => {
 
   // ─── MK: grace period guard ─────────────────────────────────────────────────
 
-  it('runCheck treats ENOENT as hard failure regardless of grace period', () => {
+  it('runCheck treats ENOENT as hard failure regardless of grace period (lives in lib)', () => {
     generateCheckAll(makeConfig(dir))
-    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    const content = readFileSync(join(dir, 'scripts', 'lib', 'run-helpers.mjs'), 'utf-8')
     expect(content).toContain('ENOENT')
     expect(content).toContain('command not found')
   })
@@ -302,10 +314,14 @@ describe('generateCheckAll', () => {
     expect(content).toContain('arbiter.json')
   })
 
-  it('generated script includes WARN (grace period) path in runCheck', () => {
+  it('helper script implements WARN (grace period) path in runCheck (#351)', () => {
     generateCheckAll(makeConfig(dir))
-    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).toContain('WARN (grace period,')
+    const content = readFileSync(join(dir, 'scripts', 'lib', 'run-helpers.mjs'), 'utf-8')
+    // recordWarn emits "WARN (grace period, exit N, Tms)" via template literal —
+    // assert both the helper structure (recordWarn called with grace-period msg)
+    // and that the call lives in runCheck's soft branch.
+    expect(content).toContain('grace period, exit ${r.status}')
+    expect(content).toContain('recordWarn(name, elapsed,')
   })
 
   it('generated L2 audit call passes soft option', () => {

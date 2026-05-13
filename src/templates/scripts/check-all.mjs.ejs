@@ -8,6 +8,17 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+// Helper trinity (#351, CANON-01) — runCheck (HARD), runWarnCheck (info),
+// runToolCheck (CI-aware tool gate). pushResult/getResults/getFailed power the
+// inline ad-hoc gates that classify status outside of spawnSync.
+import {
+  runCheck,
+  pushResult,
+  getResults,
+  getFailed,
+} from './lib/run-helpers.mjs';
+
+const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
 let level = 'L2';
 let jsonPath = null;
@@ -17,47 +28,6 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
     jsonPath = (_i + 1 < _rawArgs.length && !_rawArgs[_i + 1].startsWith('-')) ? _rawArgs[++_i] : '';
   } else if (['L1', 'L2', 'L3'].includes(_rawArgs[_i])) {
     level = _rawArgs[_i];
-  }
-}
-let failed = 0;
-
-const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-const NO_COLOR = IS_CI || process.env.NO_COLOR === '1';
-
-// Strips ANSI escape sequences from a string
-function stripAnsi(str) {
-  return str.replace(/\x1b\[[0-9;]*m/g, '');
-}
-
-/** @type {{ name: string; status: string; elapsed: number }[]} */
-const results = [];
-
-function runCheck(name, cmd, args, { soft = false } = {}) {
-  const start = Date.now();
-  process.stdout.write(`[CHECK] ${name} ... `);
-  const r = spawnSync(cmd, args, { encoding: 'utf-8', shell: false });
-  const elapsed = Date.now() - start;
-  if (r.error?.code === 'ENOENT') {
-    console.log(`FAIL (${elapsed}ms)`);
-    if (IS_CI) console.log(`::error::${name}::command not found: ${cmd}`);
-    console.error(`  command not found: ${cmd}`);
-    results.push({ name, status: 'FAIL', elapsed });
-    failed++;
-  } else if (r.status === 0) {
-    console.log(`PASS (${elapsed}ms)`);
-    results.push({ name, status: 'PASS', elapsed });
-  } else if (soft) {
-    console.log(`WARN (grace period, ${elapsed}ms)`);
-    if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout);
-    if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr);
-    results.push({ name, status: 'WARN', elapsed });
-  } else {
-    console.log(`FAIL (exit ${r.status}, ${elapsed}ms)`);
-    if (IS_CI) console.log(`::error::${name}::exit ${r.status}`);
-    if (r.stdout) process.stdout.write(NO_COLOR ? stripAnsi(r.stdout) : r.stdout);
-    if (r.stderr) process.stderr.write(NO_COLOR ? stripAnsi(r.stderr) : r.stderr);
-    results.push({ name, status: 'FAIL', elapsed });
-    failed++;
   }
 }
 
@@ -123,16 +93,14 @@ runCheck('unit tests', 'mvn', ['test', '-q']);
   if (_gofmt.error?.code === 'ENOENT') {
     console.log('FAIL (binary not found: gofmt)');
     _gofmtStatus = 'FAIL';
-    failed++;
   } else if (_gofmt.stdout?.trim()) {
     console.log('FAIL');
     process.stdout.write('Files need gofmt formatting:\n' + _gofmt.stdout);
     _gofmtStatus = 'FAIL';
-    failed++;
   } else {
     console.log('PASS');
   }
-  results.push({ name: 'fmt (gofmt)', status: _gofmtStatus, elapsed: Date.now() - _gofmtStart });
+  pushResult('fmt (gofmt)', _gofmtStatus, Date.now() - _gofmtStart);
 }
 runCheck('vet', 'go', ['vet', './...']);
 runCheck('lint', 'golangci-lint', ['run']);
@@ -182,8 +150,7 @@ runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'
   } catch (err) {
     if (err.code !== 'ENOENT') {
       console.log('FAIL (cannot read .github/workflows)');
-      results.push({ name: 'workflow runners', status: 'FAIL', elapsed: Date.now() - _wrStart });
-      failed++;
+      pushResult('workflow runners', 'FAIL', Date.now() - _wrStart);
       _wrFiles = null;
     } else {
       _wrFiles = [];
@@ -204,11 +171,10 @@ runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'
     }
     if (_wrViolations > 0) {
       console.log(`FAIL (${_wrViolations} violation(s) — use \${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }})`);
-      results.push({ name: 'workflow runners', status: 'FAIL', elapsed: Date.now() - _wrStart });
-      failed++;
+      pushResult('workflow runners', 'FAIL', Date.now() - _wrStart);
     } else {
       console.log(`PASS (${Date.now() - _wrStart}ms)`);
-      results.push({ name: 'workflow runners', status: 'PASS', elapsed: Date.now() - _wrStart });
+      pushResult('workflow runners', 'PASS', Date.now() - _wrStart);
     }
   }
 }
@@ -284,15 +250,15 @@ runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'
       console.log(`FAIL (${_caManifestOnly.length + _caCiOnly.length} alignment violation(s))`);
       for (const k of _caManifestOnly) process.stderr.write('  manifest-only: ' + k + '\n');
       for (const k of _caCiOnly) process.stderr.write('  ci-only: ' + k + '\n');
-      _caStatus = 'FAIL'; failed++;
+      _caStatus = 'FAIL';
     } else {
       console.log(`PASS (${_caManifestGates.size} gates aligned, ${Date.now() - _caStart}ms)`);
     }
   } catch (_caErr) {
     console.log('FAIL (error: ' + _caErr.message + ')');
-    _caStatus = 'FAIL'; failed++;
+    _caStatus = 'FAIL';
   }
-  results.push({ name: 'ci alignment', status: _caStatus, elapsed: Date.now() - _caStart });
+  pushResult('ci alignment', _caStatus, Date.now() - _caStart);
 }
 // ─── L1: SSOT infrastructure gates (INV-54–57, #255) ─────────────────────────
 runCheck('ssot core set', 'node', ['scripts/check-ssot-core.mjs']);
@@ -323,8 +289,8 @@ if (level === 'L2') {
   if (existsSync(join('node_modules', '.bin', 'playwright'))) {
     runCheck('playwright test', 'npx', ['playwright', 'test'], { soft: graceActive });
   } else {
+    pushResult('playwright test', 'FAIL', 0);
     console.log('[CHECK] playwright test ... FAIL (@playwright/test not installed — required for this archetype; run: npm install -D @playwright/test)');
-    failed++;
   }
 <% } %>
 <% } %><% if (language === 'rust') { %>
@@ -419,16 +385,16 @@ if (level === 'L2') {
   let _coverThreshStatus = 'PASS';
   if (coverResult.status !== 0) {
     console.log(graceActive ? 'WARN (grace period)' : 'FAIL (could not parse coverage)');
-    if (!graceActive) { _coverThreshStatus = 'FAIL'; failed++; }
+    if (!graceActive) { _coverThreshStatus = 'FAIL'; }
   } else {
     const match = coverResult.stdout.match(/total:\s+\(statements\)\s+([\d.]+)%/);
     const pct = match ? parseFloat(match[1]) : 0;
     if (pct < <%= coverageThreshold %>) {
       console.log(graceActive ? `WARN (grace period, ${pct.toFixed(1)}% < <%= coverageThreshold %>%)` : `FAIL (${pct.toFixed(1)}% < <%= coverageThreshold %>%)`);
-      if (!graceActive) { _coverThreshStatus = 'FAIL'; failed++; }
+      if (!graceActive) { _coverThreshStatus = 'FAIL'; }
     } else { console.log(`PASS (${pct.toFixed(1)}%)`); }
   }
-  results.push({ name: 'coverage threshold', status: _coverThreshStatus, elapsed: Date.now() - _coverThreshStart });
+  pushResult('coverage threshold', _coverThreshStatus, Date.now() - _coverThreshStart);
   if (existsSync('coverage.out')) {
     mkdirSync('coverage', { recursive: true });
     const _coverHtmlStart = Date.now();
@@ -438,9 +404,9 @@ if (level === 'L2') {
     if (htmlResult.status !== 0) {
       console.log('FAIL (go tool cover -html)');
       if (htmlResult.stderr) process.stderr.write(htmlResult.stderr);
-      if (!graceActive) { _coverHtmlStatus = 'FAIL'; failed++; }
+      if (!graceActive) { _coverHtmlStatus = 'FAIL'; }
     } else { console.log('PASS'); }
-    results.push({ name: 'coverage HTML report', status: _coverHtmlStatus, elapsed: Date.now() - _coverHtmlStart });
+    pushResult('coverage HTML report', _coverHtmlStatus, Date.now() - _coverHtmlStart);
   }
 <% } %>
   runCheck('complexity + dead code', 'golangci-lint', ['run', '--enable', 'gocyclo,gocognit,unused'], { soft: graceActive });
@@ -527,19 +493,16 @@ if (level === 'L2') {
     if (_bddIgnore.error?.code === 'ENOENT') {
       console.log('FAIL (grep not found — cannot check @ignore tags)');
       _bddIgnoreStatus = 'FAIL';
-      failed++;
     } else if (_bddIgnore.status === null || _bddIgnore.status === 2) {
       console.log(`FAIL (grep error — exit ${_bddIgnore.status ?? 'signal'}: ${_bddIgnore.stderr ?? ''})`);
       _bddIgnoreStatus = 'FAIL';
-      failed++;
     } else if (_bddIgnore.status === 0) {
       console.log('FAIL (@ignore-tagged scenarios found — remove tags or move to issue tracker)');
       _bddIgnoreStatus = 'FAIL';
-      failed++;
     } else {
       console.log('PASS');
     }
-    results.push({ name: 'BDD @ignore check', status: _bddIgnoreStatus, elapsed: Date.now() - _bddIgnoreStart });
+    pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
   }
 <% if (language === 'typescript') { %>
   runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
@@ -578,16 +541,14 @@ if (level === 'L2') {
         } else {
           console.log('FAIL (obs_gate=' + _summary.obs_gate + ')');
           _evidenceStatus = 'FAIL';
-          failed++;
         }
       } catch {
         console.log('FAIL (could not parse .evidence/SUMMARY.json)');
         _evidenceStatus = 'FAIL';
-        failed++;
       }
     }
   }
-  results.push({ name: 'evidence gate (INV-33)', status: _evidenceStatus, elapsed: Date.now() - _evidenceStart });
+  pushResult('evidence gate (INV-33)', _evidenceStatus, Date.now() - _evidenceStart);
 <% } %>
 }
 
@@ -596,13 +557,15 @@ console.log('');
 console.log('=== Summary ===');
 console.log('');
 
-const nameWidth = Math.max(6, ...results.map((r) => r.name.length));
+const _allResults = getResults();
+const _failedCount = getFailed();
+const nameWidth = Math.max(6, ..._allResults.map((r) => r.name.length));
 const header = `${'Check'.padEnd(nameWidth)}  Status  Elapsed`;
 const divider = '-'.repeat(header.length);
 console.log(header);
 console.log(divider);
 let totalElapsed = 0;
-for (const r of results) {
+for (const r of _allResults) {
   totalElapsed += r.elapsed;
   console.log(`${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms`);
 }
@@ -612,7 +575,7 @@ console.log('');
 
 // ─── Gate result JSON (arbiter-gate-v1) ──────────────────────────────────────
 {
-  const _parityGates = results
+  const _parityGates = _allResults
     .map((r) => ({ name: r.name, pass: r.status === 'PASS' }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const _parityContentHash = createHash('sha256').update(JSON.stringify(_parityGates)).digest('hex');
@@ -621,9 +584,9 @@ console.log('');
     schema: 'arbiter-gate-v1',
     node: process.version,
     level,
-    gates: results.map((r) => ({ name: r.name, pass: r.status === 'PASS', durationMs: r.elapsed })),
+    gates: _allResults.map((r) => ({ name: r.name, pass: r.status === 'PASS', durationMs: r.elapsed })),
     parityGates: _parityGates,
-    pass: failed === 0,
+    pass: _failedCount === 0,
     parityContentHash: _parityContentHash,
     contentHash: _contentHash,
   };
@@ -634,8 +597,8 @@ console.log('');
   } catch { /* non-fatal */ }
 }
 
-if (failed > 0) {
-  console.error(`=== FAILED: ${failed} check(s) ===\n`);
+if (_failedCount > 0) {
+  console.error(`=== FAILED: ${_failedCount} check(s) ===\n`);
   process.exit(1);
 } else {
   console.log('=== ALL PASSED ===\n');
