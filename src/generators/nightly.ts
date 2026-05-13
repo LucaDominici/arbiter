@@ -31,17 +31,17 @@ export function generateNightly(config: ProjectConfig): NightlyGeneratorResult {
       writeFile(
         resolvedPath(base, '.github', 'workflows', 'nightly.yml'),
         renderTemplate('github/workflows/nightly.yml.ejs', data),
-        { skipIfExists: false },
+        { skipIfExists: false, backup: true },
       ),
       writeFile(
         resolvedPath(base, 'scripts', 'evidence-collect.mjs'),
         renderTemplate('scripts/evidence-collect.mjs.ejs', data),
-        { skipIfExists: false },
+        { skipIfExists: false, backup: true },
       ),
       writeFile(
         resolvedPath(base, 'scripts', 'ci-classify-changes.mjs'),
         renderTemplate('scripts/ci-classify-changes.mjs.ejs', data),
-        { skipIfExists: false },
+        { skipIfExists: false, backup: true },
       ),
       writeFile(resolvedPath(base, '.evidence', '.gitkeep'), '', {
         skipIfExists: true,

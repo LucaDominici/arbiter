@@ -62,6 +62,45 @@ describe('createProjectBoard', () => {
     expect(result.error).toContain('HTTP 403: Forbidden')
   })
 
+  // ── Runtime validation tests (#296) ────────────────────────────────────────
+
+  it('returns error when gh project list returns non-object (#296)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    mockRunCliJson.mockReturnValue([]) // array instead of object with "projects"
+
+    const result = createProjectBoard('owner', 'repo')
+
+    // findExistingBoard catches the throw and returns null → falls through to create
+    // then project create also gets mocked array → throws → error captured
+    expect(result.error).toBeTruthy()
+  })
+
+  it('returns error when gh project list projects field is not an array (#296)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    // First call: project list returns object but projects is not an array
+    mockRunCliJson.mockReturnValueOnce({ projects: 'not-an-array' })
+    // Fallthrough to create — also malformed
+    mockRunCliJson.mockReturnValueOnce({ not: 'a-project' })
+
+    const result = createProjectBoard('owner', 'repo')
+
+    expect(result.error).toBeTruthy()
+    expect(result.created).toBe(false)
+  })
+
+  it('returns error when gh project create output missing number/url fields (#296)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    // project list: empty
+    mockRunCliJson.mockReturnValueOnce({ projects: [] })
+    // project create: missing fields
+    mockRunCliJson.mockReturnValueOnce({ title: 'repo Board' })
+
+    const result = createProjectBoard('owner', 'repo')
+
+    expect(result.created).toBe(false)
+    expect(result.error).toContain('number')
+  })
+
   // ── Idempotency tests ───────────────────────────────────────────────────────
 
   it('returns created: false and existing URL when board already exists', async () => {

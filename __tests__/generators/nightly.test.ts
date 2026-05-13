@@ -13,6 +13,35 @@ afterEach(() => {
   cleanupTestProject(dir)
 })
 
+describe('generateNightly — backup flag (#293)', () => {
+  it('nightly.yml creates .arbiter-backup on second run', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    generateNightly(config)
+    generateNightly(config)
+    const f = generateNightly(config).files.find((x) => x.path.endsWith('nightly.yml'))
+    expect(f?.action).toBe('backed-up-and-replaced')
+    expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
+  })
+
+  it('evidence-collect.mjs creates .arbiter-backup on second run', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    generateNightly(config)
+    const result = generateNightly(config)
+    const f = result.files.find((x) => x.path.endsWith('evidence-collect.mjs'))
+    expect(f?.action).toBe('backed-up-and-replaced')
+    expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
+  })
+
+  it('ci-classify-changes.mjs creates .arbiter-backup on second run', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    generateNightly(config)
+    const result = generateNightly(config)
+    const f = result.files.find((x) => x.path.endsWith('ci-classify-changes.mjs'))
+    expect(f?.action).toBe('backed-up-and-replaced')
+    expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
+  })
+})
+
 describe('generateNightly — governance level gate', () => {
   it('returns empty files at L1', () => {
     const result = generateNightly(makeConfig(dir, { governanceLevel: 'L1' }))

@@ -23,7 +23,7 @@ export function generateEvidenceRetention(config: ProjectConfig): EvidenceRetent
     writeFile(
       resolvedPath(base, 'scripts', 'evidence-rotate.mjs'),
       renderTemplate('scripts/evidence-rotate.mjs.ejs', data),
-      { skipIfExists: false },
+      { skipIfExists: false, backup: true },
     ),
     // Seed .gitignore with common entries + .evidence/ — skip if user already has one
     writeFile(resolvedPath(base, '.gitignore'), renderTemplate('root/.gitignore.ejs', data), {
@@ -37,7 +37,7 @@ export function generateEvidenceRetention(config: ProjectConfig): EvidenceRetent
       writeFile(
         resolvedPath(base, 'scripts', 'done-evidence.mjs'),
         renderTemplate('scripts/done-evidence.mjs.ejs', data),
-        { skipIfExists: false },
+        { skipIfExists: false, backup: true },
       ),
       writeFile(
         resolvedPath(base, 'evidence-files.json'),

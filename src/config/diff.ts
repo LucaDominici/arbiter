@@ -7,6 +7,9 @@ export type GeneratorKey =
   | 'codex'
   | 'cursor'
   | 'copilot'
+  | 'gemini'
+  | 'windsurf'
+  | 'aider'
   | 'skills'
   | 'agents-claude'
   | 'github'
@@ -84,6 +87,9 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     'codex',
     'cursor',
     'copilot',
+    'gemini',
+    'windsurf',
+    'aider',
     'skills',
     'agents-claude',
     'githooks',

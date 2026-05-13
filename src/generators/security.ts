@@ -7,6 +7,17 @@ export interface SecurityGeneratorResult {
   files: WriteResult[]
 }
 
+function renderSecurityTemplate(templatePath: string, data: Record<string, unknown>): string {
+  try {
+    return renderTemplate(templatePath, data)
+  } catch (err) {
+    throw new Error(
+      `security.ts: template not found or failed to render at ${templatePath} — check installation`,
+      { cause: err },
+    )
+  }
+}
+
 export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult {
   if (!config.enableSecurityScanning) return { files: [] }
 
@@ -18,7 +29,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
   results.push(
     writeFile(
       resolvedPath(base, 'scripts', 'pii-scan.mjs'),
-      renderTemplate('scripts/pii-scan.mjs.ejs', data),
+      renderSecurityTemplate('scripts/pii-scan.mjs.ejs', data),
       { skipIfExists: false },
     ),
   )
@@ -27,7 +38,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
   results.push(
     writeFile(
       resolvedPath(base, '.gitleaks.toml'),
-      renderTemplate('security/gitleaks.toml.ejs', data),
+      renderSecurityTemplate('security/gitleaks.toml.ejs', data),
       { skipIfExists: true },
     ),
   )
@@ -37,7 +48,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
     results.push(
       writeFile(
         resolvedPath(base, '.claude', 'hooks', 'check-no-pii.mjs'),
-        renderTemplate('claude/hooks/check-no-pii.mjs.ejs', data),
+        renderSecurityTemplate('claude/hooks/check-no-pii.mjs.ejs', data),
         { skipIfExists: true },
       ),
     )
@@ -48,7 +59,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
     results.push(
       writeFile(
         resolvedPath(base, 'config', 'owasp-dependency-check.gradle'),
-        renderTemplate('security/owasp-dependency-check.gradle.ejs', data),
+        renderSecurityTemplate('security/owasp-dependency-check.gradle.ejs', data),
         { skipIfExists: true },
       ),
     )
