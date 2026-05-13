@@ -1,0 +1,26 @@
+{
+  "task_id": "#999",
+  "scope": { "track": "B", "paths": ["src/"] },
+  "files": [
+    {
+      "path": "frontend/src/Foo.vue",
+      "operation": "modify",
+      "changes": {
+        "adds_ui_strings": true,
+        "ui_strings": ["Benvenuto nel sistema"],
+        "adds_tests": true,
+        "skip_patterns": [".skip("],
+        "adds_todos": ["TODO: fix this without task id"]
+      }
+    },
+    {
+      "path": "docs/README.md",
+      "operation": "modify"
+    }
+  ],
+  "review_bridge": {
+    "enabled": true,
+    "reviewer": "bridge-reviewer",
+    "fail_on_warn": false
+  }
+}

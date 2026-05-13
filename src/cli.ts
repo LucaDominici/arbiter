@@ -10,6 +10,9 @@ import {
   runWorktreeList,
 } from "./commands/worktree.js";
 import { runVerify, runVerifyEvidence } from "./commands/verify.js";
+import { runVerifyPlan } from "./commands/verify-plan.js";
+import { loadConfig } from "./utils/config.js";
+import { loadPlugin } from "./utils/plugin-loader.js";
 import { runReviewCode, runReviewPlan } from "./commands/review.js";
 import { jsonOutput } from "./utils/json-output.js";
 import type { ReviewTier } from "./review/tier-constants.js";
@@ -418,6 +421,55 @@ verify
     }
     process.exit(result.exitCode);
   });
+
+verify
+  .command("plan <file>")
+  .description(
+    "Validate a PLAN.json against invariant rules and write REVIEW.json (#253)",
+  )
+  .option("--dir <dir>", "Project root (default: current directory)")
+  .option("--reviewer <name>", "Reviewer name in REVIEW.json")
+  .option("--fail-on-warn", "Treat WARN violations as REJECTED", false)
+  .option("--json", "Emit machine-readable JSON output", false)
+  .action(
+    async (
+      file: string,
+      opts: {
+        dir?: string;
+        reviewer?: string;
+        failOnWarn: boolean;
+        json: boolean;
+      },
+    ) => {
+      const { resolve } = await import("node:path");
+      const dir = resolve(opts.dir ?? ".");
+      const stored = loadConfig(dir);
+      const pluginNames: string[] =
+        stored != null && Array.isArray(stored.plugins) ? stored.plugins : [];
+      const extraRules: import("./verify/rules/types.js").VerifyPlanRule[] = [];
+      for (const pkg of pluginNames) {
+        try {
+          const plugin = await loadPlugin(pkg, dir);
+          if (Array.isArray(plugin.verifyPlanRules)) {
+            extraRules.push(...plugin.verifyPlanRules);
+          }
+        } catch (err) {
+          process.stderr.write(
+            `[arbiter] verify plan: plugin "${pkg}" failed to load — its rules will not run: ${err instanceof Error ? err.message : String(err)}\n`,
+          );
+        }
+      }
+      const result = runVerifyPlan({
+        file,
+        dir,
+        ...(opts.reviewer !== undefined ? { reviewer: opts.reviewer } : {}),
+        failOnWarn: opts.failOnWarn,
+        json: opts.json,
+        extraRules,
+      });
+      process.exit(result.exitCode);
+    },
+  );
 
 program
   .command("upgrade-level")

@@ -14,6 +14,10 @@ coverage/
 # Arbiter local runtime state (logs); manifest is committed
 .arbiter/
 !.arbiter/hooks-manifest.json
+# Verification bridge: run history ignored, pointer files committable
+.arbiter/plan/runs/
+!.arbiter/plan/PLAN.json
+!.arbiter/plan/REVIEW.json
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/

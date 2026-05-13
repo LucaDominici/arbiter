@@ -14,11 +14,10 @@ if (process.env.ARBITER_SSOT_BYPASS === "1") process.exit(0);
 const gitResult = spawnSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf-8",
 });
-const repoRoot = gitResult.stdout?.trim() ?? "";
+// Fall back to CWD when git is unavailable (e.g. rsync temp dir); still anchors correctly.
+const repoRoot = gitResult.stdout.trim() || process.cwd();
 const absFile = resolve(file);
-// Fall back to CWD when git is unavailable (e.g., temp dir without .git).
-const anchor = repoRoot || process.cwd();
-const rel = relative(anchor, absFile);
+const rel = relative(repoRoot, absFile);
 
 // If file is outside the repo, allow it.
 if (rel.startsWith("..")) process.exit(0);

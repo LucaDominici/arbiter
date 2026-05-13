@@ -1,4 +1,5 @@
 import type { ArbiterConfig } from "../utils/config.js";
+import type { VerifyPlanRule } from "../verify/rules/types.js";
 
 /**
  * @beta API is public but not stable. Breaking changes possible before v1.0.
@@ -9,6 +10,7 @@ export interface ArbiterPlugin {
   templateRoot: string;
   detect?(config: ArbiterConfig): boolean;
   generate(ctx: PluginContext): PluginResult;
+  verifyPlanRules?: VerifyPlanRule[];
 }
 
 /**
