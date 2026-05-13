@@ -116,6 +116,9 @@ import { isL3Allowed } from '../../src/utils/maturity-check.js'
 import { provisionLabels } from '../../src/github/labels.js'
 import { applyBranchProtection } from '../../src/github/branch-protection.js'
 import { createProjectBoard } from '../../src/github/project-board.js'
+import { loadPlugin } from '../../src/utils/plugin-loader.js'
+import { loadConfig } from '../../src/utils/config.js'
+import { validateConfig } from '../../src/config/schema.js'
 
 const mockRunWizard = vi.mocked(runWizard)
 const mockDetermineFlow = vi.mocked(determineFlow)
@@ -125,6 +128,8 @@ const mockIsL3Allowed = vi.mocked(isL3Allowed)
 const mockProvisionLabels = vi.mocked(provisionLabels)
 const mockApplyBranchProtection = vi.mocked(applyBranchProtection)
 const mockCreateProjectBoard = vi.mocked(createProjectBoard)
+const mockLoadPlugin = vi.mocked(loadPlugin)
+const mockLoadConfig = vi.mocked(loadConfig)
 
 describe('runInit', () => {
   let dir: string
@@ -371,18 +376,19 @@ describe('runInit', () => {
     expect(mockIsL3Allowed).not.toHaveBeenCalled()
   })
 
-  it('defaults to L2 when level option is invalid', async () => {
+  it('throws on invalid level option (#325)', async () => {
     const { runInit } = await import('../../src/commands/init.js')
-    await runInit({
-      yes: true,
-      tools: 'claude',
-      level: 'invalid',
-      dir,
-      dryRun: false,
-      brownfield: false,
-      noVerify: true,
-    })
-    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'invalid',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow(/unknown governance level/i)
   })
 })
 
@@ -483,5 +489,244 @@ describe('runGithubSetup', () => {
     const { runGithubSetup } = await import('../../src/commands/init.js')
     runGithubSetup(makeConfig(dir, { useGitHub: true, githubOwner: 'o', githubRepo: 'r' }))
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Project board created'))
+  })
+})
+
+describe('validateConfig — AI_TOOLS allowlist (#305)', () => {
+  it('accepts gemini as a valid tool', () => {
+    const result = validateConfig({
+      version: '0.2',
+      tools: ['gemini'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: false,
+      },
+      thresholds: {
+        lineCoverage: 80,
+        branchCoverage: 70,
+        mutationScore: 75,
+        cyclomaticComplexity: 10,
+        methodLength: 20,
+        maxParams: 5,
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('accepts windsurf as a valid tool', () => {
+    const result = validateConfig({
+      version: '0.2',
+      tools: ['windsurf'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: false,
+      },
+      thresholds: {
+        lineCoverage: 80,
+        branchCoverage: 70,
+        mutationScore: 75,
+        cyclomaticComplexity: 10,
+        methodLength: 20,
+        maxParams: 5,
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('accepts aider as a valid tool', () => {
+    const result = validateConfig({
+      version: '0.2',
+      tools: ['aider'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: false,
+      },
+      thresholds: {
+        lineCoverage: 80,
+        branchCoverage: 70,
+        mutationScore: 75,
+        cyclomaticComplexity: 10,
+        methodLength: 20,
+        maxParams: 5,
+      },
+    })
+    expect(result.ok).toBe(true)
+  })
+})
+
+describe('runInit — calls runPlugins (#317)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.clearAllMocks()
+    mockRunGeneratorsFromRegistry.mockReturnValue([])
+    mockRunProbes.mockReturnValue({
+      dir: '/tmp',
+      stack: 'typescript',
+      probes: [],
+      hasFailures: false,
+      hasWarnings: false,
+    })
+    mockIsL3Allowed.mockReturnValue({ allowed: true, errorMessage: null })
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('calls loadPlugin when loadConfig returns plugins in stored config (#317)', async () => {
+    mockLoadConfig.mockReturnValueOnce({
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: true,
+        suppressions: true,
+      },
+      thresholds: {
+        lineCoverage: 80,
+        branchCoverage: 70,
+        mutationScore: 80,
+        cyclomaticComplexity: 15,
+        methodLength: 65,
+        maxParams: 7,
+      },
+      plugins: ['my-arbiter-plugin'],
+    } as Parameters<typeof mockLoadConfig>[0] extends undefined
+      ? never
+      : Awaited<ReturnType<typeof mockLoadConfig>>)
+    mockLoadPlugin.mockResolvedValue({
+      templateRoot: '/nonexistent',
+      generate: () => ({ files: [] }),
+    } as Awaited<ReturnType<typeof mockLoadPlugin>>)
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(mockLoadPlugin).toHaveBeenCalledWith('my-arbiter-plugin', dir)
+  })
+})
+
+describe('runPlugins — aggregate error on failure (#320)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('throws aggregate error when a plugin fails (#320)', async () => {
+    mockLoadPlugin.mockRejectedValueOnce(new Error('plugin crashed'))
+    const { runPlugins } = await import('../../src/commands/init.js')
+    await expect(
+      runPlugins('/tmp/fake-dir', ['failing-plugin'], {
+        version: '0.2',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        useGitHub: false,
+        features: {
+          contractTesting: false,
+          mutationTesting: false,
+          securityScanning: false,
+          evidenceHarness: false,
+          debtGates: false,
+          suppressions: false,
+        },
+        thresholds: {
+          lineCoverage: 80,
+          branchCoverage: 70,
+          mutationScore: 80,
+          cyclomaticComplexity: 15,
+          methodLength: 65,
+          maxParams: 7,
+        },
+      }),
+    ).rejects.toThrow(/plugin\(s\) failed/i)
+  })
+})
+
+describe('parseTools / parseLevel — input validation (#325)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.clearAllMocks()
+    mockRunGeneratorsFromRegistry.mockReturnValue([])
+    mockIsL3Allowed.mockReturnValue({ allowed: true, errorMessage: null })
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('throws on unknown tool name in --tools (#325)', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'curosr',
+        level: undefined,
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow(/unknown tool/i)
+  })
+
+  it('throws on invalid level in --level (#325)', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: undefined,
+        level: 'L4',
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow(/unknown governance level/i)
   })
 })

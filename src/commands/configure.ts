@@ -29,7 +29,7 @@ const ALLOWED_PATHS = new Set([
   'tools',
 ])
 
-const VALID_TOOLS = new Set(['claude', 'codex', 'cursor', 'copilot'])
+const VALID_TOOLS = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
 
 function parseValue(path: string, raw: string): unknown {
   if (path.startsWith('features.')) {
@@ -51,7 +51,7 @@ function parseValue(path: string, raw: string): unknown {
     const toolList = raw.split(',').map((t) => t.trim())
     for (const t of toolList) {
       if (!VALID_TOOLS.has(t)) {
-        throw new Error(`Invalid tool: "${t}". Valid tools: claude, codex, cursor, copilot`)
+        throw new Error(`Invalid tool: "${t}". Valid tools: ${[...VALID_TOOLS].join(', ')}`)
       }
     }
     return toolList
