@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, mergeSettingsJson, resolvedPath } from '../utils/fs.js'
@@ -95,7 +95,8 @@ function generateClaudeSettings(
       string,
       unknown
     >
-    const merged = mergeSettingsJson(existing, incoming)
+    const merged = mergeSettingsJson(existing, incoming, settingsPath)
+    copyFileSync(settingsPath, `${settingsPath}.arbiter-backup`)
     writeFileSync(settingsPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
     results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
   } else {

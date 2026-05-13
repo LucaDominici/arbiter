@@ -308,6 +308,29 @@ describe('generateClaude', () => {
     })
   })
 
+  describe('existing settings.json — backup (#285)', () => {
+    function seedExistingSettingsForBackup(content: string): void {
+      const claudeDir = join(dir, '.claude')
+      mkdirSync(claudeDir, { recursive: true })
+      writeFileSync(join(claudeDir, 'settings.json'), content, 'utf-8')
+    }
+
+    it('creates a .arbiter-backup file alongside settings.json when it already exists (#285)', () => {
+      const originalContent = JSON.stringify({ permissions: { allow: ['custom'] } })
+      seedExistingSettingsForBackup(originalContent)
+      const settingsPath = join(dir, '.claude', 'settings.json')
+      generateClaude(makeConfig(dir))
+      expect(existsSync(`${settingsPath}.arbiter-backup`)).toBe(true)
+      expect(readFileSync(`${settingsPath}.arbiter-backup`, 'utf-8')).toBe(originalContent)
+    })
+
+    it('does NOT create .arbiter-backup when settings.json does not already exist (#285)', () => {
+      const settingsPath = join(dir, '.claude', 'settings.json')
+      generateClaude(makeConfig(dir))
+      expect(existsSync(`${settingsPath}.arbiter-backup`)).toBe(false)
+    })
+  })
+
   describe('existing settings.json — parse guard (#297)', () => {
     function seedExistingSettings(content: string): void {
       const claudeDir = join(dir, '.claude')
