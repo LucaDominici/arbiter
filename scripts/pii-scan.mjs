@@ -48,6 +48,21 @@ const SKIP_EXTENSIONS = new Set([
   '.zip',
   '.tar',
   '.gz',
+  // Compiled artifacts across stacks that may embed crate/package author metadata
+  '.rlib',
+  '.rmeta',
+  '.rs.bk',
+  '.so',
+  '.dll',
+  '.dylib',
+  '.a',
+  '.o',
+  '.class',
+  '.jar',
+  '.pyc',
+  '.pyo',
+  '.exe',
+  '.node',
 ])
 
 const PII_PATTERNS = [
@@ -63,7 +78,11 @@ function isAllowed(filePath, lineNum, matchStr) {
   const rel = relative(ROOT, filePath)
   return allowlist.some((entry) => {
     if (!entry.file && !entry.line && !entry.pattern) return false
-    if (entry.file && !rel.includes(entry.file)) return false
+    // Anchored prefix match: rel must equal entry.file OR start with it.
+    // Substring match would let an "__tests__/" entry leak into
+    // src/templates/__tests__/* — a template shipped to every generated
+    // project — silencing PII detection downstream.
+    if (entry.file && rel !== entry.file && !rel.startsWith(entry.file)) return false
     if (entry.line && entry.line !== lineNum) return false
     if (entry.pattern && !matchStr.includes(entry.pattern)) return false
     return true
