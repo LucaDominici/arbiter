@@ -45,8 +45,8 @@ export function generateSecurity(
     );
   }
 
-  // Java only: OWASP Dependency-Check Gradle snippet
-  if (config.language === "java") {
+  // Java/multi: OWASP Dependency-Check Gradle snippet
+  if (config.language === "java" || config.language === "multi") {
     results.push(
       writeFile(
         resolvedPath(base, "config", "owasp-dependency-check.gradle"),

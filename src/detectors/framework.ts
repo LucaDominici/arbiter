@@ -6,7 +6,8 @@ export function detectFramework(
   dir: string,
   language: Language,
 ): string | null {
-  if (language === "typescript") return detectTypescriptFramework(dir);
+  if (language === "typescript" || language === "multi")
+    return detectTypescriptFramework(dir);
   if (language === "rust") return detectRustFramework(dir);
   if (language === "java") return detectJavaFramework(dir);
   return null;
@@ -102,6 +103,7 @@ const LANGUAGE_FALLBACK_ARCHETYPE: ReadonlyMap<Language, Archetype> = new Map([
   ["java", "library"],
   ["typescript", "library"],
   ["rust", "library"],
+  ["multi", "backend-web-db"],
 ]);
 
 /**

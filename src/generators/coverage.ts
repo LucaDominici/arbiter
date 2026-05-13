@@ -28,7 +28,7 @@ export function generateCoverage(
     coverageEnabled: thresholds.coverageEnabled,
   } as unknown as Record<string, unknown>;
 
-  if (config.language === "typescript") {
+  if (config.language === "typescript" || config.language === "multi") {
     results.push(
       writeFile(
         resolvedPath(base, "vitest.config.ts"),
@@ -38,7 +38,10 @@ export function generateCoverage(
     );
   }
 
-  if (config.language === "java" && config.buildTool === "gradle") {
+  if (
+    (config.language === "java" || config.language === "multi") &&
+    config.buildTool === "gradle"
+  ) {
     results.push(
       writeFile(
         resolvedPath(base, "gradle", "jacoco.gradle"),
@@ -48,7 +51,10 @@ export function generateCoverage(
     );
   }
 
-  if (config.language === "java" && config.buildTool === "maven") {
+  if (
+    (config.language === "java" || config.language === "multi") &&
+    config.buildTool === "maven"
+  ) {
     results.push(
       writeFile(
         resolvedPath(base, "docs", "coverage", "jacoco-maven-setup.md"),

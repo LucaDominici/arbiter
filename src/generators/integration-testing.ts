@@ -43,7 +43,7 @@ export function generateIntegrationTesting(
   const data = config as unknown as Record<string, unknown>;
   const results: WriteResult[] = [];
 
-  if (config.language === "java") {
+  if (config.language === "java" || config.language === "multi") {
     const supportPkg = config.basePackage
       ? `src/test/java/${config.basePackage.replace(/\./g, "/")}/support`
       : "src/test/java/support";
@@ -75,7 +75,8 @@ export function generateIntegrationTesting(
         { skipIfExists: true },
       ),
     );
-  } else if (config.language === "typescript") {
+  }
+  if (config.language === "typescript" || config.language === "multi") {
     results.push(
       writeFile(
         resolvedPath(base, "src", "test", "test-setup.ts"),
@@ -90,7 +91,8 @@ export function generateIntegrationTesting(
         { skipIfExists: true },
       ),
     );
-  } else if (config.language === "rust") {
+  }
+  if (config.language === "rust") {
     results.push(
       writeFile(
         resolvedPath(base, "tests", "db_fixture.rs"),

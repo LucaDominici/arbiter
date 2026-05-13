@@ -40,6 +40,7 @@ export type Language =
   | "rust"
   | "python"
   | "go"
+  | "multi"
   | "unknown";
 export type GovernanceLevel = "L1" | "L2" | "L3";
 export type AiTool =

@@ -149,10 +149,11 @@ if (/\\b(MockMvc|AutoConfigureMockMvc|MockMvcBuilders|MockMvcRequestBuilders|Moc
 
 export function getLanguageHooks(language: Language): LanguageHook[] {
   const hooks: LanguageHook[] = [COMMON_NO_ORPHAN_TODO];
-  if (language === "typescript") hooks.push(TS_NO_ANY);
+  if (language === "typescript" || language === "multi") hooks.push(TS_NO_ANY);
   if (language === "rust") hooks.push(RUST_NO_UNWRAP);
   if (language === "go") hooks.push(GO_NO_UNCHECKED_ERR);
   if (language === "python") hooks.push(PY_NO_BARE_EXCEPT);
-  if (language === "java") hooks.push(JAVA_NO_RAW_TYPES, JAVA_NO_MOCKMVC);
+  if (language === "java" || language === "multi")
+    hooks.push(JAVA_NO_RAW_TYPES, JAVA_NO_MOCKMVC);
   return hooks;
 }

@@ -20,9 +20,10 @@ export function computeMetricsProfile(config: ProjectConfig): MetricsProfile {
       config.archetype === "library" && config.language === "typescript",
     includeBranchCoverage:
       config.archetype === "backend-web-db" || config.archetype === "library",
-    spotbugsEnabled: config.language === "java",
+    spotbugsEnabled: config.language === "java" || config.language === "multi",
     archunitEnabled:
-      config.language === "java" && config.architectureStyle !== "none",
+      (config.language === "java" || config.language === "multi") &&
+      config.architectureStyle !== "none",
   };
 }
 

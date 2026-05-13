@@ -140,14 +140,13 @@ export function generateBehavioralTests(
   const data = config as unknown as Record<string, unknown>;
   const results: WriteResult[] = [];
 
-  if (config.language === "java")
+  if (config.language === "java" || config.language === "multi")
     results.push(...emitJavaBdd(base, data, config));
-  else if (config.language === "typescript")
+  if (config.language === "typescript" || config.language === "multi")
     results.push(...emitTypeScriptBdd(base, data));
-  else if (config.language === "rust") results.push(...emitRustBdd(base, data));
-  else if (config.language === "go") results.push(...emitGoBdd(base, data));
-  else if (config.language === "python")
-    results.push(...emitPythonBdd(base, data));
+  if (config.language === "rust") results.push(...emitRustBdd(base, data));
+  if (config.language === "go") results.push(...emitGoBdd(base, data));
+  if (config.language === "python") results.push(...emitPythonBdd(base, data));
 
   results.push(
     writeFile(
@@ -162,7 +161,10 @@ export function generateBehavioralTests(
     ),
   );
 
-  if (config.archetype === "frontend-spa" && config.language === "typescript") {
+  if (
+    config.archetype === "frontend-spa" &&
+    (config.language === "typescript" || config.language === "multi")
+  ) {
     results.push(
       writeFile(
         resolvedPath(base, ".eslintrc-playwright.json"),

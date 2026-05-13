@@ -10,16 +10,19 @@ Source files: `src/detectors/language.ts`, `src/detectors/build.ts`, `src/detect
 
 Arbiter checks for marker files in priority order. The first match wins.
 
-| Priority | Marker File(s)                                      | Detected Language |
-| -------- | --------------------------------------------------- | ----------------- |
-| 1        | `package.json`                                      | TypeScript        |
-| 2        | `Cargo.toml`                                        | Rust              |
-| 3        | `pom.xml`, `build.gradle`, or `build.gradle.kts`    | Java              |
-| 4        | `go.mod`                                            | Go                |
-| 5        | `pyproject.toml`, `setup.py`, or `requirements.txt` | Python            |
-| —        | None of the above                                   | `unknown`         |
+| Priority | Marker File(s)                                       | Detected Language |
+| -------- | ---------------------------------------------------- | ----------------- |
+| 0        | `package.json` + JVM build file (root or `backend/`) | `multi`           |
+| 1        | `package.json` alone                                 | TypeScript        |
+| 2        | `Cargo.toml`                                         | Rust              |
+| 3        | `pom.xml`, `build.gradle`, or `build.gradle.kts`     | Java              |
+| 4        | `go.mod`                                             | Go                |
+| 5        | `pyproject.toml`, `setup.py`, or `requirements.txt`  | Python            |
+| —        | None of the above                                    | `unknown`         |
 
-**Note:** `package.json` always wins. A project with both `package.json` and `Cargo.toml` (e.g., a Tauri app) is detected as TypeScript. Framework detection then identifies the Tauri sub-stack.
+**`multi` — Java+TypeScript monorepo detection:** When `package.json` coexists with `pom.xml`, `build.gradle`, or `build.gradle.kts` (at the repo root or under a `backend/` subdirectory), Arbiter detects `multi`. Generators emit the **union** of both Java and TypeScript artifacts — coverage, debt-gates, behavioral tests, contract testing, and CI workflows are all duplicated for both stacks.
+
+**Note:** `package.json` + `Cargo.toml` (e.g., a Tauri app) still detects as TypeScript, not `multi`. Only JVM build files trigger the multi-language path.
 
 ---
 
