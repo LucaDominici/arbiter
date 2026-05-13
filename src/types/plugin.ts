@@ -1,5 +1,6 @@
 import type { ArbiterConfig } from '../utils/config.js'
 import type { VerifyPlanRule } from '../verify/rules/types.js'
+import type { ArbiterMemoryPlugin } from './memory.js'
 
 /**
  * @beta API is public but not stable. Breaking changes possible before v1.0.
@@ -20,6 +21,8 @@ export interface PluginContext {
   config: ArbiterConfig
   targetDir: string
   renderTemplate(relPath: string, data: Record<string, unknown>): string
+  /** Optional memory backend injected by the host when a memory plugin is configured. */
+  memory?: ArbiterMemoryPlugin
 }
 
 /**

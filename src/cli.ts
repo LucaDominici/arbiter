@@ -13,11 +13,12 @@ import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
-import { runPluginAdd, runPluginRemove, runPluginList } from './commands/plugin.js'
+import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
 import { runTaskAdvance } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
+import { runNotaryCheck, runNotaryTemplate } from './commands/notary.js'
 import {
   runWorkList,
   runWorkCreate,
@@ -66,7 +67,14 @@ function parseCmdArgs(): { cmd: string; args: string[] } {
   const tokens = process.argv.slice(2)
   if (tokens.length === 0) return { cmd: '', args: [] }
   // Handle nested commands like "worktree open" / "task advance" / "work list"
-  const nested: ReadonlySet<string> = new Set(['worktree', 'wt', 'task', 'plugin', 'work'])
+  const nested: ReadonlySet<string> = new Set([
+    'worktree',
+    'wt',
+    'task',
+    'plugin',
+    'work',
+    'notary',
+  ])
   const first = tokens[0] ?? ''
   if (nested.has(first) && tokens.length >= 2) {
     const sub = tokens[1] ?? ''
@@ -492,6 +500,18 @@ plugin
     })
   })
 
+plugin
+  .command('init <name>')
+  .description('Scaffold a new plugin package at ./arbiter-plugin-<name>/ (API v1.1)')
+  .option('--dir <dir>', 'Parent directory for the new package (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(async (name: string, opts: { dir?: string; json: boolean }) => {
+    await runPluginInit(name, {
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+    })
+  })
+
 const work = program.command('work').description('Manage work units via decomposition backend')
 
 work
@@ -583,6 +603,24 @@ program
     runKnowledgeMapUpdate({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
     })
+  })
+
+const notary = program.command('notary').description('Notary system — track semantic doc changes')
+
+notary
+  .command('check')
+  .description('Validate Notary footer for staged doc changes (fails if footer missing)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts: { dir?: string }) => {
+    runNotaryCheck({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
+  })
+
+notary
+  .command('template')
+  .description('Print expected Notary footer for staged doc changes')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts: { dir?: string }) => {
+    runNotaryTemplate({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
   })
 
 program.parseAsync().catch((err: unknown) => {
