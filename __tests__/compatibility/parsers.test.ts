@@ -233,6 +233,13 @@ describe('parseKotlinVersion', () => {
       patch: 0,
     })
   })
+  it('parses kotlinc-jvm with info: prefix (real stderr output)', () => {
+    expect(parseKotlinVersion('info: kotlinc-jvm 1.9.23 (JRE 17.0.9+9)\n')).toEqual({
+      major: 1,
+      minor: 9,
+      patch: 23,
+    })
+  })
   it('returns null for empty', () => {
     expect(parseKotlinVersion('')).toBeNull()
   })

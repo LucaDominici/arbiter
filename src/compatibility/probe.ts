@@ -62,8 +62,15 @@ const TOOL_SPECS: Record<string, ToolSpec> = {
   },
 }
 
-const PROBE_TIMEOUT_MS = 10_000
-const BUILD_PROBE_TIMEOUT_MS = 60_000
+function parseTimeoutEnv(name: string, fallback: number): number {
+  const raw = process.env[name]
+  if (raw === undefined || raw === '') return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
+const PROBE_TIMEOUT_MS = parseTimeoutEnv('ARBITER_PROBE_TIMEOUT_MS', 10_000)
+const BUILD_PROBE_TIMEOUT_MS = parseTimeoutEnv('ARBITER_BUILD_PROBE_TIMEOUT_MS', 60_000)
 
 /** Specification for a build-invocation probe (runs in target project directory) */
 export interface BuildProbeSpec {
@@ -295,6 +302,14 @@ export function runProbes(dir: string): VerifyReport {
     }
     return probeTool(tool, spec.args, range, spec.channel)
   })
+
+  if (entries.length === 0) {
+    probes.push({
+      tool: 'matrix',
+      status: 'skipped',
+      reason: `no matrix coverage for stack '${lang}'`,
+    })
+  }
 
   const buildSpec = BUILD_PROBE_SPECS[lang]
   if (buildSpec !== undefined) {

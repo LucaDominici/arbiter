@@ -13,7 +13,7 @@ const REMEDIATION: Partial<Record<string, string>> = {
   pip: 'Upgrade pip: python3 -m pip install --upgrade pip',
   ruff: 'Install/upgrade ruff: pip install --upgrade ruff',
   kotlinc: 'Upgrade Kotlin: https://kotlinlang.org/docs/releases.html',
-  'gradlew:help': 'Check Gradle wrapper version: ./gradlew wrapper --gradle-version=X',
+  'gradlew:version': 'Check Gradle wrapper version: ./gradlew wrapper --gradle-version=X',
   'tsc:noEmit': 'Fix TypeScript errors or install: npm install --save-dev typescript',
   'cargo:check': 'Fix Rust compile errors: cargo check',
   'go:build': 'Fix Go build errors: go build ./...',
