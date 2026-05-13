@@ -590,3 +590,69 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
     expect(content).not.toContain('mutmut')
   })
 })
+
+// ─── #352: Stylelint + design-token enforcement (CANON-02/15) ────────────────
+
+describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () => {
+  it('TS frontend-spa L1: emits stylelint runToolCheck', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']")
+  })
+
+  it('TS library L1: does NOT emit stylelint step (archetype gate)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'library',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('stylelint')
+  })
+
+  it('Rust frontend-spa L1: does NOT emit stylelint step (TS-only)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'rust',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('stylelint')
+  })
+
+  it('TS frontend-spa L2: still emits stylelint (L1 step always runs)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain("runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']")
+  })
+})
+
+describe('.stylelintrc.json.ejs template (#352)', () => {
+  it('renders valid JSON with color-no-hex and design-token guidance', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('css/.stylelintrc.json.ejs', data)
+    // valid JSON
+    const parsed = JSON.parse(content) as Record<string, unknown>
+    expect(parsed.rules).toBeDefined()
+    const rules = parsed.rules as Record<string, unknown>
+    // HARD rules per haben spec
+    expect(rules).toHaveProperty('color-no-hex')
+    expect(rules).toHaveProperty('length-zero-no-unit')
+    expect(rules).toHaveProperty('custom-property-no-missing-var-function')
+    // design-token message
+    expect(content).toMatch(/var\(--color/)
+  })
+})

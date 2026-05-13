@@ -119,6 +119,12 @@ runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
 // ─── L1: Pipe/tee hazard (advisory — always exits 0) ─────────────────────────
 runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
 <% if (archetype === 'frontend-spa' && language === 'typescript') { %>
+// ─── L1: Stylelint + design-token enforcement (#352, CANON-02/15) ────────────
+// HARD rules in .stylelintrc.json: color-no-hex, length-zero-no-unit,
+// custom-property-no-missing-var-function. Use var(--color-*) tokens from
+// src/styles/theme.css. See docs/PRODUCT/UI-UX-STANDARDS.md.
+// runToolCheck: stylelint absent locally = SKIP; absent in CI = FAIL.
+runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']);
 // ─── L1: FSD layer boundaries (eslint-plugin-boundaries) ─────────────────────
 if (existsSync('.eslintrc-frontend-spa.cjs')) {
   runCheck('fsd boundaries', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-frontend-spa.cjs', 'src/**/*.{ts,tsx}']);
