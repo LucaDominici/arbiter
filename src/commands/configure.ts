@@ -17,6 +17,7 @@ const ALLOWED_PATHS = new Set([
   "features.evidenceHarness",
   "features.debtGates",
   "features.suppressions",
+  "features.soloDevMode",
   "thresholds.lineCoverage",
   "thresholds.branchCoverage",
   "thresholds.mutationScore",
