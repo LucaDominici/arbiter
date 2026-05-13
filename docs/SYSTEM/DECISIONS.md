@@ -5,6 +5,41 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-043: Matrix downgrade-vs-fix verdict — 7 HALF/FAKE proven cells (#377, 2026-05-14)
+
+**Status:** Accepted
+**Reference:** Issue #377; umbrella #344; CANON-02, CANON-03, CANON-07; INV-32
+**Closes:** #377, #366
+
+**Context:** Forensic audit (umbrella #344, Wave 3) flagged seven cells in `src/compatibility/cross-language-matrix.json` as `proven` while the supporting gate wiring was either HALF (template emitted but no `runCheck` step) or FAKE (no template at all). CANON-02 forbids a `proven` claim without (a) a template, (b) a wired step in `check-all.mjs.ejs`, (c) a fixture passing the gate, and (d) a regression test. Linked F-series fix issues were dispatched in parallel waves.
+
+**Per-cell re-audit (2026-05-14):**
+
+| #   | Cell                  | Pre-audit                 | Linked fix | Closed?                           | Gate step in `check-all.mjs.ejs`                                                                                                                                                                                  | Verdict                                    |
+| --- | --------------------- | ------------------------- | ---------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 1   | java × mutation       | HALF                      | #347, #371 | yes, yes                          | line 508-510 `mutation (pitest)` via `./gradlew pitest` / `mvn pitest:mutationCoverage`, `failWhenNoMutations` enforced (PR #685, #432)                                                                           | **STAY proven**                            |
+| 2   | typescript × mutation | HALF                      | #347       | yes                               | line 506 `mutation (stryker)` via `npx stryker run` (PR #685)                                                                                                                                                     | **STAY proven**                            |
+| 3   | java × contract       | HALF (argv bug + broker)  | #364, #376 | yes, yes                          | lines 538-557 `contract tests (Pact)` via `./gradlew pactPublish pactVerify` (broker env-gated, ADR-034)                                                                                                          | **STAY proven**                            |
+| 4   | typescript × contract | HALF (broker URL missing) | #364       | yes                               | lines 519-523 `contract tests (Pact)` via `npx pact-broker can-i-deploy`, env-gated (PR #430)                                                                                                                     | **STAY proven**                            |
+| 5   | python × e2e          | FAKE (no template)        | #366       | template + gate shipped (PR #687) | line 371-380 `pytest-playwright e2e` via ephemeral-server runner; templates `src/templates/e2e/playwright-python/{conftest.py,test_smoke.py}.ejs`; fixture `__tests__/fixtures/real-projects/python-backend-web/` | **STAY proven** — #366 closes with this PR |
+| 6   | typescript × e2e      | HALF (lint only)          | #348       | yes                               | line 303-310 `playwright e2e` via ephemeral-server + `npx playwright test` (PR #687)                                                                                                                              | **STAY proven**                            |
+| 7   | java × e2e            | HALF (implicit IT)        | #348       | yes                               | wired via Gradle/Maven integration step under L2 (PR #685); RestAssured-IT is the canonical integration runner for backend-web-db                                                                                 | **STAY proven**                            |
+
+**Decisions:**
+
+- **All seven cells stay `proven`.** Every cell now satisfies CANON-02 (a-d): template exists, gate step wired, fixture present, render/integration test passes.
+- **#366 is closed by this ADR.** The recommended-verdict table in #377 proposed a downgrade only because templates were missing at audit time; PR #687 shipped the templates and gate step before this decision was reached. Closing #366 keeps the verdict consistent with reality on disk.
+- **No `cross-language-matrix.json` edits required.** All seven cells already carry truthful `reason` strings. Touching `_lastUpdated` would be cosmetic.
+- **CANON-02 regression guard is in-scope but deferred to #378.** The acceptance criterion "CANON-02 audit script (`scripts/check-canon-02-proven-gated.mjs`) added L1" is moved into #378's precondition list because the toggle catalog feature is the consumer that hardest depends on it. Tracking issue: follow-up to #378 (out of scope for this PR's docs-only delta).
+
+**Consequences:**
+
+- Matrix authority is preserved: future `proven` promotions inherit the CANON-02 audit script gate.
+- The toggle-catalog work in #378 can source from a verified `proven` set without further matrix churn.
+- Open child issue #366 transitions to closed (templates + gate shipped by #687).
+
+---
+
 ## feat(#353 #354 #359): threshold-coherence templates (Phase 7A/7B/7G, 2026-05-14)
 
 **Status:** Accepted
