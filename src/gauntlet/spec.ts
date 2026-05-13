@@ -36,18 +36,22 @@ export interface GauntletSpec {
   tags: string[]
 }
 
-export type ParseSpecResult =
-  | { ok: true; spec: GauntletSpec }
-  | { ok: false; reason: string }
+export type ParseSpecResult = { ok: true; spec: GauntletSpec } | { ok: false; reason: string }
 
 export function parseSpec(raw: string): ParseSpecResult {
   let parsed: unknown
   try {
     parsed = parseMinimalYaml(raw)
   } catch (err) {
-    return { ok: false, reason: `YAML parse error: ${err instanceof Error ? err.message : String(err)}` }
+    return {
+      ok: false,
+      reason: `YAML parse error: ${err instanceof Error ? err.message : String(err)}`,
+    }
   }
+  return parseSpecObj(parsed)
+}
 
+function parseSpecObj(parsed: unknown): ParseSpecResult {
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return { ok: false, reason: 'spec must be a YAML object' }
   }
@@ -62,8 +66,38 @@ export function parseSpec(raw: string): ParseSpecResult {
     return { ok: false, reason: 'spec.dimensions is required (object)' }
   }
 
+  const dimensionsResult = parseDimensions(obj['dimensions'] as Record<string, unknown>)
+  if (!dimensionsResult.ok) return dimensionsResult
+
+  const strategyRaw = obj['strategy'] ?? 'pairwise'
+  if (strategyRaw !== 'pairwise' && strategyRaw !== '3-way') {
+    return { ok: false, reason: `spec.strategy must be "pairwise" or "3-way"` }
+  }
+  const strategy: 'pairwise' | '3-way' = strategyRaw
+
+  const constraintsResult = parseConstraints(obj['constraints'])
+  if (!constraintsResult.ok) return constraintsResult
+
+  const tagsResult = parseTags(obj['tags'])
+  if (!tagsResult.ok) return tagsResult
+
+  return {
+    ok: true,
+    spec: {
+      name: obj['name'],
+      dimensions: dimensionsResult.dimensions,
+      strategy,
+      constraints: constraintsResult.constraints,
+      tags: tagsResult.tags,
+    },
+  }
+}
+
+function parseDimensions(
+  raw: Record<string, unknown>,
+): { ok: false; reason: string } | { ok: true; dimensions: Record<string, string[]> } {
   const dimensions: Record<string, string[]> = {}
-  for (const [k, v] of Object.entries(obj['dimensions'] as Record<string, unknown>)) {
+  for (const [k, v] of Object.entries(raw)) {
     if (!Array.isArray(v) || v.some((x) => typeof x !== 'string')) {
       return { ok: false, reason: `spec.dimensions.${k} must be an array of strings` }
     }
@@ -72,63 +106,52 @@ export function parseSpec(raw: string): ParseSpecResult {
     }
     dimensions[k] = v as string[]
   }
-
   if (Object.keys(dimensions).length === 0) {
     return { ok: false, reason: 'spec.dimensions must have at least one parameter' }
   }
+  return { ok: true, dimensions }
+}
 
-  const strategyRaw = obj['strategy'] ?? 'pairwise'
-  if (strategyRaw !== 'pairwise' && strategyRaw !== '3-way') {
-    return { ok: false, reason: `spec.strategy must be "pairwise" or "3-way"` }
-  }
-  const strategy = strategyRaw as 'pairwise' | '3-way'
-
+function parseConstraints(
+  raw: unknown,
+): { ok: false; reason: string } | { ok: true; constraints: GauntletConstraint[] } {
   const constraints: GauntletConstraint[] = []
-  if (obj['constraints'] !== undefined && obj['constraints'] !== null) {
-    if (!Array.isArray(obj['constraints'])) {
-      return { ok: false, reason: 'spec.constraints must be an array' }
+  if (raw === undefined || raw === null) return { ok: true, constraints }
+  if (!Array.isArray(raw)) return { ok: false, reason: 'spec.constraints must be an array' }
+  for (const c of raw as unknown[]) {
+    if (typeof c !== 'object' || c === null) {
+      return { ok: false, reason: 'each constraint must be an object' }
     }
-    for (const c of obj['constraints'] as unknown[]) {
-      if (typeof c !== 'object' || c === null) {
-        return { ok: false, reason: 'each constraint must be an object' }
-      }
-      const co = c as Record<string, unknown>
-      if (typeof co['when'] !== 'object' || co['when'] === null) {
-        return { ok: false, reason: 'constraint.when must be an object' }
-      }
-      if (co['then'] !== 'skip') {
-        return { ok: false, reason: 'constraint.then must be "skip"' }
-      }
-      constraints.push({
-        when: co['when'] as Record<string, string>,
-        then: 'skip',
-      })
+    const co = c as Record<string, unknown>
+    if (typeof co['when'] !== 'object' || co['when'] === null) {
+      return { ok: false, reason: 'constraint.when must be an object' }
     }
+    if (co['then'] !== 'skip') {
+      return { ok: false, reason: 'constraint.then must be "skip"' }
+    }
+    constraints.push({ when: co['when'] as Record<string, string>, then: 'skip' })
   }
+  return { ok: true, constraints }
+}
 
+function parseTags(raw: unknown): { ok: false; reason: string } | { ok: true; tags: string[] } {
   const tags: string[] = []
-  if (obj['tags'] !== undefined) {
-    if (!Array.isArray(obj['tags'])) {
-      return { ok: false, reason: 'spec.tags must be an array' }
-    }
-    for (const t of obj['tags'] as unknown[]) {
-      if (typeof t !== 'string') {
-        return { ok: false, reason: 'spec.tags entries must be strings' }
-      }
-      tags.push(t)
-    }
+  if (raw === undefined) return { ok: true, tags }
+  if (!Array.isArray(raw)) return { ok: false, reason: 'spec.tags must be an array' }
+  for (const t of raw as unknown[]) {
+    if (typeof t !== 'string') return { ok: false, reason: 'spec.tags entries must be strings' }
+    tags.push(t)
   }
-
-  return {
-    ok: true,
-    spec: { name: obj['name'], dimensions, strategy, constraints, tags },
-  }
+  return { ok: true, tags }
 }
 
 /** Compute a stable SHA-256 hash for a spec. Used by the sync gate. */
 export function specHash(raw: string): string {
   // Normalise line endings and trim trailing whitespace before hashing
-  const normalised = raw.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').trimEnd()
+  const normalised = raw
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .trimEnd()
   return createHash('sha256').update(normalised, 'utf-8').digest('hex')
 }
 
@@ -163,23 +186,14 @@ class ParseCtx {
     return this.lines[this.pos]
   }
 
-  /** Skip blank lines and comment-only lines; return next significant line's indent. */
-  peekIndent(minIndent: number): number {
-    let i = this.pos
-    while (i < this.lines.length) {
-      const line = this.lines[i]!
-      const trimmed = line.replace(/^\s+/, '')
-      if (trimmed === '' || trimmed.startsWith('#')) { i++; continue }
-      return line.length - trimmed.length
-    }
-    return -1
-  }
-
   skipBlanks(): void {
     while (this.pos < this.lines.length) {
-      const line = this.lines[this.pos]!
+      const line = this.lines[this.pos] ?? ''
       const trimmed = line.trim()
-      if (trimmed === '' || trimmed.startsWith('#')) { this.pos++; continue }
+      if (trimmed === '' || trimmed.startsWith('#')) {
+        this.pos++
+        continue
+      }
       break
     }
   }
@@ -205,7 +219,11 @@ function parseBlock(ctx: ParseCtx, indent: number): YamlValue {
   }
 
   // Mapping block
-  if (/^[a-zA-Z_][a-zA-Z0-9_\-]*\s*:/.test(trimmed) || /^"[^"]+"\s*:/.test(trimmed) || /^'[^']+'\s*:/.test(trimmed)) {
+  if (
+    /^[a-zA-Z_][a-zA-Z0-9_-]*\s*:/.test(trimmed) ||
+    /^"[^"]+"\s*:/.test(trimmed) ||
+    /^'[^']+'\s*:/.test(trimmed)
+  ) {
     return parseBlockMap(ctx, lineIndent)
   }
 
@@ -216,7 +234,7 @@ function parseBlock(ctx: ParseCtx, indent: number): YamlValue {
 
 function parseBlockSeq(ctx: ParseCtx, indent: number): YamlValue[] {
   const items: YamlValue[] = []
-  while (true) {
+  for (;;) {
     ctx.skipBlanks()
     const line = ctx.peek()
     if (line === undefined) break
@@ -259,14 +277,14 @@ function parseBlockSeq(ctx: ParseCtx, indent: number): YamlValue[] {
   return items
 }
 
-function parseSubKeysAfterDash(ctx: ParseCtx, indent: number): YamlValue | null {
+function parseSubKeysAfterDash(ctx: ParseCtx, indent: number): YamlValue {
   ctx.skipBlanks()
   const line = ctx.peek()
   if (line === undefined) return null
   const lineIndent = line.length - line.trimStart().length
   if (lineIndent < indent) return null
   const trimmed = line.trim()
-  if (/^[a-zA-Z_][a-zA-Z0-9_\-]*\s*:/.test(trimmed)) {
+  if (/^[a-zA-Z_][a-zA-Z0-9_-]*\s*:/.test(trimmed)) {
     return parseBlockMap(ctx, lineIndent)
   }
   return null
@@ -274,7 +292,7 @@ function parseSubKeysAfterDash(ctx: ParseCtx, indent: number): YamlValue | null 
 
 function parseBlockMap(ctx: ParseCtx, indent: number): Record<string, YamlValue> {
   const obj: Record<string, YamlValue> = {}
-  while (true) {
+  for (;;) {
     ctx.skipBlanks()
     const line = ctx.peek()
     if (line === undefined) break
@@ -291,7 +309,10 @@ function parseBlockMap(ctx: ParseCtx, indent: number): Record<string, YamlValue>
     ctx.consume()
     const rawKey = trimmed.slice(0, colonIdx).trim()
     const key = unquote(rawKey)
-    const valuePart = trimmed.slice(colonIdx + 1).replace(/#.*$/, '').trim()
+    const valuePart = trimmed
+      .slice(colonIdx + 1)
+      .replace(/#.*$/, '')
+      .trim()
 
     if (valuePart === '') {
       // Value is on subsequent lines
@@ -324,9 +345,15 @@ function findMappingColon(s: string): number {
   let inSingle = false
   let inDouble = false
   for (let i = 0; i < s.length; i++) {
-    const c = s[i]!
-    if (c === "'" && !inDouble) { inSingle = !inSingle; continue }
-    if (c === '"' && !inSingle) { inDouble = !inDouble; continue }
+    const c = s[i] ?? ''
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (c === '"' && !inSingle) {
+      inDouble = !inDouble
+      continue
+    }
     if (c === ':' && !inSingle && !inDouble) {
       // Must be followed by space, end-of-string, or newline
       if (i + 1 >= s.length || s[i + 1] === ' ' || s[i + 1] === '\t') return i

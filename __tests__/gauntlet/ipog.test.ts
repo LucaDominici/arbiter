@@ -102,11 +102,7 @@ type Row = Record<string, string>
  * Assert that every t-way combination of parameter values appears in at
  * least one row.  This is O(n^t * rows) but fine for small test fixtures.
  */
-function assertAllPairsCovered(
-  input: IpogInput,
-  rows: Row[],
-  t: number,
-): void {
+function assertAllPairsCovered(input: IpogInput, rows: Row[], t: number): void {
   const params = Object.keys(input.dimensions)
   // Enumerate all t-subsets of params
   for (const subset of combinations(params, t)) {
@@ -122,9 +118,7 @@ function assertAllPairsCovered(
       if (isExcluded(input, constraint)) continue
       const covered = rows.some((row) => subset.every((p) => row[p] === constraint[p]))
       if (!covered) {
-        throw new Error(
-          `Missing t-way combination: ${JSON.stringify(constraint)}`,
-        )
+        throw new Error(`Missing t-way combination: ${JSON.stringify(constraint)}`)
       }
     }
   }
@@ -142,10 +136,7 @@ function combinations<T>(arr: T[], k: number): T[][] {
   if (k === 0) return [[]]
   if (arr.length < k) return []
   const [head, ...tail] = arr
-  return [
-    ...combinations(tail, k - 1).map((rest) => [head!, ...rest]),
-    ...combinations(tail, k),
-  ]
+  return [...combinations(tail, k - 1).map((rest) => [head!, ...rest]), ...combinations(tail, k)]
 }
 
 function cartesian(slots: string[][]): string[][] {

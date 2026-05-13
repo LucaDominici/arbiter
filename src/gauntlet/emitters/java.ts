@@ -61,7 +61,9 @@ export function emitJava(spec: GauntletSpec, rows: IpogRow[]): string {
 }
 
 function toPascalCase(s: string): string {
-  return s.replace(/[-_\s]+(.)/g, (_, c: string) => (c as string).toUpperCase()).replace(/^./, (c) => c.toUpperCase())
+  return s
+    .replace(/[-_\s]+(.)/g, (_, c: string) => c.toUpperCase())
+    .replace(/^./, (c) => c.toUpperCase())
 }
 
 function toCamelCase(s: string): string {

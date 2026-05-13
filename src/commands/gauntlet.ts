@@ -62,13 +62,27 @@ export function runGauntletGenerate(opts: GauntletGenerateOptions): GauntletGene
   const stack: GauntletStack = opts.stack ?? 'typescript'
 
   if (!existsSync(specPath)) {
-    return { status: 'error', exitCode: 2, files: [], rows: 0, graphEdges: 0, reason: `spec not found at ${specPath}` }
+    return {
+      status: 'error',
+      exitCode: 2,
+      files: [],
+      rows: 0,
+      graphEdges: 0,
+      reason: `spec not found at ${specPath}`,
+    }
   }
 
   const rawSpec = readFileSync(specPath, 'utf-8')
   const parseResult = parseSpec(rawSpec)
   if (!parseResult.ok) {
-    return { status: 'error', exitCode: 2, files: [], rows: 0, graphEdges: 0, reason: parseResult.reason }
+    return {
+      status: 'error',
+      exitCode: 2,
+      files: [],
+      rows: 0,
+      graphEdges: 0,
+      reason: parseResult.reason,
+    }
   }
 
   const { spec } = parseResult
@@ -167,7 +181,12 @@ function stackExtension(stack: GauntletStack): string {
  * node (subkind gauntlet-spec) and tests as TEST nodes.
  * Returns the number of new edges added.
  */
-function integrateGraph(graphPath: string, specName: string, specFilePath: string, rowCount: number): number {
+function integrateGraph(
+  graphPath: string,
+  specName: string,
+  specFilePath: string,
+  rowCount: number,
+): number {
   let snapshot: GraphSnapshot
   try {
     snapshot = JSON.parse(readFileSync(graphPath, 'utf-8')) as GraphSnapshot
@@ -180,18 +199,31 @@ function integrateGraph(graphPath: string, specName: string, specFilePath: strin
 
   const specNodeId = `SYMBOL:gauntlet-spec:${specName}`
   if (!store.hasNode(specNodeId)) {
-    store.upsertNode({ id: specNodeId, kind: 'SYMBOL', attrs: { subkind: 'gauntlet-spec', specFile: specFilePath, title: specName } })
+    store.upsertNode({
+      id: specNodeId,
+      kind: 'SYMBOL',
+      attrs: { subkind: 'gauntlet-spec', specFile: specFilePath, title: specName },
+    })
   }
 
   // Add TEST nodes for each row (representative)
   const testNodeId = `TEST:gauntlet:${specName}`
   if (!store.hasNode(testNodeId)) {
-    store.upsertNode({ id: testNodeId, kind: 'TEST', attrs: { title: `gauntlet:${specName}`, rows: rowCount } })
+    store.upsertNode({
+      id: testNodeId,
+      kind: 'TEST',
+      attrs: { title: `gauntlet:${specName}`, rows: rowCount },
+    })
   }
 
   // SYMBOL proves TEST (the spec defines the test suite)
   try {
-    store.addEdge({ from: testNodeId, to: specNodeId, kind: 'proves', attrs: { source: 'gauntlet' } })
+    store.addEdge({
+      from: testNodeId,
+      to: specNodeId,
+      kind: 'proves',
+      attrs: { source: 'gauntlet' },
+    })
     edgesAdded++
   } catch {
     // already exists — idempotent

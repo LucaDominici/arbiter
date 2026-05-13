@@ -47,13 +47,12 @@ export function ipog(input: IpogInput): IpogRow[] {
   }
 
   // Step 1: seed with cross-product of first t params
-  let rows: Array<Partial<IpogRow>> = crossProduct(params.slice(0, t), dimensions)
+  const rows: Array<Partial<IpogRow>> = crossProduct(params.slice(0, t), dimensions)
 
   // Step 2: process remaining parameters one at a time
   for (let pi = t; pi < params.length; pi++) {
-    const p = params[pi]!
-    const values = dimensions[p]!
-    const involved = params.slice(0, pi + 1) // all params up to and including p
+    const p = params[pi] ?? ''
+    const values = dimensions[p] ?? []
 
     // Build the set of t-way tuples involving p that we still need to cover
     const uncovered = buildUncoveredSet(params, dimensions, pi, t, rows)
@@ -61,52 +60,19 @@ export function ipog(input: IpogInput): IpogRow[] {
     // Horizontal extension: for each existing row, pick the value of p
     // that covers the most uncovered tuples
     for (const row of rows) {
-      let bestVal = values[0]!
-      let bestCoverage = -1
-      for (const v of values) {
-        const candidate = { ...row, [p]: v }
-        const cov = countCovered(candidate, uncovered, p, involved, t)
-        if (cov > bestCoverage) {
-          bestCoverage = cov
-          bestVal = v
-        }
-      }
+      const bestVal = pickBestValue(values, (v) => countCovered({ ...row, [p]: v }, uncovered))
       row[p] = bestVal
-      removeCovered({ ...row, [p]: bestVal } as IpogRow, uncovered, p, involved, t)
+      removeCovered({ ...(row as IpogRow), [p]: bestVal }, uncovered)
     }
 
     // Vertical extension: add new rows to cover remaining uncovered tuples
     while (uncovered.size > 0) {
-      const firstKey = uncovered.keys().next().value as string
+      const firstKey = uncovered.keys().next().value
+      if (firstKey === undefined) break
       const decoded = decodeTuple(firstKey)
-      // Build a new row satisfying this tuple, filling others greedily
-      const newRow: IpogRow = {}
-      for (const [k, v] of Object.entries(decoded)) {
-        newRow[k] = v
-      }
-      // Fill remaining params
-      for (const param of params.slice(0, pi + 1)) {
-        if (newRow[param] === undefined) {
-          // Pick the value that covers the most remaining uncovered tuples
-          let bestVal = dimensions[param]![0]!
-          let bestCov = -1
-          for (const v of dimensions[param]!) {
-            const candidate = { ...newRow, [param]: v }
-            const cov = countCovered(candidate, uncovered, p, involved, t)
-            if (cov > bestCov) {
-              bestCov = cov
-              bestVal = v
-            }
-          }
-          newRow[param] = bestVal
-        }
-      }
-      // Fill later params (not yet processed) with wildcard
-      for (const param of params.slice(pi + 1)) {
-        newRow[param] = WILD
-      }
+      const newRow = buildNewRow(decoded, params, pi, dimensions, uncovered)
       rows.push(newRow)
-      removeCovered(newRow as IpogRow, uncovered, p, involved, t)
+      removeCovered(newRow as IpogRow, uncovered)
     }
   }
 
@@ -114,7 +80,8 @@ export function ipog(input: IpogInput): IpogRow[] {
   const complete = rows.map((row) => {
     const r: IpogRow = {}
     for (const p of params) {
-      r[p] = row[p] === WILD || row[p] === undefined ? dimensions[p]![0]! : row[p]!
+      const val = row[p]
+      r[p] = val === WILD || val === undefined ? (dimensions[p]?.[0] ?? '') : val
     }
     return r
   })
@@ -124,13 +91,53 @@ export function ipog(input: IpogInput): IpogRow[] {
 
 // ── internals ────────────────────────────────────────────────────────────────
 
+/** Pick the value from `values` that maximises `scoreFn`. Returns first if all equal. */
+function pickBestValue(values: string[], scoreFn: (v: string) => number): string {
+  let bestVal = values[0] ?? ''
+  let bestScore = -1
+  for (const v of values) {
+    const score = scoreFn(v)
+    if (score > bestScore) {
+      bestScore = score
+      bestVal = v
+    }
+  }
+  return bestVal
+}
+
+/**
+ * Build a new vertical-extension row starting from `decoded` (the required tuple),
+ * filling remaining params greedily.
+ */
+function buildNewRow(
+  decoded: Record<string, string>,
+  params: string[],
+  pi: number,
+  dimensions: Record<string, string[]>,
+  uncovered: Set<string>,
+): Partial<IpogRow> {
+  const newRow: IpogRow = { ...decoded }
+  // Fill params not already set
+  for (const param of params.slice(0, pi + 1)) {
+    if (newRow[param] === undefined) {
+      const vals = dimensions[param] ?? []
+      newRow[param] = pickBestValue(vals, (v) => countCovered({ ...newRow, [param]: v }, uncovered))
+    }
+  }
+  // Fill later params (not yet processed) with wildcard
+  for (const param of params.slice(pi + 1)) {
+    newRow[param] = WILD
+  }
+  return newRow
+}
+
 /** Full cross-product of the given params. */
 function crossProduct(params: string[], dimensions: Record<string, string[]>): IpogRow[] {
   let result: IpogRow[] = [{}]
   for (const p of params) {
     const next: IpogRow[] = []
     for (const row of result) {
-      for (const v of dimensions[p]!) {
+      for (const v of dimensions[p] ?? []) {
         next.push({ ...row, [p]: v })
       }
     }
@@ -152,18 +159,22 @@ function buildUncoveredSet(
   t: number,
   rows: Array<Partial<IpogRow>>,
 ): Set<string> {
-  const p = params[pi]!
+  const p = params[pi] ?? ''
   const prevParams = params.slice(0, pi)
   const uncovered = new Set<string>()
 
   // For each (t-1)-combination of prevParams, cross with each value of p
   for (const subset of combinations(prevParams, t - 1)) {
     const subsetWithP = [...subset, p]
-    const valueCombos = cartesian(subsetWithP.map((param) => dimensions[param]!))
+    const valueCombos = cartesian(subsetWithP.map((param) => dimensions[param] ?? []))
     for (const combo of valueCombos) {
       const tuple: Record<string, string> = {}
       for (let i = 0; i < subsetWithP.length; i++) {
-        tuple[subsetWithP[i]!] = combo[i]!
+        const paramKey = subsetWithP[i]
+        const comboVal = combo[i]
+        if (paramKey !== undefined && comboVal !== undefined) {
+          tuple[paramKey] = comboVal
+        }
       }
       const key = encodeTuple(tuple)
       // Only add if not already covered by existing rows
@@ -175,23 +186,14 @@ function buildUncoveredSet(
   return uncovered
 }
 
-function isAlreadyCovered(
-  tuple: Record<string, string>,
-  rows: Array<Partial<IpogRow>>,
-): boolean {
+function isAlreadyCovered(tuple: Record<string, string>, rows: Array<Partial<IpogRow>>): boolean {
   for (const row of rows) {
     if (Object.entries(tuple).every(([k, v]) => row[k] === v)) return true
   }
   return false
 }
 
-function countCovered(
-  candidate: Partial<IpogRow>,
-  uncovered: Set<string>,
-  _p: string,
-  _involved: string[],
-  _t: number,
-): number {
+function countCovered(candidate: Partial<IpogRow>, uncovered: Set<string>): number {
   let count = 0
   for (const key of uncovered) {
     const tuple = decodeTuple(key)
@@ -202,13 +204,7 @@ function countCovered(
   return count
 }
 
-function removeCovered(
-  row: IpogRow,
-  uncovered: Set<string>,
-  _p: string,
-  _involved: string[],
-  _t: number,
-): void {
+function removeCovered(row: IpogRow, uncovered: Set<string>): void {
   for (const key of Array.from(uncovered)) {
     const tuple = decodeTuple(key)
     if (Object.entries(tuple).every(([k, v]) => row[k] === v)) {
@@ -219,9 +215,7 @@ function removeCovered(
 
 function encodeTuple(tuple: Record<string, string>): string {
   return JSON.stringify(
-    Object.fromEntries(
-      Object.entries(tuple).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-    ),
+    Object.fromEntries(Object.entries(tuple).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
   )
 }
 
@@ -233,10 +227,8 @@ function combinations<T>(arr: T[], k: number): T[][] {
   if (k === 0) return [[]]
   if (arr.length < k) return []
   const [head, ...tail] = arr
-  return [
-    ...combinations(tail, k - 1).map((rest) => [head!, ...rest]),
-    ...combinations(tail, k),
-  ]
+  const withHead = combinations(tail, k - 1).map((rest) => [head as T, ...rest])
+  return [...withHead, ...combinations(tail, k)]
 }
 
 function cartesian(slots: string[][]): string[][] {
@@ -244,7 +236,7 @@ function cartesian(slots: string[][]): string[][] {
   const [first, ...rest] = slots
   const restProd = cartesian(rest)
   const result: string[][] = []
-  for (const v of first!) {
+  for (const v of first ?? []) {
     for (const r of restProd) {
       result.push([v, ...r])
     }
@@ -255,9 +247,6 @@ function cartesian(slots: string[][]): string[][] {
 /** Remove rows that match any skip constraint. */
 function filterConstraints(rows: IpogRow[], constraints: IpogConstraint[]): IpogRow[] {
   return rows.filter(
-    (row) =>
-      !constraints.some(
-        (c) => c.then === 'skip' && Object.entries(c.when).every(([k, v]) => row[k] === v),
-      ),
+    (row) => !constraints.some((c) => Object.entries(c.when).every(([k, v]) => row[k] === v)),
   )
 }

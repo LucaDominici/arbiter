@@ -51,7 +51,7 @@ export function emitRust(spec: GauntletSpec, rows: IpogRow[]): string {
 function toSnakeCase(s: string): string {
   return s
     .replace(/[-\s]+/g, '_')
-    .replace(/([A-Z])/g, (_, c: string) => `_${(c as string).toLowerCase()}`)
+    .replace(/([A-Z])/g, (_, c: string) => `_${c.toLowerCase()}`)
     .replace(/^_/, '')
     .toLowerCase()
 }

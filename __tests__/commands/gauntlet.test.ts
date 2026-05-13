@@ -13,10 +13,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
-import {
-  runGauntletGenerate,
-  runGauntletVerify,
-} from '../../src/commands/gauntlet.js'
+import { runGauntletGenerate, runGauntletVerify } from '../../src/commands/gauntlet.js'
 
 // ── minimal spec fixture ──────────────────────────────────────────────────
 
@@ -53,7 +50,8 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
   })
 
   it('generates TypeScript test files (default stack)', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     const result = runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
@@ -66,7 +64,8 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
   })
 
   it('generates Java test files', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     const result = runGauntletGenerate({ spec, out: outDir, stack: 'java' })
@@ -77,7 +76,8 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
   })
 
   it('generates Rust test files', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     const result = runGauntletGenerate({ spec, out: outDir, stack: 'rust' })
@@ -88,11 +88,22 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
   })
 
   it('output is byte-stable (deterministic)', () => {
-    const dirA = makeTmp(); dirs.push(dirA)
-    const dirB = makeTmp(); dirs.push(dirB)
-    writeSpec(dirA); writeSpec(dirB)
-    const rA = runGauntletGenerate({ spec: join(dirA, 'gauntlet.yaml'), out: join(dirA, 'out'), stack: 'typescript' })
-    const rB = runGauntletGenerate({ spec: join(dirB, 'gauntlet.yaml'), out: join(dirB, 'out'), stack: 'typescript' })
+    const dirA = makeTmp()
+    dirs.push(dirA)
+    const dirB = makeTmp()
+    dirs.push(dirB)
+    writeSpec(dirA)
+    writeSpec(dirB)
+    const rA = runGauntletGenerate({
+      spec: join(dirA, 'gauntlet.yaml'),
+      out: join(dirA, 'out'),
+      stack: 'typescript',
+    })
+    const rB = runGauntletGenerate({
+      spec: join(dirB, 'gauntlet.yaml'),
+      out: join(dirB, 'out'),
+      stack: 'typescript',
+    })
     expect(rA.status).toBe('ok')
     expect(rB.status).toBe('ok')
     const cA = readFileSync(rA.files[0]!, 'utf-8')
@@ -101,7 +112,8 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
   })
 
   it('writes spec hash alongside generated tests', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     const result = runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
@@ -110,14 +122,20 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
   })
 
   it('errors on missing spec file', () => {
-    const dir = makeTmp(); dirs.push(dir)
-    const result = runGauntletGenerate({ spec: join(dir, 'nope.yaml'), out: join(dir, 'out'), stack: 'typescript' })
+    const dir = makeTmp()
+    dirs.push(dir)
+    const result = runGauntletGenerate({
+      spec: join(dir, 'nope.yaml'),
+      out: join(dir, 'out'),
+      stack: 'typescript',
+    })
     expect(result.status).toBe('error')
     expect(result.reason).toMatch(/not found/)
   })
 
   it('errors on invalid spec (missing name)', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir, 'dimensions:\n  a: [1,2]\n')
     const result = runGauntletGenerate({ spec, out: join(dir, 'out'), stack: 'typescript' })
     expect(result.status).toBe('error')
@@ -125,7 +143,8 @@ describe('gauntlet generate (#260, AC-1 AC-3)', () => {
   })
 
   it('integrates with graph: emits GAUNTLET edges when graph.json exists', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     // Minimal graph.json
@@ -151,7 +170,8 @@ describe('gauntlet verify (#260, AC-4 AC-5)', () => {
   })
 
   it('passes when hash is in sync', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
@@ -161,7 +181,8 @@ describe('gauntlet verify (#260, AC-4 AC-5)', () => {
   })
 
   it('fails when spec has changed after generation', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const outDir = join(dir, 'out')
     runGauntletGenerate({ spec, out: outDir, stack: 'typescript' })
@@ -173,7 +194,8 @@ describe('gauntlet verify (#260, AC-4 AC-5)', () => {
   })
 
   it('fails when out dir is missing', () => {
-    const dir = makeTmp(); dirs.push(dir)
+    const dir = makeTmp()
+    dirs.push(dir)
     const spec = writeSpec(dir)
     const result = runGauntletVerify({ spec, out: join(dir, 'nonexistent'), coverage: 'pairwise' })
     expect(result.status).toBe('error')
