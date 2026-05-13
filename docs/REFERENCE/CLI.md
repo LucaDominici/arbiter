@@ -582,29 +582,29 @@ arbiter configure --set <path>=<value> [--set <path>=<value> ...]
 
 **Supported paths:**
 
-| Path                              | Type            | Constraint                    |
-| --------------------------------- | --------------- | ----------------------------- |
-| `features.debtGates`              | boolean         | `true` / `false`              |
-| `features.securityScanning`       | boolean         | `true` / `false`              |
-| `features.mutationTesting`        | boolean         | `true` / `false`              |
-| `features.contractTesting`        | boolean         | `true` / `false`              |
-| `features.suppressions`           | boolean         | `true` / `false`              |
-| `features.evidenceHarness`        | boolean         | `true` / `false`              |
-| `tools`                           | comma-separated | `claude`, `codex`, `cursor`, `copilot`, `gemini`, `windsurf`, `aider` |
-| `governanceLevel`                 | string          | `L1`, `L2`, `L3`              |
-| `useGitHub`                       | boolean         | `true` / `false`              |
+| Path                              | Type            | Constraint                                                                      |
+| --------------------------------- | --------------- | ------------------------------------------------------------------------------- |
+| `features.debtGates`              | boolean         | `true` / `false`                                                                |
+| `features.securityScanning`       | boolean         | `true` / `false`                                                                |
+| `features.mutationTesting`        | boolean         | `true` / `false`                                                                |
+| `features.contractTesting`        | boolean         | `true` / `false`                                                                |
+| `features.suppressions`           | boolean         | `true` / `false`                                                                |
+| `features.evidenceHarness`        | boolean         | `true` / `false`                                                                |
+| `tools`                           | comma-separated | `claude`, `codex`, `cursor`, `copilot`, `gemini`, `windsurf`, `aider`           |
+| `governanceLevel`                 | string          | `L1`, `L2`, `L3`                                                                |
+| `useGitHub`                       | boolean         | `true` / `false`                                                                |
 | `archetype`                       | string          | `backend-web-db`, `cli`, `library`, `data-pipeline`, `frontend-spa`, `embedded` |
-| `architectureStyle`               | string          | `hexagonal`, `layered`, `modular-monolith`, `none` |
-| `isMultiTenant`                   | boolean         | `true` / `false`              |
-| `hasDatabase`                     | boolean         | `true` / `false`              |
-| `hasPublicApi`                    | boolean         | `true` / `false`              |
-| `contractType`                    | string          | `rest-owned`, `rest-public`, `graphql`, `grpc`, `message-queue`, `none` |
-| `thresholds.lineCoverage`         | number          | 1–100                         |
-| `thresholds.branchCoverage`       | number          | 1–100                         |
-| `thresholds.mutationScore`        | number          | 1–100                         |
-| `thresholds.cyclomaticComplexity` | number          | positive                      |
-| `thresholds.methodLength`         | number          | positive                      |
-| `thresholds.maxParams`            | number          | positive                      |
+| `architectureStyle`               | string          | `hexagonal`, `layered`, `modular-monolith`, `none`                              |
+| `isMultiTenant`                   | boolean         | `true` / `false`                                                                |
+| `hasDatabase`                     | boolean         | `true` / `false`                                                                |
+| `hasPublicApi`                    | boolean         | `true` / `false`                                                                |
+| `contractType`                    | string          | `rest-owned`, `rest-public`, `graphql`, `grpc`, `message-queue`, `none`         |
+| `thresholds.lineCoverage`         | number          | 1–100                                                                           |
+| `thresholds.branchCoverage`       | number          | 1–100                                                                           |
+| `thresholds.mutationScore`        | number          | 1–100                                                                           |
+| `thresholds.cyclomaticComplexity` | number          | positive                                                                        |
+| `thresholds.methodLength`         | number          | positive                                                                        |
+| `thresholds.maxParams`            | number          | positive                                                                        |
 
 **Behavior:**
 
