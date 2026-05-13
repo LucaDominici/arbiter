@@ -3,10 +3,25 @@ import { join } from 'node:path'
 import type { Archetype, Language } from '../wizard/types.js'
 
 export function detectFramework(dir: string, language: Language): string | null {
-  if (language === 'typescript' || language === 'multi') return detectTypescriptFramework(dir)
+  if (language === 'multi') return detectMultiFramework(dir)
+  if (language === 'typescript') return detectTypescriptFramework(dir)
   if (language === 'rust') return detectRustFramework(dir)
   if (language === 'java') return detectJavaFramework(dir)
   return null
+}
+
+/**
+ * Detect frameworks on both the TS and Java sides of a multi-language monorepo
+ * and combine them. Returns the TS framework alone if no Java build file is
+ * present, the Java framework alone if no TS framework is detected, or a
+ * `tsFramework+javaFramework` composite when both sides have a meaningful match.
+ */
+function detectMultiFramework(dir: string): string | null {
+  const ts = detectTypescriptFramework(dir)
+  const javaBuildPresent = existsSync(join(dir, 'build.gradle')) || existsSync(join(dir, 'pom.xml'))
+  const java = javaBuildPresent ? detectJavaFramework(dir) : null
+  if (ts && java) return `${ts}+${java}`
+  return ts ?? java
 }
 
 function detectTypescriptFramework(dir: string): string | null {

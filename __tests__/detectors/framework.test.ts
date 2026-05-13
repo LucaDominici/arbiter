@@ -191,6 +191,36 @@ describe('detectFramework', () => {
       expect(detectFramework(dir, 'unknown')).toBeNull()
     })
   })
+
+  describe('multi (#473)', () => {
+    beforeEach(() => {
+      dir = createTestProject('typescript')
+    })
+
+    it('combines TS and Java frameworks when both are present (#473)', () => {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { express: '^4' } }))
+      writeFileSync(join(dir, 'build.gradle'), 'id "spring-boot" version "3.0.0"')
+      expect(detectFramework(dir, 'multi')).toBe('express+spring-boot')
+    })
+
+    it('returns Java framework when only Java side detected (#473)', () => {
+      // No package.json → TS detection returns null
+      writeFileSync(join(dir, 'build.gradle'), 'id "spring-boot" version "3.0.0"')
+      // Remove package.json that createTestProject seeded
+      // (createTestProject for 'typescript' wrote one — overwrite with empty deps)
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({}))
+      expect(detectFramework(dir, 'multi')).toBe('spring-boot')
+    })
+
+    it('returns TS framework when only TS side detected (#473)', () => {
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { express: '^4' } }))
+      // No build.gradle / pom.xml → Java detection returns 'java' (fallback)
+      // But to avoid the fallback we want truly multi without Java build file
+      // The current Java detector returns 'java' for ANY java project — that's
+      // misleading for multi. We treat Java side as "not present" when no build file exists.
+      expect(detectFramework(dir, 'multi')).toBe('express')
+    })
+  })
 })
 
 describe('detectArchetypeHint', () => {
