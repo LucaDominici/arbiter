@@ -22,6 +22,8 @@ import { runNotaryCheck, runNotaryTemplate } from './commands/notary.js'
 import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
 import { runTrace, type TraceFormat } from './commands/trace.js'
 import { runBlame, type BlameFormat } from './commands/blame.js'
+import { runCompare } from './commands/compare.js'
+import { runAgentRulesExport, runAgentRulesVerify } from './commands/agent-rules.js'
 import {
   runWorkList,
   runWorkCreate,
@@ -769,6 +771,147 @@ notary
   .action((opts: { dir?: string }) => {
     runNotaryTemplate({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
   })
+
+program
+  .command('compare [paths...]')
+  .description('Compare governance postures across multiple repos (#264)')
+  .option('--workspace <file>', 'Path to workspace YAML spec (alternative to positional paths)')
+  .option('--topic <topic>', 'Filter findings to those matching this topic')
+  .option(
+    '--fail-on <type>',
+    'Exit non-zero when findings of type: contradiction | divergence | any',
+  )
+  .option('--format <path>', 'Write markdown report to this file path')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(
+    (
+      paths: string[],
+      opts: {
+        workspace?: string
+        topic?: string
+        failOn?: string
+        format?: string
+        json: boolean
+      },
+    ) => {
+      const failOn =
+        opts.failOn === 'contradiction' || opts.failOn === 'divergence' || opts.failOn === 'any'
+          ? opts.failOn
+          : undefined
+      const result = runCompare({
+        paths: paths.length > 0 ? paths : undefined,
+        ...(opts.workspace !== undefined ? { workspace: opts.workspace } : {}),
+        ...(opts.topic !== undefined ? { topic: opts.topic } : {}),
+        ...(failOn !== undefined ? { failOn } : {}),
+        ...(opts.format !== undefined ? { format: opts.format } : {}),
+        json: opts.json,
+      })
+      printCompareResult(result, opts.json)
+      process.exit(result.exitCode)
+    },
+  )
+
+const agentRules = program
+  .command('agent-rules')
+  .description('Export or verify AI agent governance rules (#265)')
+
+agentRules
+  .command('export')
+  .description('Export governance rules to a target AI agent format')
+  .option('--target <target>', 'Target: claude | cursor | copilot | aider | windsurf', 'claude')
+  .option('--all', 'Emit all targets to their standard paths', false)
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(async (opts: { target: string; all: boolean; dir?: string; json: boolean }) => {
+    const result = runAgentRulesExport({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      target: opts.target,
+      all: opts.all,
+      json: opts.json,
+    })
+    if (opts.json) {
+      const { jsonOutput } = await import('./utils/json-output.js')
+      jsonOutput('agent-rules export', result.status, {
+        exitCode: result.exitCode,
+        target: opts.target,
+        fallbackUsed: result.fallbackUsed ?? false,
+        ...(result.filesWritten !== undefined ? { filesWritten: result.filesWritten } : {}),
+        ...(result.reason !== undefined ? { reason: result.reason } : {}),
+      })
+    } else if (result.status === 'ok') {
+      if (result.filesWritten !== undefined) {
+        for (const p of result.filesWritten) {
+          process.stdout.write(`  wrote ${p}\n`)
+        }
+      } else {
+        process.stdout.write(result.content)
+      }
+    } else {
+      process.stderr.write(`agent-rules export: FAIL — ${result.reason ?? 'unknown error'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
+agentRules
+  .command('verify')
+  .description('Verify that agent rule files match the current graph (drift detection)')
+  .option('--target <target>', 'Target: claude | cursor | copilot | aider | windsurf', 'claude')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(async (opts: { target: string; dir?: string; json: boolean }) => {
+    const result = runAgentRulesVerify({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      target: opts.target,
+      json: opts.json,
+    })
+    if (opts.json) {
+      const { jsonOutput } = await import('./utils/json-output.js')
+      jsonOutput('agent-rules verify', result.status, {
+        exitCode: result.exitCode,
+        target: result.target,
+        drift: result.drift ?? false,
+        missing: result.missing ?? false,
+        ...(result.reason !== undefined ? { reason: result.reason } : {}),
+      })
+    } else if (result.status === 'ok') {
+      const msg = result.missing === true ? 'OK (not yet exported)' : 'OK (no drift)'
+      process.stdout.write(`agent-rules verify: ${msg}\n`)
+    } else {
+      process.stderr.write(`agent-rules verify: DRIFT — ${result.reason ?? 'unknown error'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
+function printCompareResult(
+  result: import('./commands/compare.js').CompareResult,
+  json: boolean,
+): void {
+  if (json) {
+    jsonOutput('compare', result.status, {
+      reposLoaded: result.reposLoaded,
+      findings: result.findings,
+      warnings: result.warnings,
+      ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
+    })
+    return
+  }
+  for (const w of result.warnings) {
+    process.stderr.write(`  warning: ${w}\n`)
+  }
+  if (result.findings.length === 0) {
+    process.stdout.write(`compare: ${result.reposLoaded} repo(s) checked — no findings\n`)
+  } else {
+    process.stdout.write(
+      `compare: ${result.reposLoaded} repo(s) checked — ${result.findings.length} finding(s)\n`,
+    )
+    for (const f of result.findings) {
+      process.stdout.write(`  [${f.type}] ${f.invId}: ${f.summary}\n`)
+    }
+  }
+  if (result.reportPath !== undefined) {
+    process.stdout.write(`  report written to ${result.reportPath}\n`)
+  }
+}
 
 program.parseAsync().catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : String(err))

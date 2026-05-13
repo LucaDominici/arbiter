@@ -560,3 +560,44 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - **`contextPack.adrMappings` schema field**: Optional config key maps ADR IDs to INV IDs, allowing the checker to cross-reference plan ADR citations against the INV catalog. Validated by `validateContextPack()`.
 
 **Consequences:** `arbiter verify plan` can now produce a fully-structured `CONTEXT_PACK.md` bundle consumed by the two-phase checker agents. The track→INV mapping is version-controlled and enforced. All four acceptance criteria (deterministic generator, track-INV mapping, ADR mapping config, combined-verdict schema) are covered by tests.
+
+---
+
+## feat(#264): cross-repo governance compare (`arbiter compare`) (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #264; CANON-06, CANON-16
+
+**Context:** Organisations with multiple repositories governed by arbiter need a way to compare governance postures across repos — identifying where the same invariant is enforced differently, where an INV is present in one repo but not another, and where the risk-tier assignment diverges. Without tooling, these comparisons must be done manually.
+
+**Decisions:**
+
+- **Five detector types**: `divergent-enforcement` (same INV id, different gates), `contradictory-adr` (same ADR id, conflicting titles), `promotion-asymmetry` (INV present in ≥1 real graph repo, absent in others), `unique-to-one-repo` (INV only in one non-fallback repo), `risk-class-divergence` (same INV, different tier across repos).
+- **Wave-1 degradation**: Only INV+GATE nodes exist in the graph today. ADR contradiction detection is wired but will produce findings only once an ADR builder is added. Fallback repos (no graph.json) use the global INVARIANT_CATALOG — they suppress promotion-asymmetry noise by the `fromFallback` flag.
+- **Workspace YAML**: Parsed by a hand-rolled scanner (no runtime YAML dep). Supports `name`, `repos[].path`, `repos[].role`, `repos[].tier`. Full YAML is out of scope.
+- **`--fail-on contradiction`**: Exits 1 when `contradictory-adr` findings are present. `--fail-on divergence` exits 1 on divergent-enforcement or risk-class-divergence. `--fail-on any` exits 1 on any finding.
+- **Shared loader**: `src/graph/load.ts` extracted from `trace.ts` to avoid a third copy of the parse-snapshot pattern.
+- **CANON-16 survey**: No existing `compare` or `cross-repo` command found; `src/compare/` directory is a new responsibility (multi-repo analysis) with no overlap with existing commands.
+
+**Consequences:** `arbiter compare path/a path/b` loads graphs, runs all five detectors, and returns structured findings. `--format report.md` writes a markdown report. `--fail-on` enables gate mode. Graceful degradation when a repo has no graph.
+
+---
+
+## feat(#265): AI agent constitution export (`arbiter agent-rules`) (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #265; CANON-06, CANON-16
+
+**Context:** Governance rules captured in the provenance graph need to be surfaced to AI coding agents in their native formats. Without an export command, teams must manually maintain `.cursorrules`, `copilot-instructions.md`, etc. — these drift from the source of truth over time.
+
+**Decisions:**
+
+- **Intermediate format**: A target-agnostic JSON struct (`AgentRulesIntermediate`) with `schemaVersion`, `repo`, `invariants[]`, and `workflows[]`. Each invariant carries `severity` derived from tier (architectural/security/governance → `hard-stop`; data/operational → `advisory`). This decouples graph traversal from emitter logic.
+- **Severity mapping**: `tier ∈ {architectural, security, governance}` → `hard-stop` (MANDATORY); `tier ∈ {data, operational}` → `advisory` (RECOMMENDED). Documented here as the single source of truth.
+- **Five emitters**: `claude` (`.claude/AGENT_RULES.md`), `cursor` (`.cursorrules`), `copilot` (`.github/copilot-instructions.md`), `aider` (`CONVENTIONS.md`), `windsurf` (`.windsurfrules`). Each is a pure function over `AgentRulesIntermediate`.
+- **`arbiter agent-rules verify`**: Renders a fresh export and byte-compares against the on-disk file. Missing file → ok (not yet exported). Stale → exit 1.
+- **Fallback**: No graph.json → uses INVARIANT_CATALOG via `buildInvNodes`. `fallbackUsed` flag returned to callers.
+- **`applies_to` field**: Stubbed as `[]` in Wave-1 (no FILE→INV edges yet). Forward-compatible: a future FILE builder will populate it.
+- **CANON-16 survey**: Grepped for existing `agent-rules`, `constitution`, `export --target` patterns in `src/commands/`. None found. `src/agent-rules/` directory justified as a distinct concern (AI agent constitution derivation) separate from `src/generators/` (project scaffold generation).
+
+**Consequences:** `arbiter agent-rules export --target <X>` renders governance rules for any supported AI tool. `--all` writes all targets to standard paths. `verify` enables drift detection in CI.
