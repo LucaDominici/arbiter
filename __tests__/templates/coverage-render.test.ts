@@ -135,6 +135,39 @@ describe('coverage config templates — rendering (CANON-04)', () => {
     expect(content).toContain('85')
   })
 
+  it('vitest.config.ts.ejs threshold scales with governanceLevel (L2 80 → L3 85)', () => {
+    // Reuses computeThresholds (src/config/thresholds.ts) — fixed profile maps L2→80, L3→85.
+    // Render test asserts the value passed in flows through to the emitted config.
+    const l2 = renderTemplate('coverage/vitest.config.ts.ejs', {
+      ...makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    const l3 = renderTemplate('coverage/vitest.config.ts.ejs', {
+      ...makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true }),
+      coverageThreshold: 85,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(l2).toContain('lines: 80')
+    expect(l3).toContain('lines: 85')
+    expect(l2).not.toContain('lines: 85')
+  })
+
+  it('vitest.config.ts.ejs emits curated coverage.exclude list (#353)', () => {
+    // Per #353: vitest config must include a curated exclude block. Excludes
+    // boilerplate that distorts coverage (entrypoints, generated code, types).
+    const content = renderTemplate('coverage/vitest.config.ts.ejs', {
+      ...makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(content).toContain('exclude:')
+    // Curated entries documented in the template:
+    expect(content).toContain('**/*.d.ts')
+    expect(content).toContain('**/*.config.*')
+    expect(content).toContain('**/index.ts')
+  })
+
   // ── .tarpaulin.toml.ejs ────────────────────────────────────────────────────
 
   it('.tarpaulin.toml.ejs renders out array with Html and Xml', () => {
