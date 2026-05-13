@@ -65,13 +65,13 @@ describe("tool output: github", () => {
     }
   });
 
-  it("existing CI workflow is skipped on re-run (skipIfExists)", () => {
+  it("CI workflow is always regenerated on re-run (soloDevMode toggle requires immediate apply)", () => {
     const workflowsDir = join(dir, ".github", "workflows");
     mkdirSync(workflowsDir, { recursive: true });
     writeFileSync(join(workflowsDir, "ci.yml"), "# custom ci");
     const config = githubConfig();
     const result = generateGithub(config);
     const ci = result.files.find((f) => f.path.endsWith("ci.yml"));
-    expect(ci?.action).toBe("skipped");
+    expect(ci?.action).toBe("backed-up-and-replaced");
   });
 });

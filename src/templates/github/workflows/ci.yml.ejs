@@ -7,7 +7,13 @@ on:
     branches: [main]
 
 jobs:
-<% if (enableSecurityScanning) { %>
+<% if (enableSoloDevMode) { %>
+  solo-dev-gate:
+    name: Solo-Dev Gate (INV-59)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - run: echo "solo-dev mode — local L2 gate guards merge via INV-59 parity check"
+<% } else { %><% if (enableSecurityScanning) { %>
   security-early-fail:
     name: Security (PII + Secrets)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
@@ -637,4 +643,4 @@ jobs:
           if [[ "${{ needs.cross-stack-guard.result }}" == "failure" ]]; then
             echo "cross-stack-guard failed"
             exit 1
-          fi<% } %>
+          fi<% } %><% } %>

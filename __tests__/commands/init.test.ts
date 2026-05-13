@@ -466,7 +466,11 @@ describe("runGithubSetup", () => {
       }),
     );
     expect(mockProvisionLabels).toHaveBeenCalledWith("myorg", "myrepo");
-    expect(mockApplyBranchProtection).toHaveBeenCalledWith("myorg", "myrepo");
+    expect(mockApplyBranchProtection).toHaveBeenCalledWith(
+      "myorg",
+      "myrepo",
+      false,
+    );
     expect(mockCreateProjectBoard).toHaveBeenCalledWith("myorg", "myrepo");
   });
 

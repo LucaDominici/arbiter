@@ -299,7 +299,11 @@ export function runGithubSetup(config: ProjectConfig): void {
     console.log(`  │   Errors: ${labelResult.errors.join(", ")}`);
 
   console.log("  ├── Applying branch protection to main...");
-  const bp = applyBranchProtection(config.githubOwner, config.githubRepo);
+  const bp = applyBranchProtection(
+    config.githubOwner,
+    config.githubRepo,
+    config.enableSoloDevMode === true,
+  );
   if (bp.applied) {
     console.log("  │   Branch protection applied.");
   } else {
