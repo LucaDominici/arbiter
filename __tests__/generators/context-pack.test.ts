@@ -1,10 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { generateContextPack, type ContextPackInput } from '../../src/context-pack/generator.js'
+import {
+  generateContextPack,
+  fromPlanJson,
+  writeContextPackFile,
+  type ContextPackInput,
+} from '../../src/context-pack/generator.js'
 import { TRACK_INV_MAP, type Track } from '../../src/context-pack/track-mapping.js'
 import { ReviewContextSchema, combinedVerdict } from '../../src/context-pack/review-context.js'
+import type { PlanJsonV1 } from '../../src/types/plan.js'
 
 let dir: string
 
@@ -227,5 +233,80 @@ describe('generateContextPack — ADR mappings', () => {
     })
     const output = generateContextPack(input)
     expect(output).not.toContain('ADR-007')
+  })
+})
+
+// ─── fromPlanJson adapter ─────────────────────────────────────────────────────
+
+function makePlan(overrides: Partial<PlanJsonV1> = {}): PlanJsonV1 {
+  return {
+    task_id: '#254',
+    scope: { track: 'A' },
+    files: [
+      { path: 'src/context-pack/generator.ts', operation: 'create' },
+      { path: 'src/context-pack/track-mapping.ts', operation: 'create' },
+    ],
+    review_bridge: { enabled: false, reviewer: 'bridge-reviewer', fail_on_warn: false },
+    ...overrides,
+  } as PlanJsonV1
+}
+
+describe('fromPlanJson', () => {
+  it('produces same output as generateContextPack with equivalent ContextPackInput', () => {
+    const plan = makePlan()
+    const viaAdapter = fromPlanJson(plan)
+    const viaInput = generateContextPack(
+      makeInput({
+        taskId: '#254',
+        track: 'A',
+        files: ['src/context-pack/generator.ts', 'src/context-pack/track-mapping.ts'],
+        adrMappings: [],
+      }),
+    )
+    expect(viaAdapter).toBe(viaInput)
+  })
+
+  it('maps plan.task_id, plan.scope.track, and plan.files[].path correctly', () => {
+    const plan = makePlan({
+      task_id: '#42',
+      scope: { track: 'D' },
+      files: [{ path: 'src/health.ts', operation: 'modify' }],
+    })
+    const output = fromPlanJson(plan)
+    expect(output).toContain('#42')
+    expect(output).toContain('Track: D')
+    expect(output).toContain('@source: src/health.ts')
+    expect(output).toContain('INV-16')
+  })
+
+  it('forwards adrMappings when provided', () => {
+    const plan = makePlan({
+      files: [{ path: 'src/api/handler.ts', operation: 'create' }],
+    })
+    const output = fromPlanJson(plan, [{ pattern: 'src/api/**', adr: 'ADR-012' }])
+    expect(output).toContain('ADR-012')
+  })
+})
+
+// ─── writeContextPackFile ─────────────────────────────────────────────────────
+
+describe('writeContextPackFile', () => {
+  it('writes CONTEXT_PACK.md to the project root', () => {
+    const result = writeContextPackFile(dir, makeInput())
+    expect(result.action).toBe('created')
+    expect(existsSync(join(dir, 'CONTEXT_PACK.md'))).toBe(true)
+  })
+
+  it('written file content matches generateContextPack output', () => {
+    const input = makeInput({ taskId: '#254', track: 'B' })
+    writeContextPackFile(dir, input)
+    const disk = readFileSync(join(dir, 'CONTEXT_PACK.md'), 'utf-8')
+    expect(disk).toBe(generateContextPack(input))
+  })
+
+  it('returns skipped when skipIfExists=true and file already exists', () => {
+    writeContextPackFile(dir, makeInput())
+    const result = writeContextPackFile(dir, makeInput(), { skipIfExists: true })
+    expect(result.action).toBe('skipped')
   })
 })

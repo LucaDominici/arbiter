@@ -7,7 +7,10 @@
  *   - No Date.now(), no random IDs, no unsorted iteration
  *   - Same input always yields identical output
  */
+import { join } from 'node:path'
 import { TRACK_INV_MAP, type Track } from './track-mapping.js'
+import { writeFile, type WriteResult } from '../utils/fs.js'
+import type { PlanJsonV1 } from '../types/plan.js'
 
 export interface AdrMapping {
   /** Glob-like pattern (supports `**` and `*` wildcards). */
@@ -97,4 +100,33 @@ export function generateContextPack(input: ContextPackInput): string {
   lines.push('')
 
   return lines.join('\n')
+}
+
+/**
+ * Adapter: produce a CONTEXT_PACK string directly from a PlanJsonV1 object.
+ * Maps plan.task_id, plan.scope.track, and plan.files[].path into ContextPackInput.
+ */
+export function fromPlanJson(plan: PlanJsonV1, adrMappings: AdrMapping[] = []): string {
+  return generateContextPack({
+    taskId: plan.task_id,
+    track: plan.scope.track,
+    files: plan.files.map((f) => f.path),
+    adrMappings,
+  })
+}
+
+/**
+ * Write the generated CONTEXT_PACK.md to disk inside the given project root.
+ * Delegates to writeFile so skipIfExists / backup semantics are honoured.
+ *
+ * @returns WriteResult from the underlying writeFile call.
+ */
+export function writeContextPackFile(
+  projectRoot: string,
+  input: ContextPackInput,
+  opts: { skipIfExists?: boolean; backup?: boolean } = {},
+): WriteResult {
+  const content = generateContextPack(input)
+  const dest = join(projectRoot, 'CONTEXT_PACK.md')
+  return writeFile(dest, content, opts)
 }
