@@ -257,4 +257,3 @@ the affinity-cluster protocol:
 - W4B (5 F-cluster issues, blocked by user decision #377)
 - W5 epics + decisions (need user GO)
 - W6A (#392–#395) — superseded by v1 release plan #505–#580
-
