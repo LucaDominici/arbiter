@@ -205,6 +205,39 @@ describe('runWizard greenfield flow', () => {
     const result = await runWizard(makeWizardInput())
     expect(result!.tools).toEqual(['claude', 'codex'])
   })
+
+  it('returns null when inquirer throws ExitPromptError (Ctrl+C) at main prompt (#318)', async () => {
+    const exitError = Object.assign(new Error('User force closed prompt with 0'), {
+      name: 'ExitPromptError',
+    })
+    mockPrompt.mockRejectedValueOnce(exitError)
+
+    const result = await runWizard(makeWizardInput())
+    expect(result).toBeNull()
+  })
+
+  it('returns null when inquirer throws ExitPromptError at confirm prompt (#318)', async () => {
+    const exitError = Object.assign(new Error('User force closed prompt with 0'), {
+      name: 'ExitPromptError',
+    })
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: 'my project',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+      })
+      .mockRejectedValueOnce(exitError)
+
+    const result = await runWizard(makeWizardInput())
+    expect(result).toBeNull()
+  })
+
+  it('re-throws non-cancellation errors from inquirer (#318)', async () => {
+    const unexpectedError = new Error('unexpected failure')
+    mockPrompt.mockRejectedValueOnce(unexpectedError)
+
+    await expect(runWizard(makeWizardInput())).rejects.toThrow('unexpected failure')
+  })
 })
 
 describe('runWizard brownfield flow', () => {

@@ -7,8 +7,9 @@ import {
   lstatSync,
   readlinkSync,
   existsSync,
+  symlinkSync,
 } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, resolve, relative } from 'node:path'
 import { tmpdir } from 'node:os'
 import { materializeLink, checkLinkIntegrity } from '../../src/worktree/links.js'
 import type { WorktreeLinkSpec } from '../../src/wizard/types.js'
@@ -123,6 +124,24 @@ describe('checkLinkIntegrity', () => {
   it('ignores absent entries (link was never created)', () => {
     const spec: WorktreeLinkSpec = { path: '.env' }
     const dangling = checkLinkIntegrity([spec], worktree)
+    expect(dangling).toHaveLength(0)
+  })
+
+  it('resolves relative symlink targets against link directory not process.cwd() (#327)', () => {
+    // Create the real target file in mainRepo
+    writeFileSync(join(mainRepo, 'settings.json'), '{}')
+
+    // Manually create a relative symlink at worktree/settings.json -> ../mainRepo/settings.json
+    // This simulates a symlink with a relative target (not created by materializeLink,
+    // which always uses absolute targets).
+    const linkPath = join(worktree, 'settings.json')
+    const relTarget = relative(worktree, join(mainRepo, 'settings.json'))
+    symlinkSync(relTarget, linkPath)
+
+    const spec: WorktreeLinkSpec = { path: 'settings.json' }
+    const dangling = checkLinkIntegrity([spec], worktree)
+
+    // Target exists when resolved relative to the link's parent — NOT dangling
     expect(dangling).toHaveLength(0)
   })
 })

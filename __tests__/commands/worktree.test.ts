@@ -315,4 +315,34 @@ describe('runWorktreeClose', () => {
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Worktree directory missing'))
     stderrSpy.mockRestore()
   })
+
+  it('skips corrupt log entries missing required fields (#326)', async () => {
+    // Write a log with one corrupt entry (missing required fields) and one valid entry
+    writeFileSync(
+      join(gitRoot, '.arbiter', 'worktree-open.log.json'),
+      JSON.stringify([
+        { corruptEntry: true }, // missing taskId, worktreePath, branch
+        {
+          taskId: '#123',
+          slug: null,
+          worktreePath,
+          branch: 'task/#123-test',
+          baseBranch: 'main',
+          baseRef: 'abc123',
+          openedAt: new Date().toISOString(),
+        },
+      ]) + '\n',
+    )
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    const { runWorktreeClose } = await import('../../src/commands/worktree.js')
+    // Should not crash — corrupt entry is silently skipped, valid entry is found
+    runWorktreeClose({
+      taskId: '123',
+      cwd: gitRoot,
+      noFetch: true,
+      onWarning: () => undefined,
+    })
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Worktree closed'))
+    logSpy.mockRestore()
+  })
 })
