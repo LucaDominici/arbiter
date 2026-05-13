@@ -140,7 +140,7 @@ function generateAndFinalize(
   const skipped = allResults.filter((r) => r.action === "skipped").length;
   log(`\n  Done! ${created} files created, ${skipped} skipped.`);
 
-  runBackendSetup(config);
+  const backendResult = runBackendSetup(config, log);
   saveConfig(targetDir, buildArbiterConfig(config));
   maybeCaptureBaseline(config, targetDir, options.brownfield);
 
@@ -149,7 +149,15 @@ function generateAndFinalize(
   }
 
   if (options.json) {
-    jsonOutput("init", "ok", { created, skipped });
+    const allWarnings = backendResult.warnings;
+    const status = allWarnings.length > 0 ? "warning" : "ok";
+    jsonOutput(
+      "init",
+      status,
+      { created, skipped },
+      undefined,
+      allWarnings.length > 0 ? allWarnings : undefined,
+    );
     return;
   }
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`);
@@ -273,53 +281,77 @@ export async function runPlugins(
   return all;
 }
 
-function runBackendSetup(config: ProjectConfig): void {
+interface BackendResult {
+  warnings: string[];
+  errors: string[];
+}
+
+function runBackendSetup(
+  config: ProjectConfig,
+  log: (msg: string) => void,
+): BackendResult {
   const backend =
     config.decompositionBackend ?? (config.useGitHub ? "github" : "markdown");
   if (backend === "github") {
-    runGithubSetup(config);
-  } else {
-    const workDir = join(config.targetDir, ".arbiter", "work");
-    mkdirSync(workDir, { recursive: true });
-    console.log("\n  Markdown backend: scaffolded .arbiter/work/");
+    return runGithubSetup(config, log);
   }
+  const workDir = join(config.targetDir, ".arbiter", "work");
+  mkdirSync(workDir, { recursive: true });
+  log("\n  Markdown backend: scaffolded .arbiter/work/");
+  return { warnings: [], errors: [] };
 }
 
-export function runGithubSetup(config: ProjectConfig): void {
-  if (!config.useGitHub || !config.githubOwner || !config.githubRepo) return;
+export function runGithubSetup(
+  config: ProjectConfig,
+  log: (msg: string) => void = console.log,
+): BackendResult {
+  if (!config.useGitHub || !config.githubOwner || !config.githubRepo)
+    return { warnings: [], errors: [] };
 
-  console.log("\n  GitHub setup...");
-  console.log("  ├── Provisioning labels...");
+  const warnings: string[] = [];
+
+  log("\n  GitHub setup...");
+  log("  ├── Provisioning labels...");
   const labelResult = provisionLabels(config.githubOwner, config.githubRepo);
   if (labelResult.created.length > 0)
-    console.log(`  │   Created: ${labelResult.created.join(", ")}`);
+    log(`  │   Created: ${labelResult.created.join(", ")}`);
   if (labelResult.updated.length > 0)
-    console.log(`  │   Updated: ${labelResult.updated.join(", ")}`);
-  if (labelResult.errors.length > 0)
-    console.log(`  │   Errors: ${labelResult.errors.join(", ")}`);
+    log(`  │   Updated: ${labelResult.updated.join(", ")}`);
+  for (const e of labelResult.errors) {
+    log(`  │   Error: ${e}`);
+    warnings.push(e);
+  }
 
-  console.log("  ├── Applying branch protection to main...");
+  log("  ├── Applying branch protection to main...");
   const bp = applyBranchProtection(
     config.githubOwner,
     config.githubRepo,
     config.enableSoloDevMode === true,
   );
   if (bp.applied) {
-    console.log("  │   Branch protection applied.");
+    log("  │   Branch protection applied.");
   } else {
-    console.log(
+    log(
       `  │   Skipped (requires admin access): ${bp.error ?? "unknown error"}`,
     );
   }
 
-  console.log("  └── Creating project board...");
+  log("  └── Creating project board...");
   const pb = createProjectBoard(config.githubOwner, config.githubRepo);
   if (pb.created) {
-    console.log(`      Project board created: ${pb.projectUrl}`);
-    for (const w of pb.warnings) console.log(`      Warning: ${w}`);
+    log(`      Project board created: ${pb.projectUrl}`);
+    for (const w of pb.warnings) {
+      log(`      Warning: ${w}`);
+      warnings.push(`project board: ${w}`);
+    }
+  } else if (pb.error) {
+    log(`      Skipped: ${pb.error}`);
+    warnings.push(`project board: ${pb.error}`);
   } else {
-    console.log(`      Skipped: ${pb.error ?? "unknown error"}`);
+    log(`      Already exists: ${pb.projectUrl ?? "unknown"}`);
   }
+
+  return { warnings, errors: [] };
 }
 
 function logExistingDetections(
