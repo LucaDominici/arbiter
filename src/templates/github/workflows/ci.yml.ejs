@@ -373,18 +373,22 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          # #356: rebased-aware via merge-base; bypass via [skip-docs] commit token.
+          MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")
+          CHANGED=$(git diff --name-only "$MB" "$HEAD_SHA")
+          LOG=$(git log --format=%B "$MB..$HEAD_SHA" || true)
 
           HAS_CODE=$(echo "$CHANGED" | grep -E '^(src/|__tests__/)' || true)
           HAS_DOCS=$(echo "$CHANGED" | grep -E '^(docs/|README\.md)' || true)
+          BYPASS=$(echo "$LOG" | grep -F '[skip-docs]' || true)
 
-          if [ -n "$HAS_CODE" ] && [ -z "$HAS_DOCS" ]; then
+          if [ -n "$HAS_CODE" ] && [ -z "$HAS_DOCS" ] && [ -z "$BYPASS" ]; then
             echo "::error::Code changed without documentation update"
             echo ""
             echo "Files changed in src/ or __tests__/:"
             echo "$HAS_CODE"
             echo ""
-            echo "Please update docs/ or README.md to explain the change."
+            echo "Please update docs/ or README.md, or add [skip-docs] to a commit message to bypass."
             exit 1
           fi
           echo "Docs check passed."

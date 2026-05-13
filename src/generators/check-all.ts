@@ -62,5 +62,17 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
     )
   }
 
+  // #356 (CANON-01): rebased-aware docs-check script + [skip-docs] bypass.
+  // Mirrors CI docs-check job so the gate fires locally pre-push. L2+ only (matches CI gating).
+  if (config.governanceLevel !== 'L1') {
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'check-docs.mjs'),
+        renderTemplate('scripts/check-docs.mjs.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
   return { files: results }
 }

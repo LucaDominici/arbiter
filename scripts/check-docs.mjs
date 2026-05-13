@@ -1,35 +1,76 @@
 #!/usr/bin/env node
-// Docs gate: if src/ or __tests__/ changed vs origin/main, docs/ or README.md must also change.
-// Mirrors the CI docs-check job so the gate fires locally before push.
+// arbiter — Docs gate: if src/ or __tests__/ changed since the merge-base with origin/main,
+// docs/ or README.md must also change.
+//
+// Rebased-aware: uses `git merge-base HEAD origin/main` so a rebased branch only sees its own
+// commits (not main commits replayed underneath). Falls back to `origin/main` then `main` if the
+// remote ref is missing locally.
+//
+// Bypass: any commit message in the diff range containing `[skip-docs]` causes the gate to PASS.
+// This mirrors the CI `docs-check` job so the gate fires identically pre-push. (#356, CANON-01)
 import { spawnSync } from 'node:child_process'
 
-const r = spawnSync('git', ['diff', '--name-only', 'origin/main..HEAD'], {
-  encoding: 'utf8',
-})
+const BYPASS_TOKEN = '[skip-docs]'
+const TRIGGER_PREFIXES = ['src/', '__tests__/']
+const DOC_PREFIXES = ['docs/']
+const DOC_FILES = new Set(['README.md'])
 
-if (r.status !== 0) {
-  console.error('git diff failed:', r.stderr)
-  process.exit(1)
+function git(args) {
+  const r = spawnSync('git', args, { encoding: 'utf-8' })
+  return {
+    status: r.status ?? 1,
+    stdout: (r.stdout ?? '').trim(),
+    stderr: (r.stderr ?? '').trim(),
+  }
 }
 
-// Also include staged files so a docs-only commit passes pre-commit (staged
-// but not yet in HEAD).
-const rStaged = spawnSync('git', ['diff', '--name-only', '--cached'], {
-  encoding: 'utf8',
-})
-const staged = rStaged.status === 0 ? rStaged.stdout.trim().split('\n').filter(Boolean) : []
+function resolveBase() {
+  for (const ref of ['origin/main', 'main']) {
+    const verify = git(['rev-parse', '--verify', '--quiet', ref])
+    if (verify.status === 0 && verify.stdout) {
+      const mb = git(['merge-base', 'HEAD', ref])
+      if (mb.status === 0 && mb.stdout) return mb.stdout
+      return ref
+    }
+  }
+  return null
+}
 
-const changed = r.stdout.trim().split('\n').filter(Boolean)
-const all = [...new Set([...changed, ...staged])]
-const hasCode = all.some((f) => f.startsWith('src/') || f.startsWith('__tests__/'))
-const hasDocs = all.some((f) => f.startsWith('docs/') || f === 'README.md')
+const base = resolveBase()
+const diffRange = base ? `${base}..HEAD` : null
 
-if (hasCode && !hasDocs) {
+const diff = diffRange
+  ? git(['diff', '--name-only', diffRange])
+  : { status: 0, stdout: '', stderr: '' }
+if (diff.status !== 0) {
+  console.error('git diff failed:', diff.stderr)
+  process.exit(1)
+}
+const staged = git(['diff', '--name-only', '--cached'])
+const changed = new Set(
+  [...diff.stdout.split('\n'), ...staged.stdout.split('\n')].map((s) => s.trim()).filter(Boolean),
+)
+
+const hasCode = [...changed].some((f) => TRIGGER_PREFIXES.some((p) => f.startsWith(p)))
+const hasDocs = [...changed].some(
+  (f) => DOC_PREFIXES.some((p) => f.startsWith(p)) || DOC_FILES.has(f),
+)
+
+let bypassed = false
+if (diffRange) {
+  const log = git(['log', '--format=%B', diffRange])
+  if (log.status === 0 && log.stdout.includes(BYPASS_TOKEN)) bypassed = true
+}
+
+if (hasCode && !hasDocs && !bypassed) {
   console.error('Code changed without documentation update.')
   console.error('Files changed in src/ or __tests__/:')
-  all
-    .filter((f) => f.startsWith('src/') || f.startsWith('__tests__/'))
-    .forEach((f) => console.error(' ', f))
-  console.error('Update docs/ or README.md to explain the change.')
+  for (const f of changed) {
+    if (TRIGGER_PREFIXES.some((p) => f.startsWith(p))) console.error('  ' + f)
+  }
+  console.error(
+    `Update docs/ or README.md, or add "${BYPASS_TOKEN}" to a commit message to bypass.`,
+  )
   process.exit(1)
 }
+console.log('Docs check passed.')

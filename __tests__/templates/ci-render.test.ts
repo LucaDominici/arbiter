@@ -126,4 +126,15 @@ describe('ci.yml.ejs — test-results artifact upload (#194)', () => {
     expect(rendered).toContain('test-results')
     expect(rendered).toContain('upload-artifact')
   })
+
+  it('docs-check job honors [skip-docs] commit bypass token (#356)', () => {
+    const data = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    // docs-check job present
+    expect(rendered).toContain('docs-check:')
+    // bypass token honored in CI
+    expect(rendered).toContain('[skip-docs]')
+  })
 })
