@@ -1,6 +1,6 @@
 # ADR-027 — Real-Project Nightly Matrix
 
-**Status:** Accepted
+**Status:** Superseded by ADR-030
 **Date:** 2026-04-16
 **Issue:** #87 (MF — Real-Project Nightly Matrix, Phase 9.5 Foundation)
 

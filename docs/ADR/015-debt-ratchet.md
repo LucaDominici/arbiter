@@ -1,6 +1,6 @@
 # ADR-015: Debt Ratchet — Baseline-Anchored Regression Prevention
 
-**Status:** Accepted
+**Status:** Superseded by ADR-022
 **Date:** 2026-04-08
 **Deciders:** Luca Dominici
 

@@ -1,6 +1,6 @@
 # ADR-016: RestAssured + Mutation Testing — 3-Layer Java Enforcement
 
-**Status:** Accepted — superseded in part by ADR-029 (mutation-testing portion: INV-30 moved to L3 hard gate, multi-language, 85% threshold)
+**Status:** Superseded by ADR-029
 **Date:** 2026-04-08
 **Deciders:** Luca Dominici
 **Issue:** #61
