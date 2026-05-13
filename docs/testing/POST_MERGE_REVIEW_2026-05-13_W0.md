@@ -3,7 +3,7 @@
 **Date:** 2026-05-13  
 **PR:** #481 — cluster(W0): #346 #282 #294 #303 #299  
 **Branch:** task/#346-w0-foundation  
-**Issues closed:** #346, #282, #294, #303, #299  
+**Issues closed:** #346, #282, #294, #303, #299
 
 ---
 
@@ -53,18 +53,18 @@ Wave 0 was the foundation cluster — registry resilience + catalog parity. Requ
 
 ## Review Agent Findings (6 agents)
 
-| Finding | Source | Disposition |
-|---------|--------|-------------|
-| `mutation.ts` `??` for mutationThreshold (severity 9/10) | Reviewer 2 | Fixed in review commit |
-| `titlePending` path has zero unit test coverage | Reviewer 1 | Fixed — added test |
-| `titlePending` EOF guard missing | Silent-failure-hunter | Fixed — added exit 2 guard |
-| `runGeneratorsSelective` isolation not tested | Reviewer 3 + Adversarial | Fixed — added 2 tests |
-| `mutationScore: 0` fallback not pinned | Adversarial | Fixed — added test |
-| `lineCoverage: 75` non-regression not pinned | Adversarial | Fixed — added test |
-| `safeRun` swallows errors silently (UX) | Silent-failure-hunter | Deferred — design choice; `console.warn` acceptable for initial resilience |
-| `coverage.ts`/`nightly.ts` threshold inconsistency | Adversarial | Deferred — pre-existing, separate scope |
-| `hasDatabase` type inconsistency (ProjectConfig vs ArbiterConfigV2) | Reviewer 3 | Deferred — pre-existing design issue |
-| Unidirectional parity check (zombie AGENTS.md entries) | Adversarial | Deferred — hardening, future issue |
+| Finding                                                             | Source                   | Disposition                                                                |
+| ------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------- |
+| `mutation.ts` `??` for mutationThreshold (severity 9/10)            | Reviewer 2               | Fixed in review commit                                                     |
+| `titlePending` path has zero unit test coverage                     | Reviewer 1               | Fixed — added test                                                         |
+| `titlePending` EOF guard missing                                    | Silent-failure-hunter    | Fixed — added exit 2 guard                                                 |
+| `runGeneratorsSelective` isolation not tested                       | Reviewer 3 + Adversarial | Fixed — added 2 tests                                                      |
+| `mutationScore: 0` fallback not pinned                              | Adversarial              | Fixed — added test                                                         |
+| `lineCoverage: 75` non-regression not pinned                        | Adversarial              | Fixed — added test                                                         |
+| `safeRun` swallows errors silently (UX)                             | Silent-failure-hunter    | Deferred — design choice; `console.warn` acceptable for initial resilience |
+| `coverage.ts`/`nightly.ts` threshold inconsistency                  | Adversarial              | Deferred — pre-existing, separate scope                                    |
+| `hasDatabase` type inconsistency (ProjectConfig vs ArbiterConfigV2) | Reviewer 3               | Deferred — pre-existing design issue                                       |
+| Unidirectional parity check (zombie AGENTS.md entries)              | Adversarial              | Deferred — hardening, future issue                                         |
 
 ---
 

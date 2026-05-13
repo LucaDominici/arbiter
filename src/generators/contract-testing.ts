@@ -214,16 +214,6 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     return { files: [] }
   }
 
-  const base = config.targetDir
-  const data = config as unknown as Record<string, unknown>
-  const results: WriteResult[] = [
-    writeFile(
-      resolvedPath(base, 'CONTRACTS_POLICY.md'),
-      renderTemplate('contract-testing/CONTRACTS_POLICY.md.ejs', data),
-      { skipIfExists: true },
-    ),
-  ]
-
   const dispatchers: Record<
     string,
     (base: string, config: ProjectConfig, data: Record<string, unknown>) => WriteResult[]
@@ -235,10 +225,23 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     'message-queue': generateMessageQueue,
   }
 
+  // #287: throw on unknown contractType — unknown type must not silently write the policy file
   const handler = dispatchers[config.contractType]
-  if (handler) {
-    results.push(...handler(base, config, data))
+  if (!handler) {
+    throw new Error(`Unknown contractType: ${config.contractType}`)
   }
+
+  const base = config.targetDir
+  const data = config as unknown as Record<string, unknown>
+  const results: WriteResult[] = [
+    writeFile(
+      resolvedPath(base, 'CONTRACTS_POLICY.md'),
+      renderTemplate('contract-testing/CONTRACTS_POLICY.md.ejs', data),
+      { skipIfExists: true },
+    ),
+  ]
+
+  results.push(...handler(base, config, data))
 
   return { files: results }
 }

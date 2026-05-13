@@ -138,6 +138,30 @@ describe('generateContractTesting', () => {
     expect(generateContractTesting(config).files).toHaveLength(0)
   })
 
+  // ─── Gate: unknown contractType → throws (#287) ───────────────────────────
+
+  it('throws on unknown contractType', () => {
+    const config = makeConfig(dir, {
+      contractType: 'rest-owned',
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    // Override with unknown value via type cast
+    ;(config as unknown as Record<string, unknown>)['contractType'] = 'soap'
+    expect(() => generateContractTesting(config)).toThrow('Unknown contractType: soap')
+  })
+
+  it('does not write CONTRACTS_POLICY.md when contractType is unknown', () => {
+    const config = makeConfig(dir, {
+      contractType: 'rest-owned',
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    ;(config as unknown as Record<string, unknown>)['contractType'] = 'webhook'
+    expect(() => generateContractTesting(config)).toThrow()
+    expect(existsSync(join(dir, 'CONTRACTS_POLICY.md'))).toBe(false)
+  })
+
   // ─── rest-owned × typescript: 2 files ────────────────────────────────────
 
   it('returns 4 files for rest-owned + typescript (.env.pact + pacts/.gitkeep added)', () => {
