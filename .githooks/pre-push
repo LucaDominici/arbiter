@@ -35,8 +35,8 @@ if [[ "$PWD" == *"#"* ]]; then
   rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
   cp -al "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
   cd "$TMP_DIR"
-  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L2
+  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L2 --json "$ORIG_DIR/.arbiter/gate/local-result.json"
   exit $?
 fi
 
-node scripts/check-all.mjs L2
+node scripts/check-all.mjs L2 --json .arbiter/gate/local-result.json
