@@ -19,6 +19,8 @@ import type { TaskPhase } from './commands/task.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
 import { runNotaryCheck, runNotaryTemplate } from './commands/notary.js'
+import { runGraphBuild, runVerifyGraph } from './commands/graph.js'
+import { runTrace, type TraceFormat } from './commands/trace.js'
 import {
   runWorkList,
   runWorkCreate,
@@ -408,6 +410,108 @@ verify
         json: opts.json,
         extraRules,
       })
+      process.exit(result.exitCode)
+    },
+  )
+
+verify
+  .command('graph')
+  .description(
+    'Verify the provenance graph (#259) — fails on orphan invariants (no enforces / no implements)',
+  )
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--input <path>', 'Override graph snapshot path (default: <dir>/.arbiter/graph.json)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; input?: string; json: boolean }) => {
+    const verifyOpts: import('./commands/graph.js').VerifyGraphOptions = {}
+    if (opts.dir !== undefined) verifyOpts.dir = opts.dir
+    if (opts.input !== undefined) verifyOpts.input = opts.input
+    const result = runVerifyGraph(verifyOpts)
+    if (opts.json) {
+      jsonOutput(
+        'verify graph',
+        result.status,
+        {
+          exitCode: result.exitCode,
+          path: result.path,
+          totalInv: result.totalInv,
+          orphans: result.orphans,
+        },
+        result.reason !== undefined ? [result.reason] : undefined,
+      )
+    } else if (result.status === 'ok') {
+      process.stdout.write(`verify graph: OK (${result.totalInv} invariant(s) checked, 0 orphan)\n`)
+    } else {
+      process.stderr.write(`verify graph: FAIL — ${result.reason ?? 'unknown error'}\n`)
+      for (const orphan of result.orphans) {
+        process.stderr.write(`  orphan: ${orphan.id} — ${orphan.reason}\n`)
+      }
+    }
+    process.exit(result.exitCode)
+  })
+
+const graph = program.command('graph').description('Manage the provenance graph (#259)')
+
+graph
+  .command('build')
+  .description('Build the provenance graph from invariants and write .arbiter/graph.json')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--output <path>', 'Override output path (default: <dir>/.arbiter/graph.json)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; output?: string; json: boolean }) => {
+    const buildOpts: import('./commands/graph.js').GraphBuildOptions = {}
+    if (opts.dir !== undefined) buildOpts.dir = opts.dir
+    if (opts.output !== undefined) buildOpts.output = opts.output
+    const result = runGraphBuild(buildOpts)
+    if (opts.json) {
+      jsonOutput(
+        'graph build',
+        result.status,
+        {
+          exitCode: result.exitCode,
+          path: result.path,
+          nodes: result.nodes,
+          edges: result.edges,
+        },
+        result.reason !== undefined ? [result.reason] : undefined,
+      )
+    } else if (result.status === 'ok') {
+      process.stdout.write(
+        `graph build: wrote ${result.path} (${result.nodes} nodes, ${result.edges} edges)\n`,
+      )
+    } else {
+      process.stderr.write(`graph build: FAIL — ${result.reason ?? 'unknown error'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
+program
+  .command('trace')
+  .description(
+    'Trace provenance from a graph node (#259) — render as json|dot|mermaid (default json)',
+  )
+  .requiredOption('--from <id>', 'Origin node id (e.g. INV-04)')
+  .option('--depth <n>', 'Maximum BFS depth (default: unlimited)', (v: string) =>
+    Number.parseInt(v, 10),
+  )
+  .option('--format <fmt>', 'Output format: json | dot | mermaid (default: json)', 'json')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--input <path>', 'Override graph snapshot path (default: <dir>/.arbiter/graph.json)')
+  .action(
+    (opts: { from: string; depth?: number; format: string; dir?: string; input?: string }) => {
+      const traceOpts: import('./commands/trace.js').TraceOptions = {
+        from: opts.from,
+        format: opts.format as TraceFormat,
+      }
+      if (opts.depth !== undefined && !Number.isNaN(opts.depth)) traceOpts.depth = opts.depth
+      if (opts.dir !== undefined) traceOpts.dir = opts.dir
+      if (opts.input !== undefined) traceOpts.input = opts.input
+      const result = runTrace(traceOpts)
+      if (result.status === 'ok') {
+        process.stdout.write(result.output + '\n')
+      } else {
+        process.stderr.write(`trace: FAIL — ${result.reason ?? 'unknown error'}\n`)
+      }
       process.exit(result.exitCode)
     },
   )

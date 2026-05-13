@@ -1,0 +1,26 @@
+[
+  {
+    "id": "INV-01",
+    "tier": "architectural",
+    "title": "No circular dependencies between modules",
+    "description": "Fixture invariant — circular deps forbidden.",
+    "alwaysActive": true,
+    "enforcement": "CI (madge)"
+  },
+  {
+    "id": "INV-04",
+    "tier": "architectural",
+    "title": "No `any` type in TypeScript",
+    "description": "Fixture invariant — explicit any forbidden.",
+    "alwaysActive": true,
+    "enforcement": "hook + CI (ESLint no-explicit-any); local gate: `npm run lint`"
+  },
+  {
+    "id": "INV-06",
+    "tier": "architectural",
+    "title": "No unused or dead code",
+    "description": "Fixture invariant — dead exports forbidden.",
+    "alwaysActive": true,
+    "enforcement": "CI (Knip)"
+  }
+]

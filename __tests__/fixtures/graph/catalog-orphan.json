@@ -1,0 +1,18 @@
+[
+  {
+    "id": "INV-01",
+    "tier": "architectural",
+    "title": "No circular dependencies",
+    "description": "Fixture invariant — has enforcement.",
+    "alwaysActive": true,
+    "enforcement": "CI (madge)"
+  },
+  {
+    "id": "INV-99",
+    "tier": "governance",
+    "title": "Orphan invariant — declared but never enforced",
+    "description": "Fixture invariant designed to fail verify graph.",
+    "alwaysActive": true,
+    "enforcement": ""
+  }
+]
