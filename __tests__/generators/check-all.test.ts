@@ -16,23 +16,20 @@ describe('generateCheckAll', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('generates scripts/check-all.mjs, check-workflow-runners.mjs, and check-ci-alignment.mjs', () => {
+  it('generates only scripts/check-all.mjs (workflow-runners and ci-alignment inlined)', () => {
     const result = generateCheckAll(makeConfig(dir))
-    expect(result.files).toHaveLength(3)
+    expect(result.files).toHaveLength(1)
     expect(result.files[0].path).toContain('check-all.mjs')
     expect(result.files[0].action).toBe('created')
-    expect(result.files[1].path).toContain('check-workflow-runners.mjs')
-    expect(result.files[1].action).toBe('created')
-    expect(result.files[2].path).toContain('check-ci-alignment.mjs')
-    expect(result.files[2].action).toBe('created')
   })
 
-  it('check-ci-alignment.mjs has shebang line and correct header', () => {
+  it('check-all.mjs contains inlined workflow-runners and ci-alignment logic', () => {
     generateCheckAll(makeConfig(dir))
-    const content = readFileSync(join(dir, 'scripts', 'check-ci-alignment.mjs'), 'utf-8')
-    expect(content).toMatch(/^#!/)
-    expect(content).toContain('DESIGN_EXEMPTIONS')
-    expect(content).toContain('extractManifestGates')
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(content).toContain('CI_BUILD_RUNNER_LABEL')
+    expect(content).toContain('_caDesignExemptions')
+    expect(content).toContain('_caExtractManifestGates')
+    expect(content).toContain('_wrViolations')
   })
 
   it('check-all.mjs has shebang line', () => {

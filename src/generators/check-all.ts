@@ -33,21 +33,5 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
     }),
   )
 
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-workflow-runners.mjs'),
-      renderTemplate('scripts/check-workflow-runners.mjs.ejs', data),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-ci-alignment.mjs'),
-      renderTemplate('scripts/check-ci-alignment.mjs.ejs', data),
-      { skipIfExists: true },
-    ),
-  )
-
   return { files: results }
 }

@@ -476,3 +476,22 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - _`arbiter harness --fast`_: CLI command wrapping the four gates for target project use. `--fast` stops at first failure; without the flag all four run and all failures are reported.
 
 **Consequences:** The Viafera four-pillar model (Authority / Routing / Aliasing / Gates) is fully realised in both arbiter-self and generated target projects. Moved/renamed docs no longer silently break links (CANONICAL_PATHS + check-canonical-paths). Missing SSOT entries are detected at L1 (check-ssot-core). KM line count drift is detected at L1 (check-knowledge-map). All four gates bootstrap safely on new projects.
+
+---
+
+## feat(#247): gate script consolidation — inline workflow-runners and ci-alignment into check-all.mjs.ejs (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #247; CANON-04, CANON-05
+
+**Context:** The generator `generateCheckAll` emitted three separate files: `check-all.mjs`, `check-workflow-runners.mjs`, and `check-ci-alignment.mjs`. This violated the principle that the gate manifest should be self-contained: target projects received three loose script files, two of which were only ever invoked via `runCheck(...)` from the third.
+
+**Decisions:**
+
+- **Templates deleted**: `src/templates/scripts/check-workflow-runners.mjs.ejs` and `src/templates/scripts/check-ci-alignment.mjs.ejs` removed. Generator now emits ≤1 gate script per project.
+- **Logic inlined**: Workflow-runners check uses `_wr`-prefixed variables; ci-alignment check uses `_ca`-prefixed variables. Both are IIFE-style blocks that push `{name, status, elapsed}` to `results[]` and increment `failed` on violation, consistent with the existing Go/BDD inline patterns.
+- **No `gitleaks` case in `_caNormalizeKey`**: The standalone `check-ci-alignment.mjs.ejs` had `case 'gitleaks': return 'gitleaks'`. This was dropped from the inline helper because the ci-alignment checker never needs to track gitleaks as a manifest gate — both sides return `null`, so no spurious mismatch is produced. The gitleaks step is guarded by `enableSecurityScanning` at the EJS level; the ci-alignment inline logic must be gitleaks-free to not pollute renders where `enableSecurityScanning=false`.
+- **`readdirSync` added** to the `node:fs` import in `check-all.mjs.ejs` to support the inline workflow-runners directory scan.
+- **Baseline updated**: Template-tests baseline updated from 128 → 127 (two templates removed, no new template added).
+
+**Consequences:** Each generated project receives a single `scripts/check-all.mjs` that self-contains all L1 gate logic. The two formerly-separate scripts are no longer emitted, reducing surface area and eliminating the risk of accidental deletion of a "helper" script that breaks the gate.
