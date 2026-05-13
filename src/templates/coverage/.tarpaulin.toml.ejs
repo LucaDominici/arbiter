@@ -1,7 +1,30 @@
-# cargo-tarpaulin configuration
-# Gate: cargo tarpaulin --fail-under <%= coverageThreshold %> (L2 — hard fail)
-# Note: threshold is enforced via --fail-under CLI flag in check-all.mjs; not via this file.
+# cargo-tarpaulin configuration (#354, Phase 7B — haben parity).
+# Gate: cargo tarpaulin --fail-under <%= coverageThreshold %> (L2 — hard fail).
+# fail-under is also embedded below so `cargo tarpaulin` without CLI flags
+# still enforces the threshold — keeps local invocations consistent with the
+# generated check-all.mjs gate.
 
 [run]
 out = ["Html", "Xml", "Lcov"]
 output-dir = "coverage/"
+
+[default]
+# Hard floor — must match the --fail-under flag in scripts/check-all.mjs.
+# Value scales with governanceLevel via computeThresholds (L2=80, L3=85).
+fail-under = <%= coverageThreshold %>
+
+# Curated exclude-files list. Every entry needs a rationale comment;
+# a future lint (`check-coverage-doc-parity.mjs`) will enforce comment-per-entry.
+exclude-files = [
+  # Binary entrypoint — bootstrap only, exercised end-to-end by integration
+  # tests rather than unit coverage.
+  "src/main.rs",
+  # Library entrypoint — re-exports; coverage is double-counted via the
+  # re-exported items themselves.
+  "src/lib.rs",
+  # Build scripts — execute at compile time, not at runtime; out of scope
+  # for runtime coverage tools.
+  "build.rs",
+  # Generated code — auto-emitted, no human-authored logic to cover.
+  "target/**",
+]

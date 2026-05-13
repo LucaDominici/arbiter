@@ -213,6 +213,68 @@ describe('coverage config templates — rendering (CANON-04)', () => {
     expect(content).toContain('80')
   })
 
+  it('.tarpaulin.toml.ejs emits fail-under under [default] (#354)', () => {
+    // Per #354: tarpaulin.toml must carry fail-under so cargo tarpaulin
+    // hard-fails even when invoked without --fail-under (parity with the gate
+    // script invocation). The section name is [default] per cargo-tarpaulin
+    // config conventions.
+    const content = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(content).toContain('[default]')
+    expect(content).toContain('fail-under = 80')
+  })
+
+  it('.tarpaulin.toml.ejs fail-under scales with governanceLevel (L2 80 → L3 85)', () => {
+    const l2 = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    const l3 = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 85,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(l2).toContain('fail-under = 80')
+    expect(l3).toContain('fail-under = 85')
+    expect(l2).not.toContain('fail-under = 85')
+  })
+
+  it('.tarpaulin.toml.ejs emits curated exclude-files with rationale comments (#354)', () => {
+    // Per #354 (haben reference): excludes for Rust entrypoints and generated
+    // code, EACH preceded by a rationale comment.
+    const content = renderTemplate('coverage/.tarpaulin.toml.ejs', {
+      ...makeConfig('/tmp/test', {
+        language: 'rust',
+        buildTool: 'cargo',
+        enableDebtGates: true,
+      }),
+      coverageThreshold: 80,
+      coverageEnabled: true,
+    } as unknown as Record<string, unknown>)
+    expect(content).toContain('exclude-files')
+    expect(content).toContain('src/main.rs')
+    expect(content).toContain('src/lib.rs')
+    // Rationale comments must accompany excludes — convention: lines starting with '# '
+    // immediately above or beside the entry. Assert at least one rationale token.
+    expect(content).toMatch(/#.*entrypoint/i)
+  })
+
   // ── .coveragerc.ejs ────────────────────────────────────────────────────────
 
   it('.coveragerc.ejs contains [run] section with branch=True', () => {
