@@ -470,6 +470,76 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
   })
 })
 
+describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject('java')
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('emits RestAssured files for layered archetype with hasDatabase+hasPublicApi+basePackage (#291)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'layered',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(true)
+  })
+
+  it('emits RestAssured files for modular-monolith archetype with hasDatabase+hasPublicApi+basePackage (#291)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'modular-monolith',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(true)
+  })
+
+  it('emits RestAssured files for none archetype with hasDatabase+hasPublicApi+basePackage (#291)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'none',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(true)
+  })
+
+  it('omits RestAssured files when basePackage absent (#291)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'layered',
+      basePackage: undefined,
+      hasDatabase: true,
+      hasPublicApi: true,
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(false)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(false)
+  })
+})
+
 describe('generateArchUnit — F11 unknown architectureStyle guard (#370)', () => {
   let dir: string
   beforeEach(() => {
