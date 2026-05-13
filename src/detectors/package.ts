@@ -13,11 +13,17 @@ export function detectBasePackage(dir: string): string | undefined {
     if (match?.[1]) return match[1].trim()
   }
 
-  const gradlePath = join(dir, 'build.gradle')
-  if (existsSync(gradlePath)) {
-    const content = readFileSync(gradlePath, 'utf-8')
-    const match = content.match(/^group\s*=\s*['"]([^'"]+)['"]/m)
-    if (match?.[1]) return match[1].trim()
+  // Match `group = "com.acme"` (Groovy DSL) and `group = "com.acme"` (Kotlin DSL —
+  // identical syntax for top-level assignment). Previously only `build.gradle`
+  // was read, so Kotlin-DSL Java projects fell through to source-tree scanning
+  // even when the build file carried the group explicitly (#278 finding #1).
+  for (const gradleFile of ['build.gradle', 'build.gradle.kts']) {
+    const gradlePath = join(dir, gradleFile)
+    if (existsSync(gradlePath)) {
+      const content = readFileSync(gradlePath, 'utf-8')
+      const match = content.match(/^group\s*=\s*['"]([^'"]+)['"]/m)
+      if (match?.[1]) return match[1].trim()
+    }
   }
 
   return detectFromJavaSourceTree(join(dir, 'src', 'main', 'java'))

@@ -52,4 +52,15 @@ describe('detectBasePackage', () => {
     writeFileSync(join(dir, 'build.gradle'), `group = 'com.from.gradle'`)
     expect(detectBasePackage(dir)).toBe('com.from.pom')
   })
+
+  it('detects group from build.gradle.kts (Kotlin DSL) (#278 #1)', () => {
+    writeFileSync(join(dir, 'build.gradle.kts'), `group = "com.kts.example"\nversion = "1.0"\n`)
+    expect(detectBasePackage(dir)).toBe('com.kts.example')
+  })
+
+  it('prefers build.gradle over build.gradle.kts when both exist (#278 #1)', () => {
+    writeFileSync(join(dir, 'build.gradle'), `group = 'com.from.groovy'`)
+    writeFileSync(join(dir, 'build.gradle.kts'), `group = "com.from.kts"`)
+    expect(detectBasePackage(dir)).toBe('com.from.groovy')
+  })
 })

@@ -18,7 +18,10 @@ export function detectFramework(dir: string, language: Language): string | null 
  */
 function detectMultiFramework(dir: string): string | null {
   const ts = detectTypescriptFramework(dir)
-  const javaBuildPresent = existsSync(join(dir, 'build.gradle')) || existsSync(join(dir, 'pom.xml'))
+  const javaBuildPresent =
+    existsSync(join(dir, 'build.gradle')) ||
+    existsSync(join(dir, 'build.gradle.kts')) ||
+    existsSync(join(dir, 'pom.xml'))
   const java = javaBuildPresent ? detectJavaFramework(dir) : null
   if (ts && java) return `${ts}+${java}`
   return ts ?? java
@@ -52,11 +55,22 @@ function detectRustFramework(dir: string): string | null {
   return null
 }
 
-function detectJavaFramework(dir: string): string {
-  const buildFile = readFileSafe(join(dir, 'build.gradle')) + readFileSafe(join(dir, 'pom.xml'))
-  if (buildFile.includes('spring-boot')) return 'spring-boot'
-  if (buildFile.includes('quarkus')) return 'quarkus'
-  return 'java'
+function detectJavaFramework(dir: string): string | null {
+  // Read every common Java build manifest. Kotlin-DSL (`build.gradle.kts`) was previously
+  // a blind spot — projects using only `build.gradle.kts` fell through to the legacy
+  // `"java"` sentinel and were mis-archetyped (#278 finding #1). Returning `null` aligns
+  // the contract with sibling detectors (TypeScript, Rust) and lets `detectArchetypeHint`
+  // apply `LANGUAGE_FALLBACK_ARCHETYPE` cleanly (#278 finding #2).
+  const buildFile =
+    readFileSafe(join(dir, 'build.gradle')) +
+    readFileSafe(join(dir, 'build.gradle.kts')) +
+    readFileSafe(join(dir, 'pom.xml'))
+  // Match both the Gradle plugin slug `spring-boot` and the Maven/Kotlin-DSL form
+  // `org.springframework.boot` so Kotlin-DSL Spring Boot projects are recognised.
+  if (buildFile.includes('spring-boot') || buildFile.includes('org.springframework.boot'))
+    return 'spring-boot'
+  if (buildFile.includes('quarkus') || buildFile.includes('io.quarkus')) return 'quarkus'
+  return null
 }
 
 function readPackageJson(dir: string): Record<string, unknown> {

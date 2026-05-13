@@ -65,4 +65,25 @@ describe('detectGitInfo', () => {
     expect(info.remoteUrl).toBeNull()
     expect(info.githubOwner).toBeNull()
   })
+
+  it('preserves dots in repo names over SSH (#278 #5)', () => {
+    initGit(dir, 'git@github.com:TestUser/my.project.git')
+    const info = detectGitInfo(dir)
+    expect(info.githubOwner).toBe('TestUser')
+    expect(info.githubRepo).toBe('my.project')
+  })
+
+  it('preserves dots in repo names over HTTPS without .git suffix (#278 #5)', () => {
+    initGit(dir, 'https://github.com/TestUser/dot.repo')
+    const info = detectGitInfo(dir)
+    expect(info.githubOwner).toBe('TestUser')
+    expect(info.githubRepo).toBe('dot.repo')
+  })
+
+  it('preserves dots in repo names over HTTPS with .git suffix (#278 #5)', () => {
+    initGit(dir, 'https://github.com/TestUser/my.project.git')
+    const info = detectGitInfo(dir)
+    expect(info.githubOwner).toBe('TestUser')
+    expect(info.githubRepo).toBe('my.project')
+  })
 })

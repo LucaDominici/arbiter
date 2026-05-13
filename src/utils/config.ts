@@ -29,11 +29,27 @@ export function saveSnapshot(dir: string, config: ArbiterConfig): void {
 export function loadSnapshot(dir: string): ArbiterConfig | null {
   const path = join(dir, SNAPSHOT_FILE)
   if (!existsSync(path)) return null
+  let raw: unknown
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')) as ArbiterConfig
+    raw = JSON.parse(readFileSync(path, 'utf-8'))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[arbiter] ${SNAPSHOT_FILE} at ${path} is unreadable (${msg}) — skipping snapshot`)
+    console.warn(
+      `[arbiter] ${SNAPSHOT_FILE} at ${path} is unreadable (${msg}) — ` +
+        `delete the file to regenerate on next 'arbiter update'`,
+    )
+    return null
+  }
+  // Route the snapshot through the same migration chain as loadConfig so a stale
+  // pre-v2 snapshot doesn't satisfy the type at compile time and crash at runtime
+  // when later code touches v2-only fields (#277 finding #7).
+  try {
+    return migrate(raw)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(
+      `[arbiter] ${SNAPSHOT_FILE} at ${path} failed migration (${msg}) — skipping snapshot`,
+    )
     return null
   }
 }

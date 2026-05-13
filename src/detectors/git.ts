@@ -32,14 +32,20 @@ export function detectGitInfo(dir: string): GitInfo {
   }
 }
 
+// Repo names with dots (e.g. `my.project`) were previously truncated because the prior
+// pattern excluded `.` from the repo capture group. The anchored optional `.git` suffix
+// already covers the only legitimate trailing dot. (#278 finding #5)
+const SSH_RE = /git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/
+const HTTPS_RE = /github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/
+
 function parseGithubUrl(url: string): {
   owner: string | null
   repo: string | null
 } {
-  const sshMatch = /git@github\.com:([^/]+)\/([^.]+)(?:\.git)?/.exec(url)
+  const sshMatch = SSH_RE.exec(url)
   if (sshMatch) return { owner: sshMatch[1] ?? null, repo: sshMatch[2] ?? null }
 
-  const httpsMatch = /github\.com\/([^/]+)\/([^/.]+)(?:\.git)?/.exec(url)
+  const httpsMatch = HTTPS_RE.exec(url)
   if (httpsMatch) return { owner: httpsMatch[1] ?? null, repo: httpsMatch[2] ?? null }
 
   return { owner: null, repo: null }

@@ -49,7 +49,12 @@ export function detectBuildCommands(dir: string, language: Language): BuildComma
 function detectTypescriptCommands(dir: string): BuildCommands {
   const pkg = readPackageJson(dir)
   const hasEslint = hasScript(pkg, 'lint')
-  const hasPrettier = JSON.stringify(pkg).includes('prettier')
+  // Substring match on the serialized package.json mistakenly counted
+  // `eslint-config-prettier`, `prettier-eslint`, scripts mentioning "prettier",
+  // or description text — leading to a `prettier --check` command even when
+  // the binary is not installed (#278 finding #9). Restrict to actual prettier
+  // dependency keys (the package itself or first-party plugins).
+  const hasPrettier = hasPrettierDependency(pkg)
   return {
     buildTool: 'npm',
     buildCommand: getScript(pkg, 'build') ?? 'npm run build',
@@ -108,6 +113,26 @@ function readPackageJson(dir: string): Record<string, unknown> {
 function hasScript(pkg: Record<string, unknown>, name: string): boolean {
   const scripts = pkg['scripts']
   return typeof scripts === 'object' && scripts !== null && name in scripts
+}
+
+/**
+ * Detect whether the project declares prettier as an actual dependency.
+ *
+ * Matches the bare `prettier` package or any first-party `prettier-plugin-*`.
+ * Excludes ESLint integration packages like `eslint-config-prettier` and
+ * `prettier-eslint` which advertise prettier in their name but do not install
+ * the binary themselves (#278 finding #9).
+ */
+function hasPrettierDependency(pkg: Record<string, unknown>): boolean {
+  for (const key of ['dependencies', 'devDependencies', 'peerDependencies']) {
+    const deps = pkg[key]
+    if (typeof deps !== 'object' || deps === null) continue
+    for (const name of Object.keys(deps)) {
+      if (name === 'prettier') return true
+      if (name.startsWith('prettier-plugin-')) return true
+    }
+  }
+  return false
 }
 
 function getScript(pkg: Record<string, unknown>, name: string): string | null {

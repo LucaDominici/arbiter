@@ -94,7 +94,12 @@ function runOnce(cmd: string, args: readonly string[], opts: RunOnceOptions): At
     }
   }
 
-  const timedOut = errorCode === 'ETIMEDOUT' || result.signal === 'SIGTERM'
+  // SIGTERM alone is an unreliable timeout signal — an external `kill` or a
+  // parent-shell teardown also surfaces SIGTERM. Cross-check duration so the
+  // "timeout" classification fires only when the run plausibly hit the deadline
+  // (within 1s for jitter). (#277 finding #14)
+  const sigtermLikelyTimeout = result.signal === 'SIGTERM' && durationMs >= opts.timeoutMs - 1000
+  const timedOut = errorCode === 'ETIMEDOUT' || sigtermLikelyTimeout
   if (timedOut) {
     return {
       ok: false,
@@ -149,17 +154,66 @@ export function runCli(
     timeoutMs,
   }
 
-  let lastError: CliError | undefined
+  const attemptErrors: CliError[] = []
   for (let attempt = 0; attempt <= retries; attempt++) {
     const outcome = runOnce(cmd, args, runOpts)
-    if (outcome.ok) return outcome.result
+    if (outcome.ok) {
+      logRetrySuccess(cmd, attemptErrors)
+      return outcome.result
+    }
     if (outcome.fatal) throw outcome.error
-
-    lastError = outcome.error
+    attemptErrors.push(outcome.error)
     if (attempt < retries) sleepSync(retryDelayMs)
   }
 
-  throw lastError as CliError
+  throw finalRetryError(cmd, args, attemptErrors)
+}
+
+/**
+ * Leave a one-line trail when a retry eventually succeeds so flaky commands
+ * are observable (previously every intermediate failure was silently lost
+ * — #277 finding #10).
+ */
+function logRetrySuccess(cmd: string, attemptErrors: readonly CliError[]): void {
+  if (attemptErrors.length === 0) return
+  console.warn(
+    `[arbiter] runCli: ${cmd} succeeded after ${attemptErrors.length} ` +
+      `failed attempt(s); first error: ${attemptErrors[0]?.message ?? '(none)'}`,
+  )
+}
+
+/**
+ * Build the error thrown after all retries exhaust. Defensive against
+ * retries < 0 (empty attemptErrors); summarises the attempt count when
+ * more than one failure was observed.
+ */
+function finalRetryError(
+  cmd: string,
+  args: readonly string[],
+  attemptErrors: readonly CliError[],
+): CliError {
+  const last = attemptErrors[attemptErrors.length - 1]
+  if (!last) {
+    return new CliError(
+      {
+        cmd,
+        args,
+        exitCode: -1,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        notFound: false,
+      },
+      `Command failed before first attempt: ${cmd}`,
+    )
+  }
+  if (attemptErrors.length > 1) {
+    console.warn(
+      `[arbiter] runCli: ${cmd} failed after ${attemptErrors.length} attempt(s); ` +
+        `final error: ${last.message}`,
+    )
+  }
+  return last
 }
 
 /**

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { saveConfig, loadConfig, defaultConfig } from '../../src/utils/config.js'
+import { saveConfig, loadConfig, defaultConfig, loadSnapshot } from '../../src/utils/config.js'
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-config-test-'))
@@ -153,6 +153,49 @@ describe('arbiter config — MK grace-period fields (ADR-028)', () => {
     expect(loaded).not.toBeNull()
     expect(loaded?.graceEndsAt).toBeUndefined()
     expect(loaded?.graceFromLevel).toBeUndefined()
+  })
+})
+
+describe('loadSnapshot — migration parity with loadConfig (#277 #7)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-snapshot-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('migrates a v1 snapshot through to v2 instead of returning raw v1 shape', () => {
+    // Write a v1-style snapshot (no v2-only fields like `features`).
+    writeFileSync(
+      join(dir, '.arbiter-generated.json'),
+      JSON.stringify({
+        version: '0.1',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        useGitHub: false,
+      }),
+      'utf-8',
+    )
+    const loaded = loadSnapshot(dir)
+    expect(loaded).not.toBeNull()
+    // After migration, the v2 fields are present and the version is normalised.
+    expect(loaded?.version).toBe('0.2')
+    expect(loaded?.features).toBeDefined()
+    expect(loaded?.thresholds).toBeDefined()
+  })
+
+  it('returns null with a warning when snapshot JSON is malformed', () => {
+    vi.spyOn(console, 'warn').mockImplementationOnce(() => undefined)
+    writeFileSync(join(dir, '.arbiter-generated.json'), '{not json', 'utf-8')
+    expect(loadSnapshot(dir)).toBeNull()
+    vi.restoreAllMocks()
+  })
+
+  it('returns null when no snapshot exists', () => {
+    expect(loadSnapshot(dir)).toBeNull()
   })
 })
 

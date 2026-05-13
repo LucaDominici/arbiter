@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import type { Language } from '../wizard/types.js'
 
 const require = createRequire(import.meta.url)
 
@@ -35,8 +36,13 @@ export interface MaturityResult {
 /**
  * Look up the maturity level for a given language × feature pair.
  * Returns `unavailable` when no entry exists in the matrix.
+ *
+ * Tight signatures (Language / MaturityFeature unions instead of bare string)
+ * surface call-site typos at compile time — a bare string parameter previously
+ * conflated "no matrix entry" with genuine typos like "kotlin" or "fuzz"
+ * (#277 finding #8).
  */
-export function checkMaturity(language: string, feature: string): MaturityResult {
+export function checkMaturity(language: Language, feature: MaturityFeature): MaturityResult {
   const matrix = loadMatrix()
   const featureMap = matrix[feature]
   if (!featureMap) {
@@ -75,8 +81,8 @@ export interface L3CheckResult {
  * - `unavailable`→ always blocked
  */
 export function isL3Allowed(
-  language: string,
-  feature: string,
+  language: Language,
+  feature: MaturityFeature,
   acceptBetaTools: boolean,
 ): L3CheckResult {
   const { maturity, tool, reason } = checkMaturity(language, feature)
