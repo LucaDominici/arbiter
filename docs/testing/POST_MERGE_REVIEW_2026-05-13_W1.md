@@ -75,14 +75,14 @@ Two test regressions from W1 merges:
 
 ## Red-Team Findings — W1 Wave
 
-| Finding | Severity | Cluster | Action |
-|---------|----------|---------|--------|
-| throw on unknown contractType swallowed by safeRun | 7 (HIGH) | W1B | Fixed before merge — warn+return |
-| Isolation test exercises wrong path (rust guard not dispatch) | 7 (HIGH) | W1B | Fixed before merge — beefed isolation test |
-| gate not broadened after RestAssured scope change | 7 (HIGH) | W1C | Fixed before merge — `!== 'none'` + Maven |
-| COPYFILE_EXCL semantics risk (first backup could be overwritten) | 5 (MEDIUM) | W1A | Fixed before merge — EXCL enforced |
-| RestAssured templates assume Spring Boot (no framework guard) | 5 (MEDIUM) | W1C | Filed #491, future cluster |
-| findExistingBoard validation swallowed by bare catch | 6 (HIGH) | W1D | Filed #492, future cluster |
+| Finding                                                          | Severity   | Cluster | Action                                     |
+| ---------------------------------------------------------------- | ---------- | ------- | ------------------------------------------ |
+| throw on unknown contractType swallowed by safeRun               | 7 (HIGH)   | W1B     | Fixed before merge — warn+return           |
+| Isolation test exercises wrong path (rust guard not dispatch)    | 7 (HIGH)   | W1B     | Fixed before merge — beefed isolation test |
+| gate not broadened after RestAssured scope change                | 7 (HIGH)   | W1C     | Fixed before merge — `!== 'none'` + Maven  |
+| COPYFILE_EXCL semantics risk (first backup could be overwritten) | 5 (MEDIUM) | W1A     | Fixed before merge — EXCL enforced         |
+| RestAssured templates assume Spring Boot (no framework guard)    | 5 (MEDIUM) | W1C     | Filed #491, future cluster                 |
+| findExistingBoard validation swallowed by bare catch             | 6 (HIGH)   | W1D     | Filed #492, future cluster                 |
 
 ---
 

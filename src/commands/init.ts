@@ -21,7 +21,7 @@ import {
 import { provisionLabels } from '../github/labels.js'
 import { applyBranchProtection } from '../github/branch-protection.js'
 import { createProjectBoard } from '../github/project-board.js'
-import { saveConfig } from '../utils/config.js'
+import { saveConfig, loadConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
@@ -113,25 +113,35 @@ export async function runInit(options: InitOptions): Promise<void> {
   }
 
   checkL3MaturityGates(config)
-  generateAndFinalize(config, targetDir, options, log)
+  await generateAndFinalize(config, targetDir, options, log)
 }
 
-function generateAndFinalize(
+async function generateAndFinalize(
   config: ProjectConfig,
   targetDir: string,
   options: InitOptions,
   log: (msg: string) => void,
-): void {
+): Promise<void> {
   log('\n  Generating...')
   const allResults = runGenerators(config)
+
+  const newConfig = buildArbiterConfig(config)
+  const backendResult = runBackendSetup(config, log)
+
+  // Load existing stored config before overwriting (brownfield re-init may have plugins)
+  const storedBefore = loadConfig(targetDir)
+  saveConfig(targetDir, newConfig)
+
+  const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
+  const pluginResults = await runPlugins(targetDir, plugins, newConfig)
+  allResults.push(...pluginResults)
+
   if (!options.json) printResults(allResults, targetDir)
 
   const created = allResults.filter((r) => r.action === 'created').length
   const skipped = allResults.filter((r) => r.action === 'skipped').length
   log(`\n  Done! ${created} files created, ${skipped} skipped.`)
 
-  const backendResult = runBackendSetup(config, log)
-  saveConfig(targetDir, buildArbiterConfig(config))
   maybeCaptureBaseline(config, targetDir, options.brownfield)
 
   if (!options.noVerify) {
@@ -227,6 +237,7 @@ export async function runPlugins(
 ): Promise<WriteResult[]> {
   const all: WriteResult[] = []
   const writtenPaths = new Set<string>()
+  const failures: string[] = []
   for (const pkg of plugins) {
     try {
       const plugin = await loadPlugin(pkg, targetDir)
@@ -262,10 +273,11 @@ export async function runPlugins(
         )
       }
     } catch (err) {
-      console.warn(
-        `  [arbiter] Plugin "${pkg}" failed: ${err instanceof Error ? err.message : String(err)}`,
-      )
+      failures.push(`Plugin "${pkg}": ${err instanceof Error ? err.message : String(err)}`)
     }
+  }
+  if (failures.length > 0) {
+    throw new Error(`Plugin(s) failed:\n  ${failures.join('\n  ')}`)
   }
   return all
 }
@@ -519,16 +531,21 @@ function detectedBasePackage(
 
 function parseTools(tools: string | undefined): AiTool[] {
   if (!tools) return ['claude', 'codex']
-  return tools
-    .split(',')
-    .filter((t): t is AiTool =>
-      ['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'].includes(t),
+  const VALID = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
+  const parsed = tools.split(',').map((t) => t.trim())
+  const invalid = parsed.filter((t) => !VALID.has(t))
+  if (invalid.length > 0) {
+    throw new Error(
+      `Unknown tool(s): ${invalid.map((t) => `"${t}"`).join(', ')}. Valid: ${[...VALID].join(', ')}`,
     )
+  }
+  return parsed as AiTool[]
 }
 
 function parseLevel(level: string | undefined): GovernanceLevel {
+  if (level === undefined) return 'L2'
   if (level === 'L1' || level === 'L2' || level === 'L3') return level
-  return 'L2'
+  throw new Error(`Unknown governance level: "${level}". Valid: L1, L2, L3`)
 }
 
 /**

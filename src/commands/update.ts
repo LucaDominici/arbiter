@@ -184,6 +184,15 @@ function detectProjectInfo(
   return { config, specs, useGitHub, axisFields }
 }
 
+function handlePluginError(err: unknown, json: boolean | undefined): never {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (json) {
+    jsonOutput('update', 'error', {}, [msg])
+    process.exit(1)
+  }
+  throw err instanceof Error ? err : new Error(msg)
+}
+
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const targetDir = resolve(options.dir ?? process.cwd())
   const projectName = basename(targetDir)
@@ -231,7 +240,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     targetDir,
     Array.isArray(stored.plugins) ? stored.plugins : [],
     stored,
-  )
+  ).catch((err: unknown) => handlePluginError(err, options.json))
   results.push(...pluginResults)
 
   if (!options.json) {

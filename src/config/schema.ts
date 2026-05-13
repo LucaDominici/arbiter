@@ -120,7 +120,15 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
 }
 
 const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3'])
-const AI_TOOLS: ReadonlySet<string> = new Set(['claude', 'codex', 'cursor', 'copilot'])
+const AI_TOOLS: ReadonlySet<string> = new Set([
+  'claude',
+  'codex',
+  'cursor',
+  'copilot',
+  'gemini',
+  'windsurf',
+  'aider',
+])
 
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val)
