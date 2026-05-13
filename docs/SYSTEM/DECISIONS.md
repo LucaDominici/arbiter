@@ -516,3 +516,24 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - **Manifest updated**: `hooks.mjs.ejs` added to `.arbiter/hooks-manifest.json` with classification `ADVISORY` (the dispatcher itself is advisory; individual handlers carry their own HARD/ADVISORY classification).
 
 **Consequences:** Generated projects have a single dispatcher registered per event in settings.json. Adding or removing a handler requires editing `hooks.mjs` only (not settings.json). Brownfield projects that already have arbiter-managed hook entries are upgraded cleanly on the next `arbiter init` run. The 17-file hook surface is preserved on disk (individual handlers still emitted) but the registration surface collapses to 6 entries.
+
+---
+
+## feat(#254): context-pack generator + two-phase checker (P7 primitive) (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #254; CANON-04, CANON-05, CANON-11
+
+**Context:** Issue #253 (V1 verification bridge) established a `verify plan` CLI but had no structured way to produce the two-input bundle (CONTEXT_PACK.md + plan.json) that the two-phase checker consumes. Without a deterministic generator, the "plan review" workflow required manual file assembly — fragile and not repeatable.
+
+**Decisions:**
+
+- **`src/context-pack/` module created**: Three files — `generator.ts` (core deterministic generator), `track-mapping.ts` (A/B/C/D track → INV-set mapping), `review-context.ts` (Zod schema + `combinedVerdict()` function for two-phase checker output aggregation).
+- **Track-to-INV mapping is SSOT**: `track-mapping.ts` maps each governance track (A/B/C/D) to the INV IDs that must be checked; generator and checker both import from this single source rather than duplicating the list.
+- **Deterministic output guaranteed**: Generator sorts all file/INV lists alphabetically and uses no `Date.now()` or random values. Fixture tests verify that tracks A and B produce different but stable output.
+- **`fromPlanJson()` adapter**: Bridges `PlanJsonV1` (emitted by `verify plan`) → `ContextPackInput`; allows the end-to-end flow (`verify plan` → `generate context-pack`) without a separate CLI flag.
+- **`writeContextPackFile()` wrapper**: Writes `CONTEXT_PACK.md` to a project root; used by the generator CLI step and tested via brownfield fixture.
+- **Agent templates added**: `context-checker.md.ejs` and `bridge-reviewer.md.ejs` emitted under `.claude/agents/` for generated projects; wired into `agents-claude.ts` generator; dogfooded into arbiter's own `.claude/agents/`.
+- **`contextPack.adrMappings` schema field**: Optional config key maps ADR IDs to INV IDs, allowing the checker to cross-reference plan ADR citations against the INV catalog. Validated by `validateContextPack()`.
+
+**Consequences:** `arbiter verify plan` can now produce a fully-structured `CONTEXT_PACK.md` bundle consumed by the two-phase checker agents. The track→INV mapping is version-controlled and enforced. All four acceptance criteria (deterministic generator, track-INV mapping, ADR mapping config, combined-verdict schema) are covered by tests.
