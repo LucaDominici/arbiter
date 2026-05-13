@@ -8,7 +8,6 @@ const EXPECTED_FILES = [
   join('suppressions', 'dependency-check-suppressions.xml'),
   join('suppressions', '.gitleaksignore'),
   join('suppressions', 'pii-allowlist.json'),
-  join('suppressions', 'archunit-baseline.json'),
   join('suppressions', 'suppressions-schema.json'),
   join('scripts', 'check-suppressions.mjs'),
 ]
@@ -44,10 +43,10 @@ describe('generateSuppressions', () => {
     expect(generateSuppressions(config).files).toHaveLength(1)
   })
 
-  it('generates 7 files when enableSuppressions is true (#242)', () => {
+  it('generates 6 files when enableSuppressions is true for non-Java (#242 #292)', () => {
     const config = makeConfig(dir, { enableSuppressions: true })
     const result = generateSuppressions(config)
-    expect(result.files).toHaveLength(7)
+    expect(result.files).toHaveLength(6)
   })
 
   for (const relPath of EXPECTED_FILES) {
@@ -59,7 +58,7 @@ describe('generateSuppressions', () => {
   }
 
   for (const lang of ['typescript', 'rust', 'go', 'python'] as const) {
-    it(`generates 7 files for ${lang}`, () => {
+    it(`generates 6 files for ${lang} (#292 — archunit-baseline.json is Java-only)`, () => {
       const loopDir = createTestProject(lang)
       initGit(loopDir)
       try {
@@ -68,12 +67,53 @@ describe('generateSuppressions', () => {
           enableSuppressions: true,
         })
         const result = generateSuppressions(config)
-        expect(result.files).toHaveLength(7)
+        expect(result.files).toHaveLength(6)
       } finally {
         cleanupTestProject(loopDir)
       }
     })
   }
+
+  it('generates 7 files for java (#292 — archunit-baseline.json included)', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        enableSuppressions: true,
+      })
+      const result = generateSuppressions(config)
+      expect(result.files).toHaveLength(7)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  it('does NOT emit archunit-baseline.json for non-Java (#292)', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      enableSuppressions: true,
+    })
+    const result = generateSuppressions(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('archunit-baseline.json'))).toBe(false)
+  })
+
+  it('emits archunit-baseline.json for Java (#292)', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        language: 'java',
+        enableSuppressions: true,
+      })
+      const result = generateSuppressions(config)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('archunit-baseline.json'))).toBe(true)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
 })
 
 describe('generateSuppressions — owasp + trivyignore (#208)', () => {

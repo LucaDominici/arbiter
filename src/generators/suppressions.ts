@@ -39,11 +39,15 @@ export function generateSuppressions(config: ProjectConfig): SuppressionsGenerat
       renderTemplate('suppressions/pii-allowlist.json.ejs', data),
       { skipIfExists: true },
     ),
-    writeFile(
-      resolvedPath(base, 'suppressions', 'archunit-baseline.json'),
-      renderTemplate('suppressions/archunit-baseline.json.ejs', data),
-      { skipIfExists: true },
-    ),
+    ...(config.language === 'java'
+      ? [
+          writeFile(
+            resolvedPath(base, 'suppressions', 'archunit-baseline.json'),
+            renderTemplate('suppressions/archunit-baseline.json.ejs', data),
+            { skipIfExists: true },
+          ),
+        ]
+      : []),
     // Arbiter-managed files — always regenerate to pick up gate script changes
     writeFile(
       resolvedPath(base, 'suppressions', 'suppressions-schema.json'),
