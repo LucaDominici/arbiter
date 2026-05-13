@@ -123,6 +123,7 @@ export function makeConfig(
     enableDebtGates: governanceLevel !== "L1",
     enableSuppressions: true,
     enableSecurityScanning: governanceLevel !== "L1",
+    enableSoloDevMode: false,
     invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
     basePackage: undefined,
     contractType: "none",

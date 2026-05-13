@@ -1,0 +1,48 @@
+name: Drift Shadow (INV-59)
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  drift-check:
+    name: Gate Result Drift Check
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - name: Emit local L1 gate result
+        run: node scripts/check-all.mjs L1 --json .arbiter/gate/local-result.json
+      - name: Compare local vs CI parity hash
+        id: parity
+        run: node scripts/check-local-ci-parity.mjs
+        continue-on-error: true
+      - name: Open drift issue if mismatch
+        if: steps.parity.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = 'INV-59 drift detected — local/CI gate parity mismatch';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'inv-59-drift',
+            });
+            if (issues.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: `Nightly drift shadow detected a parity mismatch between local and CI gate results.\n\nSee the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.\n\nResolve before enabling or continuing solo-dev mode (INV-59, #470).`,
+                labels: ['inv-59-drift'],
+              });
+            }

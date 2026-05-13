@@ -74,7 +74,7 @@ describe("matrix: TypeScript project", () => {
       "utf-8",
     );
     expect(ci).toContain("setup-node");
-    expect(ci).toContain("node-version: '20'");
+    expect(ci).toContain("node-version-file: '.nvmrc'");
   });
 
   it("check-all.mjs references eslint and prettier", () => {

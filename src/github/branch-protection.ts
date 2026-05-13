@@ -6,27 +6,39 @@ export interface BranchProtectionResult {
 }
 
 /**
- * Apply standard branch protection to main via gh api.
+ * Apply branch protection to main via gh api.
+ * When soloDevMode=true applies permissive policy (INV-23 still bans direct push;
+ * PR remains, only review/CI gates relaxed). INV-59 parity check guards merge.
  * Requires repo admin access.
  */
 export function applyBranchProtection(
   owner: string,
   repo: string,
+  soloDevMode = false,
 ): BranchProtectionResult {
-  const payload = JSON.stringify({
-    required_status_checks: {
-      strict: true,
-      contexts: ["CI Required"],
-    },
-    enforce_admins: false,
-    required_pull_request_reviews: {
-      required_approving_review_count: 1,
-      dismiss_stale_reviews: true,
-    },
-    restrictions: null,
-    allow_force_pushes: false,
-    allow_deletions: false,
-  });
+  const payload = soloDevMode
+    ? JSON.stringify({
+        required_status_checks: null,
+        enforce_admins: false,
+        required_pull_request_reviews: null,
+        restrictions: null,
+        allow_force_pushes: false,
+        allow_deletions: false,
+      })
+    : JSON.stringify({
+        required_status_checks: {
+          strict: true,
+          contexts: ["CI Required"],
+        },
+        enforce_admins: false,
+        required_pull_request_reviews: {
+          required_approving_review_count: 1,
+          dismiss_stale_reviews: true,
+        },
+        restrictions: null,
+        allow_force_pushes: false,
+        allow_deletions: false,
+      });
 
   try {
     runCli(

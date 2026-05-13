@@ -14,15 +14,24 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
   const data = config as unknown as Record<string, unknown>;
   const githubDir = resolvedPath(base, ".github");
 
-  // CI workflow — skip if exists (may be customized)
+  // CI workflow — always regenerate so soloDevMode toggles apply immediately
   const workflowsDir = join(githubDir, "workflows");
   results.push(
     writeFile(
       join(workflowsDir, "ci.yml"),
       renderTemplate("github/workflows/ci.yml.ejs", data),
-      { skipIfExists: true },
     ),
   );
+
+  // Drift shadow — only when solo-dev mode is active (#470)
+  if (config.enableSoloDevMode) {
+    results.push(
+      writeFile(
+        join(workflowsDir, "drift-shadow.yml"),
+        renderTemplate("github/workflows/drift-shadow.yml.ejs", data),
+      ),
+    );
+  }
 
   // PR template — skip if exists
   results.push(

@@ -7,7 +7,13 @@ on:
     branches: [main]
 
 jobs:
-<% if (enableSecurityScanning) { %>
+<% if (enableSoloDevMode) { %>
+  solo-dev-gate:
+    name: Solo-Dev Gate (INV-59)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - run: echo "solo-dev mode — local L2 gate guards merge via INV-59 parity check"
+<% } else { %><% if (enableSecurityScanning) { %>
   security-early-fail:
     name: Security (PII + Secrets)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
@@ -17,7 +23,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
       - name: PII scan (INV-12, HARD)
         run: node scripts/pii-scan.mjs
       - name: Install gitleaks
@@ -45,7 +51,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
       - id: classify
         run: node scripts/ci-classify-changes.mjs
         env:
@@ -94,7 +100,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
       - run: npm run typecheck
@@ -113,7 +119,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
       - run: npm run test:unit<% if (enableDebtGates) { %> -- --reporter=junit --outputFile=test-results/junit.xml<% } %>
@@ -136,7 +142,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
       - run: npm run test:contract
@@ -150,7 +156,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
       - run: npm run test:integration
@@ -164,7 +170,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
       - run: npm run test:behavioral
@@ -388,7 +394,7 @@ jobs:
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
       - run: npx vitest run --coverage --coverage.thresholds.lines=<%= threshold %>
@@ -471,7 +477,7 @@ jobs:
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
 <% } %><% if (language === 'rust') { %>
@@ -507,7 +513,7 @@ jobs:
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
 <% if (contractType === 'rest-owned' || contractType === 'rest-public') { %>
@@ -637,4 +643,4 @@ jobs:
           if [[ "${{ needs.cross-stack-guard.result }}" == "failure" ]]; then
             echo "cross-stack-guard failed"
             exit 1
-          fi<% } %>
+          fi<% } %><% } %>

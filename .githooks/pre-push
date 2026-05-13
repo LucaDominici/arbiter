@@ -7,6 +7,16 @@ if [ ! -d "node_modules" ]; then
   exit 0
 fi
 
+# Assert Node version matches .nvmrc (INV-53)
+if [ -f ".nvmrc" ]; then
+  NVMRC_MAJOR=$(cut -d. -f1 .nvmrc)
+  RUNTIME_MAJOR=$(node -e "process.stdout.write(process.version.slice(1).split('.')[0])")
+  if [ "$RUNTIME_MAJOR" != "$NVMRC_MAJOR" ]; then
+    echo "Error: Node major mismatch — runtime v${RUNTIME_MAJOR}.x, .nvmrc requires v${NVMRC_MAJOR}.x. Run: nvm use"
+    exit 1
+  fi
+fi
+
 # Unset git hook env vars so integration tests can create and operate on
 # independent temp repositories without GIT_DIR poisoning their git calls.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
@@ -25,8 +35,8 @@ if [[ "$PWD" == *"#"* ]]; then
   rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
   cp -al "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
   cd "$TMP_DIR"
-  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L2
+  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L2 --json "$ORIG_DIR/.arbiter/gate/local-result.json"
   exit $?
 fi
 
-node scripts/check-all.mjs L2
+node scripts/check-all.mjs L2 --json .arbiter/gate/local-result.json

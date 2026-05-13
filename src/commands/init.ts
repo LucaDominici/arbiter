@@ -299,7 +299,11 @@ export function runGithubSetup(config: ProjectConfig): void {
     console.log(`  │   Errors: ${labelResult.errors.join(", ")}`);
 
   console.log("  ├── Applying branch protection to main...");
-  const bp = applyBranchProtection(config.githubOwner, config.githubRepo);
+  const bp = applyBranchProtection(
+    config.githubOwner,
+    config.githubRepo,
+    config.enableSoloDevMode === true,
+  );
   if (bp.applied) {
     console.log("  │   Branch protection applied.");
   } else {
@@ -465,6 +469,7 @@ function buildDefaultConfig(opts: {
       defaultContractType(archetype, hasPublicApi) !== "none",
     enableEvidenceHarness: opts.governanceLevel !== "L1",
     enableSelfValidationHarness: true,
+    enableSoloDevMode: false,
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     acceptBetaTools: opts.acceptBetaTools ?? false,
     contractType: defaultContractType(archetype, hasPublicApi),
@@ -492,6 +497,7 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       contractTesting: config.enableContractTesting !== false,
       evidenceHarness: config.enableEvidenceHarness === true,
       selfValidationHarness: config.enableSelfValidationHarness !== false,
+      soloDevMode: config.enableSoloDevMode === true,
     },
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],
     invariantTiers: config.invariantTiers,

@@ -5,6 +5,75 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## feat(#470): soloDevMode — trade-offs and invariant design (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #470; INV-58, INV-59
+
+**Context:** Solo-dev workflow: single developer wants to merge directly after local L2 passes, without waiting for PR CI and review ceremony. Premise: "local gate ≡ CI gate, so CI on PR is redundant." Phase A–F of #470 reinforces parity first (INV-58 Node SSOT, INV-59 gate result hash), then introduces the option.
+
+**Decisions:**
+
+- **PR ceremony retained:** INV-23 (direct push to main banned) remains enforced. `soloDevMode` relaxes branch protection (no required reviews, no required CI status checks) but PR still exists. Merge is via `gh pr merge --admin --squash`.
+
+- **No-op CI on PR:** When `soloDevMode=true`, the generated `ci.yml` emits a solo-dev-gate job that exits immediately (echo only). Full CI still runs on push to `main`. Branch protection is permissive so the no-op job is sufficient to merge.
+
+- **Nightly drift shadow:** A separate `drift-shadow.yml` workflow runs nightly to catch parity regression (INV-59 hash comparison). On mismatch it opens a GitHub issue tagged `inv-59-drift`. This substitutes for the per-PR CI second opinion.
+
+- **Parity prerequisite:** `soloDevMode` is meaningful only when INV-59 parity holds. The feature flag is documented to require parity evidence; drift detected by the nightly shadow should block enabling solo mode.
+
+- **Team conversion risk:** Branch protection is permissive. If collaborators join the repo, `arbiter doctor` (future) should warn when `soloDevMode=true` and >1 collaborator detected.
+
+**Consequences:** Solo developer can merge PRs after local L2 green without PR CI delay. Nightly drift shadow catches environmental divergence within 24 hours. Parity invariant (INV-59) must hold for the premise to be valid.
+
+---
+
+## feat(#470): Gate result parity — INV-59, parityContentHash, CI aggregation (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #470; INV-59
+
+**Context:** soloDevMode (Phases C-F of #470) requires proof that local L1 gate results are idempotent to CI gate results. Without a structured artifact and a hash comparison, "local ≡ CI" is an untested claim. Phase B addresses this: emit JSON on every gate run, compare hashes in L2.
+
+**Decisions:**
+
+- **Gate result JSON (schema `arbiter-gate-v1`)**: `check-all.mjs` now always writes `.arbiter/gate/local-result.json` (gitignored under `.arbiter/`). `--json <path>` overrides the destination (used by CI gate-aggregation to write `gate-result.json`).
+
+- **Parity subset (27 static L1 gates)**: `parityContentHash` = sha256 over sorted `[{name, pass}]` for deterministic L1 gates only. Excluded: `commitlint` (PR-only in CI), `docs` (PR-only in CI), `unit tests` (split 4-way in CI vs single `npm test` locally). All other 27 L1 gates are structurally identical in both environments.
+
+- **CI gate-aggregation job**: Runs `node scripts/check-all.mjs L1 --json gate-result.json` after `lint-and-test` passes, uploads `gate-result` artifact (30-day retention). Added to `ci-required` needs.
+
+- **INV-59 enforcement (`check-local-ci-parity.mjs`, L2)**: Downloads latest CI artifact via `gh run download`, compares `parityContentHash`. Neutral skip (exit 0) when `gh` unavailable, no CI artifact, or no local result — ensuring the gate doesn't block projects without CI configured. Hard fail (exit 1) on hash mismatch.
+
+- **`check-ci-alignment.mjs` exemptions**: Added `scripts/check-local-ci-parity.mjs` (local-only L2 gate) and `scripts/check-all.mjs` (CI aggregation runner, not a quality gate) to `DESIGN_EXEMPTIONS`.
+
+**Consequences:** Every `check-all.mjs` run (L1 or L2) now produces a machine-readable artifact. L2 includes a parity check. When parity drifts, the hash mismatch surfaces the specific differing gates. soloDevMode can now gate on `parityContentHash` equality as a prerequisite check.
+
+---
+
+## feat(#470): Node version SSOT — INV-58, .nvmrc canonical source (2026-05-13)
+
+**Status:** Accepted
+**Reference:** Issue #470; INV-58
+
+**Context:** Node 20 was hardcoded in 10 workflow files and 14 EJS templates. Local dev ran on Node 22. This made local↔CI parity impossible by construction — a prerequisite for the soloDevMode invariant (INV-59, coming in Phase B of #470).
+
+**Decisions:**
+
+- **INV-58 — Node version SSOT**: `.nvmrc` at repo root is the single source of truth. All CI workflows use `node-version-file: '.nvmrc'`. EJS templates emit the same pattern to target projects. `process.version` major must match `.nvmrc` major. Enforced by `scripts/check-node-version-ssot.mjs` (L1 gate).
+
+- **Version**: `22.21.1` (local dev version). `package.json#engines.node` bumped to `>=22.0.0`.
+
+- **Pre-push guard**: `.githooks/pre-push` and `src/templates/githooks/pre-push.ejs` now assert Node major matches `.nvmrc` before running the L2 gate. Fails fast with `nvm use` hint.
+
+- **GIT_COMMON_DIR fix**: `.githooks/pre-commit` and `src/templates/githooks/pre-commit.ejs` now unset `GIT_COMMON_DIR` alongside other git env vars. This was causing integration test timeouts in worktrees where `GIT_COMMON_DIR` leaked into spawned git processes.
+
+- **Template**: `src/templates/.nvmrc.ejs` emits a single-line `.nvmrc` to target projects via the github generator.
+
+**Consequences:** Local and CI now use the same Node major. The Node version drift defect (one of 6 blocking parity) is resolved. `check-node-version-ssot.mjs` fails the L1 gate if any literal `node-version: 'N'` pin is found anywhere in workflows or templates.
+
+---
+
 ## feat(#258): HA1 self-validation harness + exit-code universal contract (2026-05-12)
 
 **Status:** Accepted

@@ -22,6 +22,8 @@ export interface WizardAnswers {
   decompositionBackend?: "github" | "markdown";
   /** Phase 9.5 ML: set only when hasPublicApi=true. Absent = default "none". */
   contractType?: ContractType;
+  /** #470: solo-dev mode — skip PR CI, merge directly after local L2 gate passes. Default false. */
+  soloDevMode?: boolean;
 }
 
 export interface MigrationPlan {
@@ -183,6 +185,8 @@ export interface ProjectConfig {
   enableEvidenceHarness?: boolean;
   /** Whether to generate the A/B/C self-validation drill harness. Default true. */
   enableSelfValidationHarness?: boolean;
+  /** Whether to enable solo-dev mode: skip PR CI ceremony, nightly drift shadow. Default false. */
+  enableSoloDevMode?: boolean;
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.

@@ -280,6 +280,7 @@ function buildConfigFromAnswers(
       "none",
     enableEvidenceHarness: answers.governanceLevel !== "L1",
     enableSelfValidationHarness: true,
+    enableSoloDevMode: answers.soloDevMode ?? false,
     thresholds: DEFAULT_THRESHOLDS[answers.governanceLevel],
     invariantTiers: presetToTiers(
       answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
@@ -493,6 +494,16 @@ function buildMainQuestions(wizardInput: WizardInput): object[] {
     ...buildGovernanceQuestions(),
     ...buildArchetypeQuestions(archetypeDefault),
     ...githubChoice,
+    {
+      type: "confirm",
+      name: "soloDevMode",
+      message:
+        "Solo-dev mode: skip CI on PRs, merge directly after local L2 gate.\n" +
+        "  Requires Node version SSOT (.nvmrc) + gate result parity (INV-58/INV-59).\n" +
+        "  Branch protection becomes permissive. Nightly drift shadow runs on main.\n" +
+        "  Enable solo-dev mode?",
+      default: false,
+    },
   ];
 }
 

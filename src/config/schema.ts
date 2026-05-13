@@ -26,6 +26,7 @@ export interface FeatureFlags {
   selfValidationHarness?: boolean;
   debtGates: boolean;
   suppressions: boolean;
+  soloDevMode?: boolean;
 }
 
 export type DecompositionBackendId = "github" | "markdown";
@@ -167,6 +168,11 @@ function validateFeatures(raw: unknown, errors: string[]): boolean {
     typeof raw["selfValidationHarness"] !== "boolean"
   ) {
     errors.push("features.selfValidationHarness must be a boolean");
+    ok = false;
+  }
+  // soloDevMode is optional; validate only if present
+  if ("soloDevMode" in raw && typeof raw["soloDevMode"] !== "boolean") {
+    errors.push("features.soloDevMode must be a boolean");
     ok = false;
   }
   return ok;

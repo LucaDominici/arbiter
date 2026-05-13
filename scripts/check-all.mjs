@@ -1,17 +1,43 @@
 #!/usr/bin/env node
 // arbiter quality gate
-// Usage: node scripts/check-all.mjs [L1|L2|L3]
-// L1: typecheck, format, lint, tests, circular deps, placeholders, orphan TODOs, commitlint, test naming (9)
-// L2: L1 + coverage + dead code + npm audit + gitleaks secrets scan (13)
+// Usage: node scripts/check-all.mjs [L1|L2|L3] [--json [path]]
+// L1: typecheck, format, lint, unit tests, circular deps, placeholders, orphan TODOs,
+//     commitlint, test naming, hardness inventory, docs, matrix fixtures, matrix proven
+//     cells, template tests, generator tests, command tests, catalog parity, enforcement
+//     wired, workflow runners, ci alignment, node version ssot, bloat ratchet, exit code
+//     contract, pipe/tee hazard, ssot core, doc links, knowledge map, canonical paths (30)
+// L2: L1 + coverage + dead code + duplication + npm audit + gitleaks + dogfood +
+//     self-validation drill + local-ci parity (39)
 // L3: L2 + full repo secrets scan (nightly/manual)
+//
+// --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
+//   Writes schema arbiter-gate-v1 with parityContentHash over static L1 gate subset.
 //
 // NOTE: this file runs without a build step and cannot import from src/.
 // src/ code goes through src/utils/run-cli.ts (INV-12). Gate scripts are
 // plain .mjs with their own inline helper that mirrors the same semantics:
 // timeout, structured failure reporting, and non-zero exit aggregation.
+import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
-const level = process.argv[2] ?? "L2";
+// Parse positional level arg and optional --json [path] flag
+let level = "L2";
+let jsonPath = null; // null = write to default path; string = write to that path
+const _rawArgs = process.argv.slice(2);
+for (let _i = 0; _i < _rawArgs.length; _i++) {
+  if (_rawArgs[_i] === "--json") {
+    if (_i + 1 < _rawArgs.length && !_rawArgs[_i + 1].startsWith("-")) {
+      jsonPath = _rawArgs[++_i];
+    } else {
+      jsonPath = ""; // triggers default path resolution below
+    }
+  } else if (["L1", "L2", "L3"].includes(_rawArgs[_i])) {
+    level = _rawArgs[_i];
+  }
+}
+
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes per check
 let failed = 0;
 
@@ -22,6 +48,10 @@ const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD;
 const IS_CI =
   process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 const NO_COLOR = IS_CI || process.env.NO_COLOR === "1";
+
+// Gates excluded from parityContentHash (INV-59): these differ structurally between
+// local and CI environments — PR-only gates or tests run with different selectors.
+const PARITY_EXCLUDE = new Set(["commitlint", "docs", "unit tests"]);
 
 // Strips ANSI escape sequences from a string
 function stripAnsi(str) {
@@ -126,6 +156,7 @@ runCheck("enforcement wired", "node", [
 ]);
 runCheck("workflow runners", "node", ["scripts/check-workflow-runners.mjs"]);
 runCheck("ci alignment", "node", ["scripts/check-ci-alignment.mjs"]);
+runCheck("node version ssot", "node", ["scripts/check-node-version-ssot.mjs"]);
 runCheck("bloat ratchet", "node", ["scripts/check-bloat-ratchet.mjs"]);
 runCheck("exit code contract", "node", [
   "scripts/check-exit-code-contract.mjs",
@@ -135,6 +166,9 @@ runCheck("ssot core", "node", ["scripts/check-ssot-core.mjs"]);
 runCheck("doc links", "node", ["scripts/check-doc-links.mjs"]);
 runCheck("knowledge map", "node", ["scripts/check-knowledge-map.mjs"]);
 runCheck("canonical paths", "node", ["scripts/check-canonical-paths.mjs"]);
+
+// Capture L1 boundary for parityContentHash computation (INV-59)
+const l1EndIdx = results.length;
 
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === "L2" || level === "L3") {
@@ -155,6 +189,7 @@ if (level === "L2" || level === "L3") {
   ]);
   runCheck("dogfood", "node", ["scripts/check-self-dogfood.mjs"]);
   runCheck("self-validation drill", "node", ["scripts/self-validation.mjs"]);
+  runCheck("local-ci parity", "node", ["scripts/check-local-ci-parity.mjs"]);
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
@@ -177,6 +212,56 @@ for (const r of results) {
 console.log(divider);
 console.log(`${"Total".padEnd(nameWidth)}          ${totalElapsed}ms`);
 console.log("");
+
+// ─── Gate result JSON (INV-59) ────────────────────────────────────────────────
+{
+  const l1Gates = results.slice(0, l1EndIdx);
+  const parityGates = l1Gates
+    .filter((r) => !PARITY_EXCLUDE.has(r.name))
+    .map((r) => ({ name: r.name, pass: r.status === "PASS" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const parityContentHash = createHash("sha256")
+    .update(JSON.stringify(parityGates))
+    .digest("hex");
+
+  const allForHash = results
+    .map((r) => ({ name: r.name, pass: r.status === "PASS" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const contentHash = createHash("sha256")
+    .update(JSON.stringify(allForHash))
+    .digest("hex");
+
+  const artifact = {
+    schema: "arbiter-gate-v1",
+    node: process.version,
+    level,
+    gates: results.map((r) => ({
+      name: r.name,
+      pass: r.status === "PASS",
+      durationMs: r.elapsed,
+    })),
+    parityGates,
+    pass: failed === 0,
+    parityContentHash,
+    contentHash,
+  };
+
+  const outPath =
+    jsonPath !== null && jsonPath !== ""
+      ? jsonPath
+      : resolve(GIT_CWD ?? process.cwd(), ".arbiter/gate/local-result.json");
+
+  try {
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, JSON.stringify(artifact, null, 2) + "\n");
+  } catch (err) {
+    process.stderr.write(
+      `check-all: warning: could not write gate result to ${outPath}: ${err.message}\n`,
+    );
+  }
+}
 
 if (failed > 0) {
   console.error(`=== FAILED: ${failed} check(s) ===\n`);

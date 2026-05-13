@@ -105,6 +105,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   "features.evidenceHarness": ["evidence-retention", "nightly"],
   "features.selfValidationHarness": ["self-validation"],
   "features.suppressions": ["suppressions"],
+  "features.soloDevMode": ["github", "githooks"],
   "thresholds.lineCoverage": ["check-all", "coverage"],
   "thresholds.branchCoverage": ["check-all", "coverage"],
   "thresholds.mutationScore": ["mutation", "check-all"],

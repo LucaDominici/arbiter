@@ -1,13 +1,24 @@
 #!/usr/bin/env node
 // <%= projectName %> quality gate
-// Usage: node scripts/check-all.mjs [L1|L2]
+// Usage: node scripts/check-all.mjs [L1|L2] [--json [path]]
 // L1: format + lint + unit tests (fast, pre-commit)
 // L2: L1 + coverage + audit (full, pre-push)
+// --json [path]: emit gate result JSON (schema arbiter-gate-v1) to path
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 
-const level = process.argv[2] ?? 'L2';
+let level = 'L2';
+let jsonPath = null;
+const _rawArgs = process.argv.slice(2);
+for (let _i = 0; _i < _rawArgs.length; _i++) {
+  if (_rawArgs[_i] === '--json') {
+    jsonPath = (_i + 1 < _rawArgs.length && !_rawArgs[_i + 1].startsWith('-')) ? _rawArgs[++_i] : '';
+  } else if (['L1', 'L2', 'L3'].includes(_rawArgs[_i])) {
+    level = _rawArgs[_i];
+  }
+}
 let failed = 0;
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
@@ -471,6 +482,30 @@ for (const r of results) {
 console.log(divider);
 console.log(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms`);
 console.log('');
+
+// ─── Gate result JSON (arbiter-gate-v1) ──────────────────────────────────────
+{
+  const _parityGates = results
+    .map((r) => ({ name: r.name, pass: r.status === 'PASS' }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const _parityContentHash = createHash('sha256').update(JSON.stringify(_parityGates)).digest('hex');
+  const _contentHash = createHash('sha256').update(JSON.stringify(_parityGates)).digest('hex');
+  const _artifact = {
+    schema: 'arbiter-gate-v1',
+    node: process.version,
+    level,
+    gates: results.map((r) => ({ name: r.name, pass: r.status === 'PASS', durationMs: r.elapsed })),
+    parityGates: _parityGates,
+    pass: failed === 0,
+    parityContentHash: _parityContentHash,
+    contentHash: _contentHash,
+  };
+  const _outPath = (jsonPath !== null && jsonPath !== '') ? jsonPath : resolve(process.cwd(), '.arbiter/gate/local-result.json');
+  try {
+    mkdirSync(dirname(_outPath), { recursive: true });
+    writeFileSync(_outPath, JSON.stringify(_artifact, null, 2) + '\n');
+  } catch { /* non-fatal */ }
+}
 
 if (failed > 0) {
   console.error(`=== FAILED: ${failed} check(s) ===\n`);
