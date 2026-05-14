@@ -33,7 +33,7 @@ function defaultWorktreeConfig(): WorktreeConfig {
 // Log types + helpers
 // ---------------------------------------------------------------------------
 
-interface OpenLogEntry {
+export interface OpenLogEntry {
   taskId: string
   slug: string | null
   worktreePath: string
@@ -43,7 +43,7 @@ interface OpenLogEntry {
   openedAt: string
 }
 
-interface CloseLogEntry {
+export interface CloseLogEntry {
   taskId: string
   branch: string
   worktreePath: string
@@ -55,7 +55,7 @@ function arbiterLogDir(gitRoot: string): string {
   return join(gitRoot, '.arbiter')
 }
 
-function hasLogEntryShape(x: unknown): boolean {
+function hasLogEntryShape(x: unknown): x is Record<string, unknown> {
   if (typeof x !== 'object' || x === null) return false
   const e = x as Record<string, unknown>
   return (
@@ -65,12 +65,23 @@ function hasLogEntryShape(x: unknown): boolean {
   )
 }
 
-function isOpenLogEntry(x: unknown): x is OpenLogEntry {
-  return hasLogEntryShape(x)
+/**
+ * Discriminator: an OpenLogEntry MUST carry `openedAt`. Without this check the
+ * guard accepted any record matching the shared fields — including a
+ * CloseLogEntry — which made `readJsonArray(...).filter(isOpenLogEntry)` a
+ * no-op for filtering and a silent bug if a CloseLogEntry ever leaked into
+ * the open log (#502).
+ */
+export function isOpenLogEntry(x: unknown): x is OpenLogEntry {
+  return hasLogEntryShape(x) && typeof x['openedAt'] === 'string'
 }
 
-function isCloseLogEntry(x: unknown): x is CloseLogEntry {
-  return hasLogEntryShape(x)
+/**
+ * Discriminator: a CloseLogEntry MUST carry `closedAt`. Symmetric to
+ * `isOpenLogEntry` (#502).
+ */
+export function isCloseLogEntry(x: unknown): x is CloseLogEntry {
+  return hasLogEntryShape(x) && typeof x['closedAt'] === 'string'
 }
 
 function readJsonArray(path: string): unknown[] {
