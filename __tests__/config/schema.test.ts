@@ -218,6 +218,91 @@ describe('validateConfig — rejection', () => {
     const result = validateConfig('not-an-object')
     expect(result.ok).toBe(false)
   })
+
+  it('rejects non-string basePackage (#503)', () => {
+    const result = validateConfig({
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: true,
+      },
+      thresholds: DEFAULT_THRESHOLDS.L2,
+      basePackage: 42,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes('basePackage'))).toBe(true)
+    }
+  })
+
+  it('rejects null basePackage (#503)', () => {
+    const result = validateConfig({
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: true,
+      },
+      thresholds: DEFAULT_THRESHOLDS.L2,
+      basePackage: null,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes('basePackage'))).toBe(true)
+    }
+  })
+
+  it('accepts string basePackage (#503)', () => {
+    const result = validateConfig({
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: true,
+      },
+      thresholds: DEFAULT_THRESHOLDS.L2,
+      basePackage: 'com.example.app',
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('accepts absent basePackage (#503)', () => {
+    const result = validateConfig({
+      version: '0.2',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {
+        contractTesting: false,
+        mutationTesting: false,
+        securityScanning: false,
+        evidenceHarness: false,
+        debtGates: false,
+        suppressions: true,
+      },
+      thresholds: DEFAULT_THRESHOLDS.L2,
+    })
+    expect(result.ok).toBe(true)
+  })
 })
 
 describe('migrateV1ToV2 — feature flag derivation', () => {

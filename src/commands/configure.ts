@@ -2,7 +2,9 @@ import { resolve } from 'node:path'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import { validateConfig } from '../config/schema.js'
 import { jsonOutput } from '../utils/json-output.js'
+import { deriveAxisDefaults } from '../detectors/axis.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
+import type { Archetype } from '../wizard/types.js'
 
 export interface ConfigureOptions {
   dir?: string | undefined
@@ -121,6 +123,52 @@ function parseValue(path: string, raw: string): unknown {
   return raw
 }
 
+/**
+ * #504 — derive axis defaults from the (just-mutated) archetype and merge
+ * them onto the draft, **only** for fields still undefined. This preserves
+ * any explicit value (stored or same-batch --set), and persists fields that
+ * were previously implicit so the on-disk config remains coherent after an
+ * archetype change. Atomicity is provided by the single `saveConfig` write
+ * downstream — no partial state ever lands on disk.
+ */
+function cascadeAxisDefaults(config: ArbiterConfigV2, archetype: Archetype): ArbiterConfigV2 {
+  const defaults = deriveAxisDefaults(config, archetype)
+  return {
+    ...config,
+    architectureStyle: config.architectureStyle ?? defaults.architectureStyle,
+    isMultiTenant: config.isMultiTenant ?? defaults.isMultiTenant,
+    hasDatabase: config.hasDatabase ?? defaults.hasDatabase,
+    hasPublicApi: config.hasPublicApi ?? defaults.hasPublicApi,
+    contractType: config.contractType ?? defaults.contractType,
+  }
+}
+
+/**
+ * #504 — apply a single `path=value` assignment to the draft and report
+ * whether the archetype primary axis was touched (callers cascade derived
+ * fields when so). Extracted from runConfigure to keep its complexity below
+ * the 10-warning threshold.
+ */
+function applyAssignment(
+  config: ArbiterConfigV2,
+  assignment: string,
+): { config: ArbiterConfigV2; archetypeTouched: boolean } {
+  const eqIdx = assignment.indexOf('=')
+  if (eqIdx < 0) {
+    throw new Error(`Invalid --set format (expected path=value): ${assignment}`)
+  }
+  const path = assignment.slice(0, eqIdx)
+  const rawValue = assignment.slice(eqIdx + 1)
+  if (!ALLOWED_PATHS.has(path)) {
+    throw new Error(`Unknown configuration path: ${path}`)
+  }
+  const value = parseValue(path, rawValue)
+  return {
+    config: applySet(config, path, value),
+    archetypeTouched: path === 'archetype',
+  }
+}
+
 function applySet(config: ArbiterConfigV2, path: string, value: unknown): ArbiterConfigV2 {
   const parts = path.split('.')
   if (parts.length === 1 && parts[0] !== undefined) {
@@ -167,20 +215,20 @@ export function runConfigure(options: ConfigureOptions): void {
 
   let config = stored
 
+  let archetypeTouched = false
   for (const assignment of options.sets) {
-    const eqIdx = assignment.indexOf('=')
-    if (eqIdx < 0) {
-      throw new Error(`Invalid --set format (expected path=value): ${assignment}`)
-    }
-    const path = assignment.slice(0, eqIdx)
-    const rawValue = assignment.slice(eqIdx + 1)
+    const next = applyAssignment(config, assignment)
+    config = next.config
+    if (next.archetypeTouched) archetypeTouched = true
+  }
 
-    if (!ALLOWED_PATHS.has(path)) {
-      throw new Error(`Unknown configuration path: ${path}`)
-    }
-
-    const value = parseValue(path, rawValue)
-    config = applySet(config, path, value)
+  // #504 — when archetype is changed via configure, cascade derived axis
+  // fields (hasDatabase, hasPublicApi, contractType, …) into the persisted
+  // config. Precedence is delegated to deriveAxisDefaults: any field already
+  // explicit on the draft wins (including same-batch --set overrides and
+  // previously-stored values); only undefined fields receive derived defaults.
+  if (archetypeTouched && config.archetype !== undefined) {
+    config = cascadeAxisDefaults(config, config.archetype)
   }
 
   const result = validateConfig(config)

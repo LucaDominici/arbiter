@@ -204,6 +204,15 @@ export function validateConfig(raw: unknown): ValidateResult {
     errors.push('version must be a string')
   }
 
+  // #503 — basePackage is optional, but if present must be a string.
+  // Without this guard, non-string values (numbers, null) propagate to
+  // archunit/mutation EJS templates and produce invalid Java packages.
+  if ('basePackage' in raw && raw['basePackage'] !== undefined) {
+    if (typeof raw['basePackage'] !== 'string') {
+      errors.push('basePackage must be a string')
+    }
+  }
+
   const level = raw['governanceLevel']
   if (typeof level !== 'string' || !GOVERNANCE_LEVELS.has(level)) {
     errors.push(`governanceLevel must be one of L1, L2, L3 — got ${String(level)}`)

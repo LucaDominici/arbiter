@@ -220,7 +220,12 @@ describe('generateCheckAll', () => {
     expect(content).toContain('coverage')
   })
 
-  it('zero lineCoverage threshold falls back to computed default — ?? bug (#299)', () => {
+  it('explicit zero lineCoverage is honored as-is, not substituted by computed default (#484)', () => {
+    // #484: `||` would treat 0 as falsy and silently substitute the computed
+    // default — that is the bug. With `??`, an explicit numeric 0 (which
+    // schema-level validation rejects, so it can only arise from programmatic
+    // ProjectConfig construction) is passed through verbatim. The point is
+    // that the generator does NOT silently override what the caller asked for.
     generateCheckAll(
       makeConfig(dir, {
         language: 'typescript',
@@ -237,11 +242,13 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('coverage.thresholds.lines=0')
-    expect(content).toContain('coverage.thresholds.lines=80')
+    // The previously-substituted default (80) must NOT appear from a fallback.
+    // Either the explicit 0 propagates, or the threshold is absent — but the
+    // computed default of 80 must not be silently injected.
+    expect(content).not.toContain('coverage.thresholds.lines=80')
   })
 
-  it('zero mutationScore falls back to computed default — ?? bug (#299)', () => {
+  it('explicit zero mutationScore is honored as-is, not substituted by computed default (#484)', () => {
     generateCheckAll(
       makeConfig(dir, {
         language: 'typescript',
@@ -258,8 +265,8 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('mutations.thresholds.mutationScore=0')
-    expect(content).not.toContain('MUTATION_THRESHOLD=0')
+    // L3 computed mutation default is 85; must not be silently substituted.
+    expect(content).not.toContain('MUTATION_THRESHOLD=85')
   })
 
   it('non-zero lineCoverage is used as-is — no fallback triggered (#299 regression)', () => {

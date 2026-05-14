@@ -320,3 +320,89 @@ describe('runConfigure — axis fields (#324)', () => {
     expect(readArbiterJson(dir)).toEqual(before)
   })
 })
+
+describe('runConfigure — archetype cascade (#504)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('cascades derived axis fields when archetype=library is set (#504)', () => {
+    writeV2Config(dir) // no archetype / no derived fields stored
+
+    runConfigure({ dir, sets: ['archetype=library'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['archetype']).toBe('library')
+    // library archetype derivations per src/detectors/axis.ts
+    expect(raw['hasDatabase']).toBe(false)
+    expect(raw['hasPublicApi']).toBe(false)
+    expect(raw['contractType']).toBe('none')
+  })
+
+  it('cascades derived axis fields when archetype=backend-web-db is set (#504)', () => {
+    writeV2Config(dir)
+
+    runConfigure({ dir, sets: ['archetype=backend-web-db'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['archetype']).toBe('backend-web-db')
+    // backend-web-db archetype derivations
+    expect(raw['hasDatabase']).toBe(true)
+    expect(raw['hasPublicApi']).toBe(true)
+    expect(raw['contractType']).toBe('rest-owned')
+  })
+
+  it('cascade respects explicit --set in same batch (#504)', () => {
+    writeV2Config(dir)
+
+    runConfigure({
+      dir,
+      sets: ['archetype=library', 'hasDatabase=true'],
+    })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['archetype']).toBe('library')
+    // user override wins: hasDatabase=true is preserved despite library default false
+    expect(raw['hasDatabase']).toBe(true)
+    // un-overridden derived fields still cascaded
+    expect(raw['hasPublicApi']).toBe(false)
+    expect(raw['contractType']).toBe('none')
+  })
+
+  it('cascade preserves previously-stored explicit axis fields (#504)', () => {
+    writeV2Config(dir, { hasDatabase: true, hasPublicApi: true })
+
+    runConfigure({ dir, sets: ['archetype=library'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['archetype']).toBe('library')
+    // previously-stored explicit values preserved
+    expect(raw['hasDatabase']).toBe(true)
+    expect(raw['hasPublicApi']).toBe(true)
+    // contractType was not stored and was derived from new archetype+hasPublicApi
+    // library + hasPublicApi=true → defaultContractType returns 'none'
+    expect(raw['contractType']).toBe('none')
+  })
+
+  it('cascade does not run when archetype is not in --set batch (#504)', () => {
+    writeV2Config(dir, { archetype: 'library' })
+
+    runConfigure({ dir, sets: ['features.debtGates=false'] })
+
+    const raw = readArbiterJson(dir)
+    // archetype unchanged, no derived fields injected
+    expect(raw['archetype']).toBe('library')
+    expect(raw['hasDatabase']).toBeUndefined()
+    expect(raw['hasPublicApi']).toBeUndefined()
+    expect(raw['contractType']).toBeUndefined()
+  })
+})
