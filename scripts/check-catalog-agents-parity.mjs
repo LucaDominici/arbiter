@@ -1,24 +1,42 @@
 #!/usr/bin/env node
-// INV-51: Every catalog INV-NN must appear in AGENTS.md (CANON-08) with matching title.
-// Usage: node scripts/check-catalog-agents-parity.mjs [--catalog=path] [--agents=path]
+// INV-51 / CANON-08: catalog ↔ AGENTS.md parity (bidirectional, #485).
+// Every catalog INV-NN must appear in AGENTS.md with matching title, AND every
+// **INV-NN:** / **CANON-NN:** row in AGENTS.md must point at an existing
+// catalog / CANON.md entry (no phantom rows).
+//
+// Usage: node scripts/check-catalog-agents-parity.mjs \
+//   [--catalog=path] [--agents=path] [--canon=path]
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 const catalogArg = args.find((a) => a.startsWith('--catalog='))
 const agentsArg = args.find((a) => a.startsWith('--agents='))
+const canonArg = args.find((a) => a.startsWith('--canon='))
 
 const root = process.cwd()
 const catalogPath = catalogArg
   ? resolve(catalogArg.split('=')[1])
   : resolve(root, 'src/invariants/catalog.ts')
 const agentsPath = agentsArg ? resolve(agentsArg.split('=')[1]) : resolve(root, 'AGENTS.md')
+const canonPath = canonArg ? resolve(canonArg.split('=')[1]) : resolve(root, 'docs/SYSTEM/CANON.md')
 
 const catalogSrc = readFileSync(catalogPath, 'utf-8')
 const agentsSrc = readFileSync(agentsPath, 'utf-8')
+// CANON.md is optional — only required for the CANON reverse loop. If absent,
+// the script behaves as before (INV-only parity).
+let canonSrc = ''
+try {
+  canonSrc = readFileSync(canonPath, 'utf-8')
+} catch {
+  canonSrc = ''
+}
 
-// Extract {id, title} pairs from catalog.ts
-// IDs are always single-quoted; titles may use single or double quotes, and may span two lines
+// Extract {id, title} pairs from catalog.ts.
+// IDs are always single-quoted; titles may use single or double quotes, and may
+// span two lines. The single-line and multi-line paths both try single-quoted
+// first, then double-quoted, so a title containing the OTHER quote flavor
+// round-trips correctly (#486).
 const catalogEntries = new Map()
 let currentId = null
 let titlePending = false
@@ -31,7 +49,9 @@ for (const line of catalogSrc.split('\n')) {
   }
   if (currentId) {
     if (titlePending) {
-      const t = line.match(/['"]([^'"]+)['"]/)
+      // Mirror the single-line path: try ' then " so an embedded quote of the
+      // opposite flavor doesn't truncate the title.
+      const t = line.match(/^\s*'([^']+)'/) ?? line.match(/^\s*"([^"]+)"/)
       if (t) {
         catalogEntries.set(currentId, t[1])
         currentId = null
@@ -57,15 +77,29 @@ if (titlePending && currentId) {
 }
 
 // Extract {id, title} pairs from AGENTS.md: format is **INV-NN:** title
-const agentsEntries = new Map()
+const agentsInvEntries = new Map()
 for (const m of agentsSrc.matchAll(/\*\*(INV-\d+):\*\*\s*(.+)/g)) {
-  agentsEntries.set(m[1], m[2].trim())
+  agentsInvEntries.set(m[1], m[2].trim())
+}
+
+// Extract **CANON-NN:** ids from AGENTS.md (no title-parity check today; CANON
+// titles in AGENTS.md, when present, are informal cross-references).
+const agentsCanonIds = new Set()
+for (const m of agentsSrc.matchAll(/\*\*(CANON-\d+):\*\*/g)) {
+  agentsCanonIds.add(m[1])
+}
+
+// Extract `## CANON-NN` headings from CANON.md.
+const canonIds = new Set()
+for (const m of canonSrc.matchAll(/^##\s+(CANON-\d+)\b/gm)) {
+  canonIds.add(m[1])
 }
 
 let violations = 0
 
+// Forward: every catalog INV must be in AGENTS.md with matching title.
 for (const [id, catalogTitle] of catalogEntries) {
-  const agentsTitle = agentsEntries.get(id)
+  const agentsTitle = agentsInvEntries.get(id)
   if (!agentsTitle) {
     console.log(`  MISSING from AGENTS.md: ${id}`)
     violations++
@@ -79,12 +113,32 @@ for (const [id, catalogTitle] of catalogEntries) {
   }
 }
 
+// Reverse (#485): every **INV-NN:** in AGENTS.md must have a catalog entry.
+for (const id of agentsInvEntries.keys()) {
+  if (!catalogEntries.has(id)) {
+    console.log(`  ORPHAN in AGENTS.md: ${id} (no entry in catalog)`)
+    violations++
+  }
+}
+
+// Reverse (#485): every **CANON-NN:** in AGENTS.md must have a `## CANON-NN`
+// heading in CANON.md. If CANON.md is missing entirely the check is skipped
+// (canonSrc is the empty string, so we only flag when canonSrc was loaded).
+if (canonSrc) {
+  for (const id of agentsCanonIds) {
+    if (!canonIds.has(id)) {
+      console.log(`  ORPHAN in AGENTS.md: ${id} (no heading in CANON.md)`)
+      violations++
+    }
+  }
+}
+
 if (violations > 0) {
   console.log(
-    `[check-catalog-agents-parity] FAIL: ${violations} catalog invariant(s) absent or mismatched in AGENTS.md`,
+    `[check-catalog-agents-parity] FAIL: ${violations} parity violation(s) between catalog/CANON.md and AGENTS.md`,
   )
   process.exit(1)
 }
 console.log(
-  `[check-catalog-agents-parity] OK — all ${catalogEntries.size} catalog IDs present with matching titles in AGENTS.md`,
+  `[check-catalog-agents-parity] OK — ${catalogEntries.size} catalog IDs and ${agentsCanonIds.size} CANON refs in AGENTS.md verified (bidirectional)`,
 )
