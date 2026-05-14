@@ -105,9 +105,16 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
     files.push(...emitHexagonalSuite(config, base, packagePath, data))
   }
 
-  // RestAssured scaffolding — emitted for ALL archetypes when hasDatabase + hasPublicApi + basePackage.
+  // RestAssured scaffolding — emitted for ALL archetypes when hasDatabase + hasPublicApi + basePackage
+  // AND the project uses a Spring-family framework (#491). The RestAssuredBaseIT template hardcodes
+  // @SpringBootTest / @LocalServerPort / org.springframework.*; emitting it for Quarkus / Micronaut /
+  // unknown-framework Java projects produces uncompilable scaffolding. Null framework treated as
+  // "unknown" — safe default is no-emit.
   // basePackage required to avoid scanning the entire JVM classpath (same as hexagonal suite guard).
-  if (config.hasDatabase && config.hasPublicApi && config.basePackage) {
+  const isSpringFramework =
+    config.framework === 'spring-boot' ||
+    (typeof config.framework === 'string' && config.framework.includes('spring'))
+  if (config.hasDatabase && config.hasPublicApi && config.basePackage && isSpringFramework) {
     const supportPath = config.basePackage.replace(/\./g, '/') + '/support'
 
     files.push(

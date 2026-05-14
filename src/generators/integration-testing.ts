@@ -23,10 +23,27 @@ export interface IntegrationTestingGeneratorResult {
   files: WriteResult[]
 }
 
+/**
+ * Database integration-testing scaffolding (#487 scope clarification).
+ *
+ * Generates Testcontainers + PostgreSQL setup for projects with a database.
+ * Every template under `src/templates/integration-testing/` hardcodes
+ * PostgreSQLContainer / @Testcontainers; the generator is intentionally
+ * DB-only, not "any integration".
+ *
+ * **API-only projects** (REST contract testing without a database) are NOT
+ * served by this generator — broadening the gate to `hasDatabase || hasPublicApi`
+ * would emit PostgreSQL scaffolding for projects that have no database, which
+ * is strictly worse than under-generating. Those projects are covered by the
+ * separate `contract-testing` generator (Pact) gated on `config.contractType`.
+ *
+ * Gate: emits when `hasDatabase === true` AND `governanceLevel !== 'L1'`.
+ */
 export function generateIntegrationTesting(
   config: ProjectConfig,
 ): IntegrationTestingGeneratorResult {
-  // Gate: only generate when hasDatabase is true AND governance level is not L1
+  // Gate: only generate when hasDatabase is true AND governance level is not L1.
+  // See JSDoc for #487 rationale — this generator is intentionally DB-scoped.
   if (!config.hasDatabase || config.governanceLevel === 'L1') {
     return { files: [] }
   }
