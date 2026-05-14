@@ -200,7 +200,7 @@ function handlePluginError(err: unknown, json: boolean | undefined): never {
   throw err instanceof Error ? err : new Error(msg)
 }
 
-interface UpdateSummary {
+interface UpdateSummary extends Record<string, unknown> {
   created: number
   updated: number
   skipped: number
