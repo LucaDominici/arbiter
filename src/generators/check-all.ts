@@ -32,10 +32,13 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
 
   const data = {
     ...config,
-    coverageThreshold: config.thresholds?.lineCoverage || computed.coverageThreshold,
+    // #484 — use `??` not `||` so explicit numeric thresholds (validated > 0 by
+    // src/config/schema.ts::validateThresholds) are honored. `||` would treat
+    // 0 as falsy and silently substitute the computed default.
+    coverageThreshold: config.thresholds?.lineCoverage ?? computed.coverageThreshold,
     coverageEnabled: computed.coverageEnabled,
     mutationEnabled: computed.mutationEnabled,
-    mutationThreshold: config.thresholds?.mutationScore || computed.mutationThreshold,
+    mutationThreshold: config.thresholds?.mutationScore ?? computed.mutationThreshold,
     // #359 (INV-60): binary-size cap consumed by the rust archetype branch of
     // check-all.mjs. Value is 0 for non-binary archetypes; the template guards
     // emission on archetype before reading the variable, so 0 is inert.

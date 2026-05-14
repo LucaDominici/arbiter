@@ -41,7 +41,8 @@ export function generateMutation(config: ProjectConfig): MutationGeneratorResult
 
   const data: object = {
     ...config,
-    mutationThreshold: config.thresholds?.mutationScore || 85,
+    // #484 — `??` not `||`; see comment in src/generators/check-all.ts.
+    mutationThreshold: config.thresholds?.mutationScore ?? 85,
     basePackage: config.basePackage ?? 'com.example',
     modulePath: config.projectName.replace(/-/g, '_'),
   }
