@@ -33,6 +33,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write | `check-no-direct-spawn.mjs` | Block direct child_process usage (INV-12)     |
 | `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs`  | Block orphan TODOs (INV-21)                   |
 | `PostToolUse` → Edit\|Write | `check-no-any.mjs`          | Block `any` types (INV-04)                    |
+| `UserPromptSubmit` → \*     | `skill-forced-eval.mjs`     | Enforce skill invocation before responses     |
 | `UserPromptSubmit` → \*     | `guard-task-completion.mjs` | Warn on premature task-completion claims      |
 | `PreCompact` → \*           | `pre-compact.mjs`           | Persist context before auto-compaction        |
 
