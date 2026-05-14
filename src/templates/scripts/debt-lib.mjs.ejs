@@ -37,6 +37,10 @@ export function countTodos(cwd) {
   const r = run('grep', ['-r',
     '--include=*.js', '--include=*.ts', '--include=*.java',
     '--include=*.go', '--include=*.py', '--include=*.rs',
+    '--exclude-dir=node_modules', '--exclude-dir=dist',
+    '--exclude-dir=build', '--exclude-dir=target',
+    '--exclude-dir=.git', '--exclude-dir=coverage',
+    '--exclude-dir=.arbiter',
     '-l', 'TODO', '.'], { cwd });
   if (r.status !== 0) return 0;
   const files = (r.stdout ?? '').trim().split('\n').filter(Boolean);
