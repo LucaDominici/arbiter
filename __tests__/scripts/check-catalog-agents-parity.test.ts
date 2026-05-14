@@ -6,8 +6,10 @@ import { tmpdir } from 'node:os'
 
 const SCRIPT = resolve('scripts/check-catalog-agents-parity.mjs')
 
-function run(catalogPath: string, agentsPath: string) {
-  const r = spawnSync('node', [SCRIPT, `--catalog=${catalogPath}`, `--agents=${agentsPath}`], {
+function run(catalogPath: string, agentsPath: string, canonPath?: string) {
+  const argv = [SCRIPT, `--catalog=${catalogPath}`, `--agents=${agentsPath}`]
+  if (canonPath) argv.push(`--canon=${canonPath}`)
+  const r = spawnSync('node', argv, {
     encoding: 'utf-8',
     cwd: resolve('.'),
   })
@@ -16,6 +18,11 @@ function run(catalogPath: string, agentsPath: string) {
     stdout: r.stdout ?? '',
     stderr: r.stderr ?? '',
   }
+}
+
+function makeCanon(ids: string[]): string {
+  const heading = '# Canon\n\n'
+  return heading + ids.map((id) => `## ${id} — placeholder rule\n`).join('\n')
 }
 
 function makeTemp(): { dir: string; cleanup: () => void } {
@@ -84,14 +91,17 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
     }
   })
 
-  it('exits 0 when AGENTS.md has more IDs than catalog (superset is fine)', () => {
+  it('exits 1 and reports ORPHAN when AGENTS.md has an INV-NN missing from catalog (#485)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const catalog = join(dir, 'catalog.ts')
       const agents = join(dir, 'AGENTS.md')
       writeFileSync(catalog, makeCatalog(['INV-01']))
-      writeFileSync(agents, makeAgents(['INV-01', 'INV-02']))
-      expect(run(catalog, agents).status).toBe(0)
+      writeFileSync(agents, makeAgents(['INV-01', 'INV-99']))
+      const result = run(catalog, agents)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ORPHAN in AGENTS.md')
+      expect(result.stdout).toContain('INV-99')
     } finally {
       cleanup()
     }
@@ -169,8 +179,92 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
     }
   })
 
+  it('multi-line title with embedded apostrophe in double-quoted form parses correctly (#486)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const trickyTitle = "Every 'proven' language must have a nightly fixture"
+      writeFileSync(
+        catalog,
+        `  {\n    id: 'INV-32',\n    tier: 'governance',\n    title:\n      "${trickyTitle}",\n  }`,
+      )
+      writeFileSync(agents, `## Invariants\n\n- **INV-32:** ${trickyTitle}`)
+      const result = run(catalog, agents)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('multi-line title with embedded double quotes in single-quoted form parses correctly (#486)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const trickyTitle = 'Title containing "quoted" segment'
+      writeFileSync(
+        catalog,
+        `  {\n    id: 'INV-33',\n    tier: 'governance',\n    title:\n      '${trickyTitle}',\n  }`,
+      )
+      writeFileSync(agents, `## Invariants\n\n- **INV-33:** ${trickyTitle}`)
+      const result = run(catalog, agents)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 and reports ORPHAN for **CANON-NN:** absent from CANON.md (#485)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const canon = join(dir, 'CANON.md')
+      writeFileSync(catalog, makeCatalog(['INV-01']))
+      writeFileSync(
+        agents,
+        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon refs\n\n- **CANON-01:** existing\n- **CANON-99:** phantom`,
+      )
+      writeFileSync(canon, makeCanon(['CANON-01']))
+      const result = run(catalog, agents, canon)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('ORPHAN in AGENTS.md')
+      expect(result.stdout).toContain('CANON-99')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when CANON.md and AGENTS.md CANON-NN sets agree (#485 happy path)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const canon = join(dir, 'CANON.md')
+      writeFileSync(catalog, makeCatalog(['INV-01']))
+      writeFileSync(
+        agents,
+        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon refs\n\n- **CANON-01:** ok\n- **CANON-02:** ok`,
+      )
+      writeFileSync(canon, makeCanon(['CANON-01', 'CANON-02', 'CANON-03']))
+      expect(run(catalog, agents, canon).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real catalog and AGENTS.md', () => {
     const result = run(resolve('src/invariants/catalog.ts'), resolve('AGENTS.md'))
+    expect(result.status).toBe(0)
+  })
+
+  it('passes against the real catalog, AGENTS.md, and CANON.md (bidirectional)', () => {
+    const result = run(
+      resolve('src/invariants/catalog.ts'),
+      resolve('AGENTS.md'),
+      resolve('docs/SYSTEM/CANON.md'),
+    )
     expect(result.status).toBe(0)
   })
 })
