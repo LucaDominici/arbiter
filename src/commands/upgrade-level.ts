@@ -54,16 +54,20 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   const days = opts.days ?? DEFAULT_GRACE_DAYS
   const graceEndsAt = new Date(Date.now() + days * 86400000).toISOString()
 
-  // INV-33: capture debt baseline before persisting graceEndsAt — see ADR-028
-  runCli('node', ['scripts/capture-debt-baseline.mjs', '--update'], {
-    cwd: dir,
-  })
-
+  // INV-33 (#498): validate config shape FIRST, then mutate external state,
+  // then persist. Order is: validate → capture baseline → saveConfig. See
+  // ADR-028. Previously runCli ran before validateConfig, so a validation
+  // failure overwrote the debt baseline while arbiter.json stayed stale.
   const upgraded = { ...stored, governanceLevel: target, graceFromLevel: current, graceEndsAt }
   const validation = validateConfig(upgraded)
   if (!validation.ok) {
     throw new Error(`Config invalid after upgrade: ${validation.errors.join('; ')}`)
   }
+
+  runCli('node', ['scripts/capture-debt-baseline.mjs', '--update'], {
+    cwd: dir,
+  })
+
   saveConfig(dir, validation.config)
 
   if (opts.json) {
@@ -108,14 +112,19 @@ function handleExtend(
   const logPath = join(arbiterDir, 'grace-log.json')
   let log: unknown[] = []
   if (existsSync(logPath)) {
+    let raw: unknown
     try {
-      const raw: unknown = JSON.parse(readFileSync(logPath, 'utf-8'))
-      if (Array.isArray(raw)) {
-        log = raw
-      }
+      raw = JSON.parse(readFileSync(logPath, 'utf-8'))
     } catch {
       throw new Error(`grace-log.json is malformed — delete ${logPath} to reset extend history`)
     }
+    // #499: valid JSON that is not an array (e.g., a future schema object) is
+    // also malformed for our purposes — silently overwriting it would erase
+    // prior extend history. Refuse with the same recovery message.
+    if (!Array.isArray(raw)) {
+      throw new Error(`grace-log.json is malformed — delete ${logPath} to reset extend history`)
+    }
+    log = raw
   }
 
   log.push({
