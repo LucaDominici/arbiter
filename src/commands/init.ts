@@ -256,7 +256,7 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
  * (INV-53 status=error → exit 2). The plain `runGenerators` wrapper is kept
  * for legacy callers (brownfield integration tests) that only consume results.
  */
-export function runGeneratorsWithErrors(config: ProjectConfig): {
+function runGeneratorsWithErrors(config: ProjectConfig): {
   results: WriteResult[]
   errors: GeneratorFailure[]
 } {
