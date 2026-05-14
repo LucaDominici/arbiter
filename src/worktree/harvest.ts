@@ -21,26 +21,36 @@ export interface HarvestOptions {
 }
 
 /**
- * Parse `git status --porcelain` output into a list of file paths.
+ * Parse `git status --porcelain=v1 -z` output into a list of file paths.
  *
- * Handles untracked ("?? path"), renamed/copied ("R  old -> new"), and
- * staged/modified ("XY path") entries.  For rename/copy entries only the
- * destination path is returned — the source no longer exists in the worktree.
+ * Under `-z`, records are NUL-terminated and paths are NOT quoted, so filenames
+ * containing spaces, newlines, the substring " -> ", or non-ASCII bytes are
+ * round-tripped verbatim (fixes #500, #501).
+ *
+ * Record layout per `git-status(1)`:
+ *   `XY <path>\0`                           — normal / untracked / modified
+ *   `R  <new>\0<orig>\0`  or  `C  <new>\0<orig>\0`  — rename / copy: the
+ *      destination is in the XY-record and the source follows as its own
+ *      NUL-terminated field. Only the destination is returned (the source
+ *      no longer exists on disk in the worktree).
  */
 function parsePorcelainStatus(output: string): string[] {
   const files: string[] = []
-  for (const line of output.split('\n')) {
-    if (!line) continue
-    const xy = line.slice(0, 2)
+  const records = output.split('\0')
+  // The trailing NUL produces a final empty record; ignore by length-1.
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i]
+    if (record === undefined || record === '') continue
+    const xy = record.slice(0, 2)
+    const path = record.slice(3)
     if (xy === '??') {
-      files.push(line.slice(3))
+      if (path) files.push(path)
     } else if (xy[0] === 'R' || xy[0] === 'C') {
-      // "R  old -> new" — extract destination after " -> "
-      const arrow = line.indexOf(' -> ')
-      if (arrow !== -1) files.push(line.slice(arrow + 4))
+      // Destination is in this record; consume the next record (source) and discard.
+      if (path) files.push(path)
+      i++ // skip source record
     } else {
-      const filePath = line.slice(3)
-      if (filePath) files.push(filePath)
+      if (path) files.push(path)
     }
   }
   return files
@@ -58,15 +68,16 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
   const result: HarvestResult = { copied: [], skipped: [] }
 
   // 1. Get changed files from the worktree
-  // Do NOT trim the full output — leading spaces per line are significant
-  // in porcelain format (" M" = unstaged modification, "M " = staged).
-  // Use --untracked-files=all to list individual files inside untracked directories
-  // (default shows only the directory name, which we can't copy).
-  const statusOutput = runCli('git', ['status', '--porcelain', '--untracked-files=all'], {
+  // Use `-z` so records are NUL-terminated and paths are unquoted — this is
+  // the only safe way to consume porcelain when filenames may contain spaces,
+  // newlines, or the substring " -> " (fixes #500, #501).
+  // Use --untracked-files=all to list individual files inside untracked
+  // directories (default shows only the directory name, which we can't copy).
+  const statusOutput = runCli('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
     cwd: worktreePath,
   }).stdout
 
-  if (!statusOutput.trim()) {
+  if (statusOutput.length === 0) {
     return result // No changes to harvest
   }
 

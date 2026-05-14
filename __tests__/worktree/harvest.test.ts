@@ -148,6 +148,76 @@ describe('harvestFiles', () => {
     expect(result.copied).not.toContain('some-dir')
   })
 
+  it('handles filenames containing spaces verbatim (no porcelain quoting) (#500)', () => {
+    writeFileSync(join(worktree, 'weird name.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.copied).toContain('weird name.txt')
+    expect(existsSync(join(mainRepo, 'weird name.txt'))).toBe(true)
+    // Must NOT be the quoted form that `--porcelain` (without -z) would emit.
+    expect(result.copied).not.toContain('"weird name.txt"')
+  })
+
+  it('handles filenames containing unicode characters (#500)', () => {
+    // Italian + a CJK glyph
+    const name = 'città-测试.txt'
+    writeFileSync(join(worktree, name), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.copied).toContain(name)
+    expect(existsSync(join(mainRepo, name))).toBe(true)
+  })
+
+  it('handles filenames containing newline characters (#500)', () => {
+    // A literal newline in a filename — the pre-fix newline-split parser
+    // would have truncated this. POSIX allows newlines; macOS and Linux do too.
+    const name = 'with\nnewline.txt'
+    writeFileSync(join(worktree, name), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.copied).toContain(name)
+    expect(existsSync(join(mainRepo, name))).toBe(true)
+  })
+
+  it('rename to a destination filename containing the literal " -> " substring (#501)', () => {
+    // The destination filename itself contains ' -> ' — the pre-fix
+    // `indexOf(' -> ')` parser would have split here and produced a wrong
+    // path. Under `-z` there is no separator at all; destination is its own
+    // NUL-terminated field.
+    writeFileSync(join(worktree, 'src.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+    runCli('git', ['commit', '-m', 'add src.txt'], { cwd: worktree })
+
+    const dst = 'a -> b.txt'
+    runCli('git', ['mv', 'src.txt', dst], { cwd: worktree })
+
+    const files: string[] = []
+    harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      onFile: (file) => files.push(file),
+    })
+
+    expect(files).toContain(dst)
+    // Must not be the substring before " -> " in the destination name.
+    expect(files).not.toContain('a')
+  })
+
   it('extracts destination path from rename entries (#312)', () => {
     // Create a file in the worktree, commit it, then rename it
     writeFileSync(join(worktree, 'old-name.ts'), 'content')
