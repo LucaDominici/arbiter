@@ -53,7 +53,11 @@ function findExistingBoard(
   }
 }
 
-function existingFieldNames(owner: string, projectNumber: number): Set<string> {
+function existingFieldNames(
+  owner: string,
+  projectNumber: number,
+  warnings: string[] = [],
+): Set<string> {
   try {
     const raw = runCliJson('gh', [
       'project',
@@ -73,7 +77,13 @@ function existingFieldNames(owner: string, projectNumber: number): Set<string> {
     }
     const fields = rawObj['fields'] as GhField[]
     return new Set(fields.map((f) => f.name))
-  } catch {
+  } catch (err) {
+    // #492: surface the error rather than swallowing it. Without this, malformed
+    // gh field-list output causes every Priority/Size field to be treated as
+    // missing, leading to duplicate field-create attempts the caller cannot
+    // distinguish from a benign empty board.
+    const msg = err instanceof Error ? err.message : String(err)
+    warnings.push(`existing-field-names(#${projectNumber}): ${msg}`)
     return new Set()
   }
 }
@@ -121,7 +131,7 @@ export function createProjectBoard(owner: string, repo: string): ProjectBoardRes
 
   const existing = findExistingBoard(owner, boardTitle, warnings)
   if (existing) {
-    const fieldNames = existingFieldNames(owner, existing.number)
+    const fieldNames = existingFieldNames(owner, existing.number, warnings)
     ensureField(
       existing.number,
       owner,
@@ -160,7 +170,7 @@ export function createProjectBoard(owner: string, repo: string): ProjectBoardRes
     return { created: false, projectUrl: null, error: msg, warnings: [] }
   }
 
-  const fieldNames = existingFieldNames(owner, projectNumber)
+  const fieldNames = existingFieldNames(owner, projectNumber, warnings)
   ensureField(projectNumber, owner, { name: 'Priority', options: 'P0,P1,P2' }, fieldNames, warnings)
   ensureField(projectNumber, owner, { name: 'Size', options: 'XS,S,M,L' }, fieldNames, warnings)
 

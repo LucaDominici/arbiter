@@ -179,6 +179,108 @@ describe('runGeneratorsFromRegistry', () => {
   })
 })
 
+describe('runGeneratorsFromRegistry — error collection (#483)', () => {
+  it('caught generator failures populate the optional errors sink', () => {
+    const specs: GeneratorSpec[] = [
+      {
+        key: 'github',
+        enabled: true,
+        run: () => {
+          throw new Error('github boom')
+        },
+      },
+      {
+        key: 'root',
+        enabled: true,
+        run: () => [{ path: '/ok', content: 'ok', action: 'created' }],
+      },
+    ]
+    const errors: { key: string; message: string }[] = []
+    const results = runGeneratorsFromRegistry(specs, errors)
+    expect(results).toHaveLength(1)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].key).toBe('github')
+    expect(errors[0].message).toContain('github boom')
+  })
+
+  it('errors sink is empty when all generators succeed', () => {
+    const specs: GeneratorSpec[] = [
+      {
+        key: 'check-all',
+        enabled: true,
+        run: () => [{ path: '/a', content: 'a', action: 'created' }],
+      },
+      {
+        key: 'root',
+        enabled: true,
+        run: () => [{ path: '/b', content: 'b', action: 'created' }],
+      },
+    ]
+    const errors: { key: string; message: string }[] = []
+    runGeneratorsFromRegistry(specs, errors)
+    expect(errors).toHaveLength(0)
+  })
+
+  it('errors sink default works — backwards compatible single-arg call', () => {
+    const specs: GeneratorSpec[] = [
+      {
+        key: 'github',
+        enabled: true,
+        run: () => {
+          throw new Error('boom')
+        },
+      },
+    ]
+    // No second arg: must not throw, must behave like pre-#483.
+    expect(() => runGeneratorsFromRegistry(specs)).not.toThrow()
+  })
+})
+
+describe('runGeneratorsSelective — error collection (#483)', () => {
+  it('selective run collects errors from selected failing generator', () => {
+    const specs: GeneratorSpec[] = [
+      {
+        key: 'github',
+        enabled: true,
+        run: () => {
+          throw new Error('selective boom')
+        },
+      },
+      {
+        key: 'root',
+        enabled: true,
+        run: () => [{ path: '/ok', content: 'ok', action: 'created' }],
+      },
+    ]
+    const errors: { key: string; message: string }[] = []
+    runGeneratorsSelective(specs, new Set(['github', 'root']), errors)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].key).toBe('github')
+    expect(errors[0].message).toContain('selective boom')
+  })
+
+  it('wildcard selective run propagates errors sink', () => {
+    const specs: GeneratorSpec[] = [
+      {
+        key: 'check-all',
+        enabled: true,
+        run: () => {
+          throw new Error('wildcard boom')
+        },
+      },
+      {
+        key: 'root',
+        enabled: true,
+        run: () => [{ path: '/ok', content: 'ok', action: 'created' }],
+      },
+    ]
+    const errors: { key: string; message: string }[] = []
+    runGeneratorsSelective(specs, new Set(['*']), errors)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].key).toBe('check-all')
+  })
+})
+
 describe('runGeneratorsSelective', () => {
   it('selected generator failure does not abort other selected generators (#303)', () => {
     const specs: GeneratorSpec[] = [

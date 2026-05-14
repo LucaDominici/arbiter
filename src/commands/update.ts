@@ -18,6 +18,7 @@ import {
   buildRegistry,
   runGeneratorsFromRegistry,
   runGeneratorsSelective,
+  type GeneratorFailure,
 } from '../generators/registry.js'
 import type { GeneratorKey } from '../config/diff.js'
 import type { ProjectConfig, Lane } from '../wizard/types.js'
@@ -104,23 +105,28 @@ function selectAndRun(
   specs: ReturnType<typeof buildRegistry>,
   snapshot: ArbiterConfigV2 | null,
   stored: ArbiterConfigV2,
-): { results: WriteResult[]; keysRun: Set<GeneratorKey | '*'> | null } {
+): {
+  results: WriteResult[]
+  keysRun: Set<GeneratorKey | '*'> | null
+  errors: GeneratorFailure[]
+} {
+  const errors: GeneratorFailure[] = []
   if (!snapshot) {
-    return { results: runGeneratorsFromRegistry(specs), keysRun: null }
+    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
   }
   const diff = diffConfig(snapshot, stored)
   if (diff.paths.length === 0) {
     console.log('  No config changes detected — re-running to pick up template updates.')
-    return { results: runGeneratorsFromRegistry(specs), keysRun: null }
+    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
   }
   const keys = impactedGenerators(diff)
   if (keys.has('*') || keys.size === 0) {
     const reason = keys.size === 0 ? 'Unknown config change' : 'Governance/axis change'
     console.log(`  ${reason} detected — full regeneration.`)
-    return { results: runGeneratorsFromRegistry(specs), keysRun: keys }
+    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: keys, errors }
   }
   console.log(`  Selective update: ${keys.size} generator group(s).`)
-  return { results: runGeneratorsSelective(specs, keys), keysRun: keys }
+  return { results: runGeneratorsSelective(specs, keys, errors), keysRun: keys, errors }
 }
 
 function detectProjectInfo(
@@ -194,6 +200,48 @@ function handlePluginError(err: unknown, json: boolean | undefined): never {
   throw err instanceof Error ? err : new Error(msg)
 }
 
+interface UpdateSummary {
+  created: number
+  updated: number
+  skipped: number
+}
+
+/**
+ * Surface generator failures and backend warnings via the canonical 0/1/2 exit-
+ * code convention (#483, INV-53). Extracted from {@link runUpdate} to keep that
+ * function within the lint budget (max-lines-per-function 100, complexity 15).
+ */
+function emitUpdateOutcome(
+  options: UpdateOptions,
+  summary: UpdateSummary,
+  generatorErrors: GeneratorFailure[],
+  backendWarnings: string[],
+): void {
+  const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
+  if (options.json) {
+    const status =
+      generatorErrorLines.length > 0 ? 'error' : backendWarnings.length > 0 ? 'warning' : 'ok'
+    jsonOutput(
+      'update',
+      status,
+      summary,
+      generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
+      backendWarnings.length > 0 ? backendWarnings : undefined,
+    )
+    if (status !== 'ok') process.exit(statusToExitCode(status))
+    return
+  }
+  if (generatorErrorLines.length > 0) {
+    console.log(
+      `\n  Generator failures (${generatorErrorLines.length}):\n${generatorErrorLines
+        .map((line) => `    - ${line}`)
+        .join('\n')}\n`,
+    )
+    process.exit(statusToExitCode('error'))
+  }
+  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
+}
+
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const targetDir = resolve(options.dir ?? process.cwd())
   const projectName = basename(targetDir)
@@ -248,7 +296,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     ...(lanes.length > 0 && { lanes }),
   }
 
-  const { results, keysRun } = selectAndRun(specs, snapshot, nextConfig)
+  const { results, keysRun, errors: generatorErrors } = selectAndRun(specs, snapshot, nextConfig)
   const pluginResults = await runPlugins(
     targetDir,
     Array.isArray(stored.plugins) ? stored.plugins : [],
@@ -278,24 +326,12 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   saveConfig(targetDir, validation.config)
   saveSnapshot(targetDir, validation.config)
 
-  const created = results.filter((r) => r.action === 'created').length
-  const updated = results.filter((r) => r.action === 'backed-up-and-replaced').length
-  const skipped = results.filter((r) => r.action === 'skipped').length
-
-  if (options.json) {
-    const allWarnings = backendResult.warnings
-    const status = allWarnings.length > 0 ? 'warning' : 'ok'
-    jsonOutput(
-      'update',
-      status,
-      { created, updated, skipped },
-      undefined,
-      allWarnings.length > 0 ? allWarnings : undefined,
-    )
-    if (status !== 'ok') process.exit(statusToExitCode(status))
-  } else {
-    console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
+  const summary: UpdateSummary = {
+    created: results.filter((r) => r.action === 'created').length,
+    updated: results.filter((r) => r.action === 'backed-up-and-replaced').length,
+    skipped: results.filter((r) => r.action === 'skipped').length,
   }
+  emitUpdateOutcome(options, summary, generatorErrors, backendResult.warnings)
 
   return { keysRun }
 }

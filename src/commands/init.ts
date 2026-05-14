@@ -24,7 +24,11 @@ import { createProjectBoard } from '../github/project-board.js'
 import { saveConfig, loadConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
-import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
+import {
+  buildRegistry,
+  runGeneratorsFromRegistry,
+  type GeneratorFailure,
+} from '../generators/registry.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
 import { writeFile } from '../utils/fs.js'
@@ -123,7 +127,7 @@ async function generateAndFinalize(
   log: (msg: string) => void,
 ): Promise<void> {
   log('\n  Generating...')
-  const allResults = runGenerators(config)
+  const { results: allResults, errors: generatorErrors } = runGeneratorsWithErrors(config)
 
   const newConfig = buildArbiterConfig(config)
   const backendResult = runBackendSetup(config, log)
@@ -148,19 +152,34 @@ async function generateAndFinalize(
     runToolchainVerify(targetDir)
   }
 
+  const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
+
   if (options.json) {
     const allWarnings = backendResult.warnings
-    const status = allWarnings.length > 0 ? 'warning' : 'ok'
+    const status =
+      generatorErrorLines.length > 0 ? 'error' : allWarnings.length > 0 ? 'warning' : 'ok'
     jsonOutput(
       'init',
       status,
       { created, skipped },
-      undefined,
+      generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
       allWarnings.length > 0 ? allWarnings : undefined,
     )
     if (status !== 'ok') process.exit(statusToExitCode(status))
     return
   }
+
+  if (generatorErrorLines.length > 0) {
+    // #483: print a structured stdout summary (not stderr — CI scripts pipe
+    // stderr away) and exit non-zero so silent misconfiguration is impossible.
+    console.log(
+      `\n  Generator failures (${generatorErrorLines.length}):\n${generatorErrorLines
+        .map((line) => `    - ${line}`)
+        .join('\n')}\n\n  See https://github.com/arbiter-framework/arbiter/issues/483 for context.`,
+    )
+    process.exit(statusToExitCode('error'))
+  }
+
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
 }
 
@@ -228,6 +247,22 @@ async function resolveConfig(args: {
 
 export function runGenerators(config: ProjectConfig): WriteResult[] {
   return runGeneratorsFromRegistry(buildRegistry(config))
+}
+
+/**
+ * Same as {@link runGenerators} but also returns generator failures collected
+ * by `safeRun` (#483). Callers that surface command-level exit codes must use
+ * this variant and surface any non-empty `errors` array via a non-zero exit
+ * (INV-53 status=error → exit 2). The plain `runGenerators` wrapper is kept
+ * for legacy callers (brownfield integration tests) that only consume results.
+ */
+export function runGeneratorsWithErrors(config: ProjectConfig): {
+  results: WriteResult[]
+  errors: GeneratorFailure[]
+} {
+  const errors: GeneratorFailure[] = []
+  const results = runGeneratorsFromRegistry(buildRegistry(config), errors)
+  return { results, errors }
 }
 
 export async function runPlugins(
