@@ -236,6 +236,12 @@ Fields:
 
 **Note on `init --json`:** requires `--yes`. The interactive wizard reads stdin and is incompatible with machine-readable output. Passing `--json` without `--yes` emits an error envelope and exits 1.
 
+**Note on generator failures (`init` / `update`)** (#483): if any generator throws,
+the failure is collected, summarised on stdout (`Generator failures (N): ...`),
+and the command exits `2` (status `error`). Other generators still run to
+completion — partial output is preserved, but the misconfiguration is no longer
+silent. In `--json` mode the envelope's `errors[]` field carries the same lines.
+
 **Note on `diff --json`:** `status` is `"warning"` when `hasChanges` is true (there are pending changes). Exit code 2 indicates changes detected.
 
 **Note on `verify`:** the `verify` command already had `--json` before this release and uses a different direct-object format (not the standard envelope). It is unchanged to preserve existing consumers.

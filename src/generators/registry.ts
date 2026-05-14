@@ -50,6 +50,17 @@ export interface GeneratorSpec {
   run: () => WriteResult[]
 }
 
+/**
+ * Failure record collected by {@link runGeneratorsFromRegistry} /
+ * {@link runGeneratorsSelective} when a generator throws (#483). Callers
+ * must surface non-empty arrays via a non-zero exit (INV-53 status=error
+ * → exit 2) so silent misconfiguration is never possible.
+ */
+export interface GeneratorFailure {
+  key: GeneratorKey
+  message: string
+}
+
 function buildAiToolSpecs(config: ProjectConfig): GeneratorSpec[] {
   const noAiRulez = !config.existing.aiRulez
   return [
@@ -272,27 +283,33 @@ export function buildRegistry(config: ProjectConfig): GeneratorSpec[] {
   return [...buildAiToolSpecs(config), ...buildInfraSpecs(config), ...buildAnalysisSpecs(config)]
 }
 
-function safeRun(spec: GeneratorSpec): WriteResult[] {
+function safeRun(spec: GeneratorSpec, errors: GeneratorFailure[]): WriteResult[] {
   try {
     return spec.run()
   } catch (err) {
-    console.warn(
-      `[registry] generator '${spec.key}' failed: ${err instanceof Error ? err.message : String(err)}`,
-    )
+    const message = err instanceof Error ? err.message : String(err)
+    // Keep the stderr line for operators tailing logs; the structured
+    // `errors` sink is the authoritative observable channel (#483).
+    console.warn(`[registry] generator '${spec.key}' failed: ${message}`)
+    errors.push({ key: spec.key, message })
     return []
   }
 }
 
-export function runGeneratorsFromRegistry(specs: GeneratorSpec[]): WriteResult[] {
-  return specs.filter((s) => s.enabled).flatMap(safeRun)
+export function runGeneratorsFromRegistry(
+  specs: GeneratorSpec[],
+  errors: GeneratorFailure[] = [],
+): WriteResult[] {
+  return specs.filter((s) => s.enabled).flatMap((s) => safeRun(s, errors))
 }
 
 export function runGeneratorsSelective(
   specs: GeneratorSpec[],
   keys: Set<GeneratorKey | '*'>,
+  errors: GeneratorFailure[] = [],
 ): WriteResult[] {
   if (keys.has('*')) {
-    return runGeneratorsFromRegistry(specs)
+    return runGeneratorsFromRegistry(specs, errors)
   }
-  return specs.filter((s) => s.enabled && keys.has(s.key)).flatMap(safeRun)
+  return specs.filter((s) => s.enabled && keys.has(s.key)).flatMap((s) => safeRun(s, errors))
 }

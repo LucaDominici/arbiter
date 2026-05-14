@@ -189,6 +189,43 @@ describe('createProjectBoard', () => {
     expect(fieldCreateCalls[0][1]).toContain('Priority')
   })
 
+  // ── #492: existingFieldNames validation errors must surface ────────────────
+
+  it('surfaces existingFieldNames malformed-output error in result.warnings when board exists (#492)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    // Board exists
+    mockRunCliJson.mockReturnValueOnce({
+      projects: [{ number: 11, title: 'repo Board', url: 'https://github.com/orgs/o/projects/11' }],
+    })
+    // field-list returns malformed output (array instead of object)
+    mockRunCliJson.mockReturnValueOnce([])
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
+
+    const result = createProjectBoard('owner', 'repo')
+
+    expect(result.created).toBe(false)
+    expect(result.warnings.some((w) => /existing-field-names|field-list/i.test(w))).toBe(true)
+  })
+
+  it('surfaces existingFieldNames error after create succeeds (#492)', async () => {
+    const { createProjectBoard } = await import('../../src/github/project-board.js')
+    // findExistingBoard: no match
+    mockRunCliJson.mockReturnValueOnce({ projects: [] })
+    // project create succeeds
+    mockRunCliJson.mockReturnValueOnce({
+      number: 22,
+      url: 'https://github.com/orgs/o/projects/22',
+    })
+    // field-list malformed
+    mockRunCliJson.mockReturnValueOnce({ fields: 'not-an-array' })
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
+
+    const result = createProjectBoard('owner', 'repo')
+
+    expect(result.created).toBe(true)
+    expect(result.warnings.some((w) => /existing-field-names|field-list/i.test(w))).toBe(true)
+  })
+
   it('skips all field-create calls when board exists with both fields', async () => {
     const { createProjectBoard } = await import('../../src/github/project-board.js')
     mockRunCliJson.mockReturnValueOnce({
