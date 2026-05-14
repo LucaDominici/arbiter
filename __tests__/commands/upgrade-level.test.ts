@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runUpgradeLevel } from '../../src/commands/upgrade-level.js'
 import { runCli } from '../../src/utils/run-cli.js'
+import { validateConfig } from '../../src/config/schema.js'
 import type { GovernanceLevel } from '../../src/wizard/types.js'
 import { loadConfig } from '../../src/utils/config.js'
 
@@ -17,6 +18,12 @@ vi.mock('../../src/utils/run-cli.js', () => ({
   })),
   CliError: class CliError extends Error {},
 }))
+
+// Partial-mock schema module so tests can force validation failure for #498
+vi.mock('../../src/config/schema.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/config/schema.js')>()
+  return { ...actual, validateConfig: vi.fn(actual.validateConfig) }
+})
 
 describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
   let dir: string
@@ -261,5 +268,49 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     writeFileSync(join(dir, '.arbiter', 'grace-log.json'), '{ BROKEN JSON')
 
     expect(() => runUpgradeLevel({ dir, extend: true })).toThrow(/malformed/)
+  })
+
+  it('INV-33 (#498): validateConfig failure does NOT trigger baseline capture', () => {
+    seedConfig('L1')
+    vi.mocked(runCli).mockClear()
+    vi.mocked(validateConfig).mockReturnValueOnce({
+      ok: false,
+      errors: ['stubbed validation failure for #498'],
+    })
+
+    expect(() => runUpgradeLevel({ dir, target: 'L2' })).toThrow(/config invalid after upgrade/i)
+
+    // runCli must NOT have been called — external state (debt baseline) must be untouched
+    expect(vi.mocked(runCli)).not.toHaveBeenCalled()
+
+    // arbiter.json must remain at L1 — config not persisted
+    const saved = loadConfig(dir)
+    expect(saved?.governanceLevel).toBe('L1')
+    expect(saved?.graceEndsAt).toBeUndefined()
+  })
+
+  it('--extend (#499): non-array valid JSON in grace-log.json throws and preserves file', () => {
+    const futureDate = new Date(Date.now() + 15 * 86400000).toISOString()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        version: '0.1',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        useGitHub: false,
+        graceEndsAt: futureDate,
+        graceFromLevel: 'L1',
+      }),
+    )
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    const logPath = join(dir, '.arbiter', 'grace-log.json')
+    const futureSchemaPayload = JSON.stringify({ version: 2, entries: [] })
+    writeFileSync(logPath, futureSchemaPayload)
+
+    expect(() => runUpgradeLevel({ dir, extend: true })).toThrow(/malformed/)
+
+    // File content must be byte-equal to the original — no silent overwrite
+    const after = readFileSync(logPath, 'utf-8')
+    expect(after).toBe(futureSchemaPayload)
   })
 })
