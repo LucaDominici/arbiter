@@ -504,6 +504,65 @@ describe('generateIntegrationTesting', () => {
   })
 })
 
+describe('generateIntegrationTesting — DB-only scope (#487)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  // #487: This generator is intentionally DB-scoped. API-only L2 projects
+  // (hasDatabase=false, hasPublicApi=true) must NOT receive PostgreSQL
+  // scaffolding — every template here hardcodes PostgreSQLContainer.
+  // API-only projects are covered by the separate `contract-testing` generator.
+  it('returns 0 files for API-only L2 (hasDatabase=false, hasPublicApi=true)', () => {
+    const config = makeConfig(dir, {
+      hasDatabase: false,
+      hasPublicApi: true,
+      governanceLevel: 'L2',
+      language: 'typescript',
+    })
+    expect(generateIntegrationTesting(config).files).toHaveLength(0)
+  })
+
+  it('returns 0 files for API-only L3 java (hasDatabase=false, hasPublicApi=true)', () => {
+    const javaDir = createTestProject('java')
+    initGit(javaDir)
+    try {
+      const config = makeConfig(javaDir, {
+        hasDatabase: false,
+        hasPublicApi: true,
+        governanceLevel: 'L3',
+        language: 'java',
+        buildTool: 'gradle',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(javaDir)
+    }
+  })
+
+  it('returns 0 files for API-only python (hasDatabase=false, hasPublicApi=true)', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
+    try {
+      const config = makeConfig(pyDir, {
+        hasDatabase: false,
+        hasPublicApi: true,
+        governanceLevel: 'L2',
+        language: 'python',
+        buildTool: 'pip',
+      })
+      expect(generateIntegrationTesting(config).files).toHaveLength(0)
+    } finally {
+      cleanupTestProject(pyDir)
+    }
+  })
+})
+
 describe('generateIntegrationTesting — F10 Rust Cargo.toml dev-dep (#369)', () => {
   let dir: string
   beforeEach(() => {

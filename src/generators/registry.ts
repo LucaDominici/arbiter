@@ -232,11 +232,17 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     { key: 'nightly', enabled: true, run: () => generateNightly(config).files },
     {
+      // #487: this is DATABASE integration-testing (Testcontainers + PostgreSQL).
+      // API-only projects (no DB but with public API) are served by `contract-testing`
+      // below — gated on config.contractType (Pact). Do NOT broaden this gate to
+      // `hasDatabase || hasPublicApi`; every template here hardcodes PostgreSQL and
+      // would emit broken DB scaffolding for an API-only project.
       key: 'integration-testing',
       enabled: config.hasDatabase,
       run: () => generateIntegrationTesting(config).files,
     },
     {
+      // Companion to integration-testing above: covers API-only / contract paths.
       key: 'contract-testing',
       enabled: config.enableContractTesting !== false,
       run: () => generateContractTesting(config).files,

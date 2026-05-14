@@ -338,7 +338,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
     expect(paths.some((p) => p.endsWith('NoMockMvcTest.java'))).toBe(false)
   })
 
-  it('emits RestAssuredBaseIT and RestAssuredArchTest when hasDatabase+hasPublicApi+hexagonal', () => {
+  it('emits RestAssuredBaseIT and RestAssuredArchTest when hasDatabase+hasPublicApi+hexagonal+spring', () => {
     const config = makeConfig(dir, {
       language: 'java',
       buildTool: 'gradle',
@@ -346,6 +346,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const paths = result.files.map((f) => f.path)
@@ -361,6 +362,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const file = result.files.find((f) => f.path.endsWith('RestAssuredBaseIT.java'))
@@ -376,6 +378,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const file = result.files.find((f) => f.path.endsWith('RestAssuredBaseIT.java'))
@@ -394,6 +397,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const file = result.files.find((f) => f.path.endsWith('RestAssuredArchTest.java'))
@@ -410,6 +414,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: false,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const paths = result.files.map((f) => f.path)
@@ -425,6 +430,7 @@ describe('generateArchUnit — hexagonal suite (M22)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: false,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const paths = result.files.map((f) => f.path)
@@ -534,7 +540,7 @@ describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
     cleanupTestProject(dir)
   })
 
-  it('emits RestAssured files for layered archetype with hasDatabase+hasPublicApi+basePackage (#291)', () => {
+  it('emits RestAssured files for layered archetype with hasDatabase+hasPublicApi+basePackage+spring (#291)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       buildTool: 'gradle',
@@ -542,6 +548,7 @@ describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const paths = result.files.map((f) => f.path)
@@ -549,7 +556,7 @@ describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
     expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(true)
   })
 
-  it('emits RestAssured files for modular-monolith archetype with hasDatabase+hasPublicApi+basePackage (#291)', () => {
+  it('emits RestAssured files for modular-monolith archetype with hasDatabase+hasPublicApi+basePackage+spring (#291)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       buildTool: 'gradle',
@@ -557,6 +564,7 @@ describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const paths = result.files.map((f) => f.path)
@@ -564,7 +572,7 @@ describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
     expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(true)
   })
 
-  it('emits RestAssured files for none archetype with hasDatabase+hasPublicApi+basePackage (#291)', () => {
+  it('emits RestAssured files for none archetype with hasDatabase+hasPublicApi+basePackage+spring (#291)', () => {
     const config = makeConfig(dir, {
       language: 'java',
       buildTool: 'gradle',
@@ -572,6 +580,7 @@ describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
       basePackage: 'com.example.myapp',
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const paths = result.files.map((f) => f.path)
@@ -587,11 +596,119 @@ describe('generateArchUnit — RestAssured for all archetypes (#291)', () => {
       basePackage: undefined,
       hasDatabase: true,
       hasPublicApi: true,
+      framework: 'spring-boot',
     })
     const result = generateArchUnit(config)
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(false)
     expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(false)
+  })
+})
+
+describe('generateArchUnit — RestAssured Spring framework guard (#491)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject('java')
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('does NOT emit RestAssured files for Quarkus framework (#491)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+      framework: 'quarkus',
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(false)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(false)
+  })
+
+  it('does NOT emit RestAssured files for Micronaut framework (#491)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+      framework: 'micronaut',
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(false)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(false)
+  })
+
+  it('does NOT emit RestAssured files when framework is null (safe default, #491)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+      framework: null,
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(false)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(false)
+  })
+
+  it('emits RestAssured files for framework "spring-boot" (#491)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+      framework: 'spring-boot',
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(true)
+  })
+
+  it('emits RestAssured files for substring-spring framework like "spring-mvc" (#491)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+      framework: 'spring-mvc',
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('RestAssuredBaseIT.java'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('RestAssuredArchTest.java'))).toBe(true)
+  })
+
+  it('RestAssuredBaseIT.java emits Spring-only documentation banner (#491)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      hasDatabase: true,
+      hasPublicApi: true,
+      framework: 'spring-boot',
+    })
+    const result = generateArchUnit(config)
+    const file = result.files.find((f) => f.path.endsWith('RestAssuredBaseIT.java'))
+    const content = readFileSync(file!.path, 'utf-8')
+    expect(content).toMatch(/Spring Boot ONLY/i)
+    expect(content).toMatch(/Quarkus.*Micronaut|Micronaut.*Quarkus/)
   })
 })
 
