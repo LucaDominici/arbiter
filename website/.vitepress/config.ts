@@ -6,6 +6,10 @@ export default defineConfig({
   lastUpdated: true,
   cleanUrls: true,
 
+  sitemap: {
+    hostname: 'https://arbiter.dev',
+  },
+
   themeConfig: {
     nav: [
       { text: 'Docs', link: '/quickstart/' },
