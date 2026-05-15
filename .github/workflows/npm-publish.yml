@@ -1,0 +1,70 @@
+name: Publish to npm
+
+# Triggered on v* tags (e.g. v1.0.0, v0.2.3-rc.1).
+# Uses npm provenance via OIDC — no static NPM_TOKEN required.
+# Build → Full test suite → Publish → Smoke install matrix.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write # required for OIDC provenance
+
+jobs:
+  publish:
+    name: Build, Test & Publish
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build dist
+        run: npm run build
+
+      - name: Run full test suite
+        run: npm run test
+
+      - name: Publish to npm (with provenance)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  smoke:
+    name: Smoke install (${{ matrix.os }})
+    needs: publish
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Derive tag version
+        id: version
+        # Strip leading 'v' from the tag name (refs/tags/vX.Y.Z → X.Y.Z).
+        # Use env: to avoid direct expression interpolation in run: (security).
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke install @arbiter/cli@${{ steps.version.outputs.version }}
+        env:
+          ARBITER_VERSION: ${{ steps.version.outputs.version }}
+        run: npm install -g "@arbiter/cli@${ARBITER_VERSION}"
+
+      - name: Verify arbiter CLI responds
+        run: arbiter --version
