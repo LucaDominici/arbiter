@@ -7,7 +7,11 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const WORKFLOWS_DIR = join(process.cwd(), '.github', 'workflows')
+// Canonical self-hosted runner reference.
 const RUNNER_VAR_PATTERN = /\$\{\{\s*vars\.CI_BUILD_RUNNER_LABEL/
+// Dynamic matrix references are allowed (e.g. ${{ matrix.os }}) because the
+// value is set at runtime and is not a hardcoded literal runner name.
+const MATRIX_RUNNER_PATTERN = /\$\{\{\s*matrix\./
 const RUNS_ON_PATTERN = /^\s*runs-on:/
 
 const baseDir = process.cwd()
@@ -36,7 +40,7 @@ for (const file of files) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     if (!RUNS_ON_PATTERN.test(line)) continue
-    if (!RUNNER_VAR_PATTERN.test(line)) {
+    if (!RUNNER_VAR_PATTERN.test(line) && !MATRIX_RUNNER_PATTERN.test(line)) {
       const rel = relative(baseDir, full)
       console.error(`  ${rel}:${i + 1}  ${line.trim()}`)
       violations++
