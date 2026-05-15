@@ -172,3 +172,11 @@ See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
 - [ADR-003](docs/ADR/003-gh-cli-required.md): Why `gh` CLI is required (not optional)
 - [ADR-004](docs/ADR/004-skip-if-exists.md): Why `skipIfExists` on hooks (not overwrite)
 - [ADR-005](docs/ADR/005-deep-merge-settings.md): Deep merge for settings.json
+
+---
+
+## Contributing
+
+Contributions are welcome. Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+
+To report a security vulnerability, see [SECURITY.md](SECURITY.md).
