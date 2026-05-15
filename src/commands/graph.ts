@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Commands backing `arbiter graph build` and `arbiter verify graph` (#259).
  *

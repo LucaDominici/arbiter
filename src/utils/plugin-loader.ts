@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { join } from 'node:path'

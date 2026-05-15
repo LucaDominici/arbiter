@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { resolve, join } from 'node:path'
 import { mkdirSync, existsSync, writeFileSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'

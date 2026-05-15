@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Single source of truth for review-pass counts and reviewer-agent counts
  * per task tier (#235, #236).

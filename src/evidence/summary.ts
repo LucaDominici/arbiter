@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { join } from 'node:path'
 import { verifySummarySha } from '../risk/sha-check.js'
 import { loadSummaryFile } from './load.js'

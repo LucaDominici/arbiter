@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // playwright-ts generator — INV-61 (#349, CANON-05).
 //
 // Emits the @axe-core/playwright wrapper + a11y spec stub for TS web

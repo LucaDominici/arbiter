@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * SHA validator for .evidence/SUMMARY.json (#238).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { resolve, dirname } from 'node:path'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { loadRepoData } from '../compare/load-repo.js'

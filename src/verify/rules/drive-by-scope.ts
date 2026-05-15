@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { PlanJsonV1 } from '../../types/plan.js'
 import type { RuleViolation, VerifyPlanRule } from './types.js'
 

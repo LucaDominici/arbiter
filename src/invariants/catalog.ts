@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { Invariant } from './types.js'
 
 export const INVARIANT_CATALOG: Invariant[] = [

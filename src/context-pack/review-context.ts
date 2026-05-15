@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * REVIEW_CONTEXT schema and combined-verdict logic for the two-phase checker (#254).
  *

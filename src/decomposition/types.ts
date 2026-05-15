@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 export type WorkUnitStatus = 'open' | 'in_progress' | 'blocked' | 'done'
 
 export type WorkUnitPhase = 'preflight' | 'plan' | 'implementation' | 'verification' | 'complete'

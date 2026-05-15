@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { cpSync, mkdirSync, existsSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { runCli } from '../utils/run-cli.js'

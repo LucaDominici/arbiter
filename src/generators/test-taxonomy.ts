@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { getTestPyramidProfile } from '../config/test-pyramid-profiles.js'

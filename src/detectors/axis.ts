@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { Archetype, ArchitectureStyle, ContractType, Lane } from '../wizard/types.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { detectArchetypeHint } from './framework.js'
