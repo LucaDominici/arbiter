@@ -22,6 +22,8 @@ Every repo that uses AI coding agents needs the same things:
 
 Doing this by hand drifts. Arbiter makes it reproducible and installable.
 
+**No telemetry.** Arbiter collects zero usage data and makes zero unsolicited network calls. See [PRIVACY.md](PRIVACY.md).
+
 ---
 
 ## Architecture

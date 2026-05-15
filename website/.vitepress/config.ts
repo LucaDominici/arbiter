@@ -1,0 +1,65 @@
+import { defineConfig } from 'vitepress'
+
+export default defineConfig({
+  title: 'arbiter',
+  description: 'AI development governance framework — install once, enforce forever.',
+  lastUpdated: true,
+  cleanUrls: true,
+
+  themeConfig: {
+    nav: [
+      { text: 'Docs', link: '/quickstart/' },
+      { text: 'Comparisons', link: '/comparisons/' },
+      { text: 'Recipes', link: '/recipes/' },
+      { text: 'Community', link: '/community/' },
+      { text: 'GitHub', link: 'https://github.com/LucaDominici/arbiter' },
+    ],
+
+    sidebar: [
+      { text: 'Home', link: '/' },
+      { text: 'Quickstart', link: '/quickstart/' },
+      { text: 'Concepts', link: '/concepts/' },
+      {
+        text: 'Reference',
+        collapsed: false,
+        items: [
+          { text: 'CLI', link: '/reference/cli' },
+          { text: 'Hooks', link: '/reference/hooks' },
+          { text: 'Stack Support', link: '/reference/stacks' },
+          { text: 'Templates', link: '/reference/templates' },
+        ],
+      },
+      { text: 'Recipes', link: '/recipes/' },
+      {
+        text: 'Comparisons',
+        collapsed: true,
+        items: [
+          { text: 'Overview', link: '/comparisons/' },
+          { text: 'vs spec-kit', link: '/comparisons/spec-kit' },
+          { text: 'vs BMAD', link: '/comparisons/bmad' },
+          { text: 'vs GSD2', link: '/comparisons/gsd2' },
+          { text: 'vs claude-flow', link: '/comparisons/claude-flow' },
+          { text: 'vs SuperClaude', link: '/comparisons/superclaude' },
+        ],
+      },
+      { text: 'Integrations', link: '/integrations/' },
+      { text: 'Community', link: '/community/' },
+    ],
+
+    socialLinks: [{ icon: 'github', link: 'https://github.com/LucaDominici/arbiter' }],
+
+    footer: {
+      message: 'Released under the Apache 2.0 License.',
+      copyright: 'Copyright © 2026 arbiter contributors',
+    },
+
+    editLink: {
+      pattern: 'https://github.com/LucaDominici/arbiter/edit/main/website/:path',
+      text: 'Edit this page on GitHub',
+    },
+
+    search: {
+      provider: 'local',
+    },
+  },
+})

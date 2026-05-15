@@ -1,0 +1,33 @@
+---
+layout: home
+
+hero:
+  name: arbiter
+  text: AI governance that installs itself.
+  tagline: One command installs a complete, standards-aligned governance stack into any project — AGENTS.md, hooks, gate scripts, CI workflows, and more.
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /quickstart/
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/LucaDominici/arbiter
+
+features:
+  - title: One command
+    details: >
+      `npx arbiter init` detects your stack and generates everything —
+      no configuration files to manually author.
+  - title: Multi-tool
+    details: >
+      Claude Code, Codex, Cursor, Copilot, Windsurf, Aider, Gemini CLI.
+      All tools read the same canonical `AGENTS.md`.
+  - title: Zero telemetry
+    details: >
+      Arbiter collects nothing and phones home to nobody.
+      See the [Privacy Policy](/privacy) for details.
+  - title: Gate or fail
+    details: >
+      L1 / L2 / L3 gate tiers enforce governance at commit, push,
+      and CI — not just in documentation.
+---

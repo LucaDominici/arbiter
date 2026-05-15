@@ -19,3 +19,15 @@ jobs:
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - run: echo "solo-dev mode — local L2 gate guards merge via INV-59 parity check"
+
+  docs-build:
+    name: Docs Build
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run docs:build
