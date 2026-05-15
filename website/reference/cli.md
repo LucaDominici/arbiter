@@ -1,5 +1,321 @@
-# CLI Reference
+# Arbiter CLI Reference
 
-> Full content migrated here in [#519](/comparisons/).
+## Exit codes (canonical convention)
 
-See [docs/REFERENCE/CLI.md](https://github.com/LucaDominici/arbiter/blob/main/docs/REFERENCE/CLI.md) for the current reference.
+All `arbiter` subcommands obey one exit-code convention:
+
+| Code | Meaning            | CI semantics                      |
+| ---- | ------------------ | --------------------------------- |
+| `0`  | ok                 | must pass                         |
+| `1`  | warning / advisory | CI should pass but surface a flag |
+| `2`  | error / blocker    | CI must fail (hard stop)          |
+
+The mapping `ok ↔ 0`, `warning ↔ 1`, `error ↔ 2` is encoded in
+`src/utils/json-output.ts::statusToExitCode` and applies to every
+command that emits a `--json` envelope.
+
+## Commands
+
+### `arbiter init`
+
+Initialize AI governance in a project directory.
+
+```
+arbiter init [options]
+```
+
+**Options:**
+
+| Flag              | Type    | Default        | Description                                           |
+| ----------------- | ------- | -------------- | ----------------------------------------------------- |
+| `-y, --yes`       | boolean | `false`        | Skip wizard — use auto-detected defaults              |
+| `--tools <list>`  | string  | `claude,codex` | Comma-separated AI tools to configure                 |
+| `--level <level>` | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`                 |
+| `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory)         |
+| `--dry-run`       | boolean | `false`        | Preview what would be generated without writing files |
+| `--no-verify`     | boolean | `false`        | Skip toolchain compatibility probes after generation  |
+| `--json`          | boolean | `false`        | Emit machine-readable JSON output (requires `--yes`)  |
+| `-h, --help`      | —       | —              | Show help                                             |
+
+**Examples:**
+
+```bash
+# Interactive wizard — recommended for first use
+arbiter init
+
+# Non-interactive — CI, scripted setup, testing
+arbiter init --yes
+
+# Configure only Claude Code, L1 governance
+arbiter init --yes --tools claude --level L1
+
+# Install into a different directory
+arbiter init --yes --dir /path/to/my-project
+
+# All tools, audit-grade governance
+arbiter init --yes --tools claude,codex,cursor,copilot,gemini,windsurf,aider --level L3
+
+# Preview what would be generated without writing any files
+arbiter init --dry-run
+arbiter init --yes --dry-run --tools claude --level L2
+
+# Skip toolchain probe (CI or incomplete dev environment)
+arbiter init --yes --no-verify
+```
+
+**Wizard flows:**
+
+The interactive wizard is state-reactive — it behaves differently based on what already exists in the project:
+
+- **Greenfield** (no existing governance): detect → ask tools/level/github → confirm file list → generate
+- **Brownfield** (AGENTS.md, `.claude/`, or `.agents/` detected): detect → show existing governance → ask tools/level/github → show migration plan → confirm → generate
+
+---
+
+## Tool Values (`--tools`)
+
+| Value      | What it generates                                                    |
+| ---------- | -------------------------------------------------------------------- |
+| `claude`   | `.claude/CLAUDE.md`, `.claude/settings.json`, hooks, rules, commands |
+| `codex`    | `.agents/CODEX.md`, `.agents/rules/`, `.agents/plan/`                |
+| `cursor`   | `.cursorrules`                                                       |
+| `copilot`  | `.github/copilot-instructions.md`                                    |
+| `gemini`   | `.gemini/GEMINI.md` (thin pointer to AGENTS.md)                      |
+| `windsurf` | `windsurf-instructions.md` (thin pointer to AGENTS.md)               |
+| `aider`    | `.aider.conf.yml` (YAML convention mapping + AGENTS.md reference)    |
+
+Multiple tools: `--tools claude,codex,gemini,windsurf,aider`
+
+---
+
+## Governance Levels (`--level`)
+
+| Level | L1 checks                | L2 adds                                     | L3 adds                       |
+| ----- | ------------------------ | ------------------------------------------- | ----------------------------- |
+| L1    | Format, lint, unit tests | —                                           | —                             |
+| L2    | Same as L1               | Integration tests, coverage, security audit | —                             |
+| L3    | Same as L1               | Same as L2                                  | E2E tests, evidence artifacts |
+
+**Choosing a level:**
+
+- `L1` — small projects, fast iteration, no CI yet
+- `L2` — standard (default) — matches CI, recommended for all active projects
+- `L3` — compliance/audit-grade repos that require evidence
+
+---
+
+## Detection
+
+`arbiter init` auto-detects:
+
+| Signal                                | Detected value                    |
+| ------------------------------------- | --------------------------------- |
+| `package.json` present                | Language: TypeScript              |
+| `Cargo.toml` present                  | Language: Rust                    |
+| `pom.xml` / `build.gradle`            | Language: Java                    |
+| `go.mod` present                      | Language: Go                      |
+| `pyproject.toml` / `requirements.txt` | Language: Python                  |
+| `src-tauri/` present                  | Framework: tauri                  |
+| `vite.config.*` / `next.config.*`     | Framework: vite/next              |
+| `pom.xml` spring-boot dep             | Framework: spring-boot            |
+| `git remote get-url origin`           | GitHub owner + repo               |
+| `gh auth status`                      | GitHub auth + username            |
+| `AGENTS.md` exists                    | Will back up on regeneration      |
+| `.claude/` exists                     | Will merge (not overwrite)        |
+| `.agents/` exists                     | Will merge (not overwrite)        |
+| `.ai-rulez/` exists                   | Skip multi-tool config generation |
+
+---
+
+## Conflict Resolution
+
+| File                               | Behavior                                               |
+| ---------------------------------- | ------------------------------------------------------ |
+| `AGENTS.md`                        | Backed up as `AGENTS.md.arbiter-backup`, then replaced |
+| `.claude/CLAUDE.md`                | Backed up, then replaced                               |
+| `.agents/CODEX.md`                 | Backed up, then replaced                               |
+| `.claude/settings.json`            | Deep merged — custom hooks preserved                   |
+| `.claude/hooks/*.mjs`              | **Skipped** if already exists                          |
+| `.claude/rules/*.md`               | **Skipped** if already exists                          |
+| `.claude/commands/*.md`            | **Skipped** if already exists                          |
+| `.agents/rules/*.md`               | **Skipped** if already exists                          |
+| `.github/workflows/ci.yml`         | **Skipped** if already exists                          |
+| `.github/PULL_REQUEST_TEMPLATE.md` | **Skipped** if already exists                          |
+| `.github/ISSUE_TEMPLATE/*`         | **Skipped** per file if already exists                 |
+| `.github/dependabot.yml`           | **Skipped** if already exists                          |
+| `scripts/check-all.mjs`            | **Skipped** if already exists                          |
+| `SECURITY.md`, `.editorconfig`     | **Skipped** if already exists                          |
+
+**Running arbiter init twice is safe** — idempotent by design.
+
+---
+
+## GitHub Setup
+
+When `gh` is authenticated, `arbiter init` also:
+
+1. **Provisions 15 standard labels** via `gh label create/edit`
+2. **Applies branch protection to `main`** via `gh api`
+3. **Creates a GitHub Project board** with Priority and Size fields
+
+GitHub setup requires `gh` CLI installed and authenticated (`gh auth login`).
+
+---
+
+## JSON Output (`--json`)
+
+All commands support `--json` for machine-readable output.
+
+**Envelope schema:**
+
+```json
+{
+  "command": "configure",
+  "version": "1",
+  "status": "ok | warning | error",
+  "data": {},
+  "errors": ["..."]
+}
+```
+
+**Exit codes:**
+
+| Code | Status    | Meaning                        |
+| ---- | --------- | ------------------------------ |
+| 0    | `ok`      | Command completed successfully |
+| 1    | `error`   | Fatal error                    |
+| 2    | `warning` | Completed with warnings        |
+
+---
+
+## `arbiter verify`
+
+Probe toolchain compatibility for the detected project stack.
+
+```
+arbiter verify [options]
+```
+
+| Flag           | Type    | Default | Description                                       |
+| -------------- | ------- | ------- | ------------------------------------------------- |
+| `--dir <path>` | string  | `cwd`   | Target directory to detect the stack from         |
+| `--json`       | boolean | `false` | Emit JSON report instead of human-readable output |
+
+---
+
+## `arbiter upgrade-level`
+
+Upgrade the governance level with a bounded grace period for new gates.
+
+```
+arbiter upgrade-level [options]
+```
+
+| Flag            | Type    | Default | Description                                                        |
+| --------------- | ------- | ------- | ------------------------------------------------------------------ |
+| `--target <Lx>` | string  | —       | Target governance level: `L2` or `L3` (required unless `--extend`) |
+| `--extend`      | boolean | `false` | Extend an existing active grace period by `--days`                 |
+| `--days <n>`    | number  | `30`    | Grace period length in days                                        |
+| `--dir <path>`  | string  | `cwd`   | Target directory                                                   |
+| `--json`        | boolean | `false` | Emit machine-readable JSON output                                  |
+
+---
+
+## `arbiter update`
+
+Re-generate governance files using stored config from `arbiter.json`.
+
+```
+arbiter update [options]
+```
+
+---
+
+## `arbiter configure`
+
+Modify `arbiter.json` settings without re-running the wizard.
+
+```
+arbiter configure --set <path>=<value> [--set <path>=<value> ...]
+```
+
+---
+
+## `arbiter diff`
+
+Show what `arbiter update` would change, without writing any files.
+
+```
+arbiter diff [options]
+```
+
+---
+
+## `arbiter worktree` / `arbiter wt`
+
+Manage git worktrees for parallel task development.
+
+```
+arbiter worktree open <task-id> [slug] [options]
+arbiter worktree close <task-id> [options]
+arbiter worktree list
+```
+
+---
+
+## `arbiter plugin`
+
+Manage third-party generator plugins.
+
+```
+arbiter plugin add <pkg>
+arbiter plugin remove <pkg>
+arbiter plugin list
+```
+
+---
+
+## `arbiter.json`
+
+Persisted config written by `arbiter init`, read by `arbiter update` and `arbiter diff`.
+
+Commit this file so that `arbiter update` works in CI and for teammates.
+
+---
+
+## Environment Variables
+
+| Variable                | Usage                                                          |
+| ----------------------- | -------------------------------------------------------------- |
+| `ARBITER_WORKTREES_DIR` | Overrides `arbiter.json::worktree.base` for worktree placement |
+| `ARBITER_NO_EVIDENCE`   | Set to `1` to disable command logging globally                 |
+
+---
+
+## Common Workflows
+
+### Greenfield project
+
+```bash
+mkdir my-project && cd my-project
+git init && npm init -y
+arbiter init
+git add -A && git commit -m "chore: bootstrap AI governance"
+```
+
+### Brownfield project
+
+```bash
+cd existing-project
+arbiter init --yes --tools claude,codex --level L2
+git diff  # review changes
+git add -A && git commit -m "chore: add arbiter governance"
+```
+
+### Upgrading after arbiter version bump
+
+```bash
+npm update -g @arbiter/cli
+arbiter diff    # preview what would change
+arbiter update  # regenerate canonical files, preserve customizations
+```
