@@ -40,7 +40,17 @@ export default defineConfig({
           { text: 'Templates', link: '/reference/templates' },
         ],
       },
-      { text: 'Recipes', link: '/recipes/' },
+      {
+        text: 'Recipes',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/recipes/' },
+          { text: 'Custom invariant', link: '/recipes/custom-invariant' },
+          { text: 'Custom generator', link: '/recipes/custom-generator' },
+          { text: 'Write a plugin', link: '/recipes/plugin' },
+          { text: 'Brownfield onboarding', link: '/recipes/brownfield' },
+        ],
+      },
       {
         text: 'Comparisons',
         collapsed: true,
