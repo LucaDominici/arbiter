@@ -26,7 +26,10 @@
     "lint": "eslint src __tests__",
     "typecheck": "tsc --noEmit",
     "prepare": "git config core.hooksPath .githooks",
-    "check:arch": "depcruise src"
+    "check:arch": "depcruise src",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish"
   },
   "dependencies": {
     "commander": "^14.0.3",
@@ -35,6 +38,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^21.0.1",
     "@eslint/js": "^10.0.1",

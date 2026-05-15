@@ -6,6 +6,15 @@
 
 <!-- Bullet list of what changed -->
 
+## Changeset
+
+<!-- User-facing changes require a changeset. Run `npm run changeset` and commit the result. -->
+<!-- Internal-only PRs: add a line below explaining why no changeset is needed. -->
+
+- [ ] Changeset added (`npm run changeset`) **or** no-changeset justification below:
+
+<!-- no-changeset: <reason if applicable> -->
+
 ## Gate Checklist
 
 - [ ] `node scripts/check-all.mjs L1` passes
