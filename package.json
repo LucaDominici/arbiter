@@ -23,6 +23,14 @@
     "./plugin": {
       "types": "./dist/types/plugin.d.ts",
       "import": "./dist/types/plugin.js"
+    },
+    "./invariants": {
+      "types": "./dist/invariants/index.d.ts",
+      "import": "./dist/invariants/index.js"
+    },
+    "./compatibility": {
+      "types": "./dist/compatibility/index.d.ts",
+      "import": "./dist/compatibility/index.js"
     }
   },
   "scripts": {
