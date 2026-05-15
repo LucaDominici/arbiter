@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import type { DecompositionBackend } from './types.js'
 import { GitHubBackend } from './github-backend.js'

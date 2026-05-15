@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * `arbiter blame <node>` — time-travel governance (#263).
  *

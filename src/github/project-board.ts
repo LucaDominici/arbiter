@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { runCli, runCliJson } from '../utils/run-cli.js'
 
 export interface ProjectBoardResult {

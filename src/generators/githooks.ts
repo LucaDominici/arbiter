@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'

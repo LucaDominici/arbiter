@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { Language, StrictnessTier } from '../wizard/types.js'
 
 export interface StrictnessTierRules {

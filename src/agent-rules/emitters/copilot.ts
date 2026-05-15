@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * GitHub Copilot agent-rules emitter (#265).
  *

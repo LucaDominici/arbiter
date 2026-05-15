@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { loadConfig } from '../utils/config.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import { getBackend } from '../decomposition/registry.js'

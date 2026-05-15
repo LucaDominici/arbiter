@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { ArbiterConfig } from '../utils/config.js'
 import type { VerifyPlanRule } from '../verify/rules/types.js'
 import type { ArbiterMemoryPlugin } from './memory.js'

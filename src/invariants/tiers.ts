@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { InvariantTier } from '../wizard/types.js'
 
 export const TIER_LABELS: Record<InvariantTier, string> = {

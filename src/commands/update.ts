@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { resolve, basename } from 'node:path'
 import type { WriteResult } from '../utils/fs.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'

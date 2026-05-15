@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Gauntlet Java JUnit5 emitter (#260).
  *

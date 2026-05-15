@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Reads staged git state: files and commit message (from COMMIT_EDITMSG).
  *

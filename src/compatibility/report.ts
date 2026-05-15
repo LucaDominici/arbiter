@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { ProbeResult, VerifyReport } from './schema.js'
 
 const REMEDIATION: Partial<Record<string, string>> = {

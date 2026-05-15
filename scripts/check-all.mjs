@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // arbiter quality gate
 // Usage: node scripts/check-all.mjs [L1|L2|L3] [--json [path]]
-// L1: typecheck, format, lint, unit tests, circular deps, placeholders, orphan TODOs,
-//     commitlint, test naming, hardness inventory, docs, matrix fixtures, matrix proven
-//     cells, template tests, generator tests, command tests, catalog parity, enforcement
-//     wired, workflow runners, ci alignment, node version ssot, bloat ratchet, exit code
-//     contract, pipe/tee hazard, ssot core, doc links, knowledge map, canonical paths (30)
+// L1: typecheck, format, lint, unit tests, circular deps, placeholders, spdx headers,
+//     orphan TODOs, commitlint, test naming, hardness inventory, docs, matrix fixtures,
+//     matrix proven cells, template tests, generator tests, command tests, catalog parity,
+//     enforcement wired, workflow runners, ci alignment, node version ssot, bloat ratchet,
+//     exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
+//     canonical paths (31)
 // L2: L1 + coverage + dead code + duplication + npm audit + gitleaks + dogfood +
-//     self-validation drill + local-ci parity (39)
+//     self-validation drill + local-ci parity (40)
 // L3: L2 + full repo secrets scan (nightly/manual)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
@@ -57,6 +58,7 @@ runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])
 runCheck('unit tests', 'npm', ['test'])
 runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts', 'src/'])
 runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
+runCheck('spdx headers', 'node', ['scripts/check-spdx-headers.mjs'])
 runCheck('orphan TODOs', 'node', ['scripts/check-no-orphan-todo.mjs'])
 runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'])

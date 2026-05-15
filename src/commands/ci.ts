@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * `arbiter ci plan` / `arbiter ci verify-plan` commands (#261).
  *

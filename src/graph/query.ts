@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { GraphEdge, GraphNode, GraphSnapshot } from './model.js'
 import { GraphStore } from './store.js'
 

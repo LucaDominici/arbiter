@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { VerifyPlanRule } from './types.js'
 import { driveByScopeRule } from './drive-by-scope.js'
 import { orphanTodosRule } from './orphan-todos.js'

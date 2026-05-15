@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { resolve } from 'node:path'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import { validateConfig } from '../config/schema.js'

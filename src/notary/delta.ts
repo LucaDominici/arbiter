@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Heading-diff detector: given two versions of a markdown file,
  * emits a list of changed sections (add/modify/delete + line deltas).

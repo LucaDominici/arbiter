@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Task-tier label specs for GitHub-backed projects (#237).
  *

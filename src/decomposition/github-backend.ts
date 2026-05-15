@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { runCli, runCliJson, CliError } from '../utils/run-cli.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import type { DecompositionBackend, WorkUnit, WorkUnitPhase, WorkUnitStatus } from './types.js'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Language } from '../wizard/types.js'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Gauntlet spec types and YAML parser (#260).
  *

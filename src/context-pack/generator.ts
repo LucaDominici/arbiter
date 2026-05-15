@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * CONTEXT_PACK generator (#254): deterministic generator that, given a task track
  * and a list of files, produces CONTEXT_PACK.md with @source: citations.

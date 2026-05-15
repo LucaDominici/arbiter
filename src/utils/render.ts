@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import ejs from 'ejs'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'

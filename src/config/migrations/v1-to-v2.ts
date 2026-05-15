@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Migration: v1 ("0.1") → v2 ("0.2")
  *
