@@ -8,18 +8,28 @@
     "arbiter": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG.md",
+    "THIRD_PARTY_LICENSES.md"
   ],
   "exports": {
-    ".": "./dist/cli.js",
+    ".": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    },
     "./plugin": {
       "types": "./dist/types/plugin.d.ts",
-      "default": "./dist/types/plugin.js"
+      "import": "./dist/types/plugin.js"
     }
   },
   "scripts": {
     "build": "tsc && rm -rf dist/templates && cp -r src/templates dist/templates",
     "dev": "tsx src/cli.ts",
+    "prepack": "npm run build",
+    "pack:size": "node scripts/check-pack-size.mjs",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:contract": "vitest run --passWithNoTests __tests__/contract",
@@ -32,7 +42,10 @@
     "check:arch": "depcruise src",
     "changeset": "changeset",
     "changeset:version": "changeset version",
-    "changeset:publish": "changeset publish"
+    "changeset:publish": "changeset publish",
+    "docs:dev": "npm run dev -w @arbiter/website",
+    "docs:build": "npm run build -w @arbiter/website",
+    "docs:preview": "npm run preview -w @arbiter/website"
   },
   "dependencies": {
     "commander": "^14.0.3",

@@ -3,7 +3,7 @@ name: npm publish dry-run
 # Runs on every PR targeting main.
 # Verifies the package can be published without errors.
 # Fails if npm publish --dry-run exits non-zero.
-# Package size budget check (A7) will be wired here once the budget is set.
+# Also enforces the package size budget (A7): hard cap 5 MB unpacked.
 
 on:
   pull_request:
@@ -29,3 +29,6 @@ jobs:
 
       - name: npm publish dry-run
         run: npm publish --dry-run --access public
+
+      - name: Package size budget check
+        run: node scripts/check-pack-size.mjs --strict

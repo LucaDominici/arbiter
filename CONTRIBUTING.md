@@ -144,7 +144,38 @@ The 15 CANON-NN rules in `docs/SYSTEM/CANON.md` are the process-level counterpar
 
 ---
 
-## 7. Code of Conduct
+## 7. Package Size Budget
+
+The published package (`@arbiter/cli`) has a size budget enforced at PR time:
+
+| Threshold | Value             | Meaning                                  |
+| --------- | ----------------- | ---------------------------------------- |
+| Warn      | ~3.06 MB unpacked | Budget usage growing — review what's new |
+| Hard cap  | 5 MB unpacked     | PR is blocked until size is reduced      |
+
+**Baseline (2026-05-15):** 2.04 MB unpacked, 1022 files.
+
+**What ships:**
+
+The `files` field in `package.json` is the allowlist. Currently ships: `dist/`, `README.md`, `LICENSE`, `NOTICE`, `CHANGELOG.md`, `THIRD_PARTY_LICENSES.md`. Everything else is excluded. `.npmignore` adds a defense-in-depth layer but the allowlist is authoritative.
+
+**Check locally:**
+
+```bash
+node scripts/check-pack-size.mjs         # warn-only
+node scripts/check-pack-size.mjs --strict  # fail on warn too
+npm pack --dry-run                         # human-readable file list
+```
+
+**When the hard cap is hit:**
+
+1. Run `npm pack --dry-run` to see which files are largest.
+2. Move fixtures or large assets out of `dist/` or behind a separate optional package.
+3. Update `WARN_BYTES` in `scripts/check-pack-size.mjs` once a new baseline is established.
+
+---
+
+## 8. Code of Conduct
 
 This project follows the [Contributor Covenant 2.1](./CODE_OF_CONDUCT.md). Report incidents to **ulfwerenar@gmail.com**.
 

@@ -1,0 +1,30 @@
+# Defense-in-depth — package.json "files" allowlist is primary guard.
+# This file blocks any accidental path-traversal that bypasses the allowlist.
+
+__tests__/
+docs/
+scripts/
+.github/
+*.test.ts
+*.spec.ts
+coverage/
+report/
+.evidence/
+.coverage-tmp/
+*.arbiter-backup
+abc123
+suppressions/
+website/
+packages/
+.claude/
+.githooks/
+.changeset/
+src/
+tsconfig*.json
+eslint.config.*
+.editorconfig
+.prettierrc*
+commitlint.config.*
+vitest.config.*
+.dependency-cruiser*
+.knip*
