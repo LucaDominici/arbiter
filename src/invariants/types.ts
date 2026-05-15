@@ -31,4 +31,18 @@ export interface Invariant {
   alwaysActive: boolean
   /** How this invariant is enforced (e.g. "hook + CI", "CI only", "manual") */
   enforcement?: string
+  /**
+   * Lifecycle status. Omit (or "active") for in-use invariants.
+   * Set to "retired" when an invariant is superseded or removed — IDs must never be reused.
+   */
+  status?: 'active' | 'retired'
+  /**
+   * Required when status is "retired". Explains why and what replaced this invariant.
+   */
+  retiredReason?: string
+  /**
+   * Optional: the ID of the invariant that supersedes this one.
+   * Only set when status is "retired".
+   */
+  redirectTo?: string
 }
