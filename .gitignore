@@ -30,3 +30,4 @@ report/
 
 # Private maintainer docs (enforcement runbooks, internal notes)
 docs/internal/
+.coverage-tmp/
