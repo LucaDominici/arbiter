@@ -240,3 +240,58 @@ describe('harvestFiles', () => {
     expect(files).not.toContain('old-name.ts')
   })
 })
+
+describe('parent state capture (#733)', () => {
+  it('returns parentBranchBefore when captureParentState: true', () => {
+    writeFileSync(join(worktree, 'new-file.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      captureParentState: true,
+    })
+
+    expect(typeof result.parentBranchBefore).toBe('string')
+    expect(result.parentBranchBefore!.length).toBeGreaterThan(0)
+  })
+
+  it('returns parentUntrackedBefore listing untracked files in main repo', () => {
+    writeFileSync(join(mainRepo, 'untracked.txt'), 'untracked content')
+    writeFileSync(join(worktree, 'new-file.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      captureParentState: true,
+    })
+
+    expect(result.parentUntrackedBefore).toContain('untracked.txt')
+  })
+
+  it('parentBranchBefore and parentUntrackedBefore are undefined without captureParentState', () => {
+    writeFileSync(join(worktree, 'new-file.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.parentBranchBefore).toBeUndefined()
+    expect(result.parentUntrackedBefore).toBeUndefined()
+  })
+
+  it('captures parent state even when worktree has no changes', () => {
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      captureParentState: true,
+    })
+
+    expect(typeof result.parentBranchBefore).toBe('string')
+    expect(Array.isArray(result.parentUntrackedBefore)).toBe(true)
+    expect(result.copied).toHaveLength(0)
+  })
+})
