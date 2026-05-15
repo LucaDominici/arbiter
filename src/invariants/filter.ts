@@ -13,6 +13,15 @@ function meetsGovernanceLevel(
   return LEVEL_ORDER.indexOf(actual) >= LEVEL_ORDER.indexOf(required)
 }
 
+function matchesLanguage(inv: Invariant, language: Language): boolean {
+  if (!inv.languages) return true
+  if (inv.languages.includes(language)) return true
+  // multi-language projects match invariants scoped to java or typescript
+  return (
+    language === 'multi' && (inv.languages.includes('java') || inv.languages.includes('typescript'))
+  )
+}
+
 export function getFilteredInvariants(config: {
   language: Language
   governanceLevel: GovernanceLevel
@@ -21,29 +30,13 @@ export function getFilteredInvariants(config: {
   selfMode?: boolean
 }): Invariant[] {
   return INVARIANT_CATALOG.filter((inv) => {
-    // selfOnly filter: exclude arbiter-internal invariants from target-project output
     if (inv.selfOnly && !config.selfMode) return false
-
-    // Language filter: if the invariant requires specific languages, check.
-    // multi-language projects match invariants scoped to java or typescript.
-    if (inv.languages && !inv.languages.includes(config.language)) {
-      if (
-        config.language !== 'multi' ||
-        (!inv.languages.includes('java') && !inv.languages.includes('typescript'))
-      )
-        return false
-    }
-
-    // alwaysActive invariants bypass tier selection but still respect governance level
-    // (an alwaysActive invariant with minGovernanceLevel: 'L2' is inactive at L1)
+    if (!matchesLanguage(inv, config.language)) return false
     if (inv.alwaysActive) {
       return meetsGovernanceLevel(inv.minGovernanceLevel, config.governanceLevel)
     }
-
-    // Non-always-active: require both governance level and tier membership
     if (!meetsGovernanceLevel(inv.minGovernanceLevel, config.governanceLevel)) return false
     if (!config.invariantTiers.includes(inv.tier)) return false
-
     return true
   })
 }
