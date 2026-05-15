@@ -13,6 +13,13 @@ export default defineConfig({
       { text: 'Recipes', link: '/recipes/' },
       { text: 'Community', link: '/community/' },
       { text: 'GitHub', link: 'https://github.com/LucaDominici/arbiter' },
+      {
+        text: 'v0 (next)',
+        items: [
+          { text: 'v0 (next)', link: '/' },
+          { text: 'v0.1 (latest)', link: '/v/latest/', activeMatch: '^/v/latest/' },
+        ],
+      },
     ],
 
     sidebar: [
