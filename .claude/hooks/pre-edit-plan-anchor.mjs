@@ -33,6 +33,69 @@ const preview = planBody.split('\n').slice(0, 20).join('\n')
 
 process.stdout.write(`=== ACTIVE PLAN (${basename(planPath)}) ===\n` + `${preview}\n` + `===\n`)
 
+// ─── Context Block validation (#689) ─────────────────────────────────────────
+// Validates YAML front-matter Context Block. Required for all new plans.
+// Plans with "# [legacy — pre-Context-Block]" header are exempt.
+const isLegacyPlan = /^\s*#\s*\[legacy\s*[\u2014\u2013-]\s*pre-context-block\]/im.test(planBody)
+
+if (!isLegacyPlan) {
+  // Extract front-matter between first --- and second ---
+  const fmMatch = /^---\r?\n([\s\S]*?)\r?\n---/m.exec(planBody)
+
+  if (!fmMatch) {
+    process.stderr.write(
+      `[arbiter] PLAN ANCHOR: plan is missing a Context Block (YAML front-matter).\n` +
+        `Every plan must begin with a "---" front-matter block containing a "context:" key.\n` +
+        `See docs/REFERENCE/plan-template.md for the required format.\n` +
+        `Use ARBITER_PLAN_BYPASS=1 for emergency edits or mark plan as:\n` +
+        `  # [legacy -- pre-Context-Block]\n`,
+    )
+    process.exit(2)
+  }
+
+  const fm = fmMatch[1]
+
+  // Validate context: key exists
+  if (!/^\s*context\s*:/m.test(fm)) {
+    process.stderr.write(
+      `[arbiter] PLAN ANCHOR: front-matter missing "context:" key.\n` +
+        `See docs/REFERENCE/plan-template.md for the required format.\n`,
+    )
+    process.exit(2)
+  }
+
+  // Validate issue/issues — accept either form
+  const hasIssue = /^\s+issue\s*:/m.test(fm)
+  const hasIssues = /^\s+issues\s*:/m.test(fm)
+  if (!hasIssue && !hasIssues) {
+    process.stderr.write(
+      `[arbiter] PLAN ANCHOR: Context Block missing required field: "issue" or "issues".\n` +
+        `Use "issue: ..." for single tasks or "issues: [...]" for batches.\n`,
+    )
+    process.exit(2)
+  }
+
+  // Validate remaining required fields
+  const REQUIRED_FIELDS = [
+    'type',
+    'pipeline',
+    'branch_convention',
+    'base_branch',
+    'key_constraints',
+    'red_team_warnings',
+    'estimate',
+  ]
+  const missing = REQUIRED_FIELDS.filter((f) => !new RegExp(`^\\s+${f}\\s*:`, 'm').test(fm))
+
+  if (missing.length > 0) {
+    process.stderr.write(
+      `[arbiter] PLAN ANCHOR: Context Block missing required field(s): ${missing.join(', ')}.\n` +
+        `See docs/REFERENCE/plan-template.md for the full list of required fields.\n`,
+    )
+    process.exit(2)
+  }
+}
+
 // ─── CANON-16: Survey gate for new src/ files ─────────────────────────────────
 const targetRaw = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
 if (targetRaw) {
