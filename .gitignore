@@ -27,3 +27,6 @@ report/
 
 # Arbiter backup files created during update
 *.arbiter-backup
+
+# Private maintainer docs (enforcement runbooks, internal notes)
+docs/internal/
