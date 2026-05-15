@@ -1,0 +1,52 @@
+name: Changeset Check
+
+on:
+  pull_request:
+    branches: [main]
+
+# Cancel stale runs on the same PR.
+concurrency:
+  group: changeset-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changeset-check:
+    name: Changeset Required
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Fetch PR body into file
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" > /tmp/pr_body.txt
+
+      - name: Check changeset or explicit no-changeset justification
+        run: |
+          # Pass if a changeset file exists in this PR's diff
+          CHANGESET_FILES=$(git diff --name-only origin/main...HEAD -- '.changeset/*.md' | grep -v README || true)
+          if [ -n "$CHANGESET_FILES" ]; then
+            echo "changeset-check: changeset file found — OK"
+            exit 0
+          fi
+
+          # Pass if PR body contains an explicit no-changeset justification
+          if grep -qE 'no-changeset:' /tmp/pr_body.txt; then
+            echo "changeset-check: no-changeset justification found — OK"
+            exit 0
+          fi
+
+          echo "changeset-check: FAIL"
+          echo "  This PR has no changeset file and no explicit no-changeset justification."
+          echo "  For user-facing changes: run 'npm run changeset' and commit the result."
+          echo "  For internal-only changes: add '<!-- no-changeset: <reason> -->' to the PR body."
+          exit 1
