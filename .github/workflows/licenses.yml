@@ -1,0 +1,67 @@
+name: Licenses
+
+on:
+  push:
+    branches: [main, 'task/**']
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs on the same ref except for main and tags.
+concurrency:
+  group: licenses-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  license-check:
+    name: License Compatibility Check
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Check dependency licenses
+        # Fails if any production dependency uses a non-allowlisted license.
+        # Allowlist: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, CC0-1.0
+        # and common permissive supplements: 0BSD, Unlicense, BlueOak-1.0.0
+        run: |
+          npx --yes license-checker-rseidelsohn \
+            --production \
+            --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;MPL-2.0;CC0-1.0;0BSD;Unlicense;BlueOak-1.0.0" \
+            --excludePackages "@arbiter/cli" \
+            --failOnUnlicensed \
+            --failOnMissing
+
+  generate-third-party-licenses:
+    name: Generate THIRD_PARTY_LICENSES
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    needs: license-check
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Generate THIRD_PARTY_LICENSES.txt
+        run: |
+          npx --yes license-checker-rseidelsohn \
+            --production \
+            --out THIRD_PARTY_LICENSES.txt \
+            --excludePackages "@arbiter/cli"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: third-party-licenses-${{ github.run_id }}
+          path: THIRD_PARTY_LICENSES.txt
+          retention-days: 90
