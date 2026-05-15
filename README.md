@@ -1,5 +1,7 @@
 # Arbiter — AI Development Governance Framework
 
+[![No Telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)](PRIVACY.md)
+
 Arbiter installs a complete, standards-aligned AI governance stack into any project in one command.
 
 ```bash

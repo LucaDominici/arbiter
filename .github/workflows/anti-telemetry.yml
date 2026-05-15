@@ -1,0 +1,28 @@
+name: Anti-Telemetry
+
+on:
+  push:
+    branches: [main, 'task/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  anti-telemetry:
+    name: Anti-Telemetry Assertion (#642)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build (dist/ required for grep)
+        run: npm run build
+
+      - name: Check anti-telemetry
+        run: node scripts/check-anti-telemetry.mjs

@@ -56,10 +56,20 @@ The full source is at `src/`. Network-capable code paths are limited to:
 
 ---
 
+## Anti-Telemetry CI Enforcement (#642)
+
+Every pull request runs an automated scan of `dist/` and `src/templates/` for network call patterns. Any match not present in [`suppressions/telemetry-allowlist.json`](suppressions/telemetry-allowlist.json) fails the build.
+
+**Scanned patterns:** `fetch(`, `http.request(`, `https.request(`, `axios`, `segment.`, `amplitude.`, `mixpanel`, `posthog`, `sentry`, `bugsnag`
+
+The allowlist lists every permitted occurrence with a justification. Currently permitted patterns are generated test fixtures that call local mock servers in test scope only — never production endpoints.
+
+---
+
 ## Reporting Privacy Concerns
 
 If you discover unexpected network activity, please report it via [SECURITY.md](SECURITY.md).
 
 ---
 
-_Last reviewed: 2026-05-15_
+_Last reviewed: 2026-05-16_
