@@ -1,5 +1,7 @@
 # Arbiter — Feature Comparison Matrix
 
+> **Engineering reference.** Public version: [website/comparisons/](../../website/comparisons/index.md). Refresh cadence: review quarterly.
+
 **Last updated:** 2026-04-02 (post-M11, resequenced per ADR-014)
 **Updated after each milestone.**
 
