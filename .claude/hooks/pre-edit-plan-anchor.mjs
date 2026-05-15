@@ -28,7 +28,15 @@ if (!planPath || !existsSync(planPath)) {
   process.exit(2)
 }
 
-const planBody = readFileSync(planPath, 'utf-8')
+let planBody
+try {
+  planBody = readFileSync(planPath, 'utf-8')
+} catch (err) {
+  process.stderr.write(
+    `[arbiter] PLAN ANCHOR: plan file disappeared or became unreadable at ${planPath}: ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+  process.exit(2)
+}
 const preview = planBody.split('\n').slice(0, 20).join('\n')
 
 process.stdout.write(`=== ACTIVE PLAN (${basename(planPath)}) ===\n` + `${preview}\n` + `===\n`)

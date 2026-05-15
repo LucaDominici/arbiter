@@ -10,19 +10,31 @@ describe('@arbiter/cli/invariants barrel', () => {
     expect(INVARIANT_CATALOG.length).toBeGreaterThan(0)
   })
 
-  it('re-exports InvariantTier and InvariantPreset type-bearing values', async () => {
-    // Since these are type-only exports, we verify the module loads without error
-    // and that the named exports are present at the module level
+  it('exports all runtime functions', async () => {
     const mod = await import('../src/invariants/index.js')
-    // INVARIANT_CATALOG is the runtime value — types are verified via tsc
     expect(mod).toHaveProperty('INVARIANT_CATALOG')
     expect(mod).toHaveProperty('getFilteredInvariants')
+    expect(mod).toHaveProperty('getInvariantsByTier')
+    expect(mod).toHaveProperty('presetToTiers')
+    expect(mod).toHaveProperty('defaultPresetForLevel')
+    expect(typeof mod.getFilteredInvariants).toBe('function')
+    expect(typeof mod.getInvariantsByTier).toBe('function')
+    expect(typeof mod.presetToTiers).toBe('function')
+    expect(typeof mod.defaultPresetForLevel).toBe('function')
   })
 
-  it('re-exports Language wizard types (GovernanceLevel visible via module)', async () => {
+  it('does not export internal modules (no surplus exports)', async () => {
     const mod = await import('../src/invariants/index.js')
-    // The barrel should not throw on import — all re-exported paths must resolve
-    expect(mod).toBeDefined()
+    const keys = Object.keys(mod)
+    const allowed = new Set([
+      'INVARIANT_CATALOG',
+      'getFilteredInvariants',
+      'getInvariantsByTier',
+      'presetToTiers',
+      'defaultPresetForLevel',
+    ])
+    const surplus = keys.filter((k) => !allowed.has(k))
+    expect(surplus).toHaveLength(0)
   })
 })
 
@@ -39,8 +51,11 @@ describe('@arbiter/cli/compatibility barrel', () => {
     expect(typeof mod.validateMatrix).toBe('function')
   })
 
-  it('module loads without errors', async () => {
+  it('does not export internal modules (no surplus exports)', async () => {
     const mod = await import('../src/compatibility/index.js')
-    expect(mod).toBeDefined()
+    const keys = Object.keys(mod)
+    const allowed = new Set(['runProbes', 'validateMatrix'])
+    const surplus = keys.filter((k) => !allowed.has(k))
+    expect(surplus).toHaveLength(0)
   })
 })

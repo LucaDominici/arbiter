@@ -61,6 +61,36 @@ context:
 # Plan body
 `
 
+const LEGACY_PLAN = `# [legacy — pre-Context-Block]
+
+# Old plan without Context Block
+
+Some old content here.
+`
+
+const LEGACY_PLAN_ENDASH = `# [legacy – pre-Context-Block]
+
+# Old plan (en-dash variant)
+
+Content.
+`
+
+const CONTEXT_BLOCK_NO_ISSUE = `---
+context:
+  type: feat
+  pipeline: "plan → impl → gate → PR"
+  branch_convention: "task/#NNN"
+  base_branch: main
+  key_constraints:
+    - "constraint"
+  red_team_warnings:
+    - "warning"
+  estimate: "S (2h)"
+---
+
+# Plan body
+`
+
 function runHook(
   planContent: string,
   opts: { bypass?: boolean } = {},
@@ -130,5 +160,21 @@ describe('pre-edit-plan-anchor: Context Block validation (#689)', () => {
     expect(result.stderr).toMatch(
       /pipeline|branch_convention|base_branch|key_constraints|red_team_warnings|estimate/,
     )
+  })
+
+  it('legacy plan with em-dash header exits 0 (exempt from Context Block)', () => {
+    const result = runHook(LEGACY_PLAN)
+    expect(result.status).toBe(0)
+  })
+
+  it('legacy plan with en-dash header exits 0 (unicode variant)', () => {
+    const result = runHook(LEGACY_PLAN_ENDASH)
+    expect(result.status).toBe(0)
+  })
+
+  it('context block with no issue or issues field exits 2', () => {
+    const result = runHook(CONTEXT_BLOCK_NO_ISSUE)
+    expect(result.status).toBe(2)
+    expect(result.stderr).toMatch(/issue/i)
   })
 })

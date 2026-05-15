@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdirSync, readFileSync, existsSync, readdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
-import { writeTaskStatus } from '../../src/commands/task.js'
+import { writeTaskStatus, runTaskResume } from '../../src/commands/task.js'
 
 describe('writeTaskStatus — atomic write (#690)', () => {
   let dir: string
@@ -62,12 +62,103 @@ describe('writeTaskStatus — atomic write (#690)', () => {
     expect(parsed.task).toBe('#123')
   })
 
-  it('merges timestamps on second write', () => {
+  it('merges timestamps on second write — both phases preserved', () => {
     writeTaskStatus({ taskDir, phase: 'plan' })
     writeTaskStatus({ taskDir, phase: 'implementation' })
     const parsed = JSON.parse(readFileSync(join(taskDir, 'status.json'), 'utf-8')) as {
       timestamps: Record<string, string>
     }
-    expect(Object.keys(parsed.timestamps).length).toBeGreaterThanOrEqual(2)
+    expect(parsed.timestamps).toHaveProperty('plan')
+    expect(parsed.timestamps).toHaveProperty('implementation')
+  })
+
+  it('extras cannot overwrite required fields (phase, runId, gateDecisions)', () => {
+    writeTaskStatus({
+      taskDir,
+      phase: 'plan',
+      extras: { phase: 'complete', runId: 'injected', gateDecisions: ['fake'] },
+    })
+    const parsed = JSON.parse(readFileSync(join(taskDir, 'status.json'), 'utf-8')) as Record<
+      string,
+      unknown
+    >
+    expect(parsed.phase).toBe('plan')
+    expect(parsed.runId).not.toBe('injected')
+    expect(Array.isArray(parsed.gateDecisions)).toBe(true)
+    expect((parsed.gateDecisions as unknown[]).length).toBe(0)
+  })
+})
+
+describe('runTaskResume — recovery table (#690)', () => {
+  let dir: string
+  let claudeDir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+    claudeDir = join(dir, '.claude')
+    mkdirSync(claudeDir, { recursive: true })
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('defaults to preflight recovery when .task-phase missing', () => {
+    let output = ''
+    const originalWrite = process.stdout.write.bind(process.stdout)
+    process.stdout.write = (chunk: string) => {
+      output += chunk
+      return true
+    }
+    try {
+      runTaskResume({ dir })
+    } finally {
+      process.stdout.write = originalWrite
+    }
+    expect(output).toMatch(/preflight/i)
+  })
+
+  it('returns implementation recovery for implementation phase', () => {
+    writeFileSync(join(claudeDir, '.task-phase'), 'implementation\n')
+    let output = ''
+    const originalWrite = process.stdout.write.bind(process.stdout)
+    process.stdout.write = (chunk: string) => {
+      output += chunk
+      return true
+    }
+    try {
+      runTaskResume({ dir })
+    } finally {
+      process.stdout.write = originalWrite
+    }
+    expect(output).toMatch(/implementation/i)
+    expect(output).toMatch(/check-all/i)
+  })
+
+  it('prepends task ID header when .task-id exists', () => {
+    writeFileSync(join(claudeDir, '.task-phase'), 'plan\n')
+    writeFileSync(join(claudeDir, '.task-id'), '#456\n')
+    let output = ''
+    const originalWrite = process.stdout.write.bind(process.stdout)
+    process.stdout.write = (chunk: string) => {
+      output += chunk
+      return true
+    }
+    try {
+      runTaskResume({ dir })
+    } finally {
+      process.stdout.write = originalWrite
+    }
+    expect(output).toMatch(/Task: #456/)
+  })
+
+  it('does not crash when .task-id is absent', () => {
+    writeFileSync(join(claudeDir, '.task-phase'), 'verification\n')
+    expect(() => runTaskResume({ dir })).not.toThrow()
+  })
+
+  it('throws on corrupted phase value', () => {
+    writeFileSync(join(claudeDir, '.task-phase'), 'not-a-real-phase\n')
+    expect(() => runTaskResume({ dir })).toThrow(/Corrupted phase/)
   })
 })

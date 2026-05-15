@@ -38,6 +38,12 @@ function extractIds(src) {
   for (const line of lines) {
     const idMatch = /^\s+id:\s*['"]([A-Z]+-\d+)['"]/.exec(line)
     if (idMatch) {
+      // Finalize previous entry if a new id: line appears before a closing brace
+      if (currentId !== null) {
+        const blockText = blockLines.join('\n')
+        const retired = /status:\s*['"]retired['"]/.test(blockText)
+        ids.set(currentId, { retired })
+      }
       currentId = idMatch[1]
       blockLines = [line]
     } else if (currentId) {

@@ -38,17 +38,22 @@ export function writeTaskStatus({ taskDir, phase, extras }: WriteTaskStatusOptio
   try {
     const existing = JSON.parse(readFileSync(target, 'utf-8')) as Partial<TaskStatus>
     existingTimestamps = existing.timestamps ?? {}
-  } catch {
-    // No existing status — start fresh
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `writeTaskStatus: failed to read existing status at ${target}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
   }
 
   const now = new Date().toISOString()
   const status: TaskStatus = {
+    ...extras,
     phase,
     timestamps: { ...existingTimestamps, [phase]: now },
     runId: `${process.pid}-${Date.now()}`,
     gateDecisions: [],
-    ...extras,
   }
 
   writeFileSync(tmp, JSON.stringify(status, null, 2) + '\n', 'utf-8')
@@ -112,8 +117,13 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
   try {
     const taskIdRaw = readFileSync(join(claudeDir, '.task-id'), 'utf-8').trim()
     if (taskIdRaw) taskId = taskIdRaw
-  } catch {
-    // No task id — ok
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `runTaskResume: failed to read .task-id: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
   }
 
   const header = taskId ? `Task: ${taskId}\n` : ''
