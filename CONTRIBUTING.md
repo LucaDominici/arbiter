@@ -22,6 +22,26 @@ The canonical governance contract lives in [`AGENTS.md`](./AGENTS.md). Every oth
 
 ---
 
+## 1a. Developer Certificate of Origin (DCO)
+
+All commits to arbiter must be signed off under the [Developer Certificate of Origin](https://developercertificate.org/). DCO replaces a separate Contributor License Agreement — by signing off, you certify you have the right to submit the change under Apache 2.0.
+
+Sign off with `-s`:
+
+```bash
+git commit -s -m "feat(#NNN): your change"
+```
+
+This appends `Signed-off-by: Your Name <your@email>` to the commit message. The repo provides `.gitmessage` as a commit-template scaffold; enable it once per clone:
+
+```bash
+git config commit.template .gitmessage
+```
+
+Once the DCO GitHub App is installed (tracked on [issue #513](https://github.com/LucaDominici/arbiter/issues/513)), the `DCO` status check becomes required on `main`. PRs with unsigned commits will be blocked.
+
+---
+
 ## 2. Self-Application Philosophy
 
 arbiter dogfoods at L3. The same gate that arbiter generates for target projects is the gate this repository must pass before any merge.
