@@ -66,7 +66,7 @@
     "eslint-plugin-sonarjs": "^4.0.3",
     "jscpd": "^4.1.1",
     "knip": "^6.13.1",
-    "madge": "^8.0.0",
+    "madge": "^7.0.0",
     "prettier": "^3.8.3",
     "smol-toml": "^1.6.1",
     "tsx": "^4.7.0",
