@@ -1,0 +1,5 @@
+type(#NNN): short summary (≤72 chars)
+
+# Why this change (1–3 sentences).
+
+Signed-off-by: Your Name <your@email>

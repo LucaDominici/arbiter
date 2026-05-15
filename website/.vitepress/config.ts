@@ -6,6 +6,10 @@ export default defineConfig({
   lastUpdated: true,
   cleanUrls: true,
 
+  sitemap: {
+    hostname: 'https://arbiter.dev',
+  },
+
   themeConfig: {
     nav: [
       { text: 'Docs', link: '/quickstart/' },
@@ -13,6 +17,13 @@ export default defineConfig({
       { text: 'Recipes', link: '/recipes/' },
       { text: 'Community', link: '/community/' },
       { text: 'GitHub', link: 'https://github.com/LucaDominici/arbiter' },
+      {
+        text: 'v0 (next)',
+        items: [
+          { text: 'v0 (next)', link: '/' },
+          { text: 'v0.1 (latest)', link: '/v/latest/', activeMatch: '^/v/latest/' },
+        ],
+      },
     ],
 
     sidebar: [
@@ -29,7 +40,17 @@ export default defineConfig({
           { text: 'Templates', link: '/reference/templates' },
         ],
       },
-      { text: 'Recipes', link: '/recipes/' },
+      {
+        text: 'Recipes',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/recipes/' },
+          { text: 'Custom invariant', link: '/recipes/custom-invariant' },
+          { text: 'Custom generator', link: '/recipes/custom-generator' },
+          { text: 'Write a plugin', link: '/recipes/plugin' },
+          { text: 'Brownfield onboarding', link: '/recipes/brownfield' },
+        ],
+      },
       {
         text: 'Comparisons',
         collapsed: true,
