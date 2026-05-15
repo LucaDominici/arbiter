@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { renderTemplate } from '../utils/render.js'

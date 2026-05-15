@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * IPOG (In-Parameter-Order General) pairwise / t-way test generation (#260).
  *

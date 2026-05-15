@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
 import { Command } from 'commander'
 import { runInit } from './commands/init.js'
 import { runUpdate } from './commands/update.js'

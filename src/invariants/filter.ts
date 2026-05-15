@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { Language, GovernanceLevel } from '../wizard/types.js'
 import type { Invariant, InvariantTier, InvariantPreset } from './types.js'
 import { INVARIANT_CATALOG } from './catalog.js'

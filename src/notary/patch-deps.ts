@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Patch-dependency map: maps file path patterns → required index files to update.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Temporal history harvester for the provenance graph (#263).
  *

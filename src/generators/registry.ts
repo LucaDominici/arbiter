@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { generateAgentsMd } from './agents-md.js'
 import { generateClaude } from './claude.js'
 import { generateCodex } from './codex.js'

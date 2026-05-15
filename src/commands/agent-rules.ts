@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { resolve, join, dirname } from 'node:path'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { buildIntermediate, type AgentRulesIntermediate } from '../agent-rules/intermediate.js'

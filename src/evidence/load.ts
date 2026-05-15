@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { existsSync, readFileSync } from 'node:fs'
 
 function isRecord(v: unknown): v is Record<string, unknown> {

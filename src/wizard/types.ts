@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 export type InvariantTier = 'architectural' | 'data' | 'security' | 'operational' | 'governance'
 
 export type InvariantPreset = 'essential' | 'standard' | 'full'

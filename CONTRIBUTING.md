@@ -98,6 +98,9 @@ node dist/cli.js init --dir /path/to/some-project --tools claude --level L2
 - **PR title:** Reference the issue ID, e.g. `feat(detectors): support Bun runtime (#NNN)`.
 - **PR body:** Use the template. Fill every section. The gate must pass in CI before review.
 - **`--no-verify`:** Forbidden. Blocked by hook policy. If the gate fails, fix the root cause.
+- **SPDX header:** Every new file under `src/**/*.ts` must start with
+  `// SPDX-License-Identifier: Apache-2.0` as its first line (after a shebang, if present).
+  The L1 gate (`check-spdx-headers.mjs`) enforces this and will fail if the header is absent.
 
 ### Enforcement chain
 

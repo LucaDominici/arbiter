@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Risk classifier for changed-file paths (#238).
  *

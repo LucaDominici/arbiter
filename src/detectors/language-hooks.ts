@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import type { Language, LanguageHook } from '../wizard/types.js'
 
 const TS_NO_ANY: LanguageHook = {

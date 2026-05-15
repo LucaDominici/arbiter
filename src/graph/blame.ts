@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Blame timeline builder and formatters for the provenance graph (#263).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { resolve, basename } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { detectLanguage } from '../detectors/language.js'

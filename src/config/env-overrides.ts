@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Environment variable override layer for ArbiterConfigV2.
  *
