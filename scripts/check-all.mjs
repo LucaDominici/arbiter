@@ -115,6 +115,8 @@ if (level === 'L2' || level === 'L3') {
   // only after at least one threat/responsibility row is documented (#350-followup).
   runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
   runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
+  runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
+  runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

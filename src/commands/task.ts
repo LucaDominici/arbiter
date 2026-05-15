@@ -1,8 +1,64 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type TaskPhase = 'preflight' | 'plan' | 'implementation' | 'verification' | 'complete'
+
+export interface TaskStatusExtras {
+  task?: string
+  branch?: string
+  [key: string]: unknown
+}
+
+export interface TaskStatus {
+  phase: TaskPhase
+  timestamps: Record<string, string>
+  runId: string
+  gateDecisions: string[]
+  [key: string]: unknown
+}
+
+export interface WriteTaskStatusOptions {
+  taskDir: string
+  phase: TaskPhase
+  extras?: TaskStatusExtras
+}
+
+/**
+ * Atomically write status.json to taskDir via temp-file + rename.
+ * Same-dir temp ensures both files are on the same filesystem (no cross-device rename).
+ * Merges timestamps from any existing status.json before writing.
+ */
+export function writeTaskStatus({ taskDir, phase, extras }: WriteTaskStatusOptions): void {
+  const target = join(taskDir, 'status.json')
+  const tmp = `${target}.tmp.${process.pid}`
+
+  // Merge timestamps from existing status if present
+  let existingTimestamps: Record<string, string> = {}
+  try {
+    const existing = JSON.parse(readFileSync(target, 'utf-8')) as Partial<TaskStatus>
+    existingTimestamps = existing.timestamps ?? {}
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `writeTaskStatus: failed to read existing status at ${target}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
+  }
+
+  const now = new Date().toISOString()
+  const status: TaskStatus = {
+    ...extras,
+    phase,
+    timestamps: { ...existingTimestamps, [phase]: now },
+    runId: `${process.pid}-${Date.now()}`,
+    gateDecisions: [],
+  }
+
+  writeFileSync(tmp, JSON.stringify(status, null, 2) + '\n', 'utf-8')
+  renameSync(tmp, target)
+}
 
 const PHASE_ORDER: TaskPhase[] = ['preflight', 'plan', 'implementation', 'verification', 'complete']
 
@@ -33,6 +89,46 @@ function readPhase(claudeDir: string): TaskPhase {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return 'preflight'
     throw err
   }
+}
+
+export interface TaskResumeOptions {
+  dir?: string
+}
+
+const RECOVERY_TABLE: Record<TaskPhase, string> = {
+  preflight:
+    'Phase: preflight\nAction: Run /task #NNN to initialize the task branch and plan.\nCommand: node scripts/check-all.mjs L1',
+  plan: 'Phase: plan\nAction: Plan is being written. Review .claude/plans/ for existing plan draft.\nNext: Await user GO before editing files.',
+  implementation:
+    'Phase: implementation\nAction: Implementation in progress. Check git status and .claude/.task-plan.\nNext: Resume TDD cycle (red → green → refactor), then run node scripts/check-all.mjs L1.',
+  verification:
+    'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then commit and push.',
+  complete:
+    'Phase: complete\nAction: Task is complete. Check if PR was created: gh pr list --head $(git branch --show-current)\nNext: Verify PR merged and issue closed.',
+}
+
+export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
+  const root = dir ?? process.cwd()
+  const claudeDir = join(root, '.claude')
+  const phase = readPhase(claudeDir)
+
+  // Try to load status.json for richer context
+  let taskId: string | undefined
+  try {
+    const taskIdRaw = readFileSync(join(claudeDir, '.task-id'), 'utf-8').trim()
+    if (taskIdRaw) taskId = taskIdRaw
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `runTaskResume: failed to read .task-id: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
+  }
+
+  const header = taskId ? `Task: ${taskId}\n` : ''
+  const recovery = RECOVERY_TABLE[phase]
+  process.stdout.write(`${header}${recovery}\n`)
 }
 
 export function runTaskAdvance(opts: TaskAdvanceOptions): void {

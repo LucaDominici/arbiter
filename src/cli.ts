@@ -15,7 +15,7 @@ import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
 import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
-import { runTaskAdvance } from './commands/task.js'
+import { runTaskAdvance, runTaskResume } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
@@ -596,6 +596,14 @@ program
   )
 
 const task = program.command('task').description('Manage task lifecycle state')
+
+task
+  .command('resume')
+  .description('Print recovery instructions for the current task phase')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts: { dir?: string }) => {
+    runTaskResume({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
+  })
 
 task
   .command('advance')

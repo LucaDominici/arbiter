@@ -23,6 +23,14 @@
     "./plugin": {
       "types": "./dist/types/plugin.d.ts",
       "import": "./dist/types/plugin.js"
+    },
+    "./invariants": {
+      "types": "./dist/invariants/index.d.ts",
+      "import": "./dist/invariants/index.js"
+    },
+    "./compatibility": {
+      "types": "./dist/compatibility/index.d.ts",
+      "import": "./dist/compatibility/index.js"
     }
   },
   "scripts": {
@@ -43,6 +51,7 @@
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "changeset publish",
+    "check:anti-telemetry": "node scripts/check-anti-telemetry.mjs",
     "docs:dev": "npm run dev -w @arbiter/website",
     "docs:build": "npm run build -w @arbiter/website",
     "docs:preview": "npm run preview -w @arbiter/website"

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { Invariant } from './types.js'
 
-export const INVARIANT_CATALOG: Invariant[] = [
+export const INVARIANT_CATALOG: readonly Invariant[] = [
   // ─── Tier 1: Architectural Integrity (6) ─────────────────────────────────
 
   {

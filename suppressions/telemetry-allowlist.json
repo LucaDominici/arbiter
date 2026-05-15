@@ -1,0 +1,17 @@
+[
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/contract-testing/message-queue/schema-registry-check.ts.ejs",
+    "justification": "Generated test fixture fetching a local schema-registry URL in contract tests — not telemetry. The URL is user-supplied and scoped to test environments only."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/contract-testing/rest-owned/pact-consumer.test.ts.ejs",
+    "justification": "Generated Pact consumer test calling a local mock provider URL — not telemetry. URL is constructed from the mock service baseUrl in test scope only."
+  },
+  {
+    "pattern": "axios",
+    "file": "src/templates/boundaries/.eslintrc-boundaries.cjs.ejs",
+    "justification": "ESLint boundaries config listing axios as a banned external import — this is an enforcement rule string, not a network call."
+  }
+]
