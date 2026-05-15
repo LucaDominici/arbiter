@@ -95,15 +95,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/guard-task-completion.mjs",
-            "timeout": 3
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
             "command": "node .claude/hooks/skill-forced-eval.mjs",
             "timeout": 3
           },
@@ -111,11 +102,6 @@
             "type": "command",
             "command": "node .claude/hooks/guard-task-completion.mjs",
             "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/guard-done-evidence.mjs",
-            "timeout": 5
           }
         ]
       }
