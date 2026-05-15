@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile, copyStaticFile, resolvedPath, mergeSettingsJson } from '../../src/utils/fs.js'
+import {
+  writeFile,
+  copyStaticFile,
+  resolvedPath,
+  mergeSettingsJson,
+  readFileSafe,
+} from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('writeFile', () => {
@@ -40,7 +46,7 @@ describe('writeFile', () => {
     const path = join(dir, 'existing.txt')
     writeFileSync(path, 'original')
     const result = writeFile(path, 'new content')
-    expect(result.action).toBe('backed-up-and-replaced')
+    expect(result.action).toBe('replaced')
     expect(readFileSync(path, 'utf-8')).toBe('new content')
   })
 
@@ -102,6 +108,45 @@ describe('copyStaticFile', () => {
     const result = copyStaticFile(src, dest, { skipIfExists: true })
     expect(result.action).toBe('skipped')
     expect(readFileSync(dest, 'utf-8')).toBe('old content')
+  })
+
+  it('returns "created" when destination does not exist (#678)', () => {
+    const src = join(dir, 'source.txt')
+    const dest = join(dir, 'new-dest.txt')
+    writeFileSync(src, 'content')
+    const result = copyStaticFile(src, dest)
+    expect(result.action).toBe('created')
+  })
+
+  it('returns "replaced" when destination already exists (#678)', () => {
+    const src = join(dir, 'source.txt')
+    const dest = join(dir, 'dest.txt')
+    writeFileSync(src, 'new content')
+    writeFileSync(dest, 'old content')
+    const result = copyStaticFile(src, dest)
+    expect(result.action).toBe('replaced')
+    expect(readFileSync(dest, 'utf-8')).toBe('new content')
+  })
+})
+
+describe('readFileSafe (#684)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('returns file content when file exists', () => {
+    const path = join(dir, 'existing.txt')
+    writeFileSync(path, 'hello')
+    expect(readFileSafe(path)).toBe('hello')
+  })
+
+  it('returns null for ENOENT', () => {
+    expect(readFileSafe(join(dir, 'nonexistent.txt'))).toBeNull()
   })
 })
 

@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import type { Language } from '../wizard/types.js'
+import { readFileSafe } from '../utils/fs.js'
 
 export interface DetectedModule {
   name: string
@@ -35,12 +36,10 @@ export function detectModules(dir: string, language: Language): DetectedModule[]
 }
 
 function detectTsModules(dir: string): DetectedModule[] {
-  const pkgPath = join(dir, 'package.json')
-  if (existsSync(pkgPath)) {
+  const raw = readFileSafe(join(dir, 'package.json'))
+  if (raw !== null) {
     try {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as {
-        workspaces?: string[] | { packages?: string[] }
-      }
+      const pkg = JSON.parse(raw) as { workspaces?: string[] | { packages?: string[] } }
       const patterns = Array.isArray(pkg.workspaces)
         ? pkg.workspaces
         : (pkg.workspaces?.packages ?? [])
@@ -88,10 +87,10 @@ function expandWorkspaces(dir: string, patterns: string[]): DetectedModule[] {
 }
 
 function readWorkspaceName(dir: string): string | null {
-  const pkgPath = join(dir, 'package.json')
-  if (!existsSync(pkgPath)) return null
+  const raw = readFileSafe(join(dir, 'package.json'))
+  if (raw === null) return null
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { name?: string }
+    const pkg = JSON.parse(raw) as { name?: string }
     return pkg.name ?? null
   } catch {
     return null

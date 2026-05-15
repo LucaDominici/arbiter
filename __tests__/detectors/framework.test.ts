@@ -280,10 +280,31 @@ describe('detectArchetypeHint', () => {
       ['typescript', 'react'],
       ['typescript', 'vue'],
       ['rust', 'tauri'],
+      // multi-language Tauri composites (#628)
+      ['multi', 'tauri+react+spring-boot'],
+      ['multi', 'tauri+react+quarkus'],
+      ['multi', 'tauri+vue+spring-boot'],
+      ['multi', 'tauri+vue+quarkus'],
+      ['multi', 'tauri+spring-boot'],
+      ['multi', 'tauri+quarkus'],
     ]
     for (const [lang, fw] of frontendCases) {
       it(`${lang}:${fw} → frontend-spa`, () => {
         expect(detectArchetypeHint(ANY_DIR, lang as never, fw)).toBe('frontend-spa')
+      })
+    }
+  })
+
+  describe('multi-language non-Tauri composites fall back to backend-web-db (#628)', () => {
+    const multiBackendCases = [
+      'express+spring-boot',
+      'express+quarkus',
+      'next+spring-boot',
+      'fastify+spring-boot',
+    ]
+    for (const fw of multiBackendCases) {
+      it(`multi:${fw} → backend-web-db (via LANGUAGE_FALLBACK_ARCHETYPE)`, () => {
+        expect(detectArchetypeHint(ANY_DIR, 'multi', fw)).toBe('backend-web-db')
       })
     }
   })

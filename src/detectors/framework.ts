@@ -104,6 +104,9 @@ function readFileSafe(path: string): string {
 // Maps a framework slug to an archetype for languages where heuristics are reliable.
 // Keyed by `${language}:${framework}`. Languages without a reliable mapping (go, python,
 // unknown) are not present — callers default to "library". See ADR-021.
+// Multi-language composites are formed as `${tsFramework}+${javaFramework}` by
+// detectMultiFramework. Tauri-based composites resolve to frontend-spa because the Tauri
+// app is the product; other composites default via LANGUAGE_FALLBACK_ARCHETYPE (#628).
 const FRAMEWORK_ARCHETYPE_MAP: ReadonlyMap<string, Archetype> = new Map([
   ['java:spring-boot', 'backend-web-db'],
   ['java:quarkus', 'backend-web-db'],
@@ -118,6 +121,13 @@ const FRAMEWORK_ARCHETYPE_MAP: ReadonlyMap<string, Archetype> = new Map([
   ['typescript:react', 'frontend-spa'],
   ['typescript:vue', 'frontend-spa'],
   ['rust:tauri', 'frontend-spa'],
+  // multi-language composites: Tauri-based → desktop app
+  ['multi:tauri+react+spring-boot', 'frontend-spa'],
+  ['multi:tauri+react+quarkus', 'frontend-spa'],
+  ['multi:tauri+vue+spring-boot', 'frontend-spa'],
+  ['multi:tauri+vue+quarkus', 'frontend-spa'],
+  ['multi:tauri+spring-boot', 'frontend-spa'],
+  ['multi:tauri+quarkus', 'frontend-spa'],
 ])
 
 // Languages where "no matching framework" still yields a reliable archetype.

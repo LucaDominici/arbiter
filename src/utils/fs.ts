@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, copyFileSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 export interface WriteResult {
   path: string
-  action: 'created' | 'skipped' | 'backed-up-and-replaced'
+  action: 'created' | 'replaced' | 'skipped' | 'backed-up-and-replaced'
 }
 
 /**
@@ -25,10 +25,13 @@ export function writeFile(
     }
     if (backup) {
       copyFileSync(filePath, `${filePath}.arbiter-backup`)
+      mkdirSync(dirname(filePath), { recursive: true })
+      writeFileSync(filePath, content, 'utf-8')
+      return { path: filePath, action: 'backed-up-and-replaced' }
     }
     mkdirSync(dirname(filePath), { recursive: true })
     writeFileSync(filePath, content, 'utf-8')
-    return { path: filePath, action: 'backed-up-and-replaced' }
+    return { path: filePath, action: 'replaced' }
   }
 
   mkdirSync(dirname(filePath), { recursive: true })
@@ -44,14 +47,26 @@ export function copyStaticFile(
   dest: string,
   opts: { skipIfExists?: boolean } = {},
 ): WriteResult {
-  if (existsSync(dest) && opts.skipIfExists) {
+  const existed = existsSync(dest)
+  if (existed && opts.skipIfExists) {
     return { path: dest, action: 'skipped' }
   }
   mkdirSync(dirname(dest), { recursive: true })
   copyFileSync(src, dest)
-  return {
-    path: dest,
-    action: existsSync(dest) ? 'backed-up-and-replaced' : 'created',
+  return { path: dest, action: existed ? 'replaced' : 'created' }
+}
+
+/**
+ * Read a file, returning null when the file does not exist (ENOENT).
+ * All other errors (EACCES, IO failure) are rethrown so callers can
+ * surface them rather than silently swallowing real problems.
+ */
+export function readFileSafe(filePath: string): string | null {
+  try {
+    return readFileSync(filePath, 'utf-8')
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw err
   }
 }
 

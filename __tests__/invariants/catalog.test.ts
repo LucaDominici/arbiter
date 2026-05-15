@@ -323,18 +323,18 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-28')
   })
 
-  it('returns 57 for TypeScript + L3 + all tiers (INV-29/30/44 Java-only excluded)', () => {
+  it('returns 48 for TypeScript + L3 + all tiers (INV-29/30/44 Java-only, INV-32/45-52 selfOnly excluded)', () => {
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(57)
+    expect(result).toHaveLength(48)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
     expect(ids).toContain('INV-31')
-    expect(ids).toContain('INV-32')
+    expect(ids).not.toContain('INV-32') // selfOnly — excluded from target project output
     expect(ids).toContain('INV-33')
     expect(ids).toContain('INV-34')
     expect(ids).toContain('INV-35')
@@ -408,29 +408,39 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it('Java + L2 + all tiers returns 56 invariants (L3-gated INV-27/28/33 excluded)', () => {
+  it('Java + L2 + all tiers returns 47 invariants (L3-gated INV-27/28/33, selfOnly INV-32/45-52 excluded)', () => {
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(56)
+    expect(result).toHaveLength(47)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
     expect(ids).toContain('INV-31')
-    expect(ids).toContain('INV-32')
+    expect(ids).not.toContain('INV-32') // selfOnly
     expect(ids).toContain('INV-34')
     expect(ids).toContain('INV-35')
     expect(ids).not.toContain('INV-27')
     expect(ids).not.toContain('INV-28')
   })
 
-  it('Java + L3 + all tiers returns all 59 invariants', () => {
+  it('Java + L3 + all tiers returns 50 invariants (selfOnly INV-32/45-52 excluded)', () => {
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
+    })
+    expect(result).toHaveLength(50)
+  })
+
+  it('Java + L3 + all tiers + selfMode returns 59 invariants (all, including selfOnly)', () => {
+    const result = getFilteredInvariants({
+      language: 'java',
+      governanceLevel: 'L3',
+      invariantTiers: ALL_TIERS,
+      selfMode: true,
     })
     expect(result).toHaveLength(59)
   })

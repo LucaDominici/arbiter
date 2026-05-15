@@ -16,7 +16,7 @@ export interface Invariant {
   /**
    * Per-language variant of title.
    * Used instead of title when language matches.
-   * Required for every entry in `languages` when languages is set.
+   * Should cover every language listed in `languages`.
    */
   languageDetail?: Partial<Record<Language, string>>
   /**
@@ -45,4 +45,10 @@ export interface Invariant {
    * Only set when status is "retired".
    */
   redirectTo?: string
+  /**
+   * When true, this invariant applies only to arbiter itself and must not be
+   * emitted into generated AGENTS.md / GLOBAL_INVARIANTS.md for target projects.
+   * Use for rules that reference arbiter-internal paths (fixtures, templates, matrix).
+   */
+  selfOnly?: boolean
 }

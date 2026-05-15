@@ -8,7 +8,8 @@ import { runConfigure } from './commands/configure.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
-import { loadConfig } from './utils/config.js'
+import { loadConfig, ConfigLoadError } from './utils/config.js'
+import { UserFacingError } from './utils/errors.js'
 import { loadPlugin } from './utils/plugin-loader.js'
 import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
@@ -1157,6 +1158,15 @@ function printCompareResult(
 }
 
 program.parseAsync().catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : String(err))
+  if (err instanceof UserFacingError || err instanceof ConfigLoadError) {
+    process.stderr.write(err.message + '\n')
+  } else {
+    if (process.env['ARBITER_DEBUG']) {
+      process.stderr.write(err instanceof Error ? (err.stack ?? err.message) : String(err))
+      process.stderr.write('\n')
+    } else {
+      process.stderr.write((err instanceof Error ? err.message : String(err)) + '\n')
+    }
+  }
   process.exit(1)
 })

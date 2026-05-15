@@ -5,6 +5,29 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-045: Error taxonomy — ConfigLoadError + UserFacingError hierarchy (#679, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issues #679, #678, #680, #682, #683, #684, #628
+
+**Context:** Several invariant-pipeline bugs were batched and fixed together:
+
+- **#678** — `WriteResult.action` was always `'backed-up-and-replaced'` even without backup. Fixed: captures `existed` before copy; returns `'replaced'` for overwrites, `'backed-up-and-replaced'` only when `backup: true`.
+- **#679** — `loadConfig` silently returned `null` on corrupt JSON, giving the user no recovery hint. Fixed: throws `ConfigLoadError` (extends `UserFacingError`) with path + remediation message. `loadSnapshot` retains null-return for UI resilience.
+- **#680** — `languageDetail` typed as `Record<Language, string>` forced all-language coverage; java-only invariants (INV-29, INV-30, INV-44) cannot provide typescript/rust/go/python entries. Reverted to `Partial<Record<Language, string>>`.
+- **#682** — `selfOnly` flag added to `Invariant`. Invariants marked `selfOnly` (INV-32, INV-45–INV-52) are arbiter-internal and must not appear in generated AGENTS.md / GLOBAL_INVARIANTS.md. `getFilteredInvariants` respects `selfMode?: boolean` (default false = exclude selfOnly).
+- **#683** — `alwaysActive` invariants with `minGovernanceLevel: 'L2'` were invisible at L1 because governance check preceded the alwaysActive short-circuit. Fixed filter order: selfOnly → language → alwaysActive (governance-only, skip tier) → full check.
+- **#684** — `readFileSafe` utility added to `src/utils/fs.ts`; discriminates ENOENT (returns null) from other I/O errors (rethrows). Detectors updated to use it.
+- **#628** — `FRAMEWORK_ARCHETYPE_MAP` lacked `multi:*` keys; Tauri+Spring-Boot/Quarkus composites fell through to `backend-web-db` fallback. Added six Tauri composite entries → `frontend-spa`.
+
+**Decisions:**
+
+- `UserFacingError` is the base for all errors intended for end-user display. CLI top-level catch formats these without stack traces.
+- `ConfigLoadError` carries the config path and a `To reset: delete arbiter.json` remediation hint.
+- `selfOnly` invariants are catalogued in arbiter for documentation but suppressed from target project output.
+
+---
+
 ## ADR-043: Matrix downgrade-vs-fix verdict — 7 HALF/FAKE proven cells (#377, 2026-05-14)
 
 **Status:** Accepted
