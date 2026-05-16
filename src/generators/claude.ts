@@ -217,6 +217,14 @@ function generateClaudeRules(base: string, data: object, results: WriteResult[])
       template: 'claude/rules/25-todo-folder-policy.md',
     },
     {
+      file: '45-mcp-fallback.md',
+      template: 'claude/rules/45-mcp-fallback.md',
+    },
+    {
+      file: '50-batch-execution.md',
+      template: 'claude/rules/50-batch-execution.md',
+    },
+    {
       file: '90-exec-protocol.md',
       template: 'claude/rules/90-exec-protocol.md.ejs',
     },

@@ -111,13 +111,31 @@ describe('tool output: claude', () => {
     expect(content).toContain('feat')
   })
 
-  it('generates 3 rules files in .claude/rules/', () => {
+  it('generates 5 rules files in .claude/rules/', () => {
     const config = claudeConfig()
     generateClaude(config)
     const rulesDir = join(dir, '.claude', 'rules')
     expect(existsSync(join(rulesDir, '05-agent-lifecycle.md'))).toBe(true)
     expect(existsSync(join(rulesDir, '25-todo-folder-policy.md'))).toBe(true)
     expect(existsSync(join(rulesDir, '90-exec-protocol.md'))).toBe(true)
+    expect(existsSync(join(rulesDir, '45-mcp-fallback.md'))).toBe(true)
+    expect(existsSync(join(rulesDir, '50-batch-execution.md'))).toBe(true)
+  })
+
+  it('45-mcp-fallback.md describes approved fallback equivalents (#721)', () => {
+    const config = claudeConfig()
+    generateClaude(config)
+    const content = readFileSync(join(dir, '.claude', 'rules', '45-mcp-fallback.md'), 'utf-8')
+    expect(content).toContain('MCP')
+    expect(content).toContain('fallback')
+  })
+
+  it('50-batch-execution.md restricts parallel agents to read-only operations (#722)', () => {
+    const config = claudeConfig()
+    generateClaude(config)
+    const content = readFileSync(join(dir, '.claude', 'rules', '50-batch-execution.md'), 'utf-8')
+    expect(content).toContain('parallel')
+    expect(content.toLowerCase()).toContain('read-only')
   })
 
   it('generates 1 command file; task.md references gh issue view for github backend', () => {

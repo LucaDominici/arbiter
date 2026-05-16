@@ -820,3 +820,23 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - **CANON-16 surveys**: #360 — grepped `src/templates/scripts/` for similar Rust-specific gates; none found. `src/templates/scripts/checks/` justified as a new namespace (language-specific gates, distinct from universal SSOT gates under `src/templates/scripts/`). #356 — `scripts/check-docs.mjs` exists at root; refactored in place to add merge-base + `[skip-docs]` rather than fork. No template existed under `src/templates/scripts/`; new file justified by CANON-01 dual-declination requirement (self-applied gate must also be templated for target projects).
 
 **Consequences:** Rust target projects gain context-aware INV-04 enforcement that does not false-positive on test modules. arbiter's own docs gate (and the gate emitted to L2+ target projects) tolerates rebased branches and offers a documented `[skip-docs]` escape hatch for legitimate non-doc commits (typo fixes, dependency bumps). Behavior shift for arbiter contributors: the live `scripts/check-docs.mjs` semantics change from `origin/main..HEAD` (linear) to `merge-base HEAD origin/main` (rebased-aware); anyone relying on the old strict-linear behavior should rebase or use `[skip-docs]`.
+
+---
+
+## ADR-044: MCP fallback rule and safe parallel batch-execution contract (#721, #722)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issues #721, #722 (viafera-port M-13, M-14); CANON-16
+
+**Context:** Two governance mechanisms from the viafera alignment gap analysis (#FINDINGS.md#mech-M-13, #mech-M-14) were missing from the rules emitted by `generateClaudeRules`. Target projects had no generated guidance on (a) what to do when an MCP tool is unavailable, or (b) which operations are safe to run in parallel. Both gaps risked silent partial results and race-condition hazards in AI-assisted workflows.
+
+**Decision:**
+
+- **`45-mcp-fallback.md`** (M-13): generated unconditionally alongside the existing three rules. States that when any MCP tool is unavailable the agent must: (1) report the deviation, (2) use an approved fallback equivalent (`gh` CLI, `Read`+`Grep`, `WebFetch`), (3) document the substitution, and (4) never silently produce partial results or invent data.
+- **`50-batch-execution.md`** (M-14): generated unconditionally. States the parallel-agent safety contract: parallelism is only permitted for read-only, file-discovery agents; hard prohibitions on edits, commits, dependency installs, and state-mutating tests; machine-checkable anti-rot checklist.
+- Both rules are static Markdown (no EJS templating required — content is context-independent).
+- Generated unconditionally rather than behind a feature flag — these are universally applicable safety constraints, not project-type-specific configuration.
+- **CANON-16 survey**: no similar templates found under `src/templates/claude/rules/`. New files `45-mcp-fallback.md` and `50-batch-execution.md` are justified — each covers a distinct governance concern not addressed by any existing rule.
+
+**Consequences:** All target projects initialised with arbiter will receive the two new governance rule files. The test "generates 3 rules files" is updated to "generates 5 rules files" with content assertions on each new file.
