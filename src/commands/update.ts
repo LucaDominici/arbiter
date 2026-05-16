@@ -11,6 +11,7 @@ import { detectExisting } from '../detectors/existing.js'
 import { detectGithubAccess } from '../detectors/github.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { resolveAxisFields } from '../detectors/axis.js'
+import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config.js'
 import { runGithubSetup, printResults, runPlugins } from './init.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
@@ -191,7 +192,9 @@ function detectProjectInfo(
     lanes,
   }
   const config = v2ToProjectConfig(stored, detectorFields)
-  const specs = buildRegistry(config)
+  const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
+  const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
+  const specs = buildRegistry(config, installedSkills)
   return { config, specs, useGitHub, axisFields }
 }
 
