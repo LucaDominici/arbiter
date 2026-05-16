@@ -207,6 +207,27 @@ The existing `src/commands/configure.ts` ALLOWED_PATHS list **already enumerates
 
 ---
 
+## ADR-047: evidence-prune.mjs + red-team SSOT alignment vectors (#718 #723, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issues #718, #723
+
+**Context:** Two related gaps: (1) `evidence-rotate.mjs` is automated and count-only; manual maintenance needed a sibling `evidence-prune.mjs` supporting `--keep-last`, `--keep-days`, `--dry-run`, `--yes`. (2) `.claude/agents/red-team.md` had general attack vectors but no arbiter-specific SSOT alignment checks.
+
+**Decisions:**
+
+- Emit `scripts/evidence-prune.mjs` (skipIfExists: true — user may customise thresholds) from new EJS template `src/templates/scripts/evidence-prune.mjs.ejs`.
+- Emit `docs/METHOD/EVIDENCE_RETENTION.md` policy doc (skipIfExists: true) from `src/templates/governance/evidence-retention.md.ejs`.
+- Add SSOT Alignment Vectors table to `.claude/agents/red-team.md` covering: template/materialized drift, invariant catalog vs gate, tier constant vs template, matrix cell vs gate reality, hook manifest vs generator, schema vs wizard defaults.
+
+**Consequences:**
+
+- `generateEvidenceRetention` emits 4 files at L1 (was 2) and 6 at L2+ (was 4).
+- Evidence prune script is user-customisable (skipIfExists) unlike rotate (always regenerated).
+- Red-team agent now covers arbiter self-consistency checks in addition to general security vectors.
+
+---
+
 ---
 
 ## feat(#353 #354 #359): threshold-coherence templates (Phase 7A/7B/7G, 2026-05-14)
