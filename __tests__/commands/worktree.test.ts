@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -314,6 +314,53 @@ describe('runWorktreeClose', () => {
     )
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Worktree directory missing'))
     stderrSpy.mockRestore()
+  })
+
+  it('writes harvest-audit.log.json when closing with harvest:true (#733)', async () => {
+    mockHarvestFiles.mockReturnValue({
+      copied: ['src/foo.ts'],
+      skipped: [],
+      parentBranchBefore: 'main',
+      parentUntrackedBefore: [],
+    })
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    const { runWorktreeClose } = await import('../../src/commands/worktree.js')
+    runWorktreeClose({
+      taskId: '123',
+      cwd: gitRoot,
+      noFetch: true,
+      harvest: true,
+      onWarning: () => undefined,
+    })
+    logSpy.mockRestore()
+
+    const auditLogPath = join(gitRoot, '.arbiter', 'harvest-audit.log.json')
+    expect(existsSync(auditLogPath)).toBe(true)
+    const entries = JSON.parse(readFileSync(auditLogPath, 'utf-8')) as unknown[]
+    expect(Array.isArray(entries)).toBe(true)
+    expect(entries[0]).toMatchObject({
+      taskId: '#123',
+      worktreePath,
+      copied: ['src/foo.ts'],
+      skipped: [],
+      parentBranchBefore: 'main',
+      parentUntrackedBefore: [],
+    })
+  })
+
+  it('does not write harvest-audit.log.json when no harvest flag (#733)', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    const { runWorktreeClose } = await import('../../src/commands/worktree.js')
+    runWorktreeClose({
+      taskId: '123',
+      cwd: gitRoot,
+      noFetch: true,
+      onWarning: () => undefined,
+    })
+    logSpy.mockRestore()
+
+    const auditLogPath = join(gitRoot, '.arbiter', 'harvest-audit.log.json')
+    expect(existsSync(auditLogPath)).toBe(false)
   })
 
   it('skips corrupt log entries missing required fields (#326)', async () => {

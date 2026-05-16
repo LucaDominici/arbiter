@@ -1093,3 +1093,19 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **CANON-16 survey:** grepped `src/wizard/` for similar preset/bundle logic — only `src/invariants/filter.ts`'s `presetToTiers()` exists (invariant-tier presets, different concept). New file `src/wizard/presets.ts` justified.
 
 **Consequences:** Teams can activate the full compliance + governance stack with one flag. Auth and observability providers remain user-chosen to avoid lock-in. The preset is idempotent: re-running `arbiter update --preset industrial-grade` after changing a provider preserves the provider override.
+
+## ADR-049: Worktree harvest parent-state guardrails (#733)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issue #733
+
+**Context:** Issue #731 fixed the critical `git stash` data-loss bug (stash was being applied in the main repo's working tree, corrupting unrelated files). The fix replaced the stash-based copy with `cpSync` (no branch switches, no stash operations). #733 adds hardening-against-regression: a snapshot of the main repo's state before harvest, persisted to an audit log so any future regression is detectable.
+
+**Decision:**
+
+- **`captureParentState` option** added to `HarvestOptions`. When true, `harvestFiles` captures the main repo's current branch (`git rev-parse --abbrev-ref HEAD`) and its untracked files (`git status --porcelain=v1 -z --untracked-files=all`, filtered to `??` entries) before copying any files. Captured values are returned as `parentBranchBefore` and `parentUntrackedBefore` on `HarvestResult`.
+- **Harvest audit log**: `runWorktreeClose` with `--harvest` or `--harvest-all` now writes one entry to `.arbiter/harvest-audit.log.json` per close operation. Entry fields: `taskId`, `worktreePath`, `harvestedAt`, `copied`, `skipped`, `parentBranchBefore`, `parentUntrackedBefore`. Format mirrors the existing close log (JSON array, append-only via `readJsonArray`/`writeJsonArray`).
+- **Complexity budget**: Helper `writeHarvestAuditIfNeeded` extracted to keep `runWorktreeClose` under the ESLint complexity-15 threshold.
+
+**Consequences:** Every `wt-close --harvest` leaves an audit trail in `.arbiter/harvest-audit.log.json`. If a regression ever causes the main repo's branch or untracked files to be mutated during harvest, the pre-harvest snapshot provides ground truth for debugging. No change to the copy logic itself — the `cpSync` path from #731 is unchanged.

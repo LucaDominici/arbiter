@@ -8,6 +8,10 @@ export interface HarvestResult {
   copied: string[]
   /** Files skipped because the main repo copy has uncommitted changes */
   skipped: string[]
+  /** Branch the main repo was on before harvest started (only when captureParentState: true). */
+  parentBranchBefore?: string
+  /** Untracked files in the main repo before harvest started (only when captureParentState: true). */
+  parentUntrackedBefore?: string[]
 }
 
 export interface HarvestOptions {
@@ -19,6 +23,8 @@ export interface HarvestOptions {
   autoConfirm?: boolean
   /** Callback for each file action */
   onFile?: (file: string, action: 'copy' | 'skip') => void
+  /** When true, capture the main-repo branch and untracked files before harvest for audit. */
+  captureParentState?: boolean
 }
 
 /**
@@ -57,6 +63,28 @@ function parsePorcelainStatus(output: string): string[] {
   return files
 }
 
+function parseUntrackedPaths(output: string): string[] {
+  const files: string[] = []
+  const records = output.split('\0')
+  for (const record of records) {
+    if (!record) continue
+    const xy = record.slice(0, 2)
+    const path = record.slice(3)
+    if (xy === '??' && path) files.push(path)
+  }
+  return files
+}
+
+function captureParentSnapshot(mainRepoPath: string): { branch: string; untracked: string[] } {
+  const branch = runCli('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+    cwd: mainRepoPath,
+  }).stdout.trim()
+  const statusOutput = runCli('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
+    cwd: mainRepoPath,
+  }).stdout
+  return { branch, untracked: parseUntrackedPaths(statusOutput) }
+}
+
 /**
  * Copy modified and new files from a worktree back to the main repo.
  *
@@ -67,6 +95,12 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
   const { worktreePath, mainRepoPath, onFile } = opts
 
   const result: HarvestResult = { copied: [], skipped: [] }
+
+  if (opts.captureParentState) {
+    const snapshot = captureParentSnapshot(mainRepoPath)
+    result.parentBranchBefore = snapshot.branch
+    result.parentUntrackedBefore = snapshot.untracked
+  }
 
   // 1. Get changed files from the worktree
   // Use `-z` so records are NUL-terminated and paths are unquoted — this is

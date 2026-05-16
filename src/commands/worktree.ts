@@ -12,7 +12,7 @@ import {
 } from '../worktree/paths.js'
 import { materializeLink, checkLinkIntegrity } from '../worktree/links.js'
 import { harvestFiles } from '../worktree/harvest.js'
-import type { HarvestOptions } from '../worktree/harvest.js'
+import type { HarvestOptions, HarvestResult } from '../worktree/harvest.js'
 import { isRunningFromMainRepo, workingTreeDirty, branchFullyMerged } from '../worktree/validate.js'
 import type { WorktreeConfig, WorktreeLinkSpec } from '../wizard/types.js'
 
@@ -401,11 +401,12 @@ function harvestAndReport(
   gitRoot: string,
   harvestAll: boolean,
   onHarvestFile?: HarvestOptions['onFile'],
-): void {
+): HarvestResult {
   const harvestOpts: HarvestOptions = {
     worktreePath,
     mainRepoPath: gitRoot,
     autoConfirm: harvestAll,
+    captureParentState: true,
   }
   if (onHarvestFile) {
     harvestOpts.onFile = onHarvestFile
@@ -427,6 +428,8 @@ function harvestAndReport(
   if (result.copied.length === 0 && result.skipped.length === 0) {
     console.log('No files to harvest (worktree has no changes).')
   }
+
+  return result
 }
 
 interface CloseValidationParams {
@@ -520,8 +523,9 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   const { worktreePath, branch, baseBranch } = entry
 
+  let harvestResult: HarvestResult | null = null
   if (harvest || harvestAll) {
-    harvestAndReport(worktreePath, gitRoot, harvestAll, opts.onHarvestFile)
+    harvestResult = harvestAndReport(worktreePath, gitRoot, harvestAll, opts.onHarvestFile)
   }
 
   validateBeforeClose({
@@ -551,6 +555,13 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
     }
   }
 
+  writeHarvestAuditIfNeeded(
+    harvestResult,
+    join(arbiterLogDir(gitRoot), 'harvest-audit.log.json'),
+    taskId,
+    worktreePath,
+  )
+
   appendCloseLogEntry(join(arbiterLogDir(gitRoot), 'worktree-close.log.json'), {
     taskId,
     branch,
@@ -560,6 +571,40 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   })
 
   emitCloseResult(opts.json, { worktreePath, branch, taskId })
+}
+
+interface HarvestAuditEntry {
+  taskId: string
+  worktreePath: string
+  harvestedAt: string
+  copied: string[]
+  skipped: string[]
+  parentBranchBefore: string | undefined
+  parentUntrackedBefore: string[] | undefined
+}
+
+function appendHarvestAuditEntry(logPath: string, entry: HarvestAuditEntry): void {
+  const entries = readJsonArray(logPath)
+  entries.push(entry)
+  writeJsonArray(logPath, entries)
+}
+
+function writeHarvestAuditIfNeeded(
+  harvestResult: HarvestResult | null,
+  auditLogPath: string,
+  taskId: string,
+  worktreePath: string,
+): void {
+  if (harvestResult === null) return
+  appendHarvestAuditEntry(auditLogPath, {
+    taskId,
+    worktreePath,
+    harvestedAt: new Date().toISOString(),
+    copied: harvestResult.copied,
+    skipped: harvestResult.skipped,
+    parentBranchBefore: harvestResult.parentBranchBefore,
+    parentUntrackedBefore: harvestResult.parentUntrackedBefore,
+  })
 }
 
 function appendCloseLogEntry(logPath: string, entry: CloseLogEntry): void {
