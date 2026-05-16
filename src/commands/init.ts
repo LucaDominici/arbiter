@@ -571,6 +571,11 @@ export function computeDryRunPreview(config: ProjectConfig): DryRunPreview {
   }
 }
 
+function errMsg(err: unknown): string {
+  if (err instanceof Error) return err.message
+  return String(err)
+}
+
 export function rollbackGeneration(results: WriteResult[]): void {
   const rollbackErrors: string[] = []
   for (const result of results) {
@@ -578,9 +583,7 @@ export function rollbackGeneration(results: WriteResult[]): void {
       try {
         if (existsSync(result.path)) unlinkSync(result.path)
       } catch (err) {
-        rollbackErrors.push(
-          `Could not remove ${result.path}: ${err instanceof Error ? err.message : String(err)}`,
-        )
+        rollbackErrors.push(`Could not remove ${result.path}: ${errMsg(err)}`)
       }
     } else if (result.action === 'backed-up-and-replaced') {
       const backup = `${result.path}.arbiter-backup`
@@ -590,9 +593,7 @@ export function rollbackGeneration(results: WriteResult[]): void {
           unlinkSync(backup)
         }
       } catch (err) {
-        rollbackErrors.push(
-          `Could not restore backup for ${result.path}: ${err instanceof Error ? err.message : String(err)}`,
-        )
+        rollbackErrors.push(`Could not restore backup for ${result.path}: ${errMsg(err)}`)
       }
     }
   }

@@ -61,26 +61,32 @@ function readLocalRecipe(source: string): Buffer {
   return readFileSync(filePath)
 }
 
+function assertResponseOk(response: Response, url: string): void {
+  if (response.status >= 300 && response.status < 400) {
+    throw new Error(
+      `Recipe URL was redirected — supply the final HTTPS URL directly. Got redirect from: ${url}`,
+    )
+  }
+  if (!response.ok) {
+    throw new Error(`Recipe fetch returned HTTP ${response.status}: ${url}`)
+  }
+}
+
+function wrapFetchError(err: unknown): never {
+  if (err instanceof Error && err.message.startsWith('Recipe')) throw err
+  const msg = err instanceof Error ? err.message : String(err)
+  throw new Error(`Recipe fetch failed: ${msg}`, { cause: err })
+}
+
 async function fetchRecipe(url: string): Promise<Buffer> {
   const controller = new AbortController()
   const timeout = setTimeout(() => {
     controller.abort()
   }, 10_000)
 
-  let response: Response
-  let buf: Buffer
   try {
-    response = await fetch(url, { signal: controller.signal, redirect: 'manual' })
-
-    if (response.status >= 300 && response.status < 400) {
-      throw new Error(
-        `Recipe URL was redirected — supply the final HTTPS URL directly. Got redirect from: ${url}`,
-      )
-    }
-
-    if (!response.ok) {
-      throw new Error(`Recipe fetch returned HTTP ${response.status}: ${url}`)
-    }
+    const response = await fetch(url, { signal: controller.signal, redirect: 'manual' })
+    assertResponseOk(response, url)
 
     const contentLength = response.headers.get('content-length')
     if (contentLength !== null && parseInt(contentLength, 10) > MAX_BYTES) {
@@ -89,19 +95,16 @@ async function fetchRecipe(url: string): Promise<Buffer> {
       )
     }
 
-    buf = Buffer.from(await response.arrayBuffer())
+    const buf = Buffer.from(await response.arrayBuffer())
+    if (buf.length > MAX_BYTES) {
+      throw new Error(
+        `Recipe response body size ${buf.length} bytes exceeds limit of ${MAX_BYTES} bytes (256 KB).`,
+      )
+    }
+    return buf
   } catch (err) {
-    if (err instanceof Error && err.message.startsWith('Recipe')) throw err
-    const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`Recipe fetch failed: ${msg}`, { cause: err })
+    wrapFetchError(err)
   } finally {
     clearTimeout(timeout)
   }
-
-  if (buf.length > MAX_BYTES) {
-    throw new Error(
-      `Recipe response body size ${buf.length} bytes exceeds limit of ${MAX_BYTES} bytes (256 KB).`,
-    )
-  }
-  return buf
 }
