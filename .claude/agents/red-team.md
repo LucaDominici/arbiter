@@ -70,6 +70,25 @@ For each input, probe:
 - Overall risk: <acceptable / needs fixes before merge>
 ```
 
+## SSOT Alignment Checks
+
+When reviewing any change that touches governance files, generators, or agent configurations,
+additionally verify SSOT (Single Source of Truth) alignment:
+
+| Check                      | What to verify                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Invariant drift**        | Does the change contradict any INV-NN in `AGENTS.md`? Does it add behaviour that should be an invariant but isn't?                                     |
+| **CANON compliance**       | Are CANON-04 (template tests), CANON-05 (generator tests), CANON-11 (generator writes files), CANON-16 (refactor-first survey) satisfied?              |
+| **Registry completeness**  | If a new generator is added, is it registered in `src/generators/registry.ts`? Is its key in `GeneratorKey`? Is it in `PATH_TO_KEYS` if config-driven? |
+| **Template test coverage** | Does every new `.ejs` template have a render test in `__tests__/templates/`? (CANON-04 ratchet)                                                        |
+| **Opt-in wiring**          | If a feature adds an opt-in flag, is the flag: (a) on `ProjectConfig`, (b) used in the generator's `enabled` condition, and (c) documented in the ADR? |
+| **ADR currency**           | Does `docs/SYSTEM/DECISIONS.md` have an ADR for the change? Is the ADR in newest-first order?                                                          |
+| **Changeset present**      | Is a `.changeset/*.md` present for user-visible changes? Does it correctly classify `minor` (feature) or `patch` (fix)?                                |
+| **Bloat ratchet**          | Was the bloat baseline updated? If templates grew >+3 without a baseline update, flag as HIGH.                                                         |
+| **Debt ratchet**           | Was the debt baseline recaptured if `publicApiSurface` or other metrics changed?                                                                       |
+
+Report SSOT misalignments as **HIGH** findings (blockers). Report missing-but-expected documentation as **MEDIUM**.
+
 ## Constraints
 
 - Read-only. Do not apply fixes.
