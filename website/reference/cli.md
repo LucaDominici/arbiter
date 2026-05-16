@@ -26,20 +26,22 @@ arbiter init [options]
 
 **Options:**
 
-| Flag              | Type    | Default        | Description                                                                                         |
-| ----------------- | ------- | -------------- | --------------------------------------------------------------------------------------------------- |
-| `-y, --yes`       | boolean | `false`        | Skip wizard — use auto-detected defaults                                                            |
-| `--tools <list>`  | string  | `claude,codex` | Comma-separated AI tools to configure                                                               |
-| `--level <level>` | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`                                                               |
-| `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory)                                                       |
-| `--dry-run`       | boolean | `false`        | Preview what would be generated without writing files                                               |
-| `--no-verify`     | boolean | `false`        | Skip toolchain compatibility probes after generation                                                |
-| `--json`          | boolean | `false`        | Emit machine-readable JSON output (requires `--yes`)                                                |
-| `--quiet`         | boolean | `false`        | Suppress informational banners (e.g. telemetry notice)                                              |
-| `--force`         | boolean | `false`        | Override adverse git state check (detached HEAD, rebase, merge, etc.) — emits warning and continues |
-| `--recipe <path>` | string  | —              | Path or `https://` URL to a recipe JSON file; pre-fills wizard answers                              |
-| `--recipe-sha256` | string  | —              | Expected SHA-256 hex digest of the recipe file — verified before parse                              |
-| `-h, --help`      | —       | —              | Show help                                                                                           |
+| Flag                 | Type    | Default        | Description                                                                                          |
+| -------------------- | ------- | -------------- | ---------------------------------------------------------------------------------------------------- |
+| `-y, --yes`          | boolean | `false`        | Skip wizard — use auto-detected defaults                                                             |
+| `--tools <list>`     | string  | `claude,codex` | Comma-separated AI tools to configure                                                                |
+| `--level <level>`    | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`                                                                |
+| `--language <lang>`  | string  | auto-detected  | Override language detection (`typescript\|java\|kotlin\|rust\|python\|go\|multi`)                    |
+| `--archetype <type>` | string  | auto-detected  | Override archetype detection (`backend-web-db\|cli\|library\|data-pipeline\|frontend-spa\|embedded`) |
+| `--dir <path>`       | string  | `cwd`          | Target directory (default: current directory)                                                        |
+| `--dry-run`          | boolean | `false`        | Preview what would be generated without writing files                                                |
+| `--no-verify`        | boolean | `false`        | Skip toolchain compatibility probes after generation                                                 |
+| `--json`             | boolean | `false`        | Emit machine-readable JSON output (requires `--yes`)                                                 |
+| `--quiet`            | boolean | `false`        | Suppress informational banners (e.g. telemetry notice)                                               |
+| `--force`            | boolean | `false`        | Override adverse git state check (detached HEAD, rebase, merge, etc.) — emits warning and continues  |
+| `--recipe <path>`    | string  | —              | Path or `https://` URL to a recipe JSON file; pre-fills wizard answers                               |
+| `--recipe-sha256`    | string  | —              | Expected SHA-256 hex digest of the recipe file — verified before parse                               |
+| `-h, --help`         | —       | —              | Show help                                                                                            |
 
 **Examples:**
 

@@ -28,7 +28,6 @@ import {
 } from '../generators/registry.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
-import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile } from '../utils/fs.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import { runCli } from '../utils/run-cli.js'
@@ -39,6 +38,8 @@ import type {
   ProjectConfig,
   AiTool,
   GovernanceLevel,
+  Language,
+  Archetype,
   ProjectPreset,
   AuthProvider,
   ObservabilityProvider,
@@ -48,8 +49,6 @@ import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
 import { loadRecipe } from '../recipes/loader.js'
 import type { Recipe } from '../recipes/schema.js'
-import { detectInstalledSkills } from '../integrations/skill-detector.js'
-import { computeSkipReport } from '../generators/skills.js'
 
 export interface InitOptions {
   yes: boolean
@@ -77,20 +76,14 @@ export interface InitOptions {
   authProvider?: AuthProvider
   /** Override observability provider after preset is applied. */
   observabilityProvider?: ObservabilityProvider
+  /** Override detected language (skips auto-detection). */
+  language?: Language
+  /** Override detected archetype (skips auto-detection). */
+  archetype?: Archetype
   /** Path or https:// URL to a recipe JSON file for pre-configuring init options. */
   recipe?: string
   /** Expected SHA-256 hex digest of the recipe file for integrity verification. */
   recipeSha256?: string
-}
-
-function assertNotNativeWindows(): void {
-  if (isWindows() && !isWSL2()) {
-    throw new UserFacingError(
-      'arbiter does not support native Win32. ' +
-        'Install WSL2 and run arbiter inside it. ' +
-        'Setup guide: https://docs.arbiter.dev/install/windows',
-    )
-  }
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -112,14 +105,12 @@ export async function runInit(options: InitOptions): Promise<void> {
     return
   }
 
-  assertNotNativeWindows()
-
   showTelemetryBannerIfFirstRun(undefined, options.quiet)
 
   log('\n  Arbiter — AI Development Governance Framework\n')
   log('  Detecting project...')
 
-  const language = detectLanguage(targetDir)
+  const language = resolveLanguage(options.language, targetDir)
   const framework = detectFramework(targetDir, language)
   const buildCmds = detectBuildCommands(targetDir, language)
   const gitInfo = detectGitInfo(targetDir)
@@ -203,20 +194,6 @@ function emitInitOutput(
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
 }
 
-function detectAndAuditSkills(targetDir: string) {
-  const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
-  const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
-  const skipReport = computeSkipReport(installedSkills)
-  if (installedSkills.length > 0) {
-    writeFile(
-      join(targetDir, '.arbiter', 'detected-integrations.json'),
-      JSON.stringify({ detectedSkills: installedSkills, skippedGenerators: skipReport }, null, 2) +
-        '\n',
-    )
-  }
-  return installedSkills
-}
-
 async function generateAndFinalize(
   config: ProjectConfig,
   targetDir: string,
@@ -227,8 +204,7 @@ async function generateAndFinalize(
   const committed: WriteResult[] = []
 
   try {
-    const installedSkills = detectAndAuditSkills(targetDir)
-    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config, installedSkills)
+    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config)
     committed.push(...results)
 
     const newConfig = buildArbiterConfig(config)
@@ -336,9 +312,15 @@ function buildNonInteractiveConfig(args: {
     useGitHub,
     acceptBetaTools: options.acceptBetaTools ?? false,
     lanes,
+    ...(options.archetype !== undefined ? { archetypeOverride: options.archetype } : {}),
   })
   if (recipe) applyRecipeOverrides(config, recipe)
   return config
+}
+
+function resolveLanguage(override: Language | undefined, targetDir: string): Language {
+  if (override !== undefined) return override
+  return detectLanguage(targetDir)
 }
 
 function resolveToolsAndLevel(
@@ -422,15 +404,12 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
  * (INV-53 status=error → exit 2). The plain `runGenerators` wrapper is kept
  * for legacy callers (brownfield integration tests) that only consume results.
  */
-function runGeneratorsWithErrors(
-  config: ProjectConfig,
-  installedSkills: Parameters<typeof buildRegistry>[1] = [],
-): {
+function runGeneratorsWithErrors(config: ProjectConfig): {
   results: WriteResult[]
   errors: GeneratorFailure[]
 } {
   const errors: GeneratorFailure[] = []
-  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors)
+  const results = runGeneratorsFromRegistry(buildRegistry(config), errors)
   return { results, errors }
 }
 
@@ -730,8 +709,12 @@ function buildDefaultConfig(opts: {
   useGitHub: boolean
   acceptBetaTools?: boolean
   lanes?: import('../wizard/types.js').Lane[]
+  archetypeOverride?: Archetype
 }): ProjectConfig {
-  const archetype = detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ?? 'library'
+  const archetype =
+    opts.archetypeOverride ??
+    detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ??
+    'library'
   const hasDatabase = archetype === 'backend-web-db' || archetype === 'data-pipeline'
   const hasPublicApi = archetype === 'backend-web-db'
   return {
