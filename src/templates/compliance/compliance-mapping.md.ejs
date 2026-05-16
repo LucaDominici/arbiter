@@ -1,0 +1,124 @@
+# Compliance Gate Mapping — <%= projectName %>
+
+<!-- arbiter-managed: compliance-mapping (#710) -->
+
+> Maps every arbiter-generated quality gate to the compliance control it satisfies.
+> Use this document to accelerate audit preparation and evidence collection.
+>
+<% const _iso = typeof enableIso27001Mapping !== 'undefined' && enableIso27001Mapping === true; const _nis2 = typeof enableNis2Mapping !== 'undefined' && enableNis2Mapping === true; const _gdpr = typeof enableGdprMapping !== 'undefined' && enableGdprMapping === true; %>
+> Generated frameworks: <%= [_iso && 'ISO 27001:2022', _nis2 && 'NIS2 Art.21.2', _gdpr && 'GDPR'].filter(Boolean).join(' · ') || 'none' %>
+
+---
+<% if (_iso) { %>
+
+## ISO 27001:2022 Annex A — Gate Coverage
+
+Each row maps an arbiter-generated gate or artifact to the ISO 27001:2022 Annex A control it provides evidence for.
+
+| Gate / Artifact | Script / File | Annex A Control | Control title | Coverage |
+| --------------- | ------------- | --------------- | ------------- | -------- |
+| Format check | `npx prettier --check` | A.8.28 | Secure coding | ✅ Partial |
+| Lint / static analysis | `npx eslint` / language linter | A.8.28 | Secure coding | ✅ Partial |
+| Unit + integration tests | `check-all.mjs L1` | A.8.29 | Security testing in development and acceptance | ✅ Covered |
+| Coverage gate | `scripts/check-coverage.mjs` | A.8.29 | Security testing in development and acceptance | ✅ Covered |
+| Dependency audit | `npm audit` / `cargo audit` / `pip-audit` | A.8.8 | Management of technical vulnerabilities | ✅ Covered |
+| Secret scanning | `gitleaks` (nightly + pre-push hook) | A.8.12 | Data leakage prevention | ✅ Covered |
+| PII scan | `scripts/pii-scan.mjs` | A.8.11 | Data masking | ✅ Covered |
+| STRIDE threat model | `docs/SECURITY/STRIDE.md` | A.8.16 | Monitoring activities | ✅ Covered |
+| OWASP suppression log | `docs/SECURITY/owasp-suppressions.xml` | A.8.20 | Networks security | ✅ Partial |
+| Access control middleware | `src/middleware/auth*` | A.8.2 | Privileged access rights | ✅ Covered |
+| CODEOWNERS | `.github/CODEOWNERS` | A.5.2 | Information security roles | ✅ Covered |
+| AGENTS.md invariants | `AGENTS.md §Invariants` | A.5.36 | Compliance with policies | ✅ Covered |
+| Risk register | `docs/GOVERNANCE/RISK_REGISTER.md` | A.8.24 | Use of cryptography | ❌ Partial (manual) |
+| RACI matrix | `docs/GOVERNANCE/RACI.md` | A.5.2 | Roles and responsibilities | ✅ Covered |
+| Evidence harness | `scripts/collect-evidence.mjs` | A.5.36 | Compliance with policies | ✅ Covered |
+| Mutation testing | `stryker` / `cargo-mutants` | A.8.29 | Security testing | ✅ Covered |
+| Contract testing | `pact` / `buf breaking` | A.8.26 | Application security requirements | ✅ Covered |
+| Secure coding checklist | `docs/SECURE_CODING_CHECKLIST.md` | A.8.28 | Secure coding | ✅ Covered |
+| Commit signing / verified commits | `.github/workflows/` | A.8.32 | Change management | ✅ Partial |
+| Branch protection rules | GitHub branch ruleset | A.5.3 | Segregation of duties | ✅ Covered |
+<% if (hasDatabase) { %>
+| Database migration tests | Testcontainers / `check-all.mjs L2` | A.8.33 | Test information | ✅ Covered |
+<% } %><% if (hasPublicApi) { %>
+| API contract tests | Pact / OpenAPI diff | A.8.26 | Application security requirements | ✅ Covered |
+| Rate limiting middleware | `src/middleware/rate-limit*` | A.8.20 | Networks security | ✅ Covered |
+<% } %>
+
+### ISO 27001 Audit Preparation Checklist
+
+- [ ] Risk register reviewed and signed off (§6.1.2)
+- [ ] Statement of Applicability (SoA) prepared listing all 93 Annex A controls
+- [ ] Evidence collected from `scripts/collect-evidence.mjs` (if L3)
+- [ ] Internal audit scheduled (§9.2)
+- [ ] Management review documented (§9.3)
+<% } %><% if (_nis2) { %>
+
+## NIS2 Directive Art.21.2 — Gate Coverage
+
+Maps arbiter gates to NIS2 Article 21.2 cybersecurity risk-management measures.
+
+| Gate / Artifact | Script / File | NIS2 Art.21.2 Ref | Measure | Coverage |
+| --------------- | ------------- | ----------------- | ------- | -------- |
+| Access control middleware | `src/middleware/auth*` | Art.21.2(i) | Access control and asset management | ✅ Covered |
+| MFA / session management | `src/middleware/session*` | Art.21.2(i) | Access control | ✅ Partial |
+| Dependency audit | `npm audit` / `cargo audit` | Art.21.2(a) | Risk analysis and information system security | ✅ Covered |
+| Secret scanning | `gitleaks` | Art.21.2(a) | Risk analysis | ✅ Covered |
+| Incident runbook | `docs/OPERATIONS_HANDBOOK.md §Runbooks` | Art.21.2(b) | Incident handling | ✅ Covered |
+| Evidence harness | `scripts/collect-evidence.mjs` | Art.21.2(j) | Policies on the use of cryptography and encryption | ✅ Partial |
+| Supply chain audit | `npm audit` / `trivy fs` | Art.21.2(d) | Security in network and information systems acquisition | ✅ Covered |
+| STRIDE threat model | `docs/SECURITY/STRIDE.md` | Art.21.2(a) | Risk analysis | ✅ Covered |
+| Business continuity | `docs/OPERATIONS_HANDBOOK.md §Rollback` | Art.21.2(c) | Business continuity (backup, DR) | ✅ Partial |
+| Secure coding | `docs/SECURE_CODING_CHECKLIST.md` | Art.21.2(e) | Security in human resources | ✅ Covered |
+| Coverage gate | `scripts/check-coverage.mjs` | Art.21.2(a) | Risk analysis | ✅ Covered |
+| Rate limiting | `src/middleware/rate-limit*` | Art.21.2(f) | Policies and procedures for network security | ✅ Covered |
+| Nightly security scan | `.github/workflows/nightly.yml` | Art.21.2(a) | Risk analysis | ✅ Covered |
+
+### NIS2 Audit Preparation Checklist
+
+- [ ] Incident reporting procedure documented and tested (Art.23 — 72h notification SLA)
+- [ ] Supply chain security contracts reviewed (Art.21.2(d))
+- [ ] Business continuity tested (DR drill) (Art.21.2(c))
+- [ ] Security training records maintained (Art.21.2(e))
+<% } %><% if (_gdpr) { %>
+
+## GDPR — Gate Coverage
+
+Maps arbiter gates to GDPR articles they provide evidence for.
+
+| Gate / Artifact | Script / File | GDPR Article | Principle / Requirement | Coverage |
+| --------------- | ------------- | ------------ | ----------------------- | -------- |
+| PII scan | `scripts/pii-scan.mjs` | Art.5(1)(c) | Data minimisation | ✅ Covered |
+| PII scan | `scripts/pii-scan.mjs` | Art.5(1)(f) | Integrity and confidentiality | ✅ Covered |
+| PII scan | `scripts/pii-scan.mjs` | Art.25 | Data protection by design | ✅ Covered |
+| Secret scanning | `gitleaks` | Art.32 | Security of processing | ✅ Covered |
+| Dependency audit | `npm audit` | Art.32(1)(b) | Ongoing confidentiality, integrity, availability | ✅ Covered |
+| Access control middleware | `src/middleware/auth*` | Art.32(1)(a) | Pseudonymisation and encryption | ✅ Partial |
+| Rate limiting | `src/middleware/rate-limit*` | Art.32(1)(b) | Ongoing availability and resilience | ✅ Covered |
+| Session lifecycle tests | Test suite (dimension 21) | Art.5(1)(f) | Integrity and confidentiality | ✅ Covered |
+| Evidence harness | `scripts/collect-evidence.mjs` | Art.30 | Records of processing activities | ✅ Partial |
+| Audit trail dimension | Test taxonomy dim.18 | Art.30 | Records of processing activities | ✅ Covered |
+| STRIDE threat model | `docs/SECURITY/STRIDE.md` | Art.35 | Data protection impact assessment (DPIA) | ✅ Partial |
+| Incident runbook | `docs/OPERATIONS_HANDBOOK.md` | Art.33 | Notification of a personal data breach (72h) | ✅ Partial |
+<% if (hasDatabase) { %>
+| Database integration tests | Testcontainers | Art.32(1)(d) | Regular testing, assessing and evaluating | ✅ Covered |
+<% } %>
+
+### GDPR Audit Preparation Checklist
+
+- [ ] Record of Processing Activities (RoPA) maintained (Art.30)
+- [ ] Privacy notices reviewed (Art.13/14)
+- [ ] Data subject request (DSR) procedure tested (Art.15–21)
+- [ ] Data retention schedule documented (Art.5(1)(e))
+- [ ] DPA agreements with processors in place (Art.28)
+- [ ] DPIA conducted for high-risk processing (Art.35)
+<% } %>
+
+---
+
+## How to Use This Document
+
+1. **Audit preparation**: present the relevant section to auditors as evidence that gates are wired to controls
+2. **Gap analysis**: cells marked `❌ Gap` or `✅ Partial` require manual evidence collection
+3. **Update cadence**: re-run `arbiter update` after adding new gates to refresh this file
+
+_Generated by arbiter. Teams are responsible for collecting and retaining evidence artifacts._

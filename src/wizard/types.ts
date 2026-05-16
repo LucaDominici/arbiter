@@ -183,6 +183,12 @@ export interface ProjectConfig {
   enableOperationsHandbook?: boolean
   /** Whether to generate the risk register + P×I assessment template (ISO 27001 §6.1.2). Default false. */
   enableRiskRegister?: boolean
+  /** Whether to include ISO 27001 Annex A gate-to-control mapping in the compliance document. Default false. */
+  enableIso27001Mapping?: boolean
+  /** Whether to include NIS2 Art.21.2 gate-to-requirement mapping in the compliance document. Default false. */
+  enableNis2Mapping?: boolean
+  /** Whether to include GDPR article gate-to-control mapping in the compliance document. Default false. */
+  enableGdprMapping?: boolean
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.

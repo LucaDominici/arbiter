@@ -5,6 +5,19 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-052: ISO 27001 / NIS2 / GDPR compliance gate mapping (#710, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issue #710; viafera COMPLIANCE_MAPPING.md §2; ISO 27001:2022 Annex A; NIS2 Art.21.2; GDPR Art.5/25/32
+
+**Context:** Viafera ships a gate-to-control mapping table (COMPLIANCE_MAPPING.md §25-68) that maps every quality gate to the ISO 27001 Annex A / NIS2 Art.21.2 / GDPR article it satisfies, accelerating audit preparation. Arbiter had no equivalent — only the full Annex A matrix (L3-only, from #217).
+
+**Decision:** Add three opt-in flags to `ProjectConfig`: `enableIso27001Mapping`, `enableNis2Mapping`, `enableGdprMapping`. When any flag is true, `generateCompliance` emits `docs/COMPLIANCE_MAPPING.md` from `src/templates/compliance/compliance-mapping.md.ejs`. The template has three conditional sections (ISO 27001, NIS2, GDPR), each with a gate-to-control table and an audit preparation checklist. Template uses `typeof` guards for optional fields. File is `skipIfExists: true`.
+
+**Consequences:** Teams can opt into compliance reporting per framework (ISO 27001, NIS2, GDPR) without adopting all three. The generated document gives auditors a structured gate-to-control mapping. The `industrial-grade` preset (issue #729) will enable all three flags by default for regulated projects.
+
+---
+
 ## ADR-051: Red-team SSOT alignment checks (#723, 2026-05-16)
 
 **Status:** Accepted

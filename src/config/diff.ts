@@ -46,6 +46,7 @@ export type GeneratorKey =
   | 'self-validation'
   | 'operations'
   | 'risk-register'
+  | 'compliance'
 
 export interface ConfigDiff {
   paths: string[]
