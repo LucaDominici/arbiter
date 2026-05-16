@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, renameSync } from 'node:fs'
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { writeFile } from '../utils/fs.js'
 
 export type TaskPhase = 'preflight' | 'plan' | 'implementation' | 'verification' | 'complete'
 
@@ -31,9 +32,7 @@ export interface WriteTaskStatusOptions {
  */
 export function writeTaskStatus({ taskDir, phase, extras }: WriteTaskStatusOptions): void {
   const target = join(taskDir, 'status.json')
-  const tmp = `${target}.tmp.${process.pid}`
 
-  // Merge timestamps from existing status if present
   let existingTimestamps: Record<string, string> = {}
   try {
     const existing = JSON.parse(readFileSync(target, 'utf-8')) as Partial<TaskStatus>
@@ -56,8 +55,7 @@ export function writeTaskStatus({ taskDir, phase, extras }: WriteTaskStatusOptio
     gateDecisions: [],
   }
 
-  writeFileSync(tmp, JSON.stringify(status, null, 2) + '\n', 'utf-8')
-  renameSync(tmp, target)
+  writeFile(target, JSON.stringify(status, null, 2) + '\n')
 }
 
 const PHASE_ORDER: TaskPhase[] = ['preflight', 'plan', 'implementation', 'verification', 'complete']
