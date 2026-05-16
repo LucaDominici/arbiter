@@ -14,6 +14,7 @@ import type { BuildCommands } from '../detectors/build.js'
 import type { GitInfo } from '../detectors/git.js'
 import type { ExistingState } from '../detectors/existing.js'
 import type { GithubAccess } from '../detectors/github.js'
+import { cleanupInFlightTmpFiles } from '../utils/fs.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { detectArchetypeHint } from '../detectors/framework.js'
@@ -230,13 +231,17 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
 
     const confirmMsg = flow === 'brownfield' ? 'Proceed with migration?' : 'Proceed?'
     if (!(await promptConfirm(confirmMsg))) {
+      console.log('\n  Cancelled.\n')
       return null
     }
 
     return config
   } catch (err) {
     if (isUserCancellation(err)) {
-      console.log('\n  Cancelled.\n')
+      cleanupInFlightTmpFiles()
+      // TODO(#614): release L4 file lock here once lock infra lands
+      console.log('\n  Aborted — no changes made.\n')
+      process.exitCode = 130
       return null
     }
     throw err

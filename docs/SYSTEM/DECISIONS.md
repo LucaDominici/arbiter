@@ -1132,3 +1132,23 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Addendum — untracked-file overwrite guardrail (#733):**
 
 `git diff --quiet -- <file>` exits 0 for untracked files (no diff exists for a file git does not track), so `fileHasUncommittedChanges` previously returned `false` and harvest silently overwrote untracked files in the main repo. The fix adds `fileIsUntrackedInMainRepo` (probes `git ls-files --` — empty stdout = not tracked) and short-circuits before the copy when the destination exists but is untracked. Files blocked by this guardrail are collected in a new `HarvestResult.protectedUntracked` array and logged to the audit entry. The guard only fires when the destination file EXISTS — new files (no dest) continue to copy freely.
+
+## ADR-050: Wizard Ctrl+C abort — exit 130, tmp cleanup, unified message (#621)
+
+**Date:** 2026-05-17
+**Status:** Accepted
+**Reference:** Issue #621
+
+**Context:** Pressing Ctrl+C during `arbiter init` produced inconsistent behaviour: inquirer raised `ExitPromptError`, `runWizard` logged `Cancelled.` via the internal `log` helper (invisible in non-TTY), and the process exited 0 (success). Any in-flight `.arbiter-tmp-*` files written before the interrupt were left on disk.
+
+**Decision:**
+
+- `runWizard` catch block in `src/wizard/prompts.ts` now calls `cleanupInFlightTmpFiles()` before returning, then sets `process.exitCode = 130` and prints `\n  Aborted — no changes made.\n` to stdout. This is the single authoritative abort path for `ExitPromptError` and its variants (detected via the existing `isUserCancellation()` helper).
+- `cleanupInFlightTmpFiles()` promoted from an internal helper to a public export in `src/utils/fs.ts`. The existing `doCleanup()` internal function is reused; `registerCleanupHandlers()` continues to call it directly for raw SIGTERM/SIGINT (non-TTY path, where inquirer never fires).
+- The duplicate `log('\n  Cancelled.\n')` call that was in `src/commands/init.ts` is removed. The normal "No" path (user declines the confirm prompt) prints `\n  Cancelled.\n` via `console.log` directly in `prompts.ts` for consistency.
+- Exit code 130 follows the POSIX convention for SIGINT termination (`128 + 2`). `process.exitCode` (not `process.exit(130)`) is used so the async unwind completes before Node exits.
+- L4 file lock release (`TODO(#614)`) deferred: a placeholder comment marks the intended call site.
+
+**CANON-16 survey:** `isUserCancellation()` (prompts.ts:172) and `doCleanup()` (fs.ts) existed and were reused. No new source files added.
+
+**Consequences:** `arbiter init` Ctrl+C now exits 130, prints a clear message, and leaves no orphan tmp files regardless of when in the wizard flow the interrupt fires.

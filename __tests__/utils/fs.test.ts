@@ -6,7 +6,7 @@ import {
   copyStaticFile,
   resolvedPath,
   mergeSettingsJson,
-  _cleanupInFlightTmpFiles,
+  cleanupInFlightTmpFiles,
   _registerTmpPath,
 } from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -221,7 +221,7 @@ describe('atomic write + signal cleanup (#613)', () => {
 
   beforeEach(() => {
     // drain any stale in-flight paths from previous tests before each run
-    _cleanupInFlightTmpFiles()
+    cleanupInFlightTmpFiles()
     dir = createTestProject()
   })
   afterEach(() => {
@@ -237,29 +237,29 @@ describe('atomic write + signal cleanup (#613)', () => {
     expect(orphans).toHaveLength(0)
   })
 
-  it('_cleanupInFlightTmpFiles removes registered tmp paths', () => {
+  it('cleanupInFlightTmpFiles removes registered tmp paths', () => {
     const tmpPath = join(dir, 'in-flight.arbiter-tmp-test')
     writeFileSync(tmpPath, 'partial write')
     _registerTmpPath(tmpPath)
     expect(existsSync(tmpPath)).toBe(true)
-    _cleanupInFlightTmpFiles()
+    cleanupInFlightTmpFiles()
     expect(existsSync(tmpPath)).toBe(false)
   })
 
-  it('_cleanupInFlightTmpFiles is idempotent when tmp file already removed', () => {
+  it('cleanupInFlightTmpFiles is idempotent when tmp file already removed', () => {
     const tmpPath = join(dir, 'gone.arbiter-tmp-test')
     _registerTmpPath(tmpPath)
     // file was never created — cleanup must not throw
-    expect(() => _cleanupInFlightTmpFiles()).not.toThrow()
+    expect(() => cleanupInFlightTmpFiles()).not.toThrow()
   })
 
-  it('_cleanupInFlightTmpFiles clears all registered paths', () => {
+  it('cleanupInFlightTmpFiles clears all registered paths', () => {
     const paths = ['a', 'b', 'c'].map((n) => join(dir, `${n}.arbiter-tmp-test`))
     for (const p of paths) {
       writeFileSync(p, 'data')
       _registerTmpPath(p)
     }
-    _cleanupInFlightTmpFiles()
+    cleanupInFlightTmpFiles()
     for (const p of paths) {
       expect(existsSync(p)).toBe(false)
     }

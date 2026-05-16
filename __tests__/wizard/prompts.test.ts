@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import inquirer from 'inquirer'
 import { determineFlow, buildMigrationPlan, runWizard } from '../../src/wizard/prompts.js'
 import type { WizardInput } from '../../src/wizard/prompts.js'
@@ -7,6 +7,10 @@ import { presetToTiers } from '../../src/invariants/filter.js'
 
 vi.mock('inquirer', () => ({
   default: { prompt: vi.fn() },
+}))
+
+vi.mock('../../src/utils/fs.js', () => ({
+  cleanupInFlightTmpFiles: vi.fn(),
 }))
 
 const mockPrompt = vi.mocked(inquirer.prompt)
@@ -160,6 +164,11 @@ describe('buildMigrationPlan', () => {
 describe('runWizard greenfield flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    process.exitCode = 0
+  })
+
+  afterEach(() => {
+    process.exitCode = 0
   })
 
   it('returns config when user confirms', async () => {
@@ -206,7 +215,8 @@ describe('runWizard greenfield flow', () => {
     expect(result!.tools).toEqual(['claude', 'codex'])
   })
 
-  it('returns null when inquirer throws ExitPromptError (Ctrl+C) at main prompt (#318)', async () => {
+  it('returns null, prints abort message, and sets exitCode 130 on Ctrl+C at main prompt (#621)', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const exitError = Object.assign(new Error('User force closed prompt with 0'), {
       name: 'ExitPromptError',
     })
@@ -214,9 +224,13 @@ describe('runWizard greenfield flow', () => {
 
     const result = await runWizard(makeWizardInput())
     expect(result).toBeNull()
+    expect(process.exitCode).toBe(130)
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Aborted — no changes made'))
+    consoleSpy.mockRestore()
   })
 
-  it('returns null when inquirer throws ExitPromptError at confirm prompt (#318)', async () => {
+  it('returns null, prints abort message, and sets exitCode 130 on Ctrl+C at confirm prompt (#621)', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const exitError = Object.assign(new Error('User force closed prompt with 0'), {
       name: 'ExitPromptError',
     })
@@ -230,6 +244,9 @@ describe('runWizard greenfield flow', () => {
 
     const result = await runWizard(makeWizardInput())
     expect(result).toBeNull()
+    expect(process.exitCode).toBe(130)
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Aborted — no changes made'))
+    consoleSpy.mockRestore()
   })
 
   it('re-throws non-cancellation errors from inquirer (#318)', async () => {
