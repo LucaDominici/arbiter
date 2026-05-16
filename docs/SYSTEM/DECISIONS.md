@@ -984,3 +984,49 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - **CANON-16 survey**: grepped `src/templates/claude/hooks/` for similar skip-detection hooks; none found. New file is distinct from `check-no-placeholders.mjs` (which blocks WIP tokens, not language-level test-skip APIs).
 
 **Consequences:** All target projects initialised with arbiter will receive the `check-no-skipped-tests.mjs` hook. Committing a file containing `.skip(`, `@Disabled`, etc. will exit 1 before the commit is finalized. Developers must remove the skip or open a tracking issue before committing.
+
+---
+
+## ADR-046: Observability provider abstraction (#725)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issue #725 (wave:2-medium, provider-abstraction); CANON-04, CANON-05, CANON-11
+
+**Context:** arbiter had no mechanism to emit observability bootstrap docs. Projects needed one-size-fits-all guidance or nothing. Different teams have wildly different observability stacks (self-hosted ClickHouse vs. SaaS APM vs. minimal stdout).
+
+**Decision:**
+
+- New optional `ObservabilityConfig` type (`provider`, `metrics`, `logs`, `traces`, `alerts`) added to `ProjectConfig`.
+- `generateObservability` returns empty `files: []` when `observability` is absent or `provider === 'none'` — fully opt-in.
+- Single unified template `src/templates/observability/setup.md.ejs` with per-provider conditional blocks. Avoids one-file-per-provider explosion (would have cost +9 template slots vs. +1 actual).
+- All providers share the "Structured Logging Requirement" header requiring `traceId` on every log line (invariant satisfied unconditionally).
+- Registry key `'observability'`; PATH_TO_KEYS entry `'observability.provider' → ['observability']` for selective re-runs.
+- `skipIfExists: true` so user-customised docs survive `arbiter update`.
+
+**CANON-16 survey:** grepped `src/generators/` for similar observability/monitoring generators — none found. Grepped `src/templates/` — no observability directory. New files justified.
+
+**Consequences:** Projects that set `observability.provider` receive a complete, provider-specific setup guide on first `arbiter init`. Subsequent `arbiter update` does not overwrite custom edits.
+
+---
+
+## ADR-047: Auth provider abstraction (#726)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issue #726 (wave:2-medium, provider-abstraction); CANON-04, CANON-05, CANON-11
+
+**Context:** Auth setup is the most variable aspect of a new project — it ranges from rolling your own session middleware to operating a full Keycloak cluster. Providing a single template would be either too opinionated or too generic to be useful.
+
+**Decision:**
+
+- New optional `AuthConfig` type (`provider`, `protocols`, `tenantIsolation`, `themeSync`) added to `ProjectConfig`.
+- `generateAuth` returns empty `files: []` when `auth` is absent or `provider === 'none'` — fully opt-in.
+- Single unified template `src/templates/auth/setup.md.ejs` with per-provider conditional blocks (10 providers: app-level-ts, authelia, authentik, ory-stack, zitadel, keycloak, saas-clerk, saas-auth0, saas-supabase-auth, saas-cognito).
+- Email placeholders use `alice@<your-domain>` rather than `user@example.com` to pass the PII guard (INV-12).
+- Registry key `'auth'`; PATH_TO_KEYS entry `'auth.provider' → ['auth']` for selective re-runs.
+- Bundled with #725 in one PR (same wave, same structural pattern, same authoring cost).
+
+**CANON-16 survey:** grepped `src/generators/` for auth/identity generators — none found. Grepped `src/templates/` — no auth directory. New files justified.
+
+**Consequences:** Projects that set `auth.provider` receive a complete, provider-specific auth setup guide. Self-hosted stacks include docker-compose definitions; SaaS providers include SDK init and JWT validation patterns.
