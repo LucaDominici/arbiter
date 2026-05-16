@@ -25,6 +25,7 @@ vi.mock('../../src/detectors/git.js', () => ({
     githubRepo: null,
     projectName: null,
   }),
+  detectAdverseGitState: vi.fn().mockReturnValue(null),
 }))
 vi.mock('../../src/detectors/existing.js', () => ({
   detectExisting: vi.fn().mockReturnValue({

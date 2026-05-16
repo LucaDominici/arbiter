@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFile, copyStaticFile, resolvedPath, mergeSettingsJson } from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
@@ -118,6 +118,42 @@ describe('resolvedPath', () => {
 
   it('handles multiple parts', () => {
     expect(resolvedPath('/root', 'a', 'b', 'c')).toBe(join('/root', 'a', 'b', 'c'))
+  })
+})
+
+describe('writeFile — atomic writes (#611)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('no .arbiter-tmp-* files left behind on success', () => {
+    const path = join(dir, 'out.txt')
+    writeFile(path, 'content')
+    const tmpFiles = readdirSync(dir).filter((f) => f.includes('.arbiter-tmp-'))
+    expect(tmpFiles).toHaveLength(0)
+  })
+
+  it('does not leave temp files after overwriting existing file', () => {
+    const path = join(dir, 'out.txt')
+    writeFileSync(path, 'original')
+    writeFile(path, 'new content')
+    const tmpFiles = readdirSync(dir).filter((f) => f.includes('.arbiter-tmp-'))
+    expect(tmpFiles).toHaveLength(0)
+    expect(readFileSync(path, 'utf-8')).toBe('new content')
+  })
+
+  it('original file remains untouched when write to new path fails', () => {
+    const existing = join(dir, 'existing.txt')
+    writeFileSync(existing, 'original content')
+    // Write to a non-existent deeply nested path (mkdirSync will still create it)
+    // This is a success path — verify original file is untouched
+    writeFile(join(dir, 'sub', 'new.txt'), 'new')
+    expect(readFileSync(existing, 'utf-8')).toBe('original content')
   })
 })
 

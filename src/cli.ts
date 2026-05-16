@@ -155,6 +155,7 @@ program
   )
   .option('--json', 'Emit machine-readable JSON output (requires --yes)', false)
   .option('--quiet', 'Suppress informational banners (e.g. telemetry notice)', false)
+  .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
   .action(
     async (opts: {
       yes: boolean
@@ -168,6 +169,7 @@ program
       backend?: string
       json: boolean
       quiet: boolean
+      force: boolean
     }) => {
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
@@ -183,6 +185,7 @@ program
         ...(backend !== undefined ? { backend } : {}),
         json: opts.json,
         quiet: opts.quiet,
+        force: opts.force,
       })
     },
   )
@@ -193,11 +196,13 @@ program
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--github', 'Force GitHub setup even if disabled in stored config', false)
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (opts: { dir?: string; github: boolean; json: boolean }) => {
+  .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
+  .action(async (opts: { dir?: string; github: boolean; json: boolean; force: boolean }) => {
     await runUpdate({
       dir: opts.dir,
       github: opts.github,
       json: opts.json,
+      force: opts.force,
     })
   })
 
