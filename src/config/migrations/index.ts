@@ -13,7 +13,7 @@
  * Issue: #231
  */
 
-import type { ArbiterConfigV2 } from '../schema.js'
+import { CURRENT_CONFIG_SCHEMA_VERSION, type ArbiterConfigV2 } from '../schema.js'
 import { migrateV0ToV1 } from './v0-to-v1.js'
 import { migrateV1ToV2 } from './v1-to-v2.js'
 
@@ -34,6 +34,14 @@ function isRecord(val: unknown): val is Record<string, unknown> {
 export function migrate(raw: unknown): ArbiterConfigV2 {
   if (!isRecord(raw)) {
     throw new Error('arbiter.json must be a non-null object')
+  }
+
+  const schemaVersion = raw['$schemaVersion']
+  if (typeof schemaVersion === 'number' && schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION) {
+    throw new Error(
+      `arbiter.json has $schemaVersion=${schemaVersion} but this arbiter build understands at most ${CURRENT_CONFIG_SCHEMA_VERSION}. ` +
+        `Upgrade arbiter or downgrade the config file.`,
+    )
   }
 
   const version = raw['version']
