@@ -8,7 +8,7 @@ import type { ArbiterMemoryPlugin } from './memory.js'
  */
 export interface ArbiterPlugin {
   name: string
-  apiVersion: '1'
+  apiVersion: '1' // unchanged; worker isolation (#620) widens return types only
   templateRoot: string
   detect?(config: ArbiterConfig): boolean | Promise<boolean>
   generate(ctx: PluginContext): PluginResult | Promise<PluginResult>
