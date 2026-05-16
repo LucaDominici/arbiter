@@ -371,3 +371,57 @@ describe('debug-state-on-failure — empirical fire', () => {
     expect(r.status).toBe(0)
   })
 })
+
+describe('check-no-skipped-tests — empirical fire (#730)', () => {
+  const hookPath = join(STATIC_HOOKS_DIR, 'check-no-skipped-tests.mjs')
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-skip-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('exits 0 when no path provided', () => {
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: '' })
+    expect(r.status).toBe(0)
+  })
+
+  it('exits 0 for clean TypeScript test file', () => {
+    const f = join(dir, 'foo.test.ts')
+    writeFileSync(f, "it('works', () => { expect(1).toBe(1) })\n")
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
+    expect(r.status).toBe(0)
+  })
+
+  it('exits 1 for it.skip( in a .ts file', () => {
+    const f = join(dir, 'foo.test.ts')
+    writeFileSync(f, "it.skip('broken', () => {})\n")
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/NI-11/)
+  })
+
+  it('exits 1 for xit( in a .ts file', () => {
+    const f = join(dir, 'foo.test.ts')
+    writeFileSync(f, "xit('old', () => {})\n")
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
+    expect(r.status).toBe(1)
+  })
+
+  it('exits 1 for @Disabled in a .java file', () => {
+    const f = join(dir, 'FooTest.java')
+    writeFileSync(f, '@Disabled\n@Test\npublic void testFoo() {}\n')
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/NI-11/)
+  })
+
+  it('exits 0 for @Disabled in a .ts file (not Java)', () => {
+    const f = join(dir, 'foo.ts')
+    writeFileSync(f, '// @Disabled\nconst x = 1\n')
+    const r = spawnHook(hookPath, dir, { CLAUDE_TOOL_INPUT_PATH: f })
+    expect(r.status).toBe(0)
+  })
+})

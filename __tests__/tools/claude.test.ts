@@ -81,7 +81,7 @@ describe('tool output: claude', () => {
     expect(deny.some((d) => d.includes('force'))).toBe(true)
   })
 
-  it('generates 4 static hook scripts in .claude/hooks/', () => {
+  it('generates 5 static hook scripts in .claude/hooks/', () => {
     const config = claudeConfig()
     generateClaude(config)
     const hooksDir = join(dir, '.claude', 'hooks')
@@ -90,6 +90,7 @@ describe('tool output: claude', () => {
       'enforce-read-only.mjs',
       'pre-edit-ssot-guard.mjs',
       'check-no-orphan-todo.mjs',
+      'check-no-skipped-tests.mjs',
     ]
     for (const name of staticHooks) {
       expect(existsSync(join(hooksDir, name)), `${name} should exist`).toBe(true)
