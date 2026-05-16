@@ -15,7 +15,14 @@ import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
-import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
+import {
+  runPluginAdd,
+  runPluginRemove,
+  runPluginList,
+  runPluginInit,
+  runPluginListValidate,
+} from './commands/plugin.js'
+import { runIntegrationsList } from './commands/integrations.js'
 import { runTaskAdvance, runTaskRecover, runTaskResume } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -799,7 +806,15 @@ plugin
   .description('List plugins configured for this project')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action(async (opts: { dir?: string; json: boolean }) => {
+  .option('--validate', 'Validate plugin package.json manifests (schema-only, no code exec)', false)
+  .action(async (opts: { dir?: string; json: boolean; validate: boolean }) => {
+    if (opts.validate) {
+      runPluginListValidate({
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        json: opts.json,
+      })
+      return
+    }
     await runPluginList({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
@@ -813,6 +828,22 @@ plugin
   .option('--json', 'Emit machine-readable JSON output', false)
   .action(async (name: string, opts: { dir?: string; json: boolean }) => {
     await runPluginInit(name, {
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+    })
+  })
+
+const integrations = program
+  .command('integrations')
+  .description('Discover and manage skill integrations (detect-and-reference posture)')
+
+integrations
+  .command('list')
+  .description('List detected and recommended skill integrations')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    runIntegrationsList({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
     })

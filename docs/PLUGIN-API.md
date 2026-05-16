@@ -105,6 +105,20 @@ See `src/templates/plugin-init/` for the scaffold emitted by `arbiter plugin ini
 
 ---
 
+## Naming and discovery convention
+
+Plugins published to npm must follow this convention to appear in `arbiter integrations list --recommended` and in the [plugin registry](https://arbiter.dev/plugins):
+
+| Requirement     | Value                                                     |
+| --------------- | --------------------------------------------------------- |
+| npm keyword     | `arbiter-plugin`                                          |
+| Package name    | `arbiter-plugin-<name>` or `@scope/arbiter-plugin-<name>` |
+| Peer dependency | `"@arbiter/cli": "*"`                                     |
+
+`arbiter plugin list --validate` checks installed plugin `package.json` files against this schema (schema-only; no plugin code is executed).
+
+---
+
 ## Versioning history
 
 | `apiVersion` | Shipped in arbiter | Notes                                |

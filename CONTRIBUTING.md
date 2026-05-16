@@ -211,7 +211,29 @@ This project follows the [Contributor Covenant 2.1](./CODE_OF_CONDUCT.md). Repor
 
 ## 8. Where to Start
 
-- Browse issues labeled `good first issue` or `help wanted`.
+- Browse issues labeled [`good first issue`](https://github.com/LucaDominici/arbiter/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or `help wanted`.
 - Read [`docs/DEVELOPMENT/GETTING-STARTED.md`](./docs/DEVELOPMENT/GETTING-STARTED.md) for a guided first build.
 - Try the end-to-end walkthroughs in [`examples/`](./examples/).
 - Questions: open a [discussion](https://github.com/LucaDominici/arbiter/discussions).
+
+### Your first contribution
+
+Good first issues are curated on-ramps: small scope, explicit acceptance criteria, file paths included, maintainer assigned. Policy: [`docs/GOVERNANCE/GOOD-FIRST-ISSUE-POLICY.md`](./docs/GOVERNANCE/GOOD-FIRST-ISSUE-POLICY.md).
+
+---
+
+## 9. Response expectations
+
+| Request                  | Target SLA     | Notes                                                   |
+| ------------------------ | -------------- | ------------------------------------------------------- |
+| PR review / issue triage | 5 working days | CET timezone                                            |
+| Security disclosure      | 48 hours       | Email ulfwerenar@gmail.com — do not open a public issue |
+| Off-hours coverage       | None           | Maintainer is solo; no on-call                          |
+
+When the maintainer is out of office, a pinned issue will be posted with the OOO dates. Check the pinned issues before reporting a slow response.
+
+---
+
+## 10. Integrations
+
+arbiter uses a detect-and-reference posture with other Claude Code skill suites. See [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) for the legal stance, attribution rules, and how to add a new skill to the matrix.
