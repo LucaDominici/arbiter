@@ -1,0 +1,217 @@
+# Operations Handbook — <%= projectName %>
+
+<!-- arbiter-managed: operations-handbook (#717) -->
+
+This handbook defines the operational baseline for **<%= projectName %>**: observability signals,
+on-call protocol, release gates, and runbook structure.
+
+---
+
+## 1. Four-Signal Observability (RED / USE)
+
+Every service dashboard must track these four signals at all times.
+
+| Signal | Metric type | Alert threshold | Measurement |
+| ------------ | ----------- | --------------- | ----------------------------- |
+| **Latency** | Histogram | p95 > SLA budget | Request duration (ms) |
+| **Traffic** | Counter | Spike > 3× baseline | Requests per second |
+| **Errors** | Counter | Error rate > 1% | 5xx + client-abort count |
+| **Saturation** | Gauge | CPU > 80% or queue depth | Resource utilisation % |
+
+### SLA Budgets
+
+Define service-level objectives below. Tighten during hardening phases.
+
+| Endpoint class | p50 target | p95 target | p99 target |
+| -------------- | ---------- | ---------- | ---------- |
+| Read (GET) | 50 ms | 200 ms | 500 ms |
+| Write (POST/PUT) | 100 ms | 500 ms | 1 000 ms |
+| Background job | — | 30 s | 5 min |
+
+### Alert Routing
+
+- **P1 (service down / error rate > 5%)** → PagerDuty immediately, wake on-call
+- **P2 (p95 latency > 2× budget / error rate 1–5%)** → Slack `#ops-alerts`, respond within 30 min
+- **P3 (saturation trend / minor degradation)** → Slack `#ops-alerts`, address next business day
+<% if (archetype === 'backend-web-db' || archetype === 'data-pipeline') { %>
+
+### Database Signals
+
+Additional signals for data-store health:
+
+| Signal | Metric | Alert threshold |
+| ---------------- | ------------------- | --------------- |
+| Connection pool | Active / max ratio | > 80% for 5 min |
+| Query latency | p99 query time | > 1 s |
+| Replication lag | Replica offset (ms) | > 500 ms |
+| Disk usage | Storage % | > 75% |
+<% } %><% if (archetype === 'frontend-spa') { %>
+
+### Frontend Signals
+
+Additional signals for client-side health:
+
+| Signal | Metric | Alert threshold |
+| ----------- | --------------- | --------------- |
+| Core Web Vitals | LCP, FID, CLS | LCP > 2.5 s |
+| JS error rate | Uncaught errors | > 0.1% sessions |
+| Bundle size | gzipped bytes | > 10% growth |
+<% } %>
+
+---
+
+## 2. On-Call Protocol
+
+### Escalation Chain
+
+1. **Primary on-call** — first to respond; owns incident until resolved or escalated
+2. **Secondary on-call** — escalated after 15 min without response
+3. **Engineering lead** — escalated for P1 incidents exceeding 30 min MTTR
+4. **Stakeholder notification** — for P1 impacting external users, notify within 60 min
+
+### Incident Lifecycle
+
+```
+Alert fires
+  → Acknowledge (< 5 min for P1)
+  → Diagnose (use runbooks below)
+  → Mitigate (restore service first, root-cause later)
+  → Resolve + post-incident report (within 48 h for P1/P2)
+```
+
+### Communication
+
+- War room: `#incident-<YYYY-MM-DD>` Slack channel (create on P1)
+- Status page: update every 15 min during active P1
+- Post-mortem: blameless, filed within 48 h, linked from incident ticket
+
+---
+
+## 3. Release Candidate Checklist
+
+Run this checklist before every production deploy.
+
+### Pre-Deploy Gates
+
+- [ ] `node scripts/check-all.mjs L2` passes on release branch
+- [ ] All open P1/P2 bugs triaged (none blocking release)
+- [ ] Database migrations tested on staging with production-size dataset
+- [ ] Rollback procedure documented and tested
+- [ ] On-call notified of deploy window
+- [ ] Feature flags set to safe defaults (new features behind flag)
+- [ ] Changelog updated (`CHANGELOG.md` or release notes)
+<% if (archetype === 'backend-web-db') { %>
+- [ ] Load test run against staging (k6 / Gatling) — passes SLA budget
+- [ ] API contract tests pass (Pact / Spring Cloud Contract)
+<% } %><% if (archetype === 'data-pipeline') { %>
+- [ ] Schema migration backward-compatible (old producers/consumers unaffected)
+- [ ] Data backfill plan documented if required
+<% } %>
+
+### Deploy Steps
+
+1. Announce deploy in `#deployments`: `[DEPLOY] <%= projectName %> vX.Y.Z — window: HH:MM–HH:MM UTC`
+2. Tag release: `git tag vX.Y.Z && git push --tags`
+3. Trigger CI deploy pipeline (do not deploy manually)
+4. Monitor dashboards for 15 min post-deploy
+5. Announce completion or rollback in `#deployments`
+
+### Rollback Triggers
+
+Roll back immediately if:
+
+- Error rate exceeds 2% for 2+ minutes post-deploy
+- p95 latency exceeds 2× SLA budget for 5+ minutes
+- Any P1 alert fires within 30 min of deploy
+
+---
+
+## 4. Runbook Library
+
+### Template: Service Degradation
+
+**Symptoms:** p95 latency elevated; error rate rising; alerts firing
+
+**Diagnosis:**
+
+```bash
+# Check recent deployments
+git log --oneline -10
+
+# Check error logs (last 15 min)
+# Replace with your log provider CLI
+grep "ERROR" logs/app.log | tail -100
+
+# Check resource saturation
+# Replace with your monitoring CLI
+```
+
+**Mitigations (in order):**
+
+1. If recent deploy: roll back immediately
+2. Restart affected pods/processes (if stateless)
+3. Scale horizontally if saturation is root cause
+4. Enable circuit-breaker if upstream dependency is failing
+5. Escalate to engineering lead if not resolved within 15 min
+
+---
+<% if (archetype === 'backend-web-db' || archetype === 'data-pipeline') { %>
+
+### Template: Database Issues
+
+**Symptoms:** query latency spike; connection pool exhausted; replication lag
+
+**Diagnosis:**
+
+```bash
+# Check slow queries (PostgreSQL example)
+SELECT query, calls, mean_exec_time
+FROM pg_stat_statements
+ORDER BY mean_exec_time DESC
+LIMIT 10;
+
+# Check connection pool
+SELECT count(*), state FROM pg_stat_activity GROUP BY state;
+```
+
+**Mitigations:**
+
+1. Kill long-running queries blocking others
+2. Scale connection pool if within bounds
+3. Add read replica if replication lag is root cause
+4. Page DBA if escalation required
+
+---
+<% } %>
+
+### Template: Dependency Failure
+
+**Symptoms:** timeouts/errors to external service; circuit-breaker open
+
+**Diagnosis:**
+
+1. Check external service status page
+2. Check network connectivity from service pods
+3. Review circuit-breaker metrics
+
+**Mitigations:**
+
+1. Enable fallback mode (degrade gracefully, disable non-critical features)
+2. Cache last-known-good responses if safe
+3. Notify stakeholders if user-visible
+4. Wait for upstream recovery or escalate to vendor
+
+---
+
+## 5. Capacity Planning
+
+Review quarterly. Trigger immediate review if any metric crosses 70% of limit.
+
+| Resource | Current baseline | 70% trigger | 100% limit | Action at trigger |
+| ---------- | ---------------- | ----------- | ---------- | ----------------------- |
+| CPU | — | 56 cores | 80 cores | Add node or right-size |
+| Memory | — | 56 GB | 80 GB | Add node or right-size |
+| Storage | — | 700 GB | 1 TB | Expand volume |
+| DB connections | — | 140 | 200 | Scale pool or add replica |
+
+_Update this table during each quarterly review._

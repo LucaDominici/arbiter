@@ -5,6 +5,19 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-049: Operations handbook generator (#717, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issue #717; viafera M-09
+
+**Context:** Viafera ships a 3301-line operations handbook covering 4-signal observability (latency, traffic, errors, saturation), RC gate checklist, on-call protocol, and runbook templates. Projects using arbiter lack a structured baseline for operational readiness.
+
+**Decision:** Add opt-in `enableOperationsHandbook: true` flag. When set, `generateOperations` emits `docs/OPERATIONS_HANDBOOK.md` from `src/templates/operations/handbook.md.ejs`. The template is archetype-aware: `backend-web-db` and `data-pipeline` add database signals and load-test gates; `frontend-spa` adds Core Web Vitals. The template is `skipIfExists: true` so teams can customise after init.
+
+**Consequences:** Template provides an immediately actionable operational baseline. Teams are not required to use it (opt-in). The `industrial-grade` preset (issue #729) will enable this flag by default.
+
+---
+
 ## ADR-048: 25-dimension test taxonomy extension (#719, 2026-05-16)
 
 **Status:** Accepted
