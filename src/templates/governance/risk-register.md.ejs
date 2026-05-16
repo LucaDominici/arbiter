@@ -1,0 +1,76 @@
+# Risk Register — <%= projectName %>
+
+<!-- arbiter-managed: risk-register (#712) -->
+
+> ISO 27001:2022 §6.1.2 — Information security risk assessment and treatment.
+> P×I (Probability × Impact) scoring. Review at least annually or after significant architecture changes.
+
+---
+
+## Probability × Impact Matrix
+
+| Probability \ Impact | Low (1) | Medium (2) | High (3) | Critical (4) |
+| -------------------- | ------- | ---------- | -------- | ------------ |
+| **Unlikely (1)**     | 1       | 2          | 3        | 4            |
+| **Possible (2)**     | 2       | 4          | 6        | 8            |
+| **Likely (3)**       | 3       | 6          | 9        | 12           |
+| **Almost Certain (4)** | 4     | 8          | 12       | 16           |
+
+### Risk Classification Thresholds (ISO 27001 A.8.2)
+
+| Score | Tier     | Response SLA                                        |
+| ----- | -------- | --------------------------------------------------- |
+| ≤ 4   | Low      | Monitor; review at next quarterly cycle             |
+| 5–8   | Medium   | Mitigate within 90 days; add to backlog             |
+| 9–12  | High     | Mitigate within 30 days; notify security lead       |
+| > 12  | Critical | Immediate action; escalate to management            |
+
+---
+
+## Risk Register
+
+Add a `RISK_ASSESSMENT_TEMPLATE.md`-based assessment for each new risk before adding a row here.
+
+| ID    | Category        | Threat                                   | Asset                   | P | I | Score | Tier     | Status    | Mitigation summary                          | Owner | Review date |
+| ----- | --------------- | ---------------------------------------- | ----------------------- | - | - | ----- | -------- | --------- | ------------------------------------------- | ----- | ----------- |
+| R-001 | Confidentiality | Unauthorized access to production data   | Database / secrets      | 2 | 4 | 8     | Medium   | Open      | MFA + least-privilege IAM + secret rotation | TBD   | TBD         |
+| R-002 | Integrity       | Dependency supply-chain compromise       | Build pipeline          | 2 | 4 | 8     | Medium   | Open      | Lockfile pinning + `npm audit` / Trivy FS   | TBD   | TBD         |
+| R-003 | Availability    | Service outage due to unhandled failure  | Core service endpoints  | 2 | 3 | 6     | Medium   | Open      | Circuit-breakers + graceful degradation     | TBD   | TBD         |
+| R-004 | Confidentiality | PII leakage through logs or error output | Log streams             | 2 | 3 | 6     | Medium   | Open      | PII scan gate (`pii-scan.mjs`) + masking    | TBD   | TBD         |
+| R-005 | Integrity       | Broken access control (OWASP A01)        | API endpoints           | 2 | 4 | 8     | Medium   | Open      | Auth middleware + RBAC + STRIDE review      | TBD   | TBD         |
+<% if (archetype === 'backend-web-db' || archetype === 'data-pipeline') { %>
+| R-006 | Availability    | Database corruption / accidental deletion | Production database    | 1 | 4 | 4     | Low      | Open      | Point-in-time backups + migration tests     | TBD   | TBD         |
+| R-007 | Integrity       | Schema migration failure at deploy time  | Database schema         | 2 | 3 | 6     | Medium   | Open      | Blue/green deploy + rollback tested in CI   | TBD   | TBD         |
+<% } %><% if (archetype === 'frontend-spa') { %>
+| R-006 | Confidentiality | XSS / client-side injection              | Browser session / DOM   | 2 | 3 | 6     | Medium   | Open      | CSP headers + no `innerHTML` + sanitization | TBD   | TBD         |
+<% } %><% if (isMultiTenant) { %>
+| R-008 | Confidentiality | Tenant data cross-contamination          | All tenant data stores  | 1 | 4 | 4     | Low      | Open      | Row-level security + tenant ID validation   | TBD   | TBD         |
+<% } %><% if (hasPublicApi) { %>
+| R-009 | Availability    | API abuse / rate-limit bypass            | Public API endpoints    | 3 | 2 | 6     | Medium   | Open      | Rate-limiting middleware + WAF rules        | TBD   | TBD         |
+<% } %>
+
+_Add new rows using the P×I assessment template in `RISK_ASSESSMENT_TEMPLATE.md`._
+
+---
+
+## Treatment Plan
+
+For each **High** or **Critical** risk, document the treatment decision:
+
+| ID    | Treatment option       | Rationale | Target score (post-mitigation) | Owner | Due date |
+| ----- | ---------------------- | --------- | ------------------------------ | ----- | -------- |
+| R-001 | Mitigate               | —         | 4 (Low)                        | TBD   | TBD      |
+| R-002 | Mitigate               | —         | 4 (Low)                        | TBD   | TBD      |
+| R-003 | Mitigate               | —         | 3 (Low)                        | TBD   | TBD      |
+| R-004 | Mitigate               | —         | 3 (Low)                        | TBD   | TBD      |
+| R-005 | Mitigate               | —         | 4 (Low)                        | TBD   | TBD      |
+
+_Treatment options: Mitigate / Accept / Transfer / Avoid._
+
+---
+
+## Review History
+
+| Date           | Reviewer | Changes                    |
+| -------------- | -------- | -------------------------- |
+| _YYYY-MM-DD_   | _Name_   | Initial register generated |

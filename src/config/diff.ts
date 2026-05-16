@@ -45,6 +45,7 @@ export type GeneratorKey =
   | 'evidence-backlog'
   | 'self-validation'
   | 'operations'
+  | 'risk-register'
 
 export interface ConfigDiff {
   paths: string[]

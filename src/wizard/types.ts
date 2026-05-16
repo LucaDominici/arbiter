@@ -181,6 +181,8 @@ export interface ProjectConfig {
   enableTaxonomy25d?: boolean
   /** Whether to generate the operations handbook (4-signal observability, RC checklist, runbooks). Default false. */
   enableOperationsHandbook?: boolean
+  /** Whether to generate the risk register + P×I assessment template (ISO 27001 §6.1.2). Default false. */
+  enableRiskRegister?: boolean
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.

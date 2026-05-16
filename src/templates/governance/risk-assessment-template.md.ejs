@@ -1,0 +1,105 @@
+# Risk Assessment Template — <%= projectName %>
+
+<!-- arbiter-managed: risk-assessment-template (#712) -->
+
+> Use this template for each new risk before adding a row to `RISK_REGISTER.md`.
+> ISO 27001:2022 §6.1.2 — P×I (Probability × Impact) scoring.
+
+---
+
+## Risk Identification
+
+| Field          | Value                                      |
+| -------------- | ------------------------------------------ |
+| **Risk ID**    | R-XXX _(assign next sequential ID)_        |
+| **Date**       | YYYY-MM-DD                                 |
+| **Author**     | _Name / team_                              |
+| **Category**   | Confidentiality / Integrity / Availability |
+
+### Threat description
+
+_Describe the threat: what could go wrong, who/what is the threat actor?_
+
+### Asset at risk
+
+_Which data, system, or process is affected?_
+
+### Vulnerability / root cause
+
+_What weakness makes this threat exploitable?_
+
+---
+
+## P×I Scoring
+
+### Probability (1–4)
+
+| Score | Label           | Criteria                                        |
+| ----- | --------------- | ----------------------------------------------- |
+| 1     | Unlikely        | Rare; requires exceptional circumstances        |
+| 2     | Possible        | Could occur; has happened in similar contexts   |
+| 3     | Likely          | Expected to occur at some point                 |
+| 4     | Almost Certain  | Will occur; seen frequently in this domain      |
+
+**Selected Probability:** \_\_ / Rationale: _..._
+
+### Impact (1–4)
+
+| Score | Label    | Criteria                                                         |
+| ----- | -------- | ---------------------------------------------------------------- |
+| 1     | Low      | Minimal disruption; no data exposure; quickly recoverable        |
+| 2     | Medium   | Partial service disruption; limited data exposure                |
+| 3     | High     | Significant outage; potential regulatory impact or data breach   |
+| 4     | Critical | Full service down; major data breach; legal / reputational damage |
+
+**Selected Impact:** \_\_ / Rationale: _..._
+
+### Score
+
+**Score = Probability × Impact = \_\_ × \_\_ = \_\_**
+
+| Score | Tier     | Response SLA                                  |
+| ----- | -------- | --------------------------------------------- |
+| ≤ 4   | Low      | Monitor; review at next quarterly cycle       |
+| 5–8   | Medium   | Mitigate within 90 days; add to backlog       |
+| 9–12  | High     | Mitigate within 30 days; notify security lead |
+| > 12  | Critical | Immediate action; escalate to management      |
+
+**Tier:** \_\_
+
+---
+
+## Mitigation
+
+### Treatment option
+
+- [ ] **Mitigate** — implement controls to reduce probability or impact
+- [ ] **Accept** — formally accept residual risk (document business justification)
+- [ ] **Transfer** — shift risk to third party (insurance, contract)
+- [ ] **Avoid** — change design or process to eliminate the risk
+
+### Mitigation plan
+
+_Describe the specific controls or changes to implement._
+
+| Control               | Type (preventive / detective / corrective) | Owner | Due date | Status |
+| --------------------- | ------------------------------------------ | ----- | -------- | ------ |
+| _Control 1_           | _Type_                                     | TBD   | TBD      | Open   |
+
+### Residual risk (post-mitigation)
+
+| Field                    | Value |
+| ------------------------ | ----- |
+| Residual Probability     | \_\_  |
+| Residual Impact          | \_\_  |
+| **Residual Score**       | \_\_  |
+| **Residual Tier**        | \_\_  |
+
+---
+
+## Approval
+
+| Role             | Name | Date | Signature |
+| ---------------- | ---- | ---- | --------- |
+| Risk owner       | TBD  | TBD  | —         |
+| Security lead    | TBD  | TBD  | —         |
