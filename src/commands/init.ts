@@ -37,8 +37,16 @@ import { writeFile } from '../utils/fs.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import { runCli } from '../utils/run-cli.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
+import { applyPreset } from '../wizard/presets.js'
 import { defaultContractType } from '../wizard/archetype-defaults.js'
-import type { ProjectConfig, AiTool, GovernanceLevel } from '../wizard/types.js'
+import type {
+  ProjectConfig,
+  AiTool,
+  GovernanceLevel,
+  ProjectPreset,
+  AuthProvider,
+  ObservabilityProvider,
+} from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
 
@@ -62,6 +70,12 @@ export interface InitOptions {
   quiet?: boolean
   /** Override adverse git state check (detached HEAD, rebase, merge, etc.). Emits warning then continues. */
   force?: boolean
+  /** Apply a meta-preset (industrial-grade) after config is resolved. Default: 'none'. */
+  preset?: ProjectPreset
+  /** Override auth provider after preset is applied. */
+  authProvider?: AuthProvider
+  /** Override observability provider after preset is applied. */
+  observabilityProvider?: ObservabilityProvider
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -123,6 +137,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     log,
   })
   if (config === null) return
+
+  applyPresetOptions(options, config)
 
   if (options.dryRun) {
     displayDryRunPreview(config)
@@ -580,6 +596,21 @@ function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
     ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
+    ...(config.observability !== undefined ? { observability: config.observability } : {}),
+    ...(config.auth !== undefined ? { auth: config.auth } : {}),
+    ...(config.preset !== undefined && config.preset !== 'none' ? { preset: config.preset } : {}),
+  }
+}
+
+function applyPresetOptions(options: InitOptions, config: ProjectConfig): void {
+  applyPreset(options.preset ?? 'none', config)
+  if (options.authProvider != null && options.authProvider !== 'none') {
+    config.auth = { provider: 'none', ...config.auth }
+    config.auth.provider = options.authProvider
+  }
+  if (options.observabilityProvider != null && options.observabilityProvider !== 'none') {
+    config.observability = { provider: 'none', ...config.observability }
+    config.observability.provider = options.observabilityProvider
   }
 }
 

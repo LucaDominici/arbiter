@@ -1030,3 +1030,27 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **CANON-16 survey:** grepped `src/generators/` for auth/identity generators — none found. Grepped `src/templates/` — no auth directory. New files justified.
 
 **Consequences:** Projects that set `auth.provider` receive a complete, provider-specific auth setup guide. Self-hosted stacks include docker-compose definitions; SaaS providers include SDK init and JWT validation patterns.
+
+---
+
+## ADR-048: Industrial-grade meta-preset (#729)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issue #729 (wave:1-immediate, M-tier); CANON-16
+
+**Context:** After #710–#726 landed multiple governance features, activating them all required setting 7+ boolean flags and two nested config blocks. Teams evaluating arbiter need a single switch that matches the "Industrial Grade Certification" claims from the viafera README.
+
+**Decision:**
+
+- New `ProjectPreset = 'none' | 'industrial-grade'` type added to `src/wizard/types.ts`.
+- `applyPreset(preset, config)` in `src/wizard/presets.ts` mutates ProjectConfig in place: sets all compliance/governance/operations flags + auth/observability scaffolding with provider `'none'`.
+- Provider-override logic extracted to `applyPresetOptions` in `init.ts` to keep `runInit` complexity ≤15.
+- `--preset`, `--auth-provider`, `--observability-provider` CLI flags added. No wizard prompts (CLI-only in this issue).
+- Pre-existing schema gap fixed: `ArbiterConfigV2` now persists `observability?`, `auth?`, `preset?` through `arbiter.json` round-trips.
+- Preset name stored in config for audit/drift detection.
+- Features from open issues (#716 contract integrity, #718 evidence retention, #720 context economy) excluded from the preset until those generators land.
+
+**CANON-16 survey:** grepped `src/wizard/` for similar preset/bundle logic — only `src/invariants/filter.ts`'s `presetToTiers()` exists (invariant-tier presets, different concept). New file `src/wizard/presets.ts` justified.
+
+**Consequences:** Teams can activate the full compliance + governance stack with one flag. Auth and observability providers remain user-chosen to avoid lock-in. The preset is idempotent: re-running `arbiter update --preset industrial-grade` after changing a provider preserves the provider override.

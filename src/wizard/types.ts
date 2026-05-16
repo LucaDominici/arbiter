@@ -3,6 +3,12 @@ export type InvariantTier = 'architectural' | 'data' | 'security' | 'operational
 
 export type InvariantPreset = 'essential' | 'standard' | 'full'
 
+/**
+ * Meta-preset that bundles governance, compliance, observability, and auth config
+ * into a single opt-in. Providers remain 'none' — user fills them in separately.
+ */
+export type ProjectPreset = 'none' | 'industrial-grade'
+
 export type WizardFlow = 'greenfield' | 'brownfield'
 
 export interface WizardAnswers {
@@ -240,6 +246,8 @@ export interface ProjectConfig {
   lanes: Lane[]
   /** Task-tier configuration (XS/S/Standard) — review agent count + plan depth (#237). */
   taskTiers?: TaskTiers
+  /** Active project preset, if any. Stored for audit/drift detection. */
+  preset?: ProjectPreset
 }
 
 export type PlanDepth = 'minimal' | 'brief' | 'full'
