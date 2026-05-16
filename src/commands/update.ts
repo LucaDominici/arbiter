@@ -11,7 +11,7 @@ import { detectExisting } from '../detectors/existing.js'
 import { detectGithubAccess } from '../detectors/github.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { resolveAxisFields } from '../detectors/axis.js'
-import { loadConfig, loadSnapshot, saveConfig, saveSnapshot } from '../utils/config.js'
+import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config.js'
 import { runGithubSetup, printResults, runPlugins } from './init.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { diffConfig, impactedGenerators } from '../config/diff.js'
@@ -338,8 +338,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     process.exit(1)
   }
 
-  saveConfig(targetDir, validation.config)
-  saveSnapshot(targetDir, validation.config)
+  saveConfigAndSnapshot(targetDir, validation.config)
 
   const summary: UpdateSummary = {
     created: results.filter((r) => r.action === 'created').length,

@@ -123,7 +123,11 @@ All writes use an **atomic rename pattern** internally: content is written to a 
 
 If the target project already uses [ai-rulez](https://github.com/isobar-ai/ai-rulez) (detected by presence of `.ai-rulez/` or `ai-rulez.yml`), the init flow skips tool config generation entirely. `AGENTS.md` and GitHub files are still generated. This prevents arbiter from overwriting an existing, project-owned tool configuration strategy. See [ADR-010](../ADR/010-ai-rulez-coexistence.md).
 
-### 3. Stateless Canonical, Stateful Customizable
+### 3. Config + Snapshot Write Pair
+
+`saveConfigAndSnapshot(dir, config)` in `src/utils/config.ts` serializes the config to JSON once, then writes both `arbiter.json` and `.arbiter-generated.json` using `writeFile`. Pre-serializing before any write means a JSON failure leaves neither file touched; since both writes use the same string, they are always consistent in content. This replaced the prior sequential `saveConfig` + `saveSnapshot` pattern where an ENOSPC error between the two writes left the project in an inconsistent state (#772).
+
+### 4. Stateless Canonical, Stateful Customizable
 
 The core asymmetry: canonical files (`AGENTS.md`, thin pointers) are stateless — they contain no project-specific customization. They are safe to regenerate. Customizable files (hooks, rules, commands) are stateful from the moment a team modifies them. The `skipIfExists` strategy respects that boundary. See [ADR-011](../ADR/011-brownfield-first-design.md) for the brownfield design rationale.
 
