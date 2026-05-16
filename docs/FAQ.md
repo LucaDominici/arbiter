@@ -104,4 +104,16 @@ No. arbiter makes no quantitative ROI claims. See [POSITIONING.md](POSITIONING.m
 
 ---
 
+---
+
+**How do I check if my arbiter environment is healthy?**  
+Run `arbiter doctor` (no subcommand). It checks Node.js version (>= 22), git availability, AGENTS.md presence, and hooks path configuration. Outputs a PASS/WARN/FAIL table; exits 0 unless a check FAILs. Use `--json` for machine-readable output.
+
+---
+
+**How do I look up what an error code, INV rule, or CANON rule means?**  
+Run `arbiter explain <code>`, e.g. `arbiter explain INV-04` or `arbiter explain CANON-06` or `arbiter explain E_CONFIG_NOT_FOUND`. Use `arbiter explain --list` to see all known codes grouped by category.
+
+---
+
 _For deeper questions, open a GitHub Discussion or file an issue._

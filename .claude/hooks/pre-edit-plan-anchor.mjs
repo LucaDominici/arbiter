@@ -25,6 +25,7 @@ if (!planPath || !existsSync(planPath)) {
     `[arbiter] PLAN ANCHOR: implementation phase requires .task-plan pointing to an existing plan file.\n` +
       `Set via: echo "<path>" > .claude/.task-plan (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
   )
+  process.stderr.write(`[arbiter] Run \`arbiter explain CANON-14\` for details.\n`)
   process.exit(2)
 }
 

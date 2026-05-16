@@ -43,5 +43,6 @@ if (offending.length > 0) {
   process.stderr.write(`[arbiter] INV-12: direct child_process import forbidden in ${rel}\n`)
   process.stderr.write(`  Use runCli / runCliJson from src/utils/run-cli.ts instead (ADR-020).\n`)
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
+  process.stderr.write(`[arbiter] Run \`arbiter explain INV-12\` for details.\n`)
   process.exit(1)
 }

@@ -29,5 +29,6 @@ const offending = lines.flatMap((line, i) => {
 if (offending.length > 0) {
   process.stderr.write(`[arbiter] INV-04: No 'any' type allowed in ${file}:\n`)
   offending.slice(0, 3).forEach((l) => process.stderr.write(`  ${l}\n`))
+  process.stderr.write(`[arbiter] Run \`arbiter explain INV-04\` for details.\n`)
   process.exit(1)
 }
