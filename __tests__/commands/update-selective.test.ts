@@ -172,10 +172,10 @@ describe('runUpdate — selective regeneration via snapshot', () => {
 
     await runUpdate({ dir, github: false })
 
-    const snapshot = JSON.parse(
-      readFileSync(join(dir, '.arbiter-generated.json'), 'utf-8'),
-    ) as Record<string, unknown>
+    const snapshot = JSON.parse(readFileSync(join(dir, '.arbiter-generated.json'), 'utf-8')) as {
+      config: Record<string, unknown>
+    }
 
-    expect((snapshot['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(90)
+    expect((snapshot.config['thresholds'] as Record<string, unknown>)['lineCoverage']).toBe(90)
   })
 })

@@ -19,14 +19,14 @@ describe('generateEvidenceRetention', () => {
     cleanupTestProject(dir)
   })
 
-  it('generates 2 files at L1 (rotate script + gitignore)', () => {
+  it('generates 4 files at L1 (rotate + prune + gitignore + policy doc)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L1' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(2)
+    expect(generateEvidenceRetention(config).files).toHaveLength(4)
   })
 
-  it('generates 4 files at L2+ (rotate + gitignore + done-evidence + evidence-files)', () => {
+  it('generates 6 files at L2+ (rotate + prune + gitignore + policy doc + done-evidence + evidence-files)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L2' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+    expect(generateEvidenceRetention(config).files).toHaveLength(6)
   })
 
   it('generates scripts/done-evidence.mjs at L2+', () => {
@@ -235,5 +235,166 @@ describe('evidence-rotate.mjs — rotation behavior', () => {
     expect(remaining).toHaveLength(5)
     expect(remaining).toContain('run-0010')
     expect(remaining).not.toContain('run-0005')
+  })
+})
+
+// ─── evidence-prune.mjs — generator tests (#718) ─────────────────────────────
+
+describe('generateEvidenceRetention — evidence-prune.mjs (#718)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('generates scripts/evidence-prune.mjs', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    expect(existsSync(join(dir, 'scripts', 'evidence-prune.mjs'))).toBe(true)
+  })
+
+  it('evidence-prune.mjs has shebang', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('evidence-prune.mjs is skipIfExists', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    writeFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'EXISTING')
+    const r2 = generateEvidenceRetention(makeConfig(dir))
+    const f = r2.files.find((x) => x.path.endsWith('evidence-prune.mjs'))
+    expect(f?.action).toBe('skipped')
+    expect(readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')).toBe('EXISTING')
+  })
+
+  it('evidence-prune.mjs supports --dry-run flag', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toContain('--dry-run')
+  })
+
+  it('evidence-prune.mjs supports --keep-last flag', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toContain('--keep-last')
+  })
+
+  it('evidence-prune.mjs supports --yes flag (skip ACK prompt)', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toContain('--yes')
+  })
+})
+
+// ─── evidence-prune.mjs — functional behavior (#718) ─────────────────────────
+
+describe('evidence-prune.mjs — functional behavior (#718)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+    generateEvidenceRetention(makeConfig(dir))
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  function createRuns(count: number): void {
+    const evidenceDir = join(dir, '.evidence')
+    mkdirSync(evidenceDir, { recursive: true })
+    for (let i = 1; i <= count; i++) {
+      const runDir = join(evidenceDir, `run-${String(i).padStart(4, '0')}`)
+      mkdirSync(runDir, { recursive: true })
+      writeFileSync(join(runDir, 'result.json'), JSON.stringify({ run: i }))
+    }
+  }
+
+  function listRuns(): string[] {
+    const evidenceDir = join(dir, '.evidence')
+    if (!existsSync(evidenceDir)) return []
+    try {
+      return readdirSync(evidenceDir)
+        .filter((n) => n.startsWith('run-'))
+        .sort()
+    } catch {
+      return []
+    }
+  }
+
+  function runPrune(args: string[]): ReturnType<typeof spawnSync> {
+    return spawnSync('node', ['scripts/evidence-prune.mjs', ...args], {
+      cwd: dir,
+      encoding: 'utf-8',
+      input: '\n',
+    })
+  }
+
+  it('--dry-run removes nothing', () => {
+    createRuns(10)
+    const result = runPrune(['--dry-run', '--keep-last=3'])
+    expect(result.status).toBe(0)
+    expect(listRuns()).toHaveLength(10)
+  })
+
+  it('--yes --keep-last=3 removes old runs', () => {
+    createRuns(10)
+    const result = runPrune(['--yes', '--keep-last=3'])
+    expect(result.status).toBe(0)
+    expect(listRuns()).toHaveLength(3)
+    expect(listRuns()).toContain('run-0010')
+    expect(listRuns()).not.toContain('run-0001')
+  })
+
+  it('passes when .evidence/ does not exist', () => {
+    expect(runPrune(['--yes', '--keep-last=5']).status).toBe(0)
+  })
+})
+
+// ─── evidence-retention policy doc — generator tests (#718) ──────────────────
+
+describe('generateEvidenceRetention — policy doc (#718)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('generates docs/METHOD/EVIDENCE_RETENTION.md', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    expect(existsSync(join(dir, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md'))).toBe(true)
+  })
+
+  it('policy doc is skipIfExists', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const policyPath = join(dir, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md')
+    writeFileSync(policyPath, 'CUSTOM')
+    const r2 = generateEvidenceRetention(makeConfig(dir))
+    const f = r2.files.find((x) => x.path.endsWith('EVIDENCE_RETENTION.md'))
+    expect(f?.action).toBe('skipped')
+    expect(readFileSync(policyPath, 'utf-8')).toBe('CUSTOM')
+  })
+
+  it('policy doc contains project name', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md'), 'utf-8')
+    expect(content).toContain('test-project')
+  })
+
+  it('policy doc contains retention mode', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md'), 'utf-8')
+    expect(content).toContain('local-last-N')
   })
 })

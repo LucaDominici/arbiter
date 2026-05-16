@@ -226,6 +226,27 @@ The existing `src/commands/configure.ts` ALLOWED_PATHS list **already enumerates
 
 ---
 
+## ADR-047: evidence-prune.mjs + red-team SSOT alignment vectors (#718 #723, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issues #718, #723
+
+**Context:** Two related gaps: (1) `evidence-rotate.mjs` is automated and count-only; manual maintenance needed a sibling `evidence-prune.mjs` supporting `--keep-last`, `--keep-days`, `--dry-run`, `--yes`. (2) `.claude/agents/red-team.md` had general attack vectors but no arbiter-specific SSOT alignment checks.
+
+**Decisions:**
+
+- Emit `scripts/evidence-prune.mjs` (skipIfExists: true — user may customise thresholds) from new EJS template `src/templates/scripts/evidence-prune.mjs.ejs`.
+- Emit `docs/METHOD/EVIDENCE_RETENTION.md` policy doc (skipIfExists: true) from `src/templates/governance/evidence-retention.md.ejs`.
+- Add SSOT Alignment Vectors table to `.claude/agents/red-team.md` covering: template/materialized drift, invariant catalog vs gate, tier constant vs template, matrix cell vs gate reality, hook manifest vs generator, schema vs wizard defaults.
+
+**Consequences:**
+
+- `generateEvidenceRetention` emits 4 files at L1 (was 2) and 6 at L2+ (was 4).
+- Evidence prune script is user-customisable (skipIfExists) unlike rotate (always regenerated).
+- Red-team agent now covers arbiter self-consistency checks in addition to general security vectors.
+
+---
+
 ---
 
 ## feat(#353 #354 #359): threshold-coherence templates (Phase 7A/7B/7G, 2026-05-14)
@@ -928,6 +949,24 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
+## ADR-043: Context-economy rule + knowledge-map + track-aware post-commit (#720, #724)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issues #720 (M-12), #724 (M-16); viafera ports FINDINGS.md#mech-M-12, #mech-M-16
+
+**Context:** viafera ships `rules/10-knowledge-map.md` (prose context-economy rule) and `hooks/post-commit-check.sh` (track-aware checklist). arbiter had scattered context-economy guidance but no explicit rule, no machine-readable routing map, and no track routing in `post-commit-check.mjs`. The issues require porting AND improving over the viafera baseline.
+
+**Decision:**
+
+- **`40-context-economy.md` rule** (static Markdown, no EJS): generated as `.claude/rules/40-context-economy.md` via `generateClaudeRules`. Defines minimum startup set (AGENTS.md + KNOWLEDGE_MAP.md + knowledge-map.json) and a track routing table (frontend/backend/docs). `skipIfExists: true` — user-customizable.
+- **`knowledge-map.json`** (EJS): generated as `.claude/knowledge-map.json` from `claude/knowledge-map.json.ejs`. Injects `projectName` and `lanes` (detected at init time). Contains `tracks` object with signal paths + required/optional docs per track, plus `minimum_startup_set`. `skipIfExists: true`.
+- **`pre-task-track-detect.mjs`** (EJS): generated as `.claude/hooks/pre-task-track-detect.mjs`. UserPromptSubmit hook — detects task track from `git diff --name-only HEAD` + prompt keywords; writes routing hint to stdout (non-blocking, always exits 0). Added to hooks-manifest.json as ADVISORY. `skipIfExists: true`.
+- **`post-commit-check.mjs.ejs` extension** (#724): appended track-detection block after the existing INV-22 conventional commit check. Reads `git diff --name-only HEAD~1 HEAD`, classifies changed files into frontend/backend/docs tracks, and writes per-track checklist hints to stdout. Non-blocking. Graceful skip when HEAD~1 unavailable (first commit).
+- **CANON-16 surveys**: `generateClaudeRules` — existing array-driven pattern extended with one new entry; no new file. `generateClaudeHooks` — existing hook-loop pattern extended inline. `knowledge-map.json` — grepped `src/templates/claude/` for similar machine-readable config; none found. New EJS template justified as distinct concern (track routing, not hook or settings).
+
+**Consequences:** Target projects gain: (1) explicit context-economy rule in Claude rules; (2) machine-readable track routing consumable by hooks and agents; (3) UserPromptSubmit hint before every task that touches track-specific files; (4) post-commit per-track checklist guidance. `post-commit-check.mjs` content change is a template extension — existing installations with `skipIfExists: true` will not auto-update until arbiter re-init.
+
 ## ADR-042: Rust context-aware INV-04 checkers + rebased-aware docs-check (#360, #356)
 
 **Date:** 2026-05-14
@@ -1073,3 +1112,23 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **CANON-16 survey:** grepped `src/wizard/` for similar preset/bundle logic — only `src/invariants/filter.ts`'s `presetToTiers()` exists (invariant-tier presets, different concept). New file `src/wizard/presets.ts` justified.
 
 **Consequences:** Teams can activate the full compliance + governance stack with one flag. Auth and observability providers remain user-chosen to avoid lock-in. The preset is idempotent: re-running `arbiter update --preset industrial-grade` after changing a provider preserves the provider override.
+
+## ADR-049: Worktree harvest parent-state guardrails (#733)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issue #733
+
+**Context:** Issue #731 fixed the critical `git stash` data-loss bug (stash was being applied in the main repo's working tree, corrupting unrelated files). The fix replaced the stash-based copy with `cpSync` (no branch switches, no stash operations). #733 adds hardening-against-regression: a snapshot of the main repo's state before harvest, persisted to an audit log so any future regression is detectable.
+
+**Decision:**
+
+- **`captureParentState` option** added to `HarvestOptions`. When true, `harvestFiles` captures the main repo's current branch (`git rev-parse --abbrev-ref HEAD`) and its untracked files (`git status --porcelain=v1 -z --untracked-files=all`, filtered to `??` entries) before copying any files. Captured values are returned as `parentBranchBefore` and `parentUntrackedBefore` on `HarvestResult`.
+- **Harvest audit log**: `runWorktreeClose` with `--harvest` or `--harvest-all` now writes one entry to `.arbiter/harvest-audit.log.json` per close operation. Entry fields: `taskId`, `worktreePath`, `harvestedAt`, `copied`, `skipped`, `parentBranchBefore`, `parentUntrackedBefore`. Format mirrors the existing close log (JSON array, append-only via `readJsonArray`/`writeJsonArray`).
+- **Complexity budget**: Helper `writeHarvestAuditIfNeeded` extracted to keep `runWorktreeClose` under the ESLint complexity-15 threshold.
+
+**Consequences:** Every `wt-close --harvest` leaves an audit trail in `.arbiter/harvest-audit.log.json`. If a regression ever causes the main repo's branch or untracked files to be mutated during harvest, the pre-harvest snapshot provides ground truth for debugging. No change to the copy logic itself — the `cpSync` path from #731 is unchanged.
+
+**Addendum — untracked-file overwrite guardrail (#733):**
+
+`git diff --quiet -- <file>` exits 0 for untracked files (no diff exists for a file git does not track), so `fileHasUncommittedChanges` previously returned `false` and harvest silently overwrote untracked files in the main repo. The fix adds `fileIsUntrackedInMainRepo` (probes `git ls-files --` — empty stdout = not tracked) and short-circuits before the copy when the destination exists but is untracked. Files blocked by this guardrail are collected in a new `HarvestResult.protectedUntracked` array and logged to the audit entry. The guard only fires when the destination file EXISTS — new files (no dest) continue to copy freely.

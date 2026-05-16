@@ -105,7 +105,52 @@ echo "<tier>" > .claude/.task-tier
 ```
 <% } %>
 
+<% if (governanceLevel !== 'L1') { %>
+### Phase 2.7: Red-Team Review (Pre-Plan Adversarial Review)
+
+Advance phase before dispatching agents:
+```bash
+arbiter task advance --to red-team-review
+```
+
+Dispatch **N parallel red-team agents** based on tier (XS=1, S=2, Standard=3). Each agent self-selects an attack angle from: `security`, `concurrency`, `performance`, `edge-cases`, `regression`, `dependency`, `data-integrity`, `error-handling`.
+
+Agents write findings to `.arbiter/evidence/redteam/<task-id>.json` using the `RedTeamEvidenceV1` schema.
+
+**Routing by finding impact:**
+
+| Impact | Action |
+|--------|--------|
+| CRITICAL | `arbiter task advance --to red-team-rework` → revise plan → re-run Phase 2.7 |
+| HIGH / MEDIUM | Adapt plan in-place before advancing |
+| SUGGESTION | Note only — no blocking |
+
+Once all findings are CLEAR or resolved:
+```bash
+arbiter task advance --to implementation
+```
+
+<% } %>
+
 ### Phase 3: Plan Creation
+
+Every plan MUST begin with a YAML front-matter **Context Block** (see `docs/REFERENCE/plan-template.md`). Copy the template below and fill in each field before writing the plan body:
+
+```markdown
+---
+context:
+  issue: "#NNN"          # or: issues: ["#NNN", "#MMM"]
+  type: feat             # feat | fix | docs | chore | refactor
+  pipeline: "plan → impl → gate → PR"
+  branch_convention: "task/#NNN-kebab-description"
+  base_branch: main
+  key_constraints:
+    - "Constraint 1"
+  red_team_warnings:
+    - "Warning 1"
+  estimate: "S (2h)"     # S|M|L with rough hours
+---
+```
 
 Produce a plan containing:
 

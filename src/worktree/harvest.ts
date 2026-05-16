@@ -8,6 +8,12 @@ export interface HarvestResult {
   copied: string[]
   /** Files skipped because the main repo copy has uncommitted changes */
   skipped: string[]
+  /** Files skipped because they exist as untracked (uncommitted + unstaged) files in the main repo */
+  protectedUntracked: string[]
+  /** Branch the main repo was on before harvest started (only when captureParentState: true). */
+  parentBranchBefore?: string
+  /** Untracked files in the main repo before harvest started (only when captureParentState: true). */
+  parentUntrackedBefore?: string[]
 }
 
 export interface HarvestOptions {
@@ -19,6 +25,8 @@ export interface HarvestOptions {
   autoConfirm?: boolean
   /** Callback for each file action */
   onFile?: (file: string, action: 'copy' | 'skip') => void
+  /** When true, capture the main-repo branch and untracked files before harvest for audit. */
+  captureParentState?: boolean
 }
 
 /**
@@ -57,6 +65,28 @@ function parsePorcelainStatus(output: string): string[] {
   return files
 }
 
+function parseUntrackedPaths(output: string): string[] {
+  const files: string[] = []
+  const records = output.split('\0')
+  for (const record of records) {
+    if (!record) continue
+    const xy = record.slice(0, 2)
+    const path = record.slice(3)
+    if (xy === '??' && path) files.push(path)
+  }
+  return files
+}
+
+function captureParentSnapshot(mainRepoPath: string): { branch: string; untracked: string[] } {
+  const branch = runCli('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+    cwd: mainRepoPath,
+  }).stdout.trim()
+  const statusOutput = runCli('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], {
+    cwd: mainRepoPath,
+  }).stdout
+  return { branch, untracked: parseUntrackedPaths(statusOutput) }
+}
+
 /**
  * Copy modified and new files from a worktree back to the main repo.
  *
@@ -66,7 +96,13 @@ function parsePorcelainStatus(output: string): string[] {
 export function harvestFiles(opts: HarvestOptions): HarvestResult {
   const { worktreePath, mainRepoPath, onFile } = opts
 
-  const result: HarvestResult = { copied: [], skipped: [] }
+  const result: HarvestResult = { copied: [], skipped: [], protectedUntracked: [] }
+
+  if (opts.captureParentState) {
+    const snapshot = captureParentSnapshot(mainRepoPath)
+    result.parentBranchBefore = snapshot.branch
+    result.parentUntrackedBefore = snapshot.untracked
+  }
 
   // 1. Get changed files from the worktree
   // Use `-z` so records are NUL-terminated and paths are unquoted — this is
@@ -99,11 +135,7 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
     // Skip directories — they're containers, not content
     if (statSync(srcPath).isDirectory()) continue
 
-    // Check if the destination has uncommitted changes in the main repo
-    const destHasChanges = fileHasUncommittedChanges(mainRepoPath, filePath)
-
-    if (destHasChanges) {
-      result.skipped.push(filePath)
+    if (destConflict(mainRepoPath, filePath, destPath, result)) {
       onFile?.(filePath, 'skip')
       continue
     }
@@ -116,6 +148,46 @@ export function harvestFiles(opts: HarvestOptions): HarvestResult {
   }
 
   return result
+}
+
+/**
+ * Check whether `filePath` in main repo conflicts with a harvest copy.
+ * Pushes to `result.protectedUntracked` or `result.skipped` as appropriate
+ * and returns true when the copy should be skipped.
+ *
+ * Bundles the untracked-overwrite guard (#733) and the uncommitted-changes
+ * guard into one branch so harvestFiles stays within the complexity budget.
+ */
+function destConflict(
+  mainRepoPath: string,
+  filePath: string,
+  destPath: string,
+  result: HarvestResult,
+): boolean {
+  if (!existsSync(destPath)) return false
+  if (fileIsUntrackedInMainRepo(mainRepoPath, filePath)) {
+    result.protectedUntracked.push(filePath)
+    return true
+  }
+  if (fileHasUncommittedChanges(mainRepoPath, filePath)) {
+    result.skipped.push(filePath)
+    return true
+  }
+  return false
+}
+
+/**
+ * Returns true if `filePath` exists on disk in `mainRepoPath` but is untracked by git.
+ * `git diff --quiet` exits 0 for untracked files (they have no diff), so callers must
+ * check this separately before deciding to copy. Only meaningful when the file exists.
+ */
+function fileIsUntrackedInMainRepo(mainRepoPath: string, filePath: string): boolean {
+  try {
+    const result = runCli('git', ['ls-files', '--', filePath], { cwd: mainRepoPath })
+    return result.stdout.trim() === ''
+  } catch {
+    return false
+  }
 }
 
 /**

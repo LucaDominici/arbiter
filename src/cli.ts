@@ -10,12 +10,13 @@ import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
+import { runDoctorRepairState } from './commands/doctor.js'
 import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
 import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
-import { runTaskAdvance, runTaskResume } from './commands/task.js'
+import { runTaskAdvance, runTaskRecover, runTaskResume } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
@@ -641,6 +642,21 @@ program
     },
   )
 
+const doctor = program.command('doctor').description('Diagnose and repair arbiter state (#619)')
+
+doctor
+  .command('repair-state')
+  .description('Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    const result = runDoctorRepairState({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+    })
+    if (result.exitCode !== 0) process.exit(result.exitCode)
+  })
+
 const task = program.command('task').description('Manage task lifecycle state')
 
 task
@@ -660,11 +676,29 @@ task
   )
   .option('--reverse', 'Allow backward phase transitions', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { to: string; reverse: boolean; dir?: string }) => {
+  .option(
+    '--skip-plan-review',
+    'Bypass the plan-review gate (writes audit record + WARNING)',
+    false,
+  )
+  .action((opts: { to: string; reverse: boolean; dir?: string; skipPlanReview: boolean }) => {
     runTaskAdvance({
       to: opts.to as TaskPhase,
       reverse: opts.reverse,
+      skipPlanReview: opts.skipPlanReview,
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+  })
+
+task
+  .command('recover')
+  .description('Print 3-layer recovery context for the current task (#694)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--task <id>', 'Task id (default: from .claude/.task-id)')
+  .action((opts: { dir?: string; task?: string }) => {
+    runTaskRecover({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      ...(opts.task !== undefined ? { taskId: opts.task } : {}),
     })
   })
 

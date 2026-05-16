@@ -25,3 +25,29 @@ if (!CONVENTIONAL.test(msg)) {
   process.stderr.write(`[arbiter] Expected: type(scope): summary (e.g., feat(auth): add login)\n`)
   process.exit(1)
 }
+
+// Track-aware post-commit checklist (#724)
+const trackDiff = spawnSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD'], { encoding: 'utf-8' })
+const commitFiles =
+  trackDiff.status === 0 ? (trackDiff.stdout ?? '').split('\n').filter(Boolean) : []
+
+const FE_RE = /\.(tsx?|jsx?|vue|svelte|css|scss)$|^(web|frontend)\//
+const BE_RE = /\.(go|py|java|rs|rb)$|^(api|backend|server|cmd)\//
+const DOCS_RE = /\.md$|^docs\//
+
+const hasFE = commitFiles.some((f) => FE_RE.test(f))
+const hasBE = commitFiles.some((f) => BE_RE.test(f))
+const hasDocs = commitFiles.some((f) => DOCS_RE.test(f))
+
+const tracks = []
+if (hasFE) tracks.push('frontend')
+if (hasBE) tracks.push('backend')
+if (hasDocs) tracks.push('docs')
+
+if (tracks.length > 0) {
+  const label = tracks.length > 1 ? 'Tracks' : 'Track'
+  process.stdout.write(`[arbiter] ${label}: ${tracks.join(' + ')}\n`)
+  if (hasFE) process.stdout.write('  FE: verify component renders + snapshot tests pass\n')
+  if (hasBE) process.stdout.write('  BE: verify integration tests pass + no new lint warnings\n')
+  if (hasDocs) process.stdout.write('  Docs: verify internal links + run check-doc-links.mjs\n')
+}

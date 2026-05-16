@@ -23,8 +23,9 @@ describe('runTaskAdvance', () => {
     expect(phase).toBe('plan')
   })
 
-  it('happy path: plan → implementation writes .task-phase', () => {
+  it('happy path: plan → red-team-review → implementation writes .task-phase', () => {
     writeFileSync(join(dir, '.claude', '.task-phase'), 'plan\n')
+    runTaskAdvance({ to: 'red-team-review', dir })
     runTaskAdvance({ to: 'implementation', dir })
     const phase = readFileSync(join(dir, '.claude', '.task-phase'), 'utf-8').trim()
     expect(phase).toBe('implementation')

@@ -56,6 +56,15 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
   generateClaudeRules(base, data, config, results)
   generateClaudeCommands(base, data, results)
 
+  // Machine-readable track routing map (#720)
+  results.push(
+    writeFile(
+      resolvedPath(base, '.claude', 'knowledge-map.json'),
+      renderTemplate('claude/knowledge-map.json.ejs', data),
+      { skipIfExists: true },
+    ),
+  )
+
   return { files: results }
 }
 
@@ -125,6 +134,7 @@ function generateClaudeHooks(
     'pre-edit-ssot-guard.mjs',
     'check-no-orphan-todo.mjs',
     'check-no-placeholders.mjs',
+    'enforce-gate-before-pr.mjs',
   ]
   for (const hookFile of staticHooks) {
     results.push(
@@ -134,18 +144,14 @@ function generateClaudeHooks(
     )
   }
 
-  results.push(
-    writeFile(join(hooksDir, 'lib.mjs'), renderTemplate('claude/hooks/lib.mjs.ejs', data), {
-      skipIfExists: true,
-    }),
-  )
-  results.push(
-    writeFile(
-      join(hooksDir, 'post-commit-check.mjs'),
-      renderTemplate('claude/hooks/post-commit-check.mjs.ejs', data),
-      { skipIfExists: true },
-    ),
-  )
+  const baseEjsHooks = ['lib.mjs', 'post-commit-check.mjs', 'pre-task-track-detect.mjs']
+  for (const hookFile of baseEjsHooks) {
+    results.push(
+      writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
+        skipIfExists: true,
+      }),
+    )
+  }
 
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(
@@ -230,6 +236,10 @@ function generateClaudeRules(
     {
       file: '25-todo-folder-policy.md',
       template: 'claude/rules/25-todo-folder-policy.md',
+    },
+    {
+      file: '40-context-economy.md',
+      template: 'claude/rules/40-context-economy.md',
     },
     {
       file: '50-batch-execution.md',

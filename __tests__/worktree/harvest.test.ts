@@ -240,3 +240,129 @@ describe('harvestFiles', () => {
     expect(files).not.toContain('old-name.ts')
   })
 })
+
+describe('parent state capture (#733)', () => {
+  it('returns parentBranchBefore when captureParentState: true', () => {
+    writeFileSync(join(worktree, 'new-file.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      captureParentState: true,
+    })
+
+    expect(typeof result.parentBranchBefore).toBe('string')
+    expect(result.parentBranchBefore!.length).toBeGreaterThan(0)
+  })
+
+  it('returns parentUntrackedBefore listing untracked files in main repo', () => {
+    writeFileSync(join(mainRepo, 'untracked.txt'), 'untracked content')
+    writeFileSync(join(worktree, 'new-file.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      captureParentState: true,
+    })
+
+    expect(result.parentUntrackedBefore).toContain('untracked.txt')
+  })
+
+  it('parentBranchBefore and parentUntrackedBefore are undefined without captureParentState', () => {
+    writeFileSync(join(worktree, 'new-file.txt'), 'content')
+    runCli('git', ['add', '.'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.parentBranchBefore).toBeUndefined()
+    expect(result.parentUntrackedBefore).toBeUndefined()
+  })
+
+  it('captures parent state even when worktree has no changes', () => {
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+      captureParentState: true,
+    })
+
+    expect(typeof result.parentBranchBefore).toBe('string')
+    expect(Array.isArray(result.parentUntrackedBefore)).toBe(true)
+    expect(result.copied).toHaveLength(0)
+  })
+})
+
+describe('untracked-file protection (#733)', () => {
+  it('does not overwrite an untracked file in main repo when worktree has a newer version', () => {
+    // Main repo has an untracked file — created during a session but never committed
+    writeFileSync(join(mainRepo, 'FINDINGS.md'), 'original untracked content in main')
+
+    // Worktree has the same filename staged for commit
+    writeFileSync(join(worktree, 'FINDINGS.md'), 'worktree version that must not overwrite')
+    runCli('git', ['add', 'FINDINGS.md'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    // Untracked file in main must be preserved
+    expect(readFileSync(join(mainRepo, 'FINDINGS.md'), 'utf-8')).toBe(
+      'original untracked content in main',
+    )
+    // Must NOT appear in copied
+    expect(result.copied).not.toContain('FINDINGS.md')
+    // Must appear in protectedUntracked (new guardrail field)
+    expect(result.protectedUntracked).toContain('FINDINGS.md')
+  })
+
+  it('still copies new files to main repo when they do not exist there at all', () => {
+    // File only exists in worktree — main has no copy → must copy freely
+    writeFileSync(join(worktree, 'brand-new.ts'), 'new content')
+    runCli('git', ['add', 'brand-new.ts'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.copied).toContain('brand-new.ts')
+    expect(existsSync(join(mainRepo, 'brand-new.ts'))).toBe(true)
+    expect(result.protectedUntracked).not.toContain('brand-new.ts')
+  })
+
+  it('still copies when main repo file is tracked and clean', () => {
+    // File is tracked + committed in main → worktree version should overwrite freely
+    writeFileSync(join(mainRepo, 'tracked.ts'), 'original tracked')
+    runCli('git', ['add', 'tracked.ts'], { cwd: mainRepo })
+    runCli('git', ['commit', '-m', 'add tracked.ts'], { cwd: mainRepo })
+
+    writeFileSync(join(worktree, 'tracked.ts'), 'updated in worktree')
+    runCli('git', ['add', 'tracked.ts'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.copied).toContain('tracked.ts')
+    expect(readFileSync(join(mainRepo, 'tracked.ts'), 'utf-8')).toBe('updated in worktree')
+    expect(result.protectedUntracked).not.toContain('tracked.ts')
+  })
+
+  it('protectedUntracked is empty when no untracked collisions occur', () => {
+    writeFileSync(join(worktree, 'only-in-wt.ts'), 'content')
+    runCli('git', ['add', 'only-in-wt.ts'], { cwd: worktree })
+
+    const result = harvestFiles({
+      worktreePath: worktree,
+      mainRepoPath: mainRepo,
+    })
+
+    expect(result.protectedUntracked).toHaveLength(0)
+  })
+})

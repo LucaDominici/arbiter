@@ -3,8 +3,10 @@
 // Hook type: PreCompact — fires before automatic context compaction
 // stdout is injected as context the model sees immediately after compaction
 // Always exits 0 (non-blocking)
-import { readTaskState, getRepoRoot } from './lib.mjs'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { readTaskState, getRepoRoot, sanitizeTaskId } from './lib.mjs'
 
 const root = getRepoRoot()
 const state = readTaskState(root)
@@ -15,6 +17,23 @@ const branch =
     cwd: root,
   }).stdout?.trim() ?? 'unknown'
 
+let backlogBlock = ''
+if (state.taskId && state.taskId !== 'unknown') {
+  const backlogPath = join(root, '.arbiter', 'evidence', sanitizeTaskId(state.taskId), 'BACKLOG.md')
+  if (existsSync(backlogPath)) {
+    try {
+      const body = readFileSync(backlogPath, 'utf-8')
+      backlogBlock =
+        `\n━━━ BACKLOG (recovery layer 1) ━━━\n` +
+        body +
+        (body.endsWith('\n') ? '' : '\n') +
+        `━━━ END BACKLOG ━━━\n`
+    } catch {
+      // best-effort — never block compaction on a backlog read failure
+    }
+  }
+}
+
 process.stdout.write(
   `━━━ SESSION STATE (preserved across compaction) ━━━\n` +
     `Branch : ${branch}\n` +
@@ -23,6 +42,7 @@ process.stdout.write(
     `Phase  : ${state.phase}\n` +
     `Plan   : ${state.plan}\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    backlogBlock +
     `IMPORTANT: Context was compacted. Resume work from the phase/step above.\n` +
     `Re-read AGENTS.md if branch/task/phase are "unknown".\n`,
 )

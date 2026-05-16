@@ -20,6 +20,7 @@
 // runWarnCheck (informational), runToolCheck (CI-aware tool gate).
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { runCheck, getResults, getFailed } from './lib/run-helpers.mjs'
 
@@ -184,6 +185,37 @@ console.log('')
     process.stderr.write(
       `check-all: warning: could not write gate result to ${outPath}: ${err.message}\n`,
     )
+  }
+}
+
+if (failed === 0) {
+  try {
+    const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim()
+    const gitUser = (() => {
+      try {
+        return execFileSync('git', ['config', 'user.name'], { encoding: 'utf-8' }).trim()
+      } catch {
+        return 'unknown'
+      }
+    })()
+    const markerPath = resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate-pass.json')
+    mkdirSync(dirname(markerPath), { recursive: true })
+    writeFileSync(
+      markerPath,
+      JSON.stringify(
+        {
+          head_sha: headSha,
+          timestamp: new Date().toISOString(),
+          level,
+          node_version: process.version,
+          git_user: gitUser,
+        },
+        null,
+        2,
+      ) + '\n',
+    )
+  } catch (err) {
+    process.stderr.write(`check-all: warning: could not write gate marker: ${err.message}\n`)
   }
 }
 

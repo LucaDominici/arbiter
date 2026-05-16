@@ -690,6 +690,27 @@ console.log('');
   } catch { /* non-fatal */ }
 }
 
+if (_failedCount === 0) {
+  const _headResult = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' });
+  const _headSha = _headResult.stdout.trim();
+  const _gitUserResult = spawnSync('git', ['config', 'user.name'], { encoding: 'utf-8' });
+  const _gitUser = _gitUserResult.status === 0 ? _gitUserResult.stdout.trim() : 'unknown';
+  const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');
+  try {
+    mkdirSync(dirname(_markerPath), { recursive: true });
+    writeFileSync(
+      _markerPath,
+      JSON.stringify(
+        { head_sha: _headSha, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser },
+        null,
+        2,
+      ) + '\n',
+    );
+  } catch (_err) {
+    process.stderr.write(`check-all: warning: could not write gate marker: ${_err.message}\n`);
+  }
+}
+
 if (_failedCount > 0) {
   console.error(`=== FAILED: ${_failedCount} check(s) ===\n`);
   process.exit(1);

@@ -18,6 +18,7 @@ import {
   dispatchClaudeAgent,
   dispatchPlanReview,
   makeCodeReviewEvidenceDir,
+  sanitizeTaskId,
   type DispatchResult,
   type SubagentDispatcher,
 } from '../review/dispatch.js'
@@ -54,6 +55,28 @@ function verdictToJsonStatus(verdict: DispatchResult['verdict']): JsonStatus {
   return 'error'
 }
 
+const VALID_TIERS: readonly ReviewTier[] = ['XS', 'S', 'Standard']
+
+function readTierFile(dir: string): ReviewTier | null {
+  const p = join(dir, '.claude', '.task-tier')
+  if (!existsSync(p)) return null
+  const raw = readFileSync(p, 'utf-8').trim()
+  if (raw.length === 0) return null
+  if (raw === 'XS') return 'XS'
+  if (raw === 'S') return 'S'
+  if (raw === 'M' || raw === 'L' || raw === 'Standard') return 'Standard'
+  throw new Error(
+    `Unknown tier "${raw}" in .claude/.task-tier. Valid values: XS, S, M, L, Standard.`,
+  )
+}
+
+function readTaskIdFile(dir: string): string | undefined {
+  const p = join(dir, '.claude', '.task-id')
+  if (!existsSync(p)) return undefined
+  const raw = readFileSync(p, 'utf-8').trim()
+  return raw.length > 0 ? raw : undefined
+}
+
 export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {
   const dir = resolve(opts.dir ?? '.')
   const planPath = resolve(opts.file)
@@ -71,11 +94,18 @@ export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {
   }
 
   const planContent = readFileSync(planPath, 'utf-8')
-  const tier: ReviewTier = opts.tier ?? 'S'
+  const tier: ReviewTier = opts.tier ?? readTierFile(dir) ?? 'XS'
+  if (!VALID_TIERS.includes(tier)) {
+    throw new Error(`Invalid tier "${tier}". Valid values: ${VALID_TIERS.join(', ')}.`)
+  }
+  const taskIdRaw = readTaskIdFile(dir)
+  const taskId = taskIdRaw !== undefined ? sanitizeTaskId(taskIdRaw) : 'unknown'
+
   const dispatched = dispatchPlanReview({
     planContent,
     dir,
     tier,
+    taskId,
     ...(opts.dispatcher ? { dispatcher: opts.dispatcher } : {}),
   })
 
@@ -83,12 +113,14 @@ export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {
     jsonOutput('review plan', verdictToJsonStatus(dispatched.verdict), {
       verdict: dispatched.verdict,
       attempts: dispatched.attempts,
+      totalInvocations: dispatched.totalInvocations,
       promptPath: dispatched.promptPath,
       tier,
+      taskId,
     })
   } else {
     process.stdout.write(
-      `review plan: ${dispatched.verdict} (attempts=${dispatched.attempts}, tier=${tier})\n`,
+      `review plan: ${dispatched.verdict} (attempts=${dispatched.attempts}, invocations=${dispatched.totalInvocations}, tier=${tier})\n`,
     )
   }
 

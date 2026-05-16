@@ -4,8 +4,7 @@ import { runUpdate } from '../../src/commands/update.js'
 vi.mock('../../src/utils/config.js', () => ({
   loadConfig: vi.fn(),
   loadSnapshot: vi.fn().mockReturnValue(null),
-  saveConfig: vi.fn(),
-  saveSnapshot: vi.fn(),
+  saveConfigAndSnapshot: vi.fn(),
 }))
 vi.mock('../../src/detectors/language.js', () => ({
   detectLanguage: vi.fn().mockReturnValue('typescript'),

@@ -26,10 +26,22 @@ export function generateEvidenceRetention(config: ProjectConfig): EvidenceRetent
       renderTemplate('scripts/evidence-rotate.mjs.ejs', data),
       { skipIfExists: false, backup: true },
     ),
+    // Manual maintenance script — user may customise thresholds; skipIfExists
+    writeFile(
+      resolvedPath(base, 'scripts', 'evidence-prune.mjs'),
+      renderTemplate('scripts/evidence-prune.mjs.ejs', data),
+      { skipIfExists: true },
+    ),
     // Seed .gitignore with common entries + .evidence/ — skip if user already has one
     writeFile(resolvedPath(base, '.gitignore'), renderTemplate('root/.gitignore.ejs', data), {
       skipIfExists: true,
     }),
+    // Policy doc — human-readable retention rules; skipIfExists so users can customise
+    writeFile(
+      resolvedPath(base, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md'),
+      renderTemplate('governance/evidence-retention.md.ejs', data),
+      { skipIfExists: true },
+    ),
   ]
 
   // L2+: emit done-evidence CLI + per-archetype pin config (ADR-037)
