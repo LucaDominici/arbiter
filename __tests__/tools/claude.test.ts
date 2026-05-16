@@ -282,3 +282,115 @@ describe('generateClaude — batch-execution rule (#722)', () => {
     expect(file?.action).toBe('skipped')
   })
 })
+
+// ─── Context-economy rule + knowledge-map + track-aware post-commit (#720 #724) ─
+
+describe('generateClaude — context-economy + track-aware post-commit (#720 #724)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  function claudeConfig(overrides: Partial<Parameters<typeof makeConfig>[1]> = {}) {
+    return makeConfig(dir, { languageHooks: [], ...overrides })
+  }
+
+  it('generates .claude/rules/40-context-economy.md', () => {
+    generateClaude(claudeConfig())
+    expect(existsSync(join(dir, '.claude', 'rules', '40-context-economy.md'))).toBe(true)
+  })
+
+  it('40-context-economy.md mentions AGENTS.md in minimum startup set', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(join(dir, '.claude', 'rules', '40-context-economy.md'), 'utf-8')
+    expect(content).toContain('AGENTS.md')
+    expect(content).toMatch(/knowledge.map/i)
+  })
+
+  it('40-context-economy.md is skipIfExists — does not overwrite existing file', () => {
+    generateClaude(claudeConfig())
+    const p = join(dir, '.claude', 'rules', '40-context-economy.md')
+    writeFileSync(p, 'EXISTING')
+    const result = generateClaude(claudeConfig())
+    const file = result.files.find((f) => f.path.endsWith('40-context-economy.md'))
+    expect(file?.action).toBe('skipped')
+  })
+
+  it('generates .claude/knowledge-map.json as valid JSON', () => {
+    generateClaude(claudeConfig())
+    const raw = readFileSync(join(dir, '.claude', 'knowledge-map.json'), 'utf-8')
+    expect(() => JSON.parse(raw)).not.toThrow()
+  })
+
+  it('knowledge-map.json contains project name', () => {
+    generateClaude(claudeConfig())
+    const parsed = JSON.parse(
+      readFileSync(join(dir, '.claude', 'knowledge-map.json'), 'utf-8'),
+    ) as { project: string }
+    expect(parsed.project).toBe('test-project')
+  })
+
+  it('knowledge-map.json minimum_startup_set includes AGENTS.md', () => {
+    generateClaude(claudeConfig())
+    const parsed = JSON.parse(
+      readFileSync(join(dir, '.claude', 'knowledge-map.json'), 'utf-8'),
+    ) as { minimum_startup_set: string[] }
+    expect(parsed.minimum_startup_set).toContain('AGENTS.md')
+  })
+
+  it('knowledge-map.json tracks has frontend, backend, docs', () => {
+    generateClaude(claudeConfig())
+    const parsed = JSON.parse(
+      readFileSync(join(dir, '.claude', 'knowledge-map.json'), 'utf-8'),
+    ) as { tracks: Record<string, unknown> }
+    expect(parsed.tracks).toHaveProperty('frontend')
+    expect(parsed.tracks).toHaveProperty('backend')
+    expect(parsed.tracks).toHaveProperty('docs')
+  })
+
+  it('knowledge-map.json is skipIfExists — does not overwrite existing file', () => {
+    generateClaude(claudeConfig())
+    const p = join(dir, '.claude', 'knowledge-map.json')
+    writeFileSync(p, '{"custom":true}')
+    const result = generateClaude(claudeConfig())
+    const file = result.files.find((f) => f.path.endsWith('knowledge-map.json'))
+    expect(file?.action).toBe('skipped')
+  })
+
+  it('generates .claude/hooks/pre-task-track-detect.mjs (#720)', () => {
+    generateClaude(claudeConfig())
+    expect(existsSync(join(dir, '.claude', 'hooks', 'pre-task-track-detect.mjs'))).toBe(true)
+  })
+
+  it('pre-task-track-detect.mjs has shebang', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(
+      join(dir, '.claude', 'hooks', 'pre-task-track-detect.mjs'),
+      'utf-8',
+    )
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('pre-task-track-detect.mjs references knowledge-map.json', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(
+      join(dir, '.claude', 'hooks', 'pre-task-track-detect.mjs'),
+      'utf-8',
+    )
+    expect(content).toContain('knowledge-map.json')
+  })
+
+  it('post-commit-check.mjs contains track detection routing (#724)', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(join(dir, '.claude', 'hooks', 'post-commit-check.mjs'), 'utf-8')
+    expect(content).toMatch(/track/i)
+    expect(content).toMatch(/frontend|tsx|vue/i)
+    expect(content).toMatch(/backend|\.go|\.py/i)
+  })
+})
