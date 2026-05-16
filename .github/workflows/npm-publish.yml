@@ -1,8 +1,12 @@
 name: Publish to npm
 
-# Triggered on v* tags (e.g. v1.0.0, v0.2.3-rc.1).
+# Triggered on v* tags. Tag shape drives the dist-tag (#660 / R1.Q1):
+#   vX.Y.Z              → --tag latest  (stable channel)
+#   vX.Y.Z-rc.N         → --tag beta    (release-candidate channel)
+#   vX.Y.Z-canary.SHA   → --tag canary  (every-merge channel; usually
+#                                        produced by canary-publish.yml,
+#                                        but accepted here for manual tags)
 # Uses npm provenance via OIDC — no static NPM_TOKEN required.
-# Build → Full test suite → Publish → Smoke install matrix.
 
 on:
   push:
@@ -29,6 +33,21 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Resolve dist-tag from tag name
+        id: channel
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          case "$tag" in
+            *-canary.*) channel=canary ;;
+            *-rc.*)     channel=beta ;;
+            *-*)        channel=beta ;;
+            *)          channel=latest ;;
+          esac
+          echo "dist_tag=$channel" >> "$GITHUB_OUTPUT"
+          echo "Resolved dist-tag: $channel (from tag $tag)"
+
       - name: Build dist
         run: npm run build
 
@@ -36,9 +55,10 @@ jobs:
         run: npm run test
 
       - name: Publish to npm (with provenance)
-        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ steps.channel.outputs.dist_tag }}
+        run: npm publish --provenance --access public --tag "$DIST_TAG"
 
   smoke:
     name: Smoke install (${{ matrix.os }})
@@ -55,8 +75,6 @@ jobs:
 
       - name: Derive tag version
         id: version
-        # Strip leading 'v' from the tag name (refs/tags/vX.Y.Z → X.Y.Z).
-        # Use env: to avoid direct expression interpolation in run: (security).
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
