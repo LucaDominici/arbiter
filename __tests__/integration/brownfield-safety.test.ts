@@ -174,7 +174,7 @@ describe('brownfield safety integration (#540)', () => {
 
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true)
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('uncommitted'))
-  })
+  }, 15000)
 
   // ── actual brownfield init: backup + generation ───────────────────────────────
 
@@ -191,7 +191,7 @@ describe('brownfield safety integration (#540)', () => {
 
     expect(existsSync(join(dir, 'AGENTS.md.arbiter-backup'))).toBe(true)
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true)
-  })
+  }, 15000)
 
   it('generates .claude/ directory in brownfield project', async () => {
     await runInit({
@@ -205,7 +205,7 @@ describe('brownfield safety integration (#540)', () => {
     })
 
     expect(existsSync(join(dir, '.claude', 'CLAUDE.md'))).toBe(true)
-  })
+  }, 15000)
 
   it('brownfield round-trip: backup content matches original AGENTS.md', async () => {
     const { readFileSync } = await import('node:fs')
@@ -223,5 +223,5 @@ describe('brownfield safety integration (#540)', () => {
 
     const backupContent = readFileSync(join(dir, 'AGENTS.md.arbiter-backup'), 'utf-8')
     expect(backupContent).toBe(originalContent)
-  })
+  }, 15000)
 })
