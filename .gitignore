@@ -11,13 +11,18 @@ coverage/
 .claude/plans/
 .agents-dispatched
 
-# Arbiter local runtime state (logs); manifest is committed
-.arbiter/
+# Arbiter local runtime state (logs); manifest + evidence are committed
+# Use .arbiter/** (not .arbiter/) so child negations work per git spec
+.arbiter/**
 !.arbiter/hooks-manifest.json
 # Verification bridge: run history ignored, pointer files committable
-.arbiter/plan/runs/
+.arbiter/plan/runs/**
 !.arbiter/plan/PLAN.json
 !.arbiter/plan/REVIEW.json
+# TDD evidence files are committed so L2 gate works in CI
+!.arbiter/evidence/
+!.arbiter/evidence/tdd/
+!.arbiter/evidence/tdd/*.json
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/

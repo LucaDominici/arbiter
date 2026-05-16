@@ -18,6 +18,8 @@ import { runUpgradeLevel } from './commands/upgrade-level.js'
 import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
 import { runTaskAdvance, runTaskRecover, runTaskResume } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
+import { runTaskRecordRed } from './commands/task-record-red.js'
+import { runVerifyTdd } from './commands/verify-tdd.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
 import { runNotaryCheck, runNotaryTemplate } from './commands/notary.js'
@@ -511,6 +513,27 @@ verify
     process.exit(result.exitCode)
   })
 
+verify
+  .command('tdd <task-id>')
+  .description('Verify TDD red-phase evidence for a task — replayable audit (#553)')
+  .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((taskId: string, opts: { dir?: string; json: boolean }) => {
+    const result = runVerifyTdd({
+      taskId,
+      json: opts.json,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+    if (opts.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + '\n')
+    } else if (result.status === 'PASS') {
+      process.stdout.write(`verify tdd: PASS (${result.checks?.length ?? 0} checks)\n`)
+    } else {
+      process.stderr.write(`verify tdd: FAIL — ${result.reason ?? 'unknown'}\n`)
+    }
+    process.exit(result.exitCode)
+  })
+
 const graph = program.command('graph').description('Manage the provenance graph (#259)')
 
 graph
@@ -717,6 +740,26 @@ task
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       ...(opts.task !== undefined ? { taskId: opts.task } : {}),
     })
+  })
+
+task
+  .command('record-red')
+  .description('Record TDD red-phase evidence: run a failing test and capture evidence (#551)')
+  .requiredOption('--test-path <path>', 'Repo-relative path to the failing test file')
+  .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
+  .action((opts: { testPath: string; dir?: string }) => {
+    const result = runTaskRecordRed({
+      testPath: opts.testPath,
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+    if (result.ok) {
+      process.stdout.write(
+        `record-red: OK (framework=${result.framework})\nevidence: ${result.evidencePath}\n`,
+      )
+    } else {
+      process.stderr.write(`record-red: FAIL — ${result.reason}\n`)
+      process.exit(1)
+    }
   })
 
 const plugin = program

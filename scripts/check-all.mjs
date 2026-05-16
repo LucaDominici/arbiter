@@ -119,6 +119,7 @@ if (level === 'L2' || level === 'L3') {
   runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
   runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
   runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
+  runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

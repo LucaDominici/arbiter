@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { writeFile } from '../utils/fs.js'
 import { sanitizeTaskId } from '../review/dispatch.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
+import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
+import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
 
 export type TaskPhase =
   | 'preflight'
@@ -12,6 +14,7 @@ export type TaskPhase =
   | 'red-team-review'
   | 'red-team-rework'
   | 'implementation'
+  | 'green'
   | 'verification'
   | 'complete'
 
@@ -73,6 +76,7 @@ const PHASE_ORDER: TaskPhase[] = [
   'plan',
   'red-team-review',
   'implementation',
+  'green',
   'verification',
   'complete',
 ]
@@ -127,6 +131,8 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
     'Phase: red-team-rework\nAction: Critical findings require plan revision. Fix plan, then re-run red-team.\nNext: arbiter task advance --to red-team-review (re-triggers review) or --to plan (full replan).',
   implementation:
     'Phase: implementation\nAction: Implementation in progress. Check git status and .claude/.task-plan.\nNext: Resume TDD cycle (red → green → refactor), then run node scripts/check-all.mjs L1.',
+  green:
+    'Phase: green\nAction: Record TDD evidence for this task.\nNext: arbiter task record-red --test-path <path>, then arbiter task advance --to verification.',
   verification:
     'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then commit and push.',
   complete:
@@ -432,12 +438,60 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     }
   }
 
-  if (to === 'implementation') {
-    checkPlanReviewGate(dir, claudeDir, opts)
+  const phaseGates: Partial<Record<TaskPhase, () => void>> = {
+    implementation: () => {
+      checkPlanReviewGate(dir, claudeDir, opts)
+    },
+    green: () => {
+      checkTddEvidenceGate(dir, claudeDir)
+    },
   }
+  phaseGates[to]?.()
 
   mkdirSync(claudeDir, { recursive: true })
   const timestamp = new Date().toISOString()
   writeFileSync(join(claudeDir, '.task-phase'), to + '\n')
   appendFileSync(join(claudeDir, '.task-phase-history'), `${timestamp} ${current} → ${to}\n`)
+}
+
+function checkTddEvidenceGate(dir: string, claudeDir: string): void {
+  const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
+
+  const result = loadTddEvidence(rawId, dir)
+  if (!result.ok) {
+    throw new Error(
+      `TDD evidence gate: ${result.reason}. ` +
+        `Run \`arbiter task record-red --test-path <path>\` to capture failing test evidence first.`,
+    )
+  }
+
+  const ev = result.data
+  if (ev.task_id !== rawId) {
+    throw new Error(
+      `TDD evidence task_id mismatch: evidence has "${ev.task_id}" but active task is "${rawId}".`,
+    )
+  }
+
+  if (extractFailureSignature(ev.test_run_log) === null) {
+    throw new Error(
+      `TDD evidence gate: no recognised failure signature found in test_run_log. ` +
+        `The test must actually fail before recording evidence.`,
+    )
+  }
+
+  if (!shaExistsOnBranch(ev.test_commit_sha, dir)) {
+    throw new Error(
+      `TDD evidence gate: test_commit_sha "${ev.test_commit_sha}" not found in git history. ` +
+        `Ensure the test was committed before running \`arbiter task record-red\`.`,
+    )
+  }
+
+  if (!pathExistsInCommit(ev.test_commit_sha, ev.test_path, dir)) {
+    throw new Error(
+      `TDD evidence gate: test_path "${ev.test_path}" not found in commit ${ev.test_commit_sha}. ` +
+        `Verify the test file was committed at that sha.`,
+    )
+  }
+
+  void claudeDir
 }

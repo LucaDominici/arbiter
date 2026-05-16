@@ -3,6 +3,8 @@ dist/
 coverage/
 .coverage-tmp/
 report/
+.arbiter/
 .claude/worktrees/
+docs/PLAN/
 __tests__/fixtures/real-projects/**/target/
 __tests__/fixtures/real-projects/**/.pytest_cache/

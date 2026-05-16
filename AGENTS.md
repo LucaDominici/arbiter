@@ -133,7 +133,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - Unit tests: 80% coverage minimum
 - Integration tests for all external boundaries (database, APIs)
 - No mocking of internal modules — only boundary mocks
-- TDD preferred: test first, then implement
+- TDD mandatory: test first, then implement. Record evidence with `arbiter task record-red --test-path <path>` before advancing to `green` phase
 
 ---
 

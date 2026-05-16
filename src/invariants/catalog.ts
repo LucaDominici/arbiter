@@ -386,10 +386,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     description:
       'Test-driven development forces explicit design thinking before coding and produces code ' +
       'that is testable by construction. Writing tests after the fact often results in tests ' +
-      'written to pass rather than tests that document expected behavior.',
+      'written to pass rather than tests that document expected behavior. ' +
+      'Evidence is recorded via `arbiter task record-red` and verified via `arbiter verify tdd`.',
     alwaysActive: true,
     minGovernanceLevel: 'L2',
-    enforcement: 'process / code review',
+    enforcement:
+      'gate (scripts/check-all.mjs L2 — arbiter verify tdd) + task advance --to green gate',
   },
 
   {
