@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import type { Language } from '../wizard/types.js'
+import { readFileSafe, readPackageJsonSafe } from '../utils/safe-read.js'
 
 export interface DetectedModule {
   name: string
@@ -35,21 +36,10 @@ export function detectModules(dir: string, language: Language): DetectedModule[]
 }
 
 function detectTsModules(dir: string): DetectedModule[] {
-  const pkgPath = join(dir, 'package.json')
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as {
-        workspaces?: string[] | { packages?: string[] }
-      }
-      const patterns = Array.isArray(pkg.workspaces)
-        ? pkg.workspaces
-        : (pkg.workspaces?.packages ?? [])
-      if (patterns.length > 0) {
-        return expandWorkspaces(dir, patterns)
-      }
-    } catch {
-      // fall through to top-level subdir fallback
-    }
+  const pkg = readPackageJsonSafe(dir) as { workspaces?: string[] | { packages?: string[] } }
+  const patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : (pkg.workspaces?.packages ?? [])
+  if (patterns.length > 0) {
+    return expandWorkspaces(dir, patterns)
   }
   return fallbackTopLevelDirs(dir, 'typescript')
 }
@@ -88,14 +78,8 @@ function expandWorkspaces(dir: string, patterns: string[]): DetectedModule[] {
 }
 
 function readWorkspaceName(dir: string): string | null {
-  const pkgPath = join(dir, 'package.json')
-  if (!existsSync(pkgPath)) return null
-  try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { name?: string }
-    return pkg.name ?? null
-  } catch {
-    return null
-  }
+  const pkg = readPackageJsonSafe(dir) as { name?: string }
+  return pkg.name ?? null
 }
 
 function fallbackTopLevelDirs(dir: string, language: Language): DetectedModule[] {
@@ -120,7 +104,7 @@ function detectJavaModules(dir: string): DetectedModule[] {
   const gradlePath = existsSync(settings) ? settings : existsSync(settingsKts) ? settingsKts : null
 
   if (gradlePath) {
-    const content = readFileSync(gradlePath, 'utf-8')
+    const content = readFileSafe(gradlePath)
     const names = Array.from(
       content.matchAll(/include\s*\(?\s*['"]:?([^'"\s,)]+)['"]/g),
       (m) => (m[1] ?? '').replace(/^:/, '').split(':').pop() ?? '',
@@ -135,7 +119,7 @@ function detectJavaModules(dir: string): DetectedModule[] {
 
   const pomPath = join(dir, 'pom.xml')
   if (existsSync(pomPath)) {
-    const content = readFileSync(pomPath, 'utf-8')
+    const content = readFileSafe(pomPath)
     const names = Array.from(content.matchAll(/<module>([^<]+)<\/module>/g), (m) =>
       (m[1] ?? '').trim(),
     ).filter((s) => s.length > 0)
