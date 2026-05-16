@@ -54,8 +54,17 @@ import { ArbiterError, UserFacingError } from './utils/errors.js'
 import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
 import { runBenchmarkHooks } from './commands/benchmark.js'
+import { getRunId, formatRunIdFooter } from './utils/run-id.js'
 
 registerCleanupHandlers()
+
+// Mint run ID at CLI entry so all downstream code and subprocesses can read
+// process.env.ARBITER_RUN_ID for log correlation.
+getRunId()
+
+function printCliError(msg: string): void {
+  process.stderr.write(`  Error: ${msg}${formatRunIdFooter()}\n`)
+}
 
 // ── Evidence logging setup ────────────────────────────────────────────────────
 
@@ -356,7 +365,7 @@ review
     const tier: ReviewTier | undefined =
       opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
     if (opts.tier !== undefined && tier === undefined) {
-      console.error(`  Error: invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+      printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
       process.exit(1)
     }
     const result = runReviewPlan({
@@ -390,7 +399,7 @@ review
       const tier: ReviewTier | undefined =
         opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
       if (opts.tier !== undefined && tier === undefined) {
-        console.error(`  Error: invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+        printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
         process.exit(1)
       }
       const result = await runReviewCode({
@@ -669,7 +678,7 @@ program
       }
       if (opts.target) {
         if (opts.target !== 'L2' && opts.target !== 'L3') {
-          console.error(`  Error: invalid --target "${opts.target}". Valid values: L2, L3.`)
+          printCliError(`invalid --target "${opts.target}". Valid values: L2, L3.`)
           process.exit(1)
         }
         upgradeOpts.target = opts.target

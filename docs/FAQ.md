@@ -121,4 +121,11 @@ Run `arbiter explain <code>`, e.g. `arbiter explain INV-04` or `arbiter explain 
 
 ---
 
+---
+
+**How do I find my Run ID?**  
+Every arbiter error message includes a footer line like `Run ID: arb-20260516-120000-aabbccdd`. That ID is also set as `ARBITER_RUN_ID` in the environment, so any subprocess or hook can read it. Log files created by arbiter (when M4 log capture ships) will be stored under `~/.arbiter/logs/<runId>/`. When filing a bug report, include the Run ID — it lets maintainers correlate error messages, logs, and report bundles to the exact invocation that failed.
+
+---
+
 _For deeper questions, open a GitHub Discussion or file an issue._
