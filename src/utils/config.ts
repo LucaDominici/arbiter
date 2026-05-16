@@ -22,8 +22,10 @@ export function saveConfig(dir: string, config: ArbiterConfig): void {
   writeFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n')
 }
 
-export function saveSnapshot(dir: string, config: ArbiterConfig): void {
-  writeFile(join(dir, SNAPSHOT_FILE), JSON.stringify(config, null, 2) + '\n')
+export function saveConfigAndSnapshot(dir: string, config: ArbiterConfig): void {
+  const json = JSON.stringify(config, null, 2) + '\n'
+  writeFile(join(dir, CONFIG_FILE), json)
+  writeFile(join(dir, SNAPSHOT_FILE), json)
 }
 
 export function loadSnapshot(dir: string): ArbiterConfig | null {

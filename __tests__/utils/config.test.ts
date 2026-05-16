@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { saveConfig, loadConfig, defaultConfig, loadSnapshot } from '../../src/utils/config.js'
+import {
+  saveConfig,
+  saveConfigAndSnapshot,
+  loadConfig,
+  defaultConfig,
+  loadSnapshot,
+} from '../../src/utils/config.js'
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-config-test-'))
@@ -234,5 +240,38 @@ describe('arbiter config — ML contractType field (ADR-028)', () => {
     const loaded = loadConfig(dir)
     expect(loaded).not.toBeNull()
     expect(loaded?.contractType).toBeUndefined()
+  })
+})
+
+describe('saveConfigAndSnapshot (#772)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-save-pair-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('writes both arbiter.json and .arbiter-generated.json', () => {
+    saveConfigAndSnapshot(dir, defaultConfig())
+    expect(existsSync(join(dir, 'arbiter.json'))).toBe(true)
+    expect(existsSync(join(dir, '.arbiter-generated.json'))).toBe(true)
+  })
+
+  it('both files have identical content', () => {
+    saveConfigAndSnapshot(dir, defaultConfig())
+    const config = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
+    const snapshot = readFileSync(join(dir, '.arbiter-generated.json'), 'utf-8')
+    expect(config).toBe(snapshot)
+  })
+
+  it('content is valid JSON that round-trips through loadConfig', () => {
+    const original = defaultConfig()
+    saveConfigAndSnapshot(dir, original)
+    const loaded = loadConfig(dir)
+    expect(loaded?.version).toBe(original.version)
+    expect(loaded?.governanceLevel).toBe(original.governanceLevel)
   })
 })
