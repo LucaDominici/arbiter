@@ -153,7 +153,7 @@ export function buildMigrationPlan(
   return { replaced, preserved, merged, created }
 }
 
-export function displayMigrationPlan(plan: MigrationPlan): void {
+function displayMigrationPlan(plan: MigrationPlan): void {
   console.log('\n  Migration plan:')
   for (const entry of plan.replaced) {
     console.log(`  ├── Replace (backed up): ${entry}`)
