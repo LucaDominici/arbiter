@@ -70,7 +70,7 @@ For each input, probe:
 - Overall risk: <acceptable / needs fixes before merge>
 ```
 
-## SSOT Alignment Checks (#723)
+## SSOT Alignment Checks
 
 When reviewing any change that touches governance files, generators, or agent configurations,
 additionally verify SSOT (Single Source of Truth) alignment:

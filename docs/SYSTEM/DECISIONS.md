@@ -5,6 +5,19 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-051: Red-team SSOT alignment checks (#723, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issue #723; viafera FINDINGS.md#mech-M-15
+
+**Context:** Viafera's red-team agent includes a dedicated SSOT (Single Source of Truth) alignment section that systematically checks for invariant drift, CANON rule compliance, registry completeness, opt-in wiring, ADR currency, changeset presence, and ratchet baseline updates. Arbiter's red-team agent lacked this structured checklist, risking inconsistent governance on generator/template PRs.
+
+**Decision:** Add SSOT Alignment Checks section to both `src/templates/claude/agents/red-team.md.ejs` (generated version for target projects) and the materialized `.claude/agents/red-team.md` (arbiter self-governance). The section defines 9 checks, each with a specific query and severity mapping (HIGH for SSOT misalignment, MEDIUM for missing documentation).
+
+**Consequences:** Future red-team reviews on generator/template changes are guided to systematically verify all governance artifacts. Generated projects also inherit this checklist via the EJS template.
+
+---
+
 ## ADR-050: Risk register + P×I assessment template (#712, 2026-05-16)
 
 **Status:** Accepted
