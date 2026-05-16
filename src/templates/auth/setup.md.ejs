@@ -1,0 +1,650 @@
+# Auth Setup — <%= projectName %>
+
+<!-- arbiter-managed: auth (#726) -->
+
+> Provider: **<%= auth.provider %>**
+> All protected endpoints must validate tokens and enforce authorization before accessing data.
+
+---
+<% const _ap = auth.provider; %><% if (_ap === 'app-level-ts') { %>
+
+## App-level TypeScript Auth (Better-Auth / Auth.js / Lucia)
+
+No separate auth infrastructure. Auth logic lives inside the application. Best for greenfield TypeScript apps.
+
+### Option A — Better-Auth (recommended)
+
+```bash
+npm install better-auth
+```
+
+```typescript
+import { betterAuth } from 'better-auth'
+import { prismaAdapter } from 'better-auth/adapters/prisma'
+
+export const auth = betterAuth({
+  database: prismaAdapter(prisma, { provider: 'postgresql' }),
+  emailAndPassword: { enabled: true },
+  session: { expiresIn: 60 * 60 * 24 * 7 },
+})
+```
+
+### Option B — Auth.js (NextAuth v5)
+
+```bash
+npm install next-auth@beta
+```
+
+```typescript
+import NextAuth from 'next-auth'
+import GitHub from 'next-auth/providers/github'
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: [GitHub],
+})
+```
+
+### Option C — Lucia
+
+```bash
+npm install lucia @lucia-auth/adapter-prisma
+```
+
+```typescript
+import { Lucia } from 'lucia'
+import { PrismaAdapter } from '@lucia-auth/adapter-prisma'
+
+export const lucia = new Lucia(new PrismaAdapter(prisma.session, prisma.user), {
+  sessionCookie: { attributes: { secure: process.env.NODE_ENV === 'production' } },
+})
+```
+
+### Environment variables
+
+```env
+AUTH_SECRET=<random-32-char-secret>
+AUTH_TRUST_HOST=true
+DATABASE_URL=postgresql://...
+```
+<% } else if (_ap === 'authelia') { %>
+
+## Authelia — Self-hosted Reverse-Proxy Auth
+
+Single-binary Go service. Sits in front of your services as a forward-auth middleware. Lightweight alternative to Keycloak.
+
+### docker-compose.authelia.yml
+
+```yaml
+version: '3.8'
+services:
+  authelia:
+    image: authelia/authelia:latest
+    container_name: authelia
+    ports:
+      - '9091:9091'
+    volumes:
+      - ./authelia/config:/config
+      - authelia-data:/var/lib/authelia/storage
+    environment:
+      - AUTHELIA_JWT_SECRET=<random-secret>
+      - AUTHELIA_SESSION_SECRET=<random-secret>
+      - AUTHELIA_STORAGE_ENCRYPTION_KEY=<random-secret>
+    restart: unless-stopped
+
+  traefik:
+    image: traefik:v3
+    container_name: traefik
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on: [authelia]
+    restart: unless-stopped
+
+volumes:
+  authelia-data:
+```
+
+### authelia/config/configuration.yml (minimal)
+
+```yaml
+server:
+  host: 0.0.0.0
+  port: 9091
+
+authentication_backend:
+  file:
+    path: /config/users_database.yml
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: '<%= projectName %>.local'
+      policy: one_factor
+
+session:
+  secret: ${AUTHELIA_SESSION_SECRET}
+  domain: '<%= projectName %>.local'
+
+storage:
+  local:
+    path: /var/lib/authelia/storage/db.sqlite3
+```
+
+### Environment variables
+
+```env
+AUTHELIA_JWT_SECRET=<random-32-char-secret>
+AUTHELIA_SESSION_SECRET=<random-32-char-secret>
+AUTHELIA_STORAGE_ENCRYPTION_KEY=<random-32-char-secret>
+```
+<% } else if (_ap === 'authentik') { %>
+
+## Authentik — Self-hosted SSO + Flows
+
+Python-based identity provider with a rich UI for defining auth flows. Lighter than Keycloak, heavier than Authelia.
+
+### docker-compose.authentik.yml
+
+```yaml
+version: '3.8'
+services:
+  postgresql:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${PG_PASS}
+    volumes:
+      - authentik-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:latest
+    command: server
+    ports:
+      - '9000:9000'   # HTTP
+      - '9443:9443'   # HTTPS
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+    depends_on: [postgresql, redis]
+    restart: unless-stopped
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:latest
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+    depends_on: [postgresql, redis]
+    restart: unless-stopped
+
+volumes:
+  authentik-db:
+```
+
+### OIDC integration
+
+```typescript
+import { Issuer } from 'openid-client'
+
+const issuer = await Issuer.discover('http://localhost:9000/application/o/<%= projectName %>/')
+const client = new issuer.Client({
+  client_id: process.env.AUTHENTIK_CLIENT_ID!,
+  client_secret: process.env.AUTHENTIK_CLIENT_SECRET!,
+  redirect_uris: [`${process.env.APP_URL}/auth/callback`],
+})
+```
+
+### Environment variables
+
+```env
+PG_PASS=<random-db-password>
+AUTHENTIK_SECRET_KEY=<random-50-char-secret>
+AUTHENTIK_CLIENT_ID=<client-id-from-authentik-ui>
+AUTHENTIK_CLIENT_SECRET=<client-secret-from-authentik-ui>
+```
+<% } else if (_ap === 'ory-stack') { %>
+
+## Ory Stack — Modular Self-hosted Auth
+
+Kratos (identity management) + Hydra (OAuth2/OIDC server). Best for microservices where separation of concerns matters.
+
+### docker-compose.ory.yml
+
+```yaml
+version: '3.8'
+services:
+  kratos-migrate:
+    image: oryd/kratos:latest
+    command: migrate sql -e --yes
+    environment:
+      DSN: postgres://kratos:${PG_PASS}@postgresql:5432/kratos?sslmode=disable
+    depends_on: [postgresql]
+
+  kratos:
+    image: oryd/kratos:latest
+    ports:
+      - '4433:4433'   # Public API
+      - '4434:4434'   # Admin API
+    command: serve --config /etc/config/kratos.yml
+    volumes:
+      - ./kratos:/etc/config
+    environment:
+      DSN: postgres://kratos:${PG_PASS}@postgresql:5432/kratos?sslmode=disable
+    depends_on: [kratos-migrate]
+    restart: unless-stopped
+
+  hydra:
+    image: oryd/hydra:latest
+    ports:
+      - '4444:4444'   # Public API
+      - '4445:4445'   # Admin API
+    command: serve all --dangerous-force-http
+    environment:
+      DSN: postgres://hydra:${PG_PASS}@postgresql:5432/hydra?sslmode=disable
+      SECRETS_SYSTEM: ${HYDRA_SYSTEM_SECRET}
+      URLS_SELF_ISSUER: http://localhost:4444
+      URLS_CONSENT: http://localhost:3000/consent
+      URLS_LOGIN: http://localhost:3000/login
+    depends_on: [postgresql]
+    restart: unless-stopped
+
+  postgresql:
+    image: postgres:16
+    environment:
+      POSTGRES_MULTIPLE_DATABASES: kratos,hydra
+      POSTGRES_PASSWORD: ${PG_PASS}
+    volumes:
+      - ory-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  ory-db:
+```
+
+### Environment variables
+
+```env
+PG_PASS=<random-db-password>
+HYDRA_SYSTEM_SECRET=<random-32-char-secret>
+ORY_KRATOS_PUBLIC_URL=http://localhost:4433
+ORY_HYDRA_PUBLIC_URL=http://localhost:4444
+```
+<% } else if (_ap === 'zitadel') { %>
+
+## Zitadel — Self-hosted All-in-One IAM
+
+Go-based, single binary, OIDC + OAuth2 + SAML. Best for multi-tenant SaaS applications.
+
+### docker-compose.zitadel.yml
+
+```yaml
+version: '3.8'
+services:
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:latest
+    container_name: zitadel
+    ports:
+      - '8080:8080'
+    command: start-from-init --masterkey ${ZITADEL_MASTERKEY} --tlsMode disabled
+    environment:
+      ZITADEL_DATABASE_COCKROACH_HOST: cockroachdb
+      ZITADEL_EXTERNALDOMAIN: localhost
+      ZITADEL_EXTERNALPORT: 8080
+      ZITADEL_EXTERNALSECURE: 'false'
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  cockroachdb:
+    image: cockroachdb/cockroach:latest
+    command: start-single-node --insecure
+    volumes:
+      - cockroach-data:/cockroach/cockroach-data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health?ready=1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  cockroach-data:
+```
+
+### OIDC integration
+
+```typescript
+import { Issuer } from 'openid-client'
+
+const issuer = await Issuer.discover('http://localhost:8080')
+const client = new issuer.Client({
+  client_id: process.env.ZITADEL_CLIENT_ID!,
+  redirect_uris: [`${process.env.APP_URL}/auth/callback`],
+  response_types: ['code'],
+})
+```
+
+### Environment variables
+
+```env
+ZITADEL_MASTERKEY=<random-32-char-key>
+ZITADEL_CLIENT_ID=<client-id-from-zitadel-console>
+ZITADEL_ISSUER=http://localhost:8080
+```
+<% } else if (_ap === 'keycloak') { %>
+
+## Keycloak — Self-hosted Enterprise SSO
+
+Java/Quarkus-based. The heavyweight reference stack. Best for enterprise SSO with complex customization requirements.
+
+### docker-compose.keycloak.yml
+
+```yaml
+version: '3.8'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    ports:
+      - '8180:8080'
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgresql:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${PG_PASS}
+    depends_on: [postgresql]
+    restart: unless-stopped
+
+  postgresql:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${PG_PASS}
+    volumes:
+      - kc-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  kc-db:
+```
+
+### Realm export / import
+
+```bash
+# Export realm config for version control
+docker exec keycloak /opt/keycloak/bin/kc.sh export \
+  --realm <%= projectName %> \
+  --dir /tmp/realm-export \
+  --users realm_file
+
+# Import on fresh deployment
+docker exec keycloak /opt/keycloak/bin/kc.sh import \
+  --dir /tmp/realm-export
+```
+
+### OIDC integration (Node.js)
+
+```typescript
+import KcAdminClient from '@keycloak/keycloak-admin-client'
+import { Issuer } from 'openid-client'
+
+const issuer = await Issuer.discover(
+  `http://localhost:8180/realms/<%= projectName %>`,
+)
+const client = new issuer.Client({
+  client_id: process.env.KC_CLIENT_ID!,
+  client_secret: process.env.KC_CLIENT_SECRET!,
+  redirect_uris: [`${process.env.APP_URL}/auth/callback`],
+})
+```
+
+### Environment variables
+
+```env
+KC_ADMIN_PASSWORD=<strong-admin-password>
+PG_PASS=<random-db-password>
+KC_CLIENT_ID=<%= projectName %>-api
+KC_CLIENT_SECRET=<client-secret-from-keycloak-ui>
+KC_REALM=<%= projectName %>
+KC_URL=http://localhost:8180
+```
+<% } else if (_ap === 'saas-clerk') { %>
+
+## Clerk — SaaS Auth (B2C / Greenfield)
+
+Best-in-class DX for B2C apps. Pre-built UI components, webhooks, user management dashboard.
+
+### Install
+
+```bash
+npm install @clerk/nextjs   # Next.js
+# or
+npm install @clerk/clerk-sdk-node   # Node.js Express/Fastify
+```
+
+### Middleware (Next.js)
+
+```typescript
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+
+const isProtected = createRouteMatcher(['/api/(.*)'])
+
+export default clerkMiddleware((auth, req) => {
+  if (isProtected(req)) auth().protect()
+})
+```
+
+### Auth in API routes
+
+```typescript
+import { auth, currentUser } from '@clerk/nextjs/server'
+
+export async function GET() {
+  const { userId } = auth()
+  if (!userId) return new Response('Unauthorized', { status: 401 })
+  const user = await currentUser()
+  return Response.json({ user })
+}
+```
+
+### Environment variables
+
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_<your-key>
+CLERK_SECRET_KEY=sk_test_<your-secret>
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+```
+<% } else if (_ap === 'saas-auth0') { %>
+
+## Auth0 — SaaS Enterprise Auth
+
+Full-featured enterprise SaaS. Universal Login, RBAC, MFA, social connections.
+
+### Install
+
+```bash
+npm install auth0
+```
+
+### Server-side token validation
+
+```typescript
+import { auth } from 'express-oauth2-jwt-bearer'
+
+const checkJwt = auth({
+  audience: process.env.AUTH0_AUDIENCE,
+  issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}`,
+})
+
+app.use('/api', checkJwt)
+```
+
+### Management API (user operations)
+
+```typescript
+import { ManagementClient } from 'auth0'
+
+const management = new ManagementClient({
+  domain: process.env.AUTH0_DOMAIN!,
+  clientId: process.env.AUTH0_CLIENT_ID!,
+  clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+})
+```
+
+### Environment variables
+
+```env
+AUTH0_DOMAIN=<your-tenant>.auth0.com
+AUTH0_AUDIENCE=https://<%= projectName %>/api
+AUTH0_CLIENT_ID=<your-client-id>
+AUTH0_CLIENT_SECRET=<your-client-secret>
+```
+<% } else if (_ap === 'saas-supabase-auth') { %>
+
+## Supabase Auth — SaaS (Postgres-first)
+
+Integrated with Supabase Postgres. RLS (Row Level Security) ties auth directly to data access.
+
+### Install
+
+```bash
+npm install @supabase/supabase-js
+```
+
+### Client initialization
+
+```typescript
+import { createClient } from '@supabase/supabase-js'
+
+export const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!,
+)
+```
+
+### Auth flows
+
+```typescript
+// Sign up
+const { data, error } = await supabase.auth.signUp({
+  email: 'alice@<your-domain>',
+  password: 'secure-password',
+})
+
+// Sign in
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'alice@<your-domain>',
+  password: 'secure-password',
+})
+
+// Verify JWT in server routes
+const { data: { user } } = await supabase.auth.getUser(token)
+```
+
+### RLS policy example
+
+```sql
+-- Only allow users to see their own rows
+CREATE POLICY "<%= projectName %>_user_owns_row"
+  ON your_table FOR ALL
+  USING (auth.uid() = user_id);
+```
+
+### Environment variables
+
+```env
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_ANON_KEY=<your-anon-key>
+SUPABASE_SERVICE_KEY=<your-service-role-key>
+```
+<% } else if (_ap === 'saas-cognito') { %>
+
+## Amazon Cognito — SaaS (AWS-native)
+
+Best for AWS-native stacks. Integrates with API Gateway, Lambda authorizers, IAM.
+
+### Install
+
+```bash
+npm install @aws-sdk/client-cognito-identity-provider amazon-cognito-identity-js
+```
+
+### Server-side token validation
+
+```typescript
+import { CognitoJwtVerifier } from 'aws-jwt-verify'
+
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.COGNITO_USER_POOL_ID!,
+  tokenUse: 'access',
+  clientId: process.env.COGNITO_CLIENT_ID!,
+})
+
+async function verifyToken(token: string) {
+  const payload = await verifier.verify(token)
+  return payload
+}
+```
+
+### Middleware
+
+```typescript
+import { Request, Response, NextFunction } from 'express'
+
+export async function cognitoAuth(req: Request, res: Response, next: NextFunction) {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (!token) return res.status(401).json({ error: 'Unauthorized' })
+  try {
+    const payload = await verifyToken(token)
+    req.user = { id: payload.sub, username: payload.username as string }
+    next()
+  } catch {
+    res.status(401).json({ error: 'Invalid token' })
+  }
+}
+```
+
+### Environment variables
+
+```env
+COGNITO_USER_POOL_ID=<region>_<pool-id>
+COGNITO_CLIENT_ID=<your-app-client-id>
+AWS_REGION=<your-region>
+```
+<% } %>
+
+---
+
+## Checklist
+
+- [ ] Provider running (self-host: `docker compose up`) or configured (SaaS: env vars set)
+- [ ] All protected API routes require valid token
+- [ ] Token expiry handled — 401 returned, not 500
+- [ ] Auth errors logged (without leaking tokens or credentials)
+<% if (typeof auth !== 'undefined' && auth.tenantIsolation) { %>- [ ] Tenant isolation enforced — every query scoped to `ownerId` / `tenantId`
+<% } %>- [ ] Auth tested with expired/malformed/missing token
+
+_Generated by arbiter. Re-run `arbiter update` after changing `auth.provider`._

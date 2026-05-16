@@ -189,6 +189,10 @@ export interface ProjectConfig {
   enableNis2Mapping?: boolean
   /** Whether to include GDPR article gate-to-control mapping in the compliance document. Default false. */
   enableGdprMapping?: boolean
+  /** Observability provider configuration. Default: absent (no observability files generated). */
+  observability?: ObservabilityConfig
+  /** Auth provider configuration. Default: absent (no auth setup files generated). */
+  auth?: AuthConfig
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.
@@ -279,6 +283,46 @@ export type ContractType =
   | 'grpc'
   | 'message-queue'
   | 'none'
+
+export type ObservabilityProvider =
+  | 'none'
+  | 'stdout-minimal'
+  | 'victoria-vector-quickwit'
+  | 'signoz'
+  | 'openobserve'
+  | 'prom-grafana-loki-jaeger'
+  | 'saas-sentry'
+  | 'saas-datadog'
+  | 'saas-axiom'
+  | 'saas-betterstack'
+
+export interface ObservabilityConfig {
+  provider: ObservabilityProvider
+  metrics?: boolean
+  logs?: boolean
+  traces?: boolean
+  alerts?: boolean
+}
+
+export type AuthProvider =
+  | 'none'
+  | 'app-level-ts'
+  | 'authelia'
+  | 'authentik'
+  | 'ory-stack'
+  | 'zitadel'
+  | 'keycloak'
+  | 'saas-clerk'
+  | 'saas-auth0'
+  | 'saas-supabase-auth'
+  | 'saas-cognito'
+
+export interface AuthConfig {
+  provider: AuthProvider
+  protocols?: Array<'oidc' | 'oauth2' | 'saml' | 'session'>
+  tenantIsolation?: boolean
+  themeSync?: boolean
+}
 
 export type EvidenceRetentionMode = 'local-last-N' | 'external-bucket' | 'none'
 

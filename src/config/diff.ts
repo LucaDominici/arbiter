@@ -47,6 +47,8 @@ export type GeneratorKey =
   | 'operations'
   | 'risk-register'
   | 'compliance'
+  | 'observability'
+  | 'auth'
 
 export interface ConfigDiff {
   paths: string[]
@@ -116,6 +118,8 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'thresholds.maxParams': ['debt-gates'],
   invariantTiers: ['global-invariants', 'agents-md'],
   hasPublicApi: ['api-middleware'],
+  'observability.provider': ['observability'],
+  'auth.provider': ['auth'],
 }
 
 function diffLeaf(prefix: string, a: unknown, b: unknown, paths: string[]): void {
@@ -146,7 +150,7 @@ export function diffConfig(stored: ArbiterConfigV2, next: ArbiterConfigV2): Conf
   for (const k of keys) {
     const a = normField(k, s[k])
     const b = normField(k, n[k])
-    if (k === 'features' || k === 'thresholds') {
+    if (k === 'features' || k === 'thresholds' || k === 'observability' || k === 'auth') {
       diffLeaf(k, a, b, paths)
     } else if (JSON.stringify(a) !== JSON.stringify(b)) {
       paths.push(k)

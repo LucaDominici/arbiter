@@ -44,6 +44,8 @@ import { generateSelfValidation } from './self-validation.js'
 import { generateOperations } from './operations.js'
 import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
+import { generateObservability } from './observability.js'
+import { generateAuth } from './auth.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -307,8 +309,28 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
   ]
 }
 
+function buildProviderSpecs(config: ProjectConfig): GeneratorSpec[] {
+  return [
+    {
+      key: 'observability',
+      enabled: config.observability != null && config.observability.provider !== 'none',
+      run: () => generateObservability(config).files,
+    },
+    {
+      key: 'auth',
+      enabled: config.auth != null && config.auth.provider !== 'none',
+      run: () => generateAuth(config).files,
+    },
+  ]
+}
+
 export function buildRegistry(config: ProjectConfig): GeneratorSpec[] {
-  return [...buildAiToolSpecs(config), ...buildInfraSpecs(config), ...buildAnalysisSpecs(config)]
+  return [
+    ...buildAiToolSpecs(config),
+    ...buildInfraSpecs(config),
+    ...buildAnalysisSpecs(config),
+    ...buildProviderSpecs(config),
+  ]
 }
 
 function safeRun(spec: GeneratorSpec, errors: GeneratorFailure[]): WriteResult[] {
