@@ -41,6 +41,7 @@ import { generateApiMiddleware } from './api-middleware.js'
 import { generateSeed } from './seed.js'
 import { generateEvidenceBacklog } from './evidence-backlog.js'
 import { generateSelfValidation } from './self-validation.js'
+import { generateOperations } from './operations.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -262,6 +263,11 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'test-taxonomy',
       enabled: true,
       run: () => generateTestTaxonomy(config).files,
+    },
+    {
+      key: 'operations',
+      enabled: config.enableOperationsHandbook === true,
+      run: () => generateOperations(config).files,
     },
     {
       key: 'behavioral-tests',

@@ -179,6 +179,8 @@ export interface ProjectConfig {
   enableNoSkippedTests?: boolean
   /** Whether to use the 25-dimension test taxonomy template instead of the base 17-dimension one. Default false. */
   enableTaxonomy25d?: boolean
+  /** Whether to generate the operations handbook (4-signal observability, RC checklist, runbooks). Default false. */
+  enableOperationsHandbook?: boolean
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.
