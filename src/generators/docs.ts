@@ -69,5 +69,13 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     )
   }
 
+  results.push(
+    writeFile(
+      resolvedPath(base, 'docs', 'COMMANDS.md'),
+      renderTemplate('documentation/cli-catalog.md.ejs', data),
+      { skipIfExists: true },
+    ),
+  )
+
   return { files: results }
 }

@@ -135,3 +135,52 @@ describe('generateDocs — POST_MERGE_REVIEW_TEMPLATE (#218)', () => {
     expect(existsSync(join(dir, 'docs', 'testing', 'POST_MERGE_REVIEW_TEMPLATE.md'))).toBe(false)
   })
 })
+
+describe('generateDocs — COMMANDS.md CLI catalog (#728)', () => {
+  it('emits docs/COMMANDS.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'COMMANDS.md'))).toBe(true)
+  })
+
+  it('emits docs/COMMANDS.md at L3', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'docs', 'COMMANDS.md'))).toBe(true)
+  })
+
+  it('does not emit docs/COMMANDS.md at L1', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+    expect(existsSync(join(dir, 'docs', 'COMMANDS.md'))).toBe(false)
+  })
+
+  it('skipIfExists on docs/COMMANDS.md (#728, CANON-11)', () => {
+    const docsDir = join(dir, 'docs')
+    mkdirSync(docsDir, { recursive: true })
+    const target = join(docsDir, 'COMMANDS.md')
+    writeFileSync(target, 'PREEXISTING')
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+
+  it('COMMANDS.md contains project build/test/lint/format commands', () => {
+    generateDocs(
+      makeConfig(dir, {
+        governanceLevel: 'L2',
+        buildCommand: 'npm run build',
+        testCommand: 'npm test',
+        lintCommand: 'npm run lint',
+        formatCommand: 'npx prettier --check .',
+      }),
+    )
+    const content = readFileSync(join(dir, 'docs', 'COMMANDS.md'), 'utf-8')
+    expect(content).toContain('npm run build')
+    expect(content).toContain('npm test')
+    expect(content).toContain('npm run lint')
+    expect(content).toContain('npx prettier --check .')
+  })
+
+  it('COMMANDS.md contains gate commands', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, 'docs', 'COMMANDS.md'), 'utf-8')
+    expect(content).toContain('check-all.mjs')
+  })
+})
