@@ -19,14 +19,14 @@ describe('generateEvidenceRetention', () => {
     cleanupTestProject(dir)
   })
 
-  it('generates 2 files at L1 (rotate script + gitignore)', () => {
+  it('generates 3 files at L1 (rotate + prune + gitignore)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L1' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(2)
+    expect(generateEvidenceRetention(config).files).toHaveLength(3)
   })
 
-  it('generates 4 files at L2+ (rotate + gitignore + done-evidence + evidence-files)', () => {
+  it('generates 6 files at L2+ (rotate + prune + gitignore + done-evidence + evidence-files + policy-doc)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L2' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+    expect(generateEvidenceRetention(config).files).toHaveLength(6)
   })
 
   it('generates scripts/done-evidence.mjs at L2+', () => {
@@ -155,6 +155,104 @@ describe('generateEvidenceRetention', () => {
     const content = readFileSync(join(dir, 'scripts', 'evidence-rotate.mjs'), 'utf-8')
     expect(content).not.toContain('s3://')
     expect(content).not.toContain('bucket')
+  })
+})
+
+// ─── evidence-prune.mjs (#718) ───────────────────────────────────────────────
+
+describe('generateEvidenceRetention — evidence-prune.mjs (#718)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('generates scripts/evidence-prune.mjs', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    expect(existsSync(join(dir, 'scripts', 'evidence-prune.mjs'))).toBe(true)
+  })
+
+  it('evidence-prune.mjs has shebang', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('evidence-prune.mjs contains --keep-last flag', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toContain('keep-last')
+  })
+
+  it('evidence-prune.mjs contains --keep-days flag', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toContain('keep-days')
+  })
+
+  it('evidence-prune.mjs contains --dry-run flag', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'evidence-prune.mjs'), 'utf-8')
+    expect(content).toContain('dry-run')
+  })
+
+  it('evidence-prune.mjs skipIfExists — preserves existing user file', () => {
+    const scriptsDir = join(dir, 'scripts')
+    mkdirSync(scriptsDir, { recursive: true })
+    const target = join(scriptsDir, 'evidence-prune.mjs')
+    writeFileSync(target, 'PREEXISTING')
+    generateEvidenceRetention(makeConfig(dir))
+    expect(readFileSync(target, 'utf-8')).toBe('PREEXISTING')
+  })
+})
+
+// ─── evidence-retention.md (#718) ────────────────────────────────────────────
+
+describe('generateEvidenceRetention — evidence-retention.md policy doc (#718)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('generates docs/governance/evidence-retention.md at L2+', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'governance', 'evidence-retention.md'))).toBe(true)
+  })
+
+  it('generates docs/governance/evidence-retention.md at L3', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'docs', 'governance', 'evidence-retention.md'))).toBe(true)
+  })
+
+  it('does not generate evidence-retention.md at L1', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L1' }))
+    expect(existsSync(join(dir, 'docs', 'governance', 'evidence-retention.md'))).toBe(false)
+  })
+
+  it('evidence-retention.md skipIfExists', () => {
+    const docDir = join(dir, 'docs', 'governance')
+    mkdirSync(docDir, { recursive: true })
+    const target = join(docDir, 'evidence-retention.md')
+    writeFileSync(target, 'PREEXISTING')
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(readFileSync(target, 'utf-8')).toBe('PREEXISTING')
+  })
+
+  it('evidence-retention.md contains project name', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, 'docs', 'governance', 'evidence-retention.md'), 'utf-8')
+    expect(content).toContain('test-project')
   })
 })
 

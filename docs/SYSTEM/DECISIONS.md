@@ -5,6 +5,24 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-046: Evidence prune script + retention policy doc (#718, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issue #718; viafera M-10; viafera premortem cause P3; CANON-04, CANON-05, CANON-11
+**Closes:** #718
+
+**Context:** The existing `evidence-rotate.mjs` only prunes by count (keep-last-N). The viafera premortem (cause P3) documented 47 stale runs accumulating because there was no age-based or bulk-prune mechanism. The issue requests an additional `evidence-prune.mjs` with keep-last + keep-days + dry-run + ACK guard.
+
+**Decision:** Add `evidence-prune.mjs` (from `src/templates/scripts/evidence-prune.mjs.ejs`) via `generateEvidenceRetention` at all governance levels (skipIfExists). Add `docs/governance/evidence-retention.md` policy doc (from `src/templates/governance/evidence-retention.md.ejs`) at L2+ (skipIfExists). The two scripts serve different purposes: `evidence-rotate.mjs` auto-runs after every gate pass; `evidence-prune.mjs` is human-triggered for bulk cleanup.
+
+**Consequences:**
+
+- L1 generates 3 files (was 2): rotate + prune + gitignore.
+- L2/L3 generates 6 files (was 4): rotate + prune + gitignore + done-evidence + evidence-files + policy-doc.
+- Template baseline bumped from 128 → 130 (2 new EJS files).
+
+---
+
 ## ADR-043: Matrix downgrade-vs-fix verdict — 7 HALF/FAKE proven cells (#377, 2026-05-14)
 
 **Status:** Accepted

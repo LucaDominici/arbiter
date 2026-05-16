@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+// <%= projectName %> — evidence artifact pruning (#718)
+// Prunes .evidence/ by count and/or age with dry-run + ACK guard.
+// Usage: node scripts/evidence-prune.mjs [--keep-last=N] [--keep-days=D] [--dry-run] [--yes]
+import { readdirSync, rmSync, statSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+const args = process.argv.slice(2);
+
+function flag(name) {
+  const entry = args.find((a) => a.startsWith(`--${name}=`));
+  return entry ? parseInt(entry.split('=')[1], 10) : null;
+}
+
+const keepLast = flag('keep-last') ?? <%= (evidenceRetention && evidenceRetention.count != null) ? evidenceRetention.count : 5 %>;
+const keepDays = flag('keep-days') ?? 30;
+const dryRun = args.includes('--dry-run');
+const ack = args.includes('--yes');
+
+const EVIDENCE_DIR = '.evidence';
+
+if (!existsSync(EVIDENCE_DIR)) {
+  process.stdout.write(`[evidence-prune] ${EVIDENCE_DIR}/ not found — nothing to prune\n`);
+  process.exit(0);
+}
+
+const entries = readdirSync(EVIDENCE_DIR, { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => ({
+    name: e.name,
+    path: join(EVIDENCE_DIR, e.name),
+    mtime: statSync(join(EVIDENCE_DIR, e.name)).mtimeMs,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const cutoffMs = Date.now() - keepDays * 24 * 60 * 60 * 1000;
+
+const toRemove = entries.filter((e, idx) => {
+  const tooOld = e.mtime < cutoffMs;
+  const overCount = idx < entries.length - keepLast;
+  return tooOld || overCount;
+});
+
+if (toRemove.length === 0) {
+  process.stdout.write(`[evidence-prune] ${entries.length} run(s) — nothing to prune\n`);
+  process.exit(0);
+}
+
+if (dryRun) {
+  process.stdout.write(`[evidence-prune] dry-run: would remove ${toRemove.length} run(s):\n`);
+  toRemove.forEach((e) => process.stdout.write(`  ${e.path}\n`));
+  process.exit(0);
+}
+
+if (!ack) {
+  process.stderr.write(
+    `[evidence-prune] will permanently remove ${toRemove.length} run(s). Re-run with --yes to confirm, or --dry-run to preview.\n`,
+  );
+  process.exit(1);
+}
+
+for (const e of toRemove) {
+  rmSync(e.path, { recursive: true, force: true });
+  process.stdout.write(`[evidence-prune] removed ${e.path}\n`);
+}
+process.stdout.write(
+  `[evidence-prune] pruned ${toRemove.length} run(s); ${entries.length - toRemove.length} remain\n`,
+);
