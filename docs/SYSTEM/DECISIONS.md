@@ -1054,6 +1054,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **CANON-16 survey:** grepped `src/wizard/` for similar preset/bundle logic — only `src/invariants/filter.ts`'s `presetToTiers()` exists (invariant-tier presets, different concept). New file `src/wizard/presets.ts` justified.
 
 **Consequences:** Teams can activate the full compliance + governance stack with one flag. Auth and observability providers remain user-chosen to avoid lock-in. The preset is idempotent: re-running `arbiter update --preset industrial-grade` after changing a provider preserves the provider override.
+
 ## ADR-049: Worktree harvest parent-state guardrails (#733)
 
 **Date:** 2026-05-16
