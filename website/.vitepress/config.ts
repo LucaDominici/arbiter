@@ -10,6 +10,30 @@ export default defineConfig({
     hostname: 'https://arbiter.dev',
   },
 
+  head: [
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'arbiter — AI governance that installs itself.' }],
+    [
+      'meta',
+      {
+        property: 'og:description',
+        content:
+          'One command installs a complete, standards-aligned governance stack into any project — AGENTS.md, hooks, gate scripts, CI workflows, and more.',
+      },
+    ],
+    ['meta', { property: 'og:url', content: 'https://arbiter.dev' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'arbiter — AI governance that installs itself.' }],
+    [
+      'meta',
+      {
+        name: 'twitter:description',
+        content:
+          'One command installs a complete, standards-aligned governance stack into any project.',
+      },
+    ],
+  ],
+
   themeConfig: {
     nav: [
       { text: 'Docs', link: '/quickstart/' },
@@ -21,7 +45,7 @@ export default defineConfig({
         text: 'v0 (next)',
         items: [
           { text: 'v0 (next)', link: '/' },
-          { text: 'v0.1 (latest)', link: '/v/latest/', activeMatch: '^/v/latest/' },
+          { text: 'v0.1 (latest)', link: '/v/latest/' },
         ],
       },
     ],

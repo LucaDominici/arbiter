@@ -1,30 +1,43 @@
-# Arbiter — AI Development Governance Framework
+# Arbiter — AI governance that installs itself.
 
 [![No Telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)](PRIVACY.md)
-
-Arbiter installs a complete, standards-aligned AI governance stack into any project in one command.
+[![npm](https://img.shields.io/npm/v/arbiter)](https://www.npmjs.com/package/arbiter)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)](https://nodejs.org/)
 
 ```bash
 npx arbiter init
 ```
 
-It generates `AGENTS.md` (the canonical governance file, AAIF/Linux Foundation standard), thin-pointer configs for each AI tool, GitHub assets, quality gates, and hook scripts — all parameterized to your stack.
+<!-- TODO(#530): replace this block with asciinema embed once cast is recorded -->
 
 ---
 
 ## Why Arbiter
 
-Every repo that uses AI coding agents needs the same things:
+Every repo that uses AI coding agents eventually needs the same setup: a canonical governance file that all tools agree on, quality gates that enforce standards rather than just document them, and CI infrastructure that fails on violations rather than emitting warnings nobody reads.
 
-- A canonical governance file that all tools read (`AGENTS.md`)
-- Tool-specific configs that don't duplicate governance (Claude, Codex, Cursor…)
-- Quality gate scripts parameterized to your stack
-- GitHub templates, labels, and branch protection
-- Hook scripts that enforce invariants at edit time
+Most alternatives tell the AI _how to think_. Arbiter tells the AI _what rules apply_ — and then enforces those rules mechanically at edit time, commit, push, and CI. The difference is that AI personas drift. Gate scripts don't.
 
-Doing this by hand drifts. Arbiter makes it reproducible and installable.
+Doing this by hand across stacks and tools is copy-paste work that rots the moment requirements change. Arbiter generates the whole stack from one parameterized source of truth and makes re-running safe.
 
 **No telemetry.** Arbiter collects zero usage data and makes zero unsolicited network calls. See [PRIVACY.md](PRIVACY.md).
+
+---
+
+## How it compares
+
+| Capability                | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
+| ------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
+| Canonical governance file | ✓       | —    | —    | —           | —           | —        |
+| Language-aware generation | ✓       | —    | —    | —           | —           | —        |
+| L1/L2/L3 governance tiers | ✓       | —    | —    | —           | —           | —        |
+| Generated hook scripts    | ✓       | —    | —    | —           | —           | —        |
+| CI workflow generation    | ✓       | —    | —    | —           | —           | —        |
+| Idempotent update         | ✓       | —    | —    | —           | —           | —        |
+| Zero telemetry            | ✓       | —    | —    | —           | —           | —        |
+
+> Arbiter is a governance installer, not a workflow or persona framework. [Full comparison →](website/comparisons/index.md)
 
 ---
 
@@ -58,7 +71,7 @@ npx arbiter init --yes
 npx arbiter init --yes --tools claude,codex --level L2
 ```
 
-Requires: Node.js ≥ 20, `gh` CLI authenticated (`gh auth login`).
+Requires: Node.js ≥ 22, `gh` CLI authenticated (`gh auth login`).
 
 ---
 
