@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { PlanJsonV1, ReviewJsonV1 } from '../types/plan.js'
+import { mintUniqueId } from '../utils/run-id.js'
 import { buildRegistry } from './rules/registry.js'
 import type { VerifyPlanRule } from './rules/types.js'
 
@@ -21,19 +21,6 @@ export interface RunVerifyResult {
   review: ReviewJsonV1
   runDir: string
   pointerDir: string
-}
-
-function mintRunId(targetDir: string): string {
-  const now = new Date()
-  const date = now.toISOString().slice(0, 10).replace(/-/g, '')
-  const time = now.toISOString().slice(11, 19).replace(/:/g, '')
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const suffix = randomBytes(2).toString('hex')
-    const id = `bridge-${date}-${time}-${suffix}`
-    const dir = join(targetDir, '.arbiter', 'plan', 'runs', id)
-    if (!existsSync(dir)) return id
-  }
-  return `bridge-${date}-${time}-${randomBytes(2).toString('hex')}`
 }
 
 function makeErrorReview(
@@ -105,7 +92,7 @@ export function runVerify(opts: RunVerifyOptions): RunVerifyResult {
   const reviewer = opts.reviewer ?? plan.review_bridge.reviewer
   const failOnWarn = opts.failOnWarn ?? plan.review_bridge.fail_on_warn
 
-  const runId = mintRunId(targetDir)
+  const runId = mintUniqueId('bridge', targetDir)
   const runDir = join(targetDir, '.arbiter', 'plan', 'runs', runId)
   const pointerDir = join(targetDir, '.arbiter', 'plan')
 

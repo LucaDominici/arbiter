@@ -15,6 +15,15 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: run-id
+    attributes:
+      label: Run ID
+      description: 'Found in the error footer (Run ID: arb-…) or in the log directory name under ~/.arbiter/logs/.'
+      placeholder: 'arb-20260516-120000-aabbccdd'
+    validations:
+      required: false
+
   - type: textarea
     id: reproduction
     attributes:
