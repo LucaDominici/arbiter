@@ -32,6 +32,7 @@ const HANDLERS = {
   'PostToolUse:Edit|Write': [
     'check-no-orphan-todo.mjs',
     'check-no-placeholders.mjs',
+    'check-no-skipped-tests.mjs',
 <%  if (enableSecurityScanning) { -%>
     'check-no-pii.mjs',
 <%  } -%>

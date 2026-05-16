@@ -3,6 +3,20 @@
   "_comment": "Hardness manifest — every hook declared with explicit intent. Drift from this file fails L1 CI. See scripts/check-hardness-inventory.mjs.",
   "hooks": [
     {
+      "file": "check-no-skipped-tests.mjs",
+      "classification": "HARD",
+      "tools": ["claude", "codex"],
+      "spawnable": true,
+      "expectedExitCode": 1,
+      "fixture": {
+        "type": "file-with-content",
+        "content": "it.skip('broken test', () => {})\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH",
+        "extension": ".ts"
+      },
+      "rationale": "NI-11: skipped/disabled tests (@Disabled, .skip, xit, xtest, @pytest.mark.skip, #[ignore]) must not be committed — open a tracking issue instead"
+    },
+    {
       "file": "check-no-orphan-todo.mjs",
       "classification": "HARD",
       "tools": ["claude", "codex"],
