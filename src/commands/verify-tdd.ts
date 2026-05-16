@@ -39,7 +39,14 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
 
   const ev = loadResult.data
 
-  // Check 2: failure signature present in log
+  // Check 2: task_id in evidence matches the requested taskId
+  if (ev.task_id !== taskId) {
+    const reason = `task_id mismatch: evidence contains "${ev.task_id}", expected "${taskId}"`
+    return fail(taskId, reason, [...checks, { name: 'task-id-match', pass: false, reason }])
+  }
+  checks.push({ name: 'task-id-match', pass: true })
+
+  // Check 3: failure signature present in log
   const sig = extractFailureSignature(ev.test_run_log)
   if (sig === null) {
     const reason = `no recognised failure signature found in test_run_log`
@@ -47,7 +54,7 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
   }
   checks.push({ name: 'failure-signature', pass: true })
 
-  // Check 3: test commit sha exists on branch
+  // Check 4: test commit sha exists in git history
   const shaExists = shaExistsOnBranch(ev.test_commit_sha, dir)
   if (!shaExists) {
     const reason = `test_commit_sha ${ev.test_commit_sha} not found in git history`
@@ -55,7 +62,7 @@ export function runVerifyTdd(opts: VerifyTddOptions): VerifyTddResult {
   }
   checks.push({ name: 'sha-on-branch', pass: true })
 
-  // Check 4: test path exists in that commit
+  // Check 5: test path exists in that commit
   const pathExists = pathExistsInCommit(ev.test_commit_sha, ev.test_path, dir)
   if (!pathExists) {
     const reason = `test_path "${ev.test_path}" not found in commit ${ev.test_commit_sha}`

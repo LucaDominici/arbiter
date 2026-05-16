@@ -8,7 +8,6 @@ import { runVerifyTdd } from '../../src/commands/verify-tdd.js'
 vi.mock('../../src/evidence/git-checks.js', () => ({
   shaExistsOnBranch: vi.fn().mockReturnValue(true),
   pathExistsInCommit: vi.fn().mockReturnValue(true),
-  implCommitsAfterTestCommit: vi.fn().mockReturnValue({ ok: true }),
 }))
 
 const VALID_EVIDENCE = {
@@ -64,6 +63,14 @@ describe('runVerifyTdd()', () => {
     const result = runVerifyTdd({ taskId: '#551', dir })
     expect(result.status).toBe('FAIL')
     expect(result.reason).toMatch(/schema/)
+  })
+
+  it('returns status FAIL when task_id in evidence does not match requested taskId', () => {
+    const dir = tmpRepo()
+    writeEvidence(dir, { ...VALID_EVIDENCE, task_id: '#999' })
+    const result = runVerifyTdd({ taskId: '#551', dir })
+    expect(result.status).toBe('FAIL')
+    expect(result.reason).toMatch(/task_id mismatch/)
   })
 
   it('returns status FAIL when no failure signature in log', () => {

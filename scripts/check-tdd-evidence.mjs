@@ -149,7 +149,10 @@ function main() {
       if (out) process.stdout.write(`    ${out.replace(/\n/g, '\n    ')}\n`)
     } catch (err) {
       console.log('FAIL')
-      const msg = err && typeof err === 'object' && 'stdout' in err ? err.stdout : String(err)
+      const msg =
+        err && typeof err === 'object' && ('stderr' in err || 'stdout' in err)
+          ? err.stderr || err.stdout
+          : String(err)
       process.stderr.write(`    ${String(msg).replace(/\n/g, '\n    ')}\n`)
       anyFail = true
     }
