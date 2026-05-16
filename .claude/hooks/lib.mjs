@@ -72,6 +72,18 @@ export function findInlineSuppression(fileContent, lineIndex, invId) {
   return false
 }
 
+/**
+ * Sanitize a task id into a safe filesystem segment AND safe regex literal.
+ * MUST stay in lockstep with `src/review/dispatch.ts::sanitizeTaskId`.
+ * Parity enforced by `__tests__/lib/sanitize-task-id-parity.test.ts`.
+ */
+export function sanitizeTaskId(raw) {
+  const cleaned = String(raw ?? '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 64)
+  return cleaned.length > 0 ? cleaned : 'unknown'
+}
+
 /** Returns the git repository root, falling back to process.cwd(). */
 export function getRepoRoot() {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {

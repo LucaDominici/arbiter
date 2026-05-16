@@ -1,21 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Plan-review subagent dispatcher (#235).
+ * Plan-review subagent dispatcher (#235, #695).
  *
- * Builds an XML prompt around a plan file, persists it to
- * `.evidence/review-<timestamp>/plan-review-prompt.txt`, dispatches a
- * Claude subagent through an injectable interface, then maps the verdict
- * to an exit code:
+ * Builds an XML prompt around a plan file, persists it under
+ * `.evidence/review-<ts>/plan-review-prompt.txt`, then dispatches the
+ * configured subagent N times per revise cycle where N is derived from
+ * the tier (`TIER_PASS_COUNT`). Each pass is persisted under
+ * `.arbiter/evidence/plan-review/<sanitized-task-id>/run-<ts>/pass-<N>.json`
+ * and a `latest.json` pointer file is updated for the gate
+ * (`requirePlanReviewPass`) to consult.
  *
- *   PASS → 0   WARN → 1   FAIL → 2
+ * Cycle aggregator:
+ *   all PASS  → PASS
+ *   any FAIL  → FAIL (fail fast, no revise)
+ *   otherwise → WARN → revise (up to MAX_REVISE_CYCLES extra cycles)
  *
- * Up to 2 revise-cycles are allowed on WARN. FAIL fails fast.
+ * After max revisions, residual WARN becomes a final FAIL with
+ * `reason='max revisions exceeded'`.
  *
- * The subagent invocation itself goes through `runCli` (INV-12) by default;
- * tests inject a fake dispatcher to avoid spawning real CLIs.
+ * `verdict: ERROR` from the dispatcher (claude CLI missing) yields a
+ * final FAIL unless `ARBITER_PLAN_REVIEW_OPTIONAL=1`, in which case it
+ * is treated as PASS (SKIPPED) so CI without claude installed passes.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 import type { AgentReport, AgentResult, Finding } from './multi-agent.js'
@@ -23,6 +32,7 @@ import { computeSsotDigest, escapeXml } from './ssot.js'
 import { TIER_PASS_COUNT, type ReviewTier } from './tier-constants.js'
 
 export type Verdict = 'PASS' | 'WARN' | 'FAIL'
+type RawVerdict = Verdict | 'ERROR'
 
 export interface SubagentResult {
   stdout: string
@@ -42,16 +52,39 @@ export interface BuildPromptOptions {
 export interface DispatchOptions extends BuildPromptOptions {
   /** Optional dispatcher override — tests pass a fake here. */
   dispatcher?: SubagentDispatcher
+  /** Task id used for per-task evidence path. Falls back to `.claude/.task-id` then `'unknown'`. */
+  taskId?: string
 }
 
 export interface DispatchResult {
   verdict: Verdict
   exitCode: 0 | 1 | 2
+  /** Number of revise cycles run (1..MAX_REVISE_CYCLES+1). */
   attempts: number
+  /** Total subagent invocations across all cycles (cycles × passesPerCycle). */
+  totalInvocations: number
   promptPath: string
+  evidenceDir: string
+  runDir: string
+  latestPath: string
+  /** Set when verdict was synthesised from a meta-condition (max revises, ERROR). */
+  reason?: string
 }
 
 const MAX_REVISE_CYCLES = 2
+
+/**
+ * Sanitize a task id into a safe filesystem segment AND safe regex literal.
+ * Whitelist `[a-zA-Z0-9_-]`, replace anything else with `_`, cap at 64 chars,
+ * fall back to `'unknown'` for empty input.
+ *
+ * Shared with `.claude/hooks/lib.mjs::sanitizeTaskId` — parity asserted by
+ * `__tests__/lib/sanitize-task-id-parity.test.ts`.
+ */
+export function sanitizeTaskId(raw: string): string {
+  const cleaned = raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
+  return cleaned.length > 0 ? cleaned : 'unknown'
+}
 
 export function buildReviewPrompt(opts: BuildPromptOptions): string {
   const digest = computeSsotDigest(opts.dir)
@@ -75,19 +108,24 @@ export function buildReviewPrompt(opts: BuildPromptOptions): string {
   ].join('\n')
 }
 
-function parseVerdict(stdout: string): Verdict {
-  const m = stdout.match(/verdict:\s*(PASS|WARN|FAIL)/i)
+function parseRawVerdict(stdout: string): RawVerdict {
+  const m = stdout.match(/verdict:\s*(PASS|WARN|FAIL|ERROR)/i)
   if (!m) return 'FAIL'
-  const captured = m[1]
-  if (captured === undefined) return 'FAIL'
-  return captured.toUpperCase() as Verdict
+  return (m[1] ?? 'FAIL').toUpperCase() as RawVerdict
 }
 
 /** Default dispatcher: spawns `claude` via runCli (INV-12). */
 const DEFAULT_DISPATCHER: SubagentDispatcher = {
   run(prompt: string): SubagentResult {
-    const result = runCli('claude', ['-p', prompt], { timeoutMs: 600_000 })
-    return { stdout: result.stdout, exitCode: result.exitCode }
+    try {
+      const result = runCli('claude', ['-p', prompt], { timeoutMs: 600_000 })
+      return { stdout: result.stdout, exitCode: result.exitCode }
+    } catch (err) {
+      if (err instanceof CliError && err.notFound) {
+        return { stdout: 'verdict: ERROR\n', exitCode: 127 }
+      }
+      throw err
+    }
   },
 }
 
@@ -110,15 +148,140 @@ function verdictToExitCode(verdict: Verdict): 0 | 1 | 2 {
   return 2
 }
 
-/**
- * Multi-agent reviewer dispatch (#236).
- *
- * Spawns `claude -p <prompt>` via runCli (INV-12) for one persona, parses
- * the JSON envelope on stdout, and optionally persists the raw response
- * under `<evidenceDir>/agent-<name>.json`. Failures (timeout, malformed
- * JSON, non-zero exit) are surfaced as a single blocker finding so the
- * caller's aggregator never silently drops an agent.
- */
+function resolveTaskId(opts: DispatchOptions): string {
+  if (opts.taskId !== undefined && opts.taskId.length > 0) return sanitizeTaskId(opts.taskId)
+  try {
+    const raw = readFileSync(join(opts.dir, '.claude', '.task-id'), 'utf-8').trim()
+    if (raw.length > 0) return sanitizeTaskId(raw)
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+  }
+  return 'unknown'
+}
+
+function planReviewEvidenceDir(dir: string, sanitisedTaskId: string): string {
+  return join(dir, '.arbiter', 'evidence', 'plan-review', sanitisedTaskId)
+}
+
+function aggregateCycle(verdicts: readonly RawVerdict[]): RawVerdict {
+  if (verdicts.some((v) => v === 'ERROR')) return 'ERROR'
+  if (verdicts.some((v) => v === 'FAIL')) return 'FAIL'
+  if (verdicts.every((v) => v === 'PASS')) return 'PASS'
+  return 'WARN'
+}
+
+interface CycleOutcome {
+  cycleVerdict: RawVerdict
+  passVerdicts: RawVerdict[]
+}
+
+function runCycle(
+  dispatcher: SubagentDispatcher,
+  prompt: string,
+  passCount: number,
+  runDir: string,
+  cycleIdx: number,
+): CycleOutcome {
+  const passVerdicts: RawVerdict[] = []
+  for (let p = 1; p <= passCount; p++) {
+    const r = dispatcher.run(prompt)
+    const v = parseRawVerdict(r.stdout)
+    passVerdicts.push(v)
+    const file = join(runDir, `pass-${cycleIdx * passCount + p}.json`)
+    writeFileSync(
+      file,
+      JSON.stringify(
+        {
+          pass: cycleIdx * passCount + p,
+          cycle: cycleIdx + 1,
+          verdict: v,
+          stdout: r.stdout,
+          ts: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+      'utf-8',
+    )
+  }
+  return { cycleVerdict: aggregateCycle(passVerdicts), passVerdicts }
+}
+
+interface FinaliseOutcome {
+  verdict: Verdict
+  reason?: string
+}
+
+function finaliseVerdict(raw: RawVerdict, attempts: number): FinaliseOutcome {
+  if (raw === 'PASS') return { verdict: 'PASS' }
+  if (raw === 'FAIL') return { verdict: 'FAIL' }
+  if (raw === 'ERROR') {
+    if (process.env.ARBITER_PLAN_REVIEW_OPTIONAL === '1') return { verdict: 'PASS' }
+    return {
+      verdict: 'FAIL',
+      reason: 'claude CLI required for plan-review; install or set --skip-plan-review',
+    }
+  }
+  // WARN exhausted revisions
+  if (attempts > MAX_REVISE_CYCLES) {
+    return { verdict: 'FAIL', reason: 'max revisions exceeded' }
+  }
+  return { verdict: 'WARN' }
+}
+
+export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
+  const prompt = buildReviewPrompt(opts)
+  const promptPath = persistPrompt(opts.dir, prompt)
+  const dispatcher = opts.dispatcher ?? DEFAULT_DISPATCHER
+  const passCount = TIER_PASS_COUNT[opts.tier]
+  const taskId = resolveTaskId(opts)
+  const evidenceDir = planReviewEvidenceDir(opts.dir, taskId)
+  const ts = new Date().toISOString().replace(/[:.]/g, '-')
+  const runDir = join(evidenceDir, `run-${ts}`)
+  mkdirSync(runDir, { recursive: true })
+
+  let attempts = 0
+  let lastRaw: RawVerdict = 'FAIL'
+  let totalInvocations = 0
+  for (let cycle = 0; cycle <= MAX_REVISE_CYCLES; cycle++) {
+    attempts++
+    const outcome = runCycle(dispatcher, prompt, passCount, runDir, cycle)
+    totalInvocations += outcome.passVerdicts.length
+    lastRaw = outcome.cycleVerdict
+    if (lastRaw === 'PASS' || lastRaw === 'FAIL' || lastRaw === 'ERROR') break
+    // WARN — revise
+  }
+
+  const final = finaliseVerdict(lastRaw, attempts)
+  const planDigest = createHash('sha256').update(opts.planContent).digest('hex')
+  const latestPath = join(evidenceDir, 'latest.json')
+  const latest = {
+    verdict: final.verdict,
+    ts: new Date().toISOString(),
+    runDir,
+    planDigest,
+    tier: opts.tier,
+    totalInvocations,
+    attempts,
+    ...(final.reason !== undefined ? { reason: final.reason } : {}),
+  }
+  writeFileSync(latestPath, JSON.stringify(latest, null, 2), 'utf-8')
+
+  return {
+    verdict: final.verdict,
+    exitCode: verdictToExitCode(final.verdict),
+    attempts,
+    totalInvocations,
+    promptPath,
+    evidenceDir,
+    runDir,
+    latestPath,
+    ...(final.reason !== undefined ? { reason: final.reason } : {}),
+  }
+}
+
+/* ───────────────────────  multi-agent code review (#236)  ─────────────────────── */
+
 export interface DispatchClaudeAgentOptions {
   /** Optional override of the claude binary command — defaults to "claude". */
   cmd?: string
@@ -147,12 +310,6 @@ function isFinding(v: unknown): v is Finding {
  * Walks the string tracking brace depth, ignoring braces inside JSON
  * string literals (handles escaped quotes). Returns the substring or
  * null when no balanced block is found.
- *
- * Why not regex: the greedy `/\{[\s\S]*\}/` would consume everything
- * between the first `{` and the LAST `}` — fine for clean input, but
- * agents are allowed to follow JSON output with prose, and that prose
- * is allowed to contain `}` characters. Brace-depth scanning is the
- * minimal correct approach.
  */
 export function extractFirstJsonObject(s: string): string | null {
   const start = s.indexOf('{')
@@ -282,29 +439,4 @@ export function makeCodeReviewEvidenceDir(dir: string): string {
   const path = join(dir, '.evidence', `review-${ts}`)
   mkdirSync(path, { recursive: true })
   return path
-}
-
-export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
-  const prompt = buildReviewPrompt(opts)
-  const promptPath = persistPrompt(opts.dir, prompt)
-  const dispatcher = opts.dispatcher ?? DEFAULT_DISPATCHER
-
-  let attempts = 0
-  let lastVerdict: Verdict = 'FAIL'
-  // 1 initial pass + up to MAX_REVISE_CYCLES revisions = MAX+1 invocations total
-  for (let i = 0; i <= MAX_REVISE_CYCLES; i++) {
-    attempts++
-    const r = dispatcher.run(prompt)
-    lastVerdict = parseVerdict(r.stdout)
-    if (lastVerdict === 'PASS') break
-    if (lastVerdict === 'FAIL') break
-    // WARN — try another revision pass
-  }
-
-  return {
-    verdict: lastVerdict,
-    exitCode: verdictToExitCode(lastVerdict),
-    attempts,
-    promptPath,
-  }
 }

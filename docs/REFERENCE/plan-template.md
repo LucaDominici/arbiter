@@ -1,6 +1,6 @@
 # Plan Template — Context Block
 
-**Issue:** #689
+**Issues:** #689, #695
 
 Every plan file under `.claude/plans/` must begin with a Context Block — a YAML front-matter section
 validated by the `pre-edit-plan-anchor` hook. Plans without a Context Block are rejected at edit time.
@@ -76,3 +76,67 @@ This skips all plan-anchor validation. Not for interactive use.
 Plans written before issue #689 carry a `# [legacy — pre-Context-Block]` header and are
 exempt from the Context Block requirement. Do not add a Context Block to legacy plans
 retroactively — legacy marker is the bypass signal.
+
+---
+
+## Plan Review Gate (#695)
+
+Every plan ready for implementation must pass an N-pass review:
+
+```bash
+arbiter review plan --file .claude/plans/<slug>.md
+```
+
+The tier is auto-detected from `.claude/.task-tier`. Pass count by tier:
+
+| Tier       | Passes per cycle | Source value         |
+| ---------- | ---------------- | -------------------- |
+| `XS`       | 1                | `XS` or no tier file |
+| `S`        | 3                | `S`                  |
+| `Standard` | 5                | `M`, `L`, `Standard` |
+
+Each pass runs `claude -p <prompt>` and records `pass-<N>.json` under
+`.arbiter/evidence/plan-review/<sanitized-id>/run-<ts>/`. The final verdict + plan SHA-256
+digest is written to `<sanitized-id>/latest.json`. Up to **2 revise cycles** are allowed
+when the aggregator returns WARN; if all cycles still WARN, the verdict becomes FAIL
+(`reason: max revisions exceeded`).
+
+### Gate enforcement
+
+`arbiter task advance --to implementation` consults `latest.json` and refuses to advance
+when:
+
+- `latest.json` is missing
+- `verdict !== PASS`
+- `planDigest` does not match the current plan content (plan changed since review)
+
+The gate is **opt-in per project** via `.arbiter/plan-review.enabled` — projects without
+the flag file get the legacy behaviour (advance freely). Plant the flag to activate:
+
+```bash
+touch .arbiter/plan-review.enabled
+```
+
+### Bypass
+
+When you must advance without a fresh review (emergency hotfix, broken claude CLI, etc.):
+
+```bash
+arbiter task advance --to implementation --skip-plan-review
+# or (non-CI only):
+ARBITER_SKIP_PLAN_REVIEW=1 arbiter task advance --to implementation
+```
+
+Every bypass writes an audit record to
+`.arbiter/evidence/plan-review/<sanitized-id>/bypass-<ts>.json` with the reason, git
+user name (never email — INV-12 PII), and timestamp, and emits a `WARNING` to stderr.
+
+Under `CI=true` the env-var bypass is **refused**: only the explicit `--skip-plan-review`
+flag works. This keeps unattended bypass out of pipelines.
+
+### Claude CLI missing
+
+When `claude` is not on `PATH`, each pass returns `verdict: ERROR` and the final verdict
+is FAIL with reason `claude CLI required for plan-review`. Set
+`ARBITER_PLAN_REVIEW_OPTIONAL=1` to convert ERROR → PASS (SKIPPED) for unattended
+environments where plan-review is not feasible.
