@@ -6,7 +6,7 @@ set -e
 _phase=$(cat .claude/.task-phase 2>/dev/null || echo "unknown")
 case "$_phase" in
   preflight|plan)
-    echo "ERROR: cannot commit during phase=$_phase. Run: arbiter task advance --to implementation" >&2
+    echo "ERROR: cannot commit during phase=$_phase. Run: arbiter task advance --to red" >&2
     exit 1
     ;;
 esac

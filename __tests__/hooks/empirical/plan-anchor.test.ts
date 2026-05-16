@@ -68,7 +68,7 @@ function run(hookPath: string, cwd: string, extraEnv: Record<string, string> = {
 }
 
 describe('pre-edit-plan-anchor', () => {
-  it('exits 0 when phase is not implementation (plan missing)', () => {
+  it('exits 0 when phase is not an impl phase (plan missing)', () => {
     const { dir, hookPath } = setup('plan', null)
     try {
       expect(run(hookPath, dir).status).toBe(0)
@@ -77,8 +77,8 @@ describe('pre-edit-plan-anchor', () => {
     }
   })
 
-  it('exits 2 when implementation phase and plan is unknown', () => {
-    const { dir, hookPath } = setup('implementation', null)
+  it('exits 2 when red phase and plan is unknown', () => {
+    const { dir, hookPath } = setup('red', null)
     try {
       const result = run(hookPath, dir)
       expect(result.status).toBe(2)
@@ -88,7 +88,7 @@ describe('pre-edit-plan-anchor', () => {
     }
   })
 
-  it('exits 2 when implementation phase and plan path does not exist', () => {
+  it('exits 2 when red phase and plan path does not exist', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-plan-anchor-'))
     execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
     const hooksDir = join(dir, '.claude', 'hooks')
@@ -102,7 +102,7 @@ describe('pre-edit-plan-anchor', () => {
       hookPath,
       renderTemplate('claude/hooks/pre-edit-plan-anchor.mjs.ejs', configFor()),
     )
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
+    writeFileSync(join(dir, '.claude', '.task-phase'), 'red\n')
     writeFileSync(join(dir, '.claude', '.task-plan'), '/nonexistent/path/to/plan.md\n')
     try {
       const result = run(hookPath, dir)
@@ -112,8 +112,8 @@ describe('pre-edit-plan-anchor', () => {
     }
   })
 
-  it('exits 0 and injects plan when implementation phase and valid plan', () => {
-    const { dir, hookPath } = setup('implementation', '# My Plan\nStep 1: do something\n')
+  it('exits 0 and injects plan when red phase and valid plan', () => {
+    const { dir, hookPath } = setup('red', '# My Plan\nStep 1: do something\n')
     try {
       const result = run(hookPath, dir)
       expect(result.status).toBe(0)
@@ -124,8 +124,8 @@ describe('pre-edit-plan-anchor', () => {
     }
   })
 
-  it('exits 0 when ARBITER_PLAN_BYPASS=1 even in implementation with no plan', () => {
-    const { dir, hookPath } = setup('implementation', null)
+  it('exits 0 when ARBITER_PLAN_BYPASS=1 even in red with no plan', () => {
+    const { dir, hookPath } = setup('red', null)
     try {
       expect(run(hookPath, dir, { ARBITER_PLAN_BYPASS: '1' }).status).toBe(0)
     } finally {
@@ -136,7 +136,7 @@ describe('pre-edit-plan-anchor', () => {
 
 describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
   it('exits 0 for new src/ file with valid Survey in plan', () => {
-    const { dir, hookPath } = setup('implementation', `# Plan\n\n${VALID_SURVEY}\n`)
+    const { dir, hookPath } = setup('red', `# Plan\n\n${VALID_SURVEY}\n`)
     try {
       const result = run(hookPath, dir, {
         CLAUDE_TOOL_INPUT_PATH: 'src/new-widget.ts',
@@ -148,7 +148,7 @@ describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
   })
 
   it('exits 2 for new src/ file with no Survey section', () => {
-    const { dir, hookPath } = setup('implementation', '# Plan\n\nNo survey here.\n')
+    const { dir, hookPath } = setup('red', '# Plan\n\nNo survey here.\n')
     try {
       const result = run(hookPath, dir, {
         CLAUDE_TOOL_INPUT_PATH: 'src/new-widget.ts',
@@ -165,7 +165,7 @@ describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
       '- **Target:** `src/new-widget.ts`',
       '- **Target:** `src/other-file.ts`',
     )
-    const { dir, hookPath } = setup('implementation', `# Plan\n\n${wrongSurvey}\n`)
+    const { dir, hookPath } = setup('red', `# Plan\n\n${wrongSurvey}\n`)
     try {
       const result = run(hookPath, dir, {
         CLAUDE_TOOL_INPUT_PATH: 'src/new-widget.ts',
@@ -182,7 +182,7 @@ describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
       '- `grep "widget" src/` → `(no match)`\n- `ls src/generators/` → `(none similar)`',
       '',
     )
-    const { dir, hookPath } = setup('implementation', `# Plan\n\n${thinSurvey}\n`)
+    const { dir, hookPath } = setup('red', `# Plan\n\n${thinSurvey}\n`)
     try {
       const result = run(hookPath, dir, {
         CLAUDE_TOOL_INPUT_PATH: 'src/new-widget.ts',
@@ -196,7 +196,7 @@ describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
 
   it('exits 2 when Survey Rationale is under 200 chars', () => {
     const stubSurvey = VALID_SURVEY.replace(/### Rationale\n[\s\S]*/, '### Rationale\nNeeded.\n')
-    const { dir, hookPath } = setup('implementation', `# Plan\n\n${stubSurvey}\n`)
+    const { dir, hookPath } = setup('red', `# Plan\n\n${stubSurvey}\n`)
     try {
       const result = run(hookPath, dir, {
         CLAUDE_TOOL_INPUT_PATH: 'src/new-widget.ts',
@@ -209,7 +209,7 @@ describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
   })
 
   it('exits 0 for existing src/ file (existsSync early-exit)', () => {
-    const { dir, hookPath } = setup('implementation', '# Plan\n\nNo survey here.\n')
+    const { dir, hookPath } = setup('red', '# Plan\n\nNo survey here.\n')
     try {
       // src/foo.ts is created by setup()
       const result = run(hookPath, dir, {
@@ -222,7 +222,7 @@ describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
   })
 
   it('exits 0 for new file outside src/ (scope guard)', () => {
-    const { dir, hookPath } = setup('implementation', '# Plan\n\nNo survey.\n')
+    const { dir, hookPath } = setup('red', '# Plan\n\nNo survey.\n')
     try {
       const result = run(hookPath, dir, {
         CLAUDE_TOOL_INPUT_PATH: 'scripts/new-script.mjs',
@@ -234,7 +234,7 @@ describe('pre-edit-plan-anchor — CANON-16 survey gate', () => {
   })
 
   it('exits 0 for new test file (exclusion guard)', () => {
-    const { dir, hookPath } = setup('implementation', '# Plan\n\nNo survey.\n')
+    const { dir, hookPath } = setup('red', '# Plan\n\nNo survey.\n')
     try {
       const result = run(hookPath, dir, {
         CLAUDE_TOOL_INPUT_PATH: 'src/__tests__/new.test.ts',

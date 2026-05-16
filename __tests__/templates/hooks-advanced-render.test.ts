@@ -106,9 +106,11 @@ describe('hooks/pre-edit-plan-anchor.mjs.ejs', () => {
     expect(out).toContain('ACTIVE PLAN')
   })
 
-  it('only fires during implementation phase', () => {
+  it('only fires during red/green/refactor phases', () => {
     const out = renderTemplate('claude/hooks/pre-edit-plan-anchor.mjs.ejs', configFor('typescript'))
-    expect(out).toContain('implementation')
+    expect(out).toContain("'red'")
+    expect(out).toContain("'green'")
+    expect(out).toContain("'refactor'")
   })
 
   it('reads from .task-plan state file', () => {
@@ -166,9 +168,11 @@ describe('hooks/skill-forced-eval.mjs.ejs', () => {
     expect(out).toContain('pytest')
   })
 
-  it('handles implementation phase with keyword filter', () => {
+  it('handles red/green/refactor phases with keyword filter', () => {
     const out = renderTemplate('claude/hooks/skill-forced-eval.mjs.ejs', configFor('typescript'))
-    expect(out).toContain('implementation')
+    expect(out).toContain("case 'red'")
+    expect(out).toContain("case 'green'")
+    expect(out).toContain("case 'refactor'")
   })
 
   it('handles plan phase', () => {
@@ -363,13 +367,14 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
     expect(out).toContain('minRequired')
   })
 
-  it('only fires during implementation or verification phase', () => {
+  it('only fires during red/green/refactor or verification phase', () => {
     const out = renderTemplate(
       'claude/hooks/guard-task-completion.mjs.ejs',
       configFor('typescript'),
     )
-    expect(out).toContain('implementation')
-    expect(out).toContain('verification')
+    expect(out).toContain("'red'")
+    expect(out).toContain("'refactor'")
+    expect(out).toContain("'verification'")
   })
 
   it('reads user prompt from stdin', () => {
@@ -401,7 +406,7 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
     expect(out).toContain('test-project')
   })
 
-  it('hard-blocks (exit 2) completion claim while phase is implementation', () => {
+  it('hard-blocks (exit 2) completion claim while phase is red', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-guard-hook-'))
     try {
       execFileSync('git', ['init', '-b', 'main'], {
@@ -419,7 +424,7 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
         hookPath,
         renderTemplate('claude/hooks/guard-task-completion.mjs.ejs', configFor('typescript')),
       )
-      writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
+      writeFileSync(join(dir, '.claude', '.task-phase'), 'red\n')
       writeFileSync(join(dir, '.claude', '.task-tier'), 'Standard\n')
       writeFileSync(join(dir, '.agents-dispatched'), '4\n')
 
@@ -431,7 +436,7 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
 
       expect(result.status).toBe(2)
       expect(result.stderr).toContain('COMPLETION GUARD')
-      expect(result.stderr).toContain('phase: implementation')
+      expect(result.stderr).toContain('phase: red')
       expect(result.stdout).toBe('')
     } finally {
       rmSync(dir, { recursive: true, force: true })

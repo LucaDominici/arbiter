@@ -15,14 +15,15 @@ if (process.env.ARBITER_PLAN_BYPASS === '1') process.exit(0)
 const root = getRepoRoot()
 const { phase, plan } = readTaskState(root)
 
-if (phase !== 'implementation') process.exit(0)
+const IMPL_PHASES = new Set(['red', 'green', 'refactor'])
+if (!IMPL_PHASES.has(phase)) process.exit(0)
 
-// During implementation, plan is required
+// During implementation phases (red/green/refactor), plan is required
 const planPath = !plan || plan === 'unknown' ? null : plan.startsWith('/') ? plan : join(root, plan)
 
 if (!planPath || !existsSync(planPath)) {
   process.stderr.write(
-    `[arbiter] PLAN ANCHOR: implementation phase requires .task-plan pointing to an existing plan file.\n` +
+    `[arbiter] PLAN ANCHOR: ${phase} phase requires .task-plan pointing to an existing plan file.\n` +
       `Set via: echo "<path>" > .claude/.task-plan (or use ARBITER_PLAN_BYPASS=1 for emergency edits)\n`,
   )
   process.stderr.write(`[arbiter] Run \`arbiter explain CANON-14\` for details.\n`)

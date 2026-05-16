@@ -8,7 +8,9 @@ const VALID_STATUSES = new Set<string>(['open', 'in_progress', 'blocked', 'done'
 const VALID_PHASES = new Set<string>([
   'preflight',
   'plan',
-  'implementation',
+  'red',
+  'green',
+  'refactor',
   'verification',
   'complete',
 ])

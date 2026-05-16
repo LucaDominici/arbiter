@@ -222,7 +222,7 @@ describe('GitHubBackend', () => {
       })
 
       const backend = new GitHubBackend(baseConfig())
-      await backend.advance('#5', 'implementation')
+      await backend.advance('#5', 'red')
 
       expect(mockRunCli).toHaveBeenCalledWith(
         'gh',
@@ -246,7 +246,7 @@ describe('GitHubBackend', () => {
       })
 
       const backend = new GitHubBackend(baseConfig())
-      await backend.advance('#5', 'implementation')
+      await backend.advance('#5', 'red')
 
       expect(mockRunCli).toHaveBeenCalledWith(
         'gh',

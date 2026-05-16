@@ -37,10 +37,10 @@ describe('writeTaskStatus — atomic write (#690)', () => {
   })
 
   it('status.json contains required schema fields', () => {
-    writeTaskStatus({ taskDir, phase: 'implementation' })
+    writeTaskStatus({ taskDir, phase: 'red' })
     const raw = readFileSync(join(taskDir, 'status.json'), 'utf-8')
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    expect(parsed).toHaveProperty('phase', 'implementation')
+    expect(parsed).toHaveProperty('phase', 'red')
     expect(parsed).toHaveProperty('timestamps')
     expect(parsed).toHaveProperty('runId')
     expect(parsed).toHaveProperty('gateDecisions')
@@ -73,12 +73,12 @@ describe('writeTaskStatus — atomic write (#690)', () => {
 
   it('merges timestamps on second write — both phases preserved', () => {
     writeTaskStatus({ taskDir, phase: 'plan' })
-    writeTaskStatus({ taskDir, phase: 'implementation' })
+    writeTaskStatus({ taskDir, phase: 'red' })
     const parsed = JSON.parse(readFileSync(join(taskDir, 'status.json'), 'utf-8')) as {
       timestamps: Record<string, string>
     }
     expect(parsed.timestamps).toHaveProperty('plan')
-    expect(parsed.timestamps).toHaveProperty('implementation')
+    expect(parsed.timestamps).toHaveProperty('red')
   })
 
   it('extras cannot overwrite required fields (phase, runId, gateDecisions)', () => {
@@ -127,7 +127,7 @@ describe('runTaskResume — recovery table (#690)', () => {
     expect(output).toMatch(/preflight/i)
   })
 
-  it('returns implementation recovery for implementation phase', () => {
+  it('returns red recovery for legacy implementation phase (auto-migrated)', () => {
     writeFileSync(join(claudeDir, '.task-phase'), 'implementation\n')
     let output = ''
     const originalWrite = process.stdout.write.bind(process.stdout)
@@ -140,8 +140,7 @@ describe('runTaskResume — recovery table (#690)', () => {
     } finally {
       process.stdout.write = originalWrite
     }
-    expect(output).toMatch(/implementation/i)
-    expect(output).toMatch(/check-all/i)
+    expect(output).toMatch(/red/i)
   })
 
   it('prepends task ID header when .task-id exists', () => {
@@ -276,15 +275,15 @@ describe('runTaskAdvance — red-team phases (#691)', () => {
 
   it('sequential phases still enforce ordering when neither side is lateral', () => {
     setPhase('preflight')
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).toThrow(/Illegal skip/)
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/Illegal skip/)
   })
 
-  it('preflight → plan → red-team-review → implementation sequential chain works', () => {
+  it('preflight → plan → red-team-review → red sequential chain works', () => {
     setPhase('preflight')
     runTaskAdvance({ to: 'plan', dir })
     runTaskAdvance({ to: 'red-team-review', dir })
-    runTaskAdvance({ to: 'implementation', dir })
-    expect(readPhaseFile()).toBe('implementation')
+    runTaskAdvance({ to: 'red', dir })
+    expect(readPhaseFile()).toBe('red')
   })
 
   it('isValidPhase accepts red-team-rework (not in PHASE_ORDER)', () => {
@@ -523,13 +522,13 @@ describe('runTaskAdvance — plan-review gate (#695)', () => {
   })
 
   it('without enable file → advance allowed (gate dormant)', () => {
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).not.toThrow()
+    expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
   })
 
   it('with enable file + no evidence → BLOCKS with actionable message', () => {
     plantEnableFile(dir)
     writeFileSync(join(claudeDir, '.task-id'), '#777\n')
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).toThrow(
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(
       /plan-review|--skip-plan-review|no plan-review evidence/i,
     )
   })
@@ -544,9 +543,7 @@ describe('runTaskAdvance — plan-review gate (#695)', () => {
       return true
     }
     try {
-      expect(() =>
-        runTaskAdvance({ to: 'implementation', dir, skipPlanReview: true }),
-      ).not.toThrow()
+      expect(() => runTaskAdvance({ to: 'red', dir, skipPlanReview: true })).not.toThrow()
     } finally {
       process.stderr.write = orig
     }
@@ -560,7 +557,7 @@ describe('runTaskAdvance — plan-review gate (#695)', () => {
     plantEnableFile(dir)
     writeFileSync(join(claudeDir, '.task-id'), '#7\n')
     process.env.ARBITER_SKIP_PLAN_REVIEW = '1'
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).not.toThrow()
+    expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
   })
 
   it('with enable file + env bypass + CI=true → BLOCKS (CI refuses env bypass)', () => {
@@ -568,16 +565,14 @@ describe('runTaskAdvance — plan-review gate (#695)', () => {
     writeFileSync(join(claudeDir, '.task-id'), '#7\n')
     process.env.ARBITER_SKIP_PLAN_REVIEW = '1'
     process.env.CI = 'true'
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).toThrow(
-      /plan-review|no plan-review evidence/i,
-    )
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/plan-review|no plan-review evidence/i)
   })
 
   it('with enable file + PASS latest.json (no planContent check) → allows', () => {
     plantEnableFile(dir)
     writeFileSync(join(claudeDir, '.task-id'), '#8\n')
     writeLatestPass(dir, '#8', 'somedigest')
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).not.toThrow()
+    expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
   })
 
   it('with enable file + PASS latest.json + .task-plan present + STALE digest → BLOCKS', () => {
@@ -588,7 +583,7 @@ describe('runTaskAdvance — plan-review gate (#695)', () => {
     writeFileSync(planFile, 'current plan body')
     writeFileSync(join(claudeDir, '.task-plan'), planFile + '\n')
     writeLatestPass(dir, '#9', 'STALEDIGEST')
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).toThrow(/plan changed/i)
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/plan changed/i)
   })
 
   it('with enable file + PASS latest.json + .task-plan + matching digest → allows', () => {
@@ -600,10 +595,10 @@ describe('runTaskAdvance — plan-review gate (#695)', () => {
     writeFileSync(join(claudeDir, '.task-plan'), planFile + '\n')
     const d = createHash('sha256').update('current plan body').digest('hex')
     writeLatestPass(dir, '#10', d)
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).not.toThrow()
+    expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
   })
 
-  it('gate only fires on target=implementation (other targets unaffected)', () => {
+  it('gate only fires on target=red (other targets unaffected)', () => {
     plantEnableFile(dir)
     writeFileSync(join(claudeDir, '.task-phase'), 'plan\n')
     expect(() => runTaskAdvance({ to: 'red-team-review', dir })).not.toThrow()

@@ -35,8 +35,8 @@ function setup(phase: string) {
 }
 
 describe('completion-guard — empirical spawn', () => {
-  it('exits 2 and writes to stderr on completion claim during implementation', () => {
-    const { dir, hookPath } = setup('implementation')
+  it('exits 2 and writes to stderr on completion claim during red phase', () => {
+    const { dir, hookPath } = setup('red')
     try {
       const result = spawnSync('node', [hookPath], {
         cwd: dir,
@@ -53,7 +53,7 @@ describe('completion-guard — empirical spawn', () => {
   })
 
   it('exits 0 on benign prompt (no completion claim)', () => {
-    const { dir, hookPath } = setup('implementation')
+    const { dir, hookPath } = setup('red')
     try {
       const result = spawnSync('node', [hookPath], {
         cwd: dir,
