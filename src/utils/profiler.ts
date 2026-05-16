@@ -26,7 +26,7 @@ export interface ProfilerHandle {
   stop(): Promise<string>
 }
 
-export function defaultProfileBaseDir(): string {
+function defaultProfileBaseDir(): string {
   return join(homedir(), '.arbiter', 'profiles')
 }
 

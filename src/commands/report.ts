@@ -38,11 +38,11 @@ export interface ReportResult {
   rejected: string[]
 }
 
-export function defaultLogsDir(): string {
+function defaultLogsDir(): string {
   return join(homedir(), '.arbiter', 'logs')
 }
 
-export function defaultReportsDir(): string {
+function defaultReportsDir(): string {
   return join(homedir(), '.arbiter', 'reports')
 }
 
@@ -63,7 +63,7 @@ interface CollectResult {
   rejected: string[]
 }
 
-export function collectSafeFiles(runDir: string): CollectResult {
+function collectSafeFiles(runDir: string): CollectResult {
   const files: string[] = []
   const rejected: string[] = []
   const realRoot = resolve(runDir)

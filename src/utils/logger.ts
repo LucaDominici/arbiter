@@ -72,26 +72,6 @@ export class Logger {
     this.emit('trace', event, attrs, msg)
   }
 
-  setLevel(level: LogLevel): void {
-    this.opts.level = level
-  }
-
-  setFormat(format: LogFormat): void {
-    this.opts.format = format
-  }
-
-  setRunId(runId: string | undefined): void {
-    this.opts.runId = runId
-  }
-
-  getLevel(): LogLevel {
-    return this.opts.level
-  }
-
-  getFormat(): LogFormat {
-    return this.opts.format
-  }
-
   getRunId(): string | undefined {
     return runContext.getStore()?.runId ?? this.opts.runId
   }

@@ -52,7 +52,7 @@ const REDACTABLE_WORDS = new Set([
 ])
 const REDACTION_PREFIX_RE = /^(GH_|GITHUB_|NPM_)/i
 
-export function defaultReplayBaseDir(): string {
+function defaultReplayBaseDir(): string {
   return join(homedir(), '.arbiter', 'logs')
 }
 

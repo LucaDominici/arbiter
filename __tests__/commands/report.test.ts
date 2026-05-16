@@ -113,6 +113,31 @@ describe('runReport', () => {
     expect(raw.includes(Buffer.from('arbiter doctor'))).toBe(true)
   })
 
+  it('default (no auto, no printOnly) invokes editor via runInteractive', async () => {
+    seedRun('p4', { 'command.txt': 'arbiter doctor' })
+    const result = await runReport({
+      runId: 'p4',
+      logsDir,
+      reportsDir,
+      editor: '/usr/bin/true',
+    })
+    expect(result.bundlePath).toBe(join(reportsDir, 'p4.tar.gz'))
+    expect(existsSync(result.bundlePath!)).toBe(true)
+  })
+
+  it('throws when editor exits non-zero', async () => {
+    seedRun('p5', { 'command.txt': 'arbiter doctor' })
+    await expect(
+      runReport({ runId: 'p5', logsDir, reportsDir, editor: '/usr/bin/false' }),
+    ).rejects.toThrow(/editor.*exited/)
+  })
+
+  it('throws when requested runId does not exist', async () => {
+    await expect(
+      runReport({ runId: 'nonexistent', logsDir, reportsDir, auto: true }),
+    ).rejects.toThrow(/run directory does not exist/)
+  })
+
   it('symlink in run dir is excluded from bundle', async () => {
     const runDir = seedRun('p3', { 'safe.txt': 'safe' })
     const outside = join(testDir, 'OUTSIDE_SECRET.txt')
