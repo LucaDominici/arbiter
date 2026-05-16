@@ -16,7 +16,7 @@ export interface Invariant {
   /**
    * Per-language variant of title.
    * Used instead of title when language matches.
-   * Required for every entry in `languages` when languages is set.
+   * Must cover every entry declared in `languages` (validated by catalog tests).
    */
   languageDetail?: Partial<Record<Language, string>>
   /**
@@ -45,4 +45,9 @@ export interface Invariant {
    * Only set when status is "retired".
    */
   redirectTo?: string
+  /**
+   * True for invariants that only apply to arbiter's own development.
+   * These are excluded from generated target-project AGENTS.md / GLOBAL_INVARIANTS.md.
+   */
+  selfOnly?: boolean
 }

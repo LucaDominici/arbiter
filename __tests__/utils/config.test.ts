@@ -45,12 +45,10 @@ describe('arbiter config', () => {
     expect(config.useGitHub).toBe(false)
   })
 
-  it('loadConfig returns null on malformed JSON', () => {
-    vi.spyOn(console, 'warn').mockImplementationOnce(() => undefined)
+  it('loadConfig throws on malformed JSON (#679)', () => {
     const path = join(dir, 'arbiter.json')
     writeFileSync(path, '{invalid json', 'utf-8')
-    expect(loadConfig(dir)).toBeNull()
-    vi.restoreAllMocks()
+    expect(() => loadConfig(dir)).toThrow(/invalid JSON/)
   })
 
   it('saveConfig preserves all tool types', () => {

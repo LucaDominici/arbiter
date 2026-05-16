@@ -59,6 +59,6 @@ describe('tool output: github', () => {
     const config = githubConfig()
     const result = generateGithub(config)
     const ci = result.files.find((f) => f.path.endsWith('ci.yml'))
-    expect(ci?.action).toBe('backed-up-and-replaced')
+    expect(ci?.action).toBe('replaced')
   })
 })

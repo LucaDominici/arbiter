@@ -17,8 +17,13 @@ export function getFilteredInvariants(config: {
   language: Language
   governanceLevel: GovernanceLevel
   invariantTiers: InvariantTier[]
+  /** Include arbiter-internal invariants (selfOnly: true). Default: false (target-project context). */
+  includeArbiterInternal?: boolean
 }): Invariant[] {
   return INVARIANT_CATALOG.filter((inv) => {
+    // selfOnly invariants are excluded from target-project generation by default
+    if (inv.selfOnly && !config.includeArbiterInternal) return false
+
     // Language filter: if the invariant requires specific languages, check.
     // multi-language projects match invariants scoped to java or typescript.
     if (inv.languages && !inv.languages.includes(config.language)) {
