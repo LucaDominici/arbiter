@@ -236,3 +236,49 @@ describe('generateClaude — no-skipped-tests hook (#730)', () => {
     expect(file?.action).toBe('skipped')
   })
 })
+
+// ─── Batch-execution rule (#722) ─────────────────────────────────────────────
+
+describe('generateClaude — batch-execution rule (#722)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  function claudeConfig(overrides: Partial<Parameters<typeof makeConfig>[1]> = {}) {
+    return makeConfig(dir, { languageHooks: [], ...overrides })
+  }
+
+  it('generates .claude/rules/50-batch-execution.md', () => {
+    generateClaude(claudeConfig())
+    expect(existsSync(join(dir, '.claude', 'rules', '50-batch-execution.md'))).toBe(true)
+  })
+
+  it('50-batch-execution.md allows read-only parallel agents', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(join(dir, '.claude', 'rules', '50-batch-execution.md'), 'utf-8')
+    expect(content).toMatch(/read.only|read only/i)
+    expect(content).toMatch(/parallel/i)
+  })
+
+  it('50-batch-execution.md prohibits edits/commits in parallel agents', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(join(dir, '.claude', 'rules', '50-batch-execution.md'), 'utf-8')
+    expect(content).toMatch(/edit|commit|write/i)
+  })
+
+  it('50-batch-execution.md is skipIfExists — does not overwrite existing file', () => {
+    generateClaude(claudeConfig())
+    const p = join(dir, '.claude', 'rules', '50-batch-execution.md')
+    writeFileSync(p, 'EXISTING')
+    const result = generateClaude(claudeConfig())
+    const file = result.files.find((f) => f.path.endsWith('50-batch-execution.md'))
+    expect(file?.action).toBe('skipped')
+  })
+})

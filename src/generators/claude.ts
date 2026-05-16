@@ -232,6 +232,10 @@ function generateClaudeRules(
       template: 'claude/rules/25-todo-folder-policy.md',
     },
     {
+      file: '50-batch-execution.md',
+      template: 'claude/rules/50-batch-execution.md',
+    },
+    {
       file: '90-exec-protocol.md',
       template: 'claude/rules/90-exec-protocol.md.ejs',
     },
