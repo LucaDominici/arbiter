@@ -22,7 +22,9 @@ switch (phase) {
     )
     break
 
-  case 'implementation': {
+  case 'red':
+  case 'green':
+  case 'refactor': {
     // Smart filter: only fire checklist for code-related prompts.
     // Reads prompt from UserPromptSubmit JSON stdin.
     // Falls through (fires) if prompt cannot be read — safe default.

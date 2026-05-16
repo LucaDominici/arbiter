@@ -257,9 +257,9 @@ describe('claude commands: task.md — Phase 2.7 red-team review (#691)', () => 
     expect(content).toContain('arbiter task advance --to red-team-review')
   })
 
-  it('Phase 2.7 present at L2 with advance --to implementation after clear', () => {
+  it('Phase 2.7 present at L2 with advance --to red after clear', () => {
     const content = renderTask('typescript', 'L2')
-    expect(content).toContain('arbiter task advance --to implementation')
+    expect(content).toContain('arbiter task advance --to red')
   })
 
   it('Phase 2.7 references evidence path .arbiter/evidence/redteam/', () => {

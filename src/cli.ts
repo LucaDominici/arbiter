@@ -46,6 +46,7 @@ import { runCli } from './utils/run-cli.js'
 import { ArbiterError, UserFacingError } from './utils/errors.js'
 import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
+import { runBenchmarkHooks } from './commands/benchmark.js'
 
 registerCleanupHandlers()
 
@@ -98,6 +99,7 @@ function parseCmdArgs(): { cmd: string; args: string[] } {
     'plugin',
     'work',
     'notary',
+    'benchmark',
   ])
   const first = tokens[0] ?? ''
   if (nested.has(first) && tokens.length >= 2) {
@@ -712,7 +714,7 @@ task
   .description('Advance (or reverse) the task lifecycle phase')
   .requiredOption(
     '--to <phase>',
-    'Target phase (preflight|plan|implementation|verification|complete)',
+    'Target phase (preflight|plan|red-team-review|red|green|refactor|verification|complete)',
   )
   .option('--reverse', 'Allow backward phase transitions', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -875,7 +877,7 @@ work
   .description('Advance a work unit to a new lifecycle phase')
   .requiredOption(
     '--phase <phase>',
-    'Target phase (preflight|plan|implementation|verification|complete)',
+    'Target phase (preflight|plan|red-team-review|red|green|refactor|verification|complete)',
   )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(async (id: string, opts: { phase: string; dir?: string }) => {
@@ -1306,6 +1308,25 @@ program
     if (result.output) process.stdout.write(result.output)
     if (result.error) process.stderr.write(result.error)
     if (result.exitCode !== 0) process.exit(result.exitCode)
+  })
+
+const benchmark = program.command('benchmark').description('Performance benchmarks for arbiter')
+
+benchmark
+  .command('hooks')
+  .description('Measure hook latency (p50/p95/p99 per hook)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--iterations <n>', 'Iterations per hook (default: 20)', '20')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .option('--baseline <file>', 'Path to baseline JSON file')
+  .action((opts: { dir?: string; iterations?: string; json?: boolean; baseline?: string }) => {
+    const benchOpts: import('./commands/benchmark.js').BenchmarkHooksOptions = {}
+    if (opts.dir !== undefined) benchOpts.dir = opts.dir
+    if (opts.iterations !== undefined) benchOpts.iterations = parseInt(opts.iterations, 10)
+    if (opts.json !== undefined) benchOpts.json = opts.json
+    if (opts.baseline !== undefined) benchOpts.baselineFile = opts.baseline
+    const result = runBenchmarkHooks(benchOpts)
+    if (result.regressions.length > 0 && !opts.json) process.exit(1)
   })
 
 program.parseAsync().catch((err: unknown) => {

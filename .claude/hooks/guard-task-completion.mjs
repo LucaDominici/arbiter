@@ -42,8 +42,9 @@ function readAgentsDispatched(root) {
 const root = getRepoRoot()
 const { taskId, phase, tier } = readTaskState(root)
 
-// Only guard during implementation, green, or verification phase
-if (phase !== 'implementation' && phase !== 'green' && phase !== 'verification') process.exit(0)
+// Only guard during implementation phases (red/green/refactor) or verification
+const IMPL_PHASES = new Set(['red', 'green', 'refactor', 'verification'])
+if (!IMPL_PHASES.has(phase)) process.exit(0)
 
 // Read user prompt from stdin (UserPromptSubmit JSON protocol)
 let promptText = ''

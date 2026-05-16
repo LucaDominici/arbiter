@@ -93,7 +93,7 @@ describe('githooks/pre-commit.ejs', () => {
   it('both stacks: phase guard instructs arbiter task advance', () => {
     for (const cfg of [tsConfig(), rustConfig()]) {
       const out = renderTemplate('githooks/pre-commit.ejs', cfg)
-      expect(out).toContain('arbiter task advance --to implementation')
+      expect(out).toContain('arbiter task advance --to red')
     }
   })
 })

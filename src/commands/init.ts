@@ -28,6 +28,7 @@ import {
 } from '../generators/registry.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
+import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile } from '../utils/fs.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import { runCli } from '../utils/run-cli.js'
@@ -82,6 +83,16 @@ export interface InitOptions {
   recipeSha256?: string
 }
 
+function assertNotNativeWindows(): void {
+  if (isWindows() && !isWSL2()) {
+    throw new UserFacingError(
+      'arbiter does not support native Win32. ' +
+        'Install WSL2 and run arbiter inside it. ' +
+        'Setup guide: https://docs.arbiter.dev/install/windows',
+    )
+  }
+}
+
 export async function runInit(options: InitOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
   const projectName = basename(targetDir)
@@ -100,6 +111,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     process.exit(1)
     return
   }
+
+  assertNotNativeWindows()
 
   showTelemetryBannerIfFirstRun(undefined, options.quiet)
 

@@ -101,7 +101,7 @@ function runHook(
   const taskPlanFile = join(claudeDir, '.task-plan')
 
   mkdirSync(claudeDir, { recursive: true })
-  writeFileSync(join(claudeDir, '.task-phase'), 'implementation\n')
+  writeFileSync(join(claudeDir, '.task-phase'), 'red\n')
   writeFileSync(planFile, planContent)
   writeFileSync(taskPlanFile, planFile)
 

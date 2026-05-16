@@ -127,7 +127,7 @@ Agents write findings to `.arbiter/evidence/redteam/<task-id>.json` using the `R
 
 Once all findings are CLEAR or resolved:
 ```bash
-arbiter task advance --to implementation
+arbiter task advance --to red
 ```
 
 <% } %>
@@ -219,7 +219,7 @@ Before implementation: identify which lane(s) your change touches. If only one l
 <% if (governanceLevel !== 'L1') { %>
 3. **Update phase**:
    ```bash
-   arbiter task advance --to implementation
+   arbiter task advance --to red
    ```
 <% } %>
 
