@@ -377,4 +377,19 @@ This project uses AGENTS.md as the canonical source. Tool-specific files add onl
 
 When using Claude Code: read `.claude/CLAUDE.md` for Claude-specific configuration.
 When using Codex: read `.agents/CODEX.md` for Codex-specific configuration.
+<% if (typeof installedSkills !== 'undefined' && installedSkills.length > 0) { %>
+
+---
+
+## Integrations
+
+Installed Claude Code skills detected at init time. These replace the corresponding built-in arbiter skill generators — do not regenerate the listed files.
+
+| Skill ID | Owner | Role | Replaces |
+|----------|-------|------|---------|
+<% for (const skill of installedSkills) { %>| `<%= skill.skillId %>` | <%= skill.pluginOwner %> | <%= skill.role || '—' %> | <% const skipped = (skippedGenerators || []).filter(s => s.replacedBy === skill.skillId).map(s => '`' + s.generator + '`').join(', '); %><%= skipped || '—' %> |
+<% } %>
+
+**Note:** Skill SKILL.md files listed under "Replaces" are not generated — the installed plugin provides superior coverage. Reference the plugin's documentation directly.
+<% } %>
 All governance rules are in **this file**.

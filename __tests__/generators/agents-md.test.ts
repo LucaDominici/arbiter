@@ -113,4 +113,48 @@ describe('generateAgentsMd', () => {
     expect(content).not.toContain('RestAssured')
     expect(content).not.toContain('pitest')
   })
+
+  it('Integrations section absent when no skills detected (#556)', () => {
+    generateAgentsMd(makeConfig(dir), [], [])
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).not.toContain('## Integrations')
+  })
+
+  it('Integrations section rendered when skills detected (#556)', () => {
+    const skill = {
+      skillId: 'superpowers:test-driven-development',
+      pluginOwner: 'superpowers',
+      version: '5.0.0',
+      sourcePath: '/some/SKILL.md',
+      role: 'TDD enforcement',
+    }
+    const skipReport = [
+      {
+        generator: 'tdd',
+        reason: 'Replaced by superpowers:test-driven-development',
+        replacedBy: 'superpowers:test-driven-development',
+      },
+    ]
+    generateAgentsMd(makeConfig(dir), [skill], skipReport)
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('## Integrations')
+    expect(content).toContain('superpowers:test-driven-development')
+    expect(content).toContain('TDD enforcement')
+    expect(content).toContain('`tdd`')
+    expect(content).toContain('do not regenerate the listed files')
+  })
+
+  it('Integrations section renders skill with empty replaces as dash (#556)', () => {
+    const skill = {
+      skillId: 'pr-review-toolkit:code-reviewer',
+      pluginOwner: 'pr-review-toolkit',
+      version: '1.0.0',
+      sourcePath: '/some/SKILL.md',
+    }
+    generateAgentsMd(makeConfig(dir), [skill], [])
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('## Integrations')
+    expect(content).toContain('pr-review-toolkit:code-reviewer')
+    expect(content).toContain('—')
+  })
 })

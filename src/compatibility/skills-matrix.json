@@ -1,0 +1,80 @@
+{
+  "$schemaVersion": 1,
+  "_lastUpdated": "2026-05-16",
+  "_refreshCadence": "monthly",
+  "_promotionCriteria": "proven = used in >=3 arbiter recipes + verified version range; beta = present but not exercised by CI fixtures; unknown = detected but no matrix entry yet",
+  "skills": [
+    {
+      "skillId": "superpowers:test-driven-development",
+      "pluginOwner": "superpowers",
+      "versionRange": ">=5.0.0",
+      "role": "TDD enforcement",
+      "integrationStatus": "proven",
+      "replaces": ["tdd"],
+      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+    },
+    {
+      "skillId": "superpowers:verification-before-completion",
+      "pluginOwner": "superpowers",
+      "versionRange": ">=5.0.0",
+      "role": "completion-claim verification",
+      "integrationStatus": "proven",
+      "replaces": ["verification"],
+      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+    },
+    {
+      "skillId": "superpowers:brainstorming",
+      "pluginOwner": "superpowers",
+      "versionRange": ">=5.0.0",
+      "role": "pre-implementation design",
+      "integrationStatus": "beta",
+      "replaces": [],
+      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+    },
+    {
+      "skillId": "superpowers:writing-plans",
+      "pluginOwner": "superpowers",
+      "versionRange": ">=5.0.0",
+      "role": "plan authoring",
+      "integrationStatus": "beta",
+      "replaces": [],
+      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+    },
+    {
+      "skillId": "superpowers:systematic-debugging",
+      "pluginOwner": "superpowers",
+      "versionRange": ">=5.0.0",
+      "role": "debug discipline",
+      "integrationStatus": "beta",
+      "replaces": [],
+      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+    },
+    {
+      "skillId": "superpowers:subagent-driven-development",
+      "pluginOwner": "superpowers",
+      "versionRange": ">=5.0.0",
+      "role": "parallel implementation",
+      "integrationStatus": "beta",
+      "replaces": [],
+      "referenceUrl": "https://github.com/PotentialSuperpowers/superpowers"
+    },
+    {
+      "skillId": "pr-review-toolkit:code-reviewer",
+      "pluginOwner": "pr-review-toolkit",
+      "versionRange": ">=1.0.0",
+      "role": "PR code review",
+      "integrationStatus": "proven",
+      "replaces": [],
+      "referenceUrl": "https://github.com/anthropics/claude-code"
+    },
+    {
+      "skillId": "frontend-design:frontend-design",
+      "pluginOwner": "frontend-design",
+      "versionRange": ">=1.0.0",
+      "role": "UI/UX guidance for frontend-spa",
+      "integrationStatus": "proven",
+      "replaces": [],
+      "referenceUrl": ""
+    }
+  ]
+}

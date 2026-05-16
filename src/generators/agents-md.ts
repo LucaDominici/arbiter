@@ -5,8 +5,13 @@ import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { getFilteredInvariants, getInvariantsByTier } from '../invariants/filter.js'
 import { TIER_LABELS } from '../invariants/tiers.js'
+import type { InstalledSkill, SkipReport } from '../integrations/types.js'
 
-export function generateAgentsMd(config: ProjectConfig): WriteResult {
+export function generateAgentsMd(
+  config: ProjectConfig,
+  installedSkills: InstalledSkill[] = [],
+  skippedGenerators: SkipReport[] = [],
+): WriteResult {
   const invariants = getFilteredInvariants({
     language: config.language,
     governanceLevel: config.governanceLevel,
@@ -19,6 +24,8 @@ export function generateAgentsMd(config: ProjectConfig): WriteResult {
     invariants,
     invariantsByTier,
     tierLabels: TIER_LABELS,
+    installedSkills,
+    skippedGenerators,
   }
 
   const content = renderTemplate('agents-md/AGENTS.md.ejs', data)

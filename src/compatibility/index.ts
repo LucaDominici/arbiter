@@ -9,3 +9,9 @@ export type {
   ProbeStatus,
   VerifyReport,
 } from './schema.js'
+export {
+  loadSkillsMatrix,
+  validateSkillsMatrix,
+  getSkillsMatrixEntries,
+} from './skills-validator.js'
+export type { SkillsMatrix } from './skills-validator.js'

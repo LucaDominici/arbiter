@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#556",
+  "test_path": "__tests__/unit/integrations/skill-detector.test.ts",
+  "test_commit_sha": "056ec6d67379ad8691439b409e530016448ea036",
+  "test_run_log": "\n RUN  v4.1.6 /tmp/arbiter-wt-556\n\n ❯ __tests__/unit/integrations/skill-detector.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  20:55:55\n   Duration  83ms (transform 12ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/unit/integrations/skill-detector.test.ts [ __tests__/unit/integrations/skill-detector.test.ts ]\nError: Cannot find module '../../../src/integrations/skill-detector.js' imported from /tmp/arbiter-wt-556/__tests__/unit/integrations/skill-detector.test.ts\n ❯ __tests__/unit/integrations/skill-detector.test.ts:4:1\n      2| import { describe, it, expect } from 'vitest'\n      3| import { join } from 'node:path'\n      4| import { detectInstalledSkills } from '../../../src/integrations/skill…\n       | ^\n      5|\n      6| const FIXTURES = join(\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/unit/integrations/skill-detector.test.ts",
+  "recorded_at": "2026-05-16T18:55:55.178Z"
+}

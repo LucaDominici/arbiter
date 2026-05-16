@@ -51,10 +51,26 @@ describe('@arbiter/cli/compatibility barrel', () => {
     expect(typeof mod.validateMatrix).toBe('function')
   })
 
+  it('exports skills-matrix functions (#556)', async () => {
+    const mod = await import('../src/compatibility/index.js')
+    expect(mod).toHaveProperty('loadSkillsMatrix')
+    expect(mod).toHaveProperty('validateSkillsMatrix')
+    expect(mod).toHaveProperty('getSkillsMatrixEntries')
+    expect(typeof mod.loadSkillsMatrix).toBe('function')
+    expect(typeof mod.validateSkillsMatrix).toBe('function')
+    expect(typeof mod.getSkillsMatrixEntries).toBe('function')
+  })
+
   it('does not export internal modules (no surplus exports)', async () => {
     const mod = await import('../src/compatibility/index.js')
     const keys = Object.keys(mod)
-    const allowed = new Set(['runProbes', 'validateMatrix'])
+    const allowed = new Set([
+      'runProbes',
+      'validateMatrix',
+      'loadSkillsMatrix',
+      'validateSkillsMatrix',
+      'getSkillsMatrixEntries',
+    ])
     const surplus = keys.filter((k) => !allowed.has(k))
     expect(surplus).toHaveLength(0)
   })

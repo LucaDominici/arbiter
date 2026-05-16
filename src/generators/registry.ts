@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { generateAgentsMd } from './agents-md.js'
+import type { InstalledSkill } from '../integrations/types.js'
+import { computeSkipReport } from './skills.js'
 import { generateClaude } from './claude.js'
 import { generateCodex } from './codex.js'
 import { generateGithub } from './github.js'
@@ -67,10 +69,18 @@ export interface GeneratorFailure {
   message: string
 }
 
-function buildAiToolSpecs(config: ProjectConfig): GeneratorSpec[] {
+function buildAiToolSpecs(
+  config: ProjectConfig,
+  installedSkills: InstalledSkill[],
+): GeneratorSpec[] {
   const noAiRulez = !config.existing.aiRulez
+  const skipReport = computeSkipReport(installedSkills)
   return [
-    { key: 'agents-md', enabled: true, run: () => [generateAgentsMd(config)] },
+    {
+      key: 'agents-md',
+      enabled: true,
+      run: () => [generateAgentsMd(config, installedSkills, skipReport)],
+    },
     {
       key: 'global-invariants',
       enabled: true,
@@ -114,7 +124,7 @@ function buildAiToolSpecs(config: ProjectConfig): GeneratorSpec[] {
     {
       key: 'skills',
       enabled: noAiRulez,
-      run: () => generateSkills(config).files,
+      run: () => generateSkills(config, installedSkills).files,
     },
     {
       key: 'agents-claude',
@@ -324,9 +334,12 @@ function buildProviderSpecs(config: ProjectConfig): GeneratorSpec[] {
   ]
 }
 
-export function buildRegistry(config: ProjectConfig): GeneratorSpec[] {
+export function buildRegistry(
+  config: ProjectConfig,
+  installedSkills: InstalledSkill[] = [],
+): GeneratorSpec[] {
   return [
-    ...buildAiToolSpecs(config),
+    ...buildAiToolSpecs(config, installedSkills),
     ...buildInfraSpecs(config),
     ...buildAnalysisSpecs(config),
     ...buildProviderSpecs(config),

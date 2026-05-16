@@ -47,6 +47,8 @@ import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
 import { loadRecipe } from '../recipes/loader.js'
 import type { Recipe } from '../recipes/schema.js'
+import { detectInstalledSkills } from '../integrations/skill-detector.js'
+import { computeSkipReport } from '../generators/skills.js'
 
 export interface InitOptions {
   yes: boolean
@@ -189,6 +191,20 @@ function emitInitOutput(
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
 }
 
+function detectAndAuditSkills(targetDir: string) {
+  const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
+  const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
+  const skipReport = computeSkipReport(installedSkills)
+  if (installedSkills.length > 0) {
+    writeFile(
+      join(targetDir, '.arbiter', 'detected-integrations.json'),
+      JSON.stringify({ detectedSkills: installedSkills, skippedGenerators: skipReport }, null, 2) +
+        '\n',
+    )
+  }
+  return installedSkills
+}
+
 async function generateAndFinalize(
   config: ProjectConfig,
   targetDir: string,
@@ -199,7 +215,8 @@ async function generateAndFinalize(
   const committed: WriteResult[] = []
 
   try {
-    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config)
+    const installedSkills = detectAndAuditSkills(targetDir)
+    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config, installedSkills)
     committed.push(...results)
 
     const newConfig = buildArbiterConfig(config)
@@ -396,12 +413,15 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
  * (INV-53 status=error → exit 2). The plain `runGenerators` wrapper is kept
  * for legacy callers (brownfield integration tests) that only consume results.
  */
-function runGeneratorsWithErrors(config: ProjectConfig): {
+function runGeneratorsWithErrors(
+  config: ProjectConfig,
+  installedSkills: Parameters<typeof buildRegistry>[1] = [],
+): {
   results: WriteResult[]
   errors: GeneratorFailure[]
 } {
   const errors: GeneratorFailure[] = []
-  const results = runGeneratorsFromRegistry(buildRegistry(config), errors)
+  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors)
   return { results, errors }
 }
 
