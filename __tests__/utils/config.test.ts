@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -260,11 +260,21 @@ describe('saveConfigAndSnapshot (#772)', () => {
     expect(existsSync(join(dir, '.arbiter-generated.json'))).toBe(true)
   })
 
-  it('both files have identical content', () => {
+  it('snapshot wraps the config in a versioned envelope with checksum (#607 #619)', () => {
     saveConfigAndSnapshot(dir, defaultConfig())
-    const config = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
-    const snapshot = readFileSync(join(dir, '.arbiter-generated.json'), 'utf-8')
-    expect(config).toBe(snapshot)
+    const snapshot = JSON.parse(
+      readFileSync(join(dir, '.arbiter-generated.json'), 'utf-8'),
+    ) as Record<string, unknown>
+    expect(typeof snapshot['.checksum']).toBe('string')
+    expect(snapshot.$schemaVersion).toBe(1)
+    expect(snapshot.config).toBeDefined()
+    // arbiter.json remains the raw config (no envelope)
+    const config = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as Record<
+      string,
+      unknown
+    >
+    expect(config['.checksum']).toBeUndefined()
+    expect(config.$schemaVersion).toBeUndefined()
   })
 
   it('content is valid JSON that round-trips through loadConfig', () => {
@@ -273,5 +283,41 @@ describe('saveConfigAndSnapshot (#772)', () => {
     const loaded = loadConfig(dir)
     expect(loaded?.version).toBe(original.version)
     expect(loaded?.governanceLevel).toBe(original.governanceLevel)
+  })
+
+  it('loadSnapshot reads the unwrapped config from envelope', () => {
+    const original = defaultConfig()
+    saveConfigAndSnapshot(dir, original)
+    const snap = loadSnapshot(dir)
+    expect(snap?.governanceLevel).toBe(original.governanceLevel)
+  })
+
+  it('loadSnapshot throws SnapshotChecksumError on tamper (#619)', () => {
+    saveConfigAndSnapshot(dir, defaultConfig())
+    const snapPath = join(dir, '.arbiter-generated.json')
+    const tampered = JSON.parse(readFileSync(snapPath, 'utf-8')) as Record<string, unknown>
+    ;(tampered.config as Record<string, unknown>).governanceLevel = 'L3'
+    writeFileSync(snapPath, JSON.stringify(tampered, null, 2))
+    expect(() => loadSnapshot(dir)).toThrow(/checksum mismatch/i)
+  })
+
+  it('loadSnapshot auto-migrates a v0 (pre-envelope) snapshot without throwing', () => {
+    saveConfig(dir, defaultConfig())
+    // v0 snapshot = bare config (legacy shape) — no envelope, no checksum
+    writeFileSync(
+      join(dir, '.arbiter-generated.json'),
+      JSON.stringify(defaultConfig(), null, 2),
+      'utf-8',
+    )
+    const snap = loadSnapshot(dir)
+    expect(snap).not.toBeNull()
+    expect(snap?.governanceLevel).toBe('L2')
+  })
+
+  it('saveConfigAndSnapshot rotates .bak.<ts> for previous snapshot', () => {
+    saveConfigAndSnapshot(dir, defaultConfig())
+    saveConfigAndSnapshot(dir, defaultConfig())
+    const files = readdirSync(dir)
+    expect(files.some((f) => f.startsWith('.arbiter-generated.json.bak.'))).toBe(true)
   })
 })

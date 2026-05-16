@@ -10,6 +10,7 @@ import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
+import { runDoctorRepairState } from './commands/doctor.js'
 import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
@@ -640,6 +641,21 @@ program
       runUpgradeLevel(upgradeOpts)
     },
   )
+
+const doctor = program.command('doctor').description('Diagnose and repair arbiter state (#619)')
+
+doctor
+  .command('repair-state')
+  .description('Re-derive .arbiter-generated.json from arbiter.json (snapshot corruption recovery)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    const result = runDoctorRepairState({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+    })
+    if (result.exitCode !== 0) process.exit(result.exitCode)
+  })
 
 const task = program.command('task').description('Manage task lifecycle state')
 
