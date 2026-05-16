@@ -87,7 +87,8 @@ for (const entry of hardSpawnable) {
 
   if (fixture.type === 'file-with-content') {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-hardness-'))
-    const tmpFile = join(dir, 'fixture.ts')
+    const ext = fixture.extension ?? '.ts'
+    const tmpFile = join(dir, `fixture${ext}`)
     writeFileSync(tmpFile, fixture.content)
     env[fixture.envKey] = tmpFile
     tmpFiles.push(dir)

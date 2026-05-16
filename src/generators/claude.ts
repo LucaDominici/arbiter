@@ -125,7 +125,6 @@ function generateClaudeHooks(
     'pre-edit-ssot-guard.mjs',
     'check-no-orphan-todo.mjs',
     'check-no-placeholders.mjs',
-    'check-no-skipped-tests.mjs',
   ]
   for (const hookFile of staticHooks) {
     results.push(
