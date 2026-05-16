@@ -86,6 +86,10 @@ Never throw from a generator or detector. Callers do not have try/catch around g
 
 **`loadConfig` error visibility:** `loadConfig` returns `null` for both missing and corrupt `arbiter.json`. When the file exists but cannot be parsed (invalid JSON), it emits `console.warn` before returning `null` so operators can distinguish corruption from absence. Callers that guard with `if (!stored)` will still exit with "No arbiter.json found" — the warn fires to stderr first. Do not add new silent `catch {}` in `loadConfig` or its callers.
 
+**Adverse git state guard:** Commands that write files (`init`, `update`) call `detectAdverseGitState()` before generating. If a rebase, merge, cherry-pick, bisect, or detached HEAD is detected, the command throws a `UserFacingError` with a fix suggestion. Pass `--force` to override — the guard will warn to stderr and continue instead of aborting. See `src/detectors/git.ts::detectAdverseGitState`.
+
+**Atomic writes:** All file writes go through `src/utils/fs.ts::writeFile`, which uses `atomicWrite()` internally: content is written to a `.arbiter-tmp-<timestamp>` sibling, then renamed into place. If `renameSync` fails with `ENOSPC` (disk full), a `UserFacingError` is thrown with a `df -h` hint. The temp file is cleaned up on any error.
+
 ---
 
 ## Shared Detector Utilities

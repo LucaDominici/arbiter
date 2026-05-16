@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, copyFileSync, renameSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { UserFacingError } from './errors.js'
 
 export interface WriteResult {
   path: string
@@ -8,9 +9,10 @@ export interface WriteResult {
 }
 
 /**
- * Write a file, creating parent directories as needed.
+ * Write a file atomically (temp-file + rename), creating parent directories as needed.
  * If the file already exists and skipIfExists=true, skip it.
  * If backup=true and file exists, copy it to <path>.arbiter-backup before writing.
+ * On ENOSPC the temp file is cleaned up and a UserFacingError is thrown.
  */
 export function writeFile(
   filePath: string,
@@ -27,13 +29,34 @@ export function writeFile(
       copyFileSync(filePath, `${filePath}.arbiter-backup`)
     }
     mkdirSync(dirname(filePath), { recursive: true })
-    writeFileSync(filePath, content, 'utf-8')
+    atomicWrite(filePath, content)
     return { path: filePath, action: backup ? 'backed-up-and-replaced' : 'replaced' }
   }
 
   mkdirSync(dirname(filePath), { recursive: true })
-  writeFileSync(filePath, content, 'utf-8')
+  atomicWrite(filePath, content)
   return { path: filePath, action: 'created' }
+}
+
+function atomicWrite(filePath: string, content: string): void {
+  const tmpPath = `${filePath}.arbiter-tmp-${Date.now()}`
+  try {
+    writeFileSync(tmpPath, content, 'utf-8')
+    renameSync(tmpPath, filePath)
+  } catch (err) {
+    try {
+      unlinkSync(tmpPath)
+    } catch {
+      // best-effort cleanup
+    }
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'ENOSPC') {
+      throw new UserFacingError(
+        `Disk full while writing ${filePath}. Free up space and retry.\n  Use \`df -h\` to check available space.`,
+      )
+    }
+    throw err
+  }
 }
 
 /**

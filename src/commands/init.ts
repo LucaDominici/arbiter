@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
+import { UserFacingError, ArbiterError } from '../utils/errors.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
 import { detectLanguage } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
 import { detectFramework, detectArchetypeHint } from '../detectors/framework.js'
-import { detectGitInfo } from '../detectors/git.js'
+import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
 import { detectExisting } from '../detectors/existing.js'
 import { detectBasePackage } from '../detectors/package.js'
 import { detectGithubAccess } from '../detectors/github.js'
@@ -40,7 +41,6 @@ import { defaultContractType } from '../wizard/archetype-defaults.js'
 import type { ProjectConfig, AiTool, GovernanceLevel } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
-import { ArbiterError } from '../utils/errors.js'
 
 export interface InitOptions {
   yes: boolean
@@ -60,6 +60,8 @@ export interface InitOptions {
   json?: boolean | undefined
   /** Suppress informational banners such as the telemetry notice. */
   quiet?: boolean
+  /** Override adverse git state check (detached HEAD, rebase, merge, etc.). Emits warning then continues. */
+  force?: boolean
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -102,6 +104,10 @@ export async function runInit(options: InitOptions): Promise<void> {
   if (githubAccess.authenticated)
     log(`  ├── GitHub: authenticated as ${githubAccess.username ?? 'unknown'}`)
   if (!options.json) logExistingDetections(existing)
+
+  if (gitInfo.isGitRepo) {
+    guardAdverseGitState(targetDir, options.force)
+  }
 
   const config = await resolveConfig({
     options,
@@ -392,6 +398,18 @@ export function runGithubSetup(
   }
 
   return { warnings, errors: [] }
+}
+
+function guardAdverseGitState(targetDir: string, force: boolean | undefined): void {
+  const adverseState = detectAdverseGitState(targetDir)
+  if (!adverseState) return
+  const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
+  if (!force) {
+    throw new UserFacingError(
+      `${adverseState.message}\n${adverseState.suggestedFix}\nUse --force to override this check.`,
+    )
+  }
+  console.warn(warning)
 }
 
 function logExistingDetections(existing: ReturnType<typeof detectExisting>): void {

@@ -26,17 +26,18 @@ arbiter init [options]
 
 **Options:**
 
-| Flag              | Type    | Default        | Description                                            |
-| ----------------- | ------- | -------------- | ------------------------------------------------------ |
-| `-y, --yes`       | boolean | `false`        | Skip wizard — use auto-detected defaults               |
-| `--tools <list>`  | string  | `claude,codex` | Comma-separated AI tools to configure                  |
-| `--level <level>` | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`                  |
-| `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory)          |
-| `--dry-run`       | boolean | `false`        | Preview what would be generated without writing files  |
-| `--no-verify`     | boolean | `false`        | Skip toolchain compatibility probes after generation   |
-| `--json`          | boolean | `false`        | Emit machine-readable JSON output (requires `--yes`)   |
-| `--quiet`         | boolean | `false`        | Suppress informational banners (e.g. telemetry notice) |
-| `-h, --help`      | —       | —              | Show help                                              |
+| Flag              | Type    | Default        | Description                                                                                         |
+| ----------------- | ------- | -------------- | --------------------------------------------------------------------------------------------------- |
+| `-y, --yes`       | boolean | `false`        | Skip wizard — use auto-detected defaults                                                            |
+| `--tools <list>`  | string  | `claude,codex` | Comma-separated AI tools to configure                                                               |
+| `--level <level>` | string  | `L2`           | Governance level: `L1`, `L2`, or `L3`                                                               |
+| `--dir <path>`    | string  | `cwd`          | Target directory (default: current directory)                                                       |
+| `--dry-run`       | boolean | `false`        | Preview what would be generated without writing files                                               |
+| `--no-verify`     | boolean | `false`        | Skip toolchain compatibility probes after generation                                                |
+| `--json`          | boolean | `false`        | Emit machine-readable JSON output (requires `--yes`)                                                |
+| `--quiet`         | boolean | `false`        | Suppress informational banners (e.g. telemetry notice)                                              |
+| `--force`         | boolean | `false`        | Override adverse git state check (detached HEAD, rebase, merge, etc.) — emits warning and continues |
+| `-h, --help`      | —       | —              | Show help                                                                                           |
 
 **Examples:**
 
@@ -229,6 +230,16 @@ Re-generate governance files using stored config from `arbiter.json`.
 ```
 arbiter update [options]
 ```
+
+**Options:**
+
+| Flag           | Type    | Default | Description                                                                                         |
+| -------------- | ------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `--dir <path>` | string  | `cwd`   | Target directory (default: current directory)                                                       |
+| `--github`     | boolean | `false` | Force GitHub setup even if `useGitHub` is false in config                                           |
+| `--json`       | boolean | `false` | Emit machine-readable JSON output                                                                   |
+| `--force`      | boolean | `false` | Override adverse git state check (detached HEAD, rebase, merge, etc.) — emits warning and continues |
+| `-h, --help`   | —       | —       | Show help                                                                                           |
 
 ---
 

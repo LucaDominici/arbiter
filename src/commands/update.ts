@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, basename } from 'node:path'
+import { UserFacingError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { detectLanguage } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
 import { detectFramework } from '../detectors/framework.js'
-import { detectGitInfo } from '../detectors/git.js'
+import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
 import { detectExisting } from '../detectors/existing.js'
 import { detectGithubAccess } from '../detectors/github.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
@@ -29,6 +30,8 @@ export interface UpdateOptions {
   dir: string | undefined
   github: boolean
   json?: boolean | undefined
+  /** Override adverse git state check (detached HEAD, rebase, merge, etc.). Emits warning then continues. */
+  force?: boolean
 }
 
 export interface UpdateResult {
@@ -263,6 +266,17 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     }
     process.exit(1)
     return { keysRun: null }
+  }
+
+  const adverseState = detectAdverseGitState(targetDir)
+  if (adverseState) {
+    const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
+    if (!options.force) {
+      throw new UserFacingError(
+        `${adverseState.message}\n${adverseState.suggestedFix}\nUse --force to override this check.`,
+      )
+    }
+    console.warn(warning)
   }
 
   const { config, specs, useGitHub, axisFields } = detectProjectInfo(

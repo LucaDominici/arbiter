@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { detectGitInfo } from '../../src/detectors/git.js'
+import { writeFileSync, mkdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { join } from 'node:path'
+import { detectGitInfo, detectAdverseGitState } from '../../src/detectors/git.js'
 import { createTestProject, initGit, cleanupTestProject } from '../helpers.js'
 
 describe('detectGitInfo', () => {
@@ -85,5 +88,81 @@ describe('detectGitInfo', () => {
     const info = detectGitInfo(dir)
     expect(info.githubOwner).toBe('TestUser')
     expect(info.githubRepo).toBe('my.project')
+  })
+})
+
+describe('detectAdverseGitState (#617)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('returns null for non-git directory', () => {
+    expect(detectAdverseGitState(dir)).toBeNull()
+  })
+
+  it('returns null for clean git repo on a branch', () => {
+    initGit(dir)
+    execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], { cwd: dir, stdio: 'ignore' })
+    expect(detectAdverseGitState(dir)).toBeNull()
+  })
+
+  it('detects detached HEAD', () => {
+    initGit(dir)
+    execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], { cwd: dir, stdio: 'ignore' })
+    execFileSync('git', ['checkout', '--detach'], { cwd: dir, stdio: 'ignore' })
+    const state = detectAdverseGitState(dir)
+    expect(state).not.toBeNull()
+    expect(state?.type).toBe('detached-head')
+    expect(state?.message).toBeTruthy()
+    expect(state?.suggestedFix).toBeTruthy()
+  })
+
+  it('detects merge in progress', () => {
+    initGit(dir)
+    writeFileSync(join(dir, '.git', 'MERGE_HEAD'), '0000000000000000000000000000000000000000\n')
+    const state = detectAdverseGitState(dir)
+    expect(state).not.toBeNull()
+    expect(state?.type).toBe('merge')
+  })
+
+  it('detects cherry-pick in progress', () => {
+    initGit(dir)
+    writeFileSync(
+      join(dir, '.git', 'CHERRY_PICK_HEAD'),
+      '0000000000000000000000000000000000000000\n',
+    )
+    const state = detectAdverseGitState(dir)
+    expect(state).not.toBeNull()
+    expect(state?.type).toBe('cherry-pick')
+  })
+
+  it('detects rebase in progress via rebase-merge dir', () => {
+    initGit(dir)
+    mkdirSync(join(dir, '.git', 'rebase-merge'), { recursive: true })
+    writeFileSync(join(dir, '.git', 'rebase-merge', 'head-name'), 'refs/heads/main\n')
+    const state = detectAdverseGitState(dir)
+    expect(state).not.toBeNull()
+    expect(state?.type).toBe('rebase')
+  })
+
+  it('detects rebase in progress via rebase-apply dir', () => {
+    initGit(dir)
+    mkdirSync(join(dir, '.git', 'rebase-apply'), { recursive: true })
+    const state = detectAdverseGitState(dir)
+    expect(state).not.toBeNull()
+    expect(state?.type).toBe('rebase')
+  })
+
+  it('detects bisect in progress', () => {
+    initGit(dir)
+    writeFileSync(join(dir, '.git', 'BISECT_LOG'), 'git bisect log\n')
+    const state = detectAdverseGitState(dir)
+    expect(state).not.toBeNull()
+    expect(state?.type).toBe('bisect')
   })
 })
