@@ -136,6 +136,14 @@ preflight → plan → implementation → verification → complete
 
 Advance with `arbiter task advance --to <phase>`. Forward-only by default; commits are blocked during `preflight` and `plan` (INV-38). Claiming completion while still in `implementation` or `verification` triggers the completion guard.
 
+### SEMVER and deprecation
+
+When a PR removes or renames a public symbol, flag or behavior:
+
+1. **Check [`docs/DEPRECATIONS.md`](./docs/DEPRECATIONS.md)** — if the symbol is in the Active table, removal without moving it to Closed is a gate violation (`check-deprecations.mjs`).
+2. **Bumping SEMVER?** — breaking changes require a MAJOR bump per [`docs/SEMVER.md`](./docs/SEMVER.md). Note it in your PR description.
+3. **Deprecating something new?** — add it to the Active table in `docs/DEPRECATIONS.md` with `remove-in = current_major + 2`, call `warnDeprecated(name, removeIn)` from `src/internal/deprecate.ts` at the callsite, and add `@deprecated` JSDoc.
+
 ### SSOT and plan bypass env vars
 
 | Hook / Check               | Guards                                                                                           | Bypass                                     |

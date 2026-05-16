@@ -89,6 +89,7 @@ runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
 runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
 runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
+runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

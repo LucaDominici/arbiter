@@ -1,0 +1,23 @@
+{
+  "packageManager": "npm",
+  "reporters": ["html", "clear-text", "progress"],
+  "testRunner": "vitest",
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/generators/**/*.ts",
+    "src/commands/init.ts",
+    "src/invariants/catalog.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.spec.ts"
+  ],
+  "thresholds": {
+    "high": 60,
+    "low": 50,
+    "break": 60
+  },
+  "concurrency": 2,
+  "timeoutMS": 30000,
+  "vitest": {
+    "configFile": "vite.config.ts"
+  }
+}

@@ -1,0 +1,25 @@
+# Line-ending policy for arbiter (#592)
+# LF everywhere except Windows-specific files.
+# Do NOT run `git add --renormalize .` in the same commit as this file —
+# handle renormalization as a separate, dedicated commit.
+
+* text=auto eol=lf
+
+# Windows scripts must use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files — no line-ending processing
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
+*.tgz binary
+*.gz binary
