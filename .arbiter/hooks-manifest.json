@@ -184,7 +184,14 @@
         "claude"
       ],
       "spawnable": false,
-      "rationale": "PostToolUse L2 gate reminder \u2014 advisory reminder, not a violation guard"
+      "rationale": "PostToolUse conventional-commit check (INV-22) + track-aware checklist (#724) — non-blocking informational output"
+    },
+    {
+      "file": "pre-task-track-detect.mjs.ejs",
+      "classification": "ADVISORY",
+      "tools": ["claude"],
+      "spawnable": false,
+      "rationale": "UserPromptSubmit context-economy hint — detects task track from changed files + prompt keywords and injects knowledge-map routing guidance (#720). Always exits 0."
     },
     {
       "file": "post-edit-dispatch.mjs.ejs",

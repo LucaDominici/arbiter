@@ -56,6 +56,15 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
   generateClaudeRules(base, data, config, results)
   generateClaudeCommands(base, data, results)
 
+  // Machine-readable track routing map (#720)
+  results.push(
+    writeFile(
+      resolvedPath(base, '.claude', 'knowledge-map.json'),
+      renderTemplate('claude/knowledge-map.json.ejs', data),
+      { skipIfExists: true },
+    ),
+  )
+
   return { files: results }
 }
 
@@ -173,6 +182,15 @@ function generateClaudeHooks(
     }
   }
 
+  // Track-detection hook — UserPromptSubmit (#720)
+  results.push(
+    writeFile(
+      join(hooksDir, 'pre-task-track-detect.mjs'),
+      renderTemplate('claude/hooks/pre-task-track-detect.mjs.ejs', data),
+      { skipIfExists: true },
+    ),
+  )
+
   // Advanced hooks — generated for all governance levels
   for (const hookFile of ['pre-edit-plan-anchor.mjs', 'pre-compact.mjs']) {
     results.push(
@@ -230,6 +248,10 @@ function generateClaudeRules(
     {
       file: '25-todo-folder-policy.md',
       template: 'claude/rules/25-todo-folder-policy.md',
+    },
+    {
+      file: '40-context-economy.md',
+      template: 'claude/rules/40-context-economy.md',
     },
     {
       file: '50-batch-execution.md',

@@ -909,6 +909,24 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
+## ADR-043: Context-economy rule + knowledge-map + track-aware post-commit (#720, #724)
+
+**Date:** 2026-05-16
+**Status:** Accepted
+**Reference:** Issues #720 (M-12), #724 (M-16); viafera ports FINDINGS.md#mech-M-12, #mech-M-16
+
+**Context:** viafera ships `rules/10-knowledge-map.md` (prose context-economy rule) and `hooks/post-commit-check.sh` (track-aware checklist). arbiter had scattered context-economy guidance but no explicit rule, no machine-readable routing map, and no track routing in `post-commit-check.mjs`. The issues require porting AND improving over the viafera baseline.
+
+**Decision:**
+
+- **`40-context-economy.md` rule** (static Markdown, no EJS): generated as `.claude/rules/40-context-economy.md` via `generateClaudeRules`. Defines minimum startup set (AGENTS.md + KNOWLEDGE_MAP.md + knowledge-map.json) and a track routing table (frontend/backend/docs). `skipIfExists: true` — user-customizable.
+- **`knowledge-map.json`** (EJS): generated as `.claude/knowledge-map.json` from `claude/knowledge-map.json.ejs`. Injects `projectName` and `lanes` (detected at init time). Contains `tracks` object with signal paths + required/optional docs per track, plus `minimum_startup_set`. `skipIfExists: true`.
+- **`pre-task-track-detect.mjs`** (EJS): generated as `.claude/hooks/pre-task-track-detect.mjs`. UserPromptSubmit hook — detects task track from `git diff --name-only HEAD` + prompt keywords; writes routing hint to stdout (non-blocking, always exits 0). Added to hooks-manifest.json as ADVISORY. `skipIfExists: true`.
+- **`post-commit-check.mjs.ejs` extension** (#724): appended track-detection block after the existing INV-22 conventional commit check. Reads `git diff --name-only HEAD~1 HEAD`, classifies changed files into frontend/backend/docs tracks, and writes per-track checklist hints to stdout. Non-blocking. Graceful skip when HEAD~1 unavailable (first commit).
+- **CANON-16 surveys**: `generateClaudeRules` — existing array-driven pattern extended with one new entry; no new file. `generateClaudeHooks` — existing hook-loop pattern extended inline. `knowledge-map.json` — grepped `src/templates/claude/` for similar machine-readable config; none found. New EJS template justified as distinct concern (track routing, not hook or settings).
+
+**Consequences:** Target projects gain: (1) explicit context-economy rule in Claude rules; (2) machine-readable track routing consumable by hooks and agents; (3) UserPromptSubmit hint before every task that touches track-specific files; (4) post-commit per-track checklist guidance. `post-commit-check.mjs` content change is a template extension — existing installations with `skipIfExists: true` will not auto-update until arbiter re-init.
+
 ## ADR-042: Rust context-aware INV-04 checkers + rebased-aware docs-check (#360, #356)
 
 **Date:** 2026-05-14
