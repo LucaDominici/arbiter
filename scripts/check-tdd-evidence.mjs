@@ -62,11 +62,17 @@ export function formatSkipError(sha, taskId) {
 
 // ─── CLI entrypoint ───────────────────────────────────────────────────────────
 
-function run(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { encoding: 'utf-8', ...opts }).trim()
+export function makeRunner(runFn) {
+  return (cmd, args, opts = {}) => runFn(cmd, args, { encoding: 'utf-8', ...opts }).trim()
 }
 
-function main() {
+const defaultRun = (cmd, args, opts = {}) =>
+  execFileSync(cmd, args, { encoding: 'utf-8', ...opts }).trim()
+
+/** @param {{ runFn?: typeof defaultRun, exitFn?: (code: number) => never }} opts */
+export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {}) {
+  const run = makeRunner(runFn)
+
   // ARBITER_SKIP_TDD=1 → L1-only bypass; gate still fails at L2 if trailer present
   const envSkip = process.env.ARBITER_SKIP_TDD === '1'
 
@@ -77,10 +83,10 @@ function main() {
     // If origin/main is unavailable (e.g. local-only branch), skip gracefully
     if (envSkip) {
       console.log('check-tdd-evidence: ARBITER_SKIP_TDD=1, skipping (no origin/main)')
-      process.exit(0)
+      return exitFn(0)
     }
     console.log('check-tdd-evidence: cannot determine merge-base (no origin/main), skipping')
-    process.exit(0)
+    return exitFn(0)
   }
 
   // Get one-liner subjects for task-ID parsing
@@ -89,14 +95,14 @@ function main() {
     subjectLog = run('git', ['log', `${mergeBase}..HEAD`, '--format=%s'], { cwd: repoRoot })
   } catch {
     console.log('check-tdd-evidence: no commits since merge-base, vacuous pass')
-    process.exit(0)
+    return exitFn(0)
   }
 
   const taskIds = parseTaskIdsFromLog(subjectLog)
 
   if (taskIds.length === 0) {
     console.log('check-tdd-evidence: no task-ID commits found, vacuous pass')
-    process.exit(0)
+    return exitFn(0)
   }
 
   // Collect full commit bodies to detect skip trailers
@@ -125,12 +131,12 @@ function main() {
 
   if (errors.length > 0) {
     for (const e of errors) process.stderr.write(`\n${e}\n`)
-    process.exit(1)
+    return exitFn(1)
   }
 
   if (envSkip) {
     console.log(`check-tdd-evidence: ARBITER_SKIP_TDD=1 (L1 bypass), skipping verify`)
-    process.exit(0)
+    return exitFn(0)
   }
 
   // Run arbiter verify tdd for each task ID
@@ -163,11 +169,11 @@ function main() {
       `\ncheck-tdd-evidence: one or more task IDs failed TDD evidence verification.\n` +
         `Run: arbiter task record-red --test-path <path>\n`,
     )
-    process.exit(1)
+    return exitFn(1)
   }
 
   console.log(`check-tdd-evidence: all ${taskIds.length} task(s) verified`)
-  process.exit(0)
+  return exitFn(0)
 }
 
 // Only run main when invoked as CLI (not imported in tests)
