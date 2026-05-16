@@ -72,6 +72,7 @@ Options:
   --tools <list>         AI tools: claude,codex,cursor,copilot  (default: claude,codex)
   --level <level>        Governance level: L1, L2, L3            (default: L2)
   --dir <path>           Target directory                         (default: cwd)
+  --quiet                Suppress informational banners
   -h, --help             Show help
 ```
 

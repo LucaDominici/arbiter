@@ -39,6 +39,7 @@ import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { defaultContractType } from '../wizard/archetype-defaults.js'
 import type { ProjectConfig, AiTool, GovernanceLevel } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
 
 export interface InitOptions {
   yes: boolean
@@ -56,6 +57,8 @@ export interface InitOptions {
   backend?: 'github' | 'markdown'
   /** Emit machine-readable JSON envelope instead of human output. Requires --yes (wizard is incompatible). */
   json?: boolean | undefined
+  /** Suppress informational banners such as the telemetry notice. */
+  quiet?: boolean
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -76,6 +79,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     process.exit(1)
     return
   }
+
+  showTelemetryBannerIfFirstRun(undefined, options.quiet)
 
   log('\n  Arbiter — AI Development Governance Framework\n')
   log('  Detecting project...')

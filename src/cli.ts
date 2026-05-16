@@ -147,6 +147,7 @@ program
     'Decomposition backend: github or markdown (overrides gh auth detection)',
   )
   .option('--json', 'Emit machine-readable JSON output (requires --yes)', false)
+  .option('--quiet', 'Suppress informational banners (e.g. telemetry notice)', false)
   .action(
     async (opts: {
       yes: boolean
@@ -159,6 +160,7 @@ program
       acceptBetaTools: boolean
       backend?: string
       json: boolean
+      quiet: boolean
     }) => {
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
@@ -173,6 +175,7 @@ program
         acceptBetaTools: opts.acceptBetaTools,
         ...(backend !== undefined ? { backend } : {}),
         json: opts.json,
+        quiet: opts.quiet,
       })
     },
   )
