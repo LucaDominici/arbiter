@@ -238,6 +238,16 @@
       ],
       "spawnable": false,
       "rationale": "#248: Single dispatcher entrypoint \u2014 routes events to handler scripts via config table. EJS template renders with language/governance conditional entries. Delegates to individual HARD/ADVISORY handlers; exit code mirrors first non-zero handler."
+    },
+    {
+      "file": "enforce-gate-before-pr.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "R1.S5: blocks gh pr create unless .arbiter/gate-pass.json exists with head_sha matching current HEAD. Missing or stale marker exits 2. Bypass: ARBITER_SKIP_GATE_MARKER=1."
     }
   ]
 }
