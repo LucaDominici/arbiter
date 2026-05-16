@@ -15,6 +15,7 @@ All hooks are Node.js `.mjs` files — no bash required, no `chmod` needed, work
   hooks/
     lib.mjs                   # Shared utilities (logging)
     stop-dangerous.mjs        # PreToolUse → Bash
+    enforce-gate-before-pr.mjs # PreToolUse → Bash (gate marker check)
     enforce-read-only.mjs     # PreToolUse → Edit|Write
     pre-edit-ssot-guard.mjs   # PreToolUse → Edit|Write
     post-commit-check.mjs     # PostToolUse → Bash
@@ -30,6 +31,23 @@ Hooks read tool context from environment variables:
 | --------------------------- | -------------------------- |
 | `CLAUDE_TOOL_INPUT_COMMAND` | The bash command being run |
 | `CLAUDE_TOOL_INPUT_PATH`    | The file path being edited |
+
+---
+
+## Static Hooks
+
+### `enforce-gate-before-pr.mjs`
+
+| Property      | Value                                                          |
+| ------------- | -------------------------------------------------------------- |
+| **Event**     | `PreToolUse` → `Bash`                                          |
+| **Purpose**   | Block `gh pr create` unless `.arbiter/gate-pass.json` is fresh |
+| **Invariant** | R1.S5 — gate must pass before PR creation                      |
+| **Blocking**  | Yes — exit 2 (stderr returned to Claude)                       |
+
+Triggers only on commands containing `gh pr create`. Checks that `.arbiter/gate-pass.json` exists and its `head_sha` matches the current `HEAD`. If the marker is missing or stale, Claude receives an error message directing it to re-run the gate.
+
+`scripts/check-all.mjs` writes `gate-pass.json` automatically on a clean pass. To bypass (e.g. in CI), set `ARBITER_SKIP_GATE_MARKER=1`.
 
 ---
 
@@ -123,6 +141,7 @@ Fires before every user prompt. Phase-aware skill activation nudge. L2+ only.
 | Event                | Matcher       | Hook                         | Status                  |
 | -------------------- | ------------- | ---------------------------- | ----------------------- |
 | `PreToolUse`         | `Bash`        | `stop-dangerous.mjs`         | Implemented             |
+| `PreToolUse`         | `Bash`        | `enforce-gate-before-pr.mjs` | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `enforce-read-only.mjs`      | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-ssot-guard.mjs`    | Implemented             |
 | `PreToolUse`         | `Edit\|Write` | `pre-edit-plan-anchor.mjs`   | Implemented (all)       |
