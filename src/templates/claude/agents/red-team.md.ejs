@@ -42,6 +42,19 @@ For each input, probe:
 | **Async errors** | Are all promises awaited? Are rejections handled? |<% } %>
 | **Concurrency** | Can two requests interfere with each other? |
 
+## SSOT Alignment Vectors (arbiter-specific)
+
+When reviewing arbiter generator or template changes, also probe:
+
+| Vector                          | Questions to Ask                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Template/materialized drift** | Does the EJS template in `src/templates/` match the dogfooded `.claude/` file? What diverges and why?        |
+| **Invariant catalog vs gate**   | Is every `INV-NN` in `src/invariants/catalog.ts` enforced by at least one hook or gate check?                |
+| **Tier constant vs template**   | Does `TIER_REVIEWER_COUNT` in `review/tier-constants.ts` match the counts baked into rendered templates?     |
+| **Matrix cell vs gate reality** | Is every `proven` cell in `cross-language-matrix.json` actually tested by a real-project fixture?            |
+| **Hook manifest vs generator**  | Does every hook in `.arbiter/hooks-manifest.json` have a corresponding emit path in `generateClaudeHooks()`? |
+| **Schema vs wizard defaults**   | Does every `ProjectConfig` field with a default have that default reflected consistently across generator and schema? |
+
 ## Output Format
 
 ```markdown

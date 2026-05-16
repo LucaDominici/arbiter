@@ -1,0 +1,43 @@
+# Evidence Retention Policy — <%= projectName %>
+
+This document defines how task-completion evidence is stored, rotated, and pruned.
+
+## Retention Mode
+
+**Mode:** `<%= evidenceRetention.mode %>`
+<% if (evidenceRetention.mode === 'local-last-N') { %>
+Evidence runs are stored under `.evidence/` and the last **<%= evidenceRetention.count ?? 5 %>** runs are kept automatically.
+<% } else if (evidenceRetention.mode === 'external-bucket') { %>
+Evidence runs are uploaded to an external bucket: `<%= evidenceRetention.bucketUrl %>`.
+Local copies are pruned after upload. Ensure bucket credentials are configured.
+<% } %>
+
+## Scripts
+
+| Script | Purpose | When to run |
+| --- | --- | --- |
+| `scripts/evidence-rotate.mjs` | Automated rotation — keeps last N runs | Called by task harness after each run |
+| `scripts/evidence-prune.mjs` | Manual maintenance — supports --keep-last, --keep-days, --dry-run | Run as needed by maintainer |
+
+## Usage
+
+```sh
+# Dry-run: see what would be removed without deleting
+node scripts/evidence-prune.mjs --dry-run --keep-last=10
+
+# Prune runs older than 30 days, skip ACK prompt
+node scripts/evidence-prune.mjs --keep-days=30 --yes
+
+# Keep only last 3 runs
+node scripts/evidence-prune.mjs --keep-last=3 --yes
+```
+
+## Location
+
+Evidence runs are stored in `.evidence/run-NNNN/` directories (gitignored).
+Each run directory contains the SHA-pinned output files listed in `evidence-files.json`.
+
+## Governance
+
+This policy is enforced by the done-evidence harness (`scripts/done-evidence.mjs`).
+Runs without valid SHA pins fail the L2 gate.
