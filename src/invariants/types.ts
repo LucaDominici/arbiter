@@ -14,9 +14,12 @@ export interface Invariant {
   /** If set, invariant only applies to these languages. Omit for all languages. */
   languages?: Language[]
   /**
-   * Per-language variant of title.
-   * Used instead of title when language matches.
-   * Required for every entry in `languages` when languages is set.
+   * Per-language variant of title. Used instead of title when language matches.
+   *
+   * `Partial<Record<Language, string>>` is intentional: the Language union is
+   * broader than any single `languages` array, so requiring all keys would
+   * force meaningless entries. When set, MUST cover every language declared in
+   * `languages` — enforced at gate time by the catalog-parity test (#680).
    */
   languageDetail?: Partial<Record<Language, string>>
   /**
@@ -25,8 +28,10 @@ export interface Invariant {
    */
   minGovernanceLevel?: GovernanceLevel
   /**
-   * True for Tier 1 (architectural) and Tier 5 (governance) —
-   * always included regardless of invariantTiers selection.
+   * Bypasses the invariantTiers filter — this invariant appears regardless of
+   * which tiers the caller selects. minGovernanceLevel is still enforced.
+   * In practice: architectural/governance rules, plus security rules at L2+
+   * that must not be excluded just because a project picked a narrower preset.
    */
   alwaysActive: boolean
   /** How this invariant is enforced (e.g. "hook + CI", "CI only", "manual") */
@@ -45,4 +50,9 @@ export interface Invariant {
    * Only set when status is "retired".
    */
   redirectTo?: string
+  /**
+   * True for invariants that only apply to arbiter's own development.
+   * These are excluded from generated target-project AGENTS.md / GLOBAL_INVARIANTS.md.
+   */
+  selfOnly?: boolean
 }

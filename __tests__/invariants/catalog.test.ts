@@ -141,6 +141,18 @@ describe('INVARIANT_CATALOG', () => {
     }
   })
 
+  it('languageDetail covers every language declared in languages (#680)', () => {
+    for (const inv of INVARIANT_CATALOG) {
+      if (!inv.languages || !inv.languageDetail) continue
+      for (const lang of inv.languages) {
+        expect(
+          inv.languageDetail[lang],
+          `${inv.id} missing languageDetail for declared language "${lang}"`,
+        ).toBeTruthy()
+      }
+    }
+  })
+
   it('INV-04 is in Tier 1 and is language-specific', () => {
     const inv04 = INVARIANT_CATALOG.find((inv) => inv.id === 'INV-04')
     expect(inv04?.tier).toBe('architectural')
@@ -323,22 +335,22 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-28')
   })
 
-  it('returns 57 for TypeScript + L3 + all tiers (INV-29/30/44 Java-only excluded)', () => {
+  it('returns 46 for TypeScript + L3 + all tiers (INV-29/30/44 Java-only + 11 selfOnly excluded)', () => {
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(57)
+    expect(result).toHaveLength(46)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
     expect(ids).toContain('INV-31')
-    expect(ids).toContain('INV-32')
+    expect(ids).not.toContain('INV-32')
     expect(ids).toContain('INV-33')
     expect(ids).toContain('INV-34')
     expect(ids).toContain('INV-35')
-    expect(ids).toContain('INV-36')
+    expect(ids).not.toContain('INV-36')
     expect(ids).toContain('INV-37')
     expect(ids).toContain('INV-40')
   })
@@ -408,31 +420,31 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it('Java + L2 + all tiers returns 56 invariants (L3-gated INV-27/28/33 excluded)', () => {
+  it('Java + L2 + all tiers returns 45 invariants (L3-gated INV-27/28/33 + 11 selfOnly excluded)', () => {
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(56)
+    expect(result).toHaveLength(45)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
     expect(ids).toContain('INV-31')
-    expect(ids).toContain('INV-32')
+    expect(ids).not.toContain('INV-32')
     expect(ids).toContain('INV-34')
     expect(ids).toContain('INV-35')
     expect(ids).not.toContain('INV-27')
     expect(ids).not.toContain('INV-28')
   })
 
-  it('Java + L3 + all tiers returns all 59 invariants', () => {
+  it('Java + L3 + all tiers returns 48 invariants (11 selfOnly excluded)', () => {
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(59)
+    expect(result).toHaveLength(48)
   })
 
   it('essential preset at L1 returns minimal set', () => {
@@ -447,6 +459,53 @@ describe('getFilteredInvariants', () => {
     expect(tiers.has('data')).toBe(false)
     expect(tiers.has('security')).toBe(false)
     expect(tiers.has('operational')).toBe(false)
+  })
+
+  // selfOnly filtering (#682)
+  it('default excludes selfOnly invariants (target-project generation context)', () => {
+    const result = getFilteredInvariants({
+      language: 'typescript',
+      governanceLevel: 'L3',
+      invariantTiers: ALL_TIERS,
+    })
+    const ids = result.map((inv) => inv.id)
+    expect(ids).not.toContain('INV-32')
+    expect(ids).not.toContain('INV-45')
+    expect(ids).not.toContain('INV-49')
+    expect(ids).not.toContain('INV-50')
+    expect(ids).not.toContain('INV-51')
+  })
+
+  it('includeArbiterInternal:true includes selfOnly invariants', () => {
+    const result = getFilteredInvariants({
+      language: 'typescript',
+      governanceLevel: 'L3',
+      invariantTiers: ALL_TIERS,
+      includeArbiterInternal: true,
+    })
+    const ids = result.map((inv) => inv.id)
+    expect(ids).toContain('INV-32')
+    expect(ids).toContain('INV-45')
+    expect(ids).toContain('INV-49')
+    expect(ids).toContain('INV-50')
+    expect(ids).toContain('INV-51')
+  })
+
+  it('catalog has exactly 11 selfOnly invariants (#682)', () => {
+    const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
+    expect(selfOnly).toHaveLength(11)
+    const ids = selfOnly.map((inv) => inv.id)
+    expect(ids).toContain('INV-32')
+    expect(ids).toContain('INV-36')
+    expect(ids).toContain('INV-39')
+    expect(ids).toContain('INV-45')
+    expect(ids).toContain('INV-46')
+    expect(ids).toContain('INV-47')
+    expect(ids).toContain('INV-48')
+    expect(ids).toContain('INV-49')
+    expect(ids).toContain('INV-50')
+    expect(ids).toContain('INV-51')
+    expect(ids).toContain('INV-52')
   })
 })
 

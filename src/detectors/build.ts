@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Language } from '../wizard/types.js'
+import { readPackageJsonSafe } from '../utils/safe-read.js'
 
 export interface BuildCommands {
   buildTool: string
@@ -103,13 +104,7 @@ function detectJavaCommands(dir: string): BuildCommands {
   }
 }
 
-function readPackageJson(dir: string): Record<string, unknown> {
-  try {
-    return JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')) as Record<string, unknown>
-  } catch {
-    return {}
-  }
-}
+const readPackageJson = readPackageJsonSafe
 
 function hasScript(pkg: Record<string, unknown>, name: string): boolean {
   const scripts = pkg['scripts']

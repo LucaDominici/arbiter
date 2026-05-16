@@ -482,6 +482,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'exercise the full arbiter pipeline (init → verify → check-all) against it. ' +
       "Promoting a language to 'proven' without a fixture is rejected by the L1 gate.",
     alwaysActive: true,
+    selfOnly: true,
     enforcement:
       'CI gate (scripts/check-matrix-fixtures.mjs — L1) + nightly real-project-matrix workflow',
   },
@@ -558,6 +559,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'that exits 0 on violation, fails CI. This prevents silent ceremony regression — where a hook ' +
       'is declared hard but silently exits 0.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement:
       'L1 gate (scripts/check-hardness-inventory.mjs) — drift and empirical exit-code assertions on every CI run',
   },
@@ -607,6 +609,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'empirical fire-test in __tests__/hooks/empirical/. Adding a hook template without a ' +
       'corresponding test is a gate violation.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement:
       '__tests__/hooks/empirical/hook-fires.test.ts (22 tests covering all 14 hook templates)',
   },
@@ -710,6 +713,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'This invariant prevents arbiter from shipping stale template skeletons that diverge from ' +
       'its own governance without an explicit documented reason.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement: 'scripts/check-self-dogfood.mjs (L2 gate check) — exits 1 on unexpected drift',
   },
 
@@ -727,6 +731,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Bypass surfaces: ARBITER_PLAN_BYPASS=1 (Survey gate) and ALLOW_BLOAT=1 (ratchet), ' +
       'both session-scoped and documented in CONTRIBUTING.md.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement:
       '.claude/hooks/pre-edit-plan-anchor.mjs (CANON-16 Survey gate, exit 2) + ' +
       'scripts/check-bloat-ratchet.mjs (L1 ratchet) + ' +
@@ -743,6 +748,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'correct gate level (L1, L2, or L3). Pre-existing gaps (e.g. mutation testing) are tracked ' +
       'in .matrix-proven-cells-exceptions.json with TODO references to the wiring issue.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement: 'scripts/check-matrix-proven-cells.mjs (L1 gate)',
   },
 
@@ -756,6 +762,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Enforced via ratchet: the count of untested EJS files must not exceed the committed ' +
       'baseline (.template-tests-baseline.txt). Run with --update-baseline when adding tests.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement: 'scripts/check-template-tests.mjs (L1 ratchet gate)',
   },
 
@@ -768,6 +775,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'covering the happy path, idempotency, and at least one negative case. ' +
       'Untested generators can silently emit wrong governance content into target projects.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement: 'scripts/check-generator-tests.mjs (L1 gate)',
   },
 
@@ -780,6 +788,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '__tests__/commands/*.test.ts (prefix-match: review.ts is covered by review-code.test.ts). ' +
       'CLI commands are the user entry point; untested commands cannot be refactored safely.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement: 'scripts/check-command-tests.mjs (L1 gate)',
   },
 
@@ -793,6 +802,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'AI agents and new contributors. Invariants that exist only in code are invisible ' +
       'to the governance layer.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement: 'scripts/check-catalog-agents-parity.mjs (L1 gate)',
   },
 
@@ -806,6 +816,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'not wired is a false guarantee — callers of the gate will believe it checks ' +
       'something it does not.',
     alwaysActive: true,
+    selfOnly: true,
     enforcement: 'scripts/check-inv-enforcement-wired.mjs (L1 gate)',
   },
 

@@ -63,16 +63,18 @@ export function loadConfig(dir: string): ArbiterConfig | null {
     raw = JSON.parse(readFileSync(path, 'utf-8'))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[arbiter] arbiter.json at ${path} has invalid JSON (${msg}) — ignoring`)
-    return null
+    throw new Error(`arbiter.json at ${path} has invalid JSON: ${msg}. Fix or delete and re-run.`, {
+      cause: err,
+    })
   }
   try {
     const migrated = migrate(raw)
     return applyEnvOverrides(migrated, process.env)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(`[arbiter] arbiter.json at ${path} failed migration (${msg}) — ignoring`)
-    return null
+    throw new Error(`arbiter.json at ${path} failed migration: ${msg}. Fix or delete and re-run.`, {
+      cause: err,
+    })
   }
 }
 

@@ -36,11 +36,11 @@ describe('writeFile', () => {
     expect(readFileSync(path, 'utf-8')).toBe('original')
   })
 
-  it('overwrites existing file when no options set', () => {
+  it('overwrites existing file when no options set — action is replaced (no backup)', () => {
     const path = join(dir, 'existing.txt')
     writeFileSync(path, 'original')
     const result = writeFile(path, 'new content')
-    expect(result.action).toBe('backed-up-and-replaced')
+    expect(result.action).toBe('replaced')
     expect(readFileSync(path, 'utf-8')).toBe('new content')
   })
 

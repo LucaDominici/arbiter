@@ -306,6 +306,38 @@ describe('detectArchetypeHint', () => {
     })
   })
 
+  describe('multi-language composite archetypes (#628)', () => {
+    it('express+spring-boot → backend-web-db (both sides backend)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'multi', 'express+spring-boot')).toBe('backend-web-db')
+    })
+
+    it('next+quarkus → backend-web-db (both sides backend)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'multi', 'next+quarkus')).toBe('backend-web-db')
+    })
+
+    it('fastify+quarkus → backend-web-db (both sides backend)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'multi', 'fastify+quarkus')).toBe('backend-web-db')
+    })
+
+    it('tauri+spring-boot → backend-web-db (frontend TS + Java backend → backend wins)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'multi', 'tauri+spring-boot')).toBe('backend-web-db')
+    })
+
+    it('tauri+react+spring-boot → backend-web-db (TS composite + Java backend → backend wins)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'multi', 'tauri+react+spring-boot')).toBe(
+        'backend-web-db',
+      )
+    })
+
+    it('tauri+react in multi context → frontend-spa (TS-only composite, no Java side)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'multi', 'tauri+react')).toBe('frontend-spa')
+    })
+
+    it('multi + null framework → backend-web-db (language fallback unchanged)', () => {
+      expect(detectArchetypeHint(ANY_DIR, 'multi', null)).toBe('backend-web-db')
+    })
+  })
+
   describe('languages with no reliable archetype heuristic return null', () => {
     it('go returns null', () => {
       expect(detectArchetypeHint(ANY_DIR, 'go', null)).toBeNull()
