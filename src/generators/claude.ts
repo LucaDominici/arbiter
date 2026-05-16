@@ -143,18 +143,14 @@ function generateClaudeHooks(
     )
   }
 
-  results.push(
-    writeFile(join(hooksDir, 'lib.mjs'), renderTemplate('claude/hooks/lib.mjs.ejs', data), {
-      skipIfExists: true,
-    }),
-  )
-  results.push(
-    writeFile(
-      join(hooksDir, 'post-commit-check.mjs'),
-      renderTemplate('claude/hooks/post-commit-check.mjs.ejs', data),
-      { skipIfExists: true },
-    ),
-  )
+  const baseEjsHooks = ['lib.mjs', 'post-commit-check.mjs', 'pre-task-track-detect.mjs']
+  for (const hookFile of baseEjsHooks) {
+    results.push(
+      writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
+        skipIfExists: true,
+      }),
+    )
+  }
 
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(
@@ -181,15 +177,6 @@ function generateClaudeHooks(
       results.push(writeFile(join(hooksDir, hook.name), hook.body, { skipIfExists: true }))
     }
   }
-
-  // Track-detection hook — UserPromptSubmit (#720)
-  results.push(
-    writeFile(
-      join(hooksDir, 'pre-task-track-detect.mjs'),
-      renderTemplate('claude/hooks/pre-task-track-detect.mjs.ejs', data),
-      { skipIfExists: true },
-    ),
-  )
 
   // Advanced hooks — generated for all governance levels
   for (const hookFile of ['pre-edit-plan-anchor.mjs', 'pre-compact.mjs']) {
