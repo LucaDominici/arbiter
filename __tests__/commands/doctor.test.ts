@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import os from 'node:os'
 import { join } from 'node:path'
-import { runDoctorRepairState, runDoctorHealth } from '../../src/commands/doctor.js'
+import {
+  runDoctorRepairState,
+  runDoctorHealth,
+  runDoctorRecoverLock,
+} from '../../src/commands/doctor.js'
 import { defaultConfig, saveConfig, saveConfigAndSnapshot } from '../../src/utils/config.js'
+import type { LockInfo } from '../../src/utils/file-lock.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({
   runCli: vi.fn(),
@@ -90,6 +96,75 @@ describe('runDoctorHealth (#539)', () => {
     expect(typeof result.fail).toBe('number')
     expect(result.pass + result.warn + result.fail).toBe(result.checks.length)
   })
+
+  // #618 — doctor health reports stale lockfiles
+
+  function writeLock(dir: string, overrides: Partial<LockInfo> = {}): void {
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    const info: LockInfo = {
+      pid: 12345,
+      hostname: os.hostname(),
+      bootId: 'test-boot-id',
+      startedAt: new Date(Date.now() - 10_000).toISOString(),
+      cmd: 'arbiter update',
+      nonce: 'aabbccdd',
+      ...overrides,
+    }
+    writeFileSync(join(dir, '.arbiter', '.lock'), JSON.stringify(info), 'utf-8')
+  }
+
+  it('PASS arbiter-lock when no lock file exists (#618)', () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    const result = runDoctorHealth({ dir, json: true })
+    const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
+    expect(lockCheck?.status).toBe('PASS')
+    expect(lockCheck?.label).toMatch(/not present/i)
+  })
+
+  it('WARN arbiter-lock when lock PID is dead on same host (#618)', () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    // PID 1 may exist; use a high improbable PID
+    writeLock(dir, { pid: 999_999_999 })
+    const result = runDoctorHealth({ dir, json: true })
+    const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
+    expect(lockCheck?.status).toBe('WARN')
+    expect(lockCheck?.hint).toMatch(/recover-lock/)
+  })
+
+  it('WARN arbiter-lock when lock age exceeds 6h on same host (#618)', () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    writeLock(dir, {
+      pid: process.pid,
+      startedAt: new Date(Date.now() - 7 * 3600_000).toISOString(),
+    })
+    const result = runDoctorHealth({ dir, json: true })
+    const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
+    expect(lockCheck?.status).toBe('WARN')
+  })
+
+  it('PASS arbiter-lock when lock from a different host (#618)', () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    writeLock(dir, { hostname: 'some-other-host-not-real' })
+    const result = runDoctorHealth({ dir, json: true })
+    const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
+    // Different-host locks are reported as active (we can't tell if process is alive remotely).
+    expect(lockCheck?.status).toBe('PASS')
+    expect(lockCheck?.detail).toMatch(/other host/i)
+  })
+
+  it('WARN arbiter-lock when lock file is unreadable / invalid JSON (#618)', () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    writeFileSync(join(dir, '.arbiter', '.lock'), 'not-valid-json', 'utf-8')
+    const result = runDoctorHealth({ dir, json: true })
+    const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
+    expect(lockCheck?.status).toBe('WARN')
+  })
 })
 
 // ── runDoctorRepairState (#619) ───────────────────────────────────────────────
@@ -139,5 +214,70 @@ describe('runDoctorRepairState (#619)', () => {
     runDoctorRepairState({ dir, json: true })
     const after = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
     expect(after).toBe(before)
+  })
+})
+
+// ── runDoctorRecoverLock (#618) ───────────────────────────────────────────────
+
+describe('runDoctorRecoverLock (#618)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-recover-'))
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    vi.clearAllMocks()
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  function writeLock(overrides: Partial<LockInfo> = {}): LockInfo {
+    const info: LockInfo = {
+      pid: 12345,
+      hostname: os.hostname(),
+      bootId: 'test-boot-id',
+      startedAt: new Date(Date.now() - 10000).toISOString(),
+      cmd: 'arbiter update',
+      nonce: 'aabbccdd',
+      ...overrides,
+    }
+    writeFileSync(join(dir, '.arbiter', '.lock'), JSON.stringify(info), 'utf-8')
+    return info
+  }
+
+  it('returns found:false when no lock file exists', async () => {
+    const result = await runDoctorRecoverLock({ dir, json: true })
+    expect(result.found).toBe(false)
+    expect(result.released).toBe(false)
+  })
+
+  it('releases existing lock → found:true, released:true, lock file gone', async () => {
+    writeLock()
+    const result = await runDoctorRecoverLock({ dir, json: true })
+    expect(result.found).toBe(true)
+    expect(result.released).toBe(true)
+    expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(false)
+  })
+
+  it('result.info contains hostname, pid, cmd from the lock', async () => {
+    writeLock({ pid: 9876, cmd: 'arbiter init', hostname: os.hostname() })
+    const result = await runDoctorRecoverLock({ dir, json: true })
+    expect(result.info?.pid).toBe(9876)
+    expect(result.info?.cmd).toBe('arbiter init')
+    expect(result.info?.hostname).toBe(os.hostname())
+  })
+
+  it('rejects symlink at lock path (SEC-5)', async () => {
+    const { symlinkSync } = await import('node:fs')
+    const lockDir = join(dir, '.arbiter')
+    const realFile = join(lockDir, 'real-lock')
+    const lockInfo: LockInfo = {
+      pid: 12345,
+      hostname: os.hostname(),
+      bootId: 'x',
+      startedAt: new Date().toISOString(),
+      cmd: 'x',
+      nonce: 'x',
+    }
+    writeFileSync(realFile, JSON.stringify(lockInfo), 'utf-8')
+    symlinkSync(realFile, join(lockDir, '.lock'))
+    await expect(runDoctorRecoverLock({ dir, json: false })).rejects.toThrow(/symlink/i)
   })
 })

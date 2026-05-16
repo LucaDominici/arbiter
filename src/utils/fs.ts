@@ -15,6 +15,18 @@ const ENOSPC_MSGS: Record<string, (path: string) => string> = {
   EACCES: (p) => `Permission denied writing ${p}. Check file ownership and directory permissions.`,
   EROFS: (p) => `Cannot write ${p} — filesystem is read-only. Check mount options.`,
   EDQUOT: (p) => `Disk quota exceeded while writing ${p}. Free up space or raise your quota.`,
+  EPERM: (p) =>
+    `Operation not permitted writing ${p}. Common causes:\n` +
+    `  1. Immutable bit set — check with \`lsattr ${p}\`, clear with \`chattr -i ${p}\`\n` +
+    `  2. SELinux/AppArmor denial — check with \`ausearch -m AVC\` or \`dmesg | grep denied\`\n` +
+    `  3. POSIX ACL restriction — check with \`getfacl ${p}\`\n` +
+    `  4. Different owner — check with \`ls -la ${p}\``,
+  ENOTDIR: (p) =>
+    `Cannot write ${p} — a component of the path is not a directory. ` +
+    `Check that no intermediate path segment is a regular file.`,
+  EISDIR: (p) =>
+    `Cannot write ${p} — target is a directory, expected a file. ` +
+    `Remove or rename the directory at that path first.`,
 }
 
 function atomicWrite(filePath: string, content: string): void {
@@ -82,6 +94,12 @@ export function _cleanupInFlightTmpFiles(): void {
 /** Exposed for testing only — registers a path as in-flight. */
 export function _registerTmpPath(p: string): void {
   inFlightTmpPaths.add(p)
+}
+
+/** Exposed for testing only — returns translated UserFacingError message for errno code, or null if not mapped. */
+export function _translateFsError(code: string, path: string): string | null {
+  const factory = ENOSPC_MSGS[code]
+  return factory ? factory(path) : null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

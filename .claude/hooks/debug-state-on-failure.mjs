@@ -6,7 +6,7 @@
 // Always exits 0 (non-blocking)
 
 import { readTaskState, getRepoRoot, logWarn } from './lib.mjs'
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readFileSync, openSync, closeSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
@@ -55,46 +55,41 @@ const branch =
     cwd: root,
   }).stdout?.trim() ?? 'unknown'
 
-if (existsSync(debugFile)) {
-  // Increment failure count and append history entry
-  let content = readFileSync(debugFile, 'utf-8')
-  const match = content.match(/\*\*Failure Count:\*\*\s*(\d+)/)
-  const count = match ? parseInt(match[1], 10) + 1 : 2
-
-  content = content.replace(/\*\*Failure Count:\*\*\s*\d+/, `**Failure Count:** ${count}`)
-  content +=
-    `\n### Attempt ${count} — ${timestamp}\n\n` +
-    `- **Command:** \`${command}\`\n` +
-    `- **Result:** FAIL\n` +
-    `- **Output (truncated):** ${errorOutput.slice(0, 500)}\n`
-
-  writeFileSync(debugFile, content, 'utf-8')
-  process.stderr.write(`[DEBUG-STATE] Failure #${count} recorded in ${debugFile}\n`)
-} else {
-  // Create new DEBUG_STATE.md
-  const content =
+// Atomically create header on first invocation (O_CREAT|O_EXCL — concurrent racers skip)
+try {
+  const fd = openSync(debugFile, 'wx')
+  closeSync(fd)
+  appendFileSync(
+    debugFile,
     `# Debug State — Task ${taskId}\n\n` +
-    `**Created:** ${timestamp}\n` +
-    `**Branch:** ${branch}\n` +
-    `**Failure Count:** 1\n\n` +
-    `---\n\n` +
-    `## Current Hypothesis\n\n` +
-    `_To be filled by the agent after analyzing the failure._\n\n` +
-    `## Command Run\n\n` +
-    `\`\`\`bash\n${command}\n\`\`\`\n\n` +
-    `## Output (truncated)\n\n` +
-    `\`\`\`\n${errorOutput.slice(0, 1000)}\n\`\`\`\n\n` +
-    `## Next Action\n\n` +
-    `_To be determined after root-cause analysis._\n\n` +
-    `---\n\n` +
-    `## History\n\n` +
-    `### Attempt 1 — ${timestamp}\n\n` +
-    `- **Command:** \`${command}\`\n` +
-    `- **Result:** FAIL\n` +
-    `- **Output (truncated):** ${errorOutput.slice(0, 500)}\n`
-
-  writeFileSync(debugFile, content, 'utf-8')
-  process.stderr.write(`[DEBUG-STATE] Failure #1 recorded in ${debugFile}\n`)
+      `**Created:** ${timestamp}\n` +
+      `**Branch:** ${branch}\n\n` +
+      `---\n\n` +
+      `## Current Hypothesis\n\n` +
+      `_To be filled by the agent after analyzing the failure._\n\n` +
+      `## Command Run\n\n` +
+      `\`\`\`bash\n${command}\n\`\`\`\n\n` +
+      `## Output (truncated)\n\n` +
+      `\`\`\`\n${errorOutput.slice(0, 1000)}\n\`\`\`\n\n` +
+      `## Next Action\n\n` +
+      `_To be determined after root-cause analysis._\n\n` +
+      `---\n\n` +
+      `## History\n\n`,
+    'utf-8',
+  )
+} catch {
+  // EEXIST — file already exists, skip header
 }
 
+// Atomic append for this attempt entry (POSIX atomic for writes < PIPE_BUF ~4KB)
+appendFileSync(
+  debugFile,
+  `### Attempt — ${timestamp}\n\n` +
+    `- **Command:** \`${command}\`\n` +
+    `- **Result:** FAIL\n` +
+    `- **Output (truncated):** ${errorOutput.slice(0, 500)}\n`,
+  'utf-8',
+)
+
+process.stderr.write(`[DEBUG-STATE] Failure recorded in ${debugFile}\n`)
 logWarn(`debug-state: failure captured for command: ${command.slice(0, 80)}`)

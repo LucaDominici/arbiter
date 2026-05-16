@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { runUpdate } from '../../src/commands/update.js'
 
 vi.mock('../../src/utils/config.js', () => ({
@@ -103,8 +106,11 @@ const BASE_CONFIG = {
 
 describe('update --json', () => {
   let written: string
+  let dir: string
 
   beforeEach(() => {
+    // Unique tmpdir per test so `.arbiter/.lock` from concurrent test workers does not collide (#614).
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-update-json-'))
     written = ''
     vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
       written += String(chunk)
@@ -115,13 +121,14 @@ describe('update --json', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    rmSync(dir, { recursive: true, force: true })
   })
 
   it('emits JSON envelope on success', async () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    await runUpdate({ dir: '/tmp/fake', github: false, json: true })
+    await runUpdate({ dir, github: false, json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('update')
@@ -143,9 +150,7 @@ describe('update --json', () => {
       throw new Error('process.exit')
     })
 
-    await expect(runUpdate({ dir: '/tmp/fake', github: false, json: true })).rejects.toThrow(
-      'process.exit',
-    )
+    await expect(runUpdate({ dir, github: false, json: true })).rejects.toThrow('process.exit')
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.status).toBe('error')

@@ -6,9 +6,9 @@
 //     matrix proven cells, template tests, generator tests, command tests, catalog parity,
 //     enforcement wired, workflow runners, ci alignment, node version ssot, bloat ratchet,
 //     exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
-//     canonical paths (31)
+//     canonical paths, plugin api stability, deprecations, hook contracts (36)
 // L2: L1 + coverage + dead code + duplication + npm audit + gitleaks + dogfood +
-//     self-validation drill + local-ci parity (40)
+//     self-validation drill + local-ci parity + id stability + anti-telemetry + tdd-evidence (48)
 // L3: L2 + full repo secrets scan (nightly/manual)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
@@ -90,6 +90,7 @@ runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
 runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
 runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
+runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

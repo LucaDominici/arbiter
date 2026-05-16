@@ -10,7 +10,7 @@ import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
-import { runDoctorRepairState, runDoctorHealth } from './commands/doctor.js'
+import { runDoctorRepairState, runDoctorHealth, runDoctorRecoverLock } from './commands/doctor.js'
 import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
@@ -704,6 +704,22 @@ doctor
       json: opts.json,
     })
     if (result.exitCode !== 0) process.exit(result.exitCode)
+  })
+
+doctor
+  .command('recover-lock')
+  .description('Force-release a stale .arbiter/.lock file left by a crashed process')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    runDoctorRecoverLock({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+    }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    })
   })
 
 const task = program.command('task').description('Manage task lifecycle state')

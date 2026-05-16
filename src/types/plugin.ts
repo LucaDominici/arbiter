@@ -10,8 +10,8 @@ export interface ArbiterPlugin {
   name: string
   apiVersion: '1'
   templateRoot: string
-  detect?(config: ArbiterConfig): boolean
-  generate(ctx: PluginContext): PluginResult
+  detect?(config: ArbiterConfig): boolean | Promise<boolean>
+  generate(ctx: PluginContext): PluginResult | Promise<PluginResult>
   verifyPlanRules?: VerifyPlanRule[]
 }
 

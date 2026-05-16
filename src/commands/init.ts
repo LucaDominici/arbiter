@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync, existsSync, copyFileSync, unlinkSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
+import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, ArbiterError } from '../utils/errors.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { runProbes } from '../compatibility/probe.js'
@@ -114,62 +115,68 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   assertNotNativeWindows()
 
-  showTelemetryBannerIfFirstRun(undefined, options.quiet)
+  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  try {
+    showTelemetryBannerIfFirstRun(undefined, options.quiet)
 
-  log('\n  Arbiter — AI Development Governance Framework\n')
-  log('  Detecting project...')
+    log('\n  Arbiter — AI Development Governance Framework\n')
+    log('  Detecting project...')
 
-  const language = detectLanguage(targetDir)
-  const framework = detectFramework(targetDir, language)
-  const buildCmds = detectBuildCommands(targetDir, language)
-  const gitInfo = detectGitInfo(targetDir)
-  const existing = detectExisting(targetDir)
-  const githubAccess = detectGithubAccess()
-  const lanesResult = detectLanes(targetDir)
+    const language = detectLanguage(targetDir)
+    const framework = detectFramework(targetDir, language)
+    const buildCmds = detectBuildCommands(targetDir, language)
+    const gitInfo = detectGitInfo(targetDir)
+    const existing = detectExisting(targetDir)
+    const githubAccess = detectGithubAccess()
+    const lanesResult = detectLanes(targetDir)
 
-  log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
-  log(`  ├── Build: ${buildCmds.buildTool}`)
-  log(
-    `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
-  )
-  if (githubAccess.authenticated)
-    log(`  ├── GitHub: authenticated as ${githubAccess.username ?? 'unknown'}`)
-  if (!options.json) logExistingDetections(existing)
+    log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
+    log(`  ├── Build: ${buildCmds.buildTool}`)
+    log(
+      `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
+    )
+    if (githubAccess.authenticated)
+      log(`  ├── GitHub: authenticated as ${githubAccess.username ?? 'unknown'}`)
+    if (!options.json) logExistingDetections(existing)
 
-  if (gitInfo.isGitRepo) {
-    guardAdverseGitState(targetDir, options.force)
-    if (options.brownfield) {
-      guardBrownfieldDirtyTree(targetDir, options.force)
+    if (gitInfo.isGitRepo) {
+      guardAdverseGitState(targetDir, options.force)
+      if (options.brownfield) {
+        guardBrownfieldDirtyTree(targetDir, options.force)
+      }
     }
+
+    const recipe = await loadRecipeFromOptions(options, log)
+
+    const config = await resolveConfig({
+      options,
+      recipe,
+      targetDir,
+      projectName,
+      language,
+      framework,
+      buildCmds,
+      gitInfo,
+      existing,
+      githubAccess,
+      lanes: lanesResult.lanes,
+      log,
+    })
+    if (config === null) return
+
+    applyPresetOptions(options, config)
+
+    if (options.dryRun) {
+      displayDryRunPreview(config)
+      return
+    }
+
+    checkL3MaturityGates(config)
+    await generateAndFinalize(config, targetDir, options, log)
+  } finally {
+    await lock.release()
   }
-
-  const recipe = await loadRecipeFromOptions(options, log)
-
-  const config = await resolveConfig({
-    options,
-    recipe,
-    targetDir,
-    projectName,
-    language,
-    framework,
-    buildCmds,
-    gitInfo,
-    existing,
-    githubAccess,
-    lanes: lanesResult.lanes,
-    log,
-  })
-  if (config === null) return
-
-  applyPresetOptions(options, config)
-
-  if (options.dryRun) {
-    displayDryRunPreview(config)
-    return
-  }
-
-  checkL3MaturityGates(config)
-  await generateAndFinalize(config, targetDir, options, log)
 }
 
 function emitInitOutput(
@@ -449,7 +456,7 @@ export async function runPlugins(
   for (const pkg of plugins) {
     try {
       const plugin = await loadPlugin(pkg, targetDir)
-      if (plugin.detect && !plugin.detect(storedConfig)) continue
+      if (plugin.detect && !(await plugin.detect(storedConfig))) continue
       const ctx = {
         config: storedConfig,
         targetDir,
@@ -457,7 +464,7 @@ export async function runPlugins(
           return renderFromAbsPath(join(plugin.templateRoot, relPath), data)
         },
       }
-      const result = plugin.generate(ctx)
+      const result = await plugin.generate(ctx)
       if (!Array.isArray(result.files)) {
         console.warn(
           `  [arbiter] Plugin "${pkg}" returned invalid result (no files array). Skipping.`,

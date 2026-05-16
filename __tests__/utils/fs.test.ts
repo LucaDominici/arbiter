@@ -8,6 +8,7 @@ import {
   mergeSettingsJson,
   _cleanupInFlightTmpFiles,
   _registerTmpPath,
+  _translateFsError,
 } from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
@@ -270,5 +271,35 @@ describe('atomic write + signal cleanup (#613)', () => {
     writeFile(path, 'content')
     const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
     expect(orphans).toHaveLength(0)
+  })
+})
+
+describe('ENOSPC_MSGS errno translation (#616)', () => {
+  const path = '/some/path/file.txt'
+
+  it('translates EPERM with all four Linux cause hints', () => {
+    const msg = _translateFsError('EPERM', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toMatch(/lsattr|chattr/i)
+    expect(msg).toMatch(/SELinux|AppArmor|ausearch/i)
+    expect(msg).toMatch(/getfacl|ACL/i)
+    expect(msg).toMatch(/owner/i)
+  })
+
+  it('translates ENOTDIR with not-a-directory hint', () => {
+    const msg = _translateFsError('ENOTDIR', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toMatch(/not a directory/i)
+  })
+
+  it('translates EISDIR with is-a-directory hint', () => {
+    const msg = _translateFsError('EISDIR', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toMatch(/directory/i)
+  })
+
+  it('returns null for unmapped codes', () => {
+    expect(_translateFsError('ENOENT', path)).toBeNull()
+    expect(_translateFsError('UNKNOWN', path)).toBeNull()
   })
 })

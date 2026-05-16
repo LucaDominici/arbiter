@@ -40,7 +40,7 @@ describe('loadPlugin', () => {
   it('plugin generate returns files with expected shape', async () => {
     installFixture(dir, 'mock-arbiter-plugin', 'mock-plugin')
     const plugin = await loadPlugin('mock-arbiter-plugin', dir)
-    const result = plugin.generate({
+    const result = await plugin.generate({
       config: {
         version: '0.1',
         tools: ['claude'],
@@ -66,5 +66,54 @@ describe('loadPlugin', () => {
 
   it('throws a descriptive error when package is not installed', async () => {
     await expect(loadPlugin('nonexistent-plugin', dir)).rejects.toThrow(/not found/)
+  })
+
+  it('hanging plugin times out and rejects with UserFacingError', async () => {
+    installFixture(dir, 'hanging-plugin', 'hanging')
+    const plugin = await loadPlugin('hanging-plugin', dir, { invokeTimeoutMs: 2_000 })
+    await expect(
+      plugin.generate({
+        config: { version: '0.1', tools: ['claude'], governanceLevel: 'L2', useGitHub: false },
+        targetDir: dir,
+        renderTemplate: () => '',
+      }),
+    ).rejects.toThrow(/timed out/)
+  }, 10_000)
+
+  it('throwing plugin surfaces error through message port', async () => {
+    installFixture(dir, 'throwing-plugin', 'throwing')
+    const plugin = await loadPlugin('throwing-plugin', dir)
+    await expect(
+      plugin.generate({
+        config: { version: '0.1', tools: ['claude'], governanceLevel: 'L2', useGitHub: false },
+        targetDir: dir,
+        renderTemplate: () => '',
+      }),
+    ).rejects.toThrow(/plugin generate failed intentionally/)
+  })
+
+  it('crashing plugin rejects with exit code error', async () => {
+    installFixture(dir, 'crashing-plugin', 'crashing')
+    const plugin = await loadPlugin('crashing-plugin', dir)
+    await expect(
+      plugin.generate({
+        config: { version: '0.1', tools: ['claude'], governanceLevel: 'L2', useGitHub: false },
+        targetDir: dir,
+        renderTemplate: () => '',
+      }),
+    ).rejects.toThrow(/crashed.*exit code/)
+  })
+
+  it('detect() invocation runs in worker and returns boolean', async () => {
+    installFixture(dir, 'detecting-plugin', 'detecting')
+    const plugin = await loadPlugin('detecting-plugin', dir)
+    expect(typeof plugin.detect).toBe('function')
+    const result = await plugin.detect!({
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+    })
+    expect(result).toBe(true)
   })
 })
