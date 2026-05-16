@@ -40,10 +40,10 @@ function readAgentsDispatched(root) {
 }
 
 const root = getRepoRoot()
-const { phase, tier } = readTaskState(root)
+const { taskId, phase, tier } = readTaskState(root)
 
-// Only guard during implementation or verification phase
-if (phase !== 'implementation' && phase !== 'verification') process.exit(0)
+// Only guard during implementation, green, or verification phase
+if (phase !== 'implementation' && phase !== 'green' && phase !== 'verification') process.exit(0)
 
 // Read user prompt from stdin (UserPromptSubmit JSON protocol)
 let promptText = ''
@@ -69,11 +69,22 @@ if (dispatched < minRequired) {
   warnings.push(`- agents-dispatched: ${dispatched} (minimum ${minRequired} for tier ${tier})`)
 }
 
+// Check TDD evidence when ARBITER_SKIP_TDD is not set (or is not '1' for non-L1)
+const skipTdd = process.env.ARBITER_SKIP_TDD === '1'
+if (!skipTdd && taskId !== 'unknown') {
+  const evidencePath = join(root, '.arbiter', 'evidence', 'tdd', `${taskId}.json`)
+  if (!existsSync(evidencePath)) {
+    warnings.push(
+      `- TDD evidence missing at ${evidencePath} — run \`arbiter task record-red --test-path <path>\` first`,
+    )
+  }
+}
+
 process.stderr.write(
   `━━━ COMPLETION GUARD ━━━\n` +
     `Premature task-completion claim detected.\n` +
     `Missing evidence:\n${warnings.join('\n')}\n\n` +
-    `Required before completion: resolve review/verifier findings, run node scripts/check-all.mjs L2, commit, push, merge PR, then set phase=complete.\n` +
+    `Required before completion: record TDD evidence, resolve review/verifier findings, run node scripts/check-all.mjs L2, commit, push, merge PR, then set phase=complete.\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
 )
 process.exit(2)
