@@ -14,9 +14,12 @@ export interface Invariant {
   /** If set, invariant only applies to these languages. Omit for all languages. */
   languages?: Language[]
   /**
-   * Per-language variant of title.
-   * Used instead of title when language matches.
-   * Must cover every entry declared in `languages` (validated by catalog tests).
+   * Per-language variant of title. Used instead of title when language matches.
+   *
+   * `Partial<Record<Language, string>>` is intentional: the Language union is
+   * broader than any single `languages` array, so requiring all keys would
+   * force meaningless entries. When set, MUST cover every language declared in
+   * `languages` — enforced at gate time by the catalog-parity test (#680).
    */
   languageDetail?: Partial<Record<Language, string>>
   /**
