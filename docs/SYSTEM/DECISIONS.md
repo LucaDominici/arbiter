@@ -5,6 +5,27 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-046: MCP fallback determinism rule + cross-language skip-test guard (#721 #730, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issues #721, #730; viafera M-13, NI-11
+**Closes:** #721, #730
+
+**Context:** Two viafera-port issues batched: (a) MCP tools have no documented fallback when unavailable — silent downgrade creates non-deterministic session behavior; (b) skip annotations like `@Disabled`, `pytest.mark.skip`, and `t.Skip` can hide regressions and accumulate technical debt in test suites across Java, Python, and Go stacks.
+
+**Decision:** Ship two artifacts:
+
+1. **`45-mcp-fallback.md`** (opt-in rule, `enableMcpFallback: true`): documents approved fallback equivalents for GitHub MCP → `gh` CLI, file-system MCP → built-in tools, browser MCP → curl/wget, search MCP → grep/find. Protocol: switch without asking + emit `[mcp-fallback]` deviation log.
+2. **`check-no-skipped-tests.mjs`** (default-on HARD hook, disable with `enableNoSkippedTests: false`): PostToolUse Edit|Write hook blocking `@Disabled`, `@Ignore`, `pytest.mark.skip`, `pytest.mark.xfail`, `t.Skip(`, `skip.test(`. Complements `check-no-placeholders.mjs` which already guards JS/TS `.skip()` and `xit()`.
+
+**Consequences:**
+
+- `check-no-placeholders.mjs` retains ownership of JS/TS test-skip patterns; `check-no-skipped-tests.mjs` adds Java/Python/Go without duplication.
+- The MCP fallback rule is opt-in (default false) because not all projects use MCP tools — requiring it unconditionally would produce noise.
+- `enableNoSkippedTests` defaults to true (emit unless explicitly disabled) because skipped tests are an unambiguous code smell with no legitimate permanent use.
+
+---
+
 ## ADR-043: Matrix downgrade-vs-fix verdict — 7 HALF/FAKE proven cells (#377, 2026-05-14)
 
 **Status:** Accepted

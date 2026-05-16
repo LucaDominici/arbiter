@@ -173,6 +173,10 @@ export interface ProjectConfig {
   enableSelfValidationHarness?: boolean
   /** Whether to enable solo-dev mode: skip PR CI ceremony, nightly drift shadow. Default false. */
   enableSoloDevMode?: boolean
+  /** Whether to generate the MCP fallback determinism rule (45-mcp-fallback.md). Default false (opt-in). */
+  enableMcpFallback?: boolean
+  /** Whether to generate check-no-skipped-tests.mjs hook. Default true for all governance levels. */
+  enableNoSkippedTests?: boolean
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.

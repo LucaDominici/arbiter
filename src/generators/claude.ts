@@ -53,7 +53,7 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
 
   generateClaudeSettings(base, data, results)
   generateClaudeHooks(base, data, config, results)
-  generateClaudeRules(base, data, results)
+  generateClaudeRules(base, data, config, results)
   generateClaudeCommands(base, data, results)
 
   return { files: results }
@@ -158,6 +158,16 @@ function generateClaudeHooks(
     )
   }
 
+  if (config.enableNoSkippedTests !== false) {
+    results.push(
+      writeFile(
+        join(hooksDir, 'check-no-skipped-tests.mjs'),
+        renderTemplate('claude/hooks/check-no-skipped-tests.mjs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
   for (const hook of config.languageHooks) {
     if (hook.name !== 'check-no-orphan-todo.mjs') {
       results.push(writeFile(join(hooksDir, hook.name), hook.body, { skipIfExists: true }))
@@ -206,7 +216,12 @@ function generateClaudeHooks(
   }
 }
 
-function generateClaudeRules(base: string, data: object, results: WriteResult[]): void {
+function generateClaudeRules(
+  base: string,
+  data: object,
+  config: ProjectConfig,
+  results: WriteResult[],
+): void {
   const rulesDir = resolvedPath(base, '.claude', 'rules')
   const rules = [
     {
@@ -227,6 +242,15 @@ function generateClaudeRules(base: string, data: object, results: WriteResult[])
       writeFile(join(rulesDir, rule.file), renderTemplate(rule.template, data), {
         skipIfExists: true,
       }),
+    )
+  }
+  if (config.enableMcpFallback) {
+    results.push(
+      writeFile(
+        join(rulesDir, '45-mcp-fallback.md'),
+        renderTemplate('claude/rules/45-mcp-fallback.md', data),
+        { skipIfExists: true },
+      ),
     )
   }
 }
