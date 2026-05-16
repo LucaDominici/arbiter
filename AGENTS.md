@@ -250,6 +250,12 @@ Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) 
 
 ---
 
+## Integrations
+
+arbiter uses a detect-and-reference posture with other Claude Code skill suites. See [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) for the legal stance, attribution rules, and how to add a new skill to the matrix.
+
+---
+
 ## Multi-Agent Tool Extensions
 
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:

@@ -1,0 +1,20 @@
+{
+  "name": "arbiter-plugin-spring-boot",
+  "version": "0.1.0",
+  "description": "Arbiter plugin: Spring Boot governance + gates",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "arbiter",
+    "arbiter-plugin",
+    "spring-boot",
+    "java"
+  ],
+  "peerDependencies": {
+    "@arbiter/cli": "*"
+  }
+}

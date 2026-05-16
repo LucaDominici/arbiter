@@ -81,6 +81,14 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   if (!agentsPresent) agentsCheck.hint = 'Run `arbiter init` to generate AGENTS.md.'
   out.push(agentsCheck)
 
+  out.push({
+    id: 'integrations',
+    label: 'Skill integrations discoverable',
+    status: 'PASS',
+    detail: 'advisory — run `arbiter integrations list` to see detected + recommended skills',
+    hint: 'arbiter integrations list',
+  })
+
   if (gitOk) {
     let hooksPath = ''
     try {

@@ -11,7 +11,7 @@ export interface SkillsGeneratorResult {
   skipped: SkipReport[]
 }
 
-const SKILL_NAMES = [
+export const SKILL_NAMES = [
   'tdd',
   'verification',
   'architect-review',
