@@ -37,6 +37,8 @@ arbiter init [options]
 | `--json`          | boolean | `false`        | Emit machine-readable JSON output (requires `--yes`)                                                |
 | `--quiet`         | boolean | `false`        | Suppress informational banners (e.g. telemetry notice)                                              |
 | `--force`         | boolean | `false`        | Override adverse git state check (detached HEAD, rebase, merge, etc.) — emits warning and continues |
+| `--recipe <path>` | string  | —              | Path or `https://` URL to a recipe JSON file; pre-fills wizard answers                              |
+| `--recipe-sha256` | string  | —              | Expected SHA-256 hex digest of the recipe file — verified before parse                              |
 | `-h, --help`      | —       | —              | Show help                                                                                           |
 
 **Examples:**

@@ -174,6 +174,8 @@ program
     '--observability-provider <provider>',
     'Override observability provider (used with --preset or standalone)',
   )
+  .option('--recipe <path>', 'Path or https:// URL to a recipe JSON file for pre-configured init')
+  .option('--recipe-sha256 <hash>', 'Expected SHA-256 hex digest of the recipe file')
   .action(
     async (opts: {
       yes: boolean
@@ -191,6 +193,8 @@ program
       preset?: string
       authProvider?: string
       observabilityProvider?: string
+      recipe?: string
+      recipeSha256?: string
     }) => {
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
@@ -217,6 +221,8 @@ program
                 opts.observabilityProvider as import('./wizard/types.js').ObservabilityProvider,
             }
           : {}),
+        ...(opts.recipe !== undefined ? { recipe: opts.recipe } : {}),
+        ...(opts.recipeSha256 !== undefined ? { recipeSha256: opts.recipeSha256 } : {}),
       })
     },
   )

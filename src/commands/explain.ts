@@ -22,12 +22,28 @@ export interface ExplainResult {
 export function runExplain(code: string, opts: ExplainOptions): ExplainResult {
   if (opts.list) return listAll(opts.format)
 
+  if (!code) {
+    return {
+      exitCode: 1,
+      output: '',
+      error: 'Usage: arbiter explain <code> [--format json] | --list\n',
+    }
+  }
+
   const normalized = code.toUpperCase()
 
   if (normalized.startsWith('INV-')) return explainInv(normalized, opts.format)
   if (normalized.startsWith('CANON-')) return explainCanon(normalized, opts.format)
   if (normalized.startsWith('E_') || ERROR_CATALOG.has(normalized)) {
     return explainError(normalized, opts.format)
+  }
+
+  if (opts.format === 'json') {
+    return {
+      exitCode: 1,
+      output: JSON.stringify({ error: `Unknown code: ${code}` }, null, 2),
+      error: '',
+    }
   }
 
   return {

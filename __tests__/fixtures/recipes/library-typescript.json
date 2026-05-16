@@ -1,0 +1,9 @@
+{
+  "tools": ["claude", "codex"],
+  "governanceLevel": "L2",
+  "language": "typescript",
+  "archetype": "library",
+  "useGitHub": false,
+  "enableDebtGates": true,
+  "enableSecurityScanning": false
+}

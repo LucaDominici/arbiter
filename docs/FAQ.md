@@ -45,7 +45,12 @@ An invariant is a rule your project must always satisfy — e.g., "no `any` type
 ---
 
 **Does arbiter work on brownfield (existing) codebases?**  
-Yes. Use `arbiter init --governance l1` to start conservatively. Existing violations appear as warnings; add them to suppression baselines and enforce going forward. See the brownfield onboarding guide (issue #649 — in progress).
+Yes. Use `arbiter init --brownfield` to enable brownfield mode. arbiter detects your existing files and backs them up before writing governance files. If your working tree has uncommitted changes, arbiter will refuse to proceed unless you pass `--force`. Use `--dry-run` first to preview what would be created, modified, or skipped.
+
+---
+
+**Can I pre-configure an arbiter init with a recipe file?**  
+Yes. Pass `--recipe <path|url>` to load a JSON recipe that pre-fills wizard answers. Recipes can be local paths, `file://` URIs, or `https://` URLs (plain `http://` is rejected as a supply-chain risk). Use `--recipe-sha256 <hash>` to pin a specific digest and detect tampering.
 
 ---
 

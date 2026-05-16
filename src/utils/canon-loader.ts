@@ -19,8 +19,13 @@ export function loadCanonEntries(canonMdPath: string): CanonEntry[] {
   let raw: string
   try {
     raw = readFileSync(canonMdPath, 'utf-8')
-  } catch {
-    return []
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'ENOENT') return []
+    throw new Error(
+      `Failed to read CANON.md at ${canonMdPath}: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    )
   }
 
   const entries: CanonEntry[] = []
