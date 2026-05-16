@@ -125,3 +125,27 @@ Flags: all optional test types `false`. No browser, no containers, no load tests
 - CLI and library archetypes never see Testcontainers or Playwright references.
 - Teams can customise the generated file — `skipIfExists: true` ensures `arbiter update` won't overwrite it.
 - The boolean flags (`hasE2ETests`, `hasContainerIntegration`, etc.) are available for future use in template conditionals.
+
+---
+
+## 25-Dimension Taxonomy Extension (#719)
+
+**Opt-in flag:** `enableTaxonomy25d: true` in `arbiter.json`.
+
+When enabled, `generateTestTaxonomy` uses `src/templates/testing/test-taxonomy.md.ejs` instead of
+the base template. This extends the 17 universal dimensions with 8 compliance and industrial-grade
+dimensions:
+
+| #   | Dimension                                                                      | Standard reference            |
+| --- | ------------------------------------------------------------------------------ | ----------------------------- |
+| 18  | Audit trail — state-mutation events logged with actor, resource, timestamp     | GDPR Art.30, ISO 27001 A.12.4 |
+| 19  | PII masking — sensitive data absent from logs, traces, and error responses     | GDPR Art.5, INV-19            |
+| 20  | Rate limiting — throttle limits enforced; burst and sustained load tested      | OWASP ASVS 4.0 §13            |
+| 21  | Session / token lifecycle — tokens expire, rotate, and invalidate on logout    | OWASP ASVS 3.x                |
+| 22  | Event delivery — async consumers idempotent; dead-letter queue routing tested  | NIS2 Art.21                   |
+| 23  | Graceful degradation — circuit-breaker/fallback responses when deps fail       | INV-17                        |
+| 24  | SLA assertion — p95 latency within declared budget under sustained load        | ISO 27001 A.12.1.3            |
+| 25  | Security surface — OWASP Top-10 attack inputs rejected at each public endpoint | OWASP Top-10, INV-19          |
+
+The decision matrix in the 25-dimension template also maps compliance-specific change types
+(`Compliance / audit feature`, `High-traffic endpoint`) to their mandatory dimensions.

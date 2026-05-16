@@ -26,13 +26,17 @@ function extractDomainDims(config: ProjectConfig): string[] {
  * Pre-computes the archetype's test pyramid profile and passes it as
  * explicit template data — the EJS template never defines its own profile data.
  * T1 extension (#257): also passes domainDims and test-type code table.
+ * #719: when enableTaxonomy25d is true, uses the 25-dimension compliance template.
  * skipIfExists: teams may want to customise the taxonomy after init.
  */
 export function generateTestTaxonomy(config: ProjectConfig): TestTaxonomyResult {
   const profile = getTestPyramidProfile(config.archetype)
   const domainDims = extractDomainDims(config)
   const path = resolvedPath(config.targetDir, 'docs', 'TEST_TAXONOMY.md')
-  const content = renderTemplate('root/TEST_TAXONOMY.md.ejs', {
+  const templateName = config.enableTaxonomy25d
+    ? 'testing/test-taxonomy.md.ejs'
+    : 'root/TEST_TAXONOMY.md.ejs'
+  const content = renderTemplate(templateName, {
     ...config,
     levels: profile.levels,
     hasContainerIntegration: profile.hasContainerIntegration,
