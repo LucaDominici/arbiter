@@ -1109,3 +1109,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - **Complexity budget**: Helper `writeHarvestAuditIfNeeded` extracted to keep `runWorktreeClose` under the ESLint complexity-15 threshold.
 
 **Consequences:** Every `wt-close --harvest` leaves an audit trail in `.arbiter/harvest-audit.log.json`. If a regression ever causes the main repo's branch or untracked files to be mutated during harvest, the pre-harvest snapshot provides ground truth for debugging. No change to the copy logic itself — the `cpSync` path from #731 is unchanged.
+
+**Addendum — untracked-file overwrite guardrail (#733):**
+
+`git diff --quiet -- <file>` exits 0 for untracked files (no diff exists for a file git does not track), so `fileHasUncommittedChanges` previously returned `false` and harvest silently overwrote untracked files in the main repo. The fix adds `fileIsUntrackedInMainRepo` (probes `git ls-files --` — empty stdout = not tracked) and short-circuits before the copy when the destination exists but is untracked. Files blocked by this guardrail are collected in a new `HarvestResult.protectedUntracked` array and logged to the audit entry. The guard only fires when the destination file EXISTS — new files (no dest) continue to copy freely.
