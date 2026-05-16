@@ -232,6 +232,59 @@ describe('claude commands: task.md — decompositionBackend branching (CANON-04/
   })
 })
 
+describe('claude commands: task.md — Context Block (#689)', () => {
+  it('Phase 3 instructs authors to include a Context Block', () => {
+    const content = renderTask()
+    expect(content).toMatch(/Context Block/i)
+  })
+
+  it('Phase 3 embeds YAML template with context: key', () => {
+    const content = renderTask()
+    expect(content).toContain('context:')
+    expect(content).toContain('key_constraints:')
+    expect(content).toContain('red_team_warnings:')
+  })
+
+  it('Phase 3 references plan-template.md', () => {
+    const content = renderTask()
+    expect(content).toMatch(/plan-template\.md/)
+  })
+})
+
+describe('claude commands: task.md — Phase 2.7 red-team review (#691)', () => {
+  it('Phase 2.7 present at L2 with advance --to red-team-review', () => {
+    const content = renderTask('typescript', 'L2')
+    expect(content).toContain('arbiter task advance --to red-team-review')
+  })
+
+  it('Phase 2.7 present at L2 with advance --to implementation after clear', () => {
+    const content = renderTask('typescript', 'L2')
+    expect(content).toContain('arbiter task advance --to implementation')
+  })
+
+  it('Phase 2.7 references evidence path .arbiter/evidence/redteam/', () => {
+    const content = renderTask('typescript', 'L2')
+    expect(content).toContain('.arbiter/evidence/redteam/')
+  })
+
+  it('Phase 2.7 absent at L1', () => {
+    const content = renderTask('typescript', 'L1')
+    expect(content).not.toContain('arbiter task advance --to red-team-review')
+    expect(content).not.toContain('.arbiter/evidence/redteam/')
+  })
+
+  it('Phase 2.7 present at L3', () => {
+    const content = renderTask('typescript', 'L3')
+    expect(content).toContain('arbiter task advance --to red-team-review')
+  })
+
+  it('no EJS leaks in L2 render with new sections', () => {
+    const content = renderTask('typescript', 'L2')
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
 describe('claude commands: worktree helpers', () => {
   it('renders wt-open without EJS leaks and invokes arbiter wt open', () => {
     const content = renderCommand('wt-open.md')
