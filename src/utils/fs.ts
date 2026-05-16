@@ -1,7 +1,90 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync, mkdirSync, writeFileSync, copyFileSync, renameSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { randomBytes } from 'node:crypto'
 import { UserFacingError } from './errors.js'
+
+// ── Atomic write + signal cleanup ────────────────────────────────────────────
+
+const inFlightTmpPaths = new Set<string>()
+let handlersRegistered = false
+
+const ENOSPC_MSGS: Record<string, (path: string) => string> = {
+  ENOSPC: (p) =>
+    `Disk full while writing ${p}. Free up space and retry.\n  Use \`df -h\` to check available space.`,
+  EACCES: (p) => `Permission denied writing ${p}. Check file ownership and directory permissions.`,
+  EROFS: (p) => `Cannot write ${p} — filesystem is read-only. Check mount options.`,
+  EDQUOT: (p) => `Disk quota exceeded while writing ${p}. Free up space or raise your quota.`,
+}
+
+function atomicWrite(filePath: string, content: string): void {
+  const tmpPath = `${filePath}.arbiter-tmp-${randomBytes(4).toString('hex')}`
+  inFlightTmpPaths.add(tmpPath)
+  try {
+    writeFileSync(tmpPath, content, 'utf-8')
+    renameSync(tmpPath, filePath)
+  } catch (err) {
+    try {
+      unlinkSync(tmpPath)
+    } catch {
+      // best-effort cleanup; the primary error takes precedence.
+      // the finally block will still remove tmpPath from inFlightTmpPaths,
+      // so the signal handler will NOT retry — any stranded file from a read-only
+      // or permission-denied filesystem must be removed manually.
+    }
+    const code = (err as NodeJS.ErrnoException).code ?? ''
+    const factory = ENOSPC_MSGS[code]
+    if (factory) throw new UserFacingError(factory(filePath))
+    throw err
+  } finally {
+    inFlightTmpPaths.delete(tmpPath)
+  }
+}
+
+function cleanupInFlightTmpFiles(): void {
+  for (const p of inFlightTmpPaths) {
+    try {
+      unlinkSync(p)
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT') {
+        // non-ENOENT means the file exists but could not be removed (EACCES, EBUSY, etc.)
+        // process.stderr.write is safe inside a signal handler; cannot throw here
+        process.stderr.write(
+          `[arbiter] warning: could not remove in-flight tmp file ${p} (${code ?? 'unknown'}) — remove manually\n`,
+        )
+      }
+    }
+    inFlightTmpPaths.delete(p)
+  }
+}
+
+/** Register SIGTERM/SIGINT handlers that clean up in-flight temp files.
+ *  Must be called explicitly from the CLI entry point — NOT at module load time,
+ *  as that would interfere with test runners. */
+export function registerCleanupHandlers(): void {
+  if (handlersRegistered) return
+  handlersRegistered = true
+
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(signal, () => {
+      cleanupInFlightTmpFiles()
+      process.kill(process.pid, signal)
+    })
+  }
+}
+
+/** Exposed for testing only — cleans all registered in-flight tmp paths. */
+export function _cleanupInFlightTmpFiles(): void {
+  cleanupInFlightTmpFiles()
+}
+
+/** Exposed for testing only — registers a path as in-flight. */
+export function _registerTmpPath(p: string): void {
+  inFlightTmpPaths.add(p)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface WriteResult {
   path: string
@@ -36,27 +119,6 @@ export function writeFile(
   mkdirSync(dirname(filePath), { recursive: true })
   atomicWrite(filePath, content)
   return { path: filePath, action: 'created' }
-}
-
-function atomicWrite(filePath: string, content: string): void {
-  const tmpPath = `${filePath}.arbiter-tmp-${Date.now()}`
-  try {
-    writeFileSync(tmpPath, content, 'utf-8')
-    renameSync(tmpPath, filePath)
-  } catch (err) {
-    try {
-      unlinkSync(tmpPath)
-    } catch {
-      // best-effort cleanup
-    }
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === 'ENOSPC') {
-      throw new UserFacingError(
-        `Disk full while writing ${filePath}. Free up space and retry.\n  Use \`df -h\` to check available space.`,
-      )
-    }
-    throw err
-  }
 }
 
 /**

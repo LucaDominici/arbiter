@@ -295,6 +295,27 @@ Commit this file so that `arbiter update` works in CI and for teammates.
 
 ---
 
+## File Write Safety
+
+All file writes performed by arbiter use an **atomic rename pattern**: content is written to a
+sibling temp file (`<path>.arbiter-tmp-<hex>`) and then renamed into place. This guarantees that
+the destination file is either fully written or unchanged — never partially written.
+
+SIGTERM and SIGINT handlers are registered at startup. If the process is interrupted mid-write,
+any in-flight temp files are deleted before the signal is re-raised, so no orphan
+`.arbiter-tmp-*` files are left behind.
+
+If a write fails with a recognizable OS error, a user-readable message is emitted:
+
+| Error  | Message                                         |
+| ------ | ----------------------------------------------- |
+| ENOSPC | Disk full — use `df -h` to check space          |
+| EACCES | Permission denied — check file ownership        |
+| EROFS  | Read-only filesystem — check mount options      |
+| EDQUOT | Disk quota exceeded — free space or raise quota |
+
+---
+
 ## Environment Variables
 
 | Variable                | Usage                                                          |
