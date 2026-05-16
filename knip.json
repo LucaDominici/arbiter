@@ -3,6 +3,8 @@
   "ignoreDependencies": ["prettier", "@commitlint/cli", "jscpd", "madge"],
   "ignoreFiles": ["src/test/example.behavioral.test.ts"],
   "ignoreBinaries": [
+    "wait-on",
+    "stryker",
     "Apache-2.0",
     "BSD-2-Clause",
     "BSD-3-Clause",

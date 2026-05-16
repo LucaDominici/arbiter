@@ -7,8 +7,10 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const WORKFLOWS_DIR = join(process.cwd(), '.github', 'workflows')
-// Canonical self-hosted runner reference.
-const RUNNER_VAR_PATTERN = /\$\{\{\s*vars\.CI_BUILD_RUNNER_LABEL/
+// Any vars.* reference is accepted — value is set per-repo/env, not hardcoded.
+// Originally checked only CI_BUILD_RUNNER_LABEL; generalized to allow
+// workflow-specific runner variables (e.g. BROWSER_RUNNER_LABEL for a11y jobs).
+const RUNNER_VAR_PATTERN = /\$\{\{\s*vars\./
 // Dynamic matrix references are allowed (e.g. ${{ matrix.os }}) because the
 // value is set at runtime and is not a hardcoded literal runner name.
 const MATRIX_RUNNER_PATTERN = /\$\{\{\s*matrix\./
@@ -50,7 +52,7 @@ for (const file of files) {
 
 if (violations > 0) {
   console.error(
-    `\n  Found ${violations} violation(s). Use \${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }} for runs-on.\n`,
+    `\n  Found ${violations} violation(s). Use \${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }} (or another vars.* reference) for runs-on.\n`,
   )
   process.exit(1)
 }

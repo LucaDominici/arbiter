@@ -1,0 +1,72 @@
+name: Soak Test (#596)
+
+# Long-running soak test: simulates 30 days of project activity.
+# Full 30-day run: weekly. Compressed 7-day run: nightly.
+# On divergence: opens a GH issue with the day at which drift appeared.
+
+on:
+  schedule:
+    - cron: '0 1 * * 0' # weekly full (Sunday 01:00 UTC)
+    - cron: '0 1 * * 1-6' # nightly compressed (Mon-Sat 01:00 UTC)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode: full (30d) or compressed (7d)'
+        required: false
+        default: 'compressed'
+        type: choice
+        options: [full, compressed]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  soak:
+    name: Soak Test
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build
+        run: npm run build
+
+      - name: Run soak harness
+        id: soak
+        env:
+          SOAK_MODE: ${{ inputs.mode || 'compressed' }}
+        run: node scripts/soak-harness.mjs
+        continue-on-error: true
+
+      - name: Upload soak logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-logs-${{ github.run_id }}
+          path: /tmp/soak-*/soak.log
+          retention-days: 30
+
+      - name: Open issue on soak failure
+        if: steps.soak.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          DAY=$(cat /tmp/soak-divergence-day 2>/dev/null || echo "unknown")
+          gh issue create \
+            --title "Soak test divergence on day $DAY ($(date +%Y-%m-%d))" \
+            --body "Soak harness failed at simulated day $DAY. See workflow run: $RUN_URL" \
+            --label "test,priority/P1"
+
+      - name: Fail job if soak failed
+        if: steps.soak.outcome == 'failure'
+        run: exit 1
