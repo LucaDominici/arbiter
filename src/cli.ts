@@ -55,6 +55,10 @@ import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
 import { runBenchmarkHooks } from './commands/benchmark.js'
 import { getRunId, formatRunIdFooter } from './utils/run-id.js'
+import { parseExperimentalArgv, listExperiments, isEnabled } from './experimental/index.js'
+import { applyDeprecatedFlagFilter } from './internal/deprecate.js'
+import { CLI_DEPRECATED_FLAGS } from './internal/cli-deprecation-registry.js'
+import { warnExperimental } from './internal/experimental-warn.js'
 
 registerCleanupHandlers()
 
@@ -84,6 +88,35 @@ const _verboseIdx = process.argv.indexOf('--verbose')
 const _verbose = _verboseIdx !== -1
 if (_verbose) {
   process.argv.splice(_verboseIdx, 1)
+}
+
+// Strip --experimental.<name> tokens before Commander sees them (unknown option rejection).
+// Validates each name against the registry; throws on unknown experiments.
+// Enabled experiments stored in ARBITER_EXPERIMENTAL (JSON) for downstream command access.
+try {
+  const { remaining, flags } = parseExperimentalArgv(process.argv)
+  process.argv.length = 0
+  process.argv.push(...remaining)
+  if (Object.keys(flags).length > 0) {
+    process.env['ARBITER_EXPERIMENTAL'] = JSON.stringify(flags)
+    for (const name of Object.keys(flags)) {
+      warnExperimental(name)
+    }
+  }
+} catch (err) {
+  process.stderr.write(`arbiter: ${err instanceof Error ? err.message : String(err)}\n`)
+  process.exit(1)
+}
+
+// Apply deprecated flag lifecycle filter (warn/hide/remove stages).
+{
+  const result = applyDeprecatedFlagFilter(process.argv, CLI_DEPRECATED_FLAGS)
+  if (result.exitCode !== undefined) {
+    process.stderr.write(`${result.errorMessage ?? 'Removed flag used.'}\n`)
+    process.exit(result.exitCode)
+  }
+  process.argv.length = 0
+  process.argv.push(...result.remaining)
 }
 
 /** Resolve git HEAD SHA once at startup; fall back to "unknown" in non-git dirs. */
@@ -1367,6 +1400,38 @@ benchmark
     if (opts.baseline !== undefined) benchOpts.baselineFile = opts.baseline
     const result = runBenchmarkHooks(benchOpts)
     if (result.regressions.length > 0 && !opts.json) process.exit(1)
+  })
+
+// ── experiments — list and inspect registered experiments (#601) ─────────────
+
+const experiments = program
+  .command('experiments')
+  .description('Inspect registered experimental features')
+
+experiments
+  .command('list')
+  .description('List all registered experiments and their status')
+  .action(() => {
+    const all = listExperiments()
+    if (all.length === 0) {
+      console.log('No experiments registered. See docs/reference/experimental-policy for details.')
+      return
+    }
+    const activeFlags: Record<string, boolean> = (() => {
+      try {
+        return JSON.parse(process.env['ARBITER_EXPERIMENTAL'] ?? '{}') as Record<string, boolean>
+      } catch {
+        return {}
+      }
+    })()
+    for (const exp of all) {
+      const active = isEnabled(exp.name, activeFlags)
+      const status = active ? '[active]' : '[inactive]'
+      console.log(
+        `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})`,
+      )
+      console.log(`           ${exp.promotionCriteria}`)
+    }
   })
 
 program.parseAsync().catch((err: unknown) => {

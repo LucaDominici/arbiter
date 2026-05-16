@@ -49,6 +49,8 @@
     "typecheck": "tsc --noEmit",
     "prepare": "git config core.hooksPath .githooks",
     "check:arch": "depcruise src",
+    "api:snapshot": "node scripts/check-api-snapshot.mjs --regen",
+    "compat:snapshot": "node scripts/snapshot-compat-fixture.mjs",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "changeset publish",

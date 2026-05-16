@@ -18,6 +18,7 @@
   "exclude": ["types", "nsTypes", "enumMembers"],
   "ignoreIssues": {
     "src/graph/history.ts": ["exports"],
-    "src/compliance/loader.ts": ["exports"]
+    "src/compliance/loader.ts": ["exports"],
+    "src/experimental/index.ts": ["exports"]
   }
 }
