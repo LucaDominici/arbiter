@@ -1,6 +1,52 @@
 // SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod'
 
+const ContextBlockIssueField = z.union([
+  z.object({ issue: z.string() }),
+  z.object({ issues: z.array(z.string()).min(1) }),
+])
+
+export const ContextBlockSchema = z.object({
+  context: ContextBlockIssueField.and(
+    z.object({
+      type: z.string(),
+      pipeline: z.string(),
+      branch_convention: z.string(),
+      base_branch: z.string(),
+      key_constraints: z.array(z.string()),
+      red_team_warnings: z.array(z.string()),
+      estimate: z.string(),
+    }),
+  ),
+})
+export type ContextBlock = z.infer<typeof ContextBlockSchema>
+
+export const RedTeamFindingSchema = z.object({
+  id: z.string(),
+  angle: z.enum([
+    'security',
+    'concurrency',
+    'performance',
+    'edge-cases',
+    'regression',
+    'dependency',
+    'data-integrity',
+    'error-handling',
+  ]),
+  impact: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'SUGGESTION']),
+  description: z.string(),
+  recommendation: z.string(),
+})
+export type RedTeamFinding = z.infer<typeof RedTeamFindingSchema>
+
+export const RedTeamEvidenceV1 = z.object({
+  task_id: z.string(),
+  timestamp: z.string(),
+  agent_count: z.number().int().nonnegative(),
+  findings: z.array(RedTeamFindingSchema),
+})
+export type RedTeamEvidenceV1 = z.infer<typeof RedTeamEvidenceV1>
+
 const FileChanges = z.object({
   adds_ui_strings: z.boolean().optional(),
   ui_strings: z.array(z.string()).optional(),

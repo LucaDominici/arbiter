@@ -3,7 +3,14 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFile } from '../utils/fs.js'
 
-export type TaskPhase = 'preflight' | 'plan' | 'implementation' | 'verification' | 'complete'
+export type TaskPhase =
+  | 'preflight'
+  | 'plan'
+  | 'red-team-review'
+  | 'red-team-rework'
+  | 'implementation'
+  | 'verification'
+  | 'complete'
 
 export interface TaskStatusExtras {
   task?: string
@@ -16,6 +23,7 @@ export interface TaskStatus {
   timestamps: Record<string, string>
   runId: string
   gateDecisions: string[]
+  branch?: string
   [key: string]: unknown
 }
 
@@ -58,7 +66,16 @@ export function writeTaskStatus({ taskDir, phase, extras }: WriteTaskStatusOptio
   writeFile(target, JSON.stringify(status, null, 2) + '\n')
 }
 
-const PHASE_ORDER: TaskPhase[] = ['preflight', 'plan', 'implementation', 'verification', 'complete']
+const PHASE_ORDER: TaskPhase[] = [
+  'preflight',
+  'plan',
+  'red-team-review',
+  'implementation',
+  'verification',
+  'complete',
+]
+
+const LATERAL_PHASES: TaskPhase[] = ['red-team-rework']
 
 export interface TaskAdvanceOptions {
   to: TaskPhase
@@ -67,7 +84,10 @@ export interface TaskAdvanceOptions {
 }
 
 function isValidPhase(s: string): s is TaskPhase {
-  return (PHASE_ORDER as readonly string[]).includes(s)
+  return (
+    (PHASE_ORDER as readonly string[]).includes(s) ||
+    (LATERAL_PHASES as readonly string[]).includes(s)
+  )
 }
 
 function readPhase(claudeDir: string): TaskPhase {
@@ -97,6 +117,10 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
   preflight:
     'Phase: preflight\nAction: Run /task #NNN to initialize the task branch and plan.\nCommand: node scripts/check-all.mjs L1',
   plan: 'Phase: plan\nAction: Plan is being written. Review .claude/plans/ for existing plan draft.\nNext: Await user GO before editing files.',
+  'red-team-review':
+    'Phase: red-team-review\nAction: Red-team agents running. Review .arbiter/evidence/redteam/<task-id>.json.\nNext: CRITICAL findings → arbiter task advance --to red-team-rework. All clear → arbiter task advance --to implementation.',
+  'red-team-rework':
+    'Phase: red-team-rework\nAction: Critical findings require plan revision. Fix plan, then re-run red-team.\nNext: arbiter task advance --to red-team-review (re-triggers review) or --to plan (full replan).',
   implementation:
     'Phase: implementation\nAction: Implementation in progress. Check git status and .claude/.task-plan.\nNext: Resume TDD cycle (red → green → refactor), then run node scripts/check-all.mjs L1.',
   verification:
@@ -132,28 +156,36 @@ export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
 export function runTaskAdvance(opts: TaskAdvanceOptions): void {
   const dir = opts.dir ?? process.cwd()
   const claudeDir = join(dir, '.claude')
-  const { to, reverse = false } = opts
+  const { to } = opts
 
-  if (!PHASE_ORDER.includes(to)) {
-    throw new Error(`Invalid --to value: "${to}". Valid phases: ${PHASE_ORDER.join(', ')}`)
+  if (!isValidPhase(to)) {
+    throw new Error(
+      `Invalid --to value: "${String(to)}". Valid phases: ${[...PHASE_ORDER, ...LATERAL_PHASES].join(', ')}`,
+    )
   }
 
   const current = readPhase(claudeDir)
-  const currentIdx = PHASE_ORDER.indexOf(current)
-  const targetIdx = PHASE_ORDER.indexOf(to)
 
-  if (currentIdx === targetIdx) return
+  if (current === to) return
 
-  if (targetIdx < currentIdx && !reverse) {
-    throw new Error(
-      `Backward transition "${current}" → "${to}" blocked. Use --reverse to allow backward transitions.`,
-    )
-  }
+  const isLateralTarget = (LATERAL_PHASES as readonly string[]).includes(to)
+  const isLateralCurrent = (LATERAL_PHASES as readonly string[]).includes(current)
 
-  if (targetIdx > currentIdx + 1) {
-    throw new Error(
-      `Illegal skip: cannot advance from "${current}" to "${to}" (missing intermediate phases). Advance one phase at a time.`,
-    )
+  if (!isLateralTarget && !isLateralCurrent) {
+    const currentIdx = PHASE_ORDER.indexOf(current)
+    const targetIdx = PHASE_ORDER.indexOf(to)
+
+    if (targetIdx < currentIdx && !opts.reverse) {
+      throw new Error(
+        `Backward transition "${current}" → "${to}" blocked. Use --reverse to allow backward transitions.`,
+      )
+    }
+
+    if (targetIdx > currentIdx + 1) {
+      throw new Error(
+        `Illegal skip: cannot advance from "${current}" to "${to}" (missing intermediate phases). Advance one phase at a time.`,
+      )
+    }
   }
 
   mkdirSync(claudeDir, { recursive: true })
