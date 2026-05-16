@@ -198,3 +198,11 @@ See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
 Contributions are welcome. Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 
 To report a security vulnerability, see [SECURITY.md](SECURITY.md).
+
+---
+
+## Sponsoring
+
+arbiter is maintained by volunteers. If you find it useful, consider [sponsoring via GitHub Sponsors](https://github.com/sponsors/LucaDominici).
+
+See [`docs/sponsors.md`](docs/sponsors.md) for the full funding policy (what sponsorship funds and what it does NOT confer).
