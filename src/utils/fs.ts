@@ -41,7 +41,7 @@ function atomicWrite(filePath: string, content: string): void {
   }
 }
 
-function cleanupInFlightTmpFiles(): void {
+function doCleanup(): void {
   for (const p of inFlightTmpPaths) {
     try {
       unlinkSync(p)
@@ -59,6 +59,11 @@ function cleanupInFlightTmpFiles(): void {
   }
 }
 
+/** Clean up in-flight tmp files on user-initiated abort. */
+export function cleanupInFlightTmpFiles(): void {
+  doCleanup()
+}
+
 /** Register SIGTERM/SIGINT handlers that clean up in-flight temp files.
  *  Must be called explicitly from the CLI entry point — NOT at module load time,
  *  as that would interfere with test runners. */
@@ -68,15 +73,10 @@ export function registerCleanupHandlers(): void {
 
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.once(signal, () => {
-      cleanupInFlightTmpFiles()
+      doCleanup()
       process.kill(process.pid, signal)
     })
   }
-}
-
-/** Exposed for testing only — cleans all registered in-flight tmp paths. */
-export function _cleanupInFlightTmpFiles(): void {
-  cleanupInFlightTmpFiles()
 }
 
 /** Exposed for testing only — registers a path as in-flight. */
