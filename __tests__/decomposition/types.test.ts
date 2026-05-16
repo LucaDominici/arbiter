@@ -17,13 +17,13 @@ describe('WorkUnit shape', () => {
       id: 'WU-1',
       title: 'Full',
       status: 'in_progress',
-      phase: 'implementation',
+      phase: 'red',
       parent: '#0',
       body: 'details',
       labels: ['bug'],
     }
     expect(u.labels).toHaveLength(1)
-    expect(u.phase).toBe('implementation')
+    expect(u.phase).toBe('red')
   })
 
   it('status union covers all expected values', () => {

@@ -23,12 +23,12 @@ describe('runTaskAdvance', () => {
     expect(phase).toBe('plan')
   })
 
-  it('happy path: plan → red-team-review → implementation writes .task-phase', () => {
+  it('happy path: plan → red-team-review → red writes .task-phase', () => {
     writeFileSync(join(dir, '.claude', '.task-phase'), 'plan\n')
     runTaskAdvance({ to: 'red-team-review', dir })
-    runTaskAdvance({ to: 'implementation', dir })
+    runTaskAdvance({ to: 'red', dir, skipPlanReview: true })
     const phase = readFileSync(join(dir, '.claude', '.task-phase'), 'utf-8').trim()
-    expect(phase).toBe('implementation')
+    expect(phase).toBe('red')
   })
 
   it('appends to .task-phase-history with ISO timestamp and prev → next', () => {
@@ -43,20 +43,18 @@ describe('runTaskAdvance', () => {
     expect(ts.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000)
   })
 
-  it('illegal skip: preflight → implementation fails', () => {
+  it('illegal skip: preflight → red fails', () => {
     writeFileSync(join(dir, '.claude', '.task-phase'), 'preflight\n')
-    expect(() => runTaskAdvance({ to: 'implementation', dir })).toThrow(
-      /illegal.*skip|cannot advance/i,
-    )
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(/illegal.*skip|cannot advance/i)
   })
 
   it('backward transition blocked without --reverse', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
+    writeFileSync(join(dir, '.claude', '.task-phase'), 'red\n')
     expect(() => runTaskAdvance({ to: 'plan', dir })).toThrow(/backward.*--reverse|use --reverse/i)
   })
 
   it('--reverse allows backward transition', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
+    writeFileSync(join(dir, '.claude', '.task-phase'), 'red\n')
     runTaskAdvance({ to: 'plan', dir, reverse: true })
     const phase = readFileSync(join(dir, '.claude', '.task-phase'), 'utf-8').trim()
     expect(phase).toBe('plan')
@@ -71,7 +69,7 @@ describe('runTaskAdvance', () => {
 
   it('--reverse does not permit forward skip', () => {
     writeFileSync(join(dir, '.claude', '.task-phase'), 'preflight\n')
-    expect(() => runTaskAdvance({ to: 'complete', dir, reverse: true })).toThrow(
+    expect(() => runTaskAdvance({ to: 'verification', dir, reverse: true })).toThrow(
       /illegal.*skip|cannot advance/i,
     )
   })

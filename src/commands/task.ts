@@ -13,8 +13,9 @@ export type TaskPhase =
   | 'plan'
   | 'red-team-review'
   | 'red-team-rework'
-  | 'implementation'
+  | 'red'
   | 'green'
+  | 'refactor'
   | 'verification'
   | 'complete'
 
@@ -75,8 +76,9 @@ const PHASE_ORDER: TaskPhase[] = [
   'preflight',
   'plan',
   'red-team-review',
-  'implementation',
+  'red',
   'green',
+  'refactor',
   'verification',
   'complete',
 ]
@@ -87,7 +89,7 @@ export interface TaskAdvanceOptions {
   to: TaskPhase
   dir?: string
   reverse?: boolean
-  /** Bypass the plan-review gate when target is implementation. Writes an audit record. */
+  /** Bypass the plan-review gate when target is red. Writes an audit record. */
   skipPlanReview?: boolean
 }
 
@@ -103,6 +105,22 @@ function readPhase(claudeDir: string): TaskPhase {
   try {
     const raw = readFileSync(p, 'utf-8').trim()
     if (!raw) return 'preflight'
+    // Migrate legacy 'implementation' to 'red' (#549) — write once so subsequent reads are native
+    if (raw === 'implementation') {
+      const timestamp = new Date().toISOString()
+      writeFileSync(p, 'red\n')
+      try {
+        appendFileSync(
+          join(claudeDir, '.task-phase-history'),
+          `${timestamp} implementation → red [auto-migrated]\n`,
+        )
+      } catch (histErr) {
+        process.stderr.write(
+          `Warning: could not write migration audit to .task-phase-history: ${String(histErr)}\n`,
+        )
+      }
+      return 'red'
+    }
     if (!isValidPhase(raw)) {
       throw new Error(
         `Corrupted phase file at ${p}: unexpected value "${raw}". ` +
@@ -126,13 +144,14 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
     'Phase: preflight\nAction: Run /task #NNN to initialize the task branch and plan.\nCommand: node scripts/check-all.mjs L1',
   plan: 'Phase: plan\nAction: Plan is being written. Review .claude/plans/ for existing plan draft.\nNext: Await user GO before editing files.',
   'red-team-review':
-    'Phase: red-team-review\nAction: Red-team agents running. Review .arbiter/evidence/redteam/<task-id>.json.\nNext: CRITICAL findings → arbiter task advance --to red-team-rework. All clear → arbiter task advance --to implementation.',
+    'Phase: red-team-review\nAction: Red-team agents running. Review .arbiter/evidence/redteam/<task-id>.json.\nNext: CRITICAL findings → arbiter task advance --to red-team-rework. All clear → arbiter task advance --to red.',
   'red-team-rework':
     'Phase: red-team-rework\nAction: Critical findings require plan revision. Fix plan, then re-run red-team.\nNext: arbiter task advance --to red-team-review (re-triggers review) or --to plan (full replan).',
-  implementation:
-    'Phase: implementation\nAction: Implementation in progress. Check git status and .claude/.task-plan.\nNext: Resume TDD cycle (red → green → refactor), then run node scripts/check-all.mjs L1.',
+  red: 'Phase: red\nAction: Write failing tests first. No implementation yet.\nNext: Tests written → arbiter task advance --to green.',
   green:
-    'Phase: green\nAction: Record TDD evidence for this task.\nNext: arbiter task record-red --test-path <path>, then arbiter task advance --to verification.',
+    'Phase: green\nAction: Make tests pass with minimal implementation.\nNext: All tests green → arbiter task advance --to refactor.',
+  refactor:
+    'Phase: refactor\nAction: Clean up implementation. Tests must stay green.\nNext: Refactor done → arbiter task advance --to verification.',
   verification:
     'Phase: verification\nAction: Gate running. Re-run: node scripts/check-all.mjs L2\nNext: Fix any failures, then commit and push.',
   complete:
@@ -439,7 +458,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
   }
 
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
-    implementation: () => {
+    red: () => {
       checkPlanReviewGate(dir, claudeDir, opts)
     },
     green: () => {

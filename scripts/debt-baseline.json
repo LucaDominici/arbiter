@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "capturedAt": "2026-05-16T18:38:19.487Z",
-  "commit": "118bff3",
+  "capturedAt": "2026-05-16T18:57:42.719Z",
+  "commit": "f20f02b",
   "archetype": "library",
   "metrics": {
     "coverageLine": {

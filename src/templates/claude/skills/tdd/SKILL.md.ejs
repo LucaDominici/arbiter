@@ -93,6 +93,26 @@ func TestFeature(t *testing.T) {
     }
 }
 ```
+<% } else if (language === 'rust') { %>
+
+**Test runner:** Rust built-in `#[test]` + `#[cfg(test)]`
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_does_expected_thing() {
+        // Arrange
+        // Act
+        let result = feature();
+
+        // Assert
+        assert_eq!(result, expected);
+    }
+}
+```
 <% } %>
 
 ## Rules
