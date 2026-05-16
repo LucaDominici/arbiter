@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "capturedAt": "2026-05-16T13:00:56.443Z",
+  "capturedAt": "2026-05-16T13:06:52.591Z",
   "commit": "unknown",
   "archetype": "library",
   "metrics": {
@@ -30,7 +30,7 @@
       "direction": "lower-is-better"
     },
     "publicApiSurface": {
-      "value": 690,
+      "value": 691,
       "unit": "count",
       "direction": "lower-is-better"
     },

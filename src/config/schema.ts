@@ -65,8 +65,21 @@ export interface ContextPackConfig {
   adrMappings?: ContextPackAdrMapping[]
 }
 
+/**
+ * Integer migration-routing version (#605 / R1.K7).
+ *
+ * `version` (string) remains the human-facing semver-ish marker
+ * ("0.1", "0.2", ...). `$schemaVersion` is the machine routing key the
+ * migration registry consults — bumped only on a config-shape change.
+ *
+ * Loading a config with `$schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION`
+ * is a hard error (do not silently load); see `loadConfig`.
+ */
+export const CURRENT_CONFIG_SCHEMA_VERSION = 2
+
 export interface ArbiterConfigV2 {
   version: string
+  $schemaVersion?: number
   tools: AiTool[]
   governanceLevel: GovernanceLevel
   useGitHub: boolean

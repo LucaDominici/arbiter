@@ -314,6 +314,26 @@ describe('migrate — round-trip identity (parse → stringify → parse)', () =
 
 // ── error cases ──────────────────────────────────────────────────────────────
 
+describe('migrate — $schemaVersion routing (#605)', () => {
+  it('stamps $schemaVersion: 2 on every migrated v2 output', () => {
+    const result = migrate(CANONICAL_V2)
+    expect(result.$schemaVersion).toBe(2)
+  })
+  it('stamps $schemaVersion: 2 when migrating v0 (no version field) up the chain', () => {
+    const result = migrate({ tools: ['claude'], governanceLevel: 'L2' })
+    expect(result.$schemaVersion).toBe(2)
+  })
+  it('throws hard error when $schemaVersion is greater than current understanding', () => {
+    expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: 99 })).toThrow(/understands at most 2/i)
+  })
+  it('accepts equal $schemaVersion (current)', () => {
+    expect(() => migrate({ ...CANONICAL_V2, $schemaVersion: 2 })).not.toThrow()
+  })
+  it('accepts missing $schemaVersion (back-compat)', () => {
+    expect(() => migrate(CANONICAL_V2)).not.toThrow()
+  })
+})
+
 describe('migrate — error handling', () => {
   it('throws when given a non-object input', () => {
     expect(() => migrate('not-an-object')).toThrow()

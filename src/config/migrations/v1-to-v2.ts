@@ -87,7 +87,7 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
   // ── already v2: validate and pass through ────────────────────────────────
   if (raw['version'] === '0.2') {
     const result = validateConfig(raw)
-    if (result.ok) return applyDecompositionAlias(result.config)
+    if (result.ok) return { ...applyDecompositionAlias(result.config), $schemaVersion: 2 }
     throw new Error(`arbiter.json v0.2 is invalid: ${result.errors.join('; ')}`)
   }
 
@@ -119,6 +119,7 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
   return {
     ...rest,
     version: '0.2',
+    $schemaVersion: 2,
     tools: Array.isArray(raw['tools'])
       ? (raw['tools'] as unknown[]).filter((t): t is AiTool => AI_TOOLS.has(t as string))
       : (['claude', 'codex'] as AiTool[]),
