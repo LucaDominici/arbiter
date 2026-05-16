@@ -128,9 +128,25 @@ export function detectArchetypeHint(
   framework: string | null,
 ): Archetype | null {
   if (framework !== null) {
+    if (language === 'multi' && framework.includes('+')) {
+      return detectMultiCompositeArchetype(framework)
+    }
     const key = `${language}:${framework}`
     const mapped = FRAMEWORK_ARCHETYPE_MAP.get(key)
     if (mapped !== undefined) return mapped
   }
   return LANGUAGE_FALLBACK_ARCHETYPE.get(language) ?? null
+}
+
+function detectMultiCompositeArchetype(framework: string): Archetype | null {
+  const parts = framework.split('+')
+  const last = parts[parts.length - 1]
+  if (last === undefined) return null
+  const tsFramework = parts.slice(0, -1).join('+')
+  const tsArchetype = FRAMEWORK_ARCHETYPE_MAP.get(`typescript:${tsFramework}`) ?? null
+  const javaArchetype = FRAMEWORK_ARCHETYPE_MAP.get(`java:${last}`) ?? null
+  if (tsArchetype !== null && tsArchetype === javaArchetype) return tsArchetype
+  if (tsArchetype === 'backend-web-db' || javaArchetype === 'backend-web-db')
+    return 'backend-web-db'
+  return tsArchetype ?? javaArchetype
 }
