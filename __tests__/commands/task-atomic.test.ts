@@ -50,7 +50,7 @@ describe('writeTaskStatus — atomic write (#690)', () => {
   it('leaves no .tmp files after successful write', () => {
     writeTaskStatus({ taskDir, phase: 'plan' })
     const files = readdirSync(taskDir)
-    const tmpFiles = files.filter((f) => f.includes('.tmp.'))
+    const tmpFiles = files.filter((f) => f.includes('.tmp.') || f.includes('.arbiter-tmp-'))
     expect(tmpFiles).toHaveLength(0)
   })
 
