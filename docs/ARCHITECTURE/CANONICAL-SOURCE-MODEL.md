@@ -117,6 +117,8 @@ The generation pipeline enforces the layer model through two mechanisms:
 
 Each call returns a `WriteResult` with `action: 'created' | 'skipped' | 'backed-up-and-replaced'`. The init command prints a summary of all results, making the effect of each run visible.
 
+All writes use an **atomic rename pattern** internally: content is written to a sibling temp file (`<path>.arbiter-tmp-<hex>`) and then renamed into place. SIGTERM and SIGINT handlers registered at CLI startup clean up any in-flight temp files on signal receipt, ensuring no `.arbiter-tmp-*` orphans are left on interrupted runs.
+
 ### 2. ai-rulez Coexistence Gate
 
 If the target project already uses [ai-rulez](https://github.com/isobar-ai/ai-rulez) (detected by presence of `.ai-rulez/` or `ai-rulez.yml`), the init flow skips tool config generation entirely. `AGENTS.md` and GitHub files are still generated. This prevents arbiter from overwriting an existing, project-owned tool configuration strategy. See [ADR-010](../ADR/010-ai-rulez-coexistence.md).

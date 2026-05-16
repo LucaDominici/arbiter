@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile, copyStaticFile, resolvedPath, mergeSettingsJson } from '../../src/utils/fs.js'
+import {
+  writeFile,
+  copyStaticFile,
+  resolvedPath,
+  mergeSettingsJson,
+  _cleanupInFlightTmpFiles,
+  _registerTmpPath,
+} from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
 describe('writeFile', () => {
@@ -206,5 +213,62 @@ describe('mergeSettingsJson (#286)', () => {
     mergeSettingsJson(existing, incoming)
     expect(warnSpy).not.toHaveBeenCalled()
     vi.restoreAllMocks()
+  })
+})
+
+describe('atomic write + signal cleanup (#613)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    // drain any stale in-flight paths from previous tests before each run
+    _cleanupInFlightTmpFiles()
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('writeFile produces correct content atomically', () => {
+    const path = join(dir, 'atomic.txt')
+    writeFile(path, 'hello atomic')
+    expect(readFileSync(path, 'utf-8')).toBe('hello atomic')
+    // no orphan tmp file left (readdirSync — existsSync does not expand globs)
+    const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
+    expect(orphans).toHaveLength(0)
+  })
+
+  it('_cleanupInFlightTmpFiles removes registered tmp paths', () => {
+    const tmpPath = join(dir, 'in-flight.arbiter-tmp-test')
+    writeFileSync(tmpPath, 'partial write')
+    _registerTmpPath(tmpPath)
+    expect(existsSync(tmpPath)).toBe(true)
+    _cleanupInFlightTmpFiles()
+    expect(existsSync(tmpPath)).toBe(false)
+  })
+
+  it('_cleanupInFlightTmpFiles is idempotent when tmp file already removed', () => {
+    const tmpPath = join(dir, 'gone.arbiter-tmp-test')
+    _registerTmpPath(tmpPath)
+    // file was never created — cleanup must not throw
+    expect(() => _cleanupInFlightTmpFiles()).not.toThrow()
+  })
+
+  it('_cleanupInFlightTmpFiles clears all registered paths', () => {
+    const paths = ['a', 'b', 'c'].map((n) => join(dir, `${n}.arbiter-tmp-test`))
+    for (const p of paths) {
+      writeFileSync(p, 'data')
+      _registerTmpPath(p)
+    }
+    _cleanupInFlightTmpFiles()
+    for (const p of paths) {
+      expect(existsSync(p)).toBe(false)
+    }
+  })
+
+  it('writeFile leaves no orphan tmp files after successful write', () => {
+    const path = join(dir, 'clean.txt')
+    writeFile(path, 'content')
+    const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
+    expect(orphans).toHaveLength(0)
   })
 })

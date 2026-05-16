@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { writeFile } from './fs.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import {
   type ArbiterConfigV2,
@@ -18,13 +19,11 @@ const CONFIG_FILE = 'arbiter.json'
 const SNAPSHOT_FILE = '.arbiter-generated.json'
 
 export function saveConfig(dir: string, config: ArbiterConfig): void {
-  const path = join(dir, CONFIG_FILE)
-  writeFileSync(path, JSON.stringify(config, null, 2) + '\n', 'utf-8')
+  writeFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n')
 }
 
 export function saveSnapshot(dir: string, config: ArbiterConfig): void {
-  const path = join(dir, SNAPSHOT_FILE)
-  writeFileSync(path, JSON.stringify(config, null, 2) + '\n', 'utf-8')
+  writeFile(join(dir, SNAPSHOT_FILE), JSON.stringify(config, null, 2) + '\n')
 }
 
 export function loadSnapshot(dir: string): ArbiterConfig | null {

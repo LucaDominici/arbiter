@@ -42,6 +42,9 @@ import { parseBooleanEnv } from './utils/env.js'
 import { runCli } from './utils/run-cli.js'
 import { ArbiterError, UserFacingError } from './utils/errors.js'
 import { ERROR_CATALOG } from './utils/error-catalog.js'
+import { registerCleanupHandlers } from './utils/fs.js'
+
+registerCleanupHandlers()
 
 // ── Evidence logging setup ────────────────────────────────────────────────────
 
@@ -111,14 +114,19 @@ let _evidenceLogged = false
 process.on('exit', (code) => {
   if (_evidenceLogged || _noEvidence) return
   _evidenceLogged = true
-  appendEvidenceLine({
-    ts: new Date().toISOString(),
-    cmd: _parsedCmd.cmd,
-    args: _parsedCmd.args,
-    exit: code,
-    durationMs: Date.now() - _startMs,
-    headSha: _headSha,
-  })
+  try {
+    appendEvidenceLine({
+      ts: new Date().toISOString(),
+      cmd: _parsedCmd.cmd,
+      args: _parsedCmd.args,
+      exit: code,
+      durationMs: Date.now() - _startMs,
+      headSha: _headSha,
+    })
+  } catch {
+    // evidence log write can fail during ENOSPC or signal-driven exit; log entry lost
+    process.stderr.write('[arbiter] warning: evidence log write failed on exit — log entry lost\n')
+  }
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
