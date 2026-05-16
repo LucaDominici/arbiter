@@ -18,5 +18,10 @@
     "pattern": "sentry",
     "file": "src/templates/observability/setup.md.ejs",
     "justification": "Generated observability setup doc referencing the Sentry SaaS provider SDK — not telemetry from arbiter itself. Content is emitted only when the user selects provider='saas-sentry' in their arbiter config."
+  },
+  {
+    "pattern": "sentry",
+    "file": "dist/wizard/types.d.ts",
+    "justification": "Compiled TypeScript declaration for ObservabilityProvider type union — 'saas-sentry' is a string literal member of the union type, not a telemetry call or network reference. The value is only used when the user explicitly configures observability.provider='saas-sentry' in their arbiter config."
   }
 ]
