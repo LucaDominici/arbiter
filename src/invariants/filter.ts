@@ -37,7 +37,7 @@ export function getFilteredInvariants(config: {
     // Governance level filter
     if (!meetsGovernanceLevel(inv.minGovernanceLevel, config.governanceLevel)) return false
 
-    // Tier filter: always-active invariants bypass tier selection
+    // Tier filter: alwaysActive bypasses tier selection only (not governance level — checked above)
     if (!inv.alwaysActive && !config.invariantTiers.includes(inv.tier)) return false
 
     return true

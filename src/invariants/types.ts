@@ -25,8 +25,10 @@ export interface Invariant {
    */
   minGovernanceLevel?: GovernanceLevel
   /**
-   * True for Tier 1 (architectural) and Tier 5 (governance) —
-   * always included regardless of invariantTiers selection.
+   * Bypasses the invariantTiers filter — this invariant appears regardless of
+   * which tiers the caller selects. minGovernanceLevel is still enforced.
+   * In practice: architectural/governance rules, plus security rules at L2+
+   * that must not be excluded just because a project picked a narrower preset.
    */
   alwaysActive: boolean
   /** How this invariant is enforced (e.g. "hook + CI", "CI only", "manual") */
