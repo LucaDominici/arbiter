@@ -41,9 +41,12 @@ import type {
   ProjectPreset,
   AuthProvider,
   ObservabilityProvider,
+  Lane,
 } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
+import { loadRecipe } from '../recipes/loader.js'
+import type { Recipe } from '../recipes/schema.js'
 
 export interface InitOptions {
   yes: boolean
@@ -71,6 +74,10 @@ export interface InitOptions {
   authProvider?: AuthProvider
   /** Override observability provider after preset is applied. */
   observabilityProvider?: ObservabilityProvider
+  /** Path or https:// URL to a recipe JSON file for pre-configuring init options. */
+  recipe?: string
+  /** Expected SHA-256 hex digest of the recipe file for integrity verification. */
+  recipeSha256?: string
 }
 
 export async function runInit(options: InitOptions): Promise<void> {
@@ -121,8 +128,11 @@ export async function runInit(options: InitOptions): Promise<void> {
     }
   }
 
+  const recipe = await loadRecipeFromOptions(options, log)
+
   const config = await resolveConfig({
     options,
+    recipe,
     targetDir,
     projectName,
     language,
@@ -234,8 +244,89 @@ async function generateAndFinalize(
   }
 }
 
+async function loadRecipeFromOptions(
+  options: InitOptions,
+  log: (msg: string) => void,
+): Promise<Recipe | undefined> {
+  if (!options.recipe) return undefined
+  const recipe = await loadRecipe(
+    options.recipe,
+    options.recipeSha256 !== undefined ? { sha256: options.recipeSha256 } : {},
+  )
+  if (!options.json) log('  ├── Recipe: loaded')
+  return recipe
+}
+
+function resolveUseGitHub(
+  options: InitOptions,
+  recipe: Recipe | undefined,
+  githubAccess: ReturnType<typeof detectGithubAccess>,
+): boolean {
+  if (options.backend !== undefined) return options.backend === 'github'
+  return recipe?.useGitHub ?? githubAccess.authenticated
+}
+
+function buildNonInteractiveConfig(args: {
+  options: InitOptions
+  recipe: Recipe | undefined
+  targetDir: string
+  projectName: string
+  language: ReturnType<typeof detectLanguage>
+  framework: string | null
+  buildCmds: ReturnType<typeof detectBuildCommands>
+  gitInfo: ReturnType<typeof detectGitInfo>
+  existing: ReturnType<typeof detectExisting>
+  githubAccess: ReturnType<typeof detectGithubAccess>
+  lanes: Lane[]
+}): ProjectConfig {
+  const {
+    options,
+    recipe,
+    targetDir,
+    projectName,
+    language,
+    framework,
+    buildCmds,
+    gitInfo,
+    existing,
+    githubAccess,
+    lanes,
+  } = args
+  const useGitHub = resolveUseGitHub(options, recipe, githubAccess)
+  const { tools, governanceLevel } = resolveToolsAndLevel(options, recipe)
+  const config = buildDefaultConfig({
+    targetDir,
+    projectName,
+    language: recipe?.language ?? language,
+    framework: recipe && 'framework' in recipe ? (recipe.framework ?? null) : framework,
+    buildCmds,
+    gitInfo,
+    existing,
+    tools,
+    governanceLevel,
+    useGitHub,
+    acceptBetaTools: options.acceptBetaTools ?? false,
+    lanes,
+  })
+  if (recipe) applyRecipeOverrides(config, recipe)
+  return config
+}
+
+function resolveToolsAndLevel(
+  options: InitOptions,
+  recipe: Recipe | undefined,
+): { tools: AiTool[]; governanceLevel: GovernanceLevel } {
+  return {
+    tools: options.tools ? parseTools(options.tools) : (recipe?.tools ?? parseTools(undefined)),
+    governanceLevel: options.level
+      ? parseLevel(options.level)
+      : (recipe?.governanceLevel ?? parseLevel(undefined)),
+  }
+}
+
 async function resolveConfig(args: {
   options: InitOptions
+  recipe: Recipe | undefined
   targetDir: string
   projectName: string
   language: ReturnType<typeof detectLanguage>
@@ -249,6 +340,7 @@ async function resolveConfig(args: {
 }): Promise<ProjectConfig | null> {
   const {
     options,
+    recipe,
     targetDir,
     projectName,
     language,
@@ -260,10 +352,10 @@ async function resolveConfig(args: {
     lanes,
     log,
   } = args
-  if (options.yes) {
-    const useGitHub =
-      options.backend !== undefined ? options.backend === 'github' : githubAccess.authenticated
-    return buildDefaultConfig({
+  if (options.yes || recipe !== undefined) {
+    return buildNonInteractiveConfig({
+      options,
+      recipe,
       targetDir,
       projectName,
       language,
@@ -271,10 +363,7 @@ async function resolveConfig(args: {
       buildCmds,
       gitInfo,
       existing,
-      tools: parseTools(options.tools),
-      governanceLevel: parseLevel(options.level),
-      useGitHub,
-      acceptBetaTools: options.acceptBetaTools ?? false,
+      githubAccess,
       lanes,
     })
   }
@@ -461,7 +550,9 @@ export function guardBrownfieldDirtyTree(targetDir: string, force: boolean | und
     console.warn(`\n  Warning: working tree has uncommitted changes (--force override active)\n`)
   } catch (err) {
     if (err instanceof UserFacingError) throw err
-    // git not available or not a git repo — skip check
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'EACCES') return // git binary not found
+    throw err
   }
 }
 
@@ -481,12 +572,15 @@ export function computeDryRunPreview(config: ProjectConfig): DryRunPreview {
 }
 
 export function rollbackGeneration(results: WriteResult[]): void {
+  const rollbackErrors: string[] = []
   for (const result of results) {
     if (result.action === 'created') {
       try {
         if (existsSync(result.path)) unlinkSync(result.path)
-      } catch {
-        // best-effort; file may already be gone
+      } catch (err) {
+        rollbackErrors.push(
+          `Could not remove ${result.path}: ${err instanceof Error ? err.message : String(err)}`,
+        )
       }
     } else if (result.action === 'backed-up-and-replaced') {
       const backup = `${result.path}.arbiter-backup`
@@ -495,10 +589,16 @@ export function rollbackGeneration(results: WriteResult[]): void {
           copyFileSync(backup, result.path)
           unlinkSync(backup)
         }
-      } catch {
-        // best-effort
+      } catch (err) {
+        rollbackErrors.push(
+          `Could not restore backup for ${result.path}: ${err instanceof Error ? err.message : String(err)}`,
+        )
       }
     }
+  }
+  if (rollbackErrors.length > 0) {
+    process.stderr.write(`  Rollback partial — manual cleanup required:\n`)
+    for (const e of rollbackErrors) process.stderr.write(`    ${e}\n`)
   }
 }
 
@@ -643,6 +743,26 @@ function buildDefaultConfig(opts: {
     lanes: opts.lanes ?? [],
     ...detectedBasePackage(opts.language, opts.targetDir),
   }
+}
+
+function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
+  if (recipe.archetype !== undefined) config.archetype = recipe.archetype
+  if (recipe.architectureStyle !== undefined) config.architectureStyle = recipe.architectureStyle
+  if (recipe.isMultiTenant !== undefined) config.isMultiTenant = recipe.isMultiTenant
+  if (recipe.hasDatabase !== undefined) config.hasDatabase = recipe.hasDatabase
+  if (recipe.hasPublicApi !== undefined) config.hasPublicApi = recipe.hasPublicApi
+  if (recipe.enableDebtGates !== undefined) config.enableDebtGates = recipe.enableDebtGates
+  if (recipe.enableSuppressions !== undefined) config.enableSuppressions = recipe.enableSuppressions
+  if (recipe.enableSecurityScanning !== undefined)
+    config.enableSecurityScanning = recipe.enableSecurityScanning
+  if (recipe.enableMutationTesting !== undefined)
+    config.enableMutationTesting = recipe.enableMutationTesting
+  if (recipe.enableContractTesting !== undefined)
+    config.enableContractTesting = recipe.enableContractTesting
+  if (recipe.enableSoloDevMode !== undefined) config.enableSoloDevMode = recipe.enableSoloDevMode
+  if (recipe.enableMcpFallback !== undefined) config.enableMcpFallback = recipe.enableMcpFallback
+  if (recipe.enableNoSkippedTests !== undefined)
+    config.enableNoSkippedTests = recipe.enableNoSkippedTests
 }
 
 function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {

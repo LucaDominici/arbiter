@@ -119,11 +119,19 @@ describe('guardBrownfieldDirtyTree (#540)', () => {
     warnSpy.mockRestore()
   })
 
-  it('does not throw when runCli throws (git unavailable)', () => {
+  it('does not throw when runCli throws ENOENT (git binary not found)', () => {
     mockRunCli.mockImplementationOnce(() => {
-      throw new Error('git not found')
+      const err = Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' })
+      throw err
     })
     expect(() => guardBrownfieldDirtyTree('/tmp/x', undefined)).not.toThrow()
+  })
+
+  it('re-throws unexpected non-git errors from runCli', () => {
+    mockRunCli.mockImplementationOnce(() => {
+      throw new TypeError('unexpected internal error')
+    })
+    expect(() => guardBrownfieldDirtyTree('/tmp/x', undefined)).toThrow('unexpected internal error')
   })
 })
 

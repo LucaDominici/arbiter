@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0
+import { z } from 'zod'
+
+const AiToolSchema = z.enum(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
+
+const GovernanceLevelSchema = z.enum(['L1', 'L2', 'L3'])
+
+const LanguageSchema = z.enum(['typescript', 'java', 'kotlin', 'rust', 'python', 'go', 'multi'])
+
+const ArchetypeSchema = z.enum([
+  'backend-web-db',
+  'cli',
+  'library',
+  'data-pipeline',
+  'frontend-spa',
+  'embedded',
+])
+
+const ArchitectureStyleSchema = z.enum(['hexagonal', 'layered', 'modular-monolith', 'none'])
+
+/**
+ * Partial subset of ProjectConfig fields that a recipe may pre-configure.
+ * Missing fields cause the wizard to prompt.
+ */
+export const RecipeSchema = z.object({
+  tools: z.array(AiToolSchema).min(1).optional(),
+  governanceLevel: GovernanceLevelSchema.optional(),
+  language: LanguageSchema.optional(),
+  framework: z.string().nullable().optional(),
+  archetype: ArchetypeSchema.optional(),
+  architectureStyle: ArchitectureStyleSchema.optional(),
+  useGitHub: z.boolean().optional(),
+  isMultiTenant: z.boolean().optional(),
+  hasDatabase: z.boolean().optional(),
+  hasPublicApi: z.boolean().optional(),
+  enableDebtGates: z.boolean().optional(),
+  enableSuppressions: z.boolean().optional(),
+  enableSecurityScanning: z.boolean().optional(),
+  enableMutationTesting: z.boolean().optional(),
+  enableContractTesting: z.boolean().optional(),
+  enableSoloDevMode: z.boolean().optional(),
+  enableMcpFallback: z.boolean().optional(),
+  enableNoSkippedTests: z.boolean().optional(),
+})
+
+export type Recipe = z.infer<typeof RecipeSchema>
