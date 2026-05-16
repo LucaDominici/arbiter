@@ -54,4 +54,4 @@ The task runner writes `.claude/.task-NNN/status.json` after each phase transiti
 | `gateDecisions` | Gate pass/fail records (populated by gate runner)                   |
 | `task`          | Task ID if provided at write time                                   |
 
-Writes are atomic: temp file in the same directory is renamed to `status.json`, preventing partial reads on interrupt.
+Writes are atomic: `writeTaskStatus` routes through `writeFile` (which calls `atomicWrite`), so the temp file is registered in `inFlightTmpPaths` and cleaned up by SIGTERM/SIGINT handlers (#613). A hex-suffix temp name (`status.json.arbiter-tmp-XXXX`) prevents name collisions under concurrent writes.
