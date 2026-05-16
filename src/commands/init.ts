@@ -40,6 +40,7 @@ import { defaultContractType } from '../wizard/archetype-defaults.js'
 import type { ProjectConfig, AiTool, GovernanceLevel } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
+import { ArbiterError } from '../utils/errors.js'
 
 export interface InitOptions {
   yes: boolean
@@ -318,7 +319,9 @@ export async function runPlugins(
     }
   }
   if (failures.length > 0) {
-    throw new Error(`Plugin(s) failed:\n  ${failures.join('\n  ')}`)
+    throw new ArbiterError('E_PLUGIN_FAILED', `Plugin(s) failed:\n  ${failures.join('\n  ')}`, {
+      hint: 'Remove the failing plugin with `arbiter plugin remove <name>` and retry.',
+    })
   }
   return all
 }
@@ -577,8 +580,10 @@ function parseTools(tools: string | undefined): AiTool[] {
   const parsed = tools.split(',').map((t) => t.trim())
   const invalid = parsed.filter((t) => !VALID.has(t))
   if (invalid.length > 0) {
-    throw new Error(
+    throw new ArbiterError(
+      'E_INVALID_TOOL',
       `Unknown tool(s): ${invalid.map((t) => `"${t}"`).join(', ')}. Valid: ${[...VALID].join(', ')}`,
+      { hint: 'Valid tools: claude, codex, cursor, copilot, gemini, windsurf, aider.' },
     )
   }
   return parsed as AiTool[]
@@ -587,7 +592,13 @@ function parseTools(tools: string | undefined): AiTool[] {
 function parseLevel(level: string | undefined): GovernanceLevel {
   if (level === undefined) return 'L2'
   if (level === 'L1' || level === 'L2' || level === 'L3') return level
-  throw new Error(`Unknown governance level: "${level}". Valid: L1, L2, L3`)
+  throw new ArbiterError(
+    'E_INVALID_LEVEL',
+    `Unknown governance level: "${level}". Valid: L1, L2, L3`,
+    {
+      hint: 'Use L1 (fast), L2 (standard, default), or L3 (audit-grade).',
+    },
+  )
 }
 
 /**

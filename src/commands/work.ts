@@ -3,6 +3,7 @@ import { loadConfig } from '../utils/config.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import { getBackend } from '../decomposition/registry.js'
 import type { WorkUnitStatus, WorkUnitPhase } from '../decomposition/types.js'
+import { ArbiterError } from '../utils/errors.js'
 
 export interface WorkListOptions {
   dir?: string
@@ -40,7 +41,10 @@ function resolveDir(dir?: string): string {
 function requireConfig(targetDir: string): ArbiterConfigV2 {
   const config = loadConfig(targetDir)
   if (!config) {
-    throw new Error('No arbiter.json found. Run `arbiter init` first.')
+    throw new ArbiterError('E_CONFIG_NOT_FOUND', 'No arbiter.json found.', {
+      hint: 'Run `arbiter init` to initialize governance in this directory.',
+      docUrl: 'https://arbiter.dev/reference/cli#init',
+    })
   }
   return config
 }
@@ -83,7 +87,9 @@ export async function runWorkShow(opts: WorkShowOptions): Promise<void> {
   const unit = await backend.get(opts.id)
 
   if (!unit) {
-    throw new Error(`Work unit "${opts.id}" not found`)
+    throw new ArbiterError('E_WORK_NOT_FOUND', `Work unit "${opts.id}" not found`, {
+      hint: 'Run `arbiter work list` to see available work unit IDs.',
+    })
   }
 
   console.log(`  id:     ${unit.id}`)
