@@ -99,7 +99,7 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
 
   it('rejects missing arbiter.json', () => {
     // dir has package.json but no arbiter.json
-    expect(() => runUpgradeLevel({ dir, target: 'L2' })).toThrow(/run arbiter init first/i)
+    expect(() => runUpgradeLevel({ dir, target: 'L2' })).toThrow(/arbiter\.json/i)
   })
 
   it('--extend on active grace: adds +30d to existing end date and appends to grace-log.json', () => {

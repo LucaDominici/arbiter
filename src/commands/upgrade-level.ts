@@ -7,6 +7,7 @@ import type { ArbiterConfig } from '../utils/config.js'
 import { runCli } from '../utils/run-cli.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { validateConfig } from '../config/schema.js'
+import { ArbiterError } from '../utils/errors.js'
 
 export interface UpgradeLevelOptions {
   dir?: string
@@ -30,7 +31,10 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
       process.exit(1)
       return
     }
-    throw new Error('No arbiter.json found. Run arbiter init first.')
+    throw new ArbiterError('E_CONFIG_NOT_FOUND', 'No arbiter.json found.', {
+      hint: 'Run `arbiter init` to initialize governance in this directory.',
+      docUrl: 'https://arbiter.dev/reference/cli#init',
+    })
   }
 
   if (opts.extend) {
@@ -39,17 +43,27 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   }
 
   if (!opts.target) {
-    throw new Error('--target is required. Specify L2 or L3.')
+    throw new ArbiterError('E_TARGET_REQUIRED', '--target is required. Specify L2 or L3.', {
+      hint: 'Example: `arbiter upgrade-level --target L2`.',
+    })
   }
   const target = opts.target
   const current = stored.governanceLevel
 
   if (target === current) {
-    throw new Error(`Already at ${current}. Nothing to upgrade.`)
+    throw new ArbiterError('E_ALREADY_AT_LEVEL', `Already at ${current}. Nothing to upgrade.`, {
+      hint: 'Run `arbiter update` to regenerate governance files at the current level.',
+    })
   }
 
   if (LEVEL_RANK[target] < LEVEL_RANK[current]) {
-    throw new Error('Downgrade not supported. Edit arbiter.json manually and run arbiter update.')
+    throw new ArbiterError(
+      'E_DOWNGRADE_NOT_SUPPORTED',
+      'Downgrade not supported. Edit arbiter.json manually and run arbiter update.',
+      {
+        hint: 'Set `governanceLevel` in arbiter.json to the desired level, then run `arbiter update`.',
+      },
+    )
   }
 
   const days = opts.days ?? DEFAULT_GRACE_DAYS
@@ -62,7 +76,11 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   const upgraded = { ...stored, governanceLevel: target, graceFromLevel: current, graceEndsAt }
   const validation = validateConfig(upgraded)
   if (!validation.ok) {
-    throw new Error(`Config invalid after upgrade: ${validation.errors.join('; ')}`)
+    throw new ArbiterError(
+      'E_CONFIG_INVALID',
+      `Config invalid after upgrade: ${validation.errors.join('; ')}`,
+      { hint: 'Fix the errors above, or delete arbiter.json and re-run `arbiter init`.' },
+    )
   }
 
   runCli('node', ['scripts/capture-debt-baseline.mjs', '--update'], {
@@ -100,7 +118,11 @@ function handleExtend(
 ): void {
   const existing = stored.graceEndsAt
   if (!existing || Date.parse(existing) <= Date.now()) {
-    throw new Error('No grace period to extend (none set or already expired).')
+    throw new ArbiterError(
+      'E_NO_GRACE_PERIOD',
+      'No grace period to extend (none set or already expired).',
+      { hint: 'Run `arbiter upgrade-level --target L2` to start a new grace period.' },
+    )
   }
 
   const newEndsAt = new Date(Date.parse(existing) + days * 86400000).toISOString()
@@ -117,13 +139,21 @@ function handleExtend(
     try {
       raw = JSON.parse(readFileSync(logPath, 'utf-8'))
     } catch {
-      throw new Error(`grace-log.json is malformed — delete ${logPath} to reset extend history`)
+      throw new ArbiterError(
+        'E_GRACE_LOG_MALFORMED',
+        `grace-log.json is malformed — delete ${logPath} to reset extend history`,
+        { hint: `Delete ${logPath} and retry.` },
+      )
     }
     // #499: valid JSON that is not an array (e.g., a future schema object) is
     // also malformed for our purposes — silently overwriting it would erase
     // prior extend history. Refuse with the same recovery message.
     if (!Array.isArray(raw)) {
-      throw new Error(`grace-log.json is malformed — delete ${logPath} to reset extend history`)
+      throw new ArbiterError(
+        'E_GRACE_LOG_MALFORMED',
+        `grace-log.json is malformed — delete ${logPath} to reset extend history`,
+        { hint: `Delete ${logPath} and retry.` },
+      )
     }
     log = raw
   }

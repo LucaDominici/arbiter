@@ -40,7 +40,8 @@ import type { WorkUnitPhase, WorkUnitStatus } from './decomposition/types.js'
 import { appendEvidenceLine } from './utils/evidence-log.js'
 import { parseBooleanEnv } from './utils/env.js'
 import { runCli } from './utils/run-cli.js'
-import { UserFacingError } from './utils/errors.js'
+import { ArbiterError, UserFacingError } from './utils/errors.js'
+import { ERROR_CATALOG } from './utils/error-catalog.js'
 
 // ── Evidence logging setup ────────────────────────────────────────────────────
 
@@ -54,6 +55,12 @@ const _noEvidence =
   _noEvidenceIdx !== -1 || parseBooleanEnv(process.env['ARBITER_NO_EVIDENCE']) === true
 if (_noEvidenceIdx !== -1) {
   process.argv.splice(2 + _noEvidenceIdx, 1)
+}
+
+const _verboseIdx = process.argv.indexOf('--verbose')
+const _verbose = _verboseIdx !== -1
+if (_verbose) {
+  process.argv.splice(_verboseIdx, 1)
 }
 
 /** Resolve git HEAD SHA once at startup; fall back to "unknown" in non-git dirs. */
@@ -147,6 +154,7 @@ program
     'Decomposition backend: github or markdown (overrides gh auth detection)',
   )
   .option('--json', 'Emit machine-readable JSON output (requires --yes)', false)
+  .option('--quiet', 'Suppress informational banners (e.g. telemetry notice)', false)
   .action(
     async (opts: {
       yes: boolean
@@ -159,6 +167,7 @@ program
       acceptBetaTools: boolean
       backend?: string
       json: boolean
+      quiet: boolean
     }) => {
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
@@ -173,6 +182,7 @@ program
         acceptBetaTools: opts.acceptBetaTools,
         ...(backend !== undefined ? { backend } : {}),
         json: opts.json,
+        quiet: opts.quiet,
       })
     },
   )
@@ -1157,11 +1167,39 @@ function printCompareResult(
   }
 }
 
+program
+  .command('explain <code>')
+  .description('Show detailed explanation and recovery steps for an error code')
+  .action((code: string) => {
+    const entry = ERROR_CATALOG.get(code.toUpperCase())
+    if (!entry) {
+      process.stderr.write(`Unknown error code: ${code}\n`)
+      process.stderr.write(`Run \`arbiter explain --list\` to see all known codes.\n`)
+      process.exit(1)
+      return
+    }
+    process.stdout.write(`\n${entry.code} — ${entry.summary}\n\n`)
+    process.stdout.write(`  ${entry.detail}\n\n`)
+    process.stdout.write(`  Recovery:\n    ${entry.recovery}\n`)
+    if (entry.docUrl) process.stdout.write(`\n  See: ${entry.docUrl}\n`)
+    process.stdout.write('\n')
+  })
+
 program.parseAsync().catch((err: unknown) => {
-  if (err instanceof UserFacingError) {
+  if (err instanceof ArbiterError) {
+    process.stderr.write(`\nError [${err.code}]: ${err.message}\n`)
+    if (err.hint) process.stderr.write(`  Hint: ${err.hint}\n`)
+    if (err.docUrl) process.stderr.write(`  Docs: ${err.docUrl}\n`)
+    process.stderr.write(`\nRun \`arbiter explain ${err.code}\` for more detail.\n`)
+    if (_verbose && err.stack) process.stderr.write(`\n${err.stack}\n`)
+  } else if (err instanceof UserFacingError) {
     process.stderr.write(`Error: ${err.message}\n`)
+    if (_verbose && err.stack) process.stderr.write(`\n${err.stack}\n`)
   } else if (err instanceof Error) {
-    process.stderr.write(`Unexpected error: ${err.message}\n${err.stack ?? ''}\n`)
+    process.stderr.write(`Unexpected error: ${err.message}\n`)
+    if (_verbose) {
+      process.stderr.write(`${err.stack ?? ''}\n`)
+    }
   } else {
     process.stderr.write(`Unexpected error: ${String(err)}\n`)
   }

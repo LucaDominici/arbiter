@@ -91,7 +91,9 @@ describe('runWorkCreate', () => {
   it('throws if arbiter.json is missing', async () => {
     const emptyDir = mkdtempSync(join(tmpdir(), 'arbiter-work-no-cfg-'))
     try {
-      await expect(runWorkCreate({ dir: emptyDir, title: 'Fail' })).rejects.toThrow(/arbiter init/i)
+      await expect(runWorkCreate({ dir: emptyDir, title: 'Fail' })).rejects.toThrow(
+        /arbiter\.json/i,
+      )
     } finally {
       rmSync(emptyDir, { recursive: true, force: true })
     }
