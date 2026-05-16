@@ -425,7 +425,17 @@ function harvestAndReport(
       console.log(`  skipped: ${f}`)
     }
   }
-  if (result.copied.length === 0 && result.skipped.length === 0) {
+  if (result.protectedUntracked.length > 0) {
+    console.log(
+      `Protected ${result.protectedUntracked.length} untracked file(s) in main repo from overwrite:`,
+    )
+    for (const f of result.protectedUntracked) {
+      console.log(`  protected-untracked: ${f}`)
+    }
+  }
+  const totalProcessed =
+    result.copied.length + result.skipped.length + result.protectedUntracked.length
+  if (totalProcessed === 0) {
     console.log('No files to harvest (worktree has no changes).')
   }
 
@@ -579,6 +589,7 @@ interface HarvestAuditEntry {
   harvestedAt: string
   copied: string[]
   skipped: string[]
+  protectedUntracked: string[]
   parentBranchBefore: string | undefined
   parentUntrackedBefore: string[] | undefined
 }
@@ -602,6 +613,7 @@ function writeHarvestAuditIfNeeded(
     harvestedAt: new Date().toISOString(),
     copied: harvestResult.copied,
     skipped: harvestResult.skipped,
+    protectedUntracked: harvestResult.protectedUntracked,
     parentBranchBefore: harvestResult.parentBranchBefore,
     parentUntrackedBefore: harvestResult.parentUntrackedBefore,
   })

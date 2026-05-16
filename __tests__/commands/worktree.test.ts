@@ -44,7 +44,7 @@ vi.mock('../../src/worktree/links.js', () => ({
   checkLinkIntegrity: vi.fn().mockReturnValue([]),
 }))
 vi.mock('../../src/worktree/harvest.js', () => ({
-  harvestFiles: vi.fn().mockReturnValue({ copied: [], skipped: [] }),
+  harvestFiles: vi.fn().mockReturnValue({ copied: [], skipped: [], protectedUntracked: [] }),
 }))
 vi.mock('../../src/utils/config.js', () => ({
   loadConfig: vi.fn().mockReturnValue(null),
@@ -80,7 +80,7 @@ describe('runWorktreeList', () => {
     vi.resetAllMocks()
     mockCheckLinkIntegrity.mockReturnValue([])
     mockMaterializeLink.mockReturnValue({ result: 'LINKED' })
-    mockHarvestFiles.mockReturnValue({ copied: [], skipped: [] })
+    mockHarvestFiles.mockReturnValue({ copied: [], skipped: [], protectedUntracked: [] })
     mockRunCli.mockReturnValue(ok(gitRoot))
   })
 
@@ -140,7 +140,7 @@ describe('runWorktreeOpen', () => {
     vi.resetAllMocks()
     mockCheckLinkIntegrity.mockReturnValue([])
     mockMaterializeLink.mockReturnValue({ result: 'LINKED' })
-    mockHarvestFiles.mockReturnValue({ copied: [], skipped: [] })
+    mockHarvestFiles.mockReturnValue({ copied: [], skipped: [], protectedUntracked: [] })
     mockIsRunningFromMainRepo.mockReturnValue(true)
     mockWorkingTreeDirty.mockReturnValue(false)
     mockRunCli
@@ -205,7 +205,7 @@ describe('runWorktreeClose', () => {
     vi.resetAllMocks()
     mockCheckLinkIntegrity.mockReturnValue([])
     mockMaterializeLink.mockReturnValue({ result: 'LINKED' })
-    mockHarvestFiles.mockReturnValue({ copied: [], skipped: [] })
+    mockHarvestFiles.mockReturnValue({ copied: [], skipped: [], protectedUntracked: [] })
     mockIsRunningFromMainRepo.mockReturnValue(true)
     mockWorkingTreeDirty.mockReturnValue(false)
     mockBranchFullyMerged.mockReturnValue(true)
@@ -320,6 +320,7 @@ describe('runWorktreeClose', () => {
     mockHarvestFiles.mockReturnValue({
       copied: ['src/foo.ts'],
       skipped: [],
+      protectedUntracked: [],
       parentBranchBefore: 'main',
       parentUntrackedBefore: [],
     })
