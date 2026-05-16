@@ -1,7 +1,7 @@
 {
   "project": ["src/**/*.ts", "!src/templates/**"],
   "ignoreDependencies": ["prettier", "@commitlint/cli", "jscpd", "madge"],
-  "ignoreFiles": ["src/test/example.behavioral.test.ts"],
+  "ignoreFiles": ["src/test/example.behavioral.test.ts", "src/utils/plugin-worker.ts"],
   "ignoreBinaries": [
     "wait-on",
     "stryker",
