@@ -438,13 +438,15 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     }
   }
 
-  if (to === 'implementation') {
-    checkPlanReviewGate(dir, claudeDir, opts)
+  const phaseGates: Partial<Record<TaskPhase, () => void>> = {
+    implementation: () => {
+      checkPlanReviewGate(dir, claudeDir, opts)
+    },
+    green: () => {
+      checkTddEvidenceGate(dir, claudeDir)
+    },
   }
-
-  if (to === 'green') {
-    checkTddEvidenceGate(dir, claudeDir)
-  }
+  phaseGates[to]?.()
 
   mkdirSync(claudeDir, { recursive: true })
   const timestamp = new Date().toISOString()
