@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, initGit, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateClaude } from '../../src/generators/claude.js'
@@ -141,5 +141,98 @@ describe('tool output: claude', () => {
     })
     generateClaude(config)
     expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-any.mjs'))).toBe(true)
+  })
+})
+
+// ─── MCP fallback rule (#721) ─────────────────────────────────────────────────
+
+describe('generateClaude — MCP fallback rule (#721)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  function claudeConfig(overrides: Partial<Parameters<typeof makeConfig>[1]> = {}) {
+    return makeConfig(dir, { languageHooks: [], ...overrides })
+  }
+
+  it('does NOT generate 45-mcp-fallback.md by default', () => {
+    generateClaude(claudeConfig())
+    expect(existsSync(join(dir, '.claude', 'rules', '45-mcp-fallback.md'))).toBe(false)
+  })
+
+  it('generates .claude/rules/45-mcp-fallback.md when enableMcpFallback is true', () => {
+    generateClaude(claudeConfig({ enableMcpFallback: true }))
+    expect(existsSync(join(dir, '.claude', 'rules', '45-mcp-fallback.md'))).toBe(true)
+  })
+
+  it('45-mcp-fallback.md mentions gh CLI and fallback equivalents', () => {
+    generateClaude(claudeConfig({ enableMcpFallback: true }))
+    const content = readFileSync(join(dir, '.claude', 'rules', '45-mcp-fallback.md'), 'utf-8')
+    expect(content).toMatch(/gh\b/)
+    expect(content).toMatch(/fallback/i)
+  })
+
+  it('45-mcp-fallback.md is skipIfExists — does not overwrite existing file', () => {
+    generateClaude(claudeConfig({ enableMcpFallback: true }))
+    const p = join(dir, '.claude', 'rules', '45-mcp-fallback.md')
+    writeFileSync(p, 'EXISTING')
+    const result = generateClaude(claudeConfig({ enableMcpFallback: true }))
+    const file = result.files.find((f) => f.path.endsWith('45-mcp-fallback.md'))
+    expect(file?.action).toBe('skipped')
+  })
+})
+
+// ─── No-skipped-tests hook (#730) ────────────────────────────────────────────
+
+describe('generateClaude — no-skipped-tests hook (#730)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  function claudeConfig(overrides: Partial<Parameters<typeof makeConfig>[1]> = {}) {
+    return makeConfig(dir, { languageHooks: [], ...overrides })
+  }
+
+  it('generates check-no-skipped-tests.mjs by default', () => {
+    generateClaude(claudeConfig())
+    expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-skipped-tests.mjs'))).toBe(true)
+  })
+
+  it('does NOT generate check-no-skipped-tests.mjs when enableNoSkippedTests is false', () => {
+    generateClaude(claudeConfig({ enableNoSkippedTests: false }))
+    expect(existsSync(join(dir, '.claude', 'hooks', 'check-no-skipped-tests.mjs'))).toBe(false)
+  })
+
+  it('check-no-skipped-tests.mjs contains @Disabled and pytest.mark.skip patterns', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(
+      join(dir, '.claude', 'hooks', 'check-no-skipped-tests.mjs'),
+      'utf-8',
+    )
+    expect(content).toContain('@Disabled')
+    expect(content).toContain('pytest.mark.skip')
+  })
+
+  it('check-no-skipped-tests.mjs is skipIfExists', () => {
+    generateClaude(claudeConfig())
+    const p = join(dir, '.claude', 'hooks', 'check-no-skipped-tests.mjs')
+    writeFileSync(p, 'EXISTING')
+    const result = generateClaude(claudeConfig())
+    const file = result.files.find((f) => f.path.endsWith('check-no-skipped-tests.mjs'))
+    expect(file?.action).toBe('skipped')
   })
 })

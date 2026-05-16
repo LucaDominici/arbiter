@@ -53,7 +53,7 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
 
   generateClaudeSettings(base, data, results)
   generateClaudeHooks(base, data, config, results)
-  generateClaudeRules(base, data, results)
+  generateClaudeRules(base, data, config, results)
   generateClaudeCommands(base, data, results)
 
   return { files: results }
@@ -125,7 +125,6 @@ function generateClaudeHooks(
     'pre-edit-ssot-guard.mjs',
     'check-no-orphan-todo.mjs',
     'check-no-placeholders.mjs',
-    'check-no-skipped-tests.mjs',
   ]
   for (const hookFile of staticHooks) {
     results.push(
@@ -153,6 +152,16 @@ function generateClaudeHooks(
       writeFile(
         join(hooksDir, 'check-no-unused-exports.mjs'),
         renderTemplate('claude/hooks/check-no-unused-exports.mjs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
+  if (config.enableNoSkippedTests !== false) {
+    results.push(
+      writeFile(
+        join(hooksDir, 'check-no-skipped-tests.mjs'),
+        renderTemplate('claude/hooks/check-no-skipped-tests.mjs', data),
         { skipIfExists: true },
       ),
     )
@@ -206,7 +215,12 @@ function generateClaudeHooks(
   }
 }
 
-function generateClaudeRules(base: string, data: object, results: WriteResult[]): void {
+function generateClaudeRules(
+  base: string,
+  data: object,
+  config: ProjectConfig,
+  results: WriteResult[],
+): void {
   const rulesDir = resolvedPath(base, '.claude', 'rules')
   const rules = [
     {
@@ -227,6 +241,15 @@ function generateClaudeRules(base: string, data: object, results: WriteResult[])
       writeFile(join(rulesDir, rule.file), renderTemplate(rule.template, data), {
         skipIfExists: true,
       }),
+    )
+  }
+  if (config.enableMcpFallback) {
+    results.push(
+      writeFile(
+        join(rulesDir, '45-mcp-fallback.md'),
+        renderTemplate('claude/rules/45-mcp-fallback.md', data),
+        { skipIfExists: true },
+      ),
     )
   }
 }

@@ -1,11 +1,14 @@
 {
   "version": 1,
-  "_comment": "Hardness manifest — every hook declared with explicit intent. Drift from this file fails L1 CI. See scripts/check-hardness-inventory.mjs.",
+  "_comment": "Hardness manifest \u2014 every hook declared with explicit intent. Drift from this file fails L1 CI. See scripts/check-hardness-inventory.mjs.",
   "hooks": [
     {
       "file": "check-no-skipped-tests.mjs",
       "classification": "HARD",
-      "tools": ["claude", "codex"],
+      "tools": [
+        "claude",
+        "codex"
+      ],
       "spawnable": true,
       "expectedExitCode": 1,
       "fixture": {
@@ -14,12 +17,15 @@
         "envKey": "CLAUDE_TOOL_INPUT_PATH",
         "extension": ".ts"
       },
-      "rationale": "NI-11: skipped/disabled tests (@Disabled, .skip, xit, xtest, @pytest.mark.skip, #[ignore]) must not be committed — open a tracking issue instead"
+      "rationale": "NI-11: skipped/disabled tests (@Disabled, .skip, xit, xtest, @pytest.mark.skip, #[ignore]) must not be committed \u2014 open a tracking issue instead"
     },
     {
       "file": "check-no-orphan-todo.mjs",
       "classification": "HARD",
-      "tools": ["claude", "codex"],
+      "tools": [
+        "claude",
+        "codex"
+      ],
       "spawnable": true,
       "expectedExitCode": 1,
       "fixture": {
@@ -32,7 +38,10 @@
     {
       "file": "check-no-placeholders.mjs",
       "classification": "HARD",
-      "tools": ["claude", "codex"],
+      "tools": [
+        "claude",
+        "codex"
+      ],
       "spawnable": true,
       "expectedExitCode": 1,
       "fixture": {
@@ -43,16 +52,37 @@
       "rationale": "Blocks placeholder/WIP/disabled-test patterns (PLACEHOLDER, FIXME, XXX, HACK, WIP, it.skip etc.) before save"
     },
     {
+      "file": "check-no-skipped-tests.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "expectedExitCode": 1,
+      "fixture": {
+        "type": "file-with-content",
+        "content": "@Disabled\npublic void testFoo() {}\n",
+        "envKey": "CLAUDE_TOOL_INPUT_PATH",
+        "extension": ".java"
+      },
+      "rationale": "NI-11: blocks @Disabled/@Ignore (Java), pytest.mark.skip/xfail (Python), t.Skip (Go) in source files"
+    },
+    {
       "file": "check-no-unused-exports.mjs",
       "classification": "HARD",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
       "rationale": "Blocks unused TypeScript exports via knip (exits 1 if exports/types arrays non-empty). TypeScript projects only (#156)"
     },
     {
       "file": "check-no-pii.mjs.ejs",
       "classification": "HARD",
-      "tools": ["claude", "codex"],
+      "tools": [
+        "claude",
+        "codex"
+      ],
       "spawnable": false,
       "expectedExitCode": 1,
       "rationale": "INV-12: PII patterns (email, phone, credit card) must not appear in committed files. EJS template rendered at init time; empirical coverage in __tests__/hooks/empirical/hook-fires.test.ts"
@@ -60,43 +90,60 @@
     {
       "file": "enforce-read-only.mjs",
       "classification": "HARD",
-      "tools": ["claude", "codex"],
+      "tools": [
+        "claude",
+        "codex"
+      ],
       "spawnable": true,
       "expectedExitCode": 1,
       "fixture": {
         "type": "env-only",
-        "env": { "CLAUDE_TOOL_INPUT_PATH": "package-lock.json" }
+        "env": {
+          "CLAUDE_TOOL_INPUT_PATH": "package-lock.json"
+        }
       },
       "rationale": "Designated read-only files (AGENTS.md, LICENSE, package-lock.json, Cargo.lock) must not be edited silently"
     },
     {
       "file": "stop-dangerous.mjs",
       "classification": "HARD",
-      "tools": ["claude", "codex"],
+      "tools": [
+        "claude",
+        "codex"
+      ],
       "spawnable": true,
       "expectedExitCode": 1,
       "fixture": {
         "type": "env-only",
-        "env": { "CLAUDE_TOOL_INPUT_COMMAND": "rm -rf /" }
+        "env": {
+          "CLAUDE_TOOL_INPUT_COMMAND": "rm -rf /"
+        }
       },
       "rationale": "Dangerous shell commands (rm -rf /, force push, DROP TABLE) must be blocked"
     },
     {
       "file": "pre-edit-ssot-guard.mjs",
       "classification": "HARD",
-      "tools": ["claude", "codex"],
+      "tools": [
+        "claude",
+        "codex"
+      ],
       "spawnable": true,
       "expectedExitCode": 2,
       "fixture": {
         "type": "env-only",
-        "env": { "CLAUDE_TOOL_INPUT_PATH": "AGENTS.md" }
+        "env": {
+          "CLAUDE_TOOL_INPUT_PATH": "AGENTS.md"
+        }
       },
       "rationale": "SSOT governance documents must not be edited without explicit ADR or amendment. Exit 2 blocks and returns stderr to Claude as error context. Fixed in #402."
     },
     {
       "file": "pre-edit-plan-anchor.mjs.ejs",
       "classification": "HARD",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
       "expectedExitCode": 2,
       "rationale": "EJS template rendered at arbiter init time. Empirical exit-2 coverage in __tests__/hooks/empirical/plan-anchor.test.ts. Two hard-block paths: (1) implementation phase with no active plan (INV-38); (2) Write to new src/ file lacking a valid Existing Code Survey (CANON-16, INV-46). Fixed in #405, extended in #458."
@@ -104,58 +151,74 @@
     {
       "file": "debug-state-on-failure.mjs.ejs",
       "classification": "ADVISORY",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
-      "rationale": "State capture on PostToolUseFailure — not a violation guard, intentionally non-blocking"
+      "rationale": "State capture on PostToolUseFailure \u2014 not a violation guard, intentionally non-blocking"
     },
     {
       "file": "guard-done-evidence.mjs.ejs",
       "classification": "HARD",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "expectedExitCode": 2,
       "spawnable": false,
-      "rationale": "UserPromptSubmit hard block (exit 2) — completion claims without valid SHA-pinned evidence are rejected; empirical coverage in __tests__/hooks/empirical/done-evidence-guard.test.ts. INV-38."
+      "rationale": "UserPromptSubmit hard block (exit 2) \u2014 completion claims without valid SHA-pinned evidence are rejected; empirical coverage in __tests__/hooks/empirical/done-evidence-guard.test.ts. INV-38."
     },
     {
       "file": "guard-task-completion.mjs.ejs",
       "classification": "HARD",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "expectedExitCode": 2,
       "spawnable": false,
-      "rationale": "UserPromptSubmit hard block (exit 2) — premature task-completion claims return stderr to Claude as error context; empirical coverage in __tests__/hooks/empirical/completion-guard.test.ts"
+      "rationale": "UserPromptSubmit hard block (exit 2) \u2014 premature task-completion claims return stderr to Claude as error context; empirical coverage in __tests__/hooks/empirical/completion-guard.test.ts"
     },
     {
       "file": "post-commit-check.mjs.ejs",
       "classification": "ADVISORY",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
-      "rationale": "PostToolUse L2 gate reminder — advisory reminder, not a violation guard"
+      "rationale": "PostToolUse L2 gate reminder \u2014 advisory reminder, not a violation guard"
     },
     {
       "file": "post-edit-dispatch.mjs.ejs",
       "classification": "ADVISORY",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
-      "rationale": "PostToolUse format/lint dispatcher — advisory dispatcher, not a guard"
+      "rationale": "PostToolUse format/lint dispatcher \u2014 advisory dispatcher, not a guard"
     },
     {
       "file": "pre-compact.mjs.ejs",
       "classification": "ADVISORY",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
-      "rationale": "PreCompact session state preservation — advisory, intentionally non-blocking"
+      "rationale": "PreCompact session state preservation \u2014 advisory, intentionally non-blocking"
     },
     {
       "file": "skill-forced-eval.mjs.ejs",
       "classification": "ADVISORY",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
-      "rationale": "Skill context injector — advisory context injection, not a guard"
+      "rationale": "Skill context injector \u2014 advisory context injection, not a guard"
     },
     {
       "file": "check-circular-deps.mjs.ejs",
       "classification": "HARD",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
       "expectedExitCode": 2,
       "rationale": "INV-01: circular TypeScript dependencies detected per-edit via madge; soft-skips when madge not installed. EJS template rendered at init time for TypeScript projects."
@@ -163,9 +226,11 @@
     {
       "file": "hooks.mjs.ejs",
       "classification": "ADVISORY",
-      "tools": ["claude"],
+      "tools": [
+        "claude"
+      ],
       "spawnable": false,
-      "rationale": "#248: Single dispatcher entrypoint — routes events to handler scripts via config table. EJS template renders with language/governance conditional entries. Delegates to individual HARD/ADVISORY handlers; exit code mirrors first non-zero handler."
+      "rationale": "#248: Single dispatcher entrypoint \u2014 routes events to handler scripts via config table. EJS template renders with language/governance conditional entries. Delegates to individual HARD/ADVISORY handlers; exit code mirrors first non-zero handler."
     }
   ]
 }
