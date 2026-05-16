@@ -177,6 +177,8 @@ export interface ProjectConfig {
   enableMcpFallback?: boolean
   /** Whether to generate check-no-skipped-tests.mjs hook. Default true for all governance levels. */
   enableNoSkippedTests?: boolean
+  /** Whether to use the 25-dimension test taxonomy template instead of the base 17-dimension one. Default false. */
+  enableTaxonomy25d?: boolean
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.

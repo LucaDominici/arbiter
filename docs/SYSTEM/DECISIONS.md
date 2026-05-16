@@ -5,6 +5,19 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-048: 25-dimension test taxonomy extension (#719, 2026-05-16)
+
+**Status:** Accepted
+**Reference:** Issue #719; viafera M-11
+
+**Context:** The base `TEST_TAXONOMY.md` template covers 17 universal dimensions suitable for most projects. Industrial-grade projects (compliance, regulated industries, high-traffic APIs) require additional coverage for audit trails, PII masking, rate limiting, session lifecycle, event delivery, graceful degradation, SLA assertions, and OWASP security surface.
+
+**Decision:** Add opt-in `enableTaxonomy25d: true` flag. When set, `generateTestTaxonomy` uses a new template at `src/templates/testing/test-taxonomy.md.ejs` that extends the base 17 dimensions with 8 compliance/industrial dimensions (18–25). The decision matrix is also extended with compliance-specific change types. The base template is unchanged — existing projects see no impact.
+
+**Consequences:** Projects using the `industrial-grade` preset (issue #729) or compliance flags (`iso27001`, `nis2`, `gdpr`) will set this flag. Template is `skipIfExists: true` so teams can customise after init. All 25 dimensions map to existing INV references and external standards (GDPR, ISO 27001, OWASP ASVS, NIS2).
+
+---
+
 ## ADR-046: MCP fallback determinism rule + cross-language skip-test guard (#721 #730, 2026-05-16)
 
 **Status:** Accepted
