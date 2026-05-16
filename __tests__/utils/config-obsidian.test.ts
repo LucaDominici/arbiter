@@ -58,12 +58,9 @@ describe('loadConfig (#115) — parse error visibility', () => {
     expect(console.warn).not.toHaveBeenCalled()
   })
 
-  it('corrupt JSON → null + console.warn referencing arbiter.json', () => {
+  it('corrupt JSON → throws Error referencing arbiter.json (#679)', () => {
     writeFileSync(join(dir, 'arbiter.json'), '{', 'utf-8')
-    const result = loadConfig(dir)
-    expect(result).toBeNull()
-    expect(console.warn).toHaveBeenCalledOnce()
-    const warnArg = (console.warn as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
-    expect(warnArg).toContain('arbiter.json')
+    expect(() => loadConfig(dir)).toThrow(/arbiter\.json/)
+    expect(console.warn).not.toHaveBeenCalled()
   })
 })

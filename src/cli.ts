@@ -40,6 +40,7 @@ import type { WorkUnitPhase, WorkUnitStatus } from './decomposition/types.js'
 import { appendEvidenceLine } from './utils/evidence-log.js'
 import { parseBooleanEnv } from './utils/env.js'
 import { runCli } from './utils/run-cli.js'
+import { UserFacingError } from './utils/errors.js'
 
 // ── Evidence logging setup ────────────────────────────────────────────────────
 
@@ -1157,6 +1158,12 @@ function printCompareResult(
 }
 
 program.parseAsync().catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : String(err))
+  if (err instanceof UserFacingError) {
+    process.stderr.write(`Error: ${err.message}\n`)
+  } else if (err instanceof Error) {
+    process.stderr.write(`Unexpected error: ${err.message}\n${err.stack ?? ''}\n`)
+  } else {
+    process.stderr.write(`Unexpected error: ${String(err)}\n`)
+  }
   process.exit(1)
 })
