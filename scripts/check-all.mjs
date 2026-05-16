@@ -114,10 +114,7 @@ if (level === 'L2' || level === 'L3') {
   ])
   runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
   runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
-  // STRIDE/RACI traceability deliberately NOT wired here yet: the docs/SECURITY/STRIDE.md
-  // and docs/GOVERNANCE/RACI.md tables have zero HIGH/CRITICAL rows, so the script
-  // would exit 0 unconditionally. Wiring a no-op gate would be a CANON-09 lie. Wire
-  // only after at least one threat/responsibility row is documented (#350-followup).
+  runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
   runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
   runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
   runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])

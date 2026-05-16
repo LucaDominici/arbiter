@@ -218,6 +218,40 @@ function finalRetryError(
 }
 
 /**
+ * Run an interactive CLI command (e.g. `$EDITOR`) whose stdin/stdout/stderr
+ * are inherited from the parent process so the child can take over the TTY.
+ * Returns the child's exit status. Used by `arbiter report` to spawn the
+ * user's editor for manifest review before bundling.
+ */
+export function runInteractive(
+  cmd: string,
+  args: readonly string[],
+  opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+): { exitCode: number } {
+  const result = spawnSync(cmd, [...args], {
+    cwd: opts.cwd,
+    env: opts.env,
+    stdio: 'inherit',
+    shell: false,
+  })
+  if ((result.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
+    throw new CliError(
+      {
+        cmd,
+        args,
+        exitCode: -1,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        notFound: true,
+      },
+      `Command not found: ${cmd}`,
+    )
+  }
+  return { exitCode: result.status ?? 1 }
+}
+
+/**
  * Run a CLI command and parse stdout as JSON. Returns `unknown` — callers
  * narrow with a type assertion. Throws CliError on non-zero exit or invalid JSON.
  */

@@ -124,7 +124,22 @@ Run `arbiter explain <code>`, e.g. `arbiter explain INV-04` or `arbiter explain 
 ---
 
 **How do I find my Run ID?**  
-Every arbiter error message includes a footer line like `Run ID: arb-20260516-120000-aabbccdd`. That ID is also set as `ARBITER_RUN_ID` in the environment, so any subprocess or hook can read it. Log files created by arbiter (when M4 log capture ships) will be stored under `~/.arbiter/logs/<runId>/`. When filing a bug report, include the Run ID — it lets maintainers correlate error messages, logs, and report bundles to the exact invocation that failed.
+Every arbiter error message includes a footer line like `Run ID: arb-20260516-120000-aabbccdd`. That ID is also set as `ARBITER_RUN_ID` in the environment, so any subprocess or hook can read it. Log files created by arbiter are stored under `~/.arbiter/logs/<runId>/` (replay capture, #638). When filing a bug report, include the Run ID — it lets maintainers correlate error messages, logs, and report bundles to the exact invocation that failed.
+
+---
+
+**Something is broken and I want to file a bug. What is the fastest way to get arbiter to tell me what went wrong?**  
+The first step is `arbiter --debug <your-command>`. This is identical to passing `--log-level debug` and produces structured records on stderr at every internal phase (config load, plugin load, generator dispatch, hook fire). Pair it with `--log-format json` if you want jq-friendly output. See [recipes/B10-debug-mode.md](RECIPES/B10-debug-mode.md).
+
+---
+
+**How do I share the full context of a failed run for a bug report?**  
+Run `arbiter report`. It bundles the most recent run's argv, redacted environment, output log, and arbiter state into a single `.tar.gz` in `~/.arbiter/reports/`. By default it opens `$EDITOR` first so you can review the manifest before bundling. Attach the tar.gz to your issue. See [PRIVACY.md](../PRIVACY.md) for what is captured and redacted.
+
+---
+
+**How do I profile a slow arbiter command?**  
+Run `arbiter --profile <your-command>`. A `.cpuprofile` is written to `~/.arbiter/profiles/<runId>.cpuprofile`. Open it in Chrome DevTools (chrome://inspect → "Open dedicated DevTools for Node" → Profiler → Load). See [recipes/perf-debugging.md](RECIPES/perf-debugging.md).
 
 ---
 
