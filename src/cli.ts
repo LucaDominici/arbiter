@@ -164,6 +164,15 @@ program
   .option('--json', 'Emit machine-readable JSON output (requires --yes)', false)
   .option('--quiet', 'Suppress informational banners (e.g. telemetry notice)', false)
   .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
+  .option(
+    '--preset <preset>',
+    'Apply a meta-preset: industrial-grade (governance + compliance + observability + auth bundle)',
+  )
+  .option('--auth-provider <provider>', 'Override auth provider (used with --preset or standalone)')
+  .option(
+    '--observability-provider <provider>',
+    'Override observability provider (used with --preset or standalone)',
+  )
   .action(
     async (opts: {
       yes: boolean
@@ -178,6 +187,9 @@ program
       json: boolean
       quiet: boolean
       force: boolean
+      preset?: string
+      authProvider?: string
+      observabilityProvider?: string
     }) => {
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
@@ -194,6 +206,16 @@ program
         json: opts.json,
         quiet: opts.quiet,
         force: opts.force,
+        ...(opts.preset === 'industrial-grade' ? { preset: 'industrial-grade' } : {}),
+        ...(opts.authProvider !== undefined
+          ? { authProvider: opts.authProvider as import('./wizard/types.js').AuthProvider }
+          : {}),
+        ...(opts.observabilityProvider !== undefined
+          ? {
+              observabilityProvider:
+                opts.observabilityProvider as import('./wizard/types.js').ObservabilityProvider,
+            }
+          : {}),
       })
     },
   )

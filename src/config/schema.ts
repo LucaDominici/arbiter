@@ -3,12 +3,15 @@ import type {
   AiTool,
   Archetype,
   ArchitectureStyle,
+  AuthConfig,
   ContractType,
   EvidenceRetentionConfig,
   GovernanceLevel,
   InvariantTier,
   Lane,
+  ObservabilityConfig,
   PlanDepth,
+  ProjectPreset,
   StrictnessTier,
   TaskTierConfig,
   TaskTiers,
@@ -90,6 +93,12 @@ export interface ArbiterConfigV2 {
   taskTiers?: TaskTiers
   /** CONTEXT_PACK generator configuration (#254). */
   contextPack?: ContextPackConfig
+  /** Observability provider configuration. Absent = no observability files generated. */
+  observability?: ObservabilityConfig
+  /** Auth provider configuration. Absent = no auth setup files generated. */
+  auth?: AuthConfig
+  /** Active project preset for audit/drift detection. Absent = no preset applied. */
+  preset?: ProjectPreset
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
