@@ -10,7 +10,7 @@ import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
-import { runDoctorRepairState } from './commands/doctor.js'
+import { runDoctorRepairState, runDoctorHealth } from './commands/doctor.js'
 import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
@@ -42,8 +42,8 @@ import { appendEvidenceLine } from './utils/evidence-log.js'
 import { parseBooleanEnv } from './utils/env.js'
 import { runCli } from './utils/run-cli.js'
 import { ArbiterError, UserFacingError } from './utils/errors.js'
-import { ERROR_CATALOG } from './utils/error-catalog.js'
 import { registerCleanupHandlers } from './utils/fs.js'
+import { runExplain } from './commands/explain.js'
 
 registerCleanupHandlers()
 
@@ -642,7 +642,18 @@ program
     },
   )
 
-const doctor = program.command('doctor').description('Diagnose and repair arbiter state (#619)')
+const doctor = program
+  .command('doctor')
+  .description('Diagnose and repair arbiter state')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    const result = runDoctorHealth({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
+    })
+    if (result.exitCode !== 0) process.exit(result.exitCode)
+  })
 
 doctor
   .command('repair-state')
@@ -1237,21 +1248,15 @@ function printCompareResult(
 }
 
 program
-  .command('explain <code>')
-  .description('Show detailed explanation and recovery steps for an error code')
-  .action((code: string) => {
-    const entry = ERROR_CATALOG.get(code.toUpperCase())
-    if (!entry) {
-      process.stderr.write(`Unknown error code: ${code}\n`)
-      process.stderr.write(`Run \`arbiter explain --list\` to see all known codes.\n`)
-      process.exit(1)
-      return
-    }
-    process.stdout.write(`\n${entry.code} — ${entry.summary}\n\n`)
-    process.stdout.write(`  ${entry.detail}\n\n`)
-    process.stdout.write(`  Recovery:\n    ${entry.recovery}\n`)
-    if (entry.docUrl) process.stdout.write(`\n  See: ${entry.docUrl}\n`)
-    process.stdout.write('\n')
+  .command('explain [code]')
+  .description('Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule')
+  .option('--format <format>', 'Output format: text (default) or json')
+  .option('--list', 'List all known codes grouped by category')
+  .action((code: string | undefined, opts: { format?: string; list?: boolean }) => {
+    const result = runExplain(code ?? '', opts)
+    if (result.output) process.stdout.write(result.output)
+    if (result.error) process.stderr.write(result.error)
+    if (result.exitCode !== 0) process.exit(result.exitCode)
   })
 
 program.parseAsync().catch((err: unknown) => {

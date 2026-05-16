@@ -58,5 +58,6 @@ if (findings.length > 0) {
   process.stderr.write(
     `Add an allowlist entry to suppressions/pii-allowlist.json if this is a test fixture.\n`,
   );
+  process.stderr.write(`[arbiter] Run \`arbiter explain INV-12\` for details.\n`);
   process.exit(1);
 }

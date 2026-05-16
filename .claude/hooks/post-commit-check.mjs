@@ -23,6 +23,7 @@ const CONVENTIONAL =
 if (!CONVENTIONAL.test(msg)) {
   process.stderr.write(`[arbiter] INV-22: Commit message does not follow convention: ${msg}\n`)
   process.stderr.write(`[arbiter] Expected: type(scope): summary (e.g., feat(auth): add login)\n`)
+  process.stderr.write(`[arbiter] Run \`arbiter explain INV-22\` for details.\n`)
   process.exit(1)
 }
 

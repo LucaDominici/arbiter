@@ -49,5 +49,6 @@ if (result.status !== 0 || circularLines.length > 0) {
   )
   circularLines.slice(0, 5).forEach((l) => process.stderr.write(`  ${l}\n`))
   if (!circularLines.length && output) process.stderr.write(`  ${output.slice(0, 400)}\n`)
+  process.stderr.write(`[arbiter] Run \`arbiter explain INV-01\` for details.\n`)
   process.exit(2)
 }

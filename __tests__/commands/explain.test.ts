@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: Apache-2.0
+import { describe, it, expect } from 'vitest'
+import { runExplain } from '../../src/commands/explain.js'
+
+describe('runExplain', () => {
+  describe('E_ error codes', () => {
+    it('returns entry for known error code', () => {
+      const result = runExplain('E_CONFIG_NOT_FOUND', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('E_CONFIG_NOT_FOUND')
+      expect(result.output).toContain('No arbiter.json found')
+    })
+
+    it('lookup is case-insensitive', () => {
+      const result = runExplain('e_config_not_found', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('E_CONFIG_NOT_FOUND')
+    })
+
+    it('returns JSON when --format json', () => {
+      const result = runExplain('E_CONFIG_NOT_FOUND', { format: 'json' })
+      expect(result.exitCode).toBe(0)
+      const parsed = JSON.parse(result.output) as Record<string, unknown>
+      expect(parsed.code).toBe('E_CONFIG_NOT_FOUND')
+      expect(parsed.category).toBe('ERROR')
+      expect(typeof parsed.summary).toBe('string')
+      expect(typeof parsed.detail).toBe('string')
+      expect(typeof parsed.recovery).toBe('string')
+    })
+  })
+
+  describe('INV-NN invariant codes', () => {
+    it('returns entry for known invariant', () => {
+      const result = runExplain('INV-04', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('INV-04')
+    })
+
+    it('lookup is case-insensitive', () => {
+      const result = runExplain('inv-04', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('INV-04')
+    })
+
+    it('returns JSON when --format json for INV', () => {
+      const result = runExplain('INV-04', { format: 'json' })
+      expect(result.exitCode).toBe(0)
+      const parsed = JSON.parse(result.output) as Record<string, unknown>
+      expect(parsed.category).toBe('INV')
+      expect(typeof parsed.code).toBe('string')
+      expect(typeof parsed.summary).toBe('string')
+    })
+
+    it('returns nonzero for unknown INV code', () => {
+      const result = runExplain('INV-9999', {})
+      expect(result.exitCode).toBe(1)
+      expect(result.error).toContain('INV-9999')
+    })
+  })
+
+  describe('CANON-NN rules', () => {
+    it('returns entry for CANON-01', () => {
+      const result = runExplain('CANON-01', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('CANON-01')
+      expect(result.output).toContain('Dual-sided')
+    })
+
+    it('returns entry for CANON-14', () => {
+      const result = runExplain('CANON-14', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('CANON-14')
+    })
+
+    it('returns JSON for CANON code', () => {
+      const result = runExplain('CANON-01', { format: 'json' })
+      expect(result.exitCode).toBe(0)
+      const parsed = JSON.parse(result.output) as Record<string, unknown>
+      expect(parsed.category).toBe('CANON')
+      expect(typeof parsed.rule).toBe('string')
+      expect(typeof parsed.why).toBe('string')
+    })
+
+    it('returns nonzero for unknown CANON code', () => {
+      const result = runExplain('CANON-9999', {})
+      expect(result.exitCode).toBe(1)
+    })
+  })
+
+  describe('--list', () => {
+    it('returns all codes grouped by category', () => {
+      const result = runExplain('', { list: true })
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('ERROR codes')
+      expect(result.output).toContain('INV codes')
+      expect(result.output).toContain('CANON rules')
+      expect(result.output).toContain('E_CONFIG_NOT_FOUND')
+      expect(result.output).toContain('INV-01')
+      expect(result.output).toContain('CANON-01')
+    })
+
+    it('returns JSON list when --format json', () => {
+      const result = runExplain('', { list: true, format: 'json' })
+      expect(result.exitCode).toBe(0)
+      const parsed = JSON.parse(result.output) as unknown[]
+      expect(Array.isArray(parsed)).toBe(true)
+      expect(parsed.length).toBeGreaterThan(0)
+      const first = parsed[0] as Record<string, unknown>
+      expect(typeof first.code).toBe('string')
+      expect(typeof first.category).toBe('string')
+    })
+  })
+
+  describe('unknown code', () => {
+    it('exits nonzero and suggests --list', () => {
+      const result = runExplain('GARBAGE', {})
+      expect(result.exitCode).toBe(1)
+      expect(result.error).toContain('--list')
+    })
+  })
+})

@@ -60,7 +60,9 @@ vi.mock('../../src/detectors/package.js', () => ({
 vi.mock('../../src/wizard/prompts.js', () => ({
   runWizard: vi.fn(),
   determineFlow: vi.fn().mockReturnValue('greenfield'),
-  buildMigrationPlan: vi.fn().mockReturnValue({ created: ['AGENTS.md'], updated: [], skipped: [] }),
+  buildMigrationPlan: vi
+    .fn()
+    .mockReturnValue({ created: ['AGENTS.md'], replaced: [], merged: [], preserved: [] }),
   displayMigrationPlan: vi.fn(),
 }))
 vi.mock('../../src/utils/config.js', () => ({

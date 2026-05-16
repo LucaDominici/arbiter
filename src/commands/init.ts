@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, existsSync, copyFileSync, unlinkSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
 import { UserFacingError, ArbiterError } from '../utils/errors.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
@@ -14,12 +14,7 @@ import { detectBasePackage } from '../detectors/package.js'
 import { detectGithubAccess } from '../detectors/github.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { detectLanes } from '../detectors/lanes.js'
-import {
-  runWizard,
-  determineFlow,
-  buildMigrationPlan,
-  displayMigrationPlan,
-} from '../wizard/prompts.js'
+import { runWizard, buildMigrationPlan } from '../wizard/prompts.js'
 import { provisionLabels } from '../github/labels.js'
 import { applyBranchProtection } from '../github/branch-protection.js'
 import { createProjectBoard } from '../github/project-board.js'
@@ -121,6 +116,9 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   if (gitInfo.isGitRepo) {
     guardAdverseGitState(targetDir, options.force)
+    if (options.brownfield) {
+      guardBrownfieldDirtyTree(targetDir, options.force)
+    }
   }
 
   const config = await resolveConfig({
@@ -149,6 +147,38 @@ export async function runInit(options: InitOptions): Promise<void> {
   await generateAndFinalize(config, targetDir, options, log)
 }
 
+function emitInitOutput(
+  json: boolean | undefined,
+  errorLines: string[],
+  warnings: string[],
+  created: number,
+  skipped: number,
+): void {
+  if (json) {
+    const status = errorLines.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'ok'
+    jsonOutput(
+      'init',
+      status,
+      { created, skipped },
+      errorLines.length > 0 ? errorLines : undefined,
+      warnings.length > 0 ? warnings : undefined,
+    )
+    if (status !== 'ok') process.exit(statusToExitCode(status))
+    return
+  }
+  if (errorLines.length > 0) {
+    // #483: print a structured stdout summary (not stderr — CI scripts pipe
+    // stderr away) and exit non-zero so silent misconfiguration is impossible.
+    console.log(
+      `\n  Generator failures (${errorLines.length}):\n${errorLines
+        .map((line) => `    - ${line}`)
+        .join('\n')}\n\n  See https://github.com/arbiter-framework/arbiter/issues/483 for context.`,
+    )
+    process.exit(statusToExitCode('error'))
+  }
+  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
+}
+
 async function generateAndFinalize(
   config: ProjectConfig,
   targetDir: string,
@@ -156,60 +186,52 @@ async function generateAndFinalize(
   log: (msg: string) => void,
 ): Promise<void> {
   log('\n  Generating...')
-  const { results: allResults, errors: generatorErrors } = runGeneratorsWithErrors(config)
+  const committed: WriteResult[] = []
 
-  const newConfig = buildArbiterConfig(config)
-  const backendResult = runBackendSetup(config, log)
+  try {
+    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config)
+    committed.push(...results)
 
-  // Load existing stored config before overwriting (brownfield re-init may have plugins)
-  const storedBefore = loadConfig(targetDir)
-  saveConfig(targetDir, newConfig)
+    const newConfig = buildArbiterConfig(config)
+    const backendResult = runBackendSetup(config, log)
 
-  const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
-  const pluginResults = await runPlugins(targetDir, plugins, newConfig)
-  allResults.push(...pluginResults)
+    // Load existing stored config before overwriting (brownfield re-init may have plugins)
+    const storedBefore = loadConfig(targetDir)
+    saveConfig(targetDir, newConfig)
 
-  if (!options.json) printResults(allResults, targetDir)
+    const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
+    const pluginResults = await runPlugins(targetDir, plugins, newConfig)
+    committed.push(...pluginResults)
 
-  const created = allResults.filter((r) => r.action === 'created').length
-  const skipped = allResults.filter((r) => r.action === 'skipped').length
-  log(`\n  Done! ${created} files created, ${skipped} skipped.`)
+    if (!options.json) printResults(committed, targetDir)
 
-  maybeCaptureBaseline(config, targetDir, options.brownfield)
+    if (options.brownfield && !options.json) {
+      const conflicts = committed.filter((r) => r.action === 'skipped')
+      if (conflicts.length > 0) {
+        log(`\n  Brownfield conflicts: ${conflicts.length} existing file(s) kept unchanged.`)
+        log('  Use --force to replace them with arbiter governance files.\n')
+      }
+    }
 
-  if (!options.noVerify) {
-    runToolchainVerify(targetDir)
+    const allResults = committed
+    const created = allResults.filter((r) => r.action === 'created').length
+    const skipped = allResults.filter((r) => r.action === 'skipped').length
+    log(`\n  Done! ${created} files created, ${skipped} skipped.`)
+
+    maybeCaptureBaseline(config, targetDir, options.brownfield)
+
+    if (!options.noVerify) {
+      runToolchainVerify(targetDir)
+    }
+
+    const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
+    emitInitOutput(options.json, generatorErrorLines, backendResult.warnings, created, skipped)
+  } catch (err) {
+    process.stderr.write('\n  Generation failed — attempting rollback...\n')
+    rollbackGeneration(committed)
+    process.stderr.write('  Rollback complete. Review arbiter.json if it was partially written.\n')
+    throw err
   }
-
-  const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
-
-  if (options.json) {
-    const allWarnings = backendResult.warnings
-    const status =
-      generatorErrorLines.length > 0 ? 'error' : allWarnings.length > 0 ? 'warning' : 'ok'
-    jsonOutput(
-      'init',
-      status,
-      { created, skipped },
-      generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
-      allWarnings.length > 0 ? allWarnings : undefined,
-    )
-    if (status !== 'ok') process.exit(statusToExitCode(status))
-    return
-  }
-
-  if (generatorErrorLines.length > 0) {
-    // #483: print a structured stdout summary (not stderr — CI scripts pipe
-    // stderr away) and exit non-zero so silent misconfiguration is impossible.
-    console.log(
-      `\n  Generator failures (${generatorErrorLines.length}):\n${generatorErrorLines
-        .map((line) => `    - ${line}`)
-        .join('\n')}\n\n  See https://github.com/arbiter-framework/arbiter/issues/483 for context.`,
-    )
-    process.exit(statusToExitCode('error'))
-  }
-
-  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
 }
 
 async function resolveConfig(args: {
@@ -428,6 +450,58 @@ function guardAdverseGitState(targetDir: string, force: boolean | undefined): vo
   console.warn(warning)
 }
 
+export function guardBrownfieldDirtyTree(targetDir: string, force: boolean | undefined): void {
+  try {
+    const result = runCli('git', ['status', '--porcelain'], { cwd: targetDir, timeoutMs: 5000 })
+    if (result.stdout.trim() === '') return
+    const msg =
+      'Brownfield init refused: working tree has uncommitted changes.\n' +
+      'Commit or stash your changes first, or use --force to override.'
+    if (!force) throw new UserFacingError(msg)
+    console.warn(`\n  Warning: working tree has uncommitted changes (--force override active)\n`)
+  } catch (err) {
+    if (err instanceof UserFacingError) throw err
+    // git not available or not a git repo — skip check
+  }
+}
+
+export interface DryRunPreview {
+  created: string[]
+  modified: string[]
+  skipped: string[]
+}
+
+export function computeDryRunPreview(config: ProjectConfig): DryRunPreview {
+  const plan = buildMigrationPlan(config.existing, config.tools, config.useGitHub)
+  return {
+    created: plan.created,
+    modified: [...plan.replaced, ...plan.merged],
+    skipped: plan.preserved,
+  }
+}
+
+export function rollbackGeneration(results: WriteResult[]): void {
+  for (const result of results) {
+    if (result.action === 'created') {
+      try {
+        if (existsSync(result.path)) unlinkSync(result.path)
+      } catch {
+        // best-effort; file may already be gone
+      }
+    } else if (result.action === 'backed-up-and-replaced') {
+      const backup = `${result.path}.arbiter-backup`
+      try {
+        if (existsSync(backup)) {
+          copyFileSync(backup, result.path)
+          unlinkSync(backup)
+        }
+      } catch {
+        // best-effort
+      }
+    }
+  }
+}
+
 function logExistingDetections(existing: ReturnType<typeof detectExisting>): void {
   if (existing.agentsMd) console.log('  ├── Existing AGENTS.md detected — will back up')
   if (existing.claudeDir) console.log('  ├── Existing .claude/ detected — will merge')
@@ -488,17 +562,28 @@ export function printResults(results: WriteResult[], targetDir: string): void {
 }
 
 function displayDryRunPreview(config: ProjectConfig): void {
-  const flow = determineFlow(config.existing)
-  const plan = buildMigrationPlan(config.existing, config.tools, config.useGitHub)
+  const preview = computeDryRunPreview(config)
   console.log('\n  Dry run — no files will be written.\n')
-  if (flow === 'brownfield') {
-    displayMigrationPlan(plan)
-  } else {
-    console.log(`  Would generate governance files for: ${config.tools.join(', ')}`)
-    for (const entry of plan.created) {
-      console.log(`  ├── ${entry}`)
+
+  if (preview.created.length > 0) {
+    console.log('  [create]')
+    for (const entry of preview.created) {
+      console.log(`  + ${entry}`)
     }
   }
+  if (preview.modified.length > 0) {
+    console.log('  [modify]')
+    for (const entry of preview.modified) {
+      console.log(`  ~ ${entry}`)
+    }
+  }
+  if (preview.skipped.length > 0) {
+    console.log('  [skip]')
+    for (const entry of preview.skipped) {
+      console.log(`  = ${entry}`)
+    }
+  }
+
   console.log('\n  Run without --dry-run to apply.\n')
 }
 

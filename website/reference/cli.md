@@ -253,6 +253,59 @@ arbiter configure --set <path>=<value> [--set <path>=<value> ...]
 
 ---
 
+## `arbiter doctor`
+
+Diagnose and repair arbiter state.
+
+### `arbiter doctor` (health check)
+
+Run environment and project health checks. Exits 0 when all checks PASS or WARN; exits 1 on any FAIL.
+
+```
+arbiter doctor [--dir <dir>] [--json]
+```
+
+Checks:
+
+| Check             | PASS condition                                           | On FAIL                               |
+| ----------------- | -------------------------------------------------------- | ------------------------------------- |
+| Node.js version   | >= 22                                                    | Upgrade Node                          |
+| git installed     | git found in PATH                                        | Install git                           |
+| AGENTS.md present | file exists (only if arbiter.json found)                 | Run `arbiter init`                    |
+| git hooks path    | `core.hooksPath` configured (only if arbiter.json found) | `git config core.hooksPath .githooks` |
+
+### `arbiter doctor repair-state`
+
+Re-derive `.arbiter-generated.json` from `arbiter.json` when the snapshot is corrupt or missing.
+
+```
+arbiter doctor repair-state [--dir <dir>] [--json]
+```
+
+Writes only `.arbiter-generated.json` — `arbiter.json` is never modified.
+
+---
+
+## `arbiter explain`
+
+Show a detailed explanation for an error code, invariant, or CANON rule.
+
+```
+arbiter explain <code>           # INV-NN, CANON-NN, or E_CODE
+arbiter explain --list           # list all known codes grouped by category
+arbiter explain --format json <code>
+```
+
+Codes:
+
+| Prefix     | Source                                          |
+| ---------- | ----------------------------------------------- |
+| `INV-NN`   | Invariant catalog (`src/invariants/catalog.ts`) |
+| `CANON-NN` | Process rules (`docs/SYSTEM/CANON.md`)          |
+| `E_*`      | Error catalog (`src/utils/error-catalog.ts`)    |
+
+---
+
 ## `arbiter diff`
 
 Show what `arbiter update` would change, without writing any files.
