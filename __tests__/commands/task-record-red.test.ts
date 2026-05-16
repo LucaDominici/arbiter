@@ -82,4 +82,36 @@ describe('runTaskRecordRed()', () => {
     expect(result.ok).toBe(false)
     expect(result.reason).toMatch(/task-id/)
   })
+
+  it('returns ok:false when .claude/.task-id is empty', () => {
+    const d = mkdtempSync(join(tmpdir(), 'record-red-empty-'))
+    dirs.push(d)
+    mkdirSync(join(d, '.claude'), { recursive: true })
+    writeFileSync(join(d, '.claude', '.task-id'), '   \n', 'utf-8')
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir: d })
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/empty/)
+  })
+
+  it('returns ok:false when git rev-parse fails', () => {
+    const dir = tmpRepo()
+    mockedRunCli.mockImplementationOnce(() => {
+      throw new Error('not a git repository')
+    })
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/git rev-parse/)
+  })
+
+  it('returns ok:false when test command fails to launch (non-CliError)', () => {
+    const dir = tmpRepo()
+    mockedRunCli
+      .mockReturnValueOnce({ stdout: gitSha(), stderr: '', exitCode: 0, durationMs: 10 })
+      .mockImplementationOnce(() => {
+        throw new Error('ENOENT: spawn failed')
+      })
+    const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir })
+    expect(result.ok).toBe(false)
+    expect(result.reason).toMatch(/launch/)
+  })
 })
