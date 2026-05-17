@@ -65,7 +65,11 @@ describe('01-pr-fast.yml.ejs lane awareness', () => {
     })
     expect(rendered).toContain('echo "::error::This PR touches both frontend and backend lanes')
     expect(rendered).toContain('exit 1')
-    expect(rendered).not.toContain('actions/github-script')
+    // cross-stack-guard itself must not use github-script (uses hard exit instead);
+    // split at next 2-space job to avoid including human-approval-required job body
+    const afterGuard = rendered.split('  cross-stack-guard:')[1] ?? ''
+    const guardJobBody = afterGuard.split(/\n {2}[a-z]/)[0]
+    expect(guardJobBody).not.toContain('actions/github-script')
   })
 
   it('multi-lane L1: cross-stack-guard uses advisory comment (github-script)', () => {
