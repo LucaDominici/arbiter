@@ -91,8 +91,10 @@ await runInit({ yes: true, tools: 'claude', level: 'L1', dir: '${tmp}', noVerify
   manifest.push({ version, archetype, language, path: fixtureName })
   writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + '\n')
 
-  console.log(`snapshot-compat-fixture: created ${fixtureName}`)
-  console.log(`snapshot-compat-fixture: updated MANIFEST.json (${manifest.length} entries)`)
+  process.stdout.write(`snapshot-compat-fixture: created ${fixtureName}
+`)
+  process.stdout.write(`snapshot-compat-fixture: updated MANIFEST.json (${manifest.length} entries)
+`)
 } finally {
   rmSync(tmp, { recursive: true, force: true })
 }

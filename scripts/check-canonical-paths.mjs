@@ -9,7 +9,7 @@ const CWD = process.cwd()
 const CANONICAL_PATHS_FILE = join(CWD, 'docs', 'METHOD', 'CANONICAL_PATHS.md')
 
 if (!existsSync(CANONICAL_PATHS_FILE)) {
-  console.log('  check-canonical-paths: no CANONICAL_PATHS.md found — skipping')
+  process.stdout.write('  check-canonical-paths: no CANONICAL_PATHS.md found — skipping\n')
   process.exit(0)
 }
 
@@ -29,12 +29,15 @@ for (const match of content.matchAll(ROW_PATTERN)) {
 }
 
 if (dangling.length === 0) {
-  console.log('  check-canonical-paths: all redirect targets exist')
+  process.stdout.write('  check-canonical-paths: all redirect targets exist\n')
   process.exit(0)
 }
 
-console.log(`  check-canonical-paths: ${dangling.length} dangling alias(es) in CANONICAL_PATHS.md:`)
+process.stdout
+  .write(`  check-canonical-paths: ${dangling.length} dangling alias(es) in CANONICAL_PATHS.md:
+`)
 for (const target of dangling) {
-  console.log(`    dangling: ${target}`)
+  process.stdout.write(`    dangling: ${target}
+`)
 }
 process.exit(1)

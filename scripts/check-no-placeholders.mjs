@@ -67,7 +67,8 @@ function scanFile(filePath) {
     for (const { re, label } of PATTERNS) {
       if (re.test(line)) {
         const rel = relative(baseDir, filePath)
-        console.log(`  ${rel}:${i + 1}  [${label}]  ${line.trim()}`)
+        process.stdout.write(`  ${rel}:${i + 1}  [${label}]  ${line.trim()}
+`)
         violations++
         break
       }
@@ -80,6 +81,8 @@ for (const dir of scanDirs) {
 }
 
 if (violations > 0) {
-  console.log(`\n  Found ${violations} violation(s). Remove placeholders before committing.\n`)
+  process.stdout
+    .write(`\n  Found ${violations} violation(s). Remove placeholders before committing.\n
+`)
   process.exit(1)
 }

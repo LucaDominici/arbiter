@@ -23,17 +23,18 @@ const uniqueScripts = [...new Set(scriptRefs)].filter((s) => s !== 'check-all.mj
 let violations = 0
 for (const script of uniqueScripts) {
   if (!gateSrc.includes(script)) {
-    console.log(`  MISSING from check-all.mjs: ${script}`)
+    process.stdout.write(`  MISSING from check-all.mjs: ${script}
+`)
     violations++
   }
 }
 
 if (violations > 0) {
-  console.log(
-    `[check-inv-enforcement-wired] FAIL: ${violations} enforcement script(s) not wired in gate`,
+  process.stdout.write(
+    `[check-inv-enforcement-wired] FAIL: ${violations} enforcement script(s) not wired in gate\n`,
   )
   process.exit(1)
 }
-console.log(
-  `[check-inv-enforcement-wired] OK — all ${uniqueScripts.length} enforcement scripts wired in check-all.mjs`,
+process.stdout.write(
+  `[check-inv-enforcement-wired] OK — all ${uniqueScripts.length} enforcement scripts wired in check-all.mjs\n`,
 )

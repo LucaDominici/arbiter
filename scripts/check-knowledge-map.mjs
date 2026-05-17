@@ -10,7 +10,7 @@ const KM_FILE = join(CWD, 'docs', 'METHOD', 'KNOWLEDGE_MAP.md')
 const TOLERANCE = 0.3
 
 if (!existsSync(KM_FILE)) {
-  console.log('  check-knowledge-map: no KNOWLEDGE_MAP.md found — skipping')
+  process.stdout.write('  check-knowledge-map: no KNOWLEDGE_MAP.md found — skipping\n')
   process.exit(0)
 }
 
@@ -38,12 +38,15 @@ for (const match of content.matchAll(ENTRY_PATTERN)) {
 }
 
 if (drifted.length === 0) {
-  console.log('  check-knowledge-map: all line counts within tolerance')
+  process.stdout.write('  check-knowledge-map: all line counts within tolerance\n')
   process.exit(0)
 }
 
-console.log(`  check-knowledge-map: ${drifted.length} drift(s) detected in KNOWLEDGE_MAP.md:`)
+process.stdout
+  .write(`  check-knowledge-map: ${drifted.length} drift(s) detected in KNOWLEDGE_MAP.md:
+`)
 for (const { path, stored, actual } of drifted) {
-  console.log(`    drift: ${path} (stored ${stored}, actual ${actual})`)
+  process.stdout.write(`    drift: ${path} (stored ${stored}, actual ${actual})
+`)
 }
 process.exit(1)

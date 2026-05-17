@@ -333,7 +333,8 @@ async function main() {
     }
   }
 
-  console.log(`[dogfood] ${skipped} template(s) skipped (config-gated or diverged).`)
+  process.stdout.write(`[dogfood] ${skipped} template(s) skipped (config-gated or diverged).
+`)
 
   if (drifted.length > 0) {
     console.error(`[dogfood] FAIL — ${drifted.length} template(s) have unexpected drift:`)
@@ -357,8 +358,8 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(
-    `[dogfood] ${checked} template(s) checked. All templates match materialized .claude/ files.`,
+  process.stdout.write(
+    `[dogfood] ${checked} template(s) checked. All templates match materialized .claude/ files.\n`,
   )
 }
 

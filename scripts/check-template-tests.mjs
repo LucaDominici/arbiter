@@ -61,7 +61,9 @@ const currentCount = missing.length
 
 if (updateBaseline) {
   writeFileSync(baselineFile, String(currentCount))
-  console.log(`[check-template-tests] Baseline updated to ${currentCount} untested EJS files`)
+  process.stdout
+    .write(`[check-template-tests] Baseline updated to ${currentCount} untested EJS files
+`)
   process.exit(0)
 }
 
@@ -70,22 +72,24 @@ const baseline = existsSync(baselineFile)
   : 0
 
 if (currentCount > baseline) {
-  console.log(
-    `[check-template-tests] FAIL: regression — ${currentCount} untested EJS files (baseline: ${baseline})`,
+  process.stdout.write(
+    `[check-template-tests] FAIL: regression — ${currentCount} untested EJS files (baseline: ${baseline})\n`,
   )
-  console.log('  New untested files (compared to baseline):')
+  process.stdout.write('  New untested files (compared to baseline):\n')
   for (const f of missing.slice(0, 10)) {
-    console.log(`    ${f}`)
+    process.stdout.write(`    ${f}
+`)
   }
   if (missing.length > 10) {
-    console.log(`    ... and ${missing.length - 10} more`)
+    process.stdout.write(`    ... and ${missing.length - 10} more
+`)
   }
-  console.log(
-    '  To update baseline after adding tests: node scripts/check-template-tests.mjs --update-baseline',
+  process.stdout.write(
+    '  To update baseline after adding tests: node scripts/check-template-tests.mjs --update-baseline\n',
   )
   process.exit(1)
 }
 
-console.log(
-  `[check-template-tests] OK — ${currentCount} untested EJS files (baseline: ${baseline})`,
+process.stdout.write(
+  `[check-template-tests] OK — ${currentCount} untested EJS files (baseline: ${baseline})\n`,
 )

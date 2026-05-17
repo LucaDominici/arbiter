@@ -18,10 +18,12 @@ const RED = '\x1b[31m'
 const BOLD = '\x1b[1m'
 
 function pass(msg) {
-  console.log(`  ${GREEN}✓ PASS${RESET}  ${msg}`)
+  process.stdout.write(`  ${GREEN}✓ PASS${RESET}  ${msg}
+`)
 }
 function fail(msg) {
-  console.log(`  ${RED}✗ FAIL${RESET}  ${msg}`)
+  process.stdout.write(`  ${RED}✗ FAIL${RESET}  ${msg}
+`)
 }
 
 function run(cmd, args, opts = {}) {
@@ -84,7 +86,8 @@ let totalPassed = 0
 let totalFailed = 0
 
 for (const gate of GATES) {
-  console.log(`\n${BOLD}[DRILL] ${gate.label}${RESET}`)
+  process.stdout.write(`\n${BOLD}[DRILL] ${gate.label}${RESET}
+`)
   const clean = makeCleanDir()
   const drift = makeDriftDir()
   try {
@@ -113,8 +116,11 @@ for (const gate of GATES) {
   }
 }
 
-console.log(`\n${'─'.repeat(52)}`)
-console.log(`Passed: ${totalPassed}  Failed: ${totalFailed}`)
-console.log(`${'─'.repeat(52)}\n`)
+process.stdout.write(`\n${'─'.repeat(52)}
+`)
+process.stdout.write(`Passed: ${totalPassed}  Failed: ${totalFailed}
+`)
+process.stdout.write(`${'─'.repeat(52)}\n
+`)
 
 process.exit(totalFailed > 0 ? 1 : 0)

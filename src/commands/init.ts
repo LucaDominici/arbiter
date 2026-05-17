@@ -265,6 +265,15 @@ async function generateAndFinalize(
       }
     }
 
+    if (!options.brownfield && !options.json) {
+      const skippedFiles = committed.filter((r) => r.action === 'skipped')
+      if (skippedFiles.length > 0) {
+        const names = skippedFiles.map((r) => basename(r.path)).join(', ')
+        log(`\n  ${skippedFiles.length} file(s) already exist: ${names}`)
+        log('  Re-run with --force to overwrite existing files.\n')
+      }
+    }
+
     const allResults = committed
     const created = allResults.filter((r) => r.action === 'created').length
     const skipped = allResults.filter((r) => r.action === 'skipped').length

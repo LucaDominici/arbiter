@@ -84,5 +84,5 @@ if (violations > 0) {
   )
   process.exit(1)
 } else {
-  console.log('[NAMING] All test files follow naming convention.')
+  process.stdout.write('[NAMING] All test files follow naming convention.\n')
 }

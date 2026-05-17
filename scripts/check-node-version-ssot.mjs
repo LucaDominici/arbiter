@@ -84,7 +84,9 @@ if (nvmrcVersion) {
 
 // ─── Result ──────────────────────────────────────────────────────────────────
 if (failures === 0) {
-  console.log(`  OK    node-version-ssot — .nvmrc=${nvmrcVersion}, runtime=${process.version}`)
+  process.stdout
+    .write(`  OK    node-version-ssot — .nvmrc=${nvmrcVersion}, runtime=${process.version}
+`)
   process.exit(0)
 } else {
   console.error(`  FAIL  node-version-ssot — ${failures} violation(s) found (INV-53)`)

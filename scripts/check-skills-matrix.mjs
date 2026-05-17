@@ -73,4 +73,5 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
-console.log(`[skills-matrix] PASS: ${raw.skills.length} entries, all valid`)
+process.stdout.write(`[skills-matrix] PASS: ${raw.skills.length} entries, all valid
+`)

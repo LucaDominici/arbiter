@@ -86,8 +86,8 @@ function scanFile(filePath) {
         const code = parseInt(m[1], 10)
         if (!VALID_EXITS.has(code)) {
           const rel = relative(baseDir, filePath)
-          console.log(
-            `  ${rel}:${i + 1}  [${label}]  exit(${code}) — must be 0, 1, or 2  ${line.trim()}`,
+          process.stdout.write(
+            `  ${rel}:${i + 1}  [${label}]  exit(${code}) — must be 0, 1, or 2  ${line.trim()}\n`,
           )
           violations++
         }
@@ -118,7 +118,7 @@ if (args.length > 0) {
 }
 
 if (violations > 0) {
-  console.log(
+  process.stdout.write(
     `\n  Found ${violations} violation(s). All scripts must exit 0=PASS / 1=FAIL / 2=ERROR.\n`,
   )
   process.exit(1)

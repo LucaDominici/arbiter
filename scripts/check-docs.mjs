@@ -73,4 +73,4 @@ if (hasCode && !hasDocs && !bypassed) {
   )
   process.exit(1)
 }
-console.log('Docs check passed.')
+process.stdout.write('Docs check passed.\n')

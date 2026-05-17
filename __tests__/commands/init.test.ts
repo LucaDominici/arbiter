@@ -362,6 +362,28 @@ describe('runInit', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('1 files created, 1 skipped'))
   })
 
+  it('lists skipped filenames and suggests --force in non-brownfield mode (#812)', async () => {
+    mockRunGeneratorsFromRegistry.mockReturnValue([
+      { path: `${dir}/AGENTS.md`, action: 'created' },
+      { path: `${dir}/arbiter.json`, action: 'skipped' },
+      { path: `${dir}/.claude/settings.json`, action: 'skipped' },
+    ])
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    const calls = logSpy.mock.calls.map((c) => String(c[0]))
+    const combined = calls.join('\n')
+    expect(combined).toContain('arbiter.json')
+    expect(combined).toContain('--force')
+  })
+
   it('parses L1/L2/L3 level from option string', async () => {
     const { runInit } = await import('../../src/commands/init.js')
     await runInit({

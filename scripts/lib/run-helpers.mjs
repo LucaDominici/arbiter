@@ -74,24 +74,28 @@ function emitOutput(r) {
 }
 
 function recordFail(name, elapsed, msg) {
-  console.log(`FAIL (${msg}, ${elapsed}ms)`)
-  if (IS_CI()) console.log(`::error::${name}::${msg}`)
+  process.stdout.write(`FAIL (${msg}, ${elapsed}ms)
+`)
+  if (IS_CI()) process.stdout.write(`::error::${name}::${msg}\n`)
   results.push({ name, status: 'FAIL', elapsed })
   failed++
 }
 
 function recordWarn(name, elapsed, msg) {
-  console.log(`WARN (${msg}, ${elapsed}ms)`)
+  process.stdout.write(`WARN (${msg}, ${elapsed}ms)
+`)
   results.push({ name, status: 'WARN', elapsed })
 }
 
 function recordSkip(name, elapsed, msg) {
-  console.log(`SKIP (${msg}, ${elapsed}ms)`)
+  process.stdout.write(`SKIP (${msg}, ${elapsed}ms)
+`)
   results.push({ name, status: 'SKIP', elapsed })
 }
 
 function recordPass(name, elapsed) {
-  console.log(`PASS (${elapsed}ms)`)
+  process.stdout.write(`PASS (${elapsed}ms)
+`)
   results.push({ name, status: 'PASS', elapsed })
 }
 

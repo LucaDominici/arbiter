@@ -130,7 +130,7 @@ const allFiles = SCAN_DIRS.flatMap((d) => walk(join(ROOT, d)))
 const allFindings = allFiles.flatMap(scanFile)
 
 if (allFindings.length === 0) {
-  console.log('[PII] No PII patterns found.')
+  process.stdout.write('[PII] No PII patterns found.\n')
   process.exit(0)
 }
 

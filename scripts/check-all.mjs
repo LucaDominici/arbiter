@@ -48,9 +48,10 @@ const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
 // local and CI environments — PR-only gates or tests run with different selectors.
 const PARITY_EXCLUDE = new Set(['commitlint', 'docs', 'unit tests'])
 
-console.log('')
-console.log(`=== arbiter Quality Gate: ${level} ===`)
-console.log('')
+process.stdout.write('\n')
+process.stdout.write(`=== arbiter Quality Gate: ${level} ===
+`)
+process.stdout.write('\n')
 
 // ─── L1: Fast checks ─────────────────────────────────────────────────────────
 runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
@@ -127,23 +128,25 @@ if (level === 'L2' || level === 'L3') {
 const results = getResults()
 const failed = getFailed()
 
-console.log('')
-console.log('=== Summary ===')
-console.log('')
+process.stdout.write('\n')
+process.stdout.write('=== Summary ===\n')
+process.stdout.write('\n')
 
 const nameWidth = Math.max(6, ...results.map((r) => r.name.length))
 const header = `${'Check'.padEnd(nameWidth)}  Status  Elapsed`
 const divider = '-'.repeat(header.length)
-console.log(header)
-console.log(divider)
+process.stdout.write(String(header) + '\n')
+process.stdout.write(String(divider) + '\n')
 let totalElapsed = 0
 for (const r of results) {
   totalElapsed += r.elapsed
-  console.log(`${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms`)
+  process.stdout.write(`${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms
+`)
 }
-console.log(divider)
-console.log(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms`)
-console.log('')
+process.stdout.write(String(divider) + '\n')
+process.stdout.write(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms
+`)
+process.stdout.write('\n')
 
 // ─── Gate result JSON (INV-59) ────────────────────────────────────────────────
 {
@@ -226,5 +229,5 @@ if (failed > 0) {
   console.error(`=== FAILED: ${failed} check(s) ===\n`)
   process.exit(1)
 } else {
-  console.log('=== ALL PASSED ===\n')
+  process.stdout.write('=== ALL PASSED ===\n\n')
 }

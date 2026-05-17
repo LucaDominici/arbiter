@@ -82,10 +82,12 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
   } catch {
     // If origin/main is unavailable (e.g. local-only branch), skip gracefully
     if (envSkip) {
-      console.log('check-tdd-evidence: ARBITER_SKIP_TDD=1, skipping (no origin/main)')
+      process.stdout.write('check-tdd-evidence: ARBITER_SKIP_TDD=1, skipping (no origin/main)\n')
       return exitFn(0)
     }
-    console.log('check-tdd-evidence: cannot determine merge-base (no origin/main), skipping')
+    process.stdout.write(
+      'check-tdd-evidence: cannot determine merge-base (no origin/main), skipping\n',
+    )
     return exitFn(0)
   }
 
@@ -94,14 +96,14 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
   try {
     subjectLog = run('git', ['log', `${mergeBase}..HEAD`, '--format=%s'], { cwd: repoRoot })
   } catch {
-    console.log('check-tdd-evidence: no commits since merge-base, vacuous pass')
+    process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
     return exitFn(0)
   }
 
   const taskIds = parseTaskIdsFromLog(subjectLog)
 
   if (taskIds.length === 0) {
-    console.log('check-tdd-evidence: no task-ID commits found, vacuous pass')
+    process.stdout.write('check-tdd-evidence: no task-ID commits found, vacuous pass\n')
     return exitFn(0)
   }
 
@@ -135,7 +137,8 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
   }
 
   if (envSkip) {
-    console.log(`check-tdd-evidence: ARBITER_SKIP_TDD=1 (L1 bypass), skipping verify`)
+    process.stdout.write(`check-tdd-evidence: ARBITER_SKIP_TDD=1 (L1 bypass), skipping verify
+`)
     return exitFn(0)
   }
 
@@ -151,10 +154,10 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
       const out = run(tsxBin, [cliSrc, 'verify', 'tdd', taskId], {
         cwd: repoRoot,
       })
-      console.log('PASS')
+      process.stdout.write('PASS\n')
       if (out) process.stdout.write(`    ${out.replace(/\n/g, '\n    ')}\n`)
     } catch (err) {
-      console.log('FAIL')
+      process.stdout.write('FAIL\n')
       const msg =
         err && typeof err === 'object' && ('stderr' in err || 'stdout' in err)
           ? err.stderr || err.stdout
@@ -172,7 +175,8 @@ export function main({ runFn = defaultRun, exitFn = (c) => process.exit(c) } = {
     return exitFn(1)
   }
 
-  console.log(`check-tdd-evidence: all ${taskIds.length} task(s) verified`)
+  process.stdout.write(`check-tdd-evidence: all ${taskIds.length} task(s) verified
+`)
   return exitFn(0)
 }
 

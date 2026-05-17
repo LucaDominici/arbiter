@@ -8,7 +8,7 @@ import { join } from 'node:path'
 const SSOT_FILE = join(process.cwd(), 'docs', 'METHOD', 'SSOT_CORE_SET.md')
 
 if (!existsSync(SSOT_FILE)) {
-  console.log('  check-ssot-core: no SSOT_CORE_SET.md found — skipping (bootstrap mode)')
+  process.stdout.write('  check-ssot-core: no SSOT_CORE_SET.md found — skipping (bootstrap mode)\n')
   process.exit(0)
 }
 
@@ -28,12 +28,15 @@ while ((m = PATH_ITEM.exec(content)) !== null) {
 }
 
 if (missing.length === 0) {
-  console.log('  check-ssot-core: all SSOT_CORE_SET entries exist')
+  process.stdout.write('  check-ssot-core: all SSOT_CORE_SET entries exist\n')
   process.exit(0)
 }
 
-console.log(`  check-ssot-core: ${missing.length} missing file(s) listed in SSOT_CORE_SET.md:`)
+process.stdout
+  .write(`  check-ssot-core: ${missing.length} missing file(s) listed in SSOT_CORE_SET.md:
+`)
 for (const f of missing) {
-  console.log(`    missing: ${f}`)
+  process.stdout.write(`    missing: ${f}
+`)
 }
 process.exit(1)

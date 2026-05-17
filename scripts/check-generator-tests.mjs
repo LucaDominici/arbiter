@@ -23,13 +23,17 @@ for (const gen of generators) {
   const stem = basename(gen, '.ts')
   const testFile = join(testsDir, `${stem}.test.ts`)
   if (!existsSync(testFile)) {
-    console.log(`  MISSING: __tests__/generators/${stem}.test.ts`)
+    process.stdout.write(`  MISSING: __tests__/generators/${stem}.test.ts
+`)
     violations++
   }
 }
 
 if (violations > 0) {
-  console.log(`[check-generator-tests] FAIL: ${violations} generator(s) lack unit tests`)
+  process.stdout.write(`[check-generator-tests] FAIL: ${violations} generator(s) lack unit tests
+`)
   process.exit(1)
 }
-console.log(`[check-generator-tests] OK — all ${generators.length} generators have test files`)
+process.stdout
+  .write(`[check-generator-tests] OK — all ${generators.length} generators have test files
+`)

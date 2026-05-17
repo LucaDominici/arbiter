@@ -63,5 +63,6 @@ for (const [key, current] of Object.entries(collected)) {
 
 // ─── Write baseline ───────────────────────────────────────────────────────────
 writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2) + '\n', 'utf-8')
-console.log(`[arbiter] Debt baseline captured → ${BASELINE_FILE}`)
-console.log(JSON.stringify(baseline.metrics, null, 2))
+process.stdout.write(`[arbiter] Debt baseline captured → ${BASELINE_FILE}
+`)
+process.stdout.write(String(JSON.stringify(baseline.metrics, null, 2)) + '\n')

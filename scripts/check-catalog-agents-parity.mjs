@@ -101,14 +101,18 @@ let violations = 0
 for (const [id, catalogTitle] of catalogEntries) {
   const agentsTitle = agentsInvEntries.get(id)
   if (!agentsTitle) {
-    console.log(`  MISSING from AGENTS.md: ${id}`)
+    process.stdout.write(`  MISSING from AGENTS.md: ${id}
+`)
     violations++
     continue
   }
   if (agentsTitle !== catalogTitle) {
-    console.log(`  TITLE MISMATCH: ${id}`)
-    console.log(`    catalog: ${catalogTitle}`)
-    console.log(`    agents:  ${agentsTitle}`)
+    process.stdout.write(`  TITLE MISMATCH: ${id}
+`)
+    process.stdout.write(`    catalog: ${catalogTitle}
+`)
+    process.stdout.write(`    agents:  ${agentsTitle}
+`)
     violations++
   }
 }
@@ -116,7 +120,8 @@ for (const [id, catalogTitle] of catalogEntries) {
 // Reverse (#485): every **INV-NN:** in AGENTS.md must have a catalog entry.
 for (const id of agentsInvEntries.keys()) {
   if (!catalogEntries.has(id)) {
-    console.log(`  ORPHAN in AGENTS.md: ${id} (no entry in catalog)`)
+    process.stdout.write(`  ORPHAN in AGENTS.md: ${id} (no entry in catalog)
+`)
     violations++
   }
 }
@@ -127,18 +132,19 @@ for (const id of agentsInvEntries.keys()) {
 if (canonSrc) {
   for (const id of agentsCanonIds) {
     if (!canonIds.has(id)) {
-      console.log(`  ORPHAN in AGENTS.md: ${id} (no heading in CANON.md)`)
+      process.stdout.write(`  ORPHAN in AGENTS.md: ${id} (no heading in CANON.md)
+`)
       violations++
     }
   }
 }
 
 if (violations > 0) {
-  console.log(
-    `[check-catalog-agents-parity] FAIL: ${violations} parity violation(s) between catalog/CANON.md and AGENTS.md`,
+  process.stdout.write(
+    `[check-catalog-agents-parity] FAIL: ${violations} parity violation(s) between catalog/CANON.md and AGENTS.md\n`,
   )
   process.exit(1)
 }
-console.log(
-  `[check-catalog-agents-parity] OK — ${catalogEntries.size} catalog IDs and ${agentsCanonIds.size} CANON refs in AGENTS.md verified (bidirectional)`,
+process.stdout.write(
+  `[check-catalog-agents-parity] OK — ${catalogEntries.size} catalog IDs and ${agentsCanonIds.size} CANON refs in AGENTS.md verified (bidirectional)\n`,
 )
