@@ -33,7 +33,7 @@ jobs:
         run: |
           npx --yes license-checker-rseidelsohn \
             --production \
-            --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;MPL-2.0;CC0-1.0;0BSD;Unlicense;BlueOak-1.0.0" \
+            --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;MPL-2.0;CC0-1.0;0BSD;Unlicense;BlueOak-1.0.0;Python-2.0" \
             --excludePackages "@arbiter/cli"
 
   generate-third-party-licenses:

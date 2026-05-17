@@ -23,5 +23,10 @@
     "pattern": "sentry",
     "file": "dist/wizard/types.d.ts",
     "justification": "Compiled TypeScript declaration for ObservabilityProvider type union — 'saas-sentry' is a string literal member of the union type, not a telemetry call or network reference. The value is only used when the user explicitly configures observability.provider='saas-sentry' in their arbiter config."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "dist/recipes/loader.js",
+    "justification": "Compiled output of src/recipes/loader.ts — fetches a user-supplied https:// recipe URL on explicit user request via --recipe flag. Not telemetry; URL is user-provided and user-controlled."
   }
 ]

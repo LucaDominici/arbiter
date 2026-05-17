@@ -15,14 +15,7 @@ import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
-import {
-  runPluginAdd,
-  runPluginRemove,
-  runPluginList,
-  runPluginInit,
-  runPluginListValidate,
-} from './commands/plugin.js'
-import { runIntegrationsList } from './commands/integrations.js'
+import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
 import { runTaskAdvance, runTaskRecover, runTaskResume } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -232,7 +225,6 @@ function parseCmdArgs(): { cmd: string; args: string[] } {
     'plugin',
     'work',
     'notary',
-    'benchmark',
   ])
   const first = tokens[0] ?? ''
   if (nested.has(first) && tokens.length >= 2) {
@@ -328,6 +320,14 @@ program
     'Comma-separated list of AI tools (claude,codex,cursor,copilot,gemini,windsurf,aider)',
   )
   .option('--level <level>', 'Governance level: L1, L2, or L3', 'L2')
+  .option(
+    '--language <lang>',
+    'Override detected language (typescript|java|kotlin|rust|python|go|multi)',
+  )
+  .option(
+    '--archetype <archetype>',
+    'Override detected archetype (backend-web-db|cli|library|data-pipeline|frontend-spa|embedded)',
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--dry-run', 'Preview what would be generated without writing files', false)
   .option(
@@ -364,6 +364,8 @@ program
       yes: boolean
       tools?: string
       level?: string
+      language?: string
+      archetype?: string
       dir?: string
       dryRun: boolean
       brownfield: boolean
@@ -406,6 +408,12 @@ program
           : {}),
         ...(opts.recipe !== undefined ? { recipe: opts.recipe } : {}),
         ...(opts.recipeSha256 !== undefined ? { recipeSha256: opts.recipeSha256 } : {}),
+        ...(opts.language !== undefined
+          ? { language: opts.language as import('./wizard/types.js').Language }
+          : {}),
+        ...(opts.archetype !== undefined
+          ? { archetype: opts.archetype as import('./wizard/types.js').Archetype }
+          : {}),
       })
     },
   )
@@ -912,7 +920,7 @@ task
   .description('Advance (or reverse) the task lifecycle phase')
   .requiredOption(
     '--to <phase>',
-    'Target phase (preflight|plan|red-team-review|red|green|refactor|verification|complete)',
+    'Target phase (preflight|plan|implementation|verification|complete)',
   )
   .option('--reverse', 'Allow backward phase transitions', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -997,15 +1005,7 @@ plugin
   .description('List plugins configured for this project')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .option('--validate', 'Validate plugin package.json manifests (schema-only, no code exec)', false)
-  .action(async (opts: { dir?: string; json: boolean; validate: boolean }) => {
-    if (opts.validate) {
-      runPluginListValidate({
-        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-        json: opts.json,
-      })
-      return
-    }
+  .action(async (opts: { dir?: string; json: boolean }) => {
     await runPluginList({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
@@ -1019,22 +1019,6 @@ plugin
   .option('--json', 'Emit machine-readable JSON output', false)
   .action(async (name: string, opts: { dir?: string; json: boolean }) => {
     await runPluginInit(name, {
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      json: opts.json,
-    })
-  })
-
-const integrations = program
-  .command('integrations')
-  .description('Discover and manage skill integrations (detect-and-reference posture)')
-
-integrations
-  .command('list')
-  .description('List detected and recommended skill integrations')
-  .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; json: boolean }) => {
-    runIntegrationsList({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
     })
@@ -1099,7 +1083,7 @@ work
   .description('Advance a work unit to a new lifecycle phase')
   .requiredOption(
     '--phase <phase>',
-    'Target phase (preflight|plan|red-team-review|red|green|refactor|verification|complete)',
+    'Target phase (preflight|plan|implementation|verification|complete)',
   )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(async (id: string, opts: { phase: string; dir?: string }) => {

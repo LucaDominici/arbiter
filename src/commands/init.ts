@@ -40,6 +40,8 @@ import type {
   ProjectConfig,
   AiTool,
   GovernanceLevel,
+  Language,
+  Archetype,
   ProjectPreset,
   AuthProvider,
   ObservabilityProvider,
@@ -78,6 +80,10 @@ export interface InitOptions {
   authProvider?: AuthProvider
   /** Override observability provider after preset is applied. */
   observabilityProvider?: ObservabilityProvider
+  /** Override detected language (skips auto-detection). */
+  language?: Language
+  /** Override detected archetype (skips auto-detection). */
+  archetype?: Archetype
   /** Path or https:// URL to a recipe JSON file for pre-configuring init options. */
   recipe?: string
   /** Expected SHA-256 hex digest of the recipe file for integrity verification. */
@@ -123,7 +129,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     log('\n  Arbiter — AI Development Governance Framework\n')
     log('  Detecting project...')
 
-    const language = detectLanguage(targetDir)
+    const language = resolveLanguage(options.language, targetDir)
     const framework = detectFramework(targetDir, language)
     const buildCmds = detectBuildCommands(targetDir, language)
     const gitInfo = detectGitInfo(targetDir)
@@ -210,7 +216,7 @@ function emitInitOutput(
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
 }
 
-function detectAndAuditSkills(targetDir: string) {
+function detectAndAuditSkills(targetDir: string): ReturnType<typeof detectInstalledSkills> {
   const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
   const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
   const skipReport = computeSkipReport(installedSkills)
@@ -343,9 +349,15 @@ function buildNonInteractiveConfig(args: {
     useGitHub,
     acceptBetaTools: options.acceptBetaTools ?? false,
     lanes,
+    ...(options.archetype !== undefined ? { archetypeOverride: options.archetype } : {}),
   })
   if (recipe) applyRecipeOverrides(config, recipe)
   return config
+}
+
+function resolveLanguage(override: Language | undefined, targetDir: string): Language {
+  if (override !== undefined) return override
+  return detectLanguage(targetDir)
 }
 
 function resolveToolsAndLevel(
@@ -737,8 +749,12 @@ function buildDefaultConfig(opts: {
   useGitHub: boolean
   acceptBetaTools?: boolean
   lanes?: import('../wizard/types.js').Lane[]
+  archetypeOverride?: Archetype
 }): ProjectConfig {
-  const archetype = detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ?? 'library'
+  const archetype =
+    opts.archetypeOverride ??
+    detectArchetypeHint(opts.targetDir, opts.language, opts.framework) ??
+    'library'
   const hasDatabase = archetype === 'backend-web-db' || archetype === 'data-pipeline'
   const hasPublicApi = archetype === 'backend-web-db'
   return {

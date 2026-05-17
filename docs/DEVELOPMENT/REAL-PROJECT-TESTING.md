@@ -98,7 +98,7 @@ Notes on archetype-specific fixtures:
 
 ## Language Detection
 
-`arbiter init` has no `--language` or `--archetype` flags. It detects both from files on disk:
+`arbiter init` auto-detects language and archetype from files on disk. Use `--language` or `--archetype` to override detection:
 
 | Marker file                                        | Detected language |
 | -------------------------------------------------- | ----------------- |
