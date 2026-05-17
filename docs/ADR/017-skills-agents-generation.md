@@ -8,7 +8,7 @@
 
 ## Context
 
-Viafera ships 20+ skills and 8 sub-agents as part of its Claude Code integration. These provide structured workflows (TDD, architect review, epic decompose) and specialized agents (codebase-scanner, red-team) that teams use daily.
+The prior-art baseline ships 20+ skills and 8 sub-agents as part of its Claude Code integration. These provide structured workflows (TDD, architect review, epic decompose) and specialized agents (codebase-scanner, red-team) that teams use daily.
 
 Arbiter generates Claude Code configuration but produced none of these — teams initialized with arbiter got only AGENTS.md, hooks, and slash commands.
 
@@ -48,7 +48,7 @@ Arbiter generates 7 skills and 2 sub-agent definitions as part of `arbiter init`
 
 1. **Ship generic universal skills** — simpler templates, but miss stack-specific guidance (e.g., JUnit vs vitest).
 2. **External skill registry** — pull from a remote catalog. Too complex, unnecessary dependency.
-3. **Single flat skills directory** — no subdirectory per skill. Rejected to match viafera convention.
+3. **Single flat skills directory** — no subdirectory per skill. Rejected to match production-style convention.
 
 ---
 

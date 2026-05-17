@@ -10,7 +10,7 @@
 
 ADR-016 established mutation testing (INV-30) as an L2+ advisory gate for Java only, using pitest with 80% mutation / 85% coverage thresholds and a `pitest-setup.md` guide. This was a starting point — L2 advisory guides document what to do but cannot enforce it.
 
-Issue #71 and the viafera alignment analysis (`docs/PRODUCT/VIAFERA-ALIGNMENT.md:140-153`) mandate mutation testing as a **hard gate** at L3 with:
+Issue #71 and the production baseline alignment analysis mandate mutation testing as a **hard gate** at L3 with:
 
 - 85% mutation threshold across all supported stacks
 - PIT 1.15.0 for Java, Stryker for TypeScript, cargo-mutants for Rust, mutmut for Python
@@ -30,13 +30,13 @@ The L2 advisory guide (`src/templates/mutation/pitest-l2-setup.md.ejs`) is **kep
 
 | Language   | Tool          | Maturity | Notes                                            |
 | ---------- | ------------- | -------- | ------------------------------------------------ |
-| Java       | PIT/pitest    | proven   | 1.15+, viafera 3-pattern targets                 |
+| Java       | PIT/pitest    | proven   | 1.15+, production-baseline 3-pattern targets     |
 | TypeScript | Stryker       | proven   | vitest runner, thresholds.break = 85             |
 | Rust       | cargo-mutants | beta     | requires `--accept-beta-tools`                   |
 | Python     | mutmut        | beta     | requires `--accept-beta-tools`                   |
 | Go         | —             | unsafe   | excluded — ADR-029 records exclusion permanently |
 
-### Java target-class pattern (viafera 3-pattern)
+### Java target-class pattern (production-baseline 3-pattern)
 
 ```
 *.domain.*

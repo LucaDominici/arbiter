@@ -1,7 +1,7 @@
-# Viafera-Port Invariants — Rationale and Usage
+# Extended Invariants — Rationale and Usage
 
-Opt-in invariant set INV-62..INV-71, ported from patterns observed in the viafera project.
-Enable via `arbiter.json`:
+Opt-in invariant set INV-62..INV-71, derived from production-grade conventions observed in
+real-world projects. Enable via `arbiter.json`:
 
 ```json
 {
@@ -61,4 +61,5 @@ Docs-only changes must follow the completion checklist in `docs/METHOD/`. Lower-
 
 ## Opt-in rationale
 
-These invariants are valuable for teams with viafera-style frontend/process conventions but are not universally applicable. They are excluded by default to avoid noise for projects that do not need them.
+These invariants are valuable for teams with advanced frontend/process conventions but are not
+universally applicable. They are excluded by default to avoid noise for projects that do not need them.

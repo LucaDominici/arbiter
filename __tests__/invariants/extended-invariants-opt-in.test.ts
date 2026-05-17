@@ -4,7 +4,7 @@ import { INVARIANT_CATALOG } from '../../src/invariants/catalog.js'
 import { getFilteredInvariants } from '../../src/invariants/filter.js'
 import { validateConfig, DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
 
-const VIAFERA_IDS = [
+const EXTENDED_IDS = [
   'INV-62',
   'INV-63',
   'INV-64',
@@ -17,41 +17,41 @@ const VIAFERA_IDS = [
   'INV-71',
 ]
 
-describe('viafera-port opt-in invariants', () => {
-  it('catalog has exactly 71 entries after adding viafera-port set', () => {
+describe('extended opt-in invariants', () => {
+  it('catalog has exactly 71 entries after adding extended set', () => {
     expect(INVARIANT_CATALOG).toHaveLength(71)
   })
 
-  it('all 10 viafera-port IDs exist in catalog with optInGroup = viafera-port', () => {
-    for (const id of VIAFERA_IDS) {
+  it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {
+    for (const id of EXTENDED_IDS) {
       const inv = INVARIANT_CATALOG.find((i) => i.id === id)
       expect(inv, `${id} must exist in catalog`).toBeDefined()
-      expect(inv?.optInGroup, `${id} must have optInGroup`).toBe('viafera-port')
+      expect(inv?.optInGroup, `${id} must have optInGroup`).toBe('extended')
     }
   })
 
-  it('default filter (includeViaferaPort not set) excludes all viafera-port invariants', () => {
+  it('default filter (includeExtendedInvariants not set) excludes all extended invariants', () => {
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ['architectural', 'data', 'security', 'operational', 'governance'],
     })
     const ids = result.map((inv) => inv.id)
-    for (const id of VIAFERA_IDS) {
+    for (const id of EXTENDED_IDS) {
       expect(ids, `${id} must be excluded by default filter`).not.toContain(id)
     }
   })
 
-  it('includeViaferaPort: true includes all 10 viafera-port invariants', () => {
+  it('includeExtendedInvariants: true includes all 10 extended invariants', () => {
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ['architectural', 'data', 'security', 'operational', 'governance'],
-      includeViaferaPort: true,
+      includeExtendedInvariants: true,
     })
     const ids = result.map((inv) => inv.id)
-    for (const id of VIAFERA_IDS) {
-      expect(ids, `${id} must be included when includeViaferaPort is true`).toContain(id)
+    for (const id of EXTENDED_IDS) {
+      expect(ids, `${id} must be included when includeExtendedInvariants is true`).toContain(id)
     }
   })
 })

@@ -6,9 +6,9 @@
 
 ## Context
 
-Arbiter generated uniform task workflows regardless of target repo structure. Multi-layer projects (frontend + backend + docs) received the same `task.md`, `post-edit-dispatch.mjs`, and `ci.yml` as single-stack repos — a gap relative to Viafera's track A/B/C/D discipline (`viafera/.claude/CLAUDE.md:118-125`).
+Arbiter generated uniform task workflows regardless of target repo structure. Multi-layer projects (frontend + backend + docs) received the same `task.md`, `post-edit-dispatch.mjs`, and `ci.yml` as single-stack repos — a gap relative to the prior-art baseline's track A/B/C/D discipline.
 
-Issue #403 closes this gap for v1.0 GA as part of epic #399 (Viafera parity).
+Issue #403 closes this gap for v1.0 GA as part of epic #399 (production baseline parity).
 
 ## Decision
 

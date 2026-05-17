@@ -209,8 +209,8 @@ describe('debt-gates config templates — rendering', () => {
     expect(content).toContain('main.xml')
   })
 
-  // pmd-ruleset.xml.ejs — codestyle category (Viafera parity #404)
-  it('pmd-ruleset.xml.ejs includes codestyle category with Viafera-parity rules', () => {
+  // pmd-ruleset.xml.ejs — codestyle category (baseline parity #404)
+  it('pmd-ruleset.xml.ejs includes codestyle category with baseline-parity rules', () => {
     const data = makeConfig('/tmp/test', {
       language: 'java',
       buildTool: 'gradle',
@@ -223,7 +223,7 @@ describe('debt-gates config templates — rendering', () => {
     expect(content).toContain('category/java/codestyle.xml/UselessQualifiedThis')
   })
 
-  // checkstyle.xml.ejs — SuppressWarnings pair (Viafera parity #404)
+  // checkstyle.xml.ejs — SuppressWarnings pair (baseline parity #404)
   it('checkstyle.xml.ejs includes SuppressWarningsHolder and SuppressWarningsFilter pair', () => {
     const data = makeConfig('/tmp/test', {
       language: 'java',
@@ -235,7 +235,7 @@ describe('debt-gates config templates — rendering', () => {
     expect(content).toContain('SuppressWarningsFilter')
   })
 
-  // spotbugs-exclude.xml.ejs — expanded sections (Viafera parity #404)
+  // spotbugs-exclude.xml.ejs — expanded sections (baseline parity #404)
   it('spotbugs-exclude.xml.ejs includes CT_CONSTRUCTOR_THROW, URF_UNREAD_FIELD, and Optional-pattern sections', () => {
     const data = makeConfig('/tmp/test', {
       language: 'java',

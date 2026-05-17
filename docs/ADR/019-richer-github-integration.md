@@ -7,7 +7,7 @@
 
 ## Context
 
-Arbiter's original GitHub issue templates were minimal (4-section task-brief, basic bug report, no epic). Viafera demonstrated that 7-section structured task briefs drive better AI-assisted task execution by making context, invariants, acceptance criteria, and forbidden patterns explicit upfront.
+Arbiter's original GitHub issue templates were minimal (4-section task-brief, basic bug report, no epic). The prior-art baseline demonstrated that 7-section structured task briefs drive better AI-assisted task execution by making context, invariants, acceptance criteria, and forbidden patterns explicit upfront.
 
 This ADR records the design decisions made in M21.
 

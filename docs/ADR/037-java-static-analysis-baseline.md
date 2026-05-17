@@ -1,17 +1,17 @@
-# ADR-037 — Java Static Analysis: Viafera Parity Audit and Wiring Fixes
+# ADR-037 — Java Static Analysis: Baseline Audit and Wiring Fixes
 
 **Date:** 2026-05-10
 **Issue:** #404
 **Status:** Accepted
-**Reference snapshot:** Viafera commit `9c67772d0759c94ec3af67a50b52329b9aeb69c5` (2026-05-07)
+**Reference snapshot:** production baseline (2026-05-07)
 
 ---
 
 ## Context
 
-Issue #404 requested a rule-by-rule comparison of Arbiter's generated Java static analysis
-configuration (Checkstyle / PMD / SpotBugs / JaCoCo / Pitest) against the Viafera production
-project, and resolution of any gaps in rule depth and CI/gate wiring.
+Issue #404 requested a rule-by-rule audit of Arbiter's generated Java static analysis
+configuration (Checkstyle / PMD / SpotBugs / JaCoCo / Pitest) against a production baseline,
+and resolution of any gaps in rule depth and CI/gate wiring.
 
 ---
 
@@ -19,7 +19,7 @@ project, and resolution of any gaps in rule depth and CI/gate wiring.
 
 ### PMD
 
-**Gap confirmed:** Arbiter generated 6/7 rule categories; Viafera uses 7. Missing: `codestyle`.
+**Gap confirmed:** Arbiter generated 6/7 rule categories; industry baseline uses 7. Missing: `codestyle`.
 
 **Resolution:** Added four `codestyle.xml` rules to `pmd-ruleset.xml.ejs`:
 
@@ -28,13 +28,13 @@ project, and resolution of any gaps in rule depth and CI/gate wiring.
 - `UselessParentheses`
 - `UselessQualifiedThis`
 
-Thresholds (DESIGN category) already matched Viafera. Exclusions in ERROR-PRONE, BEST PRACTICES,
+Thresholds (DESIGN category) already matched baseline. Exclusions in ERROR-PRONE, BEST PRACTICES,
 and PERFORMANCE categories already matched.
 
 ### Checkstyle
 
-**Gap confirmed (partial):** Arbiter generated 16 modules; Viafera generates 8. However, Viafera's
-minimalism reflects its Spotless + google-java-format philosophy (formatter enforces style, so
+**Gap confirmed (partial):** Arbiter generated 16 modules; production baseline generates 8. However, the
+baseline's minimalism reflects its Spotless + google-java-format philosophy (formatter enforces style, so
 Checkstyle only enforces structural rules). Arbiter generates broader Checkstyle coverage for
 projects not using google-java-format — this is intentional and correct.
 
@@ -46,10 +46,10 @@ in generated project code are silently ignored by Checkstyle.
 
 ### SpotBugs
 
-**Gap confirmed:** Arbiter generated 3 `<Match>` blocks; Viafera has 13 structured sections.
+**Gap confirmed:** Arbiter generated 3 `<Match>` blocks; production baseline has 13 structured sections.
 
 **Resolution:** Expanded `spotbugs-exclude.xml.ejs` to 8 structured sections using generic
-class-pattern targeting (Viafera uses some project-specific names; Arbiter uses package-pattern
+class-pattern targeting (production baseline uses some project-specific names; Arbiter uses package-pattern
 regex). Security patterns (SQL injection, XSS, path traversal) remain never-suppressed per policy.
 
 **CI wiring gap:** SpotBugs was not invoked in any CI job. Added `spotbugsMain` / `mvn spotbugs:check`
@@ -67,7 +67,7 @@ Fixed: SpotBugs now uses `{ soft: graceActive }` at L2.
 **Resolution:** `jacoco.gradle.ejs` already generated the task; fixture was missing it.
 Fixture updated. Gate script wiring was already correct (`{ soft: graceActive }` at L2).
 
-**Note on threshold values:** Viafera hardcodes 90%. Arbiter uses `computeThresholds()` parametrised
+**Note on threshold values:** Production baseline hardcodes 90%. Arbiter uses `computeThresholds()` parametrised
 by governance level (L1=70%, L2=80%, L3=90%). This is intentionally superior — L3 produces 90%
 through existing logic. No change needed.
 
@@ -91,20 +91,20 @@ No change needed.
 
 ### findsecbugs plugin
 
-Considered. Viafera does not use it. Adding it would exceed parity without user request. Deferred.
+Considered. Not used in production baseline. Adding it would exceed parity without user request. Deferred.
 
 ---
 
 ## Decisions
 
-1. PMD `codestyle` category added — achieves 7/7 Viafera category parity.
+1. PMD `codestyle` category added — achieves 7/7 category parity with industry baseline.
 2. Checkstyle `SuppressWarningsHolder` + `SuppressWarningsFilter` pair added.
 3. SpotBugs exclude template expanded to 8 structured sections with security-never-suppressed policy.
 4. SpotBugs CI step wired in `ci.yml.ejs` Java debt-gates job (Gradle + Maven).
 5. SpotBugs gate-script entry changed from hard to `{ soft: graceActive }` per ADR-028.
 6. JaCoCo `jacocoTestCoverageVerification` fixture gap fixed; template was already correct.
 7. Pitest remains nightly-only (M23 decision reaffirmed). `check-all.mjs.ejs` does not invoke it.
-8. `computeThresholds()` parametrisation kept as-is (superior to Viafera's hardcoded 90%).
+8. `computeThresholds()` parametrisation kept as-is (superior to hardcoded 90%).
 9. Fixture `java-backend-web-db-gradle` updated with PMD + SpotBugs plugins and JaCoCo verification.
 10. Fixture tests in `real-project-fixtures.test.ts` extended with static-presence assertions.
 
@@ -125,6 +125,5 @@ Considered. Viafera does not use it. Adding it would exceed parity without user 
 ## Consequences
 
 - Generated Java projects now have full static analysis CI wiring (Checkstyle + PMD + SpotBugs +
-  JaCoCo), matching Viafera's production-grade setup.
+  JaCoCo), matching production-grade baseline setup.
 - SpotBugs soft-gate during grace window aligns with ADR-028.
-- VIAFERA-ALIGNMENT.md updated to close gaps 2.1–3.2.

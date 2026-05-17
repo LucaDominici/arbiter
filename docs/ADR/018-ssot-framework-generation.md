@@ -8,7 +8,7 @@
 
 ## Context
 
-Viafera's SSOT (Single Source of Truth) framework is the backbone of context-efficient agent navigation. It uses three interlocking documents — `KNOWLEDGE_MAP.md`, `SSOT_CORE_SET.md`, and `ENGINEERING_DEFAULTS.md` — plus a `TRACK_ROUTER.md` routing guide to help agents find the right document without reading everything.
+The production baseline SSOT (Single Source of Truth) framework is the backbone of context-efficient agent navigation. It uses three interlocking documents — `KNOWLEDGE_MAP.md`, `SSOT_CORE_SET.md`, and `ENGINEERING_DEFAULTS.md` — plus a `TRACK_ROUTER.md` routing guide to help agents find the right document without reading everything.
 
 Projects initialized with arbiter had no SSOT skeleton. Teams had to build this structure from scratch, leading to inconsistent documentation and agents that read entire files instead of navigating to specific sections.
 

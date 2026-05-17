@@ -42,7 +42,7 @@ Grouped by purpose. Filenames come from `src/generators/` and templates under `s
 **Gate scripts**
 
 - `scripts/check-all.mjs` — orchestrator with Java-aware invocations of `./gradlew check`, JaCoCo coverage, and architecture probes.
-- `scripts/check-arch-unit.mjs` — runs the ArchUnit suite (when present). The current Java ArchUnit parity gap is tracked in `docs/PRODUCT/VIAFERA-ALIGNMENT.md`; until M22 lands, the suite ships with `NoMockMvcTest` only and `scripts/check-all.mjs` skips additional ArchUnit rules with an explicit note.
+- `scripts/check-arch-unit.mjs` — runs the ArchUnit suite (when present). Until M22 lands, the suite ships with `NoMockMvcTest` only and `scripts/check-all.mjs` skips additional ArchUnit rules with an explicit note.
 
 **Git hooks**
 

@@ -10,7 +10,7 @@
 
 Arbiter generated suppression scaffolding (`.gitleaksignore`, `pii-allowlist.json`, `dependency-check-suppressions.xml`) and an expiry gate (`check-suppressions.mjs`) but no scanners to consume them. INV-11/12/13 existed in the catalog with `alwaysActive: false` and no enforcement. Result: generated projects had suppression infrastructure but no security gates.
 
-Viafera enforces three scanners: OWASP DependencyCheck (CVSS ≥ 7.0 hard fail), Gitleaks (secrets), and a custom regex PII scanner (early-fail, runs before all other gates). M24 ports this to the 5-stack matrix.
+The prior-art baseline enforces three scanners: OWASP DependencyCheck (CVSS ≥ 7.0 hard fail), Gitleaks (secrets), and a custom regex PII scanner (early-fail, runs before all other gates). M24 ports this to the 5-stack matrix.
 
 ---
 
@@ -26,7 +26,7 @@ Original wording "No PII in logs" was runtime-only. Reworded to "No PII in code,
 
 ### 3. PII scan is HARD early-fail — no grace period
 
-PII scan runs **before the L1 section** in `check-all.mjs`, not in the L2 block. It does not use `soft: graceActive`. Rationale: leaked PII is a compliance violation regardless of where the project is in its governance upgrade journey. Matches viafera JOB 00b position.
+PII scan runs **before the L1 section** in `check-all.mjs`, not in the L2 block. It does not use `soft: graceActive`. Rationale: leaked PII is a compliance violation regardless of where the project is in its governance upgrade journey. Matches production-baseline JOB 00b position.
 
 ### 4. Gitleaks and dep audit honor grace period
 

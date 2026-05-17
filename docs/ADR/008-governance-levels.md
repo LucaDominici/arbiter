@@ -22,7 +22,7 @@ Three gate levels, strictly nested (L1 ⊂ L2 ⊂ L3):
 
 - L2 is the default because it matches CI exactly -- local and CI are the same gate, so "works locally" means "will pass CI".
 - L1 exists for speed in tight iteration loops (pre-commit hook).
-- L3 exists for repos with compliance or audit requirements (viafera being the reference implementation).
+- L3 exists for repos with compliance or audit requirements (reference-impl being the reference implementation).
 - Strict nesting ensures L2 never passes while L1 fails.
 
 ## Consequences

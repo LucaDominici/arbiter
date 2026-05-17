@@ -18,7 +18,7 @@ Arbiter itself has never used MCP in `src/`, templates, hooks, or gates (verifie
 
 1. **ADR-003** (gh CLI required) listed "GitHub MCP server" among alternatives with the text "may be added as an alternative path later".
 2. **`docs/ARCHITECTURE/TEMPLATE-SYSTEM.md`** referenced a template `rules/mcp-usage.md` that was never created — a dangling reference.
-3. **`docs/PRODUCT/FEATURE_COMPARISON.md`** listed MCP rows (75-78) as unqualified gaps vs Viafera, with no rationale about whether they were backlog or non-goals.
+3. **`docs/PRODUCT/FEATURE_COMPARISON.md`** listed MCP rows (75-78) as unqualified gaps vs the prior-art baseline, with no rationale about whether they were backlog or non-goals.
 
 This ADR closes those leaks and formalises the policy that is already the de-facto practice.
 

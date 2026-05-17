@@ -429,11 +429,11 @@ Per-stack generated enforcement:
 ## Phase 9.5 — Foundation Prerequisites (MA-ML)
 
 **Epic:** #81
-**Purpose:** Resolve the 7 CRITICAL (C1-C7) and 10 HIGH (H1-H10) issues identified in the antagonist review of the Viafera + Archivio synthesis. These prerequisites must ship before M22-M32 can execute on a reliable foundation.
+**Purpose:** Resolve the 7 CRITICAL (C1-C7) and 10 HIGH (H1-H10) issues identified in the antagonist review of the prior-art baseline + Archivio synthesis. These prerequisites must ship before M22-M32 can execute on a reliable foundation.
 
-**Why this phase exists.** Both evidence sources for Phase 10 (Viafera and cloud.ms5.planning) are Java-Spring backends (N=2). Extrapolating to 5 languages × multiple archetypes has no empirical basis. The M22-M32 roadmap as originally written would:
+**Why this phase exists.** Both evidence sources for Phase 10 (the prior-art baseline and cloud.ms5.planning) are Java-Spring backends (N=2). Extrapolating to 5 languages × multiple archetypes has no empirical basis. The M22-M32 roadmap as originally written would:
 
-- Pick hexagonal (Viafera) OR layered (planning) architecture, breaking the other
+- Pick hexagonal (prior-art baseline) OR layered (planning) architecture, breaking the other
 - Generate fail-closed gates with no brownfield migration path (50k LoC projects couldn't even commit the init PR)
 - Emit build tool config without ever invoking the target toolchain (version skew breaks at first user run)
 - Lack escape hatches for CVE false positives, causing merge deadlocks
@@ -570,9 +570,9 @@ MF (#87) ──── needs MA + MD
 
 ---
 
-## Phase 10 — Viafera-Aligned Enforcement (M22-M32)
+## Phase 10 — Production Baseline Enforcement (M22-M32)
 
-Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **once chosen, enforced** — see `ENFORCEMENT-PHILOSOPHY.md`.
+Based on the exhaustive gap analysis (alignment doc removed). Principle: **once chosen, enforced** — see `ENFORCEMENT-PHILOSOPHY.md`.
 
 > **Prerequisite:** Phase 9.5 (MA-ML, epic #81) must complete before Phase 10 milestones start. Each Phase 10 milestone depends on specific Phase 9.5 deliverables — see the "Phase 9.5 integration" note on each milestone.
 
@@ -581,7 +581,7 @@ Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **onc
 ## M22 — Architecture Verification Suite
 
 **Issue:** #70
-**Scope:** Generate complete architecture enforcement for all languages. Currently arbiter generates 1 ArchUnit test; viafera has 9+.
+**Scope:** Generate complete architecture enforcement for all languages. Currently arbiter generates 1 ArchUnit test; the prior-art baseline has 9+.
 
 **Deliverables:**
 
@@ -598,7 +598,7 @@ Based on the exhaustive gap analysis in `VIAFERA-ALIGNMENT.md`. Principle: **onc
 
 **Gate:** All architecture tests are HARD gate (L2+). Build fails on violation.
 
-**Exit criteria:** All 5 stacks generate architecture boundary enforcement. Java generates full ArchUnit suite matching viafera's 9+ rules. Matrix tests validate output for all stacks × L2/L3.
+**Exit criteria:** All 5 stacks generate architecture boundary enforcement. Java generates full ArchUnit suite matching the prior-art baseline's 9+ rules. Matrix tests validate output for all stacks × L2/L3.
 
 **Dependencies:** M21, MA (#82 — architecture style knob), MC (#84 — ArchUnit baseline suppression), ME (#86 — tool maturity).
 
@@ -686,7 +686,7 @@ Container scan (L3, nightly): ⏳ Deferred to M25
 ## M25 — Nightly Pipeline & Evidence Harness (L3) ✓ DONE
 
 **Issue:** #73
-**Scope:** Generate L3-only nightly pipeline and evidence collection. Viafera's nightly includes E2E full, mutation, load, security deep.
+**Scope:** Generate L3-only nightly pipeline and evidence collection. The prior-art baseline's nightly includes E2E full, mutation, load, security deep.
 
 **Deliverables:**
 
@@ -716,7 +716,7 @@ Evidence harness:
 ## M26 — Real Database & Integration Testing ✓ SHIPPED
 
 **Issue:** #74 (PR #188)
-**Scope:** Generate Testcontainers setup and enforce real database testing. Viafera uses Testcontainers with PostgreSQL; H2 is forbidden.
+**Scope:** Generate Testcontainers setup and enforce real database testing. The prior-art baseline uses Testcontainers with PostgreSQL; H2 is forbidden.
 
 **Deliverables:**
 
@@ -739,7 +739,7 @@ Evidence harness:
 ## M27 — Behavioral Test Structure & Test Quality ✓ SHIPPED
 
 **Issue:** #75 (PR #189)
-**Scope:** Generate test structure templates and quality enforcement. Viafera uses @Nested/@DisplayName (Java), describe/it (TS).
+**Scope:** Generate test structure templates and quality enforcement. The prior-art baseline uses @Nested/@DisplayName (Java), describe/it (TS).
 
 **Deliverables:**
 
