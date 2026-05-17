@@ -309,10 +309,9 @@ Per the v1 hardening philosophy:
 2. **Ring 2 — Release-gated** (G4, G7, G9, G11, G15): runs before tags become public releases. Manual or scripted but explicit. Launch readiness.
 3. **Ring 3 — Continuous monitoring** (G12, G13, G14): feedback loops over time, not before a single release. Trust capital.
 
-## Honest 10k-Star Framing
+## Honest Scope Framing
 
-- **Engineering closes the gap to ~1k stars** (professional, complete, discoverable OSS).
-- **Reaching 10k requires** sharp narrative + viral moment + sustained 6–12 months engagement. EPIC-C carries the launch lever.
+- **Engineering closes the gap to a credible, complete, discoverable OSS framework.** Reach / virality is out of scope for v1 — that is narrative work owned by EPIC-C.
 - **Scope discipline (do NOT add in v1):** VS Code extension, MCP server, additional languages beyond current 6, additional AI tools beyond current 8. Surface is already large. Polish + ship + expand on usage signals.
 
 ## Filters
