@@ -4,9 +4,13 @@ import { join } from 'node:path'
 const HOOK = join(process.cwd(), 'src/templates/claude/hooks/pre-edit-ssot-guard.mjs')
 
 function run(filePath: string, extraEnv: Record<string, string> = {}) {
+  // Strip ARBITER_SSOT_BYPASS from inherited env so the hook runs in its
+  // natural enforced state unless the test explicitly overrides it.
+  const baseEnv = { ...process.env }
+  delete baseEnv['ARBITER_SSOT_BYPASS']
   return spawnSync('node', [HOOK], {
     encoding: 'utf-8',
-    env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: filePath, ...extraEnv },
+    env: { ...baseEnv, CLAUDE_TOOL_INPUT_PATH: filePath, ...extraEnv },
   })
 }
 
