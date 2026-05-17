@@ -40,6 +40,14 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
     ),
   )
 
+  // T4 nightly — always regenerate
+  results.push(
+    writeFile(
+      join(workflowsDir, '06-nightly.yml'),
+      renderTemplate('github/workflows/06-nightly.yml.ejs', data),
+    ),
+  )
+
   // T6 heartbeat watchdog — always regenerate
   results.push(
     writeFile(
