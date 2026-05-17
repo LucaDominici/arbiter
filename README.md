@@ -4,6 +4,7 @@
 [![npm](https://img.shields.io/npm/v/arbiter)](https://www.npmjs.com/package/arbiter)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)](https://nodejs.org/)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/LucaDominici/arbiter)
 
 ```bash
 npx arbiter init
@@ -190,6 +191,30 @@ See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
 - [ADR-003](docs/ADR/003-gh-cli-required.md): Why `gh` CLI is required (not optional)
 - [ADR-004](docs/ADR/004-skip-if-exists.md): Why `skipIfExists` on hooks (not overwrite)
 - [ADR-005](docs/ADR/005-deep-merge-settings.md): Deep merge for settings.json
+
+---
+
+## Examples
+
+Worked walkthroughs of `arbiter init` on real starter projects — one per archetype:
+
+| Example                                                  | Stack                            | Archetype        |
+| -------------------------------------------------------- | -------------------------------- | ---------------- |
+| [ts-frontend-spa](examples/ts-frontend-spa.md)           | TypeScript + React + Vitest      | `frontend-spa`   |
+| [java-backend-web-db](examples/java-backend-web-db.md)   | Java 21 + Spring Boot 3 + Gradle | `backend-web-db` |
+| [rust-cli](examples/rust-cli.md)                         | Rust + Clap                      | `cli`            |
+| [go-library](examples/go-library.md)                     | Go module                        | `library`        |
+| [python-data-pipeline](examples/python-data-pipeline.md) | Python + uv                      | `data-pipeline`  |
+
+See [`examples/`](examples/) for plugin SDK examples and the arbiter-starter fixture.
+
+---
+
+## Community
+
+- **Discussions** — [github.com/LucaDominici/arbiter/discussions](https://github.com/LucaDominici/arbiter/discussions): Q&A, ideas, show-and-tell, announcements.
+- **Good first issues** — see issues labelled [`good first issue`](https://github.com/LucaDominici/arbiter/issues?q=label%3A%22good+first+issue%22+is%3Aopen).
+- **RFC process** — see [`docs/rfc/`](docs/rfc/) for how to propose major changes.
 
 ---
 
