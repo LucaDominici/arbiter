@@ -1,0 +1,129 @@
+# QA-Audit Phases — <%= projectName %>
+
+> **Origin:** Format ported from `reference-impl/qa-audit/PHASE*.md` (15 narrative reports, 4951 LOC). The reference reports are CERIMONIA — one-shot, no rerun. **M-A1 ports the FORMAT, not the content.** Each phase is defined as a JSON schema + rerun command. The MD report is the OUTPUT of a rerun, not the audit itself.
+>
+> **Opt-in flag:** `governance.qa_audit_phases`
+
+## Philosophy
+
+Audits that cannot be rerun become ceremony. The reference-impl QA audit produced 15 narrative reports dated 2026-02-12 — readable, useful, but **frozen in time**. Three weeks later, the codebase had drifted and the reports were stale. A month later, they were lies.
+
+This template ports the **format** of those reports as a schema + rerun command per phase. The output MD is the artifact of the most recent rerun; the audit is reproducible at any point.
+
+## Phase schema
+
+Each phase is defined by a JSON document at `.arbiter/qa-audit/phase-<NN>.json`:
+
+```jsonc
+{
+  "phase": "01",
+  "title": "Static analysis baseline",
+  "rerun": "node scripts/qa-audit/phase-01.mjs",
+  "owner": "core-team",
+  "cadence": "weekly",
+  "output_path": "docs/QA_AUDIT/phase-01-latest.md",
+  "schema_version": 1,
+  "checks": [
+    {
+      "id": "lint-clean",
+      "command": "npm run lint",
+      "expect_exit_code": 0,
+      "rationale": "no lint warnings on main",
+    },
+    {
+      "id": "no-circular-deps",
+      "command": "npx madge --circular src/",
+      "expect_exit_code": 0,
+      "rationale": "circular deps regress maintainability",
+    },
+  ],
+  "severity_thresholds": {
+    "errors_max": 0,
+    "warnings_max": 10,
+  },
+}
+```
+
+## Default phases
+
+The template ships **6 default phases**. Each is opt-in via `governance.qa_audit_phases.phases[]` and can be customised per project. Use these as starting scaffolding.
+
+### Phase 01 — Static analysis baseline
+
+Lint clean, no circular deps, type-checks pass. Weekly cadence.
+
+### Phase 02 — Test coverage + quality
+
+Coverage thresholds met, mutation score ≥ 60%, no `.skip`/`.only` left in committed tests. Weekly cadence.
+
+### Phase 03 — Architecture conformance
+
+Module boundaries respected (depcruiser rules), public-API surface bounded by ratchet, no new ADR-violations. Bi-weekly cadence.
+
+### Phase 04 — Security baseline
+
+Dependency audit clean (or all surviving CVEs documented in suppressions with expiry), secrets-scan clean, IAM least-privilege spot-check. Weekly cadence.
+
+### Phase 05 — Performance + resource baseline
+
+Bundle size within budget, p95 latency on smoke benchmark within baseline, no memory regression on long-running test. Monthly cadence.
+
+### Phase 06 — Documentation freshness
+
+Public APIs documented (JSDoc/TSDoc coverage), changelog up-to-date, ADR index complete (no orphan ADRs), README install steps still work. Monthly cadence.
+
+## Rerun command
+
+```sh
+arbiter audit run [--phase NN] [--all] [--json]
+```
+
+- `--phase 03` reruns one phase
+- `--all` reruns every defined phase in order
+- `--json` emits machine-readable output instead of the rendered MD
+
+Each rerun:
+
+1. Loads the phase JSON
+2. Runs each `checks[].command`, captures exit code + stdout + stderr
+3. Compares against `severity_thresholds`
+4. Writes the rendered MD report to `output_path`
+5. Exits 0 on PASS, 1 on threshold breach, 2 on schema error
+
+The rendered MD is meant to be committed (so historical reports are findable). The schema JSON is the source of truth — when audit logic changes, edit the schema, not the rendered MD.
+
+## Cadence enforcement
+
+A separate CI job (cron schedule) reruns each phase at its declared cadence. If the latest output MD is older than the cadence window, the cadence job fails. This catches the failure mode where audits are defined but never rerun.
+
+Suggested cron mapping:
+
+| Cadence    | Cron schedule (UTC) |
+| ---------- | ------------------- |
+| daily      | `0 3 * * *`         |
+| weekly     | `0 4 * * 1`         |
+| bi-weekly  | `0 4 1,15 * *`      |
+| monthly    | `0 5 1 * *`         |
+
+## Anti-patterns (NI-4 — never-import: ceremony)
+
+- **Phase whose rerun is "ask team X"** — that is ceremony, not audit. Every phase must have a mechanical rerun.
+- **Phase that always passes** — either the thresholds are wrong or the phase is decorative. Tune thresholds quarterly.
+- **Phase whose output is never read** — pair each phase with a documented escalation path on failure. If failure is consequence-free, the audit is theatre.
+- **Ad-hoc phases that aren't in the schema** — out-of-band audits don't get cadence enforcement. Promote them to schema-defined phases or accept they're one-offs.
+
+## What this template does NOT include
+
+- **CI cron job templates per cadence.** Generated per stack in the corresponding `.github/workflows/qa-audit-*.yml` files. Wired by the (forthcoming) `src/generators/qa-audit.ts` generator.
+- **The `arbiter audit run` CLI command itself.** Stubbed in this PR's audit doc; full implementation tracked as a follow-up.
+- **Default phase content beyond the 6 scaffolds above.** Project-specific phases live in your project's `.arbiter/qa-audit/phase-NN.json` files.
+
+## Source
+
+#727 (M-A1 — Audit-as-Code).
+
+## See also
+
+- `docs/SYSTEM/CANON.md` — process rules
+- `docs/AUDIT/` — already-rerun audits using this format (the audit docs in this repo)
+- NI-4 (never-import: ceremony) — the rule this template enforces
