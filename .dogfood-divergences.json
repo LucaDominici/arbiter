@@ -60,6 +60,10 @@
     "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ — arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land."
   },
   {
+    "path": "hooks/post-commit-check.mjs",
+    "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 — static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) — intentional: arbiter's self-config is more conservative than generated target advice."
+  },
+  {
     "path": "commands/review-code.md",
     "reason": "Arbiter self-dogfood: materialized file includes an Auditor Routing section (auditor-routing.json + route-auditors.mjs) specific to arbiter's own code-review infrastructure. This section is arbiter-internal and not emitted by the target-project template."
   }
