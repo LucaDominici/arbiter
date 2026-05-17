@@ -9,6 +9,8 @@ import {
   branchNameFor,
   resolveWorktreeBase,
   worktreePathFor,
+  siblingWorktreePathFor,
+  worktreeDirectoryName,
 } from '../worktree/paths.js'
 import { materializeLink, checkLinkIntegrity } from '../worktree/links.js'
 import { harvestFiles } from '../worktree/harvest.js'
@@ -137,6 +139,14 @@ export interface WorktreeOpenOptions {
   /** Override the worktrees base directory (used in tests; normally via env). */
   worktreesDir?: string
   json?: boolean | undefined
+  /**
+   * Place worktree at <repo-parent>/<repo>.worktrees/<sibling> (sibling layout).
+   * Value is the slug for the worktree directory under the sibling base.
+   * Default behaviour unchanged when absent.
+   */
+  sibling?: string
+  /** Also materialize build-artifact links (WorktreeConfig.buildLinks). */
+  withBuildLinks?: boolean
 }
 
 export interface WorktreeCloseOptions {
@@ -263,12 +273,19 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
   const config = loadConfig(gitRoot)
   const wtConfig = config?.worktree ?? defaultWorktreeConfig()
 
-  const worktreeBase = resolveWorktreeBase(
-    gitRoot,
-    wtConfig.base,
-    opts.worktreesDir ?? process.env['ARBITER_WORKTREES_DIR'],
-  )
-  const worktreePath = worktreePathFor(worktreeBase, taskId, slug)
+  // Resolve worktree path: --sibling takes precedence over normal base resolution.
+  let worktreePath: string
+  if (opts.sibling !== undefined) {
+    const siblingSlug = opts.sibling || worktreeDirectoryName(taskId, slug)
+    worktreePath = siblingWorktreePathFor(gitRoot, siblingSlug)
+  } else {
+    const worktreeBase = resolveWorktreeBase(
+      gitRoot,
+      wtConfig.base,
+      opts.worktreesDir ?? process.env['ARBITER_WORKTREES_DIR'],
+    )
+    worktreePath = worktreePathFor(worktreeBase, taskId, slug)
+  }
 
   if (existsSync(worktreePath)) {
     throw new Error(
@@ -283,12 +300,15 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     cwd: gitRoot,
   }).stdout.trim()
 
-  mkdirSync(worktreeBase, { recursive: true })
+  mkdirSync(resolve(worktreePath, '..'), { recursive: true })
   runCli('git', ['worktree', 'add', '-b', branchName, worktreePath, effectiveBase], {
     cwd: gitRoot,
   })
 
-  const linkSummary = materializeLinks(wtConfig.links, gitRoot, worktreePath)
+  const linkSpecs = opts.withBuildLinks
+    ? [...wtConfig.links, ...(wtConfig.buildLinks ?? [])]
+    : wtConfig.links
+  const linkSummary = materializeLinks(linkSpecs, gitRoot, worktreePath)
 
   const logPath = join(arbiterLogDir(gitRoot), 'worktree-open.log.json')
   const entries = readJsonArray(logPath).filter(isOpenLogEntry)

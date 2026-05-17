@@ -467,15 +467,27 @@ worktree
   .command('open <task-id> [slug]')
   .description('Create a sibling worktree with a task branch and symlinked local files')
   .option('--base <branch>', 'Base branch to branch from', 'main')
+  .option('--sibling [slug]', 'Place worktree at <repo>.worktrees/<slug> (sibling layout)')
+  .option('--with-build-links', 'Also materialize buildLinks from config', false)
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((taskId: string, slug: string | undefined, opts: { base: string; json: boolean }) => {
-    runWorktreeOpen({
-      taskId,
-      ...(slug !== undefined ? { slug } : {}),
-      base: opts.base,
-      json: opts.json,
-    })
-  })
+  .action(
+    (
+      taskId: string,
+      slug: string | undefined,
+      opts: { base: string; sibling?: string | boolean; withBuildLinks: boolean; json: boolean },
+    ) => {
+      runWorktreeOpen({
+        taskId,
+        ...(slug !== undefined ? { slug } : {}),
+        base: opts.base,
+        ...(opts.sibling !== undefined
+          ? { sibling: opts.sibling === true ? '' : (opts.sibling as string) }
+          : {}),
+        withBuildLinks: opts.withBuildLinks,
+        json: opts.json,
+      })
+    },
+  )
 
 worktree
   .command('close <task-id>')

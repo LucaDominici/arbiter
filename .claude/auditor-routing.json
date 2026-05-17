@@ -1,0 +1,60 @@
+{
+  "$schema": "./.claude/auditor-routing.schema.json",
+  "auditors": {
+    "bugs": {
+      "weight": 3,
+      "description": "Null/undefined mishandling, incorrect conditions, wrong defaults, off-by-one errors."
+    },
+    "type-safety": {
+      "weight": 2,
+      "description": "Unsafe casts, any leaks, missing type guards, SOLID violations."
+    },
+    "domain": {
+      "weight": 3,
+      "description": "Respect for invariants (AGENTS.md), ADRs, and governance contracts."
+    },
+    "test-quality": {
+      "weight": 2,
+      "description": "Meaningful tests, edge cases covered, not just happy path."
+    },
+    "security": {
+      "weight": 4,
+      "description": "Auth bypass, injection, PII leaks, secret exposure, supply-chain."
+    },
+    "data-integrity": {
+      "weight": 3,
+      "description": "Schema migrations, soft deletes, audit trails, concurrent mutation safety."
+    },
+    "silent-failures": {
+      "weight": 2,
+      "description": "Swallowed exceptions, ?? defaults masking undefined, unhandled promise rejections."
+    }
+  },
+  "always_on": ["bugs", "type-safety", "domain"],
+  "tag_map": {
+    "src/**/*.ts": ["bugs", "type-safety", "domain", "test-quality"],
+    "src/**/*.tsx": ["bugs", "type-safety", "domain", "test-quality"],
+    "__tests__/**/*.ts": ["test-quality", "bugs"],
+    "migrations/**": ["data-integrity", "security"],
+    "**/*.sql": ["data-integrity", "security"],
+    "**/*.env*": ["security"],
+    "**/*.pem": ["security"],
+    "**/*.key": ["security"],
+    ".github/**": ["domain", "security"],
+    "scripts/**": ["bugs", "silent-failures"],
+    ".claude/hooks/**": ["bugs", "silent-failures", "domain"],
+    "src/templates/**": ["domain", "bugs"],
+    "src/generators/**": ["domain", "bugs", "test-quality"],
+    "src/commands/**": ["domain", "bugs", "type-safety", "test-quality"]
+  },
+  "critical_paths": {
+    "governance-core": [
+      "AGENTS.md",
+      ".claude/auditor-routing.json",
+      ".claude/settings.json",
+      "src/invariants/catalog.ts",
+      "docs/SYSTEM/CANON.md"
+    ],
+    "security-sensitive": ["src/utils/run-cli.ts", ".githooks/**", "scripts/check-all.mjs"]
+  }
+}

@@ -5,6 +5,19 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-053: Agent Registry introduction (#696, 2026-05-17)
+
+**Status:** Accepted
+**Reference:** Issue #696
+
+**Context:** Arbiter's `.claude/agents/` directory contained four sub-agents (bridge-reviewer, codebase-scanner, context-checker, red-team) with no canonical index documenting their models, effort tiers, cost rationale, or interaction chains. The `.claude/rules/05-agent-lifecycle.md` already required DECISIONS.md updates for architectural agent changes, but the registry artifact itself was missing.
+
+**Decision:** Create `.claude/AGENT_REGISTRY.md` as the canonical index of all sub-agents. It records: agent name, model, effort, cost rationale, six interaction chains (task start/completion/E2E fail/gate fail/migration/library lookup), and an escalation hierarchy. Update `.claude/rules/05-agent-lifecycle.md` to require AGENT_REGISTRY.md updates alongside DECISIONS.md. Add a one-line pointer in `AGENTS.md` §Multi-Agent Tool Extensions.
+
+**Consequences:** Adding or removing agents now requires three artifacts: the agent file, the registry row, and a DECISIONS.md entry. This makes the agent fleet self-documenting and auditable.
+
+---
+
 ## ADR-052: ISO 27001 / NIS2 / GDPR compliance gate mapping (#710, 2026-05-16)
 
 **Status:** Accepted

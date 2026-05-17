@@ -106,6 +106,8 @@ export interface WorktreeConfig {
   base: string | null
   /** Files/dirs to symlink (or copy) from the main repo into each worktree */
   links: WorktreeLinkSpec[]
+  /** Opt-in build-artifact links (target/, dist/, .next/) — activated via --with-build-links */
+  buildLinks?: WorktreeLinkSpec[]
   /** Optional script to run before removing the worktree on close.
    *  Receives the worktree path as its first argument. */
   closeHook: string | null
