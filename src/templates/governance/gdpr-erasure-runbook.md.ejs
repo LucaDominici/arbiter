@@ -1,0 +1,165 @@
+# GDPR Art.17 Erasure Cascade Runbook — <%= projectName %>
+
+> **Origin:** Ported from reference-impl `docs/SYSTEM/PRIVACY_MODEL.md:86-120` (M-05, #713). Includes the Keycloak DELETE fix discovered during the reference-impl audit (the reference implementation only DISABLED the Keycloak record — incomplete Art.17 compliance).
+>
+> **Opt-in flag:** `compliance.gdpr_erasure`
+
+## When this runbook fires
+
+Trigger: a verified GDPR Art.17 erasure request reaches the data-controller team for the data subject identified by `<subject_id>`.
+
+**Verification step (pre-runbook):** identity proof + scope confirmation (which data subjects + which processing activities). This runbook does NOT include the identity-verification step — that belongs in your access-control SOP, not in the cascade.
+
+## 14-step cascade
+
+Run **in order**. Each step has an exit assertion that must pass before the next runs. If any assertion fails, escalate to data-protection officer + halt the cascade.
+
+### 1. Lock subject record
+
+- Set `users.locked_for_erasure_at = NOW()` on the primary user table.
+- **Assertion:** no new writes to any subject-owned row after this timestamp.
+
+### 2. Snapshot audit trail
+
+- Export the subject's audit log to `.evidence/erasure/<subject_id>/<request_id>/audit.jsonl` for retention purposes (Art.17 §3(b) allows retention for legal claims; the evidence is the legal basis for retention).
+- **Assertion:** snapshot file exists, SHA pinned in evidence manifest.
+
+### 3. Anonymise application database
+
+- For each table with subject-owned rows: replace PII fields with deterministic-anonymised tokens.
+- **Assertion:** `SELECT COUNT(*) FROM <table> WHERE <pii_column> LIKE '%<subject_email_pattern>%'` returns 0 across all tables.
+
+### 4. Anonymise read replicas
+
+- Wait for replication lag → 0 OR force-replicate the anonymisation transaction.
+- **Assertion:** same query as step 3 across each replica returns 0.
+
+### 5. Delete cached artifacts
+
+- Purge cached responses, generated PDFs, exported CSVs, profile thumbnails.
+- **Assertion:** cache-key search for `subject_id` returns no entries.
+
+### 6. Delete object-storage artifacts
+
+- For each object-storage bucket: list objects tagged with `subject_id`, delete each.
+- **Assertion:** `aws s3 ls --recursive s3://<bucket>/<subject_prefix>` (or equivalent) returns empty.
+
+### 7. Invalidate active sessions
+
+- Revoke refresh tokens + invalidate session cookies.
+- **Assertion:** sessions table has no rows where `user_id = <subject_id>` AND `expires_at > NOW()`.
+
+### 8. Delete from analytics warehouse
+
+- Run anonymisation/deletion DAG on the warehouse.
+- **Assertion:** warehouse query for `subject_id` returns 0 rows in the next nightly recompute.
+
+### 9. Delete from search index
+
+- Issue index-level delete for `subject_id`.
+- **Assertion:** search-by-PII-fragment returns no hits.
+
+### 10. Notify third-party processors
+
+- For each processor in `compliance.third_party_processors[]`: issue the processor-specific erasure call (API, support ticket, secure email).
+- **Assertion:** acknowledgement received from each processor (SLA: 14 days).
+
+### 11. Delete from email provider
+
+- Issue contact-delete via email-provider API.
+- **Assertion:** API response confirms deletion.
+
+### 12. **DELETE Keycloak record (NOT disable) — M-05 audit fix**
+
+- Issue `DELETE /admin/realms/<realm>/users/<keycloak_id>` to fully remove the identity-provider record.
+- **Assertion:** GET of the same path returns 404.
+- **Why this step exists:** The reference-impl audit discovered Keycloak users were only DISABLED (`enabled=false`). A disabled user still exists in the directory, which is incomplete Art.17 compliance — the user's identifier is still recoverable. DELETE is the correct primitive.
+
+### 13. Delete from backup retention
+
+- Backups containing the subject's data CANNOT be re-anonymised retroactively. Document the backup retention window in the user-facing erasure confirmation: "Your data will be fully removed from backups by `<NOW + retention_window>`".
+- **Assertion:** the dated promise appears in the user-facing confirmation email; the deletion-from-backup is scheduled in your backup-rotation job.
+
+### 14. Final user-facing confirmation
+
+- Send a signed confirmation to the subject containing: request ID, completion timestamp, backup-purge date, list of third-party processors notified, evidence-manifest reference (or instructions to request it).
+- **Assertion:** confirmation send is logged in `.evidence/erasure/<subject_id>/<request_id>/confirmation.json` with a delivery receipt.
+
+## Multi-stack hook stubs
+
+The cascade above is the **policy**. The mechanical execution is per-stack. Below are the recommended hook stubs to wire into each stack's data-mutation layer:
+
+### TS / Express
+
+```ts
+// src/erasure/cascade.ts
+import { lockSubjectRecord } from './step1.js'
+import { snapshotAuditTrail } from './step2.js'
+// … 12 more imports
+
+export async function runErasureCascade(subjectId: string, requestId: string): Promise<void> {
+  await lockSubjectRecord(subjectId)
+  await snapshotAuditTrail(subjectId, requestId)
+  // … step 3-14
+}
+```
+
+### Java / Spring
+
+```java
+// src/main/java/com/example/erasure/CascadeService.java
+@Service
+public class CascadeService {
+  public void run(String subjectId, String requestId) {
+    lockSubjectRecord(subjectId);
+    snapshotAuditTrail(subjectId, requestId);
+    // … step 3-14
+  }
+}
+```
+
+### Go / chi
+
+```go
+// internal/erasure/cascade.go
+package erasure
+
+func RunCascade(ctx context.Context, subjectID string, requestID string) error {
+    if err := lockSubjectRecord(ctx, subjectID); err != nil { return err }
+    if err := snapshotAuditTrail(ctx, subjectID, requestID); err != nil { return err }
+    // … step 3-14
+    return nil
+}
+```
+
+## Anti-patterns (do NOT do)
+
+- **Soft-delete-only.** A `deleted_at` timestamp is NOT erasure. The PII must be physically replaced or removed.
+- **Disable instead of delete.** This is the Keycloak fix above. Applies anywhere an identity provider has both verbs.
+- **Skip backups.** Backups containing PII are still controlled by Art.17. You cannot anonymise retroactively, but you MUST document the retention window and honor it.
+- **Skip third-party processors.** Your DPA with the processor is itself the legal basis for Art.17 transmission; failing to forward the erasure breaks both.
+- **Treat erasure as a one-step DB delete.** A multi-system data-architecture needs a multi-step cascade, sequenced with exit assertions.
+
+## Evidence
+
+Every cascade run produces an evidence bundle at `.evidence/erasure/<subject_id>/<request_id>/`:
+
+| File                    | Content                                                       |
+| ----------------------- | ------------------------------------------------------------- |
+| `audit.jsonl`           | Pre-erasure audit-trail snapshot (step 2)                     |
+| `cascade-log.jsonl`     | One entry per step: step number, started_at, completed_at, assertion result |
+| `confirmation.json`     | User-facing confirmation send result (step 14)                |
+| `processor-acks/`       | Acknowledgements from each third-party processor (step 10)    |
+| `backup-purge-date.txt` | Date by which the subject's data will be purged from backups  |
+
+The bundle is retained for the legal claims window (typically 6 years EU, 10 years some jurisdictions). Configure via `compliance.erasure_evidence_retention_years`.
+
+## What this runbook does NOT cover
+
+- **Right to object (Art.21)** — different request, different flow. Track separately.
+- **Right to data portability (Art.20)** — export, not delete.
+- **Cross-controller orchestration** — if your project is a co-controller, the orchestration with the other controller is contract-specific.
+
+## Source
+
+#713 (M-05 — GDPR Art.17 erasure cascade runbook).
