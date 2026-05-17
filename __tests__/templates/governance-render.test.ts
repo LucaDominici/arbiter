@@ -79,6 +79,51 @@ describe('governance template rendering (#166, #712)', () => {
     })
   })
 
+  describe('gdpr-erasure-runbook.md.ejs (#713)', () => {
+    it('renders without EJS leaks', () => {
+      const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
+      expect(out).not.toContain('<%')
+      expect(out).not.toContain('%>')
+    })
+
+    it('interpolates projectName in heading', () => {
+      const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
+      expect(out).toContain('test-project')
+    })
+
+    it('lists all 14 cascade steps', () => {
+      const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
+      for (let i = 1; i <= 14; i++) {
+        expect(out).toMatch(new RegExp(`### ${i}\\. `))
+      }
+    })
+
+    it('includes the Keycloak DELETE fix (M-05 audit)', () => {
+      const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
+      expect(out).toMatch(/Keycloak/)
+      expect(out).toMatch(/DELETE.*\/admin\/realms/)
+      expect(out).toMatch(/NOT disable/)
+    })
+
+    it('contains multi-stack hook stubs (TS + Java + Go)', () => {
+      const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
+      expect(out).toContain('TS / Express')
+      expect(out).toContain('Java / Spring')
+      expect(out).toContain('Go / chi')
+    })
+
+    it('contains anti-patterns section', () => {
+      const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
+      expect(out).toMatch(/Anti-patterns/i)
+      expect(out).toMatch(/Soft-delete-only/i)
+    })
+
+    it('contains opt-in flag', () => {
+      const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
+      expect(out).toMatch(/compliance.*gdpr_erasure/)
+    })
+  })
+
   describe('RACI.md.ejs', () => {
     it('renders without EJS leaks', () => {
       const out = renderTemplate('governance/RACI.md.ejs', cfg())
