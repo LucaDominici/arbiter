@@ -53,17 +53,7 @@ export function runDiff(options: DiffOptions): void {
   }
 
   const config = buildDiffConfig(targetDir, projectName, stored)
-  const invariants = getFilteredInvariants({
-    language: config.language,
-    governanceLevel: config.governanceLevel,
-    invariantTiers: config.invariantTiers,
-  })
-  const data = {
-    ...config,
-    invariants,
-    invariantsByTier: getInvariantsByTier(invariants),
-    tierLabels: TIER_LABELS,
-  }
+  const data = buildDiffData(config)
   const checks = buildDiffChecks(targetDir, config, data)
 
   const files: Array<{ key: string; status: 'new' | 'changed' | 'unchanged' }> = []
@@ -139,6 +129,23 @@ function buildDiffConfig(
     enableSecurityScanning: stored.features.securityScanning,
     invariantTiers:
       stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
+    includeViaferaPort: stored.governance?.invariants_catalog === 'extended',
+  }
+}
+
+function buildDiffData(config: ProjectConfig): Record<string, unknown> {
+  const filterOpts = {
+    language: config.language,
+    governanceLevel: config.governanceLevel,
+    invariantTiers: config.invariantTiers,
+    ...(config.includeViaferaPort ? { includeViaferaPort: true } : {}),
+  }
+  const invariants = getFilteredInvariants(filterOpts)
+  return {
+    ...config,
+    invariants,
+    invariantsByTier: getInvariantsByTier(invariants),
+    tierLabels: TIER_LABELS,
   }
 }
 

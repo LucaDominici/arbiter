@@ -976,4 +976,159 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'unclassified impact — pytest/playwright surfaces the throw as a failed ' +
       'spec, which fails the L2 playwright-e2e gate step in scripts/check-all.mjs',
   },
+
+  // --- Viafera-port opt-in set (INV-62..INV-71) ---
+  // Enabled via arbiter.json governance.invariants_catalog = 'extended'.
+  // Excluded from default generated AGENTS.md/GLOBAL_INVARIANTS.md.
+
+  {
+    id: 'INV-62',
+    tier: 'architectural',
+    title: 'Frontend state separation — async (server) and sync (UI) state in distinct stores',
+    description:
+      'Async state fetched from a server (API responses, remote queries) must live ' +
+      'in a dedicated async-state layer (e.g. TanStack Query, SWR, RTK Query). ' +
+      'Synchronous UI state (modal open, selected tab, form draft) must live in a ' +
+      'separate sync-state store (e.g. Zustand, Redux slice, React context). ' +
+      'Mixing both in a single store conflates cache invalidation with UI transitions ' +
+      'and makes optimistic updates error-prone.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-63',
+    tier: 'governance',
+    title: 'SSOT atomic update — code and SSOT documentation land in the same commit',
+    description:
+      'When a code change alters an invariant, decision, or process rule, the ' +
+      'corresponding SSOT document (AGENTS.md, docs/ADR/, docs/SYSTEM/CANON.md, ' +
+      'docs/METHOD/) must be updated in the same commit. Split commits where code ' +
+      'lands first and docs follow later create a window where the SSOT is stale ' +
+      'and misleads reviewers and future agents.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-64',
+    tier: 'governance',
+    title: 'No magic code — non-trivial idioms documented in a pattern catalog',
+    description:
+      'Any non-obvious pattern, workaround, or architectural idiom introduced into ' +
+      'the codebase must be documented in a project-level pattern catalog ' +
+      '(e.g. docs/PATTERNS/ or docs/METHOD/). "Magic" code that works for unclear ' +
+      'reasons and is not documented creates maintenance risk when the original ' +
+      'author is unavailable.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-65',
+    tier: 'architectural',
+    title: 'Platform abstraction — env-specific APIs accessed only via adapter',
+    description:
+      'APIs that differ across deployment environments (browser vs. Node, ' +
+      'local vs. cloud, test vs. prod) must be accessed through an adapter ' +
+      'layer, not called directly in business logic. Direct calls to ' +
+      'env-specific APIs (window, process.env, cloud SDKs) in domain code ' +
+      'make testing harder and limit portability.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-66',
+    tier: 'governance',
+    title: 'Process self-documentation — docs/METHOD/ is canonical for process rules',
+    description:
+      'All process rules, workflow conventions, and team agreements must be ' +
+      'persisted under docs/METHOD/ as the authoritative source. Ad-hoc rules ' +
+      'communicated only in PRs, Slack, or verbal agreements are not canonical ' +
+      'and will be lost. The docs/METHOD/ directory is the single source of ' +
+      'truth for how the team works.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-67',
+    tier: 'data',
+    title: 'No internal mocking in E2E — backend endpoints are exercised against the real service',
+    description:
+      'End-to-end tests must exercise backend endpoints against a real running ' +
+      'service (local or staging), not an internal mock or stub. Mocking the ' +
+      'server within the E2E layer defeats the purpose of integration testing ' +
+      'and hides contract mismatches. Use contract tests or test-doubles at the ' +
+      'unit level; keep E2E real.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-68',
+    tier: 'operational',
+    title: 'MCP-first forensic inspection — debug via MCP tools before raw shell',
+    description:
+      'When investigating a running system (querying state, inspecting logs, ' +
+      'reading metrics), prefer MCP tool invocations over raw shell commands. ' +
+      'MCP tools are auditable, repeatable, and safe by design. Raw shell ' +
+      'commands issued ad-hoc during an incident bypass audit trails and ' +
+      'increase the risk of accidental state mutation.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-69',
+    tier: 'governance',
+    title: 'Design rationale traceability — new abstractions cite their motivating ADR',
+    description:
+      'Every new module, interface, or architectural abstraction introduced into ' +
+      'the codebase must cite the ADR (Architecture Decision Record) that motivated ' +
+      'it, either in a code comment, the PR description, or a linked docs/ADR/ entry. ' +
+      'Abstractions without traceable rationale accumulate as unexplained complexity ' +
+      'over time.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-70',
+    tier: 'architectural',
+    title: 'Reuse before new — canonical registry search precedes creating a new module',
+    description:
+      'Before creating a new utility, helper, or module, the author must search ' +
+      'the canonical registry (src/utils/, src/generators/, shared libs) for an ' +
+      'existing equivalent. The search must be documented in the PR or plan. ' +
+      'Creating a new module when an equivalent already exists produces duplication ' +
+      'that diverges over time.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
+
+  {
+    id: 'INV-71',
+    tier: 'governance',
+    title: 'Track D task completion — docs-only changes follow the documented completion rules',
+    description:
+      'Documentation-only changes (Track D tasks) must follow the completion ' +
+      'checklist defined in docs/METHOD/: update the relevant SSOT, verify no ' +
+      'dangling references, and confirm the docs gate passes. Treating docs PRs ' +
+      'as lower-ceremony than code PRs leads to stale documentation and ' +
+      'broken cross-references.',
+    alwaysActive: false,
+    optInGroup: 'viafera-port',
+    enforcement: 'code review / manual',
+  },
 ]

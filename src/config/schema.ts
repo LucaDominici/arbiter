@@ -114,6 +114,17 @@ export interface ArbiterConfigV2 {
   preset?: ProjectPreset
   /** Release channel preference. Controls `arbiter doctor` reporting + downgrade warnings. Default: latest. */
   channel?: 'latest' | 'beta' | 'canary'
+  /** Governance policy overrides. Absent = default behaviour. */
+  governance?: GovernanceConfig
+}
+
+export interface GovernanceConfig {
+  /**
+   * Invariant catalog scope.
+   * 'core' (default): INV-01..INV-61 only.
+   * 'extended': also includes opt-in viafera-port set (INV-62..INV-71).
+   */
+  invariants_catalog?: 'core' | 'extended'
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
@@ -261,6 +272,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateTaskTiers(raw['taskTiers'], errors)
   validateContextPack(raw['contextPack'], errors)
   validateChannel(raw['channel'], errors)
+  validateGovernance(raw['governance'], errors)
 
   if (errors.length > 0) {
     return { ok: false, errors }
@@ -310,6 +322,22 @@ function validateContextPack(raw: unknown, errors: string[]): void {
     if (typeof m['adr'] !== 'string' || m['adr'].length === 0) {
       errors.push(`contextPack.adrMappings[${i}].adr must be a non-empty string`)
     }
+  }
+}
+
+const VALID_INVARIANTS_CATALOG_VALUES = new Set(['core', 'extended'])
+
+function validateGovernance(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('governance must be an object')
+    return
+  }
+  const catalog = raw['invariants_catalog']
+  if (catalog !== undefined && !VALID_INVARIANTS_CATALOG_VALUES.has(catalog as string)) {
+    errors.push(
+      `governance.invariants_catalog must be 'core' or 'extended' — got ${typeof catalog === 'string' ? catalog : JSON.stringify(catalog)}`,
+    )
   }
 }
 

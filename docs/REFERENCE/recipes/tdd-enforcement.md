@@ -98,6 +98,20 @@ Integration tests (`__tests__/integration/**`) run at L2+ only and are excluded 
 L1 pre-commit unit-test run. This allows RED integration tests to be committed before
 evidence is recorded — the standard TDD cycle for tasks that dogfood arbiter itself.
 
+## Filing Tech-Debt During Implementation
+
+When a pre-existing violation is discovered in code not touched by the current task, file a
+GitHub issue rather than scope-creeping the branch:
+
+```bash
+arbiter task record-tech-debt \
+  --description "brief finding" \
+  --triggered-by "#NNN"   # defaults to .claude/.task-id if omitted
+```
+
+Creates a GitHub issue labeled `tech-debt` + `follow-up` and appends the issue number to
+`.arbiter/evidence/<task-id>/tech-debt.json`. Failure is soft (exit 0); reason written to stderr.
+
 ## Invariant
 
 **INV-26** — enforced at L2 gate (`scripts/check-all.mjs L2 — arbiter verify tdd`) and
