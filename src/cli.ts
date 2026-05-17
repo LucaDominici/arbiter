@@ -51,6 +51,7 @@ import { runExplain } from './commands/explain.js'
 import { runBenchmarkHooks } from './commands/benchmark.js'
 import { getRunId, formatRunIdFooter } from './utils/run-id.js'
 import { parseExperimentalArgv, listExperiments, isEnabled } from './experimental/index.js'
+import { t } from './i18n/index.js'
 import { applyDeprecatedFlagFilter } from './internal/deprecate.js'
 import { CLI_DEPRECATED_FLAGS } from './internal/cli-deprecation-registry.js'
 import { warnExperimental } from './internal/experimental-warn.js'
@@ -1580,7 +1581,7 @@ experiments
   .action(() => {
     const all = listExperiments()
     if (all.length === 0) {
-      console.log('No experiments registered. See docs/reference/experimental-policy for details.')
+      console.log(t('cli.experiments.none'))
       return
     }
     const activeFlags: Record<string, boolean> = (() => {
@@ -1596,7 +1597,7 @@ experiments
       console.log(
         `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})`,
       )
-      console.log(`           ${exp.promotionCriteria}`)
+      console.log(t('cli.experiments.criteria', { criteria: exp.promotionCriteria }))
     }
   })
 

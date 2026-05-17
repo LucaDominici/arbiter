@@ -107,6 +107,7 @@ export default defineConfig({
         text: 'Governance',
         collapsed: true,
         items: [
+          { text: 'Overview', link: '/governance/' },
           {
             text: 'AGENTS.md',
             link: 'https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md',
@@ -120,6 +121,11 @@ export default defineConfig({
             link: 'https://github.com/LucaDominici/arbiter/blob/main/docs/SYSTEM/DECISIONS.md',
           },
         ],
+      },
+      {
+        text: 'Contribute',
+        collapsed: true,
+        items: [{ text: 'Translations', link: '/i18n/CONTRIBUTING' }],
       },
     ],
 

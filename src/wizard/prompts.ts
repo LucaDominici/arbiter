@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import inquirer from 'inquirer'
+import { t } from '../i18n/index.js'
 import type {
   ProjectConfig,
   AiTool,
@@ -155,18 +156,18 @@ export function buildMigrationPlan(
 }
 
 function displayMigrationPlan(plan: MigrationPlan): void {
-  console.log('\n  Migration plan:')
+  console.log(t('cli.wizard.migration_plan'))
   for (const entry of plan.replaced) {
-    console.log(`  ├── Replace (backed up): ${entry}`)
+    console.log(t('cli.wizard.replace_entry', { entry }))
   }
   for (const entry of plan.merged) {
-    console.log(`  ├── Merge: ${entry}`)
+    console.log(t('cli.wizard.merge_entry', { entry }))
   }
   for (const entry of plan.preserved) {
-    console.log(`  ├── Preserve: ${entry}`)
+    console.log(t('cli.wizard.preserve_entry', { entry }))
   }
   for (const entry of plan.created) {
-    console.log(`  ├── Create: ${entry}`)
+    console.log(t('cli.wizard.create_entry', { entry }))
   }
 }
 
@@ -188,18 +189,18 @@ async function promptConfirm(message: string): Promise<boolean> {
 
 function printFlowPreamble(wizardInput: WizardInput, flow: WizardFlow): void {
   if (flow !== 'brownfield') return
-  console.log('  Existing governance detected:')
-  if (wizardInput.existing.agentsMd) console.log('  ├── AGENTS.md')
-  if (wizardInput.existing.claudeDir) console.log('  ├── .claude/ directory')
-  if (wizardInput.existing.agentsDir) console.log('  ├── .agents/ directory')
-  if (wizardInput.existing.geminiDir) console.log('  ├── .gemini/ directory')
-  if (wizardInput.existing.windsurfRules) console.log('  ├── windsurf-instructions.md')
-  if (wizardInput.existing.aiderConf) console.log('  ├── .aider.conf.yml')
-  console.log('')
+  console.log(t('cli.wizard.existing_governance'))
+  if (wizardInput.existing.agentsMd) console.log(t('cli.wizard.existing_agents_md'))
+  if (wizardInput.existing.claudeDir) console.log(t('cli.wizard.existing_claude_dir'))
+  if (wizardInput.existing.agentsDir) console.log(t('cli.wizard.existing_agents_dir'))
+  if (wizardInput.existing.geminiDir) console.log(t('cli.wizard.existing_gemini_dir'))
+  if (wizardInput.existing.windsurfRules) console.log(t('cli.wizard.existing_windsurf'))
+  if (wizardInput.existing.aiderConf) console.log(t('cli.wizard.existing_aider'))
+  console.log()
 }
 
 export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig | null> {
-  console.log('')
+  console.log()
 
   const flow = determineFlow(wizardInput.existing)
   printFlowPreamble(wizardInput, flow)
@@ -226,12 +227,12 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
       )
       displayMigrationPlan(plan)
     } else {
-      console.log(`\n  Will generate governance files for: ${tools.join(', ')}`)
+      console.log(t('cli.wizard.tools_header', { tools: tools.join(', ') }))
     }
 
     const confirmMsg = flow === 'brownfield' ? 'Proceed with migration?' : 'Proceed?'
     if (!(await promptConfirm(confirmMsg))) {
-      console.log('\n  Cancelled.\n')
+      console.log(t('cli.wizard.cancelled'))
       return null
     }
 
@@ -240,7 +241,7 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
     if (isUserCancellation(err)) {
       cleanupInFlightTmpFiles()
       // TODO(#614): release L4 file lock here once lock infra lands
-      console.log('\n  Aborted — no changes made.\n')
+      console.log(t('cli.wizard.aborted'))
       process.exitCode = 130
       return null
     }
@@ -508,7 +509,11 @@ function buildGithubChoice(access: GithubAccess): object[] {
     return []
   }
   if (!access.authenticated) {
-    console.log(`  Note: ${access.error ?? 'gh not authenticated — GitHub assets skipped'}`)
+    console.log(
+      t('cli.wizard.gh_access_note', {
+        message: access.error ?? 'gh not authenticated — GitHub assets skipped',
+      }),
+    )
     return []
   }
   return [

@@ -7,6 +7,7 @@ import { deriveAxisDefaults } from '../detectors/axis.js'
 import { ArbiterError } from '../utils/errors.js'
 import type { ArbiterConfigV2 } from '../config/schema.js'
 import type { Archetype } from '../wizard/types.js'
+import { t } from '../i18n/index.js'
 
 export interface ConfigureOptions {
   dir?: string | undefined
@@ -64,27 +65,42 @@ const VALID_CONTRACT_TYPES = new Set([
 function parseAxisValue(path: string, raw: string): unknown {
   if (path === 'archetype') {
     if (!VALID_ARCHETYPES.has(raw))
-      throw new ArbiterError(
+      throw ArbiterError.fromKey(
         'E_INVALID_ARCHETYPE',
-        `Invalid archetype: "${raw}". Valid: ${[...VALID_ARCHETYPES].join(', ')}`,
+        'errors.E_INVALID_ARCHETYPE',
+        {
+          field: 'archetype',
+          value: raw,
+          valid: [...VALID_ARCHETYPES].join(', '),
+        },
         { hint: 'Run `arbiter configure --help` for a list of valid archetypes.' },
       )
     return raw
   }
   if (path === 'architectureStyle') {
     if (!VALID_ARCHITECTURE_STYLES.has(raw))
-      throw new ArbiterError(
+      throw ArbiterError.fromKey(
         'E_INVALID_ARCHETYPE',
-        `Invalid architectureStyle: "${raw}". Valid: ${[...VALID_ARCHITECTURE_STYLES].join(', ')}`,
+        'errors.E_INVALID_ARCHETYPE',
+        {
+          field: 'architectureStyle',
+          value: raw,
+          valid: [...VALID_ARCHITECTURE_STYLES].join(', '),
+        },
         { hint: 'Run `arbiter configure --help` for valid architectureStyle values.' },
       )
     return raw
   }
   if (path === 'contractType') {
     if (!VALID_CONTRACT_TYPES.has(raw))
-      throw new ArbiterError(
+      throw ArbiterError.fromKey(
         'E_INVALID_ARCHETYPE',
-        `Invalid contractType: "${raw}". Valid: ${[...VALID_CONTRACT_TYPES].join(', ')}`,
+        'errors.E_INVALID_ARCHETYPE',
+        {
+          field: 'contractType',
+          value: raw,
+          valid: [...VALID_CONTRACT_TYPES].join(', '),
+        },
         { hint: 'Run `arbiter configure --help` for valid contractType values.' },
       )
     return raw
@@ -92,9 +108,14 @@ function parseAxisValue(path: string, raw: string): unknown {
   // isMultiTenant, hasDatabase, hasPublicApi
   if (raw === 'true') return true
   if (raw === 'false') return false
-  throw new ArbiterError('E_INVALID_BOOL', `${path} must be true or false — got: ${raw}`, {
-    hint: 'Use `true` or `false` (lowercase).',
-  })
+  throw ArbiterError.fromKey(
+    'E_INVALID_BOOL',
+    'errors.E_INVALID_BOOL',
+    { path, value: raw },
+    {
+      hint: 'Use `true` or `false` (lowercase).',
+    },
+  )
 }
 
 const AXIS_PATHS = new Set([
@@ -110,32 +131,51 @@ function parseValue(path: string, raw: string): unknown {
   if (path.startsWith('features.')) {
     if (raw === 'true') return true
     if (raw === 'false') return false
-    throw new ArbiterError('E_INVALID_BOOL', `features.* must be true or false — got: ${raw}`, {
-      hint: 'Use `true` or `false` (lowercase). Example: `arbiter configure --set features.debtGates=true`.',
-    })
+    throw ArbiterError.fromKey(
+      'E_INVALID_BOOL',
+      'errors.E_INVALID_BOOL',
+      { path: 'features.*', value: raw },
+      {
+        hint: 'Use `true` or `false` (lowercase). Example: `arbiter configure --set features.debtGates=true`.',
+      },
+    )
   }
   if (path.startsWith('thresholds.')) {
     const n = Number(raw)
     if (!Number.isFinite(n))
-      throw new ArbiterError('E_INVALID_NUMBER', `${path} must be a number — got: ${raw}`, {
-        hint: `Provide a numeric value. Example: \`arbiter configure --set ${path}=80\`.`,
-      })
+      throw ArbiterError.fromKey(
+        'E_INVALID_NUMBER',
+        'errors.E_INVALID_NUMBER',
+        { path, value: raw },
+        {
+          hint: `Provide a numeric value. Example: \`arbiter configure --set ${path}=80\`.`,
+        },
+      )
     return n
   }
   if (path === 'useGitHub') {
     if (raw === 'true') return true
     if (raw === 'false') return false
-    throw new ArbiterError('E_INVALID_BOOL', `useGitHub must be true or false — got: ${raw}`, {
-      hint: 'Use `true` or `false` (lowercase).',
-    })
+    throw ArbiterError.fromKey(
+      'E_INVALID_BOOL',
+      'errors.E_INVALID_BOOL',
+      { path: 'useGitHub', value: raw },
+      {
+        hint: 'Use `true` or `false` (lowercase).',
+      },
+    )
   }
   if (path === 'tools') {
-    const toolList = raw.split(',').map((t) => t.trim())
-    for (const t of toolList) {
-      if (!VALID_TOOLS.has(t)) {
-        throw new ArbiterError(
+    const toolList = raw.split(',').map((tool) => tool.trim())
+    for (const tool of toolList) {
+      if (!VALID_TOOLS.has(tool)) {
+        throw ArbiterError.fromKey(
           'E_INVALID_TOOL',
-          `Invalid tool: "${t}". Valid tools: ${[...VALID_TOOLS].join(', ')}`,
+          'errors.E_INVALID_TOOL',
+          {
+            tool,
+            valid: [...VALID_TOOLS].join(', '),
+          },
           { hint: 'Valid tools: claude, codex, cursor, copilot, gemini, windsurf, aider.' },
         )
       }
@@ -178,18 +218,26 @@ function applyAssignment(
 ): { config: ArbiterConfigV2; archetypeTouched: boolean } {
   const eqIdx = assignment.indexOf('=')
   if (eqIdx < 0) {
-    throw new ArbiterError(
+    throw ArbiterError.fromKey(
       'E_INVALID_FORMAT',
-      `Invalid --set format (expected path=value): ${assignment}`,
-      { hint: 'Example: `arbiter configure --set tools=claude,codex`.' },
+      'errors.E_INVALID_FORMAT',
+      { assignment },
+      {
+        hint: 'Example: `arbiter configure --set tools=claude,codex`.',
+      },
     )
   }
   const path = assignment.slice(0, eqIdx)
   const rawValue = assignment.slice(eqIdx + 1)
   if (!ALLOWED_PATHS.has(path)) {
-    throw new ArbiterError('E_UNKNOWN_PATH', `Unknown configuration path: ${path}`, {
-      hint: 'Run `arbiter configure --help` to see valid paths.',
-    })
+    throw ArbiterError.fromKey(
+      'E_UNKNOWN_PATH',
+      'errors.E_UNKNOWN_PATH',
+      { path },
+      {
+        hint: 'Run `arbiter configure --help` to see valid paths.',
+      },
+    )
   }
   const value = parseValue(path, rawValue)
   return {
@@ -214,9 +262,14 @@ function applySet(config: ArbiterConfigV2, path: string, value: unknown): Arbite
       [top]: { ...parent, [key]: value },
     }
   }
-  throw new ArbiterError('E_UNKNOWN_PATH', `Unsupported path depth: ${path}`, {
-    hint: 'Run `arbiter configure --help` to see valid paths.',
-  })
+  throw ArbiterError.fromKey(
+    'E_UNSUPPORTED_PATH_DEPTH',
+    'errors.E_UNSUPPORTED_PATH_DEPTH',
+    { path },
+    {
+      hint: 'Run `arbiter configure --help` to see valid paths.',
+    },
+  )
 }
 
 export function runConfigure(options: ConfigureOptions): void {
@@ -226,10 +279,7 @@ export function runConfigure(options: ConfigureOptions): void {
       process.exit(1)
       return
     }
-    console.error(
-      '  Usage: arbiter configure --set <path>=<value>\n' +
-        '  Interactive mode requires a TTY. Non-interactive usage requires --set.\n',
-    )
+    console.error(t('cli.configure.usage_hint'))
     process.exit(2)
   }
 
@@ -241,10 +291,15 @@ export function runConfigure(options: ConfigureOptions): void {
       process.exit(1)
       return
     }
-    throw new ArbiterError('E_CONFIG_NOT_FOUND', 'No arbiter.json found.', {
-      hint: 'Run `arbiter init` to initialize governance in this directory.',
-      docUrl: 'https://arbiter.dev/reference/cli#init',
-    })
+    throw ArbiterError.fromKey(
+      'E_CONFIG_NOT_FOUND',
+      'errors.E_CONFIG_NOT_FOUND',
+      {},
+      {
+        hint: 'Run `arbiter init` to initialize governance in this directory.',
+        docUrl: 'https://arbiter.dev/reference/cli#init',
+      },
+    )
   }
 
   let config = stored
@@ -267,9 +322,12 @@ export function runConfigure(options: ConfigureOptions): void {
 
   const result = validateConfig(config)
   if (!result.ok) {
-    throw new ArbiterError(
+    throw ArbiterError.fromKey(
       'E_CONFIG_INVALID',
-      `Configuration invalid after changes:\n  ${result.errors.join('\n  ')}`,
+      'errors.E_CONFIGURE_CONFIG_INVALID',
+      {
+        errors: result.errors.join('; '),
+      },
       { hint: 'Fix the errors above, or delete arbiter.json and re-run `arbiter init`.' },
     )
   }
@@ -280,5 +338,5 @@ export function runConfigure(options: ConfigureOptions): void {
     jsonOutput('configure', 'ok', { updated: options.sets })
     return
   }
-  console.log(`  Updated: ${options.sets.join(', ')}`)
+  console.log(t('cli.configure.updated', { keys: options.sets.join(', ') }))
 }

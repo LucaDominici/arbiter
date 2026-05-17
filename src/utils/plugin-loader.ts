@@ -4,7 +4,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import type { ArbiterPlugin, PluginResult } from '../types/plugin.js'
-import { UserFacingError } from './errors.js'
+import { ArbiterError } from './errors.js'
 
 const VALID_NAME_RE = /^[a-z0-9][a-z0-9-_]*$/
 const DEFAULT_TIMEOUT_MS = 60_000
@@ -60,14 +60,16 @@ function invokeInWorker(
     const timer = setTimeout(() => {
       void worker.terminate().then(noop, noop)
       settle(() => {
-        reject(new UserFacingError(`Plugin "${name}" timed out after ${timeoutMs}ms`))
+        reject(
+          ArbiterError.fromKey('E_PLUGIN_TIMEOUT', 'cli.plugin.timeout', { name, ms: timeoutMs }),
+        )
       })
     }, timeoutMs)
 
     const onSignal = (): void => {
       void worker.terminate().then(noop, noop)
       settle(() => {
-        reject(new UserFacingError(`Plugin "${name}" was interrupted by signal`))
+        reject(ArbiterError.fromKey('E_PLUGIN_INTERRUPTED', 'cli.plugin.interrupted', { name }))
       })
     }
     process.once('SIGINT', onSignal)
@@ -93,7 +95,7 @@ function invokeInWorker(
       settle(() => {
         reject(
           code !== 0
-            ? new UserFacingError(`Plugin "${name}" crashed (exit code ${code})`)
+            ? ArbiterError.fromKey('E_PLUGIN_CRASHED', 'cli.plugin.crashed', { name, code })
             : new Error(`Plugin "${name}" exited without returning a result`),
         )
       })

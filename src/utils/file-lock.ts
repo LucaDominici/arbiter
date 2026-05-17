@@ -12,7 +12,7 @@ import {
 import { resolve } from 'node:path'
 import os from 'node:os'
 import { randomBytes } from 'node:crypto'
-import { UserFacingError } from './errors.js'
+import { ArbiterError } from './errors.js'
 
 export interface LockInfo {
   pid: number
@@ -112,7 +112,7 @@ function writeLockExclusive(path: string, info: LockInfo): void {
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code
     if (code === 'EEXIST') {
-      const err = new UserFacingError(`Lock already exists at ${path}`)
+      const err = ArbiterError.fromKey('E_LOCK_CONFLICT', 'errors.E_LOCK_CONFLICT', { path })
       err.name = 'LockConflictError'
       throw err
     }
@@ -158,7 +158,7 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
   const staleAgeMs = opts.staleAgeMs ?? DEFAULT_STALE_MS
 
   if (isSymlink(lockPath)) {
-    throw new UserFacingError(`Lock path ${lockPath} is a symlink — refusing to create lock.`)
+    throw ArbiterError.fromKey('E_LOCK_SYMLINK', 'errors.E_LOCK_SYMLINK', { path: lockPath })
   }
 
   const info = buildLockInfo()
@@ -178,10 +178,9 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
       }
 
       if (existing.hostname !== os.hostname()) {
-        throw new UserFacingError(
-          `Lock held by a process on a different host (${sanitize(existing.hostname)}). ` +
-            `Run \`arbiter doctor --recover-lock\` to manually release.`,
-        )
+        throw ArbiterError.fromKey('E_LOCK_FOREIGN_HOST', 'errors.E_LOCK_FOREIGN_HOST', {
+          host: sanitize(existing.hostname),
+        })
       }
 
       const took = tryTakeover(lockPath, existing, staleAgeMs)
@@ -191,11 +190,12 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
       }
 
       const age = Math.round((Date.now() - new Date(existing.startedAt).getTime()) / 1000)
-      throw new UserFacingError(
-        `arbiter is already running (PID ${existing.pid}, host ${sanitize(existing.hostname)}, ` +
-          `cmd: ${sanitize(existing.cmd)}, age: ${age}s). ` +
-          `Run \`arbiter doctor --recover-lock\` to force-release if the process is gone.`,
-      )
+      throw ArbiterError.fromKey('E_LOCK_BUSY', 'errors.E_LOCK_BUSY', {
+        pid: existing.pid,
+        host: sanitize(existing.hostname),
+        cmd: sanitize(existing.cmd),
+        age,
+      })
     }
   }
 
@@ -236,36 +236,31 @@ export function forceReleaseLock(
   const resolved = resolve(lockPath)
   if (!resolved.startsWith(cwd + '/') && resolved !== cwd) {
     return Promise.reject(
-      new UserFacingError(
-        `Refusing to release lock at ${resolved} — path escapes outside the project root.`,
-      ),
+      ArbiterError.fromKey('E_LOCK_PATH_ESCAPE', 'errors.E_LOCK_PATH_ESCAPE', { path: resolved }),
     )
   }
 
   if (isSymlink(lockPath)) {
     return Promise.reject(
-      new UserFacingError(
-        `Lock path ${lockPath} is a symlink — refusing to unlink. Remove it manually.`,
-      ),
+      ArbiterError.fromKey('E_LOCK_SYMLINK_UNLINK', 'errors.E_LOCK_SYMLINK_UNLINK', {
+        path: lockPath,
+      }),
     )
   }
 
   const info = readLockInfo(lockPath)
   if (!info) {
     return Promise.reject(
-      new UserFacingError(
-        `Cannot read lock at ${lockPath} — it may not exist or is not a valid arbiter lock. ` +
-          `Check permissions with \`ls -la ${lockPath}\`. If permissions block read, run: \`sudo rm ${lockPath}\``,
-      ),
+      ArbiterError.fromKey('E_LOCK_UNREADABLE', 'errors.E_LOCK_UNREADABLE', { path: lockPath }),
     )
   }
 
   if (info.pid !== expectedPid) {
     return Promise.reject(
-      new UserFacingError(
-        `Lock PID changed: expected ${expectedPid} but found ${info.pid}. ` +
-          `The lock was released and re-acquired between inspect and recover. Aborting.`,
-      ),
+      ArbiterError.fromKey('E_LOCK_PID_CHANGED', 'errors.E_LOCK_PID_CHANGED', {
+        expected: expectedPid,
+        found: info.pid,
+      }),
     )
   }
 

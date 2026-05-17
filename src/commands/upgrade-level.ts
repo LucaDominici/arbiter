@@ -8,6 +8,7 @@ import { runCli } from '../utils/run-cli.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { validateConfig } from '../config/schema.js'
 import { ArbiterError } from '../utils/errors.js'
+import { t } from '../i18n/index.js'
 
 export interface UpgradeLevelOptions {
   dir?: string
@@ -31,10 +32,15 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
       process.exit(1)
       return
     }
-    throw new ArbiterError('E_CONFIG_NOT_FOUND', 'No arbiter.json found.', {
-      hint: 'Run `arbiter init` to initialize governance in this directory.',
-      docUrl: 'https://arbiter.dev/reference/cli#init',
-    })
+    throw ArbiterError.fromKey(
+      'E_CONFIG_NOT_FOUND',
+      'errors.E_CONFIG_NOT_FOUND',
+      {},
+      {
+        hint: 'Run `arbiter init` to initialize governance in this directory.',
+        docUrl: 'https://arbiter.dev/reference/cli#init',
+      },
+    )
   }
 
   if (opts.extend) {
@@ -43,23 +49,34 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   }
 
   if (!opts.target) {
-    throw new ArbiterError('E_TARGET_REQUIRED', '--target is required. Specify L2 or L3.', {
-      hint: 'Example: `arbiter upgrade-level --target L2`.',
-    })
+    throw ArbiterError.fromKey(
+      'E_TARGET_REQUIRED',
+      'errors.E_TARGET_REQUIRED',
+      {},
+      {
+        hint: 'Example: `arbiter upgrade-level --target L2`.',
+      },
+    )
   }
   const target = opts.target
   const current = stored.governanceLevel
 
   if (target === current) {
-    throw new ArbiterError('E_ALREADY_AT_LEVEL', `Already at ${current}. Nothing to upgrade.`, {
-      hint: 'Run `arbiter update` to regenerate governance files at the current level.',
-    })
+    throw ArbiterError.fromKey(
+      'E_ALREADY_AT_LEVEL',
+      'errors.E_ALREADY_AT_LEVEL',
+      { level: current },
+      {
+        hint: 'Run `arbiter update` to regenerate governance files at the current level.',
+      },
+    )
   }
 
   if (LEVEL_RANK[target] < LEVEL_RANK[current]) {
-    throw new ArbiterError(
+    throw ArbiterError.fromKey(
       'E_DOWNGRADE_NOT_SUPPORTED',
-      'Downgrade not supported. Edit arbiter.json manually and run arbiter update.',
+      'errors.E_DOWNGRADE_NOT_SUPPORTED',
+      {},
       {
         hint: 'Set `governanceLevel` in arbiter.json to the desired level, then run `arbiter update`.',
       },
@@ -76,9 +93,10 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   const upgraded = { ...stored, governanceLevel: target, graceFromLevel: current, graceEndsAt }
   const validation = validateConfig(upgraded)
   if (!validation.ok) {
-    throw new ArbiterError(
+    throw ArbiterError.fromKey(
       'E_CONFIG_INVALID',
-      `Config invalid after upgrade: ${validation.errors.join('; ')}`,
+      'errors.E_UPGRADE_CONFIG_INVALID',
+      { errors: validation.errors.join('; ') },
       { hint: 'Fix the errors above, or delete arbiter.json and re-run `arbiter init`.' },
     )
   }
@@ -101,12 +119,10 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
 
   const endsDate = graceEndsAt.slice(0, 10)
   if (current === 'L1' && target === 'L2') {
-    console.log(`Grace ends ${endsDate} (${days} days). ${target} gates will WARN until then.`)
+    console.log(t('cli.upgrade_level.grace_ends_warn', { date: endsDate, days, target }))
   } else {
-    console.log(`Upgraded to ${target}. Grace period recorded until ${endsDate} (${days} days).`)
-    console.log(
-      `  Note: grace-period warn mode is L1→L2 only in this release; ${target} gates activate immediately.`,
-    )
+    console.log(t('cli.upgrade_level.upgraded', { target, date: endsDate, days }))
+    console.log(t('cli.upgrade_level.grace_warn_note', { target }))
   }
 }
 
@@ -118,9 +134,10 @@ function handleExtend(
 ): void {
   const existing = stored.graceEndsAt
   if (!existing || Date.parse(existing) <= Date.now()) {
-    throw new ArbiterError(
+    throw ArbiterError.fromKey(
       'E_NO_GRACE_PERIOD',
-      'No grace period to extend (none set or already expired).',
+      'errors.E_NO_GRACE_PERIOD',
+      {},
       { hint: 'Run `arbiter upgrade-level --target L2` to start a new grace period.' },
     )
   }
@@ -139,9 +156,10 @@ function handleExtend(
     try {
       raw = JSON.parse(readFileSync(logPath, 'utf-8'))
     } catch {
-      throw new ArbiterError(
+      throw ArbiterError.fromKey(
         'E_GRACE_LOG_MALFORMED',
-        `grace-log.json is malformed — delete ${logPath} to reset extend history`,
+        'errors.E_GRACE_LOG_MALFORMED',
+        { path: logPath },
         { hint: `Delete ${logPath} and retry.` },
       )
     }
@@ -149,9 +167,10 @@ function handleExtend(
     // also malformed for our purposes — silently overwriting it would erase
     // prior extend history. Refuse with the same recovery message.
     if (!Array.isArray(raw)) {
-      throw new ArbiterError(
+      throw ArbiterError.fromKey(
         'E_GRACE_LOG_MALFORMED',
-        `grace-log.json is malformed — delete ${logPath} to reset extend history`,
+        'errors.E_GRACE_LOG_MALFORMED',
+        { path: logPath },
         { hint: `Delete ${logPath} and retry.` },
       )
     }
@@ -180,5 +199,5 @@ function handleExtend(
   }
 
   const endsDate = newEndsAt.slice(0, 10)
-  console.log(`Grace extended to ${endsDate} (+${days} days).`)
+  console.log(t('cli.upgrade_level.grace_extended', { date: endsDate, days }))
 }

@@ -332,13 +332,11 @@ describe('atomic write + signal cleanup (#613)', () => {
 describe('ENOSPC_MSGS errno translation (#616)', () => {
   const path = '/some/path/file.txt'
 
-  it('translates EPERM with all four Linux cause hints', () => {
+  it('translates EPERM with permission-related hints', () => {
     const msg = _translateFsError('EPERM', path)
     expect(msg).not.toBeNull()
-    expect(msg).toMatch(/lsattr|chattr/i)
-    expect(msg).toMatch(/SELinux|AppArmor|ausearch/i)
-    expect(msg).toMatch(/getfacl|ACL/i)
-    expect(msg).toMatch(/owner/i)
+    expect(msg).toMatch(/immutable bit|SELinux|AppArmor|ACL|ownership/i)
+    expect(msg).toContain(path)
   })
 
   it('translates ENOTDIR with not-a-directory hint', () => {

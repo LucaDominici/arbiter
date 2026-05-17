@@ -36,4 +36,9 @@ features:
       Browse the contract.
     link: /concepts/
     linkText: Browse AGENTS.md + ADR ledger
+  - title: See arbiter's own governance
+    details: >
+      arbiter is governed by arbiter. Browse the
+      [ADRs, invariants, and evidence trail](/governance/) to see the
+      framework in practice. Contribute a [translation](/i18n/CONTRIBUTING).
 ---

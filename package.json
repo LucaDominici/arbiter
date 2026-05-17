@@ -35,7 +35,8 @@
     }
   },
   "scripts": {
-    "build": "tsc && rm -rf dist/templates && cp -r src/templates dist/templates",
+    "build": "tsc && rm -rf dist/templates && cp -r src/templates dist/templates && mkdir -p dist/i18n && cp src/i18n/*.json dist/i18n/",
+    "check:i18n": "node scripts/check-no-raw-strings.mjs src --inventory __tests__/i18n/_migration-inventory.json",
     "dev": "tsx src/cli.ts",
     "prepack": "npm run build",
     "pack:size": "node scripts/check-pack-size.mjs",
@@ -56,7 +57,7 @@
     "changeset:publish": "changeset publish",
     "check:anti-telemetry": "node scripts/check-anti-telemetry.mjs",
     "docs:dev": "npm run dev -w @arbiter/website",
-    "docs:build": "npm run build -w @arbiter/website",
+    "docs:build": "node scripts/sync-public-governance.mjs && npm run build -w @arbiter/website",
     "docs:preview": "npm run preview -w @arbiter/website"
   },
   "dependencies": {

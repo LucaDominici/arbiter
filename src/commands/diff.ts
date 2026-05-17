@@ -12,6 +12,7 @@ import { loadConfig } from '../utils/config.js'
 import { renderTemplate } from '../utils/render.js'
 import { resolvedPath } from '../utils/fs.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
+import { t } from '../i18n/index.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import {
   presetToTiers,
@@ -37,7 +38,7 @@ export function runDiff(options: DiffOptions): void {
   const projectName = basename(targetDir)
 
   if (!options.json) {
-    console.log('\n  Arbiter — diff (dry run)\n')
+    console.log(t('cli.diff.banner'))
   }
 
   const stored = loadConfig(targetDir)
@@ -47,7 +48,7 @@ export function runDiff(options: DiffOptions): void {
       process.exit(statusToExitCode('error'))
       return
     }
-    console.log('  No arbiter.json found. Run `arbiter init` first.\n')
+    console.log(t('cli.diff.no_config'))
     process.exit(statusToExitCode('error'))
   }
 
@@ -73,16 +74,16 @@ export function runDiff(options: DiffOptions): void {
     if (!existsSync(check.path)) {
       files.push({ key: check.templateKey, status: 'new' })
       hasChanges = true
-      if (!options.json) console.log(`  + ${check.templateKey}  (new file)`)
+      if (!options.json) console.log(t('cli.diff.new_file', { key: check.templateKey }))
     } else {
       const current = readFileSync(check.path, 'utf-8')
       if (current !== incoming) {
         files.push({ key: check.templateKey, status: 'changed' })
         hasChanges = true
-        if (!options.json) console.log(`  ~ ${check.templateKey}  (would update)`)
+        if (!options.json) console.log(t('cli.diff.changed_file', { key: check.templateKey }))
       } else {
         files.push({ key: check.templateKey, status: 'unchanged' })
-        if (!options.json) console.log(`  = ${check.templateKey}  (unchanged)`)
+        if (!options.json) console.log(t('cli.diff.unchanged_file', { key: check.templateKey }))
       }
     }
   }
@@ -96,9 +97,9 @@ export function runDiff(options: DiffOptions): void {
   }
 
   if (!hasChanges) {
-    console.log('\n  All files up to date. Nothing to update.\n')
+    console.log(t('cli.diff.up_to_date'))
   } else {
-    console.log('\n  Run `arbiter update` to apply changes.\n')
+    console.log(t('cli.diff.run_update'))
   }
 }
 

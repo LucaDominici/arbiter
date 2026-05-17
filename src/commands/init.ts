@@ -3,6 +3,7 @@ import { mkdirSync, existsSync, copyFileSync, unlinkSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, ArbiterError } from '../utils/errors.js'
+import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
@@ -92,11 +93,7 @@ export interface InitOptions {
 
 function assertNotNativeWindows(): void {
   if (isWindows() && !isWSL2()) {
-    throw new UserFacingError(
-      'arbiter does not support native Win32. ' +
-        'Install WSL2 and run arbiter inside it. ' +
-        'Setup guide: https://docs.arbiter.dev/install/windows',
-    )
+    throw ArbiterError.fromKey('E_INIT_WIN32', 'errors.E_INIT_WIN32')
   }
 }
 
@@ -213,7 +210,7 @@ function emitInitOutput(
     )
     process.exit(statusToExitCode('error'))
   }
-  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
+  console.log(t('cli.init.verify_hint'))
 }
 
 function detectAndAuditSkills(targetDir: string): ReturnType<typeof detectInstalledSkills> {
@@ -509,8 +506,8 @@ export async function runPlugins(
     }
   }
   if (failures.length > 0) {
-    throw new ArbiterError('E_PLUGIN_FAILED', `Plugin(s) failed:\n  ${failures.join('\n  ')}`, {
-      hint: 'Remove the failing plugin with `arbiter plugin remove <name>` and retry.',
+    throw ArbiterError.fromKey('E_INIT_PLUGIN_FAILURES', 'errors.E_INIT_PLUGIN_FAILURES', {
+      failures: failures.join('\n  '),
     })
   }
   return all
@@ -590,7 +587,7 @@ function guardAdverseGitState(targetDir: string, force: boolean | undefined): vo
   const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
   if (!force) {
     throw new UserFacingError(
-      `${adverseState.message}\n${adverseState.suggestedFix}\nUse --force to override this check.`,
+      `${adverseState.message}\n${adverseState.suggestedFix}\n${t('cli.shared.force_override_hint')}`,
     )
   }
   console.warn(warning)
@@ -600,11 +597,14 @@ export function guardBrownfieldDirtyTree(targetDir: string, force: boolean | und
   try {
     const result = runCli('git', ['status', '--porcelain'], { cwd: targetDir, timeoutMs: 5000 })
     if (result.stdout.trim() === '') return
-    const msg =
-      'Brownfield init refused: working tree has uncommitted changes.\n' +
-      'Commit or stash your changes first, or use --force to override.'
-    if (!force) throw new UserFacingError(msg)
-    console.warn(`\n  Warning: working tree has uncommitted changes (--force override active)\n`)
+    if (!force)
+      throw ArbiterError.fromKey(
+        'E_INIT_DIRTY_TREE',
+        'errors.E_INIT_DIRTY_TREE',
+        {},
+        { hint: 'Commit or stash changes first, or use --force to override.' },
+      )
+    console.warn(t('cli.init.dirty_tree_warn'))
   } catch (err) {
     if (err instanceof UserFacingError) throw err
     const code = (err as NodeJS.ErrnoException).code
@@ -661,15 +661,13 @@ export function rollbackGeneration(results: WriteResult[]): void {
 }
 
 function logExistingDetections(existing: ReturnType<typeof detectExisting>): void {
-  if (existing.agentsMd) console.log('  ├── Existing AGENTS.md detected — will back up')
-  if (existing.claudeDir) console.log('  ├── Existing .claude/ detected — will merge')
-  if (existing.agentsDir) console.log('  ├── Existing .agents/ detected — will merge')
-  if (existing.geminiDir) console.log('  ├── Existing .gemini/ detected — will back up')
-  if (existing.windsurfRules)
-    console.log('  ├── Existing windsurf-instructions.md detected — will back up')
-  if (existing.aiderConf) console.log('  ├── Existing .aider.conf.yml detected — will back up')
-  if (existing.aiRulez)
-    console.log('  ├── ai-rulez detected — skipping tool configs (AGENTS.md + GitHub only)')
+  if (existing.agentsMd) console.log(t('cli.init.existing_agents_md'))
+  if (existing.claudeDir) console.log(t('cli.init.existing_claude_dir'))
+  if (existing.agentsDir) console.log(t('cli.init.existing_agents_dir'))
+  if (existing.geminiDir) console.log(t('cli.init.existing_gemini_dir'))
+  if (existing.windsurfRules) console.log(t('cli.init.existing_windsurf'))
+  if (existing.aiderConf) console.log(t('cli.init.existing_aider'))
+  if (existing.aiRulez) console.log(t('cli.init.ai_rulez_detected'))
 }
 
 function maybeCaptureBaseline(config: ProjectConfig, targetDir: string, brownfield: boolean): void {
@@ -684,13 +682,13 @@ function runBrownfieldCapture(
   targetDir: string,
   opts: { fatal: boolean } = { fatal: false },
 ): void {
-  console.log('\n  Capturing debt baseline (this may take a few minutes)…')
+  console.log(t('cli.init.capturing_baseline'))
   try {
     runCli('node', ['scripts/capture-debt-baseline.mjs'], {
       cwd: targetDir,
       timeoutMs: 600_000,
     })
-    console.log('  Baseline captured at scripts/debt-baseline.json')
+    console.log(t('cli.init.baseline_captured'))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (opts.fatal) {
@@ -715,34 +713,34 @@ export function printResults(results: WriteResult[], targetDir: string): void {
           ? ' (backed up + replaced)'
           : ''
     const relPath = result.path.replace(targetDir + '/', '')
-    console.log(`  ${icon} ${relPath}${label}`)
+    console.log(t('cli.init.file_entry', { icon, relPath, label }))
   }
 }
 
 function displayDryRunPreview(config: ProjectConfig): void {
   const preview = computeDryRunPreview(config)
-  console.log('\n  Dry run — no files will be written.\n')
+  console.log(t('cli.init.dry_run_notice_full'))
 
   if (preview.created.length > 0) {
-    console.log('  [create]')
+    console.log(t('cli.init.dry_run_create_header'))
     for (const entry of preview.created) {
-      console.log(`  + ${entry}`)
+      console.log(t('cli.init.dry_run_create_file', { entry }))
     }
   }
   if (preview.modified.length > 0) {
-    console.log('  [modify]')
+    console.log(t('cli.init.dry_run_modify_header'))
     for (const entry of preview.modified) {
-      console.log(`  ~ ${entry}`)
+      console.log(t('cli.init.dry_run_modify_file', { entry }))
     }
   }
   if (preview.skipped.length > 0) {
-    console.log('  [skip]')
+    console.log(t('cli.init.dry_run_skip_header'))
     for (const entry of preview.skipped) {
-      console.log(`  = ${entry}`)
+      console.log(t('cli.init.dry_run_skip_file', { entry }))
     }
   }
 
-  console.log('\n  Run without --dry-run to apply.\n')
+  console.log(t('cli.init.dry_run_run_hint'))
 }
 
 function buildDefaultConfig(opts: {
@@ -893,14 +891,13 @@ function detectedBasePackage(
 function parseTools(tools: string | undefined): AiTool[] {
   if (!tools) return ['claude', 'codex']
   const VALID = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
-  const parsed = tools.split(',').map((t) => t.trim())
-  const invalid = parsed.filter((t) => !VALID.has(t))
+  const parsed = tools.split(',').map((s) => s.trim())
+  const invalid = parsed.filter((s) => !VALID.has(s))
   if (invalid.length > 0) {
-    throw new ArbiterError(
-      'E_INVALID_TOOL',
-      `Unknown tool(s): ${invalid.map((t) => `"${t}"`).join(', ')}. Valid: ${[...VALID].join(', ')}`,
-      { hint: 'Valid tools: claude, codex, cursor, copilot, gemini, windsurf, aider.' },
-    )
+    throw ArbiterError.fromKey('E_INVALID_TOOL', 'errors.E_INVALID_TOOL', {
+      tool: invalid.map((s) => `"${s}"`).join(', '),
+      valid: [...VALID].join(', '),
+    })
   }
   return parsed as AiTool[]
 }
@@ -908,12 +905,11 @@ function parseTools(tools: string | undefined): AiTool[] {
 function parseLevel(level: string | undefined): GovernanceLevel {
   if (level === undefined) return 'L2'
   if (level === 'L1' || level === 'L2' || level === 'L3') return level
-  throw new ArbiterError(
+  throw ArbiterError.fromKey(
     'E_INVALID_LEVEL',
-    `Unknown governance level: "${level}". Valid: L1, L2, L3`,
-    {
-      hint: 'Use L1 (fast), L2 (standard, default), or L3 (audit-grade).',
-    },
+    'errors.E_INVALID_LEVEL',
+    { level },
+    { hint: 'Use L1 (fast), L2 (standard, default), or L3 (audit-grade).' },
   )
 }
 
@@ -936,17 +932,17 @@ function checkL3MaturityGates(config: ProjectConfig): void {
   }
 
   if (blocked.length > 0) {
-    console.error('\n  arbiter init aborted: L3 maturity gate failed.\n')
+    console.error(t('cli.init.gate_failed'))
     for (const msg of blocked) {
       console.error(msg)
     }
-    console.error('\n  Use --accept-beta-tools to allow beta tools, or reduce governance to L2.\n')
+    console.error(t('cli.init.accept_beta_hint'))
     process.exit(1)
   }
 }
 
 function runToolchainVerify(targetDir: string): void {
-  console.log('\n  Verifying toolchain compatibility...')
+  console.log(t('cli.init.verifying_toolchain'))
   let report: ReturnType<typeof runProbes>
   try {
     report = runProbes(targetDir)

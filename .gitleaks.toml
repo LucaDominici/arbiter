@@ -10,6 +10,8 @@ description = "Project-level allowlist (see suppressions/.gitleaksignore)"
 paths = [
   '''suppressions/\.gitleaksignore''',
   '''\.gitleaks\.toml''',
+  # Test fixture: deliberately planted fake tokens to verify the evidence scrubber runs
+  '''__tests__/fixtures/evidence-pii-canary\.txt''',
 ]
 
 # Paths that gitleaks scans are controlled via .gitleaksignore
