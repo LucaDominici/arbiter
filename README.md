@@ -4,6 +4,7 @@
 [![npm](https://img.shields.io/npm/v/arbiter)](https://www.npmjs.com/package/arbiter)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)](https://nodejs.org/)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/LucaDominici/arbiter)
 
 ```bash
 npx arbiter init
