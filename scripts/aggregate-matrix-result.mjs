@@ -65,10 +65,12 @@ const matrixJobs = jobs.filter((j) => typeof j.name === 'string' && j.name.start
 const passed = matrixJobs.filter((j) => j.conclusion === 'success').length
 const total = matrixJobs.length
 
-console.log(`Matrix jobs: ${total} total, ${passed} successful`)
+process.stdout.write(`Matrix jobs: ${total} total, ${passed} successful
+`)
 matrixJobs.forEach((j) => {
   const icon = j.conclusion === 'success' ? 'PASS' : 'FAIL'
-  console.log(`  [${icon}] ${j.name}`)
+  process.stdout.write(`  [${icon}] ${j.name}
+`)
 })
 
 if (passed < minPass) {
@@ -76,4 +78,5 @@ if (passed < minPass) {
   process.exit(1)
 }
 
-console.log(`\nPASS: ${passed}/${total} matrix jobs passed (≥${minPass} required).\n`)
+process.stdout.write(`\nPASS: ${passed}/${total} matrix jobs passed (≥${minPass} required).\n
+`)

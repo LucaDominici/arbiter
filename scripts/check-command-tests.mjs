@@ -15,7 +15,9 @@ const testsDir = testsArg ? resolve(testsArg.split('=')[1]) : resolve(root, '__t
 
 const commands = readdirSync(commandsDir).filter((f) => f.endsWith('.ts') && !f.endsWith('.d.ts'))
 if (commands.length === 0) {
-  console.log(`[check-command-tests] FATAL: no *.ts files found in ${commandsDir} — wrong path?`)
+  process.stdout
+    .write(`[check-command-tests] FATAL: no *.ts files found in ${commandsDir} — wrong path?
+`)
   process.exit(1)
 }
 const testFiles = readdirSync(testsDir).filter((f) => f.endsWith('.test.ts'))
@@ -28,13 +30,16 @@ for (const cmd of commands) {
     (t) => t === `${stem}.test.ts` || t.startsWith(`${stem}-`) || t.startsWith(`${stem}.`),
   )
   if (!hasCoverage) {
-    console.log(`  MISSING: __tests__/commands/${stem}*.test.ts`)
+    process.stdout.write(`  MISSING: __tests__/commands/${stem}*.test.ts
+`)
     violations++
   }
 }
 
 if (violations > 0) {
-  console.log(`[check-command-tests] FAIL: ${violations} command(s) lack test files`)
+  process.stdout.write(`[check-command-tests] FAIL: ${violations} command(s) lack test files
+`)
   process.exit(1)
 }
-console.log(`[check-command-tests] OK — all ${commands.length} commands have test files`)
+process.stdout.write(`[check-command-tests] OK — all ${commands.length} commands have test files
+`)

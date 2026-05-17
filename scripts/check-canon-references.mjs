@@ -25,6 +25,6 @@ if (undefinedRefs.length > 0) {
   process.exit(0) // warn-only; change to process.exit(1) when promoted to gate
 }
 
-console.log(
-  `[check-canon-references] OK — ${definedIds.size} CANON entries defined, all cross-references valid`,
+process.stdout.write(
+  `[check-canon-references] OK — ${definedIds.size} CANON entries defined, all cross-references valid\n`,
 )

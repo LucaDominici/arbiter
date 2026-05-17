@@ -42,7 +42,8 @@ function scanFile(filePath) {
   for (let i = 0; i < lines.length; i++) {
     if (ORPHAN_TODO.test(lines[i])) {
       const rel = relative(baseDir, filePath)
-      console.log(`  ${rel}:${i + 1}  ${lines[i].trim()}`)
+      process.stdout.write(`  ${rel}:${i + 1}  ${lines[i].trim()}
+`)
       violations++
     }
   }
@@ -53,6 +54,7 @@ for (const dir of scanDirs) {
 }
 
 if (violations > 0) {
-  console.log(`\n  Found ${violations} orphan TODO(s). Use TODO(#NNN): format.\n`)
+  process.stdout.write(`\n  Found ${violations} orphan TODO(s). Use TODO(#NNN): format.\n
+`)
   process.exit(1)
 }

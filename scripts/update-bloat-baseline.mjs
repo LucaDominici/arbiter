@@ -49,4 +49,4 @@ writeFileSync(
 )
 
 process.stdout.write(`[bloat] baseline updated → ${BASELINE_FILE}\n`)
-console.log(JSON.stringify(buckets, null, 2))
+process.stdout.write(String(JSON.stringify(buckets, null, 2)) + '\n')

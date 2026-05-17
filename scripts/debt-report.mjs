@@ -26,8 +26,8 @@ const rawBaseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'))
 // ─── Schema version check ─────────────────────────────────────────────────────
 if (rawBaseline.version !== 2) {
   const ver = rawBaseline.version ?? 'unknown'
-  console.log(
-    `[arbiter] Baseline is schema v${ver}; run: node scripts/capture-debt-baseline.mjs to migrate to v2.`,
+  process.stdout.write(
+    `[arbiter] Baseline is schema v${ver}; run: node scripts/capture-debt-baseline.mjs to migrate to v2.\n`,
   )
   process.exit(0)
 }
@@ -108,22 +108,24 @@ for (const [key, curr] of Object.entries(current)) {
 }
 
 // ─── Render report ────────────────────────────────────────────────────────────
-console.log('\n## Debt Ratchet Report\n')
-console.log(
-  `Baseline: v${baseline.version} — captured ${baseline.capturedAt} @ ${baseline.commit} | archetype: ${baseline.archetype}\n`,
+process.stdout.write('\n## Debt Ratchet Report\n\n')
+process.stdout.write(
+  `Baseline: v${baseline.version} — captured ${baseline.capturedAt} @ ${baseline.commit} | archetype: ${baseline.archetype}\n\n`,
 )
-console.log('| Metric | Baseline | Current | Delta | Status |')
-console.log('|--------|----------|---------|-------|--------|')
+process.stdout.write('| Metric | Baseline | Current | Delta | Status |\n')
+process.stdout.write('|--------|----------|---------|-------|--------|\n')
 for (const r of rows) {
   const suffix = r.unit === 'percent' ? '%' : ''
   const baseStr = typeof r.base === 'number' ? `${r.base}${suffix}` : r.base
   const currStr = typeof r.curr === 'number' ? `${r.curr}${suffix}` : r.curr
-  console.log(`| ${r.key} | ${baseStr} | ${currStr} | ${r.delta} | ${r.status} |`)
+  process.stdout.write(`| ${r.key} | ${baseStr} | ${currStr} | ${r.delta} | ${r.status} |
+`)
   if (r.items && r.items.length > 0) {
-    console.log(`|   ↳ items | \`${r.items.join('`, `')}\` | | | |`)
+    process.stdout.write(`|   ↳ items | \`${r.items.join('`, `')}\` | | | |
+`)
   }
 }
-console.log('')
+process.stdout.write('\n')
 
 // ─── Gate enforcement ─────────────────────────────────────────────────────────
 if (gateMode && regressions > 0) {

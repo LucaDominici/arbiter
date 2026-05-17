@@ -27,7 +27,8 @@ let matrix
 try {
   matrix = JSON.parse(readFileSync(MATRIX_PATH, 'utf-8'))
 } catch (err) {
-  console.log(`  Cannot read matrix: ${MATRIX_PATH} — ${err.message}`)
+  process.stdout.write(`  Cannot read matrix: ${MATRIX_PATH} — ${err.message}
+`)
   process.exit(1)
 }
 
@@ -71,7 +72,8 @@ const fixtureLanguages = new Set()
 for (const fixture of fixtureDirs) {
   const manifestPath = join(FIXTURES_DIR, fixture, 'manifest.json')
   if (!existsSync(manifestPath)) {
-    console.log(`  ${fixture}: missing manifest.json`)
+    process.stdout.write(`  ${fixture}: missing manifest.json
+`)
     violations++
     continue
   }
@@ -79,7 +81,8 @@ for (const fixture of fixtureDirs) {
   try {
     manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
   } catch (err) {
-    console.log(`  ${fixture}/manifest.json: invalid JSON — ${err.message}`)
+    process.stdout.write(`  ${fixture}/manifest.json: invalid JSON — ${err.message}
+`)
     violations++
     continue
   }
@@ -87,14 +90,15 @@ for (const fixture of fixtureDirs) {
   for (const field of REQUIRED_FIELDS) {
     if (field === 'levels') {
       if (!Array.isArray(manifest.levels) || manifest.levels.length === 0) {
-        console.log(
-          `  ${fixture}/manifest.json: missing required field 'levels' (must be a non-empty array)`,
+        process.stdout.write(
+          `  ${fixture}/manifest.json: missing required field 'levels' (must be a non-empty array)\n`,
         )
         violations++
         fixtureValid = false
       }
     } else if (!manifest[field]) {
-      console.log(`  ${fixture}/manifest.json: missing required field '${field}'`)
+      process.stdout.write(`  ${fixture}/manifest.json: missing required field '${field}'
+`)
       violations++
       fixtureValid = false
     }
@@ -108,8 +112,8 @@ for (const fixture of fixtureDirs) {
 
 for (const lang of provenLanguages) {
   if (!fixtureLanguages.has(lang)) {
-    console.log(
-      `  language '${lang}' has proven cells in the matrix but no fixture in ${FIXTURES_DIR}`,
+    process.stdout.write(
+      `  language '${lang}' has proven cells in the matrix but no fixture in ${FIXTURES_DIR}\n`,
     )
     violations++
   }
@@ -118,7 +122,7 @@ for (const lang of provenLanguages) {
 // ─── Result ───────────────────────────────────────────────────────────────────
 
 if (violations > 0) {
-  console.log(
+  process.stdout.write(
     `\n  Found ${violations} violation(s). See docs/DEVELOPMENT/REAL-PROJECT-TESTING.md for how to add fixtures.\n`,
   )
   process.exit(1)

@@ -122,13 +122,15 @@ for (const target of SNAPSHOT_TARGETS) {
 
   if (REGEN) {
     writeFileSync(snapshotPath, current)
-    console.log(`check-api-snapshot: regenerated ${target.snapshot}`)
+    process.stdout.write(`check-api-snapshot: regenerated ${target.snapshot}
+`)
     continue
   }
 
   if (!existsSync(snapshotPath)) {
     writeFileSync(snapshotPath, current)
-    console.log(`check-api-snapshot: created initial snapshot ${target.snapshot}`)
+    process.stdout.write(`check-api-snapshot: created initial snapshot ${target.snapshot}
+`)
     continue
   }
 
@@ -137,8 +139,8 @@ for (const target of SNAPSHOT_TARGETS) {
 
   if (currentHash !== committedHash) {
     if (PR_BODY.includes(BREAKING_MARKER)) {
-      console.log(
-        `check-api-snapshot: ${target.snapshot} drifted — acknowledged via "${BREAKING_MARKER}" in PR_BODY`,
+      process.stdout.write(
+        `check-api-snapshot: ${target.snapshot} drifted — acknowledged via "${BREAKING_MARKER}" in PR_BODY\n`,
       )
     } else {
       console.error(
@@ -152,12 +154,12 @@ for (const target of SNAPSHOT_TARGETS) {
 }
 
 if (REGEN) {
-  console.log('check-api-snapshot: all snapshots regenerated')
+  process.stdout.write('check-api-snapshot: all snapshots regenerated\n')
   process.exit(0)
 }
 
 if (drifted) {
   process.exit(1)
 } else {
-  console.log('check-api-snapshot: OK — all snapshots match')
+  process.stdout.write('check-api-snapshot: OK — all snapshots match\n')
 }

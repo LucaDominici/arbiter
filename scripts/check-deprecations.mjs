@@ -13,12 +13,12 @@ const ROOT = process.cwd()
 const DEPRECATIONS_FILE = join(ROOT, 'docs', 'DEPRECATIONS.md')
 
 if (process.env.ALLOW_REMOVE_DEPRECATED === '1') {
-  console.log('check-deprecations: ALLOW_REMOVE_DEPRECATED=1 — skipping gate')
+  process.stdout.write('check-deprecations: ALLOW_REMOVE_DEPRECATED=1 — skipping gate\n')
   process.exit(0)
 }
 
 if (!existsSync(DEPRECATIONS_FILE)) {
-  console.log('check-deprecations: docs/DEPRECATIONS.md not found — skipping')
+  process.stdout.write('check-deprecations: docs/DEPRECATIONS.md not found — skipping\n')
   process.exit(0)
 }
 
@@ -58,7 +58,7 @@ for (const line of content.split('\n')) {
 }
 
 if (activeRows.length === 0) {
-  console.log('check-deprecations: no active deprecations — OK')
+  process.stdout.write('check-deprecations: no active deprecations — OK\n')
   process.exit(0)
 }
 
@@ -119,7 +119,7 @@ if (violations > 0) {
   console.error(`\n  ${violations} deprecation violation(s). See docs/DEPRECATIONS.md.\n`)
   process.exit(1)
 } else {
-  console.log(
-    `check-deprecations: OK (${activeRows.length} active deprecated symbol(s) still present)`,
+  process.stdout.write(
+    `check-deprecations: OK (${activeRows.length} active deprecated symbol(s) still present)\n`,
   )
 }

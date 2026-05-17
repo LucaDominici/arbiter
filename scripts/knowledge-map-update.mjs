@@ -8,7 +8,7 @@ const CWD = process.cwd()
 const KM_FILE = join(CWD, 'docs', 'METHOD', 'KNOWLEDGE_MAP.md')
 
 if (!existsSync(KM_FILE)) {
-  console.log('  knowledge-map-update: no KNOWLEDGE_MAP.md found — skipping')
+  process.stdout.write('  knowledge-map-update: no KNOWLEDGE_MAP.md found — skipping\n')
   process.exit(0)
 }
 
@@ -30,5 +30,6 @@ content = content.replace(LOCATION_LINES_PATTERN, (match, locLine, filePath, lin
 })
 
 writeFileSync(KM_FILE, content, 'utf-8')
-console.log(`  knowledge-map-update: updated ${updated} entry/entries in KNOWLEDGE_MAP.md`)
+process.stdout.write(`  knowledge-map-update: updated ${updated} entry/entries in KNOWLEDGE_MAP.md
+`)
 process.exit(0)

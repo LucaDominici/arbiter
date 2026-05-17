@@ -42,7 +42,8 @@ let matrix
 try {
   matrix = JSON.parse(readFileSync(matrixPath, 'utf-8'))
 } catch (err) {
-  console.log(`[check-matrix-proven-cells] Cannot read matrix: ${err.message}`)
+  process.stdout.write(`[check-matrix-proven-cells] Cannot read matrix: ${err.message}
+`)
   process.exit(1)
 }
 
@@ -70,25 +71,27 @@ for (const [category, langMap] of Object.entries(matrix)) {
 
     const key = `${category}/${lang}`
     if (exceptions.has(key)) {
-      console.log(`  SKIP (exception): ${key}: ${entry.tool}`)
+      process.stdout.write(`  SKIP (exception): ${key}: ${entry.tool}
+`)
       continue
     }
 
     const keywords = toolToKeywords(entry.tool)
     const found = keywords.some((k) => template.includes(k))
     if (!found) {
-      console.log(`  MISSING: ${key}: ${entry.tool} (searched: ${keywords.join(', ')})`)
+      process.stdout.write(`  MISSING: ${key}: ${entry.tool} (searched: ${keywords.join(', ')})
+`)
       violations++
     }
   }
 }
 
 if (violations > 0) {
-  console.log(
-    `[check-matrix-proven-cells] FAIL: ${violations} proven cell(s) not wired in template`,
+  process.stdout.write(
+    `[check-matrix-proven-cells] FAIL: ${violations} proven cell(s) not wired in template\n`,
   )
   process.exit(1)
 }
-console.log(
-  `[check-matrix-proven-cells] OK — all non-excepted proven cells have template invocations`,
+process.stdout.write(
+  `[check-matrix-proven-cells] OK — all non-excepted proven cells have template invocations\n`,
 )

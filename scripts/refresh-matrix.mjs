@@ -199,7 +199,7 @@ async function main() {
     for (const { tool } of entries) tools.add(tool)
   }
 
-  console.log('Fetching latest stable versions...')
+  process.stdout.write('Fetching latest stable versions...\n')
   const latestMap = {}
   await Promise.all(
     [...tools].map(async (tool) => {
@@ -210,8 +210,8 @@ async function main() {
       }
       try {
         latestMap[tool] = await fetcher()
-        console.log(
-          `  ${tool}: ${latestMap[tool] ? `${latestMap[tool].major}.${latestMap[tool].minor}` : 'n/a'}`,
+        process.stdout.write(
+          `  ${tool}: ${latestMap[tool] ? `${latestMap[tool].major}.${latestMap[tool].minor}` : 'n/a'}\n`,
         )
       } catch (err) {
         console.warn(`  ${tool}: fetch failed — ${err.message}`)
@@ -227,7 +227,8 @@ async function main() {
       const latest = latestMap[entry.tool]
       const newRange = computeNewFloor(entry.tool, entry.range, latest)
       if (newRange && newRange !== entry.range) {
-        console.log(`  [${stack}] ${entry.tool}: ${entry.range} → ${newRange}`)
+        process.stdout.write(`  [${stack}] ${entry.tool}: ${entry.range} → ${newRange}
+`)
         entry.range = newRange
         changed = true
       }
@@ -235,7 +236,7 @@ async function main() {
   }
 
   if (!changed) {
-    console.log('\nMatrix is up-to-date. No changes.')
+    process.stdout.write('\nMatrix is up-to-date. No changes.\n')
     return
   }
 
@@ -243,11 +244,11 @@ async function main() {
 
   if (apply) {
     writeFileSync(MATRIX_PATH, output, 'utf8')
-    console.log('\nMatrix written to', MATRIX_PATH)
+    process.stdout.write(String('\nMatrix written to', MATRIX_PATH) + '\n')
   } else {
-    console.log('\nDry run — pass --apply to write changes.')
-    console.log('New matrix.json would be:')
-    console.log(output)
+    process.stdout.write('\nDry run — pass --apply to write changes.\n')
+    process.stdout.write('New matrix.json would be:\n')
+    process.stdout.write(String(output) + '\n')
   }
 }
 

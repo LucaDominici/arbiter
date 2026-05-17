@@ -70,8 +70,8 @@ function scanFile(filePath) {
   for (let i = 0; i < lines.length; i++) {
     if (PIPE_TEE_RE.test(lines[i]) && !hasGuard(lines, i)) {
       const rel = relative(baseDir, filePath)
-      console.log(
-        `  [WARN] ${rel}:${i + 1}  unguarded pipe/tee — add set -o pipefail or check PIPESTATUS[0]`,
+      process.stdout.write(
+        `  [WARN] ${rel}:${i + 1}  unguarded pipe/tee — add set -o pipefail or check PIPESTATUS[0]\n`,
       )
       warnings++
     }
@@ -83,7 +83,9 @@ for (const dir of scanDirs) {
 }
 
 if (warnings > 0) {
-  console.log(`\n  Found ${warnings} advisory warning(s). Consider adding pipefail guards.\n`)
+  process.stdout
+    .write(`\n  Found ${warnings} advisory warning(s). Consider adding pipefail guards.\n
+`)
 }
 // Always exit 0 — advisory only
 process.exit(0)

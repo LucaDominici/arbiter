@@ -57,7 +57,7 @@ const aliases = loadAliases()
 const markdownFiles = findMarkdownFiles(DOCS_DIR)
 
 if (markdownFiles.length === 0) {
-  console.log('  check-doc-links: no docs found — skipping')
+  process.stdout.write('  check-doc-links: no docs found — skipping\n')
   process.exit(0)
 }
 
@@ -85,19 +85,24 @@ for (const file of markdownFiles) {
       const absRedirect = join(CWD, redirectTarget)
       if (existsSync(absRedirect)) continue
       const srcRel = relative(CWD, file)
-      console.log(`  broken: ${srcRel}: ${relTarget} → redirect ${redirectTarget} also missing`)
+      process.stdout
+        .write(`  broken: ${srcRel}: ${relTarget} → redirect ${redirectTarget} also missing
+`)
     } else {
       const srcRel = relative(CWD, file)
-      console.log(`  broken: ${srcRel}: ${relTarget}`)
+      process.stdout.write(`  broken: ${srcRel}: ${relTarget}
+`)
     }
     broken++
   }
 }
 
 if (broken === 0) {
-  console.log(`  check-doc-links: all links resolve (${markdownFiles.length} files scanned)`)
+  process.stdout.write(`  check-doc-links: all links resolve (${markdownFiles.length} files scanned)
+`)
   process.exit(0)
 }
 
-console.log(`\n  check-doc-links: ${broken} broken link(s) found`)
+process.stdout.write(`\n  check-doc-links: ${broken} broken link(s) found
+`)
 process.exit(1)
