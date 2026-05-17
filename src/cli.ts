@@ -19,6 +19,7 @@ import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './c
 import { runTaskAdvance, runTaskRecover, runTaskResume } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
+import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
@@ -1001,6 +1002,28 @@ task
     } else {
       process.stderr.write(`record-red: FAIL — ${result.reason}\n`)
       process.exit(1)
+    }
+  })
+
+task
+  .command('record-tech-debt')
+  .description('File a tech-debt GitHub issue and persist evidence (#702)')
+  .requiredOption('--description <text>', 'Short description of the tech-debt finding')
+  .option(
+    '--triggered-by <task-id>',
+    'Task ID that triggered this debt filing (default: reads .claude/.task-id)',
+  )
+  .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
+  .action((opts: { description: string; triggeredBy?: string; dir?: string }) => {
+    const result = runTaskRecordTechDebt({
+      description: opts.description,
+      ...(opts.triggeredBy !== undefined ? { triggeredBy: opts.triggeredBy } : {}),
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+    if (result.ok) {
+      process.stdout.write(`record-tech-debt: OK (issue #${result.issueNumber})\n`)
+    } else {
+      process.stderr.write(`record-tech-debt: FAIL — ${result.reason}\n`)
     }
   })
 

@@ -198,6 +198,30 @@ arbiter task advance --to plan
 - Keep commits atomic: one logical change per commit
 - Commit format: `type(#NNN): summary`
 
+#### Filing tech-debt during implementation
+
+When you discover a pre-existing violation in code you are NOT changing (ADR violation in untouched code, missing enforcement, fragile abstraction that would require out-of-scope rework), file a tech-debt issue rather than scope-creeping the current task.
+
+**Background:** Reviewers and auditors need a traceable record of known gaps so they are not silently dropped.
+
+**Finding trigger conditions:**
+
+- Pre-existing INV violation in code not touched by this task
+- Missing script enforcement for a documented invariant
+- Fragile abstraction that requires a separate design decision before fixing
+
+**Risk:** Untracked tech-debt accumulates silently and resurfaces as regressions.
+
+**Remediation:** Invoke `arbiter task record-tech-debt`:
+
+```bash
+arbiter task record-tech-debt \
+  --description "brief finding description" \
+  --triggered-by "#NNN"   # defaults to .claude/.task-id if omitted
+```
+
+The subcommand creates a GitHub issue labeled `tech-debt` + `follow-up` and appends the issue number to `.arbiter/evidence/<task-id>/tech-debt.json`. Failure is soft (exit 0); reason is emitted to stderr so the current task is not blocked.
+
 ### Phase 6: Code Review (MANDATORY)
 
 **Agent minimums (from `taskTiers` config):**
