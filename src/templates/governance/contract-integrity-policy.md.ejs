@@ -1,0 +1,116 @@
+# Contract Integrity 5-Gate Suite — <%= projectName %>
+
+> **Origin:** Policy template ported from `reference-impl/docs/FRAMEWORK/CONTRACT_INTEGRITY/*` (M-08, #716).
+>
+> **Distinct from Pact (M28):** Pact is consumer-driven contracts (the consumer dictates what the producer must satisfy). Contract Integrity is API surface stability + drift detection (the producer asserts its surface and detects when it changes). The two are complementary; use both for L3 surfaces.
+>
+> **Opt-in flags:** all under the `contract_integrity.gates.*` namespace (see §Configuration).
+
+## The five gates
+
+### Gate A — OpenAPI snapshot
+
+**What:** snapshot the rendered OpenAPI document at build time. On every PR, compare the new snapshot against the committed baseline. Any non-additive change (removed endpoint, removed field, narrowed type, added required field) fails the gate.
+
+**Why:** rejects accidental breaking changes to the public API surface. Additive changes pass automatically.
+
+**Configuration:** `contract_integrity.gates.openapi_snapshot: true`
+
+### Gate B — DTO parity
+
+**What:** assert structural equivalence between the server's response DTOs and the client's generated types. Run on every PR; the gate fails when the server emits a field that the client cannot deserialise, or the client expects a field the server does not emit.
+
+**Why:** prevents the "server-changed-but-client-not-regenerated" class of integration bug.
+
+**Configuration:** `contract_integrity.gates.dto_parity: true`
+
+### Gate C — Operation smoke (404 / 5xx)
+
+**What:** for every declared endpoint, send a probe with intentionally malformed input. Assert the response is a documented error class (404 for missing resource, 422 for validation, 5xx for server error with structured body) — NOT an unhandled stack trace or empty 500.
+
+**Why:** catches half-implemented endpoints that respond to the happy path but return undefined-behaviour on error paths.
+
+**Configuration:** `contract_integrity.gates.operation_smoke: true`
+
+### Gate D — Dead code
+
+**What:** detect endpoints declared in the OpenAPI document but never reached by any test or call site in the codebase. Detect handlers in the codebase not referenced by the OpenAPI document. Either direction is a contract leak.
+
+**Why:** dead endpoints become security debt (unauthenticated, untested code paths). Undeclared handlers leak surface that consumers cannot rely on.
+
+**Configuration:** `contract_integrity.gates.dead_code: true`
+
+### Gate E — Test hygiene
+
+**What:** for every endpoint in the OpenAPI document, assert at least one test exists. The minimum test must cover the happy path + the documented error class (per gate C). Endpoints without tests fail this gate.
+
+**Why:** the OpenAPI document is a contract; an untested contract is a wish.
+
+**Configuration:** `contract_integrity.gates.test_hygiene: true`
+
+## Configuration
+
+```jsonc
+{
+  "contract_integrity": {
+    "gates": {
+      "openapi_snapshot": true,
+      "dto_parity": true,
+      "operation_smoke": true,
+      "dead_code": true,
+      "test_hygiene": true,
+    },
+    "snapshot_path": "tests/fixtures/openapi-baseline.yaml",
+    "smoke_probe_timeout_ms": 5000,
+  },
+}
+```
+
+All gates default to `false`. Enable per-gate as the surface stabilises. The recommended adoption order is **A → D → E → B → C**:
+
+1. **A first** — cheapest signal, catches the most regressions
+2. **D second** — surfaces dead code while the codebase is still small enough to clean up
+3. **E third** — requires test infrastructure but produces durable coverage
+4. **B fourth** — requires client-side codegen wiring
+5. **C last** — requires a running server in CI
+
+## What each gate does NOT do
+
+- **Gate A** does not detect semantic changes (handler-behavior change with same API shape). Use Pact (M28) for consumer-driven semantic contracts.
+- **Gate B** does not detect runtime type mismatches (e.g. server emits a value outside the declared enum). Add a separate runtime-validation step at the client boundary if needed.
+- **Gate C** does not test correctness of error responses, only their existence + shape.
+- **Gate D** has false-positive risk on dynamically-routed endpoints (e.g. dispatched via a switch table). Configure the per-project allowlist if needed.
+- **Gate E** does not assess test quality — a single happy-path assertion satisfies the gate. Pair with mutation testing (M22) for quality signal.
+
+## Distinct from Pact (M28)
+
+| Property                | Contract Integrity (M-08) | Pact (M28)                   |
+| ----------------------- | ------------------------- | ---------------------------- |
+| Direction               | producer asserts surface  | consumer dictates surface    |
+| Run trigger             | every PR                  | consumer-side first, then broker |
+| Catches                 | API surface drift         | semantic contract drift      |
+| Tooling                 | language-specific schema diff | Pact framework               |
+| Output                  | pass/fail per gate        | verification report          |
+
+**Use both** for L3 surfaces: M-08 catches accidental breaking changes; M28 catches handler-semantics drift.
+
+## Per-stack implementation
+
+The 5 gates are mechanical and per-stack. Each gate ships as a separate script under `scripts/contract-integrity/` in the consumer project. The detailed implementations are tracked as **follow-up issues** (one per gate), not bundled into this template port.
+
+## Source
+
+#716 (M-08 — Contract Integrity 5-gate suite).
+
+## Follow-up issues
+
+The 5 gate scripts and the generator that wires them are tracked separately so each can be reviewed independently:
+
+- Gate A implementation
+- Gate B implementation
+- Gate C implementation
+- Gate D implementation
+- Gate E implementation
+- `src/generators/contract-integrity.ts` that emits the per-stack script bundles
+
+This template provides the **policy and configuration surface**; the scripts come in subsequent PRs.

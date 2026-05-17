@@ -79,6 +79,48 @@ describe('governance template rendering (#166, #712)', () => {
     })
   })
 
+  describe('contract-integrity-policy.md.ejs (#716)', () => {
+    it('renders without EJS leaks', () => {
+      const out = renderTemplate('governance/contract-integrity-policy.md.ejs', cfg())
+      expect(out).not.toContain('<%')
+      expect(out).not.toContain('%>')
+    })
+
+    it('interpolates projectName in heading', () => {
+      const out = renderTemplate('governance/contract-integrity-policy.md.ejs', cfg())
+      expect(out).toContain('test-project')
+    })
+
+    it('contains all five gates A-E', () => {
+      const out = renderTemplate('governance/contract-integrity-policy.md.ejs', cfg())
+      expect(out).toMatch(/Gate A — OpenAPI snapshot/)
+      expect(out).toMatch(/Gate B — DTO parity/)
+      expect(out).toMatch(/Gate C — Operation smoke/)
+      expect(out).toMatch(/Gate D — Dead code/)
+      expect(out).toMatch(/Gate E — Test hygiene/)
+    })
+
+    it('contains distinct-from-Pact section', () => {
+      const out = renderTemplate('governance/contract-integrity-policy.md.ejs', cfg())
+      expect(out).toMatch(/Distinct from Pact/)
+      expect(out).toMatch(/M28/)
+    })
+
+    it('contains all five opt-in flag names', () => {
+      const out = renderTemplate('governance/contract-integrity-policy.md.ejs', cfg())
+      expect(out).toContain('openapi_snapshot')
+      expect(out).toContain('dto_parity')
+      expect(out).toContain('operation_smoke')
+      expect(out).toContain('dead_code')
+      expect(out).toContain('test_hygiene')
+    })
+
+    it('contains adoption-order recommendation', () => {
+      const out = renderTemplate('governance/contract-integrity-policy.md.ejs', cfg())
+      expect(out).toMatch(/adoption order/i)
+    })
+  })
+
   describe('gdpr-erasure-runbook.md.ejs (#713)', () => {
     it('renders without EJS leaks', () => {
       const out = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', cfg())
