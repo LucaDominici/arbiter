@@ -5,6 +5,7 @@ import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runPluginAdd, runPluginRemove, runPluginList } from '../../src/commands/plugin.js'
 import type { ArbiterPlugin } from '../../src/types/plugin.js'
 import * as pluginLoader from '../../src/utils/plugin-loader.js'
+import * as configUtils from '../../src/utils/config.js'
 
 vi.mock('../../src/utils/plugin-loader.js', () => ({
   loadPlugin: vi.fn(),
@@ -67,6 +68,33 @@ describe('runPluginAdd', () => {
     await expect(runPluginAdd({ dir, pkg: 'nonexistent' })).rejects.toThrow(/Plugin not found/)
     const saved = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8'))
     expect(saved.plugins).toBeUndefined()
+  })
+
+  it('leaves arbiter.json byte-identical when saveConfig throws after loadPlugin succeeds (#612)', async () => {
+    const original = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
+    vi.spyOn(configUtils, 'saveConfig').mockImplementation(() => {
+      throw new Error('ENOSPC: disk full')
+    })
+    await expect(runPluginAdd({ dir, pkg: 'my-plugin' })).rejects.toThrow(/ENOSPC/)
+    const after = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
+    expect(after).toBe(original)
+  })
+
+  it('surfaces a retry suggestion when loadPlugin fails with a network-like error (#612)', async () => {
+    vi.mocked(pluginLoader.loadPlugin).mockRejectedValueOnce(
+      new Error('npm registry unreachable: ETIMEDOUT'),
+    )
+    const original = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
+    await expect(runPluginAdd({ dir, pkg: 'my-plugin' })).rejects.toThrow(
+      /arbiter plugin add my-plugin/i,
+    )
+    const after = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
+    expect(after).toBe(original)
+  })
+
+  it('error message documents that arbiter.json was not modified (#612 transaction order)', async () => {
+    vi.mocked(pluginLoader.loadPlugin).mockRejectedValueOnce(new Error('boom'))
+    await expect(runPluginAdd({ dir, pkg: 'my-plugin' })).rejects.toThrow(/not modified/i)
   })
 })
 

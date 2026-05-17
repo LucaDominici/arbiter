@@ -6,8 +6,10 @@ import {
   copyStaticFile,
   resolvedPath,
   mergeSettingsJson,
+  registerCleanupHandlers,
   cleanupInFlightTmpFiles,
   _registerTmpPath,
+  _translateFsError,
 } from '../../src/utils/fs.js'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 
@@ -214,6 +216,60 @@ describe('mergeSettingsJson (#286)', () => {
     expect(warnSpy).not.toHaveBeenCalled()
     vi.restoreAllMocks()
   })
+
+  it('removes old hook variants when the same hook upgrades extension (.sh → .mjs)', () => {
+    const existing = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'Edit',
+            hooks: [{ command: 'node .claude/hooks/check-no-any.sh', timeout: 5000 }],
+          },
+        ],
+      },
+      permissions: { allow: [] as string[] },
+    }
+    const incoming = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'Edit',
+            hooks: [{ command: 'node .claude/hooks/check-no-any.mjs', timeout: 5000 }],
+          },
+        ],
+      },
+      permissions: { allow: [] as string[] },
+    }
+    const result = mergeSettingsJson(existing, incoming)
+    const entry = (
+      result.hooks as Record<string, { matcher: string; hooks: { command: string }[] }[]>
+    )['PreToolUse']?.[0]
+    expect(entry?.hooks).toHaveLength(1)
+    expect(entry?.hooks[0]?.command).toContain('.mjs')
+  })
+})
+
+describe('registerCleanupHandlers (#613)', () => {
+  it('registers signal handlers and cleans in-flight tmp files on signal', () => {
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation((): never => undefined as never)
+    try {
+      const sigintBefore = process.rawListeners('SIGINT').length
+      const sigtermBefore = process.rawListeners('SIGTERM').length
+      registerCleanupHandlers()
+      const sigintListeners = process.rawListeners('SIGINT') as ((...args: unknown[]) => void)[]
+      const sigtermListeners = process.rawListeners('SIGTERM') as ((...args: unknown[]) => void)[]
+      // At least one new handler registered per signal (guard against double-call)
+      expect(sigintListeners.length).toBeGreaterThanOrEqual(sigintBefore)
+      expect(sigtermListeners.length).toBeGreaterThanOrEqual(sigtermBefore)
+      // Call each signal handler directly to cover the callback body
+      sigintListeners[sigintListeners.length - 1]!()
+      sigtermListeners[sigtermListeners.length - 1]!()
+      expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGINT')
+      expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGTERM')
+    } finally {
+      killSpy.mockRestore()
+    }
+  })
 })
 
 describe('atomic write + signal cleanup (#613)', () => {
@@ -270,5 +326,35 @@ describe('atomic write + signal cleanup (#613)', () => {
     writeFile(path, 'content')
     const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
     expect(orphans).toHaveLength(0)
+  })
+})
+
+describe('ENOSPC_MSGS errno translation (#616)', () => {
+  const path = '/some/path/file.txt'
+
+  it('translates EPERM with all four Linux cause hints', () => {
+    const msg = _translateFsError('EPERM', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toMatch(/lsattr|chattr/i)
+    expect(msg).toMatch(/SELinux|AppArmor|ausearch/i)
+    expect(msg).toMatch(/getfacl|ACL/i)
+    expect(msg).toMatch(/owner/i)
+  })
+
+  it('translates ENOTDIR with not-a-directory hint', () => {
+    const msg = _translateFsError('ENOTDIR', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toMatch(/not a directory/i)
+  })
+
+  it('translates EISDIR with is-a-directory hint', () => {
+    const msg = _translateFsError('EISDIR', path)
+    expect(msg).not.toBeNull()
+    expect(msg).toMatch(/directory/i)
+  })
+
+  it('returns null for unmapped codes', () => {
+    expect(_translateFsError('ENOENT', path)).toBeNull()
+    expect(_translateFsError('UNKNOWN', path)).toBeNull()
   })
 })

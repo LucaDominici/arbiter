@@ -5,6 +5,8 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
+import { acquireLock } from '../utils/file-lock.js'
+import { UserFacingError } from '../utils/errors.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { validatePluginPackageJson } from '../integrations/plugin-schema.js'
 
@@ -184,13 +186,34 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
     process.exit(1)
   }
 
-  await loadPlugin(opts.pkg, targetDir)
+  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  try {
+    try {
+      await loadPlugin(opts.pkg, targetDir)
+    } catch (err: unknown) {
+      const baseMsg = err instanceof Error ? err.message : String(err)
+      const isNetwork =
+        /ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|registry|network|fetch/i.test(
+          baseMsg,
+        )
+      const retryHint = isNetwork
+        ? `Network issue detected. Retry: \`arbiter plugin add ${opts.pkg}\``
+        : `Verify the package is installed (\`npm install ${opts.pkg}\`) then retry: \`arbiter plugin add ${opts.pkg}\``
+      // arbiter.json NOT modified — transaction order preserves config integrity (#612)
+      throw new UserFacingError(
+        `Failed to load plugin "${opts.pkg}": ${baseMsg}\n  arbiter.json was not modified.\n  ${retryHint}`,
+      )
+    }
 
-  const plugins = Array.isArray(stored.plugins) ? stored.plugins : []
-  if (!plugins.includes(opts.pkg)) {
-    plugins.push(opts.pkg)
+    const plugins = Array.isArray(stored.plugins) ? stored.plugins : []
+    if (!plugins.includes(opts.pkg)) {
+      plugins.push(opts.pkg)
+    }
+    saveConfig(targetDir, { ...stored, plugins })
+  } finally {
+    await lock.release()
   }
-  saveConfig(targetDir, { ...stored, plugins })
 
   if (opts.json) {
     jsonOutput('plugin-add', 'ok', { pkg: opts.pkg })

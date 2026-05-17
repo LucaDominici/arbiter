@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { resolve, basename } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { resolve, basename, join } from 'node:path'
+import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
@@ -260,95 +262,101 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
   log('\n  Arbiter — update\n')
 
-  const stored = loadConfig(targetDir)
-  if (!stored) {
-    if (options.json) {
-      jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
-    } else {
-      log('  No arbiter.json found. Run `arbiter init` first.\n')
+  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  try {
+    const stored = loadConfig(targetDir)
+    if (!stored) {
+      if (options.json) {
+        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
+      } else {
+        log('  No arbiter.json found. Run `arbiter init` first.\n')
+      }
+      process.exit(1)
+      return { keysRun: null }
     }
-    process.exit(1)
-    return { keysRun: null }
-  }
 
-  const adverseState = detectAdverseGitState(targetDir)
-  if (adverseState) {
-    const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
-    if (!options.force) {
-      throw new UserFacingError(
-        `${adverseState.message}\n${adverseState.suggestedFix}\nUse --force to override this check.`,
-      )
+    const adverseState = detectAdverseGitState(targetDir)
+    if (adverseState) {
+      const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
+      if (!options.force) {
+        throw new UserFacingError(
+          `${adverseState.message}\n${adverseState.suggestedFix}\nUse --force to override this check.`,
+        )
+      }
+      console.warn(warning)
     }
-    console.warn(warning)
-  }
 
-  const { config, specs, useGitHub, axisFields } = detectProjectInfo(
-    targetDir,
-    projectName,
-    stored,
-    options,
-    log,
-  )
-  const {
-    archetype,
-    architectureStyle,
-    isMultiTenant,
-    hasDatabase,
-    hasPublicApi,
-    contractType,
-    lanes,
-  } = axisFields
+    const { config, specs, useGitHub, axisFields } = detectProjectInfo(
+      targetDir,
+      projectName,
+      stored,
+      options,
+      log,
+    )
+    const {
+      archetype,
+      architectureStyle,
+      isMultiTenant,
+      hasDatabase,
+      hasPublicApi,
+      contractType,
+      lanes,
+    } = axisFields
 
-  const snapshot = loadSnapshot(targetDir)
-  log('\n  Updating...')
+    const snapshot = loadSnapshot(targetDir)
+    log('\n  Updating...')
 
-  const nextConfig: ArbiterConfigV2 = {
-    ...stored,
-    useGitHub,
-    archetype,
-    architectureStyle,
-    isMultiTenant,
-    hasDatabase,
-    hasPublicApi,
-    contractType,
-    ...(lanes.length > 0 && { lanes }),
-  }
-
-  const { results, keysRun, errors: generatorErrors } = selectAndRun(specs, snapshot, nextConfig)
-  const pluginResults = await runPlugins(
-    targetDir,
-    Array.isArray(stored.plugins) ? stored.plugins : [],
-    stored,
-  ).catch((err: unknown) => handlePluginError(err, options.json))
-  results.push(...pluginResults)
-
-  if (!options.json) {
-    printResults(results, targetDir)
-    printStats(results)
-  }
-
-  const backendResult = runGithubSetup(config, log)
-
-  const validation = validateConfig(nextConfig)
-  if (!validation.ok) {
-    if (options.json) {
-      jsonOutput('update', 'error', {}, [
-        `Config invalid after update: ${validation.errors.join('; ')}`,
-      ])
-    } else {
-      console.error(`  [arbiter] Config invalid after update: ${validation.errors.join('; ')}`)
+    const nextConfig: ArbiterConfigV2 = {
+      ...stored,
+      useGitHub,
+      archetype,
+      architectureStyle,
+      isMultiTenant,
+      hasDatabase,
+      hasPublicApi,
+      contractType,
+      ...(lanes.length > 0 && { lanes }),
     }
-    process.exit(1)
+
+    const { results, keysRun, errors: generatorErrors } = selectAndRun(specs, snapshot, nextConfig)
+    const pluginResults = await runPlugins(
+      targetDir,
+      Array.isArray(stored.plugins) ? stored.plugins : [],
+      stored,
+    ).catch((err: unknown) => handlePluginError(err, options.json))
+    results.push(...pluginResults)
+
+    if (!options.json) {
+      printResults(results, targetDir)
+      printStats(results)
+    }
+
+    const backendResult = runGithubSetup(config, log)
+
+    const validation = validateConfig(nextConfig)
+    if (!validation.ok) {
+      if (options.json) {
+        jsonOutput('update', 'error', {}, [
+          `Config invalid after update: ${validation.errors.join('; ')}`,
+        ])
+      } else {
+        console.error(`  [arbiter] Config invalid after update: ${validation.errors.join('; ')}`)
+      }
+      process.exit(1)
+    }
+
+    saveConfigAndSnapshot(targetDir, validation.config)
+
+    const summary: UpdateSummary = {
+      created: results.filter((r) => r.action === 'created').length,
+      updated: results.filter((r) => r.action === 'backed-up-and-replaced').length,
+      skipped: results.filter((r) => r.action === 'skipped').length,
+    }
+    emitUpdateOutcome(options, summary, generatorErrors, backendResult.warnings)
+
+    return { keysRun }
+  } finally {
+    await lock.release()
   }
-
-  saveConfigAndSnapshot(targetDir, validation.config)
-
-  const summary: UpdateSummary = {
-    created: results.filter((r) => r.action === 'created').length,
-    updated: results.filter((r) => r.action === 'backed-up-and-replaced').length,
-    skipped: results.filter((r) => r.action === 'skipped').length,
-  }
-  emitUpdateOutcome(options, summary, generatorErrors, backendResult.warnings)
-
-  return { keysRun }
 }
