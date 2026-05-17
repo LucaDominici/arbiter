@@ -32,6 +32,14 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
     ),
   )
 
+  // T3 human-approval gate — always regenerate
+  results.push(
+    writeFile(
+      join(workflowsDir, '03-human-approval.yml'),
+      renderTemplate('github/workflows/03-human-approval.yml.ejs', data),
+    ),
+  )
+
   // Drift shadow — only when solo-dev mode is active (#470)
   if (config.enableSoloDevMode) {
     results.push(
