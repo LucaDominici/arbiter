@@ -214,12 +214,14 @@ describe('hooks/debug-state-on-failure.mjs.ejs', () => {
     expect(out).toContain('DEBUG_STATE.md')
   })
 
-  it('tracks failure count', () => {
+  it('appends an attempt entry per failure (race-safe append-only, #615)', () => {
     const out = renderTemplate(
       'claude/hooks/debug-state-on-failure.mjs.ejs',
       configFor('typescript'),
     )
-    expect(out).toMatch(/failure.*count|count.*failure/i)
+    // #615 — switched from read-modify-write "Failure Count" to append-only entries
+    // (POSIX atomic for writes < PIPE_BUF). Each failure adds an "Attempt — <timestamp>" entry.
+    expect(out).toMatch(/Attempt.*timestamp|appendFileSync/i)
   })
 
   it('includes typescript test command pattern', () => {

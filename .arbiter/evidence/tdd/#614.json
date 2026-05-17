@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#614",
+  "test_path": "__tests__/utils/file-lock.test.ts",
+  "test_commit_sha": "428090a46b12e19d281d97db957c5addc28c3f8b",
+  "test_run_log": "FAIL __tests__/utils/file-lock.test.ts [ __tests__/utils/file-lock.test.ts ]\n  Error: Cannot find module '../utils/file-lock.js'\n\n Test Files  1 failed (1)\n     Tests  0 failed (0)",
+  "observed_failure": "FAIL __tests__/utils/file-lock.test.ts",
+  "recorded_at": "2026-05-17T01:00:00.000Z"
+}

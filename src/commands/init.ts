@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync, existsSync, copyFileSync, unlinkSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
+import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, ArbiterError } from '../utils/errors.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { runProbes } from '../compatibility/probe.js'
@@ -28,6 +29,7 @@ import {
 } from '../generators/registry.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
+import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile } from '../utils/fs.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import { runCli } from '../utils/run-cli.js'
@@ -49,6 +51,8 @@ import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
 import { loadRecipe } from '../recipes/loader.js'
 import type { Recipe } from '../recipes/schema.js'
+import { detectInstalledSkills } from '../integrations/skill-detector.js'
+import { computeSkipReport } from '../generators/skills.js'
 
 export interface InitOptions {
   yes: boolean
@@ -86,6 +90,16 @@ export interface InitOptions {
   recipeSha256?: string
 }
 
+function assertNotNativeWindows(): void {
+  if (isWindows() && !isWSL2()) {
+    throw new UserFacingError(
+      'arbiter does not support native Win32. ' +
+        'Install WSL2 and run arbiter inside it. ' +
+        'Setup guide: https://docs.arbiter.dev/install/windows',
+    )
+  }
+}
+
 export async function runInit(options: InitOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
   const projectName = basename(targetDir)
@@ -105,61 +119,69 @@ export async function runInit(options: InitOptions): Promise<void> {
     return
   }
 
-  showTelemetryBannerIfFirstRun(undefined, options.quiet)
+  assertNotNativeWindows()
 
-  log('\n  Arbiter — AI Development Governance Framework\n')
-  log('  Detecting project...')
+  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  try {
+    showTelemetryBannerIfFirstRun(undefined, options.quiet)
 
-  const language = resolveLanguage(options.language, targetDir)
-  const framework = detectFramework(targetDir, language)
-  const buildCmds = detectBuildCommands(targetDir, language)
-  const gitInfo = detectGitInfo(targetDir)
-  const existing = detectExisting(targetDir)
-  const githubAccess = detectGithubAccess()
-  const lanesResult = detectLanes(targetDir)
+    log('\n  Arbiter — AI Development Governance Framework\n')
+    log('  Detecting project...')
 
-  log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
-  log(`  ├── Build: ${buildCmds.buildTool}`)
-  log(
-    `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
-  )
-  if (githubAccess.authenticated)
-    log(`  ├── GitHub: authenticated as ${githubAccess.username ?? 'unknown'}`)
-  if (!options.json) logExistingDetections(existing)
+    const language = resolveLanguage(options.language, targetDir)
+    const framework = detectFramework(targetDir, language)
+    const buildCmds = detectBuildCommands(targetDir, language)
+    const gitInfo = detectGitInfo(targetDir)
+    const existing = detectExisting(targetDir)
+    const githubAccess = detectGithubAccess()
+    const lanesResult = detectLanes(targetDir)
 
-  if (gitInfo.isGitRepo) {
-    guardAdverseGitState(targetDir, options.force)
-    if (options.brownfield) {
-      guardBrownfieldDirtyTree(targetDir, options.force)
+    log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
+    log(`  ├── Build: ${buildCmds.buildTool}`)
+    log(
+      `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
+    )
+    if (githubAccess.authenticated)
+      log(`  ├── GitHub: authenticated as ${githubAccess.username ?? 'unknown'}`)
+    if (!options.json) logExistingDetections(existing)
+
+    if (gitInfo.isGitRepo) {
+      guardAdverseGitState(targetDir, options.force)
+      if (options.brownfield) {
+        guardBrownfieldDirtyTree(targetDir, options.force)
+      }
     }
+
+    const recipe = await loadRecipeFromOptions(options, log)
+
+    const config = await resolveConfig({
+      options,
+      recipe,
+      targetDir,
+      projectName,
+      language,
+      framework,
+      buildCmds,
+      gitInfo,
+      existing,
+      githubAccess,
+      lanes: lanesResult.lanes,
+    })
+    if (config === null) return
+
+    applyPresetOptions(options, config)
+
+    if (options.dryRun) {
+      displayDryRunPreview(config)
+      return
+    }
+
+    checkL3MaturityGates(config)
+    await generateAndFinalize(config, targetDir, options, log)
+  } finally {
+    await lock.release()
   }
-
-  const recipe = await loadRecipeFromOptions(options, log)
-
-  const config = await resolveConfig({
-    options,
-    recipe,
-    targetDir,
-    projectName,
-    language,
-    framework,
-    buildCmds,
-    gitInfo,
-    existing,
-    githubAccess,
-    lanes: lanesResult.lanes,
-  })
-  if (config === null) return
-
-  applyPresetOptions(options, config)
-
-  if (options.dryRun) {
-    displayDryRunPreview(config)
-    return
-  }
-
-  checkL3MaturityGates(config)
-  await generateAndFinalize(config, targetDir, options, log)
 }
 
 function emitInitOutput(
@@ -194,6 +216,20 @@ function emitInitOutput(
   console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
 }
 
+function detectAndAuditSkills(targetDir: string): ReturnType<typeof detectInstalledSkills> {
+  const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
+  const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
+  const skipReport = computeSkipReport(installedSkills)
+  if (installedSkills.length > 0) {
+    writeFile(
+      join(targetDir, '.arbiter', 'detected-integrations.json'),
+      JSON.stringify({ detectedSkills: installedSkills, skippedGenerators: skipReport }, null, 2) +
+        '\n',
+    )
+  }
+  return installedSkills
+}
+
 async function generateAndFinalize(
   config: ProjectConfig,
   targetDir: string,
@@ -204,7 +240,8 @@ async function generateAndFinalize(
   const committed: WriteResult[] = []
 
   try {
-    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config)
+    const installedSkills = detectAndAuditSkills(targetDir)
+    const { results, errors: generatorErrors } = runGeneratorsWithErrors(config, installedSkills)
     committed.push(...results)
 
     const newConfig = buildArbiterConfig(config)
@@ -404,12 +441,15 @@ export function runGenerators(config: ProjectConfig): WriteResult[] {
  * (INV-53 status=error → exit 2). The plain `runGenerators` wrapper is kept
  * for legacy callers (brownfield integration tests) that only consume results.
  */
-function runGeneratorsWithErrors(config: ProjectConfig): {
+function runGeneratorsWithErrors(
+  config: ProjectConfig,
+  installedSkills: Parameters<typeof buildRegistry>[1] = [],
+): {
   results: WriteResult[]
   errors: GeneratorFailure[]
 } {
   const errors: GeneratorFailure[] = []
-  const results = runGeneratorsFromRegistry(buildRegistry(config), errors)
+  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors)
   return { results, errors }
 }
 
@@ -424,7 +464,7 @@ export async function runPlugins(
   for (const pkg of plugins) {
     try {
       const plugin = await loadPlugin(pkg, targetDir)
-      if (plugin.detect && !plugin.detect(storedConfig)) continue
+      if (plugin.detect && !(await plugin.detect(storedConfig))) continue
       const ctx = {
         config: storedConfig,
         targetDir,
@@ -432,7 +472,7 @@ export async function runPlugins(
           return renderFromAbsPath(join(plugin.templateRoot, relPath), data)
         },
       }
-      const result = plugin.generate(ctx)
+      const result = await plugin.generate(ctx)
       if (!Array.isArray(result.files)) {
         console.warn(
           `  [arbiter] Plugin "${pkg}" returned invalid result (no files array). Skipping.`,

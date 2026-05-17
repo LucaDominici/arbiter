@@ -6,9 +6,9 @@
 //     matrix proven cells, template tests, generator tests, command tests, catalog parity,
 //     enforcement wired, workflow runners, ci alignment, node version ssot, bloat ratchet,
 //     exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
-//     canonical paths (31)
+//     canonical paths, plugin api stability, deprecations, hook contracts (36)
 // L2: L1 + coverage + dead code + duplication + npm audit + gitleaks + dogfood +
-//     self-validation drill + local-ci parity (40)
+//     self-validation drill + local-ci parity + id stability + anti-telemetry + tdd-evidence (48)
 // L3: L2 + full repo secrets scan (nightly/manual)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
@@ -90,6 +90,7 @@ runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
 runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
 runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
+runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
 runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
@@ -114,10 +115,7 @@ if (level === 'L2' || level === 'L3') {
   ])
   runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
   runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
-  // STRIDE/RACI traceability deliberately NOT wired here yet: the docs/SECURITY/STRIDE.md
-  // and docs/GOVERNANCE/RACI.md tables have zero HIGH/CRITICAL rows, so the script
-  // would exit 0 unconditionally. Wiring a no-op gate would be a CANON-09 lie. Wire
-  // only after at least one threat/responsibility row is documented (#350-followup).
+  runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
   runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
   runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
   runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])

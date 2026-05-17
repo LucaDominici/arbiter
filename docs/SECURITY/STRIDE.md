@@ -6,8 +6,10 @@
 
 ## Threat Register
 
-| ID  | Threat | Category | Severity | Mitigation | Status |
-| --- | ------ | -------- | -------- | ---------- | ------ |
+| ID   | Threat                                                                                                                             | Category               | Severity | Mitigation                                                                                                                                                                                                                                                                                                 | Status    |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| S001 | Replay log writer leaks unredacted secrets from environment variables into `~/.arbiter/logs/<runId>/env.json`.                     | Information Disclosure | HIGH     | Pattern-match redaction in `src/utils/replay.ts` (`shouldRedactKey`): segment-aware match for `TOKEN`, `SECRET`, `KEY`, `PASSWORD`, `PASS`, `AUTH`, `CREDENTIAL`, `PRIVATE`, `API`, plus prefix match for `GH_`, `GITHUB_`, `NPM_`. Verified by `@Security:S001` test in `__tests__/utils/replay.test.ts`. | MITIGATED |
+| S002 | `arbiter report` tar bundle follows a symlink in `~/.arbiter/logs/<runId>/` and exfiltrates a file from outside the run directory. | Tampering              | HIGH     | `collectSafeFiles` in `src/commands/report.ts` uses `lstatSync` and rejects symbolic-link entries before they reach the tar writer. Verified by `@Security:S002` test in `__tests__/commands/report.test.ts`.                                                                                              | MITIGATED |
 
 <!--
 ## How to use this table

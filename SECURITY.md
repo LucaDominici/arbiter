@@ -41,6 +41,20 @@ keys.openpgp.org once available. See issue
 
 ---
 
+## Plugin Trust Model
+
+arbiter loads third-party plugins at runtime. The plugin isolation mechanism is **crash containment, not a security sandbox**.
+
+- Plugin code runs in a Node.js `worker_threads.Worker` with memory limits (`maxOldGenerationSizeMb: 256`) and an empty environment (`env: {}`). Plugins cannot read `process.env` from the host unless the allowlist mechanism is implemented (deferred to a future issue).
+- **What isolation prevents:** plugin hangs (timeout), OOM crashes, uncaught exceptions from propagating to the host process. Only `generate()` and `detect()` invocations are isolated — module-level code that runs during `require()`/`import()` of the plugin still executes in the main process (for shape validation).
+- **What isolation does NOT prevent:** during shape validation, module-level code runs in the host process. A plugin that calls `process.exit()` or spins at module load time will still affect the host. Plugins can also still access `fs`, `net`, and `child_process` inside worker-isolated calls.
+- **Trust boundary:** only install plugins from authors you trust, the same as any `npm` dependency.
+- Plugins must declare `apiVersion: '1'` and export `name`, `templateRoot`, and `generate()`. Shape is validated before the worker is spawned.
+
+This model is documented here per issue #620.
+
+---
+
 ## Scope
 
 This policy applies to the `arbiter` codebase (all files in this repository).

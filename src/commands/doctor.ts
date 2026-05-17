@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `arbiter doctor` commands (#619, #539).
+ * `arbiter doctor` commands (#619, #539, #618).
  *
  * - `repair-state`: Re-derives `.arbiter-generated.json` from `arbiter.json`.
  * - `health`: Checks Node version, git, hooks path, and AGENTS.md presence.
+ * - `recover-lock`: Force-releases a stale `.arbiter/.lock` file.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import os from 'node:os'
 import { jsonOutput } from '../utils/json-output.js'
 import { loadConfig, writeSnapshot } from '../utils/config.js'
 import { runCli } from '../utils/run-cli.js'
+import { inspectLock, forceReleaseLock } from '../utils/file-lock.js'
+import type { LockInfo } from '../utils/file-lock.js'
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
 
@@ -108,7 +112,85 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
     out.push(hooksCheck)
   }
 
+  out.push(checkLockfile(dir))
+
   return out
+}
+
+/**
+ * #618 — doctor reports stale `.arbiter/.lock` files.
+ * Treats a lock as stale if PID is not alive (same-host only) or age > 6h.
+ */
+function readLockInfoForHealth(lockPath: string): LockInfo | null {
+  try {
+    const raw = readFileSync(lockPath, 'utf-8')
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const ok =
+      typeof parsed.pid === 'number' &&
+      typeof parsed.hostname === 'string' &&
+      typeof parsed.bootId === 'string' &&
+      typeof parsed.startedAt === 'string' &&
+      typeof parsed.cmd === 'string' &&
+      typeof parsed.nonce === 'string'
+    return ok ? (parsed as unknown as LockInfo) : null
+  } catch {
+    return null
+  }
+}
+
+function probePidAlive(pid: number): boolean | null {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code
+    return code === 'EPERM' ? null : false
+  }
+}
+
+const LOCK_CHECK_ID = 'arbiter-lock'
+
+function checkLockfile(dir: string): HealthCheck {
+  const lockPath = join(dir, '.arbiter', '.lock')
+  if (!existsSync(lockPath)) {
+    return {
+      id: LOCK_CHECK_ID,
+      label: '.arbiter/.lock not present',
+      status: 'PASS',
+      detail: 'no leftover lock file',
+    }
+  }
+  const info = readLockInfoForHealth(lockPath)
+  if (info === null) {
+    return {
+      id: LOCK_CHECK_ID,
+      label: '.arbiter/.lock unreadable',
+      status: 'WARN',
+      detail: 'lock file exists but contents are not valid JSON',
+      hint: `Run \`arbiter doctor recover-lock\` to remove it.`,
+    }
+  }
+  const sameHost = info.hostname === os.hostname()
+  const ageMs = Date.now() - new Date(info.startedAt).getTime()
+  const ageH = Math.round(ageMs / 36e5)
+  const pidAlive = sameHost ? probePidAlive(info.pid) : null
+  const stale = sameHost && (pidAlive === false || ageMs > 6 * 3600_000)
+  if (stale) {
+    const aliveLabel = pidAlive === false ? 'not alive' : `age ${ageH}h`
+    return {
+      id: LOCK_CHECK_ID,
+      label: '.arbiter/.lock stale',
+      status: 'WARN',
+      detail: `pid ${info.pid} (${aliveLabel}), cmd: ${info.cmd}`,
+      hint: 'Run `arbiter doctor recover-lock` to clean up.',
+    }
+  }
+  return {
+    id: LOCK_CHECK_ID,
+    label: '.arbiter/.lock active',
+    status: 'PASS',
+    detail: `pid ${info.pid}, age ${ageH}h${sameHost ? '' : ' (other host)'}`,
+  }
 }
 
 function emitHealthOutput(checks: HealthCheck[], pass: number, warn: number, fail: number): void {
@@ -188,4 +270,54 @@ export function runDoctorRepairState(opts: DoctorRepairStateOptions = {}): Docto
     process.stdout.write(`doctor: snapshot re-derived from arbiter.json → ${snapshotPath}\n`)
   }
   return { exitCode: 0, repaired: true, snapshotPath }
+}
+
+// ── doctor recover-lock (#618) ────────────────────────────────────────────────
+
+export interface DoctorRecoverLockOptions {
+  dir?: string
+  json?: boolean
+}
+
+export interface DoctorRecoverLockResult {
+  found: boolean
+  released: boolean
+  info?: LockInfo
+}
+
+export async function runDoctorRecoverLock(
+  opts: DoctorRecoverLockOptions = {},
+): Promise<DoctorRecoverLockResult> {
+  const targetDir = resolve(opts.dir ?? '.')
+  const lockPath = join(targetDir, '.arbiter', '.lock')
+
+  const info = await inspectLock(lockPath)
+  if (!info) {
+    if (opts.json) {
+      jsonOutput('doctor recover-lock', 'ok', { found: false, released: false })
+    } else {
+      process.stdout.write(`  No lock file found at ${lockPath}\n`)
+    }
+    return { found: false, released: false }
+  }
+
+  if (!opts.json) {
+    const age = Math.round((Date.now() - new Date(info.startedAt).getTime()) / 1000)
+    const onThisHost = info.hostname === os.hostname() ? 'yes' : 'no'
+    process.stdout.write(`  Lock found:\n`)
+    process.stdout.write(`    pid:       ${info.pid}\n`)
+    process.stdout.write(`    hostname:  ${info.hostname}\n`)
+    process.stdout.write(`    cmd:       ${info.cmd}\n`)
+    process.stdout.write(`    age:       ${age}s\n`)
+    process.stdout.write(`    this host: ${onThisHost}\n`)
+  }
+
+  await forceReleaseLock(lockPath, info.pid, targetDir)
+
+  if (opts.json) {
+    jsonOutput('doctor recover-lock', 'ok', { found: true, released: true, info })
+  } else {
+    process.stdout.write(`  Lock released.\n`)
+  }
+  return { found: true, released: true, info }
 }

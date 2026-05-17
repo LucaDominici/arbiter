@@ -66,6 +66,26 @@ The allowlist lists every permitted occurrence with a justification. Currently p
 
 ---
 
+## Local Observability Artifacts (#635-#640)
+
+Arbiter writes three categories of local-only files for debugging and bug reports:
+
+| Location                                 | Written by                   | Default lifecycle                         |
+| ---------------------------------------- | ---------------------------- | ----------------------------------------- |
+| `~/.arbiter/logs/<runId>/`               | Every invocation (default)   | LRU-rotated; only the 10 most recent kept |
+| `~/.arbiter/reports/<runId>.tar.gz`      | `arbiter report` (explicit)  | Kept until you delete it                  |
+| `~/.arbiter/profiles/<runId>.cpuprofile` | `arbiter --profile` (opt-in) | Kept until you delete it                  |
+
+**All three are local. None are uploaded anywhere.** They exist for you to inspect or attach to a bug report at your discretion.
+
+**Redaction.** Environment variables captured in `env.json` are redacted by name match: any variable whose name (case-insensitive, underscore-segment-aware) contains `TOKEN`, `SECRET`, `KEY`, `PASSWORD`, `PASS`, `AUTH`, `CREDENTIAL`, `PRIVATE`, or `API`, or starts with `GH_`, `GITHUB_`, or `NPM_`, has its value replaced with `***REDACTED***`. Patterns and behavior are tested in `__tests__/utils/replay.test.ts`.
+
+**Opt-out.** Pass `--no-replay` to skip writing any replay log for an invocation. The flag is also recognized via `ARBITER_NO_REPLAY=1`.
+
+**Bundling.** `arbiter report` defaults to spawning `$EDITOR` so you can preview and trim the manifest before tar.gz is written — no file leaves the host without your explicit edit pass. Pass `--auto` to skip the editor or `--print-only` to inspect the manifest without producing a bundle.
+
+---
+
 ## Reporting Privacy Concerns
 
 If you discover unexpected network activity, please report it via [SECURITY.md](SECURITY.md).

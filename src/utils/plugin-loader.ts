@@ -1,12 +1,112 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createRequire } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { pathToFileURL, fileURLToPath } from 'node:url'
 import { join } from 'node:path'
-import type { ArbiterPlugin } from '../types/plugin.js'
+import { Worker } from 'node:worker_threads'
+import type { ArbiterPlugin, PluginResult } from '../types/plugin.js'
+import { UserFacingError } from './errors.js'
 
 const VALID_NAME_RE = /^[a-z0-9][a-z0-9-_]*$/
+const DEFAULT_TIMEOUT_MS = 60_000
+// Shared no-op for suppress-only promise chains (e.g. worker.terminate())
+const noop = (): void => {}
 
-export async function loadPlugin(pkg: string, targetDir: string): Promise<ArbiterPlugin> {
+export interface LoadPluginOptions {
+  invokeTimeoutMs?: number
+}
+
+function resolveWorkerPath(): { path: string; execArgv: string[] } {
+  const url = import.meta.url
+  if (url.endsWith('.ts')) {
+    const tsxLoader = fileURLToPath(new URL('../../node_modules/tsx/dist/esm/index.mjs', url))
+    return {
+      path: fileURLToPath(new URL('./plugin-worker.ts', url)),
+      execArgv: ['--import', tsxLoader],
+    }
+  }
+  return { path: fileURLToPath(new URL('./plugin-worker.js', url)), execArgv: [] }
+}
+
+function invokeInWorker(
+  entryPath: string,
+  kind: 'generate' | 'detect',
+  payload: { config: unknown; targetDir: string; templateRoot: string },
+  name: string,
+  timeoutMs: number,
+): Promise<unknown> {
+  const { path: workerPath, execArgv } = resolveWorkerPath()
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(workerPath, {
+      workerData: { entryPath, kind, ...payload },
+      execArgv,
+      resourceLimits: { maxOldGenerationSizeMb: 256, maxYoungGenerationSizeMb: 32 },
+      env: {},
+    })
+
+    let settled = false
+    const settle = (fn: () => void): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      process.off('SIGINT', onSignal)
+      process.off('SIGTERM', onSignal)
+      try {
+        fn()
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error(String(e)))
+      }
+    }
+
+    const timer = setTimeout(() => {
+      void worker.terminate().then(noop, noop)
+      settle(() => {
+        reject(new UserFacingError(`Plugin "${name}" timed out after ${timeoutMs}ms`))
+      })
+    }, timeoutMs)
+
+    const onSignal = (): void => {
+      void worker.terminate().then(noop, noop)
+      settle(() => {
+        reject(new UserFacingError(`Plugin "${name}" was interrupted by signal`))
+      })
+    }
+    process.once('SIGINT', onSignal)
+    process.once('SIGTERM', onSignal)
+
+    worker.once('message', (msg: { kind: string; value?: unknown; message?: string }) => {
+      settle(() => {
+        if (msg.kind === 'error') {
+          reject(new Error(`Plugin "${name}" error: ${msg.message}`))
+        } else {
+          resolve(msg.value)
+        }
+      })
+    })
+
+    worker.once('error', (err: Error) => {
+      settle(() => {
+        reject(err)
+      })
+    })
+
+    worker.once('exit', (code: number) => {
+      settle(() => {
+        reject(
+          code !== 0
+            ? new UserFacingError(`Plugin "${name}" crashed (exit code ${code})`)
+            : new Error(`Plugin "${name}" exited without returning a result`),
+        )
+      })
+    })
+  })
+}
+
+export async function loadPlugin(
+  pkg: string,
+  targetDir: string,
+  opts?: LoadPluginOptions,
+): Promise<ArbiterPlugin> {
+  const timeoutMs = opts?.invokeTimeoutMs ?? DEFAULT_TIMEOUT_MS
   const require = createRequire(pathToFileURL(join(targetDir, '__arbiter_anchor__.js')).href)
   let entry: string
   try {
@@ -31,7 +131,42 @@ export async function loadPlugin(pkg: string, targetDir: string): Promise<Arbite
   >
   const plugin = rawMod['default'] ?? rawMod['plugin']
   validatePluginShape(plugin, pkg)
-  return plugin as ArbiterPlugin
+  const p = plugin as Record<string, unknown>
+  const pluginName = p['name'] as string
+  const templateRoot = p['templateRoot'] as string
+  const hasDetect = typeof p['detect'] === 'function'
+  const verifyPlanRules = Array.isArray(p['verifyPlanRules'])
+    ? (p['verifyPlanRules'] as ArbiterPlugin['verifyPlanRules'])
+    : undefined
+
+  const proxy: ArbiterPlugin = {
+    name: pluginName,
+    apiVersion: '1',
+    templateRoot,
+    ...(verifyPlanRules !== undefined ? { verifyPlanRules } : {}),
+    generate(ctx) {
+      return invokeInWorker(
+        entry,
+        'generate',
+        { config: ctx.config, targetDir: ctx.targetDir, templateRoot },
+        pluginName,
+        timeoutMs,
+      ) as Promise<PluginResult>
+    },
+  }
+
+  if (hasDetect) {
+    proxy.detect = (config): Promise<boolean> =>
+      invokeInWorker(
+        entry,
+        'detect',
+        { config, targetDir, templateRoot },
+        pluginName,
+        timeoutMs,
+      ) as Promise<boolean>
+  }
+
+  return proxy
 }
 
 function validatePluginShape(plugin: unknown, pkg: string): void {
