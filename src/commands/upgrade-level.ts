@@ -119,10 +119,12 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
 
   const endsDate = graceEndsAt.slice(0, 10)
   if (current === 'L1' && target === 'L2') {
-    console.log(t('cli.upgrade_level.grace_ends_warn', { date: endsDate, days, target }))
+    process.stdout.write(
+      `${t('cli.upgrade_level.grace_ends_warn', { date: endsDate, days, target })}\n`,
+    )
   } else {
-    console.log(t('cli.upgrade_level.upgraded', { target, date: endsDate, days }))
-    console.log(t('cli.upgrade_level.grace_warn_note', { target }))
+    process.stdout.write(`${t('cli.upgrade_level.upgraded', { target, date: endsDate, days })}\n`)
+    process.stdout.write(`${t('cli.upgrade_level.grace_warn_note', { target })}\n`)
   }
 }
 
@@ -199,5 +201,5 @@ function handleExtend(
   }
 
   const endsDate = newEndsAt.slice(0, 10)
-  console.log(t('cli.upgrade_level.grace_extended', { date: endsDate, days }))
+  process.stdout.write(`${t('cli.upgrade_level.grace_extended', { date: endsDate, days })}\n`)
 }

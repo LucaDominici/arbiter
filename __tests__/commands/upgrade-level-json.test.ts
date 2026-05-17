@@ -92,12 +92,12 @@ describe('upgrade-level --json', () => {
 
   it('does not emit JSON in human mode', () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     runUpgradeLevel({ target: 'L2', json: false })
 
-    expect(written).toBe('')
-    consoleSpy.mockRestore()
+    // Human mode emits text to stdout via process.stdout.write (#820), but
+    // must NOT emit a JSON envelope. Assert the captured text is not JSON.
+    expect(written.trim().startsWith('{')).toBe(false)
   })
 
   it('emits JSON envelope on --extend path', () => {

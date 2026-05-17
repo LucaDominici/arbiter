@@ -62,21 +62,21 @@ export async function runWorkList(opts: WorkListOptions): Promise<void> {
   const units = await backend.list(opts.status ? { status: opts.status } : undefined)
 
   if (units.length === 0) {
-    console.log(t('cli.work.no_units'))
+    process.stdout.write(`${t('cli.work.no_units')}\n`)
     return
   }
 
   for (const unit of units) {
     const phase = unit.phase ? ` [${unit.phase}]` : ''
     const labels = unit.labels && unit.labels.length > 0 ? ` (${unit.labels.join(', ')})` : ''
-    console.log(
-      t('cli.work.unit_row', {
+    process.stdout.write(
+      `${t('cli.work.unit_row', {
         id: unit.id,
         status: unit.status,
         phase,
         title: unit.title,
         labels,
-      }),
+      })}\n`,
     )
   }
 }
@@ -91,7 +91,7 @@ export async function runWorkCreate(opts: WorkCreateOptions): Promise<void> {
     ...(opts.body ? { body: opts.body } : {}),
     ...(opts.labels ? { labels: opts.labels } : {}),
   })
-  console.log(t('cli.work.created', { id: unit.id, title: unit.title }))
+  process.stdout.write(`${t('cli.work.created', { id: unit.id, title: unit.title })}\n`)
 }
 
 export async function runWorkShow(opts: WorkShowOptions): Promise<void> {
@@ -111,17 +111,17 @@ export async function runWorkShow(opts: WorkShowOptions): Promise<void> {
     )
   }
 
-  console.log(t('cli.work.show.id', { id: unit.id }))
-  console.log(t('cli.work.show.title', { title: unit.title }))
-  console.log(t('cli.work.show.status', { status: unit.status }))
-  if (unit.phase) console.log(t('cli.work.show.phase', { phase: unit.phase }))
-  if (unit.parent) console.log(t('cli.work.show.parent', { parent: unit.parent }))
+  process.stdout.write(`${t('cli.work.show.id', { id: unit.id })}\n`)
+  process.stdout.write(`${t('cli.work.show.title', { title: unit.title })}\n`)
+  process.stdout.write(`${t('cli.work.show.status', { status: unit.status })}\n`)
+  if (unit.phase) process.stdout.write(`${t('cli.work.show.phase', { phase: unit.phase })}\n`)
+  if (unit.parent) process.stdout.write(`${t('cli.work.show.parent', { parent: unit.parent })}\n`)
   if (unit.labels && unit.labels.length > 0) {
-    console.log(t('cli.work.show.labels', { labels: unit.labels.join(', ') }))
+    process.stdout.write(`${t('cli.work.show.labels', { labels: unit.labels.join(', ') })}\n`)
   }
   if (unit.body) {
-    console.log()
-    console.log(unit.body)
+    process.stdout.write('\n')
+    process.stdout.write(`${unit.body}\n`)
   }
 }
 
@@ -130,7 +130,7 @@ export async function runWorkClose(opts: WorkCloseOptions): Promise<void> {
   const config = requireConfig(targetDir)
   const backend = getBackend(config, targetDir)
   await backend.close(opts.id, opts.reason ? { reason: opts.reason } : undefined)
-  console.log(t('cli.work.closed', { id: opts.id }))
+  process.stdout.write(`${t('cli.work.closed', { id: opts.id })}\n`)
 }
 
 export async function runWorkAdvance(opts: WorkAdvanceOptions): Promise<void> {
@@ -138,5 +138,5 @@ export async function runWorkAdvance(opts: WorkAdvanceOptions): Promise<void> {
   const config = requireConfig(targetDir)
   const backend = getBackend(config, targetDir)
   await backend.advance(opts.id, opts.phase)
-  console.log(t('cli.work.advanced', { id: opts.id, phase: opts.phase }))
+  process.stdout.write(`${t('cli.work.advanced', { id: opts.id, phase: opts.phase })}\n`)
 }

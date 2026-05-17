@@ -261,7 +261,6 @@ describe('init --json GitHub path', () => {
   })
 
   it('routes GitHub setup output through log wrapper in non-JSON mode', async () => {
-    const consoleSpy = vi.spyOn(console, 'log')
     mockProvisionLabels.mockReturnValue({
       created: [],
       updated: [],
@@ -280,8 +279,8 @@ describe('init --json GitHub path', () => {
       json: false,
     })
 
-    const logged = consoleSpy.mock.calls.map((c) => String(c[0]))
-    expect(logged.some((s) => s.includes('list labels failed'))).toBe(true)
+    // #820: human mode now writes via process.stdout.write captured in `written`.
+    expect(written).toContain('list labels failed')
     expect(written).not.toContain('"command"')
   })
 })

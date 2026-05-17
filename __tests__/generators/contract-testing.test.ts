@@ -157,9 +157,7 @@ describe('generateContractTesting', () => {
       // Override with unknown value via type cast
       ;(config as unknown as Record<string, unknown>)['contractType'] = 'soap'
       const result = generateContractTesting(config)
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[contract-testing] Unknown contractType: soap — skipping',
-      )
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown contractType: soap'))
       expect(result).toEqual({ files: [] })
     } finally {
       warnSpy.mockRestore()

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { getLogger } from '../utils/logger.js'
 import { generateAgentsMd } from './agents-md.js'
 import type { InstalledSkill } from '../integrations/types.js'
 import { computeSkipReport } from './skills.js'
@@ -353,7 +354,11 @@ function safeRun(spec: GeneratorSpec, errors: GeneratorFailure[]): WriteResult[]
     const message = err instanceof Error ? err.message : String(err)
     // Keep the stderr line for operators tailing logs; the structured
     // `errors` sink is the authoritative observable channel (#483).
-    console.warn(`[registry] generator '${spec.key}' failed: ${message}`)
+    getLogger().warn(
+      'registry.generator_failed',
+      { generator: spec.key, err: message },
+      `generator '${spec.key}' failed: ${message}`,
+    )
     errors.push({ key: spec.key, message })
     return []
   }

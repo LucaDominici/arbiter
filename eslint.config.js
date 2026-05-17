@@ -45,6 +45,11 @@ export default tseslint.config(
       'max-depth': ['error', 4],
       'max-lines-per-function': ['error', { max: 100, skipBlankLines: true, skipComments: true }],
       'max-nested-callbacks': ['error', 3],
+      // #820: forbid console.* in production code — use src/utils/logger.ts
+      // (stderr) for diagnostics, or process.stdout.write for user-facing
+      // payload. console.log silently swallows structured attrs and routes
+      // to stdout (polluting --json output).
+      'no-console': 'error',
     },
   },
   // Test files are not in tsconfig.json — disable type-aware rules and relax style rules

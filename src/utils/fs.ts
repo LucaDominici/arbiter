@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, writeFileSync, copyFileSync, renameSync, unlinkS
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { ArbiterError } from './errors.js'
+import { getLogger } from './logger.js'
 import { t } from '../i18n/index.js'
 
 // ── Atomic write + signal cleanup ────────────────────────────────────────────
@@ -153,7 +154,7 @@ export function copyStaticFile(
  * (currently: `hooks`, `permissions`).
  *
  * When a non-special incoming key collides with a non-undefined existing value, the existing
- * value wins (no clobber) but a console.warn is emitted listing the dropped keys so users
+ * value wins (no clobber) but a logger.warn is emitted listing the dropped keys so users
  * can pick up the new arbiter defaults if they choose (#286).
  */
 export function mergeSettingsJson(
@@ -178,8 +179,10 @@ export function mergeSettingsJson(
   }
 
   if (dropped.length > 0) {
-    console.warn(
-      `[arbiter] settings.json merge preserved your existing values for these top-level keys; ` +
+    getLogger().warn(
+      'fs.settings_merge_preserved',
+      { dropped_keys: dropped.join(',') },
+      `settings.json merge preserved your existing values for these top-level keys; ` +
         `arbiter's new defaults were NOT applied: ${dropped.join(', ')}. ` +
         `Remove these keys from .claude/settings.json and re-run to pick up the new defaults.`,
     )

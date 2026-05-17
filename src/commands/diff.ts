@@ -38,7 +38,7 @@ export function runDiff(options: DiffOptions): void {
   const projectName = basename(targetDir)
 
   if (!options.json) {
-    console.log(t('cli.diff.banner'))
+    process.stdout.write(`${t('cli.diff.banner')}\n`)
   }
 
   const stored = loadConfig(targetDir)
@@ -48,7 +48,7 @@ export function runDiff(options: DiffOptions): void {
       process.exit(statusToExitCode('error'))
       return
     }
-    console.log(t('cli.diff.no_config'))
+    process.stdout.write(`${t('cli.diff.no_config')}\n`)
     process.exit(statusToExitCode('error'))
   }
 
@@ -64,16 +64,22 @@ export function runDiff(options: DiffOptions): void {
     if (!existsSync(check.path)) {
       files.push({ key: check.templateKey, status: 'new' })
       hasChanges = true
-      if (!options.json) console.log(t('cli.diff.new_file', { key: check.templateKey }))
+      if (!options.json) {
+        process.stdout.write(`${t('cli.diff.new_file', { key: check.templateKey })}\n`)
+      }
     } else {
       const current = readFileSync(check.path, 'utf-8')
       if (current !== incoming) {
         files.push({ key: check.templateKey, status: 'changed' })
         hasChanges = true
-        if (!options.json) console.log(t('cli.diff.changed_file', { key: check.templateKey }))
+        if (!options.json) {
+          process.stdout.write(`${t('cli.diff.changed_file', { key: check.templateKey })}\n`)
+        }
       } else {
         files.push({ key: check.templateKey, status: 'unchanged' })
-        if (!options.json) console.log(t('cli.diff.unchanged_file', { key: check.templateKey }))
+        if (!options.json) {
+          process.stdout.write(`${t('cli.diff.unchanged_file', { key: check.templateKey })}\n`)
+        }
       }
     }
   }
@@ -87,9 +93,9 @@ export function runDiff(options: DiffOptions): void {
   }
 
   if (!hasChanges) {
-    console.log(t('cli.diff.up_to_date'))
+    process.stdout.write(`${t('cli.diff.up_to_date')}\n`)
   } else {
-    console.log(t('cli.diff.run_update'))
+    process.stdout.write(`${t('cli.diff.run_update')}\n`)
   }
 }
 

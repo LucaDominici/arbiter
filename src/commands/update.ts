@@ -6,6 +6,7 @@ import { UserFacingError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
+import { getLogger } from '../utils/logger.js'
 import { detectLanguage } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
 import { detectFramework } from '../detectors/framework.js'
@@ -111,7 +112,7 @@ function printStats(results: WriteResult[]): void {
   const created = results.filter((r) => r.action === 'created').length
   const replaced = results.filter((r) => r.action === 'backed-up-and-replaced').length
   const skipped = results.filter((r) => r.action === 'skipped').length
-  console.log(t('cli.update.done', { created, replaced, skipped }))
+  process.stdout.write(`${t('cli.update.done', { created, replaced, skipped })}\n`)
 }
 
 function selectAndRun(
@@ -129,16 +130,16 @@ function selectAndRun(
   }
   const diff = diffConfig(snapshot, stored)
   if (diff.paths.length === 0) {
-    console.log(t('cli.update.no_config_changes'))
+    process.stdout.write(`${t('cli.update.no_config_changes')}\n`)
     return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
   }
   const keys = impactedGenerators(diff)
   if (keys.has('*') || keys.size === 0) {
     const reason = keys.size === 0 ? 'Unknown config change' : 'Governance/axis change'
-    console.log(t('cli.update.reason_regen', { reason }))
+    process.stdout.write(`${t('cli.update.reason_regen', { reason })}\n`)
     return { results: runGeneratorsFromRegistry(specs, errors), keysRun: keys, errors }
   }
-  console.log(t('cli.update.selective', { count: keys.size }))
+  process.stdout.write(`${t('cli.update.selective', { count: keys.size })}\n`)
   return { results: runGeneratorsSelective(specs, keys, errors), keysRun: keys, errors }
 }
 
@@ -247,14 +248,32 @@ function emitUpdateOutcome(
     return
   }
   if (generatorErrorLines.length > 0) {
-    console.log(
+    process.stdout.write(
       `\n  Generator failures (${generatorErrorLines.length}):\n${generatorErrorLines
         .map((line) => `    - ${line}`)
         .join('\n')}\n`,
     )
     process.exit(statusToExitCode('error'))
   }
-  console.log(t('cli.update.verify_hint'))
+  process.stdout.write(`${t('cli.update.verify_hint')}\n`)
+}
+
+function handleAdverseState(
+  adverseState: ReturnType<typeof detectAdverseGitState>,
+  force: boolean | undefined,
+): void {
+  if (!adverseState) return
+  const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
+  if (!force) {
+    throw new UserFacingError(
+      `${adverseState.message}\n${adverseState.suggestedFix}\n${t('cli.shared.force_override_hint')}`,
+    )
+  }
+  getLogger().warn(
+    'update.adverse_git_state',
+    { message: adverseState.message, suggested_fix: adverseState.suggestedFix },
+    warning,
+  )
 }
 
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
@@ -263,7 +282,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
   const log: (msg: string) => void = options.json
     ? (): void => {}
     : (msg: string): void => {
-        console.log(msg)
+        process.stdout.write(`${msg}\n`)
       }
 
   log('\n  Arbiter — update\n')
@@ -282,16 +301,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       return { keysRun: null }
     }
 
-    const adverseState = detectAdverseGitState(targetDir)
-    if (adverseState) {
-      const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
-      if (!options.force) {
-        throw new UserFacingError(
-          `${adverseState.message}\n${adverseState.suggestedFix}\n${t('cli.shared.force_override_hint')}`,
-        )
-      }
-      console.warn(warning)
-    }
+    handleAdverseState(detectAdverseGitState(targetDir), options.force)
 
     const { config, specs, useGitHub, axisFields } = detectProjectInfo(
       targetDir,
@@ -347,7 +357,9 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
           `Config invalid after update: ${validation.errors.join('; ')}`,
         ])
       } else {
-        console.error(t('cli.update.config_invalid', { errors: validation.errors.join('; ') }))
+        process.stderr.write(
+          `${t('cli.update.config_invalid', { errors: validation.errors.join('; ') })}\n`,
+        )
       }
       process.exit(1)
     }
