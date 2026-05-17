@@ -283,6 +283,12 @@ async function main() {
       continue
     }
 
+    // Skip EJS include partials — rendered inline by a parent template, no standalone materialized output
+    if (templatePath.includes('/post-commit-checklists/')) {
+      skipped++
+      continue
+    }
+
     // Skip templates whose materialized files are known divergences
     if (divergences.has(materialized)) {
       skipped++

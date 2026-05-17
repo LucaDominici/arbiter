@@ -1,0 +1,5 @@
+if (hasBE) {
+  process.stdout.write('  BE: cargo test\n');
+  process.stdout.write('  BE: cargo clippy -- -D warnings\n');
+  process.stdout.write('  BE: cargo audit (dependency vulnerability check)\n');
+}

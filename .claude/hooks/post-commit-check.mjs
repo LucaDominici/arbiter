@@ -2,6 +2,8 @@
 // Arbiter hook: block non-conventional commit messages after git commit (INV-22)
 // Fires on: PostToolUse → Bash
 import { spawnSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const command = process.env.CLAUDE_TOOL_INPUT_COMMAND ?? ''
 
@@ -28,27 +30,39 @@ if (!CONVENTIONAL.test(msg)) {
 }
 
 // Track-aware post-commit checklist (#724)
+// Dynamic import so a missing shared lib exits 0 rather than crashing all commits (RT-EH-001)
+let detectTracks
+try {
+  const __dir = dirname(fileURLToPath(import.meta.url))
+  ;({ detectTracks } = await import(join(__dir, '..', '..', 'scripts', 'detect-track.mjs')))
+} catch (err) {
+  process.stderr.write(`[arbiter] track detection skipped: ${err.message}\n`)
+  process.exit(0)
+}
+if (typeof detectTracks !== 'function') {
+  process.stderr.write('[arbiter] track detection skipped: detectTracks export missing\n')
+  process.exit(0)
+}
+
 const trackDiff = spawnSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD'], { encoding: 'utf-8' })
 const commitFiles =
   trackDiff.status === 0 ? (trackDiff.stdout ?? '').split('\n').filter(Boolean) : []
 
-const FE_RE = /\.(tsx?|jsx?|vue|svelte|css|scss)$|^(web|frontend)\//
-const BE_RE = /\.(go|py|java|rs|rb)$|^(api|backend|server|cmd)\//
-const DOCS_RE = /\.md$|^docs\//
-
-const hasFE = commitFiles.some((f) => FE_RE.test(f))
-const hasBE = commitFiles.some((f) => BE_RE.test(f))
-const hasDocs = commitFiles.some((f) => DOCS_RE.test(f))
-
-const tracks = []
-if (hasFE) tracks.push('frontend')
-if (hasBE) tracks.push('backend')
-if (hasDocs) tracks.push('docs')
+const { tracks, hasFE, hasBE, hasDocs } = detectTracks(commitFiles)
 
 if (tracks.length > 0) {
   const label = tracks.length > 1 ? 'Tracks' : 'Track'
   process.stdout.write(`[arbiter] ${label}: ${tracks.join(' + ')}\n`)
-  if (hasFE) process.stdout.write('  FE: verify component renders + snapshot tests pass\n')
-  if (hasBE) process.stdout.write('  BE: verify integration tests pass + no new lint warnings\n')
-  if (hasDocs) process.stdout.write('  Docs: verify internal links + run check-doc-links.mjs\n')
+  if (hasFE) {
+    process.stdout.write('  FE: vitest run --reporter dot\n')
+    process.stdout.write('  FE: tsc --noEmit (verify types)\n')
+  }
+  if (hasBE) {
+    process.stdout.write('  BE: vitest run --reporter dot\n')
+    process.stdout.write('  BE: no new lint warnings (eslint src)\n')
+  }
+  if (hasDocs) {
+    process.stdout.write('  Docs: node scripts/check-doc-links.mjs\n')
+    process.stdout.write('  Docs: verify internal links resolve\n')
+  }
 }

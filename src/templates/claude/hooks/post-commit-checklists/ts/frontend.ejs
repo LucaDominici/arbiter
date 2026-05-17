@@ -1,0 +1,5 @@
+if (hasFE) {
+  process.stdout.write('  FE: vitest run --reporter dot\n');
+  process.stdout.write('  FE: tsc --noEmit (verify types)\n');
+  process.stdout.write('  FE: pnpm test (snapshot diff — update if intentional)\n');
+}

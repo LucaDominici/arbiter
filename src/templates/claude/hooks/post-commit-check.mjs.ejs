@@ -32,9 +32,10 @@ if (!CONVENTIONAL.test(msg)) {
 }
 
 // Track-aware post-commit checklist (#724)
+// CRLF stripped: git diff --name-only can emit CRLF on Windows
 const trackDiff = spawnSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD'], { encoding: 'utf-8' });
 const commitFiles = trackDiff.status === 0
-  ? (trackDiff.stdout ?? '').split('\n').filter(Boolean)
+  ? (trackDiff.stdout ?? '').split('\n').map((f) => f.replace(/\r/g, '')).filter(Boolean)
   : [];
 
 const FE_RE = /\.(tsx?|jsx?|vue|svelte|css|scss)$|^(web|frontend)\//;
@@ -53,7 +54,9 @@ if (hasDocs) tracks.push('docs');
 if (tracks.length > 0) {
   const label = tracks.length > 1 ? 'Tracks' : 'Track';
   process.stdout.write(`[arbiter] ${label}: ${tracks.join(' + ')}\n`);
-  if (hasFE) process.stdout.write('  FE: verify component renders + snapshot tests pass\n');
-  if (hasBE) process.stdout.write('  BE: verify integration tests pass + no new lint warnings\n');
-  if (hasDocs) process.stdout.write('  Docs: verify internal links + run check-doc-links.mjs\n');
+<% const _stackMap = { typescript: 'ts', java: 'java', go: 'go', python: 'python', rust: 'rust', multi: 'ts' }; %>
+<% const _stack = _stackMap[language] || 'ts'; %>
+<%- include(`./post-commit-checklists/${_stack}/frontend.ejs`) %>
+<%- include(`./post-commit-checklists/${_stack}/backend.ejs`) %>
+<%- include(`./post-commit-checklists/${_stack}/docs.ejs`) %>
 }

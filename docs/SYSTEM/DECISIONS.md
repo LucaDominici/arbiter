@@ -980,6 +980,8 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Consequences:** Target projects gain: (1) explicit context-economy rule in Claude rules; (2) machine-readable track routing consumable by hooks and agents; (3) UserPromptSubmit hint before every task that touches track-specific files; (4) post-commit per-track checklist guidance. `post-commit-check.mjs` content change is a template extension — existing installations with `skipIfExists: true` will not auto-update until arbiter re-init.
 
+**Completion (#724, 2026-05-17):** Issue #724 finishes the stub-grade track-detection block. Changes: (1) `scripts/detect-track.mjs` — shared lib exporting `detectTracks(files)` and `TRACK_PATTERNS` as the canonical single source of truth; (2) 15 EJS partials at `src/templates/claude/hooks/post-commit-checklists/<stack>/<track>.ejs` — per-stack × per-track advisory text (TS/Java/Go/Python/Rust × frontend/backend/docs) baked into generated hooks at `arbiter init` time via EJS `include`; (3) `post-commit-check.mjs.ejs` updated — inline detection gains CRLF normalization, checklists replaced by stack-specific EJS partials; (4) `.claude/hooks/post-commit-check.mjs` (self-config) updated — inline detection replaced by dynamic `await import()` of `scripts/detect-track.mjs` wrapped in try-catch (RT-EH-001: static ESM import on a missing module crashes all commits). Architecture: 15 EJS files are render-time content partials (Option A), not independent hooks — eliminates the dispatcher-registration problem (RT-AR-001). See `docs/SYSTEM/POST_COMMIT_TRACKS.md` for taxonomy and extension guide.
+
 ## ADR-042: Rust context-aware INV-04 checkers + rebased-aware docs-check (#360, #356)
 
 **Date:** 2026-05-14
