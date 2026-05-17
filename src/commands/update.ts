@@ -99,6 +99,7 @@ function v2ToProjectConfig(
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
     ...(stored.taskTiers !== undefined && { taskTiers: stored.taskTiers }),
+    includeViaferaPort: stored.governance?.invariants_catalog === 'extended',
   }
 }
 

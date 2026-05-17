@@ -131,7 +131,9 @@ export function runTaskRecordTechDebt(
   if ('ok' in ghResult) return ghResult
 
   // gh issue create outputs a URL like https://github.com/owner/repo/issues/42
-  const match = ghResult.stdout.trim().match(/\/issues\/(\d+)$/)
+  // Some gh versions emit extra lines; search all lines for the URL
+  const urlLine = ghResult.stdout.split('\n').find((l) => /\/issues\/\d+$/.test(l.trim()))
+  const match = urlLine?.trim().match(/\/issues\/(\d+)$/)
   const issueStr = match?.[1]
   if (!issueStr) {
     return {

@@ -22,6 +22,7 @@ export function generateGlobalInvariants(config: ProjectConfig): WriteResult {
     language: config.language,
     governanceLevel: config.governanceLevel,
     invariantTiers: config.invariantTiers,
+    ...(config.includeViaferaPort ? { includeViaferaPort: true } : {}),
   })
   const invariantsByTier = getInvariantsByTier(invariants)
 
