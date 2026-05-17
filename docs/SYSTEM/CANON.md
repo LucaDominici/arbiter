@@ -231,3 +231,39 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Promoted to:** INV-46
 
 **Source issues:** audit 2026-05-12 (determinism + anti-bloat analysis)
+
+---
+
+## CANON-18 — Every workflow EJS template edit must be tested across all stacks × governance
+
+**Rule:** When adding or modifying any `src/templates/github/workflows/*.ejs` file, render the template for all 5 stacks × 3 governance levels (L1/L2/L3) in the test suite and assert `actionlint` passes on every rendered output.
+
+**Why:** Workflow templates are the primary CI governance artifact emitted by arbiter. An EJS syntax error or missing interpolation variable in a workflow template silently breaks generated CI for any project that uses that stack or governance level. Cross-product rendering catches these before merge.
+
+**Enforcement:** `__tests__/matrix/cross-product.test.ts` extended with workflow rendering assertions. Run on every workflow template change.
+
+**Source issues:** CI-TIER-MODEL spec (2026-05-17)
+
+---
+
+## CANON-19 — sign-and-attest composite action edits require release workflow re-validation
+
+**Rule:** When adding or modifying `.github/actions/sign-and-attest/action.yml.ejs` or any file under `src/templates/github/actions/`, the release workflow template (`05-release.yml.ejs`) must be re-rendered and its `actionlint` / cosign / SLSA output validated for all 4 archetype buckets (lib, service, cli, batch).
+
+**Why:** The sign-and-attest composite action is called from four distinct publish job paths. A breaking input rename or missing output silently breaks release signing for every archetype that references the action.
+
+**Enforcement:** Prose — checked at PR review for any composite action template edit.
+
+**Source issues:** CI-TIER-MODEL spec (2026-05-17)
+
+---
+
+## CANON-20 — Governance threshold table changes require cross-product fixture update
+
+**Rule:** When editing `src/config/thresholds-l1-l2-l3.ts` (the CI tier threshold matrix), the affected workflow templates must be re-rendered and their output verified to contain updated threshold values. Fixture snapshots under `__tests__/fixtures/` must be regenerated.
+
+**Why:** Threshold values flow from `thresholds-l1-l2-l3.ts` through EJS interpolation into generated workflow YAML. A threshold change that does not propagate through fixtures creates a silent divergence between what the spec promises and what generated projects receive.
+
+**Enforcement:** Prose — checked at PR review when threshold matrix changes. Promotable to a gate check once snapshot tooling is wired.
+
+**Source issues:** CI-TIER-MODEL spec (2026-05-17)

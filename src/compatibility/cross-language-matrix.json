@@ -1,6 +1,6 @@
 {
   "_comment": "Machine-readable maturity index for the cross-language enforcement matrix. Values: proven | beta | unsafe | unavailable. Consumed by src/utils/maturity-check.ts.",
-  "_lastUpdated": "2026-05-11",
+  "_lastUpdated": "2026-05-18",
   "static_analysis": {
     "java": {
       "tool": "checkstyle+pmd+spotbugs+spotless",
@@ -222,6 +222,222 @@
       "tool": "stylelint",
       "maturity": "proven",
       "reason": "stylelint 16+ enforces color-no-hex and design-token discipline; widely adopted in ts-frontend-spa stacks (haben pattern, #352)"
+    }
+  },
+  "fuzz": {
+    "java": {
+      "tool": "jqwik",
+      "maturity": "beta",
+      "reason": "jqwik property-based fuzzing runs in JUnit5; 30-min nightly budget per spec T4"
+    },
+    "typescript": {
+      "tool": "fast-check",
+      "maturity": "beta",
+      "reason": "fast-check property testing integrates with Vitest; nightly budget"
+    },
+    "rust": {
+      "tool": "cargo-fuzz",
+      "maturity": "beta",
+      "reason": "cargo-fuzz (libFuzzer) is the standard Rust fuzz harness; requires nightly toolchain"
+    },
+    "go": {
+      "tool": "go-fuzz / native fuzz",
+      "maturity": "beta",
+      "reason": "Go 1.18+ native fuzzing; go-fuzz as fallback; 30-min nightly budget"
+    },
+    "python": {
+      "tool": "atheris",
+      "maturity": "beta",
+      "reason": "atheris (Google libFuzzer Python bindings) is the recommended Python fuzzer; nightly"
+    }
+  },
+  "dast": {
+    "java": {
+      "tool": "owasp-zap",
+      "maturity": "beta",
+      "reason": "OWASP ZAP baseline (T2) and full scan (T4 nightly) against ephemeral container"
+    },
+    "typescript": {
+      "tool": "owasp-zap",
+      "maturity": "beta",
+      "reason": "OWASP ZAP baseline (T2) and full scan (T4 nightly)"
+    },
+    "rust": {
+      "tool": "owasp-zap",
+      "maturity": "beta",
+      "reason": "OWASP ZAP baseline against service-archetype Rust binaries only; cli/lib: unavailable"
+    },
+    "go": {
+      "tool": "owasp-zap",
+      "maturity": "beta",
+      "reason": "OWASP ZAP baseline against service-archetype Go binaries only; cli/lib: unavailable"
+    },
+    "python": {
+      "tool": "owasp-zap",
+      "maturity": "beta",
+      "reason": "OWASP ZAP baseline (T2) and full scan (T4 nightly) for service/batch archetypes"
+    }
+  },
+  "license_scan": {
+    "java": {
+      "tool": "license-maven-plugin",
+      "maturity": "beta",
+      "reason": "license-maven-plugin checks third-party licenses against an allow-list at T2"
+    },
+    "typescript": {
+      "tool": "license-checker",
+      "maturity": "beta",
+      "reason": "license-checker (npm) enumerates package licenses; T2 gate with deny-list"
+    },
+    "rust": {
+      "tool": "cargo-deny licenses",
+      "maturity": "beta",
+      "reason": "cargo-deny [licenses] table enforces SPDX allow/deny list; T2 gate"
+    },
+    "go": {
+      "tool": "go-licenses",
+      "maturity": "beta",
+      "reason": "go-licenses (Google) enumerates module licenses; T2 gate"
+    },
+    "python": {
+      "tool": "pip-licenses",
+      "maturity": "beta",
+      "reason": "pip-licenses enumerates installed package licenses; T2 gate"
+    }
+  },
+  "sbom": {
+    "java": {
+      "tool": "cyclonedx-maven-plugin",
+      "maturity": "beta",
+      "reason": "cyclonedx-maven-plugin generates CycloneDX SBOM at T3 release; wired in existing nightly"
+    },
+    "typescript": {
+      "tool": "npm sbom / cyclonedx-npm",
+      "maturity": "beta",
+      "reason": "npm sbom (npm 8+) or cyclonedx-npm for CycloneDX output at T3"
+    },
+    "rust": {
+      "tool": "cargo-cyclonedx",
+      "maturity": "beta",
+      "reason": "cargo-cyclonedx generates CycloneDX SBOM for Rust workspace artifacts"
+    },
+    "go": {
+      "tool": "syft",
+      "maturity": "beta",
+      "reason": "syft (Anchore) closes the Go SBOM gap — nightly.yml.ejs excluded Go (line 114); T3/T4"
+    },
+    "python": {
+      "tool": "cyclonedx-py",
+      "maturity": "beta",
+      "reason": "cyclonedx-bom (Python) generates CycloneDX SBOM from pip environment at T3"
+    }
+  },
+  "binary_signing": {
+    "java": {
+      "tool": "cosign sign-blob",
+      "maturity": "beta",
+      "reason": "cosign keyless sign-blob over JARs and native-image binaries at T3; Sigstore OIDC"
+    },
+    "typescript": {
+      "tool": "cosign sign-blob",
+      "maturity": "beta",
+      "reason": "cosign sign-blob over npm tarballs and cli binaries; Sigstore OIDC"
+    },
+    "rust": {
+      "tool": "cosign sign-blob",
+      "maturity": "beta",
+      "reason": "cosign sign-blob over cargo-dist binary artifacts; Sigstore OIDC"
+    },
+    "go": {
+      "tool": "cosign sign / cosign sign-blob",
+      "maturity": "beta",
+      "reason": "cosign sign for container images (service); sign-blob for goreleaser binaries (cli)"
+    },
+    "python": {
+      "tool": "cosign sign-blob",
+      "maturity": "beta",
+      "reason": "cosign sign-blob over wheels (twine) and pyinstaller binaries; Sigstore OIDC"
+    }
+  },
+  "provenance": {
+    "java": {
+      "tool": "actions/attest-build-provenance + slsa-github-generator",
+      "maturity": "beta",
+      "reason": "GitHub native provenance (L1/L2) + slsa-github-generator hermetic builder (L3) at T3"
+    },
+    "typescript": {
+      "tool": "actions/attest-build-provenance + slsa-github-generator",
+      "maturity": "beta",
+      "reason": "GitHub native provenance (L1/L2) + slsa-github-generator (L3) at T3"
+    },
+    "rust": {
+      "tool": "actions/attest-build-provenance + slsa-github-generator",
+      "maturity": "beta",
+      "reason": "GitHub native provenance (L1/L2) + slsa-github-generator (L3) at T3"
+    },
+    "go": {
+      "tool": "actions/attest-build-provenance + slsa-github-generator",
+      "maturity": "beta",
+      "reason": "GitHub native provenance (L1/L2) + slsa-github-generator (L3) at T3"
+    },
+    "python": {
+      "tool": "actions/attest-build-provenance + slsa-github-generator",
+      "maturity": "beta",
+      "reason": "GitHub native provenance (L1/L2) + slsa-github-generator (L3) at T3"
+    }
+  },
+  "container_scan": {
+    "java": {
+      "tool": "trivy",
+      "maturity": "beta",
+      "reason": "Trivy HIGH+CRITICAL (L2) / MEDIUM+ (L3) blocking at T2 when Dockerfile changed; T3 rescan"
+    },
+    "typescript": {
+      "tool": "trivy",
+      "maturity": "beta",
+      "reason": "Trivy container scan at T2/T3 for service-archetype TS projects"
+    },
+    "rust": {
+      "tool": "trivy",
+      "maturity": "beta",
+      "reason": "Trivy container scan at T2/T3 for service-archetype Rust projects"
+    },
+    "go": {
+      "tool": "trivy",
+      "maturity": "beta",
+      "reason": "Trivy container scan at T2/T3 for service-archetype Go projects"
+    },
+    "python": {
+      "tool": "trivy",
+      "maturity": "beta",
+      "reason": "Trivy container scan at T2/T3 for service-archetype Python projects"
+    }
+  },
+  "secret_scan": {
+    "java": {
+      "tool": "gitleaks",
+      "maturity": "beta",
+      "reason": "Gitleaks diff-scan at T1; full history scan at T3 and T4 nightly"
+    },
+    "typescript": {
+      "tool": "gitleaks",
+      "maturity": "beta",
+      "reason": "Gitleaks diff-scan at T1; full history scan at T3 and T4 nightly"
+    },
+    "rust": {
+      "tool": "gitleaks",
+      "maturity": "beta",
+      "reason": "Gitleaks diff-scan at T1; full history scan at T3 and T4 nightly"
+    },
+    "go": {
+      "tool": "gitleaks",
+      "maturity": "beta",
+      "reason": "Gitleaks diff-scan at T1; full history scan at T3 and T4 nightly"
+    },
+    "python": {
+      "tool": "gitleaks",
+      "maturity": "beta",
+      "reason": "Gitleaks diff-scan at T1; full history scan at T3 and T4 nightly"
     }
   },
   "a11y": {
