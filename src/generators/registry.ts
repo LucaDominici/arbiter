@@ -331,7 +331,10 @@ function buildGovernanceSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'gdpr-erasure',
-      enabled: config.enableGdprErasureRunbook === true,
+      // Hook stub templates exist only for typescript/java/kotlin/go; unsupported languages throw.
+      enabled:
+        config.enableGdprErasureRunbook === true &&
+        ['typescript', 'java', 'kotlin', 'go'].includes(config.language),
       run: () => generateGdprErasure(config).files,
     },
     {

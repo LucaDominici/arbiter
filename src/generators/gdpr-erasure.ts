@@ -57,13 +57,16 @@ export function generateGdprErasure(config: ProjectConfig): GdprErasureResult {
   const tmpl = hookTemplate(config.language)
   const fname = hookFilename(config.language)
   const hookDir = resolvedPath(config.targetDir, 'docs', 'SYSTEM', 'gdpr-erasure-hooks')
+  // Render all templates before writing any file — prevents partial scaffold on template error.
+  const runbookContent = renderTemplate('governance/gdpr-erasure-runbook.md.ejs', config)
+  const hookContent = renderTemplate(tmpl, config)
   const files: WriteResult[] = [
     writeFile(
       resolvedPath(config.targetDir, 'docs', 'SYSTEM', 'GDPR_ERASURE_RUNBOOK.md'),
-      renderTemplate('governance/gdpr-erasure-runbook.md.ejs', config),
+      runbookContent,
       { skipIfExists: true },
     ),
-    writeFile(resolvedPath(hookDir, fname), renderTemplate(tmpl, config), { skipIfExists: true }),
+    writeFile(resolvedPath(hookDir, fname), hookContent, { skipIfExists: true }),
   ]
 
   return { files }

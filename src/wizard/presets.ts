@@ -21,7 +21,10 @@ export function applyPreset(preset: ProjectPreset, config: ProjectConfig): void 
   config.enableOperationsHandbook = true
   config.enableMcpFallback = true
   config.enableEnterpriseComplianceBaseline = true
-  config.enableGdprErasureRunbook = true
+  // Hook stubs exist only for typescript/java/kotlin/go; skip flag for other languages.
+  if (['typescript', 'java', 'kotlin', 'go'].includes(config.language)) {
+    config.enableGdprErasureRunbook = true
+  }
   config.contractIntegrity = {
     gates: {
       openapiSnapshot: true,

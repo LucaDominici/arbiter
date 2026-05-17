@@ -51,8 +51,10 @@ for (const { file, label, keyword, issue } of gates) {
 
     it(`${label}: exit-code contract comment present (INV-53)`, () => {
       const out = render()
-      // Generated scripts must document the 0=PASS/1=FAIL/2=ERROR contract
-      expect(out).toMatch(/exit.*0.*pass|0=pass|exit 0/i)
+      // Generated scripts must document the full 0=PASS/1=FAIL/2=ERROR contract
+      expect(out).toMatch(/0\s*[=:]\s*pass/i)
+      expect(out).toMatch(/1\s*[=:]\s*fail/i)
+      expect(out).toMatch(/2\s*[=:]\s*(error|skip)/i)
     })
   })
 }
