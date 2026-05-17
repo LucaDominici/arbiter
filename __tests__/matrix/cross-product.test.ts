@@ -1051,7 +1051,7 @@ describe('cross-product: generateNightly — L3 emits nightly files per stack', 
       }
     })
 
-    it(`${lang}+L1: generateNightly emits 0 files`, () => {
+    it(`${lang}+L1: generateNightly emits files at all governance levels`, () => {
       const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
       try {
         const config = makeConfig(d, {
@@ -1059,13 +1059,13 @@ describe('cross-product: generateNightly — L3 emits nightly files per stack', 
           governanceLevel: 'L1',
           ...STACK_CONFIG[lang],
         })
-        expect(generateNightly(config).files).toHaveLength(0)
+        expect(generateNightly(config).files.length).toBeGreaterThan(0)
       } finally {
         rmSync(d, { recursive: true, force: true })
       }
     })
 
-    it(`${lang}+L2: generateNightly emits 0 files`, () => {
+    it(`${lang}+L2: generateNightly emits files at all governance levels`, () => {
       const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
       try {
         const config = makeConfig(d, {
@@ -1073,7 +1073,7 @@ describe('cross-product: generateNightly — L3 emits nightly files per stack', 
           governanceLevel: 'L2',
           ...STACK_CONFIG[lang],
         })
-        expect(generateNightly(config).files).toHaveLength(0)
+        expect(generateNightly(config).files.length).toBeGreaterThan(0)
       } finally {
         rmSync(d, { recursive: true, force: true })
       }
