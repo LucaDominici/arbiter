@@ -11,10 +11,12 @@ const ORPHAN_TODO_HOOK = join(process.cwd(), 'src/templates/claude/hooks/check-n
 const STOP_DANGEROUS_HOOK = join(process.cwd(), 'src/templates/claude/hooks/stop-dangerous.mjs')
 
 function runAdapter(stdinPayload: object, hookPath: string, extraEnv: Record<string, string> = {}) {
+  const baseEnv = { ...process.env }
+  delete baseEnv['ARBITER_SSOT_BYPASS']
   return spawnSync('node', [ADAPTER, hookPath], {
     input: JSON.stringify(stdinPayload),
     encoding: 'utf-8',
-    env: { ...process.env, ...extraEnv },
+    env: { ...baseEnv, ...extraEnv },
   })
 }
 
