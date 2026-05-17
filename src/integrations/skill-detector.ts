@@ -98,8 +98,17 @@ function collectFromDir(dir: string, seen: Set<string>, results: InstalledSkill[
 //   2. targetDir/.claude/skills/NAME/SKILL.md
 //   3. claudeHome/plugins/cache/PLUGIN/VERSION/skills/NAME/SKILL.md
 //   4. claudeHome/skills/NAME/SKILL.md
+//
+// Per-session cache keyed by (targetDir, claudeHome). Subsequent calls
+// with the same key reuse the previous scan result instead of walking
+// the FS again. Tests / long-running processes that mutate skills on
+// disk between scans MUST call `clearSkillCache()` to force a re-walk.
 export function detectInstalledSkills(opts: DetectOptions): InstalledSkill[] {
   const { targetDir, claudeHome } = opts
+  const cacheKey = `${targetDir}\x00${claudeHome}`
+  const hit = skillCache.get(cacheKey)
+  if (hit) return hit
+
   const seen = new Set<string>()
   const results: InstalledSkill[] = []
 
@@ -108,7 +117,21 @@ export function detectInstalledSkills(opts: DetectOptions): InstalledSkill[] {
   collectFromDir(join(claudeHome, 'plugins', 'cache'), seen, results)
   collectFromDir(join(claudeHome, 'skills'), seen, results)
 
+  skillCache.set(cacheKey, results)
   return results
+}
+
+const skillCache = new Map<string, InstalledSkill[]>()
+
+/**
+ * Clear the per-session skill-detector cache (#798).
+ *
+ * Long-running processes (daemons, watchers) and test suites that
+ * mutate skills on disk between scans MUST call this to force the
+ * next `detectInstalledSkills` call to re-walk the FS.
+ */
+export function clearSkillCache(): void {
+  skillCache.clear()
 }
 
 // Compatibility shim for #550 — check presence of a named superpowers skill.
