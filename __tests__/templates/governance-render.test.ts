@@ -79,6 +79,57 @@ describe('governance template rendering (#166, #712)', () => {
     })
   })
 
+  describe('qa-audit-phases.md.ejs (#727)', () => {
+    it('renders without EJS leaks', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      expect(out).not.toContain('<%')
+      expect(out).not.toContain('%>')
+    })
+
+    it('interpolates projectName in heading', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      expect(out).toContain('test-project')
+    })
+
+    it('contains six default phases 01..06', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      for (const id of ['01', '02', '03', '04', '05', '06']) {
+        expect(out).toMatch(new RegExp(`### Phase ${id} —`))
+      }
+    })
+
+    it('contains schema example with required fields', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      expect(out).toMatch(/"phase":/)
+      expect(out).toMatch(/"rerun":/)
+      expect(out).toMatch(/"cadence":/)
+      expect(out).toMatch(/"severity_thresholds":/)
+    })
+
+    it('contains arbiter audit run CLI signature', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      expect(out).toMatch(/arbiter audit run/)
+    })
+
+    it('contains cadence cron mapping', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      expect(out).toMatch(/Cron schedule/)
+      expect(out).toMatch(/weekly/)
+      expect(out).toMatch(/monthly/)
+    })
+
+    it('contains anti-patterns and NI-4 reference', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      expect(out).toMatch(/Anti-patterns/i)
+      expect(out).toMatch(/NI-4/)
+    })
+
+    it('contains opt-in flag governance.qa_audit_phases', () => {
+      const out = renderTemplate('governance/qa-audit-phases.md.ejs', cfg())
+      expect(out).toMatch(/governance.*qa_audit_phases/)
+    })
+  })
+
   describe('contract-integrity-policy.md.ejs (#716)', () => {
     it('renders without EJS leaks', () => {
       const out = renderTemplate('governance/contract-integrity-policy.md.ejs', cfg())
