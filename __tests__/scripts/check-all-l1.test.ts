@@ -7,10 +7,10 @@ const content = readFileSync(SCRIPT, 'utf-8')
 
 describe('check-all.mjs L1 wiring', () => {
   it('invokes check-matrix-fixtures.mjs in L1 block (#179)', () => {
-    const l2BlockIdx = content.indexOf('// ─── L2/L3: Full checks')
+    const gateBlockIdx = content.indexOf('// ─── gate: T1+T2 extended checks')
     const matrixIdx = content.indexOf('check-matrix-fixtures.mjs')
     expect(matrixIdx).toBeGreaterThan(-1)
-    expect(matrixIdx).toBeLessThan(l2BlockIdx)
+    expect(matrixIdx).toBeLessThan(gateBlockIdx)
   })
 
   it("matrix fixtures step uses 'node' runner (#179)", () => {

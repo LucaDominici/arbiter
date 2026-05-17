@@ -1,18 +1,23 @@
 #!/usr/bin/env node
 // arbiter quality gate
-// Usage: node scripts/check-all.mjs [L1|L2|L3] [--json [path]]
-// L1: typecheck, format, lint, unit tests, circular deps, placeholders, i18n raw strings,
-//     spdx headers, orphan TODOs, commitlint, test naming, hardness inventory, docs,
-//     matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
-//     catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
-//     bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
-//     canonical paths, plugin api stability, deprecations, hook contracts (37)
-// L2: L1 + coverage + docs:build + dead code + duplication + npm audit + gitleaks + dogfood +
-//     self-validation drill + local-ci parity + id stability + anti-telemetry + tdd-evidence (50)
-// L3: L2 + full repo secrets scan (nightly/manual)
+// Usage: node scripts/check-all.mjs [subcommand] [--level L1|L2|L3] [--json [path]]
+//   Subcommands: check (T1 fast, ~2 min), gate (T1+T2, ~10 min, default),
+//                full (T1+T2+T3 dry-run, ~35 min),
+//                simulate-nightly (T4), simulate-weekly (T5)
+//   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
+//
+// check: typecheck, format, lint, unit tests, circular deps, placeholders, i18n raw strings,
+//        spdx headers, orphan TODOs, commitlint, test naming, hardness inventory, docs,
+//        matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
+//        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
+//        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
+//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot (38)
+// gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
+//       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
+//       tdd-evidence (51)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
-//   Writes schema arbiter-gate-v1 with parityContentHash over static L1 gate subset.
+//   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
 //
 // NOTE: this file runs without a build step and cannot import from src/.
 // src/ code goes through src/utils/run-cli.ts (INV-12). Gate scripts use the
@@ -23,22 +28,10 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { runCheck, getResults, getFailed } from './lib/run-helpers.mjs'
+import { parseCheckArgs } from './lib/parse-check-args.mjs'
 
-// Parse positional level arg and optional --json [path] flag
-let level = 'L2'
-let jsonPath = null // null = write to default path; string = write to that path
-const _rawArgs = process.argv.slice(2)
-for (let _i = 0; _i < _rawArgs.length; _i++) {
-  if (_rawArgs[_i] === '--json') {
-    if (_i + 1 < _rawArgs.length && !_rawArgs[_i + 1].startsWith('-')) {
-      jsonPath = _rawArgs[++_i]
-    } else {
-      jsonPath = '' // triggers default path resolution below
-    }
-  } else if (['L1', 'L2', 'L3'].includes(_rawArgs[_i])) {
-    level = _rawArgs[_i]
-  }
-}
+const { subcommand, level, jsonPath: _parsedJsonPath } = parseCheckArgs(process.argv.slice(2))
+let jsonPath = _parsedJsonPath
 
 // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
 // git-dependent checks (commitlint, docs) must run from the original repo path.
@@ -49,11 +42,10 @@ const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
 const PARITY_EXCLUDE = new Set(['commitlint', 'docs', 'unit tests'])
 
 process.stdout.write('\n')
-process.stdout.write(`=== arbiter Quality Gate: ${level} ===
-`)
+process.stdout.write(`=== arbiter Quality Gate: ${subcommand} [${level}] ===\n`)
 process.stdout.write('\n')
 
-// ─── L1: Fast checks ─────────────────────────────────────────────────────────
+// ─── check: T1 fast checks ───────────────────────────────────────────────────
 runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
 runCheck('format', 'npx', ['prettier', '--check', '.'])
 runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])
@@ -103,8 +95,8 @@ runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length
 
-// ─── L2/L3: Full checks ───────────────────────────────────────────────────────
-if (level === 'L2' || level === 'L3') {
+// ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
+if (subcommand !== 'check') {
   runCheck('coverage', 'npm', ['test', '--', '--coverage'])
   runCheck('docs:build', 'npm', ['run', 'docs:build'])
   runCheck('dead code', 'npx', ['knip'])

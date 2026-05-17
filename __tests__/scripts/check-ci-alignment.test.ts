@@ -235,9 +235,9 @@ jobs:
 describe('check-ci-alignment.mjs wiring in check-all.mjs', () => {
   it('is wired into the L1 block of check-all.mjs (#240)', () => {
     const content = readFileSync(resolve('scripts/check-all.mjs'), 'utf-8')
-    const l2BlockIdx = content.indexOf('// ─── L2/L3: Full checks')
+    const gateBlockIdx = content.indexOf('// ─── gate: T1+T2 extended checks')
     const ciAlignIdx = content.indexOf('check-ci-alignment.mjs')
     expect(ciAlignIdx).toBeGreaterThan(-1)
-    expect(ciAlignIdx).toBeLessThan(l2BlockIdx)
+    expect(ciAlignIdx).toBeLessThan(gateBlockIdx)
   })
 })
