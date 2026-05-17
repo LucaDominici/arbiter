@@ -1024,6 +1024,7 @@ task
       process.stdout.write(`record-tech-debt: OK (issue #${result.issueNumber})\n`)
     } else {
       process.stderr.write(`record-tech-debt: FAIL — ${result.reason}\n`)
+      process.exit(1)
     }
   })
 

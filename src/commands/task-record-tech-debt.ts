@@ -29,11 +29,18 @@ function appendTechDebtIssue(evidenceDir: string, issueNumber: number): void {
   const tdPath = join(evidenceDir, 'tech-debt.json')
   let issues: number[] = []
   if (existsSync(tdPath)) {
+    const raw = readFileSync(tdPath, 'utf-8')
     try {
-      const parsed = JSON.parse(readFileSync(tdPath, 'utf-8')) as { issues: number[] }
-      issues = Array.isArray(parsed.issues) ? parsed.issues : []
-    } catch {
-      issues = []
+      const parsed = JSON.parse(raw) as { issues: unknown[] }
+      issues = Array.isArray(parsed.issues)
+        ? parsed.issues.filter((v): v is number => typeof v === 'number' && Number.isInteger(v))
+        : []
+    } catch (err: unknown) {
+      if (err instanceof SyntaxError) {
+        issues = []
+      } else {
+        throw err
+      }
     }
   }
   issues.push(issueNumber)
@@ -83,10 +90,6 @@ function invokeGhCreate(
         'tech-debt',
         '--label',
         'follow-up',
-        '--json',
-        'number',
-        '--jq',
-        '.number',
       ],
       { cwd: dir, timeoutMs: 30_000 },
     )
@@ -127,29 +130,36 @@ export function runTaskRecordTechDebt(
   )
   if ('ok' in ghResult) return ghResult
 
-  const issueNumber = Number.parseInt(ghResult.stdout.trim(), 10)
-  if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+  // gh issue create outputs a URL like https://github.com/owner/repo/issues/42
+  const match = ghResult.stdout.trim().match(/\/issues\/(\d+)$/)
+  const issueStr = match?.[1]
+  if (!issueStr) {
     return {
       ok: false,
       reason: `gh returned non-integer issue number: ${JSON.stringify(ghResult.stdout.trim())}`,
     }
   }
+  const issueNumber = Number.parseInt(issueStr, 10)
 
   const evidenceDir = join(dir, '.arbiter', 'evidence', sanitizeTaskId(taskId))
-  mkdirSync(evidenceDir, { recursive: true })
-  appendTechDebtIssue(evidenceDir, issueNumber)
-
-  const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
-  appendFileSync(
-    join(evidenceDir, 'log.md'),
-    [
-      `## ${timestamp} — tech-debt issue #${issueNumber}`,
-      `- ${description}`,
-      `- triggered-by: ${taskId}`,
-      '',
-    ].join('\n'),
-    'utf-8',
-  )
+  try {
+    mkdirSync(evidenceDir, { recursive: true })
+    appendTechDebtIssue(evidenceDir, issueNumber)
+    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ')
+    appendFileSync(
+      join(evidenceDir, 'log.md'),
+      [
+        `## ${timestamp} — tech-debt issue #${issueNumber}`,
+        `- ${description}`,
+        `- triggered-by: ${taskId}`,
+        '',
+      ].join('\n'),
+      'utf-8',
+    )
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: `evidence write failed: ${msg}` }
+  }
 
   return { ok: true, issueNumber }
 }

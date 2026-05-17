@@ -59,9 +59,14 @@ describe('runTaskRecordTechDebt()', () => {
     return d
   }
 
-  it('(a) happy path: gh returns issue number → tech-debt.json + log.md written', () => {
+  it('(a) happy path: gh returns issue URL → tech-debt.json + log.md written', () => {
     const dir = tmpRepo()
-    mockedRunCli.mockReturnValueOnce({ stdout: '42\n', stderr: '', exitCode: 0, durationMs: 200 })
+    mockedRunCli.mockReturnValueOnce({
+      stdout: 'https://github.com/owner/repo/issues/42\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 200,
+    })
 
     const result = runTaskRecordTechDebt({ description: 'missing input validation', dir })
     expect(result.ok).toBe(true)
@@ -128,8 +133,18 @@ describe('runTaskRecordTechDebt()', () => {
   it('(e) sequential appendTechDebtIssue calls preserve prior entries', () => {
     const dir = tmpRepo()
     mockedRunCli
-      .mockReturnValueOnce({ stdout: '10\n', stderr: '', exitCode: 0, durationMs: 100 })
-      .mockReturnValueOnce({ stdout: '20\n', stderr: '', exitCode: 0, durationMs: 100 })
+      .mockReturnValueOnce({
+        stdout: 'https://github.com/owner/repo/issues/10\n',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 100,
+      })
+      .mockReturnValueOnce({
+        stdout: 'https://github.com/owner/repo/issues/20\n',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 100,
+      })
 
     const r1 = runTaskRecordTechDebt({ description: 'debt one', dir })
     const r2 = runTaskRecordTechDebt({ description: 'debt two', dir })
