@@ -308,6 +308,37 @@ Codes:
 | `CANON-NN` | Process rules (`docs/SYSTEM/CANON.md`)          |
 | `E_*`      | Error catalog (`src/utils/error-catalog.ts`)    |
 
+**`--help` output:**
+
+```
+Usage: arbiter explain [options] [code]
+
+Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule
+
+Options:
+  --format <format>  Output format: text (default) or json
+  --list             List all known codes grouped by category
+  -h, --help         display help for command
+```
+
+**`--format json` example:**
+
+```bash
+arbiter explain --format json INV-01
+```
+
+```json
+{
+  "code": "INV-01",
+  "category": "INV",
+  "summary": "No circular dependencies between modules",
+  "detail": "Circular imports create tight coupling and make modules impossible to test in isolation. Every module must have a clear single direction of dependency. Detected by static analysis in CI.",
+  "enforcement": "CI (madge / go vet / cargo check / pylint)",
+  "tier": "architectural",
+  "alwaysActive": true
+}
+```
+
 ---
 
 ## `arbiter diff`
