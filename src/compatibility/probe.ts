@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { detectLanguage } from '../detectors/language.js'
-import { matches } from './matcher.js'
+import { matches, UnparseableConstraintError, validateRanges } from './matcher.js'
 import {
   parseNodeVersion,
   parseNpmVersion,
@@ -173,7 +173,22 @@ export function probeTool(
     }
   }
 
-  if (!matches(version, range)) {
+  let inRange: boolean
+  try {
+    inRange = matches(version, range)
+  } catch (err) {
+    // #854 — surface matrix-author bugs as 'matrix-bug', not 'version outside range'
+    if (err instanceof UnparseableConstraintError) {
+      return {
+        tool,
+        status: 'failed',
+        version,
+        reason: `matrix-bug: ${err.message}`,
+      }
+    }
+    throw err
+  }
+  if (!inRange) {
     return {
       tool,
       status: 'failed',
@@ -223,6 +238,39 @@ export function validateMatrix(raw: unknown): LanguageMatrix {
 
 const MATRIX = validateMatrix(matrixJson)
 
+// #854 — validate every range in the matrix at load time so author bugs
+// surface immediately instead of as misleading "version outside range"
+// errors at user-probe time.
+function assertMatrixRangesParseable(matrix: LanguageMatrix): void {
+  const allEntries: Array<{ tool: string; range: string }> = []
+  for (const key of REQUIRED_MATRIX_KEYS) {
+    for (const entry of matrix[key]) {
+      allEntries.push({ tool: entry.tool, range: entry.range })
+    }
+  }
+  const failures = validateRanges(allEntries)
+  if (failures.length > 0) {
+    const summary = failures.map((f) => `  ${f.tool}: ${f.reason}`).join('\n')
+    throw new Error(`matrix.json contains ${failures.length} unparseable range(s):\n${summary}`)
+  }
+}
+assertMatrixRangesParseable(MATRIX)
+
+/**
+ * Patterns matching compiler-error markers across tsc / cargo / go build /
+ * javac / kotlinc / rustc stderr output (#855). A match means the build
+ * tool printed errors even though it exited 0 (legitimate edge case in
+ * dry-run / partial-graph modes); treat as failure to prevent silent
+ * shipping of broken builds.
+ */
+const CompilerErrorPatterns: readonly RegExp[] = [
+  /\berror(\[E\d+\])?:/i,
+  /\bTS\d{4,}:/, // TypeScript diagnostics
+  /\bFAILED\b/,
+  /\bfatal error\b/i,
+  /compilation (failed|error)/i,
+]
+
 /**
  * Run a build-invocation probe in the target directory.
  * Returns skipped if the required file guard is missing.
@@ -239,10 +287,31 @@ export function runBuildProbe(dir: string, spec: BuildProbeSpec): ProbeResult {
   }
 
   try {
-    runCli(spec.command, spec.args, {
+    const result = runCli(spec.command, spec.args, {
       cwd: dir,
       timeoutMs: BUILD_PROBE_TIMEOUT_MS,
     })
+    // #855 — zero exit ≠ success. Compiler diagnostics on stderr with exit 0
+    // are possible for tsc/cargo/go build edge cases. Treat stderr matching
+    // a compiler-error marker as failure; surface other stderr content as
+    // a warning trail in the reason field.
+    const stderr = result.stderr.trim()
+    if (stderr !== '' && CompilerErrorPatterns.some((p) => p.test(stderr))) {
+      return {
+        tool: spec.name,
+        status: 'failed',
+        kind: 'build',
+        reason: `exit 0 with compiler errors on stderr: ${stderr.slice(0, 500)}`,
+      }
+    }
+    if (stderr !== '') {
+      return {
+        tool: spec.name,
+        status: 'passed',
+        kind: 'build',
+        reason: `stderr warnings (exit 0): ${stderr.slice(0, 200)}`,
+      }
+    }
     return { tool: spec.name, status: 'passed', kind: 'build' }
   } catch (err) {
     if (err instanceof CliError) {
