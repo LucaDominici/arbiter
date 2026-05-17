@@ -40,6 +40,14 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
     ),
   )
 
+  // T6 heartbeat watchdog — always regenerate
+  results.push(
+    writeFile(
+      join(workflowsDir, '08-heartbeat.yml'),
+      renderTemplate('github/workflows/08-heartbeat.yml.ejs', data),
+    ),
+  )
+
   // Drift shadow — only when solo-dev mode is active (#470)
   if (config.enableSoloDevMode) {
     results.push(
