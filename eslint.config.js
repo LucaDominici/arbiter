@@ -1,6 +1,7 @@
 import js from '@eslint/js'
 import sonarjs from 'eslint-plugin-sonarjs'
 import tseslint from 'typescript-eslint'
+import noRawCliStrings from './eslint-rules/index.js'
 
 export default tseslint.config(
   js.configs.recommended,
@@ -26,6 +27,12 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  // Raw CLI string detection for src/commands — complements scripts/check-no-raw-strings.mjs with editor-time feedback
+  {
+    files: ['src/commands/**/*.ts'],
+    plugins: { 'no-raw-cli-strings': noRawCliStrings },
+    rules: { 'no-raw-cli-strings/no-raw-cli-strings': 'warn' },
   },
   // Complexity + duplication rules for source files (not templates — EJS variants share scaffolding)
   {
