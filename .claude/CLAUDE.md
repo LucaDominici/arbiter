@@ -7,6 +7,15 @@
 
 ---
 
+## Mission
+
+arbiter is a framework for serious AI-assisted software development.
+Goals: speed, predictable outcomes, robustness, reliability, coherence.
+A project using arbiter gets the maximum any agentic-development tool can offer.
+Tradeoff: an expert-only tool.
+
+---
+
 ## Quick Reference
 
 | Fact                | Value                                |

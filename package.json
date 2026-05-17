@@ -1,7 +1,7 @@
 {
   "name": "@arbiter/cli",
   "version": "0.1.0",
-  "description": "AI development governance framework installer",
+  "description": "Framework for serious AI-assisted software development",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
