@@ -154,6 +154,18 @@ When a PR removes or renames a public symbol, flag or behavior:
 
 Bypasses are session-scoped and must reference the corresponding task ID and ADR in the commit message. Never set them in your shell profile.
 
+### Claude Code skills
+
+Arbiter ships a set of Claude Code skills under `.claude/skills/`. Skills are invoked via the `Skill` tool (or `/skill-name` slash syntax) and guide Claude through structured workflows.
+
+| Skill              | Path                                       | Purpose                                                                  |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------------------------ |
+| `ssot-navigation`  | `.claude/skills/ssot-navigation/SKILL.md`  | Navigate the authority hierarchy — which SSOT to read first for any task |
+| `tdd`              | `.claude/skills/tdd/SKILL.md`              | Enforce Red-Green-Refactor before writing any production code            |
+| `architect-review` | `.claude/skills/architect-review/SKILL.md` | Architectural review before adding new abstractions                      |
+
+Use `ssot-navigation` at the start of every non-trivial task to locate the authoritative documents before touching any file.
+
 ---
 
 ## 6. Decision Process

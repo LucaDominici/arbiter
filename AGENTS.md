@@ -25,9 +25,13 @@ When documents conflict, higher level wins. No debate.
 
 ```
 Level 1:  AGENTS.md — invariants + governance (this file)
-Level 2:  Architecture docs (docs/SYSTEM/ARCHITECTURE.md, PROJECT_STATUS.md)
-Level 3:  Source code + tests — implementation truth
+Level 2:  ADRs (docs/ADR/) — architectural decisions
+Level 3:  docs/SYSTEM/CANON.md — process constraints
+Level 4:  Active task plan (.claude/plans/*.md) — task-level guidance
+Level 5:  AI judgment — last resort
 ```
+
+> Use `.claude/skills/ssot-navigation/SKILL.md` to navigate this hierarchy and locate the right document for any task.
 
 ---
 
