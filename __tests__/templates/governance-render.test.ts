@@ -99,6 +99,23 @@ describe('governance template rendering (#166, #712)', () => {
       expect(out).toContain('Informed')
     })
 
+    it('contains enterprise-compliance-baseline rendering (#711)', () => {
+      const out = renderTemplate('governance/enterprise-compliance-baseline.md.ejs', cfg())
+      expect(out).not.toContain('<%')
+      expect(out).not.toContain('%>')
+      expect(out).toContain('test-project')
+      expect(out).toMatch(/Art\.\s*6/)
+      expect(out).toMatch(/Art\.\s*17/)
+      expect(out).toMatch(/Art\.\s*32/)
+      expect(out).toContain('NIS2')
+      expect(out).toMatch(/24h/)
+      expect(out).toContain('ISO 27001')
+      expect(out).toContain('A01:')
+      expect(out).toContain('A10:')
+      expect(out).toContain('[FILL')
+      expect(out).toMatch(/compliance.*enterprise_baseline/)
+    })
+
     it('contains responsibility matrix heading', () => {
       const out = renderTemplate('governance/RACI.md.ejs', cfg())
       expect(out).toContain('Responsibility Matrix')
