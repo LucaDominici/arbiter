@@ -58,5 +58,9 @@
   {
     "path": "hooks/hooks.mjs",
     "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ — arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land."
+  },
+  {
+    "path": "commands/review-code.md",
+    "reason": "Arbiter self-dogfood: materialized file includes an Auditor Routing section (auditor-routing.json + route-auditors.mjs) specific to arbiter's own code-review infrastructure. This section is arbiter-internal and not emitted by the target-project template."
   }
 ]
