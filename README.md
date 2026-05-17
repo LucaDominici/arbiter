@@ -193,6 +193,30 @@ See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
 
 ---
 
+## Examples
+
+Worked walkthroughs of `arbiter init` on real starter projects — one per archetype:
+
+| Example                                                  | Stack                            | Archetype        |
+| -------------------------------------------------------- | -------------------------------- | ---------------- |
+| [ts-frontend-spa](examples/ts-frontend-spa.md)           | TypeScript + React + Vitest      | `frontend-spa`   |
+| [java-backend-web-db](examples/java-backend-web-db.md)   | Java 21 + Spring Boot 3 + Gradle | `backend-web-db` |
+| [rust-cli](examples/rust-cli.md)                         | Rust + Clap                      | `cli`            |
+| [go-library](examples/go-library.md)                     | Go module                        | `library`        |
+| [python-data-pipeline](examples/python-data-pipeline.md) | Python + uv                      | `data-pipeline`  |
+
+See [`examples/`](examples/) for plugin SDK examples and the arbiter-starter fixture.
+
+---
+
+## Community
+
+- **Discussions** — [github.com/LucaDominici/arbiter/discussions](https://github.com/LucaDominici/arbiter/discussions): Q&A, ideas, show-and-tell, announcements.
+- **Good first issues** — see issues labelled [`good first issue`](https://github.com/LucaDominici/arbiter/issues?q=label%3A%22good+first+issue%22+is%3Aopen).
+- **RFC process** — see [`docs/rfc/`](docs/rfc/) for how to propose major changes.
+
+---
+
 ## Contributing
 
 Contributions are welcome. Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
