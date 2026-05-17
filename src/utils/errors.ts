@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { t } from '../i18n/index.js'
 
 /**
  * Thrown by commands when the error message is already user-readable.
@@ -35,5 +36,14 @@ export class ArbiterError extends UserFacingError {
     this.code = code
     this.hint = opts?.hint
     this.docUrl = opts?.docUrl
+  }
+
+  static fromKey(
+    code: string,
+    key: string,
+    params?: Record<string, string | number>,
+    opts?: ArbiterErrorOptions,
+  ): ArbiterError {
+    return new ArbiterError(code, t(key, params), opts)
   }
 }

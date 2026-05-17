@@ -127,6 +127,24 @@ because they're constraints, not omissions:
 
 ## Where to read next
 
+### Self-governance artifacts (#652–#655)
+
+- [Public evidence trail](arbiter-itself-evidence.md) — scrubbed snapshot of gate evidence (#653)
+- [Nightly canary](arbiter-itself-canary.md) — drift detection: does `arbiter init --dry-run` produce changes? (#654)
+- [Governance index](../governance/index.md) — ADRs, AGENTS.md, RACI in one place (#652)
+
+### Incident case studies (#655)
+
+Real invariant firings during arbiter's own development:
+
+1. [INV-04: `any` ban catching an unsafe cast](incidents/01-inv04-any-ban-unsafe-cast.md)
+2. [INV-06: orphan TODO caught at milestone closeout](incidents/02-inv06-orphan-todo-milestone-closeout.md)
+3. [INV-12: PII + direct spawn caught in a generator](incidents/03-inv12-no-pii-generator.md)
+4. [INV-32: matrix fixture parity blocking a `beta → proven` promotion](incidents/04-inv32-matrix-fixture-parity.md)
+5. [CANON-16: refactor-first saving an avoidable file creation](incidents/05-canon16-refactor-first-saving-file.md)
+
+### Reference
+
 - [`AGENTS.md`](../../AGENTS.md) — canonical invariants + governance.
 - [`docs/SYSTEM/CANON.md`](../SYSTEM/CANON.md) — 15 process rules.
 - [`docs/PLUGIN-API.md`](../PLUGIN-API.md) — the public plugin surface, with stability markers.

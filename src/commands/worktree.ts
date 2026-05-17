@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
+import { t } from '../i18n/index.js'
 import { loadConfig } from '../utils/config.js'
 import { jsonOutput } from '../utils/json-output.js'
 import {
@@ -332,11 +333,11 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     })
     return
   }
-  console.log(`\nWorktree ready: ${worktreePath}`)
-  console.log(`Branch:         ${branchName}`)
-  console.log(`Base:           ${baseBranch} @ ${baseRef}`)
+  console.log(t('cli.worktree.ready', { path: worktreePath }))
+  console.log(t('cli.worktree.branch', { branch: branchName }))
+  console.log(t('cli.worktree.base', { base: baseBranch, ref: baseRef }))
   printLinkSummary(linkSummary)
-  console.log(`\nNext:           cd '${worktreePath}'\n`)
+  console.log(t('cli.worktree.next', { path: worktreePath }))
 }
 
 // ---------------------------------------------------------------------------
@@ -434,15 +435,15 @@ function harvestAndReport(
   const result = harvestFiles(harvestOpts)
 
   if (result.copied.length > 0) {
-    console.log(`Harvested ${result.copied.length} file(s):`)
+    console.log(t('cli.worktree.harvested', { count: result.copied.length }))
     for (const f of result.copied) {
-      console.log(`  copied: ${f}`)
+      console.log(t('cli.worktree.harvest_copied', { file: f }))
     }
   }
   if (result.skipped.length > 0) {
-    console.log(`Skipped ${result.skipped.length} file(s) (uncommitted changes in main repo):`)
+    console.log(t('cli.worktree.skipped_count', { count: result.skipped.length }))
     for (const f of result.skipped) {
-      console.log(`  skipped: ${f}`)
+      console.log(t('cli.worktree.harvest_skipped', { file: f }))
     }
   }
   if (result.protectedUntracked.length > 0) {
@@ -450,13 +451,13 @@ function harvestAndReport(
       `Protected ${result.protectedUntracked.length} untracked file(s) in main repo from overwrite:`,
     )
     for (const f of result.protectedUntracked) {
-      console.log(`  protected-untracked: ${f}`)
+      console.log(t('cli.worktree.harvest_protected', { file: f }))
     }
   }
   const totalProcessed =
     result.copied.length + result.skipped.length + result.protectedUntracked.length
   if (totalProcessed === 0) {
-    console.log('No files to harvest (worktree has no changes).')
+    console.log(t('cli.worktree.no_harvest'))
   }
 
   return result
@@ -581,7 +582,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   if (!opts.keepBranch) {
     if (deleteTaskBranch(branch, gitRoot, effectiveForce)) {
-      console.log(`Branch ${branch} deleted.`)
+      console.log(t('cli.worktree.branch_deleted', { branch }))
     }
   }
 
@@ -653,7 +654,7 @@ function emitCloseResult(
     jsonOutput('worktree-close', 'ok', result)
     return
   }
-  console.log(`\nWorktree closed: ${result.worktreePath}`)
+  console.log(t('cli.worktree.closed', { path: result.worktreePath }))
   console.log()
 }
 

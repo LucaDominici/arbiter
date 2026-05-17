@@ -2,31 +2,22 @@
 import { existsSync, mkdirSync, writeFileSync, copyFileSync, renameSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { UserFacingError } from './errors.js'
+import { ArbiterError } from './errors.js'
+import { t } from '../i18n/index.js'
 
 // ── Atomic write + signal cleanup ────────────────────────────────────────────
 
 const inFlightTmpPaths = new Set<string>()
 let handlersRegistered = false
 
-const ENOSPC_MSGS: Record<string, (path: string) => string> = {
-  ENOSPC: (p) =>
-    `Disk full while writing ${p}. Free up space and retry.\n  Use \`df -h\` to check available space.`,
-  EACCES: (p) => `Permission denied writing ${p}. Check file ownership and directory permissions.`,
-  EROFS: (p) => `Cannot write ${p} — filesystem is read-only. Check mount options.`,
-  EDQUOT: (p) => `Disk quota exceeded while writing ${p}. Free up space or raise your quota.`,
-  EPERM: (p) =>
-    `Operation not permitted writing ${p}. Common causes:\n` +
-    `  1. Immutable bit set — check with \`lsattr ${p}\`, clear with \`chattr -i ${p}\`\n` +
-    `  2. SELinux/AppArmor denial — check with \`ausearch -m AVC\` or \`dmesg | grep denied\`\n` +
-    `  3. POSIX ACL restriction — check with \`getfacl ${p}\`\n` +
-    `  4. Different owner — check with \`ls -la ${p}\``,
-  ENOTDIR: (p) =>
-    `Cannot write ${p} — a component of the path is not a directory. ` +
-    `Check that no intermediate path segment is a regular file.`,
-  EISDIR: (p) =>
-    `Cannot write ${p} — target is a directory, expected a file. ` +
-    `Remove or rename the directory at that path first.`,
+const FS_ERROR_KEYS: Record<string, string> = {
+  ENOSPC: 'errors.E_FS_ENOSPC',
+  EACCES: 'errors.E_FS_EACCES',
+  EROFS: 'errors.E_FS_EROFS',
+  EDQUOT: 'errors.E_FS_EDQUOT',
+  EPERM: 'errors.E_FS_EPERM',
+  ENOTDIR: 'errors.E_FS_ENOTDIR',
+  EISDIR: 'errors.E_FS_EISDIR',
 }
 
 function atomicWrite(filePath: string, content: string): void {
@@ -45,8 +36,8 @@ function atomicWrite(filePath: string, content: string): void {
       // or permission-denied filesystem must be removed manually.
     }
     const code = (err as NodeJS.ErrnoException).code ?? ''
-    const factory = ENOSPC_MSGS[code]
-    if (factory) throw new UserFacingError(factory(filePath))
+    const key = FS_ERROR_KEYS[code]
+    if (key) throw ArbiterError.fromKey(code, key, { path: filePath })
     throw err
   } finally {
     inFlightTmpPaths.delete(tmpPath)
@@ -96,10 +87,10 @@ export function _registerTmpPath(p: string): void {
   inFlightTmpPaths.add(p)
 }
 
-/** Exposed for testing only — returns translated UserFacingError message for errno code, or null if not mapped. */
+/** Exposed for testing only — returns i18n message for errno code, or null if not mapped. */
 export function _translateFsError(code: string, path: string): string | null {
-  const factory = ENOSPC_MSGS[code]
-  return factory ? factory(path) : null
+  const key = FS_ERROR_KEYS[code]
+  return key ? t(key, { path }) : null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -6,9 +6,10 @@ import { pathToFileURL } from 'node:url'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { acquireLock } from '../utils/file-lock.js'
-import { UserFacingError } from '../utils/errors.js'
+import { ArbiterError } from '../utils/errors.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { validatePluginPackageJson } from '../integrations/plugin-schema.js'
+import { t } from '../i18n/index.js'
 
 export interface PluginAddOptions {
   dir?: string
@@ -164,12 +165,12 @@ export function runPluginInit(name: string, opts: PluginInitOptions = {}): Promi
     return Promise.resolve()
   }
 
-  console.log(`  Scaffolded plugin: ${pkgName}`)
-  console.log(`  Location: ${pkgDir}`)
-  console.log(`  Next steps:`)
-  console.log(`    cd ${pkgDir}`)
-  console.log(`    npm install`)
-  console.log(`    npm run build`)
+  console.log(t('cli.plugin.scaffolded', { name: pkgName }))
+  console.log(t('cli.plugin.location', { path: pkgDir }))
+  console.log(t('cli.plugin.next_steps'))
+  console.log(t('cli.plugin.cd_hint', { path: pkgDir }))
+  console.log(t('cli.plugin.npm_install'))
+  console.log(t('cli.plugin.npm_build'))
   return Promise.resolve()
 }
 
@@ -182,7 +183,7 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
       process.exit(1)
       return
     }
-    console.error('  No arbiter.json found. Run `arbiter init` first.')
+    console.error(t('cli.plugin.no_config'))
     process.exit(1)
   }
 
@@ -198,12 +199,14 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
           baseMsg,
         )
       const retryHint = isNetwork
-        ? `Network issue detected. Retry: \`arbiter plugin add ${opts.pkg}\``
-        : `Verify the package is installed (\`npm install ${opts.pkg}\`) then retry: \`arbiter plugin add ${opts.pkg}\``
+        ? t('cli.plugin.retry_network', { name: opts.pkg })
+        : t('cli.plugin.retry_local', { name: opts.pkg })
       // arbiter.json NOT modified — transaction order preserves config integrity (#612)
-      throw new UserFacingError(
-        `Failed to load plugin "${opts.pkg}": ${baseMsg}\n  arbiter.json was not modified.\n  ${retryHint}`,
-      )
+      throw ArbiterError.fromKey('E_PLUGIN_LOAD_FAILED', 'cli.plugin.load_error', {
+        name: opts.pkg,
+        message: baseMsg,
+        hint: retryHint,
+      })
     }
 
     const plugins = Array.isArray(stored.plugins) ? stored.plugins : []
@@ -220,10 +223,8 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
     return
   }
 
-  console.log(`  Plugin added: ${opts.pkg}`)
-  console.log(
-    `  Security advisory: Plugin ${opts.pkg} will execute Node code during \`arbiter update\`. Verify source before use.`,
-  )
+  console.log(t('cli.plugin.added', { name: opts.pkg }))
+  console.log(t('cli.plugin.security_advisory', { name: opts.pkg }))
 }
 
 export function runPluginRemove(opts: PluginRemoveOptions): void {
@@ -235,7 +236,7 @@ export function runPluginRemove(opts: PluginRemoveOptions): void {
       process.exit(1)
       return
     }
-    console.error('  No arbiter.json found. Run `arbiter init` first.')
+    console.error(t('cli.plugin.no_config'))
     process.exit(1)
   }
 
@@ -246,7 +247,7 @@ export function runPluginRemove(opts: PluginRemoveOptions): void {
     jsonOutput('plugin-remove', 'ok', { pkg: opts.pkg })
     return
   }
-  console.log(`  Plugin removed: ${opts.pkg}`)
+  console.log(t('cli.plugin.removed_msg', { name: opts.pkg }))
 }
 
 export async function runPluginList(opts: PluginListOptions): Promise<void> {
@@ -258,7 +259,7 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
       process.exit(1)
       return
     }
-    console.error('  No arbiter.json found. Run `arbiter init` first.')
+    console.error(t('cli.plugin.no_config'))
     process.exit(1)
   }
 
@@ -282,11 +283,11 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
   }
 
   if (pluginNames.length === 0) {
-    console.log('  No plugins configured.')
+    console.log(t('cli.plugin.no_plugins'))
     return
   }
 
-  console.log('  Configured plugins:')
+  console.log(t('cli.plugin.plugins_header'))
   for (const pkg of pluginNames) {
     let status: string
     try {
@@ -296,7 +297,7 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
       const raw = err instanceof Error ? err.message : String(err)
       status = `not loadable: ${raw.split('\n')[0]}`
     }
-    console.log(`  ├── ${pkg} (${status})`)
+    console.log(t('cli.plugin.plugin_row', { name: pkg, status }))
   }
 }
 

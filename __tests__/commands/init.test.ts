@@ -735,7 +735,7 @@ describe('parseTools / parseLevel — input validation (#325)', () => {
         brownfield: false,
         noVerify: true,
       }),
-    ).rejects.toThrow(/unknown tool/i)
+    ).rejects.toMatchObject({ code: 'E_INVALID_TOOL' })
   })
 
   it('throws on invalid level in --level (#325)', async () => {
@@ -750,6 +750,6 @@ describe('parseTools / parseLevel — input validation (#325)', () => {
         brownfield: false,
         noVerify: true,
       }),
-    ).rejects.toThrow(/unknown governance level/i)
+    ).rejects.toMatchObject({ code: 'E_INVALID_LEVEL' })
   })
 })

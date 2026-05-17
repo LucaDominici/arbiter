@@ -4,6 +4,7 @@ import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
+import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { detectLanguage } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
@@ -105,7 +106,7 @@ function printStats(results: WriteResult[]): void {
   const created = results.filter((r) => r.action === 'created').length
   const replaced = results.filter((r) => r.action === 'backed-up-and-replaced').length
   const skipped = results.filter((r) => r.action === 'skipped').length
-  console.log(`\n  Done! ${created} created, ${replaced} updated, ${skipped} skipped.`)
+  console.log(t('cli.update.done', { created, replaced, skipped }))
 }
 
 function selectAndRun(
@@ -123,16 +124,16 @@ function selectAndRun(
   }
   const diff = diffConfig(snapshot, stored)
   if (diff.paths.length === 0) {
-    console.log('  No config changes detected — re-running to pick up template updates.')
+    console.log(t('cli.update.no_config_changes'))
     return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
   }
   const keys = impactedGenerators(diff)
   if (keys.has('*') || keys.size === 0) {
     const reason = keys.size === 0 ? 'Unknown config change' : 'Governance/axis change'
-    console.log(`  ${reason} detected — full regeneration.`)
+    console.log(t('cli.update.reason_regen', { reason }))
     return { results: runGeneratorsFromRegistry(specs, errors), keysRun: keys, errors }
   }
-  console.log(`  Selective update: ${keys.size} generator group(s).`)
+  console.log(t('cli.update.selective', { count: keys.size }))
   return { results: runGeneratorsSelective(specs, keys, errors), keysRun: keys, errors }
 }
 
@@ -248,7 +249,7 @@ function emitUpdateOutcome(
     )
     process.exit(statusToExitCode('error'))
   }
-  console.log(`\n  Run: node scripts/check-all.mjs L1  to verify\n`)
+  console.log(t('cli.update.verify_hint'))
 }
 
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
@@ -281,7 +282,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       const warning = `\n  Warning: ${adverseState.message}\n  ${adverseState.suggestedFix}\n`
       if (!options.force) {
         throw new UserFacingError(
-          `${adverseState.message}\n${adverseState.suggestedFix}\nUse --force to override this check.`,
+          `${adverseState.message}\n${adverseState.suggestedFix}\n${t('cli.shared.force_override_hint')}`,
         )
       }
       console.warn(warning)
@@ -341,7 +342,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
           `Config invalid after update: ${validation.errors.join('; ')}`,
         ])
       } else {
-        console.error(`  [arbiter] Config invalid after update: ${validation.errors.join('; ')}`)
+        console.error(t('cli.update.config_invalid', { errors: validation.errors.join('; ') }))
       }
       process.exit(1)
     }

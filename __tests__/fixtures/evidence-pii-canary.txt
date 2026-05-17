@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0
+// This file contains planted PII markers used to verify the evidence scrubber.
+// Every pattern below MUST be removed by publish-evidence-snapshot.mjs.
+// If any survive a re-scan pass, the scrubber has a gap and the run fails.
+
+EMAIL_MARKER: alice@example.com
+GH_TOKEN_MARKER: ghp_AbCdEfGhIjKlMnOpQrStUvWxYz012345678
+GH_SERVICE_TOKEN_MARKER: ghs_AbCdEfGhIjKlMnOpQrStUvWxYz012345
+AWS_KEY_MARKER: AKIAIOSFODNN7EXAMPLE
+IPV4_MARKER: 192.168.1.100
+INTERNAL_HOST_MARKER: myserver.internal
+CORP_HOST_MARKER: build-01.corp
+BEARER_MARKER: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9
+JWT_MARKER: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.signature
+HEX_SECRET_MARKER: ABCDEF1234567890ABCDEF1234567890ABCDEF12
+GH_OAUTH_TOKEN_MARKER: gho_AbCdEfGhIjKlMnOpQrStUvWxYz012345
+GH_REFRESH_TOKEN_MARKER: ghr_AbCdEfGhIjKlMnOpQrStUvWxYz01234
+GH_USER_TOKEN_MARKER: ghu_AbCdEfGhIjKlMnOpQrStUvWxYz01234
+IPV4_CLASS_A_MARKER: 10.0.0.1
+IPV4_LOOPBACK_MARKER: 127.0.0.1
+IPV4_CLASS_B_MARKER: 172.16.0.1
+LOCAL_HOST_MARKER: mydevbox.local
