@@ -85,6 +85,7 @@ for (const entry of hardSpawnable) {
   const env = { ...process.env }
   // Strip bypass flags so hooks are tested in their natural enforced state.
   delete env['ARBITER_SSOT_BYPASS']
+  delete env['ARBITER_ALLOW_CHANNEL_DOWNGRADE']
   const tmpFiles = []
 
   if (fixture.type === 'file-with-content') {

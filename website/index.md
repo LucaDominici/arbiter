@@ -30,4 +30,10 @@ features:
     details: >
       L1 / L2 / L3 gate tiers enforce governance at commit, push,
       and CI — not just in documentation.
+  - title: Governance is the product
+    details: >
+      Every project gets a canonical `AGENTS.md` and a living ADR ledger.
+      Browse the contract.
+    link: /concepts/
+    linkText: Browse AGENTS.md + ADR ledger
 ---

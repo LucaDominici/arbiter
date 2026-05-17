@@ -185,6 +185,8 @@ A plugin is a normal npm package that exports an `ArbiterPlugin` object. See [`d
 
 ## Design Decisions
 
+The canonical governance contract is [`AGENTS.md`](AGENTS.md) — it defines invariants, coding standards, testing policy, and commit conventions that every AI tool reads.
+
 See [`docs/ADR/`](docs/ADR/) for the rationale behind key choices:
 
 - [ADR-001](docs/ADR/001-agents-md-canonical.md): Why `AGENTS.md` as canonical source (not `CLAUDE.md`)

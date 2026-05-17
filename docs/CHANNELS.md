@@ -127,3 +127,60 @@ We don't unpublish (npm policy + ecosystem trust). To pull a broken release:
 3. Document the broken version in `CHANGELOG.md` with the fix's version.
 
 `canary` is exempt — point to whatever HEAD is; users on canary accept the breakage.
+
+---
+
+## Configuration & CLI (#662)
+
+### arbiter.json `channel` field
+
+Persist your preferred channel in `arbiter.json`:
+
+```json
+{
+  "$schemaVersion": 2,
+  "channel": "beta"
+}
+```
+
+Valid values: `latest` | `beta` | `canary`. Omit for the default (`latest`).
+
+### `--channel <name>` global flag
+
+Override the config channel for a single invocation:
+
+```bash
+arbiter --channel beta doctor
+arbiter --channel canary doctor
+```
+
+The flag takes precedence over `arbiter.json`. Resolution order: **flag > config > default**.
+
+### Doctor output
+
+`arbiter doctor health` reports the active channel and its source:
+
+```
+[PASS]  release channel  — beta (config)
+[PASS]  release channel  — latest (default)
+[PASS]  release channel  — canary (flag)
+```
+
+### Downgrade-warn matrix
+
+A warning (and confirmation prompt) fires **only** when an explicit `channel` in `arbiter.json` is more stable than the `--channel` flag:
+
+| `arbiter.json` channel \ `--channel` flag | (no flag) | `latest` | `beta`   | `canary` |
+| ----------------------------------------- | --------- | -------- | -------- | -------- |
+| (absent / default)                        | allow     | allow    | allow    | allow    |
+| `latest`                                  | allow     | allow    | **warn** | **warn** |
+| `beta`                                    | allow     | allow    | allow    | **warn** |
+| `canary`                                  | allow     | allow    | allow    | allow    |
+
+In non-TTY environments (CI), a downgrade exits 1 with a diagnostic. Set `ARBITER_ALLOW_CHANNEL_DOWNGRADE=1` to bypass.
+
+### Deferred: self-upgrader
+
+A dedicated `arbiter upgrade` command that resolves the latest matching npm tag and performs a self-upgrade is a **separate future feature** not included in this PR. The current `arbiter update` command regenerates governance files — it does not perform npm self-upgrade.
+
+See also: the per-channel changelog pages at `website/changelog/` in the repository.

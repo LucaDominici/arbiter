@@ -32,6 +32,8 @@ import { runGauntletGenerate, runGauntletVerify } from './commands/gauntlet.js'
 import type { GauntletStack } from './commands/gauntlet.js'
 import { runCiPlan, runCiVerifyPlan } from './commands/ci.js'
 import { runReviewDiff, renderMarkdown } from './commands/review-diff.js'
+import { confirmChannelDowngrade } from './utils/confirm-downgrade.js'
+import type { ReleaseChannel } from './utils/channel.js'
 import {
   runWorkList,
   runWorkCreate,
@@ -151,6 +153,15 @@ const _noReplayFlag = consumeFlag('--no-replay')
 const _logLevelFlag = consumeFlagValue('--log-level')
 const _logFormatFlag = consumeFlagValue('--log-format')
 const _seedFlag = consumeFlagValue('--seed')
+// --channel is consumed early so doctor/update can read it without re-scanning argv
+const _channelFlag = consumeFlagValue('--channel')
+if (_channelFlag !== undefined && !['latest', 'beta', 'canary'].includes(_channelFlag)) {
+  process.stderr.write(
+    `[arbiter] error: --channel "${_channelFlag}" is not a valid channel.\n` +
+      `  Valid values: latest, beta, canary\n`,
+  )
+  process.exit(1)
+}
 
 const _resolvedLogger = resolveFromProcess(
   [
@@ -272,8 +283,7 @@ const program = new Command()
 
 program.name('arbiter').description('AI development governance framework').version('0.1.0')
 
-// Global observability flags (#635-#640). Declared so `--help` documents them;
-// values are consumed pre-parse above.
+// Global flags. Declared so `--help` documents them; values are consumed pre-parse above.
 program
   .option('--log-level <level>', 'Log level: error|warn|info|debug|trace (default: info)')
   .option('--log-format <format>', 'Log format: text|json (default: text)')
@@ -284,6 +294,12 @@ program
   )
   .option('--no-replay', 'Disable replay log capture for this invocation')
   .option('--profile', 'Capture a V8 CPU profile to ~/.arbiter/profiles/<runId>.cpuprofile')
+  // #662 — channel flag: overrides channel field in arbiter.json for this invocation.
+  // No subcommand defines its own --channel, so no collision risk.
+  .option(
+    '--channel <name>',
+    'Channel for this invocation: latest|beta|canary — gates downgrade warnings and shown in `doctor health` (default: arbiter.json channel or latest)',
+  )
 
 program
   .command('report')
@@ -426,6 +442,10 @@ program
   .option('--json', 'Emit machine-readable JSON output', false)
   .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
   .action(async (opts: { dir?: string; github: boolean; json: boolean; force: boolean }) => {
+    if (_channelFlag !== undefined) {
+      const config = loadConfig(opts.dir ?? '.')
+      await confirmChannelDowngrade(_channelFlag as ReleaseChannel, config?.channel)
+    }
     await runUpdate({
       dir: opts.dir,
       github: opts.github,
@@ -872,6 +892,7 @@ const doctor = program
     const result = runDoctorHealth({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
+      ...(_channelFlag !== undefined ? { channelFlag: _channelFlag } : {}),
     })
     if (result.exitCode !== 0) process.exit(result.exitCode)
   })

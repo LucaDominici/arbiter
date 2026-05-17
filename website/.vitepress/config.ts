@@ -5,6 +5,8 @@ export default defineConfig({
   description: 'AI development governance framework — install once, enforce forever.',
   lastUpdated: true,
   cleanUrls: true,
+  // Suppress known pre-existing dead links that point outside the VitePress build root
+  ignoreDeadLinks: [/docs\/PLUGIN-API/, /docs\/INTEGRATIONS/],
 
   sitemap: {
     hostname: 'https://arbiter.dev',
@@ -39,6 +41,7 @@ export default defineConfig({
       { text: 'Docs', link: '/quickstart/' },
       { text: 'Comparisons', link: '/comparisons/' },
       { text: 'Recipes', link: '/recipes/' },
+      { text: 'Changelog', link: '/changelog/' },
       { text: 'Community', link: '/community/' },
       { text: 'GitHub', link: 'https://github.com/LucaDominici/arbiter' },
       {
@@ -90,6 +93,34 @@ export default defineConfig({
       },
       { text: 'Integrations', link: '/integrations/' },
       { text: 'Community', link: '/community/' },
+      {
+        text: 'Changelog',
+        collapsed: true,
+        items: [
+          { text: 'Overview', link: '/changelog/' },
+          { text: 'Stable', link: '/changelog/stable' },
+          { text: 'Beta', link: '/changelog/beta' },
+          { text: 'Canary', link: '/changelog/canary' },
+        ],
+      },
+      {
+        text: 'Governance',
+        collapsed: true,
+        items: [
+          {
+            text: 'AGENTS.md',
+            link: 'https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md',
+          },
+          {
+            text: 'ADR Ledger',
+            link: 'https://github.com/LucaDominici/arbiter/tree/main/docs/ADR',
+          },
+          {
+            text: 'Decisions',
+            link: 'https://github.com/LucaDominici/arbiter/blob/main/docs/SYSTEM/DECISIONS.md',
+          },
+        ],
+      },
     ],
 
     socialLinks: [{ icon: 'github', link: 'https://github.com/LucaDominici/arbiter' }],

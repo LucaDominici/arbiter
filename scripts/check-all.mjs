@@ -7,8 +7,8 @@
 //     enforcement wired, workflow runners, ci alignment, node version ssot, bloat ratchet,
 //     exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
 //     canonical paths, plugin api stability, deprecations, hook contracts (36)
-// L2: L1 + coverage + dead code + duplication + npm audit + gitleaks + dogfood +
-//     self-validation drill + local-ci parity + id stability + anti-telemetry + tdd-evidence (48)
+// L2: L1 + coverage + docs:build + dead code + duplication + npm audit + gitleaks + dogfood +
+//     self-validation drill + local-ci parity + id stability + anti-telemetry + tdd-evidence (49)
 // L3: L2 + full repo secrets scan (nightly/manual)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
@@ -100,6 +100,7 @@ const l1EndIdx = getResults().length
 // ─── L2/L3: Full checks ───────────────────────────────────────────────────────
 if (level === 'L2' || level === 'L3') {
   runCheck('coverage', 'npm', ['test', '--', '--coverage'])
+  runCheck('docs:build', 'npm', ['run', 'docs:build'])
   runCheck('dead code', 'npx', ['knip'])
   runCheck('duplication', 'npx', ['jscpd', '--silent'])
   runCheck('audit', 'npm', ['audit', '--audit-level=high'])

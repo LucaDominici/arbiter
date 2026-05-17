@@ -6,6 +6,8 @@ Core ideas behind arbiter.
 
 `AGENTS.md` is the single source of truth for your project's AI governance. It contains invariants, coding standards, testing policy, and commit conventions. Every AI tool reads it.
 
+**[Browse AGENTS.md on GitHub →](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md)**
+
 Tool-specific files (`.claude/CLAUDE.md`, `.agents/CODEX.md`) add only what that tool uniquely needs — they never duplicate governance.
 
 ## Governance Levels
@@ -34,6 +36,9 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 
 ## Further Reading
 
+- [AGENTS.md — canonical governance contract](https://github.com/LucaDominici/arbiter/blob/main/AGENTS.md)
+- [Browse all ADR decisions →](https://github.com/LucaDominici/arbiter/tree/main/docs/ADR)
+- [DECISIONS ledger](https://github.com/LucaDominici/arbiter/blob/main/docs/SYSTEM/DECISIONS.md)
 - [What Gets Generated](/reference/templates)
 - [Stack Support](/reference/stacks)
 - [CLI Reference](/reference/cli)

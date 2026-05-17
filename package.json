@@ -52,7 +52,7 @@
     "api:snapshot": "node scripts/check-api-snapshot.mjs --regen",
     "compat:snapshot": "node scripts/snapshot-compat-fixture.mjs",
     "changeset": "changeset",
-    "changeset:version": "changeset version",
+    "changeset:version": "changeset version && node scripts/changeset-channel-tag.mjs && node scripts/sync-changelog.mjs",
     "changeset:publish": "changeset publish",
     "check:anti-telemetry": "node scripts/check-anti-telemetry.mjs",
     "docs:dev": "npm run dev -w @arbiter/website",

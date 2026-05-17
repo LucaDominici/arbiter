@@ -537,6 +537,74 @@ describe('useGitHub soft-alias migration', () => {
   })
 })
 
+const BASE_VALID = {
+  version: '0.2',
+  tools: ['claude'],
+  governanceLevel: 'L1',
+  useGitHub: false,
+  features: {
+    contractTesting: false,
+    mutationTesting: false,
+    securityScanning: false,
+    evidenceHarness: false,
+    debtGates: false,
+    suppressions: true,
+  },
+  thresholds: DEFAULT_THRESHOLDS.L1,
+}
+
+describe('validateConfig — channel field (#662)', () => {
+  it('accepts config without channel (absent = default latest)', () => {
+    expect(validateConfig(BASE_VALID).ok).toBe(true)
+  })
+
+  it.each(['latest', 'beta', 'canary'])('accepts channel="%s"', (ch) => {
+    const r = validateConfig({ ...BASE_VALID, channel: ch })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.config.channel).toBe(ch)
+  })
+
+  it('rejects invalid channel value', () => {
+    const r = validateConfig({ ...BASE_VALID, channel: 'preview' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('channel'))).toBe(true)
+  })
+
+  it('rejects typo channel value', () => {
+    const r = validateConfig({ ...BASE_VALID, channel: 'latst' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('channel'))).toBe(true)
+  })
+
+  it('round-trips channel=beta through fixture file', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const raw = JSON.parse(
+      readFileSync(
+        join(import.meta.dirname, '../fixtures/compat/v0.2.0-channel/arbiter.json'),
+        'utf-8',
+      ),
+    ) as unknown
+    const r = validateConfig(raw)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.config.channel).toBe('beta')
+  })
+
+  it('rejects bad-channel fixture', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const raw = JSON.parse(
+      readFileSync(
+        join(import.meta.dirname, '../fixtures/compat/v0.2.0-bad-channel/arbiter.json'),
+        'utf-8',
+      ),
+    ) as unknown
+    const r = validateConfig(raw)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.some((e) => e.includes('channel'))).toBe(true)
+  })
+})
+
 describe('DEFAULT_THRESHOLDS', () => {
   it('L2 has lineCoverage=80, branchCoverage=70, mutationScore=80', () => {
     expect(DEFAULT_THRESHOLDS.L2.lineCoverage).toBe(80)
