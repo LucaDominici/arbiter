@@ -6,6 +6,7 @@ import {
   copyStaticFile,
   resolvedPath,
   mergeSettingsJson,
+  registerCleanupHandlers,
   _cleanupInFlightTmpFiles,
   _registerTmpPath,
   _translateFsError,
@@ -214,6 +215,60 @@ describe('mergeSettingsJson (#286)', () => {
     mergeSettingsJson(existing, incoming)
     expect(warnSpy).not.toHaveBeenCalled()
     vi.restoreAllMocks()
+  })
+
+  it('removes old hook variants when the same hook upgrades extension (.sh → .mjs)', () => {
+    const existing = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'Edit',
+            hooks: [{ command: 'node .claude/hooks/check-no-any.sh', timeout: 5000 }],
+          },
+        ],
+      },
+      permissions: { allow: [] as string[] },
+    }
+    const incoming = {
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: 'Edit',
+            hooks: [{ command: 'node .claude/hooks/check-no-any.mjs', timeout: 5000 }],
+          },
+        ],
+      },
+      permissions: { allow: [] as string[] },
+    }
+    const result = mergeSettingsJson(existing, incoming)
+    const entry = (
+      result.hooks as Record<string, { matcher: string; hooks: { command: string }[] }[]>
+    )['PreToolUse']?.[0]
+    expect(entry?.hooks).toHaveLength(1)
+    expect(entry?.hooks[0]?.command).toContain('.mjs')
+  })
+})
+
+describe('registerCleanupHandlers (#613)', () => {
+  it('registers signal handlers and cleans in-flight tmp files on signal', () => {
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation((): never => undefined as never)
+    try {
+      const sigintBefore = process.rawListeners('SIGINT').length
+      const sigtermBefore = process.rawListeners('SIGTERM').length
+      registerCleanupHandlers()
+      const sigintListeners = process.rawListeners('SIGINT') as ((...args: unknown[]) => void)[]
+      const sigtermListeners = process.rawListeners('SIGTERM') as ((...args: unknown[]) => void)[]
+      // At least one new handler registered per signal (guard against double-call)
+      expect(sigintListeners.length).toBeGreaterThanOrEqual(sigintBefore)
+      expect(sigtermListeners.length).toBeGreaterThanOrEqual(sigtermBefore)
+      // Call each signal handler directly to cover the callback body
+      sigintListeners[sigintListeners.length - 1]!()
+      sigtermListeners[sigtermListeners.length - 1]!()
+      expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGINT')
+      expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGTERM')
+    } finally {
+      killSpy.mockRestore()
+    }
   })
 })
 

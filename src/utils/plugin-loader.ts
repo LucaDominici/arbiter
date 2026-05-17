@@ -8,6 +8,8 @@ import { UserFacingError } from './errors.js'
 
 const VALID_NAME_RE = /^[a-z0-9][a-z0-9-_]*$/
 const DEFAULT_TIMEOUT_MS = 60_000
+// Shared no-op for suppress-only promise chains (e.g. worker.terminate())
+const noop = (): void => {}
 
 export interface LoadPluginOptions {
   invokeTimeoutMs?: number
@@ -56,14 +58,14 @@ function invokeInWorker(
     }
 
     const timer = setTimeout(() => {
-      void worker.terminate().catch(() => {})
+      void worker.terminate().then(noop, noop)
       settle(() => {
         reject(new UserFacingError(`Plugin "${name}" timed out after ${timeoutMs}ms`))
       })
     }, timeoutMs)
 
     const onSignal = (): void => {
-      void worker.terminate().catch(() => {})
+      void worker.terminate().then(noop, noop)
       settle(() => {
         reject(new UserFacingError(`Plugin "${name}" was interrupted by signal`))
       })

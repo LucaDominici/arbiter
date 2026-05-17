@@ -54,6 +54,16 @@ describe('loadPlugin', () => {
     expect(result.files[0].path).toContain('mock-output.txt')
   })
 
+  it('rejects a plugin that exports null (not an object)', async () => {
+    installFixture(dir, 'null-export-plugin', 'null-export')
+    await expect(loadPlugin('null-export-plugin', dir)).rejects.toThrow(/export a default object/)
+  })
+
+  it('rejects a plugin with invalid name (uppercase)', async () => {
+    installFixture(dir, 'bad-name-plugin', 'bad-name')
+    await expect(loadPlugin('bad-name-plugin', dir)).rejects.toThrow(/invalid name/)
+  })
+
   it("rejects a plugin with apiVersion !== '1'", async () => {
     installFixture(dir, 'bad-apiversion-plugin', 'bad-apiversion-plugin')
     await expect(loadPlugin('bad-apiversion-plugin', dir)).rejects.toThrow(/apiVersion "1"/)
@@ -62,6 +72,23 @@ describe('loadPlugin', () => {
   it('rejects a plugin missing generate function', async () => {
     installFixture(dir, 'bad-shape-plugin', 'bad-shape-plugin')
     await expect(loadPlugin('bad-shape-plugin', dir)).rejects.toThrow(/missing required generate/)
+  })
+
+  it('rejects a plugin with non-string templateRoot', async () => {
+    installFixture(dir, 'no-template-root-plugin', 'no-template-root')
+    await expect(loadPlugin('no-template-root-plugin', dir)).rejects.toThrow(/templateRoot/)
+  })
+
+  it('rejects a plugin where detect is not a function', async () => {
+    installFixture(dir, 'bad-detect-type-plugin', 'bad-detect-type')
+    await expect(loadPlugin('bad-detect-type-plugin', dir)).rejects.toThrow(/detect.*function/)
+  })
+
+  it('rejects a plugin where verifyPlanRules is not an array', async () => {
+    installFixture(dir, 'bad-verify-rules-plugin', 'bad-verify-rules')
+    await expect(loadPlugin('bad-verify-rules-plugin', dir)).rejects.toThrow(
+      /verifyPlanRules.*array/,
+    )
   })
 
   it('throws a descriptive error when package is not installed', async () => {
@@ -116,4 +143,20 @@ describe('loadPlugin', () => {
     })
     expect(result).toBe(true)
   })
+
+  it('SIGINT mid-call rejects with interrupted-by-signal error', async () => {
+    installFixture(dir, 'hanging-plugin', 'hanging')
+    const plugin = await loadPlugin('hanging-plugin', dir, { invokeTimeoutMs: 30_000 })
+    const generatePromise = plugin.generate({
+      config: { version: '0.1', tools: ['claude'], governanceLevel: 'L2', useGitHub: false },
+      targetDir: dir,
+      renderTemplate: () => '',
+    })
+    // Allow worker to start before simulating the signal
+    await new Promise<void>((r) => setTimeout(r, 200))
+    // Call the most recently added SIGINT listener directly (avoids killing the process)
+    const listeners = process.rawListeners('SIGINT') as ((...args: unknown[]) => void)[]
+    listeners[listeners.length - 1]!()
+    await expect(generatePromise).rejects.toThrow(/interrupted by signal/)
+  }, 10_000)
 })
