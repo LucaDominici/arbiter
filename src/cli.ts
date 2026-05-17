@@ -902,13 +902,26 @@ const doctor = program
   .description('Diagnose and repair arbiter state')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; json: boolean }) => {
-    const result = runDoctorHealth({
+  .option(
+    '--repair',
+    'Auto-release stale .arbiter/.lock files detected by the health check (#824)',
+    false,
+  )
+  .action((opts: { dir?: string; json: boolean; repair: boolean }) => {
+    runDoctorHealth({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
+      repair: opts.repair,
       ...(_channelFlag !== undefined ? { channelFlag: _channelFlag } : {}),
     })
-    if (result.exitCode !== 0) process.exit(result.exitCode)
+      .then((result) => {
+        if (result.exitCode !== 0) process.exit(result.exitCode)
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        process.stderr.write(`  Error: ${msg}\n`)
+        process.exit(1)
+      })
   })
 
 doctor

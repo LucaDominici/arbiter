@@ -46,9 +46,9 @@ describe('runDoctorHealth (#539)', () => {
     })
   }
 
-  it('PASS when node >= 22 and git available (no arbiter.json)', () => {
+  it('PASS when node >= 22 and git available (no arbiter.json)', async () => {
     mockGitOk()
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const nodeCheck = result.checks.find((c) => c.id === 'node-version')
     const gitCheck = result.checks.find((c) => c.id === 'git-available')
     expect(nodeCheck?.status).toBe('PASS')
@@ -57,40 +57,40 @@ describe('runDoctorHealth (#539)', () => {
     expect(result.exitCode).toBe(0)
   })
 
-  it('FAIL when git not available', () => {
+  it('FAIL when git not available', async () => {
     mockGitFail()
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const gitCheck = result.checks.find((c) => c.id === 'git-available')
     expect(gitCheck?.status).toBe('FAIL')
     expect(result.fail).toBe(1)
     expect(result.exitCode).toBe(1)
   })
 
-  it('WARN when arbiter.json exists but AGENTS.md missing', () => {
+  it('WARN when arbiter.json exists but AGENTS.md missing', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const agentsCheck = result.checks.find((c) => c.id === 'agents-md')
     expect(agentsCheck?.status).toBe('WARN')
     expect(result.fail).toBe(0)
     expect(result.exitCode).toBe(0)
   })
 
-  it('PASS when arbiter.json and AGENTS.md both present, hooks configured', () => {
+  it('PASS when arbiter.json and AGENTS.md both present, hooks configured', async () => {
     mockRunCli
       .mockReturnValueOnce({ stdout: 'git version 2.40\n', stderr: '', exitCode: 0, durationMs: 0 })
       .mockReturnValueOnce({ stdout: '.githooks\n', stderr: '', exitCode: 0, durationMs: 0 })
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
     writeFileSync(join(dir, 'AGENTS.md'), '# Agents\n', 'utf-8')
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const hooksCheck = result.checks.find((c) => c.id === 'hooks-path')
     expect(hooksCheck?.status).toBe('PASS')
     expect(hooksCheck?.detail).toContain('.githooks')
   })
 
-  it('result has pass + warn + fail counts', () => {
+  it('result has pass + warn + fail counts', async () => {
     mockGitOk()
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     expect(typeof result.pass).toBe('number')
     expect(typeof result.warn).toBe('number')
     expect(typeof result.fail).toBe('number')
@@ -113,57 +113,90 @@ describe('runDoctorHealth (#539)', () => {
     writeFileSync(join(dir, '.arbiter', '.lock'), JSON.stringify(info), 'utf-8')
   }
 
-  it('PASS arbiter-lock when no lock file exists (#618)', () => {
+  it('PASS arbiter-lock when no lock file exists (#618)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
     expect(lockCheck?.status).toBe('PASS')
     expect(lockCheck?.label).toMatch(/not present/i)
   })
 
-  it('WARN arbiter-lock when lock PID is dead on same host (#618)', () => {
+  it('WARN arbiter-lock when lock PID is dead on same host (#618)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
     // PID 1 may exist; use a high improbable PID
     writeLock(dir, { pid: 999_999_999 })
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
     expect(lockCheck?.status).toBe('WARN')
     expect(lockCheck?.hint).toMatch(/recover-lock/)
   })
 
-  it('WARN arbiter-lock when lock age exceeds 6h on same host (#618)', () => {
+  it('WARN arbiter-lock when lock age exceeds 6h on same host (#618)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
     writeLock(dir, {
       pid: process.pid,
       startedAt: new Date(Date.now() - 7 * 3600_000).toISOString(),
     })
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
     expect(lockCheck?.status).toBe('WARN')
   })
 
-  it('PASS arbiter-lock when lock from a different host (#618)', () => {
+  it('PASS arbiter-lock when lock from a different host (#618)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
     writeLock(dir, { hostname: 'some-other-host-not-real' })
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
     // Different-host locks are reported as active (we can't tell if process is alive remotely).
     expect(lockCheck?.status).toBe('PASS')
     expect(lockCheck?.detail).toMatch(/other host/i)
   })
 
-  it('WARN arbiter-lock when lock file is unreadable / invalid JSON (#618)', () => {
+  it('WARN arbiter-lock when lock file is unreadable / invalid JSON (#618)', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
     mkdirSync(join(dir, '.arbiter'), { recursive: true })
     writeFileSync(join(dir, '.arbiter', '.lock'), 'not-valid-json', 'utf-8')
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
     expect(lockCheck?.status).toBe('WARN')
+  })
+
+  // #824 — doctor health --repair auto-releases stale locks
+
+  it('--repair releases stale lock and downgrades WARN → PASS (#824)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    writeLock(dir, { pid: 999_999_999 })
+    const result = await runDoctorHealth({ dir, json: true, repair: true })
+    const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
+    expect(lockCheck?.status).toBe('PASS')
+    expect(lockCheck?.label).toMatch(/auto-repaired/i)
+    expect(result.repaired?.pid).toBe(999_999_999)
+    expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(false)
+  })
+
+  it('--repair is a no-op when no lock exists (#824)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    const result = await runDoctorHealth({ dir, json: true, repair: true })
+    expect(result.repaired).toBeUndefined()
+    const lockCheck = result.checks.find((c) => c.id === 'arbiter-lock')
+    expect(lockCheck?.status).toBe('PASS')
+    expect(lockCheck?.label).toMatch(/not present/i)
+  })
+
+  it('--repair is a no-op when lock is active (PASS, not WARN) (#824)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
+    writeLock(dir, { pid: process.pid })
+    const result = await runDoctorHealth({ dir, json: true, repair: true })
+    expect(result.repaired).toBeUndefined()
+    expect(existsSync(join(dir, '.arbiter', '.lock'))).toBe(true)
   })
 })
 
@@ -298,14 +331,14 @@ describe('runDoctorHealth — channel check (#662)', () => {
   })
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-  it('shows "latest (default)" when no config and no flag', () => {
-    const result = runDoctorHealth({ dir, json: true })
+  it('shows "latest (default)" when no config and no flag', async () => {
+    const result = await runDoctorHealth({ dir, json: true })
     const ch = result.checks.find((c) => c.id === 'release-channel')
     expect(ch?.status).toBe('PASS')
     expect(ch?.detail).toBe('latest (default)')
   })
 
-  it('shows "beta (config)" when arbiter.json has channel:beta and no flag', () => {
+  it('shows "beta (config)" when arbiter.json has channel:beta and no flag', async () => {
     writeFileSync(
       join(dir, 'arbiter.json'),
       JSON.stringify({
@@ -317,12 +350,12 @@ describe('runDoctorHealth — channel check (#662)', () => {
       }),
       'utf-8',
     )
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const ch = result.checks.find((c) => c.id === 'release-channel')
     expect(ch?.detail).toBe('beta (config)')
   })
 
-  it('shows "canary (flag)" when flag overrides config', () => {
+  it('shows "canary (flag)" when flag overrides config', async () => {
     writeFileSync(
       join(dir, 'arbiter.json'),
       JSON.stringify({
@@ -334,20 +367,20 @@ describe('runDoctorHealth — channel check (#662)', () => {
       }),
       'utf-8',
     )
-    const result = runDoctorHealth({ dir, json: true, channelFlag: 'canary' })
+    const result = await runDoctorHealth({ dir, json: true, channelFlag: 'canary' })
     const ch = result.checks.find((c) => c.id === 'release-channel')
     expect(ch?.detail).toBe('canary (flag)')
   })
 
-  it('shows "latest (flag)" when flag is latest and no config channel', () => {
-    const result = runDoctorHealth({ dir, json: true, channelFlag: 'latest' })
+  it('shows "latest (flag)" when flag is latest and no config channel', async () => {
+    const result = await runDoctorHealth({ dir, json: true, channelFlag: 'latest' })
     const ch = result.checks.find((c) => c.id === 'release-channel')
     expect(ch?.detail).toBe('latest (flag)')
   })
 
-  it('returns FAIL (not crash) when arbiter.json has invalid JSON', () => {
+  it('returns FAIL (not crash) when arbiter.json has invalid JSON', async () => {
     writeFileSync(join(dir, 'arbiter.json'), '{ invalid json }', 'utf-8')
-    const result = runDoctorHealth({ dir, json: true })
+    const result = await runDoctorHealth({ dir, json: true })
     const ch = result.checks.find((c) => c.id === 'release-channel')
     expect(ch?.status).toBe('FAIL')
     expect(ch?.hint).toMatch(/arbiter init/i)

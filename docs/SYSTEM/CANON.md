@@ -231,3 +231,15 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Promoted to:** INV-46
 
 **Source issues:** audit 2026-05-12 (determinism + anti-bloat analysis)
+
+---
+
+## CANON-17 — FS errno translation
+
+**Rule:** Every direct `fs.*` failure handler in `src/` must translate raw NodeJS.ErrnoException codes (ENOENT, EACCES, EPERM, EBUSY, EMFILE, ENOSPC) into an `ArbiterError` with a human-readable hint via `src/utils/errors.ts` / `error-catalog.ts`. Raw NodeJS stack traces or bare errno strings MUST NOT leak to user-facing stdout/stderr from CLI commands.
+
+**Why:** NodeJS errno strings are opaque to users; "ENOENT" tells the user nothing about what is missing or how to fix it. Untranslated errors create support load and erode trust in the tool. Translation gates the failure mode into the catalog where it gains a stable error code, hint, and i18n key.
+
+**Enforcement:** Prose — checked at PR review for any code path that invokes `fs.*` or `node:fs`/`node:fs/promises` symbols directly. The audit baseline is `docs/AUDIT/fs-callers-2026-05-17.md` (#824). Promotable to a lint rule once `src/utils/fs.ts` becomes the sole approved fs façade.
+
+**Source issues:** #618, #824

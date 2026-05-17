@@ -114,6 +114,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-59:** Gate result parity — local L1 static gates must produce the same pass/fail pattern as CI
 - **INV-60:** Release binary size capped at archetype default
 - **INV-61:** a11y critical violations are HARD-fail at L2
+- **INV-72:** File-lock semantics — process-bound exclusive lock with bootId + pid + cmd
 
 ## Optional — Extended Invariants (opt-in, INV-62..INV-71)
 

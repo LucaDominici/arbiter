@@ -22,14 +22,14 @@ const ALL_TIERS: InvariantTier[] = [
 // ---------------------------------------------------------------------------
 
 describe('INVARIANT_CATALOG', () => {
-  it('has exactly 71 entries', () => {
-    expect(INVARIANT_CATALOG).toHaveLength(71)
+  it('has exactly 72 entries', () => {
+    expect(INVARIANT_CATALOG).toHaveLength(72)
   })
 
   it('all IDs are unique', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(71)
+    expect(unique.size).toBe(72)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..71)', () => {
@@ -104,9 +104,9 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier4).toHaveLength(14)
   })
 
-  it('has exactly 34 Tier 5 invariants', () => {
+  it('has exactly 35 Tier 5 invariants', () => {
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(34)
+    expect(tier5).toHaveLength(35)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -491,9 +491,9 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-51')
   })
 
-  it('catalog has exactly 11 selfOnly invariants (#682)', () => {
+  it('catalog has exactly 12 selfOnly invariants (#682)', () => {
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(11)
+    expect(selfOnly).toHaveLength(12)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')

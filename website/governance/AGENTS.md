@@ -25,9 +25,13 @@ When documents conflict, higher level wins. No debate.
 
 ```
 Level 1:  AGENTS.md — invariants + governance (this file)
-Level 2:  Architecture docs (docs/SYSTEM/ARCHITECTURE.md, PROJECT_STATUS.md)
-Level 3:  Source code + tests — implementation truth
+Level 2:  ADRs (docs/ADR/) — architectural decisions
+Level 3:  docs/SYSTEM/CANON.md — process constraints
+Level 4:  Active task plan (.claude/plans/*.md) — task-level guidance
+Level 5:  AI judgment — last resort
 ```
+
+> Use `.claude/skills/ssot-navigation/SKILL.md` to navigate this hierarchy and locate the right document for any task.
 
 ---
 
@@ -110,6 +114,22 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-59:** Gate result parity — local L1 static gates must produce the same pass/fail pattern as CI
 - **INV-60:** Release binary size capped at archetype default
 - **INV-61:** a11y critical violations are HARD-fail at L2
+- **INV-72:** File-lock semantics — process-bound exclusive lock with bootId + pid + cmd
+
+## Optional — Extended Invariants (opt-in, INV-62..INV-71)
+
+Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
+
+- **INV-62:** Frontend state separation — async (server) and sync (UI) state in distinct stores
+- **INV-63:** SSOT atomic update — code and SSOT documentation land in the same commit
+- **INV-64:** No magic code — non-trivial idioms documented in a pattern catalog
+- **INV-65:** Platform abstraction — env-specific APIs accessed only via adapter
+- **INV-66:** Process self-documentation — docs/METHOD/ is canonical for process rules
+- **INV-67:** No internal mocking in E2E — backend endpoints are exercised against the real service
+- **INV-68:** MCP-first forensic inspection — debug via MCP tools before raw shell
+- **INV-69:** Design rationale traceability — new abstractions cite their motivating ADR
+- **INV-70:** Reuse before new — canonical registry search precedes creating a new module
+- **INV-71:** Track D task completion — docs-only changes follow the documented completion rules
 
 ---
 
@@ -268,3 +288,5 @@ This project uses AGENTS.md as the canonical source. Tool-specific files add onl
 When using Claude Code: read `.claude/CLAUDE.md` for Claude-specific configuration.
 When using Codex: read `.agents/CODEX.md` for Codex-specific configuration.
 All governance rules are in **this file**.
+
+Sub-agent registry (names, models, effort, interaction chains): `.claude/AGENT_REGISTRY.md`.
