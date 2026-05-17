@@ -268,3 +268,5 @@ This project uses AGENTS.md as the canonical source. Tool-specific files add onl
 When using Claude Code: read `.claude/CLAUDE.md` for Claude-specific configuration.
 When using Codex: read `.agents/CODEX.md` for Codex-specific configuration.
 All governance rules are in **this file**.
+
+Sub-agent registry (names, models, effort, interaction chains): `.claude/AGENT_REGISTRY.md`.

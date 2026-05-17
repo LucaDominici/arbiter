@@ -21,6 +21,11 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/pre-edit-load-memory.mjs",
+            "timeout": 3
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/pre-edit-ssot-guard.mjs",
             "timeout": 3
           },
@@ -93,6 +98,11 @@
       {
         "matcher": "*",
         "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-brainstorm-stop.mjs",
+            "timeout": 3
+          },
           {
             "type": "command",
             "command": "node .claude/hooks/skill-forced-eval.mjs",

@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "arbiter:auditor-routing",
+  "title": "Auditor Routing Config",
+  "description": "Declarative routing rules for review-code auditor selection. Precedence: critical_paths > always_on > tag_map > skip.",
+  "type": "object",
+  "required": ["auditors", "always_on", "tag_map", "critical_paths"],
+  "additionalProperties": false,
+  "properties": {
+    "auditors": {
+      "type": "object",
+      "description": "Registry of all auditors with their weight for scoring.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["weight", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "weight": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Relative weight used in coverage and pass_rate calculations."
+          },
+          "description": {
+            "type": "string",
+            "description": "What this auditor reviews."
+          }
+        }
+      }
+    },
+    "always_on": {
+      "type": "array",
+      "description": "Auditors active on every diff regardless of file types.",
+      "items": { "type": "string" }
+    },
+    "tag_map": {
+      "type": "object",
+      "description": "Maps file-path glob patterns to the auditors they activate. All matching globs contribute (union semantics). Glob must be repo-relative (no leading /).",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "critical_paths": {
+      "type": "object",
+      "description": "Glob patterns that force-activate ALL auditors when matched. Takes precedence over always_on and tag_map. No absolute paths allowed.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "not": { "pattern": "^/" }
+        }
+      }
+    }
+  }
+}

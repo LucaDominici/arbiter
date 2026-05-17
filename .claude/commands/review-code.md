@@ -42,6 +42,34 @@ Each agent's raw response is persisted under
 - **silent-failure-hunter** — swallowed errors, empty catches, ignored rejections
 - **test-analyzer** — coverage and assertion quality (Standard)
 
+## Auditor Routing
+
+Auditors are selected per-diff using `.claude/auditor-routing.json`. Run before dispatching agents:
+
+```bash
+git diff --name-only --no-renames origin/main...HEAD | node scripts/route-auditors.mjs --diff-stdin
+```
+
+### Precedence (highest to lowest)
+
+1. **`critical_paths`** — force-activates ALL auditors (governance files, security-sensitive paths)
+2. **`always_on`** — bugs, type-safety, domain always active regardless of diff
+3. **`tag_map`** — glob patterns map file types to additional auditors (union semantics)
+4. **skip** — unlisted auditors inactive
+
+### Dual scoring
+
+| Metric          | Formula                              | Meaning                                 |
+| --------------- | ------------------------------------ | --------------------------------------- |
+| `coverage`      | `active_weight / total_weight`       | What fraction of review capacity ran    |
+| `pass_rate`     | `active_pass_weight / active_weight` | Fraction of active capacity that passed |
+| `coverage_tier` | `minimal` / `partial` / `full`       | Human label alongside pass_rate         |
+
+**Never interpret `pass_rate` alone** — a docs-only diff has `coverage_tier=minimal`;
+a 100% `pass_rate` on 1 auditor is not the same as 100% on all 7.
+
+Empty diff or empty active set → `route-auditors.mjs` exits 1 (refused to score).
+
 ## Hard stops
 
 - Any agent emits a `blocker` finding → exit 2, no merge.

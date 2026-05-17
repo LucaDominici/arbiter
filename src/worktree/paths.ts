@@ -68,3 +68,14 @@ export function resolveWorktreeBase(
 export function worktreePathFor(worktreeBase: string, taskId: string, slug?: string): string {
   return join(worktreeBase, worktreeDirectoryName(taskId, slug))
 }
+
+/**
+ * Compute the sibling worktree path: <repoParent>/<repoName>.worktrees/<slug>.
+ * Used by --sibling flag to place the worktree next to the main repo.
+ * Precedence: explicit `--sibling <slug>` > default `worktreeDirectoryName(taskId, slug)`.
+ */
+export function siblingWorktreePathFor(gitRoot: string, siblingSlug: string): string {
+  const parent = dirname(gitRoot)
+  const repoName = basename(gitRoot)
+  return join(parent, `${repoName}.worktrees`, siblingSlug)
+}

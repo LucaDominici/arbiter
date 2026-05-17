@@ -19,6 +19,23 @@ export interface MaterializeResult {
   result: LinkResult
 }
 
+// Creates a symlink; on EEXIST re-checks the dest is already a symlink (TOCTOU guard).
+function symlinkSafe(
+  srcPath: string,
+  destPath: string,
+  linkResult: 'LINKED' | 'LINKED_DIR',
+): LinkResult {
+  try {
+    symlinkSync(srcPath, destPath)
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException).code === 'EEXIST' && lstatSync(destPath).isSymbolicLink()) {
+      return linkResult
+    }
+    throw e
+  }
+  return linkResult
+}
+
 /**
  * Materialize a single link spec from the main repo into a worktree.
  *
@@ -45,8 +62,17 @@ export function materializeLink(
   const destPath = resolve(worktreePath, spec.path)
   const linkType = spec.type ?? 'file'
 
-  // Idempotency — destination already present
+  // Idempotency — destination already present.
+  // Must be a symlink: a real file/dir at the dest means a previous run left a non-link
+  // (copy-from-template, external tool, or botched run) — refuse silently to avoid
+  // masking the mismatch and silently skipping what should have been a symlink.
   if (existsSync(destPath)) {
+    if (!lstatSync(destPath).isSymbolicLink()) {
+      throw new Error(
+        `Cannot materialize '${spec.path}': a non-symlink already exists at ${destPath}. ` +
+          `Remove it manually then retry.`,
+      )
+    }
     return { spec, result: linkType === 'directory' ? 'LINKED_DIR' : 'LINKED' }
   }
 
@@ -62,8 +88,7 @@ export function materializeLink(
       mkdirSync(dirname(destPath), { recursive: true })
       const strategy = spec.strategy ?? 'symlink'
       if (strategy === 'symlink') {
-        symlinkSync(sourcePath, destPath)
-        return { spec, result: 'LINKED_DIR' }
+        return { spec, result: symlinkSafe(sourcePath, destPath, 'LINKED_DIR') }
       }
       // strategy === "copy"
       cpSync(sourcePath, destPath, { recursive: true })
@@ -76,12 +101,10 @@ export function materializeLink(
     return { spec, result: 'MISSING' }
   }
 
-  // --- File handling (existing behaviour) ---
+  // --- File handling ---
   if (sourceExists) {
     mkdirSync(dirname(destPath), { recursive: true })
-    // Always use absolute symlink target to avoid cross-filesystem breakage
-    symlinkSync(sourcePath, destPath)
-    return { spec, result: 'LINKED' }
+    return { spec, result: symlinkSafe(sourcePath, destPath, 'LINKED') }
   }
 
   if (spec.template) {
@@ -118,8 +141,9 @@ export function checkLinkIntegrity(specs: WorktreeLinkSpec[], worktreePath: stri
           dangling.push(`${spec.path} → ${target} (target missing)`)
         }
       }
-    } catch {
-      // Entry absent — not a dangling link, just never created
+    } catch (e: unknown) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
+      // ENOENT: entry never created — not a dangling link
     }
   }
   return dangling

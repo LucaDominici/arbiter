@@ -27,6 +27,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | --------------------------- | ----------------------------- | ------------------------------------------------ |
 | `PreToolUse` → Bash         | `stop-dangerous.mjs`          | Block dangerous commands (rm -rf, force push)    |
 | `PreToolUse` → Edit\|Write  | `enforce-read-only.mjs`       | Guard read-only files                            |
+| `PreToolUse` → Edit\|Write  | `pre-edit-load-memory.mjs`    | Inject memory-impl.md gotchas when glob matches  |
 | `PreToolUse` → Edit\|Write  | `pre-edit-ssot-guard.mjs`     | Prevent unauthorized SSOT edits                  |
 | `PreToolUse` → Edit\|Write  | `pre-edit-plan-anchor.mjs`    | Require plan anchor before editing (CANON-14)    |
 | `PostToolUse` → Bash        | `post-commit-check.mjs`       | Verify commit format after git commits           |
@@ -39,6 +40,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write | `check-circular-deps.mjs`     | Detect circular dependencies after TS/JS edits   |
 | `PostToolUse` → Edit\|Write | `post-edit-dispatch.mjs`      | Run format + lint after file edits               |
 | `PostToolUseFailure` → Bash | `debug-state-on-failure.mjs`  | Persist debug state when gate/test commands fail |
+| `UserPromptSubmit` → \*     | `post-brainstorm-stop.mjs`    | Block /task while brainstorm session active      |
 | `UserPromptSubmit` → \*     | `skill-forced-eval.mjs`       | Enforce skill invocation before responses        |
 | `UserPromptSubmit` → \*     | `guard-task-completion.mjs`   | Warn on premature task-completion claims         |
 | `PreCompact` → \*           | `pre-compact.mjs`             | Persist context before auto-compaction           |
