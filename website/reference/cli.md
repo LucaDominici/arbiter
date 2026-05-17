@@ -189,8 +189,8 @@ All commands support `--json` for machine-readable output.
 | Code | Status    | Meaning                        |
 | ---- | --------- | ------------------------------ |
 | 0    | `ok`      | Command completed successfully |
-| 1    | `error`   | Fatal error                    |
-| 2    | `warning` | Completed with warnings        |
+| 1    | `warning` | Completed with warnings        |
+| 2    | `error`   | Fatal error                    |
 
 ---
 
