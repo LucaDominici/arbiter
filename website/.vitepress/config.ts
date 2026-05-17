@@ -5,6 +5,8 @@ export default defineConfig({
   description: 'AI development governance framework — install once, enforce forever.',
   lastUpdated: true,
   cleanUrls: true,
+  // Links to docs/ files outside the website srcDir cannot be resolved by VitePress.
+  ignoreDeadLinks: [/docs\/PLUGIN-API/, /docs\/INTEGRATIONS/],
 
   sitemap: {
     hostname: 'https://arbiter.dev',
