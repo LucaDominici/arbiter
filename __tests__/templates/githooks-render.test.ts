@@ -113,9 +113,9 @@ describe('githooks/pre-push.ejs', () => {
     expect(out).not.toContain('%>')
   })
 
-  it('typescript: invokes L2 gate', () => {
+  it('typescript: invokes gate subcommand', () => {
     const out = renderTemplate('githooks/pre-push.ejs', tsConfig())
-    expect(out).toContain('node scripts/check-all.mjs L2')
+    expect(out).toContain('node scripts/check-all.mjs gate')
   })
 
   it('typescript: includes rsync workaround for # in path', () => {
@@ -131,9 +131,9 @@ describe('githooks/pre-push.ejs', () => {
     }
   })
 
-  it('rust: invokes L2 gate', () => {
+  it('rust: invokes gate subcommand', () => {
     const out = renderTemplate('githooks/pre-push.ejs', rustConfig())
-    expect(out).toContain('node scripts/check-all.mjs L2')
+    expect(out).toContain('node scripts/check-all.mjs gate')
   })
 
   it('rust: does NOT include rsync block', () => {

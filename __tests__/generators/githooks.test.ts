@@ -71,11 +71,11 @@ describe('generateGithooks — happy path (typescript)', () => {
     expect(content).toContain('node scripts/check-all.mjs L1')
   })
 
-  it('pre-push hook file contains L2 gate invocation', () => {
+  it('pre-push hook file contains gate subcommand invocation', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-push'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L2')
+    expect(content).toContain('node scripts/check-all.mjs gate')
   })
 
   it("hooks are written with action 'created' on fresh directory", () => {
