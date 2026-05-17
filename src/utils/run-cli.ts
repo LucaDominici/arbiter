@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { spawnSync } from 'node:child_process'
+import { getLogger } from './logger.js'
 
 export interface RunCliOptions {
   cwd?: string
@@ -177,9 +178,14 @@ export function runCli(
  */
 function logRetrySuccess(cmd: string, attemptErrors: readonly CliError[]): void {
   if (attemptErrors.length === 0) return
-  console.warn(
-    `[arbiter] runCli: ${cmd} succeeded after ${attemptErrors.length} ` +
-      `failed attempt(s); first error: ${attemptErrors[0]?.message ?? '(none)'}`,
+  getLogger().warn(
+    'run_cli.retry_succeeded',
+    {
+      cmd,
+      attempts: attemptErrors.length,
+      first_error: attemptErrors[0]?.message ?? '(none)',
+    },
+    `runCli: ${cmd} succeeded after ${attemptErrors.length} failed attempt(s)`,
   )
 }
 
@@ -209,9 +215,10 @@ function finalRetryError(
     )
   }
   if (attemptErrors.length > 1) {
-    console.warn(
-      `[arbiter] runCli: ${cmd} failed after ${attemptErrors.length} attempt(s); ` +
-        `final error: ${last.message}`,
+    getLogger().warn(
+      'run_cli.retries_exhausted',
+      { cmd, attempts: attemptErrors.length, final_error: last.message },
+      `runCli: ${cmd} failed after ${attemptErrors.length} attempt(s)`,
     )
   }
   return last

@@ -1618,7 +1618,7 @@ experiments
   .action(() => {
     const all = listExperiments()
     if (all.length === 0) {
-      console.log(t('cli.experiments.none'))
+      process.stdout.write(`${t('cli.experiments.none')}\n`)
       return
     }
     const activeFlags: Record<string, boolean> = (() => {
@@ -1631,10 +1631,12 @@ experiments
     for (const exp of all) {
       const active = isEnabled(exp.name, activeFlags)
       const status = active ? '[active]' : '[inactive]'
-      console.log(
-        `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})`,
+      process.stdout.write(
+        `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})\n`,
       )
-      console.log(t('cli.experiments.criteria', { criteria: exp.promotionCriteria }))
+      process.stdout.write(
+        `${t('cli.experiments.criteria', { criteria: exp.promotionCriteria })}\n`,
+      )
     }
   })
 

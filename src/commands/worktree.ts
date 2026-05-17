@@ -211,8 +211,8 @@ function materializeLinks(
 }
 
 function printLinkSummary(summary: LinkSummary): void {
-  console.log(
-    `Links:          ${summary.linked} linked, ${summary.linkedDir} linked-dir, ${summary.copied} copied-from-template, ${summary.copiedDir} copied-dir, ${summary.missing} missing`,
+  process.stdout.write(
+    `Links:          ${summary.linked} linked, ${summary.linkedDir} linked-dir, ${summary.copied} copied-from-template, ${summary.copiedDir} copied-dir, ${summary.missing} missing\n`,
   )
 }
 
@@ -333,11 +333,11 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     })
     return
   }
-  console.log(t('cli.worktree.ready', { path: worktreePath }))
-  console.log(t('cli.worktree.branch', { branch: branchName }))
-  console.log(t('cli.worktree.base', { base: baseBranch, ref: baseRef }))
+  process.stdout.write(`${t('cli.worktree.ready', { path: worktreePath })}\n`)
+  process.stdout.write(`${t('cli.worktree.branch', { branch: branchName })}\n`)
+  process.stdout.write(`${t('cli.worktree.base', { base: baseBranch, ref: baseRef })}\n`)
   printLinkSummary(linkSummary)
-  console.log(t('cli.worktree.next', { path: worktreePath }))
+  process.stdout.write(`${t('cli.worktree.next', { path: worktreePath })}\n`)
 }
 
 // ---------------------------------------------------------------------------
@@ -435,29 +435,29 @@ function harvestAndReport(
   const result = harvestFiles(harvestOpts)
 
   if (result.copied.length > 0) {
-    console.log(t('cli.worktree.harvested', { count: result.copied.length }))
+    process.stdout.write(`${t('cli.worktree.harvested', { count: result.copied.length })}\n`)
     for (const f of result.copied) {
-      console.log(t('cli.worktree.harvest_copied', { file: f }))
+      process.stdout.write(`${t('cli.worktree.harvest_copied', { file: f })}\n`)
     }
   }
   if (result.skipped.length > 0) {
-    console.log(t('cli.worktree.skipped_count', { count: result.skipped.length }))
+    process.stdout.write(`${t('cli.worktree.skipped_count', { count: result.skipped.length })}\n`)
     for (const f of result.skipped) {
-      console.log(t('cli.worktree.harvest_skipped', { file: f }))
+      process.stdout.write(`${t('cli.worktree.harvest_skipped', { file: f })}\n`)
     }
   }
   if (result.protectedUntracked.length > 0) {
-    console.log(
-      `Protected ${result.protectedUntracked.length} untracked file(s) in main repo from overwrite:`,
+    process.stdout.write(
+      `Protected ${result.protectedUntracked.length} untracked file(s) in main repo from overwrite:\n`,
     )
     for (const f of result.protectedUntracked) {
-      console.log(t('cli.worktree.harvest_protected', { file: f }))
+      process.stdout.write(`${t('cli.worktree.harvest_protected', { file: f })}\n`)
     }
   }
   const totalProcessed =
     result.copied.length + result.skipped.length + result.protectedUntracked.length
   if (totalProcessed === 0) {
-    console.log(t('cli.worktree.no_harvest'))
+    process.stdout.write(`${t('cli.worktree.no_harvest')}\n`)
   }
 
   return result
@@ -539,7 +539,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
   const warn =
     opts.onWarning ??
     ((msg: string): void => {
-      console.log(msg)
+      process.stdout.write(`${msg}\n`)
     })
 
   const gitRoot = getGitRoot(cwd)
@@ -582,7 +582,7 @@ export function runWorktreeClose(opts: WorktreeCloseOptions): void {
 
   if (!opts.keepBranch) {
     if (deleteTaskBranch(branch, gitRoot, effectiveForce)) {
-      console.log(t('cli.worktree.branch_deleted', { branch }))
+      process.stdout.write(`${t('cli.worktree.branch_deleted', { branch })}\n`)
     }
   }
 
@@ -654,8 +654,8 @@ function emitCloseResult(
     jsonOutput('worktree-close', 'ok', result)
     return
   }
-  console.log(t('cli.worktree.closed', { path: result.worktreePath }))
-  console.log()
+  process.stdout.write(`${t('cli.worktree.closed', { path: result.worktreePath })}\n`)
+  process.stdout.write('\n')
 }
 
 // ---------------------------------------------------------------------------
@@ -667,7 +667,7 @@ export function runWorktreeList(opts: WorktreeListOptions = {}): void {
   const emit =
     opts.onLine ??
     ((line: string): void => {
-      console.log(line)
+      process.stdout.write(`${line}\n`)
     })
   const gitRoot = getGitRoot(cwd)
 

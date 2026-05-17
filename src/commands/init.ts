@@ -5,6 +5,7 @@ import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, ArbiterError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
+import { getLogger } from '../utils/logger.js'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
 import { detectLanguage } from '../detectors/language.js'
@@ -103,7 +104,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   const log: (msg: string) => void = options.json
     ? (): void => {}
     : (msg: string): void => {
-        console.log(msg)
+        process.stdout.write(`${msg}\n`)
       }
 
   // --json requires --yes: interactive wizard reads stdin which is incompatible with
@@ -203,14 +204,16 @@ function emitInitOutput(
   if (errorLines.length > 0) {
     // #483: print a structured stdout summary (not stderr — CI scripts pipe
     // stderr away) and exit non-zero so silent misconfiguration is impossible.
-    console.log(
+    process.stdout.write(
       `\n  Generator failures (${errorLines.length}):\n${errorLines
         .map((line) => `    - ${line}`)
-        .join('\n')}\n\n  See https://github.com/arbiter-framework/arbiter/issues/483 for context.`,
+        .join(
+          '\n',
+        )}\n\n  See https://github.com/arbiter-framework/arbiter/issues/483 for context.\n`,
     )
     process.exit(statusToExitCode('error'))
   }
-  console.log(t('cli.init.verify_hint'))
+  process.stdout.write(`${t('cli.init.verify_hint')}\n`)
 }
 
 function detectAndAuditSkills(targetDir: string): ReturnType<typeof detectInstalledSkills> {
@@ -480,15 +483,19 @@ export async function runPlugins(
       }
       const result = await plugin.generate(ctx)
       if (!Array.isArray(result.files)) {
-        console.warn(
-          `  [arbiter] Plugin "${pkg}" returned invalid result (no files array). Skipping.`,
+        getLogger().warn(
+          'init.plugin_invalid_result',
+          { plugin: pkg },
+          `Plugin "${pkg}" returned invalid result (no files array). Skipping.`,
         )
         continue
       }
       for (const file of result.files) {
         if (writtenPaths.has(file.path)) {
-          console.warn(
-            `  [arbiter] Plugin "${pkg}" conflict: "${file.path}" already written by a prior plugin. Skipping.`,
+          getLogger().warn(
+            'init.plugin_conflict',
+            { plugin: pkg, path: file.path },
+            `Plugin "${pkg}" conflict: "${file.path}" already written by a prior plugin. Skipping.`,
           )
           all.push({ path: file.path, action: 'skipped' })
           continue
@@ -531,7 +538,9 @@ function runBackendSetup(config: ProjectConfig, log: (msg: string) => void): Bac
 
 export function runGithubSetup(
   config: ProjectConfig,
-  log: (msg: string) => void = console.log,
+  log: (msg: string) => void = (msg: string): void => {
+    process.stdout.write(`${msg}\n`)
+  },
 ): BackendResult {
   if (!config.useGitHub || !config.githubOwner || !config.githubRepo)
     return { warnings: [], errors: [] }
@@ -590,7 +599,11 @@ function guardAdverseGitState(targetDir: string, force: boolean | undefined): vo
       `${adverseState.message}\n${adverseState.suggestedFix}\n${t('cli.shared.force_override_hint')}`,
     )
   }
-  console.warn(warning)
+  getLogger().warn(
+    'init.adverse_git_state',
+    { message: adverseState.message, suggested_fix: adverseState.suggestedFix },
+    warning,
+  )
 }
 
 export function guardBrownfieldDirtyTree(targetDir: string, force: boolean | undefined): void {
@@ -604,7 +617,7 @@ export function guardBrownfieldDirtyTree(targetDir: string, force: boolean | und
         {},
         { hint: 'Commit or stash changes first, or use --force to override.' },
       )
-    console.warn(t('cli.init.dirty_tree_warn'))
+    getLogger().warn('init.dirty_tree', {}, t('cli.init.dirty_tree_warn'))
   } catch (err) {
     if (err instanceof UserFacingError) throw err
     const code = (err as NodeJS.ErrnoException).code
@@ -661,13 +674,13 @@ export function rollbackGeneration(results: WriteResult[]): void {
 }
 
 function logExistingDetections(existing: ReturnType<typeof detectExisting>): void {
-  if (existing.agentsMd) console.log(t('cli.init.existing_agents_md'))
-  if (existing.claudeDir) console.log(t('cli.init.existing_claude_dir'))
-  if (existing.agentsDir) console.log(t('cli.init.existing_agents_dir'))
-  if (existing.geminiDir) console.log(t('cli.init.existing_gemini_dir'))
-  if (existing.windsurfRules) console.log(t('cli.init.existing_windsurf'))
-  if (existing.aiderConf) console.log(t('cli.init.existing_aider'))
-  if (existing.aiRulez) console.log(t('cli.init.ai_rulez_detected'))
+  if (existing.agentsMd) process.stdout.write(`${t('cli.init.existing_agents_md')}\n`)
+  if (existing.claudeDir) process.stdout.write(`${t('cli.init.existing_claude_dir')}\n`)
+  if (existing.agentsDir) process.stdout.write(`${t('cli.init.existing_agents_dir')}\n`)
+  if (existing.geminiDir) process.stdout.write(`${t('cli.init.existing_gemini_dir')}\n`)
+  if (existing.windsurfRules) process.stdout.write(`${t('cli.init.existing_windsurf')}\n`)
+  if (existing.aiderConf) process.stdout.write(`${t('cli.init.existing_aider')}\n`)
+  if (existing.aiRulez) process.stdout.write(`${t('cli.init.ai_rulez_detected')}\n`)
 }
 
 function maybeCaptureBaseline(config: ProjectConfig, targetDir: string, brownfield: boolean): void {
@@ -682,23 +695,25 @@ function runBrownfieldCapture(
   targetDir: string,
   opts: { fatal: boolean } = { fatal: false },
 ): void {
-  console.log(t('cli.init.capturing_baseline'))
+  process.stdout.write(`${t('cli.init.capturing_baseline')}\n`)
   try {
     runCli('node', ['scripts/capture-debt-baseline.mjs'], {
       cwd: targetDir,
       timeoutMs: 600_000,
     })
-    console.log(t('cli.init.baseline_captured'))
+    process.stdout.write(`${t('cli.init.baseline_captured')}\n`)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (opts.fatal) {
-      console.error(
-        `  [arbiter] GATE FAIL: Baseline capture failed (${msg}). Fix toolchain or run: node scripts/capture-debt-baseline.mjs`,
+      process.stderr.write(
+        `  GATE FAIL: Baseline capture failed (${msg}). Fix toolchain or run: node scripts/capture-debt-baseline.mjs\n`,
       )
       process.exit(1)
     }
-    console.warn(
-      `  Baseline capture failed (${msg}). Re-run manually: node scripts/capture-debt-baseline.mjs`,
+    getLogger().warn(
+      'init.baseline_capture_failed',
+      { err: msg },
+      `Baseline capture failed (${msg}). Re-run manually: node scripts/capture-debt-baseline.mjs`,
     )
   }
 }
@@ -713,34 +728,34 @@ export function printResults(results: WriteResult[], targetDir: string): void {
           ? ' (backed up + replaced)'
           : ''
     const relPath = result.path.replace(targetDir + '/', '')
-    console.log(t('cli.init.file_entry', { icon, relPath, label }))
+    process.stdout.write(`${t('cli.init.file_entry', { icon, relPath, label })}\n`)
   }
 }
 
 function displayDryRunPreview(config: ProjectConfig): void {
   const preview = computeDryRunPreview(config)
-  console.log(t('cli.init.dry_run_notice_full'))
+  process.stdout.write(`${t('cli.init.dry_run_notice_full')}\n`)
 
   if (preview.created.length > 0) {
-    console.log(t('cli.init.dry_run_create_header'))
+    process.stdout.write(`${t('cli.init.dry_run_create_header')}\n`)
     for (const entry of preview.created) {
-      console.log(t('cli.init.dry_run_create_file', { entry }))
+      process.stdout.write(`${t('cli.init.dry_run_create_file', { entry })}\n`)
     }
   }
   if (preview.modified.length > 0) {
-    console.log(t('cli.init.dry_run_modify_header'))
+    process.stdout.write(`${t('cli.init.dry_run_modify_header')}\n`)
     for (const entry of preview.modified) {
-      console.log(t('cli.init.dry_run_modify_file', { entry }))
+      process.stdout.write(`${t('cli.init.dry_run_modify_file', { entry })}\n`)
     }
   }
   if (preview.skipped.length > 0) {
-    console.log(t('cli.init.dry_run_skip_header'))
+    process.stdout.write(`${t('cli.init.dry_run_skip_header')}\n`)
     for (const entry of preview.skipped) {
-      console.log(t('cli.init.dry_run_skip_file', { entry }))
+      process.stdout.write(`${t('cli.init.dry_run_skip_file', { entry })}\n`)
     }
   }
 
-  console.log(t('cli.init.dry_run_run_hint'))
+  process.stdout.write(`${t('cli.init.dry_run_run_hint')}\n`)
 }
 
 function buildDefaultConfig(opts: {
@@ -932,31 +947,31 @@ function checkL3MaturityGates(config: ProjectConfig): void {
   }
 
   if (blocked.length > 0) {
-    console.error(t('cli.init.gate_failed'))
+    process.stderr.write(`${t('cli.init.gate_failed')}\n`)
     for (const msg of blocked) {
-      console.error(msg)
+      process.stderr.write(`${msg}\n`)
     }
-    console.error(t('cli.init.accept_beta_hint'))
+    process.stderr.write(`${t('cli.init.accept_beta_hint')}\n`)
     process.exit(1)
   }
 }
 
 function runToolchainVerify(targetDir: string): void {
-  console.log(t('cli.init.verifying_toolchain'))
+  process.stdout.write(`${t('cli.init.verifying_toolchain')}\n`)
   let report: ReturnType<typeof runProbes>
   try {
     report = runProbes(targetDir)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(
+    process.stderr.write(
       `\n  Toolchain verification failed unexpectedly: ${msg}\n` +
         '  Generated files are on disk. Use --no-verify to skip verification.\n',
     )
     process.exit(1)
   }
-  console.log(formatText(report))
+  process.stdout.write(`${formatText(report)}\n`)
   if (report.hasFailures) {
-    console.error(
+    process.stderr.write(
       '\n  arbiter init aborted: toolchain incompatibilities detected.\n' +
         '  Fix the issues above and re-run, or use --no-verify to skip.\n',
     )

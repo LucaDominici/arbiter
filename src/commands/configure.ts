@@ -279,7 +279,7 @@ export function runConfigure(options: ConfigureOptions): void {
       process.exit(1)
       return
     }
-    console.error(t('cli.configure.usage_hint'))
+    process.stderr.write(`${t('cli.configure.usage_hint')}\n`)
     process.exit(2)
   }
 
@@ -338,5 +338,5 @@ export function runConfigure(options: ConfigureOptions): void {
     jsonOutput('configure', 'ok', { updated: options.sets })
     return
   }
-  console.log(t('cli.configure.updated', { keys: options.sets.join(', ') }))
+  process.stdout.write(`${t('cli.configure.updated', { keys: options.sets.join(', ') })}\n`)
 }

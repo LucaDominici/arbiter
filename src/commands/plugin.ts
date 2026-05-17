@@ -165,12 +165,12 @@ export function runPluginInit(name: string, opts: PluginInitOptions = {}): Promi
     return Promise.resolve()
   }
 
-  console.log(t('cli.plugin.scaffolded', { name: pkgName }))
-  console.log(t('cli.plugin.location', { path: pkgDir }))
-  console.log(t('cli.plugin.next_steps'))
-  console.log(t('cli.plugin.cd_hint', { path: pkgDir }))
-  console.log(t('cli.plugin.npm_install'))
-  console.log(t('cli.plugin.npm_build'))
+  process.stdout.write(`${t('cli.plugin.scaffolded', { name: pkgName })}\n`)
+  process.stdout.write(`${t('cli.plugin.location', { path: pkgDir })}\n`)
+  process.stdout.write(`${t('cli.plugin.next_steps')}\n`)
+  process.stdout.write(`${t('cli.plugin.cd_hint', { path: pkgDir })}\n`)
+  process.stdout.write(`${t('cli.plugin.npm_install')}\n`)
+  process.stdout.write(`${t('cli.plugin.npm_build')}\n`)
   return Promise.resolve()
 }
 
@@ -183,7 +183,7 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
       process.exit(1)
       return
     }
-    console.error(t('cli.plugin.no_config'))
+    process.stderr.write(`${t('cli.plugin.no_config')}\n`)
     process.exit(1)
   }
 
@@ -223,8 +223,8 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
     return
   }
 
-  console.log(t('cli.plugin.added', { name: opts.pkg }))
-  console.log(t('cli.plugin.security_advisory', { name: opts.pkg }))
+  process.stdout.write(`${t('cli.plugin.added', { name: opts.pkg })}\n`)
+  process.stdout.write(`${t('cli.plugin.security_advisory', { name: opts.pkg })}\n`)
 }
 
 export function runPluginRemove(opts: PluginRemoveOptions): void {
@@ -236,7 +236,7 @@ export function runPluginRemove(opts: PluginRemoveOptions): void {
       process.exit(1)
       return
     }
-    console.error(t('cli.plugin.no_config'))
+    process.stderr.write(`${t('cli.plugin.no_config')}\n`)
     process.exit(1)
   }
 
@@ -247,7 +247,7 @@ export function runPluginRemove(opts: PluginRemoveOptions): void {
     jsonOutput('plugin-remove', 'ok', { pkg: opts.pkg })
     return
   }
-  console.log(t('cli.plugin.removed_msg', { name: opts.pkg }))
+  process.stdout.write(`${t('cli.plugin.removed_msg', { name: opts.pkg })}\n`)
 }
 
 export async function runPluginList(opts: PluginListOptions): Promise<void> {
@@ -259,7 +259,7 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
       process.exit(1)
       return
     }
-    console.error(t('cli.plugin.no_config'))
+    process.stderr.write(`${t('cli.plugin.no_config')}\n`)
     process.exit(1)
   }
 
@@ -283,11 +283,11 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
   }
 
   if (pluginNames.length === 0) {
-    console.log(t('cli.plugin.no_plugins'))
+    process.stdout.write(`${t('cli.plugin.no_plugins')}\n`)
     return
   }
 
-  console.log(t('cli.plugin.plugins_header'))
+  process.stdout.write(`${t('cli.plugin.plugins_header')}\n`)
   for (const pkg of pluginNames) {
     let status: string
     try {
@@ -297,7 +297,7 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
       const raw = err instanceof Error ? err.message : String(err)
       status = `not loadable: ${raw.split('\n')[0]}`
     }
-    console.log(t('cli.plugin.plugin_row', { name: pkg, status }))
+    process.stdout.write(`${t('cli.plugin.plugin_row', { name: pkg, status })}\n`)
   }
 }
 
