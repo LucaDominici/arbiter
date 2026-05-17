@@ -68,7 +68,7 @@ describe('matrix: Python project', () => {
     expect(paths.some((p) => p.endsWith('AGENTS.md'))).toBe(true)
     expect(paths.some((p) => p.includes('.claude/CLAUDE.md'))).toBe(true)
     expect(paths.some((p) => p.includes('.agents/CODEX.md'))).toBe(true)
-    expect(paths.some((p) => p.includes('.github/workflows/ci.yml'))).toBe(true)
+    expect(paths.some((p) => p.includes('.github/workflows/01-pr-fast.yml'))).toBe(true)
   })
 
   it('settings.json does not include npm or gradle permissions', () => {
@@ -103,7 +103,7 @@ describe('matrix: Python project', () => {
   it('CI workflow uses Python setup and commands', () => {
     const config = pythonConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('setup-python')
     expect(ci).toContain('ruff')
     expect(ci).toContain('pytest')
@@ -149,7 +149,7 @@ describe('matrix: Python project', () => {
   it('CI workflow includes debt-gates job for Python when enableDebtGates is true', () => {
     const config = pythonConfig({ enableDebtGates: true })
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('debt-gates:')
   })
 

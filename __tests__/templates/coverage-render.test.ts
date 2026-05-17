@@ -323,9 +323,9 @@ describe('coverage config templates — rendering (CANON-04)', () => {
     expect(content).toContain('[xml]')
   })
 
-  // ── ci.yml.ejs — artifact upload ───────────────────────────────────────────
+  // ── 01-pr-fast.yml.ejs — artifact upload ───────────────────────────────────────────
 
-  it('ci.yml.ejs contains upload-artifact step when enableDebtGates is true', () => {
+  it('01-pr-fast.yml.ejs contains upload-artifact step when enableDebtGates is true', () => {
     const data = {
       ...makeConfig('/tmp/test', {
         language: 'typescript',
@@ -335,7 +335,7 @@ describe('coverage config templates — rendering (CANON-04)', () => {
       coverageThreshold: 80,
       coverageEnabled: true,
     } as unknown as Record<string, unknown>
-    const content = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const content = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(content).toContain('upload-artifact')
     expect(content).toContain('coverage')
   })

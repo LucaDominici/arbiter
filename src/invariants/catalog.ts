@@ -660,7 +660,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: false,
     enforcement:
       'src/templates/scripts/check-all.mjs.ejs (env-gate block around Pact runCheck calls) + ' +
-      "src/templates/github/workflows/ci.yml.ejs (if: vars.PACT_BROKER_BASE_URL != '' + env: block) + " +
+      "src/templates/github/workflows/01-pr-fast.yml.ejs (if: vars.PACT_BROKER_BASE_URL != '' + env: block) + " +
       'src/templates/contract-testing/rest-owned/pact-deps.gradle.ejs (conditional system props)',
   },
 

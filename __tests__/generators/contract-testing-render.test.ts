@@ -421,7 +421,7 @@ describe('contract-testing render: F5 Pact broker glue (INV-42)', () => {
     expect(content).toContain('PACT_BROKER_TOKEN=')
   })
 
-  it('ci.yml.ejs TS rest-owned: Pact step has PACT_BROKER_BASE_URL conditional', () => {
+  it('01-pr-fast.yml.ejs TS rest-owned: Pact step has PACT_BROKER_BASE_URL conditional', () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       buildTool: 'npm',
@@ -429,7 +429,7 @@ describe('contract-testing render: F5 Pact broker glue (INV-42)', () => {
       contractType: 'rest-owned',
       useGitHub: true,
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const content = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(content).toContain('PACT_BROKER_BASE_URL')
   })
 })

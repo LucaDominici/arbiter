@@ -55,10 +55,10 @@ describe('tool output: github', () => {
   it('CI workflow is always regenerated on re-run (soloDevMode toggle requires immediate apply)', () => {
     const workflowsDir = join(dir, '.github', 'workflows')
     mkdirSync(workflowsDir, { recursive: true })
-    writeFileSync(join(workflowsDir, 'ci.yml'), '# custom ci')
+    writeFileSync(join(workflowsDir, '01-pr-fast.yml'), '# custom ci')
     const config = githubConfig()
     const result = generateGithub(config)
-    const ci = result.files.find((f) => f.path.endsWith('ci.yml'))
+    const ci = result.files.find((f) => f.path.endsWith('01-pr-fast.yml'))
     expect(ci?.action).toBe('replaced')
   })
 })

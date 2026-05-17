@@ -18,7 +18,10 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
   // CI workflow — always regenerate so soloDevMode toggles apply immediately
   const workflowsDir = join(githubDir, 'workflows')
   results.push(
-    writeFile(join(workflowsDir, 'ci.yml'), renderTemplate('github/workflows/ci.yml.ejs', data)),
+    writeFile(
+      join(workflowsDir, '01-pr-fast.yml'),
+      renderTemplate('github/workflows/01-pr-fast.yml.ejs', data),
+    ),
   )
 
   // Drift shadow — only when solo-dev mode is active (#470)

@@ -144,7 +144,7 @@ export function buildMigrationPlan(
   )
 
   if (useGitHub) {
-    created.push('GitHub workflows + templates (ci.yml, PR template, issue templates)')
+    created.push('GitHub workflows + templates (01-pr-fast.yml, PR template, issue templates)')
     if (!existing.checkAllScript) {
       created.push('scripts/check-all.mjs')
     } else {

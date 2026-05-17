@@ -4,7 +4,7 @@ import { makeConfig } from '../helpers.js'
 
 function renderCi(overrides: Record<string, unknown> = {}) {
   return renderTemplate(
-    'github/workflows/ci.yml.ejs',
+    'github/workflows/01-pr-fast.yml.ejs',
     makeConfig('/tmp/test', overrides as Parameters<typeof makeConfig>[1]) as unknown as Record<
       string,
       unknown
@@ -12,7 +12,7 @@ function renderCi(overrides: Record<string, unknown> = {}) {
   )
 }
 
-describe('ci.yml.ejs lane awareness', () => {
+describe('01-pr-fast.yml.ejs lane awareness', () => {
   it('single-lane L1: no classify-changes job', () => {
     const rendered = renderCi({ lanes: [], governanceLevel: 'L1' })
     expect(rendered).not.toContain('classify-changes')
@@ -101,7 +101,7 @@ describe('ci.yml.ejs lane awareness', () => {
 
   it('single-lane: byte-identical L3 output before and after lanes field present', () => {
     const withEmpty = renderCi({ lanes: [], governanceLevel: 'L3' })
-    const withUndefined = renderTemplate('github/workflows/ci.yml.ejs', {
+    const withUndefined = renderTemplate('github/workflows/01-pr-fast.yml.ejs', {
       ...makeConfig('/tmp/test', { governanceLevel: 'L3' } as Parameters<typeof makeConfig>[1]),
       lanes: undefined,
     } as unknown as Record<string, unknown>)
