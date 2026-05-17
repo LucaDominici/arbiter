@@ -4,9 +4,10 @@ import { join } from 'node:path'
 const HOOK = join(process.cwd(), 'src/templates/claude/hooks/pre-edit-ssot-guard.mjs')
 
 function run(filePath: string, extraEnv: Record<string, string> = {}) {
+  const { ARBITER_SSOT_BYPASS: _bypass, ...cleanEnv } = process.env
   return spawnSync('node', [HOOK], {
     encoding: 'utf-8',
-    env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: filePath, ...extraEnv },
+    env: { ...cleanEnv, CLAUDE_TOOL_INPUT_PATH: filePath, ...extraEnv },
   })
 }
 

@@ -83,6 +83,8 @@ for (const entry of hardSpawnable) {
   }
 
   const env = { ...process.env }
+  // Strip session-level bypass so empirical assertions fire regardless of dev env state.
+  delete env.ARBITER_SSOT_BYPASS
   const tmpFiles = []
 
   if (fixture.type === 'file-with-content') {
