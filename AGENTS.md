@@ -115,6 +115,21 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-60:** Release binary size capped at archetype default
 - **INV-61:** a11y critical violations are HARD-fail at L2
 
+## Optional — Viafera Port (opt-in, INV-62..INV-71)
+
+Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
+
+- **INV-62:** Frontend state separation — async (server) and sync (UI) state in distinct stores
+- **INV-63:** SSOT atomic update — code and SSOT documentation land in the same commit
+- **INV-64:** No magic code — non-trivial idioms documented in a pattern catalog
+- **INV-65:** Platform abstraction — env-specific APIs accessed only via adapter
+- **INV-66:** Process self-documentation — docs/METHOD/ is canonical for process rules
+- **INV-67:** No internal mocking in E2E — backend endpoints are exercised against the real service
+- **INV-68:** MCP-first forensic inspection — debug via MCP tools before raw shell
+- **INV-69:** Design rationale traceability — new abstractions cite their motivating ADR
+- **INV-70:** Reuse before new — canonical registry search precedes creating a new module
+- **INV-71:** Track D task completion — docs-only changes follow the documented completion rules
+
 ---
 
 ## Coding Standards

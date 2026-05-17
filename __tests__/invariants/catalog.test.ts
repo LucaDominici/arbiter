@@ -22,19 +22,19 @@ const ALL_TIERS: InvariantTier[] = [
 // ---------------------------------------------------------------------------
 
 describe('INVARIANT_CATALOG', () => {
-  it('has exactly 61 entries', () => {
-    expect(INVARIANT_CATALOG).toHaveLength(61)
+  it('has exactly 71 entries', () => {
+    expect(INVARIANT_CATALOG).toHaveLength(71)
   })
 
   it('all IDs are unique', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(61)
+    expect(unique.size).toBe(71)
   })
 
-  it('all IDs match INV-XX pattern sequentially (INV-01..60)', () => {
+  it('all IDs match INV-XX pattern sequentially (INV-01..71)', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
-    for (let i = 1; i <= 60; i++) {
+    for (let i = 1; i <= 71; i++) {
       expect(ids).toContain(`INV-${String(i).padStart(2, '0')}`)
     }
   })
@@ -49,16 +49,16 @@ describe('INVARIANT_CATALOG', () => {
     }
   })
 
-  it('Tier 1 (architectural) invariants are alwaysActive', () => {
-    const tier1 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'architectural')
+  it('Tier 1 (architectural) non-optIn invariants are alwaysActive', () => {
+    const tier1 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'architectural' && !inv.optInGroup)
     expect(tier1.length).toBeGreaterThan(0)
     for (const inv of tier1) {
       expect(inv.alwaysActive, `${inv.id} should be alwaysActive`).toBe(true)
     }
   })
 
-  it('Tier 5 (governance) invariants are alwaysActive', () => {
-    const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
+  it('Tier 5 (governance) non-optIn invariants are alwaysActive', () => {
+    const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance' && !inv.optInGroup)
     expect(tier5.length).toBeGreaterThan(0)
     for (const inv of tier5) {
       expect(inv.alwaysActive, `${inv.id} should be alwaysActive`).toBe(true)
@@ -84,14 +84,14 @@ describe('INVARIANT_CATALOG', () => {
     }
   })
 
-  it('has exactly 8 Tier 1 invariants', () => {
+  it('has exactly 11 Tier 1 invariants', () => {
     const tier1 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'architectural')
-    expect(tier1).toHaveLength(8)
+    expect(tier1).toHaveLength(11)
   })
 
-  it('has exactly 5 Tier 2 invariants', () => {
+  it('has exactly 6 Tier 2 invariants', () => {
     const tier2 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'data')
-    expect(tier2).toHaveLength(5)
+    expect(tier2).toHaveLength(6)
   })
 
   it('has exactly 6 Tier 3 invariants', () => {
@@ -99,14 +99,14 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier3).toHaveLength(6)
   })
 
-  it('has exactly 13 Tier 4 invariants', () => {
+  it('has exactly 14 Tier 4 invariants', () => {
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(13)
+    expect(tier4).toHaveLength(14)
   })
 
-  it('has exactly 29 Tier 5 invariants', () => {
+  it('has exactly 34 Tier 5 invariants', () => {
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(29)
+    expect(tier5).toHaveLength(34)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {

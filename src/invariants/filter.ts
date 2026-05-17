@@ -19,8 +19,16 @@ export function getFilteredInvariants(config: {
   invariantTiers: InvariantTier[]
   /** Include arbiter-internal invariants (selfOnly: true). Default: false (target-project context). */
   includeArbiterInternal?: boolean
+  /**
+   * Include viafera-port opt-in invariants (INV-62..INV-71).
+   * Default: false. Enable via arbiter.json governance.invariants_catalog = 'extended'.
+   */
+  includeViaferaPort?: boolean
 }): Invariant[] {
   return INVARIANT_CATALOG.filter((inv) => {
+    // viafera-port invariants are excluded unless the caller explicitly opts in
+    if (inv.optInGroup === 'viafera-port' && !config.includeViaferaPort) return false
+
     // selfOnly invariants are excluded from target-project generation by default
     if (inv.selfOnly && !config.includeArbiterInternal) return false
 
