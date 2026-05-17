@@ -48,6 +48,14 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
     ),
   )
 
+  // T5 weekly — always regenerate
+  results.push(
+    writeFile(
+      join(workflowsDir, '07-weekly.yml'),
+      renderTemplate('github/workflows/07-weekly.yml.ejs', data),
+    ),
+  )
+
   // T6 heartbeat watchdog — always regenerate
   results.push(
     writeFile(

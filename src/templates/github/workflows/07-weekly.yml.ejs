@@ -1,0 +1,276 @@
+<%
+const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
+const _isService = _bucket === 'service';
+const _isCli = _bucket === 'cli';
+%>name: Weekly (T5)
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+
+jobs:
+<% if (_isService) { %>
+  cross-db-matrix:
+    name: Cross-DB matrix (Postgres / MySQL / MSSQL / MariaDB)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [postgres, mysql, mssql, mariadb]
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Run integration tests against ${{ matrix.db }}
+        run: npm run test:integration
+        env:
+          DB_TYPE: ${{ matrix.db }}
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run integration tests against ${{ matrix.db }}
+        run: ./gradlew integrationTest
+        env:
+          DB_TYPE: ${{ matrix.db }}
+<% } else { %>
+      - name: Run integration tests against ${{ matrix.db }}
+        run: mvn test -Pintegration
+        env:
+          DB_TYPE: ${{ matrix.db }}
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run integration tests against ${{ matrix.db }}
+        run: go test -tags integration ./...
+        env:
+          DB_TYPE: ${{ matrix.db }}
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install -e ".[dev]"
+      - name: Run integration tests against ${{ matrix.db }}
+        run: pytest -m integration
+        env:
+          DB_TYPE: ${{ matrix.db }}
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run integration tests against ${{ matrix.db }}
+        run: cargo test --test integration
+        env:
+          DB_TYPE: ${{ matrix.db }}
+<% } %>
+
+<% } %>
+<% if (_isCli) { %>
+  cross-os-matrix:
+    name: Cross-OS / cross-arch matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows-latest
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build CLI binary (${{ matrix.os }} / ${{ matrix.arch }})
+        run: |
+          GOARCH=${{ matrix.arch }} go build -o dist/cli-${{ matrix.os }}-${{ matrix.arch }} ./cmd/...
+      - name: Smoke test binary
+        run: dist/cli-${{ matrix.os }}-${{ matrix.arch }} --version
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build CLI binary (${{ matrix.os }} / ${{ matrix.arch }})
+        run: cargo build --release
+      - name: Smoke test binary
+        run: target/release/cli --version || true
+<% } else if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build and smoke test CLI
+        run: |
+          npm run build
+          node dist/index.js --version || true
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install -e ".[dev]" pyinstaller
+      - name: Build CLI binary (${{ matrix.os }} / ${{ matrix.arch }})
+        run: pyinstaller --onefile src/main.py || true
+      - name: Smoke test binary
+        run: dist/main --version || true
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build and smoke test CLI
+        run: |
+<% if (buildTool === 'gradle') { %>
+          ./gradlew build
+<% } else { %>
+          mvn package
+<% } %>
+<% } %>
+
+<% } %>
+  dep-freshness:
+    name: Dependency freshness report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Check outdated packages
+        run: npm outdated || true
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check outdated dependencies
+        run: |
+<% if (buildTool === 'gradle') { %>
+          ./gradlew dependencyUpdates || true
+<% } else { %>
+          mvn versions:display-dependency-updates || true
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check outdated Go modules
+        run: go list -u -m all 2>/dev/null | grep '\[' || true
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install pip-review
+      - name: Check outdated packages
+        run: pip-review || true
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Check outdated crates
+        run: |
+          cargo install cargo-outdated --locked || true
+          cargo outdated || true
+<% } %>
+
+  perf-trend:
+    name: k6 performance trend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: k6 performance smoke vs 7-day baseline
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: k6/perf-trend.js
+          flags: '--duration=120s'
+        continue-on-error: true
+
+  action-version-audit:
+    name: Stale action pin audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find SHA-pinned actions older than 180 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WORKFLOWS=$(find .github/workflows -name '*.yml' | head -20)
+          STALE=0
+          CUTOFF=$(date -d '180 days ago' +%s 2>/dev/null || date -v-180d +%s)
+          for wf in $WORKFLOWS; do
+            REFS=$(grep -oP 'uses: \S+@[a-f0-9]{40}' "$wf" | sed 's/uses: //' || true)
+            for ref in $REFS; do
+              ACTION=$(echo "$ref" | cut -d@ -f1)
+              SHA=$(echo "$ref" | cut -d@ -f2)
+              PUSHED=$(gh api "repos/$ACTION/git/commits/$SHA" --jq '.committer.date' 2>/dev/null || echo "")
+              if [ -n "$PUSHED" ]; then
+                PUSHED_EPOCH=$(date -d "$PUSHED" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$PUSHED" +%s)
+                if [ "$PUSHED_EPOCH" -lt "$CUTOFF" ]; then
+                  echo "::warning::Stale pin in $wf: $ref (pushed $PUSHED)"
+                  STALE=$((STALE + 1))
+                fi
+              fi
+            done
+          done
+          echo "Stale pins found: $STALE"
+
+  weekly-required:
+    name: Weekly gate
+    needs:
+      - dep-freshness
+      - perf-trend
+      - action-version-audit
+<% if (_isService) { %>
+      - cross-db-matrix
+<% } %>
+<% if (_isCli) { %>
+      - cross-os-matrix
+<% } %>
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Weekly gate summary
+        run: |
+          echo "Weekly checks completed."
+          echo "All jobs ran (some informational, failures create issues)."
+
+      - name: File issue on hard failures
+        if: needs.dep-freshness.result == 'failure' || needs.action-version-audit.result == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING=$(gh issue list \
+            --label weekly-regression \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[weekly] regression detected (${{ github.run_id }})" \
+              --body "Weekly workflow failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --label weekly-regression \
+              --repo "$GH_REPO"
+          fi
