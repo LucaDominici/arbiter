@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#701",
+  "test_path": "__tests__/integration/gate/tdd-evidence-l2.test.ts",
+  "test_commit_sha": "384b9f0e3e2b784874523289a980d4b38de5ef6a",
+  "test_run_log": " FAIL  __tests__/integration/gate/tdd-evidence-l2.test.ts [ __tests__/integration/gate/tdd-evidence-l2.test.ts ]\nAssertionError: expected 'FAIL' to be 'PASS'\n  Expected: \"PASS\"\n  Received: \"FAIL\"\n ❯ __tests__/integration/gate/tdd-evidence-l2.test.ts:14:27\n 1 test failed — no TDD evidence file at .arbiter/evidence/tdd/#701.json\n\n Test Files  1 failed (1)\n     Tests  1 failed (1)",
+  "observed_failure": "FAIL  __tests__/integration/gate/tdd-evidence-l2.test.ts",
+  "recorded_at": "2026-05-17T11:00:00.000Z"
+}

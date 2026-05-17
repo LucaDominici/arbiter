@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#709",
+  "test_path": "__tests__/invariants/viafera-port-opt-in.test.ts",
+  "test_commit_sha": "33ee3866fccdb0465c3ec8e1b7cde0f80b585ae3",
+  "test_run_log": " FAIL  __tests__/invariants/viafera-port-opt-in.test.ts [ __tests__/invariants/viafera-port-opt-in.test.ts ]\nError: Cannot find module '/src/invariants/catalog.js' imported from /home/luca/work/repos/arbiter-701-710/__tests__/invariants/viafera-port-opt-in.test.ts\n\n Test Files  1 failed (1)\n     Tests  no tests",
+  "observed_failure": "FAIL  __tests__/invariants/viafera-port-opt-in.test.ts",
+  "recorded_at": "2026-05-17T11:10:00.000Z"
+}

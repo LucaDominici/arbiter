@@ -42,6 +42,10 @@ export interface UpdateResult {
   keysRun: Set<GeneratorKey | '*'> | null
 }
 
+function resolveViaferaPort(stored: ArbiterConfigV2): boolean {
+  return stored.governance?.invariants_catalog === 'extended'
+}
+
 function v2ToProjectConfig(
   stored: ArbiterConfigV2,
   detectorFields: {
@@ -99,7 +103,7 @@ function v2ToProjectConfig(
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
     ...(stored.taskTiers !== undefined && { taskTiers: stored.taskTiers }),
-    includeViaferaPort: stored.governance?.invariants_catalog === 'extended',
+    includeViaferaPort: resolveViaferaPort(stored),
   }
 }
 

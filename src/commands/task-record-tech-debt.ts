@@ -104,21 +104,33 @@ function invokeGhCreate(
   }
 }
 
+function resolveTaskId(
+  opts: RecordTechDebtOptions,
+  claudeDir: string,
+): string | RecordTechDebtFailure {
+  if (opts.triggeredBy) return opts.triggeredBy
+  const taskIdFile = join(claudeDir, '.task-id')
+  if (!existsSync(taskIdFile)) {
+    return { ok: false, reason: 'no task-id: neither --triggered-by nor .claude/.task-id found' }
+  }
+  const taskId = readFileSync(taskIdFile, 'utf-8').trim()
+  return taskId || { ok: false, reason: '.claude/.task-id is empty' }
+}
+
+function parseIssueNumber(stdout: string): number | null {
+  const urlLine = stdout.split('\n').find((l) => /\/issues\/\d+$/.test(l.trim()))
+  const issueStr = urlLine?.trim().match(/\/issues\/(\d+)$/)?.[1]
+  return issueStr !== undefined ? Number.parseInt(issueStr, 10) : null
+}
+
 export function runTaskRecordTechDebt(
   opts: RecordTechDebtOptions,
 ): RecordTechDebtSuccess | RecordTechDebtFailure {
   const dir = opts.dir ?? process.cwd()
-  const claudeDir = join(dir, '.claude')
 
-  let taskId = opts.triggeredBy
-  if (!taskId) {
-    const taskIdFile = join(claudeDir, '.task-id')
-    if (!existsSync(taskIdFile)) {
-      return { ok: false, reason: 'no task-id: neither --triggered-by nor .claude/.task-id found' }
-    }
-    taskId = readFileSync(taskIdFile, 'utf-8').trim()
-    if (!taskId) return { ok: false, reason: '.claude/.task-id is empty' }
-  }
+  const taskIdResult = resolveTaskId(opts, join(dir, '.claude'))
+  if (typeof taskIdResult === 'object') return taskIdResult
+  const taskId = taskIdResult
 
   const description = opts.description.trim()
   if (!description) return { ok: false, reason: '--description must not be empty' }
@@ -132,16 +144,13 @@ export function runTaskRecordTechDebt(
 
   // gh issue create outputs a URL like https://github.com/owner/repo/issues/42
   // Some gh versions emit extra lines; search all lines for the URL
-  const urlLine = ghResult.stdout.split('\n').find((l) => /\/issues\/\d+$/.test(l.trim()))
-  const match = urlLine?.trim().match(/\/issues\/(\d+)$/)
-  const issueStr = match?.[1]
-  if (!issueStr) {
+  const issueNumber = parseIssueNumber(ghResult.stdout)
+  if (issueNumber === null) {
     return {
       ok: false,
       reason: `gh returned non-integer issue number: ${JSON.stringify(ghResult.stdout.trim())}`,
     }
   }
-  const issueNumber = Number.parseInt(issueStr, 10)
 
   const evidenceDir = join(dir, '.arbiter', 'evidence', sanitizeTaskId(taskId))
   try {
