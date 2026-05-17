@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+// Contract Integrity Gate C — Operation Smoke Check
+// Project: <%= projectName %>
+//
+// Exit codes (INV-53): 0=PASS / 1=FAIL / 2=ERROR
+//
+// Purpose: smoke-test every public operation registered in the OpenAPI spec
+// by issuing a minimal request and verifying the response is not an unexpected
+// 4xx/5xx. Catches unregistered routes, misconfigured middleware, and broken
+// handler wiring before deeper contract tests run.
+//
+// Configuration:
+//   BASE_URL           service base URL (default: http://localhost:8080)
+//   OPENAPI_SPEC_PATH  path to spec (default: .contract-integrity/openapi.json)
+//   SKIP_OPERATIONS    comma-separated operationIds to skip (e.g. destructive endpoints)
+
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const BASE_URL = process.env.BASE_URL ?? 'http://localhost:8080'
+const OPENAPI_SPEC_PATH = process.env.OPENAPI_SPEC_PATH ?? resolve('.contract-integrity', 'openapi.json')
+const SKIP_OPERATIONS = new Set((process.env.SKIP_OPERATIONS ?? '').split(',').filter(Boolean))
+
+if (!existsSync(OPENAPI_SPEC_PATH)) {
+  console.error(`[operation-smoke] Spec not found at ${OPENAPI_SPEC_PATH}. Run openapi-snapshot.mjs --update first.`)
+  process.exit(2)
+}
+
+const spec = JSON.parse(readFileSync(OPENAPI_SPEC_PATH, 'utf-8'))
+const failures = []
+let checked = 0
+
+for (const [path, methods] of Object.entries(spec.paths ?? {})) {
+  for (const [method, op] of Object.entries(methods)) {
+    if (typeof op !== 'object') continue
+    const operationId = op.operationId ?? `${method}:${path}`
+    if (SKIP_OPERATIONS.has(operationId)) continue
+
+    // Replace path parameters with placeholder values for smoke
+    const smokePath = path.replace(/\{[^}]+\}/g, '00000000-0000-0000-0000-000000000000')
+    const url = `${BASE_URL}${smokePath}`
+
+    try {
+      const res = await fetch(url, { method: method.toUpperCase() })
+      // 401/403 are expected for protected routes — not a smoke failure
+      if (res.status >= 500) {
+        failures.push({ operationId, method, path, status: res.status })
+        console.error(`  [FAIL] ${method.toUpperCase()} ${path} → ${res.status}`)
+      } else {
+        console.log(`  [ok]   ${method.toUpperCase()} ${path} → ${res.status}`)
+      }
+    } catch (err) {
+      failures.push({ operationId, method, path, error: String(err) })
+      console.error(`  [ERROR] ${method.toUpperCase()} ${path} → ${err}`)
+    }
+    checked++
+  }
+}
+
+if (failures.length === 0) {
+  console.log(`[operation-smoke] PASS — ${checked} operations checked, 0 failures. exit 0`)
+  process.exit(0)
+} else {
+  console.error(`[operation-smoke] FAIL — ${failures.length}/${checked} operations returned 5xx or error`)
+  process.exit(1)
+}

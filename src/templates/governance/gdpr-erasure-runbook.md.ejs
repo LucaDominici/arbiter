@@ -1,0 +1,205 @@
+# GDPR Art.17 Erasure Runbook
+
+**Project:** <%= projectName %>
+**Generated:** <%- new Date().toISOString().split('T')[0] %>
+**Regulation:** GDPR Art.17 — Right to Erasure ("Right to be Forgotten")
+
+> **Usage:** Each step must be executed in order. Record the actor, timestamp,
+> and outcome in the Acknowledgement column. Retain this completed runbook
+> as compliance evidence.
+
+---
+
+## Scope
+
+This runbook covers the complete cascade of deletion actions required when
+an erasure request is received from a data subject. All systems that hold
+personal data about the subject must be addressed.
+
+**Trigger:** Data subject submits verified erasure request.
+**SLA:** Completion within 30 calendar days (GDPR Art.17(1)).
+
+---
+
+## Pre-flight
+
+Before executing the cascade, confirm:
+
+- [ ] Request identity verified (photo ID, account email match)
+- [ ] Request is not excluded by Art.17(3) (legal obligation, public interest, legal claims)
+- [ ] Request timestamp logged in the request register
+- [ ] Assigned operator name: _______________
+
+---
+
+## Erasure Steps
+
+### Step 1 — Application Database: personal-data tables
+
+**Actor:** Backend engineer
+**System:** Primary application database
+**Action:** Delete all rows in personal-data tables linked to subject's user ID.
+**Verification:** `SELECT COUNT(*) FROM <personal-data-table> WHERE user_id = '<id>'` → must return 0.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 2 — Application Database: derived / analytics tables
+
+**Actor:** Backend engineer
+**System:** Primary application database
+**Action:** Delete or anonymise rows in derived tables (aggregates, event logs, preferences).
+**Verification:** Confirm no raw PII survives in aggregate rows.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 3 — Object Storage (files, avatars, exports)
+
+**Actor:** Backend engineer
+**System:** Object storage (e.g. S3, GCS, Azure Blob)
+**Action:** Delete all objects keyed to the subject's user ID or containing their PII.
+**Verification:** List objects with subject prefix → must return empty.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 4 — Search Index
+
+**Actor:** Backend engineer
+**System:** Search service (e.g. Elasticsearch, OpenSearch, Typesense)
+**Action:** Delete all indexed documents containing the subject's PII.
+**Verification:** Query index for subject ID → must return 0 hits.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 5 — Cache
+
+**Actor:** Backend engineer
+**System:** Cache layer (e.g. Redis, Memcached)
+**Action:** Flush all cache entries keyed to the subject's user ID.
+**Verification:** `GET <user-key>` → must return nil.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 6 — Analytics / Telemetry
+
+**Actor:** Data engineer
+**System:** Analytics platform (e.g. Mixpanel, Amplitude, PostHog)
+**Action:** Invoke the platform's "delete user" or "GDPR deletion" API for the subject.
+**Verification:** Confirm deletion receipt from platform (store confirmation ID).
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 7 — Identity Provider: hard-delete user (NOT disable)
+
+> **CRITICAL:** Disabling or deactivating the account is NOT sufficient for GDPR Art.17
+> compliance. The account must be **permanently deleted** from the identity provider.
+
+**Actor:** Platform engineer
+**System:** Identity provider
+**Action:** Hard-delete the subject's account using the admin API of your IDP:
+
+| Identity Provider | Delete API |
+| ----------------- | ---------- |
+| Keycloak | `DELETE /admin/realms/{realm}/users/{user-id}` |
+| Auth0 | `DELETE /api/v2/users/{id}` (Management API) |
+| Cognito | `AdminDeleteUser` — `aws cognito-idp admin-delete-user --user-pool-id <pool> --username <sub>` |
+| Okta | `DELETE /api/v1/users/{userId}` (deactivate first, then delete) |
+| Other | Consult your IDP admin API documentation for the permanent delete endpoint |
+
+**Verification:** Attempt to retrieve the user by ID → must return 404 / UserNotFoundException.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 8 — Email Service / Marketing Lists
+
+**Actor:** Marketing / Platform engineer
+**System:** Email service (e.g. Mailchimp, SendGrid, Postmark)
+**Action:** Permanently delete or suppress the subject's email address in all lists.
+**Verification:** Confirm unsubscribe / deletion receipt.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 9 — Third-party Processors
+
+**Actor:** Data Protection Officer
+**System:** All sub-processors under Art.28 agreements
+**Action:** Notify each sub-processor of the deletion obligation; obtain written confirmation.
+**Verification:** Confirmation emails / DPA acknowledgements stored in case file.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 10 — Backup Snapshots
+
+**Actor:** Platform engineer
+**System:** Backup storage
+**Action:** Document which backup sets contain the subject's data.
+> Backups may be retained for the duration of their standard retention period
+> under the Art.17(3)(b) legal obligation exception, provided no restore occurs
+> that re-exposes the data. Log the exception and review at each restore.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 11 — Audit Log Retention Exception
+
+**Actor:** Compliance officer
+**System:** Audit log store
+**Action:** Verify that audit log entries referencing the subject are subject to the
+> legal obligation / legal claims retention exception (Art.17(3)(b/e)).
+> Pseudonymise subject identifiers in audit logs where feasible.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 12 — CDN / Edge Cache
+
+**Actor:** Platform engineer
+**System:** CDN (e.g. Cloudflare, Fastly, CloudFront)
+**Action:** Purge all edge-cached responses containing the subject's PII.
+**Verification:** Purge confirmation ID stored.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 13 — Confirmation to Data Subject
+
+**Actor:** Customer support / Data Protection Officer
+**System:** Email
+**Action:** Send erasure confirmation to the subject within the 30-day SLA window.
+> Include: confirmation that erasure is complete, systems addressed, any retention exceptions invoked.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+### Step 14 — Request Register Update
+
+**Actor:** Data Protection Officer
+**System:** GDPR request register
+**Action:** Mark request as "completed" in the register. Attach this completed runbook as evidence.
+**Acknowledgement:** _________________ Date: _____________
+
+---
+
+## Post-Execution Verification
+
+- [ ] All 14 steps acknowledged
+- [ ] No personal data retrievable via subject's user ID across any system
+- [ ] Completed runbook stored in case file
+- [ ] Retention exceptions documented and justified
+
+---
+
+## Provenance
+
+14-step cascade structure extracted from viafera codebase GDPR audit (2026).
+Step 7 IDP hard-delete requirement is the key audit finding: many implementations
+only disable the IDP account, leaving PII in the identity provider's database.
+This runbook generalises to any project with a similar system footprint.

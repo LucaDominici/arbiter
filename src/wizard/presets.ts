@@ -20,6 +20,17 @@ export function applyPreset(preset: ProjectPreset, config: ProjectConfig): void 
   config.enableEvidenceHarness = true
   config.enableOperationsHandbook = true
   config.enableMcpFallback = true
+  config.enableEnterpriseComplianceBaseline = true
+  config.enableGdprErasureRunbook = true
+  config.contractIntegrity = {
+    gates: {
+      openapiSnapshot: true,
+      dtoParity: true,
+      operationSmoke: true,
+      deadCode: true,
+      testHygiene: true,
+    },
+  }
 
   config.auth = {
     provider: 'none',

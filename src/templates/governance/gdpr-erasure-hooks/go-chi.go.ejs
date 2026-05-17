@@ -1,0 +1,90 @@
+// NOT-IMPLEMENTED-STUB — every method must be implemented before use.
+//
+// GDPR Art.17 Erasure Hook — Go (chi router or any framework)
+//
+// Each method maps to one step in docs/SYSTEM/GDPR_ERASURE_RUNBOOK.md.
+// Replace each errors.New body with your actual deletion logic, referencing
+// your stack's admin APIs and the corresponding runbook step.
+//
+// Exit behaviour: each method must return a non-nil error on partial failure
+// so the orchestrator can halt the cascade and log the incomplete state.
+package gdpr
+
+import "errors"
+
+// GdprErasureService performs the Art.17 erasure cascade.
+type GdprErasureService struct{}
+
+// EraseApplicationDatabasePii deletes personal-data table rows for the subject (Step 1).
+func (s *GdprErasureService) EraseApplicationDatabasePii(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your DB client. See runbook §Step 1")
+}
+
+// EraseDerivedData deletes or anonymises derived/analytics table rows (Step 2).
+func (s *GdprErasureService) EraseDerivedData(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your analytics schema. See runbook §Step 2")
+}
+
+// EraseObjectStoreArtifacts deletes all object-storage artefacts owned by the subject (Step 3).
+func (s *GdprErasureService) EraseObjectStoreArtifacts(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your storage SDK. See runbook §Step 3")
+}
+
+// EraseSearchIndexEntries removes the subject from the search index (Step 4).
+func (s *GdprErasureService) EraseSearchIndexEntries(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your search client. See runbook §Step 4")
+}
+
+// EraseCacheEntries flushes cache entries keyed to the subject (Step 5).
+func (s *GdprErasureService) EraseCacheEntries(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your cache client. See runbook §Step 5")
+}
+
+// EraseAnalyticsEvents deletes the subject from the analytics/telemetry platform (Step 6).
+func (s *GdprErasureService) EraseAnalyticsEvents(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your analytics SDK. See runbook §Step 6")
+}
+
+// EraseIdentityProviderUser hard-deletes the subject from the identity provider (Step 7).
+//
+// CRITICAL: call the permanent DELETE endpoint — do NOT merely disable or
+// deactivate the account. See runbook §Step 7 for IDP-specific API examples
+// (Keycloak, Auth0, Cognito, Okta).
+func (s *GdprErasureService) EraseIdentityProviderUser(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — call your IDP admin DELETE endpoint. See runbook §Step 7")
+}
+
+// EraseEmailServiceRecords permanently deletes or suppresses the subject's email (Step 8).
+func (s *GdprErasureService) EraseEmailServiceRecords(subjectEmail string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your email service API. See runbook §Step 8")
+}
+
+// NotifySubProcessors notifies sub-processors and obtains written confirmation (Step 9).
+func (s *GdprErasureService) NotifySubProcessors(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — implement per your DPA obligations. See runbook §Step 9")
+}
+
+// DocumentBackupRetentionException documents backup sets containing the subject's data (Step 10).
+func (s *GdprErasureService) DocumentBackupRetentionException(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — log backup exception. See runbook §Step 10")
+}
+
+// ApplyAuditLogRetentionException applies audit log retention exception for the subject (Step 11).
+func (s *GdprErasureService) ApplyAuditLogRetentionException(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — pseudonymise audit refs where feasible. See runbook §Step 11")
+}
+
+// EraseCdnCacheEntries purges CDN/edge-cache entries for the subject (Step 12).
+func (s *GdprErasureService) EraseCdnCacheEntries(subjectID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — call your CDN purge API. See runbook §Step 12")
+}
+
+// SendErasureConfirmation sends erasure confirmation to the data subject (Step 13).
+func (s *GdprErasureService) SendErasureConfirmation(subjectEmail, caseID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — send confirmation email. See runbook §Step 13")
+}
+
+// MarkRequestComplete marks the erasure request as completed in the GDPR register (Step 14).
+func (s *GdprErasureService) MarkRequestComplete(caseID string) error {
+	return errors.New("NOT-IMPLEMENTED-STUB — update your GDPR request register. See runbook §Step 14")
+}

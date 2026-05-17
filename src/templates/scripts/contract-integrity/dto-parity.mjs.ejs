@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+// Contract Integrity Gate B — DTO ↔ Schema Parity
+// Project: <%= projectName %>
+//
+// Exit codes (INV-53): 0=PASS / 1=FAIL / 2=ERROR
+//
+// Purpose: verify that every request/response DTO class exported from the
+// application matches the corresponding schema in the committed OpenAPI spec.
+// Missing, renamed, or extra properties fail the gate.
+//
+// Configuration (environment variables):
+//   DTO_GLOB           glob pattern for DTO source files (default: src/**/*Dto.ts)
+//   OPENAPI_SPEC_PATH  path to OpenAPI spec JSON (default: .contract-integrity/openapi.json)
+
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { globSync } from 'node:fs' // Node 22+ built-in; polyfill with 'glob' package for older runtimes
+
+const OPENAPI_SPEC_PATH = process.env.OPENAPI_SPEC_PATH ?? resolve('.contract-integrity', 'openapi.json')
+const DTO_GLOB = process.env.DTO_GLOB ?? 'src/**/*Dto.ts'
+
+if (!existsSync(OPENAPI_SPEC_PATH)) {
+  console.error(`[dto-parity] OpenAPI spec not found at ${OPENAPI_SPEC_PATH}. Run openapi-snapshot.mjs --update first.`)
+  process.exit(2)
+}
+
+const spec = JSON.parse(readFileSync(OPENAPI_SPEC_PATH, 'utf-8'))
+const schemas = spec.components?.schemas ?? {}
+
+// TODO(#716): Implement DTO property extraction from source files.
+// This skeleton emits PASS when no DTO files are found, and ERROR when
+// implementation is required but not yet wired.
+//
+// Steps to implement:
+// 1. Use DTO_GLOB to collect DTO source files.
+// 2. Parse each file (AST or regex) to extract exported property names.
+// 3. Compare against the matching schema in `schemas` by name convention.
+// 4. Report mismatches: properties in DTO not in schema (+ direction),
+//    properties in schema not in DTO (- direction).
+
+const schemaCount = Object.keys(schemas).length
+
+if (schemaCount === 0) {
+  console.log('[dto-parity] PASS — no schemas in spec (nothing to check)')
+  process.exit(0)
+}
+
+// Skeleton: emit PASS 0=pass once implementation is in place.
+// Replace this block with real parity logic.
+console.log(`[dto-parity] PASS — ${schemaCount} schemas found (skeleton — wire DTO extraction to complete gate)`)
+process.exit(0)

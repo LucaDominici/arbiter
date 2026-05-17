@@ -1,0 +1,199 @@
+# Enterprise Compliance Baseline
+
+**Project:** <%= projectName %>
+**Generated:** <%- new Date().toISOString().split('T')[0] %>
+**Frameworks:** ISO 27001:2022 · GDPR · NIS2 · OWASP ASVS 4.0
+
+> **Usage:** Fill in each section with your project-specific controls, owners, and evidence.
+> Delete sections that do not apply to your context.
+
+---
+
+## 1. Scope and Applicability
+
+- Systems and data assets in scope:
+- Regulatory jurisdictions applicable:
+- Excluded systems and rationale:
+
+---
+
+## 2. ISO 27001:2022 — Information Security Controls
+
+### 2.1 §6.1.2 — Information Security Risk Assessment
+
+- Risk identification methodology:
+- Risk owner assignment process:
+- Acceptable risk threshold (likelihood × impact):
+- Review cadence:
+
+### 2.2 §8.2 — Information Classification
+
+- Classification levels (e.g. Public / Internal / Confidential / Restricted):
+- Labelling and handling rules per level:
+- Data inventory location:
+
+### 2.3 §8.3 — Information Transfer
+
+- Approved transfer channels:
+- Encryption requirements in transit:
+- Transfer logging and retention:
+
+### 2.4 §8.7 — Protection Against Malware
+
+- Endpoint protection tooling:
+- Dependency scanning gate: `node scripts/check-all.mjs L2` (INV-13)
+- Incident response step reference: §10 below
+
+### 2.5 §8.32 — Change Management
+
+- Change approval process:
+- Rollback procedure:
+- Evidence artefacts required per change:
+
+---
+
+## 3. GDPR — Data Protection Controls
+
+### 3.1 Art.13 / Art.14 — Transparency
+
+- Privacy notice location:
+- Data processed and legal basis per category:
+- Retention periods per category:
+
+### 3.2 Art.17 — Right to Erasure
+
+- Erasure runbook location: `docs/SYSTEM/GDPR_ERASURE_RUNBOOK.md` (if generated)
+- Cascading delete systems:
+  - Application database:
+  - Identity provider (hard-delete, not disable — see runbook):
+  - Object storage / CDN:
+  - Analytics / telemetry:
+  - Audit logs (retention exception, if applicable):
+- Verification procedure:
+- Acknowledgement SLA:
+
+### 3.3 Art.32 — Security of Processing
+
+- Encryption at rest: algorithm and key management:
+- Encryption in transit: TLS version minimum:
+- Access control model: RBAC / ABAC / other:
+- Pseudonymisation applied to:
+
+### 3.4 Art.33 / Art.34 — Breach Notification
+
+- Detection mechanism:
+- Internal notification chain:
+- DPA notification deadline (72 hours):
+- Data-subject notification threshold:
+
+---
+
+## 4. NIS2 — Network and Information Security
+
+### 4.1 Art.21 — Cybersecurity Risk-Management Measures
+
+- Supply-chain security controls:
+  - Dependency audit gate: `npm audit --audit-level=high`
+  - Third-party vendor assessment process:
+- Business continuity and disaster recovery:
+  - RTO target:
+  - RPO target:
+  - DR test cadence:
+- Incident handling procedure: §10 below
+- Network security controls:
+
+---
+
+## 5. OWASP ASVS 4.0 — Application Security
+
+### 5.1 Level Target
+
+Target ASVS level: [ ] L1 — Opportunistic  [ ] L2 — Standard  [ ] L3 — Advanced
+
+### 5.2 Key Control Areas (complete per level)
+
+| ASVS Category | Requirement Summary | Status | Evidence |
+| ------------- | ------------------- | ------ | -------- |
+| V1 — Architecture | Secure design review | | |
+| V2 — Authentication | MFA / passwordless | | |
+| V3 — Session | Secure token lifecycle | | |
+| V5 — Validation | Input sanitisation | | |
+| V6 — Cryptography | Approved algorithms only | | |
+| V9 — Communications | TLS configuration | | |
+| V12 — Files | Upload validation | | |
+| V13 — API | Schema validation at boundary | | |
+
+---
+
+## 6. Access Control
+
+- Principle of least privilege enforcement:
+- Privileged access review cadence:
+- Off-boarding checklist location:
+- Service-account inventory:
+
+---
+
+## 7. Cryptography
+
+- Approved algorithms: AES-256-GCM (at rest), TLS 1.3 (in transit)
+- Key rotation schedule:
+- Secrets management tooling:
+- Prohibited algorithms: MD5, SHA-1, DES, RC4
+
+---
+
+## 8. Asset Management
+
+- Asset register location:
+- Classification review cadence:
+- End-of-life disposal procedure:
+
+---
+
+## 9. Supplier Relationships
+
+- Approved vendor list location:
+- Due-diligence checklist:
+- Contractual security requirements (DPA, SCC):
+- Annual review process:
+
+---
+
+## 10. Incident Response
+
+- Detection sources (SIEM, alerting, user reports):
+- Severity classification (P1–P4):
+- Escalation contacts:
+- Post-incident review template location:
+- Lessons-learned process:
+
+---
+
+## 11. Compliance Evidence
+
+| Control | Evidence Artefact | Owner | Last Reviewed |
+| ------- | ----------------- | ----- | ------------- |
+| ISO 27001 §6.1.2 Risk Assessment | `docs/SYSTEM/RISK_REGISTER.md` | | |
+| GDPR Art.17 Erasure | `docs/SYSTEM/GDPR_ERASURE_RUNBOOK.md` | | |
+| NIS2 Art.21 Incident | Incident log | | |
+| OWASP ASVS | ASVS assessment report | | |
+
+---
+
+## 12. Review Schedule
+
+| Review | Cadence | Owner |
+| ------ | ------- | ----- |
+| Full document review | Annual | |
+| Risk register update | Quarterly | |
+| Access rights review | Semi-annual | |
+| Supplier review | Annual | |
+
+---
+
+## Provenance
+
+Pattern extracted from viafera codebase governance audit (2026). Generalised for
+framework-neutral use. Regulation citations are current as of ISO 27001:2022,
+GDPR 2016/679, NIS2 Directive 2022/2555, and OWASP ASVS 4.0.

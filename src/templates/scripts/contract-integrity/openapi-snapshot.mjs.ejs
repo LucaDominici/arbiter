@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+// Contract Integrity Gate A — OpenAPI Snapshot Diff
+// Project: <%= projectName %>
+//
+// Exit codes (INV-53): 0=PASS / 1=FAIL / 2=ERROR
+//
+// Purpose: snapshot the live OpenAPI spec and diff it against a committed
+// baseline. Any added, removed, or modified operation breaks the gate until
+// the baseline is explicitly updated by the team.
+//
+// Usage:
+//   node scripts/contract-integrity/openapi-snapshot.mjs            # diff mode
+//   node scripts/contract-integrity/openapi-snapshot.mjs --update   # update baseline
+
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+
+const UPDATE_MODE = process.argv.includes('--update')
+const BASELINE_PATH = resolve('.contract-integrity', 'openapi.json')
+const SPEC_URL = process.env.OPENAPI_SPEC_URL ?? 'http://localhost:8080/v3/api-docs'
+
+async function fetchSpec() {
+  const res = await fetch(SPEC_URL)
+  if (!res.ok) {
+    console.error(`[openapi-snapshot] Failed to fetch spec from ${SPEC_URL}: ${res.status}`)
+    process.exit(2)
+  }
+  return res.json()
+}
+
+function extractPaths(spec) {
+  // Normalise to a sorted map of operationId → { method, path, summary }
+  const entries = []
+  for (const [path, methods] of Object.entries(spec.paths ?? {})) {
+    for (const [method, op] of Object.entries(methods)) {
+      if (typeof op !== 'object') continue
+      entries.push({ operationId: op.operationId ?? `${method}:${path}`, method, path, summary: op.summary ?? '' })
+    }
+  }
+  return entries.sort((a, b) => a.operationId.localeCompare(b.operationId))
+}
+
+function diff(baseline, current) {
+  const baseMap = new Map(baseline.map((e) => [e.operationId, e]))
+  const currMap = new Map(current.map((e) => [e.operationId, e]))
+  const added = current.filter((e) => !baseMap.has(e.operationId))
+  const removed = baseline.filter((e) => !currMap.has(e.operationId))
+  const changed = current.filter((e) => {
+    const b = baseMap.get(e.operationId)
+    return b && JSON.stringify(b) !== JSON.stringify(e)
+  })
+  return { added, removed, changed }
+}
+
+const spec = await fetchSpec()
+const current = extractPaths(spec)
+
+if (UPDATE_MODE) {
+  mkdirSync(dirname(BASELINE_PATH), { recursive: true })
+  writeFileSync(BASELINE_PATH, JSON.stringify(current, null, 2))
+  console.log(`[openapi-snapshot] Baseline updated: ${current.length} operations`)
+  process.exit(0)
+}
+
+if (!existsSync(BASELINE_PATH)) {
+  console.error('[openapi-snapshot] No baseline found. Run with --update to create one.')
+  process.exit(2)
+}
+
+const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
+const { added, removed, changed } = diff(baseline, current)
+
+if (added.length === 0 && removed.length === 0 && changed.length === 0) {
+  console.log('[openapi-snapshot] PASS — spec matches baseline')
+  process.exit(0)
+}
+
+if (added.length > 0) console.error(`[openapi-snapshot] ADDED operations:\n${added.map((e) => `  + ${e.operationId}`).join('\n')}`)
+if (removed.length > 0) console.error(`[openapi-snapshot] REMOVED operations:\n${removed.map((e) => `  - ${e.operationId}`).join('\n')}`)
+if (changed.length > 0) console.error(`[openapi-snapshot] CHANGED operations:\n${changed.map((e) => `  ~ ${e.operationId}`).join('\n')}`)
+console.error('[openapi-snapshot] FAIL — run with --update if changes are intentional')
+process.exit(1)

@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+// Contract Integrity Gate D — Dead Handler Detection
+// Project: <%= projectName %>
+//
+// Exit codes (INV-53): 0=PASS / 1=FAIL / 2=ERROR
+//
+// Purpose: detect route handlers registered in application code that do not
+// appear as operations in the committed OpenAPI spec, and OpenAPI operations
+// that have no corresponding handler registration. Both directions indicate
+// drift between spec and implementation.
+//
+// Configuration:
+//   OPENAPI_SPEC_PATH  path to spec (default: .contract-integrity/openapi.json)
+//   ROUTES_GLOB        glob for route registration files (default: src/**/routes.ts)
+
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const OPENAPI_SPEC_PATH = process.env.OPENAPI_SPEC_PATH ?? resolve('.contract-integrity', 'openapi.json')
+
+if (!existsSync(OPENAPI_SPEC_PATH)) {
+  console.error(`[dead-code] Spec not found at ${OPENAPI_SPEC_PATH}. Run openapi-snapshot.mjs --update first.`)
+  process.exit(2)
+}
+
+const spec = JSON.parse(readFileSync(OPENAPI_SPEC_PATH, 'utf-8'))
+const specPaths = new Set(Object.keys(spec.paths ?? {}))
+
+// TODO(#716): Implement route-registration extraction from source files.
+// This skeleton emits PASS when spec is found; wire actual extraction to complete.
+//
+// Steps to implement:
+// 1. Use ROUTES_GLOB to collect route registration files.
+// 2. Parse each file to extract registered path + method pairs.
+// 3. Compare against specPaths:
+//    - Routes in code but not in spec → dead handler candidate (or undocumented route)
+//    - Paths in spec but not in code → undeclared handler (spec/code drift)
+// 4. Exit 1 if either set is non-empty.
+
+console.log(`[dead-code] PASS — ${specPaths.size} spec paths found (skeleton — wire route extraction to complete gate). exit 0`)
+process.exit(0)

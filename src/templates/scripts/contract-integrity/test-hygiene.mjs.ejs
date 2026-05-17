@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+// Contract Integrity Gate E — Contract Test Hygiene
+// Project: <%= projectName %>
+//
+// Exit codes (INV-53): 0=PASS / 1=FAIL / 2=ERROR
+//
+// Purpose: enforce that no contract test is skipped, disabled, or marked
+// pending. Skipped contract tests leave compliance gaps undetected; this gate
+// treats any skip annotation as a hard failure (mirrors INV-40 BDD @ignore).
+//
+// Configuration:
+//   CONTRACT_TEST_GLOB  glob for contract test files (default: **/*.contract.test.ts)
+//   ALLOW_SKIP_PATTERN  regex for skip annotations that are explicitly allowed
+//                       (e.g. temporary skips must include a task ID: TODO(#NNN))
+
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+
+const CONTRACT_TEST_GLOB_DIR = process.env.CONTRACT_TEST_DIR ?? resolve('src')
+const SKIP_PATTERNS = [
+  /\.skip\s*\(/,
+  /xdescribe\s*\(/,
+  /xit\s*\(/,
+  /test\.skip\s*\(/,
+  /it\.skip\s*\(/,
+  /@Disabled/,
+  /@Ignore/,
+  /t\.Skip\(/,
+]
+
+function collectContractTests(dir) {
+  const results = []
+  if (!existsSync(dir)) return results
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) {
+      results.push(...collectContractTests(full))
+    } else if (entry.match(/\.contract\.test\.(ts|js|java|go)$/)) {
+      results.push(full)
+    }
+  }
+  return results
+}
+
+const testFiles = collectContractTests(CONTRACT_TEST_GLOB_DIR)
+const violations = []
+
+for (const file of testFiles) {
+  const content = readFileSync(file, 'utf-8')
+  const lines = content.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    for (const pattern of SKIP_PATTERNS) {
+      if (pattern.test(lines[i])) {
+        violations.push({ file, line: i + 1, text: lines[i].trim() })
+      }
+    }
+  }
+}
+
+if (violations.length === 0) {
+  console.log(`[test-hygiene] PASS — ${testFiles.length} contract test files checked, no skips found. exit 0`)
+  process.exit(0)
+}
+
+console.error(`[test-hygiene] FAIL — ${violations.length} skipped/disabled contract test(s) found:`)
+for (const v of violations) {
+  console.error(`  ${v.file}:${v.line}  ${v.text}`)
+}
+console.error('[test-hygiene] Remove skip annotations or replace with a TODO(#NNN) tracking issue.')
+process.exit(1)

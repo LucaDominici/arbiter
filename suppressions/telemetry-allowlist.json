@@ -28,5 +28,15 @@
     "pattern": "fetch(",
     "file": "dist/recipes/loader.js",
     "justification": "Compiled output of src/recipes/loader.ts — fetches a user-supplied https:// recipe URL on explicit user request via --recipe flag. Not telemetry; URL is user-provided and user-controlled."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/scripts/contract-integrity/openapi-snapshot.mjs.ejs",
+    "justification": "Generated contract-integrity gate that fetches the user-configured OpenAPI spec URL to compare against a committed baseline snapshot — not telemetry. URL is user-supplied via SPEC_URL config in the generated script."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/scripts/contract-integrity/operation-smoke.mjs.ejs",
+    "justification": "Generated smoke-test gate that makes HTTP requests to the user's own API endpoints to detect 5xx/404 surface regressions — not telemetry. All URLs are constructed from the user's own service base URL."
   }
 ]

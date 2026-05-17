@@ -49,6 +49,9 @@ export type GeneratorKey =
   | 'compliance'
   | 'observability'
   | 'auth'
+  | 'enterprise-compliance-baseline'
+  | 'gdpr-erasure'
+  | 'contract-integrity'
 
 export interface ConfigDiff {
   paths: string[]

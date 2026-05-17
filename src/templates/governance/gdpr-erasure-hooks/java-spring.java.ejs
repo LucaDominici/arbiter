@@ -1,0 +1,109 @@
+package <%= (projectName || 'com.example').toLowerCase().replace(/-/g, '.') %>.gdpr;
+
+import org.springframework.stereotype.Service;
+
+/**
+ * GDPR Art.17 Erasure Hook — Java / Spring Boot
+ *
+ * NOT-IMPLEMENTED-STUB — every method must be implemented before use.
+ *
+ * Each method maps to one step in docs/SYSTEM/GDPR_ERASURE_RUNBOOK.md.
+ * Replace each UnsupportedOperationException body with your actual deletion
+ * logic, referencing your stack's admin APIs and the corresponding runbook step.
+ *
+ * Exit behaviour: each method must throw a checked exception on partial failure
+ * so the orchestrator can halt the cascade and log the incomplete state.
+ */
+@Service
+public class GdprErasureService {
+
+    /** Step 1: Delete personal-data table rows for the given subject. */
+    public void eraseApplicationDatabasePii(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your DB schema. See runbook §Step 1.");
+    }
+
+    /** Step 2: Delete or anonymise derived / analytics table rows. */
+    public void eraseDerivedData(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your analytics schema. See runbook §Step 2.");
+    }
+
+    /** Step 3: Delete all object-storage artefacts owned by the subject. */
+    public void eraseObjectStoreArtifacts(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your storage SDK. See runbook §Step 3.");
+    }
+
+    /** Step 4: Remove the subject from the search index. */
+    public void eraseSearchIndexEntries(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your search client. See runbook §Step 4.");
+    }
+
+    /** Step 5: Flush cache entries keyed to the subject. */
+    public void eraseCacheEntries(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your cache client. See runbook §Step 5.");
+    }
+
+    /** Step 6: Delete the subject from the analytics / telemetry platform. */
+    public void eraseAnalyticsEvents(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your analytics SDK. See runbook §Step 6.");
+    }
+
+    /**
+     * Step 7: Hard-delete the subject from the identity provider.
+     *
+     * CRITICAL: call the permanent DELETE endpoint — do NOT merely disable or
+     * deactivate the account. See runbook §Step 7 for IDP-specific API examples
+     * (Keycloak, Auth0, Cognito, Okta).
+     */
+    public void eraseIdentityProviderUser(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — call your IDP admin DELETE endpoint. See runbook §Step 7.");
+    }
+
+    /** Step 8: Permanently delete or suppress the subject's email address in the email service. */
+    public void eraseEmailServiceRecords(String subjectEmail) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your email service API. See runbook §Step 8.");
+    }
+
+    /** Step 9: Notify sub-processors and obtain written confirmation. */
+    public void notifySubProcessors(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — implement per your DPA obligations. See runbook §Step 9.");
+    }
+
+    /** Step 10: Document backup sets that contain the subject's data. */
+    public void documentBackupRetentionException(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — log backup exception. See runbook §Step 10.");
+    }
+
+    /** Step 11: Apply audit log retention exception for the subject. */
+    public void applyAuditLogRetentionException(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — pseudonymise audit refs where feasible. See runbook §Step 11.");
+    }
+
+    /** Step 12: Purge CDN / edge-cache entries for the subject. */
+    public void eraseCdnCacheEntries(String subjectId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — call your CDN purge API. See runbook §Step 12.");
+    }
+
+    /** Step 13: Send erasure confirmation to the data subject. */
+    public void sendErasureConfirmation(String subjectEmail, String caseId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — send confirmation email. See runbook §Step 13.");
+    }
+
+    /** Step 14: Mark the erasure request as completed in the GDPR request register. */
+    public void markRequestComplete(String caseId) {
+        throw new UnsupportedOperationException(
+            "NOT-IMPLEMENTED-STUB — update your GDPR request register. See runbook §Step 14.");
+    }
+}

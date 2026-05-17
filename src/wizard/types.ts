@@ -195,6 +195,12 @@ export interface ProjectConfig {
   enableNis2Mapping?: boolean
   /** Whether to include GDPR article gate-to-control mapping in the compliance document. Default false. */
   enableGdprMapping?: boolean
+  /** Whether to generate the enterprise compliance baseline skeleton (ISO 27001/GDPR/NIS2/OWASP ASVS). Default false. */
+  enableEnterpriseComplianceBaseline?: boolean
+  /** Whether to generate the GDPR Art.17 erasure runbook + per-language hook stubs. Default false. */
+  enableGdprErasureRunbook?: boolean
+  /** Contract Integrity 5-gate suite configuration. Default: absent (no scripts generated). */
+  contractIntegrity?: ContractIntegrityConfig
   /** Observability provider configuration. Default: absent (no observability files generated). */
   observability?: ObservabilityConfig
   /** Auth provider configuration. Default: absent (no auth setup files generated). */
@@ -340,4 +346,21 @@ export interface EvidenceRetentionConfig {
   count?: number
   /** For external-bucket: target URL (e.g. s3://bucket/path). */
   bucketUrl?: string
+}
+
+export interface ContractIntegrityGates {
+  /** Gate A: snapshot OpenAPI spec and diff against baseline. */
+  openapiSnapshot?: boolean
+  /** Gate B: verify DTO fields match OpenAPI schema properties. */
+  dtoParity?: boolean
+  /** Gate C: smoke-check all public operations return 2xx / expected error codes. */
+  operationSmoke?: boolean
+  /** Gate D: detect unreachable handler registrations. */
+  deadCode?: boolean
+  /** Gate E: enforce no skipped / disabled contract tests. */
+  testHygiene?: boolean
+}
+
+export interface ContractIntegrityConfig {
+  gates?: ContractIntegrityGates
 }

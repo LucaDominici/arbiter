@@ -48,6 +48,9 @@ import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
 import { generateObservability } from './observability.js'
 import { generateAuth } from './auth.js'
+import { generateEnterpriseComplianceBaseline } from './enterprise-compliance-baseline.js'
+import { generateGdprErasure } from './gdpr-erasure.js'
+import { generateContractIntegrity } from './contract-integrity.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -279,24 +282,6 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       run: () => generateTestTaxonomy(config).files,
     },
     {
-      key: 'operations',
-      enabled: config.enableOperationsHandbook === true,
-      run: () => generateOperations(config).files,
-    },
-    {
-      key: 'risk-register',
-      enabled: config.enableRiskRegister === true,
-      run: () => generateRiskRegister(config).files,
-    },
-    {
-      key: 'compliance',
-      enabled:
-        config.enableIso27001Mapping === true ||
-        config.enableNis2Mapping === true ||
-        config.enableGdprMapping === true,
-      run: () => generateCompliance(config).files,
-    },
-    {
       key: 'behavioral-tests',
       enabled: true,
       run: () => generateBehavioralTests(config).files,
@@ -316,6 +301,46 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       run: () => generatePlaywrightTs(config).files,
     },
     { key: 'ssot', enabled: true, run: () => generateSsot(config).files },
+  ]
+}
+
+function buildGovernanceSpecs(config: ProjectConfig): GeneratorSpec[] {
+  return [
+    {
+      key: 'operations',
+      enabled: config.enableOperationsHandbook === true,
+      run: () => generateOperations(config).files,
+    },
+    {
+      key: 'risk-register',
+      enabled: config.enableRiskRegister === true,
+      run: () => generateRiskRegister(config).files,
+    },
+    {
+      key: 'compliance',
+      enabled:
+        config.enableIso27001Mapping === true ||
+        config.enableNis2Mapping === true ||
+        config.enableGdprMapping === true,
+      run: () => generateCompliance(config).files,
+    },
+    {
+      key: 'enterprise-compliance-baseline',
+      enabled: config.enableEnterpriseComplianceBaseline === true,
+      run: () => generateEnterpriseComplianceBaseline(config).files,
+    },
+    {
+      key: 'gdpr-erasure',
+      enabled: config.enableGdprErasureRunbook === true,
+      run: () => generateGdprErasure(config).files,
+    },
+    {
+      key: 'contract-integrity',
+      enabled:
+        config.contractIntegrity?.gates !== undefined &&
+        Object.values(config.contractIntegrity.gates).some(Boolean),
+      run: () => generateContractIntegrity(config).files,
+    },
   ]
 }
 
@@ -342,6 +367,7 @@ export function buildRegistry(
     ...buildAiToolSpecs(config, installedSkills),
     ...buildInfraSpecs(config),
     ...buildAnalysisSpecs(config),
+    ...buildGovernanceSpecs(config),
     ...buildProviderSpecs(config),
   ]
 }

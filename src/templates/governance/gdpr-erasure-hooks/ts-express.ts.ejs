@@ -1,0 +1,117 @@
+/**
+ * GDPR Art.17 Erasure Hook — TypeScript / Express (or any Node.js framework)
+ *
+ * NOT-IMPLEMENTED-STUB — every method must be implemented before use.
+ *
+ * Each method maps to one step in docs/SYSTEM/GDPR_ERASURE_RUNBOOK.md.
+ * Replace each throw body with your actual deletion logic, referencing your
+ * stack's admin APIs and the corresponding runbook step.
+ *
+ * Exit behaviour: each method must reject the returned Promise on partial failure
+ * so the orchestrator can halt the cascade and log the incomplete state.
+ */
+export class GdprErasureService {
+  /** Step 1: Delete personal-data table rows for the given subject. */
+  async eraseApplicationDatabasePii(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your DB client. See runbook §Step 1.',
+    )
+  }
+
+  /** Step 2: Delete or anonymise derived / analytics table rows. */
+  async eraseDerivedData(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your analytics schema. See runbook §Step 2.',
+    )
+  }
+
+  /** Step 3: Delete all object-storage artefacts owned by the subject. */
+  async eraseObjectStoreArtifacts(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your storage SDK. See runbook §Step 3.',
+    )
+  }
+
+  /** Step 4: Remove the subject from the search index. */
+  async eraseSearchIndexEntries(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your search client. See runbook §Step 4.',
+    )
+  }
+
+  /** Step 5: Flush cache entries keyed to the subject. */
+  async eraseCacheEntries(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your cache client. See runbook §Step 5.',
+    )
+  }
+
+  /** Step 6: Delete the subject from the analytics / telemetry platform. */
+  async eraseAnalyticsEvents(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your analytics SDK. See runbook §Step 6.',
+    )
+  }
+
+  /**
+   * Step 7: Hard-delete the subject from the identity provider.
+   *
+   * CRITICAL: call the permanent DELETE endpoint — do NOT merely disable or
+   * deactivate the account. See runbook §Step 7 for IDP-specific API examples
+   * (Keycloak, Auth0, Cognito, Okta).
+   */
+  async eraseIdentityProviderUser(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — call your IDP admin DELETE endpoint. See runbook §Step 7.',
+    )
+  }
+
+  /** Step 8: Permanently delete or suppress the subject's email in the email service. */
+  async eraseEmailServiceRecords(_subjectEmail: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your email service API. See runbook §Step 8.',
+    )
+  }
+
+  /** Step 9: Notify sub-processors and obtain written confirmation. */
+  async notifySubProcessors(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — implement per your DPA obligations. See runbook §Step 9.',
+    )
+  }
+
+  /** Step 10: Document backup sets that contain the subject's data. */
+  async documentBackupRetentionException(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — log backup exception. See runbook §Step 10.',
+    )
+  }
+
+  /** Step 11: Apply audit log retention exception for the subject. */
+  async applyAuditLogRetentionException(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — pseudonymise audit refs where feasible. See runbook §Step 11.',
+    )
+  }
+
+  /** Step 12: Purge CDN / edge-cache entries for the subject. */
+  async eraseCdnCacheEntries(_subjectId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — call your CDN purge API. See runbook §Step 12.',
+    )
+  }
+
+  /** Step 13: Send erasure confirmation to the data subject. */
+  async sendErasureConfirmation(_subjectEmail: string, _caseId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — send confirmation email. See runbook §Step 13.',
+    )
+  }
+
+  /** Step 14: Mark the erasure request as completed in the GDPR request register. */
+  async markRequestComplete(_caseId: string): Promise<void> {
+    throw new Error(
+      'NOT-IMPLEMENTED-STUB — update your GDPR request register. See runbook §Step 14.',
+    )
+  }
+}
