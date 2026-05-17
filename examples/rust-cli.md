@@ -69,11 +69,9 @@ Arbiter detects language and archetype automatically. To override, pass `--arche
 **CI**
 
 - `.github/workflows/ci.yml` — runs `node scripts/check-all.mjs L2` on every PR. Installs Rust toolchain via `dtolnay/rust-toolchain`.
-- `.github/workflows/codeql.yml` (L2+) — security scanning.
 
 **Tooling configs**
 
-- `rust-toolchain.toml` — pins the edition and component list (`clippy`, `rustfmt`).
 - `.gitleaks.toml`, `.editorconfig`, `commitlint.config.js`.
 
 ## 4. Run the gate
@@ -88,22 +86,26 @@ Cargo must be available in PATH. The CI workflow installs it automatically; loca
 
 ## 5. See the enforcement chain fire
 
-Open `src/main.rs` in Claude Code and add an `unwrap()` call:
+Add an `unwrap()` call in `src/main.rs`:
 
 ```rust
 let args = std::env::args().collect::<Vec<_>>().first().unwrap().clone();
 ```
 
-The `check-no-unwrap.mjs` hook fires on save (INV: unwrap is banned; use `?` or explicit error handling). The fix is to use `ok_or_else` or propagate with `?`.
-
-Now try to commit without fixing:
+Try to commit:
 
 ```bash
 git add src/main.rs
 git commit -m "feat: test"
 ```
 
-The pre-commit hook runs L1 which re-runs the same invariant check. The commit is rejected.
+The pre-commit hook runs `node scripts/check-all.mjs L1`, which invokes `scripts/check-rust-no-unwrap.mjs`. The commit is rejected with: `unwrap() is banned — use ? or explicit error handling`.
+
+Fix by propagating the error:
+
+```rust
+let args = std::env::args().next().ok_or("no argv[0]")?;
+```
 
 ## 6. Typical follow-up edits
 

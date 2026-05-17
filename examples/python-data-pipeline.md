@@ -77,11 +77,10 @@ To override detection: `--archetype data-pipeline --language python`.
 **CI**
 
 - `.github/workflows/ci.yml` — sets up Python 3.12 via `actions/setup-python`, installs deps, runs L2 gate.
-- `.github/workflows/codeql.yml` (L2+) — security analysis.
 
 **Tooling configs**
 
-- `ruff.toml` (or merged into `pyproject.toml`) — linting + formatting rules.
+- `ruff.toml` — linting + formatting rules (generated standalone; selects `E`, `W`, `F401`, `F811`, `S`, `C901`, `PLR*`).
 - `.gitleaks.toml`, `.editorconfig`, `commitlint.config.js`.
 
 ## 4. Run the gate
@@ -97,21 +96,20 @@ Requires Python ≥ 3.12 and Node ≥ 22 in PATH. Use `uv` for faster installs: 
 
 ## 5. See the enforcement chain fire
 
-Add a bare exception handler in `pipeline/__init__.py`:
+Add a subprocess call with `shell=True` in `pipeline/__init__.py`:
 
 ```python
-def run():
-    try:
-        process()
-    except Exception:  # ruff: BLE001 — blind exception catch
-        pass
+import subprocess
+
+def run_tool(cmd: str) -> None:
+    subprocess.run(cmd, shell=True)  # S602: subprocess with shell=True
 ```
 
-The ruff check fires at L1 (`BLE001: do not catch blind exception`). Fix by catching a specific exception or re-raising:
+The ruff check fires at L1 (`S602: subprocess call with shell=True identified, security issue`). Fix by passing a list and dropping `shell=True`:
 
 ```python
-    except ValueError as exc:
-        raise RuntimeError("pipeline failed") from exc
+def run_tool(cmd: list[str]) -> None:
+    subprocess.run(cmd, check=True)
 ```
 
 ## 6. Typical follow-up edits

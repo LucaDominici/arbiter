@@ -58,7 +58,6 @@ To override detection, pass `--archetype library --language go`.
 **CI**
 
 - `.github/workflows/ci.yml` — installs Go via `actions/setup-go`, runs L2 gate.
-- `.github/workflows/codeql.yml` (L2+) — security analysis.
 
 **Tooling configs**
 

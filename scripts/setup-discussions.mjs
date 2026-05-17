@@ -184,6 +184,7 @@ for (const cat of CATEGORIES) {
     } catch (err) {
       const msg = err.message
       status.category = msg.includes('already') ? 'already-existed' : `FAILED: ${msg}`
+      status.post = status.category === 'already-existed' ? 'skipped' : '?'
       console.error(`  [${cat.name}] category: ${status.category}`)
       results.push(status)
       continue
