@@ -24,6 +24,8 @@ Doing this by hand across stacks and tools is copy-paste work that rots the mome
 
 **No telemetry.** Arbiter collects zero usage data and makes zero unsolicited network calls. See [PRIVACY.md](PRIVACY.md).
 
+**Honest framing.** Arbiter is a governance installer, not an AI workflow or persona framework. See [docs/POSITIONING.md](docs/POSITIONING.md) for what arbiter is, what it is not, and how it relates to other tools.
+
 ---
 
 ## How it compares
