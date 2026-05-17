@@ -205,7 +205,6 @@ describe('runInit', () => {
       noVerify: true,
     })
     expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Cancelled'))
   })
 
   it('dry-run returns early without generating files', async () => {

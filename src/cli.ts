@@ -54,8 +54,26 @@ import { ArbiterError, UserFacingError } from './utils/errors.js'
 import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
 import { runBenchmarkHooks } from './commands/benchmark.js'
+import { getRunId, formatRunIdFooter } from './utils/run-id.js'
+import { parseExperimentalArgv, listExperiments, isEnabled } from './experimental/index.js'
+import { applyDeprecatedFlagFilter } from './internal/deprecate.js'
+import { CLI_DEPRECATED_FLAGS } from './internal/cli-deprecation-registry.js'
+import { warnExperimental } from './internal/experimental-warn.js'
+import { setRootLogger, getLogger, type LogLevel } from './utils/logger.js'
+import { resolveFromProcess } from './utils/logger-config.js'
+import { startReplay, rotateReplayLogs, type ReplayHandle } from './utils/replay.js'
+import { startProfiler, type ProfilerHandle } from './utils/profiler.js'
+import { runReport } from './commands/report.js'
 
 registerCleanupHandlers()
+
+// Mint run ID at CLI entry so all downstream code and subprocesses can read
+// process.env.ARBITER_RUN_ID for log correlation.
+getRunId()
+
+function printCliError(msg: string): void {
+  process.stderr.write(`  Error: ${msg}${formatRunIdFooter()}\n`)
+}
 
 // ── Evidence logging setup ────────────────────────────────────────────────────
 
@@ -75,6 +93,114 @@ const _verboseIdx = process.argv.indexOf('--verbose')
 const _verbose = _verboseIdx !== -1
 if (_verbose) {
   process.argv.splice(_verboseIdx, 1)
+}
+
+// Strip --experimental.<name> tokens before Commander sees them (unknown option rejection).
+// Validates each name against the registry; throws on unknown experiments.
+// Enabled experiments stored in ARBITER_EXPERIMENTAL (JSON) for downstream command access.
+try {
+  const { remaining, flags } = parseExperimentalArgv(process.argv)
+  process.argv.length = 0
+  process.argv.push(...remaining)
+  if (Object.keys(flags).length > 0) {
+    process.env['ARBITER_EXPERIMENTAL'] = JSON.stringify(flags)
+    for (const name of Object.keys(flags)) {
+      warnExperimental(name)
+    }
+  }
+} catch (err) {
+  process.stderr.write(`arbiter: ${err instanceof Error ? err.message : String(err)}\n`)
+  process.exit(1)
+}
+
+// Apply deprecated flag lifecycle filter (warn/hide/remove stages).
+{
+  const result = applyDeprecatedFlagFilter(process.argv, CLI_DEPRECATED_FLAGS)
+  if (result.exitCode !== undefined) {
+    process.stderr.write(`${result.errorMessage ?? 'Removed flag used.'}\n`)
+    process.exit(result.exitCode)
+  }
+  process.argv.length = 0
+  process.argv.push(...result.remaining)
+}
+
+// ── Observability flags (#635-#640) ──────────────────────────────────────────
+// These are global flags that Commander does not understand on subcommands;
+// strip them from argv before Commander sees the args, but capture the values.
+// Logger runId is bound to the same value as ARBITER_RUN_ID (utils/run-id.ts)
+// so log records, replay dirs, and error footers all correlate cleanly.
+
+function consumeFlag(name: string): boolean {
+  const idx = process.argv.indexOf(name)
+  if (idx === -1) return false
+  process.argv.splice(idx, 1)
+  return true
+}
+
+function consumeFlagValue(name: string): string | undefined {
+  const idx = process.argv.indexOf(name)
+  if (idx === -1) {
+    const eqMatch = process.argv.find((a) => a.startsWith(`${name}=`))
+    if (eqMatch !== undefined) {
+      process.argv.splice(process.argv.indexOf(eqMatch), 1)
+      return eqMatch.slice(name.length + 1)
+    }
+    return undefined
+  }
+  const value = process.argv[idx + 1]
+  process.argv.splice(idx, 2)
+  return value
+}
+
+const _debugFlag = consumeFlag('--debug')
+const _profileFlag = consumeFlag('--profile')
+const _noReplayFlag = consumeFlag('--no-replay')
+const _logLevelFlag = consumeFlagValue('--log-level')
+const _logFormatFlag = consumeFlagValue('--log-format')
+const _seedFlag = consumeFlagValue('--seed')
+
+const _resolvedLogger = resolveFromProcess(
+  [
+    ...(_logLevelFlag !== undefined ? ['--log-level', _logLevelFlag] : []),
+    ...(_logFormatFlag !== undefined ? ['--log-format', _logFormatFlag] : []),
+  ],
+  process.env,
+)
+const _effectiveLevel: LogLevel = _debugFlag ? 'debug' : _resolvedLogger.level
+const _runId = getRunId()
+setRootLogger({
+  level: _effectiveLevel,
+  format: _resolvedLogger.format,
+  runId: _runId,
+})
+
+if (_seedFlag !== undefined) {
+  process.env.ARBITER_SEED = _seedFlag
+}
+
+let _replayHandle: ReplayHandle | null = null
+if (!_noReplayFlag) {
+  try {
+    rotateReplayLogs({ capN: 10 })
+    _replayHandle = startReplay({
+      runId: _runId,
+      argv: process.argv.slice(1),
+      env: process.env,
+      cwd: process.cwd(),
+    })
+  } catch (err) {
+    process.stderr.write(`[warn] replay capture failed: ${String(err)}\n`)
+  }
+}
+
+let _profilerHandle: ProfilerHandle | null = null
+async function _startProfileIfRequested(): Promise<void> {
+  if (!_profileFlag) return
+  try {
+    _profilerHandle = await startProfiler({ runId: _runId })
+  } catch (err) {
+    getLogger().warn('profiler.start_failed', undefined, String(err))
+  }
 }
 
 /** Resolve git HEAD SHA once at startup; fall back to "unknown" in non-git dirs. */
@@ -124,6 +250,13 @@ const _parsedCmd = parseCmdArgs()
 let _evidenceLogged = false
 
 process.on('exit', (code) => {
+  if (_replayHandle !== null) {
+    try {
+      _replayHandle.close(code)
+    } catch {
+      // replay close is best-effort; never block CLI exit
+    }
+  }
   if (_evidenceLogged || _noEvidence) return
   _evidenceLogged = true
   try {
@@ -146,6 +279,45 @@ process.on('exit', (code) => {
 const program = new Command()
 
 program.name('arbiter').description('AI development governance framework').version('0.1.0')
+
+// Global observability flags (#635-#640). Declared so `--help` documents them;
+// values are consumed pre-parse above.
+program
+  .option('--log-level <level>', 'Log level: error|warn|info|debug|trace (default: info)')
+  .option('--log-format <format>', 'Log format: text|json (default: text)')
+  .option('--debug', 'Enable debug-level logging (implies --log-level=debug)')
+  .option(
+    '--seed <n>',
+    'Deterministic seed for generators (overrides arbiter.json-derived default)',
+  )
+  .option('--no-replay', 'Disable replay log capture for this invocation')
+  .option('--profile', 'Capture a V8 CPU profile to ~/.arbiter/profiles/<runId>.cpuprofile')
+
+program
+  .command('report')
+  .description('Bundle a replay run for bug reports')
+  .option('--run-id <id>', 'Specific run to bundle (default: most recent in ~/.arbiter/logs/)')
+  .option('--auto', 'Skip editor preview; bundle all files', false)
+  .option('--print-only', 'Print manifest path without producing a tarball', false)
+  .action(async (opts: { runId?: string; auto: boolean; printOnly: boolean }): Promise<void> => {
+    const reportOpts: import('./commands/report.js').ReportOptions = {
+      auto: opts.auto,
+      printOnly: opts.printOnly,
+    }
+    if (opts.runId !== undefined) reportOpts.runId = opts.runId
+    const result = await runReport(reportOpts)
+    const logger = getLogger()
+    if (result.bundlePath !== null) {
+      logger.info('report.bundle_ready', { path: result.bundlePath, files: result.files.length })
+      process.stdout.write(`Bundle ready: ${result.bundlePath}\n`)
+      process.stdout.write('Attach to GH issue (never uploaded automatically).\n')
+    } else {
+      process.stdout.write(`Manifest: ${result.manifestPath}\n`)
+    }
+    if (result.rejected.length > 0) {
+      logger.warn('report.rejected_entries', { count: result.rejected.length })
+    }
+  })
 
 program
   .command('init')
@@ -356,7 +528,8 @@ review
     const tier: ReviewTier | undefined =
       opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
     if (opts.tier !== undefined && tier === undefined) {
-      console.error(`  Error: invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+      printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+      getLogger().error('invalid_tier', { value: opts.tier ?? null })
       process.exit(1)
     }
     const result = runReviewPlan({
@@ -390,7 +563,8 @@ review
       const tier: ReviewTier | undefined =
         opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
       if (opts.tier !== undefined && tier === undefined) {
-        console.error(`  Error: invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+        printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+        getLogger().error('invalid_tier', { value: opts.tier ?? null })
         process.exit(1)
       }
       const result = await runReviewCode({
@@ -669,7 +843,8 @@ program
       }
       if (opts.target) {
         if (opts.target !== 'L2' && opts.target !== 'L3') {
-          console.error(`  Error: invalid --target "${opts.target}". Valid values: L2, L3.`)
+          printCliError(`invalid --target "${opts.target}". Valid values: L2, L3.`)
+          getLogger().error('invalid_target', { value: opts.target ?? null })
           process.exit(1)
         }
         upgradeOpts.target = opts.target
@@ -1376,7 +1551,55 @@ benchmark
     if (result.regressions.length > 0 && !opts.json) process.exit(1)
   })
 
-program.parseAsync().catch((err: unknown) => {
+// ── experiments — list and inspect registered experiments (#601) ─────────────
+
+const experiments = program
+  .command('experiments')
+  .description('Inspect registered experimental features')
+
+experiments
+  .command('list')
+  .description('List all registered experiments and their status')
+  .action(() => {
+    const all = listExperiments()
+    if (all.length === 0) {
+      console.log('No experiments registered. See docs/reference/experimental-policy for details.')
+      return
+    }
+    const activeFlags: Record<string, boolean> = (() => {
+      try {
+        return JSON.parse(process.env['ARBITER_EXPERIMENTAL'] ?? '{}') as Record<string, boolean>
+      } catch {
+        return {}
+      }
+    })()
+    for (const exp of all) {
+      const active = isEnabled(exp.name, activeFlags)
+      const status = active ? '[active]' : '[inactive]'
+      console.log(
+        `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})`,
+      )
+      console.log(`           ${exp.promotionCriteria}`)
+    }
+  })
+
+async function _main(): Promise<void> {
+  await _startProfileIfRequested()
+  try {
+    await program.parseAsync()
+  } finally {
+    if (_profilerHandle !== null) {
+      try {
+        const path = await _profilerHandle.stop()
+        getLogger().info('profiler.written', { path })
+      } catch (err) {
+        getLogger().warn('profiler.stop_failed', undefined, String(err))
+      }
+    }
+  }
+}
+
+_main().catch((err: unknown) => {
   if (err instanceof ArbiterError) {
     process.stderr.write(`\nError [${err.code}]: ${err.message}\n`)
     if (err.hint) process.stderr.write(`  Hint: ${err.hint}\n`)

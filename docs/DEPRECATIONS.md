@@ -8,9 +8,9 @@ Override: `ALLOW_REMOVE_DEPRECATED=1 node scripts/check-all.mjs` (document the e
 
 ## Format
 
-| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement | Status |
-| ------------------------ | ------------- | --------- | ----------- | ------ |
-| _(none yet)_             | —             | —         | —           | —      |
+| Symbol / Flag / Behavior | Deprecated in | Remove in | Replacement | Status | Stage |
+| ------------------------ | ------------- | --------- | ----------- | ------ | ----- |
+| _(none yet)_             | —             | —         | —           | —      | —     |
 
 ## Closed / Removed Deprecations
 
@@ -20,12 +20,36 @@ Override: `ALLOW_REMOVE_DEPRECATED=1 node scripts/check-all.mjs` (document the e
 
 ---
 
+## CLI Flag Lifecycle
+
+CLI flags follow a three-stage deprecation lifecycle managed by `src/internal/cli-deprecation-registry.ts`.
+
+| Stage    | Behavior                                                                  |
+| -------- | ------------------------------------------------------------------------- |
+| `warn`   | Flag still accepted. stderr deprecation notice emitted on each use.       |
+| `hide`   | Flag accepted but silently stripped from `--help`. stderr notice emitted. |
+| `remove` | Flag rejected with non-zero exit. Error message points to replacement.    |
+
+**Stage transition policy:** each stage transition requires ≥ 1 MINOR version gap.
+The gate (`scripts/check-deprecations.mjs`) enforces that `deprecatedIn ≠ removeIn`.
+
+---
+
 ## How to Deprecate Something
 
 1. Add a row to the Active table above with `remove-in = current_major + 2`.
 2. At the callsite, call `warnDeprecated(name, removeIn)` from `src/internal/deprecate.ts`.
 3. Add `@deprecated` JSDoc to the exported symbol.
 4. Commit the change — `check-deprecations.mjs` will enforce the window going forward.
+
+## How to Deprecate a CLI Flag
+
+1. Add an entry to `CLI_DEPRECATED_FLAGS` in `src/internal/cli-deprecation-registry.ts`:
+   ```ts
+   { flag: '--old-flag', stage: 'warn', deprecatedIn: '0.2.0', removeIn: '0.4.0', replacement: '--new-flag' }
+   ```
+2. `stage` starts at `'warn'`; advance through `'hide'` → `'remove'` across MINOR releases.
+3. Add a row to the Active table above (with Stage column).
 
 ## How to Remove a Deprecated Symbol
 

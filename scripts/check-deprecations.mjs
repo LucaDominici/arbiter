@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Gate: verify no symbol in the active deprecation window has been silently removed. (#600)
+// Gate: verify no symbol in the active deprecation window has been silently removed. (#600, #606)
 // Parses docs/DEPRECATIONS.md for active-deprecation rows, then greps src/ for each symbol.
+// Also validates CLI_DEPRECATED_FLAGS registry: each entry must have deprecatedIn ≠ removeIn.
 // Exits 0: all active deprecated symbols still present in src/, or no active deprecations.
 // Exits 1: a symbol in the active window is missing from src/ (removal without process).
 // Override: ALLOW_REMOVE_DEPRECATED=1 env var skips the gate (document in DEPRECATIONS.md).
@@ -75,6 +76,42 @@ for (const symbol of activeRows) {
         `Remove it from docs/DEPRECATIONS.md active table first, or use ALLOW_REMOVE_DEPRECATED=1.`,
     )
     violations++
+  }
+}
+
+// ── CLI flag registry validation (#606) ──────────────────────────────────────
+// Read the source TypeScript registry file directly as text and parse with a regex.
+// This avoids requiring a build step in the gate.
+
+/**
+ * Returns true when version b is at least one MINOR bump ahead of version a.
+ * A major bump always qualifies. A patch-only bump does not.
+ */
+function hasMinorGap(a, b) {
+  const [aMaj, aMin] = a.split('.').map(Number)
+  const [bMaj, bMin] = b.split('.').map(Number)
+  if (bMaj > aMaj) return true
+  return bMaj === aMaj && bMin - aMin >= 1
+}
+
+const CLI_REGISTRY_SRC = join(ROOT, 'src', 'internal', 'cli-deprecation-registry.ts')
+if (existsSync(CLI_REGISTRY_SRC)) {
+  const regSrc = readFileSync(CLI_REGISTRY_SRC, 'utf-8')
+  // Extract flag records: match { flag: '...', ..., deprecatedIn: '...', removeIn: '...' }
+  // Note: field order assumed to be flag → deprecatedIn → removeIn in record literals.
+  const recordRe =
+    /\{\s*flag:\s*'([^']+)'[^}]*deprecatedIn:\s*'([^']+)'[^}]*removeIn:\s*'([^']+)'[^}]*\}/gs
+  for (const m of regSrc.matchAll(recordRe)) {
+    const flag = m[1]
+    const deprecatedIn = m[2]
+    const removeIn = m[3]
+    if (!hasMinorGap(deprecatedIn, removeIn)) {
+      console.error(
+        `  check-deprecations: CLI flag "${flag}" has insufficient version gap ` +
+          `(${deprecatedIn} → ${removeIn}). Policy requires ≥1 MINOR version gap.`,
+      )
+      violations++
+    }
   }
 }
 

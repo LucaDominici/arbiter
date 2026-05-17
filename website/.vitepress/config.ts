@@ -62,6 +62,7 @@ export default defineConfig({
           { text: 'Hooks', link: '/reference/hooks' },
           { text: 'Stack Support', link: '/reference/stacks' },
           { text: 'Templates', link: '/reference/templates' },
+          { text: 'Experimental Policy', link: '/reference/experimental-policy' },
         ],
       },
       {

@@ -6,8 +6,9 @@
 
 ## Responsibility Matrix
 
-| ID  | Responsibility | Accountable | Responsible | Consulted | Informed | Priority |
-| --- | -------------- | ----------- | ----------- | --------- | -------- | -------- |
+| ID   | Responsibility                                                                                                             | Accountable | Responsible | Consulted         | Informed  | Priority |
+| ---- | -------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------- | ----------------- | --------- | -------- |
+| R001 | Approve a new arbiter release to npm via `.github/workflows/release.yml` (`workflow_dispatch` + concurrency-locked group). | Maintainer  | Maintainer  | Security Reviewer | Community | HIGH     |
 
 <!--
 ## How to use this table

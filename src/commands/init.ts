@@ -161,7 +161,6 @@ export async function runInit(options: InitOptions): Promise<void> {
       existing,
       githubAccess,
       lanes: lanesResult.lanes,
-      log,
     })
     if (config === null) return
 
@@ -373,7 +372,6 @@ async function resolveConfig(args: {
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
   lanes: import('../wizard/types.js').Lane[]
-  log: (msg: string) => void
 }): Promise<ProjectConfig | null> {
   const {
     options,
@@ -387,7 +385,6 @@ async function resolveConfig(args: {
     existing,
     githubAccess,
     lanes,
-    log,
   } = args
   if (options.yes || recipe !== undefined) {
     return buildNonInteractiveConfig({
@@ -416,7 +413,6 @@ async function resolveConfig(args: {
     detectedLanes: lanes,
   })
   if (wizardResult === null) {
-    log('\n  Cancelled.\n')
     return null
   }
   return wizardResult

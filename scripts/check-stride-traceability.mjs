@@ -96,6 +96,20 @@ const strideClaims = parseClaims('docs/SECURITY/STRIDE.md', 0, 3)
 // RACI:   | ID | Responsibility | Accountable | Responsible | Consulted | Informed | Priority(6) |
 const raciClaims = parseClaims('docs/GOVERNANCE/RACI.md', 0, 6)
 
+// ─── Empty-register guard (#631) ──────────────────────────────────────────────
+// CANON-09: a gate that always exits 0 because both registers are empty is a
+// no-op claim of enforcement. Require at least one HIGH/CRITICAL row across
+// the two governance docs combined.
+if (strideClaims.length === 0 && raciClaims.length === 0) {
+  process.stderr.write(
+    '[FAIL] STRIDE/RACI register is empty — no HIGH/CRITICAL rows in docs/SECURITY/STRIDE.md or docs/GOVERNANCE/RACI.md.\n',
+  )
+  process.stderr.write(
+    '       A traceability gate with zero claims is a CANON-09 no-op. Document at least one HIGH/CRITICAL threat or responsibility.\n',
+  )
+  process.exit(1)
+}
+
 for (const claim of strideClaims) {
   const tag = `Security:${claim.id}`
   if (!tagIndex.has(tag)) {
