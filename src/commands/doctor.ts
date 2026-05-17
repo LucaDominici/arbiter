@@ -14,6 +14,7 @@ import { loadConfig, writeSnapshot } from '../utils/config.js'
 import { runCli } from '../utils/run-cli.js'
 import { inspectLock, forceReleaseLock } from '../utils/file-lock.js'
 import type { LockInfo } from '../utils/file-lock.js'
+import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
@@ -32,6 +33,8 @@ export interface DoctorHealthOptions {
   dir?: string
   json?: boolean
   channelFlag?: string
+  /** When true, auto-release stale `.arbiter/.lock` files instead of only reporting them. */
+  repair?: boolean
 }
 
 export interface DoctorHealthResult {
@@ -40,6 +43,8 @@ export interface DoctorHealthResult {
   pass: number
   warn: number
   fail: number
+  /** Set when --repair fired and a stale lock was released. */
+  repaired?: { lockPath: string; pid: number }
 }
 
 function checkNodeVersion(): HealthCheck {
@@ -229,7 +234,7 @@ function emitHealthOutput(checks: HealthCheck[], pass: number, warn: number, fai
   process.stdout.write(`\n  ${pass} passed, ${warn} warnings, ${fail} failed\n\n`)
 }
 
-export function runDoctorHealth(opts: DoctorHealthOptions = {}): DoctorHealthResult {
+export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<DoctorHealthResult> {
   const dir = resolve(opts.dir ?? '.')
   const [gitCheck, gitOk] = checkGitAvailable(dir)
   const checks: HealthCheck[] = [
@@ -239,17 +244,73 @@ export function runDoctorHealth(opts: DoctorHealthOptions = {}): DoctorHealthRes
     checkChannelSetting(dir, opts.channelFlag),
   ]
 
+  let repaired: DoctorHealthResult['repaired']
+  if (opts.repair) {
+    repaired = await repairStaleLockInChecks(dir, checks)
+  }
+
   const pass = checks.filter((c) => c.status === 'PASS').length
   const warn = checks.filter((c) => c.status === 'WARN').length
   const fail = checks.filter((c) => c.status === 'FAIL').length
 
   if (opts.json) {
-    jsonOutput('doctor health', fail > 0 ? 'error' : 'ok', { checks, pass, warn, fail })
+    jsonOutput('doctor health', fail > 0 ? 'error' : 'ok', {
+      checks,
+      pass,
+      warn,
+      fail,
+      ...(repaired ? { repaired } : {}),
+    })
   } else {
     emitHealthOutput(checks, pass, warn, fail)
+    if (repaired) {
+      process.stdout.write(`  repaired: released stale lock pid ${repaired.pid}\n\n`)
+    }
   }
 
-  return { exitCode: fail > 0 ? 1 : 0, checks, pass, warn, fail }
+  return {
+    exitCode: fail > 0 ? 1 : 0,
+    checks,
+    pass,
+    warn,
+    fail,
+    ...(repaired ? { repaired } : {}),
+  }
+}
+
+/**
+ * When `--repair` is set, look for a stale `.arbiter/.lock` finding and
+ * force-release it. Mutates the matching check in-place: WARN → PASS with
+ * `(auto-repaired)` suffix.
+ *
+ * Returns the repair record only if a release actually happened.
+ */
+async function repairStaleLockInChecks(
+  dir: string,
+  checks: HealthCheck[],
+): Promise<DoctorHealthResult['repaired']> {
+  const lockCheck = checks.find((c) => c.id === LOCK_CHECK_ID)
+  if (!lockCheck || lockCheck.status !== 'WARN') return undefined
+
+  const lockPath = join(dir, '.arbiter', '.lock')
+  const info = readLockInfoForHealth(lockPath)
+  if (!info) return undefined
+
+  try {
+    await forceReleaseLock(lockPath, info.pid, dir)
+  } catch (err) {
+    lockCheck.hint =
+      err instanceof ArbiterError
+        ? `auto-repair failed: ${err.message}`
+        : `auto-repair failed: ${err instanceof Error ? err.message : String(err)}`
+    return undefined
+  }
+
+  lockCheck.status = 'PASS'
+  lockCheck.label = '.arbiter/.lock released (auto-repaired)'
+  lockCheck.detail = `released stale lock pid ${info.pid}`
+  delete lockCheck.hint
+  return { lockPath, pid: info.pid }
 }
 
 // ── doctor repair-state (#619) ───────────────────────────────────────────────
