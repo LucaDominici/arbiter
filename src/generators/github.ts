@@ -24,6 +24,14 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
     ),
   )
 
+  // T2 PR-extended workflow — always regenerate
+  results.push(
+    writeFile(
+      join(workflowsDir, '02-pr-extended.yml'),
+      renderTemplate('github/workflows/02-pr-extended.yml.ejs', data),
+    ),
+  )
+
   // Drift shadow — only when solo-dev mode is active (#470)
   if (config.enableSoloDevMode) {
     results.push(

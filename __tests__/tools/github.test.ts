@@ -24,10 +24,10 @@ describe('tool output: github', () => {
     })
   }
 
-  it('generates CI workflow, PR template, 5 issue templates, compliance-item, issue-state, and dependabot (10 files total)', () => {
+  it('generates T1+T2 CI workflows, PR template, 5 issue templates, compliance-item, issue-state, and dependabot (11 files total)', () => {
     const config = githubConfig()
     const result = generateGithub(config)
-    expect(result.files).toHaveLength(10)
+    expect(result.files).toHaveLength(11)
   })
 
   it('dependabot.yml includes npm package ecosystem for TypeScript projects', () => {
