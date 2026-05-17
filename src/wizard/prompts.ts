@@ -379,7 +379,7 @@ function buildArchetypeQuestions(archetypeDefault: Archetype): object[] {
           value: 'none',
         },
         {
-          name: 'hexagonal       — Ports & adapters (e.g. Viafera-style)',
+          name: 'hexagonal       — Ports & adapters (Clean Architecture)',
           value: 'hexagonal',
         },
         {

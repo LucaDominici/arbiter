@@ -250,8 +250,8 @@ export interface ProjectConfig {
   taskTiers?: TaskTiers
   /** Active project preset, if any. Stored for audit/drift detection. */
   preset?: ProjectPreset
-  /** Include viafera-port opt-in invariants (INV-62..INV-71). True when governance.invariants_catalog = 'extended'. */
-  includeViaferaPort?: boolean
+  /** Include extended opt-in invariants (INV-62..INV-71). True when governance.invariants_catalog = 'extended'. */
+  includeExtendedInvariants?: boolean
 }
 
 export type PlanDepth = 'minimal' | 'brief' | 'full'

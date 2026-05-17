@@ -6,7 +6,7 @@
  *
  *   name: my-org
  *   repos:
- *     - path: ./viafera
+ *     - path: ./my-app
  *       role: production
  *       tier: L3
  *

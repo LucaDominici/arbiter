@@ -8,7 +8,7 @@
 
 M15 added fixed-threshold tech debt gates (coverage ≥ 80%, complexity limits, dead code detection) across all 5 stacks. These thresholds prevent below-minimum quality but have a critical blind spot: a project at 92% coverage can decay to 80% without triggering any gate, because the fixed floor is 80%.
 
-The novel requirement for M16 (issue #43, Layer C) was to design a proactive tech debt detection system that doesn't exist in Viafera or comparable tools. The key insight: thresholds enforce a floor, but users need a **ratchet** — a mechanism that locks in improvements and prevents backsliding relative to the project's own historical baseline.
+The novel requirement for M16 (issue #43, Layer C) was to design a proactive tech debt detection system that doesn't exist in the prior-art baseline or comparable tools. The key insight: thresholds enforce a floor, but users need a **ratchet** — a mechanism that locks in improvements and prevents backsliding relative to the project's own historical baseline.
 
 ## Decision
 

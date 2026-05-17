@@ -977,7 +977,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'spec, which fails the L2 playwright-e2e gate step in scripts/check-all.mjs',
   },
 
-  // --- Viafera-port opt-in set (INV-62..INV-71) ---
+  // --- Extended opt-in set (INV-62..INV-71) ---
   // Enabled via arbiter.json governance.invariants_catalog = 'extended'.
   // Excluded from default generated AGENTS.md/GLOBAL_INVARIANTS.md.
 
@@ -993,7 +993,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Mixing both in a single store conflates cache invalidation with UI transitions ' +
       'and makes optimistic updates error-prone.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1008,7 +1008,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'lands first and docs follow later create a window where the SSOT is stale ' +
       'and misleads reviewers and future agents.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1023,7 +1023,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'reasons and is not documented creates maintenance risk when the original ' +
       'author is unavailable.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1038,7 +1038,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'env-specific APIs (window, process.env, cloud SDKs) in domain code ' +
       'make testing harder and limit portability.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1053,7 +1053,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'and will be lost. The docs/METHOD/ directory is the single source of ' +
       'truth for how the team works.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1068,7 +1068,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'and hides contract mismatches. Use contract tests or test-doubles at the ' +
       'unit level; keep E2E real.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1083,7 +1083,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'commands issued ad-hoc during an incident bypass audit trails and ' +
       'increase the risk of accidental state mutation.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1098,7 +1098,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Abstractions without traceable rationale accumulate as unexplained complexity ' +
       'over time.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1113,7 +1113,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Creating a new module when an equivalent already exists produces duplication ' +
       'that diverges over time.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 
@@ -1128,7 +1128,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'as lower-ceremony than code PRs leads to stale documentation and ' +
       'broken cross-references.',
     alwaysActive: false,
-    optInGroup: 'viafera-port',
+    optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
 ]

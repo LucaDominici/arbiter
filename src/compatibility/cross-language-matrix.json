@@ -5,7 +5,7 @@
     "java": {
       "tool": "checkstyle+pmd+spotbugs+spotless",
       "maturity": "proven",
-      "reason": "All four tools wired into L1/L2 gate; precise Viafera-equivalent rulesets"
+      "reason": "All four tools wired into L1/L2 gate; production-grade rulesets"
     },
     "typescript": {
       "tool": "eslint+prettier",

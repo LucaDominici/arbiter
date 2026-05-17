@@ -129,7 +129,7 @@ function buildDiffConfig(
     enableSecurityScanning: stored.features.securityScanning,
     invariantTiers:
       stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(stored.governanceLevel)),
-    includeViaferaPort: stored.governance?.invariants_catalog === 'extended',
+    includeExtendedInvariants: stored.governance?.invariants_catalog === 'extended',
   }
 }
 
@@ -138,7 +138,7 @@ function buildDiffData(config: ProjectConfig): Record<string, unknown> {
     language: config.language,
     governanceLevel: config.governanceLevel,
     invariantTiers: config.invariantTiers,
-    ...(config.includeViaferaPort ? { includeViaferaPort: true } : {}),
+    ...(config.includeExtendedInvariants ? { includeExtendedInvariants: true } : {}),
   }
   const invariants = getFilteredInvariants(filterOpts)
   return {

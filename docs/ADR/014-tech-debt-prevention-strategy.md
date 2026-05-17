@@ -6,7 +6,7 @@
 
 ## Context
 
-A retroactive analysis of M1-M11 (comparing Arbiter's generated output against Viafera's production enforcement) uncovered systemic gaps:
+A retroactive analysis of M1-M11 (comparing Arbiter's generated output against the production baseline enforcement) uncovered systemic gaps:
 
 - **5 CRITICAL findings:** Go and Python stacks produce non-functional output — empty CI jobs that always pass, empty gate scripts that check nothing, no coding standards, no invariants. Users of these stacks get decorative governance with zero enforcement.
 - **8 MAJOR findings:** INV-01 (circular deps), INV-02 (public API), INV-05 (dead code) have zero enforcement. INV-08 (no main commits) has no local enforcement. Documentation references `.sh` filenames while hooks are `.mjs`. Cross-product tests validate broken output as expected behavior.
@@ -14,7 +14,7 @@ A retroactive analysis of M1-M11 (comparing Arbiter's generated output against V
 
 Additionally, Arbiter does not generate any tech debt prevention tooling (coverage thresholds, complexity limits, dead code detection) for any stack — and has none configured for its own codebase either.
 
-The original feature request was for a **novel anti-tech-debt mechanism** (something that doesn't exist even in Viafera). However, building this on a broken foundation would compound the problem.
+The original feature request was for a **novel anti-tech-debt mechanism** (something that doesn't exist even in the prior-art baseline). However, building this on a broken foundation would compound the problem.
 
 ## Decision
 

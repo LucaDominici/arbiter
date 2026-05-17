@@ -16,7 +16,7 @@ export function generateAgentsMd(
     language: config.language,
     governanceLevel: config.governanceLevel,
     invariantTiers: config.invariantTiers,
-    ...(config.includeViaferaPort ? { includeViaferaPort: true } : {}),
+    ...(config.includeExtendedInvariants ? { includeExtendedInvariants: true } : {}),
   })
   const invariantsByTier = getInvariantsByTier(invariants)
 

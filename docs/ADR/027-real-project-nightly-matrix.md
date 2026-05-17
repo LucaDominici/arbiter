@@ -10,7 +10,7 @@
 
 Arbiter generates quality gates for five language ecosystems (TypeScript, Java, Rust, Go, Python). The existing test suite verifies that generated file _content_ matches expected templates, but nothing ever executes the generated gate against a real project build. A breaking change in a non-TS template (e.g., a malformed `build.gradle` checkpoint, a bad Cargo flag, a wrong pytest invocation) passes unit tests and ships silently.
 
-The Viafera-alignment review (H10) identified this as the single largest reliability gap: no multi-language end-to-end coverage.
+The production baseline alignment review (H10) identified this as the single largest reliability gap: no multi-language end-to-end coverage.
 
 ---
 

@@ -122,7 +122,7 @@ export interface GovernanceConfig {
   /**
    * Invariant catalog scope.
    * 'core' (default): INV-01..INV-61 only.
-   * 'extended': also includes opt-in viafera-port set (INV-62..INV-71).
+   * 'extended': also includes opt-in extended set (INV-62..INV-71).
    */
   invariants_catalog?: 'core' | 'extended'
 }

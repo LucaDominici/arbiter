@@ -129,9 +129,9 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 - SSOT framework generation: knowledge map, track router, engineering defaults
 - Richer GitHub integration: task-brief templates, epic templates, project boards
 
-### Phase 10 — Viafera-Aligned Enforcement (M22-M25)
+### Phase 10 — Production Baseline Enforcement (M22-M25)
 
-Based on exhaustive gap analysis (`VIAFERA-ALIGNMENT.md`). Principle: **once chosen, enforced** (`ENFORCEMENT-PHILOSOPHY.md`).
+Based on exhaustive gap analysis (alignment doc removed). Principle: **once chosen, enforced** (`ENFORCEMENT-PHILOSOPHY.md`).
 
 - Architecture verification suite: full ArchUnit (Java), eslint-plugin-boundaries (TS), cargo-deny (Rust), go/analysis (Go), import-linter (Python)
 - Mutation testing as hard gate: PIT (Java), Stryker (TS), cargo-mutants (Rust), go-mutesting (Go), mutmut (Python)

@@ -11,9 +11,9 @@ Arbiter generates governance and enforcement for target projects across five lan
 
 **C1 — Single-project bias.** All generators implicitly assumed a `backend-web-db` topology: DB migrations were implied, public API invariants were always emitted, the SSOT_CORE_SET document listed DB and API sections unconditionally. A TypeScript CLI project or a Rust library received the same enforcement surface as a Spring Boot service, even though large portions were irrelevant.
 
-**C2 — Invisible architecture assumption.** The Java ArchUnit template baked hexagonal (Viafera) vs. layered (Archivio) rules as a compile-time constant. Choosing one style silently excluded the other. There was no way to declare "this project has no enforced architecture style" — the only option was language-level exclusion (`language !== "java"`).
+**C2 — Invisible architecture assumption.** The Java ArchUnit template baked hexagonal (prior-art baseline) vs. layered (Archivio) rules as a compile-time constant. Choosing one style silently excluded the other. There was no way to declare "this project has no enforced architecture style" — the only option was language-level exclusion (`language !== "java"`).
 
-Both gaps were discovered during Viafera/Archivio cross-project analysis (see `docs/PRODUCT/VIAFERA-ALIGNMENT.md`). They form the foundation blockers for Phase 9.5 milestones MB, MG, MH, MJ, and ML, all of which depend on explicit project shape to scope their enforcement.
+Both gaps were discovered during prior-art baseline/Archivio cross-project analysis (see the alignment doc (removed)). They form the foundation blockers for Phase 9.5 milestones MB, MG, MH, MJ, and ML, all of which depend on explicit project shape to scope their enforcement.
 
 ## Decision
 

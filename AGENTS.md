@@ -115,7 +115,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-60:** Release binary size capped at archetype default
 - **INV-61:** a11y critical violations are HARD-fail at L2
 
-## Optional — Viafera Port (opt-in, INV-62..INV-71)
+## Optional — Extended Invariants (opt-in, INV-62..INV-71)
 
 Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
 

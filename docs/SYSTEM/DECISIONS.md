@@ -21,9 +21,9 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 ## ADR-052: ISO 27001 / NIS2 / GDPR compliance gate mapping (#710, 2026-05-16)
 
 **Status:** Accepted
-**Reference:** Issue #710; viafera COMPLIANCE_MAPPING.md §2; ISO 27001:2022 Annex A; NIS2 Art.21.2; GDPR Art.5/25/32
+**Reference:** Issue #710; prior-art baseline COMPLIANCE_MAPPING.md §2; ISO 27001:2022 Annex A; NIS2 Art.21.2; GDPR Art.5/25/32
 
-**Context:** Viafera ships a gate-to-control mapping table (COMPLIANCE_MAPPING.md §25-68) that maps every quality gate to the ISO 27001 Annex A / NIS2 Art.21.2 / GDPR article it satisfies, accelerating audit preparation. Arbiter had no equivalent — only the full Annex A matrix (L3-only, from #217).
+**Context:** The prior-art baseline ships a gate-to-control mapping table (COMPLIANCE_MAPPING.md §25-68) that maps every quality gate to the ISO 27001 Annex A / NIS2 Art.21.2 / GDPR article it satisfies, accelerating audit preparation. Arbiter had no equivalent — only the full Annex A matrix (L3-only, from #217).
 
 **Decision:** Add three opt-in flags to `ProjectConfig`: `enableIso27001Mapping`, `enableNis2Mapping`, `enableGdprMapping`. When any flag is true, `generateCompliance` emits `docs/COMPLIANCE_MAPPING.md` from `src/templates/compliance/compliance-mapping.md.ejs`. The template has three conditional sections (ISO 27001, NIS2, GDPR), each with a gate-to-control table and an audit preparation checklist. Template uses `typeof` guards for optional fields. File is `skipIfExists: true`.
 
@@ -34,9 +34,9 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 ## ADR-051: Red-team SSOT alignment checks (#723, 2026-05-16)
 
 **Status:** Accepted
-**Reference:** Issue #723; viafera FINDINGS.md#mech-M-15
+**Reference:** Issue #723; prior-art baseline FINDINGS.md#mech-M-15
 
-**Context:** Viafera's red-team agent includes a dedicated SSOT (Single Source of Truth) alignment section that systematically checks for invariant drift, CANON rule compliance, registry completeness, opt-in wiring, ADR currency, changeset presence, and ratchet baseline updates. Arbiter's red-team agent lacked this structured checklist, risking inconsistent governance on generator/template PRs.
+**Context:** The prior-art baseline's red-team agent includes a dedicated SSOT (Single Source of Truth) alignment section that systematically checks for invariant drift, CANON rule compliance, registry completeness, opt-in wiring, ADR currency, changeset presence, and ratchet baseline updates. Arbiter's red-team agent lacked this structured checklist, risking inconsistent governance on generator/template PRs.
 
 **Decision:** Add SSOT Alignment Checks section to both `src/templates/claude/agents/red-team.md.ejs` (generated version for target projects) and the materialized `.claude/agents/red-team.md` (arbiter self-governance). The section defines 9 checks, each with a specific query and severity mapping (HIGH for SSOT misalignment, MEDIUM for missing documentation).
 
@@ -47,9 +47,9 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 ## ADR-050: Risk register + P×I assessment template (#712, 2026-05-16)
 
 **Status:** Accepted
-**Reference:** Issue #712; viafera R-PORT-03; ISO 27001:2022 §6.1.2
+**Reference:** Issue #712; prior-art baseline R-PORT-03; ISO 27001:2022 §6.1.2
 
-**Context:** Viafera ships a structured risk register (RISK_REGISTER.md, 489 LOC, 15 risks V-01..V-15) and a reusable per-risk P×I assessment template. Projects using arbiter lack a structured ISO 27001-aligned risk governance baseline.
+**Context:** The prior-art baseline ships a structured risk register (RISK_REGISTER.md, 489 LOC, 15 risks V-01..V-15) and a reusable per-risk P×I assessment template. Projects using arbiter lack a structured ISO 27001-aligned risk governance baseline.
 
 **Decision:** Add opt-in `enableRiskRegister: true` flag. When set, `generateRiskRegister` emits two files into `docs/GOVERNANCE/`: (1) `RISK_REGISTER.md` — P×I matrix, classification thresholds, 5 universal pre-populated risks, plus archetype-conditional risks (DB for `backend-web-db`/`data-pipeline`, XSS for `frontend-spa`, rate-limit for `hasPublicApi`, tenant isolation for `isMultiTenant`); (2) `RISK_ASSESSMENT_TEMPLATE.md` — reusable per-risk assessment form covering threat description, P×I scoring rationale, treatment options, and approval workflow. Both files are `skipIfExists: true`.
 
@@ -60,9 +60,9 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 ## ADR-049: Operations handbook generator (#717, 2026-05-16)
 
 **Status:** Accepted
-**Reference:** Issue #717; viafera M-09
+**Reference:** Issue #717; prior-art baseline M-09
 
-**Context:** Viafera ships a 3301-line operations handbook covering 4-signal observability (latency, traffic, errors, saturation), RC gate checklist, on-call protocol, and runbook templates. Projects using arbiter lack a structured baseline for operational readiness.
+**Context:** The prior-art baseline ships a 3301-line operations handbook covering 4-signal observability (latency, traffic, errors, saturation), RC gate checklist, on-call protocol, and runbook templates. Projects using arbiter lack a structured baseline for operational readiness.
 
 **Decision:** Add opt-in `enableOperationsHandbook: true` flag. When set, `generateOperations` emits `docs/OPERATIONS_HANDBOOK.md` from `src/templates/operations/handbook.md.ejs`. The template is archetype-aware: `backend-web-db` and `data-pipeline` add database signals and load-test gates; `frontend-spa` adds Core Web Vitals. The template is `skipIfExists: true` so teams can customise after init.
 
@@ -73,7 +73,7 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 ## ADR-048: 25-dimension test taxonomy extension (#719, 2026-05-16)
 
 **Status:** Accepted
-**Reference:** Issue #719; viafera M-11
+**Reference:** Issue #719; prior-art baseline M-11
 
 **Context:** The base `TEST_TAXONOMY.md` template covers 17 universal dimensions suitable for most projects. Industrial-grade projects (compliance, regulated industries, high-traffic APIs) require additional coverage for audit trails, PII masking, rate limiting, session lifecycle, event delivery, graceful degradation, SLA assertions, and OWASP security surface.
 
@@ -86,10 +86,10 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 ## ADR-046: MCP fallback determinism rule + cross-language skip-test guard (#721 #730, 2026-05-16)
 
 **Status:** Accepted
-**Reference:** Issues #721, #730; viafera M-13, NI-11
+**Reference:** Issues #721, #730; prior-art baseline M-13, NI-11
 **Closes:** #721, #730
 
-**Context:** Two viafera-port issues batched: (a) MCP tools have no documented fallback when unavailable — silent downgrade creates non-deterministic session behavior; (b) skip annotations like `@Disabled`, `pytest.mark.skip`, and `t.Skip` can hide regressions and accumulate technical debt in test suites across Java, Python, and Go stacks.
+**Context:** Two extended-invariants issues batched: (a) MCP tools have no documented fallback when unavailable — silent downgrade creates non-deterministic session behavior; (b) skip annotations like `@Disabled`, `pytest.mark.skip`, and `t.Skip` can hide regressions and accumulate technical debt in test suites across Java, Python, and Go stacks.
 
 **Decision:** Ship two artifacts:
 
@@ -160,10 +160,10 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 ## ADR-045: CLI catalog docs/COMMANDS.md generation (#728, 2026-05-16)
 
 **Status:** Accepted
-**Reference:** Issue #728; viafera M-19; CANON-04, CANON-05, CANON-11
+**Reference:** Issue #728; prior-art baseline M-19; CANON-04, CANON-05, CANON-11
 **Closes:** #728
 
-**Context:** viafera ships `FRAMEWORK/DOCS/COMMANDS.md` — a uniform, machine-generated command reference that lists every build/test/lint/format/gate command in one place. arbiter-generated projects had no equivalent, forcing developers to hunt commands across README and CI config.
+**Context:** The prior-art baseline ships `FRAMEWORK/DOCS/COMMANDS.md` — a uniform, machine-generated command reference that lists every build/test/lint/format/gate command in one place. arbiter-generated projects had no equivalent, forcing developers to hunt commands across README and CI config.
 
 **Decision:** Add `src/templates/documentation/cli-catalog.md.ejs` rendered as `docs/COMMANDS.md` by `generateDocs` at L2+. Sourced from `buildCommand`, `testCommand`, `lintCommand`, `formatCommand` fields already present in `ProjectConfig`. Uses `skipIfExists` (CANON-11). L1 skipped — L1 projects have minimal governance overhead.
 
@@ -527,7 +527,7 @@ Key design decisions:
 ## feat(#398): ArchUnit hexagonal suite parity — 3 new templates (2026-05-10)
 
 Adds `NamingConventionsTest.java.ejs`, `AntiCyclicTest.java.ejs`, and
-`NoH2ArchTest.java.ejs` to `src/templates/archunit/`, completing viafera
+`NoH2ArchTest.java.ejs` to `src/templates/archunit/`, completing production baseline
 parity for the hexagonal enforcement suite. `emitHexagonalSuite()` in
 `src/generators/archunit.ts` now emits 7 test files (up from 4).
 
@@ -607,7 +607,7 @@ disk without erroring.
 
 **Date:** 2026-04-17
 **Status:** Accepted
-**Reference:** viafera PR #2698 (ADR-094)
+**Reference:** prior-art baseline PR #2698 (ADR-094)
 
 **Context:** The two-file split between start-task and complete-task created drift over time as the commands diverged. The PLAN→EXEC boundary is enforced by the MANDATORY STOP line, not by file separation.
 
@@ -845,7 +845,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Status:** Accepted
 **Reference:** Issue #255; INV-47..INV-50
 
-**Context:** Issue #255 (AC#1) named `src/generators/ssot-four-pillar.ts` as the implementation target for the four-pillar Viafera SSOT model (Authority / Routing / Aliasing / Gates). However, `src/generators/ssot.ts` already emits three of the four pillars via a clean dispatch over `ProjectConfig.governanceLevel`. Adding a fourth pillar (CANONICAL_PATHS) is a one-line extension to the existing `files.push(...)` loop.
+**Context:** Issue #255 (AC#1) named `src/generators/ssot-four-pillar.ts` as the implementation target for the four-pillar production baseline SSOT model (Authority / Routing / Aliasing / Gates). However, `src/generators/ssot.ts` already emits three of the four pillars via a clean dispatch over `ProjectConfig.governanceLevel`. Adding a fourth pillar (CANONICAL_PATHS) is a one-line extension to the existing `files.push(...)` loop.
 
 **Decision:** Extend `src/generators/ssot.ts` rather than create a new `ssot-four-pillar.ts` file. CANON-16 forbids new files when a refactor of an existing module is viable. The deviation from AC#1's naming is documented here per CANON-01.
 
@@ -856,7 +856,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 - _CANON-01 dual-sided_: Each gate ships as both an arbiter-self script (`scripts/check-X.mjs`) and an emitted template (`src/templates/scripts/check-X.mjs.ejs`) for target projects.
 - _`arbiter harness --fast`_: CLI command wrapping the four gates for target project use. `--fast` stops at first failure; without the flag all four run and all failures are reported.
 
-**Consequences:** The Viafera four-pillar model (Authority / Routing / Aliasing / Gates) is fully realised in both arbiter-self and generated target projects. Moved/renamed docs no longer silently break links (CANONICAL_PATHS + check-canonical-paths). Missing SSOT entries are detected at L1 (check-ssot-core). KM line count drift is detected at L1 (check-knowledge-map). All four gates bootstrap safely on new projects.
+**Consequences:** The production baseline four-pillar model (Authority / Routing / Aliasing / Gates) is fully realised in both arbiter-self and generated target projects. Moved/renamed docs no longer silently break links (CANONICAL_PATHS + check-canonical-paths). Missing SSOT entries are detected at L1 (check-ssot-core). KM line count drift is detected at L1 (check-knowledge-map). All four gates bootstrap safely on new projects.
 
 ---
 
@@ -966,9 +966,9 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Date:** 2026-05-16
 **Status:** Accepted
-**Reference:** Issues #720 (M-12), #724 (M-16); viafera ports FINDINGS.md#mech-M-12, #mech-M-16
+**Reference:** Issues #720 (M-12), #724 (M-16); prior-art baseline ports FINDINGS.md#mech-M-12, #mech-M-16
 
-**Context:** viafera ships `rules/10-knowledge-map.md` (prose context-economy rule) and `hooks/post-commit-check.sh` (track-aware checklist). arbiter had scattered context-economy guidance but no explicit rule, no machine-readable routing map, and no track routing in `post-commit-check.mjs`. The issues require porting AND improving over the viafera baseline.
+**Context:** The prior-art baseline ships `rules/10-knowledge-map.md` (prose context-economy rule) and `hooks/post-commit-check.sh` (track-aware checklist). arbiter had scattered context-economy guidance but no explicit rule, no machine-readable routing map, and no track routing in `post-commit-check.mjs`. The issues require porting AND improving over the production baseline.
 
 **Decision:**
 
@@ -1044,9 +1044,9 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Date:** 2026-05-16
 **Status:** Accepted
-**Reference:** Issue #730 (viafera-port NI-11); CANON-12
+**Reference:** Issue #730 (extended-invariants NI-11); CANON-12
 
-**Context:** viafera's `GLOBAL_INVARIANTS.md` (line 89) bans `@Disabled`, `.skip`, `xit`, and commented-out tests. arbiter already enforced no-orphan-TODO and no-direct-spawn via post-edit hooks but had no equivalent for skipped tests.
+**Context:** The prior-art baseline's `GLOBAL_INVARIANTS.md` (line 89) bans `@Disabled`, `.skip`, `xit`, and commented-out tests. arbiter already enforced no-orphan-TODO and no-direct-spawn via post-edit hooks but had no equivalent for skipped tests.
 
 **Decision:**
 
@@ -1112,7 +1112,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Status:** Accepted
 **Reference:** Issue #729 (wave:1-immediate, M-tier); CANON-16
 
-**Context:** After #710–#726 landed multiple governance features, activating them all required setting 7+ boolean flags and two nested config blocks. Teams evaluating arbiter need a single switch that matches the "Industrial Grade Certification" claims from the viafera README.
+**Context:** After #710–#726 landed multiple governance features, activating them all required setting 7+ boolean flags and two nested config blocks. Teams evaluating arbiter need a single switch that matches the "Industrial Grade Certification" claims from the prior-art baseline README.
 
 **Decision:**
 

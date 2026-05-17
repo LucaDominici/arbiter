@@ -41,7 +41,7 @@
 
 ## Later (> 6 Months)
 
-- Viafera mechanism port — 22 governance mechanisms from the viafera project (issue #737)
+- Extended invariants port — 22 governance mechanisms from a production reference implementation (issue #737)
 - TDD workflow integration — red/green/refactor phase tracking, evidence gate (issue #579)
 - Community infrastructure — RFC process, Discord/Matrix, plugin registry (issue #580)
 - Anti-overclaim positioning layer — honest framing tooling (issue #673)

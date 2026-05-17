@@ -58,8 +58,8 @@ export interface Invariant {
   /**
    * Opt-in group identifier. Invariants in a named group are excluded from
    * the default filter and only appear when the caller explicitly opts in.
-   * Currently supported: 'viafera-port' (INV-62..INV-71, enabled via
+   * Currently supported: 'extended' (INV-62..INV-71, enabled via
    * arbiter.json governance.invariants_catalog = 'extended').
    */
-  optInGroup?: 'viafera-port'
+  optInGroup?: 'extended'
 }

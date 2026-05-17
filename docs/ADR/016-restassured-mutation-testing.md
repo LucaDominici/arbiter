@@ -11,7 +11,7 @@ MockMvc tests the controller layer through a mock servlet container, bypassing r
 
 Code coverage measures which lines execute but not whether tests actually verify behavior. A test suite can achieve 90% coverage with assertions that check nothing meaningful. Mutation testing (PIT/pitest) injects small faults (mutants) into production code and verifies that tests fail — proving tests have genuine fault-detection power. A survived mutant is a test gap.
 
-This decision originates from viafera (2026-04-08), where the team decided to migrate from MockMvc to RestAssured and enforce mutation testing. However, viafera's enforcement is incomplete: pitest is configured locally but not in CI, and RestAssured adoption is still a plan. Arbiter, as the governance framework, must generate **stricter** enforcement than what viafera itself currently has.
+This decision originates from the prior-art baseline (2026-04-08), where the team decided to migrate from MockMvc to RestAssured and enforce mutation testing. However, the prior-art baseline enforcement is incomplete: pitest is configured locally but not in CI, and RestAssured adoption is still a plan. Arbiter, as the governance framework, must generate **stricter** enforcement than what the prior-art baseline itself currently has.
 
 ## Decision
 
@@ -44,8 +44,8 @@ MockMvc vs RestAssured is a test architecture decision, not a style preference. 
 **Why operational tier for INV-30 (not governance)?**
 Governance tier invariants are `alwaysActive` in arbiter's catalog. Mutation testing has significant build time cost and requires pitest plugin setup, so it should be opt-in via preset selection (`standard` or `full`) at L2+. Operational tier provides exactly this behavior.
 
-**Why stricter than viafera?**
-Arbiter generates governance for other projects. If arbiter's generated enforcement is weaker than hand-written enforcement in viafera, there is no reason to use arbiter. The generated output must be at least as strict, and ideally stricter (since it enforces from project inception, not retrofitted).
+**Why stricter than the prior-art baseline?**
+Arbiter generates governance for other projects. If arbiter's generated enforcement is weaker than hand-written enforcement in the prior-art baseline, there is no reason to use arbiter. The generated output must be at least as strict, and ideally stricter (since it enforces from project inception, not retrofitted).
 
 ## Alternatives Considered
 

@@ -29,7 +29,7 @@ Template:
 
 ### Alternatives rejected
 
-- **Full CLAUDE.md with all governance** -- this was the pre-arbiter state in viafera/haben/coach-system. It caused drift because each repo's CLAUDE.md diverged independently.
+- **Full CLAUDE.md with all governance** -- this was the pre-arbiter state in prior-art baseline repos (haben/coach-system). It caused drift because each repo's CLAUDE.md diverged independently.
 - **Empty pointer with no tool config** -- rejected because tool-specific config (hooks, permissions) genuinely needs to live somewhere.
 
 ## Consequences

@@ -16,7 +16,7 @@
 
 ## Comparison Table
 
-| #   | Feature                                          | Arbiter                                                  | Viafera                                                                          | GSD 2                      | BMAD                      |
+| #   | Feature                                          | Arbiter                                                  | Prior-Art Baseline                                                               | GSD 2                      | BMAD                      |
 | --- | ------------------------------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------- | ------------------------- |
 |     | **GOVERNANCE & STANDARDS**                       |                                                          |                                                                                  |                            |                           |
 | 1   | Canonical governance file (AGENTS.md)            | G                                                        | P                                                                                | -                          | -                         |
@@ -135,12 +135,12 @@
 
 ## Score Summary
 
-| System      | Features with G or P | Coverage |
-| ----------- | -------------------- | -------- |
-| **Arbiter** | 37/85 (all G)        | 44%      |
-| **Viafera** | 56/85 (all P)        | 66%      |
-| **GSD 2**   | 14/85                | 16%      |
-| **BMAD**    | 12/85                | 14%      |
+| System                 | Features with G or P | Coverage |
+| ---------------------- | -------------------- | -------- |
+| **Arbiter**            | 37/85 (all G)        | 44%      |
+| **Prior-Art Baseline** | 56/85 (all P)        | 66%      |
+| **GSD 2**              | 14/85                | 16%      |
+| **BMAD**               | 12/85                | 14%      |
 
 **Note:** GSD 2 and BMAD excel in areas not in this matrix (autonomous execution, agent personas, web UI). This table focuses on governance features relevant to Arbiter's roadmap.
 
@@ -163,5 +163,5 @@
 | M20: SSOT Framework                    | #38     | Planned  | +5 (rows 43-46, 49)                       |
 | M21: Richer GitHub Integration         | #39     | Planned  | +2 (rows 52, 57)                          |
 
-**Target after M21:** 60+ /85 features (71%+) -- closing the gap with Viafera.
+**Target after M21:** 60+ /85 features (71%+) -- closing the gap with the prior-art baseline.
 **M12-M16 focus:** Foundation repair + tech debt prevention (quality over quantity).

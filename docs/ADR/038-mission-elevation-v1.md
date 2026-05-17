@@ -12,8 +12,8 @@ Approaching v1.0, arbiter has accumulated scope that does not align with the cor
 
 1. **Obsidian vault feature** — a POC for generating an Obsidian knowledge base from project structure. Useful in demos; expensive to maintain; not governance.
 2. **Plugin API stability** — the plugin API shipped in M32 is functional but not field-tested. Advertising it as stable before external consumers exist would create premature compatibility obligations.
-3. **Java enforcement stack** — ArchUnit hexagonal suite (viafera parity) is partially shipped; three templates are missing.
-4. **ADR-037 collision** — two ADRs share the number 037 (`037-evidence-harness-target-projects.md` and `037-java-static-analysis-viafera-parity.md`). ADR-038 is the next clean number.
+3. **Java enforcement stack** — ArchUnit hexagonal suite (production baseline parity) is partially shipped; three templates are missing.
+4. **ADR-037 collision** — two ADRs share the number 037 (`037-evidence-harness-target-projects.md` and `037-java-static-analysis-baseline.md`). ADR-038 is the next clean number.
 
 ---
 
@@ -33,7 +33,7 @@ The plugin API (`src/types/plugin.ts`, exported as `@arbiter/cli/plugin`) is mar
 
 ### 3. Complete Java + TypeScript enforcement stacks
 
-v1.0 scope = Java + TypeScript enforcement stacks at full viafera parity. Other stacks (Rust, Go, Python) are present and functional; their enforcement templates follow after v1.0 if community demand warrants.
+v1.0 scope = Java + TypeScript enforcement stacks at full production baseline parity. Other stacks (Rust, Go, Python) are present and functional; their enforcement templates follow after v1.0 if community demand warrants.
 
 ---
 
@@ -54,7 +54,7 @@ v1.0 scope = Java + TypeScript enforcement stacks at full viafera parity. Other 
 
 ## ADR-037 Collision Note
 
-Both `037-evidence-harness-target-projects.md` and `037-java-static-analysis-viafera-parity.md` use number 037. This is a pre-existing numbering error. ADR-038 is the next clean slot. A future cleanup commit will renumber one of the 037 files to 037a or a higher number; that cleanup is deferred to avoid churn during the v1.0 sprint.
+Both `037-evidence-harness-target-projects.md` and `037-java-static-analysis-baseline.md` use number 037. This is a pre-existing numbering error. ADR-038 is the next clean slot. A future cleanup commit will renumber one of the 037 files to 037a or a higher number; that cleanup is deferred to avoid churn during the v1.0 sprint.
 
 ---
 
