@@ -1,7 +1,7 @@
 # Arbiter — AI governance that installs itself.
 
 [![No Telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)](PRIVACY.md)
-[![npm](https://img.shields.io/npm/v/arbiter)](https://www.npmjs.com/package/arbiter)
+[![npm version](https://img.shields.io/npm/v/@arbiter/cli)](https://www.npmjs.com/package/@arbiter/cli)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)](https://nodejs.org/)
 
@@ -159,6 +159,7 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 
 ## Product Documentation
 
+- [`docs/FAQ.md`](docs/FAQ.md) — Frequently Asked Questions
 - [`docs/PRODUCT/PRD.md`](docs/PRODUCT/PRD.md) — Vision, problem, users, features by phase, success metrics
 - [`docs/PRODUCT/MILESTONES.md`](docs/PRODUCT/MILESTONES.md) — Phased delivery with exit criteria
 - [`docs/PRODUCT/COMPETITION.md`](docs/PRODUCT/COMPETITION.md) — ai-rulez, ruler, manual setup — where Arbiter fits
