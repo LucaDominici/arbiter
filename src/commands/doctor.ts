@@ -14,6 +14,7 @@ import { loadConfig, writeSnapshot } from '../utils/config.js'
 import { runCli } from '../utils/run-cli.js'
 import { inspectLock, forceReleaseLock } from '../utils/file-lock.js'
 import type { LockInfo } from '../utils/file-lock.js'
+import { resolveChannel } from '../utils/channel.js'
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ export interface HealthCheck {
 export interface DoctorHealthOptions {
   dir?: string
   json?: boolean
+  channelFlag?: string
 }
 
 export interface DoctorHealthResult {
@@ -193,6 +195,30 @@ function checkLockfile(dir: string): HealthCheck {
   }
 }
 
+function checkChannelSetting(dir: string, channelFlag: string | undefined): HealthCheck {
+  try {
+    const config = loadConfig(dir)
+    const resolved = resolveChannel({
+      ...(channelFlag !== undefined && { flag: channelFlag }),
+      ...(config?.channel !== undefined && { config: config.channel }),
+    })
+    return {
+      id: 'release-channel',
+      label: 'release channel',
+      status: 'PASS',
+      detail: `${resolved.value} (${resolved.source})`,
+    }
+  } catch (err) {
+    return {
+      id: 'release-channel',
+      label: 'release channel',
+      status: 'FAIL',
+      detail: err instanceof Error ? err.message : String(err),
+      hint: 'Fix or delete arbiter.json and re-run `arbiter init`.',
+    }
+  }
+}
+
 function emitHealthOutput(checks: HealthCheck[], pass: number, warn: number, fail: number): void {
   process.stdout.write('\n')
   for (const check of checks) {
@@ -206,7 +232,12 @@ function emitHealthOutput(checks: HealthCheck[], pass: number, warn: number, fai
 export function runDoctorHealth(opts: DoctorHealthOptions = {}): DoctorHealthResult {
   const dir = resolve(opts.dir ?? '.')
   const [gitCheck, gitOk] = checkGitAvailable(dir)
-  const checks: HealthCheck[] = [checkNodeVersion(), gitCheck, ...checkArbiterProject(dir, gitOk)]
+  const checks: HealthCheck[] = [
+    checkNodeVersion(),
+    gitCheck,
+    ...checkArbiterProject(dir, gitOk),
+    checkChannelSetting(dir, opts.channelFlag),
+  ]
 
   const pass = checks.filter((c) => c.status === 'PASS').length
   const warn = checks.filter((c) => c.status === 'WARN').length

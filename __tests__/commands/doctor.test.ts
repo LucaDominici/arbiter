@@ -281,3 +281,77 @@ describe('runDoctorRecoverLock (#618)', () => {
     await expect(runDoctorRecoverLock({ dir, json: false })).rejects.toThrow(/symlink/i)
   })
 })
+
+// ── runDoctorHealth — channel check (#662) ────────────────────────────────────
+
+describe('runDoctorHealth — channel check (#662)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-doctor-ch-'))
+    vi.clearAllMocks()
+    mockRunCli.mockReturnValue({
+      stdout: 'git version 2.40\n',
+      stderr: '',
+      exitCode: 0,
+      durationMs: 0,
+    })
+  })
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('shows "latest (default)" when no config and no flag', () => {
+    const result = runDoctorHealth({ dir, json: true })
+    const ch = result.checks.find((c) => c.id === 'release-channel')
+    expect(ch?.status).toBe('PASS')
+    expect(ch?.detail).toBe('latest (default)')
+  })
+
+  it('shows "beta (config)" when arbiter.json has channel:beta and no flag', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        $schemaVersion: 2,
+        channel: 'beta',
+        tools: [],
+        governanceLevel: 'L1',
+        useGitHub: false,
+      }),
+      'utf-8',
+    )
+    const result = runDoctorHealth({ dir, json: true })
+    const ch = result.checks.find((c) => c.id === 'release-channel')
+    expect(ch?.detail).toBe('beta (config)')
+  })
+
+  it('shows "canary (flag)" when flag overrides config', () => {
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        $schemaVersion: 2,
+        channel: 'beta',
+        tools: [],
+        governanceLevel: 'L1',
+        useGitHub: false,
+      }),
+      'utf-8',
+    )
+    const result = runDoctorHealth({ dir, json: true, channelFlag: 'canary' })
+    const ch = result.checks.find((c) => c.id === 'release-channel')
+    expect(ch?.detail).toBe('canary (flag)')
+  })
+
+  it('shows "latest (flag)" when flag is latest and no config channel', () => {
+    const result = runDoctorHealth({ dir, json: true, channelFlag: 'latest' })
+    const ch = result.checks.find((c) => c.id === 'release-channel')
+    expect(ch?.detail).toBe('latest (flag)')
+  })
+
+  it('returns FAIL (not crash) when arbiter.json has invalid JSON', () => {
+    writeFileSync(join(dir, 'arbiter.json'), '{ invalid json }', 'utf-8')
+    const result = runDoctorHealth({ dir, json: true })
+    const ch = result.checks.find((c) => c.id === 'release-channel')
+    expect(ch?.status).toBe('FAIL')
+    expect(ch?.hint).toMatch(/arbiter init/i)
+    // Other checks should still run (not crash)
+    expect(result.checks.find((c) => c.id === 'node-version')?.status).toBe('PASS')
+  })
+})

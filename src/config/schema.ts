@@ -112,6 +112,8 @@ export interface ArbiterConfigV2 {
   auth?: AuthConfig
   /** Active project preset for audit/drift detection. Absent = no preset applied. */
   preset?: ProjectPreset
+  /** Release channel preference. Controls `arbiter doctor` reporting + downgrade warnings. Default: latest. */
+  channel?: 'latest' | 'beta' | 'canary'
 }
 
 export type ValidateResult = { ok: true; config: ArbiterConfigV2 } | { ok: false; errors: string[] }
@@ -258,6 +260,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateLanes(raw['lanes'], errors)
   validateTaskTiers(raw['taskTiers'], errors)
   validateContextPack(raw['contextPack'], errors)
+  validateChannel(raw['channel'], errors)
 
   if (errors.length > 0) {
     return { ok: false, errors }
@@ -354,5 +357,14 @@ function validateDecomposition(raw: unknown, errors: string[]): void {
     errors.push(
       `decomposition.backend must be "github" or "markdown" — got ${typeof backend === 'string' ? backend : JSON.stringify(backend)}`,
     )
+  }
+}
+
+const VALID_CHANNELS: ReadonlySet<string> = new Set(['latest', 'beta', 'canary'])
+
+function validateChannel(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (typeof raw !== 'string' || !VALID_CHANNELS.has(raw)) {
+    errors.push(`channel must be one of latest, beta, canary — got ${JSON.stringify(raw)}`)
   }
 }

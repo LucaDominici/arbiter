@@ -1,0 +1,24 @@
+{
+  "version": "0.2",
+  "$schemaVersion": 2,
+  "tools": ["claude"],
+  "governanceLevel": "L1",
+  "useGitHub": false,
+  "channel": "preview",
+  "features": {
+    "contractTesting": false,
+    "mutationTesting": false,
+    "securityScanning": false,
+    "evidenceHarness": false,
+    "debtGates": false,
+    "suppressions": true
+  },
+  "thresholds": {
+    "lineCoverage": 60,
+    "branchCoverage": 50,
+    "mutationScore": 70,
+    "cyclomaticComplexity": 20,
+    "methodLength": 100,
+    "maxParams": 8
+  }
+}
