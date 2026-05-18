@@ -275,6 +275,12 @@ runCheck('ssot core set', 'node', ['scripts/check-ssot-core.mjs']);
 runCheck('doc links', 'node', ['scripts/check-doc-links.mjs']);
 runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs']);
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
+<% if (useGitHub) { %>
+// ─── L1: GitHub CI tier gates (INV-72, INV-75, INV-76) ───────────────────────
+runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);
+runCheck('action pins (INV-75)', 'node', ['scripts/check-action-pins.mjs']);
+runCheck('workflow perms (INV-76)', 'node', ['scripts/check-workflow-perms.mjs']);
+<% } %>
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 <% if (enableSecurityScanning) { %>

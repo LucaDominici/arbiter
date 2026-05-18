@@ -1131,4 +1131,128 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     optInGroup: 'extended',
     enforcement: 'code review / manual',
   },
+
+  // ─── GitHub CI Tier Invariants (INV-72..INV-80) ──────────────────────────────
+  // Applies when useGitHub: true. Generated gate scripts enforce at L1/L2.
+
+  {
+    id: 'INV-72',
+    tier: 'operational',
+    title: 'CI tier presence — all 7 workflow files must exist under .github/workflows/',
+    description:
+      'Every GitHub-enabled project must contain exactly the canonical 7 CI tier files: ' +
+      '01-pr-fast.yml, 02-pr-extended.yml, 03-human-approval.yml, 05-release.yml, ' +
+      '06-nightly.yml, 07-weekly.yml, 08-heartbeat.yml. Missing tiers degrade the ' +
+      'deployment pipeline and break branch-protection required checks.',
+    alwaysActive: false,
+    enforcement: 'generated gate: check-ci-tiers.mjs (L1)',
+  },
+
+  {
+    id: 'INV-73',
+    tier: 'security',
+    title: 'Anti-bot human-approval gate — reviewer must be a human distinct from the PR author',
+    description:
+      'The 03-human-approval.yml workflow applies the approved-by-human label only when ' +
+      'three conditions pass: (1) reviewer is not the PR author, (2) reviewer is not a Bot, ' +
+      '(3) review state is approved. The 01-pr-fast.yml human-approval-required sentinel job ' +
+      'asserts this label is present before merge, blocking bot-only approvals.',
+    alwaysActive: false,
+    enforcement:
+      'generated: 03-human-approval.yml triple-check + 01-pr-fast.yml human-approval-required job',
+  },
+
+  {
+    id: 'INV-74',
+    tier: 'operational',
+    title: 'Heartbeat watchdog — T4 nightly must have run within 26 h, T5 weekly within 8 d',
+    description:
+      'The 08-heartbeat.yml workflow runs daily at 06:00 UTC and asserts that 06-nightly.yml ' +
+      'completed within the last 26 hours and 07-weekly.yml within the last 8 days. A missing ' +
+      'heartbeat result triggers an auto-filed GitHub issue. Silent CI failures are treated as ' +
+      'production incidents.',
+    alwaysActive: false,
+    enforcement: 'generated: 08-heartbeat.yml cron content',
+  },
+
+  {
+    id: 'INV-75',
+    tier: 'security',
+    title:
+      'SHA-pinned actions only — all third-party GitHub Actions must be pinned to a full 40-char SHA',
+    description:
+      'Tag-pinned or branch-pinned third-party actions (e.g. actions/checkout@v4) are a ' +
+      'supply-chain attack vector: the tag can be moved after review. Every uses: reference ' +
+      'to a non-local action must resolve to a full 40-character lowercase hex SHA. ' +
+      'At L1: violations emit a warning. At L2+: violations are a hard gate failure.',
+    alwaysActive: false,
+    enforcement: 'generated gate: check-action-pins.mjs (L1=warn, L2+=hard fail)',
+  },
+
+  {
+    id: 'INV-76',
+    tier: 'security',
+    title:
+      'Top-level workflow permissions — every workflow file must declare explicit top-level permissions',
+    description:
+      'Workflows without a top-level permissions: block inherit the repository default, which ' +
+      'is often write-all. Declaring permissions: at the top of every workflow file enforces ' +
+      'the principle of least privilege and satisfies the OSSF Scorecard Token-Permissions check.',
+    alwaysActive: false,
+    enforcement: 'generated gate: check-workflow-perms.mjs (L1)',
+  },
+
+  {
+    id: 'INV-77',
+    tier: 'security',
+    title: 'SLSA provenance present at T3 — release workflow must emit signed build provenance',
+    description:
+      'Every release workflow (05-release.yml) must invoke slsa-framework/slsa-github-generator ' +
+      'to produce SLSA provenance. L2 governance targets SLSA Build L2 (signed provenance). ' +
+      'L3 governance targets SLSA Build L3 (hermetic builder). Provenance is attached to the ' +
+      'GitHub release as a verifiable attestation alongside the signed artifact.',
+    alwaysActive: false,
+    minGovernanceLevel: 'L2',
+    enforcement: 'generated: 05-release.yml slsa-github-generator reusable workflow call',
+  },
+
+  {
+    id: 'INV-78',
+    tier: 'security',
+    title: 'Cosign sign-blob present for every release artifact',
+    description:
+      'Every artifact published by the release workflow (jars, binaries, wheels, images, tarballs) ' +
+      'must be signed with cosign sign-blob using keyless OIDC signing via Sigstore. ' +
+      'Unsigned release artifacts cannot be verified by downstream consumers and fail ' +
+      'supply-chain audits.',
+    alwaysActive: false,
+    minGovernanceLevel: 'L2',
+    enforcement: 'generated: 05-release.yml cosign sign-blob per archetype publish job',
+  },
+
+  {
+    id: 'INV-79',
+    tier: 'operational',
+    title: 'No continue-on-error on test or build steps — failures must propagate immediately',
+    description:
+      'Setting continue-on-error: true on a test, build, or security scan step masks failures ' +
+      'and allows broken code to merge. This is a primary cause of non-deterministic CI. ' +
+      'Only informational/alerting jobs (nightly, weekly, heartbeat) may use continue-on-error, ' +
+      'and only at the job level, never on individual steps.',
+    alwaysActive: false,
+    enforcement: 'generated: workflow-integrity hook regex (post-edit)',
+  },
+
+  {
+    id: 'INV-80',
+    tier: 'operational',
+    title:
+      'Tier-hash local↔CI parity — check-all.mjs subcommand hashes must match CI workflow steps',
+    description:
+      'Each check-all.mjs subcommand (check, gate, full) publishes a tier-hash that is verified ' +
+      'by the corresponding CI workflow in a parity-check step. If the local runner and the CI ' +
+      'workflow diverge, a merge is blocked. This extends INV-59 to cover all T1..T5 gates.',
+    alwaysActive: false,
+    enforcement: 'generated: check-all.mjs tier-hash output + 01-pr-fast.yml parity-check step',
+  },
 ]
