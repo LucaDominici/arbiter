@@ -1,4 +1,7 @@
-<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; %>name: CI
+<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; %>name: PR Fast (T1)
+
+permissions:
+  contents: read
 
 on:
   push:
@@ -6,11 +9,10 @@ on:
   pull_request:
     branches: [main]
 
-# Cancel in-progress CI runs on the same ref except for main. Main runs always
-# complete so post-merge status doesn't get truncated; task branches cancel
-# stale runs when pushed-over (#357).
+# Cancel in-progress PR fast runs on the same branch to free capacity.
+# Main runs always complete so post-merge status isn't truncated (#357).
 concurrency:
-  group: ci-${{ github.ref }}
+  group: pr-fast-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
@@ -590,11 +592,29 @@ jobs:
 <% } %>
 <% } %>
 
+  human-approval-required:
+    name: Human Approval Required (INV-73)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Assert approved-by-human label (anti-bot gate)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            if (!labels.includes('approved-by-human')) {
+              core.setFailed(
+                'PR requires the "approved-by-human" label applied by a human reviewer. ' +
+                'See 03-human-approval.yml — a bot approval does not satisfy this check.'
+              );
+            }
+
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
 <%
-  const _ciNeeds = ['lint-and-test'];
+  const _ciNeeds = ['lint-and-test', 'human-approval-required'];
   if (language === 'typescript' || language === 'java') {
     _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
   }
@@ -654,4 +674,8 @@ jobs:
           if [[ "${{ needs.cross-stack-guard.result }}" == "failure" ]]; then
             echo "cross-stack-guard failed"
             exit 1
-          fi<% } %><% } %>
+          fi<% } %>
+          if [[ "${{ needs.human-approval-required.result }}" == "failure" ]]; then
+            echo "human-approval-required failed — PR needs approved-by-human label"
+            exit 1
+          fi<% } %>

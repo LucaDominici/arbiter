@@ -15,13 +15,20 @@ describe('generateGithubSetup', () => {
     cleanupTestProject(dir)
   })
 
-  it('writes scripts/setup-repo.sh when useGitHub=true and L2', () => {
+  it('writes setup-repo.sh + apply-branch-protection.mjs + 3 gate scripts when useGitHub=true and L2', () => {
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
     const result = generateGithubSetup(config)
-    expect(result.files).toHaveLength(1)
-    expect(result.files[0].path).toContain('setup-repo.sh')
-    expect(result.files[0].action).toBe('created')
+    expect(result.files).toHaveLength(5)
+    expect(result.files.some((f) => f.path.endsWith('setup-repo.sh'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('apply-branch-protection.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('check-ci-tiers.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('check-action-pins.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('check-workflow-perms.mjs'))).toBe(true)
     expect(existsSync(join(dir, 'scripts', 'setup-repo.sh'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'apply-branch-protection.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'check-ci-tiers.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'check-action-pins.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'check-workflow-perms.mjs'))).toBe(true)
   })
 
   it('returns empty files when useGitHub=false', () => {
@@ -30,23 +37,55 @@ describe('generateGithubSetup', () => {
     expect(result.files).toHaveLength(0)
   })
 
-  it('returns empty files when governanceLevel=L1', () => {
+  it('L1: emits apply-branch-protection.mjs + 3 gate scripts but not setup-repo.sh', () => {
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L1' })
     const result = generateGithubSetup(config)
-    expect(result.files).toHaveLength(0)
+    expect(result.files).toHaveLength(4)
+    expect(result.files.some((f) => f.path.endsWith('apply-branch-protection.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('check-ci-tiers.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('check-action-pins.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('check-workflow-perms.mjs'))).toBe(true)
     expect(existsSync(join(dir, 'scripts', 'setup-repo.sh'))).toBe(false)
+    expect(existsSync(join(dir, 'scripts', 'apply-branch-protection.mjs'))).toBe(true)
   })
 
-  it('skips write on second invocation (idempotent via skipIfExists)', () => {
+  it('setup-repo.sh skips on second invocation (idempotent)', () => {
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
     generateGithubSetup(config)
     const second = generateGithubSetup(config)
-    expect(second.files[0].action).toBe('skipped')
+    const setupFile = second.files.find((f) => f.path.endsWith('setup-repo.sh'))
+    expect(setupFile?.action).toBe('skipped')
   })
 
-  it('places script under scripts/ directory at project root', () => {
+  it('apply-branch-protection.mjs is always regenerated on re-run', () => {
+    const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
+    generateGithubSetup(config)
+    const second = generateGithubSetup(config)
+    const bpFile = second.files.find((f) => f.path.endsWith('apply-branch-protection.mjs'))
+    expect(bpFile?.action).toBe('replaced')
+  })
+
+  it('gate scripts are always regenerated on re-run', () => {
+    const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
+    generateGithubSetup(config)
+    const second = generateGithubSetup(config)
+    for (const name of [
+      'check-ci-tiers.mjs',
+      'check-action-pins.mjs',
+      'check-workflow-perms.mjs',
+    ]) {
+      const f = second.files.find((r) => r.path.endsWith(name))
+      expect(f?.action).toBe('replaced')
+    }
+  })
+
+  it('places scripts under scripts/ directory at project root', () => {
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
     generateGithubSetup(config)
     expect(existsSync(join(dir, 'scripts', 'setup-repo.sh'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'apply-branch-protection.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'check-ci-tiers.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'check-action-pins.mjs'))).toBe(true)
+    expect(existsSync(join(dir, 'scripts', 'check-workflow-perms.mjs'))).toBe(true)
   })
 })

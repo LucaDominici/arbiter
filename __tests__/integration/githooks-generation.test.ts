@@ -86,11 +86,11 @@ describe('generateGithooks — typescript stack', () => {
     expect(isExecutable(join(dir, '.githooks', 'pre-push'))).toBe(true)
   })
 
-  it('.githooks/pre-push calls L2 gate', () => {
+  it('.githooks/pre-push calls gate subcommand', () => {
     const config = makeConfig(dir, { language: 'typescript' })
     generateGithooks(config)
     const content = readFileSync(join(dir, '.githooks', 'pre-push'), 'utf-8')
-    expect(content).toContain('node scripts/check-all.mjs L2')
+    expect(content).toContain('node scripts/check-all.mjs gate')
   })
 
   it('emits .githooks/commit-msg', () => {

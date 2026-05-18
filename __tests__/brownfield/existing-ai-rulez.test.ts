@@ -80,7 +80,7 @@ describe('brownfield: ai-rulez coexistence', () => {
   it('still generates GitHub infra files (CI, PR template, etc.)', () => {
     const config = configWithAiRulez()
     runGenerators(config)
-    expect(existsSync(join(dir, '.github', 'workflows', 'ci.yml'))).toBe(true)
+    expect(existsSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'))).toBe(true)
     expect(existsSync(join(dir, '.github', 'PULL_REQUEST_TEMPLATE.md'))).toBe(true)
     expect(existsSync(join(dir, '.github', 'dependabot.yml'))).toBe(true)
   })

@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
-describe('ci.yml.ejs rendering', () => {
+describe('01-pr-fast.yml.ejs rendering', () => {
   it('includes debt-ratchet job when enableDebtGates is true', () => {
     const data = makeConfig('/tmp/test', {
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('debt-ratchet')
     expect(rendered).toContain('debt-report.mjs')
   })
@@ -17,7 +17,7 @@ describe('ci.yml.ejs rendering', () => {
       enableDebtGates: false,
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).not.toContain('debt-ratchet')
   })
 
@@ -26,7 +26,7 @@ describe('ci.yml.ejs rendering', () => {
       enableDebtGates: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('--gate')
   })
 
@@ -35,15 +35,15 @@ describe('ci.yml.ejs rendering', () => {
       enableDebtGates: true,
       governanceLevel: 'L3',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('--require-improvement')
   })
 
-  it('emits concurrency block that cancels in-progress runs except on main (#357)', () => {
+  it('emits pr-fast concurrency group scoped to head_ref (#357)', () => {
     const data = makeConfig('/tmp/test', {}) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('concurrency:')
-    expect(rendered).toContain('group: ci-${{ github.ref }}')
+    expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref }}')
     expect(rendered).toMatch(/cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/)
   })
 
@@ -51,7 +51,7 @@ describe('ci.yml.ejs rendering', () => {
     const data = makeConfig('/tmp/test', {
       enableDebtGates: true,
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('debt-ratchet')
     // Verify it appears in the ci-required section
     const ciRequired = rendered.split('ci-required:')[1]
@@ -66,7 +66,7 @@ describe('ci.yml.ejs rendering', () => {
       enableDebtGates: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('spotbugsMain')
   })
 
@@ -77,19 +77,19 @@ describe('ci.yml.ejs rendering', () => {
       enableDebtGates: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('spotbugs:check')
   })
 })
 
-describe('ci.yml.ejs — test-results artifact upload (#194)', () => {
+describe('01-pr-fast.yml.ejs — test-results artifact upload (#194)', () => {
   it('TypeScript: upload-artifact for test-results when enableDebtGates=true', () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       enableDebtGates: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('test-results')
     expect(rendered).toContain('upload-artifact')
   })
@@ -100,7 +100,7 @@ describe('ci.yml.ejs — test-results artifact upload (#194)', () => {
       enableDebtGates: false,
       governanceLevel: 'L1',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).not.toContain('test-results')
   })
 
@@ -111,7 +111,7 @@ describe('ci.yml.ejs — test-results artifact upload (#194)', () => {
       enableDebtGates: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('test-results')
     expect(rendered).toContain('upload-artifact')
   })
@@ -122,7 +122,7 @@ describe('ci.yml.ejs — test-results artifact upload (#194)', () => {
       enableDebtGates: true,
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('test-results')
     expect(rendered).toContain('upload-artifact')
   })
@@ -131,10 +131,97 @@ describe('ci.yml.ejs — test-results artifact upload (#194)', () => {
     const data = makeConfig('/tmp/test', {
       governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     // docs-check job present
     expect(rendered).toContain('docs-check:')
     // bypass token honored in CI
     expect(rendered).toContain('[skip-docs]')
+  })
+})
+
+// ─── T1 structural features (CANON-18) ───────────────────────────────────────
+
+describe('01-pr-fast.yml.ejs — T1 structural features (CANON-18)', () => {
+  const STACKS = [
+    { language: 'typescript', buildTool: 'npm' },
+    { language: 'java', buildTool: 'gradle' },
+    { language: 'go', buildTool: 'go' },
+    { language: 'python', buildTool: 'pip' },
+    { language: 'rust', buildTool: 'cargo' },
+  ] as const
+
+  const LEVELS = ['L1', 'L2', 'L3'] as const
+
+  it.each(STACKS)('$language: workflow name is "PR Fast (T1)"', ({ language, buildTool }) => {
+    const data = makeConfig('/tmp/test', { language, buildTool }) as unknown as Record<
+      string,
+      unknown
+    >
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(rendered).toContain('name: PR Fast (T1)')
+  })
+
+  it.each(STACKS)(
+    '$language: top-level permissions sets contents: read',
+    ({ language, buildTool }) => {
+      const data = makeConfig('/tmp/test', { language, buildTool }) as unknown as Record<
+        string,
+        unknown
+      >
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+      expect(rendered).toContain('permissions:')
+      expect(rendered).toContain('contents: read')
+    },
+  )
+
+  it.each(STACKS)('$language: concurrency group uses head_ref', ({ language, buildTool }) => {
+    const data = makeConfig('/tmp/test', { language, buildTool }) as unknown as Record<
+      string,
+      unknown
+    >
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref }}')
+  })
+
+  it.each(STACKS)('$language: includes human-approval-required job', ({ language, buildTool }) => {
+    const data = makeConfig('/tmp/test', { language, buildTool }) as unknown as Record<
+      string,
+      unknown
+    >
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(rendered).toContain('human-approval-required:')
+    expect(rendered).toContain('approved-by-human')
+  })
+
+  it.each(STACKS)(
+    '$language: human-approval-required is in ci-required needs',
+    ({ language, buildTool }) => {
+      const data = makeConfig('/tmp/test', { language, buildTool }) as unknown as Record<
+        string,
+        unknown
+      >
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+      const ciRequired = rendered.split('ci-required:')[1] ?? ''
+      expect(ciRequired).toContain('human-approval-required')
+    },
+  )
+
+  it.each(LEVELS)('governance %s: human-approval-required present at every level', (level) => {
+    const data = makeConfig('/tmp/test', { governanceLevel: level }) as unknown as Record<
+      string,
+      unknown
+    >
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(rendered).toContain('human-approval-required:')
+  })
+
+  it.each(LEVELS)('governance %s: no EJS tag leaks', (level) => {
+    const data = makeConfig('/tmp/test', { governanceLevel: level }) as unknown as Record<
+      string,
+      unknown
+    >
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(rendered).not.toContain('<%')
+    expect(rendered).not.toContain('%>')
   })
 })

@@ -10,8 +10,6 @@ export interface NightlyGeneratorResult {
 }
 
 export function generateNightly(config: ProjectConfig): NightlyGeneratorResult {
-  if (config.governanceLevel !== 'L3') return { files: [] }
-
   const base = config.targetDir
 
   const thresholds = computeThresholds(

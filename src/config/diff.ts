@@ -49,6 +49,7 @@ export type GeneratorKey =
   | 'compliance'
   | 'observability'
   | 'auth'
+  | 'ci-tier'
 
 export interface ConfigDiff {
   paths: string[]

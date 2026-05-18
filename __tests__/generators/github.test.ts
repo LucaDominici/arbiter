@@ -19,7 +19,7 @@ describe('generateGithub', () => {
   it('generates CI workflow, PR template, issue templates, dependabot, and issue-state', () => {
     const result = generateGithub(makeConfig(dir))
     const paths = result.files.map((f) => f.path)
-    expect(paths.some((p) => p.includes('ci.yml'))).toBe(true)
+    expect(paths.some((p) => p.includes('01-pr-fast.yml'))).toBe(true)
     expect(paths.some((p) => p.includes('PULL_REQUEST_TEMPLATE.md'))).toBe(true)
     expect(paths.some((p) => p.includes('dependabot.yml'))).toBe(true)
     expect(paths.some((p) => p.includes('bug-report.yml'))).toBe(true)
@@ -36,14 +36,14 @@ describe('generateGithub', () => {
 
   it('CI workflow contains TypeScript-specific steps', () => {
     generateGithub(makeConfig(dir, { language: 'typescript' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain('npm ci')
     expect(content).toContain('test:unit')
   })
 
   it('CI workflow contains Java-specific steps', () => {
     generateGithub(makeConfig(dir, { language: 'java', buildTool: 'gradle' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain('gradlew')
     expect(content).toContain('setup-java')
   })
@@ -185,25 +185,25 @@ describe('docs-check governance gating', () => {
 
   it('L1 does not include docs-check job', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L1' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).not.toContain('docs-check:')
   })
 
   it('L2 includes docs-check job', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L2' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain('docs-check:')
   })
 
   it('L3 includes docs-check job', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L3' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain('docs-check:')
   })
 
   it('L1 ci-required does not depend on docs-check', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L1' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     const lines = content.split('\n')
     const ciRequiredIdx = lines.findIndex((l) => l.includes('ci-required:'))
     const needsLine = lines.slice(ciRequiredIdx).find((l) => l.includes('needs:'))
@@ -213,7 +213,7 @@ describe('docs-check governance gating', () => {
 
   it('L2 ci-required depends on docs-check', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L2' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     const lines = content.split('\n')
     const ciRequiredIdx = lines.findIndex((l) => l.includes('ci-required:'))
     const needsLine = lines.slice(ciRequiredIdx).find((l) => l.includes('needs:'))
@@ -223,7 +223,7 @@ describe('docs-check governance gating', () => {
 
   it('docs-check job only runs on pull_request events', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L2' }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain("if: github.event_name == 'pull_request'")
   })
 })
@@ -241,31 +241,31 @@ describe('security-early-fail CI job', () => {
 
   it('security-early-fail job present when enableSecurityScanning: true', () => {
     generateGithub(makeConfig(dir, { enableSecurityScanning: true }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain('security-early-fail:')
   })
 
   it('security-early-fail contains gitleaks detect step', () => {
     generateGithub(makeConfig(dir, { enableSecurityScanning: true }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain('gitleaks detect')
   })
 
   it('security-early-fail contains PII scan step', () => {
     generateGithub(makeConfig(dir, { enableSecurityScanning: true }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).toContain('pii-scan.mjs')
   })
 
   it('security-early-fail absent when enableSecurityScanning: false', () => {
     generateGithub(makeConfig(dir, { enableSecurityScanning: false }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(content).not.toContain('security-early-fail:')
   })
 
   it('ci-required needs security-early-fail when enableSecurityScanning: true', () => {
     generateGithub(makeConfig(dir, { enableSecurityScanning: true }))
-    const content = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     const lines = content.split('\n')
     const ciRequiredIdx = lines.findIndex((l) => l.includes('ci-required:'))
     const needsLine = lines.slice(ciRequiredIdx).find((l) => l.includes('needs:'))

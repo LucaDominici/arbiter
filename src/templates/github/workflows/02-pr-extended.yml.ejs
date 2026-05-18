@@ -1,0 +1,405 @@
+<%
+const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
+const _isService = _bucket === 'service';
+%>name: PR Extended (T2)
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+
+concurrency:
+  group: pr-extended-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-trigger:
+    name: Check Extended Trigger
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decide whether to run extended CI
+        id: decide
+        env:
+          HAS_EXT_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'extended-ci') }}
+          EVENT_ACTION: ${{ github.event.action }}
+          PR_ADDITIONS: ${{ github.event.pull_request.additions }}
+          PR_DELETIONS: ${{ github.event.pull_request.deletions }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          SHOULD_RUN=false
+
+          [[ "$HAS_EXT_LABEL" == "true" ]] && { echo "Trigger: extended-ci label"; SHOULD_RUN=true; }
+          [[ "$EVENT_ACTION" == "ready_for_review" ]] && { echo "Trigger: ready_for_review"; SHOULD_RUN=true; }
+
+          if [[ "$SHOULD_RUN" == "false" ]]; then
+            MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")
+            CHANGED=$(git diff --name-only "$MB" "$HEAD_SHA")
+            if echo "$CHANGED" | grep -qE '^(migrations/|infra/|openapi/|schemas/)'; then
+              echo "Trigger: sensitive directory changed"; SHOULD_RUN=true
+            elif echo "$CHANGED" | grep -qE '(Dockerfile[^/]*$|docker-compose[^/]*\.ya?ml$|package-lock\.json$|yarn\.lock$|go\.sum$|Cargo\.lock$|requirements[^/]*\.txt$|poetry\.lock$|pom\.xml$)'; then
+              echo "Trigger: sensitive file changed"; SHOULD_RUN=true
+            elif echo "$CHANGED" | grep -qiE '/auth[^/]*\.(ts|js|go|py|java|rs)$'; then
+              echo "Trigger: auth file changed"; SHOULD_RUN=true
+            fi
+          fi
+
+          if [[ "$SHOULD_RUN" == "false" ]]; then
+            LOC=$(( ${PR_ADDITIONS:-0} + ${PR_DELETIONS:-0} ))
+            (( LOC >= 100 )) && { echo "Trigger: PR size ${LOC} LOC >= 100"; SHOULD_RUN=true; } || true
+          fi
+
+          echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
+          echo "Extended CI: should_run=${SHOULD_RUN}"
+
+  integration-tests:
+    name: Integration Tests (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:integration
+<% if (_isService) { %>
+      - name: Toxiproxy resilience test
+        run: npm run test:resilience
+<% } %>
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v3
+      - run: ./gradlew integrationTest
+<% if (_isService) { %>
+      - name: Toxiproxy resilience test
+        run: ./gradlew test -Ptests=resilience
+<% } %>
+<% } else { %>
+      - run: mvn test -Pintegration
+<% if (_isService) { %>
+      - name: Toxiproxy resilience test
+        run: mvn test -Presilience
+<% } %>
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - run: go test -tags integration ./...
+<% if (_isService) { %>
+      - name: Toxiproxy resilience test
+        run: go test -tags resilience ./...
+<% } %>
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e ".[dev]"
+      - run: pytest -m integration
+<% if (_isService) { %>
+      - name: Toxiproxy resilience test
+        run: pytest -m resilience
+<% } %>
+<% } else if (language === 'rust') { %>
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --test integration
+<% if (_isService) { %>
+      - name: Toxiproxy resilience test
+        run: cargo test --test resilience
+<% } %>
+<% } %>
+
+<% if (contractType && contractType !== 'none') { %>
+  contract-extended:
+    name: Contract Extended (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+<% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
+      - name: Pact can-i-deploy
+        if: vars.PACT_BROKER_BASE_URL != ''
+        run: npx pact-broker can-i-deploy --pacticipant <%= projectName %> --latest
+        env:
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACT_BROKER_TOKEN }}
+<% } else if (contractType === 'graphql') { %>
+      - name: GraphQL schema diff
+        run: npx graphql-inspector diff schema.graphql
+<% } else if (contractType === 'grpc') { %>
+      - name: Protobuf breaking check
+        run: npx buf breaking --against .git#branch=main
+<% } %>
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v3
+<% } %>
+<% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
+      - name: Pact can-i-deploy
+        if: vars.PACT_BROKER_BASE_URL != ''
+        run: <%= buildTool === 'gradle' ? './gradlew pactPublish pactVerify' : 'mvn pact:publish pact:verify' %>
+        env:
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACT_BROKER_TOKEN }}
+<% } else if (contractType === 'graphql') { %>
+      - name: GraphQL contract test
+        run: <%= buildTool === 'gradle' ? './gradlew test --tests *.graphql.*' : 'mvn test -Dtest=*GraphQL*' %>
+<% } else if (contractType === 'grpc') { %>
+      - name: gRPC contract test
+        run: <%= buildTool === 'gradle' ? './gradlew test --tests *.grpc.*' : 'mvn test -Dtest=*Grpc*' %>
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Contract tests
+        run: go test -tags contract -run Contract ./...
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e ".[dev]"
+      - name: Contract tests
+        run: pytest tests/contract/
+<% } else if (language === 'rust') { %>
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Contract tests
+        run: cargo test --test contract
+<% } %>
+
+<% } %>
+<% if (_isService) { %>
+  container-scan:
+    name: Container Scan (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check Dockerfile changed
+        id: dockerfile-check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")
+          if git diff --name-only "$MB" "$HEAD_SHA" | grep -qE '^Dockerfile'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build image for scan
+        if: steps.dockerfile-check.outputs.changed == 'true'
+        run: docker build -t scan-target:${{ github.sha }} .
+      - name: Trivy container scan
+        if: steps.dockerfile-check.outputs.changed == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'scan-target:${{ github.sha }}'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          trivyignores: .trivyignore
+
+  dast-baseline:
+    name: DAST Baseline (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start application
+        run: docker compose up -d --wait
+      - name: OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:8080'
+          fail_action: true
+          rules_file_name: '.zap/rules.tsv'
+          allow_issue_writing: false
+      - name: Stop application
+        if: always()
+        run: docker compose down
+
+  load-smoke:
+    name: Load Smoke Test (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install k6
+        run: |
+          curl -sSL https://github.com/grafana/k6/releases/download/v0.52.0/k6-v0.52.0-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin --strip-components=1 k6-v0.52.0-linux-amd64/k6
+      - name: Start application
+        run: docker compose up -d --wait
+      - name: k6 smoke test (60 s)
+        run: k6 run --duration 60s --vus 10 scripts/k6-smoke.js
+      - name: Stop application
+        if: always()
+        run: docker compose down
+
+<% } %>
+  license-scan:
+    name: License Scan (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - name: License check
+        run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0'
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v3
+      - name: License report
+        run: ./gradlew generateLicenseReport
+<% } else { %>
+      - name: License report
+        run: mvn license:third-party-report -Dlicense.excludedScopes=test
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses@latest
+      - name: License check
+        run: go-licenses check ./... --disallowed_types forbidden,restricted
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pip-licenses
+      - name: License check
+        run: pip-licenses --allow-only="MIT License;ISC License (ISC);Apache Software License;BSD License;Python Software Foundation License;The Unlicense (Unlicense)" --with-system --from=all
+<% } else if (language === 'rust') { %>
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+      - name: License check
+        run: cargo deny check licenses
+<% } %>
+
+  behavioral-tests:
+    name: Behavioral Tests (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:behavioral
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v3
+      - run: ./gradlew behavioralTest
+<% } else { %>
+      - run: mvn test -Pbehavioral
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - run: go test -tags behavioral ./...
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e ".[dev]"
+      - run: pytest -m behavioral
+<% } else if (language === 'rust') { %>
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --test behavioral
+<% } %>
+
+  extended-required:
+    name: Extended Required
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+<%
+  const _extNeeds = ['check-trigger', 'integration-tests', 'license-scan', 'behavioral-tests'];
+  if (contractType && contractType !== 'none') _extNeeds.push('contract-extended');
+  if (_isService) _extNeeds.push('container-scan', 'dast-baseline', 'load-smoke');
+%>
+    needs: [<%= _extNeeds.join(', ') %>]
+    if: always()
+    steps:
+      - run: |
+          if [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
+            echo "integration-tests failed"; exit 1
+          fi
+          if [[ "${{ needs.license-scan.result }}" == "failure" ]]; then
+            echo "license-scan failed"; exit 1
+          fi
+          if [[ "${{ needs.behavioral-tests.result }}" == "failure" ]]; then
+            echo "behavioral-tests failed"; exit 1
+          fi
+<% if (contractType && contractType !== 'none') { %>
+          if [[ "${{ needs.contract-extended.result }}" == "failure" ]]; then
+            echo "contract-extended failed"; exit 1
+          fi
+<% } %>
+<% if (_isService) { %>
+          if [[ "${{ needs.container-scan.result }}" == "failure" ]]; then
+            echo "container-scan failed"; exit 1
+          fi
+          if [[ "${{ needs.dast-baseline.result }}" == "failure" ]]; then
+            echo "dast-baseline failed"; exit 1
+          fi
+          if [[ "${{ needs.load-smoke.result }}" == "failure" ]]; then
+            echo "load-smoke failed"; exit 1
+          fi
+<% } %>
+          echo "Extended CI passed or skipped"

@@ -68,7 +68,7 @@ describe('matrix: Go project', () => {
     expect(paths.some((p) => p.endsWith('AGENTS.md'))).toBe(true)
     expect(paths.some((p) => p.includes('.claude/CLAUDE.md'))).toBe(true)
     expect(paths.some((p) => p.includes('.agents/CODEX.md'))).toBe(true)
-    expect(paths.some((p) => p.includes('.github/workflows/ci.yml'))).toBe(true)
+    expect(paths.some((p) => p.includes('.github/workflows/01-pr-fast.yml'))).toBe(true)
   })
 
   it('CODEX.md and CLAUDE.md are thin pointers referencing AGENTS.md', () => {
@@ -100,7 +100,7 @@ describe('matrix: Go project', () => {
   it('CI workflow uses Go setup and commands', () => {
     const config = goConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('setup-go')
     expect(ci).toContain('golangci-lint')
     expect(ci).toContain('go test')
@@ -159,7 +159,7 @@ describe('matrix: Go project', () => {
   it('CI workflow includes debt-gates job for Go when enableDebtGates is true', () => {
     const config = goConfig({ enableDebtGates: true })
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('debt-gates:')
   })
 

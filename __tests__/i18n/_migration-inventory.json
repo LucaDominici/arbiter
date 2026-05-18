@@ -16,7 +16,7 @@
   },
   {
     "file": "generators/registry.ts",
-    "line": 356,
+    "line": 358,
     "justification": "Internal generator error sink — prefixed with [registry]; surfaced in logs only when a generator throws"
   },
   {

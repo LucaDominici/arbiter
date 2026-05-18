@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-push: checks clean working tree and runs L2 gate before push
+# pre-push: checks clean working tree and runs gate (T1+T2) before push
 set -e
 
 <% if (language === 'typescript') { %>
@@ -42,9 +42,9 @@ if [[ "$PWD" == *"#"* ]]; then
   rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
   ln -sfn "$ORIG_DIR/node_modules" "$TMP_DIR/node_modules"
   cd "$TMP_DIR"
-  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs L2 --json "$ORIG_DIR/.arbiter/gate/local-result.json"
+  ARBITER_HOOK_GIT_CWD="$ORIG_DIR" node scripts/check-all.mjs gate --json "$ORIG_DIR/.arbiter/gate/local-result.json"
   exit $?
 fi
 <% } %>
 
-node scripts/check-all.mjs L2 --json .arbiter/gate/local-result.json
+node scripts/check-all.mjs gate --json .arbiter/gate/local-result.json

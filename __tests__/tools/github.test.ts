@@ -24,10 +24,10 @@ describe('tool output: github', () => {
     })
   }
 
-  it('generates CI workflow, PR template, 5 issue templates, compliance-item, issue-state, and dependabot (10 files total)', () => {
+  it('generates T1+T2+T3+T4+T5+T6 CI workflows, PR template, 5 issue templates, compliance-item, issue-state, dependabot, and sign-and-attest action (17 files total)', () => {
     const config = githubConfig()
     const result = generateGithub(config)
-    expect(result.files).toHaveLength(10)
+    expect(result.files).toHaveLength(17)
   })
 
   it('dependabot.yml includes npm package ecosystem for TypeScript projects', () => {
@@ -55,10 +55,10 @@ describe('tool output: github', () => {
   it('CI workflow is always regenerated on re-run (soloDevMode toggle requires immediate apply)', () => {
     const workflowsDir = join(dir, '.github', 'workflows')
     mkdirSync(workflowsDir, { recursive: true })
-    writeFileSync(join(workflowsDir, 'ci.yml'), '# custom ci')
+    writeFileSync(join(workflowsDir, '01-pr-fast.yml'), '# custom ci')
     const config = githubConfig()
     const result = generateGithub(config)
-    const ci = result.files.find((f) => f.path.endsWith('ci.yml'))
+    const ci = result.files.find((f) => f.path.endsWith('01-pr-fast.yml'))
     expect(ci?.action).toBe('replaced')
   })
 })

@@ -52,7 +52,7 @@ describe('matrix: TypeScript project', () => {
   it('CI workflow uses npm commands', () => {
     const config = tsConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('npm ci')
     expect(ci).toContain('npm run lint')
     expect(ci).toContain('test:unit')
@@ -61,7 +61,7 @@ describe('matrix: TypeScript project', () => {
   it('CI workflow sets up Node.js', () => {
     const config = tsConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('setup-node')
     expect(ci).toContain("node-version-file: '.nvmrc'")
   })
@@ -115,7 +115,7 @@ describe('matrix: TypeScript project', () => {
   it('CI workflow includes debt-gates job when enableDebtGates is true', () => {
     const config = tsConfig({ enableDebtGates: true })
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('debt-gates:')
   })
 

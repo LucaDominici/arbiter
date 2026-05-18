@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+// <%= projectName %> — action SHA-pin gate (INV-75)
+// Gate: verify all GitHub Actions references in .github/ are SHA-pinned.
+// L1: tag references generate warnings but do not fail.
+// L2/L3: any tag reference is a hard failure.
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+<%
+const _level = governanceLevel;
+%>
+const LEVEL = '<%= _level %>';
+const CWD = process.cwd();
+
+function collectYamlFiles(dir) {
+  if (!existsSync(dir)) return [];
+  const results = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    // Skip symlinks to avoid traversal outside the workflows tree.
+    if (entry.isSymbolicLink()) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectYamlFiles(full));
+    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+const yamlFiles = [
+  ...collectYamlFiles(join(CWD, '.github', 'workflows')),
+  ...collectYamlFiles(join(CWD, '.github', 'actions')),
+];
+
+// SHA-pinned: exactly 40 hex characters after @
+// Tag-pinned / branch-pinned: anything else (v4, main, latest, etc.)
+const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+// Matches both YAML sequence members ('- uses: foo/bar@ref') and direct keys ('uses: foo/bar@ref').
+// Captures action path (group 1) and ref (group 2). Quoted refs are unwrapped post-match.
+const USES_PATTERN = /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([^\s#"']+)["']?/gm;
+
+function stripQuotes(s) {
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
+const violations = [];
+for (const file of yamlFiles) {
+  const content = readFileSync(file, 'utf-8');
+  for (const match of content.matchAll(USES_PATTERN)) {
+    const action = stripQuotes(match[1]);
+    const ref = stripQuotes(match[2]);
+    if (action.startsWith('.')) continue;   // local composite actions
+    if (action.startsWith('docker://')) continue;
+    if (!SHA_PATTERN.test(ref)) {
+      violations.push({ file: file.replace(CWD + '/', ''), action, ref });
+    }
+  }
+}
+
+if (violations.length === 0) {
+  console.log('  check-action-pins: all action references are SHA-pinned');
+  process.exit(0);
+}
+
+const label = LEVEL === 'L1' ? 'WARN' : 'FAIL';
+console.log(`  check-action-pins: ${violations.length} non-SHA action reference(s) [${label}]:`);
+for (const v of violations) {
+  console.log(`    ${v.file}: ${v.action}@${v.ref}`);
+}
+
+if (LEVEL === 'L1') {
+  console.log('  check-action-pins: tag references are warnings at L1 — upgrade to SHA pins when ready');
+  process.exit(0);
+}
+
+process.exit(1);

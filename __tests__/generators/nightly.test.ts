@@ -42,19 +42,19 @@ describe('generateNightly — backup flag (#293)', () => {
   })
 })
 
-describe('generateNightly — governance level gate', () => {
-  it('returns empty files at L1', () => {
+describe('generateNightly — all governance levels emit files', () => {
+  it('emits files at L1', () => {
     const result = generateNightly(makeConfig(dir, { governanceLevel: 'L1' }))
-    expect(result.files).toHaveLength(0)
+    expect(result.files.length).toBeGreaterThan(0)
   })
 
-  it('returns empty files at L2', () => {
+  it('emits files at L2', () => {
     const result = generateNightly(makeConfig(dir, { governanceLevel: 'L2' }))
-    expect(result.files).toHaveLength(0)
+    expect(result.files.length).toBeGreaterThan(0)
   })
 })
 
-describe('generateNightly — L3 emits expected files', () => {
+describe('generateNightly — emits expected files', () => {
   it('emits exactly 4 files at L3', () => {
     const result = generateNightly(makeConfig(dir, { governanceLevel: 'L3' }))
     expect(result.files).toHaveLength(4)

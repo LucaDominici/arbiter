@@ -191,7 +191,7 @@ describe('cross-product: AGENTS.md — L3 SSOT invariant across all stacks', () 
 
 describe('cross-product: ci.yml — docs-check job across all stacks', () => {
   function renderCi(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('github/workflows/ci.yml.ejs', {
+    return renderTemplate('github/workflows/01-pr-fast.yml.ejs', {
       ...configFor(lang, level),
       useGitHub: true,
     })
@@ -218,7 +218,7 @@ describe('cross-product: ci.yml — docs-check job across all stacks', () => {
 
 describe('cross-product: ci.yml — language setup step across all governance levels', () => {
   function renderCi(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('github/workflows/ci.yml.ejs', {
+    return renderTemplate('github/workflows/01-pr-fast.yml.ejs', {
       ...configFor(lang, level),
       useGitHub: true,
     })
@@ -316,7 +316,7 @@ describe('cross-product: check-all.mjs — language check commands', () => {
 
 describe('cross-product: ci.yml — Java Maven variant', () => {
   function renderCiMaven(level: GovernanceLevel): string {
-    return renderTemplate('github/workflows/ci.yml.ejs', {
+    return renderTemplate('github/workflows/01-pr-fast.yml.ejs', {
       ...configFor('java', level),
       buildTool: 'maven',
       useGitHub: true,
@@ -395,7 +395,7 @@ describe('cross-product: check-all.mjs — coverage threshold values at L2 vs L3
 
 describe('cross-product: ci.yml — debt-gates job at L2+, absent at L1', () => {
   function renderCi(lang: Language, level: GovernanceLevel, enableDebtGates: boolean): string {
-    return renderTemplate('github/workflows/ci.yml.ejs', {
+    return renderTemplate('github/workflows/01-pr-fast.yml.ejs', {
       ...configFor(lang, level),
       useGitHub: true,
       enableDebtGates,
@@ -551,7 +551,7 @@ describe('cross-product: check-all.mjs — debt ratchet gate at L2+, absent at L
 
 describe('cross-product: ci.yml — debt-ratchet job at L2+, absent at L1', () => {
   function renderCi(lang: Language, level: GovernanceLevel, enableDebtGates: boolean): string {
-    return renderTemplate('github/workflows/ci.yml.ejs', {
+    return renderTemplate('github/workflows/01-pr-fast.yml.ejs', {
       ...configFor(lang, level),
       useGitHub: true,
       enableDebtGates,
@@ -1051,7 +1051,7 @@ describe('cross-product: generateNightly — L3 emits nightly files per stack', 
       }
     })
 
-    it(`${lang}+L1: generateNightly emits 0 files`, () => {
+    it(`${lang}+L1: generateNightly emits files at all governance levels`, () => {
       const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
       try {
         const config = makeConfig(d, {
@@ -1059,13 +1059,13 @@ describe('cross-product: generateNightly — L3 emits nightly files per stack', 
           governanceLevel: 'L1',
           ...STACK_CONFIG[lang],
         })
-        expect(generateNightly(config).files).toHaveLength(0)
+        expect(generateNightly(config).files.length).toBeGreaterThan(0)
       } finally {
         rmSync(d, { recursive: true, force: true })
       }
     })
 
-    it(`${lang}+L2: generateNightly emits 0 files`, () => {
+    it(`${lang}+L2: generateNightly emits files at all governance levels`, () => {
       const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
       try {
         const config = makeConfig(d, {
@@ -1073,7 +1073,7 @@ describe('cross-product: generateNightly — L3 emits nightly files per stack', 
           governanceLevel: 'L2',
           ...STACK_CONFIG[lang],
         })
-        expect(generateNightly(config).files).toHaveLength(0)
+        expect(generateNightly(config).files.length).toBeGreaterThan(0)
       } finally {
         rmSync(d, { recursive: true, force: true })
       }
@@ -1295,7 +1295,7 @@ describe('cross-product: multi-lane (#403) — ci.yml + task.md contain lane dis
   for (const { lanes, level, lang } of MULTI_LANE_CONFIGS) {
     it(`${lang}+${level}+lanes[${lanes.join(',')}]: ci.yml has classify-changes + cross-stack-guard`, () => {
       const rendered = renderTemplate(
-        'github/workflows/ci.yml.ejs',
+        'github/workflows/01-pr-fast.yml.ejs',
         makeConfig('/tmp/test', {
           language: lang,
           governanceLevel: level,
@@ -1327,7 +1327,7 @@ describe('cross-product: single-lane (#403) — ci.yml unchanged for lanes:[]', 
     for (const level of LEVELS) {
       it(`${lang}+${level}+lanes[]: no cross-stack-guard emitted`, () => {
         const rendered = renderTemplate(
-          'github/workflows/ci.yml.ejs',
+          'github/workflows/01-pr-fast.yml.ejs',
           makeConfig('/tmp/test', {
             language: lang,
             governanceLevel: level,
@@ -1347,7 +1347,7 @@ describe('cross-product: classify-changes gate (#161) — L2+ single-lane', () =
   for (const lang of ['typescript', 'java', 'go'] as Language[]) {
     it(`${lang}+L2+lanes[]: ci.yml includes classify-changes job`, () => {
       const rendered = renderTemplate(
-        'github/workflows/ci.yml.ejs',
+        'github/workflows/01-pr-fast.yml.ejs',
         makeConfig('/tmp/test', {
           language: lang,
           governanceLevel: 'L2',
@@ -1360,7 +1360,7 @@ describe('cross-product: classify-changes gate (#161) — L2+ single-lane', () =
 
     it(`${lang}+L3+lanes[]: ci.yml includes classify-changes job`, () => {
       const rendered = renderTemplate(
-        'github/workflows/ci.yml.ejs',
+        'github/workflows/01-pr-fast.yml.ejs',
         makeConfig('/tmp/test', {
           language: lang,
           governanceLevel: 'L3',
@@ -1373,7 +1373,7 @@ describe('cross-product: classify-changes gate (#161) — L2+ single-lane', () =
 
     it(`${lang}+L1+lanes[]: ci.yml does NOT include classify-changes job`, () => {
       const rendered = renderTemplate(
-        'github/workflows/ci.yml.ejs',
+        'github/workflows/01-pr-fast.yml.ejs',
         makeConfig('/tmp/test', {
           language: lang,
           governanceLevel: 'L1',
@@ -1386,7 +1386,7 @@ describe('cross-product: classify-changes gate (#161) — L2+ single-lane', () =
 
     it(`${lang}+L2+lanes[]: lint-and-test needs classify-changes and checks docs_only (#161)`, () => {
       const rendered = renderTemplate(
-        'github/workflows/ci.yml.ejs',
+        'github/workflows/01-pr-fast.yml.ejs',
         makeConfig('/tmp/test', {
           language: lang,
           governanceLevel: 'L2',

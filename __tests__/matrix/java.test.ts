@@ -60,7 +60,7 @@ describe('matrix: Java project', () => {
   it('CI workflow uses gradle commands', () => {
     const config = javaConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('gradlew checkstyleMain')
     expect(ci).toContain('gradlew test')
     expect(ci).toContain('setup-java')
@@ -114,7 +114,7 @@ describe('matrix: Java project', () => {
   it('CI workflow includes debt-gates job for Java/Gradle when enableDebtGates is true', () => {
     const config = javaConfig({ enableDebtGates: true })
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('debt-gates:')
   })
 
@@ -170,7 +170,7 @@ describe('matrix: Java project (Maven)', () => {
   it('CI workflow uses mvn commands, not gradlew', () => {
     const config = mavenConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('mvn')
     expect(ci).toContain('setup-java')
     expect(ci).not.toContain('gradlew')

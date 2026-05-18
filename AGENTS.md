@@ -131,6 +131,20 @@ Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
 - **INV-70:** Reuse before new — canonical registry search precedes creating a new module
 - **INV-71:** Track D task completion — docs-only changes follow the documented completion rules
 
+## GitHub CI Tier Invariants (INV-73..INV-81)
+
+Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
+
+- **INV-73:** CI tier presence — all 7 workflow files must exist under .github/workflows/
+- **INV-74:** Anti-bot human-approval gate — reviewer must be a human distinct from the PR author
+- **INV-75:** Heartbeat watchdog — T4 nightly must have run within 26 h, T5 weekly within 8 d
+- **INV-76:** SHA-pinned actions only — all third-party GitHub Actions must be pinned to a full 40-char SHA
+- **INV-77:** Top-level workflow permissions — every workflow file must declare explicit top-level permissions
+- **INV-78:** SLSA provenance present at T3 — release workflow must emit signed build provenance
+- **INV-79:** Cosign sign-blob present for every release artifact
+- **INV-80:** No continue-on-error on test or build steps — failures must propagate immediately
+- **INV-81:** Tier-hash local↔CI parity — check-all.mjs subcommand hashes must match CI workflow steps
+
 ---
 
 ## Coding Standards

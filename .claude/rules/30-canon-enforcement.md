@@ -34,3 +34,6 @@ The citation protocol is identical to INV-NN: **STOP → REFUSE → cite CANON-N
 | CANON-13 | Editing any `.ejs` template with `<% if (governanceLevel` guards     |
 | CANON-14 | Adding a hook to the generated `settings.json.ejs`                   |
 | CANON-15 | Adding a template that emits a tool config file                      |
+| CANON-18 | Adding/modifying any `src/templates/github/workflows/*.ejs`          |
+| CANON-19 | Adding/modifying any `.github/actions/sign-and-attest/*`             |
+| CANON-20 | Changing governance threshold table in `thresholds-l1-l2-l3.ts`      |

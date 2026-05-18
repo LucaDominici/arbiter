@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
-describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
+describe('01-pr-fast.yml.ejs — parallel test category jobs (#219)', () => {
   describe('TypeScript L2', () => {
     it('has unit-tests job', () => {
       const data = makeConfig('/tmp/test', {
         language: 'typescript',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('unit-tests:')
     })
 
@@ -18,7 +18,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         language: 'typescript',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('contract-tests:')
     })
 
@@ -27,7 +27,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         language: 'typescript',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('integration-tests:')
       const integSection = rendered.split('integration-tests:')[1]
       expect(integSection).toMatch(/needs:.*unit-tests/)
@@ -38,7 +38,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         language: 'typescript',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('behavioral-tests:')
       const behavSection = rendered.split('behavioral-tests:')[1]
       expect(behavSection).toMatch(/needs:.*unit-tests/)
@@ -49,7 +49,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         language: 'typescript',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       const ciRequired = rendered.split('ci-required:')[1]
       expect(ciRequired).toContain('unit-tests')
       expect(ciRequired).toContain('contract-tests')
@@ -62,7 +62,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         language: 'typescript',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('test:unit')
     })
   })
@@ -74,7 +74,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         buildTool: 'cargo',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       const ciRequired = rendered.split('ci-required:')[1]
       expect(ciRequired).not.toContain('unit-tests')
       expect(ciRequired).not.toContain('contract-tests')
@@ -88,7 +88,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         buildTool: 'cargo',
         governanceLevel: 'L1',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       const ciRequired = rendered.split('ci-required:')[1]
       expect(ciRequired).toContain('lint-and-test')
     })
@@ -101,7 +101,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         buildTool: 'maven',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('unit-tests:')
     })
 
@@ -111,7 +111,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         buildTool: 'maven',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('contract-tests:')
     })
 
@@ -121,7 +121,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         buildTool: 'maven',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       expect(rendered).toContain('integration-tests:')
     })
 
@@ -131,7 +131,7 @@ describe('ci.yml.ejs — parallel test category jobs (#219)', () => {
         buildTool: 'maven',
         governanceLevel: 'L2',
       }) as unknown as Record<string, unknown>
-      const rendered = renderTemplate('github/workflows/ci.yml.ejs', data)
+      const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       const ciRequired = rendered.split('ci-required:')[1]
       expect(ciRequired).toContain('unit-tests')
       expect(ciRequired).toContain('integration-tests')

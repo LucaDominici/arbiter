@@ -1,0 +1,41 @@
+<%
+const _verifyOnSign = governanceLevel === 'L3';
+%>name: Sign and Attest Artifact
+description: >-
+  Keyless cosign sign-blob + GitHub native attest-build-provenance.
+  Used by release workflow for consistent signing across archetypes.
+inputs:
+  artifact-name:
+    description: GitHub Actions artifact name to download
+    required: true
+  artifact-path:
+    description: Local path to the artifact file to sign
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+    - uses: sigstore/cosign-installer@v3
+    - name: Sign artifact (keyless OIDC)
+      shell: bash
+      run: cosign sign-blob --yes "${{ inputs.artifact-path }}" --bundle "${{ inputs.artifact-path }}.bundle"
+<% if (_verifyOnSign) { %>
+    - name: Verify signature (L3 strict)
+      shell: bash
+      run: |
+        cosign verify-blob \
+          --bundle "${{ inputs.artifact-path }}.bundle" \
+          --certificate-identity-regexp ".*" \
+          --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+          "${{ inputs.artifact-path }}"
+<% } %>
+    - uses: actions/attest-build-provenance@v2
+      with:
+        subject-path: ${{ inputs.artifact-path }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}-signatures
+        path: ${{ inputs.artifact-path }}.bundle
+        retention-days: 90

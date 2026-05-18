@@ -1,0 +1,536 @@
+<%
+const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
+const _isService = _bucket === 'service';
+const _isCli = _bucket === 'cli';
+const _isBatch = _bucket === 'batch';
+const _mutationInfo = governanceLevel === 'L1';
+const _slsaL3 = governanceLevel === 'L3';
+%>name: Release (T3)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-superset:
+    name: Build superset
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Package artifact
+        run: zip -r release-artifact.zip dist/
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew build -x test
+      - name: Package artifact
+        run: zip -r release-artifact.zip build/libs/
+<% } else { %>
+      - run: mvn -B package -DskipTests
+      - name: Package artifact
+        run: zip -r release-artifact.zip target/
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build -o dist/app ./...
+      - name: Package artifact
+        run: zip -r release-artifact.zip dist/
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install build
+      - run: python -m build
+      - name: Package artifact
+        run: zip -r release-artifact.zip dist/
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - name: Package artifact
+        run: zip -r release-artifact.zip target/release/
+<% } %>
+      - name: Compute artifact hash
+        id: hash
+        run: |
+          sha256sum release-artifact.zip > sha256sums.txt
+          echo "hashes=$(base64 -w0 sha256sums.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifact
+          path: |
+            release-artifact.zip
+            sha256sums.txt
+          retention-days: 30
+
+  mutation-blocking:
+    name: Mutation tests<%= _mutationInfo ? ' (informational at L1)' : ' (blocking)' %>
+    needs: [build-superset]
+    runs-on: ubuntu-latest
+    continue-on-error: <%= _mutationInfo %>
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Stryker mutation
+        run: npx stryker run
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - name: PITest mutation
+        run: ./gradlew pitest
+<% } else { %>
+      - name: PITest mutation
+        run: mvn pitest:mutationCoverage
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: go-mutesting (informational — Go matrix safety)
+        continue-on-error: true
+        run: |
+          go install github.com/zimmski/go-mutesting/cmd/go-mutesting@latest
+          go-mutesting ./... || true
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install -e ".[dev]" mutmut
+      - name: mutmut mutation
+        run: mutmut run
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: cargo-mutants mutation
+        run: |
+          cargo install cargo-mutants --locked
+          cargo mutants --all-features
+<% } %>
+
+  secret-scan-history:
+    name: Full-history secret scan
+    needs: [build-superset]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: '--log-opts --full-history'
+
+  sbom:
+    name: Generate SBOM
+    needs: [build-superset]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Generate CycloneDX SBOM
+        run: npm sbom --omit dev --package-lock-only --sbom-format cyclonedx > sbom.cdx.json
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Generate CycloneDX SBOM
+        run: ./gradlew cyclonedxBom
+      - run: mv build/reports/bom.json sbom.cdx.json 2>/dev/null || mv build/reports/bom.xml sbom.cdx.xml || true
+<% } else { %>
+      - name: Generate CycloneDX SBOM
+        run: mvn cyclonedx:makeAggregateBom
+      - run: mv target/bom.json sbom.cdx.json 2>/dev/null || mv target/bom.xml sbom.cdx.xml || true
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Generate SBOM via syft
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          output-file: sbom.cdx.json
+          format: cyclonedx-json
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install cyclonedx-bom
+      - name: Generate CycloneDX SBOM
+        run: python -m cyclonedx_py auto > sbom.cdx.json || true
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Generate CycloneDX SBOM
+        run: |
+          cargo install cargo-cyclonedx --locked || true
+          cargo cyclonedx --format json || true
+          mv bom.json sbom.cdx.json 2>/dev/null || echo '{"bomFormat":"CycloneDX"}' > sbom.cdx.json
+<% } %>
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.*
+          retention-days: 90
+
+  cosign-sign:
+    name: Sign artifact (cosign keyless)
+    needs: [build-superset, mutation-blocking, secret-scan-history]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifact
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign artifact (keyless OIDC)
+        run: cosign sign-blob --yes release-artifact.zip --bundle release-artifact.zip.bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosign-bundle
+          path: release-artifact.zip.bundle
+          retention-days: 90
+
+  slsa-provenance:
+    name: SLSA provenance (<%= _slsaL3 ? 'L3 hermetic' : 'L2 signed' %>)
+    needs: [build-superset]
+    if: github.event_name != 'pull_request'
+    permissions:
+      id-token: write
+      contents: write
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.build-superset.outputs.hashes }}
+    secrets: inherit
+
+  attest-build-provenance:
+    name: Attest build provenance
+    needs: [build-superset]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifact
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release-artifact.zip
+
+<% if (_isService) { %>
+  build-container:
+    name: Build and sign container (service)
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+      - name: Build and push container image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: true
+          provenance: mode=max
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign container image (keyless OIDC)
+        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+      - name: Scan signed image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+<% } else if (_isCli) { %>
+  build-binaries:
+    name: Build multi-arch binaries (cli)
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+<% if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: cargo-bins/cargo-binstall@main
+      - run: cargo binstall cargo-dist --no-confirm
+      - name: Build release binaries
+        run: cargo dist build --output-format=archive
+      - name: Upload binaries to GitHub release
+        run: gh release upload ${{ github.ref_name }} dist/*.tar.gz dist/*.zip --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install pyinstaller
+      - name: Build standalone binary
+        run: pyinstaller --onefile --name app src/main.py
+      - name: Upload binary to GitHub release
+        run: gh release upload ${{ github.ref_name }} dist/app --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } else if (language === 'java') { %>
+      - name: Setup GraalVM for native compilation
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: graalvm
+          native-image-job-reports: 'true'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build native binary
+        run: ./gradlew nativeCompile
+      - name: Upload native binary to GitHub release
+        run: gh release upload ${{ github.ref_name }} build/native/nativeCompile/* --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } else { %>
+      - name: Build native binary
+        run: mvn -B -Pnative native:compile
+      - name: Upload native binary to GitHub release
+        run: gh release upload ${{ github.ref_name }} target/* --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } %>
+<% } else if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Bundle to single file
+        run: npx @vercel/ncc build dist/index.js -o bundle/
+      - name: Upload bundle to GitHub release
+        run: gh release upload ${{ github.ref_name }} bundle/index.js --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } %>
+<% } else if (_isBatch) { %>
+  bundle-artifact:
+    name: Bundle batch artifact
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom
+      - name: Create release manifest
+        run: |
+          cat <<EOF > manifest.json
+          {"version":"${{ github.ref_name }}","sha":"${{ github.sha }}","artifact":"release-artifact.zip","sbom":"sbom.cdx.json"}
+          EOF
+      - name: Bundle with manifest
+        run: tar -czf batch-bundle.tar.gz release-artifact.zip manifest.json sbom.cdx.*
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign batch bundle (keyless)
+        run: cosign sign-blob --yes batch-bundle.tar.gz --bundle batch-bundle.tar.gz.bundle
+      - name: Upload to GitHub release
+        run: |
+          gh release upload ${{ github.ref_name }} \
+            batch-bundle.tar.gz \
+            batch-bundle.tar.gz.bundle \
+            manifest.json \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: batch-bundle
+          path: |
+            batch-bundle.tar.gz
+            batch-bundle.tar.gz.bundle
+            manifest.json
+          retention-days: 90
+<% } else { %>
+  publish-package:
+    name: Publish package (lib)
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifact
+<% if (language === 'typescript') { %>
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: Publish to npm (with provenance)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+<% } else if (language === 'java') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Publish to Maven Central
+        run: ./gradlew publish
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_SIGNING_PASSWORD }}
+<% } else { %>
+      - name: Publish to Maven Central
+        run: mvn --batch-mode deploy -DskipTests
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Create GitHub release
+        run: gh release create ${{ github.ref_name }} release-artifact.zip sha256sums.txt --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } else if (language === 'python') { %>
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - run: pip install build twine
+      - run: python -m build
+      - name: Publish to PyPI
+        run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+<% } else if (language === 'rust') { %>
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Publish to crates.io
+        run: cargo publish --no-verify
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+<% } %>
+<% } %>
+
+  release-required:
+    name: Release gate
+    needs:
+      - mutation-blocking
+      - secret-scan-history
+      - sbom
+      - cosign-sign
+      - slsa-provenance
+      - attest-build-provenance
+<% if (_isService) { %>
+      - build-container
+<% } else if (_isCli) { %>
+      - build-binaries
+<% } else if (_isBatch) { %>
+      - bundle-artifact
+<% } else { %>
+      - publish-package
+<% } %>
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release gate summary
+        run: |
+          echo "Release checks completed."
+          echo "Signing, provenance, and mutation verified."

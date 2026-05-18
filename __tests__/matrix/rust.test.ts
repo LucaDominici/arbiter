@@ -54,7 +54,7 @@ describe('matrix: Rust project', () => {
   it('CI workflow uses cargo commands', () => {
     const config = rustConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('cargo fmt --check')
     expect(ci).toContain('cargo clippy')
     expect(ci).toContain('cargo test')
@@ -63,7 +63,7 @@ describe('matrix: Rust project', () => {
   it('CI workflow uses rust-toolchain setup', () => {
     const config = rustConfig()
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('rust-toolchain@stable')
     expect(ci).toContain('rust-cache')
   })
@@ -121,7 +121,7 @@ describe('matrix: Rust project', () => {
   it('CI workflow includes debt-gates job for Rust when enableDebtGates is true', () => {
     const config = rustConfig({ enableDebtGates: true })
     runGenerators(config)
-    const ci = readFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'utf-8')
+    const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
     expect(ci).toContain('debt-gates:')
   })
 
