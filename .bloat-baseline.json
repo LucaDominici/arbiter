@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-05-17T23:53:37.478Z",
+  "capturedAt": "2026-05-18T00:02:08.774Z",
   "task": "#835",
   "buckets": {
     "srcDirect": {
@@ -16,7 +16,7 @@
     },
     "templates": {
       "files": 283,
-      "loc": 19580
+      "loc": 19783
     }
   }
 }

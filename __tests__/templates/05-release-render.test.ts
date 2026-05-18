@@ -311,3 +311,131 @@ describe('05-release.yml.ejs — SLSA reusable workflow', () => {
     expect(rendered).toContain('build-superset.outputs.hashes')
   })
 })
+
+// ─── Service archetype: container build ───────────────────────────────────────
+
+describe('05-release.yml.ejs — service archetype container build', () => {
+  it('build-container: docker build-push-action present', () => {
+    const rendered = renderRelease({ archetype: 'backend-web-db' })
+    expect(rendered).toContain('docker/build-push-action')
+  })
+
+  it('build-container: cosign sign (image, not sign-blob)', () => {
+    const rendered = renderRelease({ archetype: 'backend-web-db' })
+    const containerSection = rendered.split('build-container:')[1] ?? ''
+    expect(containerSection).toContain('cosign sign --yes')
+  })
+
+  it('build-container: trivy vulnerability scan present', () => {
+    const rendered = renderRelease({ archetype: 'backend-web-db' })
+    expect(rendered).toContain('trivy-action')
+  })
+
+  it('build-container: packages: write permission present', () => {
+    const rendered = renderRelease({ archetype: 'backend-web-db' })
+    const containerSection = rendered.split('build-container:')[1] ?? ''
+    expect(containerSection).toContain('packages: write')
+  })
+
+  it('build-container: pushes to ghcr.io', () => {
+    const rendered = renderRelease({ archetype: 'backend-web-db' })
+    expect(rendered).toContain('ghcr.io')
+  })
+})
+
+// ─── CLI archetype: multi-arch binaries ───────────────────────────────────────
+
+describe('05-release.yml.ejs — cli archetype binary builds', () => {
+  it('Go: goreleaser-action present', () => {
+    const rendered = renderRelease({ archetype: 'cli', language: 'go', buildTool: 'go' })
+    expect(rendered).toContain('goreleaser/goreleaser-action')
+  })
+
+  it('Rust: cargo-dist present', () => {
+    const rendered = renderRelease({ archetype: 'cli', language: 'rust', buildTool: 'cargo' })
+    expect(rendered).toContain('cargo-dist')
+  })
+
+  it('Python: pyinstaller present', () => {
+    const rendered = renderRelease({ archetype: 'cli', language: 'python', buildTool: 'pip' })
+    expect(rendered).toContain('pyinstaller')
+  })
+
+  it('Java: graalvm native compilation present', () => {
+    const rendered = renderRelease({ archetype: 'cli', language: 'java', buildTool: 'gradle' })
+    expect(rendered).toContain('graalvm/setup-graalvm')
+  })
+
+  it('TypeScript: ncc bundle present', () => {
+    const rendered = renderRelease({ archetype: 'cli', language: 'typescript', buildTool: 'npm' })
+    expect(rendered).toContain('@vercel/ncc')
+  })
+})
+
+// ─── Batch archetype: artifact bundle ────────────────────────────────────────
+
+describe('05-release.yml.ejs — batch archetype artifact bundle', () => {
+  it('bundle-artifact: manifest.json created', () => {
+    const rendered = renderRelease({ archetype: 'data-pipeline' })
+    expect(rendered).toContain('manifest.json')
+  })
+
+  it('bundle-artifact: tar bundle created', () => {
+    const rendered = renderRelease({ archetype: 'data-pipeline' })
+    expect(rendered).toContain('batch-bundle.tar.gz')
+  })
+
+  it('bundle-artifact: cosign sign-blob on bundle', () => {
+    const rendered = renderRelease({ archetype: 'data-pipeline' })
+    const bundleSection = rendered.split('bundle-artifact:')[1] ?? ''
+    expect(bundleSection).toContain('cosign sign-blob --yes batch-bundle.tar.gz')
+  })
+
+  it('bundle-artifact: 90-day artifact retention', () => {
+    const rendered = renderRelease({ archetype: 'data-pipeline' })
+    const bundleSection = rendered.split('bundle-artifact:')[1] ?? ''
+    expect(bundleSection).toContain('retention-days: 90')
+  })
+})
+
+// ─── Lib archetype: per-language publish ─────────────────────────────────────
+
+describe('05-release.yml.ejs — lib archetype per-language publish', () => {
+  it('TypeScript: npm publish --provenance', () => {
+    const rendered = renderRelease({
+      archetype: 'library',
+      language: 'typescript',
+      buildTool: 'npm',
+    })
+    expect(rendered).toContain('npm publish --provenance')
+  })
+
+  it('Java Gradle: ./gradlew publish', () => {
+    const rendered = renderRelease({ archetype: 'library', language: 'java', buildTool: 'gradle' })
+    const publishSection = rendered.split('publish-package:')[1] ?? ''
+    expect(publishSection).toContain('./gradlew publish')
+  })
+
+  it('Java Maven: mvn --batch-mode deploy', () => {
+    const rendered = renderRelease({ archetype: 'library', language: 'java', buildTool: 'maven' })
+    const publishSection = rendered.split('publish-package:')[1] ?? ''
+    expect(publishSection).toContain('mvn --batch-mode deploy')
+  })
+
+  it('Go: gh release create with artifact', () => {
+    const rendered = renderRelease({ archetype: 'library', language: 'go', buildTool: 'go' })
+    const publishSection = rendered.split('publish-package:')[1] ?? ''
+    expect(publishSection).toContain('gh release create')
+  })
+
+  it('Python: twine upload present', () => {
+    const rendered = renderRelease({ archetype: 'library', language: 'python', buildTool: 'pip' })
+    expect(rendered).toContain('twine upload')
+  })
+
+  it('Rust: cargo publish present', () => {
+    const rendered = renderRelease({ archetype: 'library', language: 'rust', buildTool: 'cargo' })
+    const publishSection = rendered.split('publish-package:')[1] ?? ''
+    expect(publishSection).toContain('cargo publish')
+  })
+})
