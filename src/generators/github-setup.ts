@@ -12,21 +12,34 @@ export interface GithubSetupGeneratorResult {
 const SCRIPT_MODE = 0o755
 
 export function generateGithubSetup(config: ProjectConfig): GithubSetupGeneratorResult {
-  if (!config.useGitHub || config.governanceLevel === 'L1') {
+  if (!config.useGitHub) {
     return { files: [] }
   }
 
   const base = config.targetDir
   const data = config
-  const scriptPath = resolvedPath(base, 'scripts', 'setup-repo.sh')
+  const files: WriteResult[] = []
 
-  const result = writeFile(scriptPath, renderTemplate('scripts/setup-repo.sh.ejs', data), {
-    skipIfExists: true,
-  })
-
-  if (result.action !== 'skipped') {
-    chmodSync(scriptPath, SCRIPT_MODE)
+  if (config.governanceLevel !== 'L1') {
+    const setupScript = resolvedPath(base, 'scripts', 'setup-repo.sh')
+    const result = writeFile(setupScript, renderTemplate('scripts/setup-repo.sh.ejs', data), {
+      skipIfExists: true,
+    })
+    if (result.action !== 'skipped') {
+      chmodSync(setupScript, SCRIPT_MODE)
+    }
+    files.push(result)
   }
 
-  return { files: [result] }
+  const bpScript = resolvedPath(base, 'scripts', 'apply-branch-protection.mjs')
+  const bpResult = writeFile(
+    bpScript,
+    renderTemplate('scripts/apply-branch-protection.mjs.ejs', data),
+  )
+  if (bpResult.action !== 'skipped') {
+    chmodSync(bpScript, SCRIPT_MODE)
+  }
+  files.push(bpResult)
+
+  return { files }
 }
