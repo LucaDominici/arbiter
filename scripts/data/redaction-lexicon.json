@@ -1,0 +1,12 @@
+[
+  { "token": "planning-service" },
+  { "token": "cloud.ms5.core" },
+  { "token": "ms5" },
+  { "token": "PlanningException" },
+  { "token": "PlanningBaseException" },
+  { "token": "cicd-template-v4" },
+  { "token": "Rev00_180526" },
+  { "token": "21 CFR" },
+  { "token": "Keycloak", "allowContext": "Keycloak-compatible IdP" },
+  { "token": "Kit Gold Standard" }
+]

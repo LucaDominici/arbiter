@@ -6,15 +6,16 @@
 //                simulate-nightly (T4), simulate-weekly (T5)
 //   Back-compat: L1 → check --level L1, L2 → gate --level L2, L3 → gate --level L3
 //
-// check: typecheck, format, lint, unit tests, circular deps, placeholders, i18n raw strings,
+// check: build-kit, no redacted tokens, private paths ignored,
+//        typecheck, format, lint, unit tests, circular deps, placeholders, i18n raw strings,
 //        spdx headers, orphan TODOs, commitlint, test naming, hardness inventory, docs,
 //        matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
 //        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
 //        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
-//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot (38)
+//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot (41)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
-//       tdd-evidence (51)
+//       tdd-evidence (54)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
@@ -46,6 +47,9 @@ process.stdout.write(`=== arbiter Quality Gate: ${subcommand} [${level}] ===\n`)
 process.stdout.write('\n')
 
 // ─── check: T1 fast checks ───────────────────────────────────────────────────
+runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
+runCheck('no redacted tokens', 'node', ['scripts/check-no-redacted-tokens.mjs'])
+runCheck('private paths ignored', 'node', ['scripts/check-private-paths-ignored.mjs'])
 runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
 runCheck('format', 'npx', ['prettier', '--check', '.'])
 runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])

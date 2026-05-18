@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-import { Command } from 'commander'
+import { Command, Option } from 'commander'
 import { runInit } from './commands/init.js'
 import { runUpdate } from './commands/update.js'
 import { runDiff } from './commands/diff.js'
@@ -67,6 +67,9 @@ import { resolveFromProcess } from './utils/logger-config.js'
 import { startReplay, rotateReplayLogs, type ReplayHandle } from './utils/replay.js'
 import { startProfiler, type ProfilerHandle } from './utils/profiler.js'
 import { runReport } from './commands/report.js'
+import { runKitList, runKitShow, runKitExplain } from './commands/kit.js'
+import type { KitListFormat, KitListFilter } from './commands/kit.js'
+import type { Stack } from './kit/schema.js'
 
 registerCleanupHandlers()
 
@@ -244,6 +247,7 @@ function parseCmdArgs(): { cmd: string; args: string[] } {
     'plugin',
     'work',
     'notary',
+    'kit',
   ])
   const first = tokens[0] ?? ''
   if (nested.has(first) && tokens.length >= 2) {
@@ -1673,6 +1677,58 @@ experiments
         `${t('cli.experiments.criteria', { criteria: exp.promotionCriteria })}\n`,
       )
     }
+  })
+
+// ── kit — read-only kit catalog commands (--experimental.kit) ─────────────────
+
+const kit = program
+  .command('kit')
+  .description('Cross-stack governance kit commands (requires --experimental.kit)')
+
+kit
+  .command('list')
+  .description('List kit dimensions')
+  .addOption(
+    new Option('--format <fmt>', 'Output format')
+      .choices(['table', 'json', 'csv'])
+      .default('table'),
+  )
+  .addOption(
+    new Option('--filter <filter>', 'Filter dimensions')
+      .choices(['gaps', 'covered', 'partial', 'missing', 'all'])
+      .default('all'),
+  )
+  .addOption(
+    new Option('--stack <stack>', 'Filter by stack').choices([
+      'java',
+      'typescript',
+      'python',
+      'go',
+      'rust',
+    ]),
+  )
+  .addOption(new Option('--tml <tml>', 'Filter by TML level').choices(['L1', 'L2', 'L3']))
+  .action((opts: { format: string; filter: string; stack?: string; tml?: string }) => {
+    runKitList({
+      format: opts.format as KitListFormat,
+      filter: opts.filter as KitListFilter,
+      ...(opts.stack !== undefined && { stack: opts.stack as Stack }),
+      ...(opts.tml !== undefined && { tml: opts.tml as 'L1' | 'L2' | 'L3' }),
+    })
+  })
+
+kit
+  .command('show <id>')
+  .description('Show details for a kit dimension by ID (e.g. N01)')
+  .action((id: string) => {
+    runKitShow(id)
+  })
+
+kit
+  .command('explain <id>')
+  .description('Explain a kit dimension with per-stack projection')
+  .action((id: string) => {
+    runKitExplain(id)
   })
 
 async function _main(): Promise<void> {
