@@ -28,7 +28,12 @@ function collectYamlFiles(dir) {
   if (!existsSync(dir)) return []
   const out = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) continue
+    if (entry.isSymbolicLink()) {
+      // Surface symlink skips so a symlinked-away workflow tree cannot
+      // silently hide violations during traversal.
+      console.error(`  skipping symlink: ${join(dir, entry.name)}`)
+      continue
+    }
     const full = join(dir, entry.name)
     if (entry.isDirectory()) out.push(...collectYamlFiles(full))
     else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml')))

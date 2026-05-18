@@ -179,6 +179,33 @@ describe('check-arbiter-self-dogfood.mjs', () => {
     }
   })
 
+  it('logs to stderr when symlinks in .github/actions are skipped', () => {
+    const dir = fixtureRepo()
+    try {
+      writeFileSync(join(dir, '.github', 'workflows', 'a.yml'), 'name: a\non: push\njobs: {}\n')
+      mkdirSync(join(dir, '.github', 'actions'), { recursive: true })
+      // Real action.yml that the script SHOULD scan
+      writeFileSync(
+        join(dir, '.github', 'actions', 'action.yml'),
+        'name: a\nruns:\n  using: composite\n  steps: []\n',
+      )
+      // Create a symlink that should be skipped with a visible log entry
+      const { symlinkSync } = require('node:fs') as typeof import('node:fs')
+      symlinkSync('/etc', join(dir, '.github', 'actions', 'leak'))
+      const r = spawnSync(
+        'node',
+        [join(dir, 'scripts', 'check-arbiter-self-dogfood.mjs'), '--refresh-baseline'],
+        { cwd: dir, encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(0)
+      // Stderr must surface the skip so silent traversal cannot hide a
+      // symlinked-away workflow tree (red-team Silent finding #11).
+      expect(r.stderr).toContain('skipping symlink')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('refuses to run when both .github/workflows and .github/actions are absent', () => {
     const dir = mkdtempSync(join(tmpdir(), 'arbiter-empty-'))
     mkdirSync(join(dir, 'scripts'), { recursive: true })
