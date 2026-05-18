@@ -35,11 +35,30 @@ Empty. The 8 tier templates emit explicit top-level `permissions:` blocks; there
 
 ---
 
-## Legacy workflows during dual-run
+## Legacy workflows — permanent dual-track (revised 2026-05-18, PR-3)
 
-The 18 legacy workflows (`ci.yml`, `nightly.yml`, `mutation.yml`, `soak.yml`, `drift-shadow.yml`, `matrix-smoke.yml`, `real-project-matrix.yml`, `security-scan.yml`, `cli-e2e.yml`, `docs-a11y.yml`, `licenses.yml`, `release.yml`, `canary-publish.yml`, `npm-publish.yml`, `npm-publish-dryrun.yml`, `anti-telemetry.yml`, `changeset-check.yml`, `superpowers-parity.yml`) are **not** exempt — their existing violations are already captured in `.self-dogfood-baseline.json` (90 action-pin, 13 workflow-perms) and must shrink monotonically.
+The original PR-3/PR-4 plan envisioned migrating arbiter's 18 legacy workflows into the 8 tier templates and deleting the legacy set. After audit, this is **not** the right architecture:
 
-PR-3 (#867 Phase C2) migrates their jobs into the tier templates. PR-4 (#867 Phase C3) deletes the migrated files and re-ratchets the baseline. Sunset for all 18 entries below 90/13 is the merge of PR-4.
+- The 8 tier templates emit a **public spec demo** consumed by every downstream `arbiter init`. Their job content must be stack-agnostic, governance-parameterised, and generic.
+- The 18 legacy workflows test **arbiter-as-arbiter** — INV-59 parity (`drift-shadow.yml`), arbiter's own real-project fixtures (`real-project-matrix.yml`), arbiter's Stryker mutation on its own TS code (`mutation.yml`), arbiter's soak harness (`soak.yml`), arbiter's anti-telemetry assertion (`anti-telemetry.yml`), arbiter's superpowers parity (`superpowers-parity.yml`), changesets-based release flow (`release.yml`, `npm-publish.yml`, `canary-publish.yml`, `npm-publish-dryrun.yml`, `changeset-check.yml`), CLI E2E and docs a11y (`cli-e2e.yml`, `docs-a11y.yml`, `licenses.yml`).
+
+Folding these into generic templates with arbiter-specific EJS guards would either (a) pollute the public templates with arbiter-internal logic, or (b) make the templates unable to express the legacy semantics. Neither is acceptable.
+
+Resolution: **the two sets coexist permanently**. The 8 tier files are the public-facing spec demo; the legacy 18 are arbiter's internal test suite. The dogfood gate still enforces monotone improvement on the legacy set via `.self-dogfood-baseline.json` (currently 90 action-pin, 13 workflow-perms).
+
+### Removed in PR-3 (#867 C3 partial)
+
+- `src/templates/github/workflows/nightly.yml.ejs` (template; superseded by `06-nightly.yml.ejs` for downstream consumers).
+- `src/generators/nightly.ts` and the corresponding `nightly` entry in `src/generators/registry.ts:251`.
+- `__tests__/generators/nightly.test.ts`.
+
+`.github/workflows/nightly.yml` (the actual workflow) **remains** — its 4 jobs (SBOM, Trivy deep scan, evidence snapshot, arbiter-self-canary) are arbiter-specific and have no counterpart in the generic 06-nightly tier.
+
+### Silent-fail fix landed in PR-3 (#867 C4)
+
+`.github/workflows/security-scan.yml:24` had `continue-on-error: true` on the gitleaks step, masking real secret leaks. Removed. `.gitleaksignore` covers documented false-positives; novel hits now block PR/merge.
+
+Other `continue-on-error: true` occurrences in the legacy set (`drift-shadow.yml`, `mutation.yml`, `nightly.yml:77`, `soak.yml`, `matrix-smoke.yml`, `real-project-matrix.yml`) are intentional — they distinguish infrastructure failure from logic failure for informational test suites and pair with explicit `if: steps.X.outcome == 'failure'` issue-filing steps. They are NOT silent-fails.
 
 ---
 
