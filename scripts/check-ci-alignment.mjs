@@ -14,7 +14,7 @@ import { join } from 'node:path'
 const ROOT = process.cwd()
 const MANIFEST_PATH = join(ROOT, 'scripts', 'check-all.mjs')
 // Reconcile against the primary gate workflow only; other workflows
-// (matrix-refresh.yml, real-project-matrix.yml, nightly.yml) have a different
+// (real-project-matrix.yml, nightly.yml) have a different
 // purpose and are not subject to manifest-gate parity.
 const CI_WORKFLOW_PATH = join(ROOT, '.github', 'workflows', 'ci.yml')
 

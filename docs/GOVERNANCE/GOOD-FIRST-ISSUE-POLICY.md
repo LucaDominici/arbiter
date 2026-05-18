@@ -30,6 +30,6 @@ Use `docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md` when filing curated issues. F
 
 See `docs/GOVERNANCE/GOOD-FIRST-ISSUE-CURATION.md` for the 10 issues curated at launch.
 
-## Auto-welcome
+## Manual welcome
 
-First-time contributors who open a PR receive a welcome message automatically (`.github/workflows/first-time-contributor-greet.yml`). The message links to CONTRIBUTING.md and sets response-time expectations.
+First-time contributors are welcomed manually by a maintainer on PR open. The maintainer points to CONTRIBUTING.md and sets response-time expectations.
