@@ -87,6 +87,7 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
   const githubDir = resolvedPath(config.targetDir, '.github')
   const workflowsDir = join(githubDir, 'workflows')
   const issueTemplatesDir = join(githubDir, 'ISSUE_TEMPLATE')
+  const actionsDir = join(githubDir, 'actions')
 
   const files: WriteResult[] = [
     ...generateCiWorkflows(workflowsDir, config),
@@ -105,6 +106,10 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
       join(githubDir, 'dependabot.yml'),
       renderTemplate('github/dependabot.yml.ejs', data),
       { skipIfExists: true },
+    ),
+    writeFile(
+      join(actionsDir, 'sign-and-attest', 'action.yml'),
+      renderTemplate('github/actions/sign-and-attest/action.yml.ejs', data),
     ),
   ]
 
