@@ -6,6 +6,8 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
+// ARBITER_HOOK_GIT_CWD is set by the pre-commit hook when running from a '#'-free temp dir.
+const GIT_CWD = process.env['ARBITER_HOOK_GIT_CWD'] ?? ROOT
 
 // Paths that MUST be gitignored (exit 0 from git check-ignore)
 const MUST_IGNORE = [
@@ -22,7 +24,7 @@ let failures = 0
 
 for (const p of MUST_IGNORE) {
   try {
-    execFileSync('git', ['check-ignore', '-q', p], { cwd: ROOT, stdio: 'pipe' })
+    execFileSync('git', ['check-ignore', '-q', p], { cwd: GIT_CWD, stdio: 'pipe' })
   } catch {
     process.stderr.write(
       `check-private-paths-ignored: FAIL — "${p}" should be gitignored but is not\n`,
@@ -33,7 +35,7 @@ for (const p of MUST_IGNORE) {
 
 for (const p of MUST_NOT_IGNORE) {
   try {
-    execFileSync('git', ['check-ignore', '-q', p], { cwd: ROOT, stdio: 'pipe' })
+    execFileSync('git', ['check-ignore', '-q', p], { cwd: GIT_CWD, stdio: 'pipe' })
     process.stderr.write(
       `check-private-paths-ignored: FAIL — "${p}" is gitignored but must be committed\n`,
     )

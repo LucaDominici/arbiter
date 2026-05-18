@@ -39,7 +39,9 @@ function scanForRedactedTokens(text, lexiconEntries) {
 }
 
 // Use git ls-files so we only scan committed files (excludes gitignored derived.json etc.)
-const allFiles = execFileSync('git', ['ls-files'], { encoding: 'utf-8', cwd: ROOT })
+// ARBITER_HOOK_GIT_CWD is set by the pre-commit hook when running from a '#'-free temp dir.
+const GIT_CWD = process.env['ARBITER_HOOK_GIT_CWD'] ?? ROOT
+const allFiles = execFileSync('git', ['ls-files'], { encoding: 'utf-8', cwd: GIT_CWD })
   .split('\n')
   .filter(Boolean)
   .filter((f) => SCAN_PREFIXES.some((p) => f.startsWith(p)))
