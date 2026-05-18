@@ -86,6 +86,18 @@ function countActionPinsViolations() {
 const args = process.argv.slice(2)
 const refresh = args.includes('--refresh-baseline')
 
+// Refuse to operate if BOTH expected directories are absent — protects against
+// running from the wrong cwd, a partial worktree, or an uninitialized submodule
+// that would otherwise lock in a misleading zero-baseline.
+const hasWorkflowsDir = existsSync(join(REPO_ROOT, '.github', 'workflows'))
+const hasActionsDir = existsSync(join(REPO_ROOT, '.github', 'actions'))
+if (!hasWorkflowsDir && !hasActionsDir) {
+  console.error(
+    `check-arbiter-self-dogfood: neither .github/workflows nor .github/actions exists at ${REPO_ROOT} — refusing to run (wrong cwd?)`,
+  )
+  process.exit(2)
+}
+
 const current = {
   workflowPermsViolations: countWorkflowPermsViolations(),
   actionPinsViolations: countActionPinsViolations(),
@@ -110,9 +122,26 @@ if (!existsSync(BASELINE_PATH)) {
   process.exit(2)
 }
 
-const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
+const REQUIRED_KEYS = ['workflowPermsViolations', 'actionPinsViolations']
+let baseline
+try {
+  baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
+} catch (err) {
+  console.error(
+    `check-arbiter-self-dogfood: baseline at ${BASELINE_PATH} is malformed JSON (${err.message}); re-run with --refresh-baseline to repair`,
+  )
+  process.exit(2)
+}
+const missingKeys = REQUIRED_KEYS.filter((k) => typeof baseline[k] !== 'number')
+if (missingKeys.length > 0) {
+  console.error(
+    `check-arbiter-self-dogfood: baseline at ${BASELINE_PATH} missing numeric keys: ${missingKeys.join(', ')}; re-run with --refresh-baseline`,
+  )
+  process.exit(2)
+}
+
 const failures = []
-for (const key of ['workflowPermsViolations', 'actionPinsViolations']) {
+for (const key of REQUIRED_KEYS) {
   if (current[key] > baseline[key]) {
     failures.push(`${key}: ${current[key]} > baseline ${baseline[key]} (new violations introduced)`)
   }
