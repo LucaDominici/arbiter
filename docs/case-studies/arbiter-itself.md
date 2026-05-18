@@ -131,7 +131,7 @@ because they're constraints, not omissions:
 
 - [Public evidence trail](arbiter-itself-evidence.md) — scrubbed snapshot of gate evidence (#653)
 - [Nightly canary](arbiter-itself-canary.md) — drift detection: does `arbiter init --dry-run` produce changes? (#654)
-- [Governance index](../governance/index.md) — ADRs, AGENTS.md, RACI in one place (#652)
+- [Governance index](../GOVERNANCE/index.md) — ADRs, AGENTS.md, RACI in one place (#652)
 
 ### Incident case studies (#655)
 

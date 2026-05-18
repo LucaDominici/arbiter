@@ -18,12 +18,12 @@ are applied and enforced.
 
 ## Architecture Decision Records
 
-| ADR                                                                                              | Title           | Status   |
-| ------------------------------------------------------------------------------------------------ | --------------- | -------- |
-| [ADR-001](https://github.com/LucaDominici/arbiter/blob/main/docs/adr/ADR-001_task-workflow.md)   | Task workflow   | Accepted |
-| [ADR-002](https://github.com/LucaDominici/arbiter/blob/main/docs/adr/ADR-002_gate-tiers.md)      | Gate tiers      | Accepted |
-| [ADR-003](https://github.com/LucaDominici/arbiter/blob/main/docs/adr/ADR-003_docs-site-ia.md)    | Docs site IA    | Accepted |
-| [ADR-004](https://github.com/LucaDominici/arbiter/blob/main/docs/adr/ADR-004_docs-versioning.md) | Docs versioning | Accepted |
+| ADR                                                                                          | Title           | Status   |
+| -------------------------------------------------------------------------------------------- | --------------- | -------- |
+| [ADR-041](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/041-task-workflow.md)   | Task workflow   | Accepted |
+| [ADR-042](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/042-gate-tiers.md)      | Gate tiers      | Accepted |
+| [ADR-043](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/043-docs-site-ia.md)    | Docs site IA    | Accepted |
+| [ADR-044](https://github.com/LucaDominici/arbiter/blob/main/docs/ADR/044-docs-versioning.md) | Docs versioning | Accepted |
 
 ## Self-governance case studies
 
