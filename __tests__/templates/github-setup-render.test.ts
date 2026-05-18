@@ -175,6 +175,22 @@ describe('check-action-pins.mjs.ejs rendering (CANON-04)', () => {
     expect(content).toContain("'actions'")
   })
 
+  it('regex handles YAML list-dash form (- uses: foo/bar@v1)', () => {
+    const content = renderPins({})
+    // Pattern must accept optional leading "- " before "uses:"
+    expect(content).toMatch(/USES_PATTERN\s*=.*\(\?:-\\s\+\)\?uses:/s)
+  })
+
+  it('regex unwraps quoted action refs', () => {
+    const content = renderPins({})
+    expect(content).toContain('stripQuotes')
+  })
+
+  it('collectYamlFiles skips symbolic links', () => {
+    const content = renderPins({})
+    expect(content).toContain('isSymbolicLink')
+  })
+
   it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
     const content = renderPins({ governanceLevel: level })
     expect(content).not.toContain('<%')
@@ -204,6 +220,12 @@ describe('check-workflow-perms.mjs.ejs rendering (CANON-04)', () => {
   it('skips gracefully when no workflows directory', () => {
     const content = renderPerms({})
     expect(content).toContain('skipping')
+  })
+
+  it('rejects write-all as a top-level permission', () => {
+    const content = renderPerms({})
+    expect(content).toContain("'write-all'")
+    expect(content).toContain("write-all' is forbidden")
   })
 
   it('exits 0 and 1 paths present', () => {

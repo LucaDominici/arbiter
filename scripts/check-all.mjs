@@ -91,6 +91,7 @@ runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mj
 runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
 runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
 runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
+runCheck('self-dogfood (INV-75/76)', 'node', ['scripts/check-arbiter-self-dogfood.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length
