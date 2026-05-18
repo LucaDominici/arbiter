@@ -37,7 +37,7 @@ export type TaskPhase =
   | 'verification'
   | 'complete'
 
-export type HandoffStrategy = 'interactive' | 'inline' | 'sub-agent' | null
+export type HandoffStrategy = 'interactive' | 'inline' | null
 
 export interface TaskStatusExtras {
   task?: string
@@ -607,12 +607,6 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
       }
     }
     if (existing.postClearResumed === undefined) {
-      writeTaskStatus({
-        taskDir,
-        phase: 'red',
-        extras: { ...existing, postClearResumed: new Date().toISOString() },
-      })
-
       const caps = detectHostCapabilities()
       const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
       const costs = caps.transcriptPath
@@ -626,6 +620,12 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
       )
 
       runBudgetCheck(rawId, dir, opts)
+
+      writeTaskStatus({
+        taskDir,
+        phase: 'red',
+        extras: { ...existing, postClearResumed: new Date().toISOString() },
+      })
     }
     return
   }

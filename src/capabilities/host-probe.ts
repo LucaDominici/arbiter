@@ -6,7 +6,6 @@ import { join } from 'node:path'
 export interface HostCapabilities {
   modelSwitch: boolean
   transcriptPath: string | null
-  exitPlanModeTool: boolean
 }
 
 function isTruthy(val: string | undefined): boolean {
@@ -39,12 +38,11 @@ export function detectHostCapabilities(): HostCapabilities {
     return {
       modelSwitch,
       transcriptPath: findTranscriptPath(),
-      exitPlanModeTool: modelSwitch,
     }
   } catch (err: unknown) {
     process.stderr.write(
       `[arbiter] warn: detectHostCapabilities threw unexpectedly: ${err instanceof Error ? err.message : String(err)}\n`,
     )
-    return { modelSwitch: false, transcriptPath: null, exitPlanModeTool: false }
+    return { modelSwitch: false, transcriptPath: null }
   }
 }

@@ -16,7 +16,6 @@ vi.mock('../../src/capabilities/host-probe.js', () => ({
   detectHostCapabilities: vi.fn().mockReturnValue({
     modelSwitch: false,
     transcriptPath: null,
-    exitPlanModeTool: false,
   }),
 }))
 

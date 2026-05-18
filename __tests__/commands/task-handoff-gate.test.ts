@@ -3,13 +3,12 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync, readFileSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
-import { runTaskAdvance, HandoffRequiredError } from '../../src/commands/task.js'
+import { runTaskAdvance, HandoffRequiredError, BudgetBreachError } from '../../src/commands/task.js'
 
 vi.mock('../../src/capabilities/host-probe.js', () => ({
   detectHostCapabilities: vi.fn().mockReturnValue({
     modelSwitch: true,
     transcriptPath: null,
-    exitPlanModeTool: true,
   }),
 }))
 
@@ -133,7 +132,6 @@ describe('task advance --to red: handoff gate (#703)', () => {
     detectHostCapabilities.mockReturnValueOnce({
       modelSwitch: false,
       transcriptPath: null,
-      exitPlanModeTool: false,
     })
     const dir = tmpRepo('red-team-review')
     expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
@@ -145,5 +143,31 @@ describe('task advance --to red: handoff gate (#703)', () => {
   it('does not interfere with non-planning → red transitions (e.g. refactor → red)', () => {
     const dir = tmpRepo('refactor')
     expect(() => runTaskAdvance({ to: 'red', dir, reverse: true })).not.toThrow()
+  })
+
+  it('budget breach does NOT write postClearResumed (write-order invariant)', () => {
+    vi.stubEnv('ARBITER_POST_CLEAR', '1')
+    const dir = tmpRepo('red-team-review')
+    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
+    writeFileSync(
+      statusPath,
+      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
+      'utf-8',
+    )
+    // Write over-budget cost evidence so runBudgetCheck throws
+    const costDir = join(dir, '.arbiter', 'evidence', 'cost')
+    mkdirSync(costDir, { recursive: true })
+    writeFileSync(
+      join(costDir, '#703.json'),
+      JSON.stringify({
+        taskId: '#703',
+        byPhase: { red: { in: 999_999, out: 1_000, samples: 1 } },
+        totals: { in: 999_999, out: 1_000, samples: 1 },
+      }),
+      'utf-8',
+    )
+    expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(BudgetBreachError)
+    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as Record<string, unknown>
+    expect(status['postClearResumed']).toBeUndefined()
   })
 })

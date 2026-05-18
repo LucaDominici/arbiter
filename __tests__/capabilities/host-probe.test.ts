@@ -24,11 +24,6 @@ describe('detectHostCapabilities (#703)', () => {
     expect(caps.transcriptPath === null || typeof caps.transcriptPath === 'string').toBe(true)
   })
 
-  it('exitPlanModeTool is a boolean', () => {
-    const caps = detectHostCapabilities()
-    expect(typeof caps.exitPlanModeTool).toBe('boolean')
-  })
-
   it('never throws even when all capability env vars are absent', () => {
     vi.stubEnv('CLAUDECODE', '')
     vi.stubEnv('ANTHROPIC_MODEL', '')
@@ -42,11 +37,9 @@ describe('detectHostCapabilities (#703)', () => {
     expect(caps.modelSwitch).toBe(false)
   })
 
-  it('returned object has the three required keys', () => {
+  it('returned object has the two required keys', () => {
     const caps = detectHostCapabilities()
-    expect(Object.keys(caps)).toEqual(
-      expect.arrayContaining(['modelSwitch', 'transcriptPath', 'exitPlanModeTool']),
-    )
+    expect(Object.keys(caps)).toEqual(expect.arrayContaining(['modelSwitch', 'transcriptPath']))
   })
 
   it('CLAUDECODE=0 is treated as falsy (no model switch)', () => {
