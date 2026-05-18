@@ -12,7 +12,15 @@ export interface ExperimentRecord {
 
 // Registry of all active experiments. Add new experiments here.
 // Promotion criteria: ≥6 months active + ≥3 user reports + zero P0 issues.
-const EXPERIMENTS: readonly ExperimentRecord[] = []
+const EXPERIMENTS: readonly ExperimentRecord[] = [
+  {
+    name: 'kit',
+    stabilityTarget: 'beta',
+    addedIn: '0.1.0',
+    promotionCriteria: '≥6 months active + ≥3 user reports + zero P0 issues + Phase F complete',
+    plannedReviewDate: '2026-11-18',
+  },
+]
 
 const experimentMap = new Map<string, ExperimentRecord>(EXPERIMENTS.map((e) => [e.name, e]))
 

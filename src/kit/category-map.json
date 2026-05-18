@@ -1,0 +1,17 @@
+{
+  "architecture": ["architecture"],
+  "static_analysis": ["static_analysis", "style_tokens"],
+  "test_framework": ["coverage", "mutation"],
+  "test_profiles": [],
+  "test_types": ["contract", "bdd", "fuzz"],
+  "cicd": ["secret_scan", "provenance", "sbom", "binary_signing"],
+  "e2e_perf": ["e2e", "dast"],
+  "scripts_validation": [],
+  "scripts_quality": [],
+  "security": ["security", "license_scan", "container_scan", "secret_scan"],
+  "git_github": [],
+  "documentation": [],
+  "configuration": [],
+  "audit_trail": [],
+  "a11y": ["a11y"]
+}

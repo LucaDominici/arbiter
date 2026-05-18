@@ -23,6 +23,12 @@ arbiter follows [Semantic Versioning 2.0.0](https://semver.org/). This document 
 
 **Experimental escape hatch:** A flag or behavior guarded by `--experimental.<feature>` may change without a MAJOR bump while in experimental status. Once promoted to stable, the stability guarantee applies.
 
+**Active experimental features:**
+
+| Feature flag | Gate                                  | Commands                          | Status notes                                                                          |
+| ------------ | ------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
+| `kit`        | `ARBITER_EXPERIMENTAL='{"kit":true}'` | `arbiter kit list\|show\|explain` | Read-only catalog browser (Phase A). Mutating commands (`assess`, `wave`) in Phase F. |
+
 ## What Is Non-Breaking (MINOR)
 
 | Change                                                                     | Bump  |

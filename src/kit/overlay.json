@@ -1,0 +1,407 @@
+{
+  "N03": {
+    "typescript": {
+      "kind": "equivalent",
+      "arbiterSlot": "static_analysis",
+      "reason": "TypeScript interfaces enforce port/adapter separation via type system; no runtime ArchUnit equivalent needed — compiler enforces boundary at build time"
+    },
+    "python": {
+      "kind": "equivalent",
+      "arbiterSlot": "static_analysis",
+      "reason": "Python abstract base classes (ABC) provide interface/implementation separation; mypy enforces type contracts at analysis time"
+    },
+    "go": {
+      "kind": "equivalent",
+      "arbiterSlot": "architecture",
+      "reason": "Go implicit interfaces naturally enforce port/adapter pattern; no explicit separation tool needed — compiler guarantees interface satisfaction"
+    },
+    "rust": {
+      "kind": "equivalent",
+      "arbiterSlot": "architecture",
+      "reason": "Rust traits provide strong interface/implementation separation enforced at compile time; no additional runtime rule needed"
+    }
+  },
+  "N04": {
+    "typescript": {
+      "kind": "na-by-paradigm",
+      "reason": "Spring annotations are Java/Spring-specific; TypeScript uses decorators differently and has no equivalent Spring container concept to restrict"
+    },
+    "python": {
+      "kind": "na-by-paradigm",
+      "reason": "Spring annotations are Java/Spring-specific; Python frameworks use different DI patterns without the Spring component model"
+    },
+    "go": {
+      "kind": "na-by-paradigm",
+      "reason": "Spring annotations are Java/Spring-specific; Go uses explicit dependency injection without annotation-based component scanning"
+    },
+    "rust": {
+      "kind": "na-by-paradigm",
+      "reason": "Spring annotations are Java/Spring-specific; Rust has no annotation-based IoC container concept"
+    }
+  },
+  "N05": {
+    "typescript": {
+      "kind": "na-by-paradigm",
+      "reason": "@Async annotation is Spring-specific; TypeScript uses async/await natively at any layer without constraint enforcement needed"
+    },
+    "python": {
+      "kind": "na-by-paradigm",
+      "reason": "@Async annotation is Spring-specific; Python asyncio does not require layer-restricted async placement"
+    },
+    "go": {
+      "kind": "na-by-paradigm",
+      "reason": "@Async annotation is Spring-specific; Go goroutines are used without layer restrictions and require no constraint enforcement"
+    },
+    "rust": {
+      "kind": "na-by-paradigm",
+      "reason": "@Async annotation is Spring-specific; Rust async/await has no layer constraint by paradigm"
+    }
+  },
+  "N06": {
+    "typescript": {
+      "kind": "equivalent",
+      "arbiterSlot": "static_analysis",
+      "reason": "TypeScript uses Zod or class-validator for validation; constraint on domain-only placement enforced via linting rules rather than annotation restriction"
+    },
+    "python": {
+      "kind": "equivalent",
+      "arbiterSlot": "static_analysis",
+      "reason": "Pydantic models in Python serve as domain validation constraint holders; placement enforced by project structure conventions"
+    },
+    "go": {
+      "kind": "na-by-paradigm",
+      "reason": "Go validation uses struct tags or explicit validation functions; no Java-style Bean Validation annotation concept exists in Go paradigm"
+    },
+    "rust": {
+      "kind": "na-by-paradigm",
+      "reason": "Rust uses type-driven validation (newtype pattern, From/TryFrom traits); no annotation-based validation concept analogous to Bean Validation"
+    }
+  },
+  "N08": {
+    "typescript": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log architecture rule not yet generated for TypeScript; conditional on audit-write-services flag; Phase G of sibling epic covers per-stack generators"
+    },
+    "python": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log architecture rule not yet generated for Python; conditional on audit-write-services flag; Phase G of sibling epic covers per-stack generators"
+    },
+    "go": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log architecture rule not yet generated for Go; conditional on audit-write-services flag; Phase G of sibling epic covers per-stack generators"
+    },
+    "rust": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log architecture rule not yet generated for Rust; conditional on audit-write-services flag; Phase G of sibling epic covers per-stack generators"
+    }
+  },
+  "N12": {
+    "typescript": {
+      "kind": "equivalent",
+      "arbiterSlot": "static_analysis",
+      "reason": "TypeScript strict null checks + noUncheckedIndexedAccess enforce null-safety at compile time; equivalent to SpotBugs null analysis for Java"
+    },
+    "python": {
+      "kind": "equivalent",
+      "arbiterSlot": "static_analysis",
+      "reason": "mypy with strict mode enforces null/None safety for Python; equivalent null analysis to SpotBugs in the Python ecosystem"
+    },
+    "go": {
+      "kind": "na-by-paradigm",
+      "reason": "Go eliminates null pointer exceptions via explicit error returns and zero values; SpotBugs-style null analysis is not applicable to the Go paradigm"
+    },
+    "rust": {
+      "kind": "na-by-paradigm",
+      "reason": "Rust eliminates null via Option<T> enforced at compile time; SpotBugs-style null analysis has no equivalent role in the Rust paradigm"
+    }
+  },
+  "N32": {
+    "java": {
+      "kind": "gap",
+      "suggestedTool": "junit-quickcheck or jqwik",
+      "reason": "Property-based testing for Java not yet wired into arbiter gate; jqwik and junit-quickcheck are established options worth adding to the test types matrix"
+    },
+    "typescript": {
+      "kind": "gap",
+      "suggestedTool": "fast-check",
+      "reason": "fast-check is the standard property-based testing library for TypeScript/JavaScript; not yet wired into arbiter gate"
+    },
+    "python": {
+      "kind": "gap",
+      "suggestedTool": "hypothesis",
+      "reason": "Hypothesis is the canonical property-based testing library for Python; mature and widely used; not yet wired into arbiter gate"
+    },
+    "go": {
+      "kind": "gap",
+      "suggestedTool": "gopter or rapid",
+      "reason": "gopter and rapid provide property-based testing for Go; not yet wired into arbiter gate"
+    },
+    "rust": {
+      "kind": "gap",
+      "suggestedTool": "proptest",
+      "reason": "proptest is the dominant property-based testing library for Rust; not yet wired into arbiter gate"
+    }
+  },
+  "N42": {
+    "java": {
+      "kind": "gap",
+      "suggestedTool": "Gatling or JMeter",
+      "followupIssue": 862,
+      "reason": "Performance testing for Java services not yet generated by arbiter; Gatling is preferred for modern JVM services in automated CI pipelines"
+    },
+    "typescript": {
+      "kind": "gap",
+      "suggestedTool": "k6",
+      "followupIssue": 862,
+      "reason": "k6 is the standard load testing tool for TypeScript/Node.js services; not yet generated by arbiter; follow-up in sibling epic"
+    },
+    "python": {
+      "kind": "gap",
+      "suggestedTool": "Locust",
+      "followupIssue": 862,
+      "reason": "Locust is the canonical load testing framework for Python services; not yet generated by arbiter; follow-up in sibling epic"
+    },
+    "go": {
+      "kind": "gap",
+      "suggestedTool": "k6 or hey",
+      "followupIssue": 862,
+      "reason": "k6 or hey for Go service load testing; not yet generated by arbiter; follow-up in sibling epic"
+    },
+    "rust": {
+      "kind": "gap",
+      "suggestedTool": "drill or criterion",
+      "followupIssue": 862,
+      "reason": "drill for HTTP load testing or criterion for micro-benchmarking in Rust; not yet generated by arbiter; follow-up in sibling epic"
+    }
+  },
+  "N44": {
+    "java": {
+      "kind": "gap",
+      "suggestedTool": "WireMock + TestContainers Keycloak-compatible IdP",
+      "followupIssue": 862,
+      "reason": "Auth E2E testing with a Keycloak-compatible IdP requires TestContainers integration; not yet generated by arbiter; follow-up in sibling epic"
+    },
+    "typescript": {
+      "kind": "gap",
+      "suggestedTool": "Playwright + mock OIDC provider",
+      "followupIssue": 862,
+      "reason": "Auth flow E2E for TypeScript frontend/BFF requires Playwright with a mock Keycloak-compatible IdP; not yet generated by arbiter"
+    },
+    "python": {
+      "kind": "gap",
+      "suggestedTool": "pytest + mock OIDC provider",
+      "followupIssue": 862,
+      "reason": "Auth E2E for Python services requires mock Keycloak-compatible IdP integration; not yet generated by arbiter"
+    },
+    "go": {
+      "kind": "gap",
+      "suggestedTool": "httptest + mock OIDC provider",
+      "followupIssue": 862,
+      "reason": "Auth E2E for Go services requires mock Keycloak-compatible IdP; not yet generated by arbiter; follow-up in sibling epic"
+    },
+    "rust": {
+      "kind": "gap",
+      "suggestedTool": "reqwest + mock OIDC provider",
+      "followupIssue": 862,
+      "reason": "Auth E2E for Rust services requires mock Keycloak-compatible IdP integration; not yet generated by arbiter"
+    }
+  },
+  "N64": {
+    "java": {
+      "kind": "gap",
+      "suggestedGenerator": "cicd-developer-reference.ts",
+      "followupIssue": 862,
+      "reason": "CI/CD developer reference card for Java services requires a generator emitting the parametric template; deferred to Phase D of sibling epic"
+    },
+    "typescript": {
+      "kind": "gap",
+      "suggestedGenerator": "cicd-developer-reference.ts",
+      "followupIssue": 862,
+      "reason": "CI/CD developer reference card for TypeScript services requires a generator emitting the parametric template; deferred to Phase D of sibling epic"
+    },
+    "python": {
+      "kind": "gap",
+      "suggestedGenerator": "cicd-developer-reference.ts",
+      "followupIssue": 862,
+      "reason": "CI/CD developer reference card for Python services requires a generator emitting the parametric template; deferred to Phase D of sibling epic"
+    },
+    "go": {
+      "kind": "gap",
+      "suggestedGenerator": "cicd-developer-reference.ts",
+      "followupIssue": 862,
+      "reason": "CI/CD developer reference card for Go services requires a generator emitting the parametric template; deferred to Phase D of sibling epic"
+    },
+    "rust": {
+      "kind": "gap",
+      "suggestedGenerator": "cicd-developer-reference.ts",
+      "followupIssue": 862,
+      "reason": "CI/CD developer reference card for Rust services requires a generator emitting the parametric template; deferred to Phase D of sibling epic"
+    }
+  },
+  "N66": {
+    "java": {
+      "kind": "gap",
+      "suggestedGenerator": "openapi-spec.ts",
+      "followupIssue": 862,
+      "reason": "OpenAPI specification generation for Java services (SpringDoc/Springfox) not yet in arbiter scope; follow-up opportunity in sibling epic"
+    },
+    "typescript": {
+      "kind": "gap",
+      "suggestedGenerator": "openapi-spec.ts",
+      "followupIssue": 862,
+      "reason": "OpenAPI spec generation for TypeScript services (tsoa/zod-openapi) not yet in arbiter scope; follow-up opportunity in sibling epic"
+    },
+    "python": {
+      "kind": "gap",
+      "suggestedGenerator": "openapi-spec.ts",
+      "followupIssue": 862,
+      "reason": "OpenAPI spec generation for Python services (FastAPI auto-schema) not yet in arbiter scope; follow-up opportunity in sibling epic"
+    },
+    "go": {
+      "kind": "gap",
+      "suggestedGenerator": "openapi-spec.ts",
+      "followupIssue": 862,
+      "reason": "OpenAPI spec generation for Go services (swaggo/swag) not yet in arbiter scope; follow-up opportunity in sibling epic"
+    },
+    "rust": {
+      "kind": "gap",
+      "suggestedGenerator": "openapi-spec.ts",
+      "followupIssue": 862,
+      "reason": "OpenAPI spec generation for Rust services (utoipa/aide) not yet in arbiter scope; follow-up opportunity in sibling epic"
+    }
+  },
+  "N67": {
+    "java": {
+      "kind": "gap",
+      "suggestedGenerator": "runbook.ts",
+      "followupIssue": 862,
+      "reason": "Operational runbook template for Java services not yet generated by arbiter; oncall playbook generation is a high-value follow-up opportunity"
+    },
+    "typescript": {
+      "kind": "gap",
+      "suggestedGenerator": "runbook.ts",
+      "followupIssue": 862,
+      "reason": "Operational runbook template for TypeScript services not yet generated by arbiter; oncall playbook generation deferred to sibling epic"
+    },
+    "python": {
+      "kind": "gap",
+      "suggestedGenerator": "runbook.ts",
+      "followupIssue": 862,
+      "reason": "Operational runbook template for Python services not yet generated by arbiter; oncall playbook generation deferred to sibling epic"
+    },
+    "go": {
+      "kind": "gap",
+      "suggestedGenerator": "runbook.ts",
+      "followupIssue": 862,
+      "reason": "Operational runbook template for Go services not yet generated by arbiter; oncall playbook generation deferred to sibling epic"
+    },
+    "rust": {
+      "kind": "gap",
+      "suggestedGenerator": "runbook.ts",
+      "followupIssue": 862,
+      "reason": "Operational runbook template for Rust services not yet generated by arbiter; oncall playbook generation deferred to sibling epic"
+    }
+  },
+  "N72": {
+    "java": {
+      "kind": "gap",
+      "suggestedGenerator": "multi-env-config.ts",
+      "followupIssue": 862,
+      "reason": "Multi-environment config template for Java (Spring profiles dev/staging/prod) not yet generated by arbiter; Spring profile parity enforcement deferred to sibling epic"
+    },
+    "typescript": {
+      "kind": "gap",
+      "suggestedGenerator": "multi-env-config.ts",
+      "followupIssue": 862,
+      "reason": "Multi-environment config template for TypeScript (dotenv-flow or similar) not yet generated by arbiter; env parity enforcement deferred to sibling epic"
+    },
+    "python": {
+      "kind": "gap",
+      "suggestedGenerator": "multi-env-config.ts",
+      "followupIssue": 862,
+      "reason": "Multi-environment config template for Python (pydantic-settings profiles) not yet generated by arbiter; env parity enforcement deferred to sibling epic"
+    },
+    "go": {
+      "kind": "gap",
+      "suggestedGenerator": "multi-env-config.ts",
+      "followupIssue": 862,
+      "reason": "Multi-environment config template for Go (viper profiles) not yet generated by arbiter; env parity enforcement deferred to sibling epic"
+    },
+    "rust": {
+      "kind": "gap",
+      "suggestedGenerator": "multi-env-config.ts",
+      "followupIssue": 862,
+      "reason": "Multi-environment config template for Rust (config crate profiles) not yet generated by arbiter; env parity enforcement deferred to sibling epic"
+    }
+  },
+  "N73": {
+    "typescript": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log DDL for TypeScript services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers DB migration generators"
+    },
+    "python": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log DDL for Python services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers DB migration generators"
+    },
+    "go": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log DDL for Go services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers DB migration generators"
+    },
+    "rust": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Tamper-evident audit log DDL for Rust services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers DB migration generators"
+    }
+  },
+  "N74": {
+    "typescript": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "DB audit trigger for TypeScript services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers per-engine trigger generators"
+    },
+    "python": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "DB audit trigger for Python services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers per-engine trigger generators"
+    },
+    "go": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "DB audit trigger for Go services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers per-engine trigger generators"
+    },
+    "rust": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "DB audit trigger for Rust services not yet generated by arbiter; conditional on audit-write-services flag; Phase G of sibling epic covers per-engine trigger generators"
+    }
+  },
+  "N75": {
+    "typescript": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Audit log service interface for TypeScript services not yet generated by arbiter; append-only repository pattern generator deferred to Phase G of sibling epic"
+    },
+    "python": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Audit log service interface for Python services not yet generated by arbiter; append-only repository pattern generator deferred to Phase G of sibling epic"
+    },
+    "go": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Audit log service interface for Go services not yet generated by arbiter; append-only repository pattern generator deferred to Phase G of sibling epic"
+    },
+    "rust": {
+      "kind": "gap",
+      "followupIssue": 862,
+      "reason": "Audit log service interface for Rust services not yet generated by arbiter; append-only repository pattern generator deferred to Phase G of sibling epic"
+    }
+  }
+}

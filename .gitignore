@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.log
+!.kit-removals.log
 .env
 coverage/
 !src/templates/coverage/
@@ -36,3 +37,7 @@ report/
 # Private maintainer docs (enforcement runbooks, internal notes)
 docs/internal/
 .coverage-tmp/
+
+# Kit Gold Standard — gitignored build artifact and private source attachments
+src/kit/derived.json
+.arbiter/private/

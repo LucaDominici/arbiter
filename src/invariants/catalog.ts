@@ -1276,4 +1276,24 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: false,
     enforcement: 'generated: check-all.mjs tier-hash output + 01-pr-fast.yml parity-check step',
   },
+
+  {
+    id: 'INV-85',
+    tier: 'operational',
+    title: 'No kit source leakage — committed kit files must not contain employer-specific tokens',
+    description:
+      'Files authored by the kit catalog PR (src/kit/**, .github/ISSUE_TEMPLATE/epic-kit-gold-standard.md) ' +
+      'must not contain employer-identifying tokens defined in scripts/data/redaction-lexicon.json. ' +
+      'Tokens include service names, internal identifiers, and regulatory/proprietary markers. ' +
+      'Enforced by check-no-redacted-tokens.mjs at L1. ' +
+      'Keycloak is allowed when the line also contains "Keycloak-compatible IdP" (open-source framing).',
+    alwaysActive: false,
+    selfOnly: true,
+    enforcement: 'scripts/check-no-redacted-tokens.mjs (L1 gate)',
+  },
+
+  // arbiter:noscan-inv-reservation
+  // RESERVED: INV-82 (T5b heartbeat, #862), INV-83 (audit-append-only),
+  // INV-84 (audit-trigger-presence) — sibling epic #TBD-sibling-epic phases B/G.
+  // Do NOT claim these numbers before those PRs land.
 ]

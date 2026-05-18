@@ -404,12 +404,42 @@ If a write fails with a recognizable OS error, a user-readable message is emitte
 
 ---
 
+## Experimental Commands
+
+Experimental commands are gated behind the `ARBITER_EXPERIMENTAL` environment variable and carry no stability guarantee. They may change or be removed without a semver bump.
+
+### `arbiter kit` (experimental)
+
+Read-only catalog browser for the cross-stack quality governance dimensions.
+
+**Enable:**
+
+```bash
+ARBITER_EXPERIMENTAL='{"kit":true}' arbiter kit list
+```
+
+**Subcommands:**
+
+| Subcommand                  | Description                                        |
+| --------------------------- | -------------------------------------------------- |
+| `kit list`                  | List all 76 governance dimensions                  |
+| `kit list --filter=gaps`    | Show only dimensions with coverage gaps            |
+| `kit list --format=json`    | Output as JSON array                               |
+| `kit list --format=csv`     | Output as RFC 4180 CSV (header + 76 data rows)     |
+| `kit list --stack=<lang>`   | Filter to dimensions covered for a specific stack  |
+| `kit list --tml=L1\|L2\|L3` | Filter by Test Maturity Level                      |
+| `kit show <id>`             | Show full JSON for a single dimension (e.g. `N01`) |
+| `kit explain <id>`          | Human-readable summary with per-stack projection   |
+
+---
+
 ## Environment Variables
 
-| Variable                | Usage                                                          |
-| ----------------------- | -------------------------------------------------------------- |
-| `ARBITER_WORKTREES_DIR` | Overrides `arbiter.json::worktree.base` for worktree placement |
-| `ARBITER_NO_EVIDENCE`   | Set to `1` to disable command logging globally                 |
+| Variable                | Usage                                                            |
+| ----------------------- | ---------------------------------------------------------------- |
+| `ARBITER_WORKTREES_DIR` | Overrides `arbiter.json::worktree.base` for worktree placement   |
+| `ARBITER_NO_EVIDENCE`   | Set to `1` to disable command logging globally                   |
+| `ARBITER_EXPERIMENTAL`  | JSON object enabling experimental features (e.g. `{"kit":true}`) |
 
 ---
 

@@ -145,6 +145,10 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-80:** No continue-on-error on test or build steps — failures must propagate immediately
 - **INV-81:** Tier-hash local↔CI parity — check-all.mjs subcommand hashes must match CI workflow steps
 
+## Kit Source Leakage (INV-85)
+
+- **INV-85:** No kit source leakage — committed kit files must not contain employer-specific tokens
+
 ---
 
 ## Coding Standards
