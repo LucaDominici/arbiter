@@ -135,9 +135,9 @@ Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
 
 Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
-- **INV-73:** CI tier presence — all 7 workflow files must exist under .github/workflows/
+- **INV-73:** CI tier presence — all 8 workflow files must exist under .github/workflows/
 - **INV-74:** Anti-bot human-approval gate — reviewer must be a human distinct from the PR author
-- **INV-75:** Heartbeat watchdog — T4 nightly must have run within 26 h, T5 weekly within 8 d
+- **INV-75:** Heartbeat watchdog — T4 nightly ≤26 h, T5 weekly ≤8 d, T5b monthly ≤35 d
 - **INV-76:** SHA-pinned actions only — all third-party GitHub Actions must be pinned to a full 40-char SHA
 - **INV-77:** Top-level workflow permissions — every workflow file must declare explicit top-level permissions
 - **INV-78:** SLSA provenance present at T3 — release workflow must emit signed build provenance

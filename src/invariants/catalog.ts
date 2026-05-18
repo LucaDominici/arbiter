@@ -1159,12 +1159,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-73',
     tier: 'operational',
-    title: 'CI tier presence — all 7 workflow files must exist under .github/workflows/',
+    title: 'CI tier presence — all 8 workflow files must exist under .github/workflows/',
     description:
-      'Every GitHub-enabled project must contain exactly the canonical 7 CI tier files: ' +
+      'Every GitHub-enabled project must contain exactly the canonical 8 CI tier files: ' +
       '01-pr-fast.yml, 02-pr-extended.yml, 03-human-approval.yml, 05-release.yml, ' +
-      '06-nightly.yml, 07-weekly.yml, 08-heartbeat.yml. Missing tiers degrade the ' +
-      'deployment pipeline and break branch-protection required checks.',
+      '06-nightly.yml, 07-weekly.yml, 08-monthly.yml, 09-heartbeat.yml. Missing tiers ' +
+      'degrade the deployment pipeline and break branch-protection required checks.',
     alwaysActive: false,
     enforcement: 'generated gate: check-ci-tiers.mjs (L1)',
   },
@@ -1186,14 +1186,14 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-75',
     tier: 'operational',
-    title: 'Heartbeat watchdog — T4 nightly must have run within 26 h, T5 weekly within 8 d',
+    title: 'Heartbeat watchdog — T4 nightly ≤26 h, T5 weekly ≤8 d, T5b monthly ≤35 d',
     description:
-      'The 08-heartbeat.yml workflow runs daily at 06:00 UTC and asserts that 06-nightly.yml ' +
-      'completed within the last 26 hours and 07-weekly.yml within the last 8 days. A missing ' +
-      'heartbeat result triggers an auto-filed GitHub issue. Silent CI failures are treated as ' +
-      'production incidents.',
+      'The 09-heartbeat.yml workflow runs daily at 06:00 UTC and asserts that 06-nightly.yml ' +
+      'completed within the last 26 hours, 07-weekly.yml within the last 8 days, and ' +
+      '08-monthly.yml within the last 35 days. A missing heartbeat result triggers an ' +
+      'auto-filed GitHub issue. Silent CI failures are treated as production incidents.',
     alwaysActive: false,
-    enforcement: 'generated: 08-heartbeat.yml cron content',
+    enforcement: 'generated: 09-heartbeat.yml cron content',
   },
 
   {

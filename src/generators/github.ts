@@ -37,8 +37,12 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
       renderTemplate('github/workflows/07-weekly.yml.ejs', data),
     ),
     writeFile(
-      join(workflowsDir, '08-heartbeat.yml'),
-      renderTemplate('github/workflows/08-heartbeat.yml.ejs', data),
+      join(workflowsDir, '08-monthly.yml'),
+      renderTemplate('github/workflows/08-monthly.yml.ejs', data),
+    ),
+    writeFile(
+      join(workflowsDir, '09-heartbeat.yml'),
+      renderTemplate('github/workflows/09-heartbeat.yml.ejs', data),
     ),
   ]
   if (config.enableSoloDevMode) {
