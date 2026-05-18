@@ -902,13 +902,26 @@ const doctor = program
   .description('Diagnose and repair arbiter state')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; json: boolean }) => {
-    const result = runDoctorHealth({
+  .option(
+    '--repair',
+    'Auto-release stale .arbiter/.lock files detected by the health check (#824)',
+    false,
+  )
+  .action((opts: { dir?: string; json: boolean; repair: boolean }) => {
+    runDoctorHealth({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
+      repair: opts.repair,
       ...(_channelFlag !== undefined ? { channelFlag: _channelFlag } : {}),
     })
-    if (result.exitCode !== 0) process.exit(result.exitCode)
+      .then((result) => {
+        if (result.exitCode !== 0) process.exit(result.exitCode)
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        process.stderr.write(`  Error: ${msg}\n`)
+        process.exit(1)
+      })
   })
 
 doctor
@@ -1605,7 +1618,7 @@ experiments
   .action(() => {
     const all = listExperiments()
     if (all.length === 0) {
-      console.log(t('cli.experiments.none'))
+      process.stdout.write(`${t('cli.experiments.none')}\n`)
       return
     }
     const activeFlags: Record<string, boolean> = (() => {
@@ -1618,10 +1631,12 @@ experiments
     for (const exp of all) {
       const active = isEnabled(exp.name, activeFlags)
       const status = active ? '[active]' : '[inactive]'
-      console.log(
-        `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})`,
+      process.stdout.write(
+        `  ${status} --experimental.${exp.name}  (${exp.stabilityTarget}, added ${exp.addedIn})\n`,
       )
-      console.log(t('cli.experiments.criteria', { criteria: exp.promotionCriteria }))
+      process.stdout.write(
+        `${t('cli.experiments.criteria', { criteria: exp.promotionCriteria })}\n`,
+      )
     }
   })
 

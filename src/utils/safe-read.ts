@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { getLogger } from './logger.js'
 
 /**
  * Read a file as UTF-8 text, distinguishing ENOENT from other errors.
@@ -12,7 +13,7 @@ export function readFileSafe(path: string): string {
     return readFileSync(path, 'utf-8')
   } catch (err) {
     if (isEnoent(err)) return ''
-    console.warn(`[arbiter] could not read ${path}: ${String(err)}`)
+    getLogger().warn('safe_read.read_failed', { path, err: String(err) }, `could not read ${path}`)
     return ''
   }
 }
@@ -28,7 +29,11 @@ export function readPackageJsonSafe(dir: string): Record<string, unknown> {
     return JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown>
   } catch (err) {
     if (isEnoent(err)) return {}
-    console.warn(`[arbiter] could not parse ${path}: ${String(err)}`)
+    getLogger().warn(
+      'safe_read.parse_failed',
+      { path, err: String(err) },
+      `could not parse ${path}`,
+    )
     return {}
   }
 }

@@ -1,7 +1,9 @@
 name: Mutation Testing (#595)
 
 # Runs Stryker nightly on critical source paths.
-# Uses npx — no @stryker-mutator/* deps in package.json.
+# Uses npx to fetch the modern @stryker-mutator/core package
+# (the bare `stryker` package on npm is the legacy 0.x line with a
+# broken `rx` dependency — see #822).
 # Threshold: mutation score < 60% on targeted paths → gate fails.
 # On failure: opens a GH issue with the paths that dropped below threshold.
 
@@ -35,7 +37,7 @@ jobs:
 
       - name: Run Stryker
         id: stryker
-        run: npx stryker run --concurrency 2
+        run: npx -y -p @stryker-mutator/core@^9 -- stryker run --concurrency 2
         continue-on-error: true
 
       - name: Upload mutation report
@@ -46,15 +48,16 @@ jobs:
           path: reports/mutation/
           retention-days: 30
 
-      - name: Open issue on mutation score regression
+      - name: Open issue on mutation failure
         if: steps.stryker.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          DATE="$(date +%Y-%m-%d)"
           gh issue create \
-            --title "Mutation score below threshold (nightly $(date +%Y-%m-%d))" \
-            --body "Stryker run failed on $(date +%Y-%m-%d). Mutation score dropped below 60% threshold on one or more critical paths. See workflow run: $RUN_URL" \
+            --title "Stryker mutation run failed (nightly $DATE)" \
+            --body "The Stryker nightly run failed on $DATE. The failure may be: (a) mutation score below the 60% threshold on a critical path, or (b) a crash (config error, dependency resolution, runner OOM). Inspect the artifact attached to the workflow run to distinguish. Workflow run: $RUN_URL" \
             --label "test,priority/P2"
 
       - name: Fail job if Stryker failed

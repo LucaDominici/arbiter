@@ -2,6 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFile } from './fs.js'
+import { getLogger } from './logger.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import {
   type ArbiterConfigV2,
@@ -53,7 +54,7 @@ export function writeSnapshot(dir: string, config: ArbiterConfig): void {
  *
  * Behavior:
  *   - Missing file → null (legitimate, never raises).
- *   - Unreadable JSON → null + console.warn (don't crash arbiter on garbage).
+ *   - Unreadable JSON → null + logger.warn (don't crash arbiter on garbage).
  *   - v0 (pre-envelope) snapshot → auto-migrated through config migrate(),
  *     returned without persisting (callers re-persist on next write).
  *   - v1 envelope with mismatched checksum → THROWS SnapshotChecksumError
@@ -69,9 +70,10 @@ export function loadSnapshot(dir: string): ArbiterConfig | null {
     raw = JSON.parse(readFileSync(path, 'utf-8'))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(
-      `[arbiter] ${SNAPSHOT_FILE} at ${path} is unreadable (${msg}) — ` +
-        `delete the file to regenerate on next 'arbiter update'`,
+    getLogger().warn(
+      'config.snapshot_unreadable',
+      { path, file: SNAPSHOT_FILE, err: msg },
+      `${SNAPSHOT_FILE} at ${path} is unreadable (${msg}) — delete the file to regenerate on next 'arbiter update'`,
     )
     return null
   }
@@ -86,8 +88,10 @@ export function loadSnapshot(dir: string): ArbiterConfig | null {
   } catch (err) {
     if (err instanceof SnapshotChecksumError) throw err
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(
-      `[arbiter] ${SNAPSHOT_FILE} at ${path} failed envelope check (${msg}) — skipping snapshot`,
+    getLogger().warn(
+      'config.snapshot_envelope_failed',
+      { path, file: SNAPSHOT_FILE, err: msg },
+      `${SNAPSHOT_FILE} at ${path} failed envelope check (${msg}) — skipping snapshot`,
     )
     return null
   }
@@ -95,8 +99,10 @@ export function loadSnapshot(dir: string): ArbiterConfig | null {
     return migrate(inner)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn(
-      `[arbiter] ${SNAPSHOT_FILE} at ${path} failed config migration (${msg}) — skipping snapshot`,
+    getLogger().warn(
+      'config.snapshot_migration_failed',
+      { path, file: SNAPSHOT_FILE, err: msg },
+      `${SNAPSHOT_FILE} at ${path} failed config migration (${msg}) — skipping snapshot`,
     )
     return null
   }

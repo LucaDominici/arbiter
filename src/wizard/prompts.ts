@@ -156,18 +156,18 @@ export function buildMigrationPlan(
 }
 
 function displayMigrationPlan(plan: MigrationPlan): void {
-  console.log(t('cli.wizard.migration_plan'))
+  process.stdout.write(`${t('cli.wizard.migration_plan')}\n`)
   for (const entry of plan.replaced) {
-    console.log(t('cli.wizard.replace_entry', { entry }))
+    process.stdout.write(`${t('cli.wizard.replace_entry', { entry })}\n`)
   }
   for (const entry of plan.merged) {
-    console.log(t('cli.wizard.merge_entry', { entry }))
+    process.stdout.write(`${t('cli.wizard.merge_entry', { entry })}\n`)
   }
   for (const entry of plan.preserved) {
-    console.log(t('cli.wizard.preserve_entry', { entry }))
+    process.stdout.write(`${t('cli.wizard.preserve_entry', { entry })}\n`)
   }
   for (const entry of plan.created) {
-    console.log(t('cli.wizard.create_entry', { entry }))
+    process.stdout.write(`${t('cli.wizard.create_entry', { entry })}\n`)
   }
 }
 
@@ -189,18 +189,30 @@ async function promptConfirm(message: string): Promise<boolean> {
 
 function printFlowPreamble(wizardInput: WizardInput, flow: WizardFlow): void {
   if (flow !== 'brownfield') return
-  console.log(t('cli.wizard.existing_governance'))
-  if (wizardInput.existing.agentsMd) console.log(t('cli.wizard.existing_agents_md'))
-  if (wizardInput.existing.claudeDir) console.log(t('cli.wizard.existing_claude_dir'))
-  if (wizardInput.existing.agentsDir) console.log(t('cli.wizard.existing_agents_dir'))
-  if (wizardInput.existing.geminiDir) console.log(t('cli.wizard.existing_gemini_dir'))
-  if (wizardInput.existing.windsurfRules) console.log(t('cli.wizard.existing_windsurf'))
-  if (wizardInput.existing.aiderConf) console.log(t('cli.wizard.existing_aider'))
-  console.log()
+  process.stdout.write(`${t('cli.wizard.existing_governance')}\n`)
+  if (wizardInput.existing.agentsMd) {
+    process.stdout.write(`${t('cli.wizard.existing_agents_md')}\n`)
+  }
+  if (wizardInput.existing.claudeDir) {
+    process.stdout.write(`${t('cli.wizard.existing_claude_dir')}\n`)
+  }
+  if (wizardInput.existing.agentsDir) {
+    process.stdout.write(`${t('cli.wizard.existing_agents_dir')}\n`)
+  }
+  if (wizardInput.existing.geminiDir) {
+    process.stdout.write(`${t('cli.wizard.existing_gemini_dir')}\n`)
+  }
+  if (wizardInput.existing.windsurfRules) {
+    process.stdout.write(`${t('cli.wizard.existing_windsurf')}\n`)
+  }
+  if (wizardInput.existing.aiderConf) {
+    process.stdout.write(`${t('cli.wizard.existing_aider')}\n`)
+  }
+  process.stdout.write('\n')
 }
 
 export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig | null> {
-  console.log()
+  process.stdout.write('\n')
 
   const flow = determineFlow(wizardInput.existing)
   printFlowPreamble(wizardInput, flow)
@@ -227,12 +239,12 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
       )
       displayMigrationPlan(plan)
     } else {
-      console.log(t('cli.wizard.tools_header', { tools: tools.join(', ') }))
+      process.stdout.write(`${t('cli.wizard.tools_header', { tools: tools.join(', ') })}\n`)
     }
 
     const confirmMsg = flow === 'brownfield' ? 'Proceed with migration?' : 'Proceed?'
     if (!(await promptConfirm(confirmMsg))) {
-      console.log(t('cli.wizard.cancelled'))
+      process.stdout.write(`${t('cli.wizard.cancelled')}\n`)
       return null
     }
 
@@ -241,7 +253,7 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
     if (isUserCancellation(err)) {
       cleanupInFlightTmpFiles()
       // TODO(#614): release L4 file lock here once lock infra lands
-      console.log(t('cli.wizard.aborted'))
+      process.stdout.write(`${t('cli.wizard.aborted')}\n`)
       process.exitCode = 130
       return null
     }
@@ -509,10 +521,10 @@ function buildGithubChoice(access: GithubAccess): object[] {
     return []
   }
   if (!access.authenticated) {
-    console.log(
-      t('cli.wizard.gh_access_note', {
+    process.stdout.write(
+      `${t('cli.wizard.gh_access_note', {
         message: access.error ?? 'gh not authenticated — GitHub assets skipped',
-      }),
+      })}\n`,
     )
     return []
   }

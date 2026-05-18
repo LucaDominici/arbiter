@@ -234,6 +234,64 @@ describe('runBuildProbe — command succeeds → passed', () => {
       expect.objectContaining({ cwd: '/some/dir' }),
     )
   })
+
+  // ── #855 — exit 0 with compiler errors on stderr is NOT a success ─────────
+
+  it('fails when exit 0 but stderr contains TS compiler error (#855)', () => {
+    mockExistsSync.mockReturnValue(true)
+    mockRunCli.mockReturnValue({
+      stdout: '',
+      stderr: 'src/foo.ts(12,5): error TS2322: Type X is not assignable to Y.',
+      exitCode: 0,
+      durationMs: 100,
+    })
+    const result = runBuildProbe('/some/dir', {
+      name: 'tsc:noEmit',
+      command: 'tsc',
+      args: ['--noEmit'],
+      requires: 'tsconfig.json',
+    })
+    expect(result.status).toBe('failed')
+    expect(result.reason).toContain('compiler errors')
+    expect(result.reason).toContain('TS2322')
+  })
+
+  it('fails when exit 0 but stderr contains generic "error:" marker (#855)', () => {
+    mockExistsSync.mockReturnValue(true)
+    mockRunCli.mockReturnValue({
+      stdout: '',
+      stderr: 'error[E0277]: trait bound not satisfied',
+      exitCode: 0,
+      durationMs: 100,
+    })
+    const result = runBuildProbe('/some/dir', {
+      name: 'cargo:check',
+      command: 'cargo',
+      args: ['check'],
+      requires: 'Cargo.toml',
+    })
+    expect(result.status).toBe('failed')
+    expect(result.reason).toContain('compiler errors')
+  })
+
+  it('passes with stderr-warning trail when exit 0 + stderr non-empty + no error marker (#855)', () => {
+    mockExistsSync.mockReturnValue(true)
+    mockRunCli.mockReturnValue({
+      stdout: '',
+      stderr: 'warning: deprecation notice',
+      exitCode: 0,
+      durationMs: 100,
+    })
+    const result = runBuildProbe('/some/dir', {
+      name: 'gradlew:help',
+      command: './gradlew',
+      args: ['help'],
+      requires: 'gradlew',
+    })
+    expect(result.status).toBe('passed')
+    expect(result.reason).toContain('stderr warnings')
+    expect(result.reason).toContain('deprecation')
+  })
 })
 
 describe('runBuildProbe — CliError → failed', () => {

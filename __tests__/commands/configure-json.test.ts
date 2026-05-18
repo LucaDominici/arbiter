@@ -84,11 +84,11 @@ describe('configure --json', () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     runConfigure({ sets: ['useGitHub=false'], json: false })
 
-    expect(written).toBe('')
-    consoleSpy.mockRestore()
+    // Human mode emits text to stdout via process.stdout.write (#820), but
+    // must NOT emit a JSON envelope. Assert the captured text is not JSON.
+    expect(written.trim().startsWith('{')).toBe(false)
   })
 
   it('emits JSON error envelope on empty --set with --json (BLOCKER-9)', () => {

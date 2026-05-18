@@ -13,6 +13,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['./vitest.setup.ts'],
     // Integration tests are L2+ per AGENTS.md gate policy; L1 unit-only keeps pre-commit fast.
     include: ['__tests__/**/*.test.ts'],
     exclude: ['**/node_modules/**', '__tests__/integration/**'],

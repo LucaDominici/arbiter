@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { getLogger } from '../utils/logger.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
@@ -222,7 +223,11 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
   // #287: warn and skip on unknown contractType — throw is swallowed by safeRun; use warn+skip instead
   const handler = dispatchers[config.contractType]
   if (!handler) {
-    console.warn(`[contract-testing] Unknown contractType: ${config.contractType} — skipping`)
+    getLogger().warn(
+      'contract_testing.unknown_contract_type',
+      { contract_type: config.contractType },
+      `Unknown contractType: ${config.contractType} — skipping`,
+    )
     return { files: [] }
   }
 

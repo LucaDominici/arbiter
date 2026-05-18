@@ -225,3 +225,109 @@ describe('brownfield safety integration (#540)', () => {
     expect(backupContent).toBe(originalContent)
   }, 15000)
 })
+
+// ── Multi-stack round-trip (#800) ────────────────────────────────────────────
+
+const NON_NODE_FIXTURES = [
+  { name: 'python (FastAPI)', dir: 'brownfield-real-python' },
+  { name: 'go (stdlib HTTP)', dir: 'brownfield-real-go' },
+] as const
+
+describe.each(NON_NODE_FIXTURES)(
+  'brownfield safety integration — $name fixture (#800)',
+  ({ dir: fixtureDir }) => {
+    let dir: string
+    const fixturePath = new URL(`../fixtures/${fixtureDir}`, import.meta.url).pathname
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'arbiter-bfmulti-'))
+      copyDir(fixturePath, dir)
+      initCommittedGit(dir)
+      vi.spyOn(console, 'log').mockReturnValue(undefined)
+      vi.spyOn(console, 'warn').mockReturnValue(undefined)
+      vi.spyOn(console, 'error').mockReturnValue(undefined)
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+      rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('backs up existing AGENTS.md and generates a new one (round-trip)', async () => {
+      const { readFileSync } = await import('node:fs')
+      const originalContent = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+
+      await runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L2',
+        dir,
+        dryRun: false,
+        brownfield: true,
+        noVerify: true,
+      })
+
+      expect(existsSync(join(dir, 'AGENTS.md.arbiter-backup'))).toBe(true)
+      expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true)
+      const backupContent = readFileSync(join(dir, 'AGENTS.md.arbiter-backup'), 'utf-8')
+      expect(backupContent).toBe(originalContent)
+    }, 15000)
+
+    it('preserves stack-native source files untouched', async () => {
+      const { readFileSync, readdirSync } = await import('node:fs')
+      // Snapshot every fixture file (relative path → content) before init.
+      const snapshot = new Map<string, string>()
+      function walk(rel: string): void {
+        const abs = join(dir, rel)
+        for (const entry of readdirSync(abs, { withFileTypes: true })) {
+          const childRel = rel ? `${rel}/${entry.name}` : entry.name
+          if (entry.isDirectory()) {
+            // Skip arbiter-managed dirs (created during init)
+            if (entry.name === '.git' || entry.name === '.arbiter' || entry.name === '.claude') {
+              continue
+            }
+            walk(childRel)
+          } else if (
+            // Source files; AGENTS.md is the brownfield-conflict case asserted above
+            entry.name !== 'AGENTS.md' &&
+            entry.name !== 'AGENTS.md.arbiter-backup'
+          ) {
+            snapshot.set(childRel, readFileSync(join(dir, childRel), 'utf-8'))
+          }
+        }
+      }
+      walk('')
+
+      await runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L2',
+        dir,
+        dryRun: false,
+        brownfield: true,
+        noVerify: true,
+      })
+
+      for (const [rel, originalContent] of snapshot) {
+        const afterContent = readFileSync(join(dir, rel), 'utf-8')
+        expect(afterContent, `source file ${rel} must not be modified by brownfield init`).toBe(
+          originalContent,
+        )
+      }
+    }, 15000)
+
+    it('generates .claude/CLAUDE.md alongside non-Node sources', async () => {
+      await runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L2',
+        dir,
+        dryRun: false,
+        brownfield: true,
+        noVerify: true,
+      })
+
+      expect(existsSync(join(dir, '.claude', 'CLAUDE.md'))).toBe(true)
+    }, 15000)
+  },
+)

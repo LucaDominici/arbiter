@@ -1132,11 +1132,32 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'code review / manual',
   },
 
-  // ─── GitHub CI Tier Invariants (INV-72..INV-80) ──────────────────────────────
+  {
+    id: 'INV-72',
+    tier: 'governance',
+    title: 'File-lock semantics — process-bound exclusive lock with bootId + pid + cmd',
+    description:
+      'Long-running commands that mutate `.arbiter/` MUST acquire `.arbiter/.lock` ' +
+      'via `src/utils/file-lock.ts` (acquireLock) before any state mutation, ' +
+      'and release it on completion or crash. The lock records pid, hostname, ' +
+      'bootId, cmd, startedAt, and a nonce. A lock is considered stale only ' +
+      'when same-host AND (pid not alive OR age > 1h). Cross-host coordination ' +
+      'is out of scope. Force-release MUST go through `forceReleaseLock` which ' +
+      'verifies the path is within the project root, refuses symlinks, and ' +
+      'requires a matching expectedPid. Bypassing the lock (direct unlink, ' +
+      'parallel mutators, ignoring the stale signal) corrupts the project ' +
+      'snapshot and the file-stability log. Stale locks are surfaced by ' +
+      '`doctor health` and auto-released by `doctor health --repair` (#824).',
+    alwaysActive: true,
+    selfOnly: true,
+    enforcement: 'doctor health check + code review for any new `.arbiter/` mutator',
+  },
+
+  // ─── GitHub CI Tier Invariants (INV-73..INV-81) ──────────────────────────────
   // Applies when useGitHub: true. Generated gate scripts enforce at L1/L2.
 
   {
-    id: 'INV-72',
+    id: 'INV-73',
     tier: 'operational',
     title: 'CI tier presence — all 7 workflow files must exist under .github/workflows/',
     description:
@@ -1149,7 +1170,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-73',
+    id: 'INV-74',
     tier: 'security',
     title: 'Anti-bot human-approval gate — reviewer must be a human distinct from the PR author',
     description:
@@ -1163,7 +1184,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-74',
+    id: 'INV-75',
     tier: 'operational',
     title: 'Heartbeat watchdog — T4 nightly must have run within 26 h, T5 weekly within 8 d',
     description:
@@ -1176,7 +1197,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-75',
+    id: 'INV-76',
     tier: 'security',
     title:
       'SHA-pinned actions only — all third-party GitHub Actions must be pinned to a full 40-char SHA',
@@ -1190,7 +1211,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-76',
+    id: 'INV-77',
     tier: 'security',
     title:
       'Top-level workflow permissions — every workflow file must declare explicit top-level permissions',
@@ -1203,7 +1224,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-77',
+    id: 'INV-78',
     tier: 'security',
     title: 'SLSA provenance present at T3 — release workflow must emit signed build provenance',
     description:
@@ -1217,7 +1238,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-78',
+    id: 'INV-79',
     tier: 'security',
     title: 'Cosign sign-blob present for every release artifact',
     description:
@@ -1231,7 +1252,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-79',
+    id: 'INV-80',
     tier: 'operational',
     title: 'No continue-on-error on test or build steps — failures must propagate immediately',
     description:
@@ -1244,7 +1265,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
-    id: 'INV-80',
+    id: 'INV-81',
     tier: 'operational',
     title:
       'Tier-hash local↔CI parity — check-all.mjs subcommand hashes must match CI workflow steps',

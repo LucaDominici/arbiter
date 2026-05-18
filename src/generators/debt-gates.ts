@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { getLogger } from '../utils/logger.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -16,7 +17,11 @@ function injectTestScripts(targetDir: string): void {
   try {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
   } catch (err) {
-    console.warn('[injectTestScripts] failed to parse package.json:', err)
+    getLogger().warn(
+      'debt_gates.inject_test_scripts_parse_failed',
+      { path: pkgPath, err: String(err) },
+      'injectTestScripts: failed to parse package.json',
+    )
     return
   }
   const scripts = (pkg.scripts ?? {}) as Record<string, string>
@@ -46,7 +51,11 @@ function injectDepCruiserPackageJson(targetDir: string): void {
   try {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
   } catch (err) {
-    console.warn('[injectDepCruiserPackageJson] failed to parse package.json:', err)
+    getLogger().warn(
+      'debt_gates.inject_depcruiser_parse_failed',
+      { path: pkgPath, err: String(err) },
+      'injectDepCruiserPackageJson: failed to parse package.json',
+    )
     return
   }
   const scripts = (pkg.scripts ?? {}) as Record<string, string>
