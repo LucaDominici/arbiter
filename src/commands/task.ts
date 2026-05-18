@@ -7,6 +7,24 @@ import { sanitizeTaskId } from '../review/dispatch.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
+import { detectHostCapabilities } from '../capabilities/host-probe.js'
+import { assertImplBudget } from '../cost/budget.js'
+import { recordPhaseCost } from '../cost/recorder.js'
+import { readTranscriptCosts } from '../cost/transcript-reader.js'
+
+export class HandoffRequiredError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'HandoffRequiredError'
+  }
+}
+
+export class BudgetBreachError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'BudgetBreachError'
+  }
+}
 
 export type TaskPhase =
   | 'preflight'
@@ -19,9 +37,16 @@ export type TaskPhase =
   | 'verification'
   | 'complete'
 
+export type HandoffStrategy = 'interactive' | 'inline' | null
+
 export interface TaskStatusExtras {
   task?: string
   branch?: string
+  handoffStrategy?: HandoffStrategy
+  planningHandoffReady?: string
+  postClearResumed?: string
+  hostCapabilities?: { modelSwitch: boolean; transcriptAvailable: boolean }
+  cost?: { byPhase: Record<string, { in: number; out: number; samples: number }> }
   [key: string]: unknown
 }
 
@@ -31,6 +56,11 @@ export interface TaskStatus {
   runId: string
   gateDecisions: string[]
   branch?: string
+  handoffStrategy?: HandoffStrategy
+  planningHandoffReady?: string
+  postClearResumed?: string
+  hostCapabilities?: { modelSwitch: boolean; transcriptAvailable: boolean }
+  cost?: { byPhase: Record<string, { in: number; out: number; samples: number }> }
   [key: string]: unknown
 }
 
@@ -91,6 +121,10 @@ export interface TaskAdvanceOptions {
   reverse?: boolean
   /** Bypass the plan-review gate when target is red. Writes an audit record. */
   skipPlanReview?: boolean
+  /** Signal that this invocation is post-/clear (equivalent to ARBITER_POST_CLEAR=1). */
+  postClear?: boolean
+  /** Skip the budget assertion on post-clear re-entry (writes warning). */
+  skipBudget?: boolean
 }
 
 function isValidPhase(s: string): s is TaskPhase {
@@ -457,9 +491,13 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     }
   }
 
+  const PLANNING_PHASES: ReadonlySet<TaskPhase> = new Set(['red-team-review', 'red-team-rework'])
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
     red: () => {
       checkPlanReviewGate(dir, claudeDir, opts)
+      if (PLANNING_PHASES.has(current)) {
+        checkHandoffGate(dir, claudeDir, opts)
+      }
     },
     green: () => {
       checkTddEvidenceGate(dir, claudeDir)
@@ -513,4 +551,110 @@ function checkTddEvidenceGate(dir: string, claudeDir: string): void {
   }
 
   void claudeDir
+}
+
+function runBudgetCheck(rawId: string, dir: string, opts: TaskAdvanceOptions): void {
+  const skipBudget = opts.skipBudget === true || process.env['ARBITER_COST_BUDGET_SKIP'] === '1'
+  if (skipBudget) return
+  const costEvidencePath = join(dir, '.arbiter', 'evidence', 'cost', `${rawId}.json`)
+  try {
+    const report = JSON.parse(readFileSync(costEvidencePath, 'utf-8')) as Parameters<
+      typeof assertImplBudget
+    >[0]
+    const budgetResult = assertImplBudget(report)
+    if (!budgetResult.ok) {
+      throw new BudgetBreachError(
+        budgetResult.reason ??
+          'Budget assertion failed. Use ARBITER_COST_BUDGET_SKIP=1 to override.',
+      )
+    }
+    if (budgetResult.reason) {
+      process.stderr.write(`[arbiter] ${budgetResult.reason}\n`)
+    }
+  } catch (err) {
+    if (err instanceof BudgetBreachError) throw err
+    const code = (err as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT') {
+      throw new Error(
+        `runBudgetCheck: unexpected error reading cost evidence at ${costEvidencePath}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
+    process.stderr.write('[arbiter] warn: cost evidence not found — budget assertion skipped\n')
+  }
+}
+
+function handlePostClearReEntry(
+  rawId: string,
+  taskDir: string,
+  dir: string,
+  opts: TaskAdvanceOptions,
+): void {
+  let existing: Partial<TaskStatus> = {}
+  try {
+    existing = JSON.parse(
+      readFileSync(join(taskDir, 'status.json'), 'utf-8'),
+    ) as Partial<TaskStatus>
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `checkHandoffGate: failed to read status at ${join(taskDir, 'status.json')}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
+  }
+  if (existing.postClearResumed === undefined) {
+    const caps = detectHostCapabilities()
+    const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
+    const costs = caps.transcriptPath
+      ? readTranscriptCosts(caps.transcriptPath, sinceISO)
+      : { input: 0, output: 0, samples: 0 }
+    recordPhaseCost(
+      rawId,
+      'red',
+      { in: costs.input, out: costs.output, samples: costs.samples },
+      dir,
+    )
+    runBudgetCheck(rawId, dir, opts)
+    writeTaskStatus({
+      taskDir,
+      phase: 'red',
+      extras: { ...existing, postClearResumed: new Date().toISOString() },
+    })
+  }
+}
+
+function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
+  const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
+  const sanit = sanitizeTaskId(rawId)
+  const taskDir = join(claudeDir, '.task-' + sanit)
+  mkdirSync(taskDir, { recursive: true })
+
+  const isPostClear = opts.postClear === true || process.env['ARBITER_POST_CLEAR'] === '1'
+
+  if (isPostClear) {
+    handlePostClearReEntry(rawId, taskDir, dir, opts)
+    return
+  }
+
+  const caps = detectHostCapabilities()
+  if (!caps.modelSwitch) {
+    writeTaskStatus({ taskDir, phase: 'red', extras: { handoffStrategy: 'inline' } })
+    return
+  }
+
+  writeTaskStatus({
+    taskDir,
+    phase: 'red',
+    extras: {
+      handoffStrategy: 'interactive',
+      planningHandoffReady: new Date().toISOString(),
+    },
+  })
+  writeFileSync(join(claudeDir, '.task-handoff-ready'), '', 'utf-8')
+  throw new HandoffRequiredError(
+    'Plan complete. Run `/clear`, then re-invoke `/task #' +
+      rawId.replace(/^#/, '') +
+      '` (it will resume from disk).',
+  )
 }

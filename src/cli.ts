@@ -16,7 +16,13 @@ import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
 import { runPluginAdd, runPluginRemove, runPluginList, runPluginInit } from './commands/plugin.js'
-import { runTaskAdvance, runTaskRecover, runTaskResume } from './commands/task.js'
+import {
+  runTaskAdvance,
+  runTaskRecover,
+  runTaskResume,
+  HandoffRequiredError,
+  BudgetBreachError,
+} from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
@@ -977,14 +983,43 @@ task
     'Bypass the plan-review gate (writes audit record + WARNING)',
     false,
   )
-  .action((opts: { to: string; reverse: boolean; dir?: string; skipPlanReview: boolean }) => {
-    runTaskAdvance({
-      to: opts.to as TaskPhase,
-      reverse: opts.reverse,
-      skipPlanReview: opts.skipPlanReview,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-  })
+  .option('--post-clear', 'Signal post-/clear re-entry (equivalent to ARBITER_POST_CLEAR=1)', false)
+  .option(
+    '--skip-budget',
+    'Skip the token budget assertion on post-clear re-entry (writes warning)',
+    false,
+  )
+  .action(
+    (opts: {
+      to: string
+      reverse: boolean
+      dir?: string
+      skipPlanReview: boolean
+      postClear: boolean
+      skipBudget: boolean
+    }) => {
+      try {
+        runTaskAdvance({
+          to: opts.to as TaskPhase,
+          reverse: opts.reverse,
+          skipPlanReview: opts.skipPlanReview,
+          postClear: opts.postClear,
+          skipBudget: opts.skipBudget,
+          ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        })
+      } catch (err) {
+        if (err instanceof HandoffRequiredError) {
+          process.stderr.write(err.message + '\n')
+          process.exit(78)
+        }
+        if (err instanceof BudgetBreachError) {
+          process.stderr.write(err.message + '\n')
+          process.exit(79)
+        }
+        throw err
+      }
+    },
+  )
 
 task
   .command('recover')

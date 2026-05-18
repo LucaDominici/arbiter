@@ -40,6 +40,30 @@ if (state.taskId && state.taskId !== 'unknown') {
   }
 }
 
+let costBlock = '';
+if (state.taskId && state.taskId !== 'unknown') {
+  const costPath = join(root, '.arbiter', 'evidence', 'cost', `${state.taskId}.json`);
+  if (existsSync(costPath)) {
+    try {
+      const raw = readFileSync(costPath, 'utf-8');
+      const report = JSON.parse(raw);
+      const lines = [`\n━━━ COST EVIDENCE (flushed pre-compaction) ━━━`];
+      for (const [phase, data] of Object.entries(report.byPhase ?? {})) {
+        lines.push(
+          `  ${phase}: in=${data?.in ?? 'N/A'} out=${data?.out ?? 'N/A'} samples=${data?.samples ?? 'N/A'}`,
+        );
+      }
+      if (report.totals) {
+        lines.push(`  totals: in=${report.totals?.in ?? 'N/A'} out=${report.totals?.out ?? 'N/A'}`);
+      }
+      lines.push(`━━━ END COST EVIDENCE ━━━\n`);
+      costBlock = lines.join('\n');
+    } catch {
+      // best-effort — never block compaction on a cost read failure
+    }
+  }
+}
+
 process.stdout.write(
   `━━━ SESSION STATE (preserved across compaction) ━━━\n` +
     `Branch : ${branch}\n` +
@@ -49,6 +73,7 @@ process.stdout.write(
     `Plan   : ${state.plan}\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
     backlogBlock +
+    costBlock +
     `IMPORTANT: Context was compacted. Resume work from the phase/step above.\n` +
     `Re-read AGENTS.md if branch/task/phase are "unknown".\n`,
 );
