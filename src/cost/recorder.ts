@@ -28,8 +28,13 @@ export function recordPhaseCost(
   let report: CostReport = { taskId, byPhase: {}, totals: { in: 0, out: 0, samples: 0 } }
   try {
     report = JSON.parse(readFileSync(target, 'utf-8')) as CostReport
-  } catch {
-    // First write — start fresh
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `recordPhaseCost: failed to read existing cost report at ${target}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
   }
 
   const existing = report.byPhase[phase] ?? { in: 0, out: 0, samples: 0 }

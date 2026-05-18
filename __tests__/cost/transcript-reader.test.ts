@@ -89,6 +89,24 @@ describe('readTranscriptCosts (#703)', () => {
     expect(result.input).toBe(50)
   })
 
+  it('skips malformed line and accumulates valid lines before and after it', () => {
+    const valid1 = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-05-18T10:00:00.000Z',
+      message: { usage: { input_tokens: 100, output_tokens: 20 } },
+    })
+    const valid2 = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-05-18T10:02:00.000Z',
+      message: { usage: { input_tokens: 200, output_tokens: 40 } },
+    })
+    const path = tmpFile([valid1, 'CORRUPT_JSON', valid2])
+    const result = readTranscriptCosts(path, '2026-05-18T09:00:00.000Z')
+    expect(result.samples).toBe(2)
+    expect(result.input).toBe(300)
+    expect(result.output).toBe(60)
+  })
+
   it('returned object never contains PII fields', () => {
     const line = JSON.stringify({
       type: 'assistant',

@@ -57,6 +57,17 @@ describe('assertImplBudget (#703)', () => {
     expect(result.ok).toBe(false)
   })
 
+  it('returns ok=true (warn-only) when byPhase is empty', () => {
+    const empty = {
+      taskId: '#703',
+      byPhase: {},
+      totals: { in: 0, out: 0, samples: 0 },
+    }
+    const result = assertImplBudget(empty, 1)
+    expect(result.ok).toBe(true)
+    expect(result.reason).toMatch(/warn|no.*sample|transcript/i)
+  })
+
   it('default threshold is 50_000', () => {
     const under = {
       ...BASE_REPORT,

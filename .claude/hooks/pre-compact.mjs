@@ -43,10 +43,12 @@ if (state.taskId && state.taskId !== 'unknown') {
       const report = JSON.parse(raw)
       const lines = [`\n━━━ COST EVIDENCE (flushed pre-compaction) ━━━`]
       for (const [phase, data] of Object.entries(report.byPhase ?? {})) {
-        lines.push(`  ${phase}: in=${data.in} out=${data.out} samples=${data.samples}`)
+        lines.push(
+          `  ${phase}: in=${data?.in ?? 'N/A'} out=${data?.out ?? 'N/A'} samples=${data?.samples ?? 'N/A'}`,
+        )
       }
       if (report.totals) {
-        lines.push(`  totals: in=${report.totals.in} out=${report.totals.out}`)
+        lines.push(`  totals: in=${report.totals?.in ?? 'N/A'} out=${report.totals?.out ?? 'N/A'}`)
       }
       lines.push(`━━━ END COST EVIDENCE ━━━\n`)
       costBlock = lines.join('\n')

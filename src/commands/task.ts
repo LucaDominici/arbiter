@@ -573,6 +573,13 @@ function runBudgetCheck(rawId: string, dir: string, opts: TaskAdvanceOptions): v
     }
   } catch (err) {
     if (err instanceof BudgetBreachError) throw err
+    const code = (err as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT') {
+      throw new Error(
+        `runBudgetCheck: unexpected error reading cost evidence at ${costEvidencePath}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
     process.stderr.write('[arbiter] warn: cost evidence not found — budget assertion skipped\n')
   }
 }
@@ -591,8 +598,13 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
       existing = JSON.parse(
         readFileSync(join(taskDir, 'status.json'), 'utf-8'),
       ) as Partial<TaskStatus>
-    } catch {
-      // No existing status — proceed without setting postClearResumed
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw new Error(
+          `checkHandoffGate: failed to read status at ${join(taskDir, 'status.json')}: ${err instanceof Error ? err.message : String(err)}`,
+          { cause: err },
+        )
+      }
     }
     if (existing.postClearResumed === undefined) {
       writeTaskStatus({
@@ -600,21 +612,21 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
         phase: 'red',
         extras: { ...existing, postClearResumed: new Date().toISOString() },
       })
+
+      const caps = detectHostCapabilities()
+      const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
+      const costs = caps.transcriptPath
+        ? readTranscriptCosts(caps.transcriptPath, sinceISO)
+        : { input: 0, output: 0, samples: 0 }
+      recordPhaseCost(
+        rawId,
+        'red',
+        { in: costs.input, out: costs.output, samples: costs.samples },
+        dir,
+      )
+
+      runBudgetCheck(rawId, dir, opts)
     }
-
-    const caps = detectHostCapabilities()
-    const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
-    const costs = caps.transcriptPath
-      ? readTranscriptCosts(caps.transcriptPath, sinceISO)
-      : { input: 0, output: 0, samples: 0 }
-    recordPhaseCost(
-      rawId,
-      'red',
-      { in: costs.input, out: costs.output, samples: costs.samples },
-      dir,
-    )
-
-    runBudgetCheck(rawId, dir, opts)
     return
   }
 

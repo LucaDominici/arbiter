@@ -41,7 +41,10 @@ export function detectHostCapabilities(): HostCapabilities {
       transcriptPath: findTranscriptPath(),
       exitPlanModeTool: modelSwitch,
     }
-  } catch {
+  } catch (err: unknown) {
+    process.stderr.write(
+      `[arbiter] warn: detectHostCapabilities threw unexpectedly: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
     return { modelSwitch: false, transcriptPath: null, exitPlanModeTool: false }
   }
 }

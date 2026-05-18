@@ -107,8 +107,9 @@ describe('task advance --to red: handoff gate (#703)', () => {
     expect(typeof status.postClearResumed).toBe('string')
   })
 
-  it('re-entry is idempotent (second call with post-clear does not re-set postClearResumed)', () => {
+  it('re-entry is idempotent (second call via checkHandoffGate does not overwrite postClearResumed)', () => {
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
+    // Keep phase as red-team-review so advance actually reaches checkHandoffGate
     const dir = tmpRepo('red-team-review')
     const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
     const firstResumed = '2026-05-18T10:05:00.000Z'
@@ -120,8 +121,6 @@ describe('task advance --to red: handoff gate (#703)', () => {
       }),
       'utf-8',
     )
-    // Phase is already red — advance is a no-op
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'red\n', 'utf-8')
     runTaskAdvance({ to: 'red', dir })
     const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as { postClearResumed: string }
     expect(status.postClearResumed).toBe(firstResumed)

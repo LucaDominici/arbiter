@@ -34,7 +34,7 @@ export function readTranscriptCosts(transcriptPath: string, sinceISO: string): T
       try {
         parsed = JSON.parse(line) as TranscriptLine
       } catch {
-        return { input: 0, output: 0, samples: 0 }
+        continue
       }
 
       if (parsed.type !== 'assistant') continue
