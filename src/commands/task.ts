@@ -19,9 +19,16 @@ export type TaskPhase =
   | 'verification'
   | 'complete'
 
+export type HandoffStrategy = 'interactive' | 'inline' | 'sub-agent' | null
+
 export interface TaskStatusExtras {
   task?: string
   branch?: string
+  handoffStrategy?: HandoffStrategy
+  planningHandoffReady?: string
+  postClearResumed?: string
+  hostCapabilities?: { modelSwitch: boolean; transcriptAvailable: boolean }
+  cost?: { byPhase: Record<string, { in: number; out: number; samples: number }> }
   [key: string]: unknown
 }
 
@@ -31,6 +38,11 @@ export interface TaskStatus {
   runId: string
   gateDecisions: string[]
   branch?: string
+  handoffStrategy?: HandoffStrategy
+  planningHandoffReady?: string
+  postClearResumed?: string
+  hostCapabilities?: { modelSwitch: boolean; transcriptAvailable: boolean }
+  cost?: { byPhase: Record<string, { in: number; out: number; samples: number }> }
   [key: string]: unknown
 }
 
