@@ -96,3 +96,125 @@ describe('apply-branch-protection.mjs.ejs rendering (CANON-04)', () => {
     expect(content).not.toContain('execSync')
   })
 })
+
+// ─── check-ci-tiers.mjs.ejs ──────────────────────────────────────────────────
+
+describe('check-ci-tiers.mjs.ejs rendering (CANON-04)', () => {
+  function renderTiers(overrides: Record<string, unknown> = {}) {
+    return renderTemplate(
+      'scripts/check-ci-tiers.mjs.ejs',
+      makeConfig('/tmp/test', overrides as Parameters<typeof makeConfig>[1]) as unknown as Record<
+        string,
+        unknown
+      >,
+    )
+  }
+
+  it('lists all 7 required tier filenames', () => {
+    const content = renderTiers({})
+    expect(content).toContain('01-pr-fast.yml')
+    expect(content).toContain('02-pr-extended.yml')
+    expect(content).toContain('03-human-approval.yml')
+    expect(content).toContain('05-release.yml')
+    expect(content).toContain('06-nightly.yml')
+    expect(content).toContain('07-weekly.yml')
+    expect(content).toContain('08-heartbeat.yml')
+  })
+
+  it('exits 0 when all tiers present (script text)', () => {
+    const content = renderTiers({})
+    expect(content).toContain('process.exit(0)')
+    expect(content).toContain('process.exit(1)')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTiers({ governanceLevel: level })
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── check-action-pins.mjs.ejs ───────────────────────────────────────────────
+
+describe('check-action-pins.mjs.ejs rendering (CANON-04)', () => {
+  function renderPins(overrides: Record<string, unknown> = {}) {
+    return renderTemplate(
+      'scripts/check-action-pins.mjs.ejs',
+      makeConfig('/tmp/test', overrides as Parameters<typeof makeConfig>[1]) as unknown as Record<
+        string,
+        unknown
+      >,
+    )
+  }
+
+  it('contains SHA_PATTERN for 40-char hex detection', () => {
+    const content = renderPins({})
+    expect(content).toContain('SHA_PATTERN')
+    expect(content).toContain('[0-9a-f]{40}')
+  })
+
+  it('L1: embeds L1 level and uses warning-only exit', () => {
+    const content = renderPins({ governanceLevel: 'L1' })
+    expect(content).toContain("LEVEL = 'L1'")
+    expect(content).toContain("LEVEL === 'L1'")
+  })
+
+  it('L2: embeds L2 level', () => {
+    const content = renderPins({ governanceLevel: 'L2' })
+    expect(content).toContain("LEVEL = 'L2'")
+  })
+
+  it('L3: embeds L3 level', () => {
+    const content = renderPins({ governanceLevel: 'L3' })
+    expect(content).toContain("LEVEL = 'L3'")
+  })
+
+  it('scans both workflows and actions directories', () => {
+    const content = renderPins({})
+    expect(content).toContain("'workflows'")
+    expect(content).toContain("'actions'")
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderPins({ governanceLevel: level })
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── check-workflow-perms.mjs.ejs ────────────────────────────────────────────
+
+describe('check-workflow-perms.mjs.ejs rendering (CANON-04)', () => {
+  function renderPerms(overrides: Record<string, unknown> = {}) {
+    return renderTemplate(
+      'scripts/check-workflow-perms.mjs.ejs',
+      makeConfig('/tmp/test', overrides as Parameters<typeof makeConfig>[1]) as unknown as Record<
+        string,
+        unknown
+      >,
+    )
+  }
+
+  it('checks for top-level permissions: declaration', () => {
+    const content = renderPerms({})
+    expect(content).toContain('permissions:')
+    expect(content).toContain('.github/workflows')
+  })
+
+  it('skips gracefully when no workflows directory', () => {
+    const content = renderPerms({})
+    expect(content).toContain('skipping')
+  })
+
+  it('exits 0 and 1 paths present', () => {
+    const content = renderPerms({})
+    expect(content).toContain('process.exit(0)')
+    expect(content).toContain('process.exit(1)')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderPerms({ governanceLevel: level })
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})

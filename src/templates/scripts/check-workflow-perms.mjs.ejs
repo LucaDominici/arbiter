@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+// <%= projectName %> — workflow top-level permissions gate (INV-76)
+// Gate: verify all .github/workflows/*.yml files declare top-level permissions.
+// Exits 0: all workflows pass.
+// Exits 1: one or more missing the top-level permissions declaration.
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+const CWD = process.cwd();
+const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');
+
+if (!existsSync(WORKFLOWS_DIR)) {
+  console.log('  check-workflow-perms: no .github/workflows directory — skipping');
+  process.exit(0);
+}
+
+const files = readdirSync(WORKFLOWS_DIR)
+  .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+  .map((f) => join(WORKFLOWS_DIR, f));
+
+const violations = [];
+for (const file of files) {
+  const content = readFileSync(file, 'utf-8');
+  // Top-level permissions key starts at column 0 (not indented)
+  if (!/^permissions:/m.test(content)) {
+    violations.push(file.replace(CWD + '/', ''));
+  }
+}
+
+if (violations.length === 0) {
+  console.log('  check-workflow-perms: all workflows declare top-level permissions');
+  process.exit(0);
+}
+
+console.log(`  check-workflow-perms: ${violations.length} workflow(s) missing top-level permissions:`);
+for (const f of violations) {
+  console.log(`    missing permissions: ${f}`);
+}
+process.exit(1);

@@ -41,5 +41,18 @@ export function generateGithubSetup(config: ProjectConfig): GithubSetupGenerator
   }
   files.push(bpResult)
 
+  for (const name of [
+    'check-ci-tiers.mjs',
+    'check-action-pins.mjs',
+    'check-workflow-perms.mjs',
+  ] as const) {
+    const scriptPath = resolvedPath(base, 'scripts', name)
+    const result = writeFile(scriptPath, renderTemplate(`scripts/${name}.ejs`, data))
+    if (result.action !== 'skipped') {
+      chmodSync(scriptPath, SCRIPT_MODE)
+    }
+    files.push(result)
+  }
+
   return { files }
 }
