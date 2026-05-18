@@ -50,10 +50,7 @@ export type KitOverlayCell = z.infer<typeof KitOverlayCellSchema>
 
 // ─── Derived per-stack cell (includes tool kind from matrix) ─────────────────
 
-export const DerivedCellSchema = z.union([
-  KitOverlayCellSchema,
-  z.object({ kind: z.literal('gap') }),
-])
+const DerivedCellSchema = z.union([KitOverlayCellSchema, z.object({ kind: z.literal('gap') })])
 
 export type DerivedCell = z.infer<typeof DerivedCellSchema>
 
@@ -62,7 +59,7 @@ export type DerivedCell = z.infer<typeof DerivedCellSchema>
 const VALID_STACKS = ['java', 'typescript', 'python', 'go', 'rust'] as const
 export type Stack = (typeof VALID_STACKS)[number]
 
-export const KitDimensionSchema = z.object({
+const KitDimensionSchema = z.object({
   id: z.string().regex(/^N(0[1-9]|[1-6]\d|7[0-6])$/, 'id must be N01..N76'),
   name: z.string().min(1),
   tml: z.enum(['L1', 'L2', 'L3']),
@@ -100,7 +97,7 @@ export type KitCategoryMap = z.infer<typeof KitCategoryMapSchema>
 
 // ─── Derived kit ─────────────────────────────────────────────────────────────
 
-export const DerivedKitDimSchema = KitDimensionSchema.extend({
+const DerivedKitDimSchema = KitDimensionSchema.extend({
   perStack: z.record(z.enum(VALID_STACKS), DerivedCellSchema),
 })
 export type DerivedKitDim = z.infer<typeof DerivedKitDimSchema>
@@ -143,6 +140,22 @@ export function normalizeMatrixCell(cell: string): string[] {
 
 // ─── deriveKit (pure function used in tests) ──────────────────────────────────
 
+function findMatrixCell(
+  matrixCategories: string[],
+  stack: string,
+  matrix: Record<string, Record<string, string>>,
+): DerivedCell | null {
+  for (const cat of matrixCategories) {
+    const raw = matrix[cat]?.[stack]
+    if (raw === undefined) continue
+    const tool = typeof raw === 'object' ? (raw as Record<string, string>).tool : raw
+    if (tool !== undefined && tool !== 'N/A') {
+      return { kind: 'tool', tool, matrixCategory: cat }
+    }
+  }
+  return null
+}
+
 export function deriveKit(
   catalog: KitCatalog,
   overlay: KitOverlay,
@@ -161,19 +174,7 @@ export function deriveKit(
         perStack[stack] = overlayCell
         continue
       }
-
-      let found: DerivedCell | null = null
-      for (const cat of matrixCategories) {
-        const raw = matrix[cat]?.[stack]
-        if (raw === undefined) continue
-        const tool = typeof raw === 'object' ? (raw as Record<string, string>).tool : raw
-        if (tool !== undefined && tool !== 'N/A') {
-          found = { kind: 'tool', tool, matrixCategory: cat }
-          break
-        }
-      }
-
-      perStack[stack] = found ?? { kind: 'gap' }
+      perStack[stack] = findMatrixCell(matrixCategories, stack, matrix) ?? { kind: 'gap' }
     }
 
     return { ...dim, perStack }

@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isEnabled } from '../experimental/index.js'
-import { DerivedKitSchema, type DerivedKit, type Stack } from '../kit/schema.js'
+import { DerivedKitSchema, type DerivedKit, type DerivedCell, type Stack } from '../kit/schema.js'
 import { toCsv } from '../kit/csv.js'
 
 const STACKS = ['java', 'typescript', 'python', 'go', 'rust'] as const
@@ -47,6 +47,15 @@ function assertKitEnabled(): void {
     )
     process.exit(1)
   }
+}
+
+function describeCellKind(cell: DerivedCell): string {
+  if (cell.kind === 'tool') return `tool: ${cell.tool} (via ${cell.matrixCategory})`
+  if (cell.kind === 'equivalent') return `equivalent: ${cell.arbiterSlot}`
+  if (cell.kind === 'na-by-archetype')
+    return `N/A by archetype (${(cell as { archetypes: string[] }).archetypes.join(', ')})`
+  if (cell.kind === 'na-by-paradigm') return 'N/A by paradigm'
+  return 'gap'
 }
 
 export type KitListFormat = 'table' | 'json' | 'csv'
@@ -139,19 +148,7 @@ export function runKitExplain(id: string): void {
 
   process.stdout.write(`\nPer-stack projection:\n`)
   for (const stack of STACKS) {
-    const cell = dim.perStack[stack]
-    let desc: string
-    if (cell.kind === 'tool') {
-      desc = `tool: ${cell.tool} (via ${cell.matrixCategory})`
-    } else if (cell.kind === 'equivalent') {
-      desc = `equivalent: ${cell.arbiterSlot}`
-    } else if (cell.kind === 'na-by-archetype') {
-      desc = `N/A by archetype (${(cell as { archetypes: string[] }).archetypes.join(', ')})`
-    } else if (cell.kind === 'na-by-paradigm') {
-      desc = 'N/A by paradigm'
-    } else {
-      desc = 'gap'
-    }
+    const desc = describeCellKind(dim.perStack[stack])
     process.stdout.write(`  ${stack.padEnd(12)} ${desc}\n`)
   }
   process.stdout.write('\n')
