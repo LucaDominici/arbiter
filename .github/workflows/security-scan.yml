@@ -20,8 +20,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      # continue-on-error removed (#867 C4) — gitleaks failures must block PR/merge,
+      # not silently advisory. .gitleaksignore covers documented false-positives.
       - name: Run gitleaks
-        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

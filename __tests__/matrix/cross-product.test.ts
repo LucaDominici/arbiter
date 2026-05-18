@@ -14,7 +14,6 @@ import {
 } from '../../src/invariants/filter.js'
 import { computeThresholds } from '../../src/config/thresholds.js'
 import { generateGlobalInvariants } from '../../src/generators/global-invariants.js'
-import { generateNightly } from '../../src/generators/nightly.js'
 import { generateContractTesting } from '../../src/generators/contract-testing.js'
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -1019,88 +1018,12 @@ describe('cross-product: check-all.mjs — mutation gate (proven=wired, beta/uns
   }
 })
 
-// ── M25: nightly pipeline & evidence harness cross-product assertions ─────────
-
-describe('cross-product: generateNightly — L3 emits nightly files per stack', () => {
-  const NIGHTLY_MUTATION_MARKERS: Partial<Record<Language, string>> = {
-    typescript: 'stryker',
-    java: 'pitest',
-    rust: 'mutants',
-    python: 'mutmut',
-  }
-
-  for (const lang of LANGUAGES) {
-    it(`${lang}+L3: generateNightly emits 4 files`, () => {
-      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
-      try {
-        const config = makeConfig(d, {
-          language: lang,
-          governanceLevel: 'L3',
-          acceptBetaTools: true,
-          ...STACK_CONFIG[lang],
-        })
-        const result = generateNightly(config)
-        expect(result.files).toHaveLength(4)
-        const paths = result.files.map((f) => f.path)
-        expect(paths.some((p) => p.endsWith('nightly.yml'))).toBe(true)
-        expect(paths.some((p) => p.endsWith('evidence-collect.mjs'))).toBe(true)
-        expect(paths.some((p) => p.endsWith('ci-classify-changes.mjs'))).toBe(true)
-        expect(paths.some((p) => p.endsWith('.gitkeep'))).toBe(true)
-      } finally {
-        rmSync(d, { recursive: true, force: true })
-      }
-    })
-
-    it(`${lang}+L1: generateNightly emits files at all governance levels`, () => {
-      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
-      try {
-        const config = makeConfig(d, {
-          language: lang,
-          governanceLevel: 'L1',
-          ...STACK_CONFIG[lang],
-        })
-        expect(generateNightly(config).files.length).toBeGreaterThan(0)
-      } finally {
-        rmSync(d, { recursive: true, force: true })
-      }
-    })
-
-    it(`${lang}+L2: generateNightly emits files at all governance levels`, () => {
-      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
-      try {
-        const config = makeConfig(d, {
-          language: lang,
-          governanceLevel: 'L2',
-          ...STACK_CONFIG[lang],
-        })
-        expect(generateNightly(config).files.length).toBeGreaterThan(0)
-      } finally {
-        rmSync(d, { recursive: true, force: true })
-      }
-    })
-  }
-
-  for (const [lang, marker] of Object.entries(NIGHTLY_MUTATION_MARKERS) as [Language, string][]) {
-    it(`${lang}+L3: nightly.yml contains mutation marker "${marker}"`, () => {
-      const d = mkdtempSync(join(tmpdir(), `arbiter-cp-nightly-${lang}-`))
-      try {
-        const config = makeConfig(d, {
-          language: lang,
-          governanceLevel: 'L3',
-          acceptBetaTools: true,
-          ...STACK_CONFIG[lang],
-        })
-        const result = generateNightly(config)
-        const f = result.files.find((f) => f.path.endsWith('nightly.yml'))
-        expect(f, 'nightly.yml not found').toBeDefined()
-        const content = readFileSync(f!.path, 'utf-8')
-        expect(content).toContain(marker)
-      } finally {
-        rmSync(d, { recursive: true, force: true })
-      }
-    })
-  }
-})
+// ── M25 (deprecated 2026-05-18): generateNightly removed in #867 C3.
+// The legacy nightly pipeline (nightly.yml) is superseded by the 8-tier model:
+// 06-nightly.yml.ejs (T4 — generic) + 08-monthly.yml.ejs (T5b — long-horizon)
+// cover the cross-product mutation/CVE/fuzz/SBOM responsibilities. Coverage for
+// 06-nightly.yml.ejs lives in __tests__/templates/06-nightly-render.test.ts;
+// generator-level coverage in __tests__/matrix/github-setup-combinations.test.ts.
 
 // ─── M26: Integration testing — hasDatabase gate ──────────────────────────────
 

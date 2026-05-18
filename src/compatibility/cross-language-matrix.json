@@ -324,7 +324,7 @@
     "go": {
       "tool": "syft",
       "maturity": "beta",
-      "reason": "syft (Anchore) closes the Go SBOM gap — nightly.yml.ejs excluded Go (line 114); T3/T4"
+      "reason": "syft (Anchore) closes the Go SBOM gap — used by 05-release.yml.ejs T3 and 06-nightly.yml.ejs T4"
     },
     "python": {
       "tool": "cyclonedx-py",

@@ -24,7 +24,6 @@ import { generateRustBoundaries } from './rust-boundaries.js'
 import { generateGoBoundaries } from './go-boundaries.js'
 import { generatePythonBoundaries } from './python-boundaries.js'
 import { generateMutation } from './mutation.js'
-import { generateNightly } from './nightly.js'
 import { generateIntegrationTesting } from './integration-testing.js'
 import { generateContractTesting } from './contract-testing.js'
 import { generateGlobalInvariants } from './global-invariants.js'
@@ -248,7 +247,6 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       enabled: config.enableMutationTesting !== false,
       run: () => generateMutation(config).files,
     },
-    { key: 'nightly', enabled: true, run: () => generateNightly(config).files },
     { key: 'ci-tier', enabled: true, run: () => generateCiTier(config).files },
     {
       // #487: this is DATABASE integration-testing (Testcontainers + PostgreSQL).
