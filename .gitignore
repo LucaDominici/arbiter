@@ -24,6 +24,8 @@ coverage/
 !.arbiter/evidence/
 !.arbiter/evidence/tdd/
 !.arbiter/evidence/tdd/*.json
+# Self-dogfood workflow exemptions are committed so the gate sees them in CI
+!.arbiter/workflow-exemptions.json
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/

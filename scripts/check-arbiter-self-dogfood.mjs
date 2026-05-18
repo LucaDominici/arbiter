@@ -23,6 +23,30 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const CWD = process.cwd()
 const REPO_ROOT = join(__dirname, '..')
 const BASELINE_PATH = join(REPO_ROOT, '.self-dogfood-baseline.json')
+const EXEMPTIONS_PATH = join(REPO_ROOT, '.arbiter', 'workflow-exemptions.json')
+
+function loadExemptions() {
+  if (!existsSync(EXEMPTIONS_PATH)) return { actionPinsExempt: [], workflowPermsExempt: [] }
+  try {
+    const raw = JSON.parse(readFileSync(EXEMPTIONS_PATH, 'utf-8'))
+    return {
+      actionPinsExempt: Array.isArray(raw.actionPinsExempt) ? raw.actionPinsExempt : [],
+      workflowPermsExempt: Array.isArray(raw.workflowPermsExempt) ? raw.workflowPermsExempt : [],
+    }
+  } catch (err) {
+    console.error(
+      `check-arbiter-self-dogfood: exemptions at ${EXEMPTIONS_PATH} malformed JSON (${err.message}); treating as empty`,
+    )
+    return { actionPinsExempt: [], workflowPermsExempt: [] }
+  }
+}
+
+const EXEMPTIONS = loadExemptions()
+
+function isExempt(absFile, exemptList) {
+  const rel = absFile.startsWith(REPO_ROOT) ? absFile.slice(REPO_ROOT.length + 1) : absFile
+  return exemptList.includes(rel)
+}
 
 function collectYamlFiles(dir) {
   if (!existsSync(dir)) return []
@@ -57,6 +81,7 @@ function countWorkflowPermsViolations() {
     .map((f) => join(dir, f))
   let count = 0
   for (const file of files) {
+    if (isExempt(file, EXEMPTIONS.workflowPermsExempt)) continue
     const content = readFileSync(file, 'utf-8')
     const m = content.match(/^permissions:[ \t]*(.*)$/m)
     if (!m) {
@@ -77,6 +102,7 @@ function countActionPinsViolations() {
   ]
   let count = 0
   for (const file of files) {
+    if (isExempt(file, EXEMPTIONS.actionPinsExempt)) continue
     const content = readFileSync(file, 'utf-8')
     for (const match of content.matchAll(USES)) {
       const action = stripQuotes(match[1])

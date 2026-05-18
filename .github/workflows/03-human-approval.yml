@@ -1,0 +1,66 @@
+name: Human Approval Gate
+
+on:
+  pull_request_review:
+    types: [submitted]
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  # Apply approved-by-human label when a human approves the PR.
+  # Triple-check guards: actor != author, actor is not a bot, state is approved.
+  apply-approval-label:
+    if: >-
+      github.event_name == 'pull_request_review' &&
+      github.event.review.state == 'approved' &&
+      github.event.review.user.login != github.event.pull_request.user.login &&
+      github.event.review.user.type != 'Bot'
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Ensure approved-by-human label exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create approved-by-human \
+            --description "PR approved by a human reviewer" \
+            --color "0e8a16" \
+            --repo "$GH_REPO" \
+            --force
+
+      - name: Apply approved-by-human label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr edit "$PR_NUMBER" \
+            --add-label approved-by-human \
+            --repo "$GH_REPO"
+
+  # Remove approved-by-human label when new commits are pushed.
+  # Prevents stale approval from bypassing the gate after a rewrite.
+  revoke-approval-label:
+    if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Remove approved-by-human label on new commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          LABELS=$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json labels --jq '[.labels[].name]')
+          if echo "$LABELS" | grep -q '"approved-by-human"'; then
+            gh pr edit "$PR_NUMBER" \
+              --remove-label approved-by-human \
+              --repo "$GH_REPO"
+            echo "Removed approved-by-human label — PR has new commits requiring re-review."
+          fi

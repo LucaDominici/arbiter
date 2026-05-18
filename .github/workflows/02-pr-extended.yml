@@ -1,0 +1,125 @@
+name: PR Extended (T2)
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+
+concurrency:
+  group: pr-extended-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-trigger:
+    name: Check Extended Trigger
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decide whether to run extended CI
+        id: decide
+        env:
+          HAS_EXT_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'extended-ci') }}
+          EVENT_ACTION: ${{ github.event.action }}
+          PR_ADDITIONS: ${{ github.event.pull_request.additions }}
+          PR_DELETIONS: ${{ github.event.pull_request.deletions }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          SHOULD_RUN=false
+
+          [[ "$HAS_EXT_LABEL" == "true" ]] && { echo "Trigger: extended-ci label"; SHOULD_RUN=true; }
+          [[ "$EVENT_ACTION" == "ready_for_review" ]] && { echo "Trigger: ready_for_review"; SHOULD_RUN=true; }
+
+          if [[ "$SHOULD_RUN" == "false" ]]; then
+            MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")
+            CHANGED=$(git diff --name-only "$MB" "$HEAD_SHA")
+            if echo "$CHANGED" | grep -qE '^(migrations/|infra/|openapi/|schemas/)'; then
+              echo "Trigger: sensitive directory changed"; SHOULD_RUN=true
+            elif echo "$CHANGED" | grep -qE '(Dockerfile[^/]*$|docker-compose[^/]*\.ya?ml$|package-lock\.json$|yarn\.lock$|go\.sum$|Cargo\.lock$|requirements[^/]*\.txt$|poetry\.lock$|pom\.xml$)'; then
+              echo "Trigger: sensitive file changed"; SHOULD_RUN=true
+            elif echo "$CHANGED" | grep -qiE '/auth[^/]*\.(ts|js|go|py|java|rs)$'; then
+              echo "Trigger: auth file changed"; SHOULD_RUN=true
+            fi
+          fi
+
+          if [[ "$SHOULD_RUN" == "false" ]]; then
+            LOC=$(( ${PR_ADDITIONS:-0} + ${PR_DELETIONS:-0} ))
+            (( LOC >= 100 )) && { echo "Trigger: PR size ${LOC} LOC >= 100"; SHOULD_RUN=true; } || true
+          fi
+
+          echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
+          echo "Extended CI: should_run=${SHOULD_RUN}"
+
+  integration-tests:
+    name: Integration Tests (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:integration
+
+  license-scan:
+    name: License Scan (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - name: License check
+        run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0'
+
+  behavioral-tests:
+    name: Behavioral Tests (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:behavioral
+
+  extended-required:
+    name: Extended Required
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+
+    needs: [check-trigger, integration-tests, license-scan, behavioral-tests]
+    if: always()
+    steps:
+      - run: |
+          if [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
+            echo "integration-tests failed"; exit 1
+          fi
+          if [[ "${{ needs.license-scan.result }}" == "failure" ]]; then
+            echo "license-scan failed"; exit 1
+          fi
+          if [[ "${{ needs.behavioral-tests.result }}" == "failure" ]]; then
+            echo "behavioral-tests failed"; exit 1
+          fi
+
+
+          echo "Extended CI passed or skipped"
