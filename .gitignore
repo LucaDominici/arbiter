@@ -30,6 +30,12 @@ coverage/
 # Java build artifacts in fixtures
 __tests__/**/.gradle/
 __tests__/**/bin/
+
+# Rust fixture build artifacts
+__tests__/**/target/
+
+# Fixture worktree pollution from test runs
+__tests__/fixtures/**/.arbiter/work/
 .evidence/
 report/
 
