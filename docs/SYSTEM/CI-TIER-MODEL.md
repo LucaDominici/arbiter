@@ -14,17 +14,18 @@
 
 ---
 
-## 1. Six-Tier Model
+## 1. CI Tier Model
 
-| Tier | Name           | Trigger             | Wall-clock target | Gating                      | Rationale                                                                 |
-| ---- | -------------- | ------------------- | ----------------- | --------------------------- | ------------------------------------------------------------------------- |
-| T0   | local pre-push | dev machine         | <30 s             | dev-side hook               | Format + cheap lint. Husky/lefthook generated.                            |
-| T1   | PR-fast        | PR open/sync        | <5 min, ceil 10   | **blocking**                | Farley "Feedback in Five Minutes" + Fowler ten-minute build.              |
-| T2   | PR-extended    | path/size/label     | <20 min           | **blocking when triggered** | DSOMM L2: SCA + DAST baseline + integration + contract.                   |
-| T3   | release        | PR→main merge / tag | <40 min           | **blocking**                | SLSA L2 table-stakes, L3 realistic via slsa-github-generator.             |
-| T4   | nightly        | cron 02:00 UTC      | up to 4 h         | informational + alert       | Mutation, full DAST, fuzz, soak, gitleaks-history belong here, not on PR. |
-| T5   | weekly         | cron Sun 04:00 UTC  | up to 8 h         | informational + alert       | Cross-DB/OS matrix, dep-freshness, perf trend, secret-rotation drill.     |
-| T6   | heartbeat      | cron 06:00 UTC      | <2 min            | alert-only                  | Dead-man's-switch: asserts T4 ran in last 26 h, T5 in last 8 d.           |
+| Tier | Name           | Trigger              | Wall-clock target | Gating                      | Rationale                                                                 |
+| ---- | -------------- | -------------------- | ----------------- | --------------------------- | ------------------------------------------------------------------------- |
+| T0   | local pre-push | dev machine          | <30 s             | dev-side hook               | Format + cheap lint. Husky/lefthook generated.                            |
+| T1   | PR-fast        | PR open/sync         | <5 min, ceil 10   | **blocking**                | Farley "Feedback in Five Minutes" + Fowler ten-minute build.              |
+| T2   | PR-extended    | path/size/label      | <20 min           | **blocking when triggered** | DSOMM L2: SCA + DAST baseline + integration + contract.                   |
+| T3   | release        | PR→main merge / tag  | <40 min           | **blocking**                | SLSA L2 table-stakes, L3 realistic via slsa-github-generator.             |
+| T4   | nightly        | cron 02:00 UTC       | up to 4 h         | informational + alert       | Mutation, full DAST, fuzz, soak, gitleaks-history belong here, not on PR. |
+| T5   | weekly         | cron Sun 04:00 UTC   | up to 8 h         | informational + alert       | Cross-DB/OS matrix, dep-freshness, perf trend, secret-rotation drill.     |
+| T5b  | monthly        | cron 04:00 UTC day 1 | up to 4 h         | informational + alert       | Long-horizon: dep-age (>180d), license audit, action-pin staleness, SBOM. |
+| T6   | heartbeat      | cron 06:00 UTC       | <2 min            | alert-only                  | Dead-man's-switch: asserts T4 ≤26 h, T5 ≤8 d, T5b ≤35 d.                  |
 
 **Constants across stacks**: tier presence, trigger semantics, gating posture, workflow filenames.  
 **Variables across stacks**: tool selection per tier.  
@@ -45,7 +46,8 @@ Every project gets exactly these files under `.github/workflows/` (numbered for 
   05-release.yml          # T3 — PR→main + tag triggers
   06-nightly.yml          # T4 — cron 02:00 UTC + manual dispatch
   07-weekly.yml           # T5 — cron Sun 04:00 UTC + manual dispatch
-  08-heartbeat.yml        # T6 — cron 06:00 UTC, asserts T4+T5 ran
+  08-monthly.yml          # T5b — cron 04:00 UTC day 1 + manual dispatch
+  09-heartbeat.yml        # T6 — cron 06:00 UTC, asserts T4+T5+T5b ran
 ```
 
 Gap `04` reserved for `04-deploy-staging.yml` (post-v1).
@@ -150,13 +152,29 @@ Cron `0 4 * * 0` + `workflow_dispatch`.
 5. **secret-rotation-drill** — round-trip rotation of dummy secret against staging credentials.
 6. **action-version-audit** — stale SHA pins flagged if >180 d old.
 
-### T6 — Heartbeat (`08-heartbeat.yml`)
+### T5b — Monthly (`08-monthly.yml`)
+
+Cron `0 4 1 * *` (04:00 UTC on day 1 of each month) + `workflow_dispatch`. Up to 4 h.
+
+Long-horizon hygiene tasks too slow or low-signal for weekly cadence:
+
+1. **dep-age-audit** — flag direct deps unchanged >180 days (`npm-check-updates`, `gradle dependencyUpdates`, `mvn versions:display-dependency-updates`, `go list -u -m all`, `pip list --outdated`, `cargo outdated`). Report artifact, 365-day retention.
+2. **license-full-audit** — full per-language license report (`license-checker`, `gradle licenseReport`, `mvn license:aggregate-third-party-report`, `go-licenses report`, `pip-licenses`, `cargo-deny check licenses`). Artifact retained 365 days.
+3. **action-pins-stale-audit** — flag GitHub Actions SHA pins >180 days old. Walks `.github/workflows/`, resolves each SHA against `gh api repos/$REPO/commits/$SHA`, emits `::warning::` per stale pin. Informational; pairs with T5 weekly action-version-audit (90d threshold).
+4. **sbom-archive** — full CycloneDX SBOM snapshot (`npm sbom`, `gradle cyclonedxBom`, `mvn cyclonedx-maven-plugin`, `syft`, `cyclonedx-py`, `cargo-cyclonedx`). Artifact retained 365 days for long-horizon diff.
+5. **evidence-collect** — monthly summary artifact, 365-day retention.
+6. **monthly-required** — gate job: `failure` if any hard-failure job failed; auto-files `[monthly] regression detected` issue labelled `monthly-regression`.
+
+All jobs informational; failure → GH issue auto-filed (dedup by label).
+
+### T6 — Heartbeat (`09-heartbeat.yml`)
 
 Cron `0 6 * * *`. <2 min.
 
 1. Assert `06-nightly.yml` last run ≤ 26 h ago.
 2. Assert `07-weekly.yml` last run ≤ 8 d ago.
-3. Failure → file/update GH issue `[heartbeat] nightly missed`; auto-close on next success.
+3. Assert `08-monthly.yml` last run ≤ 35 d ago.
+4. Failure → file/update GH issue `[heartbeat] <tier> missed` (one label per tier: `heartbeat-nightly-missed`, `heartbeat-weekly-missed`, `heartbeat-monthly-missed`); auto-close on next success.
 
 ### Cross-cutting — Human approval (`03-human-approval.yml`)
 
@@ -271,15 +289,15 @@ INV-59 tier-hash extended: each subcommand publishes a hash; GH Actions workflow
 
 | INV    | Title                                            | Enforcement                                     |
 | ------ | ------------------------------------------------ | ----------------------------------------------- |
-| INV-72 | All 7 workflow files present                     | `scripts/check-ci-tiers.mjs` (L1 gate)          |
+| INV-72 | All 8 workflow files present                     | `scripts/check-ci-tiers.mjs` (L1 gate)          |
 | INV-73 | Anti-bot human-approval required check           | Generator emits + branch-protection apply       |
-| INV-74 | Heartbeat asserts T4 freshness ≤26 h             | `08-heartbeat.yml` content + assertion test     |
+| INV-74 | Heartbeat asserts T4 ≤26 h, T5 ≤8 d, T5b ≤35 d   | `09-heartbeat.yml` content + assertion test     |
 | INV-75 | SHA-pinned actions only (OSSF)                   | `check-action-pins.mjs` post-edit hook          |
 | INV-76 | Top-level workflow `permissions: contents: read` | `check-workflow-perms.mjs` post-edit hook       |
 | INV-77 | SLSA provenance at T3                            | Release workflow contains slsa-github-generator |
 | INV-78 | Cosign sign-blob per release artifact            | Release workflow contains cosign per archetype  |
 | INV-79 | No `continue-on-error: true` on test/build steps | Extend existing `workflow-integrity` hook       |
-| INV-80 | Tier-hash local↔CI parity                        | Extend INV-59 to T1..T5 hashes                  |
+| INV-80 | Tier-hash local↔CI parity                        | Extend INV-59 to T1..T5b hashes                 |
 
 ---
 
@@ -305,7 +323,8 @@ src/templates/github/workflows/
   05-release.yml.ejs            # archetype-branched
   06-nightly.yml.ejs            # rename from nightly.yml.ejs
   07-weekly.yml.ejs
-  08-heartbeat.yml.ejs
+  08-monthly.yml.ejs            # T5b long-horizon
+  09-heartbeat.yml.ejs
 
 src/templates/github/actions/sign-and-attest/
   action.yml.ejs                # shared composite: cosign + SBOM + SLSA + attest
@@ -373,13 +392,13 @@ All existing sub-generators (`mutation.ts`, `security.ts`, `archunit.ts`, `contr
 
 **Unit**: All 60 combinations (5 langs × 4 archetypes × 3 governance levels) compile EJS without error; subcommand router covered by Vitest.
 
-**Generator E2E**: `arbiter init` against each combination → assert 7 workflow files present + `actionlint` passes.
+**Generator E2E**: `arbiter init` against each combination → assert 8 workflow files present + `actionlint` passes.
 
 **Real-project gate**: one fixture per stack → apply workflows on fork → no-op PR triggers green required checks.
 
-**Invariant gate**: `check-ci-tiers.mjs` reports all 7 files present; `check-all.mjs gate` passes on arbiter-self.
+**Invariant gate**: `check-ci-tiers.mjs` reports all 8 files present; `check-all.mjs gate` passes on arbiter-self.
 
-**Dogfood**: arbiter repo migrates to generated tier set; `08-heartbeat.yml` tested by artificially aging nightly.
+**Dogfood**: arbiter repo migrates to generated tier set; `09-heartbeat.yml` tested by artificially aging nightly, weekly, and monthly.
 
 **Acceptance**: Java-reference parity audit ≥ 95% feature coverage. Known gaps (Postman/Newman, MyBatis, Liquibase) explicitly deferred to stack-extra modules v2.
 

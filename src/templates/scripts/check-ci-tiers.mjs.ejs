@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // <%= projectName %> — CI tier presence gate (INV-72)
-// Gate: verify all 7 required CI workflow files exist in .github/workflows/.
+// Gate: verify all 8 required CI workflow files exist in .github/workflows/.
 // Exits 0: all present.
 // Exits 1: one or more missing.
 import { existsSync } from 'node:fs';
@@ -16,13 +16,14 @@ const REQUIRED_TIERS = [
   '05-release.yml',
   '06-nightly.yml',
   '07-weekly.yml',
-  '08-heartbeat.yml',
+  '08-monthly.yml',
+  '09-heartbeat.yml',
 ];
 
 const missing = REQUIRED_TIERS.filter((f) => !existsSync(join(WORKFLOWS_DIR, f)));
 
 if (missing.length === 0) {
-  console.log('  check-ci-tiers: all 7 CI tier workflows present');
+  console.log('  check-ci-tiers: all 8 CI tier workflows present');
   process.exit(0);
 }
 

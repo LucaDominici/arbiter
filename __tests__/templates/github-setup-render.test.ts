@@ -110,7 +110,7 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04)', () => {
     )
   }
 
-  it('lists all 7 required tier filenames', () => {
+  it('lists all 8 required tier filenames', () => {
     const content = renderTiers({})
     expect(content).toContain('01-pr-fast.yml')
     expect(content).toContain('02-pr-extended.yml')
@@ -118,7 +118,23 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04)', () => {
     expect(content).toContain('05-release.yml')
     expect(content).toContain('06-nightly.yml')
     expect(content).toContain('07-weekly.yml')
-    expect(content).toContain('08-heartbeat.yml')
+    expect(content).toContain('08-monthly.yml')
+    expect(content).toContain('09-heartbeat.yml')
+  })
+
+  it('tier filenames appear in canonical order with no duplicates or extras', () => {
+    const content = renderTiers({})
+    const matches = content.match(/'\d\d-[a-z-]+\.yml'/g) ?? []
+    expect(matches).toEqual([
+      "'01-pr-fast.yml'",
+      "'02-pr-extended.yml'",
+      "'03-human-approval.yml'",
+      "'05-release.yml'",
+      "'06-nightly.yml'",
+      "'07-weekly.yml'",
+      "'08-monthly.yml'",
+      "'09-heartbeat.yml'",
+    ])
   })
 
   it('exits 0 when all tiers present (script text)', () => {
