@@ -6,9 +6,11 @@
 
 ## Responsibility Matrix
 
-| ID   | Responsibility                                                                                                             | Accountable | Responsible | Consulted         | Informed  | Priority |
-| ---- | -------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------- | ----------------- | --------- | -------- |
-| R001 | Approve a new arbiter release to npm via `.github/workflows/release.yml` (`workflow_dispatch` + concurrency-locked group). | Maintainer  | Maintainer  | Security Reviewer | Community | HIGH     |
+| ID  | Responsibility | Accountable | Responsible | Consulted | Informed | Priority |
+| --- | -------------- | ----------- | ----------- | --------- | -------- | -------- |
+
+<!-- R001 retired 2026-05-18: release.yml deleted in #862 CI tabula-rasa.
+     Restore when a release workflow is rebuilt from a clean design. -->
 
 <!--
 ## How to use this table

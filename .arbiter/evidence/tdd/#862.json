@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#862",
+  "test_path": "__tests__/scripts/real-project-matrix-workflow.test.ts",
+  "test_commit_sha": "d0b7c35a8a0baac57f242a5b4e51c318537b7247",
+  "test_run_log": " FAIL  __tests__/scripts/real-project-matrix-workflow.test.ts > real-project-matrix workflow regressions > pins setup-gradle to a concrete Gradle version for Java fixtures\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter/.github/workflows/real-project-matrix.yml'\n FAIL  __tests__/governance/release-approval.test.ts > release workflow approval gates (@RACI:R001) > release.yml exists\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter/.github/workflows/release.yml'\n FAIL  check-arbiter-self-dogfood: neither .github/workflows nor .github/actions exists — refusing to run\n FAIL  check-ci-alignment.mjs: cannot read .github/workflows/ci.yml — ENOENT",
+  "observed_failure": "FAIL — deleting arbiter's own .github/workflows/ turned 4 gates RED (real-project-matrix-workflow.test.ts, release-approval.test.ts, check-arbiter-self-dogfood.mjs, check-ci-alignment.mjs). The terreno-vergine commit removes both the deleted-workflow files and the now-orphaned gates in one atomic step.",
+  "recorded_at": "2026-05-18T23:30:00.000Z"
+}

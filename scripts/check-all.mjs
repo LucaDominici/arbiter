@@ -81,8 +81,6 @@ runCheck('generator tests', 'node', ['scripts/check-generator-tests.mjs'])
 runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
 runCheck('catalog parity', 'node', ['scripts/check-catalog-agents-parity.mjs'])
 runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
-runCheck('workflow runners', 'node', ['scripts/check-workflow-runners.mjs'])
-runCheck('ci alignment', 'node', ['scripts/check-ci-alignment.mjs'])
 runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
 runCheck('bloat ratchet', 'node', ['scripts/check-bloat-ratchet.mjs'])
 runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
@@ -95,7 +93,6 @@ runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mj
 runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
 runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
 runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
-runCheck('self-dogfood (INV-75/76)', 'node', ['scripts/check-arbiter-self-dogfood.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

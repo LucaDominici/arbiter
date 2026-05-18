@@ -403,7 +403,7 @@
     "archetypeGating": { "applies": [], "excludes": [] },
     "invLink": "INV-13",
     "status": "covered",
-    "note": "INV-13 enforces CI_BUILD_RUNNER_LABEL repo variable as SSOT; check-workflow-runners.mjs gates this"
+    "note": "INV-13 enforces CI_BUILD_RUNNER_LABEL repo variable as SSOT; downstream-generated check-workflow-runners gates this in target repos"
   },
   {
     "id": "N40",
@@ -537,7 +537,7 @@
     "archetypeGating": { "applies": [], "excludes": [] },
     "invLink": "INV-75",
     "status": "covered",
-    "note": "INV-75/76: check-arbiter-self-dogfood.mjs + check-self-dogfood.mjs both run at L1"
+    "note": "INV-75/76: downstream check-action-pins + check-workflow-perms gates run at L1 in target repos; arbiter self-dogfood retired during CI freeze (#862)"
   },
   {
     "id": "N53",
