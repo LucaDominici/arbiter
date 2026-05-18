@@ -7,6 +7,14 @@ import { sanitizeTaskId } from '../review/dispatch.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
+import { detectHostCapabilities } from '../capabilities/host-probe.js'
+
+export class HandoffRequiredError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'HandoffRequiredError'
+  }
+}
 
 export type TaskPhase =
   | 'preflight'
@@ -103,6 +111,8 @@ export interface TaskAdvanceOptions {
   reverse?: boolean
   /** Bypass the plan-review gate when target is red. Writes an audit record. */
   skipPlanReview?: boolean
+  /** Signal that this invocation is post-/clear (equivalent to ARBITER_POST_CLEAR=1). */
+  postClear?: boolean
 }
 
 function isValidPhase(s: string): s is TaskPhase {
@@ -469,9 +479,13 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     }
   }
 
+  const PLANNING_PHASES: ReadonlySet<TaskPhase> = new Set(['red-team-review', 'red-team-rework'])
   const phaseGates: Partial<Record<TaskPhase, () => void>> = {
     red: () => {
       checkPlanReviewGate(dir, claudeDir, opts)
+      if (PLANNING_PHASES.has(current)) {
+        checkHandoffGate(dir, claudeDir, opts)
+      }
     },
     green: () => {
       checkTddEvidenceGate(dir, claudeDir)
@@ -525,4 +539,53 @@ function checkTddEvidenceGate(dir: string, claudeDir: string): void {
   }
 
   void claudeDir
+}
+
+function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
+  const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
+  const sanit = sanitizeTaskId(rawId)
+  const taskDir = join(claudeDir, '.task-' + sanit)
+  mkdirSync(taskDir, { recursive: true })
+
+  const isPostClear = opts.postClear === true || process.env['ARBITER_POST_CLEAR'] === '1'
+
+  if (isPostClear) {
+    let existing: Partial<TaskStatus> = {}
+    try {
+      existing = JSON.parse(
+        readFileSync(join(taskDir, 'status.json'), 'utf-8'),
+      ) as Partial<TaskStatus>
+    } catch {
+      // No existing status — proceed without setting postClearResumed
+    }
+    if (existing.postClearResumed === undefined) {
+      writeTaskStatus({
+        taskDir,
+        phase: 'red',
+        extras: { ...existing, postClearResumed: new Date().toISOString() },
+      })
+    }
+    return
+  }
+
+  const caps = detectHostCapabilities()
+  if (!caps.modelSwitch) {
+    writeTaskStatus({ taskDir, phase: 'red', extras: { handoffStrategy: 'inline' } })
+    return
+  }
+
+  writeTaskStatus({
+    taskDir,
+    phase: 'red',
+    extras: {
+      handoffStrategy: 'interactive',
+      planningHandoffReady: new Date().toISOString(),
+    },
+  })
+  writeFileSync(join(claudeDir, '.task-handoff-ready'), '', 'utf-8')
+  throw new HandoffRequiredError(
+    'Plan complete. Run `/clear`, then re-invoke `/task #' +
+      rawId.replace(/^#/, '') +
+      '` (it will resume from disk).',
+  )
 }

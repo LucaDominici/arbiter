@@ -12,6 +12,14 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   pathExistsInCommit: vi.fn().mockReturnValue(true),
 }))
 
+vi.mock('../../src/capabilities/host-probe.js', () => ({
+  detectHostCapabilities: vi.fn().mockReturnValue({
+    modelSwitch: false,
+    transcriptPath: null,
+    exitPlanModeTool: false,
+  }),
+}))
+
 const VALID_EVIDENCE = {
   $schemaVersion: 1,
   task_id: '#549',

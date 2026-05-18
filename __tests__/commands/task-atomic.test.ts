@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+vi.mock('../../src/capabilities/host-probe.js', () => ({
+  detectHostCapabilities: vi.fn().mockReturnValue({
+    modelSwitch: false,
+    transcriptPath: null,
+    exitPlanModeTool: false,
+  }),
+}))
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
