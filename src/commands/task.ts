@@ -584,6 +584,46 @@ function runBudgetCheck(rawId: string, dir: string, opts: TaskAdvanceOptions): v
   }
 }
 
+function handlePostClearReEntry(
+  rawId: string,
+  taskDir: string,
+  dir: string,
+  opts: TaskAdvanceOptions,
+): void {
+  let existing: Partial<TaskStatus> = {}
+  try {
+    existing = JSON.parse(
+      readFileSync(join(taskDir, 'status.json'), 'utf-8'),
+    ) as Partial<TaskStatus>
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `checkHandoffGate: failed to read status at ${join(taskDir, 'status.json')}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
+    }
+  }
+  if (existing.postClearResumed === undefined) {
+    const caps = detectHostCapabilities()
+    const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
+    const costs = caps.transcriptPath
+      ? readTranscriptCosts(caps.transcriptPath, sinceISO)
+      : { input: 0, output: 0, samples: 0 }
+    recordPhaseCost(
+      rawId,
+      'red',
+      { in: costs.input, out: costs.output, samples: costs.samples },
+      dir,
+    )
+    runBudgetCheck(rawId, dir, opts)
+    writeTaskStatus({
+      taskDir,
+      phase: 'red',
+      extras: { ...existing, postClearResumed: new Date().toISOString() },
+    })
+  }
+}
+
 function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
   const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
   const sanit = sanitizeTaskId(rawId)
@@ -593,40 +633,7 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
   const isPostClear = opts.postClear === true || process.env['ARBITER_POST_CLEAR'] === '1'
 
   if (isPostClear) {
-    let existing: Partial<TaskStatus> = {}
-    try {
-      existing = JSON.parse(
-        readFileSync(join(taskDir, 'status.json'), 'utf-8'),
-      ) as Partial<TaskStatus>
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw new Error(
-          `checkHandoffGate: failed to read status at ${join(taskDir, 'status.json')}: ${err instanceof Error ? err.message : String(err)}`,
-          { cause: err },
-        )
-      }
-    }
-    if (existing.postClearResumed === undefined) {
-      const caps = detectHostCapabilities()
-      const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
-      const costs = caps.transcriptPath
-        ? readTranscriptCosts(caps.transcriptPath, sinceISO)
-        : { input: 0, output: 0, samples: 0 }
-      recordPhaseCost(
-        rawId,
-        'red',
-        { in: costs.input, out: costs.output, samples: costs.samples },
-        dir,
-      )
-
-      runBudgetCheck(rawId, dir, opts)
-
-      writeTaskStatus({
-        taskDir,
-        phase: 'red',
-        extras: { ...existing, postClearResumed: new Date().toISOString() },
-      })
-    }
+    handlePostClearReEntry(rawId, taskDir, dir, opts)
     return
   }
 

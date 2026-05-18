@@ -6,7 +6,7 @@ export interface BudgetResult {
   reason?: string
 }
 
-export const DEFAULT_IMPL_BUDGET_TOKENS = 50_000
+const DEFAULT_IMPL_BUDGET_TOKENS = 50_000
 
 export function assertImplBudget(
   report: CostReport,

@@ -20,6 +20,16 @@ interface TranscriptLine {
   message?: { usage?: MessageUsage }
 }
 
+function sumUsage(usage: MessageUsage): { input: number; output: number } {
+  return {
+    input:
+      (usage.input_tokens ?? 0) +
+      (usage.cache_read_input_tokens ?? 0) +
+      (usage.cache_creation_input_tokens ?? 0),
+    output: usage.output_tokens ?? 0,
+  }
+}
+
 export function readTranscriptCosts(transcriptPath: string, sinceISO: string): TranscriptCosts {
   try {
     const raw = readFileSync(transcriptPath, 'utf-8')
@@ -43,11 +53,9 @@ export function readTranscriptCosts(transcriptPath: string, sinceISO: string): T
       const usage = parsed.message?.usage
       if (!usage) continue
 
-      input +=
-        (usage.input_tokens ?? 0) +
-        (usage.cache_read_input_tokens ?? 0) +
-        (usage.cache_creation_input_tokens ?? 0)
-      output += usage.output_tokens ?? 0
+      const tokens = sumUsage(usage)
+      input += tokens.input
+      output += tokens.output
       samples++
     }
 
