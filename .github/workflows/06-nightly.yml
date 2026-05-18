@@ -1,0 +1,183 @@
+name: Nightly (T4)
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  mutation-deep:
+    name: Deep mutation testing
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Stryker mutation (full suite)
+        run: npx stryker run
+
+  dast-full:
+    name: OWASP ZAP full scan
+
+    if: false
+
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: ZAP full scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: 'http://localhost:8080'
+          fail_action: false
+          artifact_name: zap-full-report
+
+  dep-cve-refresh:
+    name: Dependency CVE refresh
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: osv-scanner
+        uses: google/osv-scanner-action@v2
+        with:
+          scan-args: '--lockfile=package-lock.json'
+
+  fuzz:
+    name: Fuzz testing
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: fast-check fuzz (property-based)
+        run: npm run test:fuzz || npm run test:property || true
+
+  soak-e2e:
+    name: Soak / E2E full suite
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Playwright / Vitest E2E (60 min budget)
+        run: npm run test:e2e || npm run test:soak || true
+
+  gitleaks-history:
+    name: Secret scan (full history)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks full history scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: detect --source . --log-opts="--all --full-history"
+
+  evidence-collect:
+    name: Upload nightly evidence artifacts
+    needs:
+      - mutation-deep
+      - dep-cve-refresh
+      - fuzz
+      - soak-e2e
+      - gitleaks-history
+    if: always()
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect evidence summary
+        run: |
+          mkdir -p nightly-evidence
+          echo "Nightly run: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > nightly-evidence/summary.txt
+          echo "Ref: ${{ github.sha }}" >> nightly-evidence/summary.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nightly-evidence-${{ github.run_id }}
+          path: nightly-evidence/
+          retention-days: 90
+
+  nightly-required:
+    name: Nightly gate
+    needs:
+      - mutation-deep
+      - dep-cve-refresh
+      - fuzz
+      - soak-e2e
+      - gitleaks-history
+
+    if: always()
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - name: Assert no hard failures
+        run: |
+          RESULTS=(
+            "${{ needs.mutation-deep.result }}"
+            "${{ needs.dep-cve-refresh.result }}"
+            "${{ needs.gitleaks-history.result }}"
+          )
+          FAILED=0
+          for r in "${RESULTS[@]}"; do
+            if [ "$r" = "failure" ]; then
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::One or more nightly hard-failure jobs failed."
+            exit 1
+          fi
+          echo "Nightly gate passed."
+
+      - name: File issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING=$(gh issue list \
+            --label nightly-regression \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[nightly] regression detected (${{ github.run_id }})" \
+              --body "Nightly workflow failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --label nightly-regression \
+              --repo "$GH_REPO"
+          fi

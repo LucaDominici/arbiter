@@ -224,4 +224,96 @@ describe('check-arbiter-self-dogfood.mjs', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  // ─── #867 dual-run exemptions ─────────────────────────────────────────────
+
+  it('honors actionPinsExempt list from .arbiter/workflow-exemptions.json', () => {
+    const dir = fixtureRepo()
+    try {
+      // Two workflows: one in the exempt list, one not. Both reference the
+      // same tag-pinned action (would normally count as 2 violations).
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'exempt.yml'),
+        'name: e\non: push\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n',
+      )
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'tracked.yml'),
+        'name: t\non: push\npermissions:\n  contents: read\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n',
+      )
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(
+        join(dir, '.arbiter', 'workflow-exemptions.json'),
+        JSON.stringify({
+          actionPinsExempt: ['.github/workflows/exempt.yml'],
+          workflowPermsExempt: [],
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [join(dir, 'scripts', 'check-arbiter-self-dogfood.mjs'), '--refresh-baseline'],
+        { cwd: dir, encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(0)
+      // Only tracked.yml's action-pin counts; exempt.yml is filtered.
+      expect(r.stdout).toContain('"actionPinsViolations": 1')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('honors workflowPermsExempt list for missing permissions', () => {
+    const dir = fixtureRepo()
+    try {
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'exempt.yml'),
+        'name: e\non: push\njobs: {}\n', // missing permissions
+      )
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'tracked.yml'),
+        'name: t\non: push\njobs: {}\n', // missing permissions
+      )
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(
+        join(dir, '.arbiter', 'workflow-exemptions.json'),
+        JSON.stringify({
+          actionPinsExempt: [],
+          workflowPermsExempt: ['.github/workflows/exempt.yml'],
+        }),
+      )
+      const r = spawnSync(
+        'node',
+        [join(dir, 'scripts', 'check-arbiter-self-dogfood.mjs'), '--refresh-baseline'],
+        { cwd: dir, encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(0)
+      // Only tracked.yml's missing-perms counts; exempt.yml is filtered.
+      expect(r.stdout).toContain('"workflowPermsViolations": 1')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('treats malformed exemptions JSON as empty (with stderr warning, no crash)', () => {
+    const dir = fixtureRepo()
+    try {
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'a.yml'),
+        'name: a\non: push\npermissions:\n  contents: read\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n',
+      )
+      mkdirSync(join(dir, '.arbiter'), { recursive: true })
+      writeFileSync(join(dir, '.arbiter', 'workflow-exemptions.json'), '{ not valid json')
+      const r = spawnSync(
+        'node',
+        [join(dir, 'scripts', 'check-arbiter-self-dogfood.mjs'), '--refresh-baseline'],
+        { cwd: dir, encoding: 'utf-8' },
+      )
+      expect(r.status).toBe(0)
+      expect(r.stderr).toContain('exemptions')
+      expect(r.stderr).toContain('malformed')
+      // Without exemptions the tag-pinned action counts as 1 violation.
+      expect(r.stdout).toContain('"actionPinsViolations": 1')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

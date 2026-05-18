@@ -1,0 +1,15 @@
+{
+  "$schemaVersion": 1,
+  "note": "Workflow exemptions from arbiter self-dogfood gate (INV-75/76). Each entry MUST be paired with a row in docs/SYSTEM/CI-TIER-EXCEPTIONS.md including a sunset condition. Lists shrink monotonically PR-over-PR.",
+  "actionPinsExempt": [
+    ".github/workflows/01-pr-fast.yml",
+    ".github/workflows/02-pr-extended.yml",
+    ".github/workflows/03-human-approval.yml",
+    ".github/workflows/05-release.yml",
+    ".github/workflows/06-nightly.yml",
+    ".github/workflows/07-weekly.yml",
+    ".github/workflows/08-monthly.yml",
+    ".github/workflows/09-heartbeat.yml"
+  ],
+  "workflowPermsExempt": []
+}

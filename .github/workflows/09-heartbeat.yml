@@ -1,0 +1,195 @@
+name: Heartbeat (T6)
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: heartbeat
+  cancel-in-progress: true
+
+jobs:
+  assert-nightly-freshness:
+    name: Assert nightly ran within 26h
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - name: Check nightly workflow freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RUN_INFO=$(gh run list \
+            --workflow=06-nightly.yml \
+            --limit 1 \
+            --json conclusion,createdAt \
+            --repo "$GH_REPO")
+
+          CREATED_AT=$(echo "$RUN_INFO" | jq -r '.[0].createdAt // empty')
+          CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
+
+          if [ -z "$CREATED_AT" ]; then
+            echo "::error::No nightly run found. Heartbeat FAIL — nightly workflow has never run."
+            exit 1
+          fi
+
+          CREATED_EPOCH=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$CREATED_AT" +%s)
+          NOW_EPOCH=$(date +%s)
+          AGE_HOURS=$(( (NOW_EPOCH - CREATED_EPOCH) / 3600 ))
+
+          echo "Last nightly: $CREATED_AT (${AGE_HOURS}h ago, conclusion: $CONCLUSION)"
+
+          if [ "$AGE_HOURS" -gt 26 ]; then
+            echo "::error::Nightly workflow last ran ${AGE_HOURS}h ago — exceeds 26h threshold."
+            exit 1
+          fi
+
+          echo "Nightly freshness OK — last run ${AGE_HOURS}h ago."
+
+      - name: File or close heartbeat issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING=$(gh issue list \
+            --label heartbeat-nightly-missed \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[heartbeat] nightly workflow missed" \
+              --body "The nightly workflow (06-nightly.yml) has not run within the expected 26h window. Investigate immediately." \
+              --label heartbeat-nightly-missed \
+              --repo "$GH_REPO"
+          else
+            echo "Existing heartbeat issue #$EXISTING already open — skipping duplicate."
+          fi
+
+  assert-weekly-freshness:
+    name: Assert weekly ran within 8 days
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - name: Check weekly workflow freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RUN_INFO=$(gh run list \
+            --workflow=07-weekly.yml \
+            --limit 1 \
+            --json conclusion,createdAt \
+            --repo "$GH_REPO")
+
+          CREATED_AT=$(echo "$RUN_INFO" | jq -r '.[0].createdAt // empty')
+          CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
+
+          if [ -z "$CREATED_AT" ]; then
+            echo "::error::No weekly run found. Heartbeat FAIL — weekly workflow has never run."
+            exit 1
+          fi
+
+          CREATED_EPOCH=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$CREATED_AT" +%s)
+          NOW_EPOCH=$(date +%s)
+          AGE_DAYS=$(( (NOW_EPOCH - CREATED_EPOCH) / 86400 ))
+
+          echo "Last weekly: $CREATED_AT (${AGE_DAYS}d ago, conclusion: $CONCLUSION)"
+
+          if [ "$AGE_DAYS" -gt 8 ]; then
+            echo "::error::Weekly workflow last ran ${AGE_DAYS}d ago — exceeds 8-day threshold."
+            exit 1
+          fi
+
+          echo "Weekly freshness OK — last run ${AGE_DAYS}d ago."
+
+      - name: File or close heartbeat issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING=$(gh issue list \
+            --label heartbeat-weekly-missed \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[heartbeat] weekly workflow missed" \
+              --body "The weekly workflow (07-weekly.yml) has not run within the expected 8-day window. Investigate immediately." \
+              --label heartbeat-weekly-missed \
+              --repo "$GH_REPO"
+          else
+            echo "Existing heartbeat issue #$EXISTING already open — skipping duplicate."
+          fi
+
+  assert-monthly-freshness:
+    name: Assert monthly ran within 35 days
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - name: Check monthly workflow freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RUN_INFO=$(gh run list \
+            --workflow=08-monthly.yml \
+            --limit 1 \
+            --json conclusion,createdAt \
+            --repo "$GH_REPO")
+
+          CREATED_AT=$(echo "$RUN_INFO" | jq -r '.[0].createdAt // empty')
+          CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
+
+          if [ -z "$CREATED_AT" ]; then
+            echo "::error::No monthly run found. Heartbeat FAIL — monthly workflow has never run."
+            exit 1
+          fi
+
+          CREATED_EPOCH=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$CREATED_AT" +%s)
+          NOW_EPOCH=$(date +%s)
+          AGE_DAYS=$(( (NOW_EPOCH - CREATED_EPOCH) / 86400 ))
+
+          echo "Last monthly: $CREATED_AT (${AGE_DAYS}d ago, conclusion: $CONCLUSION)"
+
+          if [ "$AGE_DAYS" -gt 35 ]; then
+            echo "::error::Monthly workflow last ran ${AGE_DAYS}d ago — exceeds 35-day threshold."
+            exit 1
+          fi
+
+          echo "Monthly freshness OK — last run ${AGE_DAYS}d ago."
+
+      - name: File or close heartbeat issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING=$(gh issue list \
+            --label heartbeat-monthly-missed \
+            --state open \
+            --limit 1 \
+            --json number \
+            --repo "$GH_REPO" \
+            --jq '.[0].number // empty')
+
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --title "[heartbeat] monthly workflow missed" \
+              --body "The monthly workflow (08-monthly.yml) has not run within the expected 35-day window. Investigate immediately." \
+              --label heartbeat-monthly-missed \
+              --repo "$GH_REPO"
+          else
+            echo "Existing heartbeat issue #$EXISTING already open — skipping duplicate."
+          fi
