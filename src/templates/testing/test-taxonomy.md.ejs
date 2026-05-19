@@ -1,9 +1,9 @@
 # Test Taxonomy — <%= projectName %>
 
-<!-- arbiter-managed: test-pyramid-profile-25d (INV-89, #719) -->
+<!-- arbiter-managed: test-pyramid-profile-26d (INV-89, #883) -->
 <!-- Archetype: <%= archetype %> -->
 
-This document defines the 25-dimension test taxonomy for **<%= projectName %>**.
+This document defines the 26-dimension test taxonomy for **<%= projectName %>**.
 Each level maps to a CI stage in `ci.yml` and a check in `scripts/check-all.mjs`.
 
 ---
@@ -48,9 +48,9 @@ Each level maps to a CI stage in `ci.yml` and a check in `scripts/check-all.mjs`
 
 ---
 
-## Universal Quality Dimensions (25)
+## Universal Quality Dimensions (26)
 
-Every test level must address the applicable subset of the 25 universal dimensions below.
+Every test level must address the applicable subset of the 26 universal dimensions below.
 Primary codes indicate which test type most naturally covers each dimension.
 
 ### Core (1–17)
@@ -87,6 +87,7 @@ Primary codes indicate which test type most naturally covers each dimension.
 | 23 | Graceful degradation — circuit-breaker/fallback responses when external dependencies fail | IT / ST | INV-17 |
 | 24 | SLA assertion — p95 latency within declared budget under sustained load | ST | ISO 27001 A.12.1.3 |
 | 25 | Security surface — OWASP Top-10 attack inputs rejected at each public endpoint | AU / ST | OWASP Top-10, INV-19 |
+| 26 | Concurrency — race-free state mutation; deadlock and livelock detection; lock ordering discipline; concurrent data-structure correctness | IT / UT | INV-14 |
 
 <% const _domainDims = (typeof domainDims !== 'undefined' && Array.isArray(domainDims)) ? domainDims : [] %><% if (_domainDims.length > 0) { %>
 
@@ -116,3 +117,4 @@ The following dimensions are project-specific (sourced from `arbiter.json` `taxo
 | Cross-module feature | 14, 15 | IT + SC |
 | Compliance / audit feature | 18, 19, 25 | IT + AU |
 | High-traffic endpoint | 20, 24 | AU + ST |
+| Shared-state / concurrent feature | 26 | IT + UT |

@@ -1366,6 +1366,20 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-tier-coverage.mjs (L1)',
   },
 
+  {
+    id: 'INV-90',
+    tier: 'operational',
+    selfOnly: true,
+    alwaysActive: false,
+    title: 'Evidence bundle schema compliance',
+    description:
+      'Every task evidence bundle in .evidence/task-NNN/ must conform to schemas/evidence-bundle.schema.json. ' +
+      'Ensures audit trail completeness by requiring taskId, timestamp, gateResult (pass|fail), ' +
+      'redTestPath, greenTestPath, and an artifacts array. ' +
+      'Exit 0 when no bundles are present (vacuous pass for new projects).',
+    enforcement: 'scripts/check-evidence-bundle.mjs',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-82 (T5b heartbeat, #862), INV-83 (audit-append-only),
   // INV-84 (audit-trigger-presence) — sibling epic #TBD-sibling-epic phases B/G.
