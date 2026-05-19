@@ -1209,7 +1209,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'to a non-local action must resolve to a full 40-character lowercase hex SHA. ' +
       'At L1: violations emit a warning. At L2+: violations are a hard gate failure.',
     alwaysActive: false,
-    enforcement: 'generated gate: check-action-pins.mjs (L1=warn, L2+=hard fail)',
+    enforcement:
+      'self: scripts/check-action-pins.mjs (L1 — transition warn until W10 #886) + generated gate: check-action-pins.mjs.ejs (target projects: L1=warn, L2+=hard fail)',
   },
 
   {
