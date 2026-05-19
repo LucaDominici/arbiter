@@ -3,8 +3,15 @@
 // Gate: verify all 8 required CI workflow files exist in .github/workflows/.
 // Exits 0: all present.
 // Exits 1: one or more missing.
+// Part of the anti-drift validator family (W6).
+// Usage: node scripts/check-ci-tiers.mjs [--help]
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  process.stdout.write('Usage: node scripts/check-ci-tiers.mjs [--help]\nVerify all required CI tier workflow files exist.\n');
+  process.exit(0);
+}
 
 const CWD = process.cwd();
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');

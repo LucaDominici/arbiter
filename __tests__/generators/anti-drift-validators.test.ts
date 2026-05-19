@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { generateAntiDriftValidators } from '../../src/generators/anti-drift-validators.js'
 import { makeConfig } from '../helpers.js'
 
-describe('generateAntiDriftValidators (INV-89, W6)', () => {
+describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
   let dir: string
 
   beforeEach(() => {
@@ -17,12 +17,12 @@ describe('generateAntiDriftValidators (INV-89, W6)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('emits 11 scripts total', () => {
+  it('emits 20 scripts total (11 W6 + 9 F4)', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
-    expect(result.files).toHaveLength(11)
+    expect(result.files).toHaveLength(20)
   })
 
-  it('emits all expected script paths', () => {
+  it('emits all W6 script paths', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
     const paths = result.files.map((f) => f.path)
     const expected = [
@@ -39,6 +39,25 @@ describe('generateAntiDriftValidators (INV-89, W6)', () => {
       'check-workflow-job-naming.mjs',
     ]
     for (const name of expected) {
+      expect(paths.some((p) => p.endsWith(name))).toBe(true)
+    }
+  })
+
+  it('emits all F4 script paths', () => {
+    const result = generateAntiDriftValidators(makeConfig(dir))
+    const paths = result.files.map((f) => f.path)
+    const f4Expected = [
+      'check-validator-helptext.mjs',
+      'check-tier-coverage.mjs',
+      'check-inline-suppressions.mjs',
+      'check-suppressions.mjs',
+      'check-action-pins.mjs',
+      'check-workflow-perms.mjs',
+      'check-exit-code-contract.mjs',
+      'check-ssot-core.mjs',
+      'check-ci-tiers.mjs',
+    ]
+    for (const name of f4Expected) {
       expect(paths.some((p) => p.endsWith(name))).toBe(true)
     }
   })
@@ -80,6 +99,15 @@ describe('generateAntiDriftValidators (INV-89, W6)', () => {
       'check-pr-size-gate.mjs',
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
+      'check-validator-helptext.mjs',
+      'check-tier-coverage.mjs',
+      'check-inline-suppressions.mjs',
+      'check-suppressions.mjs',
+      'check-action-pins.mjs',
+      'check-workflow-perms.mjs',
+      'check-exit-code-contract.mjs',
+      'check-ssot-core.mjs',
+      'check-ci-tiers.mjs',
     ]) {
       const content = readFileSync(join(dir, 'scripts', name), 'utf-8')
       expect(content).toContain('--help')
@@ -139,6 +167,15 @@ describe('generateAntiDriftValidators (INV-89, W6)', () => {
       'check-pr-size-gate.mjs',
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
+      'check-validator-helptext.mjs',
+      'check-tier-coverage.mjs',
+      'check-inline-suppressions.mjs',
+      'check-suppressions.mjs',
+      'check-action-pins.mjs',
+      'check-workflow-perms.mjs',
+      'check-exit-code-contract.mjs',
+      'check-ssot-core.mjs',
+      'check-ci-tiers.mjs',
     ]) {
       const content = readFileSync(join(dir, 'scripts', name), 'utf-8')
       expect(content).not.toContain('<%')

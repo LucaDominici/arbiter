@@ -234,3 +234,227 @@ describe('check-workflow-test-integrity.mjs.ejs rendering (CANON-04, INV-89)', (
     expect(content).not.toContain('%>')
   })
 })
+
+// ─── F4: check-validator-helptext.mjs.ejs ────────────────────────────────────
+
+describe('check-validator-helptext.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang and INV-89 citation', () => {
+    const content = renderTemplate('scripts/check-validator-helptext.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+    expect(content).toContain('INV-89')
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-validator-helptext.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it('renders SKIP path for missing scripts/ directory', () => {
+    const content = renderTemplate('scripts/check-validator-helptext.mjs.ejs', makeData())
+    expect(content).toContain('SKIP')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-validator-helptext.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-tier-coverage.mjs.ejs ─────────────────────────────────────────
+
+describe('check-tier-coverage.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang and INV-89 citation', () => {
+    const content = renderTemplate('scripts/check-tier-coverage.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+    expect(content).toContain('INV-89')
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-tier-coverage.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it('renders SKIP path for missing gate script', () => {
+    const content = renderTemplate('scripts/check-tier-coverage.mjs.ejs', makeData())
+    expect(content).toContain('SKIP')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-tier-coverage.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-inline-suppressions.mjs.ejs ───────────────────────────────────
+
+describe('check-inline-suppressions.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang', () => {
+    const content = renderTemplate('scripts/check-inline-suppressions.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-inline-suppressions.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-inline-suppressions.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-suppressions.mjs.ejs ──────────────────────────────────────────
+
+describe('check-suppressions.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang', () => {
+    const content = renderTemplate('scripts/check-suppressions.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-suppressions.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-suppressions.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-action-pins.mjs.ejs ───────────────────────────────────────────
+
+describe('check-action-pins.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang', () => {
+    const content = renderTemplate('scripts/check-action-pins.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-action-pins.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-action-pins.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-workflow-perms.mjs.ejs ────────────────────────────────────────
+
+describe('check-workflow-perms.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang', () => {
+    const content = renderTemplate('scripts/check-workflow-perms.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-workflow-perms.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-workflow-perms.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-exit-code-contract.mjs.ejs ────────────────────────────────────
+
+describe('check-exit-code-contract.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang', () => {
+    const content = renderTemplate('scripts/check-exit-code-contract.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-exit-code-contract.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-exit-code-contract.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-ssot-core.mjs.ejs ─────────────────────────────────────────────
+
+describe('check-ssot-core.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang', () => {
+    const content = renderTemplate('scripts/check-ssot-core.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-ssot-core.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it('renders skip path for missing SSOT file', () => {
+    const content = renderTemplate('scripts/check-ssot-core.mjs.ejs', makeData())
+    expect(content).toContain('skipping')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-ssot-core.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ─── F4: check-ci-tiers.mjs.ejs ──────────────────────────────────────────────
+
+describe('check-ci-tiers.mjs.ejs rendering (CANON-04, INV-89, F4)', () => {
+  it('renders shebang', () => {
+    const content = renderTemplate('scripts/check-ci-tiers.mjs.ejs', makeData())
+    expect(content).toMatch(/^#!/)
+  })
+
+  it('renders --help flag support', () => {
+    const content = renderTemplate('scripts/check-ci-tiers.mjs.ejs', makeData())
+    expect(content).toContain('--help')
+  })
+
+  it.each(['L1', 'L2', 'L3'] as const)('governance %s: no EJS tag leaks', (level) => {
+    const content = renderTemplate(
+      'scripts/check-ci-tiers.mjs.ejs',
+      makeData({ governanceLevel: level }),
+    )
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})

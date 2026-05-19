@@ -1343,13 +1343,15 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-89',
     tier: 'operational',
-    title: 'Anti-drift validator family — W6 validators must be present and wired',
+    title: 'Anti-drift validator family — W6+F4 validators must be present and wired',
     description:
-      'The W6 anti-drift validator family consists of 13 check-*.mjs scripts that catch ' +
-      'configuration drift, secret leakage, suppression quality issues, and workflow structural ' +
-      "problems. 11 scripts are wired in arbiter's own L1 gate (selfOnly Track A). 9 of those 11 " +
-      'are also emitted for target projects via src/generators/anti-drift-validators.ts (Track B). ' +
-      '2 scripts (check-workflow-sha-pinning.mjs, check-workflow-job-naming.mjs) are Track B only.',
+      'The anti-drift validator family (W6+F4) consists of 20 check-*.mjs scripts emitted for ' +
+      'target projects via src/generators/anti-drift-validators.ts (Track B). ' +
+      "11 of those 20 are also wired in arbiter's own L1 gate (dual-track): the 9 W6 core " +
+      'validators plus check-validator-helptext and check-tier-coverage. ' +
+      '2 scripts (check-workflow-sha-pinning.mjs, check-workflow-job-naming.mjs) are Track B only. ' +
+      'The F4 batch adds 9 additional validators completing the agnostic anti-drift set. ' +
+      'See docs/REFERENCE/anti-drift-family.md for the full family reference.',
     alwaysActive: false,
     selfOnly: false,
     enforcement:
@@ -1363,7 +1365,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-workflow-test-integrity.mjs (L1) + ' +
       'scripts/check-pr-size-gate.mjs (L1) + ' +
       'scripts/check-validator-helptext.mjs (L1) + ' +
-      'scripts/check-tier-coverage.mjs (L1)',
+      'scripts/check-tier-coverage.mjs (L1) + ' +
+      'src/generators/anti-drift-validators.ts (Track B, 20 scripts)',
   },
 
   {
