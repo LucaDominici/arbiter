@@ -325,7 +325,7 @@ describe('generateContractTesting', () => {
 
   // ─── rest-owned × java: 3 files ──────────────────────────────────────────
 
-  it('returns 5 files for rest-owned + java (.env.pact + pacts/.gitkeep added)', () => {
+  it('returns 27 files for rest-owned + java (F7 postman + F9 contract baselines added, #896)', () => {
     const javaDir = createTestProject('java')
     initGit(javaDir)
     try {
@@ -336,7 +336,10 @@ describe('generateContractTesting', () => {
         buildTool: 'gradle',
         hasPublicApi: true,
       })
-      expect(generateContractTesting(config).files).toHaveLength(5)
+      // 5 base (CONTRACTS_POLICY.md + .env.pact + pacts/.gitkeep + pact-deps.gradle + PactVerificationIT.java)
+      // + 3 F7 (run-postman-tests.sh + inject-pact-samples.sh + _contract-postman.yml)
+      // + 10 F9 api-snapshot stubs + 6 F9 pact-sample stubs + 3 F9 validator scripts
+      expect(generateContractTesting(config).files).toHaveLength(27)
     } finally {
       cleanupTestProject(javaDir)
     }
