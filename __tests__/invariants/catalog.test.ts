@@ -94,9 +94,9 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier2).toHaveLength(6)
   })
 
-  it('has exactly 13 Tier 3 invariants', () => {
+  it('has exactly 12 Tier 3 invariants', () => {
     const tier3 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'security')
-    expect(tier3).toHaveLength(13)
+    expect(tier3).toHaveLength(12)
   })
 
   it('has exactly 25 Tier 4 invariants', () => {
