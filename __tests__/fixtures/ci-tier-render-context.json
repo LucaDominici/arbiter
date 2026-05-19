@@ -42,5 +42,6 @@
   "enableSoloDevMode": false,
   "contractType": "none",
   "lanes": ["docs"],
-  "ciTierMode": "baseline"
+  "ciTierMode": "baseline",
+  "ciPreTestBuild": true
 }

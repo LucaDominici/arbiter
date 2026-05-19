@@ -100,16 +100,18 @@ function graphql(query, fields) {
   return parsed.data
 }
 
-// ─── Preflight (always runs, even in dry-run) ─────────────────────────────────
-const ghCheck = spawnSync('gh', ['--version'], { encoding: 'utf-8' })
-if (ghCheck.status !== 0) {
-  console.error('gh CLI not found. Install from https://cli.github.com/')
-  process.exit(1)
-}
-const authCheck = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8' })
-if (authCheck.status !== 0) {
-  console.error('gh is not authenticated. Run: gh auth login')
-  process.exit(1)
+// ─── Preflight (only when actually running) ────────────────────────────────────
+if (!DRY_RUN) {
+  const ghCheck = spawnSync('gh', ['--version'], { encoding: 'utf-8' })
+  if (ghCheck.status !== 0) {
+    console.error('gh CLI not found. Install from https://cli.github.com/')
+    process.exit(1)
+  }
+  const authCheck = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8' })
+  if (authCheck.status !== 0) {
+    console.error('gh is not authenticated. Run: gh auth login')
+    process.exit(1)
+  }
 }
 
 // ─── Step 1: Enable Discussions ───────────────────────────────────────────────

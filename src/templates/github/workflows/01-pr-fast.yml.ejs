@@ -131,7 +131,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:unit<% if (enableDebtGates) { %> -- --reporter=junit --outputFile=test-results/junit.xml<% } %>
+<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% } %>      - run: npm run test:unit<% if (enableDebtGates) { %> -- --reporter=junit --outputFile=test-results/junit.xml<% } %>
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
@@ -154,7 +155,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:contract
+<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% } %>      - run: npm run test:contract
 
   integration-tests:
     name: Integration Tests
@@ -168,7 +170,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:integration
+<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% } %>      - run: npm run test:integration
 
   behavioral-tests:
     name: Behavioral Tests
@@ -182,7 +185,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:behavioral
+<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% } %>      - run: npm run test:behavioral
 
 <% } %><% if (language === 'rust') { %>
   gate:
@@ -410,7 +414,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
-      - run: npx vitest run --coverage --coverage.thresholds.lines=<%= threshold %>
+<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% } %>      - run: npx vitest run --coverage --coverage.thresholds.lines=<%= threshold %>
       - run: npx knip
       - run: npx madge --circular src
 <% } %><% if (language === 'rust') { %>
