@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#911",
+  "test_path": "__tests__/parity/ci-tier-render-parity.test.ts",
+  "test_commit_sha": "4082d0d82697f7fe95d50eaf2e002ed1602d8791",
+  "test_run_log": "CI run 26100632449 on dependabot/github_actions/actions/checkout-6 (PR #905): FAIL __tests__/parity/ci-tier-render-parity.test.ts — rendered EJS templates diverged from committed .github/workflows/*.yml after dependabot bumped action pins in yml files only. Confirmed red on PRs #905, #906, #907, #908. The new 'action pin parity' L1 gate (node scripts/sync-action-pins.mjs --check) would also fail at pre-fix HEAD if EJS↔yml pins were out of sync.",
+  "observed_failure": "FAIL — parity tests red when dependabot bumped action pins in .github/workflows/*.yml without updating src/templates/github/workflows/*.yml.ejs. sync-action-pins.mjs did not yet exist; the L1 gate check was absent. Red phase confirmed across 4 dependabot PRs in CI runs before this fix.",
+  "recorded_at": "2026-05-19T16:48:00.000Z"
+}
