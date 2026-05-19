@@ -82,7 +82,7 @@ describe('01-pr-fast.yml.ejs — parallel test category jobs (#219)', () => {
       expect(ciRequired).not.toContain('behavioral-tests')
     })
 
-    it('Rust ci-required only needs lint-and-test', () => {
+    it('Rust ci-required only needs gate', () => {
       const data = makeConfig('/tmp/test', {
         language: 'rust',
         buildTool: 'cargo',
@@ -90,7 +90,7 @@ describe('01-pr-fast.yml.ejs — parallel test category jobs (#219)', () => {
       }) as unknown as Record<string, unknown>
       const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
       const ciRequired = rendered.split('ci-required:')[1]
-      expect(ciRequired).toContain('lint-and-test')
+      expect(ciRequired).toContain('gate')
     })
   })
 

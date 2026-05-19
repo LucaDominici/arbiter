@@ -62,4 +62,16 @@ export interface Invariant {
    * arbiter.json governance.invariants_catalog = 'extended').
    */
   optInGroup?: 'extended'
+  /**
+   * Migration progress discriminator — orthogonal to status ('active'|'retired').
+   * Used for INV-73 during W4→W10 partial rollout: 'transition' means arbiter-self
+   * is at minPresent/totalRequired; 'complete' means all requirements met.
+   * Target-project filter ignores this field (selfOnly semantics apply separately).
+   */
+  migrationStatus?: 'baseline' | 'transition' | 'complete'
+  /**
+   * When migrationStatus is 'transition', the minimum number of required items that
+   * must be present to satisfy the invariant in self-mode.
+   */
+  minPresent?: number
 }

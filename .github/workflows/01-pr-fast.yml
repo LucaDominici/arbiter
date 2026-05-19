@@ -1,0 +1,301 @@
+name: PR Fast (T1)
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, "task/**"]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress PR fast runs on the same branch to free capacity.
+# Main runs always complete so post-merge status isn't truncated (#357).
+concurrency:
+  group: pr-fast-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+
+  security-early-fail:
+    name: Security (PII + Secrets)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - name: PII scan (INV-12, HARD)
+        run: node scripts/pii-scan.mjs
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
+      - name: Gitleaks secrets scan (INV-11)
+        run: |
+          gitleaks detect --source . --config .gitleaks.toml \
+            --gitleaks-ignore-path suppressions/.gitleaksignore \
+            --exit-code 1 --redact
+
+
+  classify-changes:
+    name: Classify Changes
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      backend_changed: ${{ steps.classify.outputs.backend_changed }}
+      frontend_changed: ${{ steps.classify.outputs.frontend_changed }}
+      infra_changed: ${{ steps.classify.outputs.infra_changed }}
+      high_risk: ${{ steps.classify.outputs.high_risk }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - id: classify
+        run: node scripts/ci-classify-changes.mjs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+          HEAD_SHA: ${{ github.sha }}
+
+
+
+
+  gate:
+    name: Lint + Typecheck
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [security-early-fail, classify-changes]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+
+      - name: Dep audit (INV-13)
+        run: npm audit --audit-level=high
+
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [gate]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
+
+
+  contract-tests:
+    name: Contract Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [gate]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:contract
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [unit-tests]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:integration
+
+  behavioral-tests:
+    name: Behavioral Tests
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [unit-tests]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:behavioral
+
+
+
+
+  docs-check:
+    name: Docs Check
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check docs updated with code changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # #356: rebased-aware via merge-base; bypass via [skip-docs] commit token.
+          MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")
+          CHANGED=$(git diff --name-only "$MB" "$HEAD_SHA")
+          LOG=$(git log --format=%B "$MB..$HEAD_SHA" || true)
+
+          HAS_CODE=$(echo "$CHANGED" | grep -E '^(src/|__tests__/)' || true)
+          HAS_DOCS=$(echo "$CHANGED" | grep -E '^(docs/|README\.md)' || true)
+          BYPASS=$(echo "$LOG" | grep -F '[skip-docs]' || true)
+
+          if [ -n "$HAS_CODE" ] && [ -z "$HAS_DOCS" ] && [ -z "$BYPASS" ]; then
+            echo "::error::Code changed without documentation update"
+            echo ""
+            echo "Files changed in src/ or __tests__/:"
+            echo "$HAS_CODE"
+            echo ""
+            echo "Please update docs/ or README.md, or add [skip-docs] to a commit message to bypass."
+            exit 1
+          fi
+          echo "Docs check passed."
+
+
+
+
+  debt-gates:
+    name: Tech Debt Gates
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [gate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx vitest run --coverage --coverage.thresholds.lines=80
+      - run: npx knip
+      - run: npx madge --circular src
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ github.run_id }}
+          path: coverage/
+          retention-days: 30
+
+
+
+  debt-ratchet:
+    name: Debt Ratchet
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    needs: [gate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Run debt ratchet
+        run: node scripts/debt-report.mjs --gate
+
+
+
+  human-approval-required:
+    name: Human Approval Required (INV-74)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Assert approved-by-human label (anti-bot gate)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            if (!labels.includes('approved-by-human')) {
+              core.setFailed(
+                'PR requires the "approved-by-human" label applied by a human reviewer. ' +
+                'See 03-human-approval.yml — a bot approval does not satisfy this check.'
+              );
+            }
+
+  ci-required:
+    name: CI Required
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+
+    needs: [gate, human-approval-required, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, debt-gates, debt-ratchet, classify-changes]
+    if: always()
+    steps:
+      - run: |
+          if [[ "${{ needs.gate.result }}" != "success" ]]; then
+            echo "gate failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
+            echo "unit-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.contract-tests.result }}" != "success" ]]; then
+            echo "contract-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.integration-tests.result }}" != "success" ]]; then
+            echo "integration-tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.behavioral-tests.result }}" != "success" ]]; then
+            echo "behavioral-tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security-early-fail.result }}" != "success" ]]; then
+            echo "security-early-fail failed"
+            exit 1
+          fi
+          if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
+            echo "docs-check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.debt-gates.result }}" != "success" ]]; then
+            echo "debt-gates failed"
+            exit 1
+          fi
+          if [[ "${{ needs.debt-ratchet.result }}" != "success" ]]; then
+            echo "debt-ratchet failed"
+            exit 1
+          fi
+          if [[ "${{ needs.human-approval-required.result }}" == "failure" ]]; then
+            echo "human-approval-required failed — PR needs approved-by-human label"
+            exit 1
+          fi

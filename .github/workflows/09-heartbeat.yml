@@ -33,13 +33,10 @@ jobs:
           CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
 
           if [ -z "$CREATED_AT" ]; then
-<% if (locals.ciTierMode === 'baseline') { %>
+
             echo "WARN: nightly workflow not yet present (baseline mode — will enforce when complete)"
             exit 0
-<% } else { %>
-            echo "::error::No nightly run found. Heartbeat FAIL — nightly workflow has never run."
-            exit 1
-<% } %>
+
           fi
 
           CREATED_EPOCH=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$CREATED_AT" +%s)
@@ -49,12 +46,9 @@ jobs:
           echo "Last nightly: $CREATED_AT (${AGE_HOURS}h ago, conclusion: $CONCLUSION)"
 
           if [ "$AGE_HOURS" -gt 26 ]; then
-<% if (locals.ciTierMode === 'baseline') { %>
+
             echo "WARN: nightly ran ${AGE_HOURS}h ago — baseline mode, not enforcing yet"
-<% } else { %>
-            echo "::error::Nightly workflow last ran ${AGE_HOURS}h ago — exceeds 26h threshold."
-            exit 1
-<% } %>
+
           fi
 
           echo "Nightly freshness OK — last run ${AGE_HOURS}h ago."
@@ -102,13 +96,10 @@ jobs:
           CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
 
           if [ -z "$CREATED_AT" ]; then
-<% if (locals.ciTierMode === 'baseline') { %>
+
             echo "WARN: weekly workflow not yet present (baseline mode — will enforce when complete)"
             exit 0
-<% } else { %>
-            echo "::error::No weekly run found. Heartbeat FAIL — weekly workflow has never run."
-            exit 1
-<% } %>
+
           fi
 
           CREATED_EPOCH=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$CREATED_AT" +%s)
@@ -118,12 +109,9 @@ jobs:
           echo "Last weekly: $CREATED_AT (${AGE_DAYS}d ago, conclusion: $CONCLUSION)"
 
           if [ "$AGE_DAYS" -gt 8 ]; then
-<% if (locals.ciTierMode === 'baseline') { %>
+
             echo "WARN: weekly ran ${AGE_DAYS}d ago — baseline mode, not enforcing yet"
-<% } else { %>
-            echo "::error::Weekly workflow last ran ${AGE_DAYS}d ago — exceeds 8-day threshold."
-            exit 1
-<% } %>
+
           fi
 
           echo "Weekly freshness OK — last run ${AGE_DAYS}d ago."
@@ -171,13 +159,10 @@ jobs:
           CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
 
           if [ -z "$CREATED_AT" ]; then
-<% if (locals.ciTierMode === 'baseline') { %>
+
             echo "WARN: monthly workflow not yet present (baseline mode — will enforce when complete)"
             exit 0
-<% } else { %>
-            echo "::error::No monthly run found. Heartbeat FAIL — monthly workflow has never run."
-            exit 1
-<% } %>
+
           fi
 
           CREATED_EPOCH=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$CREATED_AT" +%s)
@@ -187,12 +172,9 @@ jobs:
           echo "Last monthly: $CREATED_AT (${AGE_DAYS}d ago, conclusion: $CONCLUSION)"
 
           if [ "$AGE_DAYS" -gt 35 ]; then
-<% if (locals.ciTierMode === 'baseline') { %>
+
             echo "WARN: monthly ran ${AGE_DAYS}d ago — baseline mode, not enforcing yet"
-<% } else { %>
-            echo "::error::Monthly workflow last ran ${AGE_DAYS}d ago — exceeds 35-day threshold."
-            exit 1
-<% } %>
+
           fi
 
           echo "Monthly freshness OK — last run ${AGE_DAYS}d ago."

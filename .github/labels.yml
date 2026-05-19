@@ -1,0 +1,56 @@
+# Canonical label list — managed by arbiter
+# Sync to repo: push to main triggers _label-sync workflow
+labels:
+  # Task size
+  - name: "size: XS"
+    color: "ededed"
+    description: "Extra small: trivial change (< 30 min)"
+  - name: "size: S"
+    color: "ededed"
+    description: "Small: straightforward task (< 2 h)"
+  - name: "size: Standard"
+    color: "ededed"
+    description: "Standard: typical task (< 1 day)"
+  - name: "size: L"
+    color: "ededed"
+    description: "Large: complex task (1–3 days)"
+  - name: "size: XL"
+    color: "ededed"
+    description: "Extra large: epic-level task (> 3 days)"
+  # AI governance
+  - name: ai-generated
+    color: "0075ca"
+    description: "PR content was AI-generated"
+  - name: approved-by-human
+    color: "0e8a16"
+    description: "PR approved by a human reviewer distinct from the author"
+  # CI tier
+  - name: "tier: T2"
+    color: "e4e669"
+    description: "Affects T2 PR gate workflows"
+  - name: "tier: T3"
+    color: "e4e669"
+    description: "Affects T3 release workflows"
+  - name: "tier: T4"
+    color: "e4e669"
+    description: "Affects T4/T5 nightly/weekly/heartbeat workflows"
+  # Heartbeat alerts
+  - name: heartbeat-nightly-missed
+    color: "d93f0b"
+    description: "Nightly workflow missed its freshness window"
+  - name: heartbeat-weekly-missed
+    color: "d93f0b"
+    description: "Weekly workflow missed its freshness window"
+  - name: heartbeat-monthly-missed
+    color: "d93f0b"
+    description: "Monthly workflow missed its freshness window"
+  # Lifecycle
+  - name: tech-debt
+    color: "d93f0b"
+    description: "Tracked technical debt item"
+  - name: follow-up
+    color: "fbca04"
+    description: "Requires follow-up in a subsequent issue"
+  - name: blocked
+    color: "e11d48"
+    description: "Blocked on external dependency or decision"

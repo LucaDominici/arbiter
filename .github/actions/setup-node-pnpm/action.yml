@@ -1,0 +1,19 @@
+name: Setup Node.js
+description: >-
+  Sets up Node.js using the version from .nvmrc.
+  Restores npm cache for faster installs.
+
+inputs:
+  node-version-file:
+    description: Path to the node version file
+    required: false
+    default: .nvmrc
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: npm

@@ -1166,7 +1166,9 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '06-nightly.yml, 07-weekly.yml, 08-monthly.yml, 09-heartbeat.yml. Missing tiers ' +
       'degrade the deployment pipeline and break branch-protection required checks.',
     alwaysActive: false,
-    enforcement: 'generated gate: check-ci-tiers.mjs (L1)',
+    enforcement: 'scripts/check-ci-tiers.mjs (L1 gate)',
+    migrationStatus: 'transition',
+    minPresent: 4,
   },
 
   {

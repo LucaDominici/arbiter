@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, symlinkSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,7 +15,8 @@ function tmpDir(): string {
 function installFixture(dir: string, pkgName: string, fixtureName: string): void {
   const nmDir = join(dir, 'node_modules')
   mkdirSync(nmDir, { recursive: true })
-  symlinkSync(join(FIXTURES_DIR, fixtureName), join(nmDir, pkgName))
+  // Copy instead of symlink so require.resolve returns a path without '#' (worktree-safe)
+  cpSync(join(FIXTURES_DIR, fixtureName), join(nmDir, pkgName), { recursive: true })
 }
 
 describe('loadPlugin', () => {

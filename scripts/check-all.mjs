@@ -12,7 +12,8 @@
 //        matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
 //        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
 //        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
-//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot (41)
+//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot,
+//        ci tiers (INV-73) (42)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
 //       tdd-evidence (54)
@@ -104,6 +105,7 @@ runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mj
 runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
 runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
 runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
+runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
 runCheck('local-ci static parity', 'node', ['scripts/check-local-ci-parity.mjs'], {
   env: { ...process.env, PARITY_STATIC_CHECK_ONLY: '1' },
 })
