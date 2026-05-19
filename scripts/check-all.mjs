@@ -13,10 +13,13 @@
 //        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
 //        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
 //        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot,
-//        ci tiers (INV-73), action pin parity, action pin sha (INV-76) (44)
+//        ci tiers (INV-73), action pin parity, action pin sha (INV-76),
+//        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
+//        workflow-runners, workflow-docs-sync, workflow-test-integrity, pr-size-gate,
+//        validator-helptext, tier-coverage (55)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
-//       tdd-evidence (54)
+//       tdd-evidence (65)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
@@ -108,6 +111,18 @@ runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
 runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
 runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
 runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
+// ─── L1: Anti-drift validator family (INV-89, W6) ────────────────────────────
+runCheck('anti-drift: suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs'])
+runCheck('anti-drift: suppression expiry', 'node', ['scripts/check-suppression-expiry.mjs'])
+runCheck('anti-drift: pii scan config', 'node', ['scripts/check-pii-scan.mjs'])
+runCheck('anti-drift: secret scan', 'node', ['scripts/check-secret-scan.mjs'])
+runCheck('anti-drift: drift manifest', 'node', ['scripts/check-drift.mjs'])
+runCheck('anti-drift: workflow runners', 'node', ['scripts/check-workflow-runners.mjs'])
+runCheck('anti-drift: workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs'])
+runCheck('anti-drift: workflow integrity', 'node', ['scripts/check-workflow-test-integrity.mjs'])
+runCheck('anti-drift: pr size gate', 'node', ['scripts/check-pr-size-gate.mjs'])
+runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
+runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
 runCheck('local-ci static parity', 'node', ['scripts/check-local-ci-parity.mjs'], {
   env: { ...process.env, PARITY_STATIC_CHECK_ONLY: '1' },
 })

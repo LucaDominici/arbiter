@@ -27,12 +27,18 @@ jobs:
               name = str(label['name'])
               color = str(label.get('color', 'ededed'))
               desc = str(label.get('description', ''))
-              subprocess.run(
+              result = subprocess.run(
                   ['gh', 'label', 'create', name,
                    '--color', color,
                    '--description', desc,
                    '--repo', os.environ['GH_REPO'],
                    '--force'],
-                  check=False)
+                  check=False,
+                  capture_output=True,
+                  text=True)
+              if result.returncode != 0:
+                  import sys
+                  sys.stderr.write(f'[label-sync] ERROR: gh label create "{name}" failed (exit {result.returncode}): {result.stderr.strip()}\n')
+                  sys.exit(result.returncode)
           print('Label sync complete.')
           PYEOF2

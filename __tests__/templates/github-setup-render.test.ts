@@ -212,6 +212,39 @@ describe('check-action-pins.mjs.ejs rendering (CANON-04)', () => {
     expect(content).not.toContain('<%')
     expect(content).not.toContain('%>')
   })
+
+  it('cites INV-76 (SHA-pinned actions), not INV-75 (heartbeat watchdog) (#915)', () => {
+    const content = renderPins({})
+    expect(content).toContain('INV-76')
+    expect(content).not.toContain('INV-75')
+  })
+})
+
+// ─── _label-sync.yml.ejs ─────────────────────────────────────────────────────
+
+describe('_label-sync.yml.ejs rendering — silent failure fix (#914)', () => {
+  function renderLabelSync(overrides: Record<string, unknown> = {}) {
+    return renderTemplate(
+      'github/workflows/_label-sync.yml.ejs',
+      makeConfig('/tmp/test', overrides as Parameters<typeof makeConfig>[1]) as unknown as Record<
+        string,
+        unknown
+      >,
+    )
+  }
+
+  it('captures subprocess output and checks returncode to surface gh label errors (#914)', () => {
+    const content = renderLabelSync({})
+    expect(content).toContain('capture_output=True')
+    expect(content).toContain('result.returncode != 0')
+    expect(content).toContain('sys.stderr.write')
+  })
+
+  it('does not swallow errors silently (check=False without error check removed)', () => {
+    const content = renderLabelSync({})
+    // Ensure the returncode check follows subprocess.run
+    expect(content).toContain('result.returncode')
+  })
 })
 
 // ─── check-workflow-perms.mjs.ejs ────────────────────────────────────────────
