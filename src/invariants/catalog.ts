@@ -1308,6 +1308,23 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'scripts/check-kit-catalog-parity.mjs (L1 gate)',
   },
 
+  {
+    id: 'INV-87',
+    tier: 'operational',
+    title: 'Local-wrapper ↔ CI parity façade',
+    description:
+      'The local Makefile/run.sh targets must match CI workflow job names so contributors ' +
+      'running `make ci` invoke the same surface as CI. Static check compares Makefile .PHONY ' +
+      'targets (excluding local-only targets) with .github/workflows/ job names. Runtime check ' +
+      'compares parityContentHash across local and CI gate results. Both checks are skip-neutral ' +
+      'when sources are absent (pre-W4 state). Enforced by check-local-ci-parity.mjs at L1.',
+    alwaysActive: false,
+    selfOnly: true,
+    enforcement:
+      'scripts/check-local-ci-parity.mjs — static Makefile↔workflow check at L1 (PARITY_STATIC_CHECK_ONLY=1), ' +
+      'full static + runtime parityContentHash check at L2',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-82 (T5b heartbeat, #862), INV-83 (audit-append-only),
   // INV-84 (audit-trigger-presence) — sibling epic #TBD-sibling-epic phases B/G.

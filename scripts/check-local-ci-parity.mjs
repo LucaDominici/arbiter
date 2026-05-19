@@ -1,19 +1,134 @@
 #!/usr/bin/env node
-// check-local-ci-parity.mjs — local↔CI gate result parity check (INV-59, #470)
+// check-local-ci-parity.mjs — local↔CI gate result parity check (INV-59, INV-87, #470, #879)
 //
-// Reads .arbiter/gate/local-result.json and the latest CI gate-result artifact.
-// Compares parityContentHash. On mismatch, prints a diff and exits 1.
+// 1. Runtime check: reads .arbiter/gate/local-result.json and latest CI gate-result artifact,
+//    compares parityContentHash. On mismatch, prints diff and exits 1.
+// 2. Static check (#879, W3, INV-87): parses Makefile .PHONY targets and .github/workflows/
+//    job names, compares the set. Skip-neutral when either source is absent.
+//    Set PARITY_STATIC_CHECK_ONLY=1 to run only the static check (testing).
 //
 // Exit codes:
 //   0 — hashes match, or no CI artifact available (neutral skip)
-//   1 — hash mismatch (parity drift detected)
+//   1 — hash mismatch (parity drift detected) or static drift detected
 //   2 — invocation error (parse failure, bad artifact schema)
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 
 const ROOT = process.cwd()
+
+// ─── Static Makefile↔workflow parity check (INV-87, #879, W3) ────────────────
+
+// Targets that are expected to be local-only (no CI counterpart required).
+const STATIC_PARITY_EXCLUDE = new Set([
+  'help',
+  'clean',
+  'evidence',
+  'simulate-nightly',
+  'simulate-weekly',
+])
+
+function checkStaticParity(root) {
+  const makefilePath = join(root, 'Makefile')
+  if (!existsSync(makefilePath)) {
+    process.stdout.write(
+      '[skip] static parity: Makefile absent — skipping static Makefile↔workflow check\n',
+    )
+    return 0
+  }
+
+  const wfDir = join(root, '.github', 'workflows')
+  if (!existsSync(wfDir)) {
+    process.stdout.write(
+      '[skip] static parity: .github/workflows absent — skipping static Makefile↔workflow check\n',
+    )
+    return 0
+  }
+
+  let wfFiles
+  try {
+    wfFiles = readdirSync(wfDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+  } catch (err) {
+    if (err.code === 'ENOENT') return 0
+    process.stderr.write(
+      `check-local-ci-parity: ERROR — cannot read .github/workflows: ${err.message}\n`,
+    )
+    return 2
+  }
+
+  if (wfFiles.length === 0) {
+    process.stdout.write(
+      '[skip] static parity: no workflow files found — skipping static Makefile↔workflow check\n',
+    )
+    return 0
+  }
+
+  const makeContent = readFileSync(makefilePath, 'utf-8')
+  const phonyMatch = makeContent.match(/^\.PHONY:\s*(.+)$/m)
+  if (!phonyMatch) {
+    process.stderr.write(
+      'check-local-ci-parity: ERROR — Makefile present but has no .PHONY declaration ' +
+        '(template regression or manual corruption). Re-run arbiter update to regenerate.\n',
+    )
+    return 2
+  }
+  const makeTargets = new Set(
+    phonyMatch[1]
+      .trim()
+      .split(/\s+/)
+      .filter((t) => !STATIC_PARITY_EXCLUDE.has(t)),
+  )
+
+  const wfJobs = new Set()
+  for (const wfFile of wfFiles) {
+    const content = readFileSync(join(wfDir, wfFile), 'utf-8')
+    const lines = content.split('\n')
+    let inJobs = false
+    for (const line of lines) {
+      if (line === 'jobs:') {
+        inJobs = true
+        continue
+      }
+      if (inJobs && /^\S/.test(line) && line !== '') {
+        inJobs = false
+        continue
+      }
+      if (inJobs) {
+        const m = line.match(/^  ([\w][\w-]*):/)
+        if (m) wfJobs.add(m[1])
+      }
+    }
+  }
+
+  const makeOnly = [...makeTargets].filter((t) => !wfJobs.has(t))
+
+  if (makeOnly.length > 0) {
+    process.stderr.write('check-local-ci-parity: FAIL — static Makefile↔workflow drift\n')
+    process.stderr.write('  Makefile targets not in any workflow job:\n')
+    for (const t of makeOnly.sort()) {
+      process.stderr.write(`    ${t}\n`)
+    }
+    process.stderr.write(
+      '  Fix: add matching jobs to .github/workflows/ or add to STATIC_PARITY_EXCLUDE.\n',
+    )
+    return 1
+  }
+
+  process.stdout.write('check-local-ci-parity: static parity OK\n')
+  return 0
+}
+
+if (process.env.PARITY_STATIC_CHECK_ONLY === '1') {
+  process.exit(checkStaticParity(ROOT))
+}
+
+// Run static check unconditionally — does not require a prior L2 run.
+const staticCode = checkStaticParity(ROOT)
+if (staticCode !== 0) {
+  process.exit(staticCode)
+}
+
 const LOCAL_RESULT_PATH = join(ROOT, '.arbiter', 'gate', 'local-result.json')
 
 function skip(reason) {

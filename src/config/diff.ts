@@ -50,6 +50,8 @@ export type GeneratorKey =
   | 'observability'
   | 'auth'
   | 'ci-tier'
+  | 'local-wrapper'
+  | 'env-template'
 
 export interface ConfigDiff {
   paths: string[]
