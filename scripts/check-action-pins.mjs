@@ -2,18 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 // arbiter — SHA-pin self-check gate (INV-76, transition mode)
 // Scans .github/workflows/ and .github/actions/ for non-SHA action refs.
-// Transition mode: always exits 0; violations reported as [TRANSITION-WARN].
+// Transition mode: always exits 0; violations reported to stderr as [TRANSITION-WARN].
+// stderr is not suppressed by runCheck (unlike stdout) so warnings are visible in gate runs.
 // Does not read governanceLevel — self script must not inherit L2 hard-fail semantics.
 // TODO(#886): flip process.exit(0) to process.exit(1) when W10 ships SHA-pinned workflows
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 
 const CWD = process.cwd()
 
 function collectYamlFiles(dir) {
   if (!existsSync(dir)) return []
   const results = []
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+  let entries
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch (err) {
+    process.stderr.write(`  [check-action-pins] warn: cannot read ${dir}: ${err.message}\n`)
+    return results
+  }
+  for (const entry of entries) {
     if (entry.isSymbolicLink()) continue
     const full = join(dir, entry.name)
     if (entry.isDirectory()) {
@@ -36,22 +44,22 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/i
 // USES_PATTERN requires leading whitespace; column-0 'uses:' is not valid GitHub Actions syntax.
 const USES_PATTERN = /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([^\s#"']+)["']?/gm
 
-function stripQuotes(s) {
-  return (s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))
-    ? s.slice(1, -1)
-    : s
-}
-
 const violations = []
 for (const file of yamlFiles) {
-  const content = readFileSync(file, 'utf-8')
+  let content
+  try {
+    content = readFileSync(file, 'utf-8')
+  } catch (err) {
+    process.stderr.write(`  [check-action-pins] warn: cannot read ${file}: ${err.message}\n`)
+    continue
+  }
   for (const match of content.matchAll(USES_PATTERN)) {
-    const action = stripQuotes(match[1])
-    const ref = stripQuotes(match[2])
+    const action = match[1]
+    const ref = match[2]
     if (action.startsWith('.')) continue
     if (action.startsWith('docker://')) continue
     if (!SHA_PATTERN.test(ref)) {
-      violations.push({ file: file.replace(CWD + '/', ''), action, ref })
+      violations.push({ file: relative(CWD, file), action, ref })
     }
   }
 }
@@ -61,11 +69,12 @@ if (violations.length === 0) {
   process.exit(0)
 }
 
-// Transition mode: warn but do not fail — flip to exit(1) at TODO(#886)
-console.log(
-  `  [TRANSITION-WARN] check-action-pins: ${violations.length} non-SHA action reference(s) — INV-76 transition (W10 #886 to enforce):`,
+// Transition mode: warn to stderr (visible in gate runs) but do not fail
+// TODO(#886): flip process.exit(0) to process.exit(1) when W10 ships SHA-pinned workflows
+process.stderr.write(
+  `  [TRANSITION-WARN] check-action-pins: ${violations.length} non-SHA action reference(s) — INV-76 transition (W10 #886 to enforce):\n`,
 )
 for (const v of violations) {
-  console.log(`    ${v.file}: ${v.action}@${v.ref}`)
+  process.stderr.write(`    ${v.file}: ${v.action}@${v.ref}\n`)
 }
-process.exit(0) // TODO(#886): flip to process.exit(1) when W10 ships SHA-pinned workflows
+process.exit(0)

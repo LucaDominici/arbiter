@@ -30,9 +30,9 @@ describe('check-action-pins.mjs (#902, INV-76 transition)', () => {
       )
       const result = run(dir)
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('[TRANSITION-WARN]')
-      expect(result.stdout).toContain('non-SHA action reference')
-      expect(result.stdout).toContain('actions/checkout@v4')
+      expect(result.stderr).toContain('[TRANSITION-WARN]')
+      expect(result.stderr).toContain('non-SHA action reference')
+      expect(result.stderr).toContain('actions/checkout@v4')
     } finally {
       cleanup()
     }
@@ -91,8 +91,8 @@ describe('check-action-pins.mjs (#902, INV-76 transition)', () => {
     try {
       const result = run(dir)
       expect(result.status).toBe(0)
-      expect(result.stdout).not.toContain('non-SHA')
-      expect(result.stdout).not.toContain('[TRANSITION-WARN]')
+      expect(result.stdout).toContain('all action references are SHA-pinned')
+      expect(result.stderr).not.toContain('[TRANSITION-WARN]')
     } finally {
       cleanup()
     }
@@ -108,8 +108,8 @@ describe('check-action-pins.mjs (#902, INV-76 transition)', () => {
       )
       const result = run(dir)
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('[TRANSITION-WARN]')
-      expect(result.stdout).toContain('actions/setup-node@v4')
+      expect(result.stderr).toContain('[TRANSITION-WARN]')
+      expect(result.stderr).toContain('actions/setup-node@v4')
     } finally {
       cleanup()
     }
