@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project uses [changesets](https://github.com/changesets/changesets) and follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions. Versions are aligned to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `audit-toolchain.mjs` generator (Track A + Track B): emits a toolchain audit script
+  that checks CI workflow files, gate scripts, and build toolchain presence (#887, W11)
+- TDD evidence bundle for W11 planning skeleton migration close-out
+
 ## [0.1.0] — 2026-05-15
 
 ### Added

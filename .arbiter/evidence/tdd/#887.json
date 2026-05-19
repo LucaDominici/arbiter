@@ -1,0 +1,7 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#887",
+  "test_path": "__tests__/generators/audit-toolchain.test.ts",
+  "test_commit_sha": "pending",
+  "description": "W11 — Verification + Evidence Bundle: audit-toolchain generator TDD. Red phase: module import failure. Green phase: 9 generator tests + 8 render tests all passing."
+}

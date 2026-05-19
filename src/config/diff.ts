@@ -53,6 +53,7 @@ export type GeneratorKey =
   | 'local-wrapper'
   | 'env-template'
   | 'infra'
+  | 'audit-toolchain'
 
 export interface ConfigDiff {
   paths: string[]
