@@ -27,9 +27,11 @@ if [ -n "$(git status --porcelain | grep -v '^??')" ]; then
 fi
 
 # Vite/vitest (v5+) cannot handle '#' in the project root path.
+# Use pwd -P (physical path) to detect symlink-based worktrees where $PWD
+# may not contain '#' even though the real path does.
 # Rsync to a '#'-free temp dir and run the gate from there.
-if [[ "$PWD" == *"#"* ]]; then
-  ORIG_DIR="$(pwd)"
+ORIG_DIR="$(pwd -P)"
+if [[ "$ORIG_DIR" == *"#"* ]]; then
   TMP_DIR=$(mktemp -d /tmp/arbiter-hook-XXXXXX)
   trap 'rm -rf "$TMP_DIR"' EXIT
   rsync -a --exclude .git --exclude node_modules --exclude dist . "$TMP_DIR/"
