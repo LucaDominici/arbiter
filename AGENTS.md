@@ -175,6 +175,12 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/check-evidence-bundle.mjs`
   - Every task evidence bundle in `.evidence/task-NNN/` must conform to `schemas/evidence-bundle.schema.json`. Exit 0 when no bundles are present.
 
+## AI-PR Gate (INV-91)
+
+- **INV-91:** AI-PR human-approval gate
+  - Bot-authored PRs require the `approved-by-human` label before merge
+  - _Enforcement:_ generated `_ai-draft-check.yml` workflow + `_label-on-approve.yml` workflow
+
 ---
 
 ## Coding Standards

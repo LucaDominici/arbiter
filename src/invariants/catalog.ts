@@ -1380,6 +1380,21 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'scripts/check-evidence-bundle.mjs',
   },
 
+  {
+    id: 'INV-91',
+    tier: 'security',
+    title: 'AI-PR human-approval gate',
+    description:
+      'Bot-authored PRs (github.event.pull_request.user.type == "Bot") must be reviewed and ' +
+      'approved by a human before merge. Approval is signaled by the "approved-by-human" label ' +
+      'applied by _label-on-approve.yml (idempotent, rejects bot reviewers and self-reviews). ' +
+      '_ai-draft-check.yml asserts the label presence on every label/sync event. ' +
+      'Complements INV-74 which enforces the label requirement regardless of PR author type.',
+    alwaysActive: false,
+    selfOnly: false,
+    enforcement: 'generated: _ai-draft-check.yml workflow + _label-on-approve.yml workflow',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-82 (T5b heartbeat, #862), INV-83 (audit-append-only),
   // INV-84 (audit-trigger-presence) — sibling epic #TBD-sibling-epic phases B/G.

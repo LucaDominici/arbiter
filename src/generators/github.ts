@@ -83,6 +83,30 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
   return files
 }
 
+function generateAgentGovernanceWorkflows(
+  workflowsDir: string,
+  config: ProjectConfig,
+): WriteResult[] {
+  const data = config
+  return [
+    writeFile(
+      join(workflowsDir, '_label-on-approve.yml'),
+      renderTemplate('github/workflows/_label-on-approve.yml.ejs', data),
+      { skipIfExists: true },
+    ),
+    writeFile(
+      join(workflowsDir, '_ai-draft-check.yml'),
+      renderTemplate('github/workflows/_ai-draft-check.yml.ejs', data),
+      { skipIfExists: true },
+    ),
+    writeFile(
+      join(workflowsDir, '_pr-staleness.yml'),
+      renderTemplate('github/workflows/_pr-staleness.yml.ejs', data),
+      { skipIfExists: true },
+    ),
+  ]
+}
+
 function generateIssueTemplates(issueTemplatesDir: string, config: ProjectConfig): WriteResult[] {
   const data = config
   const files: WriteResult[] = [
@@ -122,9 +146,10 @@ export function generateGithub(config: ProjectConfig): GithubGeneratorResult {
 
   const files: WriteResult[] = [
     ...generateCiWorkflows(workflowsDir, config),
+    ...generateAgentGovernanceWorkflows(workflowsDir, config),
     writeFile(
       join(githubDir, 'PULL_REQUEST_TEMPLATE.md'),
-      renderTemplate('github/PULL_REQUEST_TEMPLATE.md', data),
+      renderTemplate('github/PULL_REQUEST_TEMPLATE.md.ejs', data),
       { skipIfExists: true },
     ),
     ...generateIssueTemplates(issueTemplatesDir, config),

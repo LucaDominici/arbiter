@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import {
-  _resetForTest,
-  resolveAdapter,
-  registerAdapter,
-} from '../../src/adapters/_registry.js'
+import { _resetForTest, resolveAdapter, registerAdapter } from '../../src/adapters/_registry.js'
 import { javaAdapter } from '../../src/adapters/java.js'
 
 describe('Java stack adapter', () => {

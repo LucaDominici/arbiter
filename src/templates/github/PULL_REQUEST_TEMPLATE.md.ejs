@@ -1,0 +1,52 @@
+## Summary
+
+<!-- What does this PR do? Why? (1-3 bullets) -->
+
+## Changes
+
+<!-- Bullet list of what changed -->
+
+## Gate Checklist
+
+- [ ] `node scripts/check-all.mjs L1` passes
+<% if (governanceLevel !== 'L1') { %>
+- [ ] `node scripts/check-all.mjs L2` passes
+<% } %>
+- [ ] No orphan TODOs (all TODO have task IDs)
+- [ ] No invariant violations (see AGENTS.md)
+- [ ] Tests added/updated for changed code
+- [ ] Commit messages follow convention: `type(scope): summary`
+<% if (governanceLevel !== 'L1') { %>
+- [ ] No CANON violations (applicable CANON-NN IDs: <!-- list or "none" -->)
+<% } %>
+
+## Pipeline Artifacts
+
+<!-- Optional: link relevant artifacts from CI pipeline -->
+
+| Artifact     | Link |
+| ------------ | ---- |
+| Spec / Plan  |      |
+| Review score |      |
+| Log          |      |
+
+## Test Plan
+
+<!-- How was this tested? What scenarios were covered? -->
+<% if (governanceLevel !== 'L1') { %>
+
+## AI-PR Gate
+
+<!-- If this PR was authored by a bot/AI: -->
+- [ ] Human reviewer approved and `approved-by-human` label applied (INV-91)
+<% } %>
+
+## Security Checklist
+
+<!-- L2/L3 projects: verify SECURE_CODING_CHECKLIST.md before merging -->
+<% if (governanceLevel !== 'L1') { %>
+- [ ] Reviewed `docs/SECURE_CODING_CHECKLIST.md` (if present in this project)
+- [ ] No deprecated endpoints added without `Sunset` header (RFC 8594) — N/A if no public API changes
+<% } else { %>
+- [ ] No obvious security regressions introduced
+<% } %>
