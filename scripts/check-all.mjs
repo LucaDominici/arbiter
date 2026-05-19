@@ -29,7 +29,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
-import { runCheck, getResults, getFailed } from './lib/run-helpers.mjs'
+import { runCheck, runWarnCheck, getResults, getFailed } from './lib/run-helpers.mjs'
 import { parseCheckArgs } from './lib/parse-check-args.mjs'
 
 const { subcommand, level, jsonPath: _parsedJsonPath } = parseCheckArgs(process.argv.slice(2))
