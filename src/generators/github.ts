@@ -65,6 +65,21 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
     )
   }
 
+  if (config.enableDeployWorkflows) {
+    files.push(
+      writeFile(
+        join(workflowsDir, '04-deploy-test.yml'),
+        renderTemplate('github/workflows/04-deploy-test.yml.ejs', data),
+        { skipIfExists: true },
+      ),
+      writeFile(
+        join(workflowsDir, '10-deploy-prod.yml'),
+        renderTemplate('github/workflows/10-deploy-prod.yml.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
   return files
 }
 

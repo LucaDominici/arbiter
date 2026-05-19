@@ -258,6 +258,13 @@ export interface ProjectConfig {
    * 'full'     = emit all 8 standard CI tier workflows (default for target projects).
    */
   ciTierMode?: 'baseline' | 'full'
+
+  /**
+   * Emit deploy workflow templates (04-deploy-test.yml + 10-deploy-prod.yml).
+   * Off by default — downstream projects opt in when they have a container deploy pipeline.
+   * Slot 04 was reserved in CI-TIER-MODEL.md; slot 10 is new (post 09-heartbeat).
+   */
+  enableDeployWorkflows?: boolean
 }
 
 export type PlanDepth = 'minimal' | 'brief' | 'full'
