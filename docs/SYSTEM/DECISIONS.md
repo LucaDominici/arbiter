@@ -1233,3 +1233,23 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **Sync direction rationale:** yml is the ground truth for what runs in CI (dependabot edits it directly). EJS is the derivable artifact for downstream. Sync direction yml → EJS means the EJS always tracks what CI actually runs.
 
 **Consequences:** Dependabot github-actions PRs auto-fix their own EJS divergence on the first CI run after the new workflow merges. Human approval (INV-74) remains required for merge. The L1 gate catches any future human-side drift before commit.
+
+## ADR-052: Toolchain audit generator — W11 evidence bundle (#887)
+
+**Date:** 2026-05-20
+**Status:** Accepted
+**Reference:** Issue #887, umbrella #875
+
+**Context:** W11 closes the planning-skeleton migration (W1–W11). The deliverable is a self-validating audit script that proves the toolchain is intact: CI workflow files exist, gate scripts exist, build toolchain is defined. This is Track A (arbiter-self) + Track B (target projects via EJS generator).
+
+**Decision:**
+
+- `scripts/audit-toolchain.mjs` (Track A): arbiter-self version, always passes on the arbiter repo.
+- `src/templates/scripts/audit-toolchain.mjs.ejs` (Track B): EJS template emitted to target projects via `arbiter init`/`arbiter update`.
+- `src/generators/audit-toolchain.ts`: generator function (CANON-05); always enabled; added to registry.
+- `src/config/diff.ts`: `GeneratorKey` union extended with `'audit-toolchain'`.
+- Dogfood: `src/templates/scripts/` is NOT in scope for `check-self-dogfood.mjs` (which only covers `src/templates/claude/`), so no dogfood divergence entry is needed.
+
+**CANON-16 survey:** `self-validation.ts` is the closest neighbor (A/B/C drill harness). Distinct responsibility: inventory audit vs. drill harness. No refactor viable. New file justified.
+
+**Consequences:** Target projects generated at any level (L1/L2/L3) receive `audit-toolchain.mjs`. Template tests baseline updated 147→145 (2 fewer untested EJS files).
