@@ -158,6 +158,35 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-87:** Local-wrapper ↔ CI parity façade
   - _Enforcement:_ `scripts/check-local-ci-parity.mjs` — static Makefile↔workflow check at L1 (`PARITY_STATIC_CHECK_ONLY=1`), full static + runtime `parityContentHash` check at L2
 
+## Anti-Drift Validator Family (INV-89)
+
+- **INV-89:** Anti-drift validator family — W6 validators must be present and wired
+  - _Enforcement:_ 11 scripts wired at L1 gate (`check-suppression-rationale.mjs`, `check-suppression-expiry.mjs`, `check-pii-scan.mjs`, `check-secret-scan.mjs`, `check-drift.mjs`, `check-workflow-runners.mjs`, `check-workflow-docs-sync.mjs`, `check-workflow-test-integrity.mjs`, `check-pr-size-gate.mjs`, `check-validator-helptext.mjs`, `check-tier-coverage.mjs`); 2 Track-B-only scripts (`check-workflow-sha-pinning.mjs`, `check-workflow-job-naming.mjs`) emitted for target projects only via `src/generators/anti-drift-validators.ts`
+
+## Stack Adapter Coverage (INV-88)
+
+- **INV-88:** Stack adapter coverage
+  - Enforcement: `scripts/check-adapter-coverage.mjs`
+  - Every language with a non-exempt archetype must have a registered StackAdapter file in `src/adapters/`. Exempt: `kotlin`, `multi`, `unknown`.
+
+## Evidence Bundle Schema Compliance (INV-90)
+
+- **INV-90:** Evidence bundle schema compliance
+  - _Enforcement:_ `scripts/check-evidence-bundle.mjs`
+  - Every task evidence bundle in `.evidence/task-NNN/` must conform to `schemas/evidence-bundle.schema.json`. Exit 0 when no bundles are present.
+
+## AI-PR Gate (INV-91)
+
+- **INV-91:** AI-PR human-approval gate
+  - Bot-authored PRs require the `approved-by-human` label before merge
+  - _Enforcement:_ generated `_ai-draft-check.yml` workflow + `_label-on-approve.yml` workflow
+
+## Supply Chain (INV-92)
+
+- **INV-92:** Supply chain — keyless signing, SBOM attestation, and Trivy CRITICAL block
+  - Enforcement: generated `05-release.yml` workflow (`trivy-fs-scan` + `cosign-sign` + `sbom-attest` jobs)
+  - Release artifacts must be signed with cosign keyless (OIDC) and attested with CycloneDX SBOM via `cosign attest --predicate`. Trivy must block on CRITICAL vulnerabilities before signing. A `_sigstore-retry-sign` reusable workflow handles signing retry on Sigstore flakiness.
+
 ---
 
 ## Coding Standards

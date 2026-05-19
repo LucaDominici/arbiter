@@ -24,10 +24,10 @@ describe('tool output: github', () => {
     })
   }
 
-  it('generates T1+T2+T3+T4+T5+T5b+T6 CI workflows, PR template, 5 issue templates, compliance-item, issue-state, dependabot, sign-and-attest action, sigstore-retry-sign, and AI-PR gate workflows (21 files total)', () => {
+  it('generates T1+T2+T3+T4+T5+T5b+T6 CI workflows, PR template, 5 issue templates, compliance-item, issue-state, dependabot, sign-and-attest action, sigstore-retry-sign, and AI-PR gate workflows (22 files total)', () => {
     const config = githubConfig()
     const result = generateGithub(config)
-    expect(result.files).toHaveLength(21)
+    expect(result.files).toHaveLength(22)
   })
 
   it('dependabot.yml includes npm package ecosystem for TypeScript projects', () => {
