@@ -1168,7 +1168,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: false,
     enforcement: 'scripts/check-ci-tiers.mjs (L1 gate)',
     migrationStatus: 'transition',
-    minPresent: 4,
+    minPresent: 6,
   },
 
   {
@@ -1393,6 +1393,21 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: false,
     selfOnly: false,
     enforcement: 'generated: _ai-draft-check.yml workflow + _label-on-approve.yml workflow',
+  },
+
+  {
+    id: 'INV-93',
+    tier: 'operational',
+    selfOnly: true,
+    alwaysActive: false,
+    title: 'Nightly freshness gate',
+    description:
+      'The nightly CI stamp artifact (.arbiter/nightly/last-run.json) must not be older than 26 hours ' +
+      'when present. Exit 0 when no artifact exists (vacuous pass — nightly not yet configured or ' +
+      'arbiter-self is in baseline mode). Exit 1 when the artifact timestamp indicates the nightly ' +
+      'workflow has not run within the freshness window. Pairs with 09-heartbeat.yml (runtime GH API check) ' +
+      'and INV-75 (heartbeat watchdog).',
+    enforcement: 'scripts/check-nightly-freshness.mjs',
   },
 
   // arbiter:noscan-inv-reservation

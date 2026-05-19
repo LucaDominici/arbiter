@@ -16,10 +16,10 @@
 //        ci tiers (INV-73), action pin parity, action pin sha (INV-76),
 //        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
 //        workflow-runners, workflow-docs-sync, workflow-test-integrity, pr-size-gate,
-//        validator-helptext, tier-coverage (55)
+//        validator-helptext, tier-coverage, nightly freshness (INV-93) (56)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
-//       tdd-evidence + evidence-bundle (INV-90) (66)
+//       tdd-evidence + evidence-bundle (INV-90) (67)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
@@ -127,6 +127,7 @@ runCheck('local-ci static parity', 'node', ['scripts/check-local-ci-parity.mjs']
   env: { ...process.env, PARITY_STATIC_CHECK_ONLY: '1' },
 })
 runCheck('adapter coverage (INV-88)', 'node', ['scripts/check-adapter-coverage.mjs'])
+runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

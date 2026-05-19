@@ -22,14 +22,14 @@ const ALL_TIERS: InvariantTier[] = [
 // ---------------------------------------------------------------------------
 
 describe('INVARIANT_CATALOG', () => {
-  it('has exactly 88 entries', () => {
-    expect(INVARIANT_CATALOG).toHaveLength(88)
+  it('has exactly 89 entries', () => {
+    expect(INVARIANT_CATALOG).toHaveLength(89)
   })
 
   it('all IDs are unique', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(88)
+    expect(unique.size).toBe(89)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..81)', () => {
@@ -94,14 +94,14 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier2).toHaveLength(6)
   })
 
-  it('has exactly 12 Tier 3 invariants', () => {
+  it('has exactly 13 Tier 3 invariants', () => {
     const tier3 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'security')
-    expect(tier3).toHaveLength(12)
+    expect(tier3).toHaveLength(13)
   })
 
-  it('has exactly 24 Tier 4 invariants', () => {
+  it('has exactly 25 Tier 4 invariants', () => {
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(24)
+    expect(tier4).toHaveLength(25)
   })
 
   it('has exactly 35 Tier 5 invariants', () => {
@@ -491,9 +491,9 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-51')
   })
 
-  it('catalog has exactly 17 selfOnly invariants (#682, #862, #878, #879, #881, #883)', () => {
+  it('catalog has exactly 18 selfOnly invariants (#682, #862, #878, #879, #881, #883, #886)', () => {
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(17)
+    expect(selfOnly).toHaveLength(18)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')
@@ -510,6 +510,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-87')
     expect(ids).toContain('INV-88')
     expect(ids).toContain('INV-90')
+    expect(ids).toContain('INV-93')
   })
 })
 
@@ -614,8 +615,8 @@ describe('INV-73 migration status', () => {
     expect(inv73!.migrationStatus).toBe('transition')
   })
 
-  it('INV-73 minPresent is 4 (4 canonical workflows in W4 baseline)', () => {
+  it('INV-73 minPresent is 6 (6 canonical workflows in W10 baseline: 01+02+03+06+07+09)', () => {
     const inv73 = INVARIANT_CATALOG.find((inv) => inv.id === 'INV-73')
-    expect(inv73!.minPresent).toBe(4)
+    expect(inv73!.minPresent).toBe(6)
   })
 })

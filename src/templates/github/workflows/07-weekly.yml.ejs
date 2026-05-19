@@ -27,9 +27,9 @@ jobs:
       matrix:
         db: [postgres, mysql, mssql, mariadb]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -95,7 +95,7 @@ jobs:
           - os: windows-latest
             arch: arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 <% if (language === 'go') { %>
       - uses: actions/setup-go@v5
         with:
@@ -113,7 +113,7 @@ jobs:
       - name: Smoke test binary
         run: target/release/cli --version || true
 <% } else if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -150,9 +150,9 @@ jobs:
     name: Dependency freshness report
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -197,7 +197,7 @@ jobs:
     name: k6 performance trend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: k6 performance smoke vs 7-day baseline
         uses: grafana/k6-action@v0.3.1
         with:
@@ -209,7 +209,7 @@ jobs:
     name: Stale action pin audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Find SHA-pinned actions older than 180 days
         env:
           GH_TOKEN: ${{ github.token }}

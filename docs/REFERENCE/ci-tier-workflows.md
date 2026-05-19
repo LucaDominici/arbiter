@@ -32,7 +32,7 @@ Set in `arbiter.json`:
 
 ## INV-73 Transition Mode
 
-arbiter-self (this repo) operates under `migrationStatus: 'transition'` during W4→W10. The self-gate (`scripts/check-ci-tiers.mjs`) requires 4/8 canonical workflow files. Target projects always require 8/8.
+arbiter-self (this repo) operates under `migrationStatus: 'transition'` during W4→W10. The self-gate (`scripts/check-ci-tiers.mjs`) requires 6/8 canonical workflow files (01+02+03+06+07+09 present; 05-release and 08-monthly pending). Target projects always require 8/8.
 
 ## Supplementary Artifacts
 
