@@ -85,6 +85,78 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
   return out
 }
 
+/**
+ * F9: Emit api-snapshots/ stub JSONs, pact-samples/ stub JSONs, and contract validator scripts.
+ * All files use skipIfExists so brownfield re-init never overwrites user-regenerated baselines.
+ * (#896)
+ */
+function generateApiContractBaselines(base: string, data: object): WriteResult[] {
+  const snapshotsBase = resolvedPath(base, 'src', 'test', 'resources', 'api-snapshots')
+  const pactSamplesBase = resolvedPath(base, 'src', 'test', 'resources', 'pact-samples')
+  const skip = { skipIfExists: true } as const
+  const out: WriteResult[] = []
+
+  const snapshotStubs = [
+    'openapi-baseline.json',
+    'openapi-paths-baseline.json',
+    'openapi-response-status-baseline.json',
+    'openapi-content-types-baseline.json',
+    'openapi-required-fields-baseline.json',
+    'config-response-baseline.json',
+    'config-keys-baseline.json',
+    'enum-values-baseline.json',
+    'error-shape-baseline.json',
+    'test-snapshot.json',
+  ]
+  for (const name of snapshotStubs) {
+    out.push(
+      writeFile(
+        resolvedPath(snapshotsBase, name),
+        renderTemplate(`contract-testing/api-snapshots/${name}.ejs`, data),
+        skip,
+      ),
+    )
+  }
+
+  const pactStubs = [
+    'assignment-response.json',
+    'availability-response.json',
+    'availability-rule-response.json',
+    'capacity-response.json',
+    'fully-booked-response.json',
+    'schedule-override-response.json',
+  ]
+  for (const name of pactStubs) {
+    out.push(
+      writeFile(
+        resolvedPath(pactSamplesBase, name),
+        renderTemplate(`contract-testing/pact-samples/${name}.ejs`, data),
+        skip,
+      ),
+    )
+  }
+
+  out.push(
+    writeFile(
+      resolvedPath(base, 'scripts', 'validate-api-snapshots.mjs'),
+      renderTemplate('scripts/validate-api-snapshots.mjs.ejs', data),
+      skip,
+    ),
+    writeFile(
+      resolvedPath(base, 'scripts', 'validate-openapi-field-types.mjs'),
+      renderTemplate('scripts/validate-openapi-field-types.mjs.ejs', data),
+      skip,
+    ),
+    writeFile(
+      resolvedPath(base, 'scripts', 'validate-postman-collection.mjs'),
+      renderTemplate('scripts/validate-postman-collection.mjs.ejs', data),
+      skip,
+    ),
+  )
+
+  return out
+}
+
 function generateRestOwned(base: string, config: ProjectConfig, data: object): WriteResult[] {
   const extra: WriteResult[] = [
     writeFile(
@@ -130,6 +202,11 @@ function generateRestOwned(base: string, config: ProjectConfig, data: object): W
         { skipIfExists: true },
       ),
     )
+  }
+
+  // F9: API contract baselines — Java only (#896)
+  if (config.language === 'java' || config.language === 'multi') {
+    extra.push(...generateApiContractBaselines(base, data))
   }
 
   return contractFile({
