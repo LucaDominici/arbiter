@@ -1,9 +1,9 @@
-<%
-const _verifyOnSign = governanceLevel === 'L3';
-%>name: Sign and Attest Artifact
+name: Sign and Attest Artifact
 description: >-
   Keyless cosign sign-blob + CycloneDX SBOM attestation + GitHub native attest-build-provenance.
   Used by release workflow for consistent signing across archetypes (INV-92, #885).
+  Generated from: src/templates/github/actions/sign-and-attest/action.yml.ejs (L2 governance)
+
 inputs:
   artifact-name:
     description: GitHub Actions artifact name to download
@@ -25,24 +25,17 @@ runs:
     - name: Sign artifact (keyless OIDC)
       shell: bash
       run: cosign sign-blob --yes "${{ inputs.artifact-path }}" --bundle "${{ inputs.artifact-path }}.bundle"
-<% if (_verifyOnSign) { %>
-    - name: Verify signature (L3 strict)
-      shell: bash
-      run: |
-        cosign verify-blob \
-          --bundle "${{ inputs.artifact-path }}.bundle" \
-          --certificate-identity-regexp ".*" \
-          --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-          "${{ inputs.artifact-path }}"
-<% } %>
     - name: Attest SBOM (cosign attest --predicate, CycloneDX)
       if: ${{ inputs.sbom-path != '' }}
       shell: bash
+      env:
+        SBOM_FILE: ${{ inputs.sbom-path }}
+        ARTIFACT: ${{ inputs.artifact-path }}
       run: |
         cosign attest --yes \
-          --predicate "${{ inputs.sbom-path }}" \
+          --predicate "$SBOM_FILE" \
           --type cyclonedx \
-          "${{ inputs.artifact-path }}"
+          "$ARTIFACT"
     - uses: actions/attest-build-provenance@520aba26e2f010aaab88f4a9c58cdbb3f3965fc2  # v2
       with:
         subject-path: ${{ inputs.artifact-path }}

@@ -35,6 +35,10 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
         renderTemplate('github/workflows/05-release.yml.ejs', data),
       ),
       writeFile(
+        join(workflowsDir, '_sigstore-retry-sign.yml'),
+        renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data),
+      ),
+      writeFile(
         join(workflowsDir, '06-nightly.yml'),
         renderTemplate('github/workflows/06-nightly.yml.ejs', data),
       ),
