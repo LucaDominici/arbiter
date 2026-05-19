@@ -7,8 +7,13 @@
 
 ## Aliases
 
-| Old Path | Current Path | Moved Date |
-| -------- | ------------ | ---------- |
+| Old Path                                        | Current Path                                     | Moved Date |
+| ----------------------------------------------- | ------------------------------------------------ | ---------- |
+| `docs/ARCHITECTURE/CANONICAL-SOURCE-MODEL.md`   | `docs/architecture/CANONICAL-SOURCE-MODEL.md`    | 2026-05-19 |
+| `docs/ARCHITECTURE/CONFLICT-RESOLUTION.md`      | `docs/architecture/CONFLICT-RESOLUTION.md`       | 2026-05-19 |
+| `docs/ARCHITECTURE/OVERVIEW.md`                 | `docs/architecture/OVERVIEW.md`                  | 2026-05-19 |
+| `docs/ARCHITECTURE/TEMPLATE-SYSTEM.md`          | `docs/architecture/TEMPLATE-SYSTEM.md`           | 2026-05-19 |
+| `docs/AUDIT/compat-fixes-854-855-2026-05-18.md` | `docs/audits/compat-fixes-854-855-2026-05-18.md` | 2026-05-19 |
 
 ---
 
