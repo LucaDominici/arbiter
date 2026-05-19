@@ -89,32 +89,6 @@ Write the selected tier to the state file:
 echo "<tier>" > .claude/.task-tier
 ```
 
-### Phase 2.7: Red-Team Review (Pre-Plan Adversarial Review)
-
-Advance phase before dispatching agents:
-
-```bash
-arbiter task advance --to red-team-review
-```
-
-Dispatch **N parallel red-team agents** based on tier (XS=1, S=2, Standard=3). Each agent self-selects an attack angle from: `security`, `concurrency`, `performance`, `edge-cases`, `regression`, `dependency`, `data-integrity`, `error-handling`.
-
-Agents write findings to `.arbiter/evidence/redteam/<task-id>.json` using the `RedTeamEvidenceV1` schema.
-
-**Routing by finding impact:**
-
-| Impact        | Action                                                                       |
-| ------------- | ---------------------------------------------------------------------------- |
-| CRITICAL      | `arbiter task advance --to red-team-rework` → revise plan → re-run Phase 2.7 |
-| HIGH / MEDIUM | Adapt plan in-place before advancing                                         |
-| SUGGESTION    | Note only — no blocking                                                      |
-
-Once all findings are CLEAR or resolved:
-
-```bash
-arbiter task advance --to implementation
-```
-
 ### Phase 3: Plan Creation
 
 Every plan MUST begin with a YAML front-matter **Context Block** (see `docs/REFERENCE/plan-template.md`). Copy the template below and fill in each field before writing the plan body:
@@ -139,16 +113,17 @@ Produce a plan containing:
 
 1. **Scope**: Files to create/modify (no "etc." or "various")
 2. **Test plan**: What tests to write first (TDD)
-3. **Gate command**: `npm run test`
+3. **Gate command**: `node scripts/check-all.mjs check`
 4. **Risk**: What could break (at least 1 item)
 
 Ensure runtime state stays local-only before writing task state:
 
 ```bash
-mkdir -p .git/info .claude/plans
-touch .git/info/exclude
+GIT_INFO_DIR=$(git rev-parse --git-dir)/info
+mkdir -p "$GIT_INFO_DIR" .claude/plans
+touch "$GIT_INFO_DIR/exclude"
 for pattern in ".claude/.task-*" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
-  grep -qxF "$pattern" .git/info/exclude || printf "%s\n" "$pattern" >> .git/info/exclude
+  grep -qxF "$pattern" "$GIT_INFO_DIR/exclude" || printf "%s\n" "$pattern" >> "$GIT_INFO_DIR/exclude"
 done
 ```
 
@@ -159,6 +134,26 @@ echo "#NNN" > .claude/.task-id
 echo ".claude/plans/task-NNN.md" > .claude/.task-plan
 arbiter task advance --to plan
 ```
+
+### Phase 3.5: Red-Team Review (Pre-Implementation Adversarial Review)
+
+Advance phase before dispatching agents:
+
+```bash
+arbiter task advance --to red-team-review
+```
+
+Dispatch **N parallel red-team agents** based on tier (XS=1, S=2, Standard=3). Each agent self-selects an attack angle from: `security`, `concurrency`, `performance`, `edge-cases`, `regression`, `dependency`, `data-integrity`, `error-handling`.
+
+Agents write findings to `.arbiter/evidence/redteam/<task-id>.json` using the `RedTeamEvidenceV1` schema.
+
+**Routing by finding impact:**
+
+| Impact        | Action                                                                       |
+| ------------- | ---------------------------------------------------------------------------- |
+| CRITICAL      | `arbiter task advance --to red-team-rework` → revise plan → re-run Phase 3.5 |
+| HIGH / MEDIUM | Adapt plan in-place before advancing                                         |
+| SUGGESTION    | Note only — no blocking                                                      |
 
 **STOP HERE** — await user GO before editing any file.
 
@@ -182,19 +177,31 @@ arbiter task advance --to plan
    git checkout -b task/#NNN-kebab-case-description
    ```
 
-3. **Update phase**:
+3. **Advance to red phase** (triggers plan-review gate and handoff check):
    ```bash
-   arbiter task advance --to implementation
+   arbiter task advance --to red
    ```
 
 ### Phase 5: Implementation (TDD)
 
 - Use TDD: write test first, then implementation (Red → Green → Refactor)
 
-- Run gate after each logical unit:
+- **Red**: Write failing tests, commit them, then record evidence:
+
+  ```bash
+  arbiter task record-red --test-path <repo-relative-path-to-test-file>
+  arbiter task advance --to green
+  ```
+
+- **Green**: Implement until tests pass:
+
   ```bash
   npm run test
+  arbiter task advance --to refactor
   ```
+
+- **Refactor**: Clean up. Tests must stay green.
+
 - Keep commits atomic: one logical change per commit
 - Commit format: `type(#NNN): summary`
 
@@ -220,7 +227,7 @@ arbiter task record-tech-debt \
   --triggered-by "#NNN"   # defaults to .claude/.task-id if omitted
 ```
 
-The subcommand creates a GitHub issue labeled `tech-debt` + `follow-up` and appends the issue number to `.arbiter/evidence/<task-id>/tech-debt.json`. Failure is soft (exit 0); reason is emitted to stderr so the current task is not blocked.
+The subcommand creates a GitHub issue labeled `tech-debt` and appends the issue number to `.arbiter/evidence/<task-id>/tech-debt.json`. Failure is soft (exit 0); reason is emitted to stderr so the current task is not blocked.
 
 ### Phase 6: Code Review (MANDATORY)
 
@@ -271,7 +278,7 @@ The verifier must:
 ### Phase 8: Gate
 
 ```bash
-npm run test
+node scripts/check-all.mjs check
 ```
 
 Gate must be **GREEN**. If it fails:
@@ -297,8 +304,8 @@ git push -u origin HEAD
 
 ```bash
 gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
-gh pr checks
-gh pr merge --squash
+gh pr checks --watch
+gh pr merge --squash   # add --admin if branch protection requires it (INV-74)
 ```
 
 ### Phase 11: Cleanup
@@ -314,7 +321,7 @@ arbiter task advance --to complete
 If using worktree, close it:
 
 ```bash
-/wt-close NNN
+arbiter wt close NNN
 ```
 
 ## Gate Failure
