@@ -116,7 +116,10 @@ const l1EndIdx = getResults().length
 // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
 if (subcommand !== 'check') {
   runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
-  runCheck('docs:build', 'npm', ['run', 'docs:build'])
+  // When running from rsync'd temp dir on behalf of a '#'-path worktree,
+  // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
+  const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck
+  docsCheck('docs:build', 'npm', ['run', 'docs:build'])
   runCheck('dead code', 'npx', ['knip'])
   runCheck('duplication', 'npx', ['jscpd', '--silent'])
   runCheck('audit', 'npm', ['audit', '--audit-level=high'])
