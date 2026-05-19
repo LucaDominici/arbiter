@@ -31,27 +31,21 @@ describe('04-deploy-test.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).toContain('name: Deploy Test')
   })
 
-  it.each(STACKS)(
-    '$language: triggers on push to develop branch',
-    ({ language, buildTool }) => {
-      const rendered = renderDeployTest({ language, buildTool })
-      expect(rendered).toContain('push:')
-      expect(rendered).toContain('develop')
-    },
-  )
+  it.each(STACKS)('$language: triggers on push to develop branch', ({ language, buildTool }) => {
+    const rendered = renderDeployTest({ language, buildTool })
+    expect(rendered).toContain('push:')
+    expect(rendered).toContain('develop')
+  })
 
   it.each(STACKS)('$language: id-token: write permission present', ({ language, buildTool }) => {
     const rendered = renderDeployTest({ language, buildTool })
     expect(rendered).toContain('id-token: write')
   })
 
-  it.each(STACKS)(
-    '$language: concurrency cancel-in-progress false',
-    ({ language, buildTool }) => {
-      const rendered = renderDeployTest({ language, buildTool })
-      expect(rendered).toContain('cancel-in-progress: false')
-    },
-  )
+  it.each(STACKS)('$language: concurrency cancel-in-progress false', ({ language, buildTool }) => {
+    const rendered = renderDeployTest({ language, buildTool })
+    expect(rendered).toContain('cancel-in-progress: false')
+  })
 
   it.each(STACKS)(
     '$language: build-and-sign job present with Trivy scan',

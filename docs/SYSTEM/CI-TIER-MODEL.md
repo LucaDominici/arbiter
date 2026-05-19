@@ -43,14 +43,18 @@ Every project gets exactly these files under `.github/workflows/` (numbered for 
   01-pr-fast.yml          # T1 — required check, blocks merge
   02-pr-extended.yml      # T2 — conditional, blocks merge when triggered
   03-human-approval.yml   # cross-cutting — applies approved-by-human label on review
+  04-deploy-test.yml      # deploy T4 — push to TEST on develop; opt-in (enableDeployWorkflows)
   05-release.yml          # T3 — PR→main + tag triggers
   06-nightly.yml          # T4 — cron 02:00 UTC + manual dispatch
   07-weekly.yml           # T5 — cron Sun 04:00 UTC + manual dispatch
   08-monthly.yml          # T5b — cron 04:00 UTC day 1 + manual dispatch
   09-heartbeat.yml        # T6 — cron 06:00 UTC, asserts T4+T5+T5b ran
+  10-deploy-prod.yml      # deploy PROD — release:published, env-gated; opt-in (enableDeployWorkflows)
 ```
 
-Gap `04` reserved for `04-deploy-staging.yml` (post-v1).
+Slots 04 and 10 are opt-in via `enableDeployWorkflows: true` in project config.
+Deploy workflows are downstream-project concerns — arbiter (npm package) does not apply them to itself.
+Implemented in feat(#899) F10.
 
 ---
 

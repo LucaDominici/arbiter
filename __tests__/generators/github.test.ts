@@ -441,19 +441,13 @@ describe('generateGithub — enableDeployWorkflows flag (CANON-05, #899)', () =>
 
   it('04-deploy-test.yml contains "Deploy Test" name', () => {
     generateGithub(makeConfig(dir, { enableDeployWorkflows: true }))
-    const content = readFileSync(
-      join(dir, '.github', 'workflows', '04-deploy-test.yml'),
-      'utf-8',
-    )
+    const content = readFileSync(join(dir, '.github', 'workflows', '04-deploy-test.yml'), 'utf-8')
     expect(content).toContain('name: Deploy Test')
   })
 
   it('10-deploy-prod.yml contains "Deploy Prod" name', () => {
     generateGithub(makeConfig(dir, { enableDeployWorkflows: true }))
-    const content = readFileSync(
-      join(dir, '.github', 'workflows', '10-deploy-prod.yml'),
-      'utf-8',
-    )
+    const content = readFileSync(join(dir, '.github', 'workflows', '10-deploy-prod.yml'), 'utf-8')
     expect(content).toContain('name: Deploy Prod')
   })
 

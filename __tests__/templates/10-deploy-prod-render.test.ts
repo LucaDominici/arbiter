@@ -31,37 +31,28 @@ describe('10-deploy-prod.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).toContain('name: Deploy Prod')
   })
 
-  it.each(STACKS)(
-    '$language: triggers on release published',
-    ({ language, buildTool }) => {
-      const rendered = renderDeployProd({ language, buildTool })
-      expect(rendered).toContain('release:')
-      expect(rendered).toContain('published')
-    },
-  )
+  it.each(STACKS)('$language: triggers on release published', ({ language, buildTool }) => {
+    const rendered = renderDeployProd({ language, buildTool })
+    expect(rendered).toContain('release:')
+    expect(rendered).toContain('published')
+  })
 
   it.each(STACKS)('$language: id-token: write permission present', ({ language, buildTool }) => {
     const rendered = renderDeployProd({ language, buildTool })
     expect(rendered).toContain('id-token: write')
   })
 
-  it.each(STACKS)(
-    '$language: concurrency cancel-in-progress false',
-    ({ language, buildTool }) => {
-      const rendered = renderDeployProd({ language, buildTool })
-      expect(rendered).toContain('cancel-in-progress: false')
-    },
-  )
+  it.each(STACKS)('$language: concurrency cancel-in-progress false', ({ language, buildTool }) => {
+    const rendered = renderDeployProd({ language, buildTool })
+    expect(rendered).toContain('cancel-in-progress: false')
+  })
 
-  it.each(STACKS)(
-    '$language: deploy-prod job with environment gate',
-    ({ language, buildTool }) => {
-      const rendered = renderDeployProd({ language, buildTool })
-      expect(rendered).toContain('deploy-prod:')
-      expect(rendered).toContain('environment:')
-      expect(rendered).toContain('production')
-    },
-  )
+  it.each(STACKS)('$language: deploy-prod job with environment gate', ({ language, buildTool }) => {
+    const rendered = renderDeployProd({ language, buildTool })
+    expect(rendered).toContain('deploy-prod:')
+    expect(rendered).toContain('environment:')
+    expect(rendered).toContain('production')
+  })
 
   it.each(STACKS)('$language: 30-day timeout (43200 minutes)', ({ language, buildTool }) => {
     const rendered = renderDeployProd({ language, buildTool })
