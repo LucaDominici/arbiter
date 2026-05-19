@@ -1212,3 +1212,24 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **CANON-16 survey:** `isUserCancellation()` (prompts.ts:172) and `doCleanup()` (fs.ts) existed and were reused. No new source files added.
 
 **Consequences:** `arbiter init` Ctrl+C now exits 130, prints a clear message, and leaves no orphan tmp files regardless of when in the wizard flow the interrupt fires.
+
+## ADR-051: Action pin parity — dependabot bypass fix (#911)
+
+**Date:** 2026-05-19
+**Status:** Accepted
+**Reference:** Issue #911
+
+**Context:** `dependabot[github-actions]` bumps action version pins in `.github/workflows/*.yml` only. EJS source templates at `src/templates/github/workflows/*.yml.ejs` are the downstream SSOT but are invisible to dependabot. `__tests__/parity/ci-tier-render-parity.test.ts` asserts that committed yml equals `renderTemplate(ejs, fixture)`, so any dependabot action-bump PR fails Unit Tests and Tech Debt Gates (both run vitest) plus CI Required in cascade. All 4 open github-actions PRs (#905–#908) were blocked by this.
+
+**Decision:**
+
+- `scripts/sync-action-pins.mjs` (new, selfOnly): for each `.github/workflows/<x>.yml` ↔ `src/templates/github/workflows/<x>.yml.ejs` pair, extracts `uses: <action>@<version>` pins from the yml and text-substitutes them into the EJS. Modes: write (EJS ← yml, default), `--check` (read-only, exit 1 on drift), `--reverse` (yml ← EJS, for human SSOT-first edits).
+- `scripts/check-all.mjs` L1: adds `runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])`. Belt-and-suspenders with the vitest parity test; provides faster local signal and catches human-side drift too.
+- `.github/workflows/dependabot-actions-sync.yml` (new, arbiter-self-only): triggered on `pull_request` paths `.github/workflows/**` from `dependabot[bot]` with `github_actions/*` head. Runs sync script; commits changed EJS back to the PR branch so parity test passes on the re-triggered run.
+- Runbook at `docs/RUNBOOKS/dependabot-handling.md`: protocol for triage, rebase, and the required manual `approved-by-human` label (INV-74 stays — dependabot auto-merge is out of scope).
+
+**CANON-16 survey:** No existing yml↔EJS sync utility found (`scripts/sync-*.mjs` cover changelog and governance copy; unrelated). New file justified. No EJS templates created or edited — workflow file written directly as YAML (arbiter-self-only, not emitted for downstream projects, so CANON-01/CANON-04/CANON-18 do not apply).
+
+**Sync direction rationale:** yml is the ground truth for what runs in CI (dependabot edits it directly). EJS is the derivable artifact for downstream. Sync direction yml → EJS means the EJS always tracks what CI actually runs.
+
+**Consequences:** Dependabot github-actions PRs auto-fix their own EJS divergence on the first CI run after the new workflow merges. Human approval (INV-74) remains required for merge. The L1 gate catches any future human-side drift before commit.
