@@ -22,7 +22,7 @@ jobs:
     outputs:
       should_run: ${{ steps.decide.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Decide whether to run extended CI
@@ -66,7 +66,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@v6
         with:
@@ -133,7 +133,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@v6
         with:
@@ -204,7 +204,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Check Dockerfile changed
@@ -237,7 +237,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Start application
         run: docker compose up -d --wait
       - name: OWASP ZAP baseline scan
@@ -257,7 +257,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install k6
         run: |
           curl -sSL https://github.com/grafana/k6/releases/download/v0.52.0/k6-v0.52.0-linux-amd64.tar.gz \
@@ -277,7 +277,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@v6
         with:
@@ -329,7 +329,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 <% if (language === 'typescript') { %>
       - uses: actions/setup-node@v6
         with:

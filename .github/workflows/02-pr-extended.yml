@@ -19,7 +19,7 @@ jobs:
     outputs:
       should_run: ${{ steps.decide.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Decide whether to run extended CI
@@ -63,7 +63,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
@@ -82,7 +82,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
@@ -99,7 +99,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
