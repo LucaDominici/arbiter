@@ -458,3 +458,102 @@ describe('generateGithub — enableDeployWorkflows flag (CANON-05, #899)', () =>
     expect(paths.some((p) => p.includes('10-deploy-prod.yml'))).toBe(true)
   })
 })
+
+// W8 — AI-PR gate workflows (#884, INV-91)
+describe('generateGithub — AI-PR gate workflows (#884)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-github-aipr-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('generates _label-on-approve.yml', () => {
+    generateGithub(makeConfig(dir))
+    expect(existsSync(join(dir, '.github', 'workflows', '_label-on-approve.yml'))).toBe(true)
+  })
+
+  it('generates _ai-draft-check.yml', () => {
+    generateGithub(makeConfig(dir))
+    expect(existsSync(join(dir, '.github', 'workflows', '_ai-draft-check.yml'))).toBe(true)
+  })
+
+  it('generates _pr-staleness.yml', () => {
+    generateGithub(makeConfig(dir))
+    expect(existsSync(join(dir, '.github', 'workflows', '_pr-staleness.yml'))).toBe(true)
+  })
+
+  it('_ai-draft-check.yml contains bot author detection', () => {
+    generateGithub(makeConfig(dir))
+    const content = readFileSync(join(dir, '.github', 'workflows', '_ai-draft-check.yml'), 'utf-8')
+    expect(content).toContain('user.type')
+    expect(content).toContain('approved-by-human')
+  })
+
+  it('_label-on-approve.yml contains human reviewer guards', () => {
+    generateGithub(makeConfig(dir))
+    const content = readFileSync(
+      join(dir, '.github', 'workflows', '_label-on-approve.yml'),
+      'utf-8',
+    )
+    expect(content).toContain('pull_request_review')
+    expect(content).toContain('approved-by-human')
+    expect(content).toContain('user.type')
+    expect(content).toContain('user.login')
+  })
+
+  it('_pr-staleness.yml contains no-stale exemption', () => {
+    generateGithub(makeConfig(dir))
+    const content = readFileSync(join(dir, '.github', 'workflows', '_pr-staleness.yml'), 'utf-8')
+    expect(content).toContain('no-stale')
+    expect(content).toContain('stale')
+    expect(content).toContain('cron:')
+  })
+
+  it('AI-PR gate workflows generated across all governance levels', () => {
+    for (const level of ['L1', 'L2', 'L3'] as const) {
+      const levelDir = mkdtempSync(join(tmpdir(), `arbiter-github-aipr-${level}-`))
+      try {
+        generateGithub(makeConfig(levelDir, { governanceLevel: level }))
+        const wfDir = join(levelDir, '.github', 'workflows')
+        expect(
+          existsSync(join(wfDir, '_ai-draft-check.yml')),
+          `${level}: _ai-draft-check.yml must exist`,
+        ).toBe(true)
+        expect(
+          existsSync(join(wfDir, '_label-on-approve.yml')),
+          `${level}: _label-on-approve.yml must exist`,
+        ).toBe(true)
+        expect(
+          existsSync(join(wfDir, '_pr-staleness.yml')),
+          `${level}: _pr-staleness.yml must exist`,
+        ).toBe(true)
+      } finally {
+        rmSync(levelDir, { recursive: true, force: true })
+      }
+    }
+  })
+
+  it('PULL_REQUEST_TEMPLATE.md rendered via EJS template', () => {
+    generateGithub(makeConfig(dir))
+    const content = readFileSync(join(dir, '.github', 'PULL_REQUEST_TEMPLATE.md'), 'utf-8')
+    expect(content).toContain('Pipeline Artifacts')
+    expect(content).toContain('Gate Checklist')
+  })
+
+  it('L2 PULL_REQUEST_TEMPLATE includes AI-PR Gate section', () => {
+    generateGithub(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, '.github', 'PULL_REQUEST_TEMPLATE.md'), 'utf-8')
+    expect(content).toContain('approved-by-human')
+    expect(content).toContain('INV-91')
+  })
+
+  it('L1 PULL_REQUEST_TEMPLATE omits AI-PR Gate section', () => {
+    generateGithub(makeConfig(dir, { governanceLevel: 'L1' }))
+    const content = readFileSync(join(dir, '.github', 'PULL_REQUEST_TEMPLATE.md'), 'utf-8')
+    expect(content).not.toContain('INV-91')
+  })
+})

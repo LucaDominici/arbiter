@@ -15,6 +15,9 @@ const workflows = [
   ['09-heartbeat.yml', 'github/workflows/09-heartbeat.yml.ejs'],
   ['_notify.yml', 'github/workflows/_notify.yml.ejs'],
   ['_label-sync.yml', 'github/workflows/_label-sync.yml.ejs'],
+  ['_label-on-approve.yml', 'github/workflows/_label-on-approve.yml.ejs'],
+  ['_ai-draft-check.yml', 'github/workflows/_ai-draft-check.yml.ejs'],
+  ['_pr-staleness.yml', 'github/workflows/_pr-staleness.yml.ejs'],
 ] as const
 
 describe('ci-tier render parity — workflows', () => {

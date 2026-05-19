@@ -9,6 +9,7 @@ Source of truth: `.claude/agents/<name>.md`. Update this file whenever an agent 
 
 | Agent              | Model                 | Effort | Cost Rationale                                                                                    |
 | ------------------ | --------------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| `ai-pr-gate`       | Default (Sonnet)      | Low    | Read-only INV-91 compliance check; scans PR labels + reviewer identity; fast and targeted         |
 | `bridge-reviewer`  | Default (Sonnet)      | Low    | Short-circuit combinatorial logic; no code reading required; runs after context-checker completes |
 | `codebase-scanner` | Haiku                 | Low    | Read-only pattern search; fast latency; cost-optimized for high-frequency lookups                 |
 | `context-checker`  | Default (Sonnet)      | Medium | Must read CONTEXT_PACK.md + task diff in full; emits structured REVIEW_CONTEXT JSON               |
@@ -29,6 +30,11 @@ Source of truth: `.claude/agents/<name>.md`. Update this file whenever an agent 
 2. `context-checker` (Phase 1 verification)
 3. `bridge-reviewer` (Phase 2 combined verdict)
 4. Standard review agents dispatched per tier (XS: 3, S: 3, Standard: 4)
+
+### Bot-authored PR review
+
+1. `ai-pr-gate` (INV-91: verify approved-by-human label + human reviewer identity)
+2. Proceed to merge only after PASS verdict
 
 ### E2E test failure
 
