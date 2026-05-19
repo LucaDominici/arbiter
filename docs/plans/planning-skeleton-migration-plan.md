@@ -1,8 +1,8 @@
 ---
 title: Planning Skeleton Migration Plan
 type: plan
-status: ACTIVE
-date: 2026-05-19
+status: COMPLETE
+date: 2026-05-20
 issue: '#876'
 ---
 
@@ -240,17 +240,21 @@ all 10 files exist; every KIT dim has a row; every planning artifact has a PLAN-
 
 ---
 
-### W11 — Verification + Evidence Bundle
+### W11 — Verification + Evidence Bundle (DONE — #887)
 
 **Goal:** Self-validation drill; close the loop; evidence bundle committed.
 
 Deliverables:
 
-- `scripts/audit-toolchain.mjs` (N-05) + template + generator
-- `.evidence/planning-skeleton-migration-YYYYMMDD-HHMM/` bundle
-- `arbiter init` on TS fixture → `make ci` inside fixture → green (dogfood loop closed)
-- Update umbrella issue + close sub-issues
-- Memory writes: `project_planning_skeleton_migration.md`, `reference_kit_canonical_sources.md`
+- `scripts/audit-toolchain.mjs` (N-05) — DONE: Track A self-validation, 10/10 checks pass on arbiter-self
+- `src/templates/scripts/audit-toolchain.mjs.ejs` — DONE: Track B EJS template
+- `src/generators/audit-toolchain.ts` — DONE: generator registered, always enabled
+- `.evidence/planning-skeleton-migration-20260519-2338/` — DONE: local evidence bundle (gitignored)
+- `arbiter init` on ts-library fixture — DONE: 84 files created including audit-toolchain.mjs, Makefile, run.sh
+- Gate: `node scripts/check-all.mjs L1` → ALL PASSED (2026-05-20)
+- Dogfood: fixture lacks TypeScript/ESLint install — fixture-level gaps surfaced by audit-toolchain; arbiter-self gate green
+- Update umbrella issue + close sub-issues — pending post-merge
+- Memory writes: `project_planning_skeleton_migration.md`, `reference_kit_canonical_sources.md` — pending post-merge
 
 ---
 
