@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#898",
+  "test_path": "__tests__/templates/security-render.test.ts",
+  "test_commit_sha": "54d15ecca00022c8db6acfd226f7a356447a7978",
+  "test_run_log": "\n RUN  v4.1.6 /home/luca/work/repos/arbiter.worktrees/#898\n\n ❯ __tests__/templates/security-render.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  01:29:42\n   Duration  81ms (transform 0ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)\n\n\nThe project root contains the \"#\" character (/home/luca/work/repos/arbiter.worktrees/#898), which may not work when running Vite. Consider renaming the directory without the characters.\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/templates/security-render.test.ts [ __tests__/templates/security-render.test.ts ]\nError: Cannot find module '/vitest.setup.ts'\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/templates/security-render.test.ts",
+  "recorded_at": "2026-05-19T23:29:42.183Z"
+}

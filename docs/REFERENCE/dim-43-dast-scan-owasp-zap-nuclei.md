@@ -12,6 +12,14 @@
 
 DAST wired at T4 nightly tier; ZAP scan against running service
 
+## Arbiter Templates (F8, #898)
+
+For `backend-web-db` archetype with `enableSecurityScanning: true`, arbiter emits:
+
+- `.zap/rules.tsv` — passive/active rule overrides (WARN/FAIL/IGNORE per rule ID); user-tunable, never overwritten on re-run
+- `.zap/baseline-auth.context` — form-based authentication context (ZAP type 2); user-customisable, never overwritten on re-run
+- `scripts/ingest-zap-report.mjs` — ZAP JSON report ingestion gate; exits 1 on HIGH/MEDIUM alert threshold breach; always kept current on re-run
+
 ## Per-Stack Coverage
 
 | Stack | Kind |

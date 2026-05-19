@@ -1,0 +1,107 @@
+#!/usr/bin/env node
+// <%= projectName %> — ZAP DAST report ingestion (#898)
+// Reads a ZAP JSON report and fails if HIGH or MEDIUM unfixed alerts exceed threshold.
+// Exit 1 on threshold breach — HARD gate (fails nightly CI).
+//
+// Usage: node scripts/ingest-zap-report.mjs [--report <path>] [--high-threshold N] [--medium-threshold N]
+// Default report path: zap-report.json (written by zaproxy/action-full-scan or action-baseline-scan)
+//
+// ZAP JSON riskcode values: 3=High, 2=Medium, 1=Low, 0=Informational
+
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// ─── CLI args ────────────────────────────────────────────────────────────────
+
+const args = process.argv.slice(2);
+
+function getArg(flag, defaultValue) {
+  const idx = args.indexOf(flag);
+  return idx !== -1 && args[idx + 1] ? args[idx + 1] : defaultValue;
+}
+
+const reportPath = resolve(getArg('--report', 'zap-report.json'));
+const HIGH_THRESHOLD = parseInt(getArg('--high-threshold', '0'), 10);
+const MEDIUM_THRESHOLD = parseInt(getArg('--medium-threshold', '0'), 10);
+
+// ─── Load report ─────────────────────────────────────────────────────────────
+
+if (!existsSync(reportPath)) {
+  console.error(`[ZAP] ERROR: report not found at ${reportPath}`);
+  console.error('[ZAP] Ensure the ZAP action ran and produced a JSON report artifact.');
+  process.exit(1);
+}
+
+let report;
+try {
+  report = JSON.parse(readFileSync(reportPath, 'utf-8'));
+} catch (err) {
+  console.error(`[ZAP] ERROR: failed to parse ${reportPath}: ${err.message}`);
+  process.exit(1);
+}
+
+// ─── Extract alerts ──────────────────────────────────────────────────────────
+
+// ZAP JSON structure: { site: [{ alerts: [{ riskcode, name, instances, solution }] }] }
+const sites = Array.isArray(report.site) ? report.site : [];
+const allAlerts = sites.flatMap((site) => (Array.isArray(site.alerts) ? site.alerts : []));
+
+const highAlerts = allAlerts.filter((a) => Number(a.riskcode) === 3);
+const mediumAlerts = allAlerts.filter((a) => Number(a.riskcode) === 2);
+const lowAlerts = allAlerts.filter((a) => Number(a.riskcode) === 1);
+const infoAlerts = allAlerts.filter((a) => Number(a.riskcode) === 0);
+
+// ─── Print summary ────────────────────────────────────────────────────────────
+
+console.log(`[ZAP] Report: ${reportPath}`);
+console.log(`[ZAP] Alerts — HIGH: ${highAlerts.length}, MEDIUM: ${mediumAlerts.length}, LOW: ${lowAlerts.length}, INFO: ${infoAlerts.length}`);
+console.log(`[ZAP] Thresholds — HIGH ≤ ${HIGH_THRESHOLD}, MEDIUM ≤ ${MEDIUM_THRESHOLD}`);
+
+if (highAlerts.length > 0) {
+  console.log('\n[ZAP] HIGH alerts:');
+  for (const a of highAlerts) {
+    const count = Array.isArray(a.instances) ? a.instances.length : '?';
+    console.log(`  [HIGH] ${a.name} (${count} instance(s))`);
+    if (a.solution) {
+      console.log(`    Solution: ${String(a.solution).split('\n')[0].trim()}`);
+    }
+  }
+}
+
+if (mediumAlerts.length > 0) {
+  console.log('\n[ZAP] MEDIUM alerts:');
+  for (const a of mediumAlerts) {
+    const count = Array.isArray(a.instances) ? a.instances.length : '?';
+    console.log(`  [MEDIUM] ${a.name} (${count} instance(s))`);
+    if (a.solution) {
+      console.log(`    Solution: ${String(a.solution).split('\n')[0].trim()}`);
+    }
+  }
+}
+
+// ─── Gate ─────────────────────────────────────────────────────────────────────
+
+let failed = false;
+
+if (highAlerts.length > HIGH_THRESHOLD) {
+  console.error(
+    `\n[ZAP] FAIL: ${highAlerts.length} HIGH alert(s) exceed threshold (${HIGH_THRESHOLD}).`,
+  );
+  console.error('[ZAP] Fix or suppress HIGH alerts before merging (add entries to .zap/rules.tsv with action=IGNORE).');
+  failed = true;
+}
+
+if (mediumAlerts.length > MEDIUM_THRESHOLD) {
+  console.error(
+    `\n[ZAP] FAIL: ${mediumAlerts.length} MEDIUM alert(s) exceed threshold (${MEDIUM_THRESHOLD}).`,
+  );
+  console.error('[ZAP] Fix or suppress MEDIUM alerts before merging (add entries to .zap/rules.tsv with action=IGNORE).');
+  failed = true;
+}
+
+if (failed) {
+  process.exit(1);
+}
+
+console.log(`\n[ZAP] PASS — alert counts within thresholds.`);
+process.exit(0);

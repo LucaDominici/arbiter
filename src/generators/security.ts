@@ -66,5 +66,35 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
     )
   }
 
+  // ZAP DAST files — service archetype only (backend-web-db runs a live server)
+  // M3 advisory: rules.tsv, baseline-auth.context, ingest-zap-report.mjs (#898)
+  if (config.archetype === 'backend-web-db') {
+    // rules.tsv is user-tunable (IGNORE entries for false positives) — never overwrite,
+    // mirrors the gitleaks.toml pattern for suppression files
+    results.push(
+      writeFile(
+        resolvedPath(base, '.zap', 'rules.tsv'),
+        renderSecurityTemplate('security/zap/rules.tsv.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+    // baseline-auth.context is user-customised (login URL, credentials) — never overwrite
+    results.push(
+      writeFile(
+        resolvedPath(base, '.zap', 'baseline-auth.context'),
+        renderSecurityTemplate('security/zap/baseline-auth.context.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+    // Ingest script is generated code — always kept current
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'ingest-zap-report.mjs'),
+        renderSecurityTemplate('scripts/ingest-zap-report.mjs.ejs', data),
+        { skipIfExists: false },
+      ),
+    )
+  }
+
   return { files: results }
 }
