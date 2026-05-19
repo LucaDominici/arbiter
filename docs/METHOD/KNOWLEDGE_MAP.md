@@ -8,7 +8,7 @@
 ## AGENTS.md
 
 **Location:** `AGENTS.md`
-**Lines:** 262
+**Lines:** 342
 **Purpose:** Canonical agent governance — invariants, coding standards, commit convention, gate commands.
 
 | Section           | Description                                                  |
@@ -37,7 +37,7 @@
 ## docs/METHOD/CANONICAL_PATHS.md
 
 **Location:** `docs/METHOD/CANONICAL_PATHS.md`
-**Lines:** 22
+**Lines:** 27
 **Purpose:** Aliasing registry for moved/renamed documents. Check before reporting a broken link.
 
 | Section | Description                                    |
