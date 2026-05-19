@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 // <%= projectName %> — suppression expiry check (INV-31)
 // Validates that all suppression entries have mandatory metadata and a future expiresAt.
-// Usage: node scripts/check-suppressions.mjs
+// Part of the anti-drift validator family (W6).
+// Usage: node scripts/check-suppressions.mjs [--help]
 import { readFileSync, existsSync } from 'node:fs';
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  process.stdout.write('Usage: node scripts/check-suppressions.mjs [--help]\nValidates suppression entries for mandatory metadata and future expiresAt.\n');
+  process.exit(0);
+}
 
 const REQUIRED_FIELDS = ['reason', 'owner', 'expiresAt', 'scope'];
 const REASON_MIN_LEN = 10;

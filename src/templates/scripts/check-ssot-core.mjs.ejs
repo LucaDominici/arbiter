@@ -3,8 +3,15 @@
 // Gate: verify every file listed in SSOT_CORE_SET.md exists on disk.
 // Exits 0: all entries exist or no SSOT_CORE_SET.md found (bootstrap mode).
 // Exits 1: one or more listed files are missing.
+// Part of the anti-drift validator family (W6).
+// Usage: node scripts/check-ssot-core.mjs [--help]
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  process.stdout.write('Usage: node scripts/check-ssot-core.mjs [--help]\nVerify every file listed in SSOT_CORE_SET.md exists on disk.\n');
+  process.exit(0);
+}
 
 const SSOT_FILE = join(process.cwd(), 'docs', 'METHOD', 'SSOT_CORE_SET.md');
 

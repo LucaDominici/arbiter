@@ -2,9 +2,16 @@
 // <%= projectName %> — inline suppression checker (INV-31)
 // Validates arbiter-suppress directives in source files.
 // Directive form: arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason="...", owner=@user)
+// Part of the anti-drift validator family (W6).
+// Usage: node scripts/check-inline-suppressions.mjs [--help]
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  process.stdout.write('Usage: node scripts/check-inline-suppressions.mjs [--help]\nValidates arbiter-suppress directives in source files.\n');
+  process.exit(0);
+}
 
 const REASON_MIN_LEN = 10;
 const WARN_DAYS = 30;

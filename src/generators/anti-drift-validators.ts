@@ -8,111 +8,76 @@ export interface AntiDriftValidatorsResult {
   files: WriteResult[]
 }
 
+/** Emit W6 dual-track scripts (also wired in arbiter's own L1 gate). */
+function emitW6DualTrack(base: string, config: ProjectConfig): WriteResult[] {
+  const scripts = [
+    'check-suppression-rationale.mjs',
+    'check-suppression-expiry.mjs',
+    'check-pii-scan.mjs',
+    'check-secret-scan.mjs',
+    'check-drift.mjs',
+    'check-workflow-runners.mjs',
+    'check-workflow-docs-sync.mjs',
+    'check-workflow-test-integrity.mjs',
+    'check-pr-size-gate.mjs',
+  ]
+  return scripts.map((name) =>
+    writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
+      skipIfExists: true,
+    }),
+  )
+}
+
+/** Emit W6 Track-B-only scripts (emitted for target projects; not wired in arbiter). */
+function emitW6TrackBOnly(base: string, config: ProjectConfig): WriteResult[] {
+  const scripts = ['check-workflow-sha-pinning.mjs', 'check-workflow-job-naming.mjs']
+  return scripts.map((name) =>
+    writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
+      skipIfExists: true,
+    }),
+  )
+}
+
+/** Emit F4 batch — 9 remaining agnostic anti-drift validators (INV-89). */
+function emitF4Validators(base: string, config: ProjectConfig): WriteResult[] {
+  const scripts = [
+    'check-validator-helptext.mjs',
+    'check-tier-coverage.mjs',
+    'check-inline-suppressions.mjs',
+    'check-suppressions.mjs',
+    'check-action-pins.mjs',
+    'check-workflow-perms.mjs',
+    'check-exit-code-contract.mjs',
+    'check-ssot-core.mjs',
+    'check-ci-tiers.mjs',
+  ]
+  return scripts.map((name) =>
+    writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
+      skipIfExists: true,
+    }),
+  )
+}
+
 /**
- * W6 Anti-Drift Validator Family (INV-89)
+ * W6+F4 Anti-Drift Validator Family (INV-89)
  *
- * Emits 11 check-*.mjs scripts for target projects:
- * - 9 dual-track scripts (also wired in arbiter's own check-all.mjs)
- * - 2 Track-B-only scripts (not wired in arbiter's own gate)
+ * Emits 20 check-*.mjs scripts for target projects:
+ * - W6 batch (11 scripts):
+ *   - 9 dual-track scripts (also wired in arbiter's own check-all.mjs)
+ *   - 2 Track-B-only scripts (not wired in arbiter's own gate)
+ * - F4 batch (9 scripts): remaining agnostic anti-drift validators
+ *   making them dual-track for target projects
  *
  * These scripts catch configuration drift, secret leakage, suppression quality
  * issues, and workflow structural problems in generated projects.
+ * See docs/REFERENCE/anti-drift-family.md for the full family reference.
  */
 export function generateAntiDriftValidators(config: ProjectConfig): AntiDriftValidatorsResult {
-  const results: WriteResult[] = []
   const base = config.targetDir
-
-  // ─── Dual-track scripts (also wired in arbiter's L1 gate) ───────────────────
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-suppression-rationale.mjs'),
-      renderTemplate('scripts/check-suppression-rationale.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-suppression-expiry.mjs'),
-      renderTemplate('scripts/check-suppression-expiry.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-pii-scan.mjs'),
-      renderTemplate('scripts/check-pii-scan.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-secret-scan.mjs'),
-      renderTemplate('scripts/check-secret-scan.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-drift.mjs'),
-      renderTemplate('scripts/check-drift.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-workflow-runners.mjs'),
-      renderTemplate('scripts/check-workflow-runners.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-workflow-docs-sync.mjs'),
-      renderTemplate('scripts/check-workflow-docs-sync.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-workflow-test-integrity.mjs'),
-      renderTemplate('scripts/check-workflow-test-integrity.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-pr-size-gate.mjs'),
-      renderTemplate('scripts/check-pr-size-gate.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  // ─── Track-B-only scripts (emitted for target projects; not wired in arbiter) ─
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-workflow-sha-pinning.mjs'),
-      renderTemplate('scripts/check-workflow-sha-pinning.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  results.push(
-    writeFile(
-      resolvedPath(base, 'scripts', 'check-workflow-job-naming.mjs'),
-      renderTemplate('scripts/check-workflow-job-naming.mjs.ejs', config),
-      { skipIfExists: true },
-    ),
-  )
-
-  return { files: results }
+  const files: WriteResult[] = [
+    ...emitW6DualTrack(base, config),
+    ...emitW6TrackBOnly(base, config),
+    ...emitF4Validators(base, config),
+  ]
+  return { files }
 }
