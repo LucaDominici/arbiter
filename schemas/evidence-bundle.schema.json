@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://arbiter.dev/schemas/evidence-bundle/v1",
+  "title": "ArbiterEvidenceBundle",
+  "description": "Schema for arbiter task evidence bundles stored in .evidence/task-NNN/. Every bundle must record the TDD red/green test paths, gate result, and optional artifact list. Enforced by INV-90 via scripts/check-evidence-bundle.mjs.",
+  "type": "object",
+  "required": ["taskId", "timestamp", "gateResult", "redTestPath", "greenTestPath", "artifacts"],
+  "additionalProperties": false,
+  "properties": {
+    "taskId": {
+      "type": "string",
+      "description": "Task identifier in GitHub issue format, e.g. '#883'.",
+      "pattern": "^#[0-9]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp when this bundle was recorded.",
+      "format": "date-time"
+    },
+    "gateResult": {
+      "type": "string",
+      "description": "Result of the quality gate at the time this bundle was recorded.",
+      "enum": ["pass", "fail"]
+    },
+    "redTestPath": {
+      "type": "string",
+      "description": "Relative path to the test file that was written in the red phase (failing tests).",
+      "minLength": 1
+    },
+    "greenTestPath": {
+      "type": "string",
+      "description": "Relative path to the test file that passed after implementation (green phase). May be the same as redTestPath.",
+      "minLength": 1
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "Optional list of artifact files associated with this evidence bundle (e.g. test output, coverage reports).",
+      "items": {
+        "$ref": "#/$defs/Artifact"
+      }
+    }
+  },
+  "$defs": {
+    "Artifact": {
+      "type": "object",
+      "required": ["name", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for this artifact.",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path to the artifact file from the repository root.",
+          "minLength": 1
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "Optional MIME type of the artifact (e.g. 'text/plain', 'application/json')."
+        }
+      }
+    }
+  }
+}

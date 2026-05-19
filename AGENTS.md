@@ -169,6 +169,12 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - Enforcement: `scripts/check-adapter-coverage.mjs`
   - Every language with a non-exempt archetype must have a registered StackAdapter file in `src/adapters/`. Exempt: `kotlin`, `multi`, `unknown`.
 
+## Evidence Bundle Schema Compliance (INV-90)
+
+- **INV-90:** Evidence bundle schema compliance
+  - _Enforcement:_ `scripts/check-evidence-bundle.mjs`
+  - Every task evidence bundle in `.evidence/task-NNN/` must conform to `schemas/evidence-bundle.schema.json`. Exit 0 when no bundles are present.
+
 ---
 
 ## Coding Standards

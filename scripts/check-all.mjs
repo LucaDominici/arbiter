@@ -19,7 +19,7 @@
 //        validator-helptext, tier-coverage (55)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
-//       tdd-evidence (65)
+//       tdd-evidence + evidence-bundle (INV-90) (66)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
@@ -160,6 +160,7 @@ if (subcommand !== 'check') {
   runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
   runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
   runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
+  runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
