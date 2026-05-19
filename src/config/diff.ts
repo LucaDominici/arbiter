@@ -52,6 +52,7 @@ export type GeneratorKey =
   | 'ci-tier'
   | 'local-wrapper'
   | 'env-template'
+  | 'infra'
 
 export interface ConfigDiff {
   paths: string[]
