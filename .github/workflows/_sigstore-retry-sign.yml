@@ -1,0 +1,63 @@
+name: Sigstore retry sign (reusable)
+
+# Arbiter self-config dogfood: reusable retry wrapper for cosign keyless signing (INV-92, #885).
+# Generated from: src/templates/github/workflows/_sigstore-retry-sign.yml.ejs
+# Sigstore's Fulcio/Rekor endpoints are occasionally flaky; this wrapper retries with
+# exponential back-off before failing permanently.
+# Note: inputs.artifact-path comes only from controlled caller workflows (workflow_call),
+# not from external user-controlled data — injection risk is minimal.
+
+on:
+  workflow_call:
+    inputs:
+      artifact-path:
+        description: Local path to the artifact file to sign
+        required: true
+        type: string
+      max-attempts:
+        description: Maximum signing attempts (default 3)
+        required: false
+        type: number
+        default: 3
+
+jobs:
+  sign-with-retry:
+    name: Sign artifact (cosign keyless, retry)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: ${{ inputs.artifact-path }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+
+      - name: Sign artifact (keyless OIDC, with retry)
+        env:
+          ARTIFACT: ${{ inputs.artifact-path }}
+          MAX_ATTEMPTS: ${{ inputs.max-attempts }}
+        shell: bash
+        run: |
+          attempt=0
+          delay=10
+          until cosign sign-blob --yes "$ARTIFACT" --bundle "${ARTIFACT}.bundle"; do
+            attempt=$((attempt + 1))
+            if [ "$attempt" -ge "$MAX_ATTEMPTS" ]; then
+              echo "::error::cosign sign-blob failed after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+            echo "::warning::cosign sign-blob attempt $attempt failed; retrying in ${delay}s"
+            sleep "$delay"
+            delay=$((delay * 2))
+          done
+          echo "Signed: ${ARTIFACT}.bundle"
+
+      - name: Upload signature bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: ${{ inputs.artifact-path }}-bundle
+          path: ${{ inputs.artifact-path }}.bundle
+          retention-days: 90

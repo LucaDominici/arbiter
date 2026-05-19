@@ -1398,6 +1398,23 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'generated: _ai-draft-check.yml workflow + _label-on-approve.yml workflow',
   },
 
+  // ─── Supply Chain (INV-92, W9) ────────────────────────────────────────────────
+  {
+    id: 'INV-92',
+    tier: 'security',
+    title: 'Supply chain — keyless signing, SBOM attestation, and Trivy CRITICAL block',
+    description:
+      'Release artifacts must be signed with cosign keyless (OIDC via Sigstore) and attested ' +
+      'with a CycloneDX SBOM via cosign attest --predicate. Trivy must scan the filesystem for ' +
+      'CRITICAL vulnerabilities (exit-code: 1) before the signing step runs. HIGH vulnerabilities ' +
+      'are reported but do not block (target projects may have legacy deps). ' +
+      'A _sigstore-retry-sign reusable workflow provides retry-on-flake semantics for signing.',
+    alwaysActive: false,
+    selfOnly: false,
+    minGovernanceLevel: 'L2',
+    enforcement: 'generated: 05-release.yml (trivy-fs-scan + cosign-sign + sbom-attest jobs)',
+  },
+
   {
     id: 'INV-93',
     tier: 'operational',

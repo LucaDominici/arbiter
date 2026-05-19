@@ -29,9 +29,9 @@ jobs:
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -81,7 +81,7 @@ jobs:
         run: |
           sha256sum release-artifact.zip > sha256sums.txt
           echo "hashes=$(base64 -w0 sha256sums.txt)" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: release-artifact
           path: |
@@ -95,9 +95,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: <%= _mutationInfo %>
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -147,10 +147,10 @@ jobs:
     needs: [build-superset]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@74aaaea42853bce3a8f28c73c4b7cec8be22ecfd  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -161,9 +161,9 @@ jobs:
     needs: [build-superset]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -211,7 +211,7 @@ jobs:
           cargo cyclonedx --format json || true
           mv bom.json sbom.cdx.json 2>/dev/null || echo '{"bomFormat":"CycloneDX"}' > sbom.cdx.json
 <% } %>
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: sbom
           path: sbom.cdx.*
@@ -226,13 +226,13 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: release-artifact
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
       - name: Sign artifact (keyless OIDC)
         run: cosign sign-blob --yes release-artifact.zip --bundle release-artifact.zip.bundle
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: cosign-bundle
           path: release-artifact.zip.bundle
@@ -261,10 +261,10 @@ jobs:
       attestations: write
       contents: read
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: release-artifact
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@520aba26e2f010aaab88f4a9c58cdbb3f3965fc2  # v2
         with:
           subject-path: release-artifact.zip
 
@@ -279,7 +279,7 @@ jobs:
       id-token: write
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -307,11 +307,11 @@ jobs:
           cache-to: type=gha,mode=max
           sbom: true
           provenance: mode=max
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
       - name: Sign container image (keyless OIDC)
         run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
       - name: Scan signed image for vulnerabilities
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.28.0
         with:
           image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
           format: table
@@ -324,7 +324,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
         with:
           fetch-depth: 0
 <% if (language === 'go') { %>
@@ -383,7 +383,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 <% } %>
 <% } else if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -403,11 +403,11 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: release-artifact
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: sbom
       - name: Create release manifest
@@ -417,7 +417,7 @@ jobs:
           EOF
       - name: Bundle with manifest
         run: tar -czf batch-bundle.tar.gz release-artifact.zip manifest.json sbom.cdx.*
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
       - name: Sign batch bundle (keyless)
         run: cosign sign-blob --yes batch-bundle.tar.gz --bundle batch-bundle.tar.gz.bundle
       - name: Upload to GitHub release
@@ -429,7 +429,7 @@ jobs:
             --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: batch-bundle
           path: |
@@ -444,12 +444,12 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: release-artifact
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm

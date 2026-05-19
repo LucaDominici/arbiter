@@ -1,0 +1,14 @@
+# .trivyignore — Trivy vulnerability suppressions for arbiter
+# Generated: #885 (W9 Supply Chain, INV-92)
+#
+# POLICY — Suppressions MUST include both a rationale comment and an expiry date.
+# Format: CVE-YYYY-NNNNN exp:YYYY-MM-DD
+# Example:
+#   # CVE-2023-12345: only affects containerized deployments; arbiter is a CLI tool.
+#   CVE-2023-12345 exp:2026-12-31
+#
+# NEVER suppress vulnerabilities in categories: SQL_INJECTION, XSS, COMMAND_INJECTION,
+# LDAP_INJECTION, HARD_CODE_PASSWORD — these require a documented security exception.
+#
+# Suppression reviews are mandatory every 90 days (INV-31).
+# Empty suppressions file — no CVEs are currently suppressed.

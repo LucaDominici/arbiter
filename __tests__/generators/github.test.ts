@@ -457,6 +457,45 @@ describe('generateGithub — enableDeployWorkflows flag (CANON-05, #899)', () =>
     expect(paths.some((p) => p.includes('04-deploy-test.yml'))).toBe(true)
     expect(paths.some((p) => p.includes('10-deploy-prod.yml'))).toBe(true)
   })
+
+  // ─── Supply-chain templates (INV-92, #885) ─────────────────────────────────
+
+  it('emits _sigstore-retry-sign.yml when ciTierMode is not baseline', () => {
+    generateGithub(makeConfig(dir, { ciTierMode: 'full' }))
+    const wfDir = join(dir, '.github', 'workflows')
+    expect(existsSync(join(wfDir, '_sigstore-retry-sign.yml'))).toBe(true)
+  })
+
+  it('does NOT emit _sigstore-retry-sign.yml in baseline mode', () => {
+    generateGithub(makeConfig(dir, { ciTierMode: 'baseline' }))
+    const wfDir = join(dir, '.github', 'workflows')
+    expect(existsSync(join(wfDir, '_sigstore-retry-sign.yml'))).toBe(false)
+  })
+
+  it('_sigstore-retry-sign.yml contains workflow_call trigger', () => {
+    generateGithub(makeConfig(dir, { ciTierMode: 'full' }))
+    const content = readFileSync(
+      join(dir, '.github', 'workflows', '_sigstore-retry-sign.yml'),
+      'utf-8',
+    )
+    expect(content).toContain('workflow_call')
+  })
+
+  it('sign-and-attest/action.yml contains SBOM attestation step', () => {
+    generateGithub(makeConfig(dir))
+    const content = readFileSync(
+      join(dir, '.github', 'actions', 'sign-and-attest', 'action.yml'),
+      'utf-8',
+    )
+    expect(content).toMatch(/sbom|attest.*predicate|predicate.*sbom/i)
+  })
+
+  it('supply-chain files appear in result.files', () => {
+    const result = generateGithub(makeConfig(dir, { ciTierMode: 'full' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.includes('_sigstore-retry-sign.yml'))).toBe(true)
+    expect(paths.some((p) => p.includes('sign-and-attest'))).toBe(true)
+  })
 })
 
 // W8 — AI-PR gate workflows (#884, INV-91)
