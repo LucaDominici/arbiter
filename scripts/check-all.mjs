@@ -25,7 +25,7 @@
 // helper trinity in scripts/lib/run-helpers.mjs (#351, CANON-01): runCheck (HARD),
 // runWarnCheck (informational), runToolCheck (CI-aware tool gate).
 import { createHash } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { runCheck, getResults, getFailed } from './lib/run-helpers.mjs'
@@ -37,6 +37,16 @@ let jsonPath = _parsedJsonPath
 // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
 // git-dependent checks (commitlint, docs) must run from the original repo path.
 const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
+
+// Worktree paths containing '#' break Vite's URL parsing. Create a symlink
+// without '#' and pass VITEST_ROOT so vitest resolves the root from the symlink.
+const _cwd = resolve('.')
+let vitestEnv
+if (_cwd.includes('#')) {
+  const sym = '/tmp/arbiter-wt-sym'
+  if (!existsSync(sym)) symlinkSync(_cwd, sym)
+  vitestEnv = { VITEST_ROOT: sym }
+}
 
 // Gates excluded from parityContentHash (INV-59): these differ structurally between
 // local and CI environments — PR-only gates or tests run with different selectors.
@@ -53,7 +63,7 @@ runCheck('private paths ignored', 'node', ['scripts/check-private-paths-ignored.
 runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
 runCheck('format', 'npx', ['prettier', '--check', '.'])
 runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])
-runCheck('unit tests', 'npm', ['test'])
+runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
 runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts', 'src/'])
 runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
 runCheck('i18n raw strings', 'node', [
@@ -80,6 +90,7 @@ runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'])
 runCheck('generator tests', 'node', ['scripts/check-generator-tests.mjs'])
 runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
 runCheck('catalog parity', 'node', ['scripts/check-catalog-agents-parity.mjs'])
+runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
 runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
 runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
 runCheck('bloat ratchet', 'node', ['scripts/check-bloat-ratchet.mjs'])
@@ -99,7 +110,7 @@ const l1EndIdx = getResults().length
 
 // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
 if (subcommand !== 'check') {
-  runCheck('coverage', 'npm', ['test', '--', '--coverage'])
+  runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
   runCheck('docs:build', 'npm', ['run', 'docs:build'])
   runCheck('dead code', 'npx', ['knip'])
   runCheck('duplication', 'npx', ['jscpd', '--silent'])

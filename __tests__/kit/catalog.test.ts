@@ -12,6 +12,7 @@ import {
   type DerivedKit,
 } from '../../src/kit/schema.js'
 import { scanForRedactedTokens, type LexiconEntry } from '../../src/kit/redaction.js'
+import { loadCatalog, findById, byTml, byGate } from '../../src/kit/catalog.js'
 
 const ROOT = resolve(__dirname, '../..')
 const REDACTION_LEXICON: LexiconEntry[] = JSON.parse(
@@ -284,5 +285,90 @@ describe('ID format', () => {
   it('all IDs are unique', () => {
     const ids = derived.map((d) => d.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+// ─── catalog.ts typed access layer ───────────────────────────────────────────
+
+describe('loadCatalog()', () => {
+  it('returns 76 entries', () => {
+    const catalog = loadCatalog()
+    expect(catalog.length).toBe(76)
+  })
+
+  it('parses through Zod without throw (consistent with KitCatalogSchema)', () => {
+    expect(() => loadCatalog()).not.toThrow()
+  })
+
+  it('first entry is N01', () => {
+    expect(loadCatalog()[0].id).toBe('N01')
+  })
+})
+
+describe('findById()', () => {
+  it('returns N01 for findById("N01")', () => {
+    const dim = findById('N01')
+    expect(dim).toBeDefined()
+    expect(dim!.id).toBe('N01')
+  })
+
+  it('returns undefined for findById("N77")', () => {
+    expect(findById('N77')).toBeUndefined()
+  })
+
+  it('returns undefined for findById("")', () => {
+    expect(findById('')).toBeUndefined()
+  })
+})
+
+describe('byTml()', () => {
+  it('filters L1 correctly', () => {
+    const l1 = byTml('L1')
+    expect(l1.length).toBeGreaterThan(0)
+    expect(l1.every((d) => d.tml === 'L1')).toBe(true)
+  })
+
+  it('L1 + L2 + L3 = 76', () => {
+    const total = byTml('L1').length + byTml('L2').length + byTml('L3').length
+    expect(total).toBe(76)
+  })
+})
+
+describe('byGate()', () => {
+  it('filters BLOCKING correctly', () => {
+    const blocking = byGate('BLOCKING')
+    expect(blocking.length).toBeGreaterThan(0)
+    expect(blocking.every((d) => d.gate === 'BLOCKING')).toBe(true)
+  })
+
+  it('BLOCKING + ADVISORY + REFERENCE = 76', () => {
+    const total = byGate('BLOCKING').length + byGate('ADVISORY').length + byGate('REFERENCE').length
+    expect(total).toBe(76)
+  })
+})
+
+describe('re-export sanity — Stack/TML/Gate from taxonomy.ts and schema.ts are compatible', () => {
+  it('VALID_STACKS from schema re-exports taxonomy constants', async () => {
+    const { VALID_STACKS: schemaStacks } = await import('../../src/kit/schema.js')
+    const { VALID_STACKS: taxonomyStacks } = await import('../../src/kit/taxonomy.js')
+    expect([...schemaStacks].sort()).toEqual([...taxonomyStacks].sort())
+  })
+})
+
+// ─── canonical_id present in mapping ─────────────────────────────────────────
+
+describe('mapping canonical_id', () => {
+  it('all mapping entries have canonical_id matching N01..N76', () => {
+    const mapping = JSON.parse(
+      readFileSync(join(ROOT, 'docs/audits/kit-canonical-mapping.json'), 'utf-8'),
+    ) as { dimensions: Array<{ canonical_id?: string }> }
+    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-6])$/
+    for (const dim of mapping.dimensions) {
+      expect(dim.canonical_id, `missing canonical_id on mapping entry`).toBeDefined()
+      expect(
+        idPattern.test(dim.canonical_id ?? ''),
+        `invalid canonical_id: ${dim.canonical_id}`,
+      ).toBe(true)
+    }
   })
 })

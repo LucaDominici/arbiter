@@ -4,8 +4,16 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isEnabled } from '../experimental/index.js'
-import { DerivedKitSchema, type DerivedKit, type DerivedCell, type Stack } from '../kit/schema.js'
+import {
+  DerivedKitSchema,
+  KitCatalogSchema,
+  type DerivedKit,
+  type DerivedCell,
+  type Stack,
+} from '../kit/schema.js'
 import { toCsv } from '../kit/csv.js'
+import { scanForRedactedTokens, type LexiconEntry } from '../kit/redaction.js'
+import { generateKitDocs } from '../generators/kit.js'
 
 const STACKS = ['java', 'typescript', 'python', 'go', 'rust'] as const
 
@@ -152,4 +160,187 @@ export function runKitExplain(id: string): void {
     process.stdout.write(`  ${stack.padEnd(12)} ${desc}\n`)
   }
   process.stdout.write('\n')
+}
+
+type CatalogArr = Array<{ id: string; name: string; tml: string; gate: string }>
+type MappingDim = Record<string, unknown>
+type CatalogEntry = { id: string; name: string; tml: string; gate: string }
+
+const VALIDATE_ACCEPTED_WAVES = new Set(['W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9', 'W10', 'W11'])
+
+function checkFieldParity(cid: string, dim: MappingDim, cat: CatalogEntry): string[] {
+  const fails: string[] = []
+  const dimName = dim['name'] as string | undefined
+  if (dimName?.normalize('NFC').trim() !== cat.name.normalize('NFC').trim())
+    fails.push(`${cid} name mismatch`)
+  if (dim['tml_source'] !== cat.tml) fails.push(`${cid} tml mismatch`)
+  const dimGate = dim['gate_type'] as string | undefined
+  if (dimGate?.replace(/\s*\([^)]+\)$/, '').trim() !== cat.gate) fails.push(`${cid} gate mismatch`)
+  return fails
+}
+
+function checkEnforcement(cid: string, dim: MappingDim): string | null {
+  const fr = dim['framework_realization'] as Record<string, unknown> | undefined
+  const hasEnf =
+    dim['invariant_id'] != null ||
+    (fr != null &&
+      (fr['invariant'] != null ||
+        fr['validator'] != null ||
+        fr['template'] != null ||
+        fr['generator'] != null))
+  const disp = dim['disposition'] as string | undefined
+  const wave = dim['implementing_wave'] as string | null | undefined
+  const hasExempt =
+    disp === 'done' ||
+    ((disp === 'adopt-framework' || disp === 'stack-adapter') &&
+      wave != null &&
+      VALIDATE_ACCEPTED_WAVES.has(wave))
+  return hasEnf || hasExempt ? null : `${cid} BLOCKING with no enforcement and no valid exemption`
+}
+
+function runParityCheck(root: string, catalogArr: CatalogArr): string[] {
+  const fails: string[] = []
+  let mappingDims: MappingDim[]
+  try {
+    const raw = JSON.parse(
+      readFileSync(resolve(root, 'docs/audits/kit-canonical-mapping.json'), 'utf-8'),
+    ) as { dimensions: MappingDim[] }
+    mappingDims = raw.dimensions
+  } catch (err) {
+    throw new Error(`failed to load mapping: ${err instanceof Error ? err.message : String(err)}`, {
+      cause: err,
+    })
+  }
+
+  const catalogIds = new Set(catalogArr.map((d) => d.id))
+  const mappingIds = new Set<string>()
+
+  for (const dim of mappingDims) {
+    const cid = dim['canonical_id'] as string | undefined
+    if (!cid) {
+      fails.push(`mapping id=${String(dim['id'])} missing canonical_id`)
+      continue
+    }
+    if (mappingIds.has(cid)) {
+      fails.push(`duplicate canonical_id ${cid}`)
+      continue
+    }
+    mappingIds.add(cid)
+    const cat = catalogArr.find((c) => c.id === cid)
+    if (!cat) {
+      fails.push(`mapping canonical_id ${cid} not in catalog`)
+      continue
+    }
+    fails.push(...checkFieldParity(cid, dim, cat))
+    if (cat.gate === 'BLOCKING') {
+      const enfFail = checkEnforcement(cid, dim)
+      if (enfFail) fails.push(enfFail)
+    }
+  }
+  for (const id of catalogIds) {
+    if (!mappingIds.has(id)) fails.push(`catalog ${id} missing from mapping`)
+  }
+  return fails
+}
+
+export function runKitValidate(): void {
+  assertKitEnabled()
+
+  const root = resolve(fileURLToPath(import.meta.url), '../../..')
+  let maxSeverity = 0
+
+  // ─── Subcheck 1: schema ───────────────────────────────────────────────────
+  let catalog: CatalogArr | null = null
+  try {
+    const catalogPath = resolve(root, 'src/kit/catalog.json')
+    catalog = KitCatalogSchema.parse(JSON.parse(readFileSync(catalogPath, 'utf-8')) as unknown)
+  } catch (err) {
+    process.stderr.write(
+      `[arbiter kit validate] schema ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    maxSeverity = Math.max(maxSeverity, 2)
+  }
+
+  // ─── Subcheck 2: parity ───────────────────────────────────────────────────
+  if (catalog) {
+    try {
+      const fails = runParityCheck(root, catalog)
+      if (fails.length > 0) {
+        process.stdout.write('[INV-86] kit catalog parity FAIL\n')
+        for (const f of fails) process.stdout.write(`  [parity] ${f}\n`)
+        maxSeverity = Math.max(maxSeverity, 1)
+      }
+    } catch (err) {
+      process.stderr.write(
+        `[arbiter kit validate] parity ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+      )
+      maxSeverity = Math.max(maxSeverity, 2)
+    }
+  }
+
+  // ─── Subcheck 3: redaction ────────────────────────────────────────────────
+  try {
+    const lexicon = JSON.parse(
+      readFileSync(resolve(root, 'scripts/data/redaction-lexicon.json'), 'utf-8'),
+    ) as LexiconEntry[]
+    const catalogText = readFileSync(resolve(root, 'src/kit/catalog.json'), 'utf-8')
+    const matches = scanForRedactedTokens(catalogText, lexicon)
+    if (matches.length > 0) {
+      process.stdout.write('[INV-85] redaction FAIL\n')
+      for (const m of matches)
+        process.stdout.write(`  line ${m.line} [${m.token}]: ${m.lineContent.trim()}\n`)
+      maxSeverity = Math.max(maxSeverity, 1)
+    }
+  } catch (err) {
+    process.stderr.write(
+      `[arbiter kit validate] redaction ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    maxSeverity = Math.max(maxSeverity, 2)
+  }
+
+  // ─── Summary ──────────────────────────────────────────────────────────────
+  if (maxSeverity === 0) {
+    process.stdout.write(
+      `[arbiter kit validate] OK (${catalog?.length ?? 0} dims, parity green, no redacted tokens)\n`,
+    )
+  }
+
+  process.exit(maxSeverity)
+}
+
+export interface KitGenerateOptions {
+  out?: string
+  force?: boolean
+  prune?: boolean
+}
+
+export function runKitGenerate(opts: KitGenerateOptions): void {
+  assertKitEnabled()
+  const outDir = opts.out ?? 'docs/REFERENCE'
+  try {
+    const genOpts: { outDir: string; force?: boolean; prune?: boolean } = { outDir }
+    if (opts.force) genOpts.force = true
+    if (opts.prune) genOpts.prune = true
+    const result = generateKitDocs(genOpts)
+    process.stdout.write(
+      `[arbiter kit generate] written=${result.written.length} skipped=${result.skipped.length}` +
+        (opts.prune
+          ? ` pruned=${result.pruned.length} protected=${result.pruneProtected.length}`
+          : '') +
+        '\n',
+    )
+    if (result.skipped.length > 0) {
+      for (const f of result.skipped)
+        process.stdout.write(`  [skip] ${f} (user edit detected — use --force to overwrite)\n`)
+    }
+    if (result.pruneProtected.length > 0) {
+      for (const f of result.pruneProtected)
+        process.stdout.write(`  [protected] ${f} (user edit detected — not pruned)\n`)
+    }
+  } catch (err) {
+    process.stderr.write(
+      `[arbiter kit generate] ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
 }

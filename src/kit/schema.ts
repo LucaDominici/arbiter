@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from 'zod'
+import { VALID_TML, VALID_GATES, VALID_STACKS } from './taxonomy.js'
+export { VALID_STACKS } from './taxonomy.js'
+export type { Stack, TML, Gate, Disposition } from './taxonomy.js'
 
 // ─── Overlay cell variants ────────────────────────────────────────────────────
 
@@ -56,14 +59,11 @@ export type DerivedCell = z.infer<typeof DerivedCellSchema>
 
 // ─── Catalog dimension ────────────────────────────────────────────────────────
 
-const VALID_STACKS = ['java', 'typescript', 'python', 'go', 'rust'] as const
-export type Stack = (typeof VALID_STACKS)[number]
-
 const KitDimensionSchema = z.object({
   id: z.string().regex(/^N(0[1-9]|[1-6]\d|7[0-6])$/, 'id must be N01..N76'),
   name: z.string().min(1),
-  tml: z.enum(['L1', 'L2', 'L3']),
-  gate: z.enum(['BLOCKING', 'ADVISORY', 'REFERENCE']),
+  tml: z.enum(VALID_TML),
+  gate: z.enum(VALID_GATES),
   categoryRef: z.string().min(1),
   archetypeGating: z.object({
     applies: z.array(z.string()),

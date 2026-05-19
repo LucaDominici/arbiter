@@ -1292,6 +1292,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'scripts/check-no-redacted-tokens.mjs (L1 gate)',
   },
 
+  {
+    id: 'INV-86',
+    tier: 'operational',
+    title: 'Kit catalog parity',
+    description:
+      'src/kit/catalog.json and docs/audits/kit-canonical-mapping.json must stay in sync: ' +
+      'every canonical_id in mapping must match a catalog id (N01..N76); names, tml_source, and ' +
+      'gate_type must match after NFC-normalize and suffix-strip; every BLOCKING dim must have ' +
+      'at least one enforcement artifact or a valid disposition exemption (adopt-framework or ' +
+      'stack-adapter with implementing_wave in W3-W11, or disposition=done). ' +
+      'Neither file may contain tokens from scripts/data/redaction-lexicon.json.',
+    alwaysActive: false,
+    selfOnly: true,
+    enforcement: 'scripts/check-kit-catalog-parity.mjs (L1 gate)',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-82 (T5b heartbeat, #862), INV-83 (audit-append-only),
   // INV-84 (audit-trigger-presence) — sibling epic #TBD-sibling-epic phases B/G.
