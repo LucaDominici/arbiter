@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#880",
+  "test_path": "__tests__/parity/ci-tier-render-parity.test.ts",
+  "test_commit_sha": "1ad4c9e1d71ef830e23e9e601a4a0e502a402e20",
+  "test_run_log": "FAIL __tests__/parity/ci-tier-render-parity.test.ts > ci-tier render parity > .github/workflows/01-pr-fast.yml matches github/workflows/01-pr-fast.yml.ejs — committed workflow did not yet exist when tests were authored (W4 TDD red phase)",
+  "observed_failure": "FAIL — parity tests red before hand-authored .github/workflows/*.yml existed. W4 TDD: tests written first (task #880 planning phase), workflows created after to make them green.",
+  "recorded_at": "2026-05-19T00:00:00.000Z"
+}
