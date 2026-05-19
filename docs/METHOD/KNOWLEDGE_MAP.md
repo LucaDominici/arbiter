@@ -8,7 +8,7 @@
 ## AGENTS.md
 
 **Location:** `AGENTS.md`
-**Lines:** 342
+**Lines:** 348
 **Purpose:** Canonical agent governance — invariants, coding standards, commit convention, gate commands.
 
 | Section           | Description                                                  |
