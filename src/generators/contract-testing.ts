@@ -107,6 +107,31 @@ function generateRestOwned(base: string, config: ProjectConfig, data: object): W
     )
   }
 
+  // F7: Postman/Newman contract test scripts — Java only (#894)
+  // Emitted additively alongside Pact when the project is Java-based.
+  // The scripts complement Pact: Newman validates the live API surface using a
+  // Postman collection; inject-pact-samples.sh seeds the service with Pact interactions
+  // so Newman can exercise the exact contract scenarios defined in the Pact files.
+  if (config.language === 'java' || config.language === 'multi') {
+    extra.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'run-postman-tests.sh'),
+        renderTemplate('scripts/run-postman-tests.sh.ejs', data),
+        { skipIfExists: true },
+      ),
+      writeFile(
+        resolvedPath(base, 'scripts', 'inject-pact-samples.sh'),
+        renderTemplate('scripts/inject-pact-samples.sh.ejs', data),
+        { skipIfExists: true },
+      ),
+      writeFile(
+        resolvedPath(base, '.github', 'workflows', '_contract-postman.yml'),
+        renderTemplate('github/workflows/_contract-postman.yml.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
   return contractFile({
     base,
     config,

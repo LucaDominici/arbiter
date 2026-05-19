@@ -265,6 +265,14 @@ export interface ProjectConfig {
    * Slot 04 was reserved in CI-TIER-MODEL.md; slot 10 is new (post 09-heartbeat).
    */
   enableDeployWorkflows?: boolean
+
+  /**
+   * Industry overlay — emits domain-specific compliance scaffolding on top of the base project.
+   * 'pharma' → pharma audit-trail overlay (KIT dims 73-75, ArchUnit R-35..R-39). Java only.
+   * 'none'   → no overlay (default).
+   * Absent field is treated as 'none'.
+   */
+  industryOverlay?: 'pharma' | 'none'
 }
 
 export type PlanDepth = 'minimal' | 'brief' | 'full'
