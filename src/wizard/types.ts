@@ -280,6 +280,14 @@ export interface ProjectConfig {
    * File is emitted with skipIfExists so user-customized specs survive re-init.
    */
   enableAzureContainerApp?: boolean
+
+  /**
+   * F6: Emit k6 performance testing ecosystem.
+   * Includes 12+ named scenario templates, 3 Python report generators,
+   * seed SQL, validator script, and GitHub workflow.
+   * Off by default — opt in when load/performance testing is needed (#895).
+   */
+  enablePerfTesting?: boolean
 }
 
 export type PlanDepth = 'minimal' | 'brief' | 'full'

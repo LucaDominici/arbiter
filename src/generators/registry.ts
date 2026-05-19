@@ -53,6 +53,7 @@ import { generateLocalWrapper } from './local-wrapper.js'
 import { generateEnvTemplate } from './env-template.js'
 import { generateInfra } from './infra.js'
 import { generateAuditToolchain } from './audit-toolchain.js'
+import { generatePerfK6 } from './perf-k6.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -336,6 +337,16 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
   ]
 }
 
+function buildPerfSpecs(config: ProjectConfig): GeneratorSpec[] {
+  return [
+    {
+      key: 'perf-k6',
+      enabled: config.enablePerfTesting === true,
+      run: () => generatePerfK6(config).files,
+    },
+  ]
+}
+
 function buildProviderSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     {
@@ -359,6 +370,7 @@ export function buildRegistry(
     ...buildAiToolSpecs(config, installedSkills),
     ...buildInfraSpecs(config),
     ...buildAnalysisSpecs(config),
+    ...buildPerfSpecs(config),
     ...buildProviderSpecs(config),
   ]
 }

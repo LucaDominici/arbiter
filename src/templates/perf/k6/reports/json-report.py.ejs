@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+# k6 JSON report aggregator — merges k6 summary files into a single structured report (#895)
+import json
+import sys
+from pathlib import Path
+from datetime import datetime
+
+RESULTS_DIR = Path("perf/k6/results")
+OUTPUT_FILE = RESULTS_DIR / "k6-report.json"
+
+
+def extract_scenario_summary(name: str, summary: dict) -> dict:
+    metrics = summary.get("metrics", {})
+    dur = metrics.get("http_req_duration", {}).get("values", {})
+    failed_rate = metrics.get("http_req_failed", {}).get("values", {}).get("rate", 0)
+    total_reqs = int(metrics.get("http_reqs", {}).get("values", {}).get("count", 0))
+
+    thresholds: dict[str, bool] = {}
+    all_passed = True
+    for metric_name, metric_val in metrics.items():
+        for thr_key, passed in metric_val.get("thresholds", {}).items():
+            thresholds[f"{metric_name}:{thr_key}"] = passed
+            if not passed:
+                all_passed = False
+
+    return {
+        "scenario": name,
+        "passed": all_passed,
+        "total_requests": total_reqs,
+        "error_rate": round(failed_rate, 6),
+        "latency_ms": {
+            "avg": round(dur.get("avg", 0), 2),
+            "min": round(dur.get("min", 0), 2),
+            "med": round(dur.get("med", 0), 2),
+            "max": round(dur.get("max", 0), 2),
+            "p90": round(dur.get("p(90)", 0), 2),
+            "p95": round(dur.get("p(95)", 0), 2),
+            "p99": round(dur.get("p(99)", 0), 2),
+        },
+        "thresholds": thresholds,
+    }
+
+
+def main() -> int:
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    summaries = list(RESULTS_DIR.glob("*-summary.json"))
+    if not summaries:
+        print("No summary files found in", RESULTS_DIR, file=sys.stderr)
+        return 1
+
+    scenarios = []
+    for path in sorted(summaries):
+        name = path.stem.replace("-summary", "")
+        try:
+            data = json.loads(path.read_text())
+            scenarios.append(extract_scenario_summary(name, data))
+        except Exception as exc:  # noqa: BLE001
+            print(f"Warning: could not parse {path}: {exc}", file=sys.stderr)
+
+    overall_passed = all(s["passed"] for s in scenarios)
+    report = {
+        "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "overall_passed": overall_passed,
+        "scenario_count": len(scenarios),
+        "scenarios": scenarios,
+    }
+
+    OUTPUT_FILE.write_text(json.dumps(report, indent=2))
+    print(f"JSON report written to {OUTPUT_FILE}")
+    return 0 if overall_passed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

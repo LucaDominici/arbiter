@@ -1253,3 +1253,25 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 **CANON-16 survey:** `self-validation.ts` is the closest neighbor (A/B/C drill harness). Distinct responsibility: inventory audit vs. drill harness. No refactor viable. New file justified.
 
 **Consequences:** Target projects generated at any level (L1/L2/L3) receive `audit-toolchain.mjs`. Template tests baseline updated 147→145 (2 fewer untested EJS files).
+
+## ADR-053: F6 — k6 performance testing ecosystem template (#895)
+
+**Date:** 2026-05-20
+**Status:** Accepted
+**Reference:** Issue #895
+
+**Context:** F2-java (#889) and W10 (#886) shipped tooling for extended CI tiers including soak and endurance testing categories. A dedicated k6 ecosystem template was needed to cover systematic performance testing across load profiles (load, stress, spike, soak, volume, breakpoint, smoke, ramp-up, ramp-down, steady-state, burst, endurance).
+
+**Decision:**
+
+- `src/generators/perf-k6.ts` (new): generator emitting the full k6 ecosystem, gated on `enablePerfTesting?: boolean` in `ProjectConfig`. All 19 output files use `skipIfExists` for brownfield safety.
+- `src/templates/github/workflows/11-k6-on-demand.yml.ejs`: `workflow_dispatch`-triggered dispatcher that delegates to the reusable runner. Slot 11 chosen because slot 10 is occupied by `10-deploy-prod.yml.ejs` (F10, #899).
+- `src/templates/github/workflows/_k6-runner.yml.ejs`: reusable workflow (`workflow_call`) that installs k6, validates scenarios, runs them, generates HTML report, and uploads artifacts.
+- 12 named scenario templates under `src/templates/perf/k6/scenarios/`: each exports `options` + `export default function` (k6's required entry point) and imports from `k6`.
+- 3 Python report generators under `src/templates/perf/k6/reports/`: HTML (with Jinja2-style template), JSON (aggregated summary), CSV (flat tabular).
+- `src/templates/perf/k6/seed/test-data.sql.ejs`: PostgreSQL seed SQL using `generate_series` to create realistic test data volumes.
+- `src/templates/scripts/validate-k6-scenarios.mjs.ejs`: scenario completeness validator checking for required entry point, k6 import, and `options` export.
+
+**CANON-04:** 54 render tests added in `__tests__/templates/k6-render.test.ts`. **CANON-05:** Generator unit tests in `__tests__/generators/perf-k6.test.ts`. **CANON-11:** Brownfield tests in `__tests__/brownfield/perf-k6-brownfield.test.ts`. **CANON-16 survey:** Grepped `src/generators/` and `src/templates/` for `k6`/`perf` — nothing similar exists; new files justified.
+
+**Consequences:** Projects opting in via `enablePerfTesting: true` get a complete k6 perf ecosystem on `arbiter init`. Existing projects (brownfield re-init) are unaffected due to `skipIfExists`.
