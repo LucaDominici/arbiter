@@ -16,6 +16,7 @@ import { inspectLock, forceReleaseLock } from '../utils/file-lock.js'
 import type { LockInfo } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
+import { detectLanguage } from '../detectors/language.js'
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
 
@@ -120,8 +121,57 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   }
 
   out.push(checkLockfile(dir))
+  out.push(checkStackAdapterHealth(dir))
 
   return out
+}
+
+const ADAPTER_EXEMPT_LANGUAGES = ['kotlin', 'multi', 'unknown'] as const
+
+/**
+ * INV-88: Checks that a StackAdapter file exists for the detected language.
+ * Exempt languages: kotlin (JVM), multi, unknown.
+ * Exported for unit testing.
+ */
+export function checkStackAdapterHealth(dir: string): HealthCheck {
+  const lang = detectLanguage(dir)
+
+  if ((ADAPTER_EXEMPT_LANGUAGES as readonly string[]).includes(lang)) {
+    if (lang === 'unknown') {
+      return {
+        id: 'stack-adapter',
+        label: 'Stack adapter registered',
+        status: 'WARN',
+        detail: 'could not detect language from project files',
+      }
+    }
+    return {
+      id: 'stack-adapter',
+      label: 'Stack adapter registered',
+      status: 'PASS',
+      detail: `${lang} is exempt from adapter requirement`,
+    }
+  }
+
+  const adapterFile = join(dir, 'src', 'adapters', `${lang}.ts`)
+  const adapterExists = existsSync(adapterFile)
+
+  if (adapterExists) {
+    return {
+      id: 'stack-adapter',
+      label: 'Stack adapter registered',
+      status: 'PASS',
+      detail: `adapter registered for ${lang}`,
+    }
+  }
+
+  return {
+    id: 'stack-adapter',
+    label: 'Stack adapter registered',
+    status: 'FAIL',
+    detail: `no adapter file for ${lang} — run \`arbiter doctor repair-state\``,
+    hint: `Create src/adapters/${lang}.ts implementing StackAdapter`,
+  }
 }
 
 /**

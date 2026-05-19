@@ -1329,6 +1329,18 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
+    id: 'INV-88',
+    tier: 'operational',
+    selfOnly: true,
+    alwaysActive: false,
+    title: 'Stack adapter coverage',
+    description:
+      'Every language with a non-exempt archetype must have a registered StackAdapter file in src/adapters/. ' +
+      'Exempt: kotlin (JVM), multi, unknown. Before adding a Language value, add a corresponding adapter file.',
+    enforcement: 'scripts/check-adapter-coverage.mjs',
+  },
+
+  {
     id: 'INV-89',
     tier: 'operational',
     title: 'Anti-drift validator family — W6 validators must be present and wired',

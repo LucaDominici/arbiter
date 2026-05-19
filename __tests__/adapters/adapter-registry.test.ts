@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, it, expect, afterEach } from 'vitest'
+/**
+ * Registry unit tests use fake adapters to avoid double-registration issues.
+ * Real adapter constants (tsAdapter etc.) are imported for property tests only.
+ * All tests call _resetForTest() in beforeEach/afterEach to isolate registry state.
+ */
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   registerAdapter,
   resolveAdapter,
@@ -9,7 +14,14 @@ import {
 import type { StackAdapter } from '../../src/adapters/StackAdapter.js'
 import type { Language } from '../../src/wizard/types.js'
 
-// Helpers — build fake adapters without importing real adapter files
+// Static imports for real adapter property tests (modules load and self-register once)
+import { tsAdapter } from '../../src/adapters/typescript.js'
+import { javaAdapter } from '../../src/adapters/java.js'
+import { pythonAdapter } from '../../src/adapters/python.js'
+import { goAdapter } from '../../src/adapters/go.js'
+import { rustAdapter } from '../../src/adapters/rust.js'
+
+// Helpers — build fake adapters for registry tests without relying on real adapters
 function fakeAdapter(language: Language, isStub = false): StackAdapter {
   return {
     language,
@@ -23,6 +35,11 @@ function fakeAdapter(language: Language, isStub = false): StackAdapter {
 }
 
 describe('adapter registry', () => {
+  beforeEach(() => {
+    // Clear adapters self-registered by module imports at the top of this file
+    _resetForTest()
+  })
+
   afterEach(() => {
     _resetForTest()
   })
@@ -97,46 +114,35 @@ describe('adapter registry', () => {
 })
 
 describe('TypeScript adapter (real)', () => {
-  afterEach(() => {
-    _resetForTest()
-  })
-
-  it('has isStub=false', async () => {
-    const { tsAdapter } = await import('../../src/adapters/typescript.js')
+  it('has isStub=false', () => {
     expect(tsAdapter.isStub).toBe(false)
   })
 
-  it('returns a lint command string', async () => {
-    const { tsAdapter } = await import('../../src/adapters/typescript.js')
+  it('returns a lint command string', () => {
     const lint = tsAdapter.lintCommand()
     expect(typeof lint).toBe('string')
     expect(lint).toBeTruthy()
   })
 
-  it('returns a format command string', async () => {
-    const { tsAdapter } = await import('../../src/adapters/typescript.js')
+  it('returns a format command string', () => {
     const format = tsAdapter.formatCommand()
     expect(typeof format).toBe('string')
     expect(format).toBeTruthy()
   })
 
-  it('has language = typescript', async () => {
-    const { tsAdapter } = await import('../../src/adapters/typescript.js')
+  it('has language = typescript', () => {
     expect(tsAdapter.language).toBe('typescript')
   })
 
-  it('supportsCoverage returns true', async () => {
-    const { tsAdapter } = await import('../../src/adapters/typescript.js')
+  it('supportsCoverage returns true', () => {
     expect(tsAdapter.supportsCoverage()).toBe(true)
   })
 
-  it('supportsMutation returns true', async () => {
-    const { tsAdapter } = await import('../../src/adapters/typescript.js')
+  it('supportsMutation returns true', () => {
     expect(tsAdapter.supportsMutation()).toBe(true)
   })
 
-  it('languageHooks returns at least one hook', async () => {
-    const { tsAdapter } = await import('../../src/adapters/typescript.js')
+  it('languageHooks returns at least one hook', () => {
     const hooks = tsAdapter.languageHooks()
     expect(hooks.length).toBeGreaterThan(0)
     for (const hook of hooks) {
@@ -148,40 +154,31 @@ describe('TypeScript adapter (real)', () => {
 })
 
 describe('stub adapters', () => {
-  afterEach(() => {
-    _resetForTest()
-  })
+  const stubs: [string, StackAdapter][] = [
+    ['java', javaAdapter],
+    ['python', pythonAdapter],
+    ['go', goAdapter],
+    ['rust', rustAdapter],
+  ]
 
-  const stubs = ['java', 'python', 'go', 'rust'] as const
-
-  for (const lang of stubs) {
-    it(`${lang} adapter has isStub=true`, async () => {
-      const mod = await import(`../../src/adapters/${lang}.js`)
-      const adapter = mod[`${lang}Adapter`] as StackAdapter
+  for (const [lang, adapter] of stubs) {
+    it(`${lang} adapter has isStub=true`, () => {
       expect(adapter.isStub).toBe(true)
     })
 
-    it(`${lang} adapter lintCommand returns null`, async () => {
-      const mod = await import(`../../src/adapters/${lang}.js`)
-      const adapter = mod[`${lang}Adapter`] as StackAdapter
+    it(`${lang} adapter lintCommand returns null`, () => {
       expect(adapter.lintCommand()).toBeNull()
     })
 
-    it(`${lang} adapter formatCommand returns null`, async () => {
-      const mod = await import(`../../src/adapters/${lang}.js`)
-      const adapter = mod[`${lang}Adapter`] as StackAdapter
+    it(`${lang} adapter formatCommand returns null`, () => {
       expect(adapter.formatCommand()).toBeNull()
     })
 
-    it(`${lang} adapter languageHooks returns empty array`, async () => {
-      const mod = await import(`../../src/adapters/${lang}.js`)
-      const adapter = mod[`${lang}Adapter`] as StackAdapter
+    it(`${lang} adapter languageHooks returns empty array`, () => {
       expect(adapter.languageHooks()).toEqual([])
     })
 
-    it(`${lang} adapter has language = ${lang}`, async () => {
-      const mod = await import(`../../src/adapters/${lang}.js`)
-      const adapter = mod[`${lang}Adapter`] as StackAdapter
+    it(`${lang} adapter has language = ${lang}`, () => {
       expect(adapter.language).toBe(lang)
     })
   }

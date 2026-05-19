@@ -112,7 +112,10 @@ describe('check-adapter-coverage.mjs', () => {
   it('includes all required languages in coverage output', () => {
     const tmp = makeTmpDir()
     try {
-      makeAdaptersDir(tmp, REQUIRED.map((l) => `${l}.ts`))
+      makeAdaptersDir(
+        tmp,
+        REQUIRED.map((l) => `${l}.ts`),
+      )
       const { code, stdout } = runScript(tmp)
       expect(code).toBe(0)
       for (const lang of REQUIRED) {
