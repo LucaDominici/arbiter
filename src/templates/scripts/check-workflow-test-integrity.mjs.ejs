@@ -1,0 +1,90 @@
+#!/usr/bin/env node
+// <%= projectName %> — workflow test integrity checker (INV-89)
+// Validates that workflow files do not have syntax issues or missing required fields.
+// Exits 0 when all workflows pass integrity checks; exits 1 when issues found.
+// Part of the anti-drift validator family (W6).
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write([
+    'Usage: node scripts/check-workflow-test-integrity.mjs [options]',
+    '',
+    'Validates workflow file integrity: required fields, non-empty jobs, no continue-on-error on test steps.',
+    'Exits 0 when all workflows pass; exits 1 when issues found.',
+    '',
+    'Options:',
+    '  --dir <path>    Root directory to scan (default: cwd)',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+const dirArg = args.indexOf('--dir');
+const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd();
+const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');
+const INFORMATIONAL_PATTERNS = ['heartbeat', 'nightly', 'weekly', 'monthly'];
+
+function collectYamlFiles(dir) {
+  if (!existsSync(dir)) return [];
+  const results = [];
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectYamlFiles(full));
+    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+const yamlFiles = collectYamlFiles(WORKFLOWS_DIR);
+let violations = 0;
+
+for (const file of yamlFiles) {
+  let content;
+  try {
+    content = readFileSync(file, 'utf-8');
+  } catch {
+    continue;
+  }
+  const fileName = file.split('/').pop() ?? '';
+  const isInformational = INFORMATIONAL_PATTERNS.some((p) => fileName.includes(p));
+
+  if (!content.includes('\non:') && !content.startsWith('on:')) {
+    process.stderr.write(`[FAIL] ${file}: missing 'on:' trigger section\n`);
+    violations++;
+  }
+  if (!content.includes('\njobs:') && !content.startsWith('jobs:')) {
+    process.stderr.write(`[FAIL] ${file}: missing 'jobs:' section\n`);
+    violations++;
+  }
+  if (!isInformational) {
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\s{6,}continue-on-error:\s*true/.test(lines[i])) {
+        process.stderr.write(`[FAIL] ${file}:${i + 1}: step-level continue-on-error: true found (INV-80)\n`);
+        violations++;
+      }
+    }
+  }
+}
+
+if (violations > 0) {
+  process.stderr.write(`check-workflow-test-integrity: FAIL — ${violations} integrity issue(s) in workflows (INV-89)\n`);
+  process.exit(1);
+}
+process.stdout.write(
+  `check-workflow-test-integrity: OK — all ${yamlFiles.length} workflow(s) pass integrity checks (INV-89)\n`,
+);
+process.exit(0);

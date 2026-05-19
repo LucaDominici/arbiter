@@ -1328,6 +1328,32 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'full static + runtime parityContentHash check at L2',
   },
 
+  {
+    id: 'INV-89',
+    tier: 'operational',
+    title: 'Anti-drift validator family — W6 validators must be present and wired',
+    description:
+      'The W6 anti-drift validator family consists of 13 check-*.mjs scripts that catch ' +
+      'configuration drift, secret leakage, suppression quality issues, and workflow structural ' +
+      "problems. 11 scripts are wired in arbiter's own L1 gate (selfOnly Track A). 9 of those 11 " +
+      'are also emitted for target projects via src/generators/anti-drift-validators.ts (Track B). ' +
+      '2 scripts (check-workflow-sha-pinning.mjs, check-workflow-job-naming.mjs) are Track B only.',
+    alwaysActive: false,
+    selfOnly: false,
+    enforcement:
+      'scripts/check-suppression-rationale.mjs (L1) + ' +
+      'scripts/check-suppression-expiry.mjs (L1) + ' +
+      'scripts/check-pii-scan.mjs (L1) + ' +
+      'scripts/check-secret-scan.mjs (L1) + ' +
+      'scripts/check-drift.mjs (L1) + ' +
+      'scripts/check-workflow-runners.mjs (L1) + ' +
+      'scripts/check-workflow-docs-sync.mjs (L1) + ' +
+      'scripts/check-workflow-test-integrity.mjs (L1) + ' +
+      'scripts/check-pr-size-gate.mjs (L1) + ' +
+      'scripts/check-validator-helptext.mjs (L1) + ' +
+      'scripts/check-tier-coverage.mjs (L1)',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-82 (T5b heartbeat, #862), INV-83 (audit-append-only),
   // INV-84 (audit-trigger-presence) — sibling epic #TBD-sibling-epic phases B/G.
