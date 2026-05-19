@@ -1,0 +1,93 @@
+name: Contract Tests — Postman/Newman
+
+permissions:
+  contents: read
+  checks: write
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'postman/**'
+      - 'pacts/**'
+      - 'scripts/run-postman-tests.sh'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Service base URL to test against'
+        required: false
+        default: 'http://localhost:8080'
+
+# Cancel in-progress contract runs on the same branch — re-runs on each push.
+concurrency:
+  group: contract-postman-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  contract-postman:
+    name: Postman/Newman Contract Tests (INV-35)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+
+    services:
+<%  if (language === 'java') { %>
+      app:
+        image: ${{ vars.APP_IMAGE || 'ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}' }}
+        ports:
+          - 8080:8080
+        env:
+          SPRING_PROFILES_ACTIVE: contract-test
+<%  } %>
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js (for Newman)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install Newman
+        run: npm install -g newman newman-reporter-junitfull
+
+      - name: Prepare results directory
+        run: mkdir -p .arbiter/evidence/contract
+
+      - name: Inject Pact samples (optional)
+        env:
+          SERVICE_BASE_URL: ${{ github.event.inputs.base_url || 'http://localhost:8080' }}
+          PACTS_DIR: pacts
+        run: |
+          if [[ -d pacts ]] && ls pacts/*.json &>/dev/null; then
+            bash scripts/inject-pact-samples.sh
+          else
+            echo "No pacts directory — skipping sample injection."
+          fi
+
+      - name: Run Newman contract tests
+        env:
+          SERVICE_BASE_URL: ${{ github.event.inputs.base_url || 'http://localhost:8080' }}
+          POSTMAN_COLLECTION: ${{ vars.POSTMAN_COLLECTION || 'postman/<%= projectName ? projectName.replace(/[^a-z0-9_-]/gi, "-").toLowerCase() : "api" %>.postman_collection.json' }}
+          RESULTS_DIR: .arbiter/evidence/contract
+          NEWMAN_TIMEOUT_MS: '30000'
+          NEWMAN_MAX_RETRIES: '1'
+        run: bash scripts/run-postman-tests.sh
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: newman-results-${{ github.run_id }}
+          path: .arbiter/evidence/contract/newman-results.xml
+          if-no-files-found: warn
+
+      - name: Publish JUnit results
+        if: always()
+        uses: mikepenz/action-junit-report@3585f732c9e1f2c1b7a7c99b27ddd7b85082c04d # v5.2.0
+        with:
+          report_paths: '.arbiter/evidence/contract/newman-results.xml'
+          check_name: 'Postman/Newman Contract Tests'
+          fail_on_failure: true
