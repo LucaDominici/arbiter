@@ -55,38 +55,46 @@ if (pairs.length === 0) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// Regex: `uses: <action>@<version>` where version is a SHA, tag, or branch.
-// Captures: [1] = action name (e.g. "actions/checkout"), [2] = version (e.g. "v4" or "abc123")
-const USES_RE = /uses:\s+([\w@/.:_-]+)@([\w.\-]+)/g
+// Regex: `uses: <action>@<version>` optionally followed by an inline comment `# vX.Y.Z`.
+// Captures: [1] = action name, [2] = version (SHA/tag), [3] = full comment token (e.g. "# v6.0.2") or ""
+// The comment group is optional — absent on lines without a version comment.
+const USES_RE = /uses:\s+([\w@/.:_-]+)@([\w.\-]+)([ \t]*#[^\n]*)?/g
 
 function extractPins(content) {
   const pins = new Map()
   for (const match of content.matchAll(USES_RE)) {
-    const [, action, version] = match
-    pins.set(action, version)
+    const [, action, version, comment = ''] = match
+    pins.set(action, { version, comment: comment.trimEnd() })
   }
   return pins
 }
 
 function applyPins(content, sourcePins) {
-  // Replace uses: <action>@<oldVersion> with uses: <action>@<newVersion>
-  // for all actions in sourcePins. Preserves any inline comment after the pin.
+  // Replace uses: <action>@<oldVersion> [# old-comment] with the source version+comment.
+  // Both the SHA/tag and the trailing version comment are updated atomically so that
+  // comment-only drift (e.g. "# v4.2.2" vs "# v6.0.2") is also corrected.
   return content.replace(
-    new RegExp(`(uses:\\s+)([\\w@/.:_-]+)@([\\w.\\-]+)`, 'g'),
-    (match, prefix, action, oldVersion) => {
-      const newVersion = sourcePins.get(action)
-      if (newVersion === undefined || newVersion === oldVersion) return match
-      return `${prefix}${action}@${newVersion}`
+    /uses:(\s+)([\w@/.:_-]+)@([\w.\-]+)([ \t]*#[^\n]*)?/g,
+    (match, space, action, oldVersion, oldComment = '') => {
+      const pin = sourcePins.get(action)
+      if (pin === undefined) return match
+      const { version: newVersion, comment: newComment } = pin
+      if (newVersion === oldVersion && newComment === oldComment.trimEnd()) return match
+      return `uses:${space}${action}@${newVersion}${newComment}`
     },
   )
 }
 
 function diffPins(aPins, bPins, aLabel, bLabel) {
   const diffs = []
-  for (const [action, aVer] of aPins) {
-    const bVer = bPins.get(action)
-    if (bVer !== undefined && bVer !== aVer) {
-      diffs.push({ action, [aLabel]: aVer, [bLabel]: bVer })
+  for (const [action, aPin] of aPins) {
+    const bPin = bPins.get(action)
+    if (bPin === undefined) continue
+    // Treat version drift OR comment drift as a difference requiring sync.
+    if (aPin.version !== bPin.version || aPin.comment !== bPin.comment) {
+      const aStr = `${aPin.version}${aPin.comment}`
+      const bStr = `${bPin.version}${bPin.comment}`
+      diffs.push({ action, [aLabel]: aStr, [bLabel]: bStr })
     }
   }
   return diffs
