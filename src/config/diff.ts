@@ -54,6 +54,7 @@ export type GeneratorKey =
   | 'env-template'
   | 'infra'
   | 'audit-toolchain'
+  | 'perf-k6'
 
 export interface ConfigDiff {
   paths: string[]

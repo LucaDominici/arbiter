@@ -1,0 +1,96 @@
+name: k6 Runner (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      scenario:
+        description: 'Scenario name (file under perf/k6/scenarios/ without .js). Empty = all.'
+        required: false
+        default: ''
+        type: string
+      target_url:
+        description: 'Base URL of the service under test'
+        required: false
+        default: 'http://localhost:8080'
+        type: string
+      vus:
+        description: 'Override virtual users'
+        required: false
+        default: ''
+        type: string
+      duration:
+        description: 'Override duration (e.g. 30s, 5m)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run-k6:
+    name: Run k6 scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Validate k6 scenarios
+        run: node scripts/validate-k6-scenarios.mjs
+
+      - name: Set environment variables
+        run: |
+          echo "K6_BASE_URL=${{ inputs.target_url }}" >> "$GITHUB_ENV"
+          if [ -n "${{ inputs.vus }}" ]; then
+            echo "K6_VUS=${{ inputs.vus }}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${{ inputs.duration }}" ]; then
+            echo "K6_DURATION=${{ inputs.duration }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run scenario(s)
+        run: |
+          SCENARIO="${{ inputs.scenario }}"
+          SCENARIOS_DIR="perf/k6/scenarios"
+          if [ -n "$SCENARIO" ]; then
+            echo "Running single scenario: $SCENARIO"
+            k6 run "$SCENARIOS_DIR/${SCENARIO}.js" \
+              --out json=perf/k6/results/k6-results.json \
+              --summary-export=perf/k6/results/k6-summary.json
+          else
+            echo "Running all scenarios"
+            mkdir -p perf/k6/results
+            for f in "$SCENARIOS_DIR"/*.js; do
+              name=$(basename "$f" .js)
+              echo "--- Running: $name ---"
+              k6 run "$f" \
+                --out json="perf/k6/results/k6-${name}.json" \
+                --summary-export="perf/k6/results/k6-${name}-summary.json" \
+                || true
+            done
+          fi
+
+      - name: Generate HTML report
+        if: always()
+        run: |
+          pip install --quiet jinja2 2>/dev/null || true
+          python perf/k6/reports/html-report.py || true
+
+      - name: Upload k6 results
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: k6-results-${{ github.run_id }}
+          path: perf/k6/results/
+          retention-days: 30

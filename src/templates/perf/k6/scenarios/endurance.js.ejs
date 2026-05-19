@@ -1,0 +1,36 @@
+// k6 endurance test — 24-hour sustained load to detect slow degradation (#895)
+import { check, sleep } from 'k6'
+import http from 'k6/http'
+import { Counter, Trend } from 'k6/metrics'
+
+const degradation = new Trend('response_time_trend', true)
+const slowRequests = new Counter('slow_requests')
+
+export const options = {
+  stages: [
+    { duration: '5m', target: 30 },
+    { duration: '23h50m', target: 30 },
+    { duration: '5m', target: 0 },
+  ],
+  thresholds: {
+    http_req_failed: ['rate<0.01'],
+    http_req_duration: ['p(95)<600'],
+    response_time_trend: ['p(95)<600'],
+    slow_requests: ['count<100'],
+  },
+}
+
+const BASE_URL = __ENV.K6_BASE_URL || 'http://localhost:8080'
+
+export default function () {
+  const res = http.get(`${BASE_URL}/api/v1/resource`)
+  degradation.add(res.timings.duration)
+  if (res.timings.duration > 500) {
+    slowRequests.add(1)
+  }
+  check(res, {
+    'status is 200': (r) => r.status === 200,
+    'no degradation > 500ms': (r) => r.timings.duration < 500,
+  })
+  sleep(2)
+}

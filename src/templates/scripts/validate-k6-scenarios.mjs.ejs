@@ -1,0 +1,96 @@
+#!/usr/bin/env node
+// k6 scenario completeness validator (#895)
+// Checks that all scenario files are structurally sound before running CI.
+// Exit code 0 = all scenarios valid; exit code 1 = one or more issues found.
+
+import { readFileSync, readdirSync, existsSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const SCENARIOS_DIR = resolve(__dirname, '..', 'perf', 'k6', 'scenarios')
+const REQUIRED_ENTRY_POINT = 'export default function'
+const REQUIRED_IMPORT = "from 'k6"
+
+const REQUIRED_SCENARIOS = [
+  'load',
+  'stress',
+  'spike',
+  'soak',
+  'smoke',
+  'ramp-up',
+  'ramp-down',
+  'steady-state',
+  'burst',
+  'endurance',
+]
+
+let errors = 0
+
+function fail(msg) {
+  console.error(`  [FAIL] ${msg}`)
+  errors++
+}
+
+function pass(msg) {
+  console.log(`  [PASS] ${msg}`)
+}
+
+// ── 1. Scenarios directory must exist ────────────────────────────────────────
+console.log('\nValidating k6 scenarios...\n')
+
+if (!existsSync(SCENARIOS_DIR)) {
+  console.error(`[ERROR] Scenarios directory not found: ${SCENARIOS_DIR}`)
+  process.exit(1)
+}
+
+const scenarioFiles = readdirSync(SCENARIOS_DIR).filter((f) => f.endsWith('.js'))
+
+// ── 2. Required scenarios must be present ────────────────────────────────────
+console.log('Required scenarios:')
+for (const name of REQUIRED_SCENARIOS) {
+  const file = `${name}.js`
+  if (scenarioFiles.includes(file)) {
+    pass(file)
+  } else {
+    fail(`Missing required scenario: ${file}`)
+  }
+}
+
+// ── 3. Each scenario must have the k6 entry point and import ─────────────────
+console.log('\nScenario structure:')
+for (const file of scenarioFiles) {
+  const filePath = join(SCENARIOS_DIR, file)
+  const content = readFileSync(filePath, 'utf-8')
+
+  let fileOk = true
+
+  if (!content.includes(REQUIRED_ENTRY_POINT)) {
+    fail(`${file}: missing "${REQUIRED_ENTRY_POINT}"`)
+    fileOk = false
+  }
+
+  if (!content.includes(REQUIRED_IMPORT)) {
+    fail(`${file}: missing k6 import (expected "${REQUIRED_IMPORT}...")`)
+    fileOk = false
+  }
+
+  if (!content.includes('options')) {
+    fail(`${file}: missing exported options object`)
+    fileOk = false
+  }
+
+  if (fileOk) {
+    pass(`${file}: entry point + import + options present`)
+  }
+}
+
+// ── Result ────────────────────────────────────────────────────────────────────
+console.log()
+if (errors === 0) {
+  console.log(`All ${scenarioFiles.length} scenario(s) validated successfully.`)
+  process.exit(0)
+} else {
+  console.error(`Validation failed with ${errors} error(s).`)
+  process.exit(1)
+}

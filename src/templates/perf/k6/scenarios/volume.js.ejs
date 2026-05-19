@@ -1,0 +1,36 @@
+// k6 volume test — high data volume with moderate concurrency (#895)
+import { check, sleep } from 'k6'
+import http from 'k6/http'
+
+export const options = {
+  scenarios: {
+    volume: {
+      executor: 'per-vu-iterations',
+      vus: 50,
+      iterations: 1000,
+      maxDuration: '30m',
+    },
+  },
+  thresholds: {
+    http_req_failed: ['rate<0.01'],
+    http_req_duration: ['p(95)<800'],
+    iteration_duration: ['p(95)<10000'],
+  },
+}
+
+const BASE_URL = __ENV.K6_BASE_URL || 'http://localhost:8080'
+
+const PAYLOAD = JSON.stringify({
+  data: 'x'.repeat(1024),
+  items: Array.from({ length: 100 }, (_, i) => ({ id: i, value: `item-${i}` })),
+})
+
+export default function () {
+  const res = http.post(`${BASE_URL}/api/v1/resource`, PAYLOAD, {
+    headers: { 'Content-Type': 'application/json' },
+  })
+  check(res, {
+    'status is 200 or 201': (r) => r.status === 200 || r.status === 201,
+  })
+  sleep(0.5)
+}

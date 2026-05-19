@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+# k6 CSV report generator — flattens k6 summary metrics into tabular CSV (#895)
+import csv
+import json
+import sys
+from pathlib import Path
+from datetime import datetime
+
+RESULTS_DIR = Path("perf/k6/results")
+OUTPUT_FILE = RESULTS_DIR / "k6-report.csv"
+
+FIELDS = [
+    "generated_at",
+    "scenario",
+    "passed",
+    "total_requests",
+    "error_rate",
+    "avg_ms",
+    "min_ms",
+    "med_ms",
+    "max_ms",
+    "p90_ms",
+    "p95_ms",
+    "p99_ms",
+    "thresholds_total",
+    "thresholds_failed",
+]
+
+
+def extract_row(name: str, summary: dict, generated_at: str) -> dict:
+    metrics = summary.get("metrics", {})
+    dur = metrics.get("http_req_duration", {}).get("values", {})
+    failed_rate = metrics.get("http_req_failed", {}).get("values", {}).get("rate", 0)
+    total_reqs = int(metrics.get("http_reqs", {}).get("values", {}).get("count", 0))
+
+    thresholds_total = 0
+    thresholds_failed = 0
+    all_passed = True
+    for metric_val in metrics.values():
+        for passed in metric_val.get("thresholds", {}).values():
+            thresholds_total += 1
+            if not passed:
+                thresholds_failed += 1
+                all_passed = False
+
+    return {
+        "generated_at": generated_at,
+        "scenario": name,
+        "passed": "true" if all_passed else "false",
+        "total_requests": total_reqs,
+        "error_rate": round(failed_rate, 6),
+        "avg_ms": round(dur.get("avg", 0), 2),
+        "min_ms": round(dur.get("min", 0), 2),
+        "med_ms": round(dur.get("med", 0), 2),
+        "max_ms": round(dur.get("max", 0), 2),
+        "p90_ms": round(dur.get("p(90)", 0), 2),
+        "p95_ms": round(dur.get("p(95)", 0), 2),
+        "p99_ms": round(dur.get("p(99)", 0), 2),
+        "thresholds_total": thresholds_total,
+        "thresholds_failed": thresholds_failed,
+    }
+
+
+def main() -> int:
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    summaries = list(RESULTS_DIR.glob("*-summary.json"))
+    if not summaries:
+        print("No summary files found in", RESULTS_DIR, file=sys.stderr)
+        return 1
+
+    generated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    rows = []
+    for path in sorted(summaries):
+        name = path.stem.replace("-summary", "")
+        try:
+            data = json.loads(path.read_text())
+            rows.append(extract_row(name, data, generated_at))
+        except Exception as exc:  # noqa: BLE001
+            print(f"Warning: could not parse {path}: {exc}", file=sys.stderr)
+
+    with OUTPUT_FILE.open("w", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"CSV report written to {OUTPUT_FILE}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

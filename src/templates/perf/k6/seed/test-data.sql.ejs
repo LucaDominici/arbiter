@@ -1,0 +1,59 @@
+-- k6 performance test seed data for <%= projectName %> (#895)
+-- Run before load tests to ensure consistent baseline data.
+-- Adjust table names and columns to match your schema.
+
+BEGIN;
+
+-- ── Users / tenants ──────────────────────────────────────────────────────────
+INSERT INTO users (id, username, email, created_at)
+SELECT
+  gen_random_uuid(),
+  'perf-user-' || i,
+  'perf-user-' || i || '@example.com',
+  NOW() - (random() * INTERVAL '30 days')
+FROM generate_series(1, 10000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ── Resources ────────────────────────────────────────────────────────────────
+INSERT INTO resources (id, name, status, owner_id, created_at)
+SELECT
+  gen_random_uuid(),
+  'perf-resource-' || i,
+  (ARRAY['active', 'inactive', 'pending'])[1 + (i % 3)],
+  (SELECT id FROM users ORDER BY RANDOM() LIMIT 1),
+  NOW() - (random() * INTERVAL '60 days')
+FROM generate_series(1, 50000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ── Audit events (for heavy read tests) ──────────────────────────────────────
+INSERT INTO audit_events (id, resource_id, action, actor, occurred_at)
+SELECT
+  gen_random_uuid(),
+  (SELECT id FROM resources ORDER BY RANDOM() LIMIT 1),
+  (ARRAY['CREATE', 'UPDATE', 'DELETE', 'READ'])[1 + (i % 4)],
+  'perf-actor-' || (i % 100),
+  NOW() - (random() * INTERVAL '90 days')
+FROM generate_series(1, 100000) AS i;
+
+-- ── Indexes to support load test query patterns ───────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_resources_status ON resources (status);
+CREATE INDEX IF NOT EXISTS idx_resources_owner ON resources (owner_id);
+CREATE INDEX IF NOT EXISTS idx_audit_occurred ON audit_events (occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_events (resource_id);
+
+COMMIT;
+
+-- Verify row counts
+DO $$
+DECLARE
+  user_count  BIGINT;
+  res_count   BIGINT;
+  audit_count BIGINT;
+BEGIN
+  SELECT COUNT(*) INTO user_count  FROM users WHERE username LIKE 'perf-user-%';
+  SELECT COUNT(*) INTO res_count   FROM resources WHERE name LIKE 'perf-resource-%';
+  SELECT COUNT(*) INTO audit_count FROM audit_events WHERE actor LIKE 'perf-actor-%';
+  RAISE NOTICE 'Seed complete: % users, % resources, % audit events',
+    user_count, res_count, audit_count;
+END;
+$$;

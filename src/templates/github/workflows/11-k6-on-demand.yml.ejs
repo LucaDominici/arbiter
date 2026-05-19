@@ -1,0 +1,43 @@
+name: k6 Load Tests (on-demand)
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Scenario to run (leave blank to run all)'
+        required: false
+        default: ''
+        type: string
+      target_url:
+        description: 'Base URL of the service under test'
+        required: false
+        default: 'http://localhost:8080'
+        type: string
+      vus:
+        description: 'Override virtual users (leave blank for scenario default)'
+        required: false
+        default: ''
+        type: string
+      duration:
+        description: 'Override duration e.g. 30s, 5m (leave blank for scenario default)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: k6-on-demand-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  k6-load:
+    name: k6 — ${{ inputs.scenario || 'all scenarios' }}
+    uses: ./.github/workflows/_k6-runner.yml
+    with:
+      scenario: ${{ inputs.scenario }}
+      target_url: ${{ inputs.target_url }}
+      vus: ${{ inputs.vus }}
+      duration: ${{ inputs.duration }}
