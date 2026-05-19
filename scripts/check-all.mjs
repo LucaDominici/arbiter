@@ -126,6 +126,7 @@ runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'
 runCheck('local-ci static parity', 'node', ['scripts/check-local-ci-parity.mjs'], {
   env: { ...process.env, PARITY_STATIC_CHECK_ONLY: '1' },
 })
+runCheck('adapter coverage (INV-88)', 'node', ['scripts/check-adapter-coverage.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

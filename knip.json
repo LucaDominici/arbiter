@@ -22,6 +22,7 @@
     "src/graph/history.ts": ["exports"],
     "src/compliance/loader.ts": ["exports"],
     "src/experimental/index.ts": ["exports"],
-    "src/kit/index.ts": ["files", "exports"]
+    "src/kit/index.ts": ["files", "exports"],
+    "src/adapters/index.ts": ["files", "exports"]
   }
 }
