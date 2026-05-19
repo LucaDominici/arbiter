@@ -2,8 +2,10 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import * as runHelpersMod from '../../scripts/lib/run-helpers.mjs'
 
-const HELPERS = resolve('scripts/lib/run-helpers.mjs')
+const HELPERS = pathToFileURL(resolve('scripts/lib/run-helpers.mjs')).href
 
 function runHarness(script: string, env: Record<string, string> = {}) {
   return spawnSync(process.execPath, ['--input-type=module', '-e', script], {
@@ -147,8 +149,8 @@ describe('run-helpers — runToolCheck (CI-aware tool gate)', () => {
 })
 
 describe('run-helpers — module shape', () => {
-  it('exposes named exports', async () => {
-    const mod = await import(HELPERS)
+  it('exposes named exports', () => {
+    const mod = runHelpersMod
     expect(typeof mod.runCheck).toBe('function')
     expect(typeof mod.runWarnCheck).toBe('function')
     expect(typeof mod.runToolCheck).toBe('function')

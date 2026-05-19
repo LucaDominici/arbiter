@@ -27,6 +27,10 @@ const STATIC_PARITY_EXCLUDE = new Set([
   'evidence',
   'simulate-nightly',
   'simulate-weekly',
+  // Local convenience aliases — no direct CI job equivalent
+  'check', // local L1 alias (CI runs individual jobs, not a single 'check' job)
+  'full', // local L2+coverage (CI runs coverage as part of pr-extended)
+  'ci', // alias for gate (delegates to gate target in Makefile)
 ])
 
 function checkStaticParity(root) {

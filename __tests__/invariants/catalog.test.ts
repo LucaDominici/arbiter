@@ -600,3 +600,20 @@ describe('defaultPresetForLevel', () => {
     expect(defaultPresetForLevel('L3')).toBe('full')
   })
 })
+
+// ---------------------------------------------------------------------------
+// T9 — INV-73 W4 transition state (#880)
+// ---------------------------------------------------------------------------
+
+describe('INV-73 migration status', () => {
+  it('INV-73 has migrationStatus: transition (W4 self-only CI tier baseline)', () => {
+    const inv73 = INVARIANT_CATALOG.find((inv) => inv.id === 'INV-73')
+    expect(inv73, 'INV-73 must exist in catalog').toBeDefined()
+    expect(inv73!.migrationStatus).toBe('transition')
+  })
+
+  it('INV-73 minPresent is 4 (4 canonical workflows in W4 baseline)', () => {
+    const inv73 = INVARIANT_CATALOG.find((inv) => inv.id === 'INV-73')
+    expect(inv73!.minPresent).toBe(4)
+  })
+})

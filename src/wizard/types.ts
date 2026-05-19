@@ -252,6 +252,12 @@ export interface ProjectConfig {
   preset?: ProjectPreset
   /** Include extended opt-in invariants (INV-62..INV-71). True when governance.invariants_catalog = 'extended'. */
   includeExtendedInvariants?: boolean
+  /**
+   * CI tier emission mode.
+   * 'baseline' = emit the 4-workflow baseline set (01/02/03/09) for self-CI migration.
+   * 'full'     = emit all 8 standard CI tier workflows (default for target projects).
+   */
+  ciTierMode?: 'baseline' | 'full'
 }
 
 export type PlanDepth = 'minimal' | 'brief' | 'full'

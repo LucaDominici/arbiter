@@ -12,7 +12,8 @@
 //        matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
 //        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
 //        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
-//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot (41)
+//        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot,
+//        ci tiers (INV-73) (42)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
 //       tdd-evidence (54)
@@ -28,7 +29,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
-import { runCheck, getResults, getFailed } from './lib/run-helpers.mjs'
+import { runCheck, runWarnCheck, getResults, getFailed } from './lib/run-helpers.mjs'
 import { parseCheckArgs } from './lib/parse-check-args.mjs'
 
 const { subcommand, level, jsonPath: _parsedJsonPath } = parseCheckArgs(process.argv.slice(2))
@@ -104,6 +105,7 @@ runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mj
 runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
 runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
 runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
+runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
 runCheck('local-ci static parity', 'node', ['scripts/check-local-ci-parity.mjs'], {
   env: { ...process.env, PARITY_STATIC_CHECK_ONLY: '1' },
 })
@@ -114,7 +116,10 @@ const l1EndIdx = getResults().length
 // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
 if (subcommand !== 'check') {
   runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
-  runCheck('docs:build', 'npm', ['run', 'docs:build'])
+  // When running from rsync'd temp dir on behalf of a '#'-path worktree,
+  // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
+  const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck
+  docsCheck('docs:build', 'npm', ['run', 'docs:build'])
   runCheck('dead code', 'npx', ['knip'])
   runCheck('duplication', 'npx', ['jscpd', '--silent'])
   runCheck('audit', 'npm', ['audit', '--audit-level=high'])

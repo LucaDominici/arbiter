@@ -11,6 +11,8 @@ export interface GithubGeneratorResult {
 
 function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): WriteResult[] {
   const data = config
+  const mode = config.ciTierMode ?? 'full'
+
   const files: WriteResult[] = [
     writeFile(
       join(workflowsDir, '01-pr-fast.yml'),
@@ -24,27 +26,36 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
       join(workflowsDir, '03-human-approval.yml'),
       renderTemplate('github/workflows/03-human-approval.yml.ejs', data),
     ),
-    writeFile(
-      join(workflowsDir, '05-release.yml'),
-      renderTemplate('github/workflows/05-release.yml.ejs', data),
-    ),
-    writeFile(
-      join(workflowsDir, '06-nightly.yml'),
-      renderTemplate('github/workflows/06-nightly.yml.ejs', data),
-    ),
-    writeFile(
-      join(workflowsDir, '07-weekly.yml'),
-      renderTemplate('github/workflows/07-weekly.yml.ejs', data),
-    ),
-    writeFile(
-      join(workflowsDir, '08-monthly.yml'),
-      renderTemplate('github/workflows/08-monthly.yml.ejs', data),
-    ),
+  ]
+
+  if (mode !== 'baseline') {
+    files.push(
+      writeFile(
+        join(workflowsDir, '05-release.yml'),
+        renderTemplate('github/workflows/05-release.yml.ejs', data),
+      ),
+      writeFile(
+        join(workflowsDir, '06-nightly.yml'),
+        renderTemplate('github/workflows/06-nightly.yml.ejs', data),
+      ),
+      writeFile(
+        join(workflowsDir, '07-weekly.yml'),
+        renderTemplate('github/workflows/07-weekly.yml.ejs', data),
+      ),
+      writeFile(
+        join(workflowsDir, '08-monthly.yml'),
+        renderTemplate('github/workflows/08-monthly.yml.ejs', data),
+      ),
+    )
+  }
+
+  files.push(
     writeFile(
       join(workflowsDir, '09-heartbeat.yml'),
       renderTemplate('github/workflows/09-heartbeat.yml.ejs', data),
     ),
-  ]
+  )
+
   if (config.enableSoloDevMode) {
     files.push(
       writeFile(
@@ -53,6 +64,7 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
       ),
     )
   }
+
   return files
 }
 

@@ -343,3 +343,59 @@ describe('generateGithub — dependabot groups (#200)', () => {
     expect(content).not.toContain('groups:')
   })
 })
+
+// T7-T8 — ciTierMode workflow subset selection (#880)
+describe('generateGithub — ciTierMode workflow subset', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-github-citiermode-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('baseline mode emits only the 4 core workflows (01/02/03/09)', () => {
+    generateGithub(makeConfig(dir, { ciTierMode: 'baseline' }))
+    const wfDir = join(dir, '.github', 'workflows')
+    const required = [
+      '01-pr-fast.yml',
+      '02-pr-extended.yml',
+      '03-human-approval.yml',
+      '09-heartbeat.yml',
+    ]
+    const excluded = ['05-release.yml', '06-nightly.yml', '07-weekly.yml', '08-monthly.yml']
+    for (const wf of required) {
+      expect(existsSync(join(wfDir, wf)), `${wf} must exist in baseline mode`).toBe(true)
+    }
+    for (const wf of excluded) {
+      expect(existsSync(join(wfDir, wf)), `${wf} must NOT exist in baseline mode`).toBe(false)
+    }
+  })
+
+  it('full mode emits all 8 standard workflows', () => {
+    generateGithub(makeConfig(dir, { ciTierMode: 'full' }))
+    const wfDir = join(dir, '.github', 'workflows')
+    const allWorkflows = [
+      '01-pr-fast.yml',
+      '02-pr-extended.yml',
+      '03-human-approval.yml',
+      '05-release.yml',
+      '06-nightly.yml',
+      '07-weekly.yml',
+      '08-monthly.yml',
+      '09-heartbeat.yml',
+    ]
+    for (const wf of allWorkflows) {
+      expect(existsSync(join(wfDir, wf)), `${wf} must exist in full mode`).toBe(true)
+    }
+  })
+
+  it('undefined ciTierMode defaults to full (8 workflows)', () => {
+    generateGithub(makeConfig(dir))
+    const wfDir = join(dir, '.github', 'workflows')
+    expect(existsSync(join(wfDir, '05-release.yml'))).toBe(true)
+    expect(existsSync(join(wfDir, '06-nightly.yml'))).toBe(true)
+  })
+})

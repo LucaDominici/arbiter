@@ -249,7 +249,7 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       enabled: config.enableMutationTesting !== false,
       run: () => generateMutation(config).files,
     },
-    { key: 'ci-tier', enabled: true, run: () => generateCiTier(config).files },
+    { key: 'ci-tier', enabled: config.useGitHub, run: () => generateCiTier(config).files },
     { key: 'local-wrapper', enabled: true, run: () => generateLocalWrapper(config).files },
     { key: 'env-template', enabled: true, run: () => generateEnvTemplate(config).files },
     {

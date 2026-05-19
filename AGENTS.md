@@ -136,6 +136,7 @@ Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
 Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 - **INV-73:** CI tier presence — all 8 workflow files must exist under .github/workflows/
+  - _Transition mode (arbiter-self only):_ W4 baseline ships 4/8 canonical workflows (`migrationStatus: 'transition'`, `minPresent: 4`). arbiter-self will reach 8/8 at W10. Target projects retain the full 8/8 contract unchanged.
 - **INV-74:** Anti-bot human-approval gate — reviewer must be a human distinct from the PR author
 - **INV-75:** Heartbeat watchdog — T4 nightly ≤26 h, T5 weekly ≤8 d, T5b monthly ≤35 d
 - **INV-76:** SHA-pinned actions only — all third-party GitHub Actions must be pinned to a full 40-char SHA

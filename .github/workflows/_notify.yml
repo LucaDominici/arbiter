@@ -1,0 +1,42 @@
+name: _notify (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        required: true
+        type: number
+      body:
+        required: true
+        type: string
+
+permissions:
+  issues: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post or update issue comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          BODY: ${{ inputs.body }}
+        run: |
+          MARKER="<!-- arbiter-notify -->"
+          FULL_BODY="${MARKER}
+          ${BODY}"
+          COMMENT_ID=$(gh api \
+            "repos/${GH_REPO}/issues/${ISSUE_NUMBER}/comments" \
+            --jq ".[] | select(.body | startswith(\"${MARKER}\")) | .id" \
+            | head -1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api --method PATCH \
+              "repos/${GH_REPO}/issues/comments/${COMMENT_ID}" \
+              -f body="${FULL_BODY}" > /dev/null
+          else
+            gh api --method POST \
+              "repos/${GH_REPO}/issues/${ISSUE_NUMBER}/comments" \
+              -f body="${FULL_BODY}" > /dev/null
+          fi

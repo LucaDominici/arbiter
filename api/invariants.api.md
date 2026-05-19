@@ -1,7 +1,7 @@
-<!-- api-snapshot hash:88b144e54ee80379 -->
+<!-- api-snapshot hash:b4b80e58d85936ea -->
 
 ```typescript
-export interface Invariant { id: string tier: InvariantTier title: string description: string languages?: Language[] languageDetail?: Partial<Record<Language, string>> minGovernanceLevel?: GovernanceLevel alwaysActive: boolean enforcement?: string status?: 'active' | 'retired' retiredReason?: string redirectTo?: string selfOnly?: boolean optInGroup?: 'extended' }
+export interface Invariant { id: string tier: InvariantTier title: string description: string languages?: Language[] languageDetail?: Partial<Record<Language, string>> minGovernanceLevel?: GovernanceLevel alwaysActive: boolean enforcement?: string status?: 'active' | 'retired' retiredReason?: string redirectTo?: string selfOnly?: boolean optInGroup?: 'extended' migrationStatus?: 'baseline' | 'transition' | 'complete' minPresent?: number }
 export type { Invariant, InvariantTier, InvariantPreset } from './types.js'
 export type { InvariantTier, InvariantPreset }
 export type { Language, GovernanceLevel } from '../wizard/types.js'
