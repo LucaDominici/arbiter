@@ -63,6 +63,7 @@ function spawn(name, cmd, args, opts) {
     shell: false,
     timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     ...(opts.cwd ? { cwd: opts.cwd } : {}),
+    ...(opts.env ? { env: { ...process.env, ...opts.env } } : {}),
   })
   return { r, elapsed: Date.now() - start }
 }

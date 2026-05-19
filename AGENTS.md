@@ -148,6 +148,9 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 ## Kit Source Leakage (INV-85)
 
 - **INV-85:** No kit source leakage — committed kit files must not contain employer-specific tokens
+- **INV-86:** Kit catalog parity
+  - Enforced by `scripts/check-kit-catalog-parity.mjs` (L1 gate)
+  - Architecture: see `docs/ADR/045-kit-taxonomy.md` (ADR-045)
 
 ---
 

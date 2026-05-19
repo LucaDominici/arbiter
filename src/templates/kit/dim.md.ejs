@@ -1,0 +1,33 @@
+# <%= id %>: <%= name %>
+
+| Field | Value |
+|---|---|
+| TML | <%= tml %> |
+| Gate | <%= gate %> |
+| Status | <%= status %> |
+| Category | <%= categoryRef %> |
+<% if (invLink) { -%>
+| Invariant | `<%= invLink %>` |
+<% } -%>
+<% if (generatorLink) { -%>
+| Generator | `<%= generatorLink %>` |
+<% } -%>
+<% if (conditionalFlag) { -%>
+| Flag | `--<%= conditionalFlag %>` |
+<% } -%>
+<% if (followupIssue) { -%>
+| Follow-up | #<%= followupIssue %> |
+<% } %>
+<% if (note) { -%>
+## Notes
+
+<%= note %>
+
+<% } -%>
+## Per-Stack Coverage
+
+| Stack | Kind |
+|---|---|
+<% for (const row of stackRows) { -%>
+| `<%= row.stack %>` | <%= row.kind %> |
+<% } %>

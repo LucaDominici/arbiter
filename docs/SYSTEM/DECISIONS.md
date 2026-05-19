@@ -5,6 +5,28 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-045: KIT Taxonomy — Wrap-Not-Replace, Field Cross-Walk, and Parity Contract (#878, 2026-05-19)
+
+**Status:** Accepted
+**Reference:** Issue #878 (W2 KIT Canonical SSOT), #875 (planning skeleton migration umbrella)
+
+**Context:** W2 of the planning-skeleton migration promotes `src/kit/catalog.json` (W1 SSOT) to an enforced state with a typed access layer, a `validate` subcommand, and an L1 parity gate (INV-86). Two sources of truth exist during migration: the catalog (76 typed dimensions, N01..N76) and the mapping (`docs/audits/kit-canonical-mapping.json`). These must stay synchronized.
+
+**Decision:**
+
+- **Wrap-Not-Replace**: `src/kit/catalog.ts` is a typed access layer over `catalog.json`. JSON remains the SSOT; scripts can read it without importing TypeScript.
+- **Authority hierarchy**: `src/kit/catalog.json` is parity authority; mapping conforms to catalog, not reverse.
+- **Field cross-walk (INV-86)**: `id`/`canonical_id` (exact); `name`/`name` (NFC+trim); `tml`/`tml_source` (exact); `gate`/`gate_type` (strip `\s*\([^)]+\)$` suffix from mapping then exact-compare).
+- **Enforcement coverage**: BLOCKING dims require invariant/validator/template/generator artifact, or `disposition===done`, or `disposition∈{adopt-framework,stack-adapter}` with `implementing_wave∈{W3..W11}`. F-prefixed waves and null rejected.
+- **Redaction rule**: Neither catalog nor mapping may contain tokens from `scripts/data/redaction-lexicon.json`.
+- **Generator output**: `docs/REFERENCE/dim-NN-<slug>.md` × 76 + `docs/REFERENCE/GLOBAL_KIT.md`. Brownfield-safe via SHA-256 hash marker on first line; `--force` overrides; `--prune` removes pristine orphans.
+
+**CANON-16 survey:** `Stack`, `TML`, `Gate` moved from inline Zod to `src/kit/taxonomy.ts`; `schema.ts` re-exports for backward compat. `check-catalog-agents-parity.mjs` exists for invariants↔AGENTS parity; new script is distinct KIT domain.
+
+**Consequences:** Catalog is single typed SSOT; INV-86 L1 gate catches drift; generator output is brownfield-safe; wave whitelist prevents phantom deferrals.
+
+---
+
 ## ADR-054: Phase 3.5 handoff modeled as status.json fields (#703, 2026-05-18)
 
 **Status:** Accepted

@@ -9,7 +9,7 @@
     {
       "id": 1,
       "category": "Architecture",
-      "name": "ArchUnit rules compile-time",
+      "name": "Hexagonal architecture enforcement (ArchUnit)",
       "detail": "L2: >=8 base (R-1..R-8). L3: >=20+ (port completo 39)",
       "tml": "M2",
       "tml_source": "L2",
@@ -28,16 +28,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-001-archunit-rules-compile-time.md"
       },
-      "planning_notes": "Graduale: 1 regola alla volta, partire da conformi"
+      "planning_notes": "Graduale: 1 regola alla volta, partire da conformi",
+      "canonical_id": "N01"
     },
     {
       "id": 2,
       "category": "Architecture",
-      "name": "Interface + Impl pattern (P5)",
+      "name": "Package dependency rules (no domain→infra leakage)",
       "detail": "Ogni service: XxxService (interface) + XxxServiceImpl",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (ArchUnit R-19)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["service/*Service.java"],
@@ -52,16 +53,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-002-interface-impl-pattern-p5.md"
       },
-      "planning_notes": "Instance: 26 service da splittare"
+      "planning_notes": "Instance: 26 service da splittare",
+      "canonical_id": "N02"
     },
     {
       "id": 3,
       "category": "Architecture",
-      "name": "Bean Validation @Valid (P8)",
+      "name": "Interface + implementation separation rule",
       "detail": "@Valid su ogni @RequestBody DTO. JSR-380 annotations",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (ArchUnit R-21)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["controller/*.java + dto/*Request.java"],
@@ -76,16 +78,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-003-bean-validation-valid-p8.md"
       },
-      "planning_notes": "Validazione manuale if/throw -> Bean Validation"
+      "planning_notes": "Validazione manuale if/throw -> Bean Validation",
+      "canonical_id": "N03"
     },
     {
       "id": 4,
       "category": "Architecture",
-      "name": "API versioning /v1/ (P12)",
+      "name": "No Spring annotations in domain layer",
       "detail": "context-path=/{servizio}, controller=/v1/{risorsa}",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (ArchUnit R-8..R-10)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["application.yml + controller"],
@@ -100,16 +103,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-004-api-versioning-v1-p12.md"
       },
-      "planning_notes": "MAI /api come context-path"
+      "planning_notes": "MAI /api come context-path",
+      "canonical_id": "N04"
     },
     {
       "id": 5,
       "category": "Architecture",
-      "name": "DTO in package dto/ (P17-P19)",
+      "name": "@Async annotation only in service layer",
       "detail": "DTO separati Request/Response, MAI in Commons/model",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (ArchUnit R-16,R-23)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["dto/*Request.java, dto/*Response.java"],
@@ -124,16 +128,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-005-dto-in-package-dto-p17-p19.md"
       },
-      "planning_notes": "Migrazione progressiva da Commons"
+      "planning_notes": "Migrazione progressiva da Commons",
+      "canonical_id": "N05"
     },
     {
       "id": 6,
       "category": "Architecture",
-      "name": "Constructor injection (P7)",
+      "name": "Bean Validation constraints in domain entities only",
       "detail": "@RequiredArgsConstructor. MAI @Autowired su campi",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (ArchUnit R-15)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["Tutti i @Service/@Controller"],
@@ -148,16 +153,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-006-constructor-injection-p7.md"
       },
-      "planning_notes": "Controllare anche @Component"
+      "planning_notes": "Controllare anche @Component",
+      "canonical_id": "N06"
     },
     {
       "id": 7,
       "category": "Architecture",
-      "name": "Exception hierarchy RFC 7807 (P15)",
+      "name": "No circular dependencies between modules",
       "detail": "{Service}Exception + ProblemDetail. MAI raw RuntimeException",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (ArchUnit R-7,R-13)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["exception/{Service}Exception.java"],
@@ -172,16 +178,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-007-exception-hierarchy-rfc-7807-p15.md"
       },
-      "planning_notes": "Planning: PlanningException extends PlanningBaseException"
+      "planning_notes": "Use domain-scoped exception hierarchy; never leak internal class names",
+      "canonical_id": "N07"
     },
     {
       "id": 8,
       "category": "Architecture",
-      "name": "@Async + TenantAwareTaskDecorator (P20)",
-      "detail": "AsyncConfig + TenantAwareTaskDecorator in config/. MAI raw Thread",
+      "name": "Tamper-evident audit log insert-only rule (R-audit-insert-only)",
+      "detail": "AsyncConfig + tenant-aware task decorator in config/. MAI raw Thread",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (ArchUnit R-11,R-12)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["config/AsyncConfig.java"],
@@ -196,16 +203,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-008--async-tenantawaretaskdecorator-p20.md"
       },
-      "planning_notes": "ADR-024 icebox. Audit first, fix later"
+      "planning_notes": "ADR-024 icebox. Audit first, fix later",
+      "canonical_id": "N08"
     },
     {
       "id": 9,
       "category": "Static Analysis",
-      "name": "JaCoCo coverage gate",
+      "name": "Static analysis: linting (checkstyle/eslint/ruff/golangci-lint/clippy)",
       "detail": "L1: report only. L2: >=20% o new-code >=70%. L3: >=60%",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "BLOCKING (L2+)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml jacoco-maven-plugin"],
@@ -220,12 +228,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-009-jacoco-coverage-gate.md"
       },
-      "planning_notes": "Soglia progressiva: +5%/2sett"
+      "planning_notes": "Soglia progressiva: +5%/2sett",
+      "canonical_id": "N09"
     },
     {
       "id": 10,
       "category": "Static Analysis",
-      "name": "Spotless formatting",
+      "name": "Static analysis: formatting (spotless/prettier/black/gofmt/rustfmt)",
       "detail": "Google Java Format AOSP. BLOCKING in CI",
       "tml": "M1",
       "tml_source": "L1",
@@ -244,16 +253,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-010-spotless-formatting.md"
       },
-      "planning_notes": "Universale, nessun adattamento"
+      "planning_notes": "Universale, nessun adattamento",
+      "canonical_id": "N10"
     },
     {
       "id": 11,
       "category": "Static Analysis",
-      "name": "SpotBugs bug detection",
+      "name": "PMD / Semgrep rules (complexity, security anti-patterns)",
       "detail": "Effort=Max, Threshold=Medium, baseline diff",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING",
+      "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml spotbugs-maven-plugin"],
@@ -268,16 +278,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-011-spotbugs-bug-detection.md"
       },
-      "planning_notes": "Generare baseline XML prima di attivare gate"
+      "planning_notes": "Generare baseline XML prima di attivare gate",
+      "canonical_id": "N11"
     },
     {
       "id": 12,
       "category": "Static Analysis",
-      "name": "PMD code quality",
+      "name": "SpotBugs / null-safety analysis",
       "detail": "CognitiveComplexity&#8804;15, failOnViolation=true",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING",
+      "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml + pmd-ruleset.xml"],
@@ -292,16 +303,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-012-pmd-code-quality.md"
       },
-      "planning_notes": "Adattare ruleset se troppe violazioni iniziali"
+      "planning_notes": "Adattare ruleset se troppe violazioni iniziali",
+      "canonical_id": "N12"
     },
     {
       "id": 13,
       "category": "Static Analysis",
-      "name": "Checkstyle style enforcement",
+      "name": "Cyclomatic complexity gate",
       "detail": "Custom config, CC&#8804;15, failsOnError=true",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING",
+      "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml + checkstyle.xml"],
@@ -316,16 +328,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-013-checkstyle-style-enforcement.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N13"
     },
     {
       "id": 14,
       "category": "Static Analysis",
-      "name": "PITest mutation testing",
+      "name": "Dead code detection",
       "detail": "STRONGER mutators, target >=50%. Nightly only",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING (nightly)",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml pitest-maven-plugin"],
@@ -340,16 +353,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-014-pitest-mutation-testing.md"
       },
-      "planning_notes": "Non in PR gate (troppo lento)"
+      "planning_notes": "Non in PR gate (troppo lento)",
+      "canonical_id": "N14"
     },
     {
       "id": 15,
       "category": "Static Analysis",
-      "name": "OWASP dependency-check",
+      "name": "Code duplication ratchet (jscpd / equivalent)",
       "detail": "failBuildOnCVSS=7.0. Nightly (rate limits NVD)",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "BLOCKING (nightly)",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml dependency-check-maven"],
@@ -364,12 +378,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-015-owasp-dependency-check.md"
       },
-      "planning_notes": "Tollerare rate limits con continue-on-error SOLO su download"
+      "planning_notes": "Tollerare rate limits con continue-on-error SOLO su download",
+      "canonical_id": "N15"
     },
     {
       "id": 16,
       "category": "Static Analysis",
-      "name": "CycloneDX SBOM",
+      "name": "Style token enforcement (design tokens / style guide)",
       "detail": "JSON output. Supply chain tracking",
       "tml": "M3",
       "tml_source": "L3",
@@ -388,12 +403,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-016-cyclonedx-sbom.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N16"
     },
     {
       "id": 17,
       "category": "Test Framework",
-      "name": "JUnit 5 + Spring Boot Test",
+      "name": "Unit test framework wired (JUnit5/Vitest/pytest/go test/cargo test)",
       "detail": "Framework base. @SpringBootTest con profili",
       "tml": "M1",
       "tml_source": "L1",
@@ -412,12 +428,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-017-junit-5-spring-boot-test.md"
       },
-      "planning_notes": ">=1 test per proof-of-life a L1"
+      "planning_notes": ">=1 test per proof-of-life a L1",
+      "canonical_id": "N17"
     },
     {
       "id": 18,
       "category": "Test Framework",
-      "name": "REST Assured integration tests",
+      "name": "Code coverage gate (JaCoCo/V8/coverage.py/go cover/cargo-tarpaulin)",
       "detail": "Controller test con DB reale. >=60 test file a L3",
       "tml": "M2",
       "tml_source": "L2",
@@ -436,12 +453,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-018-rest-assured-integration-tests.md"
       },
-      "planning_notes": "Iniziare dai top 5 endpoint"
+      "planning_notes": "Iniziare dai top 5 endpoint",
+      "canonical_id": "N18"
     },
     {
       "id": 19,
       "category": "Test Framework",
-      "name": "Testcontainers PostgreSQL",
+      "name": "Coverage trend ratchet (no regression allowed)",
       "detail": "DB reale in test. Sostituisce H2/mock",
       "tml": "M2",
       "tml_source": "L2",
@@ -460,12 +478,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-019-testcontainers-postgresql.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N19"
     },
     {
       "id": 20,
       "category": "Test Framework",
-      "name": "Testcontainers MariaDB + MSSQL",
+      "name": "Mutation testing (pitest/stryker/mutmut/go-mutesting/cargo-mutants)",
       "detail": "Cross-DB compatibility. Profili dedicati",
       "tml": "M3",
       "tml_source": "L3",
@@ -484,16 +503,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-020-testcontainers-mariadb-mssql.md"
       },
-      "planning_notes": "Solo se servizio supporta multi-DB"
+      "planning_notes": "Solo se servizio supporta multi-DB",
+      "canonical_id": "N20"
     },
     {
       "id": 21,
       "category": "Test Framework",
-      "name": "Testcontainers Toxiproxy",
+      "name": "Test isolation — no shared mutable state between tests",
       "detail": "Resilience test: DB stall, latency injection",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "ADVISORY",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "concurrent",
       "planning_evidence_paths": ["DbStallResilienceTest.java"],
@@ -508,16 +528,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-021-testcontainers-toxiproxy.md"
       },
-      "planning_notes": "Non tutti i servizi necessitano"
+      "planning_notes": "Non tutti i servizi necessitano",
+      "canonical_id": "N21"
     },
     {
       "id": 22,
       "category": "Test Framework",
-      "name": "Swagger Request Validator",
+      "name": "Test naming convention enforced",
       "detail": "Contract test: validazione runtime vs OpenAPI spec",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING (-Pcontract)",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml swagger-request-validator-restassured"],
@@ -532,16 +553,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-022-swagger-request-validator.md"
       },
-      "planning_notes": "Richiede OpenAPI spec aggiornata"
+      "planning_notes": "Richiede OpenAPI spec aggiornata",
+      "canonical_id": "N22"
     },
     {
       "id": 23,
       "category": "Test Framework",
-      "name": "Base test infrastructure",
+      "name": "Test TDD evidence captured (W4 protocol)",
       "detail": "BaseIntegrationTest + TestDataFactory + JwtTestHelper + MockServicesConfig",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "REFERENCE",
+      "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["src/test/.../config/, factory/"],
@@ -556,16 +578,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-023-base-test-infrastructure.md"
       },
-      "planning_notes": "Domain-specific, non copiare 1:1"
+      "planning_notes": "Domain-specific, non copiare 1:1",
+      "canonical_id": "N23"
     },
     {
       "id": 24,
       "category": "Test Profiles",
-      "name": "Surefire profiles Maven",
+      "name": "Fast test profile (L1 unit only, <2 min)",
       "detail": "behavioral, edge-case, contract, full, noauth, noliquibase",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "REFERENCE",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml <profiles>"],
@@ -580,16 +603,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-024-surefire-profiles-maven.md"
       },
-      "planning_notes": "Attivare progressivamente"
+      "planning_notes": "Attivare progressivamente",
+      "canonical_id": "N24"
     },
     {
       "id": 25,
       "category": "Test Profiles",
-      "name": "@Tag taxonomy (25 tags)",
+      "name": "Extended test profile (L2: unit + integration)",
       "detail": "unit, integration, behavioral, edge-case, contract, etc. ArchUnit enforcement",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING (ArchUnit)",
+      "tml_source": "L2",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["ArchitectureTests.java tag rules"],
@@ -604,16 +628,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-025--tag-taxonomy-25-tags.md"
       },
-      "planning_notes": "Iniziare con 10 tag base a L2"
+      "planning_notes": "Iniziare con 10 tag base a L2",
+      "canonical_id": "N25"
     },
     {
       "id": 26,
       "category": "Test Profiles",
-      "name": "run.sh orchestrator",
+      "name": "Nightly/weekly test profile (L3: full suite + mutation + security)",
       "detail": "check (~2min) | gate (~8min) | full (~30min). Sub-comandi singoli",
       "tml": "M1",
-      "tml_source": "L1",
-      "gate_type": "REFERENCE",
+      "tml_source": "L3",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["run.sh"],
@@ -628,16 +653,17 @@
         "validator": "scripts/run-sh-orchestrator.mjs",
         "docs": "docs/REFERENCE/dim-026-run-sh-orchestrator.md"
       },
-      "planning_notes": "L1: solo check. L2: +gate. L3: +full"
+      "planning_notes": "L1: solo check. L2: +gate. L3: +full",
+      "canonical_id": "N26"
     },
     {
       "id": 27,
       "category": "Test Types",
-      "name": "Unit tests",
+      "name": "Integration tests (Spring IT / testcontainers / real-project fixtures)",
       "detail": "L1: >=1 test. L2: >=20% coverage. L3: >=60%",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "BLOCKING (L2+)",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["src/test/.../service/"],
@@ -652,16 +678,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-027-unit-tests.md"
       },
-      "planning_notes": "Coverage-first brownfield: documentare prima"
+      "planning_notes": "Coverage-first brownfield: documentare prima",
+      "canonical_id": "N27"
     },
     {
       "id": 28,
       "category": "Test Types",
-      "name": "Behavioral tests (happy path)",
+      "name": "Contract tests (Spring Cloud Contract / Pact)",
       "detail": "REST Assured end-to-end business flow. >=15 scenarios L3",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING (-Pbehavioral)",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["src/test/.../behavior/"],
@@ -676,16 +703,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-028-behavioral-tests-happy-path.md"
       },
-      "planning_notes": "Flussi P0 business-critical"
+      "planning_notes": "Flussi P0 business-critical",
+      "canonical_id": "N28"
     },
     {
       "id": 29,
       "category": "Test Types",
-      "name": "Edge-case tests (boundary)",
+      "name": "BDD / behavioural tests (Cucumber / pytest-bdd / godog)",
       "detail": "Null, overflow, boundary conditions",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING (-Pedge-case)",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["src/test/.../boundary/"],
@@ -700,16 +728,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-029-edge-case-tests-boundary.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N29"
     },
     {
       "id": 30,
       "category": "Test Types",
-      "name": "Contract tests (OpenAPI)",
+      "name": "Architectural tests (ArchUnit / structure rules)",
       "detail": "Swagger Request Validator runtime. OpenApiRuntimeValidationTest",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING (-Pcontract)",
+      "tml_source": "L2",
+      "gate_type": "BLOCKING",
       "stack_tag": "template",
       "conditional": "contract",
       "planning_evidence_paths": ["src/test/.../contract/"],
@@ -724,12 +753,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-030-contract-tests-openapi.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N30"
     },
     {
       "id": 31,
       "category": "Test Types",
-      "name": "Concurrent/stress tests",
+      "name": "Fuzz testing (Jazzer / go-fuzz / cargo-fuzz)",
       "detail": "Thread safety, race condition, burst. @Tag('concurrency')",
       "tml": "M3",
       "tml_source": "L3",
@@ -748,12 +778,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-031-concurrent-stress-tests.md"
       },
-      "planning_notes": "Solo servizi con logica concorrente"
+      "planning_notes": "Solo servizi con logica concorrente",
+      "canonical_id": "N31"
     },
     {
       "id": 32,
       "category": "Test Types",
-      "name": "Migration tests (Liquibase rollback)",
+      "name": "Property-based testing (QuickCheck / Hypothesis / proptest)",
       "detail": "Rollback changeset, cross-DB. >=5 classi",
       "tml": "M3",
       "tml_source": "L3",
@@ -772,15 +803,16 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-032-migration-tests-liquibase-rollback.md"
       },
-      "planning_notes": "Testcontainers PG+MariaDB+MSSQL"
+      "planning_notes": "Testcontainers PG+MariaDB+MSSQL",
+      "canonical_id": "N32"
     },
     {
       "id": 33,
       "category": "Test Types",
-      "name": "Performance Surefire tests",
+      "name": "Snapshot / golden-file tests",
       "detail": "@Tag('performance'). Stress unit test. >=2 classi",
       "tml": "M3",
-      "tml_source": "L3",
+      "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
@@ -796,12 +828,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-033-performance-surefire-tests.md"
       },
-      "planning_notes": "Diverso da k6 (Surefire, non HTTP)"
+      "planning_notes": "Diverso da k6 (Surefire, non HTTP)",
+      "canonical_id": "N33"
     },
     {
       "id": 34,
       "category": "CI/CD",
-      "name": "build.yml multi-stage",
+      "name": "Multi-tier CI pipeline (fast → extended → release → nightly → weekly)",
       "detail": "5 stage: lint->build->fast-test->slow-test->ship",
       "tml": "M2",
       "tml_source": "L2",
@@ -820,12 +853,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-034-build-yml-multi-stage.md"
       },
-      "planning_notes": "L2: 4 stage (no ship). L3: 5 stage"
+      "planning_notes": "L2: 4 stage (no ship). L3: 5 stage",
+      "canonical_id": "N34"
     },
     {
       "id": 35,
       "category": "CI/CD",
-      "name": "Quality gates job (bash scripts)",
+      "name": "PR fast-feedback gate (<5 min, L1 checks only)",
       "detail": "Primo job: validate-*.sh. Fast fail",
       "tml": "M2",
       "tml_source": "L2",
@@ -844,16 +878,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-035-quality-gates-job-bash-scripts.md"
       },
-      "planning_notes": "Aggiungere script man mano che disponibili"
+      "planning_notes": "Aggiungere script man mano che disponibili",
+      "canonical_id": "N35"
     },
     {
       "id": 36,
       "category": "CI/CD",
-      "name": "Nightly pipeline",
+      "name": "Release pipeline (tag-triggered, artifact signing)",
       "detail": ">=6 jobs: OWASP, PITest, SBOM, ZAP, Toxiproxy, k6",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING (nightly)",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".github/workflows/nightly.yml"],
@@ -868,16 +903,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-036-nightly-pipeline.md"
       },
-      "planning_notes": "Aggiungere job incrementalmente"
+      "planning_notes": "Aggiungere job incrementalmente",
+      "canonical_id": "N36"
     },
     {
       "id": 37,
       "category": "CI/CD",
-      "name": "Ship stage (Docker+Trivy+{{CONTAINER_REGISTRY}}+deploy)",
+      "name": "Nightly extended checks (mutation, DAST, performance baseline)",
       "detail": "Docker build, Trivy CRITICAL fail, {{CONTAINER_REGISTRY}} push, Azure deploy",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["build.yml ship stage"],
@@ -892,12 +928,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-037-ship-stage-docker-trivy-container-r.md"
       },
-      "planning_notes": "Solo servizi con deploy containerizzato"
+      "planning_notes": "Solo servizi con deploy containerizzato",
+      "canonical_id": "N37"
     },
     {
       "id": 38,
       "category": "CI/CD",
-      "name": "issue-state.yml automation",
+      "name": "Weekly audit pipeline (dependency audit, license scan, SBOM refresh)",
       "detail": "Lifecycle issue: In Progress->In Review->Staged->Done",
       "tml": "M3",
       "tml_source": "L3",
@@ -916,23 +953,24 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-038-issue-state-yml-automation.md"
       },
-      "planning_notes": "Copiare 1:1 da Planning"
+      "planning_notes": "Copiare 1:1 da Planning",
+      "canonical_id": "N38"
     },
     {
       "id": 39,
       "category": "CI/CD",
-      "name": "Load test workflows",
+      "name": "CI runner label SSOT (no hardcoded runner strings)",
       "detail": "Manual trigger per singoli k6 test + weekly scheduled",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "ADVISORY",
+      "tml_source": "L2",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".github/workflows/load-*.yml"],
       "arbiter_target_path": ".github/workflows/10-k6-on-demand.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
-      "implementing_wave": "F6",
+      "implementing_wave": "W6",
       "disposition": "adopt-framework",
       "framework_realization": {
         "template": null,
@@ -940,12 +978,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-039-load-test-workflows.md"
       },
-      "planning_notes": "Solo se k6 configurato"
+      "planning_notes": "Solo se k6 configurato",
+      "canonical_id": "N39"
     },
     {
       "id": 40,
       "category": "CI/CD",
-      "name": "Newman CI integration",
+      "name": "Artifact provenance (SLSA / sigstore)",
       "detail": "Run Postman collection in CI. Gate su assertion",
       "tml": "M3",
       "tml_source": "L3",
@@ -956,7 +995,7 @@
       "arbiter_target_path": ".github/workflows/_newman-runner.yml",
       "arbiter_target_kind": "workflow",
       "invariant_id": null,
-      "implementing_wave": "F7",
+      "implementing_wave": "W7",
       "disposition": "adopt-framework",
       "framework_realization": {
         "template": null,
@@ -964,16 +1003,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-040-newman-ci-integration.md"
       },
-      "planning_notes": "Richiede collection Postman"
+      "planning_notes": "Richiede collection Postman",
+      "canonical_id": "N40"
     },
     {
       "id": 41,
       "category": "E2E & Perf",
-      "name": "Newman/Postman E2E collection",
-      "detail": ">=20 scenari CRUD + business flow. Auth Keycloak",
+      "name": "E2E API tests (RestAssured / Playwright / pytest-playwright)",
+      "detail": ">=20 scenari CRUD + business flow. Auth Keycloak-compatible IdP",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING (CI)",
+      "gate_type": "BLOCKING",
       "stack_tag": "template",
       "conditional": "always",
       "planning_evidence_paths": ["docs/api/{service}.postman_collection.json"],
@@ -988,16 +1028,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-041-newman-postman-e2e-collection.md"
       },
-      "planning_notes": "Servizio-specifico"
+      "planning_notes": "Servizio-specifico",
+      "canonical_id": "N41"
     },
     {
       "id": 42,
       "category": "E2E & Perf",
-      "name": "k6 load test suite",
+      "name": "Performance / load testing baseline (k6 / Locust / Gatling)",
       "detail": ">=5 scenari. Threshold p95<500ms, error<1%",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING (nightly)",
+      "gate_type": "ADVISORY",
       "stack_tag": "template",
       "conditional": "always",
       "planning_evidence_paths": ["tests/load/*.js"],
@@ -1012,12 +1053,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-042-k6-load-test-suite.md"
       },
-      "planning_notes": "Servizio-specifico"
+      "planning_notes": "Servizio-specifico",
+      "canonical_id": "N42"
     },
     {
       "id": 43,
       "category": "E2E & Perf",
-      "name": "k6 endurance test (30min)",
+      "name": "DAST scan (OWASP ZAP / Nuclei)",
       "detail": "Memory/thread leak detection. LT-11 pattern",
       "tml": "M3",
       "tml_source": "L3",
@@ -1036,12 +1078,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-043-k6-endurance-test-30min.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N43"
     },
     {
       "id": 44,
       "category": "E2E & Perf",
-      "name": "DAST (ZAP authenticated)",
+      "name": "Auth flow E2E (Keycloak-compatible IdP integration test)",
       "detail": "OWASP ZAP scan autenticato. Nightly",
       "tml": "M3",
       "tml_source": "L3",
@@ -1060,12 +1103,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-044-dast-zap-authenticated.md"
       },
-      "planning_notes": "Richiede auth config ZAP"
+      "planning_notes": "Richiede auth config ZAP",
+      "canonical_id": "N44"
     },
     {
       "id": 45,
       "category": "Scripts Validation",
-      "name": "validate-mybatis-xml-crud.sh",
+      "name": "Format validation script (check-format.sh equivalent)",
       "detail": "#{param} check (no ${param} SQL injection). P16",
       "tml": "M1",
       "tml_source": "L1",
@@ -1084,12 +1128,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-045-validate-mybatis-xml-crud-sh.md"
       },
-      "planning_notes": "Universale"
+      "planning_notes": "Universale",
+      "canonical_id": "N45"
     },
     {
       "id": 46,
       "category": "Scripts Validation",
-      "name": "validate-schema-isolation.sh",
+      "name": "SPDX license header check",
       "detail": "No cross-tenant access. P23/ADR-019",
       "tml": "M1",
       "tml_source": "L1",
@@ -1108,15 +1153,16 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-046-validate-schema-isolation-sh.md"
       },
-      "planning_notes": "Universale"
+      "planning_notes": "Universale",
+      "canonical_id": "N46"
     },
     {
       "id": 47,
       "category": "Scripts Validation",
-      "name": "validate-liquibase-naming.sh + crossdb.sh",
+      "name": "Orphan TODO check (no bare TODOs without task IDs)",
       "detail": "Naming convention + no PG-specific SQL",
       "tml": "M2",
-      "tml_source": "L2",
+      "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
@@ -1132,15 +1178,16 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-047-validate-liquibase-naming-sh-crossd.md"
       },
-      "planning_notes": "Calibrare naming per servizio"
+      "planning_notes": "Calibrare naming per servizio",
+      "canonical_id": "N47"
     },
     {
       "id": 48,
       "category": "Scripts Validation",
-      "name": "validate-postman-collection.sh",
+      "name": "Placeholder check (no template placeholders committed)",
       "detail": "Integrit&#224; collection Postman",
       "tml": "M3",
-      "tml_source": "L3",
+      "tml_source": "L1",
       "gate_type": "BLOCKING",
       "stack_tag": "template",
       "conditional": "contract",
@@ -1156,16 +1203,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-048-validate-postman-collection-sh.md"
       },
-      "planning_notes": "Solo se Postman collection"
+      "planning_notes": "Solo se Postman collection",
+      "canonical_id": "N48"
     },
     {
       "id": 49,
       "category": "Scripts Validation",
-      "name": "validate-nightly-k6.sh + post-run + workflow",
+      "name": "Dead link / doc link integrity check",
       "detail": "k6 threshold, DB post-assertions, CI integrity",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "BLOCKING",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
       "stack_tag": "template",
       "conditional": "always",
       "planning_evidence_paths": ["scripts/validate-*.sh (5 script)"],
@@ -1180,15 +1228,16 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-049-validate-nightly-k6-sh-post-run-wor.md"
       },
-      "planning_notes": "Solo se k6/nightly attivi"
+      "planning_notes": "Solo se k6/nightly attivi",
+      "canonical_id": "N49"
     },
     {
       "id": 50,
       "category": "Scripts Validation",
-      "name": "check-drift.py",
+      "name": "Bloat ratchet (bundle size / generated artifact size)",
       "detail": "Configuration drift detection cross-service",
       "tml": "M3",
-      "tml_source": "L3",
+      "tml_source": "L2",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
@@ -1204,15 +1253,16 @@
         "validator": "scripts/check-drift-py.mjs",
         "docs": "docs/REFERENCE/dim-050-check-drift-py.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N50"
     },
     {
       "id": 51,
       "category": "Scripts Quality",
-      "name": "quality-check.sh (aggregated)",
+      "name": "Debt ratchet (tech-debt score gate)",
       "detail": "Quality gate aggregato: spotless+test+jacoco+spotbugs",
       "tml": "M2",
-      "tml_source": "L2",
+      "tml_source": "L1",
       "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
@@ -1228,16 +1278,17 @@
         "validator": "scripts/quality-check-sh-aggregated.mjs",
         "docs": "docs/REFERENCE/dim-051-quality-check-sh-aggregated.md"
       },
-      "planning_notes": "Crescita incrementale"
+      "planning_notes": "Crescita incrementale",
+      "canonical_id": "N51"
     },
     {
       "id": 52,
       "category": "Scripts Quality",
-      "name": "coverage-report.sh + arch-verify.sh",
+      "name": "Self-dogfood check (arbiter validates itself)",
       "detail": "JaCoCo HTML report + ArchUnit standalone",
       "tml": "M2",
-      "tml_source": "L2",
-      "gate_type": "ADVISORY",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["scripts/coverage-report.sh, arch-verify.sh"],
@@ -1252,16 +1303,17 @@
         "validator": "scripts/coverage-report-sh-arch-verify-sh.mjs",
         "docs": "docs/REFERENCE/dim-052-coverage-report-sh-arch-verify-sh.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N52"
     },
     {
       "id": 53,
       "category": "Scripts Quality",
-      "name": "format-fix.sh + security-scan.sh",
+      "name": "API snapshot test (no unintended public surface changes)",
       "detail": "Spotless auto-fix + Gitleaks+OWASP+SpotBugs security",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "ADVISORY",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["scripts/format-fix.sh, security-scan.sh"],
@@ -1276,16 +1328,17 @@
         "validator": "scripts/format-fix-sh-security-scan-sh.mjs",
         "docs": "docs/REFERENCE/dim-053-format-fix-sh-security-scan-sh.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N53"
     },
     {
       "id": 54,
       "category": "Scripts Quality",
-      "name": "pii-scan.sh",
+      "name": "Circular dependency detection",
       "detail": "PII pattern detection (email, phone, SSN, CF, IBAN)",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "ADVISORY",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["scripts/security/pii-scan.sh"],
@@ -1300,16 +1353,17 @@
         "validator": "scripts/pii-scan-sh.mjs",
         "docs": "docs/REFERENCE/dim-054-pii-scan-sh.md"
       },
-      "planning_notes": "Universale"
+      "planning_notes": "Universale",
+      "canonical_id": "N54"
     },
     {
       "id": 55,
       "category": "Security",
-      "name": "Gitleaks pre-commit hook",
+      "name": "Secret scanning (Gitleaks)",
       "detail": "gitleaks protect --staged. BLOCKING locale",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "BLOCKING (locale)",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".githooks/pre-commit"],
@@ -1317,22 +1371,23 @@
       "arbiter_target_kind": "hook",
       "invariant_id": null,
       "implementing_wave": "W6",
-      "disposition": "adopt-self",
+      "disposition": "adopt-framework",
       "framework_realization": {
         "template": null,
         "generator": null,
         "validator": null,
         "docs": "docs/REFERENCE/dim-055-gitleaks-pre-commit-hook.md"
       },
-      "planning_notes": "Universale"
+      "planning_notes": "Universale",
+      "canonical_id": "N55"
     },
     {
       "id": 56,
       "category": "Security",
-      "name": "SecurityConfig hardening",
+      "name": "Dependency audit (npm audit / OWASP dependency-check / cargo audit)",
       "detail": "anyRequest().authenticated(), CORS restrictive, CSRF",
       "tml": "M3",
-      "tml_source": "L3",
+      "tml_source": "L2",
       "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "always",
@@ -1348,16 +1403,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-056-securityconfig-hardening.md"
       },
-      "planning_notes": "Servizio-specifico"
+      "planning_notes": "Servizio-specifico",
+      "canonical_id": "N56"
     },
     {
       "id": 57,
       "category": "Security",
-      "name": ".trivyignore + .zap/rules.tsv",
+      "name": "Container image scan (Trivy)",
       "detail": "Documented false positive suppressions",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "REFERENCE",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".trivyignore, .zap/rules.tsv"],
@@ -1372,16 +1428,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-057--trivyignore-zap-rules-tsv.md"
       },
-      "planning_notes": "Solo se Trivy/ZAP attivi"
+      "planning_notes": "Solo se Trivy/ZAP attivi",
+      "canonical_id": "N57"
     },
     {
       "id": 58,
       "category": "Security",
-      "name": "Docker build-args safety",
+      "name": "License scan (FOSSA / ORT / licensee)",
       "detail": "No secrets in image history. Multi-stage build",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["Dockerfile"],
@@ -1396,23 +1453,24 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-058-docker-build-args-safety.md"
       },
-      "planning_notes": "Solo servizi containerizzati"
+      "planning_notes": "Solo servizi containerizzati",
+      "canonical_id": "N58"
     },
     {
       "id": 59,
       "category": "Git & GitHub",
-      "name": "Git hooks (.githooks/ 3 hooks)",
+      "name": "Commit message format enforced (commitlint)",
       "detail": "pre-commit (Gitleaks), commit-msg (commitlint), pre-push (run.sh)",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "BLOCKING (locale)",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".githooks/ + scripts/setup-hooks.sh"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "template",
       "invariant_id": null,
-      "implementing_wave": "DONE",
+      "implementing_wave": null,
       "disposition": "done",
       "framework_realization": {
         "template": null,
@@ -1420,16 +1478,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-059-git-hooks-githooks-3-hooks.md"
       },
-      "planning_notes": "Opt-in via setup-hooks.sh"
+      "planning_notes": "Opt-in via setup-hooks.sh",
+      "canonical_id": "N59"
     },
     {
       "id": 60,
       "category": "Git & GitHub",
-      "name": "GitHub issue templates (3 types)",
+      "name": "Branch naming convention enforced",
       "detail": "bug-report.yml, feature-request.yml, compliance-item.yml + config",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "ADVISORY",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".github/ISSUE_TEMPLATE/"],
@@ -1444,12 +1503,13 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-060-github-issue-templates-3-types.md"
       },
-      "planning_notes": "Copiare 1:1"
+      "planning_notes": "Copiare 1:1",
+      "canonical_id": "N60"
     },
     {
       "id": 61,
       "category": "Git & GitHub",
-      "name": "GitHub PR template",
+      "name": "PR template (description, test plan, checklist)",
       "detail": "Quality checklist ISO P23/P10/P12",
       "tml": "M1",
       "tml_source": "L1",
@@ -1468,16 +1528,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-061-github-pr-template.md"
       },
-      "planning_notes": "Copiare 1:1"
+      "planning_notes": "Copiare 1:1",
+      "canonical_id": "N61"
     },
     {
       "id": 62,
       "category": "Git & GitHub",
-      "name": ".editorconfig",
+      "name": "Issue templates (bug, feature, tech-debt)",
       "detail": "Indentation/encoding consistency",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "REFERENCE",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".editorconfig"],
@@ -1492,23 +1553,24 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-062--editorconfig.md"
       },
-      "planning_notes": "Copiare 1:1"
+      "planning_notes": "Copiare 1:1",
+      "canonical_id": "N62"
     },
     {
       "id": 63,
       "category": "Documentation",
-      "name": "docs/coding-standards.md",
+      "name": "AGENTS.md / CLAUDE.md governance document",
       "detail": "Regole codice, naming, pattern. Servizio-specifico",
       "tml": "M2",
       "tml_source": "L2",
-      "gate_type": "REFERENCE",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["docs/coding-standards.md"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
-      "implementing_wave": "F12",
+      "implementing_wave": "W11",
       "disposition": "adopt-framework",
       "framework_realization": {
         "template": null,
@@ -1516,16 +1578,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-063-docs-coding-standards-md.md"
       },
-      "planning_notes": "Adattare package names ed esempi"
+      "planning_notes": "Adattare package names ed esempi",
+      "canonical_id": "N63"
     },
     {
       "id": 64,
       "category": "Documentation",
-      "name": "docs/testing/ (3 file)",
+      "name": "CI/CD developer reference card",
       "detail": "master-test-plan, test-taxonomy, rtm",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "REFERENCE",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["docs/testing/*.md"],
@@ -1540,16 +1603,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-064-docs-testing-3-file.md"
       },
-      "planning_notes": "Domain-specific test mapping"
+      "planning_notes": "Domain-specific test mapping",
+      "canonical_id": "N64"
     },
     {
       "id": 65,
       "category": "Documentation",
-      "name": "docs/adr/ (>=5 ADR)",
+      "name": "Architecture decision records (ADRs)",
       "detail": "Decisioni servizio-specifiche + cross-service refs",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "REFERENCE",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["docs/adr/ADR-*.md"],
@@ -1564,16 +1628,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-065-docs-adr-5-adr.md"
       },
-      "planning_notes": "Almeno ADR-016/017/018/019"
+      "planning_notes": "Almeno ADR-016/017/018/019",
+      "canonical_id": "N65"
     },
     {
       "id": 66,
       "category": "Documentation",
-      "name": "docs/security/ (2 file)",
+      "name": "API / OpenAPI specification",
       "detail": "risk-assessment, stride-threat-model",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "REFERENCE",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["docs/security/*.md"],
@@ -1588,23 +1653,24 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-066-docs-security-2-file.md"
       },
-      "planning_notes": "Servizio-specifico, metodologia standard"
+      "planning_notes": "Servizio-specifico, metodologia standard",
+      "canonical_id": "N66"
     },
     {
       "id": 67,
       "category": "Documentation",
-      "name": "docs/api/ (OpenAPI + Postman + env)",
+      "name": "Runbook (operational playbook for oncall)",
       "detail": "openapi-v1.json + collection + environment",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING (contract)",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["docs/api/"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
-      "implementing_wave": "F9",
+      "implementing_wave": "W9",
       "disposition": "adopt-framework",
       "framework_realization": {
         "template": null,
@@ -1612,16 +1678,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-067-docs-api-openapi-postman-env.md"
       },
-      "planning_notes": "JSON generato da springdoc-openapi"
+      "planning_notes": "JSON generato da springdoc-openapi",
+      "canonical_id": "N67"
     },
     {
       "id": 68,
       "category": "Documentation",
-      "name": "Runbooks + support docs",
+      "name": "Knowledge map (cross-repo canonical paths and signal sources)",
       "detail": "rollback, troubleshooting, error-codes, faq, known-issues",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "REFERENCE",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["docs/runbooks/, docs/support/"],
@@ -1636,23 +1703,24 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-068-runbooks-support-docs.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N68"
     },
     {
       "id": 69,
       "category": "Configuration",
-      "name": "CLAUDE.md with P1-P28",
+      "name": "Runtime version SSOT (node version pinned, .nvmrc aligned)",
       "detail": "Regole gold standard + contesto servizio",
       "tml": "M1",
       "tml_source": "L1",
-      "gate_type": "REFERENCE",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["CLAUDE.md"],
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
-      "implementing_wave": "DONE",
+      "implementing_wave": null,
       "disposition": "done",
       "framework_realization": {
         "template": null,
@@ -1660,16 +1728,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-069-claude-md-with-p1-p28.md"
       },
-      "planning_notes": "Personalizzare contesto servizio"
+      "planning_notes": "Personalizzare contesto servizio",
+      "canonical_id": "N69"
     },
     {
       "id": 70,
       "category": "Configuration",
-      "name": ".env example files",
+      "name": "Environment variable safety (.env.example only, no real .env committed)",
       "detail": ".env.local.example, .env.{{TEST_ENV}}.local.example",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "REFERENCE",
+      "tml_source": "L1",
+      "gate_type": "BLOCKING",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": [".env.*.example"],
@@ -1684,16 +1753,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-070--env-example-files.md"
       },
-      "planning_notes": "MAI committare .env reali"
+      "planning_notes": "MAI committare .env reali",
+      "canonical_id": "N70"
     },
     {
       "id": 71,
       "category": "Configuration",
-      "name": "Seed data scripts",
+      "name": "Feature flag / experiment registry (no undocumented flags)",
       "detail": "seed-{service}-k6.sql, seed-test-data.sh",
       "tml": "M3",
-      "tml_source": "L3",
-      "gate_type": "REFERENCE",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["scripts/seed-*.sql"],
@@ -1708,16 +1778,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-071-seed-data-scripts.md"
       },
-      "planning_notes": "Per k6 e E2E test"
+      "planning_notes": "Per k6 e E2E test",
+      "canonical_id": "N71"
     },
     {
       "id": 72,
       "category": "Configuration",
-      "name": "Spring Boot version alignment",
+      "name": "Multi-environment config (dev/staging/prod parity)",
       "detail": "Tutti i moduli stessa versione parent",
       "tml": "M1",
-      "tml_source": "L1",
-      "gate_type": "BLOCKING",
+      "tml_source": "L3",
+      "gate_type": "ADVISORY",
       "stack_tag": "java_spring",
       "conditional": "always",
       "planning_evidence_paths": ["pom.xml parent version"],
@@ -1732,16 +1803,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-072-spring-boot-version-alignment.md"
       },
-      "planning_notes": "Verificare skew tra moduli"
+      "planning_notes": "Verificare skew tra moduli",
+      "canonical_id": "N72"
     },
     {
       "id": 73,
       "category": "Audit Trail *",
-      "name": "audit_event table + DB triggers",
+      "name": "Tamper-evident audit log table DDL (security-critical operations)",
       "detail": "Append-only. BEFORE UPDATE/DELETE trigger. Liquibase changeset",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING (pharma)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "pharma",
       "planning_evidence_paths": ["Liquibase changeset + trigger SQL"],
@@ -1756,16 +1828,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-073-audit-event-table-db-triggers.md"
       },
-      "planning_notes": "* Solo servizi con write su dati. Raccomandata non-pharma"
+      "planning_notes": "* Solo servizi con write su dati. Raccomandata non-pharma",
+      "canonical_id": "N73"
     },
     {
       "id": 74,
       "category": "Audit Trail *",
-      "name": "AuditEventService + AuditEventMapper",
+      "name": "Audit trigger presence (DB-level audit trigger enforced)",
       "detail": "record() in ogni write @Transactional. Mapper insert-only",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING (pharma)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "pharma",
       "planning_evidence_paths": ["service/AuditEventServiceImpl.java + mapper"],
@@ -1780,16 +1853,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-074-auditeventservice-auditeventmapper.md"
       },
-      "planning_notes": "* Condizionale: se audit_event attivo"
+      "planning_notes": "* Condizionale: se audit_event attivo",
+      "canonical_id": "N74"
     },
     {
       "id": 75,
       "category": "Audit Trail *",
-      "name": "ArchUnit R-36/R-38/R-39",
+      "name": "Audit log service interface (AuditEventService / append-only repository pattern)",
       "detail": "Write service -> AuditEventService field. Mapper insert-only. record() call",
       "tml": "M3",
       "tml_source": "L3",
-      "gate_type": "BLOCKING (pharma)",
+      "gate_type": "BLOCKING",
       "stack_tag": "java_spring",
       "conditional": "pharma",
       "planning_evidence_paths": ["ArchitectureTests.java rules 36-39"],
@@ -1804,16 +1878,17 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-075-archunit-r-36-r-38-r-39.md"
       },
-      "planning_notes": "* Condizionale: se audit_event attivo"
+      "planning_notes": "* Condizionale: se audit_event attivo",
+      "canonical_id": "N75"
     },
     {
       "id": 76,
       "category": "Documentation",
-      "name": "docs/ci/README.md -- CI/CD Developer Reference",
+      "name": "Accessibility (a11y) audit (Axe / Lighthouse / pa11y)",
       "detail": "Reference card: workflow attivi/passivi, PR lifecycle, run.sh mapping, troubleshooting. Template: TPL_cicd-developer-reference",
       "tml": "M2",
-      "tml_source": "L2",
-      "gate_type": "REFERENCE",
+      "tml_source": "L3",
+      "gate_type": "ADVISORY",
       "stack_tag": "agnostic",
       "conditional": "always",
       "planning_evidence_paths": ["docs/ci/README.md"],
@@ -1828,7 +1903,8 @@
         "validator": null,
         "docs": "docs/REFERENCE/dim-076-docs-ci-readme-md-ci-cd-developer-r.md"
       },
-      "planning_notes": null
+      "planning_notes": null,
+      "canonical_id": "N76"
     }
   ]
 }

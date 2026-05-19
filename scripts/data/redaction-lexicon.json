@@ -8,5 +8,6 @@
   { "token": "Rev00_180526" },
   { "token": "21 CFR" },
   { "token": "Keycloak", "allowContext": "Keycloak-compatible IdP" },
-  { "token": "Kit Gold Standard" }
+  { "token": "Kit Gold Standard" },
+  { "token": "TenantAware" }
 ]

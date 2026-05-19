@@ -8,3 +8,5 @@ report/
 docs/PLAN/
 __tests__/fixtures/real-projects/**/target/
 __tests__/fixtures/real-projects/**/.pytest_cache/
+docs/REFERENCE/dim-*.md
+docs/REFERENCE/GLOBAL_KIT.md

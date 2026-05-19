@@ -67,7 +67,13 @@ import { resolveFromProcess } from './utils/logger-config.js'
 import { startReplay, rotateReplayLogs, type ReplayHandle } from './utils/replay.js'
 import { startProfiler, type ProfilerHandle } from './utils/profiler.js'
 import { runReport } from './commands/report.js'
-import { runKitList, runKitShow, runKitExplain } from './commands/kit.js'
+import {
+  runKitList,
+  runKitShow,
+  runKitExplain,
+  runKitValidate,
+  runKitGenerate,
+} from './commands/kit.js'
 import type { KitListFormat, KitListFilter } from './commands/kit.js'
 import type { Stack } from './kit/schema.js'
 
@@ -1729,6 +1735,23 @@ kit
   .description('Explain a kit dimension with per-stack projection')
   .action((id: string) => {
     runKitExplain(id)
+  })
+
+kit
+  .command('validate')
+  .description('Validate kit catalog: schema, parity, and redaction (requires --experimental.kit)')
+  .action(() => {
+    runKitValidate()
+  })
+
+kit
+  .command('generate')
+  .description('Generate per-dimension reference docs (requires --experimental.kit)')
+  .option('--out <dir>', 'output directory', 'docs/REFERENCE')
+  .option('--force', 'overwrite user-edited files')
+  .option('--prune', 'remove orphan dim-*.md files not in current catalog')
+  .action((opts: { out?: string; force?: boolean; prune?: boolean }) => {
+    runKitGenerate(opts)
   })
 
 async function _main(): Promise<void> {

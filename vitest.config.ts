@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 
 // Worktree paths containing '#' break Vite's URL parsing (fragment separator).
 // Use VITEST_ROOT env var with a symlink path without '#' to work around this.
@@ -13,7 +13,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./vitest.setup.ts'],
+    setupFiles: [join(root, 'vitest.setup.ts')],
     // Integration tests are L2+ per AGENTS.md gate policy; L1 unit-only keeps pre-commit fast.
     include: ['__tests__/**/*.test.ts'],
     exclude: ['**/node_modules/**', '__tests__/integration/**'],
