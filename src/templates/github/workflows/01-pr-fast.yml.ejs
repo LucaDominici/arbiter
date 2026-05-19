@@ -136,7 +136,7 @@ jobs:
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-unit-${{ github.run_id }}
           path: test-results/
@@ -251,7 +251,7 @@ jobs:
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-unit-${{ github.run_id }}
           path: build/test-results/
@@ -261,7 +261,7 @@ jobs:
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-unit-${{ github.run_id }}
           path: target/surefire-reports/
@@ -357,7 +357,7 @@ jobs:
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ github.run_id }}
           path: test-results/
@@ -477,7 +477,7 @@ jobs:
       - run: ruff check --select F401,F811 .
 <% } %>
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-${{ github.run_id }}
