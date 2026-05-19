@@ -49,6 +49,8 @@ import { generateCompliance } from './compliance.js'
 import { generateObservability } from './observability.js'
 import { generateAuth } from './auth.js'
 import { generateCiTier } from './ci-tier.js'
+import { generateLocalWrapper } from './local-wrapper.js'
+import { generateEnvTemplate } from './env-template.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -248,6 +250,8 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       run: () => generateMutation(config).files,
     },
     { key: 'ci-tier', enabled: true, run: () => generateCiTier(config).files },
+    { key: 'local-wrapper', enabled: true, run: () => generateLocalWrapper(config).files },
+    { key: 'env-template', enabled: true, run: () => generateEnvTemplate(config).files },
     {
       // #487: this is DATABASE integration-testing (Testcontainers + PostgreSQL).
       // API-only projects (no DB but with public API) are served by `contract-testing`

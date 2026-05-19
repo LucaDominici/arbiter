@@ -104,6 +104,9 @@ runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mj
 runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
 runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
 runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
+runCheck('local-ci static parity', 'node', ['scripts/check-local-ci-parity.mjs'], {
+  env: { ...process.env, PARITY_STATIC_CHECK_ONLY: '1' },
+})
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

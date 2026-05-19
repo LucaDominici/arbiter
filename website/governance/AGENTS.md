@@ -149,6 +149,11 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 - **INV-85:** No kit source leakage — committed kit files must not contain employer-specific tokens
 
+## Local-Wrapper Parity (INV-87)
+
+- **INV-87:** Local-wrapper ↔ CI parity façade
+  - _Enforcement:_ `scripts/check-local-ci-parity.mjs` — static Makefile↔workflow check at L1 (`PARITY_STATIC_CHECK_ONLY=1`), full static + runtime `parityContentHash` check at L2
+
 ---
 
 ## Coding Standards
