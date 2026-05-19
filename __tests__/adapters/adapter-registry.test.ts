@@ -153,9 +153,41 @@ describe('TypeScript adapter (real)', () => {
   })
 })
 
+describe('Java adapter (real)', () => {
+  it('has isStub=false', () => {
+    expect(javaAdapter.isStub).toBe(false)
+  })
+
+  it('lintCommand returns a non-null string containing checkstyle and pmd', () => {
+    const lint = javaAdapter.lintCommand()
+    expect(typeof lint).toBe('string')
+    expect(lint).toMatch(/checkstyle/)
+    expect(lint).toMatch(/pmd/)
+  })
+
+  it('formatCommand returns null', () => {
+    expect(javaAdapter.formatCommand()).toBeNull()
+  })
+
+  it('has language = java', () => {
+    expect(javaAdapter.language).toBe('java')
+  })
+
+  it('supportsCoverage returns true (JaCoCo)', () => {
+    expect(javaAdapter.supportsCoverage()).toBe(true)
+  })
+
+  it('supportsMutation returns true (Pitest)', () => {
+    expect(javaAdapter.supportsMutation()).toBe(true)
+  })
+
+  it('languageHooks returns an array', () => {
+    expect(Array.isArray(javaAdapter.languageHooks())).toBe(true)
+  })
+})
+
 describe('stub adapters', () => {
   const stubs: [string, StackAdapter][] = [
-    ['java', javaAdapter],
     ['python', pythonAdapter],
     ['go', goAdapter],
     ['rust', rustAdapter],
