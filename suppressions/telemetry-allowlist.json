@@ -28,5 +28,10 @@
     "pattern": "fetch(",
     "file": "dist/recipes/loader.js",
     "justification": "Compiled output of src/recipes/loader.ts — fetches a user-supplied https:// recipe URL on explicit user request via --recipe flag. Not telemetry; URL is user-provided and user-controlled."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/scripts/validate-openapi-field-types.mjs.ejs",
+    "justification": "Generated OpenAPI drift validator fetching the live OpenAPI spec from a user-configured base URL for drift detection — not telemetry. URL is user-supplied via OPENAPI_BASE_URL env var and used only in CI drift checks."
   }
 ]
