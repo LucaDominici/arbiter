@@ -57,7 +57,7 @@ AGENTS.md                    ← Canonical governance (AAIF standard, all tools 
 
 **Key principle:** `AGENTS.md` contains ALL governance (invariants, coding standards, testing policy, commit conventions). Tool-specific files add ONLY what that tool uniquely needs.
 
-See [`docs/ARCHITECTURE/OVERVIEW.md`](docs/ARCHITECTURE/OVERVIEW.md) for the full model.
+See [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) for the full model.
 
 ---
 

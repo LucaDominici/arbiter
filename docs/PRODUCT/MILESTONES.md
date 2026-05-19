@@ -15,8 +15,8 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 **Deliverables:**
 
 - `docs/ADR/001-008.md` (split from `docs/ADR.md`)
-- `docs/ARCHITECTURE/OVERVIEW.md` (migrated from `docs/ARCHITECTURE.md`)
-- `docs/ARCHITECTURE/CONFLICT-RESOLUTION.md` (split)
+- `docs/architecture/OVERVIEW.md` (migrated from `docs/ARCHITECTURE.md`)
+- `docs/architecture/CONFLICT-RESOLUTION.md` (split)
 - `docs/REFERENCE/CLI.md` (migrated from `docs/CLI.md`)
 - `docs/ADR/README.md` (index + format template)
 - `README.md` links updated
@@ -51,8 +51,8 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 **Deliverables:**
 
-- `docs/ARCHITECTURE/CANONICAL-SOURCE-MODEL.md` — Why AGENTS.md, thin pointer pattern, drift prevention
-- `docs/ARCHITECTURE/TEMPLATE-SYSTEM.md` — EJS architecture, variable reference, conditional branches
+- `docs/architecture/CANONICAL-SOURCE-MODEL.md` — Why AGENTS.md, thin pointer pattern, drift prevention
+- `docs/architecture/TEMPLATE-SYSTEM.md` — EJS architecture, variable reference, conditional branches
 - `docs/DEVELOPMENT/GETTING-STARTED.md` — Clone → install → test → contribute in 5 min
 - `docs/DEVELOPMENT/TESTING-STRATEGY.md` — 8 test categories, fixture design, naming, 85% coverage target
 - `docs/DEVELOPMENT/CONVENTIONS.md` — Naming, exports, error handling, commit format, PR checklist
@@ -883,7 +883,7 @@ Gate (dual-sided, CANON-01/14):
 - `docs/ADR/020-cli-first-over-mcp.md`
 - `docs/ADR/003-gh-cli-required.md` — GitHub MCP fallback permanently closed
 - `docs/ADR/README.md` — index updated with 018/019/020
-- `docs/ARCHITECTURE/TEMPLATE-SYSTEM.md` — dangling `rules/mcp-usage.md` row removed
+- `docs/architecture/TEMPLATE-SYSTEM.md` — dangling `rules/mcp-usage.md` row removed
 - `docs/PRODUCT/FEATURE_COMPARISON.md` — rows 75-78 reframed with `NG` / `G` values + ADR-020 footnote
 - `AGENTS.md` — new **INV-12** (no direct `child_process` in `src/`, no MCP dependency)
 - `.claude/hooks/check-no-direct-spawn.mjs` + registration in `.claude/settings.json`

@@ -182,7 +182,7 @@ export async function generateMyTool(config: ProjectConfig): Promise<WriteResult
 }
 ```
 
-**Step 2** — Create the template at `src/templates/my-tool/config.ejs`. Use EJS syntax for dynamic content or write a static file if no `ProjectConfig` variables are needed. See [TEMPLATE-SYSTEM.md](../ARCHITECTURE/TEMPLATE-SYSTEM.md) for the full variable reference.
+**Step 2** — Create the template at `src/templates/my-tool/config.ejs`. Use EJS syntax for dynamic content or write a static file if no `ProjectConfig` variables are needed. See [TEMPLATE-SYSTEM.md](../architecture/TEMPLATE-SYSTEM.md) for the full variable reference.
 
 **Step 3** — Wire the generator into `src/commands/init.ts` inside `runGenerators()`:
 
