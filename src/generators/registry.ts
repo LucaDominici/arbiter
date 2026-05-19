@@ -51,6 +51,7 @@ import { generateAuth } from './auth.js'
 import { generateCiTier } from './ci-tier.js'
 import { generateLocalWrapper } from './local-wrapper.js'
 import { generateEnvTemplate } from './env-template.js'
+import { generateInfra } from './infra.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -213,6 +214,11 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'self-validation',
       enabled: config.enableSelfValidationHarness !== false,
       run: () => generateSelfValidation(config).files,
+    },
+    {
+      key: 'infra',
+      enabled: config.enableAzureContainerApp === true,
+      run: () => generateInfra(config).files,
     },
   ]
 }
