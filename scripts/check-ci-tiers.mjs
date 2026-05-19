@@ -1,30 +1,55 @@
 #!/usr/bin/env node
-// arbiter — self CI tier presence gate (INV-73, transition mode)
-// migrationStatus: transition — requires 4 of 8 canonical workflow files (W4 baseline).
-// Exits 0: required 4 present (warns about missing optional ones).
-// Exits 1: one or more of the required 4 is missing.
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+// arbiter — self CI tier presence gate (INV-73)
+// Reads minPresent from src/invariants/catalog.ts INV-73 entry.
+// Exits 0: at least minPresent of the 8 canonical workflow files are present.
+// Exits 1: fewer than minPresent are present.
+import { existsSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 const CWD = process.cwd()
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows')
 
-// Required in transition mode (W4 baseline — 4/8 canonical)
-const REQUIRED = [
+// All 8 canonical workflow files (INV-73 SSOT)
+const ALL_CANONICAL = [
   '01-pr-fast.yml',
   '02-pr-extended.yml',
   '03-human-approval.yml',
+  '05-release.yml',
+  '06-nightly.yml',
+  '07-weekly.yml',
+  '08-monthly.yml',
   '09-heartbeat.yml',
 ]
 
-// Present in full mode (W10 complete — 8/8); warn only in transition
-const OPTIONAL_FULL = ['05-release.yml', '06-nightly.yml', '07-weekly.yml', '08-monthly.yml']
+/**
+ * Read the minPresent value from the INV-73 entry in src/invariants/catalog.ts.
+ * Falls back to requiring all 8 if catalog is absent or entry not found.
+ */
+function readMinPresent() {
+  const catalogPath = resolve(CWD, 'src/invariants/catalog.ts')
+  if (!existsSync(catalogPath)) return ALL_CANONICAL.length
+  let src
+  try {
+    src = readFileSync(catalogPath, 'utf-8')
+  } catch {
+    return ALL_CANONICAL.length
+  }
+  // Match the INV-73 block (from id: 'INV-73' to the next top-level object or end)
+  const inv73Block = src.match(/id:\s*['"]INV-73['"][\s\S]*?(?=\},\s*\{|\},\s*\/\/|$)/)
+  if (!inv73Block) return ALL_CANONICAL.length
+  const minPresentMatch = inv73Block[0].match(/minPresent:\s*(\d+)/)
+  if (!minPresentMatch) return ALL_CANONICAL.length
+  return parseInt(minPresentMatch[1], 10)
+}
 
-const missing = REQUIRED.filter((f) => !existsSync(join(WORKFLOWS_DIR, f)))
+const minPresent = readMinPresent()
 
-if (missing.length > 0) {
+const present = ALL_CANONICAL.filter((f) => existsSync(join(WORKFLOWS_DIR, f)))
+const missing = ALL_CANONICAL.filter((f) => !existsSync(join(WORKFLOWS_DIR, f)))
+
+if (present.length < minPresent) {
   console.error(
-    `check-ci-tiers: FAIL — ${missing.length} required workflow(s) missing (INV-73 transition):`,
+    `check-ci-tiers: FAIL — only ${present.length}/${ALL_CANONICAL.length} canonical workflows present; need at least ${minPresent} (INV-73, minPresent=${minPresent}):`,
   )
   for (const f of missing) {
     console.error(`  missing: .github/workflows/${f}`)
@@ -32,17 +57,16 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
-const missingOptional = OPTIONAL_FULL.filter((f) => !existsSync(join(WORKFLOWS_DIR, f)))
-if (missingOptional.length > 0) {
+if (missing.length > 0) {
   console.log(
-    `check-ci-tiers: WARN — ${missingOptional.length} optional workflow(s) not yet present (W10 target):`,
+    `check-ci-tiers: WARN — ${missing.length} canonical workflow(s) not yet present (not yet required by INV-73 minPresent=${minPresent}):`,
   )
-  for (const f of missingOptional) {
+  for (const f of missing) {
     console.log(`  missing: .github/workflows/${f}`)
   }
 }
 
 console.log(
-  `check-ci-tiers: OK — all ${REQUIRED.length} required baseline workflows present (INV-73 transition mode)`,
+  `check-ci-tiers: OK — ${present.length}/${ALL_CANONICAL.length} canonical workflows present (INV-73 minPresent=${minPresent})`,
 )
 process.exit(0)
