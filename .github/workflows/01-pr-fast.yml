@@ -95,6 +95,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
 
       - name: Upload test results
@@ -118,6 +119,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:contract
 
   integration-tests:
@@ -132,6 +134,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:integration
 
   behavioral-tests:
@@ -146,6 +149,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:behavioral
 
 
@@ -199,6 +203,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
       - run: npx vitest run --coverage --coverage.thresholds.lines=80
       - run: npx knip
       - run: npx madge --circular src
