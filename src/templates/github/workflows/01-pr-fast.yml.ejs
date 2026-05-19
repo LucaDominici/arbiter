@@ -86,7 +86,7 @@ jobs:
       - name: Warn cross-stack changes
         if: needs.classify-changes.outputs.backend_changed == 'true' && needs.classify-changes.outputs.frontend_changed == 'true'
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -603,7 +603,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Assert approved-by-human label (anti-bot gate)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
