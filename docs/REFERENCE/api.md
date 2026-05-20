@@ -152,6 +152,35 @@ ARBITER_WORKTREES_DIR=/scratch/wt arbiter worktree open 42
 | `ARBITER_BUILD_PROBE_TIMEOUT_MS`  | positive integer (ms) | `60000` | Build-step probe timeout. Build probes invoke the project build tool, which may take longer than a version check.                                                       | `src/compatibility/probe.ts`     |
 | `ARBITER_ALLOW_CHANNEL_DOWNGRADE` | `1`                   | —       | Allow channel downgrade without an interactive TTY prompt. In non-TTY environments (CI, pipes) the downgrade exits 1 by default; set this to proceed non-interactively. | `src/utils/confirm-downgrade.ts` |
 
+### Pre-push gate
+
+The `.githooks/pre-push` hook (and its scaffolded twin in `src/templates/githooks/pre-push.ejs`) runs an evidence-freshness check before the L2 gate. If `.arbiter/evidence/` has no file newer than `ARBITER_PREPUSH_MAX_AGE_MIN` minutes (default 240, i.e. 4 hours), the push is blocked. The classifier in `scripts/ci-classify-changes.mjs` is consulted with `BASE_SHA=@{u}` (or `origin/main`) and `HEAD_SHA=HEAD`: if it reports `docs_only=true` or both `backend_changed=false` and `high_risk=false`, the gate downgrades to a warning so docs / chore branches aren't penalised. Missing or empty evidence directories are silently skipped — first-time pushers are never blocked.
+
+| Variable                        | Format          | Default             | Purpose                                                                                                                                                                                                                                                                           | Read in                                                     |
+| ------------------------------- | --------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `ARBITER_PREPUSH_MAX_AGE_MIN`   | integer minutes | `240`               | Maximum age of the newest file under `.arbiter/evidence/`. Pushes whose freshest evidence is older than this are blocked unless the classifier downgrades to warn-only or the bypass env is set.                                                                                  | `.githooks/pre-push`, `src/templates/githooks/pre-push.ejs` |
+| `ARBITER_PREPUSH_BYPASS`        | exact `true`    | —                   | Bypass the freshness gate. **Exact string match only** — `1`, `yes`, `TRUE`, etc. emit an "ambiguous value" warning and the gate still runs. On bypass the hook emits a loud `arbiter-bypass …` line on stderr and appends a JSONL entry to `.arbiter/evidence/bypass-log.jsonl`. | `.githooks/pre-push`, `src/templates/githooks/pre-push.ejs` |
+| `ARBITER_PREPUSH_BYPASS_REASON` | free-form text  | —                   | Free-form justification recorded in the loud-bypass JSONL line. Defaults to `unspecified` when absent.                                                                                                                                                                            | `.githooks/pre-push`, `src/templates/githooks/pre-push.ejs` |
+| `ARBITER_PREPUSH_SKIP`          | exact `true`    | —                   | Skip the freshness gate entirely (no warning, no log). Reserved for nested hook recursion and the freshness-gate test harness — do not set in normal workflow.                                                                                                                    | `.githooks/pre-push`, `src/templates/githooks/pre-push.ejs` |
+| `ARBITER_PREPUSH_EVIDENCE_DIR`  | path            | `.arbiter/evidence` | Override the evidence directory the gate inspects. Useful when the host project relocates `.arbiter/`.                                                                                                                                                                            | `.githooks/pre-push`, `src/templates/githooks/pre-push.ejs` |
+
+**Example — refresh evidence locally to clear a blocked push:**
+
+```bash
+node scripts/check-all.mjs L2 --json .arbiter/gate/local-result.json
+git push                       # gate now sees fresh evidence
+```
+
+**Example — emergency force-push with audited bypass:**
+
+```bash
+ARBITER_PREPUSH_BYPASS=true \
+ARBITER_PREPUSH_BYPASS_REASON="rev-lock break, see #971" \
+  git push
+# stderr: arbiter-bypass env=ARBITER_PREPUSH_BYPASS branch=… at=… reason="rev-lock break, see #971"
+# .arbiter/evidence/bypass-log.jsonl appended with the same fields
+```
+
 ### Config overrides
 
 These variables overlay values from `arbiter.json` at startup. The env layer never turns a valid config into an invalid one — unknown keys and malformed values are silently ignored.
