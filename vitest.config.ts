@@ -19,6 +19,8 @@ export default defineConfig({
     testTimeout: 20000,
     // Integration tests are L2+ per AGENTS.md gate policy; L1 unit-only keeps pre-commit fast.
     include: ['__tests__/**/*.test.ts'],
+    // Generous timeout: hook rsyncs to tmp, competing for CPU → 5 s default causes flaky timeouts.
+    testTimeout: 20000,
     exclude: ['**/node_modules/**', '__tests__/integration/**'],
     // Integration tests use vi.doMock + dynamic import which requires process-level
     // isolation to avoid module registry leaks across parallel test files.
