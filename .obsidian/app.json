@@ -1,0 +1,28 @@
+{
+  "useMarkdownLinks": true,
+  "newLinkFormat": "relative",
+  "attachmentFolderPath": ".obsidian/attachments",
+  "userIgnoreFilters": [
+    "node_modules/",
+    "dist/",
+    ".git/",
+    ".coverage-tmp/",
+    ".evidence/",
+    "report/",
+    ".changeset/",
+    "api/",
+    "src/",
+    "scripts/",
+    "__tests__/",
+    "website/",
+    ".github/",
+    ".husky/",
+    ".obsidian/attachments/"
+  ],
+  "alwaysUpdateLinks": false,
+  "promptDelete": true,
+  "showLineNumber": true,
+  "spellcheck": false,
+  "strictLineBreaks": false,
+  "trashOption": "system"
+}

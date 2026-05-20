@@ -1,7 +1,7 @@
 ---
 rfc: 0001
 title: 'Plugin API v2 surface'
-status: accepted
+status: active
 created: 2026-05-16
 authors:
   - ulfwerenar
@@ -9,7 +9,7 @@ doc_version: '1.0.0'
 last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
-tags: []
+tags: ['audience/dev', 'kind/method']
 related: []
 ---
 

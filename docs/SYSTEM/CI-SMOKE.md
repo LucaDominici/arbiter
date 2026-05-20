@@ -5,8 +5,10 @@ status: active
 last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
-tags: []
+tags: ['audience/dev', 'kind/method']
 related: []
 ---
+
+# CI Smoke Timestamps
 
 Tue May 19 02:01:46 PM CEST 2026

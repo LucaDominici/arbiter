@@ -11,7 +11,7 @@ status: active
 last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
-tags: []
+tags: ['audience/agent', 'audience/dev', 'kind/internal']
 related: []
 ---
 

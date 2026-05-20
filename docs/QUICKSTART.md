@@ -5,7 +5,7 @@ status: active
 last_review: '2026-05-20'
 owner: ''
 canonical_id: 'QUICKSTART'
-tags: []
+tags: ['audience/dev', 'kind/setup']
 related: []
 ---
 

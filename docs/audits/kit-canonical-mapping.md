@@ -1,7 +1,7 @@
 ---
 title: KIT Canonical Mapping
 type: audit
-status: CURRENT
+status: active
 date: 2026-05-19
 source: /home/luca/tools/KIT_gold-standard_76-dimensions_REDACTED.xlsx
 revision: Rev00 07/05/2026
@@ -9,7 +9,7 @@ doc_version: '1.0.0'
 last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
-tags: []
+tags: ['audience/auditor', 'audience/dev', 'kind/audit']
 related: []
 ---
 
