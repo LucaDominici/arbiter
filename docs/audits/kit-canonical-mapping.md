@@ -77,12 +77,12 @@ revision: Rev00 07/05/2026
 | 60  | Git & GitHub       | GitHub issue templates (3 types)                        | M1  | `ADVISORY`                      | agnostic    | —           | W4                | template            | adopt-framework |
 | 61  | Git & GitHub       | GitHub PR template                                      | M1  | `ADVISORY`                      | agnostic    | —           | W8                | template            | adopt-framework |
 | 62  | Git & GitHub       | .editorconfig                                           | M1  | `REFERENCE`                     | agnostic    | —           | DONE              | template            | done            |
-| 63  | Documentation      | docs/coding-standards.md                                | M2  | `REFERENCE`                     | agnostic    | —           | F12               | doc                 | adopt-framework |
+| 63  | Documentation      | docs/coding-standards.md                                | M2  | `REFERENCE`                     | agnostic    | —           | DONE              | doc                 | done            |
 | 64  | Documentation      | docs/testing/ (3 file)                                  | M3  | `REFERENCE`                     | agnostic    | —           | W7                | doc                 | adopt-framework |
 | 65  | Documentation      | docs/adr/ (>=5 ADR)                                     | M3  | `REFERENCE`                     | agnostic    | —           | DONE              | doc                 | done            |
-| 66  | Documentation      | docs/security/ (2 file)                                 | M3  | `REFERENCE`                     | agnostic    | —           | F12               | doc                 | adopt-framework |
+| 66  | Documentation      | docs/security/ (2 file)                                 | M3  | `REFERENCE`                     | agnostic    | —           | DONE              | doc                 | done            |
 | 67  | Documentation      | docs/api/ (OpenAPI + Postman + env)                     | M3  | `BLOCKING (contract)`           | agnostic    | —           | F9                | doc                 | adopt-framework |
-| 68  | Documentation      | Runbooks + support docs                                 | M3  | `REFERENCE`                     | agnostic    | —           | F12               | doc                 | adopt-framework |
+| 68  | Documentation      | Runbooks + support docs                                 | M3  | `REFERENCE`                     | agnostic    | —           | DONE              | doc                 | done            |
 | 69  | Configuration      | CLAUDE.md with P1-P28                                   | M1  | `REFERENCE`                     | agnostic    | —           | DONE              | doc                 | done            |
 | 70  | Configuration      | .env example files                                      | M3  | `REFERENCE`                     | agnostic    | —           | W3                | template            | adopt-framework |
 | 71  | Configuration      | Seed data scripts                                       | M3  | `REFERENCE`                     | java_spring | —           | F2                | adapter             | stack-adapter   |
@@ -211,11 +211,11 @@ revision: Rev00 07/05/2026
 
 - **67** docs/api/ (OpenAPI + Postman + env) (agnostic, M3, BLOCKING (contract))
 
-### F12 (3 dims)
+### F12 (3 dims) — DONE (#897)
 
-- **63** docs/coding-standards.md (agnostic, M2, REFERENCE)
-- **66** docs/security/ (2 file) (agnostic, M3, REFERENCE)
-- **68** Runbooks + support docs (agnostic, M3, REFERENCE)
+- **63** docs/coding-standards.md (agnostic, M2, REFERENCE) — DONE
+- **66** docs/security/ (2 file) (agnostic, M3, REFERENCE) — DONE
+- **68** Runbooks + support docs (agnostic, M3, REFERENCE) — DONE
 
 ---
 

@@ -34,7 +34,7 @@
     {
       "id": 2,
       "category": "Architecture",
-      "name": "Package dependency rules (no domain→infra leakage)",
+      "name": "Package dependency rules (no domain\u2192infra leakage)",
       "detail": "Ogni service: XxxService (interface) + XxxServiceImpl",
       "tml": "M2",
       "tml_source": "L2",
@@ -509,7 +509,7 @@
     {
       "id": 21,
       "category": "Test Framework",
-      "name": "Test isolation — no shared mutable state between tests",
+      "name": "Test isolation \u2014 no shared mutable state between tests",
       "detail": "Resilience test: DB stall, latency injection",
       "tml": "M3",
       "tml_source": "L1",
@@ -834,7 +834,7 @@
     {
       "id": 34,
       "category": "CI/CD",
-      "name": "Multi-tier CI pipeline (fast → extended → release → nightly → weekly)",
+      "name": "Multi-tier CI pipeline (fast \u2192 extended \u2192 release \u2192 nightly \u2192 weekly)",
       "detail": "5 stage: lint->build->fast-test->slow-test->ship",
       "tml": "M2",
       "tml_source": "L2",
@@ -1570,8 +1570,8 @@
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
-      "implementing_wave": "W11",
-      "disposition": "adopt-framework",
+      "implementing_wave": "DONE",
+      "disposition": "done",
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -1645,8 +1645,8 @@
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
-      "implementing_wave": "F12",
-      "disposition": "adopt-framework",
+      "implementing_wave": "DONE",
+      "disposition": "done",
       "framework_realization": {
         "template": null,
         "generator": null,
@@ -1695,8 +1695,8 @@
       "arbiter_target_path": null,
       "arbiter_target_kind": "doc",
       "invariant_id": null,
-      "implementing_wave": "F12",
-      "disposition": "adopt-framework",
+      "implementing_wave": "DONE",
+      "disposition": "done",
       "framework_realization": {
         "template": null,
         "generator": null,
