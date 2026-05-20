@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
-import { readFileSync } from 'node:fs'
+import { prettierFormat } from '../utils/prettier-format.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -29,13 +30,17 @@ export function generateCodexHooks(config: ProjectConfig): CodexHooksGeneratorRe
 
   // .codex/codex-adapter.mjs — copied from static template; skip if exists
   const adapterSrc = join(__dirname, '..', 'templates', 'codex', 'codex-adapter.mjs')
-  results.push(
-    writeFile(
-      join(resolvedPath(base, '.codex'), 'codex-adapter.mjs'),
-      readFileSync(adapterSrc, 'utf-8'),
-      { skipIfExists: true },
-    ),
-  )
+  const adapterDest = join(resolvedPath(base, '.codex'), 'codex-adapter.mjs')
+  const writeResult = writeFile(adapterDest, readFileSync(adapterSrc, 'utf-8'), {
+    skipIfExists: true,
+  })
+  results.push(writeResult)
+
+  // Post-emit format: apply target's prettier config so style matches target project (#933 F13).
+  // Only format when the file was newly written; skip if the existing file was preserved.
+  if (writeResult.action !== 'skipped') {
+    prettierFormat(adapterDest, base)
+  }
 
   return { files: results }
 }

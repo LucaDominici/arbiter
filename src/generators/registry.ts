@@ -159,7 +159,11 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'debt-gates',
-      enabled: config.enableDebtGates,
+      // Always run for typescript/multi so injectTestScripts fires regardless of
+      // enableDebtGates — check-all.mjs calls test:unit/contract/integration/behavioral
+      // unconditionally for TS at L1+ (#933 F13).
+      enabled:
+        config.enableDebtGates || config.language === 'typescript' || config.language === 'multi',
       run: () => generateDebtGates(config).files,
     },
     {
