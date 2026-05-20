@@ -1,3 +1,14 @@
+---
+title: 'arbiter vs BMAD'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter vs BMAD
 
 BMAD (Business Methodology for AI Development) is a persona-driven workflow framework. It structures AI-assisted development around specialized agent roles — architect, developer, analyst, QA — each with defined responsibilities and hand-off protocols.

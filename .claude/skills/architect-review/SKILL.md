@@ -1,6 +1,14 @@
 ---
 name: architect-review
 description: Use when introducing new modules, adding external dependencies, or making structural changes that cross module boundaries. On-demand architecture review.
+title: 'Architect Review'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Architect Review

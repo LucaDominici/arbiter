@@ -1,3 +1,14 @@
+---
+title: 'arbiter-plugin-spring-boot'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter-plugin-spring-boot
 
 Canonical example arbiter plugin for Spring Boot projects. Demonstrates the plugin API v1 contract.

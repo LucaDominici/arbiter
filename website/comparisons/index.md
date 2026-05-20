@@ -1,3 +1,14 @@
+---
+title: 'Comparisons'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Comparisons
 
 How arbiter fits alongside other AI governance and workflow tools.

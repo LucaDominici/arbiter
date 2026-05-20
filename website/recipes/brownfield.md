@@ -1,3 +1,14 @@
+---
+title: 'Recipe: Brownfield Onboarding'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: Brownfield Onboarding
 
 Running `arbiter init` on a project that already has an `AGENTS.md`, `.claude/` config, or CI workflow is safe — arbiter detects conflicts and prompts before overwriting.

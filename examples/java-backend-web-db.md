@@ -1,3 +1,14 @@
+---
+title: 'Example: java-backend-web-db'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Example: java-backend-web-db
 
 End-to-end walkthrough of `arbiter init` on a Java 21 + Spring Boot 3 + Gradle backend with a database layer. The starter mirrors the reference fixture at `__tests__/fixtures/real-projects/java-backend-web-db-gradle/`.

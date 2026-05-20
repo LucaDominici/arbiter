@@ -1,3 +1,14 @@
+---
+title: 'Arbiter — AI governance that installs itself.'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Arbiter — AI governance that installs itself.
 
 [![No Telemetry](https://img.shields.io/badge/telemetry-none-brightgreen)](PRIVACY.md)

@@ -1,3 +1,14 @@
+---
+title: 'arbiter vs claude-flow'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter vs claude-flow
 
 claude-flow is an agent orchestration framework built around Claude. It coordinates networks of Claude-powered agents, manages shared memory and state, and enables parallel execution of complex multi-step tasks.

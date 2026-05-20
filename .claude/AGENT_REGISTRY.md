@@ -1,3 +1,14 @@
+---
+title: 'Agent Registry'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Agent Registry
 
 Canonical index of all sub-agents available to Claude Code in this repo.

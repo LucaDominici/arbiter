@@ -1,3 +1,14 @@
+---
+title: '/status'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # /status
 
 Show the current task status, phase, and recent log entries.

@@ -2,6 +2,14 @@
 name: visual-verification
 description: Automated visual regression check via Playwright — 5 DOM checks × 3 viewports (375/768/1280). Produces pass/fail grid + screenshot paths under .arbiter/evidence/visual/.
 argument-hint: '--url <url> --task-id <id> [--evidence-dir <dir>]'
+title: 'Visual Verification Skill'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Visual Verification Skill

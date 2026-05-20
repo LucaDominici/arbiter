@@ -1,3 +1,14 @@
+---
+title: 'Refactor-First Rule (CANON-16)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Refactor-First Rule (CANON-16)
 
 Before creating any new file under `src/`, `src/generators/`, `src/templates/`, or `src/commands/`:

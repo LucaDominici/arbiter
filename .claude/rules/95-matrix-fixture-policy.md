@@ -1,3 +1,14 @@
+---
+title: 'Matrix Fixture Policy (INV-32)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Matrix Fixture Policy (INV-32)
 
 - Every language with ≥1 `proven` cell in `src/compatibility/cross-language-matrix.json` MUST have at least one fixture under `__tests__/fixtures/real-projects/` with a valid `manifest.json`

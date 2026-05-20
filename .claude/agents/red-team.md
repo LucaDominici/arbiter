@@ -1,6 +1,14 @@
 ---
 name: red-team
 description: Adversarial quality and security review. Finds vulnerabilities, logic gaps, missing edge cases, and invariant violations. Use before merging security-sensitive or complex changes.
+title: 'Red Team Agent'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Red Team Agent

@@ -1,6 +1,14 @@
 ---
 name: ssot-navigation
 description: Use when starting any task to determine which arbiter SSOT documents to read and in what order.
+title: 'SSOT Navigation'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # SSOT Navigation

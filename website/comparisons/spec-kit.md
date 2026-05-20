@@ -1,3 +1,14 @@
+---
+title: 'arbiter vs spec-kit'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter vs spec-kit
 
 spec-kit is a spec-first requirements management tool. It generates structured specification documents from templates and keeps requirements traceable from design through implementation.

@@ -1,3 +1,14 @@
+---
+title: 'Stack Support Reference'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Stack Support Reference
 
 Per-language reference for Arbiter's detection, build commands, CI configuration, hooks, and governance.

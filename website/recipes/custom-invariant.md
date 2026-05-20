@@ -1,3 +1,14 @@
+---
+title: 'Recipe: Add a Custom Invariant'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: Add a Custom Invariant
 
 Custom invariants extend a project's governance contract with rules specific to your team's standards. The recommended path is a plugin that contributes `verifyPlanRules` — no fork of arbiter required.

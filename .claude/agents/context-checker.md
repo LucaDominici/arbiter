@@ -5,6 +5,14 @@ tools:
   - Grep
   - Glob
 description: Phase-1 context verifier. Reads CONTEXT_PACK.md and the task diff, emits a REVIEW_CONTEXT verdict for each file against the track's invariant set.
+title: 'Context Checker Agent'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Context Checker Agent

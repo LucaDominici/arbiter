@@ -1,3 +1,14 @@
+---
+title: '/wt-list'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # /wt-list
 
 List active git worktrees with branch names, paths, and status.

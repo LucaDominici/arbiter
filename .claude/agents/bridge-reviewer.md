@@ -1,6 +1,14 @@
 ---
 name: bridge-reviewer
 description: Phase-2 combined-verdict reviewer. Receives the REVIEW_CONTEXT from the context-checker and the INV verification result from runVerify, then applies the combined-verdict matrix to produce a single PASS/REJECT outcome.
+title: 'Bridge Reviewer Agent'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Bridge Reviewer Agent

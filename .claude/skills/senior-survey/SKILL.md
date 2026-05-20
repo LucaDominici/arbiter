@@ -1,6 +1,14 @@
 ---
 name: senior-survey
 description: Use BEFORE creating any new file under src/. Guides grep + classify + decide protocol and emits a structured Survey block for the plan that the pre-edit hook can validate.
+title: 'Senior Code Survey'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Senior Code Survey

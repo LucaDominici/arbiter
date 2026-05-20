@@ -1,3 +1,14 @@
+---
+title: 'arbiter vs GSD2'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter vs GSD2
 
 GSD2 (Get Stuff Done v2) is an autonomous task execution framework. It breaks down user goals into sub-tasks, assigns them to specialized agents, and drives execution loops until completion — with minimal human intervention at each step.
