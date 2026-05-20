@@ -131,7 +131,7 @@ Enable via `arbiter.json` → `governance.invariants_catalog: 'extended'`.
 - **INV-70:** Reuse before new — canonical registry search precedes creating a new module
 - **INV-71:** Track D task completion — docs-only changes follow the documented completion rules
 
-## GitHub CI Tier Invariants (INV-73..INV-81)
+## GitHub CI Tier Invariants (INV-73..INV-82)
 
 Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
@@ -145,6 +145,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-79:** Cosign sign-blob present for every release artifact
 - **INV-80:** No continue-on-error on test or build steps — failures must propagate immediately
 - **INV-81:** Tier-hash local↔CI parity — check-all.mjs subcommand hashes must match CI workflow steps
+- **INV-82:** Monthly (T5b) workflow present + heartbeat asserts ≤32d freshness
 
 ## Kit Source Leakage (INV-85)
 
