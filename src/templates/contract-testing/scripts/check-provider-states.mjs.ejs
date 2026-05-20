@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// <%= projectName %> — provider-state convention gate (Port #12)
+//
+// Walks every *.json Pact contract under contract-testing/pact-samples/contracts/,
+// collects every declared providerState (Pact spec v2: `providerState` string;
+// v3+: `providerStates[].name`), and asserts a matching backend fixture file
+// exists under contract-testing/pact-samples/states/<slug>.fixture.{ts|js|py|java|kt|rs|go}.
+//
+// Read-only. Idempotent. Exits:
+//   0 — all declared states have a fixture, or no contracts found
+//   1 — at least one orphan state (declared, no fixture)
+//   2 — invalid JSON contract or unreadable directory
+//
+// Pact spec reference: https://github.com/pact-foundation/pact-specification
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+
+const CWD = process.env.PROVIDER_STATES_ROOT || process.cwd()
+const CONTRACTS_DIR = join(CWD, 'contract-testing', 'pact-samples', 'contracts')
+const STATES_DIR = join(CWD, 'contract-testing', 'pact-samples', 'states')
+const FIXTURE_EXTS = ['ts', 'js', 'py', 'java', 'kt', 'rs', 'go']
+const SLUG_PATTERN = /^[a-z][a-z0-9_]*$/
+
+if (!existsSync(CONTRACTS_DIR)) {
+  console.log('  check-provider-states: no contracts directory — skipping')
+  process.exit(0)
+}
+
+function listContracts(dir) {
+  const out = []
+  let entries
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch (err) {
+    console.error(`  check-provider-states: cannot read ${dir}: ${err.message}`)
+    process.exit(2)
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      out.push(...listContracts(full))
+    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+      out.push(full)
+    }
+  }
+  return out
+}
+
+function extractStates(contractPath) {
+  let parsed
+  try {
+    parsed = JSON.parse(readFileSync(contractPath, 'utf-8'))
+  } catch (err) {
+    console.error(`  check-provider-states: invalid JSON in ${contractPath}: ${err.message}`)
+    process.exit(2)
+  }
+  const interactions = Array.isArray(parsed?.interactions) ? parsed.interactions : []
+  const states = new Set()
+  for (const interaction of interactions) {
+    // Pact v2: single string field
+    if (typeof interaction?.providerState === 'string' && interaction.providerState.length > 0) {
+      states.add(interaction.providerState)
+    }
+    // Pact v3+: array of { name, params? }
+    if (Array.isArray(interaction?.providerStates)) {
+      for (const entry of interaction.providerStates) {
+        if (entry && typeof entry.name === 'string' && entry.name.length > 0) {
+          states.add(entry.name)
+        }
+      }
+    }
+  }
+  return states
+}
+
+function hasFixture(slug) {
+  if (!existsSync(STATES_DIR)) return false
+  for (const ext of FIXTURE_EXTS) {
+    if (existsSync(join(STATES_DIR, `${slug}.fixture.${ext}`))) return true
+  }
+  return false
+}
+
+const contracts = listContracts(CONTRACTS_DIR)
+if (contracts.length === 0) {
+  console.log('  check-provider-states: no Pact contracts found — skipping')
+  process.exit(0)
+}
+
+const declared = new Set()
+for (const c of contracts) {
+  for (const slug of extractStates(c)) declared.add(slug)
+}
+
+const orphans = []
+const badSlugs = []
+for (const slug of declared) {
+  if (!SLUG_PATTERN.test(slug)) badSlugs.push(slug)
+  if (!hasFixture(slug)) orphans.push(slug)
+}
+
+if (orphans.length === 0 && badSlugs.length === 0) {
+  console.log(`  check-provider-states: ${declared.size} declared state(s), all have fixtures`)
+  process.exit(0)
+}
+
+if (badSlugs.length > 0) {
+  console.error('  check-provider-states: slugs violate naming rule ^[a-z][a-z0-9_]*$:')
+  for (const s of badSlugs) console.error(`    - ${s}`)
+}
+if (orphans.length > 0) {
+  console.error('  check-provider-states: orphan provider state(s) — declared by a Pact contract, no fixture file:')
+  for (const slug of orphans) {
+    console.error(`    - ${slug} (expected one of: ${FIXTURE_EXTS.map((e) => `${slug}.fixture.${e}`).join(', ')})`)
+  }
+}
+process.exit(1)
