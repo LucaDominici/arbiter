@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+
+const ROOT = new URL('../../', import.meta.url).pathname
 
 function renderNightly(overrides: Record<string, unknown> = {}) {
   return renderTemplate(
@@ -143,6 +147,23 @@ describe('06-nightly.yml.ejs — per-language dep-CVE tools', () => {
     const rendered = renderNightly({ language: 'typescript', buildTool: 'npm' })
     expect(rendered).toContain('npm audit')
     expect(rendered).toContain('osv-scanner')
+  })
+
+  it('TypeScript: osv-scanner-action uses a 40-char SHA pin (INV-76)', () => {
+    // Regression guard for #858: google/osv-scanner-action@v2 does not exist.
+    // The action ref MUST be a full 40-character commit SHA, not a tag like @v2.
+    const rendered = renderNightly({ language: 'typescript', buildTool: 'npm' })
+    const SHA_RE = /google\/osv-scanner-action@([0-9a-f]{40})/i
+    expect(rendered).toMatch(SHA_RE)
+  })
+
+  it('committed 06-nightly.yml: osv-scanner-action uses a 40-char SHA pin (INV-76)', () => {
+    // Ensures the committed workflow file (the one that actually runs in CI)
+    // also references a valid pinned SHA — not the broken @v2 tag.
+    const wfPath = join(ROOT, '.github', 'workflows', '06-nightly.yml')
+    const content = readFileSync(wfPath, 'utf-8')
+    const SHA_RE = /google\/osv-scanner-action@([0-9a-f]{40})/i
+    expect(content).toMatch(SHA_RE)
   })
 
   it('Java: OWASP Dependency-Check', () => {
