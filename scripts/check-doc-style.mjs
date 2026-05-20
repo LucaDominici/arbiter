@@ -38,6 +38,7 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}.coverage-tmp${sep}`,
   `${sep}.evidence${sep}`,
   `${sep}report${sep}`,
+  `${sep}internal${sep}`,
 ]
 
 const REQUIRED_KEYS = [

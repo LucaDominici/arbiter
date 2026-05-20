@@ -52,6 +52,7 @@ const HARD_SKIP_PATHS = [
   '/report/',
   '/.changeset/',
   '/api/',
+  '/internal/',
 ]
 
 // HARD SKIP: never touch these filenames (basename match).

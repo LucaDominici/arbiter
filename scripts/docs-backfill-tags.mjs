@@ -35,6 +35,7 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}.coverage-tmp${sep}`,
   `${sep}.evidence${sep}`,
   `${sep}report${sep}`,
+  `${sep}internal${sep}`,
 ]
 
 // Path → tags. First match wins for `kind/*`; multiple non-kind tags accumulate.
