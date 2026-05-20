@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { prettierFormat } from '../utils/prettier-format.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -121,8 +122,17 @@ export function generateBehavioralTests(config: ProjectConfig): BehavioralTestsR
 
   if (config.language === 'java' || config.language === 'multi')
     results.push(...emitJavaBdd(base, data, config))
-  if (config.language === 'typescript' || config.language === 'multi')
-    results.push(...emitTypeScriptBdd(base, data))
+  if (config.language === 'typescript' || config.language === 'multi') {
+    const tsResults = emitTypeScriptBdd(base, data)
+    results.push(...tsResults)
+    // Post-emit format: apply target's prettier config so generated TS/JS files
+    // conform to the target project's style, not arbiter's internal style (#933 F13).
+    for (const r of tsResults) {
+      if (r.action !== 'skipped' && /\.(ts|js|mjs)$/.test(r.path)) {
+        prettierFormat(r.path, base)
+      }
+    }
+  }
   if (config.language === 'rust') results.push(...emitRustBdd(base, data))
   if (config.language === 'go') results.push(...emitGoBdd(base, data))
   if (config.language === 'python') results.push(...emitPythonBdd(base, data))

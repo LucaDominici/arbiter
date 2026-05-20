@@ -160,3 +160,13 @@ Before opening a pull request, verify:
 - **Prefer Node built-ins.** `node:fs`, `node:path`, `node:child_process`, `node:os` cover most needs.
 - **Dev dependencies are unrestricted.** Vitest, eslint, prettier, tsx, and TypeScript are dev-only and do not affect the published package size.
 - **Any new runtime dependency requires a comment** in the relevant generator or util explaining why a built-in could not be used.
+
+---
+
+## Post-Emit Formatting
+
+Generated files that use arbiter's internal code style (single-quotes, no semicolons) must be
+re-formatted to match the target project's `.prettierrc` after being written. Use
+`src/utils/prettier-format.ts` (`prettierFormat(filePath, targetDir)`) for this — it is
+CANON-12 compliant (uses `runCli`), best-effort (warns on failure, never throws), and skips
+silently when prettier is not available in the target environment (#933 F13).
