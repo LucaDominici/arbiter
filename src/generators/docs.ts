@@ -77,5 +77,37 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     ),
   )
 
+  // F12: docs/runbooks/ scaffold — operational runbooks (KIT dim 68, M3 REFERENCE)
+  const runbooksDir = resolvedPath(base, 'docs', 'runbooks')
+  for (const runbook of ['rollback', 'troubleshooting', 'prod-checklist', 'deployment']) {
+    results.push(
+      writeFile(
+        resolvedPath(runbooksDir, `${runbook}.md`),
+        renderTemplate(`docs/runbooks/${runbook}.md.ejs`, data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
+  // F12: docs/security/ scaffold — STRIDE threat model (KIT dim 66, M3 REFERENCE, L2+)
+  results.push(
+    writeFile(
+      resolvedPath(base, 'docs', 'security', 'STRIDE.md'),
+      renderTemplate('security/STRIDE.md.ejs', data),
+      { skipIfExists: true },
+    ),
+  )
+
+  // F12: docs/security/ scaffold — risk assessment (KIT dim 66, M3 REFERENCE, L3 only)
+  if (config.governanceLevel === 'L3') {
+    results.push(
+      writeFile(
+        resolvedPath(base, 'docs', 'security', 'RISK_ASSESSMENT.md'),
+        renderTemplate('security/RISK_ASSESSMENT.md.ejs', data),
+        { skipIfExists: true },
+      ),
+    )
+  }
+
   return { files: results }
 }

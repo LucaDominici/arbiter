@@ -136,6 +136,88 @@ describe('generateDocs — POST_MERGE_REVIEW_TEMPLATE (#218)', () => {
   })
 })
 
+describe('generateDocs — runbooks scaffold (#897)', () => {
+  it('emits docs/runbooks/rollback.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'runbooks', 'rollback.md'))).toBe(true)
+  })
+
+  it('emits docs/runbooks/troubleshooting.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'runbooks', 'troubleshooting.md'))).toBe(true)
+  })
+
+  it('emits docs/runbooks/prod-checklist.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'runbooks', 'prod-checklist.md'))).toBe(true)
+  })
+
+  it('emits docs/runbooks/deployment.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'runbooks', 'deployment.md'))).toBe(true)
+  })
+
+  it('emits runbooks at L3', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'docs', 'runbooks', 'rollback.md'))).toBe(true)
+  })
+
+  it('does not emit runbooks at L1', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+    expect(existsSync(join(dir, 'docs', 'runbooks'))).toBe(false)
+  })
+
+  it('skipIfExists on docs/runbooks/rollback.md (#897, CANON-11)', () => {
+    const runbooksDir = join(dir, 'docs', 'runbooks')
+    mkdirSync(runbooksDir, { recursive: true })
+    const target = join(runbooksDir, 'rollback.md')
+    writeFileSync(target, 'PREEXISTING')
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+})
+
+describe('generateDocs — docs/security/ scaffold (#897)', () => {
+  it('emits docs/security/STRIDE.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'security', 'STRIDE.md'))).toBe(true)
+  })
+
+  it('emits docs/security/STRIDE.md at L3', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'docs', 'security', 'STRIDE.md'))).toBe(true)
+  })
+
+  it('does not emit docs/security/STRIDE.md at L1', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+    expect(existsSync(join(dir, 'docs', 'security', 'STRIDE.md'))).toBe(false)
+  })
+
+  it('emits docs/security/RISK_ASSESSMENT.md at L3', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'docs', 'security', 'RISK_ASSESSMENT.md'))).toBe(true)
+  })
+
+  it('does not emit docs/security/RISK_ASSESSMENT.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'security', 'RISK_ASSESSMENT.md'))).toBe(false)
+  })
+
+  it('does not emit docs/security/RISK_ASSESSMENT.md at L1', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+    expect(existsSync(join(dir, 'docs', 'security', 'RISK_ASSESSMENT.md'))).toBe(false)
+  })
+
+  it('skipIfExists on docs/security/STRIDE.md (#897, CANON-11)', () => {
+    const secDir = join(dir, 'docs', 'security')
+    mkdirSync(secDir, { recursive: true })
+    const target = join(secDir, 'STRIDE.md')
+    writeFileSync(target, 'PREEXISTING')
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+})
+
 describe('generateDocs — COMMANDS.md CLI catalog (#728)', () => {
   it('emits docs/COMMANDS.md at L2', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
