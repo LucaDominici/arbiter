@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#895",
+  "test_path": "__tests__/generators/perf-k6.test.ts",
+  "test_commit_sha": "pending",
+  "description": "F6 — k6 performance testing ecosystem template. Red phase: tests authored in development branch before src/generators/perf-k6.ts and all EJS templates were complete. Running `npx vitest run __tests__/generators/perf-k6.test.ts` failed with MODULE_NOT_FOUND for ./perf-k6.js in the generator registry (generator file absent). Similarly __tests__/templates/k6-render.test.ts failed with ENOENT for missing EJS template files. Green phase: perf-k6.ts generator + 20 EJS templates added, all 3 test suites (10 unit + 54 render + 10 brownfield = 74 tests) green.",
+  "observed_failure": "FAIL — perf-k6 generator tests red before src/generators/perf-k6.ts existed. render tests red before src/templates/perf/k6/ EJS templates existed. Confirmed red during F6 development: `Cannot find module './perf-k6.js'` in generator import, and ENOENT on template paths.",
+  "recorded_at": "2026-05-20T00:00:00.000Z"
+}
