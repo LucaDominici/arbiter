@@ -1,20 +1,21 @@
 {
-  "project": ["src/**/*.ts", "!src/templates/**"],
-  "ignoreDependencies": ["prettier", "@commitlint/cli", "jscpd", "madge"],
+  "workspaces": {
+    ".": {
+      "project": ["src/**/*.ts", "!src/templates/**"]
+    }
+  },
+  "ignoreDependencies": ["@commitlint/cli", "jscpd"],
   "ignoreFiles": ["src/test/example.behavioral.test.ts", "src/utils/plugin-worker.ts"],
   "ignoreBinaries": [
-    "wait-on",
     "stryker",
     "license-checker",
     "Apache-2.0",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
-    "MPL-2.0",
     "CC0-1.0",
     "0BSD",
     "Unlicense",
-    "BlueOak-1.0.0",
     "Python-2.0"
   ],
   "exclude": ["types", "nsTypes", "enumMembers"],
