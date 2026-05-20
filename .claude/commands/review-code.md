@@ -1,6 +1,14 @@
 ---
 description: Multi-agent code review via the arbiter review subagent dispatcher (#236)
 argument-hint: [--diff <ref>] [--tier XS|S|Standard]
+title: "/review-code"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
 ---
 
 # /review-code

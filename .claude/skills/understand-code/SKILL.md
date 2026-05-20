@@ -2,6 +2,14 @@
 name: understand-code
 description: Use when exploring an unfamiliar code path, tracing a feature end-to-end, or when asked "how does X work?". Structured 4-step comprehension protocol. READ-ONLY.
 argument-hint: '<module, path, or feature description>'
+title: 'Understand Code'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Understand Code

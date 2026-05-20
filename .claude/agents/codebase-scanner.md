@@ -6,6 +6,14 @@ tools:
   - Glob
   - Read
 description: Fast read-only pattern search. Use for finding usages, counting occurrences, listing files, and checking existing implementations. Cost-optimized.
+title: 'Codebase Scanner Agent'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Codebase Scanner Agent

@@ -1,3 +1,14 @@
+---
+title: 'Example: rust-cli'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Example: rust-cli
 
 End-to-end walkthrough of `arbiter init` on a Rust CLI binary. The starter mirrors the reference fixture at `__tests__/fixtures/real-projects/rust-cli/`.

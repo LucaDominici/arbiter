@@ -1,3 +1,14 @@
+---
+title: '/wt-close <task-id>'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # /wt-close <task-id>
 
 Close a git worktree and optionally harvest files back to the main repo.

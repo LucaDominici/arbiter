@@ -1,3 +1,14 @@
+---
+title: 'Recipe: Write an arbiter Plugin'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: Write an arbiter Plugin
 
 Plugins extend arbiter for a specific project without modifying arbiter itself. A plugin can emit template files, add verify-plan rules, or both.

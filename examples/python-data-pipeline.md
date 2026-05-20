@@ -1,3 +1,14 @@
+---
+title: 'Example: python-data-pipeline'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Example: python-data-pipeline
 
 End-to-end walkthrough of `arbiter init` on a Python ETL pipeline. The starter mirrors the reference fixture at `__tests__/fixtures/real-projects/python-data-pipeline/`.

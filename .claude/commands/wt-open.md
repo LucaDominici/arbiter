@@ -1,3 +1,14 @@
+---
+title: '/wt-open <task-id> [slug]'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # /wt-open <task-id> [slug]
 
 Open a git worktree for parallel task development.

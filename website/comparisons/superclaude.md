@@ -1,3 +1,14 @@
+---
+title: 'arbiter vs SuperClaude'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter vs SuperClaude
 
 SuperClaude is a Claude Code enhancement framework. It extends the Claude Code UX with custom slash commands, specialized personas, and an optimized prompt library designed to make Claude Code more productive for common development tasks.

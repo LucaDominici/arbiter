@@ -1,3 +1,14 @@
+---
+title: 'arbiter examples'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter examples
 
 Runnable, end-to-end walkthroughs that demonstrate `arbiter init` producing a complete governance stack on top of a real starter project.

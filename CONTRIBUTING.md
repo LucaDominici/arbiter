@@ -1,3 +1,14 @@
+---
+title: 'Contributing to arbiter'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Contributing to arbiter
 
 Thank you for considering contributing to **arbiter**. This document is the on-ramp for new contributors. Read it once end to end before opening your first PR.

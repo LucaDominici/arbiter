@@ -1,3 +1,14 @@
+---
+title: 'Example: go-library'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Example: go-library
 
 End-to-end walkthrough of `arbiter init` on a Go library module. The starter mirrors the reference fixture at `__tests__/fixtures/real-projects/go-library/`.

@@ -5,6 +5,14 @@ globs:
   - 'scripts/**/*.mjs'
   - '.claude/hooks/**/*.mjs'
 last-reviewed: '2026-05-17'
+title: 'Arbiter implementation gotchas'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Arbiter implementation gotchas

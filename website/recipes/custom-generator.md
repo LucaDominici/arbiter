@@ -1,3 +1,14 @@
+---
+title: 'Recipe: Add a Custom Generator'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: Add a Custom Generator
 
 Generators live in `src/generators/` and are how arbiter itself emits files to target projects. This recipe is for **arbiter contributors** extending core support for a new language or archetype. If you want to emit custom files without modifying arbiter, use a plugin instead (see [Write an arbiter plugin](./plugin)).

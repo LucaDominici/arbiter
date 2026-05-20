@@ -1,3 +1,14 @@
+---
+title: 'Experimental Features'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Experimental Features
 
 arbiter ships experimental features behind explicit opt-in flags. Each experiment has a defined lifecycle and promotion criteria.

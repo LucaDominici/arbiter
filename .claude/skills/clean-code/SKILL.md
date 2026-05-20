@@ -1,6 +1,14 @@
 ---
 name: clean-code
 description: Clean Code principles (DRY, KISS, YAGNI), naming conventions, and refactoring. Use when reviewing code quality or improving readability.
+title: 'Clean Code'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Clean Code

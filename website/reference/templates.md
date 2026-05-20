@@ -1,3 +1,14 @@
+---
+title: 'Template Inventory'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Template Inventory
 
 Reference for all EJS templates shipped with Arbiter. Each entry documents the output file, template variables, and conditional branches.

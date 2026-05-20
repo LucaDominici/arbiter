@@ -2,6 +2,14 @@
 name: brainstorming
 description: Structured brainstorming skill — explore solution space, produce design doc and GH issue, then STOP. No auto-implementation.
 argument-hint: '[topic or problem description]'
+title: 'Brainstorming Skill'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Brainstorming Skill

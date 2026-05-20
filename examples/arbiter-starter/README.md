@@ -1,3 +1,14 @@
+---
+title: 'arbiter-starter'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter-starter
 
 A minimal TypeScript skeleton that demonstrates running `arbiter init` from scratch. Use this as a reference for the "zero to governed" flow.

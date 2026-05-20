@@ -1,6 +1,14 @@
 ---
 description: Full task lifecycle — plan, implement, review, gate, merge
 argument-hint: '#NNN [--skip-review] [--dry-run]'
+title: '/task #NNN'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # /task #NNN
