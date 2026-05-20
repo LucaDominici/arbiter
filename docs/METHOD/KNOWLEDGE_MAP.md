@@ -34,7 +34,7 @@ related: []
 ## docs/METHOD/SSOT_CORE_SET.md
 
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
-**Lines:** 50
+**Lines:** 63
 **Purpose:** Authoritative inventory of all SSOT documents. Start here to discover what documentation exists.
 
 | Section    | Description                       |
