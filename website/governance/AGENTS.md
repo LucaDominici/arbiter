@@ -160,8 +160,8 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 ## Anti-Drift Validator Family (INV-89)
 
-- **INV-89:** Anti-drift validator family — W6 validators must be present and wired
-  - _Enforcement:_ 11 scripts wired at L1 gate (`check-suppression-rationale.mjs`, `check-suppression-expiry.mjs`, `check-pii-scan.mjs`, `check-secret-scan.mjs`, `check-drift.mjs`, `check-workflow-runners.mjs`, `check-workflow-docs-sync.mjs`, `check-workflow-test-integrity.mjs`, `check-pr-size-gate.mjs`, `check-validator-helptext.mjs`, `check-tier-coverage.mjs`); 2 Track-B-only scripts (`check-workflow-sha-pinning.mjs`, `check-workflow-job-naming.mjs`) emitted for target projects only via `src/generators/anti-drift-validators.ts`
+- **INV-89:** Anti-drift validator family — W6+F4 validators must be present and wired
+  - _Enforcement:_ 11 scripts wired at L1 gate (`check-suppression-rationale.mjs`, `check-suppression-expiry.mjs`, `check-pii-scan.mjs`, `check-secret-scan.mjs`, `check-drift.mjs`, `check-workflow-runners.mjs`, `check-workflow-docs-sync.mjs`, `check-workflow-test-integrity.mjs`, `check-pr-size-gate.mjs`, `check-validator-helptext.mjs`, `check-tier-coverage.mjs`); 20 total scripts emitted for target projects via `src/generators/anti-drift-validators.ts` (9 Track-B-only added in F4: `check-inline-suppressions.mjs`, `check-suppressions.mjs`, `check-action-pins.mjs`, `check-workflow-perms.mjs`, `check-exit-code-contract.mjs`, `check-ssot-core.mjs`, `check-ci-tiers.mjs`, `check-validator-helptext.mjs`, `check-tier-coverage.mjs`)
 
 ## Stack Adapter Coverage (INV-88)
 
@@ -180,6 +180,12 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-91:** AI-PR human-approval gate
   - Bot-authored PRs require the `approved-by-human` label before merge
   - _Enforcement:_ generated `_ai-draft-check.yml` workflow + `_label-on-approve.yml` workflow
+
+## Nightly Freshness Gate (INV-93)
+
+- **INV-93:** Nightly freshness gate
+  - _Enforcement:_ `scripts/check-nightly-freshness.mjs`
+  - The nightly CI stamp artifact (`.arbiter/nightly/last-run.json`) must not be older than 26 hours when present. Exit 0 vacuously when no artifact exists.
 
 ## Supply Chain (INV-92)
 

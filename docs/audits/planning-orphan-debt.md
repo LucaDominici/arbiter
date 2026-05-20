@@ -22,6 +22,7 @@ issue: '#876'
 | `note`          | Port the lesson (pattern, insight) but not the artifact itself              |
 | `template-only` | Port as EJS framework template; never apply to arbiter-self                 |
 | `port`          | Port to arbiter-self AND framework                                          |
+| `done`          | Ported and verified — artifact shipped and gate-validated in arbiter        |
 
 ---
 
@@ -88,12 +89,12 @@ Run in CI but have no documented local equivalent (violates planning's own parit
 
 Exist in `run.sh` subcommands but not reflected in CI.
 
-| Local command               | CI equivalent                  | Gap                                        | Score           | Arbiter decision                                                                                                      |
-| --------------------------- | ------------------------------ | ------------------------------------------ | --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `./run.sh audit-toolchain`  | None in CI                     | Deliberate: forensic-only, exits 0 always  | `port`          | Port as `scripts/audit-toolchain.mjs` in W11 (N-05). No CI integration needed; exits 0 always regardless of findings. |
-| `./run.sh dev-reset`        | None in CI                     | Dev environment teardown; not a CI concern | `skip`          | Planning-specific dev environment with Docker Compose + DB. Arbiter has no equivalent.                                |
-| `./run.sh quality-check`    | Partial: parts in `01-pr-fast` | Runs SpotBugs manually outside CI tier     | `skip`          | Java-specific quality check wrapper.                                                                                  |
-| `./run.sh inject-test-data` | None in CI                     | Seed data injection for manual testing     | `template-only` | Seed data pattern useful for M2+ projects; port as optional template subcommand in F6/F7.                             |
+| Local command               | CI equivalent                  | Gap                                        | Score           | Arbiter decision                                                                                                                                                 |
+| --------------------------- | ------------------------------ | ------------------------------------------ | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `./run.sh audit-toolchain`  | None in CI                     | Deliberate: forensic-only, exits 0 always  | `done`          | Ported as `scripts/audit-toolchain.mjs` in W11 (#887, N-05). 10/10 checks pass on arbiter-self. EJS template in `src/templates/scripts/audit-toolchain.mjs.ejs`. |
+| `./run.sh dev-reset`        | None in CI                     | Dev environment teardown; not a CI concern | `skip`          | Planning-specific dev environment with Docker Compose + DB. Arbiter has no equivalent.                                                                           |
+| `./run.sh quality-check`    | Partial: parts in `01-pr-fast` | Runs SpotBugs manually outside CI tier     | `skip`          | Java-specific quality check wrapper.                                                                                                                             |
+| `./run.sh inject-test-data` | None in CI                     | Seed data injection for manual testing     | `template-only` | Seed data pattern useful for M2+ projects; port as optional template subcommand in F6/F7.                                                                        |
 
 ---
 
