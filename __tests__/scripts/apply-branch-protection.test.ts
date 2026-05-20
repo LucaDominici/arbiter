@@ -3,6 +3,7 @@
 // Verifies: --dry-run flag, exit codes (INV-53), required fields in PUT body.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const SCRIPT = resolve('scripts/apply-branch-protection.mjs')
@@ -136,6 +137,25 @@ describe('apply-branch-protection.mjs (#868)', () => {
         '/tmp/test-snapshot.json',
       ])
       expect(result.status).toBe(0)
+    })
+
+    it('--snapshot writes a file in dry-run mode (API GET is read-only)', () => {
+      // In dry-run, snapshotCurrentProtection() will fail (no real GH_TOKEN / repo),
+      // but the file should still be written with protection: null and exit 0.
+      const snapshotPath = `/tmp/apply-bp-test-snapshot-${Date.now()}.json`
+      const result = run(['--dry-run', '--repo', 'owner/repo', '--snapshot', snapshotPath])
+      expect(result.status).toBe(0)
+      // File should exist (written even in dry-run)
+      expect(existsSync(snapshotPath)).toBe(true)
+      const data = JSON.parse(readFileSync(snapshotPath, 'utf-8')) as {
+        repo: string
+        branch: string
+        timestamp: string
+        protection: unknown
+      }
+      expect(data).toHaveProperty('repo', 'owner/repo')
+      expect(data).toHaveProperty('branch', 'main')
+      expect(data).toHaveProperty('timestamp')
     })
   })
 })

@@ -140,22 +140,11 @@ function snapshotCurrentProtection() {
 log(`Configuring branch protection on ${REPO}/${BRANCH}`)
 log(`Required status checks: ${REQUIRED_CONTEXTS.join(', ')}`)
 
-if (DRY_RUN) {
-  if (JSON_MODE) {
-    // Emit only the payload JSON — useful for piping / inspection
-    process.stdout.write(JSON.stringify(PROTECTION_PAYLOAD, null, 2) + '\n')
-  } else {
-    log(`PUT body preview:`)
-    log(JSON.stringify(PROTECTION_PAYLOAD, null, 2))
-    log('')
-    log('Dry-run complete. Run without --dry-run to apply.')
-  }
-  process.exit(0)
-}
+// ── Snapshot (both dry-run and live) ─────────────────────────────────────────
 
-// ── Live mode ────────────────────────────────────────────────────────────────
-
-// 1. Snapshot pre-change state if requested
+// Capture snapshot before any mutation. In dry-run mode the GET is read-only
+// and safe; writing the snapshot file in dry-run lets operators verify rollback
+// state without committing to the PUT.
 if (SNAPSHOT_PATH) {
   log(`Snapshotting current protection to ${SNAPSHOT_PATH}`)
   const snapshot = snapshotCurrentProtection()
@@ -175,7 +164,22 @@ if (SNAPSHOT_PATH) {
   }
 }
 
-// 2. Apply protection
+if (DRY_RUN) {
+  if (JSON_MODE) {
+    // Emit only the payload JSON — useful for piping / inspection
+    process.stdout.write(JSON.stringify(PROTECTION_PAYLOAD, null, 2) + '\n')
+  } else {
+    log(`PUT body preview:`)
+    log(JSON.stringify(PROTECTION_PAYLOAD, null, 2))
+    log('')
+    log('Dry-run complete. Run without --dry-run to apply.')
+  }
+  process.exit(0)
+}
+
+// ── Live mode ────────────────────────────────────────────────────────────────
+
+// Apply protection
 const endpoint = `repos/${REPO}/branches/${BRANCH}/protection`
 log(`Applying branch protection via PUT ${endpoint}`)
 
