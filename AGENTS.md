@@ -162,7 +162,7 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 ## Anti-Drift Validator Family (INV-89)
 
 - **INV-89:** Anti-drift validator family — W6+F4 validators must be present and wired
-  - _Enforcement:_ 11 scripts wired at L1 gate (`check-suppression-rationale.mjs`, `check-suppression-expiry.mjs`, `check-pii-scan.mjs`, `check-secret-scan.mjs`, `check-drift.mjs`, `check-workflow-runners.mjs`, `check-workflow-docs-sync.mjs`, `check-workflow-test-integrity.mjs`, `check-pr-size-gate.mjs`, `check-validator-helptext.mjs`, `check-tier-coverage.mjs`); 20 total scripts emitted for target projects via `src/generators/anti-drift-validators.ts` (9 Track-B-only added in F4: `check-inline-suppressions.mjs`, `check-suppressions.mjs`, `check-action-pins.mjs`, `check-workflow-perms.mjs`, `check-exit-code-contract.mjs`, `check-ssot-core.mjs`, `check-ci-tiers.mjs`, `check-validator-helptext.mjs`, `check-tier-coverage.mjs`)
+  - _Enforcement:_ 11 scripts dual-track — wired both in arbiter L1 gate AND emitted for target projects (`check-suppression-rationale.mjs`, `check-suppression-expiry.mjs`, `check-pii-scan.mjs`, `check-secret-scan.mjs`, `check-drift.mjs`, `check-workflow-runners.mjs`, `check-workflow-docs-sync.mjs`, `check-workflow-test-integrity.mjs`, `check-pr-size-gate.mjs`, `check-validator-helptext.mjs`, `check-tier-coverage.mjs`); 2 scripts Track-B-only (emitted for target projects only, not wired in arbiter self-gate): `check-workflow-sha-pinning.mjs`, `check-workflow-job-naming.mjs`; 20 total scripts emitted for target projects via `src/generators/anti-drift-validators.ts`
 
 ## Stack Adapter Coverage (INV-88)
 
