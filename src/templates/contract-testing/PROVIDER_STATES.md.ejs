@@ -1,0 +1,132 @@
+<%_ /* SPDX-License-Identifier: Apache-2.0 */ _%>
+<%_ /* PROVIDER_STATES.md.ejs — Pact provider-state convention doc (Port #12, #972). */ _%>
+<%_ /* Emitted only when governanceLevel >= L2 AND a contract-testing tool is enabled. */ _%>
+<%_ /* The outer generator already gates on (governanceLevel !== 'L1') && (contractType !== 'none'); */ _%>
+<%_ /* the inner guard below is defensive and prevents accidental empty-context renders. */ _%>
+<%_ if (governanceLevel !== 'L1' && contractType && contractType !== 'none') { _%>
+---
+title: 'Provider States — Convention'
+doc_version: '1.0.0'
+status: active
+last_review: '<%= (new Date()).toISOString().slice(0, 10) %>'
+owner: ''
+canonical_id: 'PROVIDER_STATES'
+tags: ['audience/dev', 'kind/method']
+related: ['CONTRACTS_POLICY.md']
+---
+
+# Provider States — Convention
+
+> Project: `<%= projectName %>` &nbsp;·&nbsp; Contract strategy: `<%= contractType %>` &nbsp;·&nbsp; Governance: `<%= governanceLevel %>`
+
+## What is a provider state?
+
+A **provider state** is a named precondition the provider establishes before
+verifying a consumer-driven interaction. The consumer declares the state it
+expects (e.g. "a user with an active trip exists"); the provider, during
+verification, sets up the matching data and replies. Without a deterministic
+backend fixture for each declared state, verification becomes flaky or, worse,
+silently passes against the wrong data.
+
+> Industry term: see the public Pact documentation on provider states
+> (https://docs.pact.io/getting_started/provider_states) for the canonical
+> definition. The convention below is `<%= projectName %>`-specific and is
+> not a substitute for that reference.
+
+## Naming convention
+
+Every provider state in `<%= projectName %>` uses a **snake-case slug** paired
+with a one-line descriptive prose summary. The slug is the stable identifier
+that ties consumer Pacts to backend fixtures.
+
+| Field          | Rule                                                                       |
+|----------------|----------------------------------------------------------------------------|
+| Slug           | `^[a-z][a-z0-9_]*$` — snake_case, starts with a lowercase letter           |
+| Prose summary  | One sentence, present tense, factual; explains the data shape, not the UX |
+| Verb tone      | Indicative ("user has active trip"), not imperative ("create a user")     |
+| Scope          | A single observable precondition; compose multiple states for fan-in      |
+
+### Good
+
+- `user_has_active_trip`: "A user with id=1 has at least one trip in status=active."
+- `inventory_is_empty`: "The catalog table contains zero rows."
+- `auth_token_expired`: "The session token for user id=1 expired at least 60s ago."
+
+### Bad
+
+- `UserHasActiveTrip` — wrong case
+- `create-active-trip` — imperative verb, kebab-case
+- `the_user` — non-observable, no precondition shape
+
+## File layout
+
+Each declared state has exactly one backend fixture file. The fixture file
+sets up the precondition (inserting rows, seeding a queue, expiring a token)
+and is keyed by the slug:
+
+```
+contract-testing/
+  pact-samples/
+    contracts/                       # consumer-produced *.json Pact contracts
+    states/
+      user_has_active_trip.fixture.ts
+      inventory_is_empty.fixture.py
+      auth_token_expired.fixture.java
+      ...
+```
+
+Allowed fixture extensions match the per-stack scaffold:
+`<state_slug>.fixture.{ts|js|py|java|kt|rs|go}`.
+
+The current project's primary stack is `<%= language %>`; new states should
+be authored in that stack unless an integration-level reason forces another.
+
+## Mapping table
+
+Maintain the canonical slug → fixture map in this document. One row per
+unique state slug. `consumer` and `provider` use the service identifiers
+declared in the Pact file (`pact-specification` v3+).
+
+| Slug                  | Consumer            | Provider                | Fixture file                                              |
+|-----------------------|---------------------|-------------------------|-----------------------------------------------------------|
+| `user_has_active_trip` | `<%= projectName %>-consumer` | `<%= projectName %>-provider` | `contract-testing/pact-samples/states/user_has_active_trip.fixture.<%= language === 'python' ? 'py' : language === 'java' ? 'java' : language === 'rust' ? 'rs' : language === 'go' ? 'go' : 'ts' %>` |
+
+Add new rows as new states are introduced. Do **not** delete a row until
+every consumer Pact that referenced it has been verified or removed.
+
+## Validation rule
+
+> Every `providerState` (or `providerStates[].name`) field referenced by a
+> consumer-produced Pact contract MUST have a matching backend fixture file
+> under `contract-testing/pact-samples/states/<slug>.fixture.*`.
+
+Orphan states (referenced by a contract, no fixture) cause verification to
+either skip silently or invent default data — both fail-open behaviours that
+defeat the purpose of consumer-driven contract testing.
+
+This rule is enforced at gate time by
+`contract-testing/scripts/check-provider-states.mjs` (scaffolded alongside
+this document). The check walks every `*.json` Pact file in
+`contract-testing/pact-samples/contracts/`, collects the union of declared
+state slugs, and asserts a matching fixture file exists for each.
+
+## How to add a new state
+
+1. Pick a slug that satisfies the naming rule above; verify it does not collide with an existing row.
+2. Author the backend fixture under `contract-testing/pact-samples/states/<slug>.fixture.<ext>`.
+3. Reference the slug from the consumer Pact (`providerState` or `providerStates[].name`).
+4. Add a row to the mapping table above.
+5. Run `node contract-testing/scripts/check-provider-states.mjs` locally — it must exit 0.
+6. Commit the fixture, the table update, and the consumer Pact change together.
+
+## How to retire a state
+
+1. Confirm no consumer Pact references the slug (`grep -r '<slug>' contract-testing/pact-samples/contracts/`).
+2. Delete the fixture file and remove the mapping-table row in the same commit.
+3. Re-run `check-provider-states.mjs` — orphan fixtures are warnings, not failures, but should be cleaned up.
+
+## Gate
+
+- **L2+:** `check-provider-states.mjs` runs at the contract-testing gate. Orphan declared-state slugs fail the gate.
+- **L1:** No enforcement (no scaffold emitted).
+<% } -%>
