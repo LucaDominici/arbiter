@@ -1,14 +1,14 @@
 ---
 title: Planning Skeleton Migration Plan
 type: plan
-status: COMPLETE
+status: archived
 date: 2026-05-20
 issue: '#876'
 doc_version: '1.0.0'
 last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
-tags: []
+tags: ['audience/dev', 'kind/method']
 related: []
 ---
 

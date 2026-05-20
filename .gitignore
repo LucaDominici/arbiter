@@ -49,3 +49,9 @@ docs/internal/
 # Kit Gold Standard — gitignored build artifact and private source attachments
 src/kit/derived.json
 .arbiter/private/
+
+# Obsidian vault — per-user UI state (P7)
+.obsidian/workspace*.json
+.obsidian/attachments/
+.obsidian/plugins/
+.obsidian/themes/

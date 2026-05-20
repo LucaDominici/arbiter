@@ -2,14 +2,14 @@
 title: Anti-Drift Validator Family Reference
 type: reference
 invariant: INV-89
-status: CURRENT
+status: active
 date: 2026-05-20
 waves: W6, F4
 doc_version: '1.0.0'
 last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
-tags: []
+tags: ['audience/dev', 'kind/reference']
 related: []
 ---
 
