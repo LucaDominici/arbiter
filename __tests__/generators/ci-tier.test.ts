@@ -26,8 +26,8 @@ describe('generateCiTier — no-op gate', () => {
 // ci-tier.ts emits ONLY: _notify.yml, _label-sync.yml, labels.yml, setup-node-pnpm/action.yml
 // Standard CI workflows remain owned by github.ts (with ciTierMode awareness)
 describe('generateCiTier — 4-artifact contract', () => {
-  it('emits exactly 4 new artifacts when useGitHub is true', () => {
-    const result = generateCiTier(makeConfig(dir, { useGitHub: true }))
+  it('emits exactly 4 new artifacts at L2 without enableCodeownersNotify', () => {
+    const result = generateCiTier(makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' }))
     expect(result.files).toHaveLength(4)
   })
 
@@ -57,5 +57,44 @@ describe('generateCiTier — 4-artifact contract', () => {
     expect(
       paths.some((p) => p.includes(join('.github', 'actions', 'setup-node-pnpm', 'action.yml'))),
     ).toBe(true)
+  })
+})
+
+// #943: opt-in post-merge CODEOWNERS notification (L2+ only)
+describe('generateCiTier — enableCodeownersNotify opt-in', () => {
+  it('emits 5 artifacts at L2 with enableCodeownersNotify: true', () => {
+    const result = generateCiTier(
+      makeConfig(dir, { useGitHub: true, governanceLevel: 'L2', enableCodeownersNotify: true }),
+    )
+    expect(result.files).toHaveLength(5)
+    const paths = result.files.map((f) => f.path)
+    expect(
+      paths.some((p) => p.includes(join('.github', 'workflows', '_post-merge-notify.yml'))),
+    ).toBe(true)
+  })
+
+  it('emits 5 artifacts at L3 with enableCodeownersNotify: true', () => {
+    const result = generateCiTier(
+      makeConfig(dir, { useGitHub: true, governanceLevel: 'L3', enableCodeownersNotify: true }),
+    )
+    expect(result.files).toHaveLength(5)
+  })
+
+  it('does not emit _post-merge-notify.yml at L1 even with flag', () => {
+    const result = generateCiTier(
+      makeConfig(dir, { useGitHub: true, governanceLevel: 'L1', enableCodeownersNotify: true }),
+    )
+    expect(result.files).toHaveLength(4)
+    const paths = result.files.map((f) => f.path)
+    expect(
+      paths.some((p) => p.includes(join('.github', 'workflows', '_post-merge-notify.yml'))),
+    ).toBe(false)
+  })
+
+  it('does not emit _post-merge-notify.yml when flag is false', () => {
+    const result = generateCiTier(
+      makeConfig(dir, { useGitHub: true, governanceLevel: 'L2', enableCodeownersNotify: false }),
+    )
+    expect(result.files).toHaveLength(4)
   })
 })
