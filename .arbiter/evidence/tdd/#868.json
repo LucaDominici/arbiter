@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#868",
+  "test_path": "__tests__/scripts/apply-branch-protection.test.ts",
+  "test_commit_sha": "d375b1b5a5c9e6e3d4d22c0df19b8d8738376650",
+  "test_run_log": "\n RUN  v4.1.6 /home/luca/work/repos/arbiter.worktrees/#868\n\n ❯ __tests__/scripts/apply-branch-protection.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  08:45:12\n   Duration  88ms (transform 0ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)\n\n\nThe project root contains the \"#\" character (/home/luca/work/repos/arbiter.worktrees/#868), which may not work when running Vite. Consider renaming the directory without the characters.\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/apply-branch-protection.test.ts [ __tests__/scripts/apply-branch-protection.test.ts ]\nError: Cannot find module '/vitest.setup.ts'\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/apply-branch-protection.test.ts",
+  "recorded_at": "2026-05-20T06:45:12.399Z"
+}

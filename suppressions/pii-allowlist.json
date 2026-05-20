@@ -5,5 +5,12 @@
     "owner": "core",
     "expiresAt": "2026-06-13",
     "scope": "pii-allowlist"
+  },
+  {
+    "file": "src/templates/github/workflows/_post-merge-notify.yml.ejs",
+    "reason": "Generic noreply@github.com fallback address used as msg[From]/msg[To] when MAIL_USERNAME secret is unset — public no-reply convention, not real PII (#943).",
+    "owner": "core",
+    "expiresAt": "2026-08-20",
+    "scope": "pii-allowlist"
   }
 ]

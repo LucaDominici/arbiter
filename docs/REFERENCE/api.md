@@ -42,7 +42,7 @@ import type {
 
 | Symbol                            | Kind          | Description                                                                |
 | --------------------------------- | ------------- | -------------------------------------------------------------------------- |
-| `INVARIANT_CATALOG`               | `Invariant[]` | Complete invariant catalog (all 61+ entries)                               |
+| `INVARIANT_CATALOG`               | `Invariant[]` | Complete invariant catalog (all 90+ entries)                               |
 | `getFilteredInvariants(config)`   | function      | Filter catalog by language, governance level, tiers                        |
 | `getInvariantsByTier(invariants)` | function      | Group a filtered set by tier                                               |
 | `presetToTiers(preset)`           | function      | Map preset name to tier array                                              |

@@ -34,7 +34,8 @@ const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : proces
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows')
 
 // Informational-only workflows where continue-on-error is acceptable at job level
-const INFORMATIONAL_PATTERNS = ['heartbeat', 'nightly', 'weekly', 'monthly']
+// `notify` covers _notify.yml (issue comments) and _post-merge-notify.yml (CODEOWNERS email)
+const INFORMATIONAL_PATTERNS = ['heartbeat', 'nightly', 'weekly', 'monthly', 'notify']
 
 function collectYamlFiles(dir) {
   if (!existsSync(dir)) return []

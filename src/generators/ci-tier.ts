@@ -35,5 +35,16 @@ export function generateCiTier(config: ProjectConfig): CiTierGeneratorResult {
     ),
   ]
 
+  // #943: opt-in post-merge CODEOWNERS email notification (L2+ only).
+  // Requires MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD secrets and MAIL_DOMAIN_ALLOWLIST var.
+  if (config.governanceLevel !== 'L1' && config.enableCodeownersNotify === true) {
+    files.push(
+      writeFile(
+        join(workflowsDir, '_post-merge-notify.yml'),
+        renderTemplate('github/workflows/_post-merge-notify.yml.ejs', data),
+      ),
+    )
+  }
+
   return { files }
 }

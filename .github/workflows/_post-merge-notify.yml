@@ -1,0 +1,221 @@
+name: Post-merge CODEOWNERS notification
+
+# Sends a plain-text email to CODEOWNERS after each merged PR.
+# Body: PR URL, author, coverage %, changed files. No PR body (untrusted text).
+#
+# Trust boundary: when a fork PR is merged, this workflow runs on the merge
+# commit on the default branch with full secret access. The Python step never
+# logs str(exception) on SMTP failure to avoid credential leakage in job logs.
+#
+# Setup required:
+#   secrets:   MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD
+#   variables: MAIL_DOMAIN_ALLOWLIST (comma-separated domains, or `*` to allow all)
+#
+# Limitation: CODEOWNERS `**` patterns are not supported by the simplified
+# matcher below. Standard glob (`*`, `*.ext`, `path/`, `/anchored`) works.
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: '${{ github.repository }}-post-merge-notify'
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify-codeowners:
+    if: github.event.pull_request.merged == true && github.run_attempt == 1
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        continue-on-error: true
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: Get changed files
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          TMPFILE=$(mktemp)
+          git diff -z --name-only "$BASE_SHA" "$HEAD_SHA" \
+            | python3 -c "
+          import sys
+          raw = sys.stdin.buffer.read().split(b'\x00')
+          files = [f.decode('utf-8', errors='replace') for f in raw
+                   if f and b'\r' not in f and b'\n' not in f]
+          capped = files[:100]
+          trailer = ['... and {} more file(s)'.format(len(files)-100)] if len(files) > 100 else []
+          print('\n'.join(capped + trailer))
+          " > "$TMPFILE"
+          echo "files_path=$TMPFILE" >> $GITHUB_OUTPUT
+
+      - name: Find CODEOWNERS
+        id: codeowners
+        run: |
+          for path in .github/CODEOWNERS CODEOWNERS docs/CODEOWNERS; do
+            if [ -f "$path" ]; then
+              echo "path=$path" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+          echo "path=" >> $GITHUB_OUTPUT
+
+      - name: Parse CODEOWNERS and send email
+        env:
+          MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+          MAIL_PORT: ${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_DOMAIN_ALLOWLIST: ${{ vars.MAIL_DOMAIN_ALLOWLIST }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          CODEOWNERS_PATH: ${{ steps.codeowners.outputs.path }}
+          FILES_PATH: ${{ steps.changed.outputs.files_path }}
+        run: |
+          python3 << 'PYEOF'
+          import fnmatch, json, os, re, ssl, sys, smtplib
+          from email.message import EmailMessage
+
+          mail_server = os.environ.get('MAIL_SERVER', '')
+          if not mail_server:
+              print('MAIL_SERVER not configured — skipping notification')
+              sys.exit(0)
+
+          files_path = os.environ.get('FILES_PATH', '')
+          changed_files = []
+          if files_path and os.path.isfile(files_path):
+              changed_files = [l for l in open(files_path).read().splitlines() if l]
+          if not changed_files:
+              print('No changed files detected — skipping')
+              sys.exit(0)
+
+          def codeowners_match(filepath, pattern):
+              if pattern.startswith('/'):
+                  pattern = pattern[1:]
+              if pattern.endswith('/'):
+                  return filepath.startswith(pattern) or filepath == pattern.rstrip('/')
+              return (fnmatch.fnmatch(filepath, pattern) or
+                      fnmatch.fnmatch(os.path.basename(filepath), pattern) or
+                      filepath.startswith(pattern.rstrip('/') + '/'))
+
+          codeowners_path = os.environ.get('CODEOWNERS_PATH', '')
+          file_to_owners = {}
+          email_re = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+
+          if codeowners_path and os.path.isfile(codeowners_path):
+              with open(codeowners_path) as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line or line.startswith('#'):
+                          continue
+                      parts = line.split()
+                      if len(parts) < 2:
+                          continue
+                      pattern, owners = parts[0], parts[1:]
+                      emails = [m for o in owners
+                                for m in email_re.findall(o)
+                                if '\r' not in m and '\n' not in m]
+                      if not emails:
+                          continue
+                      for cf in changed_files:
+                          if codeowners_match(cf, pattern):
+                              file_to_owners[cf] = emails
+
+          recipients = set()
+          for emails in file_to_owners.values():
+              recipients.update(emails)
+
+          if not recipients:
+              print('No email addresses found in CODEOWNERS for changed files — skipping')
+              sys.exit(0)
+
+          allowlist_raw = os.environ.get('MAIL_DOMAIN_ALLOWLIST', '').strip()
+          if not allowlist_raw:
+              print('MAIL_DOMAIN_ALLOWLIST not configured — notifications disabled. '
+                    'Set to domain list or * to enable.')
+              sys.exit(0)
+          if allowlist_raw != '*':
+              allowed = {d.strip().lower() for d in allowlist_raw.split(',') if d.strip()}
+              before = len(recipients)
+              recipients = {r for r in recipients if r.split('@')[-1].lower() in allowed}
+              if len(recipients) < before:
+                  print(f'Domain allowlist filtered {before - len(recipients)} recipient(s)')
+
+          recipients_list = list(recipients)[:10]
+          if len(recipients) > 10:
+              print(f'Recipient cap (10) reached — {len(recipients) - 10} address(es) skipped')
+
+          if not recipients_list:
+              print('No recipients after filtering — skipping')
+              sys.exit(0)
+
+          coverage_pct = 'N/A'
+          try:
+              with open('coverage/coverage-summary.json') as f:
+                  data = json.load(f)
+              coverage_pct = f"{data['total']['lines']['pct']:.1f}%"
+          except Exception:
+              pass
+
+          pr_number = os.environ.get('PR_NUMBER', '')
+          pr_title  = os.environ.get('PR_TITLE',  '').replace('\r', '').replace('\n', '')
+          pr_url    = os.environ.get('PR_URL',    '')
+          pr_author = os.environ.get('PR_AUTHOR', '').replace('\r', '').replace('\n', '')
+          mail_user = os.environ.get('MAIL_USERNAME', '')
+
+          file_lines = [f'  {f}' for f in changed_files if not f.startswith('...')]
+          body = '\n'.join([
+              f'PR #{pr_number} merged: {pr_title}',
+              f'Author:   {pr_author}',
+              f'URL:      {pr_url}',
+              f'Coverage: {coverage_pct}',
+              '',
+              'Changed files:',
+              *file_lines,
+          ])
+          if len(body) > 50_000:
+              body = body[:50_000] + '\n[truncated]'
+
+          msg = EmailMessage()
+          msg['Subject'] = f'[PR merged] #{pr_number} {pr_title}'
+          msg['From']    = mail_user or 'noreply@github.com'
+          msg['To']      = mail_user or 'noreply@github.com'
+          msg['Bcc']     = ', '.join(recipients_list)
+          msg.set_content(body)
+
+          mail_port = int(os.environ.get('MAIL_PORT', '587') or '587')
+          mail_pass = os.environ.get('MAIL_PASSWORD', '')
+          ctx = ssl.create_default_context()
+          try:
+              if mail_port == 465:
+                  with smtplib.SMTP_SSL(mail_server, mail_port, context=ctx, timeout=30) as s:
+                      if mail_user and mail_pass:
+                          s.login(mail_user, mail_pass)
+                      s.send_message(msg)
+              else:
+                  with smtplib.SMTP(mail_server, mail_port, timeout=30) as s:
+                      s.starttls(context=ctx)
+                      s.ehlo()
+                      if mail_user and mail_pass:
+                          s.login(mail_user, mail_pass)
+                      s.send_message(msg)
+              print(f'Notification sent to {len(recipients_list)} recipient(s)')
+          except Exception:
+              print('SMTP send failed (redacted)')
+              sys.exit(0)
+          PYEOF

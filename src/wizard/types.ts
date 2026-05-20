@@ -288,6 +288,14 @@ export interface ProjectConfig {
    * Off by default — opt in when load/performance testing is needed (#895).
    */
   enablePerfTesting?: boolean
+
+  /**
+   * #943: emit _post-merge-notify.yml workflow that sends an email to CODEOWNERS
+   * after each merged PR (result + coverage + changed files). L2+ only.
+   * Off by default — requires MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD secrets and
+   * a MAIL_DOMAIN_ALLOWLIST variable (set to `*` to allow all domains).
+   */
+  enableCodeownersNotify?: boolean
 }
 
 export type PlanDepth = 'minimal' | 'brief' | 'full'
