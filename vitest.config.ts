@@ -14,6 +14,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: [join(root, 'vitest.setup.ts')],
+    // Generator tests create full project trees; under full-suite parallelism
+    // they compete for CPU and easily exceed the 5 s vitest default.
+    testTimeout: 20000,
     // Integration tests are L2+ per AGENTS.md gate policy; L1 unit-only keeps pre-commit fast.
     include: ['__tests__/**/*.test.ts'],
     exclude: ['**/node_modules/**', '__tests__/integration/**'],
