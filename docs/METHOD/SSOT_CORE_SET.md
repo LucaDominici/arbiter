@@ -28,6 +28,7 @@ related: []
 - `docs/METHOD/KNOWLEDGE_MAP.md` — Navigation index for heavy documentation; read this before opening large docs
 - `docs/METHOD/SSOT_CORE_SET.md` — This file (authoritative SSOT inventory)
 - `docs/METHOD/CANONICAL_PATHS.md` — Aliasing registry for moved/renamed documents; check before reporting broken links
+- `docs/METHOD/PATTERNS_CATALOG.md` — Curated registry of arbiter reusable patterns (CANON-16 refactor-first target)
 
 - `docs/METHOD/ENGINEERING_DEFAULTS.md` — SOLID principles, coding standards, complexity limits
 - `docs/METHOD/TAG_TAXONOMY.md` — Closed vocabulary for the `tags:` frontmatter field on hand-authored docs

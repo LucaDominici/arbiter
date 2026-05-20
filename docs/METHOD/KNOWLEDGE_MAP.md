@@ -34,7 +34,7 @@ related: []
 ## docs/METHOD/SSOT_CORE_SET.md
 
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
-**Lines:** 65
+**Lines:** 66
 **Purpose:** Authoritative inventory of all SSOT documents. Start here to discover what documentation exists.
 
 | Section    | Description                       |
@@ -93,7 +93,7 @@ related: []
 ## docs/METHOD/TRACK_MODEL.md
 
 **Location:** `docs/METHOD/TRACK_MODEL.md`
-**Lines:** 147
+**Lines:** 152
 **Purpose:** Work-scope taxonomy (core/templates/kit/docs/ci/meta). Read before tagging a task with its track.
 
 | Section            | Description                                            |
