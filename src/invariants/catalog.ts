@@ -1153,7 +1153,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'doctor health check + code review for any new `.arbiter/` mutator',
   },
 
-  // ─── GitHub CI Tier Invariants (INV-73..INV-81) ──────────────────────────────
+  // ─── GitHub CI Tier Invariants (INV-73..INV-82) ──────────────────────────────
   // Applies when useGitHub: true. Generated gate scripts enforce at L1/L2.
 
   {
@@ -1430,8 +1430,23 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'scripts/check-nightly-freshness.mjs',
   },
 
+  {
+    id: 'INV-82',
+    tier: 'operational',
+    title: 'Monthly (T5b) workflow present + heartbeat asserts ≤32d freshness',
+    description:
+      'The 08-monthly.yml workflow (T5b) must exist and the 09-heartbeat.yml cron must assert ' +
+      'that it completed within the last 32 days. A monthly run older than 32 days is treated as ' +
+      'a silent CI failure and triggers an auto-filed GitHub issue. ' +
+      'Pairs with INV-75 (heartbeat watchdog, which sets the ≤35d outer bound) and ' +
+      'check-monthly-freshness.mjs (stamp validator).',
+    alwaysActive: false,
+    enforcement: 'scripts/check-monthly-freshness.mjs',
+  },
+
   // arbiter:noscan-inv-reservation
-  // RESERVED: INV-82 (T5b heartbeat, #862), INV-83 (audit-append-only),
-  // INV-84 (audit-trigger-presence) — sibling epic #TBD-sibling-epic phases B/G.
+  // RESERVED: INV-83 (audit-append-only), INV-84 (audit-trigger-presence) —
+  // sibling epic #TBD-sibling-epic phases B/G.
+  // INV-82 promoted to active entry in #869.
   // Do NOT claim these numbers before those PRs land.
 ]

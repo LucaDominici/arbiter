@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-// Machine-guard for INV-82/83/84 reservation: none must appear as catalog id entries.
+// Machine-guard for INV-83/84 reservation: none must appear as catalog id entries.
+// INV-82 was promoted to an active entry in #869.
 // If a parallel PR claims one of these IDs, this test fails before it can merge.
 
 import { describe, it, expect } from 'vitest'
@@ -17,7 +18,8 @@ for (const match of catalogSource.matchAll(ID_PATTERN)) {
   catalogIds.add(match[1])
 }
 
-const RESERVED = ['INV-82', 'INV-83', 'INV-84']
+// INV-82 promoted to active entry in #869; only INV-83/84 remain reserved.
+const RESERVED = ['INV-83', 'INV-84']
 
 describe('INV reservation guard', () => {
   for (const id of RESERVED) {
@@ -25,4 +27,8 @@ describe('INV reservation guard', () => {
       expect(catalogIds.has(id)).toBe(false)
     })
   }
+
+  it('INV-82 must appear as an active catalog entry (promoted in #869)', () => {
+    expect(catalogIds.has('INV-82')).toBe(true)
+  })
 })
