@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#955",
+  "test_path": "__tests__/templates/heartbeat-shell-safety.test.ts",
+  "test_commit_sha": "bcc046d7ac2c6226e2ef18db005f4a9df5dc0ce3",
+  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter.worktrees/955-ci-green-pass\n\n ❯ __tests__/templates/heartbeat-shell-safety.test.ts (2 tests | 1 failed) 9ms\n     × every gh run list call in 09-heartbeat.yml is wrapped with || echo '[]' fallback 4ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)\n   Start at  17:01:45\n   Duration  96ms (transform 17ms, setup 13ms, import 12ms, tests 9ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/templates/heartbeat-shell-safety.test.ts > heartbeat shell-safety — gh run list calls are guarded > every gh run list call in 09-heartbeat.yml is wrapped with || echo '[]' fallback\nAssertionError: expected +0 to be 3 // Object.is equality\n\n- Expected\n+ Received\n\n- 3\n+ 0\n\n ❯ __tests__/templates/heartbeat-shell-safety.test.ts:20:21\n     18|     // and `2>/dev/null` between `--repo \"$GH_REPO\"` and `|| echo '[]'…\n     19|     const guarded = (rendered.match(/gh run list[\\s\\S]*?\\|\\| echo ['\"]…\n     20|     expect(guarded).toBe(calls)\n       |                     ^\n     21|   })\n     22|\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/templates/heartbeat-shell-safety.test.ts",
+  "recorded_at": "2026-05-20T15:01:46.125Z"
+}
