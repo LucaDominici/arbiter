@@ -3,6 +3,12 @@ title: External KIT Sources
 type: reference
 status: CURRENT
 date: 2026-05-19
+doc_version: '1.0.0'
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # External KIT Sources

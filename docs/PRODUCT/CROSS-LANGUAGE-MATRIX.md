@@ -1,3 +1,14 @@
+---
+title: 'Arbiter — Cross-Language Enforcement Matrix'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Arbiter — Cross-Language Enforcement Matrix
 
 **Status:** Active

@@ -1,3 +1,14 @@
+---
+title: "N23: Test TDD evidence captured (W4 protocol)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N23 hash=c9f644200e545ba50ffdbeebb60ceff3fe3a335db26ca55cfe8d4859013b7e0f generator=kit@1 -->
 # N23: Test TDD evidence captured (W4 protocol)
 

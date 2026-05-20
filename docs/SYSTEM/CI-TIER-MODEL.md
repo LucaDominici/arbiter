@@ -1,3 +1,14 @@
+---
+title: 'Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)
 
 > **Status**: approved design — 2026-05-17  

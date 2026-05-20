@@ -1,3 +1,14 @@
+---
+title: 'Recipe — Profiling a slow arbiter command'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe — Profiling a slow arbiter command
 
 **Goal:** Capture a V8 CPU profile of an arbiter invocation and inspect it in Chrome DevTools.

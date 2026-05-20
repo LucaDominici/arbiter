@@ -1,3 +1,14 @@
+---
+title: 'Template System'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Template System
 
 Arbiter generates all output files from templates. This document covers why EJS was chosen, the full `ProjectConfig` variable reference available in templates, conditional branching patterns, the `renderTemplate()` pipeline, and a complete inventory of the 32 template files.

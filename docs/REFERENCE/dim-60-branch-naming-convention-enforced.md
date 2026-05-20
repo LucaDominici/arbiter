@@ -1,3 +1,14 @@
+---
+title: "N60: Branch naming convention enforced"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N60 hash=240313fd5938ec5c5bf07e7acaca1a33321c2f808b300817436ef005d8aafe8a generator=kit@1 -->
 # N60: Branch naming convention enforced
 

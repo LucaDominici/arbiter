@@ -1,3 +1,14 @@
+---
+title: 'ADR-013: Fixture-based per-claim testing'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-013: Fixture-based per-claim testing
 
 **Status:** Accepted

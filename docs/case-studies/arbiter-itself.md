@@ -1,3 +1,14 @@
+---
+title: 'Case study: arbiter governs arbiter'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Case study: arbiter governs arbiter
 
 **Issue:** #651 (R1.O1)

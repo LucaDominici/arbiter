@@ -1,3 +1,14 @@
+---
+title: 'Self-Validation Protocol — A/B/C Drill'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Self-Validation Protocol — A/B/C Drill
 
 > **INV-53** | Governance | `scripts/check-exit-code-contract.mjs` (L1) + `scripts/self-validation.mjs` (L2)

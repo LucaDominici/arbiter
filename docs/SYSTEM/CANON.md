@@ -1,3 +1,14 @@
+---
+title: 'arbiter Canon — Lessons Learned'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter Canon — Lessons Learned
 
 > Process rules derived from audit waves #151–#186. Sitting below INV-NN in the Authority Hierarchy but above individual implementation decisions. Every implementation of an open issue must cite the CANON-NN IDs that apply.

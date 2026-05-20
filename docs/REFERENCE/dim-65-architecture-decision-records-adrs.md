@@ -1,3 +1,14 @@
+---
+title: "N65: Architecture decision records (ADRs)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N65 hash=72960620ccfa631bf27adada42b69245eb76b133aff023709a09dcc5bba14e40 generator=kit@1 -->
 # N65: Architecture decision records (ADRs)
 

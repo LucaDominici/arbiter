@@ -1,3 +1,14 @@
+---
+title: "N43: DAST scan (OWASP ZAP / Nuclei)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N43 hash=ed9265063f983c7bdeb9f8f8199c46415d3b829dfafa903f0ad3ffc63f80e2b5 generator=kit@1 -->
 # N43: DAST scan (OWASP ZAP / Nuclei)
 

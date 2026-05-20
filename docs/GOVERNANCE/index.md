@@ -1,3 +1,14 @@
+---
+title: 'arbiter Governance'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter Governance
 
 arbiter is governed by the same framework it ships. This page surfaces the key

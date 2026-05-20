@@ -1,3 +1,14 @@
+---
+title: "N12: SpotBugs / null-safety analysis"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N12 hash=60ac4f2e5b4d98bd3f71a9d18fa8ef8863ecfea4e14b6807eee49986fa68ab27 generator=kit@1 -->
 # N12: SpotBugs / null-safety analysis
 

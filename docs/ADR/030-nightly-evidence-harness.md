@@ -1,3 +1,14 @@
+---
+title: 'ADR-030 — Nightly Pipeline & Evidence Harness'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-030 — Nightly Pipeline & Evidence Harness
 
 **Status:** Accepted

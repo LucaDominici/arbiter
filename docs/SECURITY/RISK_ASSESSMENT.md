@@ -1,3 +1,14 @@
+---
+title: 'Risk Assessment'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Risk Assessment
 
 > ISO 27001:2022 §6.1.2 — Information security risk assessment

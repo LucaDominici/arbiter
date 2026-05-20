@@ -1,3 +1,14 @@
+---
+title: 'ADR-011: Brownfield-first design — conflict resolution from day one'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-011: Brownfield-first design — conflict resolution from day one
 
 **Status:** Accepted

@@ -1,3 +1,14 @@
+---
+title: 'Generated File Format Stability Map'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Generated File Format Stability Map
 
 **Issue:** #609

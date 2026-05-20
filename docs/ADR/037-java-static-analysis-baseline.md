@@ -1,3 +1,14 @@
+---
+title: 'ADR-037 — Java Static Analysis: Baseline Audit and Wiring Fixes'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-037 — Java Static Analysis: Baseline Audit and Wiring Fixes
 
 **Date:** 2026-05-10

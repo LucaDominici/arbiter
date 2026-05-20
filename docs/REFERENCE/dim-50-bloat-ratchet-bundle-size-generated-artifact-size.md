@@ -1,3 +1,14 @@
+---
+title: "N50: Bloat ratchet (bundle size / generated artifact size)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N50 hash=c107872660390ced29e8f06958a91b196733b5a86e732ae9c42982a1c79077bf generator=kit@1 -->
 # N50: Bloat ratchet (bundle size / generated artifact size)
 

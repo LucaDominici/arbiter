@@ -1,3 +1,14 @@
+---
+title: "Pre-Launch Manual QA Checklist"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 # Pre-Launch Manual QA Checklist
 
 Run before every public release (RC included). Target: ≤ 90 minutes per pass.

@@ -1,3 +1,14 @@
+---
+title: 'Extraction Playbook — PHOENIX framework-extraction pattern (M-06 port)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Extraction Playbook — PHOENIX framework-extraction pattern (M-06 port)
 
 > **Origin:** Ported from PHOENIX (reference-impl) framework-extraction docs

@@ -1,3 +1,14 @@
+---
+title: 'Good First Issue Curation — Launch Batch'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Good First Issue Curation — Launch Batch
 
 10 issues curated at the v1 public launch. Each is filed using `docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md`.

@@ -1,3 +1,14 @@
+---
+title: "N04: No Spring annotations in domain layer"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N04 hash=c8a23fb44110aa27c6e46114630838e0846688b5d413469cb560b2aba6037769 generator=kit@1 -->
 # N04: No Spring annotations in domain layer
 

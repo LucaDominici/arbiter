@@ -1,3 +1,14 @@
+---
+title: "N44: Auth flow E2E (Keycloak-compatible IdP integration test)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N44 hash=27ff1939f163a35127c49ad2964578e4d9e8e37e7b42647ee1db580425cceeb3 generator=kit@1 -->
 # N44: Auth flow E2E (Keycloak-compatible IdP integration test)
 

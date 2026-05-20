@@ -1,3 +1,14 @@
+---
+title: "N07: No circular dependencies between modules"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N07 hash=e6f0d4c3c65c4df5fe57527da42a4064e0d37f1f9869082c305bc277451aa9d0 generator=kit@1 -->
 # N07: No circular dependencies between modules
 

@@ -1,3 +1,14 @@
+---
+title: "N68: Knowledge map (cross-repo canonical paths and signal sources)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N68 hash=ca0cb4e8cf9106d42b226422e9bab9e8bf4155f123fa05a38934a1e9e654d8cd generator=kit@1 -->
 # N68: Knowledge map (cross-repo canonical paths and signal sources)
 

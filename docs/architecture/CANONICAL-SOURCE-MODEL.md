@@ -1,3 +1,14 @@
+---
+title: 'Canonical Source Model — Deep Dive'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Canonical Source Model — Deep Dive
 
 Arbiter's invariant: one canonical governance file, all tool configs as thin overlays. This document explains the model in full, why it exists, and how the write pipeline enforces it at generation time.

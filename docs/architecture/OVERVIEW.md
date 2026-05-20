@@ -1,3 +1,14 @@
+---
+title: 'Arbiter — Architecture Overview'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Arbiter — Architecture Overview
 
 Arbiter generates a multi-layer governance stack for AI-assisted development. The architecture has one invariant: **a single canonical source of truth**, with all tool-specific configs as thin overlays.

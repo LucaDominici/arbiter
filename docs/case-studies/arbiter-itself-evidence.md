@@ -1,3 +1,14 @@
+---
+title: "Evidence trail: arbiter's own knowledge map snapshot"
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Evidence trail: arbiter's own knowledge map snapshot
 
 **Issue:** #653 (R1.O3)

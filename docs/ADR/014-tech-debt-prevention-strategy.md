@@ -1,3 +1,14 @@
+---
+title: 'ADR-014: Tech Debt Prevention Strategy — Foundation-First Milestone Resequencing'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-014: Tech Debt Prevention Strategy — Foundation-First Milestone Resequencing
 
 **Status:** Accepted

@@ -1,3 +1,14 @@
+---
+title: 'Incident: INV-04 (`any` ban) catching an unsafe cast in the detector'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Incident: INV-04 (`any` ban) catching an unsafe cast in the detector
 
 **Invariant:** INV-04 — no `any` type in TypeScript source  

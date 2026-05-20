@@ -1,3 +1,14 @@
+---
+title: "N37: Nightly extended checks (mutation, DAST, performance baseline)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N37 hash=c930cb357e7e2e168a17f86a9ff71748672cd791a218c2aac5b993873092f00f generator=kit@1 -->
 # N37: Nightly extended checks (mutation, DAST, performance baseline)
 

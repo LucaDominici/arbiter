@@ -1,3 +1,14 @@
+---
+title: 'Java Stack Adapter Reference'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Java Stack Adapter Reference
 
 **Issue:** #889 (F2-java) — Full Java/Spring adapter (94 crosswalk dimensions)

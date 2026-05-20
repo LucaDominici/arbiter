@@ -1,3 +1,14 @@
+---
+title: 'Integrations'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Integrations
 
 Arbiter's **detect-and-reference** posture lets it work alongside other Claude Code plugin suites (superpowers, pr-review-toolkit, frontend-design) without copying their content.

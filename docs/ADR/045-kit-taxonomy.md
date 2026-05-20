@@ -1,3 +1,14 @@
+---
+title: 'ADR-045: KIT Taxonomy — Wrap-Not-Replace, Field Cross-Walk, and Parity Contract'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-045: KIT Taxonomy — Wrap-Not-Replace, Field Cross-Walk, and Parity Contract
 
 **Project:** arbiter

@@ -1,3 +1,14 @@
+---
+title: 'ADR-002: Thin pointer pattern for tool overlays'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-002: Thin pointer pattern for tool overlays
 
 **Status:** Accepted

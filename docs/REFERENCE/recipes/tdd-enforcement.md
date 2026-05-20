@@ -1,3 +1,14 @@
+---
+title: 'Recipe: TDD Evidence Enforcement (INV-26)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: TDD Evidence Enforcement (INV-26)
 
 Arbiter enforces TDD at the gate level. Every task-ID commit on a branch must

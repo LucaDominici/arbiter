@@ -1,3 +1,14 @@
+---
+title: 'CI/CD Developer Reference'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # CI/CD Developer Reference
 
 This document covers the W4 CI tier baseline: what was built, how it works, and how to maintain it.

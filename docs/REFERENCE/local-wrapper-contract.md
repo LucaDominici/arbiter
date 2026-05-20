@@ -1,3 +1,14 @@
+---
+title: 'Local-Wrapper Contract (INV-87, W3)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Local-Wrapper Contract (INV-87, W3)
 
 Arbiter ships a POSIX Makefile + `run.sh` shim as the **local CI parity façade**. This document defines the contract between the wrapper and the CI workflow layer.

@@ -1,3 +1,14 @@
+---
+title: "N55: Secret scanning (Gitleaks)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N55 hash=a89a95293f8bd6e02201cb746191d0aea1f1a9713494e8c7aa0c244df692725e generator=kit@1 -->
 # N55: Secret scanning (Gitleaks)
 

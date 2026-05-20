@@ -1,3 +1,14 @@
+---
+title: 'Incident: INV-32 (matrix fixture parity) blocking a `beta → proven` promotion'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Incident: INV-32 (matrix fixture parity) blocking a `beta → proven` promotion
 
 **Invariant:** INV-32 — every language with ≥1 `proven` cell must have a fixture  

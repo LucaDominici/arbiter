@@ -1,3 +1,14 @@
+---
+title: 'ADR-034: Phase-Tracked Lifecycle Hard Enforcement'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-034: Phase-Tracked Lifecycle Hard Enforcement
 
 **Status:** Accepted

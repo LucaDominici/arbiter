@@ -1,3 +1,14 @@
+---
+title: "N51: Debt ratchet (tech-debt score gate)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N51 hash=06d02c95e56f21fea26aa8fc76b91754fed1493c1561bd21a535b7abf7f168f0 generator=kit@1 -->
 # N51: Debt ratchet (tech-debt score gate)
 

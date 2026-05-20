@@ -1,3 +1,14 @@
+---
+title: "N29: BDD / behavioural tests (Cucumber / pytest-bdd / godog)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N29 hash=5b79ca33e4ff36e97e245d0786abee6bdf0b62b9ee6dcc94cac353beb2312c5a generator=kit@1 -->
 # N29: BDD / behavioural tests (Cucumber / pytest-bdd / godog)
 

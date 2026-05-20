@@ -1,3 +1,14 @@
+---
+title: "N73: Tamper-evident audit log table DDL (security-critical operations)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N73 hash=984a99ebce92ce73442a48a13eef001c0f6e6f274783c0af3fd93a1fd1941657 generator=kit@1 -->
 # N73: Tamper-evident audit log table DDL (security-critical operations)
 

@@ -1,3 +1,14 @@
+---
+title: "Docs Site: A11y + Mobile Responsiveness Checklist"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 # Docs Site: A11y + Mobile Responsiveness Checklist
 
 Companion to automated axe-core CI (`.github/workflows/docs-a11y.yml`).

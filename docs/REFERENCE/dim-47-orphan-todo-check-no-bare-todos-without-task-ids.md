@@ -1,3 +1,14 @@
+---
+title: "N47: Orphan TODO check (no bare TODOs without task IDs)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N47 hash=0900bad213c95decfdfacea9aa5ba4294c8901f9ea5c186ac9efe958c16cd732 generator=kit@1 -->
 # N47: Orphan TODO check (no bare TODOs without task IDs)
 

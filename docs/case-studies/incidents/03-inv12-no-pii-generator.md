@@ -1,3 +1,14 @@
+---
+title: 'Incident: INV-12 (no PII / no direct spawn) caught in a generator'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Incident: INV-12 (no PII / no direct spawn) caught in a generator
 
 **Invariant:** INV-12 — no PII in committed files; no direct process spawn  

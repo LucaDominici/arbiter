@@ -1,3 +1,14 @@
+---
+title: 'ADR-039: V1 Verification Bridge'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-039: V1 Verification Bridge
 
 **Date:** 2026-05-13

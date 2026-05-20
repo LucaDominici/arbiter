@@ -1,3 +1,14 @@
+---
+title: 'Canonical Paths — arbiter'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Canonical Paths — arbiter
 
 **Purpose:** Aliasing registry for documents that have moved or been renamed. Before reporting a broken link, check this file for a redirect.

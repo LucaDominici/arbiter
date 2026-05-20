@@ -1,3 +1,14 @@
+---
+title: "N41: E2E API tests (RestAssured / Playwright / pytest-playwright)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N41 hash=0b9aa2d3488855ebb4a76237ed244f8d968d0a7c171b3ee68651c9630994ab4a generator=kit@1 -->
 # N41: E2E API tests (RestAssured / Playwright / pytest-playwright)
 

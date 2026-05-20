@@ -1,3 +1,14 @@
+---
+title: 'ADR-017: Skills & Sub-Agents Generation (M19)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-017: Skills & Sub-Agents Generation (M19)
 
 **Status:** Accepted

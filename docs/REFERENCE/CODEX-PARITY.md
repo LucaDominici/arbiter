@@ -1,3 +1,14 @@
+---
+title: 'Codex Governance Parity Reference'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Codex Governance Parity Reference
 
 > **Status:** Gap is intentional — Codex has no hook/plugin extension point.

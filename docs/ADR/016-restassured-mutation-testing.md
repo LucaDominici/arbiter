@@ -1,3 +1,14 @@
+---
+title: 'ADR-016: RestAssured + Mutation Testing — 3-Layer Java Enforcement'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-016: RestAssured + Mutation Testing — 3-Layer Java Enforcement
 
 **Status:** Superseded by ADR-029

@@ -1,3 +1,14 @@
+---
+title: "N74: Audit trigger presence (DB-level audit trigger enforced)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N74 hash=8e52f417c6415e6a7e35d4a2e1a7372d30659e574df10e89ec044a5c3a561684 generator=kit@1 -->
 # N74: Audit trigger presence (DB-level audit trigger enforced)
 

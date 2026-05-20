@@ -1,3 +1,14 @@
+---
+title: 'Extended Invariants — Rationale and Usage'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Extended Invariants — Rationale and Usage
 
 Opt-in invariant set INV-62..INV-71, derived from production-grade conventions observed in

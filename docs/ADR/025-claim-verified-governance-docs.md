@@ -1,3 +1,14 @@
+---
+title: 'ADR-025 — Claim-Verified Governance Documents'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-025 — Claim-Verified Governance Documents
 
 **Status:** Accepted

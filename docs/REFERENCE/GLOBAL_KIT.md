@@ -1,3 +1,14 @@
+---
+title: "KIT Canonical Dimensions Reference"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=GLOBAL_KIT hash=1d91de953dcc73f751bd3ea6f9796b31deae05a9531b4e40582b724355534082 generator=kit@1 -->
 # KIT Canonical Dimensions Reference
 

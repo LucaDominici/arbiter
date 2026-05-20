@@ -1,3 +1,14 @@
+---
+title: 'Incident: INV-06 (orphan TODO) caught during milestone closeout'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Incident: INV-06 (orphan TODO) caught during milestone closeout
 
 **Invariant:** INV-06 — every TODO comment must reference a task ID (`TODO(#NNN): …`)  

@@ -1,3 +1,14 @@
+---
+title: 'Repository Setup (CANON-01)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Repository Setup (CANON-01)
 
 Arbiter generates `scripts/setup-repo.sh` for target projects. This document covers the equivalent steps for the **arbiter repo itself**.

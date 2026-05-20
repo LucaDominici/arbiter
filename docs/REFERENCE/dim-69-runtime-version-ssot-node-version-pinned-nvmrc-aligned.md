@@ -1,3 +1,14 @@
+---
+title: "N69: Runtime version SSOT (node version pinned, .nvmrc aligned)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N69 hash=333383ada85118aadf23d3b892764103d598857acd831c34d640cb79c73f5d78 generator=kit@1 -->
 # N69: Runtime version SSOT (node version pinned, .nvmrc aligned)
 

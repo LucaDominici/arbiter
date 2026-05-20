@@ -1,3 +1,14 @@
+---
+title: 'Release Channels'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Release Channels
 
 **Issue:** #660 (R1.Q1)

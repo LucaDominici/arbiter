@@ -1,3 +1,14 @@
+---
+title: "Release Playbook"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 # Release Playbook
 
 > **IMPORTANT:** At least one full rehearsal MUST precede v0.1.0 public release.

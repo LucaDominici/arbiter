@@ -1,3 +1,14 @@
+---
+title: 'Release v1 (Public OSS Launch) — Issue Tracking'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Release v1 (Public OSS Launch) — Issue Tracking
 
 > **Plan:** `/home/luca/.claude/plans/fluffy-honking-fox.md`

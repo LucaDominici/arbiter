@@ -1,3 +1,14 @@
+---
+title: 'Arbiter Project Presets'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Arbiter Project Presets
 
 Presets are meta-bundles that configure multiple governance features at once.

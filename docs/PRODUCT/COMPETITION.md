@@ -1,3 +1,14 @@
+---
+title: 'Arbiter — Competitive Landscape'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Arbiter — Competitive Landscape
 
 **Last updated:** 2026-04-01

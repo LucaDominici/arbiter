@@ -1,3 +1,14 @@
+---
+title: "N71: Feature flag / experiment registry (no undocumented flags)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N71 hash=6bad9ee00fdf821b5417b31b6a7b3598a5d3fe05bce1dde8f4cf9ec4e4295047 generator=kit@1 -->
 # N71: Feature flag / experiment registry (no undocumented flags)
 

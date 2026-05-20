@@ -1,3 +1,14 @@
+---
+title: 'ADR-028: Grace Period for Level Upgrade + Contract Type Axis'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-028: Grace Period for Level Upgrade + Contract Type Axis
 
 **Status:** Accepted
