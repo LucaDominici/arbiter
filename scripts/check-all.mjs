@@ -164,6 +164,7 @@ if (subcommand !== 'check') {
   runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
   runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
   runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
+  runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
