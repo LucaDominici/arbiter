@@ -22,6 +22,7 @@ issue: '#876'
 | `note`          | Port the lesson (pattern, insight) but not the artifact itself              |
 | `template-only` | Port as EJS framework template; never apply to arbiter-self                 |
 | `port`          | Port to arbiter-self AND framework                                          |
+| `done`          | Ported and verified — artifact shipped and gate-validated in arbiter        |
 
 ---
 
