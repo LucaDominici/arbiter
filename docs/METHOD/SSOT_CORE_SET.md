@@ -32,6 +32,8 @@ related: []
 - `docs/METHOD/ENGINEERING_DEFAULTS.md` — SOLID principles, coding standards, complexity limits
 - `docs/METHOD/TAG_TAXONOMY.md` — Closed vocabulary for the `tags:` frontmatter field on hand-authored docs
 - `docs/METHOD/DOC_SEMVER.md` — Per-document content semver policy (`doc_version:` axis, distinct from product semver)
+- `docs/METHOD/CONTEXT_PACK_SPEC.md` — Deterministic context-bundle artifact spec (Verification Bridge §Port #14a)
+- `docs/METHOD/TRACK_MODEL.md` — Work-scope taxonomy (core/templates/kit/docs/ci/meta) with CODEOWNERS + CI gate subsets
 
 ## Entrypoints (HOW To Start)
 

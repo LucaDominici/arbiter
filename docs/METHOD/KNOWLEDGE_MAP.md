@@ -34,7 +34,7 @@ related: []
 ## docs/METHOD/SSOT_CORE_SET.md
 
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
-**Lines:** 63
+**Lines:** 65
 **Purpose:** Authoritative inventory of all SSOT documents. Start here to discover what documentation exists.
 
 | Section    | Description                       |
@@ -70,6 +70,37 @@ related: []
 | Complexity Limits  | Per-language max cognitive complexity, nesting, parameter counts |
 | Naming Standards   | Module, interface, and type naming conventions                   |
 | Clean Code Rules   | Constants, dead code, immutability conventions                   |
+
+---
+
+## docs/METHOD/CONTEXT_PACK_SPEC.md
+
+**Location:** `docs/METHOD/CONTEXT_PACK_SPEC.md`
+**Lines:** 226
+**Purpose:** Deterministic context-bundle spec. Read before consuming or producing a CONTEXT_PACK artifact.
+
+| Section               | Description                                             |
+| --------------------- | ------------------------------------------------------- |
+| Authority Chain       | INV → KNOWLEDGE_MAP → SPEC → runtime slice precedence   |
+| Key Properties        | Deterministic, traceable, self-contained, minimal       |
+| Schema                | Section order, sort rules, hash rule                    |
+| Routing Resolution    | Explicit rule → spec default → baseline merge           |
+| Verbatim Extract Rule | Byte-for-byte rule for arbiter-internal source extracts |
+| CLI                   | `scripts/emit-context-pack.mjs` arguments               |
+
+---
+
+## docs/METHOD/TRACK_MODEL.md
+
+**Location:** `docs/METHOD/TRACK_MODEL.md`
+**Lines:** 147
+**Purpose:** Work-scope taxonomy (core/templates/kit/docs/ci/meta). Read before tagging a task with its track.
+
+| Section            | Description                                            |
+| ------------------ | ------------------------------------------------------ |
+| Tracks             | Per-track scope, owners, CI gate subset, dispatch hint |
+| Tagging a Task     | Required label + plan frontmatter convention           |
+| Coverage Invariant | Per-track label + CODEOWNERS + CI subset requirements  |
 
 ---
 

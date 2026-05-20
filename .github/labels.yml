@@ -54,6 +54,25 @@ labels:
   - name: monthly-regression
     color: "b60205"
     description: "Monthly (T5b) workflow detected a regression"
+  # Tracks (TRACK_MODEL.md)
+  - name: "track: core"
+    color: "cccccc"
+    description: "Track: TypeScript sources under src/ shipped in the built CLI"
+  - name: "track: templates"
+    color: "cccccc"
+    description: "Track: EJS templates and materialized .claude/.github/.agents/.codex/ outputs"
+  - name: "track: kit"
+    color: "cccccc"
+    description: "Track: tool catalog, archetype manifests, language matrices, adapter coverage"
+  - name: "track: docs"
+    color: "cccccc"
+    description: "Track: hand-authored Markdown under docs/ and root-level docs"
+  - name: "track: ci"
+    color: "cccccc"
+    description: "Track: GitHub Actions workflows, composite actions, CI-tier templates"
+  - name: "track: meta"
+    color: "cccccc"
+    description: "Track: scripts, hooks, gate script, evidence bundles, repo-level config"
   # Lifecycle
   - name: tech-debt
     color: "d93f0b"

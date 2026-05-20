@@ -1,0 +1,129 @@
+<% if (governanceLevel !== 'L1') { %># CONTEXT_PACK Specification — <%= projectName %>
+
+**Purpose:** Define the deterministic context-bundle artifact emitted per task.
+A CONTEXT_PACK is the minimum signed slice of authoritative documentation an
+agent needs to verify a plan or implementation against governance without
+re-reading the whole repository.
+
+**Location:** `docs/METHOD/CONTEXT_PACK_SPEC.md`
+**Generator:** `scripts/emit-context-pack.mjs`
+**Runtime artifact:** `<repo>/.arbiter/context-pack/<task-id>.md`
+
+---
+
+## Authority Chain
+
+When sources disagree, the higher tier wins:
+
+1. `GLOBAL_INVARIANTS.md` — invariants, quoted verbatim with line citations.
+2. `docs/METHOD/KNOWLEDGE_MAP.md` — explicit routing rules.
+3. `docs/METHOD/CONTEXT_PACK_SPEC.md` — default heuristics when KNOWLEDGE_MAP has no matching rule.
+4. `<repo>/.arbiter/context-pack/<task-id>.md` — the signed slice emitted for the task.
+
+A CONTEXT_PACK that disagrees with a higher tier is invalid. Re-emit; do not hand-edit.
+
+---
+
+## Key Properties
+
+A valid CONTEXT_PACK MUST be:
+
+- **Deterministic** — same inputs yield byte-identical output.
+- **Traceable** — every excerpt cites `<path>:L<start>-L<end>`, byte-equivalent to the cited range.
+- **Self-contained** — verifying the pack requires only the pack and the cited source files.
+- **Minimal** — only invariants, canon rules, and excerpts the task actually needs.
+
+---
+
+## Schema (Section Order)
+
+```text
+# CONTEXT_PACK — <task-id>
+
+## Header
+- spec_version: 1.0.0
+- task_id: <task-id>
+- track: <track-name>
+- emitted_from: scripts/emit-context-pack.mjs
+
+## Task Identity
+- task_id: <task-id>
+- track: <track-name>
+- files: [<comma-separated paths or "(none)">]
+- routing_source: explicit-rule | spec-default
+
+## INV Set
+- INV-NN
+- ...
+
+## CANON Set
+- CANON-NN
+- ...
+
+## Excerpts
+
+### <slug>
+source: <path>:L<start>-L<end>
+
+<verbatim content from the cited range>
+
+## Footer
+- excerpt_count: <integer>
+- hash: sha256:<64 lowercase hex chars>
+```
+
+### Sort Rules
+
+- `INV Set` and `CANON Set` — ascending by numeric tail.
+- `Excerpts` — by `(source path lexicographic, line_start ascending)`.
+- Empty INV/CANON lists render as `- (none)`.
+
+### Hash Rule
+
+`hash` is the sha256 of the UTF-8 bytes of the pack from the first character
+of `# CONTEXT_PACK` up to and including the newline after `- excerpt_count:`.
+The `hash:` line itself is excluded so regeneration reproduces the same hash.
+
+---
+
+## Routing Resolution
+
+1. **Explicit KNOWLEDGE_MAP rule** — if a fenced `routes:` YAML block in
+   `docs/METHOD/KNOWLEDGE_MAP.md` matches the track or any touched file,
+   that rule selects invariants, canon entries, and excerpts. Sets
+   `routing_source: explicit-rule`.
+2. **SPEC default by track** — if no explicit rule matches, the per-track
+   defaults below apply. Sets `routing_source: spec-default`.
+3. **Baseline** — every pack also includes `INV-01, INV-12, INV-13`,
+   merged with the above (deduplicated, sorted).
+
+### v1 Defaults per Track
+
+| Track       | Default invariants     | Default canon                | Default excerpts     |
+| ----------- | ---------------------- | ---------------------------- | -------------------- |
+| `core`      | INV-04, INV-05, INV-06 | CANON-16                     | touched files only   |
+| `templates` | INV-04                 | CANON-04, CANON-13, CANON-16 | touched files only   |
+| `kit`       | INV-04                 | CANON-02, CANON-03           | touched files only   |
+| `docs`      | (baseline only)        | (none)                       | touched files only   |
+| `ci`        | INV-13                 | CANON-18, CANON-19           | touched files only   |
+| `meta`      | (baseline only)        | (none)                       | touched files only   |
+
+---
+
+## Verbatim Extract Rule
+
+Extracts from arbiter documents MUST be byte-for-byte copies of the cited
+range. No paraphrase, reformat, or summary inside an excerpt. External
+materials are never quoted into a CONTEXT_PACK.
+
+---
+
+## CLI
+
+```text
+node scripts/emit-context-pack.mjs --task-id <#NNN> --track <name> [--files a,b,c] [--out path]
+```
+
+The emitter MUST NOT depend on `Date.now()`, environment variables, or
+filesystem ordering. All collections MUST be sorted before serialization.
+<% } %>
