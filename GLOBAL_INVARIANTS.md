@@ -466,3 +466,11 @@ check-all.mjs emits a gate result JSON to .arbiter/gate/local-result.json on eve
 **Enforcement:** scripts/check-local-ci-parity.mjs (L2 gate, #470) — exits 1 on hash mismatch; scripts/check-all.mjs --json flag emits the artifact that check-local-ci-parity.mjs reads
 
 ---
+
+### INV-96: Fail-closed default — every gate, hook, check, and generator blocks on uncertainty
+
+Doctrine: arbiter's gates default to block-on-uncertainty, never skip-on-uncertainty. Every script under scripts/, .githooks/, and .claude/hooks/ (and their EJS templates under src/templates/) must: (a) translate unhandled errors into a non-zero exit — node scripts wrap their entry block in try/catch with process.exit(1) or consume runCheck/runWarnCheck/runToolCheck from scripts/lib/run-helpers.mjs; bash scripts start with `set -euo pipefail`; (b) treat missing required inputs as failure with a diagnostic line; (c) reject silent bypass — any opt-out must be a loud env var with a logged reason (see Port #10 loud-bypass contract); (d) avoid the documented anti-patterns: `|| true` on critical paths, swallowed `catch {}` blocks, default-true booleans without explicit fallback. Legitimate fail-open paths must carry a `# FAIL-OPEN-INTENT: <reason>` (bash) or `// FAIL-OPEN-INTENT: <reason>` (node) comment on the line above the construct; reviewers must challenge the reason. Pre-existing non-conformant scripts are grandfathered in scripts/data/fail-closed-baseline.json — the baseline is a debt ledger, not a bypass. The gate hard-fails only when a NEW file (not in the baseline) violates the contract. See docs/SYSTEM/FAIL_CLOSED.md for the full doctrine, contract, and anti-pattern catalogue.
+
+**Enforcement:** scripts/check-fail-closed-audit.mjs (L2 gate) — exits 1 when a new file outside the baseline violates the fail-closed contract; doctrine at docs/SYSTEM/FAIL_CLOSED.md
+
+---
