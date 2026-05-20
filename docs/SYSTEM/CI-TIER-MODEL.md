@@ -289,7 +289,7 @@ INV-59 tier-hash extended: each subcommand publishes a hash; GH Actions workflow
 
 ---
 
-## 8. New Invariants (INV-72 … INV-80)
+## 8. New Invariants (INV-72 … INV-82)
 
 | INV    | Title                                            | Enforcement                                     |
 | ------ | ------------------------------------------------ | ----------------------------------------------- |
@@ -302,6 +302,7 @@ INV-59 tier-hash extended: each subcommand publishes a hash; GH Actions workflow
 | INV-78 | Cosign sign-blob per release artifact            | Release workflow contains cosign per archetype  |
 | INV-79 | No `continue-on-error: true` on test/build steps | Extend existing `workflow-integrity` hook       |
 | INV-80 | Tier-hash local↔CI parity                        | Extend INV-59 to T1..T5b hashes                 |
+| INV-82 | Monthly (T5b) workflow present + heartbeat ≤32d  | `scripts/check-monthly-freshness.mjs` (L1 gate) |
 
 ---
 
