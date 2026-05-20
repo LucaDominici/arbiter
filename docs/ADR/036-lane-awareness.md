@@ -76,3 +76,13 @@ Requires `pull-requests: write` permission (declared at job level, not workflow 
 - Multi-layer repos detected automatically during `arbiter init`; stored `lanes` field takes precedence over detection on subsequent `arbiter update`
 - Cross-product matrix expanded with sparse multi-lane suite (5 configs × 2 templates = 10 extra cases in CANON-13)
 - `check-matrix-fixtures.mjs` accepts optional `lanes` field in manifests (backward-compatible, no changes required to existing 9 fixtures)
+
+## Follow-up — 2026-05 (#969)
+
+`scripts/ci-classify-changes.mjs` and its template gained two additional category flags and a fail-closed posture:
+
+- New flags: `e2e_specs` (matches `__tests__/e2e/`, `tests/e2e/`) and `ssot` (matches `docs/SYSTEM/`, `docs/METHOD/SSOT_CORE_SET.md`, `arbiter.json`). Additive — existing 5 flags (`docs_only`, `backend_changed`, `frontend_changed`, `infra_changed`, `high_risk`) are unchanged.
+- Fail-closed: any uncaught error resolving the changed-file set emits every flag as `true` and exits 0 — "run everything" rather than "skip everything". Generated projects inherit the same posture (template throws on non-zero `spawnSync` status).
+- `--stdin` flag: read newline-delimited paths instead of `git diff`, for unit testing.
+
+Downstream consumer (`01-pr-fast.yml`) still references only the original 5 outputs. Wiring `e2e_specs`/`ssot` into job conditions is intentionally deferred to a follow-up.

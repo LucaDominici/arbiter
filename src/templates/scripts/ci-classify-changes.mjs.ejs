@@ -2,20 +2,31 @@
 // <%= projectName %> — CI change classifier
 // Reads changed files since origin/main and writes flags to $GITHUB_OUTPUT.
 // Advisory only — flag values inform job conditions, never block merge.
-// Flags: docs_only, backend_changed, frontend_changed, infra_changed, high_risk
-// Usage: node scripts/ci-classify-changes.mjs
+// Flags: docs_only, backend_changed, frontend_changed, infra_changed, high_risk, e2e_specs, ssot
+// Usage:
+//   node scripts/ci-classify-changes.mjs            # diff BASE_SHA..HEAD_SHA
+//   node scripts/ci-classify-changes.mjs --stdin    # read paths from stdin
+//
+// Fail-closed semantics: if resolving the changed set fails for any reason
+// (shallow clone, missing refs, git not on PATH), every category flag is
+// emitted as `true` so downstream jobs run defensively. "Fail-closed" here
+// means "run everything", never skip work because classification broke.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+
+const CATEGORY_KEYS = [
+  'docs_only',
+  'backend_changed',
+  'frontend_changed',
+  'infra_changed',
+  'high_risk',
+  'e2e_specs',
+  'ssot',
+];
 
 const base = process.env.BASE_SHA ?? 'origin/main';
 const head = process.env.HEAD_SHA ?? 'HEAD';
-
-const r = spawnSync('git', ['diff', '--name-only', `${base}...${head}`], {
-  encoding: 'utf-8',
-  shell: false,
-});
-
-const changed = (r.stdout || '').split('\n').filter(Boolean);
+const useStdin = process.argv.includes('--stdin');
 
 const DOCS_PATTERNS = [/^docs\//, /^README/i, /\.md$/i];
 const FRONTEND_PATTERNS = [/^src\/(?:ui|frontend|components|pages|views)\//, /\.(tsx?|css|scss|html)$/];
@@ -25,6 +36,8 @@ const HIGH_RISK_PATTERNS = [
   /migrations?\//,
   /schema\.(sql|graphql|proto)$/i,
 ];
+const E2E_PATTERNS = [/^__tests__\/e2e\//, /^tests\/e2e\//];
+const SSOT_PATTERNS = [/^docs\/SYSTEM\//, /^docs\/METHOD\/SSOT_CORE_SET\.md$/, /^arbiter\.json$/];
 <% if (language === 'typescript') { %>
 const BACKEND_PATTERNS = [/^src\//, /\.(ts|js)$/];
 <% } %><% if (language === 'java') { %>
@@ -37,23 +50,58 @@ const BACKEND_PATTERNS = [/^src\//, /\.py$/];
 const BACKEND_PATTERNS = [/^(?!.*_test\.go).*\.go$/, /^cmd\//, /^internal\//];
 <% } %>
 
-const match = (patterns) => changed.some((f) => patterns.some((p) => p.test(f)));
-
-const docs_only = changed.length > 0 && changed.every((f) => DOCS_PATTERNS.some((p) => p.test(f)));
-const backend_changed = match(BACKEND_PATTERNS);
-const frontend_changed = match(FRONTEND_PATTERNS);
-const infra_changed = match(INFRA_PATTERNS);
-const high_risk = match(HIGH_RISK_PATTERNS);
-
-const flags = { docs_only, backend_changed, frontend_changed, infra_changed, high_risk };
-
-process.stdout.write('[ci-classify] changed files: ' + changed.length + '\n');
-for (const [k, v] of Object.entries(flags)) {
-  process.stdout.write(`[ci-classify] ${k}=${v}\n`);
+function readStdinPaths() {
+  return readFileSync(0, 'utf-8').split('\n').filter(Boolean);
 }
 
-if (process.env.GITHUB_OUTPUT && existsSync(process.env.GITHUB_OUTPUT)) {
-  for (const [k, v] of Object.entries(flags)) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `${k}=${v}\n`);
+function resolveChangedPaths() {
+  if (useStdin) return readStdinPaths();
+  // No silent fallback: any git failure must propagate so the outer guard
+  // can fail-closed (emit true for every category).
+  const r = spawnSync('git', ['diff', '--name-only', `${base}...${head}`], {
+    encoding: 'utf-8',
+    shell: false,
+  });
+  if (r.error) throw r.error;
+  if (typeof r.status === 'number' && r.status !== 0) {
+    throw new Error(`git diff exited ${r.status}: ${r.stderr || '(no stderr)'}`);
   }
+  return (r.stdout || '').split('\n').filter(Boolean);
+}
+
+function emitFlag(key, value) {
+  process.stdout.write(`[ci-classify] ${key}=${value}\n`);
+  if (process.env.GITHUB_OUTPUT && existsSync(process.env.GITHUB_OUTPUT)) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
+  }
+}
+
+function emitAllTrue() {
+  for (const key of CATEGORY_KEYS) emitFlag(key, true);
+}
+
+let succeeded = false;
+try {
+  const changed = resolveChangedPaths();
+  const match = (patterns) => changed.some((f) => patterns.some((p) => p.test(f)));
+
+  const docs_only = changed.length > 0 && changed.every((f) => DOCS_PATTERNS.some((p) => p.test(f)));
+  const backend_changed = match(BACKEND_PATTERNS);
+  const frontend_changed = match(FRONTEND_PATTERNS);
+  const infra_changed = match(INFRA_PATTERNS);
+  const high_risk = match(HIGH_RISK_PATTERNS);
+  const e2e_specs = match(E2E_PATTERNS);
+  const ssot = match(SSOT_PATTERNS);
+
+  const flags = { docs_only, backend_changed, frontend_changed, infra_changed, high_risk, e2e_specs, ssot };
+
+  process.stdout.write('[ci-classify] changed files: ' + changed.length + '\n');
+  for (const [k, v] of Object.entries(flags)) emitFlag(k, v);
+  succeeded = true;
+} finally {
+  if (!succeeded) {
+    process.stderr.write('[ci-classify] ERROR resolving changed set — fail-closed, emitting all categories=true\n');
+    emitAllTrue();
+  }
+  process.exit(0);
 }
