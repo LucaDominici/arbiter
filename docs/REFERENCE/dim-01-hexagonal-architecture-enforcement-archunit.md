@@ -1,3 +1,14 @@
+---
+title: "N01: Hexagonal architecture enforcement (ArchUnit)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N01 hash=fd8798d922e9f58daf861e1c5f785897873d2cedcdb9c25b1d1494c381851e1b generator=kit@1 -->
 # N01: Hexagonal architecture enforcement (ArchUnit)
 

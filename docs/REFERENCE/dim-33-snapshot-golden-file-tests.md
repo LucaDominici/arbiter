@@ -1,3 +1,14 @@
+---
+title: "N33: Snapshot / golden-file tests"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N33 hash=4e2ce79e18df7e43adb7cb4e64fb1625035ed81f9eac3443d05348076a231c05 generator=kit@1 -->
 # N33: Snapshot / golden-file tests
 

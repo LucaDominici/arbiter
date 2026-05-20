@@ -1,3 +1,14 @@
+---
+title: 'ADR-038: Mission Elevation — v1.0 Scope'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-038: Mission Elevation — v1.0 Scope
 
 **Date:** 2026-05-10

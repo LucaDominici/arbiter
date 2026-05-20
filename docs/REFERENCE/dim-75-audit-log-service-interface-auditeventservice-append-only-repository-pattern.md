@@ -1,3 +1,14 @@
+---
+title: "N75: Audit log service interface (AuditEventService / append-only repository pattern)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N75 hash=3257579b3bc18656da56989c42c46f12b12224af6d21ccff27d948e2b6510a61 generator=kit@1 -->
 # N75: Audit log service interface (AuditEventService / append-only repository pattern)
 

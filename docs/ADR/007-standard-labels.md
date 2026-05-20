@@ -1,3 +1,14 @@
+---
+title: 'ADR-007: 15 standard labels as canonical set'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-007: 15 standard labels as canonical set
 
 **Status:** Accepted

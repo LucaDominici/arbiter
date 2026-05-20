@@ -1,3 +1,14 @@
+---
+title: "N02: Package dependency rules (no domain→infra leakage)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N02 hash=8d80e5970bc1e934f710edc6fa8fa8b5af157a1a9632426dbafe406fd7d45975 generator=kit@1 -->
 # N02: Package dependency rules (no domain→infra leakage)
 

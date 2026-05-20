@@ -1,3 +1,14 @@
+---
+title: 'Nightly self-canary: arbiter regenerates its own config'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Nightly self-canary: arbiter regenerates its own config
 
 **Issue:** #654 (R1.O4)

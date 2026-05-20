@@ -1,3 +1,14 @@
+---
+title: "N63: AGENTS.md / CLAUDE.md governance document"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N63 hash=e9fb1e74fd40c543df98e40d5833f5946971749293f5bb4af3a395e7ecbfcc72 generator=kit@1 -->
 # N63: AGENTS.md / CLAUDE.md governance document
 

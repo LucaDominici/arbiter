@@ -1,3 +1,14 @@
+---
+title: "N52: Self-dogfood check (arbiter validates itself)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N52 hash=c5e2d1544fa3b78a462e26f6e72fbe0cc97d2c25af48d955fcc0720bbdc999c5 generator=kit@1 -->
 # N52: Self-dogfood check (arbiter validates itself)
 

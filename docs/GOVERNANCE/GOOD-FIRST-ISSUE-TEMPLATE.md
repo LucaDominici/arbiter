@@ -1,3 +1,14 @@
+---
+title: 'Good First Issue Template'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Good First Issue Template
 
 > Copy this template when creating a curated good-first-issue. Fill in every section — incomplete templates are returned for revision before the label is applied.

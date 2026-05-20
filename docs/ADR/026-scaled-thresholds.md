@@ -1,3 +1,14 @@
+---
+title: 'ADR-026 — Scaled Thresholds and Practical/Pedantic Strictness Tiers'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-026 — Scaled Thresholds and Practical/Pedantic Strictness Tiers
 
 **Status:** Accepted

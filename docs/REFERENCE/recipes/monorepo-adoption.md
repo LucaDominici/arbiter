@@ -1,3 +1,14 @@
+---
+title: 'Recipe: Adopting arbiter in a Monorepo'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: Adopting arbiter in a Monorepo
 
 **Issue:** #645

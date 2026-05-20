@@ -1,3 +1,14 @@
+---
+title: "N48: Placeholder check (no template placeholders committed)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N48 hash=1fd6a9df7842d61fd94c4d71b981361f51a063442b45571596d44322e1a2a7fa generator=kit@1 -->
 # N48: Placeholder check (no template placeholders committed)
 

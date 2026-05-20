@@ -1,3 +1,14 @@
+---
+title: 'How to Measure arbiter Value Yourself'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # How to Measure arbiter Value Yourself
 
 **Issue:** #666

@@ -1,3 +1,14 @@
+---
+title: 'Hook Contracts — `.claude/hooks/*.mjs`'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Hook Contracts — `.claude/hooks/*.mjs`
 
 > **Anti-rot gate:** `scripts/check-hook-contracts.mjs` (L1) diffs this file against the hooks

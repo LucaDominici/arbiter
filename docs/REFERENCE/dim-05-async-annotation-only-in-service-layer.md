@@ -1,3 +1,14 @@
+---
+title: "N05: @Async annotation only in service layer"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N05 hash=3557b79f94930d7bb4beffedebbb7978cb3aa52b7e28cb8a5bfd2afe6f2727e5 generator=kit@1 -->
 # N05: @Async annotation only in service layer
 

@@ -1,3 +1,14 @@
+---
+title: 'arbiter Recipes'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter Recipes
 
 Practical, step-by-step guides for common arbiter adoption scenarios.

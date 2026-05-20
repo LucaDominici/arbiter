@@ -1,3 +1,14 @@
+---
+title: "N15: Code duplication ratchet (jscpd / equivalent)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N15 hash=f5b464466c0c80446eb036f04eb721565588ac1d1a87101eeb77eac617e1e814 generator=kit@1 -->
 # N15: Code duplication ratchet (jscpd / equivalent)
 

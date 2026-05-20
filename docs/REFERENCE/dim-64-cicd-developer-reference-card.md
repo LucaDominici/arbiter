@@ -1,3 +1,14 @@
+---
+title: "N64: CI/CD developer reference card"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N64 hash=9c7c2d415e5f300320f4f689231252ec7b2e6f410befb10d1d807e1fb2d56b5b generator=kit@1 -->
 # N64: CI/CD developer reference card
 

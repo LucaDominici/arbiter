@@ -1,3 +1,14 @@
+---
+title: "N42: Performance / load testing baseline (k6 / Locust / Gatling)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N42 hash=a2cf20f5dfd8eb0b36267b9168b2c7b37a0a9315fecaf1f6f11eb4c23211d810 generator=kit@1 -->
 # N42: Performance / load testing baseline (k6 / Locust / Gatling)
 

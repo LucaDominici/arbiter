@@ -1,3 +1,14 @@
+---
+title: 'Incident: CANON-16 (refactor-first) saving an avoidable file creation'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Incident: CANON-16 (refactor-first) saving an avoidable file creation
 
 **Rule:** CANON-16 — survey for similar code before creating any new source file  

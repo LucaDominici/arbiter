@@ -1,3 +1,14 @@
+---
+title: 'CI Tier Workflows — Reference'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # CI Tier Workflows — Reference
 
 arbiter generates a CI tier consisting of up to 8 GitHub Actions workflow files. Each workflow maps to one or more tiers (T0–T6) in the CI model (`docs/SYSTEM/CI-TIER-MODEL.md`).

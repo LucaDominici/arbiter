@@ -5,6 +5,12 @@ status: accepted
 created: 2026-05-16
 authors:
   - ulfwerenar
+doc_version: '1.0.0'
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # RFC 0001: Plugin API v2 surface

@@ -1,3 +1,14 @@
+---
+title: 'Post-Commit Track Taxonomy (#724)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Post-Commit Track Taxonomy (#724)
 
 Arbiter's `post-commit-check.mjs` hook classifies changed files into tracks and prints stack-specific verification reminders. This document defines the taxonomy, per-stack checklists, and extension guide.

@@ -1,3 +1,14 @@
+---
+title: 'Recipe: Compose with Frontend Design Skill'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: Compose with Frontend Design Skill
 
 **Applicable archetypes:** `frontend-spa`

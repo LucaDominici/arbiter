@@ -1,3 +1,14 @@
+---
+title: "N11: PMD / Semgrep rules (complexity, security anti-patterns)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N11 hash=9909f6cdf53b13232ea0e4784d4f104b10cc9da5ac7b3b876adbce90bb8efc0e generator=kit@1 -->
 # N11: PMD / Semgrep rules (complexity, security anti-patterns)
 

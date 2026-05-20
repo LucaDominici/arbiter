@@ -1,3 +1,14 @@
+---
+title: "N36: Release pipeline (tag-triggered, artifact signing)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N36 hash=fda7a8f8692c90b288a4a05ce5d47a133d215a804d286b15fbafa3f11defddab generator=kit@1 -->
 # N36: Release pipeline (tag-triggered, artifact signing)
 

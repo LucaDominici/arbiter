@@ -1,3 +1,14 @@
+---
+title: 'Postman/Newman Contract Tests — Reference'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Postman/Newman Contract Tests — Reference
 
 **Feature:** F7 | **Issue:** #894 | **Language:** Java (when `contractType: rest-owned`)

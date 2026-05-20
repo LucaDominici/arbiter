@@ -1,3 +1,14 @@
+---
+title: "N46: SPDX license header check"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N46 hash=b707e3e20d48ae9128827bda1f470e4f0215ea994fa63b9e517382c81ca89fed generator=kit@1 -->
 # N46: SPDX license header check
 

@@ -1,3 +1,14 @@
+---
+title: 'ADR-029: Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-029: Mutation Testing as Hard L3 Gate — Multi-Stack, 85% Threshold
 
 **Status:** Superseded by ADR-030 (mutation moved to nightly pipeline, unwinding L2 gate placement)

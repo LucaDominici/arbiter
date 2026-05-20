@@ -1,3 +1,14 @@
+---
+title: "N54: Circular dependency detection"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N54 hash=47eb336fe28a260163ef2d2196e7c5e8a5d7a900fd90af4e73af45ab33c140e5 generator=kit@1 -->
 # N54: Circular dependency detection
 

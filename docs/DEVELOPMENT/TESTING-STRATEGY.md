@@ -1,3 +1,14 @@
+---
+title: 'Testing Strategy'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Testing Strategy
 
 This document describes arbiter's test structure, conventions, fixture approach, and coverage targets. All claims here are grounded in the actual test files under `__tests__/`.

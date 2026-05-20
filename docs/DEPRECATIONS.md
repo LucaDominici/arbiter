@@ -1,3 +1,14 @@
+---
+title: 'Active Deprecations'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Active Deprecations
 
 Symbols, flags, and behaviors that are deprecated and scheduled for removal.

@@ -1,3 +1,14 @@
+---
+title: 'ADR-027 — Real-Project Nightly Matrix'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # ADR-027 — Real-Project Nightly Matrix
 
 **Status:** Superseded by ADR-030

@@ -1,3 +1,14 @@
+---
+title: "N25: Extended test profile (L2: unit + integration)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N25 hash=0921bd7fefba77a8f3822bea6a609faa6439fab20ddf1722821fb4ac0bd257a9 generator=kit@1 -->
 # N25: Extended test profile (L2: unit + integration)
 

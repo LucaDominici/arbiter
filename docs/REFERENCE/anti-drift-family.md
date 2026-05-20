@@ -5,6 +5,12 @@ invariant: INV-89
 status: CURRENT
 date: 2026-05-20
 waves: W6, F4
+doc_version: '1.0.0'
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # Anti-Drift Validator Family Reference (INV-89)

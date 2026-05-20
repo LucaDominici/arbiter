@@ -1,3 +1,14 @@
+---
+title: 'Real-Project Testing'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Real-Project Testing
 
 Arbiter's nightly CI workflow (`real-project-matrix.yml`) stages minimal real-project fixtures and runs the full pipeline — `arbiter init → arbiter verify → check-all.mjs` — against each one. This document explains how the system works, how to add a new fixture, and how to debug failures.

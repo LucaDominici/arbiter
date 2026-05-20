@@ -1,3 +1,14 @@
+---
+title: "N18: Code coverage gate (JaCoCo/V8/coverage.py/go cover/cargo-tarpaulin)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N18 hash=9c063d57a156e354b822cdd7bc2e1fcd926ff1f5d0029ed2cefecc728a2b9e05 generator=kit@1 -->
 # N18: Code coverage gate (JaCoCo/V8/coverage.py/go cover/cargo-tarpaulin)
 

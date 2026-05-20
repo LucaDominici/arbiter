@@ -1,3 +1,14 @@
+---
+title: 'Recipe B10 — Debugging an arbiter command'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe B10 — Debugging an arbiter command
 
 **Goal:** Figure out where an arbiter command is spending time, failing, or behaving unexpectedly.

@@ -1,3 +1,14 @@
+---
+title: "Mutation Testing"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 # Mutation Testing
 
 Stryker is configured to run nightly on critical paths. See `.github/workflows/mutation.yml`.

@@ -1,3 +1,14 @@
+---
+title: 'Code of Conduct — Enforcement Runbook'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Code of Conduct — Enforcement Runbook
 
 **Audience:** Project maintainers only.

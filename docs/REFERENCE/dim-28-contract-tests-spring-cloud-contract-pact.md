@@ -1,3 +1,14 @@
+---
+title: "N28: Contract tests (Spring Cloud Contract / Pact)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N28 hash=74a2d0f26ad4e407b9f5f62689ebeada3e1006b2878d1e795d1db0cb9a029403 generator=kit@1 -->
 # N28: Contract tests (Spring Cloud Contract / Pact)
 

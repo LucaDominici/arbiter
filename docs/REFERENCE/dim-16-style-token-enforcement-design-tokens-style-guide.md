@@ -1,3 +1,14 @@
+---
+title: "N16: Style token enforcement (design tokens / style guide)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N16 hash=9dc2e160c64bc2612d8f19f7169e99e5bf297fa753c8126ef7590ce4d18e63c4 generator=kit@1 -->
 # N16: Style token enforcement (design tokens / style guide)
 

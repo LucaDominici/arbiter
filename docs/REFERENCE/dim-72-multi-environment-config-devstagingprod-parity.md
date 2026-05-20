@@ -1,3 +1,14 @@
+---
+title: "N72: Multi-environment config (dev/staging/prod parity)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N72 hash=1aba39dab21d4e331056cffa7a6ea94f1096bd43fa90ae313f542c3193389020 generator=kit@1 -->
 # N72: Multi-environment config (dev/staging/prod parity)
 

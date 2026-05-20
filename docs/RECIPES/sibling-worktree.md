@@ -1,3 +1,14 @@
+---
+title: 'Recipe: Sibling Worktree Pattern (`--sibling`)'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Recipe: Sibling Worktree Pattern (`--sibling`)
 
 Use the `--sibling` flag to open a worktree directly next to the main repo

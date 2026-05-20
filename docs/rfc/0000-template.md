@@ -5,6 +5,12 @@ status: draft # draft | accepted | deferred
 created: YYYY-MM-DD
 authors:
   - github-handle
+doc_version: '1.0.0'
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
 ---
 
 # RFC NNNN: Title

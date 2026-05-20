@@ -1,3 +1,14 @@
+---
+title: "N39: CI runner label SSOT (no hardcoded runner strings)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N39 hash=cb83591d4a36622101241b96b57ce03f6edbccaa30bfe5b91eb966edf8b27550 generator=kit@1 -->
 # N39: CI runner label SSOT (no hardcoded runner strings)
 

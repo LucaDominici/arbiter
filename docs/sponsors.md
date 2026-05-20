@@ -1,3 +1,14 @@
+---
+title: 'Sponsors & Funding'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Sponsors & Funding
 
 arbiter is an open-source project maintained by volunteers. Sponsorship helps sustain ongoing maintenance, feature development, and infrastructure.

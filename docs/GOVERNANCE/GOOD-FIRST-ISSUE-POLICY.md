@@ -1,3 +1,14 @@
+---
+title: 'Good First Issue Policy'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Good First Issue Policy
 
 Issues labeled `good first issue` are curated on-ramps for first-time contributors. This policy defines what qualifies and how maintainers manage the label.

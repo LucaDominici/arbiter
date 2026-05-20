@@ -1,3 +1,14 @@
+---
+title: 'Pharma Overlay — Reference'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Pharma Overlay — Reference
 
 **Feature:** F5 (KIT dims 73-75) | **Issue:** #888 | **Language:** Java only

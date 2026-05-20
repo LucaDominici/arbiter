@@ -1,3 +1,14 @@
+---
+title: 'Secure Coding Checklist'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Secure Coding Checklist
 
 _arbiter self-config — TypeScript L3. Review before every PR merge._

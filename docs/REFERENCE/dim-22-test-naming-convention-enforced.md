@@ -1,3 +1,14 @@
+---
+title: "N22: Test naming convention enforced"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N22 hash=9276d299efa4f4d85415c82f76a0588224a288c2988734d8a3ce098d052dd974 generator=kit@1 -->
 # N22: Test naming convention enforced
 

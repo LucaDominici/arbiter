@@ -1,3 +1,14 @@
+---
+title: "N17: Unit test framework wired (JUnit5/Vitest/pytest/go test/cargo test)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N17 hash=47841681e05f25d6fde6e40525c1b56aff16852eb30fb8815243c81d43f6812f generator=kit@1 -->
 # N17: Unit test framework wired (JUnit5/Vitest/pytest/go test/cargo test)
 

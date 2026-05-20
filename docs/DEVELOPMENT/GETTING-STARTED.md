@@ -1,3 +1,14 @@
+---
+title: 'Getting Started — Development Guide'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Getting Started — Development Guide
 
 This guide covers how to set up a local development environment, run the test suite, and extend arbiter with a new language detector or generator.

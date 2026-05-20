@@ -1,3 +1,14 @@
+---
+title: "N35: PR fast-feedback gate (&lt;5 min, L1 checks only)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N35 hash=57b28136d6660638b27d56b55408211739f20701682e751d9601f3b448475445 generator=kit@1 -->
 # N35: PR fast-feedback gate (&lt;5 min, L1 checks only)
 

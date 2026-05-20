@@ -1,3 +1,14 @@
+---
+title: 'Hooks Reference — Redirected'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Hooks Reference — Redirected
 
 > Canonical source: [website/reference/hooks.md](../../website/reference/hooks.md)

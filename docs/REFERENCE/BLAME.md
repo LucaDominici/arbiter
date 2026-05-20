@@ -1,3 +1,14 @@
+---
+title: 'arbiter blame — Time-Travel Governance'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # arbiter blame — Time-Travel Governance
 
 `arbiter blame <node>` extends the Provenance Graph with a temporal dimension,

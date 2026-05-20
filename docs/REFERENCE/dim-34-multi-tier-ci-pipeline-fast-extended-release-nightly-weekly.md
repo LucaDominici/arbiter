@@ -1,3 +1,14 @@
+---
+title: "N34: Multi-tier CI pipeline (fast → extended → release → nightly → weekly)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N34 hash=c018ad03634db66f3f1bc519ab204e7bfa6c7f2f5e2813eb52f1ce02e518bcd7 generator=kit@1 -->
 # N34: Multi-tier CI pipeline (fast → extended → release → nightly → weekly)
 

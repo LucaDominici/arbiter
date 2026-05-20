@@ -1,3 +1,14 @@
+---
+title: 'Test Taxonomy — arbiter'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Test Taxonomy — arbiter
 
 <!-- arbiter-managed: test-pyramid-profile-26d (INV-89, #883) -->

@@ -1,3 +1,14 @@
+---
+title: 'RFC Process'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # RFC Process
 
 Arbiter uses a lightweight RFC (Request for Comments) process for significant changes — new plugin API surfaces, new governance levels, changes to the skills matrix schema, and anything that would break existing integrations.

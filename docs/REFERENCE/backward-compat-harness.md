@@ -1,3 +1,14 @@
+---
+title: 'Backward-Compatibility Test Harness'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-20'
+owner: ''
+canonical_id: ''
+tags: []
+related: []
+---
+
 # Backward-Compatibility Test Harness
 
 Issue: #608

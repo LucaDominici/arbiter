@@ -1,3 +1,14 @@
+---
+title: "N19: Coverage trend ratchet (no regression allowed)"
+doc_version: "1.0.0"
+status: active
+last_review: "2026-05-20"
+owner: ""
+canonical_id: ""
+tags: []
+related: []
+---
+
 <!-- arbiter-generated dim=N19 hash=5997212966b55afaee9d7008fd428de4305c554a1850b2da53ae282ec1f5634f generator=kit@1 -->
 # N19: Coverage trend ratchet (no regression allowed)
 
