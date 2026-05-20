@@ -7,6 +7,7 @@ on:
   push:
     branches: [main, "task/**"]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
 
 # Cancel in-progress PR fast runs on the same branch to free capacity.

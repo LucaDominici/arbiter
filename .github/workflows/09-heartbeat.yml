@@ -27,7 +27,7 @@ jobs:
             --workflow=06-nightly.yml \
             --limit 1 \
             --json conclusion,createdAt \
-            --repo "$GH_REPO")
+            --repo "$GH_REPO" 2>/dev/null || echo '[]')
 
           CREATED_AT=$(echo "$RUN_INFO" | jq -r '.[0].createdAt // empty')
           CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
@@ -90,7 +90,7 @@ jobs:
             --workflow=07-weekly.yml \
             --limit 1 \
             --json conclusion,createdAt \
-            --repo "$GH_REPO")
+            --repo "$GH_REPO" 2>/dev/null || echo '[]')
 
           CREATED_AT=$(echo "$RUN_INFO" | jq -r '.[0].createdAt // empty')
           CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
@@ -153,7 +153,7 @@ jobs:
             --workflow=08-monthly.yml \
             --limit 1 \
             --json conclusion,createdAt \
-            --repo "$GH_REPO")
+            --repo "$GH_REPO" 2>/dev/null || echo '[]')
 
           CREATED_AT=$(echo "$RUN_INFO" | jq -r '.[0].createdAt // empty')
           CONCLUSION=$(echo "$RUN_INFO" | jq -r '.[0].conclusion // empty')
