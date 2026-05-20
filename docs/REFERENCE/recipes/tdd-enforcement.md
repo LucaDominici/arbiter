@@ -1,6 +1,6 @@
 ---
 title: 'Recipe: TDD Evidence Enforcement (INV-26)'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
 last_review: '2026-05-20'
 owner: ''
@@ -128,3 +128,25 @@ Creates a GitHub issue labeled `tech-debt` + `follow-up` and appends the issue n
 **INV-26** — enforced at L2 gate (`scripts/check-all.mjs L2 — arbiter verify tdd`) and
 at `task advance --to green`. Bypass (`ARBITER_SKIP_TDD=1`) is accepted at L1
 only; the L2 gate rejects commits carrying the `ARBITER-SKIP-TDD: 1` trailer.
+
+## Non-Node Runners (#973)
+
+For minimal CI runner images that lack Node (typical for Java/Rust/Go pipelines),
+arbiter ships a POSIX-shell evidence writer:
+`src/templates/scripts/evidence-writer.sh.ejs`. It emits the same
+`TddEvidenceV1`-conformant JSON as `arbiter task record-red`, without depending
+on Node or `jq`. Scaffolded projects whose primary stack is non-Node, or any
+project under governance L3, can use it as a drop-in fallback:
+
+```sh
+./scripts/evidence-writer.sh \
+  --task-id 999 \
+  --test-path tests/feature_test.py \
+  --observed-failure "FAIL  tests/feature_test.py"
+# → writes .arbiter/evidence/tdd/#999.json
+```
+
+The script accepts `--phase`, `--out-dir`, `--test-commit-sha`, and
+`--test-run-log-file`. It validates `--task-id` against `^#?[0-9]+$` and
+defaults `test_commit_sha` to `git rev-parse HEAD`. Output is schema-validated
+by the same `TddEvidenceV1` Zod schema used by the Node writer.
