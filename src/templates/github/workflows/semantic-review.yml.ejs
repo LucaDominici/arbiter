@@ -9,7 +9,7 @@ on:
 jobs:
   semantic-review:
     name: Semantic Diff Review (INV graph)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
         with:

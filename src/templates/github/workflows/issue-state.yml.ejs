@@ -22,7 +22,7 @@ permissions:
 jobs:
   update-state:
     name: Update issue state
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
     steps:
       - name: Extract linked issue number
