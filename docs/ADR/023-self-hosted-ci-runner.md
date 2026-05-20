@@ -64,3 +64,25 @@ The `vars.CI_BUILD_RUNNER_LABEL` escape hatch allows overriding to any label (in
 - Ops can redirect any repo to a different runner (or back to `ubuntu-latest`) by setting `CI_BUILD_RUNNER_LABEL` as a repo variable — no PR required.
 - New invariant **INV-13** added to `AGENTS.md` to enforce this permanently.
 - Prior art: haben INV-11 (`haben/docs/SYSTEM/GLOBAL_INVARIANTS.md:173-181`).
+
+---
+
+## 2026-05-20 — Default flipped to `ubuntu-latest` (#959)
+
+**Status:** This ADR's original "Decision" is **partially superseded** for arbiter-as-a-framework, while the override mechanism remains intact.
+
+**Reason for flip:** arbiter is a framework for AI-assisted development on heterogeneous projects. Scaffolded projects rarely have a self-hosted pool. Defaulting to `docker-ci-build` forced new users into an infra ramp-up (registering a runner) before CI could green — a silent regression for first-time onboarding.
+
+**What changed:**
+
+- The `${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}` fallback now uses `'ubuntu-latest'` as the default in every template under `src/templates/github/workflows/` and in arbiter's own `.github/workflows/{01-pr-fast,02-pr-extended}.yml`.
+- Projects that DO have a self-hosted pool continue to override via the same `CI_BUILD_RUNNER_LABEL` repo variable — no template change required, no migration.
+- INV-13 still enforces "no hardcoded runner strings"; the SSOT is unchanged.
+
+**Operational impact:**
+
+- Arbiter's own CI no longer bottlenecks on the single `arbiter-slot-build` machine. T1/T2 PR jobs run on GitHub-hosted runners (parallel, ~20 concurrent by default for public repos).
+- Self-hosted users see no change.
+- Future scaffolded projects default to `ubuntu-latest`; users who want self-hosted set the repo variable.
+
+The "Alternatives considered → ubuntu-latest as template fallback" rationale (above) was correct for the closed-stack haben context but wrong for arbiter's framework role. This update overturns that rejection.
