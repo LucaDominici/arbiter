@@ -1,0 +1,80 @@
+<% if (governanceLevel !== 'L1') { %># REUSE_REGISTRY Specification — <%= projectName %>
+
+**Purpose:** Define the file-level registry of shared reusable modules and the
+protocol for consulting it before creating new code (CANON-16 survey).
+
+**Location:** `docs/METHOD/REUSE_REGISTRY_SPEC.md`
+**Registry:** `docs/METHOD/REUSE_REGISTRY.md`
+
+---
+
+## Purpose
+
+The registry is the first lookup stop for the CANON-16 refactor-first survey.
+Before opening any new file under `src/` or `scripts/`, a contributor checks
+this registry to determine whether the needed utility already exists.
+
+A registry hit means: reuse or extend the registered module. A registry miss
+justifies creating a new file, but the new PR MUST add its entry before merge.
+
+---
+
+## Acceptance criteria
+
+A module qualifies for registration when ALL of the following hold:
+
+1. **Exported** — provides named exports consumed via `import` or `require`.
+2. **Shared** — used by ≥2 distinct source files, OR extracted by explicit
+   policy.
+3. **Tested** — has at least one unit test, or is covered by integration tests.
+
+---
+
+## Entry schema
+
+Each entry is a third-level heading with a flat bullet list:
+
+```text
+### <module-slug>
+- path: <repo-relative path>
+- purpose: <one-sentence description>
+- key_exports: <comma-separated, max 5>
+- when_to_use: <scenario>
+- when_to_avoid: <scenario>
+- tests: <test file path(s) or "indirect via <file>">
+- since: <semver>
+- deprecated_in: <semver; omit if still active>
+- replaced_by: <path; required when deprecated_in is present>
+```
+
+All fields required except `deprecated_in` and `replaced_by`.
+
+---
+
+## CANON-16 survey integration
+
+Before creating any new file under `src/` or `scripts/`, the contributor MUST:
+
+1. Search `REUSE_REGISTRY.md` for entries whose purpose or exports match the
+   intended functionality.
+2. If a match is found: reuse or extend; record in plan:
+   `"Existing Code Survey: found <path> in REUSE_REGISTRY; reused."`
+3. If no match: record in plan:
+   `"Existing Code Survey: checked REUSE_REGISTRY, no similar entry."`
+
+---
+
+## Registration protocol
+
+The PR that introduces a new shared module MUST include the registry entry in
+the same diff.
+
+To deprecate: add `deprecated_in` + `replaced_by`; do NOT delete the entry.
+
+---
+
+## Non-goals
+
+Does NOT cover: external npm packages, EJS templates (CANON-04), generators
+(CANON-11), CLI commands (CANON-06), test fixtures, or docs.
+<% } %>
