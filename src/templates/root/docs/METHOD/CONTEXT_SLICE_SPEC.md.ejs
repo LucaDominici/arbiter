@@ -1,0 +1,80 @@
+<% if (governanceLevel !== 'L1') { %># CONTEXT_SLICE Specification — <%= projectName %>
+
+**Purpose:** Define the atomic verbatim-extraction unit.
+A CONTEXT_SLICE is a single self-describing block containing the byte-for-byte
+content of one contiguous line range of one source file, plus the metadata
+needed to verify the extract.
+
+**Location:** `docs/METHOD/CONTEXT_SLICE_SPEC.md`
+**Generator:** `scripts/emit-context-slice.mjs`
+**Consumed by:** `scripts/emit-context-pack.mjs` (and any tool that needs to
+cite a source range without summarising it).
+
+---
+
+## Doctrine: Verbatim or Nothing
+
+Constraint documents are *law*. A CONTEXT_SLICE therefore forbids:
+
+- Paraphrase, reformatting, or summarization.
+- Mid-extract insertion of editorial notes.
+
+The slice body MUST be byte-identical to the cited line range of the source
+file. The emitter MUST fail rather than emit a slice it cannot guarantee.
+
+---
+
+## Schema
+
+```text
+# CONTEXT_SLICE
+- spec_version: 1.0.0
+- source: <path>:L<start>-L<end>
+- line_count: <N>
+- byte_count: <M>
+- sha256: <64 lowercase hex chars>
+
+<verbatim body, exactly the cited line range>
+```
+
+### Field Rules
+
+- `spec_version` — fixed string `1.0.0` for this revision.
+- `source` — repo-relative POSIX path + `:L<start>-L<end>` (1-indexed, inclusive).
+- `line_count` — `end - start + 1`. Always positive.
+- `byte_count` — UTF-8 byte length of the body.
+- `sha256` — sha256 of body bytes only (lowercase hex, 64 chars).
+
+### Separator
+
+Exactly one blank line separates the header block from the body. No extra
+newline is appended after the body.
+
+---
+
+## CLI
+
+```text
+node scripts/emit-context-slice.mjs --source <path> --lines <start>-<end> [--out <path>]
+```
+
+Exit codes: `0` success, `2` argument error, `3` source unreadable.
+
+---
+
+## Determinism
+
+Same `(source bytes, line range)` MUST yield byte-identical output. No
+timestamps, hostnames, PIDs, or environment variables permitted.
+
+---
+
+## Verification
+
+1. Resolve `source` relative to repo root.
+2. Read the file and select the line range.
+3. Compare body byte-for-byte.
+4. Recompute sha256 of body and compare to the `sha256` field.
+
+Any mismatch invalidates the slice. The source file is always ground truth.
+<% } %>
