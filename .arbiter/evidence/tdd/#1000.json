@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1000",
+  "test_path": "__tests__/templates/reuse-registry-spec-render.test.ts",
+  "test_commit_sha": "2b82556fb7c617381ca4bd6f3e8fc78035aeb7ff",
+  "test_run_log": "RUN  v4.1.6 /home/luca/work/repos/arbiter/arbiter.worktrees/1000-reuse-registry\n\n FAIL  __tests__/templates/reuse-registry-spec-render.test.ts > REUSE_REGISTRY_SPEC.md.ejs render (#1000) > renders without EJS leaks at L2\n FAIL  __tests__/templates/reuse-registry-spec-render.test.ts > REUSE_REGISTRY_SPEC.md.ejs render (#1000) > contains project name when rendered at L2\n FAIL  __tests__/templates/reuse-registry-spec-render.test.ts > REUSE_REGISTRY_SPEC.md.ejs render (#1000) > contains required section headings at L2\n FAIL  __tests__/templates/reuse-registry-spec-render.test.ts > REUSE_REGISTRY_SPEC.md.ejs render (#1000) > emits empty body at L1 (L2+ guard)\n FAIL  __tests__/templates/reuse-registry-spec-render.test.ts > REUSE_REGISTRY_SPEC.md.ejs render (#1000) > renders identically at L2 and L3\n FAIL  __tests__/templates/reuse-registry-spec-render.test.ts > REUSE_REGISTRY_SPEC.md.ejs render (#1000) > contains REUSE_REGISTRY_SPEC canonical_id marker\n\n Test Files  1 failed (1)\n      Tests  6 failed (6)\n   Start at  14:17:55\n   Duration  133ms\n",
+  "observed_failure": "FAIL  __tests__/templates/reuse-registry-spec-render.test.ts",
+  "recorded_at": "2026-05-21T14:17:55.000Z"
+}
