@@ -70,7 +70,7 @@ Return HTTP 413 with an RFC 7807 problem-details body (`type`, `title`,
 - Prefer `thiserror` for error types
 
 <% } %>
-<% if (governanceLevel === 'L3') { %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
 ## L3 Governance
 
 - All public APIs must have OpenAPI/Swagger documentation

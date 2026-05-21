@@ -32,7 +32,7 @@ arbiter init
 ```
 
 `init` detects your stack (TypeScript / Python / Rust / Go / Java) and
-governance level (L1 / L2 / L3), then materializes:
+governance level (L1 / L2 / L3 / L4), then materializes:
 
 - `AGENTS.md` — invariant catalog
 - `.claude/` or equivalent agent config

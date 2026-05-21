@@ -19,7 +19,7 @@ export interface UpgradeLevelOptions {
   json?: boolean | undefined
 }
 
-const LEVEL_RANK: Record<GovernanceLevel, number> = { L1: 1, L2: 2, L3: 3 }
+const LEVEL_RANK: Record<GovernanceLevel, number> = { L1: 1, L2: 2, L3: 3, L4: 4 }
 const DEFAULT_GRACE_DAYS = 30
 
 export function runUpgradeLevel(opts: UpgradeLevelOptions): void {

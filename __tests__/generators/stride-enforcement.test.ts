@@ -30,14 +30,24 @@ describe('generateStrideEnforcement', () => {
     expect(generateStrideEnforcement(config).files).toHaveLength(3)
   })
 
-  it('generates 4 files at L3', () => {
+  it('generates 3 files at L3 (no RISK_ASSESSMENT)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L3' })
+    expect(generateStrideEnforcement(config).files).toHaveLength(3)
+  })
+
+  it('generates 4 files at L4', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
     expect(generateStrideEnforcement(config).files).toHaveLength(4)
   })
 
-  it('generates docs/SECURITY/RISK_ASSESSMENT.md at L3', () => {
-    generateStrideEnforcement(makeConfig(dir, { governanceLevel: 'L3' }))
+  it('generates docs/SECURITY/RISK_ASSESSMENT.md at L4', () => {
+    generateStrideEnforcement(makeConfig(dir, { governanceLevel: 'L4' }))
     expect(existsSync(join(dir, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'))).toBe(true)
+  })
+
+  it('does NOT generate RISK_ASSESSMENT.md at L3', () => {
+    generateStrideEnforcement(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'))).toBe(false)
   })
 
   it('does NOT generate RISK_ASSESSMENT.md at L1', () => {
@@ -55,8 +65,8 @@ describe('generateStrideEnforcement', () => {
     const riskPath = join(dir, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md')
     mkdirSync(join(dir, 'docs', 'SECURITY'), { recursive: true })
     writeFileSync(riskPath, 'EXISTING')
-    // Run generator at L3
-    const result = generateStrideEnforcement(makeConfig(dir, { governanceLevel: 'L3' }))
+    // Run generator at L4 (RISK_ASSESSMENT only emits at L4)
+    const result = generateStrideEnforcement(makeConfig(dir, { governanceLevel: 'L4' }))
     const riskFile = result.files.find((f) => f.path.endsWith('RISK_ASSESSMENT.md'))
     expect(riskFile?.action).toBe('skipped')
     expect(readFileSync(riskPath, 'utf-8')).toBe('EXISTING')

@@ -92,7 +92,22 @@ const L3: CiThresholdPack = {
   codeownerRequired: true,
 }
 
-const PACKS: Record<GovernanceLevel, CiThresholdPack> = { L1, L2, L3 }
+const L4: CiThresholdPack = {
+  coverageLine: 85,
+  coverageBranch: 80,
+  mutation: { gating: 'blocking', threshold: 80 },
+  cvssGateMin: 4.0,
+  containerScan: 'medium-plus',
+  sast: 'medium-plus',
+  slsaTarget: 'L3',
+  lint: 'zero-pedantic',
+  crossStackGuardHard: true,
+  debtRatchetRequireImprovement: true,
+  actionPinning: 'sha-renovate-gated',
+  codeownerRequired: true,
+}
+
+const PACKS: Record<GovernanceLevel, CiThresholdPack> = { L1, L2, L3, L4 }
 
 export function getCiThresholds(level: GovernanceLevel): CiThresholdPack {
   return PACKS[level]

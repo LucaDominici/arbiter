@@ -290,11 +290,11 @@ function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswers): Pro
     enableDebtGates: answers.governanceLevel !== 'L1',
     enableSuppressions: true,
     enableSecurityScanning: answers.governanceLevel !== 'L1',
-    enableMutationTesting: answers.governanceLevel !== 'L1',
+    enableMutationTesting: answers.governanceLevel === 'L3' || answers.governanceLevel === 'L4',
     enableContractTesting:
       (answers.contractType ?? defaultContractType(answers.archetype, answers.hasPublicApi)) !==
       'none',
-    enableEvidenceHarness: answers.governanceLevel !== 'L1',
+    enableEvidenceHarness: answers.governanceLevel === 'L4',
     enableSelfValidationHarness: true,
     enableSoloDevMode: answers.soloDevMode ?? false,
     thresholds: DEFAULT_THRESHOLDS[answers.governanceLevel],
@@ -312,17 +312,34 @@ function buildGovernanceQuestions(): object[] {
     {
       type: 'list',
       name: 'governanceLevel',
-      message: 'Governance level:',
+      message: [
+        'Governance level:',
+        '',
+        '  Level  | Activates',
+        '  -------|----------------------------------------------------------',
+        '  L1     | lint + format + unit tests',
+        '  L2     | + coverage + integration + debt gates + security scan',
+        '  L3     | + E2E + mutation testing',
+        '  L4     | + evidence harness + STRIDE risk + TRACK_ROUTER + SLSA',
+        '',
+      ].join('\n'),
       choices: [
         {
-          name: 'L1 — Fast checks only (lint + format + unit tests)',
+          name: 'L1 — Lightweight (lint + format + unit tests)',
           value: 'L1',
         },
         {
-          name: 'L2 — Full gate (L1 + coverage + integration)  [recommended]',
+          name: 'L2 — Standard (+ coverage + integration + debt + security)  [recommended]',
           value: 'L2',
         },
-        { name: 'L3 — Audit grade (L2 + E2E + evidence)', value: 'L3' },
+        {
+          name: 'L3 — Strict (+ E2E + mutation testing)',
+          value: 'L3',
+        },
+        {
+          name: 'L4 — Audit/Compliance (+ evidence harness + STRIDE risk + SLSA)',
+          value: 'L4',
+        },
       ],
       default: 'L2',
     },

@@ -2,7 +2,7 @@
   "language": "typescript",
   "archetype": "frontend-spa",
   "buildTool": null,
-  "levels": ["L1", "L2", "L3"],
+  "levels": ["L1", "L2", "L3", "L4"],
   "lanes": ["frontend", "backend", "docs"],
   "note": "Multi-lane project: frontend (React SPA) + backend (Spring) + docs — detects all three lanes"
 }

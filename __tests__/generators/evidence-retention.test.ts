@@ -24,13 +24,23 @@ describe('generateEvidenceRetention', () => {
     expect(generateEvidenceRetention(config).files).toHaveLength(4)
   })
 
-  it('generates 6 files at L2+ (rotate + prune + gitignore + policy doc + done-evidence + evidence-files)', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L2' })
+  it('generates 6 files at L4 (rotate + prune + gitignore + policy doc + done-evidence + evidence-files)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
     expect(generateEvidenceRetention(config).files).toHaveLength(6)
   })
 
-  it('generates scripts/done-evidence.mjs at L2+', () => {
-    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L2' }))
+  it('generates 4 files at L2 (rotate + prune + gitignore + policy doc — no done-evidence)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+  })
+
+  it('generates 4 files at L3 (rotate + prune + gitignore + policy doc — no done-evidence)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+  })
+
+  it('generates scripts/done-evidence.mjs at L4', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L4' }))
     expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(true)
   })
 
@@ -39,9 +49,24 @@ describe('generateEvidenceRetention', () => {
     expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(false)
   })
 
-  it('generates evidence-files.json at L2+', () => {
+  it('does not generate scripts/done-evidence.mjs at L2', () => {
     generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(false)
+  })
+
+  it('does not generate scripts/done-evidence.mjs at L3', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(false)
+  })
+
+  it('generates evidence-files.json at L4', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L4' }))
     expect(existsSync(join(dir, 'evidence-files.json'))).toBe(true)
+  })
+
+  it('does not generate evidence-files.json at L2', () => {
+    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'evidence-files.json'))).toBe(false)
   })
 
   it('generates scripts/evidence-rotate.mjs', () => {
@@ -105,8 +130,8 @@ describe('generateEvidenceRetention', () => {
     expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
   })
 
-  it('done-evidence.mjs creates .arbiter-backup on second run at L2+ (#293)', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L2' })
+  it('done-evidence.mjs creates .arbiter-backup on second run at L4 (#293)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
     generateEvidenceRetention(config)
     const r2 = generateEvidenceRetention(config)
     const f = r2.files.find((x) => x.path.endsWith('done-evidence.mjs'))

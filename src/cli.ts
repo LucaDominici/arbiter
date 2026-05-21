@@ -353,7 +353,7 @@ program
     '--tools <tools>',
     'Comma-separated list of AI tools (claude,codex,cursor,copilot,gemini,windsurf,aider)',
   )
-  .option('--level <level>', 'Governance level: L1, L2, or L3', 'L2')
+  .option('--level <level>', 'Governance level: L1, L2, L3, or L4', 'L2')
   .option(
     '--language <lang>',
     'Override detected language (typescript|java|kotlin|rust|python|go|multi)',
@@ -888,7 +888,7 @@ program
 program
   .command('upgrade-level')
   .description('Upgrade governance level with a grace period for new gates')
-  .option('--target <level>', 'Target level (L2 or L3)')
+  .option('--target <level>', 'Target level (L2, L3, or L4)')
   .option('--extend', 'Extend an existing active grace period by --days (default: 30)', false)
   .option('--days <n>', 'Grace period length in days (default: 30)', parseInt)
   .option('--dir <dir>', 'Target directory (default: current directory)')
@@ -900,8 +900,8 @@ program
         json: opts.json,
       }
       if (opts.target) {
-        if (opts.target !== 'L2' && opts.target !== 'L3') {
-          printCliError(`invalid --target "${opts.target}". Valid values: L2, L3.`)
+        if (opts.target !== 'L2' && opts.target !== 'L3' && opts.target !== 'L4') {
+          printCliError(`invalid --target "${opts.target}". Valid values: L2, L3, L4.`)
           getLogger().error('invalid_target', { value: opts.target ?? null })
           process.exit(1)
         }
@@ -1713,13 +1713,13 @@ kit
       'rust',
     ]),
   )
-  .addOption(new Option('--tml <tml>', 'Filter by TML level').choices(['L1', 'L2', 'L3']))
+  .addOption(new Option('--tml <tml>', 'Filter by TML level').choices(['L1', 'L2', 'L3', 'L4']))
   .action((opts: { format: string; filter: string; stack?: string; tml?: string }) => {
     runKitList({
       format: opts.format as KitListFormat,
       filter: opts.filter as KitListFilter,
       ...(opts.stack !== undefined && { stack: opts.stack as Stack }),
-      ...(opts.tml !== undefined && { tml: opts.tml as 'L1' | 'L2' | 'L3' }),
+      ...(opts.tml !== undefined && { tml: opts.tml as 'L1' | 'L2' | 'L3' | 'L4' }),
     })
   })
 

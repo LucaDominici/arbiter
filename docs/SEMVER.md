@@ -31,6 +31,13 @@ arbiter follows [Semantic Versioning 2.0.0](https://semver.org/). This document 
 | `arbiter.json` config schema field removed                                                           | MAJOR |
 | `.arbiter-generated.json` schema field removed                                                       | MAJOR |
 | Minimum Node.js version raised                                                                       | MAJOR |
+| `GovernanceLevel` enum widened — existing projects may see gate changes if level semantics shift     | MAJOR |
+
+**Breaking changes log:**
+
+| Version | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0   | `GovernanceLevel` widened from `'L1'\|'L2'\|'L3'` to `'L1'\|'L2'\|'L3'\|'L4'`; evidence harness moved from L2+ to L4-only; STRIDE risk + TRACK_ROUTER moved from L3 to L4; config `$schemaVersion` bumped 2→3 (forward-only migration applied automatically on next read); `src/config/thresholds-l1-l2-l3.ts` renamed to `src/config/thresholds-by-level.ts`. Migration: projects relying on evidence harness must run `arbiter upgrade-level --to L4`. |
 
 **Experimental escape hatch:** A flag or behavior guarded by `--experimental.<feature>` may change without a MAJOR bump while in experimental status. Once promoted to stable, the stability guarantee applies.
 

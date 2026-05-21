@@ -104,7 +104,7 @@ function applyTopLevelOverride(
   const tail = envKey.slice('ARBITER_'.length)
   const camel = screamingSnakeToCamel(tail)
   if (camel === 'governanceLevel') {
-    if (rawValue === 'L1' || rawValue === 'L2' || rawValue === 'L3') {
+    if (rawValue === 'L1' || rawValue === 'L2' || rawValue === 'L3' || rawValue === 'L4') {
       return { ...cfg, governanceLevel: rawValue }
     }
   }

@@ -73,7 +73,7 @@ export interface KitListOptions {
   format?: KitListFormat
   filter?: KitListFilter
   stack?: Stack
-  tml?: 'L1' | 'L2' | 'L3'
+  tml?: 'L1' | 'L2' | 'L3' | 'L4'
 }
 
 export function runKitList(opts: KitListOptions): void {

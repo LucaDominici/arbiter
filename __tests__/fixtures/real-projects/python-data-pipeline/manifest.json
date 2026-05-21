@@ -2,7 +2,7 @@
   "language": "python",
   "archetype": "data-pipeline",
   "buildTool": null,
-  "levels": ["L1", "L2", "L3"],
+  "levels": ["L1", "L2", "L3", "L4"],
   "note": "Minimal Python ETL pipeline — read, transform, emit — detects as data-pipeline archetype",
   "enableSecurityScanning": true
 }

@@ -34,8 +34,8 @@ export function generateStrideEnforcement(config: ProjectConfig): StrideEnforcem
     ),
   ]
 
-  // L3 only: risk assessment document (user-edited, skip if exists)
-  if (config.governanceLevel === 'L3') {
+  // L4 only: risk assessment document (user-edited, skip if exists)
+  if (config.governanceLevel === 'L4') {
     results.push(
       writeFile(
         resolvedPath(base, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'),

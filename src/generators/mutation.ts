@@ -31,7 +31,7 @@ function emitJavaMutation(targetDir: string, buildTool: string, data: object): W
 }
 
 export function generateMutation(config: ProjectConfig): MutationGeneratorResult {
-  if (config.governanceLevel !== 'L3') return { files: [] }
+  if (config.governanceLevel === 'L1' || config.governanceLevel === 'L2') return { files: [] }
 
   const { language, targetDir, acceptBetaTools = false } = config
 

@@ -35,8 +35,14 @@ describe('FAIL_CLOSED.md.ejs — fail-closed doctrine template', () => {
   it('emits the doctrine at L3 with strict enforcement note', () => {
     const out = renderAt('L3')
     expect(out).toContain('Fail-Closed Doctrine')
-    expect(out).toContain('Additional L3 enforcement')
+    expect(out).toContain('Additional L3/L4 enforcement')
     expect(out).toContain('without** a baseline')
+  })
+
+  it('emits the doctrine at L4 with strict enforcement note', () => {
+    const out = renderAt('L4')
+    expect(out).toContain('Fail-Closed Doctrine')
+    expect(out).toContain('Additional L3/L4 enforcement')
   })
 
   it('uses governance-appropriate frontmatter tags', () => {

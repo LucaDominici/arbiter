@@ -32,12 +32,22 @@ describe('governance levels', () => {
     expect(content).toContain('L2 (Standard)')
   })
 
-  it('AGENTS.md with L3 contains 85% coverage and evidence requirements', () => {
+  it('AGENTS.md with L3 contains 85% coverage and mutation testing', () => {
     generateAgentsMd(makeConfig(dir, { governanceLevel: 'L3' }))
     const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
     expect(content).toContain('85% coverage minimum')
-    expect(content).toContain('Evidence artifacts')
+    expect(content).toContain('Mutation testing: required')
     expect(content).toContain('L3 (Full Audit)')
+    expect(content).not.toContain('Evidence harness')
+  })
+
+  it('AGENTS.md with L4 contains evidence harness and STRIDE risk', () => {
+    generateAgentsMd(makeConfig(dir, { governanceLevel: 'L4' }))
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('85% coverage minimum')
+    expect(content).toContain('Evidence harness')
+    expect(content).toContain('STRIDE risk assessment')
+    expect(content).toContain('L4 (Audit/Compliance)')
   })
 
   it('L3 has additional invariants not present in L1', () => {
@@ -61,7 +71,7 @@ describe('governance levels', () => {
   })
 
   it('check-all.mjs contains project name for all levels', () => {
-    const levels: GovernanceLevel[] = ['L1', 'L2', 'L3']
+    const levels: GovernanceLevel[] = ['L1', 'L2', 'L3', 'L4']
     for (const level of levels) {
       const levelDir = mkdtempSync(join(tmpdir(), `arbiter-gov-checkall-${level}-`))
       generateCheckAll(

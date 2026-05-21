@@ -53,7 +53,7 @@
     "E_INIT_DETECT": "Failed to detect project structure.",
     "E_INIT_DIRTY_TREE": "Working tree has uncommitted changes.",
     "E_INIT_PLUGIN_FAILURES": "Plugin(s) failed:\n  {failures}",
-    "E_TARGET_REQUIRED": "--target is required. Specify L2 or L3.",
+    "E_TARGET_REQUIRED": "--target is required. Specify L2, L3, or L4.",
     "E_ALREADY_AT_LEVEL": "Already at {level}. Nothing to upgrade.",
     "E_DOWNGRADE_NOT_SUPPORTED": "Downgrade not supported. Edit arbiter.json manually and run arbiter update.",
     "E_UPGRADE_CONFIG_INVALID": "Config invalid after upgrade: {errors}.",
@@ -67,7 +67,7 @@
     "E_UNKNOWN_PATH": "Unknown configuration path: {path}",
     "E_UNSUPPORTED_PATH_DEPTH": "Unsupported path depth: {path}",
     "E_INIT_WIN32": "arbiter does not support native Win32. Install WSL2 and run arbiter inside it. Setup guide: https://docs.arbiter.dev/install/windows",
-    "E_INVALID_LEVEL": "Unknown governance level: \"{level}\". Valid: L1, L2, L3"
+    "E_INVALID_LEVEL": "Unknown governance level: \"{level}\". Valid: L1, L2, L3, L4"
   },
   "cli": {
     "shared": {

@@ -197,7 +197,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ## CANON-13 — EJS conditionals preserved on every template edit
 
-**Rule:** When editing or merging EJS templates, all `<% if (governanceLevel ...) %>` guards and `<%= testCommand %>` interpolations must be preserved. Every template change must be tested across 5 stacks × 3 governance levels (L1/L2/L3).
+**Rule:** When editing or merging EJS templates, all `<% if (governanceLevel ...) %>` guards and `<%= testCommand %>` interpolations must be preserved. Every template change must be tested across 5 stacks × 4 governance levels (L1/L2/L3/L4).
 
 **Why:** EJS conditionals are load-bearing: collapsing an L3-only verifier block into an L1 path silently breaks all L1/L2 generated projects. Merging templates is the highest-risk EJS operation.
 
@@ -259,7 +259,7 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ## CANON-18 — Every workflow EJS template edit must be tested across all stacks × governance
 
-**Rule:** When adding or modifying any `src/templates/github/workflows/*.ejs` file, render the template for all 5 stacks × 3 governance levels (L1/L2/L3) in the test suite and assert `actionlint` passes on every rendered output.
+**Rule:** When adding or modifying any `src/templates/github/workflows/*.ejs` file, render the template for all 5 stacks × 4 governance levels (L1/L2/L3/L4) in the test suite and assert `actionlint` passes on every rendered output.
 
 **Why:** Workflow templates are the primary CI governance artifact emitted by arbiter. An EJS syntax error or missing interpolation variable in a workflow template silently breaks generated CI for any project that uses that stack or governance level. Cross-product rendering catches these before merge.
 
@@ -283,9 +283,9 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ## CANON-20 — Governance threshold table changes require cross-product fixture update
 
-**Rule:** When editing `src/config/thresholds-l1-l2-l3.ts` (the CI tier threshold matrix), the affected workflow templates must be re-rendered and their output verified to contain updated threshold values. Fixture snapshots under `__tests__/fixtures/` must be regenerated.
+**Rule:** When editing `src/config/thresholds-by-level.ts` (the CI tier threshold matrix), the affected workflow templates must be re-rendered and their output verified to contain updated threshold values. Fixture snapshots under `__tests__/fixtures/` must be regenerated.
 
-**Why:** Threshold values flow from `thresholds-l1-l2-l3.ts` through EJS interpolation into generated workflow YAML. A threshold change that does not propagate through fixtures creates a silent divergence between what the spec promises and what generated projects receive.
+**Why:** Threshold values flow from `thresholds-by-level.ts` through EJS interpolation into generated workflow YAML. A threshold change that does not propagate through fixtures creates a silent divergence between what the spec promises and what generated projects receive.
 
 **Enforcement:** Prose — checked at PR review when threshold matrix changes. Promotable to a gate check once snapshot tooling is wired.
 

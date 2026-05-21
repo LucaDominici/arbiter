@@ -75,7 +75,7 @@ export interface ContextPackConfig {
  * Loading a config with `$schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION`
  * is a hard error (do not silently load); see `loadConfig`.
  */
-export const CURRENT_CONFIG_SCHEMA_VERSION = 2
+export const CURRENT_CONFIG_SCHEMA_VERSION = 3
 
 export interface ArbiterConfigV2 {
   version: string
@@ -154,9 +154,17 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
     methodLength: 40,
     maxParams: 5,
   },
+  L4: {
+    lineCoverage: 85,
+    branchCoverage: 80,
+    mutationScore: 85,
+    cyclomaticComplexity: 10,
+    methodLength: 40,
+    maxParams: 5,
+  },
 }
 
-const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3'])
+const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3', 'L4'])
 const AI_TOOLS: ReadonlySet<string> = new Set([
   'claude',
   'codex',
@@ -251,7 +259,7 @@ export function validateConfig(raw: unknown): ValidateResult {
 
   const level = raw['governanceLevel']
   if (typeof level !== 'string' || !GOVERNANCE_LEVELS.has(level)) {
-    errors.push(`governanceLevel must be one of L1, L2, L3 — got ${String(level)}`)
+    errors.push(`governanceLevel must be one of L1, L2, L3, L4 — got ${String(level)}`)
   }
 
   if (
