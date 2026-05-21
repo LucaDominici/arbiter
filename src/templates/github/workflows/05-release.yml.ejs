@@ -9,11 +9,11 @@ const _slsaL3 = governanceLevel === 'L3';
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    tags:
+      - 'v*'
+      - '!v0.0.0-verify-*'
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -230,6 +230,14 @@ jobs:
         with:
           name: release-artifact
       - uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+      - name: Sigstore preflight check
+        run: |
+          STATUS=$(curl -sf https://status.sigstore.dev/api/v2/status.json \
+            --max-time 10 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',{}).get('indicator','unknown'))" 2>/dev/null || echo "unknown")
+          if [[ "$STATUS" != "none" ]]; then
+            echo "::warning::Sigstore status is '${STATUS}' — cosign sign may fail"
+          fi
+          echo "sigstore-status=$STATUS"
       - name: Sign artifact (keyless OIDC)
         run: cosign sign-blob --yes release-artifact.zip --bundle release-artifact.zip.bundle
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -269,9 +277,56 @@ jobs:
           subject-path: release-artifact.zip
 
 <% if (_isService) { %>
+  trivy-strict-release:
+    name: Trivy scan — release gate (service)
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance]
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_BUILD || '["ubuntu-latest"]') }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36773d2f14d44  # v3
+        with:
+          driver: docker
+      - name: Restore Trivy DB cache
+        uses: actions/cache/restore@5a3ec84abb95a8ab4ca1d11a90ab8e1a8d6b2571  # v4
+        with:
+          path: ${{ runner.temp }}/trivy-db
+          key: ${{ runner.os }}-trivy-db-v1-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-trivy-db-v1-
+      - name: Build Docker image for scanning
+        run: |
+          docker build --load \
+            -t "${{ vars.IMAGE_NAME || 'app' }}:release-scan-${{ github.sha }}" \
+            .
+      - name: Export image to tar
+        run: docker save "${{ vars.IMAGE_NAME || 'app' }}:release-scan-${{ github.sha }}" -o "${{ runner.temp }}/image.tar"
+      - name: Trivy scan — block on HIGH/CRITICAL (security invariant before push)
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.28.0
+        with:
+          input: ${{ runner.temp }}/image.tar
+          format: table
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          trivyignores: .trivyignore
+          cache-dir: ${{ runner.temp }}/trivy-db
+      - name: Save Trivy DB cache
+        if: always()
+        uses: actions/cache/save@5a3ec84abb95a8ab4ca1d11a90ab8e1a8d6b2571  # v4
+        with:
+          path: ${{ runner.temp }}/trivy-db
+          key: ${{ runner.os }}-trivy-db-v1-${{ github.run_id }}
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rmi "${{ vars.IMAGE_NAME || 'app' }}:release-scan-${{ github.sha }}" 2>/dev/null || true
+          rm -f "${{ runner.temp }}/image.tar"
+
   build-container:
     name: Build and sign container (service)
-    needs: [cosign-sign, attest-build-provenance, slsa-provenance]
+    needs: [cosign-sign, attest-build-provenance, slsa-provenance, trivy-strict-release]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -281,6 +336,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v4
       - uses: docker/setup-buildx-action@v3
+      - name: Configure Docker credential store (macOS keychain bypass)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "$HOME/.docker"
+          echo '{"credsStore":""}' > "$HOME/.docker/config.json"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -308,15 +368,26 @@ jobs:
           sbom: true
           provenance: mode=max
       - uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+      - name: Sigstore preflight check
+        run: |
+          STATUS=$(curl -sf https://status.sigstore.dev/api/v2/status.json \
+            --max-time 10 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',{}).get('indicator','unknown'))" 2>/dev/null || echo "unknown")
+          if [[ "$STATUS" != "none" ]]; then
+            echo "::warning::Sigstore status is '${STATUS}' — cosign sign may fail"
+          fi
+          echo "sigstore-status=$STATUS"
       - name: Sign container image (keyless OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
-      - name: Scan signed image for vulnerabilities
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.28.0
-        with:
-          image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
-          format: table
-          exit-code: '1'
-          severity: HIGH,CRITICAL
+<% if (_slsaL3) { %>
+      - name: Verify container signature (L3 strict)
+        run: |
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+<% } %>
 <% } else if (_isCli) { %>
   build-binaries:
     name: Build multi-arch binaries (cli)

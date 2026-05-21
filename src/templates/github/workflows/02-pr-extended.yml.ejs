@@ -8,8 +8,13 @@ permissions:
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     types: [opened, synchronize, reopened, ready_for_review, labeled]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+      - '.editorconfig'
 
 concurrency:
   group: pr-extended-${{ github.head_ref || github.ref }}

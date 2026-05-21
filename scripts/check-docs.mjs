@@ -7,8 +7,11 @@
 // remote ref is missing locally.
 //
 // Bypass: any commit message in the diff range containing `[skip-docs]` causes the gate to PASS.
+// Pre-commit bypass: set ARBITER_SKIP_DOCS=true (commit message bypass cannot work pre-commit
+// because COMMIT_EDITMSG is written by prepare-commit-msg, which runs AFTER pre-commit).
 // This mirrors the CI `docs-check` job so the gate fires identically pre-push. (#356, CANON-01)
 import { spawnSync } from 'node:child_process'
+import { checkBypass } from './lib/loud-bypass.mjs'
 
 const BYPASS_TOKEN = '[skip-docs]'
 const TRIGGER_PREFIXES = ['src/', '__tests__/']
@@ -61,6 +64,12 @@ if (diffRange) {
   const log = git(['log', '--format=%B', diffRange])
   if (log.status === 0 && log.stdout.includes(BYPASS_TOKEN)) bypassed = true
 }
+if (!bypassed) {
+  const { bypassed: envBypassed } = checkBypass('ARBITER_SKIP_DOCS', {
+    reason: 'docs gate bypass (pre-commit context — commit message bypass unavailable)',
+  })
+  if (envBypassed) bypassed = true
+}
 
 if (hasCode && !hasDocs && !bypassed) {
   console.error('Code changed without documentation update.')
@@ -69,7 +78,7 @@ if (hasCode && !hasDocs && !bypassed) {
     if (TRIGGER_PREFIXES.some((p) => f.startsWith(p))) console.error('  ' + f)
   }
   console.error(
-    `Update docs/ or README.md, or add "${BYPASS_TOKEN}" to a commit message to bypass.`,
+    `Update docs/ or README.md, add "${BYPASS_TOKEN}" to a commit message, or set ARBITER_SKIP_DOCS=true to bypass.`,
   )
   process.exit(1)
 }
