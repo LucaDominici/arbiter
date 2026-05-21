@@ -474,3 +474,11 @@ Doctrine: arbiter's gates default to block-on-uncertainty, never skip-on-uncerta
 **Enforcement:** scripts/check-fail-closed-audit.mjs (L2 gate) — exits 1 when a new file outside the baseline violates the fail-closed contract; doctrine at docs/SYSTEM/FAIL_CLOSED.md
 
 ---
+
+### INV-94: Script catalog cohesion — new gate scripts must justify their existence
+
+Doctrine: the `scripts/check-*.mjs` namespace is a finite, human-readable catalog, not a graveyard. Every gate script added since the catalog baseline was frozen MUST carry a `// CATALOG:` header block (≥3 contiguous comment lines beginning with `// CATALOG:`) that (a) names what behaviour the script aggregates, (b) names which sibling scripts were considered and rejected as a fold-in target, and (c) cites a concrete reason the new file is preferable to extending an existing one. Pre-existing scripts are grandfathered through `scripts/data/script-catalog-baseline.json` — the baseline is a debt ledger captured once and only widened deliberately. The cohesion gate hard-fails when a script outside the baseline lacks the marker. It also emits a soft warning when the total `scripts/check-*.mjs` count exceeds the baseline by more than 5, signalling that a refactor pass is overdue before the next addition. The marker convention is paraphrased from the `// FAIL-OPEN-INTENT:` pattern used by INV-96 — both are intent-declaring comments enforced at gate time.
+
+**Enforcement:** scripts/check-script-cohesion.mjs (L2 gate) — exits 1 when a new file outside the baseline lacks a `// CATALOG:` marker block; emits a warning (still exit 0) when the catalog grows by more than 5 scripts past the baseline; promoted from CANON-21
+
+---
