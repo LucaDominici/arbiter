@@ -118,3 +118,7 @@ When vitepress 2 ships, run the dep bump as a single PR with full audit + L2.
 ## Ubuntu-latest gitleaks install (#987)
 
 GitHub-hosted ubuntu-latest does not allow writes to /usr/local/bin without sudo. Install to RUNNER_TEMP/bin and add to GITHUB_PATH.
+
+## evidence-writer.sh shebang (#991)
+
+evidence-writer.sh.ejs uses bash (not POSIX sh) for portable JSON-escape via parameter expansion. awk gsub varies across mawk/gawk/busybox-awk on self-hosted Docker images.
