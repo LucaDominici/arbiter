@@ -38,7 +38,9 @@ jobs:
         run: node scripts/pii-scan.mjs
       - name: Install gitleaks
         run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: Gitleaks secrets scan (INV-11)
         run: |
           gitleaks detect --source . --config .gitleaks.toml \

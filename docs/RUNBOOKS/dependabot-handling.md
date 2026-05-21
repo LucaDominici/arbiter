@@ -114,3 +114,7 @@ Mitigations available:
   unaffected.
 
 When vitepress 2 ships, run the dep bump as a single PR with full audit + L2.
+
+## Ubuntu-latest gitleaks install (#987)
+
+GitHub-hosted ubuntu-latest does not allow writes to /usr/local/bin without sudo. Install to RUNNER_TEMP/bin and add to GITHUB_PATH.
