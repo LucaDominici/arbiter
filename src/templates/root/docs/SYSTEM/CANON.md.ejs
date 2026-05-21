@@ -1,0 +1,359 @@
+<% if (governanceLevel === 'L2' || governanceLevel === 'L3') { -%>
+---
+title: '<%= projectName %> — CANON (Process Rules)'
+doc_version: '1.0.0'
+status: active
+last_review: '<%= new Date().toISOString().slice(0, 10) %>'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'kind/governance', 'scope/dual-track']
+related: []
+---
+
+# <%= projectName %> — CANON
+
+> Process-level rules that sit below invariants (INV-NN) but above individual
+> implementation decisions in the Authority Hierarchy. Every implementation
+> of an open issue must cite the CANON-NN IDs that apply.
+
+> **Violation protocol:** STOP → REFUSE → cite CANON-NN (same as INV-NN).
+
+---
+
+## How to read this file
+
+Each entry is a triplet:
+
+1. **Rule** — the canonical statement (what MUST happen).
+2. **Why** — the failure mode the rule prevents.
+3. **Enforcement** — the gate, hook, or review step that catches violations.
+
+When a CANON entry graduates to a machine check it is promoted into a
+machine-enforced INV-NN. The CANON-NN entry stays as historical record
+with a `Promoted to: INV-NN` footer.
+
+---
+
+## How to add a new CANON
+
+1. Append `## CANON-NN` at the end of this file (increment N).
+2. Use the triplet structure above. Cite the issue that prompted the rule.
+3. If you add a gate or hook to enforce it, also add an `INV-NN` entry to
+   `GLOBAL_INVARIANTS.md` and link them with `Promoted to: INV-NN`.
+
+---
+
+## CANON-01 — Dual-sided declination
+
+**Rule:** Every governance decision applies to both the framework (self) and the
+generated project output (scaffold). A self-only rule with no scaffold mirror
+is incomplete; a scaffold-only rule that the framework itself bypasses is
+unprincipled. Plans must address both tracks or explicitly justify a single-track scope.
+
+**Why:** Asymmetric enforcement erodes trust. If the framework enforces rule X
+for users but not for itself, the rule reads as bureaucracy; if it enforces
+for itself but not for users, generated projects inherit weaker guarantees.
+
+**Enforcement:** Prose — checked at PR review for every governance change.
+
+---
+
+## CANON-02 — Proven cell ⇒ gated step
+
+**Rule:** Any language × tool × archetype × level cell promoted to `proven`
+in the compatibility matrix MUST have a corresponding gate step wired into
+the level's `check-all.mjs` invocation.
+
+**Why:** A `proven` claim without a gate is paper certification.
+
+**Enforcement:** Matrix integrity tests assert that every `proven` cell
+has a matching gate step.
+
+---
+
+## CANON-03 — Proven cell ⇒ fixture
+
+**Rule:** Any language with at least one `proven` cell in the matrix MUST
+have at least one fixture project under `__tests__/fixtures/real-projects/`
+exercising that language end-to-end.
+
+**Why:** A proven claim without a fixture is hypothesis, not evidence.
+
+**Enforcement:** L1 gate — scripts/check-matrix-fixtures.mjs.
+
+---
+
+## CANON-04 — Every .ejs has a render test
+
+**Rule:** Every `.ejs` template under `src/templates/` MUST have at least one
+test that renders the template against a realistic config and asserts the
+absence of EJS leak markers (`<%`, `%>`) in the output.
+
+**Why:** EJS syntax errors and missing variables silently produce malformed
+output. Render tests are the cheapest way to catch them.
+
+**Enforcement:** L1 gate — render coverage check.
+
+---
+
+## CANON-05 — Every generator has a unit test
+
+**Rule:** Every file under `src/generators/` MUST have a corresponding unit
+test exercising at least its happy path and one error path.
+
+**Why:** Generators emit governance artifacts. An untested generator can
+silently corrupt every downstream project.
+
+**Enforcement:** L1 gate — generator-coverage check.
+
+---
+
+## CANON-06 — Every CLI command has a test
+
+**Rule:** Every file under `src/commands/` MUST have a test that invokes the
+command end-to-end with realistic arguments and asserts exit code + stdout.
+
+**Why:** CLI commands are the user-facing contract. Unverified commands break
+silently in users' hands.
+
+**Enforcement:** L1 gate — command-test coverage check.
+
+---
+
+## CANON-07 — Generated scripts must be executed in tests
+
+**Rule:** When a generator emits an executable script (`.sh`, `.mjs`, `.py`,
+etc.) into a target project, the test for that generator MUST execute the
+emitted script against a fixture and assert at least the exit code.
+
+**Why:** Generating a syntactically-valid but semantically-broken script
+silently breaks every consumer.
+
+**Enforcement:** Prose — checked at PR review for any generator that emits
+a script artifact.
+
+---
+
+## CANON-08 — Catalog ↔ AGENTS.md parity
+
+**Rule:** Every invariant in `src/invariants/catalog.ts` MUST appear in
+`AGENTS.md` §Invariants with matching ID and title. Drift between the two
+breaks plan validation.
+
+**Why:** AGENTS.md is the human-readable contract; the catalog is the
+machine-readable one. They must agree.
+
+**Enforcement:** L1 gate — catalog/AGENTS.md parity check.
+
+---
+
+## CANON-09 — Invariant enforcement claim = wired gate step
+
+**Rule:** Every invariant whose `enforcement` field references a script MUST
+have that script wired into `check-all.mjs` at the declared level.
+
+**Why:** An invariant that claims gate enforcement but is not actually wired
+is paper enforcement.
+
+**Enforcement:** L1 gate — invariant-enforcement-wired check.
+
+---
+
+## CANON-10 — Every active hook is documented in .claude/CLAUDE.md
+
+**Rule:** Every entry under `.claude/settings.json` `hooks:` MUST appear in
+`.claude/CLAUDE.md` §Hooks with its event, purpose, and any bypass mechanism.
+
+**Why:** Undocumented hooks surprise contributors and make debugging painful.
+
+**Enforcement:** Prose — checked at PR review when settings.json changes.
+
+---
+
+## CANON-11 — Every file-emitting generator has a brownfield test
+
+**Rule:** Every generator that writes files into a target project MUST have
+a test that runs against a pre-existing target directory and asserts safe
+behaviour (idempotent re-runs, no clobber of user files, etc.).
+
+**Why:** Greenfield-only tests miss the real-world case where users run
+the tool against an existing repo. Brownfield testing catches data-loss bugs.
+
+**Enforcement:** L1 gate — brownfield coverage check.
+
+---
+
+## CANON-12 — Invariant-12 applies to <%= projectName %>'s own source
+
+**Rule:** The "no direct child_process" rule from INV-12 applies to this
+project's own `src/` tree as well as to generated targets. All process
+spawning must go through the approved helper (see GLOBAL_INVARIANTS.md INV-12).
+
+**Why:** Self-application is the proof that the rule is liveable. If the
+framework bypasses its own invariant, users will too.
+
+**Enforcement:** L1 gate — no-direct-spawn hook + check.
+
+---
+
+## CANON-13 — EJS conditionals preserved on every template edit
+
+**Rule:** When editing or merging EJS templates, all governance-level `if`
+guards and inline value interpolations MUST be preserved. Every
+template change MUST be tested across the supported stack × governance
+matrix.
+
+**Why:** EJS conditionals are load-bearing: collapsing an L3-only verifier
+block into an L1 path silently breaks all L1/L2 generated projects.
+
+**Enforcement:** Cross-product render tests must stay green on every
+template change.
+
+---
+
+## CANON-14 — Self-config ⊇ template at equal governance level
+
+**Rule:** Every hook this project emits for target projects at governance
+level L MUST also run in its own `.claude/settings.json` if its own declared
+governance level is ≥ L.
+
+**Why:** A framework that does not eat its own dogfood at the same level
+it ships cannot credibly claim the rule is liveable.
+
+**Enforcement:** Prose — diff the template against the materialised file
+on every hook addition.
+
+---
+
+## CANON-15 — Boundary/security templates require a wired gate step
+
+**Rule:** Emitting a linter config, security scanner config, or
+architecture-boundary config file is not sufficient. The corresponding
+gate step MUST also appear in `check-all.mjs` at the appropriate level.
+
+**Why:** A config file without a gate invocation is a paper rule. No CI
+runner will enforce it unless the gate calls it.
+
+**Enforcement:** Prose — checked at PR review for any new template that
+emits a tool config file.
+
+---
+
+## CANON-16 — Refactor-first before creating new source files
+
+**Rule:** Before creating any new file under `src/`, a plan MUST include
+an "Existing Code Survey" section documenting: what was grepped for, what
+similar code was found, and whether a refactor was chosen or rejected
+(with reason).
+
+**Why:** Unchecked file creation is the primary source of near-duplicate
+abstractions, bloated generator counts, and redundant templates. A senior
+developer asks "does this already exist?" before building.
+
+**Enforcement:** Pre-edit plan-anchor hook hard-blocks `Write` to any new
+`src/` file if the active plan lacks a valid `## Existing Code Survey`
+block for that file.
+
+<% if (governanceLevel === 'L3') { -%>
+**L3 note:** Survey decisions are reviewed against `jscpd` duplication
+findings on every PR; near-duplicate functions added with a `new file
+justified` decision MUST be refactored or the decision MUST be revised.
+
+<% } -%>
+
+---
+
+## CANON-17 — Filesystem errno translation
+
+**Rule:** Every direct `fs.*` failure handler in `src/` MUST translate raw
+NodeJS errno codes (ENOENT, EACCES, EPERM, EBUSY, EMFILE, ENOSPC) into a
+human-readable error with a hint. Raw NodeJS stack traces or bare errno
+strings MUST NOT leak to user-facing stdout/stderr from CLI commands.
+
+**Why:** Errno strings are opaque to users; "ENOENT" tells the user nothing
+about what is missing or how to fix it.
+
+**Enforcement:** Prose — checked at PR review for any code path that
+invokes `fs.*` directly.
+
+---
+
+## CANON-18 — Every workflow EJS template edit tested across the matrix
+
+**Rule:** When adding or modifying any workflow template under
+`src/templates/github/workflows/*.ejs`, the test suite MUST render the
+template for the full stack × governance matrix and assert `actionlint`
+passes on every rendered output.
+
+**Why:** Workflow templates are the primary CI governance artifact emitted
+by the framework. A syntax error or missing interpolation variable
+silently breaks generated CI for any project using that stack or level.
+
+**Enforcement:** Cross-product render tests extended with workflow
+assertions.
+
+---
+
+## CANON-19 — Composite action edits require release workflow re-validation
+
+**Rule:** When adding or modifying any composite action template
+(`.github/actions/<name>/action.yml.ejs`), the release workflow template
+MUST be re-rendered and validated for all archetype buckets.
+
+**Why:** Composite actions are called from multiple publish job paths.
+A breaking input rename or missing output silently breaks release signing
+for every archetype that references the action.
+
+**Enforcement:** Prose — checked at PR review for any composite action
+template edit.
+
+---
+
+## CANON-20 — Governance threshold changes require cross-product fixture update
+
+**Rule:** When editing the CI tier threshold matrix, the affected workflow
+templates MUST be re-rendered and their output verified to contain the
+updated threshold values. Fixture snapshots MUST be regenerated.
+
+**Why:** Threshold values flow from the threshold matrix through EJS
+interpolation into generated workflow YAML. A change that does not
+propagate through fixtures creates a silent divergence between what the
+spec promises and what generated projects receive.
+
+**Enforcement:** Prose — checked at PR review when the threshold matrix
+changes.
+
+---
+
+## CANON-21 — Aggregate, don't proliferate
+
+**Rule:** Before creating any new `scripts/check-*.mjs` gate, the plan MUST
+include a written justification explaining why the new logic cannot fold
+into an existing sibling script as a `--mode` flag or additional rule. The
+justification MUST cite concrete grep evidence of which sibling scripts
+were considered and why each was rejected. New scripts added without this
+justification block MUST carry a `// CATALOG:` marker (≥3 contiguous
+header comment lines) declaring what the script aggregates and why a new
+file is preferable to extending an existing one.
+
+**Why:** The `scripts/check-*.mjs` namespace is the operational surface
+this project presents to its own developers and to CI. Unchecked growth
+produces a long undifferentiated list of single-purpose scripts that
+nobody can hold in their head, each with its own argument parsing,
+baseline format, and exit-code conventions. Aggregating related checks
+into a small number of multi-mode scripts keeps the catalog learnable,
+reduces near-duplicate code, and forces explicit thinking about cohesion
+before file creation.
+
+**Enforcement:** `scripts/check-script-cohesion.mjs` (L2 gate) — reads
+`scripts/data/script-catalog-baseline.json`, hard-fails when a script
+outside the baseline lacks a `// CATALOG:` header block; emits a warning
+when the total script count exceeds the baseline by more than 5.
+
+<% if (governanceLevel === 'L3') { -%>
+**L3 note:** At L3 the soft cap warning MUST be triaged within the same PR
+that triggers it; opening a tech-debt issue with a refactor plan is
+sufficient triage, but ignoring the warning is not.
+
+<% } -%>
+<% } -%>

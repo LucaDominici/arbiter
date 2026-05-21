@@ -165,6 +165,7 @@ if (subcommand !== 'check') {
   runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
   runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
   runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
+  runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

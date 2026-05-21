@@ -290,3 +290,17 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Enforcement:** Prose — checked at PR review when threshold matrix changes. Promotable to a gate check once snapshot tooling is wired.
 
 **Source issues:** CI-TIER-MODEL spec (2026-05-17)
+
+---
+
+## CANON-21 — Aggregate, don't proliferate
+
+**Rule:** Before creating any new `scripts/check-*.mjs` gate, the plan must include a written justification that explains why the new logic cannot fold into an existing sibling script as a `--mode` flag or additional rule. The justification must cite concrete grep evidence of which sibling scripts were considered and why each was rejected. New scripts added without this justification must carry a `// CATALOG:` marker (≥3 lines of header comment) declaring what the script aggregates and why a new file is preferable to extending an existing one.
+
+**Why:** The `scripts/check-*.mjs` namespace is the operational surface arbiter presents to its own developers and to CI. Unchecked growth produces a long undifferentiated list of single-purpose scripts that nobody can hold in their head, each with its own argument parsing, baseline format, and exit-code conventions. Aggregating related checks into a small number of multi-mode scripts keeps the catalog learnable, reduces near-duplicate code, and forces explicit thinking about cohesion before file creation. The marker is a paper rule made operational: a gate verifies its presence.
+
+**Enforcement:** `scripts/check-script-cohesion.mjs` (L2 gate) — reads `scripts/data/script-catalog-baseline.json`, hard-fails when a `scripts/check-*.mjs` script outside the baseline lacks a `// CATALOG:` header block; warns when the total script count exceeds the baseline by more than 5 (encourages a refactor pass before another addition). Promoted to INV-94.
+
+**Promoted to:** INV-94
+
+**Source issues:** #989
