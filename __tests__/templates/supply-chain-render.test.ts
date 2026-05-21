@@ -92,9 +92,14 @@ describe('sign-and-attest/action.yml.ejs — SBOM attestation step (CANON-19, #8
     expect(rendered).toMatch(/sbom|attest.*predicate|predicate.*sbom/i)
   })
 
-  it('L3: verify-blob step present', () => {
-    const rendered = renderSignAndAttest({ governanceLevel: 'L3' })
+  it('L4: verify-blob step present', () => {
+    const rendered = renderSignAndAttest({ governanceLevel: 'L4' })
     expect(rendered).toContain('verify-blob')
+  })
+
+  it('L3: no verify-blob step (verify moved to L4)', () => {
+    const rendered = renderSignAndAttest({ governanceLevel: 'L3' })
+    expect(rendered).not.toContain('verify-blob')
   })
 
   it('L1/L2: no verify-blob step', () => {

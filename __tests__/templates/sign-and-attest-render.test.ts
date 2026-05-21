@@ -64,10 +64,15 @@ describe('sign-and-attest/action.yml.ejs — structural invariants (CANON-18)', 
 // ─── Governance branching ─────────────────────────────────────────────────────
 
 describe('sign-and-attest/action.yml.ejs — governance branching', () => {
-  it('L3: verify step present after signing', () => {
-    const rendered = renderAction({ governanceLevel: 'L3' })
+  it('L4: verify step present after signing', () => {
+    const rendered = renderAction({ governanceLevel: 'L4' })
     expect(rendered).toContain('cosign verify-blob')
     expect(rendered).toContain('token.actions.githubusercontent.com')
+  })
+
+  it('L3: no verify step (verify moved to L4)', () => {
+    const rendered = renderAction({ governanceLevel: 'L3' })
+    expect(rendered).not.toContain('cosign verify-blob')
   })
 
   it('L2: no verify step', () => {

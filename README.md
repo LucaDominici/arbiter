@@ -41,15 +41,15 @@ Doing this by hand across stacks and tools is copy-paste work that rots the mome
 
 ## How it compares
 
-| Capability                | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
-| ------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
-| Canonical governance file | ✓       | —    | —    | —           | —           | —        |
-| Language-aware generation | ✓       | —    | —    | —           | —           | —        |
-| L1/L2/L3 governance tiers | ✓       | —    | —    | —           | —           | —        |
-| Generated hook scripts    | ✓       | —    | —    | —           | —           | —        |
-| CI workflow generation    | ✓       | —    | —    | —           | —           | —        |
-| Idempotent update         | ✓       | —    | —    | —           | —           | —        |
-| Zero telemetry            | ✓       | —    | —    | —           | —           | —        |
+| Capability                   | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
+| ---------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
+| Canonical governance file    | ✓       | —    | —    | —           | —           | —        |
+| Language-aware generation    | ✓       | —    | —    | —           | —           | —        |
+| L1/L2/L3/L4 governance tiers | ✓       | —    | —    | —           | —           | —        |
+| Generated hook scripts       | ✓       | —    | —    | —           | —           | —        |
+| CI workflow generation       | ✓       | —    | —    | —           | —           | —        |
+| Idempotent update            | ✓       | —    | —    | —           | —           | —        |
+| Zero telemetry               | ✓       | —    | —    | —           | —           | —        |
 
 > Arbiter is a governance installer, not a workflow or persona framework. [Full comparison →](website/comparisons/index.md)
 
@@ -97,7 +97,7 @@ arbiter init [options]
 Options:
   -y, --yes              Skip wizard — use auto-detected defaults
   --tools <list>         AI tools: claude,codex,cursor,copilot  (default: claude,codex)
-  --level <level>        Governance level: L1, L2, L3            (default: L2)
+  --level <level>        Governance level: L1, L2, L3, L4        (default: L2)
   --dir <path>           Target directory                         (default: cwd)
   --quiet                Suppress informational banners
   -h, --help             Show help
@@ -140,11 +140,12 @@ See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentati
 
 ## Governance Levels
 
-| Level  | What it gates                                                   |
-| ------ | --------------------------------------------------------------- |
-| **L1** | Lint + format + unit tests (fast, pre-commit)                   |
-| **L2** | L1 + integration tests + coverage + audit (default, matches CI) |
-| **L3** | L2 + E2E + evidence artifacts (audit-grade)                     |
+| Level  | What it gates                                                        |
+| ------ | -------------------------------------------------------------------- |
+| **L1** | Lint + format + unit tests (fast, pre-commit)                        |
+| **L2** | L1 + integration tests + coverage + debt gates + security scan       |
+| **L3** | L2 + E2E + mutation testing                                          |
+| **L4** | L3 + evidence harness + STRIDE risk assessment + TRACK_ROUTER + SLSA |
 
 ---
 

@@ -152,13 +152,13 @@ describe('build-matrix.mjs', () => {
     }
   })
 
-  it('produces 48 entries for the real fixture set', () => {
+  it('produces 73 entries for the real fixture set', () => {
     const fixturesDir = resolve('__tests__/fixtures/real-projects')
     const result = run(fixturesDir)
     expect(result.status).toBe(0)
     const line = result.stdout.split('\n').find((l) => l.startsWith('matrix='))
     const json = JSON.parse(line!.replace('matrix=', ''))
-    // 16 orig × 3 + rust-cli × 3 + python-data-pipeline × 3 + rust-embedded × 1 = 55
-    expect(json.include).toHaveLength(55)
+    // 18 fixtures × 4 levels (L1/L2/L3/L4) + rust-embedded × 1 (L1 only) = 73
+    expect(json.include).toHaveLength(73)
   })
 })

@@ -94,7 +94,9 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
   // ── v1 ("0.1") → v2 ("0.2") ──────────────────────────────────────────────
   const rawLevel = raw['governanceLevel']
   const level: GovernanceLevel =
-    rawLevel === 'L1' || rawLevel === 'L2' || rawLevel === 'L3' ? rawLevel : 'L2'
+    rawLevel === 'L1' || rawLevel === 'L2' || rawLevel === 'L3' || rawLevel === 'L4'
+      ? rawLevel
+      : 'L2'
 
   const features: FeatureFlags = deriveFeatureFlags(raw, level)
   const thresholds: ThresholdsV2 = DEFAULT_THRESHOLDS[level]

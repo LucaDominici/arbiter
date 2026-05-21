@@ -49,4 +49,4 @@ The citation protocol is identical to INV-NN: **STOP → REFUSE → cite CANON-N
 | CANON-17 | Adding a filesystem error handler (`ENOENT`, `EACCES`, etc.) that translates errno codes |
 | CANON-18 | Adding/modifying any `src/templates/github/workflows/*.ejs`                              |
 | CANON-19 | Adding/modifying any `.github/actions/sign-and-attest/*`                                 |
-| CANON-20 | Changing governance threshold table in `thresholds-l1-l2-l3.ts`                          |
+| CANON-20 | Changing governance threshold table in `thresholds-by-level.ts`                          |

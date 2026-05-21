@@ -10,8 +10,8 @@ import {
 } from '../../src/kit/taxonomy.js'
 
 describe('VALID_TML', () => {
-  it('contains exactly L1, L2, L3', () => {
-    expect([...VALID_TML].sort()).toEqual(['L1', 'L2', 'L3'])
+  it('contains exactly L1, L2, L3, L4', () => {
+    expect([...VALID_TML].sort()).toEqual(['L1', 'L2', 'L3', 'L4'])
   })
 })
 

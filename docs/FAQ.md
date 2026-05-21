@@ -46,7 +46,7 @@ Yes, `npm install -g @arbiter/cli` is the recommended approach. Alternatively, u
 ---
 
 **What is a governance level?**  
-arbiter supports three levels: L1 (lightweight), L2 (standard), and L3 (strict). Higher levels enforce more invariants and add more gate checks. Start with L1 for brownfield projects, L2 for new projects, L3 for regulated or security-sensitive projects.
+arbiter supports four levels: L1 (lightweight), L2 (standard), L3 (strict), and L4 (audit/compliance). Higher levels enforce more invariants and add more gate checks. Start with L1 for brownfield projects, L2 for new projects, L3 for projects requiring E2E + mutation testing, L4 for regulated or compliance-grade projects (evidence harness + STRIDE risk + SLSA).
 
 ---
 

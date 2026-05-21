@@ -44,7 +44,7 @@ export type Language =
   | 'go'
   | 'multi'
   | 'unknown'
-export type GovernanceLevel = 'L1' | 'L2' | 'L3'
+export type GovernanceLevel = 'L1' | 'L2' | 'L3' | 'L4'
 export type AiTool = 'claude' | 'codex' | 'cursor' | 'copilot' | 'gemini' | 'windsurf' | 'aider'
 
 export type Archetype =

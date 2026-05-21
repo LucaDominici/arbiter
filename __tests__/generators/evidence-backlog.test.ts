@@ -16,14 +16,8 @@ describe('generateEvidenceBacklog (#243)', () => {
     cleanupTestProject(dir)
   })
 
-  it('emits .evidence/BACKLOG.md.template at L2', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L2' })
-    generateEvidenceBacklog(config)
-    expect(existsSync(join(dir, '.evidence', 'BACKLOG.md.template'))).toBe(true)
-  })
-
-  it('emits .evidence/BACKLOG.md.template at L3', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L3' })
+  it('emits .evidence/BACKLOG.md.template at L4', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
     generateEvidenceBacklog(config)
     expect(existsSync(join(dir, '.evidence', 'BACKLOG.md.template'))).toBe(true)
   })
@@ -35,12 +29,26 @@ describe('generateEvidenceBacklog (#243)', () => {
     expect(existsSync(join(dir, '.evidence', 'BACKLOG.md.template'))).toBe(false)
   })
 
-  it('skipIfExists — does not overwrite existing template', () => {
+  it('does NOT emit at L2', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    const result = generateEvidenceBacklog(config)
+    expect(result.files).toHaveLength(0)
+    expect(existsSync(join(dir, '.evidence', 'BACKLOG.md.template'))).toBe(false)
+  })
+
+  it('does NOT emit at L3', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    const result = generateEvidenceBacklog(config)
+    expect(result.files).toHaveLength(0)
+    expect(existsSync(join(dir, '.evidence', 'BACKLOG.md.template'))).toBe(false)
+  })
+
+  it('skipIfExists — does not overwrite existing template at L4', () => {
     const evidenceDir = join(dir, '.evidence')
     mkdirSync(evidenceDir, { recursive: true })
     const target = join(evidenceDir, 'BACKLOG.md.template')
     writeFileSync(target, 'PREEXISTING')
-    generateEvidenceBacklog(makeConfig(dir, { governanceLevel: 'L2' }))
+    generateEvidenceBacklog(makeConfig(dir, { governanceLevel: 'L4' }))
     expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
   })
 })
