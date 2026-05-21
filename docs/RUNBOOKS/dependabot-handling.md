@@ -95,3 +95,22 @@ node scripts/check-all.mjs L1               # full gate including parity check
 ```
 
 See ADR-051 in `docs/SYSTEM/DECISIONS.md` for the full design decision.
+
+## Vulnerability triage notes (2026-05-20)
+
+When a Dependabot security alert lands on a transitive dep that arbiter
+cannot easily override, document the rationale here and proceed.
+
+### Ecosystem-locked vite / esbuild via vitepress (#976)
+
+vitepress 1.6.4 (current latest) bundles its own `vite@5.x` and `esbuild@0.21.x`.
+Forcing `vite@6+` via `overrides` breaks vitepress; forcing `esbuild@0.28+`
+breaks minimatch ESM imports used by arbiter's pre-edit hooks.
+
+Mitigations available:
+
+- Wait for vitepress 2.x (supports vite 6 / 7), then re-apply overrides.
+- vite/esbuild dev-server CVEs are dev-only — the published static site is
+  unaffected.
+
+When vitepress 2 ships, run the dep bump as a single PR with full audit + L2.
