@@ -1,6 +1,6 @@
 [
   { "token": "planning-service" },
-  { "token": "cloud.ms5.core" },
+  { "token": "acme.corp.core" },
   { "token": "ms5" },
   { "token": "PlanningException" },
   { "token": "PlanningBaseException" },

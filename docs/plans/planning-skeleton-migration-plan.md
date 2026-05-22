@@ -14,9 +14,8 @@ related: []
 
 # Planning Skeleton Migration Plan
 
-> Executable playbook for importing and rationalizing patterns from `cloud.ms5.planning-main`
+> Executable playbook for importing and rationalizing patterns from `internal-ref`
 > into arbiter across dual tracks (A: arbiter-for-itself; B: arbiter-as-framework).
-> Full scope definition: `/.claude/plans/you-are-claude-opus-humming-melody.md`
 
 ---
 
