@@ -208,7 +208,15 @@ Generated `import-linter` + `ruff` banned-api + domain-purity grep enforce hexag
 - Unit tests: 85% coverage minimum
 - Integration tests: all external boundaries covered
 - E2E tests: critical user journeys covered
-- Evidence artifacts generated and retained for all test runs
+- Mutation testing: required (85% score minimum)
+- TDD required: test first is non-negotiable<% } %><% if (governanceLevel === 'L4') { %>### L4 (Audit/Compliance)
+
+- Unit tests: 85% coverage minimum
+- Integration tests: all external boundaries covered
+- E2E tests: critical user journeys covered
+- Mutation testing: required (85% score minimum)
+- Evidence harness: all test runs captured, retained, and auditable
+- STRIDE risk assessment: required for auth/external boundary changes
 - TDD required: test first is non-negotiable<% } %>
 
 ---
@@ -247,7 +255,9 @@ L1 (fast, pre-commit):    <%= lintCommand %>
 
 L2 (full, pre-push):      L1 + coverage + audit + integration tests
 
-L3 (deep, nightly/CI):    L2 + E2E + static analysis + evidence
+L3 (deep, nightly/CI):    L2 + E2E + mutation testing
+
+L4 (compliance):          L3 + evidence harness + STRIDE risk + TRACK_ROUTER
 ```
 
 Run locally:
@@ -276,7 +286,7 @@ Changes pass through five enforcement layers:
 
 ---
 <% if (enableDebtGates) { %>
-<% const threshold = governanceLevel === 'L3' ? 85 : 80; %>
+<% const threshold = (governanceLevel === 'L3' || governanceLevel === 'L4') ? 85 : 80; %>
 ## Tech Debt Gates
 
 Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.mjs L2`):
@@ -287,22 +297,22 @@ Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.m
 | Complexity | ESLint `complexity` rule | max 15 |
 | Dead Code | Knip | zero unused exports |
 | Circular Deps | madge | zero cycles |
-<% if (governanceLevel === 'L3') { %>| Mutation testing (Stryker) | @stryker-mutator/core | 85% mutation score |
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>| Mutation testing (Stryker) | @stryker-mutator/core | 85% mutation score |
 <% } %><% } %><% if (language === 'rust') { %>| Coverage | cargo-tarpaulin / llvm-cov | <%= threshold %>% |
 | Complexity | `clippy::pedantic` | enforced |
 | Dead Code | `warn(dead_code)` (clippy) | zero warnings |
-<% if (governanceLevel === 'L3') { %>| Mutation testing (cargo-mutants) | cargo-mutants (beta) | 85% mutation score |
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>| Mutation testing (cargo-mutants) | cargo-mutants (beta) | 85% mutation score |
 <% } %><% } %><% if (language === 'java') { %>| Coverage | JaCoCo | <%= threshold %>% |
 | Complexity | PMD `CyclomaticComplexity` | max 15 |
 | Dead/Unused Code | PMD UnusedCode rules | zero violations |
-<% if (governanceLevel === 'L3') { %>| Mutation testing (pitest) | PIT 1.15+ | 85% mutation score |
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>| Mutation testing (pitest) | PIT 1.15+ | 85% mutation score |
 <% } %><% } %><% if (language === 'go') { %>| Coverage | go test -coverprofile | <%= threshold %>% |
 | Complexity | golangci-lint `gocyclo` | max 15 |
 | Dead Code | golangci-lint `deadcode,unused` | zero findings |
 <% } %><% if (language === 'python') { %>| Coverage | pytest-cov | <%= threshold %>% |
 | Complexity | ruff `C901,PLR` rules | max 15 |
 | Unused Imports | ruff `F401,F811` | zero findings |
-<% if (governanceLevel === 'L3') { %>| Mutation testing (mutmut) | mutmut (beta) | 85% mutation score |
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>| Mutation testing (mutmut) | mutmut (beta) | 85% mutation score |
 <% } %><% } %>
 ---
 

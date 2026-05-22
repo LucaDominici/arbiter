@@ -1,6 +1,6 @@
 <% /* CANON-04: template guards use governanceLevel, not hardcoded levels */ %>
 <% /* CANON-13: guard structure: outer condition first, content inside */ %>
-<% if (governanceLevel === 'L2' || governanceLevel === 'L3') { %>name: Semantic Review
+<% if (governanceLevel !== 'L1') { %>name: Semantic Review
 
 on:
   pull_request:

@@ -9,7 +9,7 @@ export interface EvidenceBacklogResult {
 }
 
 export function generateEvidenceBacklog(config: ProjectConfig): EvidenceBacklogResult {
-  if (config.governanceLevel === 'L1') return { files: [] }
+  if (config.governanceLevel !== 'L4') return { files: [] }
 
   const base = config.targetDir
   const data = config

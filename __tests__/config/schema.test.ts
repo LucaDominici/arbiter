@@ -64,7 +64,7 @@ describe('validateConfig — rejection', () => {
     const result = validateConfig({
       version: '0.2',
       tools: ['claude'],
-      governanceLevel: 'L4',
+      governanceLevel: 'L5',
       useGitHub: false,
       features: {
         contractTesting: false,

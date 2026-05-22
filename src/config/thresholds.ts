@@ -33,7 +33,7 @@ export function computeThresholds(
   const mutationThreshold = 85
 
   if (profile === 'fixed') {
-    const coverageThreshold = governanceLevel === 'L3' ? 85 : 80
+    const coverageThreshold = governanceLevel === 'L3' || governanceLevel === 'L4' ? 85 : 80
     return {
       coverageEnabled: true,
       mutationEnabled: true,

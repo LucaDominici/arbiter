@@ -3,7 +3,7 @@ import type { Language, GovernanceLevel } from '../wizard/types.js'
 import type { Invariant, InvariantTier, InvariantPreset } from './types.js'
 import { INVARIANT_CATALOG } from './catalog.js'
 
-const LEVEL_ORDER: GovernanceLevel[] = ['L1', 'L2', 'L3']
+const LEVEL_ORDER: GovernanceLevel[] = ['L1', 'L2', 'L3', 'L4']
 
 function meetsGovernanceLevel(
   required: GovernanceLevel | undefined,
@@ -81,6 +81,7 @@ export function defaultPresetForLevel(level: GovernanceLevel): InvariantPreset {
     case 'L2':
       return 'standard'
     case 'L3':
+    case 'L4':
       return 'full'
   }
 }

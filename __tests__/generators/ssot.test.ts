@@ -49,8 +49,14 @@ describe('generateSsot', () => {
     expect(existsSync(join(dir, 'docs/METHOD/TRACK_ROUTER.md'))).toBe(false)
   })
 
-  it('L3: generates all four files', () => {
+  it('L3: does NOT generate TRACK_ROUTER.md', () => {
     const config = makeConfig(dir, { governanceLevel: 'L3' })
+    generateSsot(config)
+    expect(existsSync(join(dir, 'docs/METHOD/TRACK_ROUTER.md'))).toBe(false)
+  })
+
+  it('L4: generates all four files including TRACK_ROUTER.md', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
     generateSsot(config)
     expect(existsSync(join(dir, 'docs/METHOD/SSOT_CORE_SET.md'))).toBe(true)
     expect(existsSync(join(dir, 'docs/METHOD/KNOWLEDGE_MAP.md'))).toBe(true)
@@ -260,7 +266,7 @@ describe('generateSsot', () => {
   // ── TRACK_ROUTER.md content ───────────────────────────────────────────────────
 
   it('TRACK_ROUTER.md explains when to read which doc', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
     generateSsot(config)
     const content = readFileSync(join(dir, 'docs/METHOD/TRACK_ROUTER.md'), 'utf-8')
     // Should have routing-like content
@@ -270,7 +276,7 @@ describe('generateSsot', () => {
 
   it('TRACK_ROUTER.md contains project name', () => {
     const config = makeConfig(dir, {
-      governanceLevel: 'L3',
+      governanceLevel: 'L4',
       projectName: 'my-app',
     })
     generateSsot(config)

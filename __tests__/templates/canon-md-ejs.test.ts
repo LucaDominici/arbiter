@@ -45,16 +45,22 @@ describe('CANON.md.ejs scaffold render (#989)', () => {
     }
   })
 
-  it('emits at L3 with the L3-only stricter enforcement notes', () => {
+  it('emits at L3 with the L3/L4 stricter enforcement notes', () => {
     const out = renderTemplate(TEMPLATE, cfg({ governanceLevel: 'L3' }))
     expect(out).toContain('CANON-21')
-    // L3 conditional content from CANON-16 and CANON-21 blocks
-    expect(out).toMatch(/L3 note:/)
+    // L3/L4 conditional content from CANON-16 and CANON-21 blocks
+    expect(out).toMatch(/L3\/L4 note:/)
   })
 
-  it('does NOT emit the L3-only notes at L2', () => {
+  it('emits at L4 with the L3/L4 stricter enforcement notes', () => {
+    const out = renderTemplate(TEMPLATE, cfg({ governanceLevel: 'L4' }))
+    expect(out).toContain('CANON-21')
+    expect(out).toMatch(/L3\/L4 note:/)
+  })
+
+  it('does NOT emit the L3/L4 notes at L2', () => {
     const out = renderTemplate(TEMPLATE, cfg({ governanceLevel: 'L2' }))
-    expect(out).not.toMatch(/L3 note:/)
+    expect(out).not.toMatch(/L3\/L4 note:/)
   })
 
   it('renders the doc front-matter (title, status) at L2', () => {

@@ -44,8 +44,8 @@ export function generateEvidenceRetention(config: ProjectConfig): EvidenceRetent
     ),
   ]
 
-  // L2+: emit done-evidence CLI + per-archetype pin config (ADR-037)
-  if (config.governanceLevel !== 'L1') {
+  // L4 only: emit done-evidence CLI + per-archetype pin config (ADR-037)
+  if (config.governanceLevel === 'L4') {
     files.push(
       writeFile(
         resolvedPath(base, 'scripts', 'done-evidence.mjs'),

@@ -66,7 +66,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-08:** Input validation at system boundaries
 - **INV-09:** Audit trail for mutable entities
 - **INV-10:** Soft delete preferred over hard delete
-- **INV-33:** L3 merges require valid evidence with obs_gate == PASS
+- **INV-33:** L4 merges require valid evidence with obs_gate == PASS
 - **INV-34:** Integration tests must use real database (L2+)
 
 ### Tier 3: Security & Compliance

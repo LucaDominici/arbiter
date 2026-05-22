@@ -399,11 +399,11 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     tier: 'governance',
     title: 'Evidence artifacts must be generated for all gate runs',
     description:
-      'At L3 (audit grade), every gate execution must produce machine-readable evidence ' +
+      'At L4 (compliance grade), every gate execution must produce machine-readable evidence ' +
       'artifacts (coverage reports, lint results, test output) that can be archived and ' +
       'reviewed by auditors. Gate runs without artifacts are non-compliant.',
     alwaysActive: true,
-    minGovernanceLevel: 'L3',
+    minGovernanceLevel: 'L4',
     enforcement: 'CI (evidence collection step)',
   },
 
@@ -494,22 +494,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-33',
     tier: 'governance',
-    title: 'L3 merges require valid evidence with obs_gate == PASS',
+    title: 'L4 merges require valid evidence with obs_gate == PASS',
     description:
-      'L3 governance mandates structured, machine-checkable evidence of deep validation ' +
+      'L4 governance mandates structured, machine-checkable evidence of deep validation ' +
       'before merging. The evidence harness (scripts/evidence-collect.mjs) writes ' +
       '.evidence/SUMMARY.json carrying the required schema ' +
       '{head_sha, head_sha_short, obs_gate, tests, coverage, mutation, security} ' +
       "plus a canonical sha field. A merge is blocked when obs_gate !== 'PASS', which " +
       'indicates that tests failed, coverage dropped below threshold, mutation score is ' +
-      'insufficient, or critical security findings exist. The L3 gate runs ' +
+      'insufficient, or critical security findings exist. The L4 gate runs ' +
       '`arbiter verify evidence` which: (1) validates the schema via src/evidence/summary.ts, ' +
       '(2) verifies the embedded sha, (3) confirms head_sha matches `git rev-parse HEAD`, ' +
       "and (4) requires obs_gate === 'PASS'. Any failure blocks merge.",
     alwaysActive: true,
-    minGovernanceLevel: 'L3',
+    minGovernanceLevel: 'L4',
     enforcement:
-      'check-all.mjs L3 block (reads .evidence/SUMMARY.json) + nightly pipeline (evidence-collect.mjs) + src/evidence/summary.ts validator',
+      'check-all.mjs L4 block (reads .evidence/SUMMARY.json) + nightly pipeline (evidence-collect.mjs) + src/evidence/summary.ts validator',
   },
 
   // ─── Data: Real Database Enforcement ─────────────────────────────────────────

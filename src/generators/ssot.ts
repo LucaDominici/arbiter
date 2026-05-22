@@ -42,8 +42,8 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
     )
   }
 
-  // TRACK_ROUTER.md — L3 only (full enterprise context economy)
-  if (config.governanceLevel === 'L3') {
+  // TRACK_ROUTER.md — L4 only (compliance-grade context economy)
+  if (config.governanceLevel === 'L4') {
     results.push(
       writeFile(
         resolvedPath(base, 'docs', 'METHOD', 'TRACK_ROUTER.md'),

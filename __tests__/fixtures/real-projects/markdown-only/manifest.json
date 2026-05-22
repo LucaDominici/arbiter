@@ -2,7 +2,7 @@
   "language": "typescript",
   "archetype": "library",
   "buildTool": null,
-  "levels": ["L1", "L2", "L3"],
+  "levels": ["L1", "L2", "L3", "L4"],
   "decompositionBackend": "markdown",
   "note": "Markdown decomposition backend — no gh required; .arbiter/work/ seeded with a sample work unit"
 }

@@ -60,10 +60,19 @@ describe('agents-md/AGENTS.md.ejs template rendering', () => {
     expect(content).toContain('clippy::pedantic')
   })
 
-  it('renders with L3 — contains coverage threshold and evidence requirements', () => {
+  it('renders with L3 — contains coverage threshold and mutation testing', () => {
     const content = renderAgentsMd({ governanceLevel: 'L3' })
     expect(content).toContain('85% coverage minimum')
-    expect(content).toContain('Evidence artifacts')
+    expect(content).toContain('Mutation testing: required')
+    expect(content).toContain('TDD required')
+    expect(content).not.toContain('Evidence harness')
+  })
+
+  it('renders with L4 — contains evidence harness and STRIDE risk', () => {
+    const content = renderAgentsMd({ governanceLevel: 'L4' })
+    expect(content).toContain('85% coverage minimum')
+    expect(content).toContain('Evidence harness')
+    expect(content).toContain('STRIDE risk assessment')
     expect(content).toContain('TDD required')
   })
 

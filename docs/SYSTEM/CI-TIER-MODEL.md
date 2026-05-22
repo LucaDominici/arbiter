@@ -19,7 +19,7 @@ related: []
 
 **Why now.** arbiter today emits a 2-tier CI for generated projects: `ci.yml` (PR-fast) + `nightly.yml` + `drift-shadow.yml`. The hand-crafted Java/Spring reference demonstrates a 5-workflow + heartbeat model (PR-fast / PR-extended / release / nightly / weekly / heartbeat) that maps cleanly to the modern Fowler-Farley-DORA-SLSA consensus for small polyglot teams (≤10 people). arbiter's mission is "max any agentic-development tool can offer" — the current 2-tier output undersells that bar.
 
-**Goal.** arbiter generates, for **every** supported stack (Java, Go, Python, Node/TS, Rust) on **GitHub Actions**, a 6-tier CI pipeline that matches or exceeds the Java reference, parametrised on `governanceLevel ∈ {L1, L2, L3}` (thresholds tighten with level — tier set is constant) and `archetype ∈ {lib, service, cli, batch}` (release-tier content varies, everything else uniform).
+**Goal.** arbiter generates, for **every** supported stack (Java, Go, Python, Node/TS, Rust) on **GitHub Actions**, a 6-tier CI pipeline that matches or exceeds the Java reference, parametrised on `governanceLevel ∈ {L1, L2, L3, L4}` (thresholds tighten with level — tier set is constant) and `archetype ∈ {lib, service, cli, batch}` (release-tier content varies, everything else uniform).
 
 **Out of scope (v1).** GitLab CI / Jenkins / CircleCI generators. Self-hosted runner provisioning (only label parametrisation). Production deploy targets (T3 stops at signed artifact, not deploy). Per-cloud variants (no GCP/AWS/Azure forks).
 
@@ -252,24 +252,27 @@ All four converge on shared composite action `.github/actions/sign-and-attest/ac
 
 ## 6. Governance Threshold Matrix
 
-Tier set is constant across L1/L2/L3. Only thresholds differ:
+Tier set is constant across L1/L2/L3/L4. Only thresholds and compliance artifacts differ:
 
-| Threshold           | L1 (lenient)    | L2 (standard)          | L3 (elite)                   |
-| ------------------- | --------------- | ---------------------- | ---------------------------- |
-| Coverage line       | ≥70%            | ≥80%                   | ≥85%                         |
-| Coverage branch     | ≥60%            | ≥70%                   | ≥80%                         |
-| Mutation threshold  | informational   | ≥75% blocking          | ≥80% blocking                |
-| CVSS gate (dep-CVE) | ≥9.0 fails      | ≥7.0 fails             | ≥4.0 fails                   |
-| Container severity  | warn            | HIGH+CRITICAL fail     | MEDIUM+ fail                 |
-| SAST severity       | warn            | HIGH+ fail             | MEDIUM+ fail                 |
-| SLSA target         | L1 (provenance) | L2 (signed provenance) | L3 (hermetic builder)        |
-| Lint warnings       | warn            | zero-tolerance         | zero + pedantic ruleset      |
-| `cross-stack-guard` | warn            | HARD-fail              | HARD-fail + `--strict`       |
-| `debt-ratchet`      | track           | track + warn           | `--require-improvement`      |
-| Action pinning      | tag OK          | SHA required           | SHA required + Renovate gate |
-| Human-approval gate | **required**    | **required**           | **required** + CODEOWNER     |
+| Threshold           | L1 (lenient)    | L2 (standard)          | L3 (strict)                  | L4 (compliance)                      |
+| ------------------- | --------------- | ---------------------- | ---------------------------- | ------------------------------------ |
+| Coverage line       | ≥70%            | ≥80%                   | ≥85%                         | ≥85%                                 |
+| Coverage branch     | ≥60%            | ≥70%                   | ≥80%                         | ≥80%                                 |
+| Mutation threshold  | informational   | ≥75% blocking          | ≥80% blocking                | ≥80% blocking                        |
+| CVSS gate (dep-CVE) | ≥9.0 fails      | ≥7.0 fails             | ≥4.0 fails                   | ≥4.0 fails                           |
+| Container severity  | warn            | HIGH+CRITICAL fail     | MEDIUM+ fail                 | MEDIUM+ fail                         |
+| SAST severity       | warn            | HIGH+ fail             | MEDIUM+ fail                 | MEDIUM+ fail                         |
+| SLSA target         | L1 (provenance) | L2 (signed provenance) | L2 (signed provenance)       | L3 (hermetic builder + verifyOnSign) |
+| Lint warnings       | warn            | zero-tolerance         | zero + pedantic ruleset      | zero + pedantic ruleset              |
+| `cross-stack-guard` | warn            | HARD-fail              | HARD-fail + `--strict`       | HARD-fail + `--strict`               |
+| `debt-ratchet`      | track           | track + warn           | `--require-improvement`      | `--require-improvement`              |
+| Action pinning      | tag OK          | SHA required           | SHA required + Renovate gate | SHA required + Renovate gate         |
+| Human-approval gate | **required**    | **required**           | **required** + CODEOWNER     | **required** + CODEOWNER             |
+| Evidence harness    | —               | —                      | —                            | required (SUMMARY.json per gate run) |
+| STRIDE risk         | —               | —                      | —                            | required for auth/boundary changes   |
+| TRACK_ROUTER        | —               | —                      | —                            | generated                            |
 
-Single source: `src/config/thresholds-l1-l2-l3.ts` (new) → imported by all generators.
+Single source: `src/config/thresholds-by-level.ts` → imported by all generators.
 
 ---
 
@@ -406,7 +409,7 @@ All existing sub-generators (`mutation.ts`, `security.ts`, `archunit.ts`, `contr
 
 ## 12. Verification
 
-**Unit**: All 60 combinations (5 langs × 4 archetypes × 3 governance levels) compile EJS without error; subcommand router covered by Vitest.
+**Unit**: All 80 combinations (5 langs × 4 archetypes × 4 governance levels) compile EJS without error; subcommand router covered by Vitest.
 
 **Generator E2E**: `arbiter init` against each combination → assert 8 workflow files present + `actionlint` passes.
 

@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 const AiToolSchema = z.enum(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
 
-const GovernanceLevelSchema = z.enum(['L1', 'L2', 'L3'])
+const GovernanceLevelSchema = z.enum(['L1', 'L2', 'L3', 'L4'])
 
 const LanguageSchema = z.enum(['typescript', 'java', 'kotlin', 'rust', 'python', 'go', 'multi'])
 

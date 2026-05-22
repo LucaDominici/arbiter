@@ -19,7 +19,7 @@ Every feature implementation must include tests for each of the following patter
 | Not found            | Resource lookup when the target does not exist                     | ✓        |
 | Business rule        | Domain invariant violations (invalid state transitions, etc.)      | ✓        |
 | Auth / unauthorized  | Access attempt without valid credentials or insufficient privilege  | ✓        |
-<% if (governanceLevel === 'L3') { %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
 | Tenant isolation     | Data from tenant A must not leak to tenant B                       | ✓        |
 | Concurrency          | Concurrent access does not produce incorrect results               | ✓        |
 <% } %>
@@ -31,7 +31,7 @@ Every feature implementation must include tests for each of the following patter
 | Unit           | language-specific     | pre-commit    | 80%             |
 | Integration    | language-specific     | pre-push      | key paths       |
 | E2E            | language-specific     | CI / L3       | happy paths     |
-<% if (governanceLevel === 'L3') { %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
 | Chaos / Soak   | language-specific     | nightly       | resilience      |
 <% } %>
 
@@ -44,7 +44,7 @@ Before marking a PR as ready for review, verify:
 - [ ] Not-found test exists
 - [ ] Business rule test exists
 - [ ] Auth/unauthorized test exists
-<% if (governanceLevel === 'L3') { %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
 - [ ] Tenant isolation test exists
 - [ ] Concurrency test exists
 <% } %>
