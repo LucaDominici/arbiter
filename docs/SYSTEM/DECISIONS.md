@@ -1321,3 +1321,31 @@ Identical pre/post audit confirms no legacy migration.
 **Tests:** `__tests__/scripts/lib/loud-bypass.test.ts` — 17 cases including table-driven coverage of `'true'`, `'1'`, `'yes'`, `'TRUE'`, `'on'`, `'false'`, `''`, undefined; structured bypass detail; ambiguous detail (exit 0 + warn); silent unset; defensive auto-mkdir; legacy-env non-consumption; CLI wrapper bypass/ambiguous/unset/usage cases. Negative assertion `expect(stderr).not.toMatch(/\[BYPASS\]/)` enforces format divergence.
 
 **Consequences:** Future bypass-gate authors call `checkBypass('ARBITER_FOO_BYPASS')`; shell-side authors call `node scripts/lib/log-bypass.mjs`. Both share the same loud audit trail. First consumer lands in Workstream C Port #4 (pre-push evidence-freshness gate).
+
+---
+
+## Decision: PR-A max-tier workflow patterns (planning-main parity) — Issue #1005
+
+**Date:** 2026-05-22  
+**Status:** decided  
+**Reference:** Issue #1005 (PR-A), plan `.claude/plans/sleepy-roaming-nebula.md`
+
+**Context:** arbiter's EJS workflow templates diverged from the planning-main reference project, which had solved several real supply-chain and branch-flow problems. The max-tier (L4) templates are the canonical source; lower tiers inherit via EJS guards.
+
+**Decisions:**
+
+1. **Release trigger = tag-only.** `05-release.yml.ejs` trigger is `push: tags: [v*, !v0.0.0-verify-*]` + `pull_request: branches: [main]`. Drop `push: branches: [main]` and `workflow_dispatch`. Rationale: prevents accidental double-release; enforces explicit intent via semver tag.
+
+2. **Sigstore preflight before every cosign operation.** A `curl -sf https://status.sigstore.dev/api/v2/status.json` check runs before `cosign sign` and before `cosign sign-blob`. Emits `::warning::` on degraded status; exits non-zero on `major`/`critical` status to avoid wasted retry storms against a known-down Fulcio/Rekor.
+
+3. **`trivy-strict-release` gate job** (service archetype only). Builds Docker image to tar, scans with `exit-code: 1` on HIGH/CRITICAL BEFORE pushing to registry. Separate job so it runs in parallel with `cosign-sign`/`attest-build-provenance`. Trivy DB is cached per run to minimize network cost.
+
+4. **Post-sign cosign verify** (L3+ / `_slsaL3` guard). After pushing and signing the OCI manifest by digest, `cosign verify --certificate-identity-regexp ... --certificate-oidc-issuer ...` confirms the signature is queryable in the transparency log. Detects ephemeral network failures that left a corrupted entry.
+
+5. **macOS keychain bypass** (gated `if: runner.os == 'macOS'`). Writes `{"credsStore":""}` to `$HOME/.docker/config.json` before `docker/login-action`. Zero cost on Linux; enables self-hosted Mac runners without macOS keychain prompts blocking CI.
+
+6. **`develop` added to PR workflow branch triggers** (`01-pr-fast`, `02-pr-extended`). `cancel-in-progress` now guards both `main` and `develop`: `github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'`.
+
+7. **`_sigstore-retry-sign.yml.ejs` OCI re-sign mode.** Added `workflow_dispatch` trigger with `image_ref` + `justification` inputs. `resign-oci-image` job (owner-only guard, sigstore preflight, registry login, `cosign sign --yes $image_ref`, `cosign verify` post-sign, audit log to `$GITHUB_STEP_SUMMARY`). Original `sign-with-retry` job unchanged (blob-retry, `workflow_call` only).
+
+8. **`check-docs.mjs` pre-commit bypass via `ARBITER_SKIP_DOCS=true`.** The `[skip-docs]` commit message bypass works for CI (commits already in `git log`) but cannot work pre-commit (COMMIT_EDITMSG is written by `prepare-commit-msg`, which runs AFTER `pre-commit`). Added `checkBypass('ARBITER_SKIP_DOCS')` from `loud-bypass.mjs` as the pre-commit bypass path. The `[skip-docs]` commit message bypass is retained for CI.

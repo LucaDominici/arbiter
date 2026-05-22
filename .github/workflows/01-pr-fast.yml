@@ -5,16 +5,20 @@ permissions:
 
 on:
   push:
-    branches: [main, "task/**"]
+    branches: [main, develop, "task/**"]
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
-    branches: [main]
+    types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
+    branches: [main, develop]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+      - '.editorconfig'
 
-# Cancel in-progress PR fast runs on the same branch to free capacity.
-# Main runs always complete so post-merge status isn't truncated (#357).
+# Cancel in-progress runs on the same ref; main and develop always complete (#357).
 concurrency:
   group: pr-fast-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 
 jobs:
 

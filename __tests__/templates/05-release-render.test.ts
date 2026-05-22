@@ -107,7 +107,8 @@ describe('05-release.yml.ejs — triggers and concurrency', () => {
 
   it('tag trigger present', () => {
     const rendered = renderRelease({})
-    expect(rendered).toContain("tags: ['v*']")
+    expect(rendered).toContain("- 'v*'")
+    expect(rendered).toContain("- '!v0.0.0-verify-*'")
   })
 
   it('pull_request trigger present for dry-run', () => {

@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const LIVE_SCRIPT = resolve('scripts/check-docs.mjs')
+const LOUD_BYPASS_SCRIPT = resolve('scripts/lib/loud-bypass.mjs')
 
 function git(args: string[], cwd: string): void {
   execFileSync('git', args, { cwd, stdio: 'ignore' })
@@ -33,11 +34,12 @@ function setupRepo(): { dir: string; cleanup: () => void } {
   // baseline commit (docs + src) on main
   mkdirSync(join(work, 'src'), { recursive: true })
   mkdirSync(join(work, 'docs'), { recursive: true })
-  mkdirSync(join(work, 'scripts'), { recursive: true })
+  mkdirSync(join(work, 'scripts', 'lib'), { recursive: true })
   writeFileSync(join(work, 'src', 'a.ts'), 'export const x = 1\n')
   writeFileSync(join(work, 'docs', 'README.md'), '# docs\n')
-  // copy live script under test into the repo
+  // copy live scripts under test into the repo
   copyFileSync(LIVE_SCRIPT, join(work, 'scripts', 'check-docs.mjs'))
+  copyFileSync(LOUD_BYPASS_SCRIPT, join(work, 'scripts', 'lib', 'loud-bypass.mjs'))
   git(['add', '.'], work)
   git(['commit', '-m', 'init'], work)
   git(['push', '-u', 'origin', 'main'], work)

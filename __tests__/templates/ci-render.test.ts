@@ -44,7 +44,9 @@ describe('01-pr-fast.yml.ejs rendering', () => {
     const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('concurrency:')
     expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref }}')
-    expect(rendered).toMatch(/cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/)
+    expect(rendered).toMatch(
+      /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' && github\.ref != 'refs\/heads\/develop' \}\}/,
+    )
   })
 
   it('debt-ratchet is listed in ci-required needs when enableDebtGates', () => {
