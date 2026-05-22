@@ -1,6 +1,6 @@
 {
   "$schema": "arbiter-kit-v1",
-  "source": "/home/luca/tools/KIT_gold-standard_76-dimensions_REDACTED.xlsx",
+  "source": "[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx",
   "revision": "Rev00 07/05/2026",
   "generated_at": "2026-05-19T00:00:00Z",
   "total_dims": 76,

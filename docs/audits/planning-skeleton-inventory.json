@@ -1,6 +1,6 @@
 {
   "$schema": "arbiter-inventory-v1",
-  "source_repo": "cloud.ms5.planning-main",
+  "source_repo": "internal-ref",
   "generated_at": "2026-05-19T00:00:00Z",
   "total_items": 123,
   "items": [

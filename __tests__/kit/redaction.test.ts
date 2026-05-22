@@ -57,12 +57,11 @@ describe('scanForRedactedTokens — negative', () => {
 
 describe('scanForRedactedTokens — multiple tokens', () => {
   it('reports each token separately', () => {
-    const text = 'cloud.ms5.core is at planning-service'
+    const text = 'acme.corp.core is at planning-service and ms5 tag'
     const matches = scanForRedactedTokens(text, LEXICON)
     const tokens = matches.map((m) => m.token)
-    expect(tokens).toContain('cloud.ms5.core')
+    expect(tokens).toContain('acme.corp.core')
     expect(tokens).toContain('planning-service')
-    // ms5 is a substring of cloud.ms5.core — both match independently
     expect(tokens).toContain('ms5')
   })
 })

@@ -86,7 +86,7 @@ overwrite customized validators.
 
 ## Planning Provenance
 
-This family ports the agnostic anti-drift validators from `cloud.ms5.planning-main`:
+This family ports the agnostic anti-drift validators from `internal-ref`:
 
 - **W6 (13 validators)**: PLAN-031..040, PLAN-042, PLAN-062, PLAN-063, PLAN-068
 - **F4 (9 validators)**: check-validator-helptext, check-tier-coverage (deferred from W6),

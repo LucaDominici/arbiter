@@ -22,7 +22,7 @@ All three files are REDACTED-origin: reference their patterns and structure; do 
 
 | Field             | Value                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
-| File              | `/home/luca/tools/KIT_gold-standard_76-dimensions_REDACTED.xlsx`                                                   |
+| File              | `[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx`                                                            |
 | Revision          | Rev00 07/05/2026                                                                                                   |
 | Columns           | A=# · B=Categoria · C=Dimensione · D=Dettaglio/Gate · E=TML · F=Gate Type · G=Planning Source · H=Note Adattamento |
 | Rows              | 1-3 empty · 4 header · 5 category separators · 6-95 data (76 dims)                                                 |
@@ -63,7 +63,7 @@ When the KIT is revised:
 
 | Field          | Value                                                                                                     |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| File           | `/home/luca/tools/TECH_cicd-developer-reference_REDACTED.md`                                              |
+| File           | `[tools]/TECH_cicd-developer-reference_REDACTED.md`                                                       |
 | Type           | `technical-documentation` — concrete instance for planning service                                        |
 | Coverage       | 8 user-active workflows + 9 automatic workflows · PR lifecycle · run.sh↔CI parity table · troubleshooting |
 | Arbiter analog | `docs/REFERENCE/cicd-developer-reference.md` (W4 deliverable)                                             |
@@ -74,18 +74,18 @@ When the KIT is revised:
 
 | Field          | Value                                                                                                                                 |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| File           | `/home/luca/tools/TPL_cicd-developer-reference_REDACTED.md`                                                                           |
+| File           | `[tools]/TPL_cicd-developer-reference_REDACTED.md`                                                                                    |
 | Type           | `template` — placeholder-driven copy template for new services                                                                        |
 | Placeholders   | `{{SERVICE_NAME}}` · `{{TEST_URL}}` · `{{NIGHTLY_TOOLS}}` · `{{NIGHTLY_CRON_UTC}}` · `{{WEEKLY_CRON_UTC}}` · `{{WEEKLY_DESCRIPTION}}` |
 | Arbiter analog | `src/templates/docs/cicd-developer-reference.md.ejs` (W4 Track B deliverable)                                                         |
 
 ---
 
-## Source Repo: cloud.ms5.planning-main
+## Source Repo: internal-ref
 
 | Field       | Value                                                                                                                    |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Path        | `/home/luca/work/repos/cloud.ms5.planning-main`                                                                          |
+| Path        | `[internal-ref]`                                                                                                         |
 | Role        | Concrete instantiation of the KIT — real Java/Spring service with the most complete harness                              |
 | Inventory   | `docs/audits/planning-skeleton-inventory.json` (123 items) · `docs/audits/planning-skeleton-audit.md` (rendered)         |
 | Disposition | Extract patterns; redesign cleanly. Do NOT copy Java application code. Do NOT leak Spring assumptions into arbiter core. |

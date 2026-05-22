@@ -3,7 +3,7 @@ title: Planning Skeleton Audit
 type: audit
 status: active
 date: 2026-05-19
-source_repo: cloud.ms5.planning-main
+source_repo: internal-ref
 doc_version: '1.0.0'
 last_review: '2026-05-20'
 owner: ''
