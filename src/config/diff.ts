@@ -55,6 +55,7 @@ export type GeneratorKey =
   | 'infra'
   | 'audit-toolchain'
   | 'perf-k6'
+  | 'modulith'
 
 export interface ConfigDiff {
   paths: string[]

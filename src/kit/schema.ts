@@ -60,7 +60,7 @@ export type DerivedCell = z.infer<typeof DerivedCellSchema>
 // ─── Catalog dimension ────────────────────────────────────────────────────────
 
 const KitDimensionSchema = z.object({
-  id: z.string().regex(/^N(0[1-9]|[1-6]\d|7[0-6])$/, 'id must be N01..N76'),
+  id: z.string().regex(/^N(0[1-9]|[1-6]\d|7[0-7])$/, 'id must be N01..N77'),
   name: z.string().min(1),
   tml: z.enum(VALID_TML),
   gate: z.enum(VALID_GATES),

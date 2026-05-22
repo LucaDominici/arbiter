@@ -21,10 +21,10 @@ afterEach(() => {
 // ─── Greenfield ───────────────────────────────────────────────────────────────
 
 describe('greenfield generation', () => {
-  it('emits exactly 76 dim-*.md files', () => {
+  it('emits exactly 77 dim-*.md files', () => {
     generateKitDocs({ outDir })
     const dimFiles = readdirSync(outDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
-    expect(dimFiles.length).toBe(76)
+    expect(dimFiles.length).toBe(77)
   })
 
   it('emits exactly one GLOBAL_KIT.md', () => {
@@ -32,9 +32,9 @@ describe('greenfield generation', () => {
     expect(existsSync(join(outDir, 'GLOBAL_KIT.md'))).toBe(true)
   })
 
-  it('result.written has 77 entries (76 dims + GLOBAL_KIT)', () => {
+  it('result.written has 78 entries (77 dims + GLOBAL_KIT)', () => {
     const result = generateKitDocs({ outDir })
-    expect(result.written.length).toBe(77)
+    expect(result.written.length).toBe(78)
     expect(result.skipped.length).toBe(0)
   })
 
@@ -61,7 +61,7 @@ describe('greenfield generation', () => {
     const dimFiles = readdirSync(outDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
     for (const f of dimFiles) {
       const content = readFileSync(join(outDir, f), 'utf-8')
-      // filename is dim-NN-<slug>.md; extract NN to get id N01..N76
+      // filename is dim-NN-<slug>.md; extract NN to get id N01..N77
       const match = f.match(/^dim-(\d{2})-/)
       if (match) {
         const id = `N${parseInt(match[1], 10).toString().padStart(2, '0')}`

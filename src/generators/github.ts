@@ -67,6 +67,23 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
     ),
   )
 
+  if (style === 'industrial') {
+    files.push(
+      writeFile(
+        join(workflowsDir, '12-mutation-scheduled.yml'),
+        renderTemplate('github/workflows/12-mutation-scheduled.yml.ejs', data),
+      ),
+      writeFile(
+        join(workflowsDir, '13-archunit-extended.yml'),
+        renderTemplate('github/workflows/13-archunit-extended.yml.ejs', data),
+      ),
+      writeFile(
+        join(workflowsDir, '14-license-scan.yml'),
+        renderTemplate('github/workflows/14-license-scan.yml.ejs', data),
+      ),
+    )
+  }
+
   if (config.enableSoloDevMode) {
     files.push(
       writeFile(

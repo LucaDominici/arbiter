@@ -71,17 +71,17 @@ describe('kit CLI', () => {
     mockWrite.mockRestore()
   })
 
-  it('kit list --format=table outputs 76 rows', () => {
+  it('kit list --format=table outputs 77 rows', () => {
     runKitList({ format: 'table' })
     const lines = stdout.split('\n').filter((l) => l.startsWith('N'))
-    expect(lines.length).toBe(76)
+    expect(lines.length).toBe(77)
   })
 
-  it('kit list --format=json outputs valid JSON array with 76 elements', () => {
+  it('kit list --format=json outputs valid JSON array with 77 elements', () => {
     runKitList({ format: 'json' })
     const parsed = JSON.parse(stdout)
     expect(Array.isArray(parsed)).toBe(true)
-    expect(parsed.length).toBe(76)
+    expect(parsed.length).toBe(77)
     // Each element has required fields
     for (const dim of parsed) {
       expect(dim.id).toBeDefined()
@@ -90,11 +90,11 @@ describe('kit CLI', () => {
     }
   })
 
-  it('kit list --format=csv has header + 76 data rows', () => {
+  it('kit list --format=csv has header + 77 data rows', () => {
     runKitList({ format: 'csv' })
     // CSV uses \r\n as line ending per RFC 4180
     const lines = stdout.split('\r\n').filter(Boolean)
-    expect(lines.length).toBe(77) // header + 76 rows
+    expect(lines.length).toBe(78) // header + 77 rows
     expect(lines[0]).toContain('id')
     expect(lines[0]).toContain('name')
     expect(lines[0]).toContain('tml')
@@ -104,7 +104,7 @@ describe('kit CLI', () => {
     runKitList({ format: 'json', filter: 'gaps' })
     const parsed = JSON.parse(stdout)
     expect(parsed.length).toBeGreaterThan(0)
-    expect(parsed.length).toBeLessThan(76)
+    expect(parsed.length).toBeLessThan(77)
   })
 
   it('kit list --stack=java excludes dims where java has gap coverage', () => {
@@ -116,7 +116,7 @@ describe('kit CLI', () => {
     }
     // Result must be a strict subset of all dims
     expect(parsed.length).toBeGreaterThan(0)
-    expect(parsed.length).toBeLessThan(76)
+    expect(parsed.length).toBeLessThan(77)
   })
 
   it('kit list --tml=L1 filters to L1 dims only', () => {

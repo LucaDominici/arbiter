@@ -791,5 +791,19 @@
     "archetypeGating": { "applies": ["frontend", "fullstack"], "excludes": ["backend", "api"] },
     "status": "partial",
     "note": "a11y auditing for frontend archetypes; INV-61 enforces a11y gate when frontend present"
+  },
+  {
+    "id": "N77",
+    "name": "Spring Modulith structural verification (ApplicationModules.verify())",
+    "tml": "L2",
+    "gate": "BLOCKING",
+    "categoryRef": "module_boundaries",
+    "archetypeGating": {
+      "applies": ["backend", "api", "fullstack"],
+      "excludes": ["frontend", "cli", "embedded"]
+    },
+    "conditionalFlag": "spring-boot",
+    "status": "covered",
+    "note": "Spring Modulith verifies no cyclic module dependencies and no forbidden cross-module access. Requires spring-modulith-test on the classpath."
   }
 ]

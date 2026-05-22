@@ -39,6 +39,7 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}.evidence${sep}`,
   `${sep}report${sep}`,
   `${sep}internal${sep}`,
+  `${sep}.claude${sep}plans${sep}`,
 ]
 
 const REQUIRED_KEYS = [
