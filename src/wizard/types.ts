@@ -28,6 +28,10 @@ export interface WizardAnswers {
   soloDevMode?: boolean
   /** #1005: container registry / cloud deploy target. Absent = 'none'. */
   deployTarget?: DeployTarget
+  /** Pipeline style: controls which GitHub Actions workflow set is emitted. Default 'standard'. */
+  pipelineStyle?: 'starter' | 'standard' | 'industrial'
+  /** Brownfield class: how mature the target repo is. Auto-detected; user can override. */
+  brownfieldClass?: 'gold' | 'light' | 'medium' | 'heavy'
 }
 
 export interface MigrationPlan {
@@ -258,6 +262,7 @@ export interface ProjectConfig {
   includeExtendedInvariants?: boolean
   /**
    * CI tier emission mode.
+   * @deprecated Use pipelineStyle instead. Kept for one minor version as a fallback alias.
    * 'baseline' = emit the 4-workflow baseline set (01/02/03/09) for self-CI migration.
    * 'full'     = emit all 8 standard CI tier workflows (default for target projects).
    */
@@ -270,6 +275,33 @@ export interface ProjectConfig {
    * Absent field treated as 'none'. Derives enableDeployWorkflows + enableAzureContainerApp.
    */
   deployTarget?: DeployTarget
+
+  /**
+   * Pipeline style: controls which GitHub Actions workflow set is emitted.
+   * 'starter'    = 3 workflows (pr-fast, main-build, heartbeat)
+   * 'standard'   = 8 workflows: starter + pr-extended, nightly, release, dependabot-auto, sbom, gitleaks
+   * 'industrial' = full 18-workflow set (standard + perf, chaos, mutation, archunit-extended,
+   *                cosign, attestation, rebuild-on-demand, trivy, license-scan, policy-eval)
+   * Default: 'standard'. Takes precedence over ciTierMode when both are present.
+   */
+  pipelineStyle?: 'starter' | 'standard' | 'industrial'
+
+  /**
+   * Brownfield class: how mature the target repo is.
+   * Determines which threshold column to apply for existing code.
+   * Auto-detected by brownfield-detect.ts; user can override via wizard prompt.
+   * 'gold'   = greenfield / already-mature (< 50 source files)
+   * 'light'  = 50–500 files, coverage > 30 %
+   * 'medium' = 500–2 000 files, coverage 5–30 %
+   * 'heavy'  = 2 000+ files, coverage < 5 %
+   */
+  brownfieldClass?: 'gold' | 'light' | 'medium' | 'heavy'
+
+  /**
+   * Whether to run the kit-install lifecycle (DETECT → MEASURE → SCAFFOLD → ASSESS → PLAN → VERIFY).
+   * Default: true when a supported stack is detected.
+   */
+  kitEnabled?: boolean
 
   /**
    * Emit deploy workflow templates (04-deploy-test.yml + 10-deploy-prod.yml).
