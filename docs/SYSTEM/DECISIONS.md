@@ -1324,13 +1324,13 @@ Identical pre/post audit confirms no legacy migration.
 
 ---
 
-## Decision: PR-A max-tier workflow patterns (planning-main parity) — Issue #1005
+## Decision: PR-A max-tier workflow patterns (L4 workflow baseline) — Issue #1005
 
 **Date:** 2026-05-22  
 **Status:** decided  
-**Reference:** Issue #1005 (PR-A), plan `.claude/plans/sleepy-roaming-nebula.md`
+**Reference:** Issue #1005 (PR-A)
 
-**Context:** arbiter's EJS workflow templates diverged from the planning-main reference project, which had solved several real supply-chain and branch-flow problems. The max-tier (L4) templates are the canonical source; lower tiers inherit via EJS guards.
+**Context:** arbiter's EJS workflow templates diverged from the internal reference project, which had solved several real supply-chain and branch-flow problems. The max-tier (L4) templates are the canonical source; lower tiers inherit via EJS guards.
 
 **Decisions:**
 
