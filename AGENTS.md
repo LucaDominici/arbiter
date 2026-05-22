@@ -207,9 +207,9 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 ## Deploy Target Supply Chain (INV-95/97/98/99)
 
-- **INV-95:** release.yml must invoke sign-and-attest composite action on container builds
+- **INV-95:** release.yml must invoke cosign sign on container image builds
   - _Enforcement:_ `scripts/check-workflow-cosign.mjs` (L1)
-  - When `deployTarget` is not `"none"`, `05-release.yml` must invoke the `sign-and-attest` composite action after the container image build step. Every release artifact entering the supply chain must be keyless-signed via Sigstore OIDC and attested with a CycloneDX SBOM before promotion to TEST or PROD.
+  - When `deployTarget` is not `"none"`, `05-release.yml` must invoke `cosign sign --yes` after the container image build step, signing the image digest via keyless Sigstore OIDC. Ensures every release artifact is signed before promotion to TEST or PROD.
 
 - **INV-97:** deploy-prod must cosign-verify before traffic shift
   - _Enforcement:_ `scripts/check-workflow-cosign.mjs` (L1)

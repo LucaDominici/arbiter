@@ -270,6 +270,9 @@ const _dt = ({
 })[typeof deployTarget !== 'undefined' ? deployTarget : 'none'] ?? 'none';
 %>
 <% if (_dt !== 'none') { %>
+      - name: Export IMAGE_TAG from build output
+        run: |
+          echo "IMAGE_TAG=${{ needs.build-and-sign.outputs.image-tag }}" >> "$GITHUB_ENV"
 <%- include('_deploy/' + _dt + '.ejs') %>
 <% } %>
 

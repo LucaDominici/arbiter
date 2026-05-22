@@ -8,6 +8,7 @@
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
           IMAGE_SHA=$(docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}" \
             2>/dev/null | python3 -c "
 import json, sys
@@ -32,17 +33,43 @@ print(digest)
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
           cosign copy \
             "${REGISTRY}/${IMAGE_NAME}@${IMAGE_SHA}" \
             "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}"
 
-      - name: cosign verify PROD image
+      - name: Resolve PROD digest (pin for verify + deploy)
         env:
           REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
+          DEST_DIGEST=$(docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}" \
+            2>/dev/null | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+digest = (
+  next((m.get('Digest', '') for m in d.get('manifests', []) if m.get('Platform', {}).get('os') == 'linux'), '')
+  or d.get('config', {}).get('digest', '')
+)
+print(digest)
+" 2>/dev/null || echo "")
+          if [ -z "${DEST_DIGEST}" ]; then
+            echo "::error::Could not resolve PROD digest after cosign copy"
+            exit 1
+          fi
+          # Export pinned ref: deploy partial uses IMAGE_TAG from $GITHUB_ENV (avoids TOCTOU on mutable tag)
+          echo "IMAGE_TAG=${REGISTRY}/${IMAGE_NAME}@${DEST_DIGEST}" >> "$GITHUB_ENV"
+          echo "DEST_DIGEST=${DEST_DIGEST}" >> "$GITHUB_ENV"
+
+      - name: cosign verify PROD image
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+        run: |
+          set -euo pipefail
           cosign verify \
-            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.*' \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.github/workflows/05-release\.yml@refs/tags/v.*' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}"
+            "${REGISTRY}/${IMAGE_NAME}@${DEST_DIGEST}"

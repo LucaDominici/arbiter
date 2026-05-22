@@ -152,7 +152,7 @@ describe('build-matrix.mjs', () => {
     }
   })
 
-  it('produces 73 entries for the real fixture set', () => {
+  it('produces 93 entries for the real fixture set', () => {
     const fixturesDir = resolve('__tests__/fixtures/real-projects')
     const result = run(fixturesDir)
     expect(result.status).toBe(0)

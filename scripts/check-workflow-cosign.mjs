@@ -95,17 +95,17 @@ function fail(msg) {
   violations++
 }
 
-// ─── INV-95: 05-release.yml.ejs must invoke cosign sign for container builds ─
+// ─── INV-95: 05-release.yml.ejs must invoke cosign sign on container builds ──
 
 const releaseContent = readFile(RELEASE_TPL)
 if (!releaseContent) {
   fail(`could not read ${RELEASE_TPL}`)
 } else {
-  // 05-release.yml.ejs uses cosign sign directly (keyless OIDC, COSIGN_EXPERIMENTAL)
-  if (!releaseContent.includes('cosign sign')) {
+  // Check for 'cosign sign ' (trailing space) to avoid matching cosign sign-blob
+  if (!releaseContent.includes('cosign sign ')) {
     fail(
       `INV-95: 05-release.yml.ejs does not invoke cosign sign — ` +
-        `every container build entering the supply chain must be signed`,
+        `every container image entering the supply chain must be signed via keyless Sigstore OIDC`,
     )
   }
 }

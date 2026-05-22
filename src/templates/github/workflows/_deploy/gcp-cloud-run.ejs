@@ -9,10 +9,12 @@
           GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
           GAR_LOCATION: ${{ vars.GAR_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
           CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
         run: |
-          for VAR in GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT GAR_LOCATION CLOUD_RUN_SERVICE CLOUD_RUN_REGION; do
+          set -euo pipefail
+          for VAR in GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT GAR_LOCATION GCP_PROJECT_ID CLOUD_RUN_SERVICE CLOUD_RUN_REGION; do
             VALUE="${!VAR:-PLACEHOLDER-unset}"
             if grep -qi 'PLACEHOLDER-' <<< "${VALUE}"; then
               echo "::error::${VAR} contains PLACEHOLDER- — configure the variable before enabling deploy"
@@ -29,17 +31,17 @@
 
       - name: Deploy — Cloud Run update
         env:
-          GAR_LOCATION: ${{ vars.GAR_LOCATION }}
-          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY || 'app' }}
-          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
           CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
           CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
         run: |
-          # IMAGE_TAG set by caller context (build-and-sign output or cosign-copy RELEASE_TAG)
-          RESOLVED_IMAGE="${IMAGE_TAG:-${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}}"
+          set -euo pipefail
+          # IMAGE_TAG set by cosign-copy partial ($GITHUB_ENV); required for PROD deploys
+          if [ -z "${IMAGE_TAG:-}" ]; then
+            echo "::error::IMAGE_TAG is not set — the cosign-copy step must export IMAGE_TAG before deploy"
+            exit 1
+          fi
           gcloud run services update "${CLOUD_RUN_SERVICE}" \
-            --image "${RESOLVED_IMAGE}" \
+            --image "${IMAGE_TAG}" \
             --region "${CLOUD_RUN_REGION}" \
             --quiet
 
@@ -50,10 +52,14 @@
           CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
           CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
         run: |
+          set -euo pipefail
           for i in $(seq 1 60); do
             STATUS=$(gcloud run services describe "${CLOUD_RUN_SERVICE}" \
               --region "${CLOUD_RUN_REGION}" \
-              --format 'value(status.conditions[0].status)' 2>/dev/null || echo "")
+              --format 'value(status.conditions[0].status)') || {
+              echo "::error::gcloud run services describe failed — check service name and region"
+              exit 1
+            }
             if [ "${STATUS}" = "True" ]; then
               echo "::notice::Cloud Run service is ready."
               exit 0

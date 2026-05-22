@@ -137,7 +137,7 @@ describe('generateGithub — gcp-cloud-run deployTarget (#1005)', () => {
     expect(content).toMatch(/https:\/\/github\\\.com\/acme\/my-service\//)
   })
 
-  it('10-deploy-prod.yml with gcp-cloud-run contains GAR gcloud container images describe', () => {
+  it('10-deploy-prod.yml with gcp-cloud-run contains GAR gcloud artifacts docker images describe', () => {
     generateGithub(
       makeConfig(dir, {
         deployTarget: 'gcp-cloud-run',
@@ -145,6 +145,6 @@ describe('generateGithub — gcp-cloud-run deployTarget (#1005)', () => {
       }),
     )
     const content = readFileSync(join(dir, '.github', 'workflows', '10-deploy-prod.yml'), 'utf-8')
-    expect(content).toContain('gcloud container images describe')
+    expect(content).toContain('gcloud artifacts docker images describe')
   })
 })

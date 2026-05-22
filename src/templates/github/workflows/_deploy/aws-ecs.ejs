@@ -11,6 +11,7 @@
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_SERVICE: ${{ vars.ECS_SERVICE }}
         run: |
+          set -euo pipefail
           for VAR in AWS_DEPLOY_ROLE_ARN ECR_REGISTRY ECS_CLUSTER ECS_SERVICE; do
             VALUE="${!VAR:-PLACEHOLDER-unset}"
             if grep -qi 'PLACEHOLDER-' <<< "${VALUE}"; then
@@ -23,6 +24,7 @@
         env:
           ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
         run: |
+          set -euo pipefail
           aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" \
             | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
@@ -36,29 +38,30 @@
           ECS_SERVICE: ${{ vars.ECS_SERVICE }}
           ECS_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION || '' }}
         run: |
-          # IMAGE_TAG set by caller context (build-and-sign output or cosign-copy RELEASE_TAG)
-          RESOLVED_TAG="${IMAGE_TAG:-${ECR_REGISTRY}/${ECR_REPOSITORY}:${RELEASE_TAG}}"
-          if [ -n "${ECS_TASK_DEFINITION}" ]; then
-            # Register new task definition revision with updated image
-            NEW_TD=$(aws ecs describe-task-definition \
-              --task-definition "${ECS_TASK_DEFINITION}" \
-              --query 'taskDefinition' --output json \
-              | jq --arg IMAGE "${RESOLVED_TAG}" \
-                '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
-            REGISTERED=$(aws ecs register-task-definition \
-              --cli-input-json "${NEW_TD}" \
-              --query 'taskDefinition.taskDefinitionArn' --output text)
-            aws ecs update-service \
-              --cluster "${ECS_CLUSTER}" \
-              --service "${ECS_SERVICE}" \
-              --task-definition "${REGISTERED}" \
-              --force-new-deployment
-          else
-            aws ecs update-service \
-              --cluster "${ECS_CLUSTER}" \
-              --service "${ECS_SERVICE}" \
-              --force-new-deployment
+          set -euo pipefail
+          # IMAGE_TAG set by cosign-copy partial ($GITHUB_ENV); required for PROD deploys
+          if [ -z "${IMAGE_TAG:-}" ]; then
+            echo "::error::IMAGE_TAG is not set — the cosign-copy step must export IMAGE_TAG before deploy"
+            exit 1
           fi
+          if [ -z "${ECS_TASK_DEFINITION}" ]; then
+            echo "::error::ECS_TASK_DEFINITION is not set — set vars.ECS_TASK_DEFINITION to your task family name"
+            exit 1
+          fi
+          # Register new task definition revision with updated image
+          NEW_TD=$(aws ecs describe-task-definition \
+            --task-definition "${ECS_TASK_DEFINITION}" \
+            --query 'taskDefinition' --output json \
+            | jq --arg IMAGE "${IMAGE_TAG}" \
+              '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
+          REGISTERED=$(aws ecs register-task-definition \
+            --cli-input-json "${NEW_TD}" \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
+            --task-definition "${REGISTERED}" \
+            --force-new-deployment
 
 <%- include('../_partials/macos-keychain-restore.ejs') %>
 
@@ -67,6 +70,7 @@
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_SERVICE: ${{ vars.ECS_SERVICE }}
         run: |
+          set -euo pipefail
           echo "::notice::Waiting for ECS service to stabilise (timeout: 10 min)..."
           aws ecs wait services-stable \
             --cluster "${ECS_CLUSTER}" \

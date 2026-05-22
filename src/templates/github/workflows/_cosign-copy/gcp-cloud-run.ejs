@@ -11,15 +11,16 @@
         env:
           GAR_TEST_LOCATION: ${{ vars.GAR_TEST_LOCATION }}
           GAR_PROD_LOCATION: ${{ vars.GAR_PROD_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
         run: |
-          if grep -qi 'PLACEHOLDER-' <<< "${GAR_TEST_LOCATION:-PLACEHOLDER-unset}"; then
-            echo "::error::GAR_TEST_LOCATION contains PLACEHOLDER- — configure the variable before enabling deploy"
-            exit 1
-          fi
-          if grep -qi 'PLACEHOLDER-' <<< "${GAR_PROD_LOCATION:-PLACEHOLDER-unset}"; then
-            echo "::error::GAR_PROD_LOCATION contains PLACEHOLDER- — configure the variable before enabling deploy"
-            exit 1
-          fi
+          set -euo pipefail
+          for VAR in GAR_TEST_LOCATION GAR_PROD_LOCATION GCP_PROJECT_ID; do
+            VALUE="${!VAR:-PLACEHOLDER-unset}"
+            if grep -qi 'PLACEHOLDER-' <<< "${VALUE}"; then
+              echo "::error::${VAR} contains PLACEHOLDER- — configure the variable before enabling deploy"
+              exit 1
+            fi
+          done
           gcloud auth configure-docker "${GAR_TEST_LOCATION}-docker.pkg.dev" --quiet
           gcloud auth configure-docker "${GAR_PROD_LOCATION}-docker.pkg.dev" --quiet
 
@@ -32,11 +33,16 @@
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
           TEST_IMAGE="${GAR_TEST_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_TEST_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}"
-          IMAGE_SHA=$(gcloud container images describe "${TEST_IMAGE}" \
-            --format 'value(image_summary.digest)' 2>/dev/null || echo "")
-          if [ -z "${IMAGE_SHA}" ]; then
+          # gcloud artifacts docker images describe is the correct command for Artifact Registry
+          IMAGE_SHA=$(gcloud artifacts docker images describe "${TEST_IMAGE}" \
+            --format 'value(image_summary.digest)') || {
             echo "::error::Could not resolve digest for ${TEST_IMAGE}. Ensure the image was published by the TEST deploy workflow."
+            exit 1
+          }
+          if [ -z "${IMAGE_SHA}" ]; then
+            echo "::error::Digest is empty for ${TEST_IMAGE}"
             exit 1
           fi
           echo "IMAGE_SHA=${IMAGE_SHA}" >> "$GITHUB_ENV"
@@ -53,11 +59,12 @@
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
           cosign copy \
             "${GAR_TEST_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_TEST_REPOSITORY}/${IMAGE_NAME}@${IMAGE_SHA}" \
             "${GAR_PROD_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_PROD_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}"
 
-      - name: cosign verify PROD image (GAR)
+      - name: Resolve PROD digest (pin for verify + deploy)
         env:
           GAR_PROD_LOCATION: ${{ vars.GAR_PROD_LOCATION }}
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -65,7 +72,31 @@
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
+          PROD_REF="${GAR_PROD_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_PROD_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}"
+          DEST_DIGEST=$(gcloud artifacts docker images describe "${PROD_REF}" \
+            --format 'value(image_summary.digest)') || {
+            echo "::error::Could not resolve PROD digest after cosign copy"
+            exit 1
+          }
+          if [ -z "${DEST_DIGEST}" ]; then
+            echo "::error::PROD digest is empty after cosign copy"
+            exit 1
+          fi
+          # Export pinned ref: deploy partial uses IMAGE_TAG from $GITHUB_ENV (avoids TOCTOU on mutable tag)
+          PROD_BASE="${GAR_PROD_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_PROD_REPOSITORY}/${IMAGE_NAME}"
+          echo "IMAGE_TAG=${PROD_BASE}@${DEST_DIGEST}" >> "$GITHUB_ENV"
+          echo "DEST_DIGEST=${DEST_DIGEST}" >> "$GITHUB_ENV"
+
+      - name: cosign verify PROD image (GAR)
+        env:
+          GAR_PROD_LOCATION: ${{ vars.GAR_PROD_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GAR_PROD_REPOSITORY: ${{ vars.GAR_PROD_REPOSITORY || 'app' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+        run: |
+          set -euo pipefail
           cosign verify \
-            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.*' \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.github/workflows/05-release\.yml@refs/tags/v.*' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "${GAR_PROD_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_PROD_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}"
+            "${GAR_PROD_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_PROD_REPOSITORY}/${IMAGE_NAME}@${DEST_DIGEST}"

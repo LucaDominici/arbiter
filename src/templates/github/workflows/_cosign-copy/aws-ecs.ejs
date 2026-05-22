@@ -12,6 +12,7 @@
           ECR_TEST_REGISTRY: ${{ vars.ECR_TEST_REGISTRY }}
           ECR_PROD_REGISTRY: ${{ vars.ECR_PROD_REGISTRY }}
         run: |
+          set -euo pipefail
           if grep -qi 'PLACEHOLDER-' <<< "${ECR_TEST_REGISTRY:-PLACEHOLDER-unset}"; then
             echo "::error::ECR_TEST_REGISTRY contains PLACEHOLDER- — configure the variable before enabling deploy"
             exit 1
@@ -33,6 +34,7 @@
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
           IMAGE_SHA=$(aws ecr describe-images \
             --repository-name "${ECR_REPOSITORY}" \
             --image-ids imageTag="${RELEASE_TAG}" \
@@ -52,17 +54,37 @@
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
           cosign copy \
             "${ECR_TEST_REGISTRY}/${ECR_REPOSITORY}@${IMAGE_SHA}" \
             "${ECR_PROD_REGISTRY}/${ECR_REPOSITORY}:${RELEASE_TAG}"
 
-      - name: cosign verify PROD image (ECR)
+      - name: Resolve PROD digest (pin for verify + deploy)
         env:
           ECR_PROD_REGISTRY: ${{ vars.ECR_PROD_REGISTRY }}
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'app' }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
+          DEST_DIGEST=$(aws ecr describe-images \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids imageTag="${RELEASE_TAG}" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          if [ -z "${DEST_DIGEST}" ] || [ "${DEST_DIGEST}" = "None" ]; then
+            echo "::error::Could not resolve PROD digest after cosign copy"
+            exit 1
+          fi
+          # Export pinned ref: deploy partial uses IMAGE_TAG from $GITHUB_ENV (avoids TOCTOU on mutable tag)
+          echo "IMAGE_TAG=${ECR_PROD_REGISTRY}/${ECR_REPOSITORY}@${DEST_DIGEST}" >> "$GITHUB_ENV"
+          echo "DEST_DIGEST=${DEST_DIGEST}" >> "$GITHUB_ENV"
+
+      - name: cosign verify PROD image (ECR)
+        env:
+          ECR_PROD_REGISTRY: ${{ vars.ECR_PROD_REGISTRY }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'app' }}
+        run: |
+          set -euo pipefail
           cosign verify \
-            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.*' \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.github/workflows/05-release\.yml@refs/tags/v.*' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "${ECR_PROD_REGISTRY}/${ECR_REPOSITORY}:${RELEASE_TAG}"
+            "${ECR_PROD_REGISTRY}/${ECR_REPOSITORY}@${DEST_DIGEST}"

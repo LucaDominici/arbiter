@@ -1448,13 +1448,13 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-95',
     tier: 'security',
-    title: 'release.yml must invoke sign-and-attest composite action on container builds',
+    title: 'release.yml must invoke cosign sign on container image builds',
     description:
-      'When deployTarget is not "none", 05-release.yml must invoke the sign-and-attest ' +
-      'composite action (github/actions/sign-and-attest) after the container image build step. ' +
-      'Ensures every release artifact entering the supply chain is keyless-signed via ' +
-      'Sigstore OIDC and attested with a CycloneDX SBOM before being promoted to TEST or PROD. ' +
-      'Enforcement: static-grep confirms sign-and-attest invocation in generated 05-release.yml.',
+      'When deployTarget is not "none", 05-release.yml must invoke cosign sign --yes ' +
+      'after the container image build step, signing the image digest via keyless Sigstore OIDC. ' +
+      'Ensures every release artifact entering the supply chain is signed before being promoted ' +
+      'to TEST or PROD. ' +
+      'Enforcement: static-grep confirms cosign sign invocation in generated 05-release.yml.',
     alwaysActive: true,
     minGovernanceLevel: 'L2',
     selfOnly: false,
