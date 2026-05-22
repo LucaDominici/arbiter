@@ -158,7 +158,7 @@ describe('build-matrix.mjs', () => {
     expect(result.status).toBe(0)
     const line = result.stdout.split('\n').find((l) => l.startsWith('matrix='))
     const json = JSON.parse(line!.replace('matrix=', ''))
-    // 18 fixtures × 4 levels (L1/L2/L3/L4) + rust-embedded × 1 (L1 only) = 73
-    expect(json.include).toHaveLength(73)
+    // 18 fixtures × 4 levels (L1/L2/L3/L4) + rust-embedded × 1 (L1 only) + 5 deployTarget fixtures × 4 levels = 93
+    expect(json.include).toHaveLength(93)
   })
 })

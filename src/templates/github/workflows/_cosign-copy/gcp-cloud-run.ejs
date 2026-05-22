@@ -1,0 +1,71 @@
+      - name: Install cosign (keyless OIDC)
+        uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+
+      - name: Google auth (Workload Identity Federation)
+        uses: google-github-actions/auth@71f986410dfbc7ef6f5e4d50c57a2b159b3e3ec  # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for GAR (TEST + PROD locations)
+        env:
+          GAR_TEST_LOCATION: ${{ vars.GAR_TEST_LOCATION }}
+          GAR_PROD_LOCATION: ${{ vars.GAR_PROD_LOCATION }}
+        run: |
+          if grep -qi 'PLACEHOLDER-' <<< "${GAR_TEST_LOCATION:-PLACEHOLDER-unset}"; then
+            echo "::error::GAR_TEST_LOCATION contains PLACEHOLDER- — configure the variable before enabling deploy"
+            exit 1
+          fi
+          if grep -qi 'PLACEHOLDER-' <<< "${GAR_PROD_LOCATION:-PLACEHOLDER-unset}"; then
+            echo "::error::GAR_PROD_LOCATION contains PLACEHOLDER- — configure the variable before enabling deploy"
+            exit 1
+          fi
+          gcloud auth configure-docker "${GAR_TEST_LOCATION}-docker.pkg.dev" --quiet
+          gcloud auth configure-docker "${GAR_PROD_LOCATION}-docker.pkg.dev" --quiet
+
+      - name: Resolve IMAGE_SHA from TEST GAR
+        id: resolve-sha
+        env:
+          GAR_TEST_LOCATION: ${{ vars.GAR_TEST_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GAR_TEST_REPOSITORY: ${{ vars.GAR_TEST_REPOSITORY || 'app' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          TEST_IMAGE="${GAR_TEST_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_TEST_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}"
+          IMAGE_SHA=$(gcloud container images describe "${TEST_IMAGE}" \
+            --format 'value(image_summary.digest)' 2>/dev/null || echo "")
+          if [ -z "${IMAGE_SHA}" ]; then
+            echo "::error::Could not resolve digest for ${TEST_IMAGE}. Ensure the image was published by the TEST deploy workflow."
+            exit 1
+          fi
+          echo "IMAGE_SHA=${IMAGE_SHA}" >> "$GITHUB_ENV"
+          echo "digest=${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: cosign copy TEST GAR → PROD GAR
+        # cosign copy required — docker/crane tag drops OCI referrers (signatures, SBOM)
+        env:
+          GAR_TEST_LOCATION: ${{ vars.GAR_TEST_LOCATION }}
+          GAR_PROD_LOCATION: ${{ vars.GAR_PROD_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GAR_TEST_REPOSITORY: ${{ vars.GAR_TEST_REPOSITORY || 'app' }}
+          GAR_PROD_REPOSITORY: ${{ vars.GAR_PROD_REPOSITORY || 'app' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          cosign copy \
+            "${GAR_TEST_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_TEST_REPOSITORY}/${IMAGE_NAME}@${IMAGE_SHA}" \
+            "${GAR_PROD_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_PROD_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}"
+
+      - name: cosign verify PROD image (GAR)
+        env:
+          GAR_PROD_LOCATION: ${{ vars.GAR_PROD_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GAR_PROD_REPOSITORY: ${{ vars.GAR_PROD_REPOSITORY || 'app' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          cosign verify \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${GAR_PROD_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_PROD_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}"

@@ -22,14 +22,14 @@ const ALL_TIERS: InvariantTier[] = [
 // ---------------------------------------------------------------------------
 
 describe('INVARIANT_CATALOG', () => {
-  it('has exactly 91 entries', () => {
-    expect(INVARIANT_CATALOG).toHaveLength(91)
+  it('has exactly 95 entries', () => {
+    expect(INVARIANT_CATALOG).toHaveLength(95)
   })
 
   it('all IDs are unique', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(91)
+    expect(unique.size).toBe(95)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -84,9 +84,9 @@ describe('INVARIANT_CATALOG', () => {
     }
   })
 
-  it('has exactly 11 Tier 1 invariants', () => {
+  it('has exactly 12 Tier 1 invariants', () => {
     const tier1 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'architectural')
-    expect(tier1).toHaveLength(11)
+    expect(tier1).toHaveLength(12)
   })
 
   it('has exactly 6 Tier 2 invariants', () => {
@@ -94,9 +94,9 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier2).toHaveLength(6)
   })
 
-  it('has exactly 13 Tier 3 invariants', () => {
+  it('has exactly 16 Tier 3 invariants', () => {
     const tier3 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'security')
-    expect(tier3).toHaveLength(13)
+    expect(tier3).toHaveLength(16)
   })
 
   it('has exactly 26 Tier 4 invariants', () => {
@@ -349,13 +349,13 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-33')
   })
 
-  it('returns 57 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 included)', () => {
+  it('returns 61 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 included)', () => {
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(57)
+    expect(result).toHaveLength(61)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -369,13 +369,13 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-40')
   })
 
-  it('returns fewer than 53 for unknown language (language-specific excluded)', () => {
+  it('returns fewer than 57 for unknown language (language-specific excluded)', () => {
     const result = getFilteredInvariants({
       language: 'unknown',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(53)
+    expect(result.length).toBeLessThan(57)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -434,13 +434,13 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it('Java + L2 + all tiers returns 58 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 included)', () => {
+  it('Java + L2 + all tiers returns 62 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 included)', () => {
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(58)
+    expect(result).toHaveLength(62)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -452,13 +452,13 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-28')
   })
 
-  it('Java + L3 + all tiers returns 59 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 included)', () => {
+  it('Java + L3 + all tiers returns 63 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 included)', () => {
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(59)
+    expect(result).toHaveLength(63)
   })
 
   it('essential preset at L1 returns minimal set', () => {

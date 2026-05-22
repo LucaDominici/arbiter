@@ -1,0 +1,74 @@
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Guard — AWS deploy vars
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+        run: |
+          for VAR in AWS_DEPLOY_ROLE_ARN ECR_REGISTRY ECS_CLUSTER ECS_SERVICE; do
+            VALUE="${!VAR:-PLACEHOLDER-unset}"
+            if grep -qi 'PLACEHOLDER-' <<< "${VALUE}"; then
+              echo "::error::${VAR} contains PLACEHOLDER- — configure the variable before enabling deploy"
+              exit 1
+            fi
+          done
+
+      - name: ECR login
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+        run: |
+          aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" \
+            | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+<%- include('../_partials/macos-keychain-bypass.ejs') %>
+
+      - name: Deploy — ECS update-service
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'app' }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+          ECS_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION || '' }}
+        run: |
+          # IMAGE_TAG set by caller context (build-and-sign output or cosign-copy RELEASE_TAG)
+          RESOLVED_TAG="${IMAGE_TAG:-${ECR_REGISTRY}/${ECR_REPOSITORY}:${RELEASE_TAG}}"
+          if [ -n "${ECS_TASK_DEFINITION}" ]; then
+            # Register new task definition revision with updated image
+            NEW_TD=$(aws ecs describe-task-definition \
+              --task-definition "${ECS_TASK_DEFINITION}" \
+              --query 'taskDefinition' --output json \
+              | jq --arg IMAGE "${RESOLVED_TAG}" \
+                '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
+            REGISTERED=$(aws ecs register-task-definition \
+              --cli-input-json "${NEW_TD}" \
+              --query 'taskDefinition.taskDefinitionArn' --output text)
+            aws ecs update-service \
+              --cluster "${ECS_CLUSTER}" \
+              --service "${ECS_SERVICE}" \
+              --task-definition "${REGISTERED}" \
+              --force-new-deployment
+          else
+            aws ecs update-service \
+              --cluster "${ECS_CLUSTER}" \
+              --service "${ECS_SERVICE}" \
+              --force-new-deployment
+          fi
+
+<%- include('../_partials/macos-keychain-restore.ejs') %>
+
+      - name: Wait for ECS service stability
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+        run: |
+          echo "::notice::Waiting for ECS service to stabilise (timeout: 10 min)..."
+          aws ecs wait services-stable \
+            --cluster "${ECS_CLUSTER}" \
+            --services "${ECS_SERVICE}"
+          echo "::notice::ECS service is stable."

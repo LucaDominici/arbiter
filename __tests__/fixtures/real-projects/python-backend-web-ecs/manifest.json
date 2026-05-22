@@ -1,0 +1,9 @@
+{
+  "language": "python",
+  "archetype": "backend-web-db",
+  "buildTool": null,
+  "levels": ["L1", "L2", "L3", "L4"],
+  "deployTarget": "aws-ecs",
+  "note": "Python + AWS ECS deployTarget — ECR OIDC auth, ecs update-service, cosign copy ECR TEST → ECR PROD",
+  "enableSecurityScanning": true
+}

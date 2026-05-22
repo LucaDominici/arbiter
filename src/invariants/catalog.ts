@@ -1444,6 +1444,73 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'scripts/check-monthly-freshness.mjs',
   },
 
+  // ─── Deploy Target Supply Chain (INV-95, INV-97..99, PR-B #1005) ────────────
+  {
+    id: 'INV-95',
+    tier: 'security',
+    title: 'release.yml must invoke sign-and-attest composite action on container builds',
+    description:
+      'When deployTarget is not "none", 05-release.yml must invoke the sign-and-attest ' +
+      'composite action (github/actions/sign-and-attest) after the container image build step. ' +
+      'Ensures every release artifact entering the supply chain is keyless-signed via ' +
+      'Sigstore OIDC and attested with a CycloneDX SBOM before being promoted to TEST or PROD. ' +
+      'Enforcement: static-grep confirms sign-and-attest invocation in generated 05-release.yml.',
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    enforcement: 'scripts/check-workflow-cosign.mjs (L1)',
+  },
+
+  {
+    id: 'INV-97',
+    tier: 'security',
+    title: 'deploy-prod must cosign-verify before traffic shift',
+    description:
+      'When deployTarget is not "none", 10-deploy-prod.yml must execute a cosign verify step ' +
+      'with --certificate-identity-regexp and --certificate-oidc-issuer ' +
+      'https://token.actions.githubusercontent.com BEFORE any container-app update or service ' +
+      'routing command. Prevents deploying an unverified image to production even if the registry ' +
+      'was compromised between TEST sign and PROD deploy. ' +
+      'Enforcement: static-grep on generated 10-deploy-prod.yml asserts cosign verify precedes deploy command.',
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    enforcement: 'scripts/check-workflow-cosign.mjs (L1)',
+  },
+
+  {
+    id: 'INV-98',
+    tier: 'security',
+    title: 'release workflow trigger must be tag-only (no branch push)',
+    description:
+      'When deployTarget is not "none", 05-release.yml must trigger on push.tags matching ' +
+      'a semver pattern (v*.*.*) and must NOT trigger on push.branches. ' +
+      'Branch-push triggers on release workflows create unsigned pre-release artifacts in the ' +
+      'registry, polluting the digest namespace used by cosign copy in deploy-prod. ' +
+      'Enforcement: static-grep confirms only push.tags trigger in generated 05-release.yml.',
+    alwaysActive: true,
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    enforcement: 'scripts/check-workflow-cosign.mjs (L1)',
+  },
+
+  {
+    id: 'INV-99',
+    tier: 'architectural',
+    title: 'deployTarget must be a known cloud or "none"',
+    description:
+      'The deployTarget field in arbiter.json must be one of: ' +
+      '"ghcr" | "azure-container-app" | "aws-ecs" | "gcp-cloud-run" | "none". ' +
+      'Unknown values cause EJS include() path traversal at render time (RT-7). ' +
+      'Enforcement: Zod schema validation on config load (default "none" prevents undefined); ' +
+      'EJS whitelist preamble in 04-deploy-test.yml.ejs and 10-deploy-prod.yml.ejs rejects unknown values.',
+    alwaysActive: true,
+    selfOnly: false,
+    enforcement:
+      'Zod schema (src/config/schema.ts deployTargetSchema) + ' +
+      'EJS whitelist preamble in 04-deploy-test.yml.ejs + 10-deploy-prod.yml.ejs',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-83 (audit-append-only), INV-84 (audit-trigger-presence) —
   // sibling epic #TBD-sibling-epic phases B/G.

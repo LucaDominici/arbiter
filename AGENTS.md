@@ -205,6 +205,24 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - Enforcement: generated `05-release.yml` workflow (`trivy-fs-scan` + `cosign-sign` + `sbom-attest` jobs)
   - Release artifacts must be signed with cosign keyless (OIDC) and attested with CycloneDX SBOM via `cosign attest --predicate`. Trivy must block on CRITICAL vulnerabilities before signing. A `_sigstore-retry-sign` reusable workflow handles signing retry on Sigstore flakiness.
 
+## Deploy Target Supply Chain (INV-95/97/98/99)
+
+- **INV-95:** release.yml must invoke sign-and-attest composite action on container builds
+  - _Enforcement:_ `scripts/check-workflow-cosign.mjs` (L1)
+  - When `deployTarget` is not `"none"`, `05-release.yml` must invoke the `sign-and-attest` composite action after the container image build step. Every release artifact entering the supply chain must be keyless-signed via Sigstore OIDC and attested with a CycloneDX SBOM before promotion to TEST or PROD.
+
+- **INV-97:** deploy-prod must cosign-verify before traffic shift
+  - _Enforcement:_ `scripts/check-workflow-cosign.mjs` (L1)
+  - When `deployTarget` is not `"none"`, `10-deploy-prod.yml` must include a `cosign verify` step with `--certificate-identity-regexp` and `--certificate-oidc-issuer https://token.actions.githubusercontent.com` before any container-app update or service-routing command.
+
+- **INV-98:** release workflow trigger must be tag-only (no branch push)
+  - _Enforcement:_ `scripts/check-workflow-cosign.mjs` (L1)
+  - When `deployTarget` is not `"none"`, `10-deploy-prod.yml` must trigger on `release:` events only and must NOT contain `push.branches`. Branch-push triggers on release workflows create unsigned pre-release artifacts that pollute the digest namespace used by `cosign copy`.
+
+- **INV-99:** deployTarget must be a known cloud or "none"
+  - _Enforcement:_ Zod schema (`src/config/schema.ts` `deployTargetSchema`) + EJS whitelist preamble in `04-deploy-test.yml.ejs` + `10-deploy-prod.yml.ejs`
+  - The `deployTarget` field in `arbiter.json` must be one of: `"ghcr"`, `"azure-container-app"`, `"aws-ecs"`, `"gcp-cloud-run"`, `"none"`. Unknown values cause EJS `include()` path traversal at render time (RT-7).
+
 ---
 
 ## Coding Standards
