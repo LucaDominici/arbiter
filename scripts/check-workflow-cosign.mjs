@@ -63,7 +63,7 @@ function collectEjsFiles(dir) {
   let entries
   try {
     entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
+  } catch (_err) {
     return []
   }
   return entries.filter((e) => e.isFile() && e.name.endsWith('.ejs')).map((e) => join(dir, e.name))
