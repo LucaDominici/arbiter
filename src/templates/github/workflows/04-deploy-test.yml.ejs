@@ -171,14 +171,7 @@ jobs:
       - name: Install cosign (keyless OIDC)
         uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
 
-      - name: Sigstore preflight check (H3-S1)
-        run: |
-          STATUS=$(curl -sf https://status.sigstore.dev/api/v2/status.json \
-            --max-time 10 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',{}).get('indicator','unknown'))" 2>/dev/null || echo "unknown")
-          if [[ "$STATUS" != "none" ]]; then
-            echo "::warning::Sigstore status is '${STATUS}' — cosign sign may fail"
-          fi
-          echo "sigstore-status=$STATUS"
+<%- include('_partials/sigstore-preflight.ejs') %>
 
       - name: cosign sign image (OCI manifest, H3-M2)
         env:
@@ -266,25 +259,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
-      - name: Deploy to TEST
-        env:
-          IMAGE_TAG: ${{ needs.build-and-sign.outputs.image-tag }}
-          IMAGE_DIGEST: ${{ needs.build-and-sign.outputs.image-digest }}
-        run: |
-          # Replace with your deployment command. Examples:
-          #   az containerapp update -n app -g rg --image "$IMAGE_TAG"
-          #   kubectl set image deployment/app app="$IMAGE_TAG"
-          #   helm upgrade app ./chart --set image.tag="${IMAGE_TAG##*:}"
-          echo "::notice::Deploy TEST with image $IMAGE_TAG (digest: $IMAGE_DIGEST)"
-          echo "TODO: configure your deployment target in vars.DEPLOY_COMMAND or replace this step"
-
-      - name: Wait for deployment readiness
-        run: |
-          echo "::notice::Waiting for TEST deployment to stabilize..."
-          # Replace with readiness check for your platform:
-          #   az containerapp show --query properties.latestReadyRevisionName
-          #   kubectl rollout status deployment/app --timeout=5m
-          sleep 10
+<%
+// RT-2: coalesce undefined (absent from legacy configs) to 'none' before comparison
+// RT-7: whitelist — prevent path traversal if deployTarget is hand-edited
+const _dt = ({
+  'ghcr': 'ghcr',
+  'azure-container-app': 'azure-container-app',
+  'aws-ecs': 'aws-ecs',
+  'gcp-cloud-run': 'gcp-cloud-run'
+})[typeof deployTarget !== 'undefined' ? deployTarget : 'none'] ?? 'none';
+%>
+<% if (_dt !== 'none') { %>
+<%- include('_deploy/' + _dt + '.ejs') %>
+<% } %>
 
   # === GROUP: smoke ===
 

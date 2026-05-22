@@ -64,23 +64,21 @@ jobs:
       - name: Resolve release tag
         run: echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
 
-      - name: Deploy to PROD
-        env:
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
-        run: |
-          # Replace with your deployment command. Examples:
-          #   az containerapp update -n app -g rg --image "registry/app:${RELEASE_TAG}"
-          #   kubectl set image deployment/app app="registry/app:${RELEASE_TAG}"
-          #   helm upgrade app ./chart --set image.tag="${RELEASE_TAG}"
-          echo "::notice::Deploy PROD release ${RELEASE_TAG}"
-          echo "TODO: configure your PROD deployment target and replace this step"
-
-      - name: Wait for PROD to stabilize
-        run: |
-          echo "::notice::Waiting for PROD deployment to stabilize..."
-          # Replace with readiness check for your platform:
-          #   kubectl rollout status deployment/app --timeout=5m
-          sleep 30
+<%
+// RT-2: coalesce undefined (absent from legacy configs) to 'none' before comparison
+// RT-7: whitelist — prevent path traversal if deployTarget is hand-edited
+const _dt = ({
+  'ghcr': 'ghcr',
+  'azure-container-app': 'azure-container-app',
+  'aws-ecs': 'aws-ecs',
+  'gcp-cloud-run': 'gcp-cloud-run'
+})[typeof deployTarget !== 'undefined' ? deployTarget : 'none'] ?? 'none';
+%>
+<% if (_dt !== 'none') { %>
+<%- include('_partials/sigstore-preflight.ejs') %>
+<%- include('_cosign-copy/' + _dt + '.ejs') %>
+<%- include('_deploy/' + _dt + '.ejs') %>
+<% } %>
 
       # === GROUP: smoke ===
 

@@ -1349,3 +1349,27 @@ Identical pre/post audit confirms no legacy migration.
 7. **`_sigstore-retry-sign.yml.ejs` OCI re-sign mode.** Added `workflow_dispatch` trigger with `image_ref` + `justification` inputs. `resign-oci-image` job (owner-only guard, sigstore preflight, registry login, `cosign sign --yes $image_ref`, `cosign verify` post-sign, audit log to `$GITHUB_STEP_SUMMARY`). Original `sign-with-retry` job unchanged (blob-retry, `workflow_call` only).
 
 8. **`check-docs.mjs` pre-commit bypass via `ARBITER_SKIP_DOCS=true`.** The `[skip-docs]` commit message bypass works for CI (commits already in `git log`) but cannot work pre-commit (COMMIT_EDITMSG is written by `prepare-commit-msg`, which runs AFTER `pre-commit`). Added `checkBypass('ARBITER_SKIP_DOCS')` from `loud-bypass.mjs` as the pre-commit bypass path. The `[skip-docs]` commit message bypass is retained for CI.
+
+---
+
+## Decision: PR-B deployTarget abstraction (planning-main parity) — Issue #1005
+
+**Date:** 2026-05-22
+**Status:** decided
+**Reference:** Issue #1005 (PR-B), plan `.claude/plans/floating-nibbling-puppy.md`
+
+**Context:** `04-deploy-test.yml.ejs` and `10-deploy-prod.yml.ejs` contained placeholder TODO steps for the deploy phase. A new `deployTarget` config field dispatches to per-cloud EJS partials, replacing the placeholders with a complete supply-chain-safe deploy pipeline.
+
+**Decisions:**
+
+1. **`deployTarget` config field** (`ghcr | azure-container-app | aws-ecs | gcp-cloud-run | none`). Added to `ProjectConfig` and `WizardAnswers`. Zod schema defaults to `'none'` so older configs without the field do not crash on load (RT-2). Wizard prompt shown only for `backend-web-db` archetype; all other archetypes force `'none'` in `buildConfigFromAnswers` (RT-15).
+
+2. **EJS whitelist preamble before every `include()` call (RT-7).** `const _dt = ({ghcr:'ghcr',...})[typeof deployTarget !== 'undefined' ? deployTarget : 'none'] ?? 'none'` prevents path traversal if `arbiter.json` is hand-edited. `typeof` guard prevents `ReferenceError` in EJS `with(locals)` scope when field absent from legacy data objects.
+
+3. **`cosign copy` for image promotion — not `crane tag` or `docker tag` (RT-8).** OCI referrers (signatures, SBOM attestations) are silently dropped by retag operations. All `_cosign-copy/*.ejs` partials use `cosign copy SRC DST` with a mandatory comment explaining the requirement.
+
+4. **Per-cloud EJS partials use `.ejs` extension (RT-5).** `.ejs.txt` extension bypasses the CANON-04 ratchet (`check-template-tests.mjs` only tracks `.ejs` files). New include-only partials are absorbed via `--update-baseline` as tested-via-parent.
+
+5. **`enableDeployWorkflows` and `enableAzureContainerApp` derived — not prompted.** Both flags are computed in `buildConfigFromAnswers` from `deployTarget`. `enableDeployWorkflows = (deployTarget !== 'none')`. `enableAzureContainerApp = (deployTarget === 'azure-container-app')`. The `enableDeployWorkflows` field is `@deprecated` in JSDoc; the generator gate uses `(config.deployTarget ?? 'none') !== 'none' || config.enableDeployWorkflows` for backward compat.
+
+6. **Sigstore preflight extracted to shared partial.** `_partials/sigstore-preflight.ejs` replaces the inline curl block in `04-deploy-test.yml.ejs` and is added to `10-deploy-prod.yml.ejs`. Two usages satisfy CANON-16 extraction justification.

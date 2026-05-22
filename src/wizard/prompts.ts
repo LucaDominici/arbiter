@@ -5,6 +5,7 @@ import type {
   ProjectConfig,
   AiTool,
   Archetype,
+  DeployTarget,
   WizardFlow,
   MigrationPlan,
   WizardAnswers,
@@ -261,8 +262,16 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
   }
 }
 
-function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswers): ProjectConfig {
+const DEPLOY_ARCHETYPES: Archetype[] = ['backend-web-db']
+
+function deriveDeployTarget(answers: WizardAnswers): DeployTarget {
+  if (!DEPLOY_ARCHETYPES.includes(answers.archetype)) return 'none'
+  return answers.deployTarget ?? 'ghcr'
+}
+
+export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswers): ProjectConfig {
   const tools = answers.tools.length > 0 ? answers.tools : (['claude', 'codex'] as AiTool[])
+  const deployTarget = deriveDeployTarget(answers)
   return {
     targetDir: input.targetDir,
     projectName: input.projectName,
@@ -304,6 +313,9 @@ function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswers): Pro
     contractType:
       answers.contractType ?? defaultContractType(answers.archetype, answers.hasPublicApi),
     lanes: input.detectedLanes ?? [],
+    deployTarget,
+    enableDeployWorkflows: deployTarget !== 'none',
+    enableAzureContainerApp: deployTarget === 'azure-container-app',
   }
 }
 
@@ -442,7 +454,7 @@ function buildArchetypeQuestions(archetypeDefault: Archetype): object[] {
         { name: 'No', value: false },
       ],
       default: (answers: { archetype: Archetype }): boolean =>
-        answers.archetype === 'backend-web-db',
+        DEPLOY_ARCHETYPES.includes(answers.archetype),
     },
     {
       type: 'list',

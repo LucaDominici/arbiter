@@ -1,0 +1,48 @@
+      - name: Install cosign (keyless OIDC)
+        uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+
+      - name: Resolve IMAGE_SHA from TEST image
+        id: resolve-sha
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          IMAGE_SHA=$(docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}" \
+            2>/dev/null | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+digest = (
+  next((m.get('Digest', '') for m in d.get('manifests', []) if m.get('Platform', {}).get('os') == 'linux'), '')
+  or d.get('config', {}).get('digest', '')
+)
+print(digest)
+" 2>/dev/null || echo "")
+          if [ -z "${IMAGE_SHA}" ]; then
+            echo "::error::Could not resolve digest for ${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}. Ensure the image was published by the TEST deploy workflow."
+            exit 1
+          fi
+          echo "IMAGE_SHA=${IMAGE_SHA}" >> "$GITHUB_ENV"
+          echo "digest=${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: cosign copy TEST → PROD (GHCR)
+        # cosign copy required — docker/crane tag drops OCI referrers (signatures, SBOM)
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          cosign copy \
+            "${REGISTRY}/${IMAGE_NAME}@${IMAGE_SHA}" \
+            "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}"
+
+      - name: cosign verify PROD image
+        env:
+          REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          cosign verify \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${REGISTRY}/${IMAGE_NAME}:${RELEASE_TAG}"

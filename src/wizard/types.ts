@@ -26,6 +26,8 @@ export interface WizardAnswers {
   contractType?: ContractType
   /** #470: solo-dev mode — skip PR CI, merge directly after local L2 gate passes. Default false. */
   soloDevMode?: boolean
+  /** #1005: container registry / cloud deploy target. Absent = 'none'. */
+  deployTarget?: DeployTarget
 }
 
 export interface MigrationPlan {
@@ -54,6 +56,8 @@ export type Archetype =
   | 'data-pipeline'
   | 'frontend-spa'
   | 'embedded'
+
+export type DeployTarget = 'ghcr' | 'azure-container-app' | 'aws-ecs' | 'gcp-cloud-run' | 'none'
 
 export type ArchitectureStyle = 'hexagonal' | 'layered' | 'modular-monolith' | 'none'
 
@@ -260,9 +264,18 @@ export interface ProjectConfig {
   ciTierMode?: 'baseline' | 'full'
 
   /**
+   * Container registry / cloud deploy target.
+   * 'ghcr' = default for backend-web-db (home scenario). All others = paid-cloud targets.
+   * 'none' = no deploy workflows emitted (default for all non-service archetypes).
+   * Absent field treated as 'none'. Derives enableDeployWorkflows + enableAzureContainerApp.
+   */
+  deployTarget?: DeployTarget
+
+  /**
    * Emit deploy workflow templates (04-deploy-test.yml + 10-deploy-prod.yml).
    * Off by default — downstream projects opt in when they have a container deploy pipeline.
    * Slot 04 was reserved in CI-TIER-MODEL.md; slot 10 is new (post 09-heartbeat).
+   * @deprecated Derive from deployTarget instead.
    */
   enableDeployWorkflows?: boolean
 
