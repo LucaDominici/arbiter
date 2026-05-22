@@ -1,0 +1,97 @@
+      - name: Install cosign (keyless OIDC)
+        uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+
+      - name: Azure login
+        uses: azure/login@a457da9ea143d694b1fa9c8f8b1b5ab5a6ab08be  # v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR login (TEST — read source image)
+        env:
+          ACR_TEST_LOGIN_SERVER: ${{ vars.ACR_TEST_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          if grep -qi 'PLACEHOLDER-' <<< "${ACR_TEST_LOGIN_SERVER:-PLACEHOLDER-unset}"; then
+            echo "::error::ACR_TEST_LOGIN_SERVER contains PLACEHOLDER- — configure the variable before enabling deploy"
+            exit 1
+          fi
+          az acr login --name "${ACR_TEST_LOGIN_SERVER%%.*}"
+
+      - name: Resolve IMAGE_SHA from TEST ACR
+        id: resolve-sha
+        env:
+          ACR_TEST_LOGIN_SERVER: ${{ vars.ACR_TEST_LOGIN_SERVER }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          IMAGE_SHA=$(az acr manifest list-metadata \
+            --registry "${ACR_TEST_LOGIN_SERVER%%.*}" \
+            --name "${IMAGE_NAME}" \
+            --query "[?contains(tags, '${RELEASE_TAG}')].digest | [0]" -o tsv) || {
+            echo "::error::Could not resolve digest for ${ACR_TEST_LOGIN_SERVER}/${IMAGE_NAME}:${RELEASE_TAG}. Ensure the image was published by the TEST deploy workflow."
+            exit 1
+          }
+          if [ -z "${IMAGE_SHA}" ]; then
+            echo "::error::Digest is empty for ${ACR_TEST_LOGIN_SERVER}/${IMAGE_NAME}:${RELEASE_TAG}"
+            exit 1
+          fi
+          echo "IMAGE_SHA=${IMAGE_SHA}" >> "$GITHUB_ENV"
+          echo "digest=${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: ACR login (PROD — push destination)
+        env:
+          ACR_PROD_LOGIN_SERVER: ${{ vars.ACR_PROD_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          if grep -qi 'PLACEHOLDER-' <<< "${ACR_PROD_LOGIN_SERVER:-PLACEHOLDER-unset}"; then
+            echo "::error::ACR_PROD_LOGIN_SERVER contains PLACEHOLDER- — configure the variable before enabling deploy"
+            exit 1
+          fi
+          az acr login --name "${ACR_PROD_LOGIN_SERVER%%.*}"
+
+      - name: cosign copy TEST ACR → PROD ACR
+        # cosign copy required — docker/crane tag drops OCI referrers (signatures, SBOM)
+        env:
+          ACR_TEST_LOGIN_SERVER: ${{ vars.ACR_TEST_LOGIN_SERVER }}
+          ACR_PROD_LOGIN_SERVER: ${{ vars.ACR_PROD_LOGIN_SERVER }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          cosign copy \
+            "${ACR_TEST_LOGIN_SERVER}/${IMAGE_NAME}@${IMAGE_SHA}" \
+            "${ACR_PROD_LOGIN_SERVER}/${IMAGE_NAME}:${RELEASE_TAG}"
+
+      - name: Resolve PROD digest (pin for verify + deploy)
+        env:
+          ACR_PROD_LOGIN_SERVER: ${{ vars.ACR_PROD_LOGIN_SERVER }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          DEST_DIGEST=$(az acr manifest list-metadata \
+            --registry "${ACR_PROD_LOGIN_SERVER%%.*}" \
+            --name "${IMAGE_NAME}" \
+            --query "[?contains(tags, '${RELEASE_TAG}')].digest | [0]" -o tsv) || {
+            echo "::error::Could not resolve PROD digest after cosign copy"
+            exit 1
+          }
+          if [ -z "${DEST_DIGEST}" ]; then
+            echo "::error::PROD digest is empty after cosign copy"
+            exit 1
+          fi
+          # Export pinned ref: deploy partial uses IMAGE_TAG from $GITHUB_ENV (avoids TOCTOU on mutable tag)
+          echo "IMAGE_TAG=${ACR_PROD_LOGIN_SERVER}/${IMAGE_NAME}@${DEST_DIGEST}" >> "$GITHUB_ENV"
+          echo "DEST_DIGEST=${DEST_DIGEST}" >> "$GITHUB_ENV"
+
+      - name: cosign verify PROD image (ACR)
+        env:
+          ACR_PROD_LOGIN_SERVER: ${{ vars.ACR_PROD_LOGIN_SERVER }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --certificate-identity-regexp 'https://github\.com/<%= githubOwner %>/<%= githubRepo %>/.github/workflows/05-release\.yml@refs/tags/v.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${ACR_PROD_LOGIN_SERVER}/${IMAGE_NAME}@${DEST_DIGEST}"

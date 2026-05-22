@@ -1,0 +1,8 @@
+      - name: Sigstore preflight check (H3-S1)
+        run: |
+          STATUS=$(curl -sf https://status.sigstore.dev/api/v2/status.json \
+            --max-time 10 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status',{}).get('indicator','unknown'))" 2>/dev/null || echo "unknown")
+          if [[ "$STATUS" != "none" ]]; then
+            echo "::warning::Sigstore status is '${STATUS}' — cosign sign may fail"
+          fi
+          echo "sigstore-status=$STATUS"

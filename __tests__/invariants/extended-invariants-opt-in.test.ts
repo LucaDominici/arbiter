@@ -18,8 +18,8 @@ const EXTENDED_IDS = [
 ]
 
 describe('extended opt-in invariants', () => {
-  it('catalog has exactly 91 entries after adding extended set and INV-82', () => {
-    expect(INVARIANT_CATALOG).toHaveLength(91)
+  it('catalog has exactly 95 entries after adding extended set, INV-82, and INV-95/97/98/99', () => {
+    expect(INVARIANT_CATALOG).toHaveLength(95)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

@@ -1,0 +1,6 @@
+      - name: macOS — DOCKER_CONFIG override (bypass Keychain)
+        if: runner.os == 'macOS'
+        run: |
+          DOCKER_CONF_DIR="$(mktemp -d)"
+          echo '{"credsStore":""}' > "${DOCKER_CONF_DIR}/config.json"
+          echo "DOCKER_CONFIG=${DOCKER_CONF_DIR}" >> "$GITHUB_ENV"

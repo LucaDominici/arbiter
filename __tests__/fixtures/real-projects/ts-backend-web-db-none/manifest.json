@@ -1,0 +1,9 @@
+{
+  "language": "typescript",
+  "archetype": "backend-web-db",
+  "buildTool": null,
+  "levels": ["L1", "L2", "L3", "L4"],
+  "deployTarget": "none",
+  "note": "TypeScript + deployTarget none — scaffold-only path; no cloud deploy steps emitted, deploy workflows are not generated",
+  "enableSecurityScanning": true
+}

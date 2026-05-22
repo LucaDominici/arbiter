@@ -1,6 +1,6 @@
 {
   "schema": "arbiter-script-catalog-baseline-v1",
-  "generated_at": "2026-05-21T00:00:00.000Z",
+  "generated_at": "2026-05-22T21:23:33.247Z",
   "doctrine": "INV-94 / CANON-21 — grandfathered list of scripts/check-*.mjs at baseline freeze. New scripts added outside this list must carry a // CATALOG: marker block (>=3 contiguous // CATALOG: lines) explaining what is aggregated and why a sibling fold-in was rejected. To widen the baseline deliberately, regenerate with `node scripts/check-script-cohesion.mjs --update-baseline`.",
   "files": [
     "scripts/check-action-pins.mjs",
@@ -61,6 +61,7 @@
     "scripts/check-test-naming.mjs",
     "scripts/check-tier-coverage.mjs",
     "scripts/check-validator-helptext.mjs",
+    "scripts/check-workflow-cosign.mjs",
     "scripts/check-workflow-docs-sync.mjs",
     "scripts/check-workflow-job-naming.mjs",
     "scripts/check-workflow-runners.mjs",

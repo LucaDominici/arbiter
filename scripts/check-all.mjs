@@ -130,6 +130,7 @@ runCheck('local-ci static parity', 'node', ['scripts/check-local-ci-parity.mjs']
 runCheck('adapter coverage (INV-88)', 'node', ['scripts/check-adapter-coverage.mjs'])
 runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
 runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness.mjs'])
+runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', ['scripts/check-workflow-cosign.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

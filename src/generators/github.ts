@@ -69,7 +69,8 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
     )
   }
 
-  if (config.enableDeployWorkflows) {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  if ((config.deployTarget ?? 'none') !== 'none' || config.enableDeployWorkflows) {
     files.push(
       writeFile(
         join(workflowsDir, '04-deploy-test.yml'),

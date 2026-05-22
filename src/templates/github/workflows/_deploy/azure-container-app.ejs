@@ -1,0 +1,59 @@
+      - name: Azure login
+        uses: azure/login@a457da9ea143d694b1fa9c8f8b1b5ab5a6ab08be  # v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR login
+        env:
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          if grep -qi 'PLACEHOLDER-' <<< "${ACR_LOGIN_SERVER:-PLACEHOLDER-unset}"; then
+            echo "::error::ACR_LOGIN_SERVER contains PLACEHOLDER- — configure the variable before enabling deploy"
+            exit 1
+          fi
+          az acr login --name "${ACR_LOGIN_SERVER%%.*}"
+
+      - name: Deploy — Azure Container App
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
+        run: |
+          set -euo pipefail
+          if grep -qi 'PLACEHOLDER-' <<< "${AZURE_CONTAINER_APP_NAME:-PLACEHOLDER-unset}"; then
+            echo "::error::AZURE_CONTAINER_APP_NAME contains PLACEHOLDER- — configure the variable before enabling deploy"
+            exit 1
+          fi
+          # IMAGE_TAG set by cosign-copy partial ($GITHUB_ENV); required for PROD deploys
+          if [ -z "${IMAGE_TAG:-}" ]; then
+            echo "::error::IMAGE_TAG is not set — the cosign-copy step must export IMAGE_TAG before deploy"
+            exit 1
+          fi
+          az containerapp update \
+            --name "${AZURE_CONTAINER_APP_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --image "${IMAGE_TAG}"
+
+      - name: Wait for revision readiness (Azure Container App)
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            READY=$(az containerapp show \
+              --name "${AZURE_CONTAINER_APP_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --query "properties.latestReadyRevisionName" -o tsv) || {
+              echo "::error::az containerapp show failed — check app name and resource group"
+              exit 1
+            }
+            if [ -n "${READY}" ]; then
+              echo "::notice::Revision ready: ${READY}"
+              exit 0
+            fi
+            echo "Waiting for revision readiness... attempt ${i}/60"
+            sleep 5
+          done
+          echo "::error::Timed out waiting for Azure Container App revision to become ready"
+          exit 1

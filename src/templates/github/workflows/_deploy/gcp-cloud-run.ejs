@@ -1,0 +1,71 @@
+      - name: Google auth (Workload Identity Federation)
+        uses: google-github-actions/auth@71f986410dfbc7ef6f5e4d50c57a2b159b3e3ec  # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Guard — GCP deploy vars
+        env:
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          GAR_LOCATION: ${{ vars.GAR_LOCATION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+          CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
+        run: |
+          set -euo pipefail
+          for VAR in GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT GAR_LOCATION GCP_PROJECT_ID CLOUD_RUN_SERVICE CLOUD_RUN_REGION; do
+            VALUE="${!VAR:-PLACEHOLDER-unset}"
+            if grep -qi 'PLACEHOLDER-' <<< "${VALUE}"; then
+              echo "::error::${VAR} contains PLACEHOLDER- — configure the variable before enabling deploy"
+              exit 1
+            fi
+          done
+
+      - name: Configure Docker for GAR
+        env:
+          GAR_LOCATION: ${{ vars.GAR_LOCATION }}
+        run: gcloud auth configure-docker "${GAR_LOCATION}-docker.pkg.dev" --quiet
+
+<%- include('../_partials/macos-keychain-bypass.ejs') %>
+
+      - name: Deploy — Cloud Run update
+        env:
+          CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+          CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
+        run: |
+          set -euo pipefail
+          # IMAGE_TAG set by cosign-copy partial ($GITHUB_ENV); required for PROD deploys
+          if [ -z "${IMAGE_TAG:-}" ]; then
+            echo "::error::IMAGE_TAG is not set — the cosign-copy step must export IMAGE_TAG before deploy"
+            exit 1
+          fi
+          gcloud run services update "${CLOUD_RUN_SERVICE}" \
+            --image "${IMAGE_TAG}" \
+            --region "${CLOUD_RUN_REGION}" \
+            --quiet
+
+<%- include('../_partials/macos-keychain-restore.ejs') %>
+
+      - name: Wait for Cloud Run revision readiness
+        env:
+          CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+          CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            STATUS=$(gcloud run services describe "${CLOUD_RUN_SERVICE}" \
+              --region "${CLOUD_RUN_REGION}" \
+              --format 'value(status.conditions[0].status)') || {
+              echo "::error::gcloud run services describe failed — check service name and region"
+              exit 1
+            }
+            if [ "${STATUS}" = "True" ]; then
+              echo "::notice::Cloud Run service is ready."
+              exit 0
+            fi
+            echo "Waiting for Cloud Run readiness... attempt ${i}/60 (status: ${STATUS:-unknown})"
+            sleep 5
+          done
+          echo "::error::Timed out waiting for Cloud Run service to become ready"
+          exit 1

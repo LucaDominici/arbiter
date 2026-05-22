@@ -1,0 +1,19 @@
+      - name: Deploy — GHCR (customize infra/deploy.sh)
+        run: |
+          set -euo pipefail
+          # IMAGE_TAG set by cosign-copy partial ($GITHUB_ENV); required for PROD deploys
+          if [ -z "${IMAGE_TAG:-}" ]; then
+            echo "::error::IMAGE_TAG is not set — the cosign-copy step must export IMAGE_TAG before deploy"
+            exit 1
+          fi
+          echo "::notice::Image at GHCR — ref=${IMAGE_TAG}"
+          # Customize infra/deploy.sh for your runtime:
+          #   k8s:       kubectl set image deployment/app app="${IMAGE_TAG}"
+          #   ECS:       aws ecs update-service --force-new-deployment --cluster CLUSTER --service SERVICE
+          #   Cloud Run: gcloud run services update SERVICE --image "${IMAGE_TAG}"
+          if [ -f infra/deploy.sh ]; then
+            bash infra/deploy.sh "${IMAGE_TAG}"
+          else
+            echo "::notice::infra/deploy.sh not found — skipping platform deploy (SCAFFOLD)"
+            echo "Copy infra/deploy.sh.template to infra/deploy.sh and implement your deploy command"
+          fi
