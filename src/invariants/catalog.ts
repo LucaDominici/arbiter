@@ -1431,6 +1431,41 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
+    id: 'INV-94',
+    tier: 'operational',
+    selfOnly: true,
+    alwaysActive: false,
+    title: 'Script catalog cohesion — every new gate script must carry a CATALOG marker block',
+    description:
+      'Every scripts/check-*.mjs file added after the baseline freeze must carry a ' +
+      '// CATALOG: marker block of >=3 contiguous comment lines declaring what behaviour ' +
+      'the script aggregates and why it cannot fold into a sibling script. ' +
+      'Pre-existing scripts are grandfathered via scripts/data/script-catalog-baseline.json — ' +
+      'the baseline is a debt ledger, not a bypass. ' +
+      'Exit 0 when no new files exist outside the baseline; exit 1 with violating filenames ' +
+      'when the marker block is absent or fewer than 3 lines.',
+    enforcement: 'scripts/check-script-cohesion.mjs',
+  },
+
+  {
+    id: 'INV-96',
+    tier: 'operational',
+    selfOnly: true,
+    alwaysActive: false,
+    title: 'Fail-closed audit — every gate script must default to BLOCK on uncertainty',
+    description:
+      'Every gate, hook, check, and generator emitted by arbiter must default to BLOCK on ' +
+      'uncertainty, never SKIP. The fail-closed audit script checks scripts/, .githooks/, and ' +
+      '.claude/hooks/ for known fail-open anti-patterns: missing set -euo pipefail in Bash, ' +
+      'bare || true clauses without // FAIL-OPEN-INTENT: annotation, Node scripts that do not ' +
+      'wrap top-level work in try/catch exit(1) or consume run-helpers.mjs, and bare catch {} ' +
+      'swallowing without // FAIL-OPEN-INTENT: annotation. ' +
+      'New scripts outside the baseline must pass all checks; existing violations are frozen ' +
+      'in scripts/data/fail-closed-baseline.json.',
+    enforcement: 'scripts/check-fail-closed-audit.mjs',
+  },
+
+  {
     id: 'INV-82',
     tier: 'operational',
     title: 'Monthly (T5b) workflow present + heartbeat asserts ≤32d freshness',

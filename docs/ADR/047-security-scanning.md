@@ -1,5 +1,5 @@
 ---
-title: 'ADR-029: Security Scanning Suite (M24)'
+title: 'ADR-047: Security Scanning Suite (M24)'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-05-20'
@@ -9,7 +9,7 @@ tags: ['audience/dev', 'kind/adr']
 related: []
 ---
 
-# ADR-029: Security Scanning Suite (M24)
+# ADR-047: Security Scanning Suite (M24)
 
 **Date:** 2026-04-17
 **Status:** Accepted

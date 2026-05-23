@@ -24,7 +24,7 @@ Approaching v1.0, arbiter has accumulated scope that does not align with the cor
 1. **Obsidian vault feature** — a POC for generating an Obsidian knowledge base from project structure. Useful in demos; expensive to maintain; not governance.
 2. **Plugin API stability** — the plugin API shipped in M32 is functional but not field-tested. Advertising it as stable before external consumers exist would create premature compatibility obligations.
 3. **Java enforcement stack** — ArchUnit hexagonal suite (production baseline parity) is partially shipped; three templates are missing.
-4. **ADR-037 collision** — two ADRs share the number 037 (`037-evidence-harness-target-projects.md` and `037-java-static-analysis-baseline.md`). ADR-038 is the next clean number.
+4. **ADR-037/049 split** — the Java static analysis ADR was originally `037-java-static-analysis-baseline.md` (collision with ADR-037 evidence-harness); it has been renumbered to `049-java-static-analysis-baseline.md` (ADR-049).
 
 ---
 
@@ -63,9 +63,9 @@ v1.0 scope = Java + TypeScript enforcement stacks at full production baseline pa
 
 ---
 
-## ADR-037 Collision Note
+## ADR-049 Rename Note
 
-Both `037-evidence-harness-target-projects.md` and `037-java-static-analysis-baseline.md` use number 037. This is a pre-existing numbering error. ADR-038 is the next clean slot. A future cleanup commit will renumber one of the 037 files to 037a or a higher number; that cleanup is deferred to avoid churn during the v1.0 sprint.
+The Java static analysis ADR was originally `037-java-static-analysis-baseline.md` (collision with ADR-037). It has been renumbered to `049-java-static-analysis-baseline.md` (ADR-049) as part of the ADR dedup cleanup.
 
 ---
 

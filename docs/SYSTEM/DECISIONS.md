@@ -160,7 +160,7 @@ fires; both present = already resumed, no-op.
 
 ---
 
-## ADR-045: Batch-execution safety rule for parallel agents (#722, 2026-05-16)
+## ADR-061: Batch-execution safety rule for parallel agents (#722, 2026-05-16)
 
 **Status:** Accepted
 **Reference:** Issue #722
@@ -213,7 +213,7 @@ fires; both present = already resumed, no-op.
 
 ---
 
-## ADR-045: CLI catalog docs/COMMANDS.md generation (#728, 2026-05-16)
+## ADR-062: CLI catalog docs/COMMANDS.md generation (#728, 2026-05-16)
 
 **Status:** Accepted
 **Reference:** Issue #728; prior-art baseline M-19; CANON-04, CANON-05, CANON-11
@@ -802,7 +802,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-037: SpotBugs security hard-block baseline script (#212)
+## ADR-055: SpotBugs security hard-block baseline script (#212)
 
 **Date:** 2026-05-11
 **Status:** Accepted
@@ -830,7 +830,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-038: Self-dogfood check for EJS templates (#239)
+## ADR-056: Self-dogfood check for EJS templates (#239)
 
 **Date:** 2026-05-11
 **Status:** Accepted
@@ -882,7 +882,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-039: V1 Verification Bridge (#253)
+## ADR-057: V1 Verification Bridge (#253)
 
 **Date:** 2026-05-13
 **Status:** Accepted
@@ -1018,7 +1018,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-043: Context-economy rule + knowledge-map + track-aware post-commit (#720, #724)
+## ADR-058: Context-economy rule + knowledge-map + track-aware post-commit (#720, #724)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1056,7 +1056,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-043: selfOnly invariant field — filter arbiter-internal rules from generated target AGENTS.md (#682)
+## ADR-059: selfOnly invariant field — filter arbiter-internal rules from generated target AGENTS.md (#682)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1072,7 +1072,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-044: alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)
+## ADR-060: alwaysActive semantics clarification + INV-29/30 asymmetry rationale (#683)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1096,7 +1096,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-045: check-no-skipped-tests hook (NI-11 enforcement) (#730)
+## ADR-063: check-no-skipped-tests hook (NI-11 enforcement) (#730)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1116,7 +1116,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-046: Observability provider abstraction (#725)
+## ADR-064: Observability provider abstraction (#725)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1139,7 +1139,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-047: Auth provider abstraction (#726)
+## ADR-065: Auth provider abstraction (#726)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1162,7 +1162,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 ---
 
-## ADR-048: Industrial-grade meta-preset (#729)
+## ADR-066: Industrial-grade meta-preset (#729)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1184,7 +1184,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Consequences:** Teams can activate the full compliance + governance stack with one flag. Auth and observability providers remain user-chosen to avoid lock-in. The preset is idempotent: re-running `arbiter update --preset industrial-grade` after changing a provider preserves the provider override.
 
-## ADR-049: Worktree harvest parent-state guardrails (#733)
+## ADR-067: Worktree harvest parent-state guardrails (#733)
 
 **Date:** 2026-05-16
 **Status:** Accepted
@@ -1204,7 +1204,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 `git diff --quiet -- <file>` exits 0 for untracked files (no diff exists for a file git does not track), so `fileHasUncommittedChanges` previously returned `false` and harvest silently overwrote untracked files in the main repo. The fix adds `fileIsUntrackedInMainRepo` (probes `git ls-files --` — empty stdout = not tracked) and short-circuits before the copy when the destination exists but is untracked. Files blocked by this guardrail are collected in a new `HarvestResult.protectedUntracked` array and logged to the audit entry. The guard only fires when the destination file EXISTS — new files (no dest) continue to copy freely.
 
-## ADR-050: Wizard Ctrl+C abort — exit 130, tmp cleanup, unified message (#621)
+## ADR-068: Wizard Ctrl+C abort — exit 130, tmp cleanup, unified message (#621)
 
 **Date:** 2026-05-17
 **Status:** Accepted
@@ -1224,7 +1224,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Consequences:** `arbiter init` Ctrl+C now exits 130, prints a clear message, and leaves no orphan tmp files regardless of when in the wizard flow the interrupt fires.
 
-## ADR-051: Action pin parity — dependabot bypass fix (#911)
+## ADR-069: Action pin parity — dependabot bypass fix (#911)
 
 **Date:** 2026-05-19
 **Status:** Accepted
@@ -1245,7 +1245,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Consequences:** Dependabot github-actions PRs auto-fix their own EJS divergence on the first CI run after the new workflow merges. Human approval (INV-74) remains required for merge. The L1 gate catches any future human-side drift before commit.
 
-## ADR-052: Toolchain audit generator — W11 evidence bundle (#887)
+## ADR-070: Toolchain audit generator — W11 evidence bundle (#887)
 
 **Date:** 2026-05-20
 **Status:** Accepted
@@ -1265,7 +1265,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Consequences:** Target projects generated at any level (L1/L2/L3) receive `audit-toolchain.mjs`. Template tests baseline updated 147→145 (2 fewer untested EJS files).
 
-## ADR-053: F6 — k6 performance testing ecosystem template (#895)
+## ADR-071: F6 — k6 performance testing ecosystem template (#895)
 
 **Date:** 2026-05-20
 **Status:** Accepted
@@ -1287,7 +1287,7 @@ The `.arbiter/hooks-manifest.json` gains a `tools` field per entry (`["claude"]`
 
 **Consequences:** Projects opting in via `enablePerfTesting: true` get a complete k6 perf ecosystem on `arbiter init`. Existing projects (brownfield re-init) are unaffected due to `skipIfExists`.
 
-## ADR-054: Loud-bypass contract library (Workstream C Port #10, #970)
+## ADR-072: Loud-bypass contract library (Workstream C Port #10, #970)
 
 **Date:** 2026-05-20
 **Status:** Accepted
