@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-/**
- * Gate: reject any committed file containing provenance strings from
- * private work repositories. Runs in pre-commit (via check-all.mjs L1+).
- *
- * Patterns are intentionally broad — false positives are cheap; leaks are not.
- */
+// CATALOG: Privacy gate — rejects files containing provenance strings from
+// CATALOG: private work repositories. Cannot fold into check-pii.mjs (PII scan
+// CATALOG: targets personal data patterns, not repo-provenance strings) nor into
+// CATALOG: check-inline-suppressions.mjs (different policy domain). Standalone
+// CATALOG: because the forbidden-string set is project-specific and changes
+// CATALOG: independently of PII or suppression policy.
+//
+// Gate: reject any committed file containing provenance strings from
+// private work repositories. Runs in pre-commit (via check-all.mjs L1+).
+//
+// Patterns are intentionally broad — false positives are cheap; leaks are not.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -62,35 +67,42 @@ function getAllTrackedFiles() {
   }
 }
 
-const mode = process.argv[2] ?? 'staged'
-const files = mode === 'all' ? getAllTrackedFiles() : getStagedFiles()
+try {
+  const mode = process.argv[2] ?? 'staged'
+  const files = mode === 'all' ? getAllTrackedFiles() : getStagedFiles()
 
-const violations = []
+  const violations = []
 
-for (const file of files) {
-  if (!shouldScan(file)) continue
-  let content
-  try {
-    content = readFileSync(join(process.cwd(), file), 'utf8')
-  } catch {
-    continue
-  }
-  for (const pattern of FORBIDDEN) {
-    const match = content.match(pattern)
-    if (match) {
-      violations.push({ file, pattern: pattern.source, match: match[0] })
-      break
+  for (const file of files) {
+    if (!shouldScan(file)) continue
+    let content
+    try {
+      content = readFileSync(join(process.cwd(), file), 'utf8')
+    } catch {
+      continue
+    }
+    for (const pattern of FORBIDDEN) {
+      const match = content.match(pattern)
+      if (match) {
+        violations.push({ file, pattern: pattern.source, match: match[0] })
+        break
+      }
     }
   }
-}
 
-if (violations.length > 0) {
-  console.error('\n[check-no-work-refs] FAIL — private work-repo strings detected:\n')
-  for (const v of violations) {
-    console.error(`  ${v.file}: matched /${v.pattern}/ ("${v.match}")`)
+  if (violations.length > 0) {
+    console.error('\n[check-no-work-refs] FAIL — private work-repo strings detected:\n')
+    for (const v of violations) {
+      console.error(`  ${v.file}: matched /${v.pattern}/ ("${v.match}")`)
+    }
+    console.error('\nReplace with generic terms before committing.')
+    process.exit(1)
   }
-  console.error('\nReplace with generic terms before committing.')
+
+  console.log('[check-no-work-refs] OK — no private provenance strings found')
+} catch (err) {
+  process.stderr.write(
+    `[check-no-work-refs] unexpected error: ${err instanceof Error ? err.message : String(err)}\n`,
+  )
   process.exit(1)
 }
-
-console.log('[check-no-work-refs] OK — no private provenance strings found')

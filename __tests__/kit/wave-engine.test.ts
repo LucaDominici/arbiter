@@ -38,10 +38,10 @@ describe('buildWavePlan', () => {
     expect(w2.dimensions.some((d) => d.dimId === 'N02')).toBe(true)
   })
 
-  it('W3 gold-phase contains no NA dims', () => {
+  it('W3 is reserved (empty) — gold-phase aspirational bucket', () => {
     const plan = buildWavePlan(makeAssessments(), 'gold')
     const w3 = plan.waves[3]!
-    expect(w3.dimensions.every((d) => d.status !== 'NA')).toBe(true)
+    expect(w3.dimensions).toHaveLength(0)
   })
 
   it('NA dims not assigned to any wave', () => {

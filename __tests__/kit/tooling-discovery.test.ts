@@ -48,7 +48,7 @@ describe('buildToolingProposal', () => {
 
   it('sets generatedAt to an ISO date string', () => {
     const proposal = buildToolingProposal(makeInput())
-    expect(proposal.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}/)
+    expect(proposal.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 
   it('rejects empty stack string', () => {

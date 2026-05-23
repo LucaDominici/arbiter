@@ -13,7 +13,6 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true })
-  vi.restoreAllMocks()
 })
 
 function makeOptions(overrides: Partial<KitInstallOptions> = {}): KitInstallOptions {
@@ -62,12 +61,26 @@ describe('runKitInstall — happy path (dryRun=true)', () => {
     expect(plan?.output).toContain('W0')
     expect(plan?.output).toContain('W3')
   })
+
+  it('VERIFY phase reports a coverage percentage and W1 count', () => {
+    const result = runKitInstall(makeOptions())
+    const verify = result.phases.find((p) => p.phase === 'VERIFY')
+    expect(verify?.output).toMatch(/VERIFY: coverage \d+%/)
+    expect(verify?.output).toMatch(/\d+ dims in W1/)
+  })
 })
 
-describe('runKitInstall — non-dryRun skips scaffold writes', () => {
+describe('runKitInstall — SCAFFOLD phase modes', () => {
   it('scaffold phase reports dryRun mode when dryRun=true', () => {
     const result = runKitInstall(makeOptions({ dryRun: true }))
     const scaffold = result.phases.find((p) => p.phase === 'SCAFFOLD')
     expect(scaffold?.output).toContain('dry-run')
+  })
+
+  it('scaffold phase reports stub when dryRun=false', () => {
+    const result = runKitInstall(makeOptions({ dryRun: false }))
+    const scaffold = result.phases.find((p) => p.phase === 'SCAFFOLD')
+    expect(scaffold?.output).toContain('java')
+    expect(scaffold?.output).toContain('gold')
   })
 })

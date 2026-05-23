@@ -19,6 +19,7 @@ export interface KitInstallResult {
   ok: boolean
   phases: PhaseResult[]
   wavePlan?: WavePlan
+  error?: string
 }
 
 function phaseDetect(opts: KitInstallOptions): PhaseResult {
@@ -45,12 +46,17 @@ function phaseScaffold(opts: KitInstallOptions): PhaseResult {
   }
   return {
     phase: 'SCAFFOLD',
-    output: `SCAFFOLD: generator dispatch complete for ${opts.language} / ${opts.brownfieldClass}`,
+    output: `SCAFFOLD: stub — generator wiring not yet implemented for ${opts.language} / ${opts.brownfieldClass}. Run arbiter init to invoke generators.`,
   }
 }
 
 function phaseAssess(): [PhaseResult, DimAssessment[]] {
   const catalog = loadCatalog()
+  if (catalog.length === 0) {
+    throw new Error(
+      '[arbiter kit install] ASSESS: catalog contains no dimensions — src/kit/catalog.json may be missing or corrupt.',
+    )
+  }
   const assessments: DimAssessment[] = catalog.map((dim) => ({
     dimId: dim.id,
     status:
@@ -83,26 +89,37 @@ function phasePlan(wavePlan: WavePlan): PhaseResult {
 function phaseVerify(assessments: DimAssessment[], wavePlan: WavePlan): PhaseResult {
   const covered = assessments.filter((a) => a.status === 'Y').length
   const total = assessments.filter((a) => a.status !== 'NA').length
-  const pct = total > 0 ? Math.round((covered / total) * 100) : 0
+  if (total === 0) {
+    return {
+      phase: 'VERIFY',
+      output: 'VERIFY: no measurable dims (all NA or empty). W0 baseline not established.',
+    }
+  }
+  const pct = Math.round((covered / total) * 100)
+  const w1Count = wavePlan.summary.byWave['W1'] ?? 0
   return {
     phase: 'VERIFY',
-    output: `VERIFY: coverage ${pct}% (${covered}/${total} dims). W0 baseline confirmed. ${wavePlan.summary.byWave['W1'] ?? 0} dims in W1 (enforcement target).`,
+    output: `VERIFY: coverage ${pct}% (${covered}/${total} dims). W0 baseline confirmed. ${w1Count} dims in W1 (enforcement target).`,
   }
 }
 
 export function runKitInstall(opts: KitInstallOptions): KitInstallResult {
   const phases: PhaseResult[] = []
+  try {
+    phases.push(phaseDetect(opts))
+    phases.push(phaseMeasure(opts))
+    phases.push(phaseScaffold(opts))
 
-  phases.push(phaseDetect(opts))
-  phases.push(phaseMeasure(opts))
-  phases.push(phaseScaffold(opts))
+    const [assessPhase, assessments] = phaseAssess()
+    phases.push(assessPhase)
 
-  const [assessPhase, assessments] = phaseAssess()
-  phases.push(assessPhase)
+    const wavePlan = buildWavePlan(assessments, opts.brownfieldClass)
+    phases.push(phasePlan(wavePlan))
+    phases.push(phaseVerify(assessments, wavePlan))
 
-  const wavePlan = buildWavePlan(assessments, opts.brownfieldClass)
-  phases.push(phasePlan(wavePlan))
-  phases.push(phaseVerify(assessments, wavePlan))
-
-  return { ok: true, phases, wavePlan }
+    return { ok: true, phases, wavePlan }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, phases, error: message }
+  }
 }
