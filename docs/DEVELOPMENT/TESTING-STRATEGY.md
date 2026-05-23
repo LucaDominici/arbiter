@@ -219,3 +219,24 @@ Both steps are wrapped by the **ephemeral-server runner** emitted at `scripts/li
 4. Tears the server down on SIGTERM/SIGINT/exit and propagates the test command's exit code.
 
 The gate uses `runToolCheck` from `scripts/lib/run-helpers.mjs` (#351) so the step **SKIPs locally** when the Playwright binary is missing, and **FAILs in CI** — preserving CANON-02 (proven tools must be gated). Override `E2E_START_CMD` and `E2E_PORT` in the environment to customise the per-project invocation.
+
+---
+
+## Greenfield Smoke Tests (#1038)
+
+**Motivation:** unit tests verified components in isolation; the haben init run revealed failures at seams between components. A smoke test that runs the complete pipeline catches the class of bug no unit test will.
+
+Two test layers in `__tests__/integration/init-greenfield-smoke.test.ts`:
+
+| Layer           | What it tests                                                                                         | Runner                         |
+| --------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------ |
+| Pipeline smoke  | `runInit --yes L{1,2,3}` → reads `arbiter.json` → `validateConfig` passes                             | `vitest.integration.config.ts` |
+| Contract matrix | `buildConfigFromAnswers` + `buildArbiterConfig` → `validateConfig` for all `level × archetype` combos | `vitest.integration.config.ts` |
+
+Run locally:
+
+```bash
+npx vitest run --config vitest.integration.config.ts
+```
+
+The pipeline smoke tests are wired into the L1 gate via `runCheck('greenfield smoke', ...)` in `scripts/check-all.mjs`.
