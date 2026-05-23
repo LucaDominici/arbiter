@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { mkdirSync, existsSync, copyFileSync, unlinkSync } from 'node:fs'
-import { resolve, basename, join } from 'node:path'
+import { resolve, basename, join, normalize, isAbsolute, sep } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, ArbiterError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
@@ -462,6 +462,13 @@ function runGeneratorsWithErrors(
   return { results, errors }
 }
 
+/** Throws if resolvedPath does not start with safeRoot + path separator. */
+function assertPathContained(resolvedPath: string, safeRoot: string, rawPath: string): void {
+  if (!resolvedPath.startsWith(safeRoot + sep)) {
+    throw new Error(`Plugin output path escapes target directory: ${rawPath}`)
+  }
+}
+
 export async function runPlugins(
   targetDir: string,
   plugins: string[],
@@ -478,7 +485,11 @@ export async function runPlugins(
         config: storedConfig,
         targetDir,
         renderTemplate(relPath: string, data: Record<string, unknown>): string {
-          return renderFromAbsPath(join(plugin.templateRoot, relPath), data)
+          const safe = normalize(relPath)
+          if (safe.startsWith('..') || isAbsolute(safe)) {
+            throw new Error(`Invalid plugin template path: ${relPath}`)
+          }
+          return renderFromAbsPath(join(plugin.templateRoot, safe), data)
         },
       }
       const result = await plugin.generate(ctx)
@@ -500,9 +511,11 @@ export async function runPlugins(
           all.push({ path: file.path, action: 'skipped' })
           continue
         }
+        const resolvedFilePath = resolve(targetDir, file.path)
+        assertPathContained(resolvedFilePath, resolve(targetDir), file.path)
         writtenPaths.add(file.path)
         all.push(
-          writeFile(file.path, file.content, {
+          writeFile(resolvedFilePath, file.content, {
             backup: file.action === 'backup-and-replace',
             skipIfExists: file.action === 'skip',
           }),
@@ -919,12 +932,12 @@ function parseTools(tools: string | undefined): AiTool[] {
 
 function parseLevel(level: string | undefined): GovernanceLevel {
   if (level === undefined) return 'L2'
-  if (level === 'L1' || level === 'L2' || level === 'L3') return level
+  if (level === 'L1' || level === 'L2' || level === 'L3' || level === 'L4') return level
   throw ArbiterError.fromKey(
     'E_INVALID_LEVEL',
     'errors.E_INVALID_LEVEL',
     { level },
-    { hint: 'Use L1 (fast), L2 (standard, default), or L3 (audit-grade).' },
+    { hint: 'Use L1 (fast), L2 (standard, default), L3 (audit-grade), or L4 (compliance-grade).' },
   )
 }
 

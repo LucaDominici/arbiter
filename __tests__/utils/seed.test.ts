@@ -59,6 +59,17 @@ describe('seededClock', () => {
       expect(d.getUTCFullYear()).toBeLessThanOrEqual(2030)
     }
   })
+
+  it('distributes across the full decade range (not bunched at start)', () => {
+    // With the old `nextU32() % span` where span ~347B ms > 2^32 (~4.3B ms),
+    // every date lands within ~50 days of 2020-01-01. The fix must produce
+    // results spread across all years 2020–2030.
+    const seeds = Array.from({ length: 100 }, (_, i) => i + 1)
+    const years = seeds.map((s) => seededClock(s).getUTCFullYear())
+    const uniqueYears = new Set(years)
+    // Across 100 seeds the full-range fix should cover at least 5 distinct years.
+    expect(uniqueYears.size).toBeGreaterThanOrEqual(5)
+  })
 })
 
 describe('canonicalJsonHash', () => {

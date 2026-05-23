@@ -61,10 +61,10 @@ describe('upgrade-level --json', () => {
     vi.restoreAllMocks()
   })
 
-  it('emits JSON envelope on successful upgrade', () => {
+  it('emits JSON envelope on successful upgrade', async () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
 
-    runUpgradeLevel({ target: 'L2', json: true })
+    await runUpgradeLevel({ target: 'L2', json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('upgrade-level')
@@ -77,30 +77,30 @@ describe('upgrade-level --json', () => {
     expect(typeof data.graceDays).toBe('number')
   })
 
-  it('emits JSON error when no config found', () => {
+  it('emits JSON error when no config found', async () => {
     mockLoadConfig.mockReturnValue(null)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit')
     })
 
-    expect(() => runUpgradeLevel({ target: 'L2', json: true })).toThrow('process.exit')
+    await expect(runUpgradeLevel({ target: 'L2', json: true })).rejects.toThrow('process.exit')
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.status).toBe('error')
     expect(exitSpy).toHaveBeenCalledWith(1)
   })
 
-  it('does not emit JSON in human mode', () => {
+  it('does not emit JSON in human mode', async () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
 
-    runUpgradeLevel({ target: 'L2', json: false })
+    await runUpgradeLevel({ target: 'L2', json: false })
 
     // Human mode emits text to stdout via process.stdout.write (#820), but
     // must NOT emit a JSON envelope. Assert the captured text is not JSON.
     expect(written.trim().startsWith('{')).toBe(false)
   })
 
-  it('emits JSON envelope on --extend path', () => {
+  it('emits JSON envelope on --extend path', async () => {
     const futureDate = new Date(Date.now() + 10 * 86400000).toISOString()
     mockLoadConfig.mockReturnValue({
       ...BASE_CONFIG,
@@ -108,7 +108,7 @@ describe('upgrade-level --json', () => {
       graceEndsAt: futureDate,
     })
 
-    runUpgradeLevel({ extend: true, days: 7, json: true })
+    await runUpgradeLevel({ extend: true, days: 7, json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('upgrade-level')

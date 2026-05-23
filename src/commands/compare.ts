@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { resolve, dirname } from 'node:path'
+import { resolve, dirname, sep } from 'node:path'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { loadRepoData } from '../compare/load-repo.js'
 import {
@@ -59,7 +59,17 @@ export function runCompare(opts: CompareOptions): CompareResult {
     }
   }
 
-  const resolvedPaths = rawPaths.map((p) => resolve(p))
+  const cwd = process.cwd()
+  const cwdResolved = resolve(cwd)
+  const resolvedPaths = rawPaths.map((p) => {
+    const resolved = resolve(cwd, p)
+    // Only apply containment check to relative paths — absolute repo paths are legitimate.
+    // A relative path that resolves outside cwd indicates path traversal in a workspace YAML.
+    if (!p.startsWith('/') && !resolved.startsWith(cwdResolved + sep) && resolved !== cwdResolved) {
+      throw new Error(`Workspace path escapes root: ${p}`)
+    }
+    return resolved
+  })
 
   // 2. Load each repo
   const warnings: string[] = []

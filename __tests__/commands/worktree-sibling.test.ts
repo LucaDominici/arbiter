@@ -76,13 +76,13 @@ function ok(stdout: string) {
 // ---- path helpers ----
 
 describe('siblingWorktreePathFor', () => {
-  it('places worktree at <parent>/<repoName>.worktrees/<slug>', () => {
+  it('places worktree at <parent>/<repoName>.worktrees/<slug>', async () => {
     const gitRoot = '/home/luca/projects/my-app'
     const result = siblingWorktreePathFor(gitRoot, 'feature-x')
     expect(result).toBe('/home/luca/projects/my-app.worktrees/feature-x')
   })
 
-  it('uses provided slug verbatim (no sanitization at this layer)', () => {
+  it('uses provided slug verbatim (no sanitization at this layer)', async () => {
     const gitRoot = '/repos/arbiter'
     const result = siblingWorktreePathFor(gitRoot, '#699-brainstorm')
     expect(result).toBe('/repos/arbiter.worktrees/#699-brainstorm')
@@ -90,7 +90,7 @@ describe('siblingWorktreePathFor', () => {
 })
 
 describe('worktreeDirectoryName fallback for sibling slug', () => {
-  it('produces taskId slug when no explicit sibling slug given', () => {
+  it('produces taskId slug when no explicit sibling slug given', async () => {
     const name = worktreeDirectoryName('#699')
     expect(name).toBe('#699')
   })
@@ -126,21 +126,21 @@ describe('materializeLink — non-symlink guard (red-team C1)', () => {
     rmSync(worktree, { recursive: true, force: true })
   })
 
-  it('throws when a real file (not symlink) exists at dest', () => {
+  it('throws when a real file (not symlink) exists at dest', async () => {
     writeFileSync(join(mainRepo, '.env'), 'SECRET=1')
     writeFileSync(join(worktree, '.env'), 'FAKE=1')
     const spec: WorktreeLinkSpec = { path: '.env' }
     expect(() => realMaterializeLink(spec, mainRepo, worktree)).toThrow(/non-symlink/)
   })
 
-  it('throws when a real directory (not symlink) exists at dest for directory type', () => {
+  it('throws when a real directory (not symlink) exists at dest for directory type', async () => {
     mkdirSync(join(mainRepo, 'node_modules'), { recursive: true })
     mkdirSync(join(worktree, 'node_modules'), { recursive: true })
     const spec: WorktreeLinkSpec = { path: 'node_modules', type: 'directory' }
     expect(() => realMaterializeLink(spec, mainRepo, worktree)).toThrow(/non-symlink/)
   })
 
-  it('succeeds idempotently when dest IS a symlink', () => {
+  it('succeeds idempotently when dest IS a symlink', async () => {
     writeFileSync(join(mainRepo, '.env'), 'SECRET=1')
     symlinkSync(join(mainRepo, '.env'), join(worktree, '.env'))
     const spec: WorktreeLinkSpec = { path: '.env' }
@@ -148,7 +148,7 @@ describe('materializeLink — non-symlink guard (red-team C1)', () => {
     expect(result.result).toBe('LINKED')
   })
 
-  it('.claude/ directory is NOT in DEFAULT sibling link set (loop guard)', () => {
+  it('.claude/ directory is NOT in DEFAULT sibling link set (loop guard)', async () => {
     // The DEFAULT_LINKS in worktree.ts must NOT include .claude/ to avoid
     // hook/analyzer loops when the worktree's .claude/ points back to main repo.
     const src = readFileSync(resolve(process.cwd(), 'src/commands/worktree.ts'), 'utf-8')
@@ -178,7 +178,7 @@ describe('runWorktreeOpen — --sibling flag placement', () => {
     rmSync(fakeGitRoot, { recursive: true, force: true })
   })
 
-  it('places worktree at sibling path when --sibling is given', () => {
+  it('places worktree at sibling path when --sibling is given', async () => {
     mockRunCli
       .mockReturnValueOnce(ok(fakeGitRoot)) // getGitRoot
       .mockReturnValueOnce(ok('')) // resolveEffectiveBase verify local
@@ -187,7 +187,7 @@ describe('runWorktreeOpen — --sibling flag placement', () => {
 
     const siblingSlug = 'my-feature'
 
-    runWorktreeOpen({
+    await runWorktreeOpen({
       taskId: '#698',
       cwd: fakeGitRoot,
       sibling: siblingSlug,
@@ -219,14 +219,14 @@ describe('runWorktreeOpen — default placement unchanged without --sibling', ()
     rmSync(fakeGitRoot, { recursive: true, force: true })
   })
 
-  it('uses normal worktree base when --sibling not given', () => {
+  it('uses normal worktree base when --sibling not given', async () => {
     mockRunCli
       .mockReturnValueOnce(ok(fakeGitRoot))
       .mockReturnValueOnce(ok(''))
       .mockReturnValueOnce(ok('abc123'))
       .mockReturnValueOnce(ok(''))
 
-    runWorktreeOpen({ taskId: '#698', cwd: fakeGitRoot, json: true })
+    await runWorktreeOpen({ taskId: '#698', cwd: fakeGitRoot, json: true })
 
     const wtAddCall = mockRunCli.mock.calls.find((c) => c[1]?.includes('worktree'))
     expect(wtAddCall).toBeDefined()

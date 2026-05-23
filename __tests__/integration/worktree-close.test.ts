@@ -93,7 +93,7 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 function openAndMerge(taskId: string, slug: string): string {
-  runWorktreeOpen({ taskId, slug, cwd: repoRoot, worktreesDir })
+  await runWorktreeOpen({ taskId, slug, cwd: repoRoot, worktreesDir })
   const wtPath = join(worktreesDir, `${taskId}-${slug}`)
 
   // Make a commit in the worktree — stage only the feature file, not any symlinks
@@ -128,7 +128,7 @@ function openAndMerge(taskId: string, slug: string): string {
 // ---------------------------------------------------------------------------
 
 describe('runWorktreeClose', () => {
-  it('closes a merged worktree — directory removed, log written', () => {
+  it('closes a merged worktree — directory removed, log written', async () => {
     openAndMerge('#999', 'test')
 
     runWorktreeClose({
@@ -148,8 +148,8 @@ describe('runWorktreeClose', () => {
     expect(entry['force']).toBe(false)
   })
 
-  it('refuses to close an unmerged branch without --force', () => {
-    runWorktreeOpen({
+  it('refuses to close an unmerged branch without --force', async () => {
+    await runWorktreeOpen({
       taskId: '#999',
       slug: 'unmerged',
       cwd: repoRoot,
@@ -169,8 +169,8 @@ describe('runWorktreeClose', () => {
     )
   })
 
-  it('closes with --force even when branch is unmerged', () => {
-    runWorktreeOpen({
+  it('closes with --force even when branch is unmerged', async () => {
+    await runWorktreeOpen({
       taskId: '#999',
       slug: 'unmerged',
       cwd: repoRoot,
@@ -194,7 +194,7 @@ describe('runWorktreeClose', () => {
     expect(existsSync(wtPath)).toBe(false)
   })
 
-  it('detects dangling symlinks and reports them (does not throw)', () => {
+  it('detects dangling symlinks and reports them (does not throw)', async () => {
     // .env is untracked (as in a real project where it's gitignored).
     // The dirty check uses --untracked-files=no, so this doesn't block opening.
     const envPath = join(repoRoot, '.env')
@@ -217,7 +217,7 @@ describe('runWorktreeClose', () => {
     expect(existsSync(join(worktreesDir, '#999-dangling'))).toBe(false)
   })
 
-  it('invokes the close hook and passes the worktree path', () => {
+  it('invokes the close hook and passes the worktree path', async () => {
     openAndMerge('#999', 'hook')
 
     // Write a simple hook script that records its argument
@@ -249,7 +249,7 @@ describe('runWorktreeClose', () => {
     expect(readFileSync(hookLog, 'utf-8').trim()).toBe(resolve(wtPath))
   })
 
-  it('aborts close (without --force) when close hook exits non-zero', () => {
+  it('aborts close (without --force) when close hook exits non-zero', async () => {
     openAndMerge('#999', 'hookfail')
 
     const hookScript = join(repoRoot, 'fail-hook.sh')
@@ -279,7 +279,7 @@ describe('runWorktreeClose', () => {
     expect(existsSync(join(worktreesDir, '#999-hookfail'))).toBe(true)
   })
 
-  it('emits warning callback but does not throw when close hook fails under --force', () => {
+  it('emits warning callback but does not throw when close hook fails under --force', async () => {
     openAndMerge('#999', 'hookforce')
 
     const hookScript = join(repoRoot, 'fail-hook-force.sh')
@@ -318,11 +318,11 @@ describe('runWorktreeClose', () => {
     expect(existsSync(join(worktreesDir, '#999-hookforce'))).toBe(false)
   })
 
-  it('refuses when no open log entry exists for the task', () => {
+  it('refuses when no open log entry exists for the task', async () => {
     expect(() => runWorktreeClose({ taskId: '#000', cwd: repoRoot })).toThrow(/no open worktree/i)
   })
 
-  it('closes the second worktree when two share the same task id', () => {
+  it('closes the second worktree when two share the same task id', async () => {
     // Open two worktrees for the same task id with different slugs
     openAndMerge('#999', 'first')
     openAndMerge('#999', 'second')
@@ -339,8 +339,8 @@ describe('runWorktreeClose', () => {
 })
 
 describe('runWorktreeClose --harvest', () => {
-  it('harvests modified files back to main repo before closing', () => {
-    runWorktreeOpen({
+  it('harvests modified files back to main repo before closing', async () => {
+    await runWorktreeOpen({
       taskId: '#888',
       slug: 'harvest',
       cwd: repoRoot,
@@ -380,8 +380,8 @@ describe('runWorktreeClose --harvest', () => {
     expect(existsSync(wtPath)).toBe(false)
   })
 
-  it('harvests new (untracked) files back to main repo', () => {
-    runWorktreeOpen({
+  it('harvests new (untracked) files back to main repo', async () => {
+    await runWorktreeOpen({
       taskId: '#887',
       slug: 'harvest-new',
       cwd: repoRoot,
@@ -409,8 +409,8 @@ describe('runWorktreeClose --harvest', () => {
     expect(existsSync(join(repoRoot, 'src', 'new-feature.ts'))).toBe(true)
   })
 
-  it('harvestAll skips merge check', () => {
-    runWorktreeOpen({
+  it('harvestAll skips merge check', async () => {
+    await runWorktreeOpen({
       taskId: '#886',
       slug: 'harvest-force',
       cwd: repoRoot,
@@ -437,7 +437,7 @@ describe('runWorktreeClose --harvest', () => {
 // ---------------------------------------------------------------------------
 
 describe('#307 corrupt open log backup', () => {
-  it('renames corrupt log to .corrupt file and proceeds', () => {
+  it('renames corrupt log to .corrupt file and proceeds', async () => {
     const logDir = join(repoRoot, '.arbiter')
     mkdirSync(logDir, { recursive: true })
     const logPath = join(logDir, 'worktree-open.log.json')
@@ -460,8 +460,8 @@ describe('#307 corrupt open log backup', () => {
 // ---------------------------------------------------------------------------
 
 describe('#313 harvestAll close log and warning', () => {
-  it('records force=true in close log even when opts.force is false', () => {
-    runWorktreeOpen({
+  it('records force=true in close log even when opts.force is false', async () => {
+    await runWorktreeOpen({
       taskId: '#313a',
       slug: 'harvest-log',
       cwd: repoRoot,
@@ -481,8 +481,8 @@ describe('#313 harvestAll close log and warning', () => {
     expect(entry?.['force']).toBe(true)
   })
 
-  it('emits harvest-all bypass warning to stderr', () => {
-    runWorktreeOpen({
+  it('emits harvest-all bypass warning to stderr', async () => {
+    await runWorktreeOpen({
       taskId: '#313b',
       slug: 'harvest-warn',
       cwd: repoRoot,
@@ -516,7 +516,7 @@ describe('#313 harvestAll close log and warning', () => {
 // ---------------------------------------------------------------------------
 
 describe('#314 stale log entry pruning', () => {
-  it('prunes stale entry and throws with informative error', () => {
+  it('prunes stale entry and throws with informative error', async () => {
     // Write a log entry that points to a non-existent directory
     const logDir = join(repoRoot, '.arbiter')
     mkdirSync(logDir, { recursive: true })

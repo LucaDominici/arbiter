@@ -56,11 +56,11 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     )
   }
 
-  it('upgrades L1→L2: sets governanceLevel, graceEndsAt ≈ +30d, graceFromLevel', () => {
+  it('upgrades L1→L2: sets governanceLevel, graceEndsAt ≈ +30d, graceFromLevel', async () => {
     seedConfig('L1')
     const before = Date.now()
 
-    runUpgradeLevel({ dir, target: 'L2' })
+    await runUpgradeLevel({ dir, target: 'L2' })
 
     const saved = loadConfig(dir)
     expect(saved?.governanceLevel).toBe('L2')
@@ -74,10 +74,10 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(endsAt).toBeLessThanOrEqual(expectedMax)
   })
 
-  it('respects custom --days', () => {
+  it('respects custom --days', async () => {
     seedConfig('L1')
 
-    runUpgradeLevel({ dir, target: 'L2', days: 7 })
+    await runUpgradeLevel({ dir, target: 'L2', days: 7 })
 
     const saved = loadConfig(dir)
     const endsAt = Date.parse(saved!.graceEndsAt!)
@@ -85,24 +85,24 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(Math.abs(endsAt - expected)).toBeLessThan(5000)
   })
 
-  it('rejects same-level target', () => {
+  it('rejects same-level target', async () => {
     seedConfig('L2')
-    expect(() => runUpgradeLevel({ dir, target: 'L2' })).toThrow(/already at L2/i)
+    await expect(runUpgradeLevel({ dir, target: 'L2' })).rejects.toThrow(/already at L2/i)
   })
 
-  it('rejects downgrade', () => {
+  it('rejects downgrade', async () => {
     seedConfig('L2')
-    expect(() => runUpgradeLevel({ dir, target: 'L1' as GovernanceLevel })).toThrow(
+    await expect(runUpgradeLevel({ dir, target: 'L1' as GovernanceLevel })).rejects.toThrow(
       /downgrade not supported/i,
     )
   })
 
-  it('rejects missing arbiter.json', () => {
+  it('rejects missing arbiter.json', async () => {
     // dir has package.json but no arbiter.json
-    expect(() => runUpgradeLevel({ dir, target: 'L2' })).toThrow(/arbiter\.json/i)
+    await expect(runUpgradeLevel({ dir, target: 'L2' })).rejects.toThrow(/arbiter\.json/i)
   })
 
-  it('--extend on active grace: adds +30d to existing end date and appends to grace-log.json', () => {
+  it('--extend on active grace: adds +30d to existing end date and appends to grace-log.json', async () => {
     seedConfig('L1')
     const futureDate = new Date(Date.now() + 15 * 86400000).toISOString()
     writeFileSync(
@@ -117,7 +117,7 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
       }),
     )
 
-    runUpgradeLevel({ dir, extend: true })
+    await runUpgradeLevel({ dir, extend: true })
 
     const saved = loadConfig(dir)
     const newEndsAt = Date.parse(saved!.graceEndsAt!)
@@ -134,7 +134,7 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(entry.previousEndsAt).toBe(futureDate)
   })
 
-  it('--extend rejects when no active grace period', () => {
+  it('--extend rejects when no active grace period', async () => {
     writeFileSync(
       join(dir, 'arbiter.json'),
       JSON.stringify({
@@ -144,10 +144,12 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
         useGitHub: false,
       }),
     )
-    expect(() => runUpgradeLevel({ dir, extend: true })).toThrow(/no grace period to extend/i)
+    await expect(runUpgradeLevel({ dir, extend: true })).rejects.toThrow(
+      /no grace period to extend/i,
+    )
   })
 
-  it('--extend rejects when grace period already expired', () => {
+  it('--extend rejects when grace period already expired', async () => {
     writeFileSync(
       join(dir, 'arbiter.json'),
       JSON.stringify({
@@ -159,12 +161,14 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
         graceFromLevel: 'L1',
       }),
     )
-    expect(() => runUpgradeLevel({ dir, extend: true })).toThrow(/no grace period to extend/i)
+    await expect(runUpgradeLevel({ dir, extend: true })).rejects.toThrow(
+      /no grace period to extend/i,
+    )
   })
 
-  it('upgrade writes grace-log to .arbiter dir which is created if absent', () => {
+  it('upgrade writes grace-log to .arbiter dir which is created if absent', async () => {
     seedConfig('L1')
-    runUpgradeLevel({ dir, target: 'L2' })
+    await runUpgradeLevel({ dir, target: 'L2' })
     // .arbiter dir should be created with grace-log on extension
     // (for initial upgrade, no log is written — only on --extend)
     // Just verify the upgrade succeeded
@@ -172,7 +176,7 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(saved?.graceEndsAt).toBeDefined()
   })
 
-  it('--extend appends multiple entries on successive calls', () => {
+  it('--extend appends multiple entries on successive calls', async () => {
     const futureDate = new Date(Date.now() + 25 * 86400000).toISOString()
     writeFileSync(
       join(dir, 'arbiter.json'),
@@ -199,7 +203,7 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
       ]),
     )
 
-    runUpgradeLevel({ dir, extend: true })
+    await runUpgradeLevel({ dir, extend: true })
 
     const log = JSON.parse(
       readFileSync(join(dir, '.arbiter', 'grace-log.json'), 'utf-8'),
@@ -207,51 +211,51 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(log).toHaveLength(2)
   })
 
-  it('INV-33: does not persist graceEndsAt when baseline capture fails', () => {
+  it('INV-33: does not persist graceEndsAt when baseline capture fails', async () => {
     seedConfig('L1')
     vi.mocked(runCli).mockImplementationOnce(() => {
       throw new Error('Simulated baseline failure')
     })
 
-    expect(() => runUpgradeLevel({ dir, target: 'L2' })).toThrow()
+    await expect(runUpgradeLevel({ dir, target: 'L2' })).rejects.toThrow()
 
     const saved = loadConfig(dir)
     expect(saved?.graceEndsAt).toBeUndefined()
     expect(saved?.governanceLevel).toBe('L1')
   })
 
-  it('L1→L3 upgrade does NOT say "will WARN" — warn mode is L1→L2 only (#309)', () => {
+  it('L1→L3 upgrade does NOT say "will WARN" — warn mode is L1→L2 only (#309)', async () => {
     seedConfig('L1')
     const logs: string[] = []
     vi.spyOn(console, 'log').mockImplementation((msg: string) => {
       logs.push(msg)
     })
-    runUpgradeLevel({ dir, target: 'L3' })
+    await runUpgradeLevel({ dir, target: 'L3' })
     const combined = logs.join('\n')
     expect(combined).not.toContain('will WARN')
     expect(combined).toContain('immediately')
   })
 
-  it('L1→L2 upgrade DOES say gates will WARN (#309)', () => {
+  it('L1→L2 upgrade DOES say gates will WARN (#309)', async () => {
     seedConfig('L1')
     const logs: string[] = []
     vi.spyOn(console, 'log').mockImplementation((msg: string) => {
       logs.push(msg)
     })
-    runUpgradeLevel({ dir, target: 'L2' })
+    await runUpgradeLevel({ dir, target: 'L2' })
     const combined = logs.join('\n')
     expect(combined).toContain('will WARN')
   })
 
-  it('upgrade-level runs validateConfig before saving (#310)', () => {
+  it('upgrade-level runs validateConfig before saving (#310)', async () => {
     seedConfig('L1')
     // A valid upgrade should succeed — verifies validateConfig path runs without error
-    expect(() => runUpgradeLevel({ dir, target: 'L2' })).not.toThrow()
+    await runUpgradeLevel({ dir, target: 'L2' })
     const saved = loadConfig(dir)
     expect(saved?.governanceLevel).toBe('L2')
   })
 
-  it('--extend gives actionable error on malformed grace-log.json (#311)', () => {
+  it('--extend gives actionable error on malformed grace-log.json (#311)', async () => {
     const futureDate = new Date(Date.now() + 15 * 86400000).toISOString()
     writeFileSync(
       join(dir, 'arbiter.json'),
@@ -267,18 +271,31 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     mkdirSync(join(dir, '.arbiter'), { recursive: true })
     writeFileSync(join(dir, '.arbiter', 'grace-log.json'), '{ BROKEN JSON')
 
-    expect(() => runUpgradeLevel({ dir, extend: true })).toThrow(/malformed/)
+    await expect(runUpgradeLevel({ dir, extend: true })).rejects.toThrow(/malformed/)
   })
 
-  it('INV-33 (#498): validateConfig failure does NOT trigger baseline capture', () => {
+  it('INV-33 (#498): validateConfig failure does NOT trigger baseline capture', async () => {
     seedConfig('L1')
     vi.mocked(runCli).mockClear()
+    // loadConfig now also calls validateConfig internally (fix #1019 — config.ts
+    // validates on load). The vi.fn wraps the real implementation, so by default
+    // calls pass through. We only override calls where the UPGRADED config is
+    // being validated (upgrade-level.ts builds the L2 config and calls validateConfig
+    // before capturing the baseline). Use mockImplementationOnce(callThrough) for
+    // the first call (loadConfig → L1 check), then mockReturnValueOnce(fail) for
+    // the second (upgrade-level → L2 check).
+    const realValidateConfig = vi.mocked(validateConfig).getMockImplementation()
+    if (realValidateConfig) {
+      vi.mocked(validateConfig).mockImplementationOnce(realValidateConfig)
+    }
     vi.mocked(validateConfig).mockReturnValueOnce({
       ok: false,
       errors: ['stubbed validation failure for #498'],
     })
 
-    expect(() => runUpgradeLevel({ dir, target: 'L2' })).toThrow(/config invalid after upgrade/i)
+    await expect(runUpgradeLevel({ dir, target: 'L2' })).rejects.toThrow(
+      /config invalid after upgrade/i,
+    )
 
     // runCli must NOT have been called — external state (debt baseline) must be untouched
     expect(vi.mocked(runCli)).not.toHaveBeenCalled()
@@ -289,7 +306,7 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(saved?.graceEndsAt).toBeUndefined()
   })
 
-  it('--extend (#499): non-array valid JSON in grace-log.json throws and preserves file', () => {
+  it('--extend (#499): non-array valid JSON in grace-log.json throws and preserves file', async () => {
     const futureDate = new Date(Date.now() + 15 * 86400000).toISOString()
     writeFileSync(
       join(dir, 'arbiter.json'),
@@ -307,7 +324,7 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     const futureSchemaPayload = JSON.stringify({ version: 2, entries: [] })
     writeFileSync(logPath, futureSchemaPayload)
 
-    expect(() => runUpgradeLevel({ dir, extend: true })).toThrow(/malformed/)
+    await expect(runUpgradeLevel({ dir, extend: true })).rejects.toThrow(/malformed/)
 
     // File content must be byte-equal to the original — no silent overwrite
     const after = readFileSync(logPath, 'utf-8')

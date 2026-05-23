@@ -486,7 +486,11 @@ program
   )
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { dir?: string | undefined; set: string[]; json: boolean }) => {
-    runConfigure({ dir: opts.dir, sets: opts.set, json: opts.json })
+    runConfigure({ dir: opts.dir, sets: opts.set, json: opts.json }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    })
   })
 
 program
@@ -525,6 +529,10 @@ worktree
           : {}),
         withBuildLinks: opts.withBuildLinks,
         json: opts.json,
+      }).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        process.stderr.write(`  Error: ${msg}\n`)
+        process.exit(1)
       })
     },
   )
@@ -911,7 +919,11 @@ program
       }
       if (opts.days !== undefined) upgradeOpts.days = opts.days
       if (opts.dir !== undefined) upgradeOpts.dir = opts.dir
-      runUpgradeLevel(upgradeOpts)
+      runUpgradeLevel(upgradeOpts).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        process.stderr.write(`  Error: ${msg}\n`)
+        process.exit(1)
+      })
     },
   )
 
@@ -948,11 +960,18 @@ doctor
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { dir?: string; json: boolean }) => {
-    const result = runDoctorRepairState({
+    runDoctorRepairState({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,
     })
-    if (result.exitCode !== 0) process.exit(result.exitCode)
+      .then((result) => {
+        if (result.exitCode !== 0) process.exit(result.exitCode)
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        process.stderr.write(`  Error: ${msg}\n`)
+        process.exit(1)
+      })
   })
 
 doctor

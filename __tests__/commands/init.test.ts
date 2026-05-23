@@ -744,7 +744,7 @@ describe('parseTools / parseLevel — input validation (#325)', () => {
       runInit({
         yes: true,
         tools: undefined,
-        level: 'L4',
+        level: 'L5', // L1..L4 are valid; L5 is not a valid level
         dir,
         dryRun: false,
         brownfield: false,

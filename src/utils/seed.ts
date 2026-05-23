@@ -21,11 +21,26 @@ export interface SeededRng {
 const UINT32 = 0x1_0000_0000
 
 /**
+ * splitmix32 — avalanche-quality seed mixer. Spreads low-entropy integer seeds
+ * (e.g. 1, 2, 3 …) so that xorshift32 starts in a high-entropy state rather
+ * than a near-zero state, which produces pathologically small first outputs.
+ */
+function splitmix32(seed: number): number {
+  let h = seed | 0
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b)
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b)
+  h = h ^ (h >>> 16)
+  return h >>> 0
+}
+
+/**
  * xorshift32 — a fast 32-bit pseudo-random generator. Deterministic for a fixed
  * seed; not cryptographically secure. Suitable for reproducible generator output.
+ * Seed is passed through splitmix32 before use to ensure good avalanche for small
+ * integer seeds (#1021).
  */
 export function createSeededRng(seed: number): SeededRng {
-  let state = seed | 0
+  let state = splitmix32(seed)
   if (state === 0) state = 1
   function nextU32(): number {
     state ^= state << 13
@@ -52,9 +67,11 @@ export function createSeededRng(seed: number): SeededRng {
  */
 export function seededClock(seed: number): Date {
   const rng = createSeededRng(seed)
-  const start = Date.UTC(2020, 0, 1)
-  const span = Date.UTC(2030, 11, 31) - start
-  return new Date(start + (rng.nextU32() % span))
+  const startMs = Date.UTC(2020, 0, 1)
+  const spanMs = Date.UTC(2030, 11, 31) - startMs
+  const fraction = rng.nextU32() / 0x1_0000_0000 // [0, 1)
+  const offsetMs = Math.floor(fraction * spanMs)
+  return new Date(startMs + offsetMs)
 }
 
 /**
