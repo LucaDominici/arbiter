@@ -257,9 +257,11 @@ export function validateConfig(raw: unknown): ValidateResult {
     }
   }
 
-  const level = raw['governanceLevel']
+  const rawLevel = raw['governanceLevel']
+  const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
+  if (typeof rawLevel === 'string') raw['governanceLevel'] = level
   if (typeof level !== 'string' || !GOVERNANCE_LEVELS.has(level)) {
-    errors.push(`governanceLevel must be one of L1, L2, L3, L4 — got ${String(level)}`)
+    errors.push(`governanceLevel must be one of L1, L2, L3, L4 — got ${String(rawLevel)}`)
   }
 
   if (

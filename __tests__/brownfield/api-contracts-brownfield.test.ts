@@ -148,3 +148,53 @@ describe('brownfield: F9 API contract baselines (CANON-11, #896)', () => {
     }
   })
 })
+
+describe('generateContractTesting — pact dep injection', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('injects @pact-foundation/pact into devDependencies for TypeScript rest-owned', () => {
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      hasPublicApi: true,
+      contractType: 'rest-owned',
+      governanceLevel: 'L2',
+    })
+    generateContractTesting(config)
+
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')) as Record<
+      string,
+      unknown
+    >
+    const devDeps = pkg.devDependencies as Record<string, string> | undefined
+    expect(devDeps?.['@pact-foundation/pact']).toBeTruthy()
+  })
+
+  it('does not overwrite existing @pact-foundation/pact version', () => {
+    const pkgPath = join(dir, 'package.json')
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
+    pkg.devDependencies = { '@pact-foundation/pact': '^15.0.0' }
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+
+    const config = makeConfig(dir, {
+      language: 'typescript',
+      hasPublicApi: true,
+      contractType: 'rest-owned',
+      governanceLevel: 'L2',
+    })
+    generateContractTesting(config)
+
+    const result = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
+    expect((result.devDependencies as Record<string, string>)['@pact-foundation/pact']).toBe(
+      '^15.0.0',
+    )
+  })
+})

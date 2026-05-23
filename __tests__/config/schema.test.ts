@@ -2,6 +2,43 @@ import { describe, it, expect } from 'vitest'
 import { validateConfig, DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
 import { migrateV1ToV2 } from '../../src/config/migrations/v1-to-v2.js'
 
+describe('validateConfig — governanceLevel casing normalization', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+    thresholds: DEFAULT_THRESHOLDS.L2,
+  }
+
+  it('normalizes lowercase l2 to L2', () => {
+    const result = validateConfig({ ...base, governanceLevel: 'l2' })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.config.governanceLevel).toBe('L2')
+  })
+
+  it('normalizes mixed-case L3 variants', () => {
+    for (const v of ['l3', 'L3', 'l3']) {
+      const result = validateConfig({ ...base, governanceLevel: v })
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(result.config.governanceLevel).toBe('L3')
+    }
+  })
+
+  it('still rejects genuinely invalid level after normalization', () => {
+    const result = validateConfig({ ...base, governanceLevel: 'L5' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.errors.some((e) => e.includes('governanceLevel'))).toBe(true)
+  })
+})
+
 describe('validateConfig — valid v2', () => {
   it('accepts a well-formed v2 config', () => {
     const config = {
