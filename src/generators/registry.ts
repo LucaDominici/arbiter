@@ -19,6 +19,7 @@ import { generateStrideEnforcement } from './stride-enforcement.js'
 import { generateEvidenceRetention } from './evidence-retention.js'
 import { generateTestTaxonomy } from './test-taxonomy.js'
 import { generateArchUnit } from './archunit.js'
+import { generateQuality } from './quality.js'
 import { generateEslintBoundaries } from './boundaries.js'
 import { generateRustBoundaries } from './rust-boundaries.js'
 import { generateGoBoundaries } from './go-boundaries.js'
@@ -208,6 +209,11 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'docs',
       enabled: config.governanceLevel !== 'L1',
       run: () => generateDocs(config).files,
+    },
+    {
+      key: 'quality',
+      enabled: config.governanceLevel !== 'L1',
+      run: () => generateQuality(config).files,
     },
     {
       key: 'api-middleware',

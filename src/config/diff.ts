@@ -56,6 +56,7 @@ export type GeneratorKey =
   | 'audit-toolchain'
   | 'perf-k6'
   | 'modulith'
+  | 'quality'
 
 export interface ConfigDiff {
   paths: string[]
@@ -125,6 +126,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'thresholds.maxParams': ['debt-gates'],
   invariantTiers: ['global-invariants', 'agents-md'],
   hasPublicApi: ['api-middleware'],
+  language: ['quality', 'archunit'],
   'observability.provider': ['observability'],
   'auth.provider': ['auth'],
 }

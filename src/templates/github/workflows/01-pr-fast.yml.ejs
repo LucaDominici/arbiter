@@ -493,6 +493,42 @@ jobs:
           retention-days: 30
 <% } %>
 
+<% if (governanceLevel !== 'L1') { %>
+  sonar-scan:
+    name: SonarCloud Scan
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    needs: [gate]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0
+<% if (language === 'java') { %>
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+<% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
+<% } %><% } else if (language === 'typescript') { %>
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+<% } %>
+      - name: SonarCloud Scan
+        if: env.SONAR_TOKEN != ''
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+<% if (language === 'java' && buildTool === 'gradle') { %>
+          ./gradlew sonarqube -Dsonar.token="$SONAR_TOKEN"
+<% } else if (language === 'java') { %>
+          mvn sonar:sonar -Dsonar.token="$SONAR_TOKEN"
+<% } else { %>
+          npx sonar-scanner -Dsonar.token="$SONAR_TOKEN"
+<% } %>
+<% } %>
+
 <% if (enableDebtGates) { %>
   debt-ratchet:
     name: Debt Ratchet
@@ -632,7 +668,7 @@ jobs:
     _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
   }
   if (enableSecurityScanning) _ciNeeds.push('security-early-fail');
-  if (governanceLevel !== 'L1') _ciNeeds.push('docs-check');
+  if (governanceLevel !== 'L1') _ciNeeds.push('docs-check', 'sonar-scan');
   if (enableDebtGates) _ciNeeds.push('debt-gates', 'debt-ratchet');
   if (contractType && contractType !== 'none' && governanceLevel !== 'L1') _ciNeeds.push('contract-verify');
   if (governanceLevel !== 'L1' || _multiLane) _ciNeeds.push('classify-changes');
@@ -670,6 +706,10 @@ jobs:
           fi<% } %><% if (governanceLevel !== 'L1') { %>
           if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
             echo "docs-check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.sonar-scan.result }}" == "failure" ]]; then
+            echo "sonar-scan failed"
             exit 1
           fi<% } %><% if (enableDebtGates) { %>
           if [[ "${{ needs.debt-gates.result }}" != "success" ]]; then

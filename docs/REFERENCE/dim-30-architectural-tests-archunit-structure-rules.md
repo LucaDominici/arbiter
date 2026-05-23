@@ -21,7 +21,12 @@ related: []
 
 ## Notes
 
-Architecture rule tests wired for hexagonal archetype; other archetypes use static analysis
+Architecture rule tests wired for hexagonal archetype; other archetypes use static analysis.
+
+`src/generators/archunit.ts` emits a consolidated `HexagonalArchTest.java` at L2+ for
+hexagonal Java projects (issue #998). This complements the individual-file suite
+(`DomainPurityTest`, `DependencyFlowTest`, etc.) with a single class covering
+domain / application / infrastructure layer boundaries.
 
 ## Per-Stack Coverage
 
