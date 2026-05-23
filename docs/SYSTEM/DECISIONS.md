@@ -16,6 +16,19 @@ Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---
 
+## ADR-050: Pipeline Complexity Tiers — Archetype-Default + Governance Floor (#1004, 2026-05-23)
+
+**Status:** Accepted
+**Reference:** Issue #1004; full spec at `docs/ADR/050-pipeline-complexity-tiers.md`
+
+**Context:** arbiter emitted one maximal 10+ workflow system for all archetypes and governance levels. Thresholds differed but pipeline shape was constant. A lib project at L1 should not receive the same cosign + k6 setup as a regulated service at L4.
+
+**Decision:** Pipeline shape derives from project archetype (primary axis). `lib` and `cli` get PR gate + release only. `service`, `batch`, and `serverless` get the full deploy pipeline. Governance level enforces hard minimums: L3 adds nightly + heartbeat to all archetypes; L4 adds `03-human-approval.yml` (INV-74 mandatory) + cosign + SBOM + evidence files. These are invariants, not suggestions.
+
+**Consequences:** Template count stays at 11 workflow files (governance differences as EJS guards per CANON-13). Generator must gate on both `archetype` and `governanceLevel`. Supersedes the prior "tier set constant, only thresholds vary" framing in `CI-TIER-MODEL.md §Context`.
+
+---
+
 ## ADR-045: KIT Taxonomy — Wrap-Not-Replace, Field Cross-Walk, and Parity Contract (#878, 2026-05-19)
 
 **Status:** Accepted
