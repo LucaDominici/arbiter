@@ -10,7 +10,7 @@
  *     (b) INV/ADR/CANON id extraction from markdown text; no existing abstraction covers this
  */
 
-import { lstatSync, readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** Extract all unique INV ids from a block of text. */
@@ -36,7 +36,7 @@ export function unique<T>(items: T[]): T[] {
  * Results are sorted lexicographically at each level for determinism across platforms.
  *
  * Does not throw on permission errors — skips unreadable directories silently.
- * Tracks visited inodes (via lstatSync on directories) to terminate on symlink cycles.
+ * Tracks visited inodes (via statSync on directories) to terminate on symlink cycles.
  */
 export function walkFiles(dir: string, predicate: (filePath: string) => boolean): string[] {
   const results: string[] = []
@@ -51,10 +51,11 @@ function _walk(
   out: string[],
   visited: Set<string>,
 ): void {
-  // Use lstatSync so we get the symlink's own identity — prevents following
-  // circular symlink chains back to a directory we have already visited.
+  // Use statSync (follows symlinks) to get the resolved directory's real inode.
+  // This detects cycles: a symlink pointing back to an already-visited directory
+  // resolves to the same inode, so we terminate before infinite recursion.
   try {
-    const { ino, dev } = lstatSync(dir)
+    const { ino, dev } = statSync(dir)
     const key = `${dev}:${ino}`
     if (visited.has(key)) return
     visited.add(key)

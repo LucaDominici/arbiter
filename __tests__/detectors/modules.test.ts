@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { detectModules } from '../../src/detectors/modules.js'
@@ -120,5 +120,26 @@ describe('detectModules', () => {
     mkdirSync(join(dir, 'backend'), { recursive: true })
     const mods = detectModules(dir, 'java')
     expect(mods.map((m) => m.name)).toContain('backend')
+  })
+
+  it('typescript: skips broken symlink in workspace glob without throwing (#1023)', () => {
+    // Create a workspace layout with one broken symlink entry
+    mkdirSync(join(dir, 'packages', 'real-pkg'), { recursive: true })
+    writeFileSync(
+      join(dir, 'packages', 'real-pkg', 'package.json'),
+      JSON.stringify({ name: '@proj/real-pkg' }),
+    )
+    // Broken symlink — points to a non-existent target
+    symlinkSync('/nonexistent/target', join(dir, 'packages', 'broken-link'))
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+    )
+    // Should not throw; broken symlink entry is silently skipped
+    expect(() => detectModules(dir, 'typescript')).not.toThrow()
+    const mods = detectModules(dir, 'typescript')
+    expect(mods.map((m) => m.name)).toContain('@proj/real-pkg')
+    // broken-link must not appear
+    expect(mods.map((m) => m.path)).not.toContain(join(dir, 'packages', 'broken-link'))
   })
 })
