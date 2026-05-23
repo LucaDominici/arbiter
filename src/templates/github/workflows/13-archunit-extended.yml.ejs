@@ -1,0 +1,32 @@
+name: ArchUnit Extended (T5)
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archunit-extended
+  cancel-in-progress: true
+
+jobs:
+  archunit-extended:
+    name: Extended ArchUnit + Modulith verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (locals.buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run all architecture tests
+        run: ./gradlew test --tests "*ArchTest" --tests "*ModulesTest"
+<% } else { %>
+      - name: Run all architecture tests
+        run: mvn test -pl . -Dtest="*ArchTest,*ModulesTest"
+<% } %>

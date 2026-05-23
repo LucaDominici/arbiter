@@ -76,6 +76,8 @@ import {
 } from './commands/kit.js'
 import type { KitListFormat, KitListFilter } from './commands/kit.js'
 import type { Stack } from './kit/schema.js'
+import { runKitInstall } from './commands/kit-install.js'
+import type { BrownfieldClass } from './kit/thresholds.js'
 
 registerCleanupHandlers()
 
@@ -1753,6 +1755,37 @@ kit
   .action((opts: { out?: string; force?: boolean; prune?: boolean }) => {
     runKitGenerate(opts)
   })
+
+kit
+  .command('install')
+  .description(
+    'Run the 6-phase kit install lifecycle: DETECT → MEASURE → SCAFFOLD → ASSESS → PLAN → VERIFY',
+  )
+  .option('--target-dir <dir>', 'Target project directory', process.cwd())
+  .option('--language <lang>', 'Project language (e.g. java, typescript)', 'java')
+  .addOption(
+    new Option('--brownfield-class <cls>', 'Brownfield class (auto-detected if omitted)')
+      .choices(['gold', 'light', 'medium', 'heavy'])
+      .default('gold'),
+  )
+  .option('--dry-run', 'Skip file writes (scaffold phase reports only)', false)
+  .action(
+    (opts: { targetDir: string; language: string; brownfieldClass: string; dryRun: boolean }) => {
+      const result = runKitInstall({
+        targetDir: opts.targetDir,
+        language: opts.language,
+        brownfieldClass: opts.brownfieldClass as BrownfieldClass,
+        dryRun: opts.dryRun,
+      })
+      for (const phase of result.phases) {
+        process.stdout.write(`[${phase.phase}] ${phase.output}\n`)
+      }
+      if (!result.ok) {
+        process.stderr.write(`[kit install] ${result.error ?? 'unknown error'}\n`)
+        process.exit(1)
+      }
+    },
+  )
 
 async function _main(): Promise<void> {
   await _startProfileIfRequested()

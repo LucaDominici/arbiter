@@ -53,7 +53,7 @@ describe('catalog.json parses', () => {
 
   it('derived.json is valid DerivedKit', () => {
     expect(derived).toBeDefined()
-    expect(derived.length).toBe(76)
+    expect(derived.length).toBe(77)
   })
 })
 
@@ -275,8 +275,8 @@ describe('followupIssue uniqueness', () => {
 // ─── ID format ────────────────────────────────────────────────────────────────
 
 describe('ID format', () => {
-  it('all IDs match N01..N76 pattern', () => {
-    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-6])$/
+  it('all IDs match N01..N77 pattern', () => {
+    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-7])$/
     for (const dim of derived) {
       expect(idPattern.test(dim.id), `invalid id: ${dim.id}`).toBe(true)
     }
@@ -291,9 +291,9 @@ describe('ID format', () => {
 // ─── catalog.ts typed access layer ───────────────────────────────────────────
 
 describe('loadCatalog()', () => {
-  it('returns 76 entries', () => {
+  it('returns 77 entries', () => {
     const catalog = loadCatalog()
-    expect(catalog.length).toBe(76)
+    expect(catalog.length).toBe(77)
   })
 
   it('parses through Zod without throw (consistent with KitCatalogSchema)', () => {
@@ -312,8 +312,14 @@ describe('findById()', () => {
     expect(dim!.id).toBe('N01')
   })
 
-  it('returns undefined for findById("N77")', () => {
-    expect(findById('N77')).toBeUndefined()
+  it('returns N77 for findById("N77")', () => {
+    const dim = findById('N77')
+    expect(dim).toBeDefined()
+    expect(dim!.id).toBe('N77')
+  })
+
+  it('returns undefined for findById("N78")', () => {
+    expect(findById('N78')).toBeUndefined()
   })
 
   it('returns undefined for findById("")', () => {
@@ -328,9 +334,9 @@ describe('byTml()', () => {
     expect(l1.every((d) => d.tml === 'L1')).toBe(true)
   })
 
-  it('L1 + L2 + L3 = 76', () => {
+  it('L1 + L2 + L3 = 77', () => {
     const total = byTml('L1').length + byTml('L2').length + byTml('L3').length
-    expect(total).toBe(76)
+    expect(total).toBe(77)
   })
 })
 
@@ -341,9 +347,9 @@ describe('byGate()', () => {
     expect(blocking.every((d) => d.gate === 'BLOCKING')).toBe(true)
   })
 
-  it('BLOCKING + ADVISORY + REFERENCE = 76', () => {
+  it('BLOCKING + ADVISORY + REFERENCE = 77', () => {
     const total = byGate('BLOCKING').length + byGate('ADVISORY').length + byGate('REFERENCE').length
-    expect(total).toBe(76)
+    expect(total).toBe(77)
   })
 })
 
@@ -358,11 +364,11 @@ describe('re-export sanity — Stack/TML/Gate from taxonomy.ts and schema.ts are
 // ─── canonical_id present in mapping ─────────────────────────────────────────
 
 describe('mapping canonical_id', () => {
-  it('all mapping entries have canonical_id matching N01..N76', () => {
+  it('all mapping entries have canonical_id matching N01..N77', () => {
     const mapping = JSON.parse(
       readFileSync(join(ROOT, 'docs/audits/kit-canonical-mapping.json'), 'utf-8'),
     ) as { dimensions: Array<{ canonical_id?: string }> }
-    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-6])$/
+    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-7])$/
     for (const dim of mapping.dimensions) {
       expect(dim.canonical_id, `missing canonical_id on mapping entry`).toBeDefined()
       expect(

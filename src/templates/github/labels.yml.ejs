@@ -83,3 +83,87 @@ labels:
   - name: blocked
     color: "e11d48"
     description: "Blocked on external dependency or decision"
+<% if (locals.kitEnabled) { -%>
+  # Quality program (kit-install)
+  - name: quality
+    color: "7057ff"
+    description: "Quality program item"
+  - name: quality-wave
+    color: "6f42c1"
+    description: "Quality wave tracking"
+  - name: wave-0
+    color: "bfd4f2"
+    description: "Wave 0 — Bootstrap"
+  - name: wave-1
+    color: "c2e0c6"
+    description: "Wave 1 — Enforcement"
+  - name: wave-2
+    color: "fef2c0"
+    description: "Wave 2 — Advanced"
+  - name: wave-3
+    color: "f9d0c4"
+    description: "Wave 3 — Gold"
+  - name: approved
+    color: "0e8a16"
+    description: "Approved for merge"
+  - name: deferred
+    color: "fbca04"
+    description: "Deferred to future wave"
+  - name: in-progress
+    color: "1d76db"
+    description: "Work in progress"
+  - name: ready-for-review
+    color: "0075ca"
+    description: "Ready for code review"
+  - name: needs-info
+    color: "d876e3"
+    description: "Needs more information"
+  - name: bug
+    color: "d73a4a"
+    description: "Something isn't working"
+  - name: enhancement
+    color: "a2eeef"
+    description: "New feature or request"
+  - name: chore
+    color: "ededed"
+    description: "Maintenance task"
+  - name: documentation
+    color: "0075ca"
+    description: "Documentation improvements"
+  - name: compliance
+    color: "5319e7"
+    description: "ISO/regulatory compliance"
+  - name: security
+    color: "b60205"
+    description: "Security issue or improvement"
+  - name: performance
+    color: "ff6600"
+    description: "Performance improvement"
+  - name: breaking-change
+    color: "e11d48"
+    description: "Breaking change"
+  - name: P0
+    color: "b60205"
+    description: "Critical priority"
+  - name: P1
+    color: "d93f0b"
+    description: "High priority"
+  - name: P2
+    color: "fbca04"
+    description: "Medium priority"
+  - name: duplicate
+    color: "cfd3d7"
+    description: "Duplicate issue"
+  - name: wontfix
+    color: "ffffff"
+    description: "Will not fix"
+  - name: good first issue
+    color: "7057ff"
+    description: "Good for newcomers"
+  - name: help wanted
+    color: "008672"
+    description: "Extra attention needed"
+  - name: invalid
+    color: "e4e669"
+    description: "Not valid"
+<% } -%>

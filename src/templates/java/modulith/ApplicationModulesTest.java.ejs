@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0
+package <%- locals.basePackage %>.modulith;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.modulith.core.ApplicationModules;
+
+/**
+ * Spring Modulith structural-verification test (N77).
+ * Verifies that all defined application modules are structurally sound:
+ * no cyclic dependencies, no forbidden cross-module access.
+ *
+ * Run with: ./mvnw test -Dtest=ApplicationModulesTest  (or Gradle equivalent)
+ */
+class ApplicationModulesTest {
+
+    @Test
+    void verifyApplicationModules() {
+        var modules = ApplicationModules.of(<%- locals.basePackage %>.Application.class);
+        modules.verify();
+    }
+}

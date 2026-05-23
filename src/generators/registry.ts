@@ -54,9 +54,12 @@ import { generateEnvTemplate } from './env-template.js'
 import { generateInfra } from './infra.js'
 import { generateAuditToolchain } from './audit-toolchain.js'
 import { generatePerfK6 } from './perf-k6.js'
+import { generateModulith } from './modulith.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
+
+const BACKEND_WEB_DB = 'backend-web-db' as const
 
 export interface GeneratorSpec {
   key: GeneratorKey
@@ -213,7 +216,7 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'seed',
-      enabled: config.archetype === 'backend-web-db' && config.governanceLevel !== 'L1',
+      enabled: config.archetype === BACKEND_WEB_DB && config.governanceLevel !== 'L1',
       run: () => generateSeed(config).files,
     },
     {
@@ -234,33 +237,24 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
   ]
 }
 
+function buildBoundarySpecs(config: ProjectConfig): GeneratorSpec[] {
+  return [
+    { key: 'archunit', enabled: true, run: () => generateArchUnit(config).files },
+    { key: 'eslint-boundaries', enabled: true, run: () => generateEslintBoundaries(config).files },
+    { key: 'rust-boundaries', enabled: true, run: () => generateRustBoundaries(config).files },
+    { key: 'go-boundaries', enabled: true, run: () => generateGoBoundaries(config).files },
+    { key: 'python-boundaries', enabled: true, run: () => generatePythonBoundaries(config).files },
+    {
+      key: 'modulith',
+      enabled: config.language === 'java' || config.language === 'multi',
+      run: () => generateModulith(config).files,
+    },
+  ]
+}
+
 function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
-    {
-      key: 'archunit',
-      enabled: true,
-      run: () => generateArchUnit(config).files,
-    },
-    {
-      key: 'eslint-boundaries',
-      enabled: true,
-      run: () => generateEslintBoundaries(config).files,
-    },
-    {
-      key: 'rust-boundaries',
-      enabled: true,
-      run: () => generateRustBoundaries(config).files,
-    },
-    {
-      key: 'go-boundaries',
-      enabled: true,
-      run: () => generateGoBoundaries(config).files,
-    },
-    {
-      key: 'python-boundaries',
-      enabled: true,
-      run: () => generatePythonBoundaries(config).files,
-    },
+    ...buildBoundarySpecs(config),
     {
       key: 'mutation',
       enabled: config.enableMutationTesting !== false,
@@ -327,14 +321,14 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'playwright-python',
       enabled:
         config.language === 'python' &&
-        (config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db'),
+        (config.archetype === 'frontend-spa' || config.archetype === BACKEND_WEB_DB),
       run: () => generatePlaywrightPython(config).files,
     },
     {
       key: 'playwright-ts',
       enabled:
         config.language === 'typescript' &&
-        (config.archetype === 'frontend-spa' || config.archetype === 'backend-web-db'),
+        (config.archetype === 'frontend-spa' || config.archetype === BACKEND_WEB_DB),
       run: () => generatePlaywrightTs(config).files,
     },
     { key: 'ssot', enabled: true, run: () => generateSsot(config).files },

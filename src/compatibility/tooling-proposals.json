@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Tooling proposals for stacks not yet in cross-language-matrix.json. Status lifecycle: proposed → accepted → promotable → promoted → demoted.",
+  "proposals": []
+}

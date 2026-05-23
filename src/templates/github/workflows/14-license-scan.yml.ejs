@@ -1,0 +1,43 @@
+name: License Scan (T5)
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: license-scan
+  cancel-in-progress: true
+
+jobs:
+  license-scan:
+    name: Dependency license compliance scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+<% if (locals.language === 'java' || locals.language === 'multi') { %>
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (locals.buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@v4
+      - name: License report (Gradle)
+        run: ./gradlew generateLicenseReport
+<% } else { %>
+      - name: License report (Maven)
+        run: mvn license:aggregate-add-third-party
+<% } %>
+<% } %>
+<% if (locals.language === 'typescript' || locals.language === 'multi') { %>
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: License check (license-checker)
+        run: npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense'
+<% } %>

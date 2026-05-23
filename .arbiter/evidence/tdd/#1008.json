@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1008",
+  "test_path": "__tests__/kit/wave-engine.test.ts",
+  "test_commit_sha": "05fa6731d92e7816686ef1a4e8842f37cc3cc767",
+  "test_run_log": " RUN  v4.1.6 /home/luca/work/repos/arbiter\n\n ❯ __tests__/kit/wave-engine.test.ts (10 tests | 10 failed) 5ms\n     × returns a 4-wave plan 2ms\n     × W0 contains dims with Y status (already covered — bootstrap confirms) 0ms\n     × W1 contains dims with P status (partial coverage) 0ms\n     × W2 contains dims with N status (not covered) 0ms\n     × W3 is reserved (empty) — gold-phase aspirational bucket 0ms\n     × NA dims not assigned to any wave 0ms\n     × browfieldClass heavy adjusts W0 goal label 0ms\n     × empty assessments produces valid empty-wave plan 0ms\n     × plan.summary counts match actual dims per wave 0ms\n     × all non-NA dims appear in exactly one wave 0ms\n\n FAIL  __tests__/kit/wave-engine.test.ts > buildWavePlan > returns a 4-wave plan\nError: not implemented\n ❯ buildWavePlan src/kit/wave-engine.ts:8:91\n",
+  "observed_failure": "FAIL  __tests__/kit/wave-engine.test.ts",
+  "recorded_at": "2026-05-23T02:15:00.000Z"
+}

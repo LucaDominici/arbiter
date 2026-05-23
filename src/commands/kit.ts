@@ -3,7 +3,6 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isEnabled } from '../experimental/index.js'
 import {
   DerivedKitSchema,
   KitCatalogSchema,
@@ -34,29 +33,6 @@ function loadDerived(): DerivedKit {
   }
 }
 
-function getFlags(): Record<string, boolean> {
-  const raw = process.env['ARBITER_EXPERIMENTAL']
-  if (!raw) return {}
-  try {
-    return JSON.parse(raw) as Record<string, boolean>
-  } catch {
-    process.stderr.write(
-      '[arbiter] Warning: ARBITER_EXPERIMENTAL is not valid JSON — experimental flags ignored.\n',
-    )
-    return {}
-  }
-}
-
-function assertKitEnabled(): void {
-  if (!isEnabled('kit', getFlags())) {
-    process.stderr.write(
-      '[arbiter] The kit command requires --experimental.kit flag.\n' +
-        '  Usage: arbiter --experimental.kit kit <subcommand>\n',
-    )
-    process.exit(1)
-  }
-}
-
 function describeCellKind(cell: DerivedCell): string {
   if (cell.kind === 'tool') return `tool: ${cell.tool} (via ${cell.matrixCategory})`
   if (cell.kind === 'equivalent') return `equivalent: ${cell.arbiterSlot}`
@@ -77,7 +53,6 @@ export interface KitListOptions {
 }
 
 export function runKitList(opts: KitListOptions): void {
-  assertKitEnabled()
   let kit = loadDerived()
 
   if (opts.filter && opts.filter !== 'all') {
@@ -126,7 +101,6 @@ export function runKitList(opts: KitListOptions): void {
 }
 
 export function runKitShow(id: string): void {
-  assertKitEnabled()
   const kit = loadDerived()
   const dim = kit.find((d) => d.id === id)
   if (!dim) {
@@ -137,7 +111,6 @@ export function runKitShow(id: string): void {
 }
 
 export function runKitExplain(id: string): void {
-  assertKitEnabled()
   const kit = loadDerived()
   const dim = kit.find((d) => d.id === id)
   if (!dim) {
@@ -244,8 +217,6 @@ function runParityCheck(root: string, catalogArr: CatalogArr): string[] {
 }
 
 export function runKitValidate(): void {
-  assertKitEnabled()
-
   const root = resolve(fileURLToPath(import.meta.url), '../../..')
   let maxSeverity = 0
 
@@ -315,7 +286,6 @@ export interface KitGenerateOptions {
 }
 
 export function runKitGenerate(opts: KitGenerateOptions): void {
-  assertKitEnabled()
   const outDir = opts.out ?? 'docs/REFERENCE'
   try {
     const genOpts: { outDir: string; force?: boolean; prune?: boolean } = { outDir }

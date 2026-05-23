@@ -1905,6 +1905,30 @@
       },
       "planning_notes": null,
       "canonical_id": "N76"
+    },
+    {
+      "id": "N77",
+      "name": "Spring Modulith structural verification (ApplicationModules.verify())",
+      "detail": "Emits ApplicationModulesTest.java that calls ApplicationModules.of(...).verify() to detect illegal cross-module dependencies at test time.",
+      "tml": "L2",
+      "tml_source": "L2",
+      "gate_type": "BLOCKING",
+      "stack_tag": "java",
+      "conditional": "spring-boot",
+      "planning_evidence_paths": ["src/test/java"],
+      "arbiter_target_path": "src/test/java/{basePackage}/modulith/ApplicationModulesTest.java",
+      "arbiter_target_kind": "test",
+      "invariant_id": null,
+      "implementing_wave": "W2",
+      "disposition": "generated",
+      "framework_realization": {
+        "template": "java/modulith/ApplicationModulesTest.java.ejs",
+        "generator": "src/generators/modulith.ts",
+        "validator": null,
+        "docs": null
+      },
+      "planning_notes": null,
+      "canonical_id": "N77"
     }
   ]
 }

@@ -23,6 +23,7 @@ import { detectArchetypeHint } from '../detectors/framework.js'
 import { ARCHETYPE_DB_SET } from '../detectors/axis.js'
 import { defaultContractType, shouldAskContractType } from './archetype-defaults.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
+import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
 
 export interface WizardInput {
   targetDir: string
@@ -316,6 +317,9 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     deployTarget,
     enableDeployWorkflows: deployTarget !== 'none',
     enableAzureContainerApp: deployTarget === 'azure-container-app',
+    pipelineStyle: answers.pipelineStyle ?? 'standard',
+    brownfieldClass: answers.brownfieldClass ?? 'gold',
+    kitEnabled: true,
   }
 }
 
@@ -503,11 +507,71 @@ function buildContractTypeQuestion(): object {
   }
 }
 
+function buildPipelineStyleQuestion(): object {
+  return {
+    type: 'list',
+    name: 'pipelineStyle',
+    message: [
+      'Pipeline style — controls which GitHub Actions workflows are emitted:',
+      '',
+      '  starter    — 3 workflows: pr-fast, main-build, heartbeat',
+      '  standard   — 8 workflows: starter + pr-extended, nightly, release, dependabot-auto, sbom, gitleaks',
+      '  industrial — 18 workflows: standard + perf, chaos, mutation-nightly, archunit-extended,',
+      '               cosign, attestation, rebuild, trivy-scheduled, license-scan, policy-eval',
+      '',
+    ].join('\n'),
+    choices: [
+      {
+        name: 'starter    — minimal solo/small team CI (3 workflows)',
+        value: 'starter',
+      },
+      {
+        name: 'standard   — recommended team CI (8 workflows)  [recommended]',
+        value: 'standard',
+      },
+      {
+        name: 'industrial — enterprise-grade CI (18 workflows)',
+        value: 'industrial',
+      },
+    ],
+    default: 'standard',
+  }
+}
+
+function buildBrownfieldClassQuestion(
+  detected: 'gold' | 'light' | 'medium' | 'heavy',
+  fileCount: number,
+): object {
+  return {
+    type: 'list',
+    name: 'brownfieldClass',
+    message: [
+      `Brownfield class (auto-detected: ${detected}, ${fileCount} source files):`,
+      '  Determines which threshold column applies to existing code.',
+      '  New code always uses gold-grade thresholds regardless of class.',
+      '',
+      '  gold   — greenfield / mature repo  (< 50 source files)',
+      '  light  — light brownfield          (50–500 files, coverage > 30 %)',
+      '  medium — medium brownfield         (500–2 000 files, coverage 5–30 %)',
+      '  heavy  — heavy brownfield          (2 000+ files, coverage < 5 %)',
+      '',
+    ].join('\n'),
+    choices: [
+      { name: 'gold   — greenfield / already mature', value: 'gold' },
+      { name: 'light  — light brownfield', value: 'light' },
+      { name: 'medium — medium brownfield', value: 'medium' },
+      { name: 'heavy  — heavy brownfield', value: 'heavy' },
+    ],
+    default: detected,
+  }
+}
+
 function buildMainQuestions(wizardInput: WizardInput): object[] {
   const githubChoice = buildGithubChoice(wizardInput.githubAccess)
   const archetypeDefault: Archetype =
     detectArchetypeHint(wizardInput.targetDir, wizardInput.language, wizardInput.framework) ??
     'library'
+  const brownfieldDetect = detectBrownfieldClass(wizardInput.targetDir, wizardInput.language)
   return [
     {
       type: 'input',
@@ -542,6 +606,11 @@ function buildMainQuestions(wizardInput: WizardInput): object[] {
         '  Enable solo-dev mode?',
       default: false,
     },
+    buildPipelineStyleQuestion(),
+    buildBrownfieldClassQuestion(
+      brownfieldDetect.brownfieldClass,
+      brownfieldDetect.sourceFileCount,
+    ),
   ]
 }
 

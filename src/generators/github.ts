@@ -9,9 +9,16 @@ export interface GithubGeneratorResult {
   files: WriteResult[]
 }
 
+function resolveStyle(config: ProjectConfig): 'starter' | 'standard' | 'industrial' {
+  if (config.pipelineStyle) return config.pipelineStyle
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  if (config.ciTierMode === 'baseline') return 'starter' // backward-compat shim
+  return 'standard'
+}
+
 function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): WriteResult[] {
   const data = config
-  const mode = config.ciTierMode ?? 'full'
+  const style = resolveStyle(config)
 
   const files: WriteResult[] = [
     writeFile(
@@ -28,7 +35,7 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
     ),
   ]
 
-  if (mode !== 'baseline') {
+  if (style !== 'starter') {
     files.push(
       writeFile(
         join(workflowsDir, '05-release.yml'),
@@ -59,6 +66,23 @@ function generateCiWorkflows(workflowsDir: string, config: ProjectConfig): Write
       renderTemplate('github/workflows/09-heartbeat.yml.ejs', data),
     ),
   )
+
+  if (style === 'industrial') {
+    files.push(
+      writeFile(
+        join(workflowsDir, '12-mutation-scheduled.yml'),
+        renderTemplate('github/workflows/12-mutation-scheduled.yml.ejs', data),
+      ),
+      writeFile(
+        join(workflowsDir, '13-archunit-extended.yml'),
+        renderTemplate('github/workflows/13-archunit-extended.yml.ejs', data),
+      ),
+      writeFile(
+        join(workflowsDir, '14-license-scan.yml'),
+        renderTemplate('github/workflows/14-license-scan.yml.ejs', data),
+      ),
+    )
+  }
 
   if (config.enableSoloDevMode) {
     files.push(
