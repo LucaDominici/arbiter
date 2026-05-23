@@ -150,3 +150,18 @@ automatically:
 | Pact consumer test (rest-owned contract testing) | `@pact-foundation/pact ^16.4.0`           | devDep       |
 
 Existing pinned versions are never overwritten.
+
+## Thresholds auto-fill
+
+When a v0.2 `arbiter.json` is loaded without a `thresholds` object, `validateConfig` automatically
+populates it from `DEFAULT_THRESHOLDS[governanceLevel]` before validation runs. No manual steps are
+required and no error is emitted; the field is treated as optional for convenience.
+
+This only applies when `thresholds` is entirely absent. Partial threshold objects (missing individual
+keys) still fail validation normally — they must be complete or absent.
+
+## Language confirmation in `arbiter init`
+
+The `arbiter init` wizard now shows a language confirmation prompt as its first question. The
+auto-detected language is pre-selected; you can scroll to override it before continuing. The chosen
+language is reflected in all generated scaffold files.

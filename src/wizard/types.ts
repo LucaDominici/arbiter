@@ -14,6 +14,7 @@ export type WizardFlow = 'greenfield' | 'brownfield'
 export interface WizardAnswers {
   description: string
   tools: AiTool[]
+  language: Language
   governanceLevel: GovernanceLevel
   invariantPreset?: InvariantPreset
   archetype: Archetype

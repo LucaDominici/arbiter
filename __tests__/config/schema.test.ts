@@ -663,3 +663,54 @@ describe('DEFAULT_THRESHOLDS', () => {
     )
   })
 })
+
+describe('validateConfig — thresholds auto-fill', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    governanceLevel: 'L2',
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+  }
+
+  it('auto-fills thresholds from DEFAULT_THRESHOLDS when missing', () => {
+    const result = validateConfig({ ...base })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.config.thresholds).toEqual(DEFAULT_THRESHOLDS.L2)
+    }
+  })
+
+  it('auto-fills correct thresholds per governance level', () => {
+    for (const level of ['L1', 'L2', 'L3'] as const) {
+      const result = validateConfig({ ...base, governanceLevel: level })
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.config.thresholds).toEqual(DEFAULT_THRESHOLDS[level])
+      }
+    }
+  })
+
+  it('does not overwrite explicitly provided thresholds', () => {
+    const custom = {
+      lineCoverage: 99,
+      branchCoverage: 99,
+      mutationScore: 99,
+      cyclomaticComplexity: 1,
+      methodLength: 10,
+      maxParams: 2,
+    }
+    const result = validateConfig({ ...base, thresholds: custom })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.config.thresholds.lineCoverage).toBe(99)
+    }
+  })
+})
