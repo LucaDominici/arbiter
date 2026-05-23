@@ -853,7 +853,7 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
     config.enableNoSkippedTests = recipe.enableNoSkippedTests
 }
 
-function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
+export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
   const level = config.governanceLevel
   const backend = config.decompositionBackend ?? (config.useGitHub ? 'github' : 'markdown')
   return {
