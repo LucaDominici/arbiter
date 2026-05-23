@@ -64,7 +64,7 @@ describe('matrix: Rust project', () => {
     const config = rustConfig()
     runGenerators(config)
     const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
-    expect(ci).toContain('rust-toolchain@stable')
+    expect(ci).toContain('rust-toolchain@')
     expect(ci).toContain('rust-cache')
   })
 

@@ -93,10 +93,10 @@ const L3: CiThresholdPack = {
 }
 
 const L4: CiThresholdPack = {
-  coverageLine: 85,
-  coverageBranch: 80,
-  mutation: { gating: 'blocking', threshold: 80 },
-  cvssGateMin: 4.0,
+  coverageLine: 90,
+  coverageBranch: 85,
+  mutation: { gating: 'blocking', threshold: 85 },
+  cvssGateMin: 0.0,
   containerScan: 'medium-plus',
   sast: 'medium-plus',
   slsaTarget: 'L3',

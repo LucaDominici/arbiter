@@ -122,18 +122,18 @@ describe('getCiThresholds — L3', () => {
 describe('getCiThresholds — L4', () => {
   const t = getCiThresholds('L4')
 
-  it('coverage line 85%, branch 80%', () => {
-    expect(t.coverageLine).toBe(85)
-    expect(t.coverageBranch).toBe(80)
+  it('coverage line 90%, branch 85% (tighter than L3)', () => {
+    expect(t.coverageLine).toBe(90)
+    expect(t.coverageBranch).toBe(85)
   })
 
-  it('mutation blocking at 80%', () => {
+  it('mutation blocking at 85% (tighter than L3)', () => {
     expect(t.mutation.gating).toBe('blocking')
-    expect(t.mutation.threshold).toBe(80)
+    expect(t.mutation.threshold).toBe(85)
   })
 
-  it('CVSS gate ≥4.0', () => {
-    expect(t.cvssGateMin).toBe(4.0)
+  it('CVSS gate 0.0 — any CVSS blocks (tighter than L3)', () => {
+    expect(t.cvssGateMin).toBe(0.0)
   })
 
   it('SLSA target L3 (compliance-grade attestation)', () => {
@@ -150,27 +150,27 @@ describe('getCiThresholds — L4', () => {
 })
 
 describe('getCiThresholds — monotonicity', () => {
-  it('coverage tightens L1 → L2 → L3 (L4 equals L3)', () => {
+  it('coverage tightens L1 → L2 → L3 → L4', () => {
     const l1 = getCiThresholds('L1')
     const l2 = getCiThresholds('L2')
     const l3 = getCiThresholds('L3')
     const l4 = getCiThresholds('L4')
     expect(l1.coverageLine).toBeLessThan(l2.coverageLine)
     expect(l2.coverageLine).toBeLessThan(l3.coverageLine)
-    expect(l3.coverageLine).toBe(l4.coverageLine)
+    expect(l3.coverageLine).toBeLessThan(l4.coverageLine)
     expect(l1.coverageBranch).toBeLessThan(l2.coverageBranch)
     expect(l2.coverageBranch).toBeLessThan(l3.coverageBranch)
-    expect(l3.coverageBranch).toBe(l4.coverageBranch)
+    expect(l3.coverageBranch).toBeLessThan(l4.coverageBranch)
   })
 
-  it('CVSS gate tightens L1 → L2 → L3 (L4 equals L3)', () => {
+  it('CVSS gate tightens L1 → L2 → L3 → L4 (lower = stricter)', () => {
     const l1 = getCiThresholds('L1')
     const l2 = getCiThresholds('L2')
     const l3 = getCiThresholds('L3')
     const l4 = getCiThresholds('L4')
     expect(l1.cvssGateMin).toBeGreaterThan(l2.cvssGateMin)
     expect(l2.cvssGateMin).toBeGreaterThan(l3.cvssGateMin)
-    expect(l3.cvssGateMin).toBe(l4.cvssGateMin)
+    expect(l3.cvssGateMin).toBeGreaterThan(l4.cvssGateMin)
   })
 
   it('L4 SLSA target is L3 (one step above L3 project SLSA)', () => {

@@ -122,25 +122,25 @@ describe('04-deploy-test.yml.ejs — per-language SBOM generation', () => {
     expect(rendered).toContain('cyclonedx:makeAggregateBom')
   })
 
-  it('TypeScript: syft for SBOM generation', () => {
+  it('TypeScript: anchore/sbom-action for SBOM generation', () => {
     const rendered = renderDeployTest({ language: 'typescript', buildTool: 'npm' })
-    expect(rendered).toContain('syft')
+    expect(rendered).toContain('anchore/sbom-action')
     expect(rendered).not.toContain('cyclonedx:makeAggregateBom')
   })
 
-  it('Go: syft for SBOM generation', () => {
+  it('Go: anchore/sbom-action for SBOM generation', () => {
     const rendered = renderDeployTest({ language: 'go', buildTool: 'go' })
-    expect(rendered).toContain('syft')
+    expect(rendered).toContain('anchore/sbom-action')
   })
 
-  it('Python: syft for SBOM generation', () => {
+  it('Python: anchore/sbom-action for SBOM generation', () => {
     const rendered = renderDeployTest({ language: 'python', buildTool: 'pip' })
-    expect(rendered).toContain('syft')
+    expect(rendered).toContain('anchore/sbom-action')
   })
 
-  it('Rust: syft for SBOM generation', () => {
+  it('Rust: anchore/sbom-action for SBOM generation', () => {
     const rendered = renderDeployTest({ language: 'rust', buildTool: 'cargo' })
-    expect(rendered).toContain('syft')
+    expect(rendered).toContain('anchore/sbom-action')
   })
 })
 

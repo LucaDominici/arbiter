@@ -17,11 +17,11 @@ Add to your `pom.xml` inside `<build><plugins>`:
   <version>1.15.0</version>
   <configuration>
     <targetClasses>
-      <param><%= basePackage ? basePackage + '.domain.*' : '*.domain.*' %></param>
-      <param><%= basePackage ? basePackage + '.application.*' : '*.application.*' %></param>
+      <param><%= locals.basePackage ? locals.basePackage + '.domain.*' : '*.domain.*' %></param>
+      <param><%= locals.basePackage ? locals.basePackage + '.application.*' : '*.application.*' %></param>
     </targetClasses>
     <targetTests>
-      <param><%= basePackage ? basePackage + '.*Test' : '*.*Test' %></param>
+      <param><%= locals.basePackage ? locals.basePackage + '.*Test' : '*.*Test' %></param>
     </targetTests>
     <mutationThreshold>80</mutationThreshold>
     <coverageThreshold>85</coverageThreshold>
@@ -46,7 +46,7 @@ plugins {
 }
 
 pitest {
-  targetClasses = ['<%= basePackage ? basePackage + '.domain.*' : '*.domain.*' %>', '<%= basePackage ? basePackage + '.application.*' : '*.application.*' %>']
+  targetClasses = ['<%= locals.basePackage ? locals.basePackage + '.domain.*' : '*.domain.*' %>', '<%= locals.basePackage ? locals.basePackage + '.application.*' : '*.application.*' %>']
   mutationThreshold = 80
   coverageThreshold = 85
   outputFormats = ['XML', 'HTML']
