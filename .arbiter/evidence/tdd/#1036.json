@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1036",
+  "test_path": "__tests__/wizard/buildConfigFromAnswers.test.ts",
+  "test_commit_sha": "fc1c0165abe19caba2e1422295fca9590ea0e148",
+  "test_run_log": " RUN  v4.1.7 /tmp/tdd-red-evidence\n\n ❯ __tests__/wizard/buildConfigFromAnswers.test.ts (12 tests | 1 failed) 13ms\n     × uses answers.language, not input.language 6ms\n\n FAIL  __tests__/wizard/buildConfigFromAnswers.test.ts > buildConfigFromAnswers — language override (#1036) > uses answers.language, not input.language\nAssertionError: expected 'typescript' to be 'java' // Object.is equality\n\nExpected: \"java\"\nReceived: \"typescript\"\n\n ❯ __tests__/wizard/buildConfigFromAnswers.test.ts:130:29\n\n Test Files  1 failed (1)\n      Tests  1 failed | 11 passed (12)\n   Start at  23:53:38\n   Duration  340ms (transform 111ms, setup 17ms, import 205ms, tests 13ms, environment 0ms)",
+  "observed_failure": "FAIL  __tests__/wizard/buildConfigFromAnswers.test.ts",
+  "recorded_at": "2026-05-23T23:53:38.000Z"
+}

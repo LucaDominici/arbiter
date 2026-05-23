@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1035",
+  "test_path": "__tests__/config/schema.test.ts",
+  "test_commit_sha": "fc1c0165abe19caba2e1422295fca9590ea0e148",
+  "test_run_log": " RUN  v4.1.7 /tmp/tdd-red-evidence\n\n[arbiter] Warning: `useGitHub` is deprecated. Use `decomposition.backend: \"github\"|\"markdown\"` instead.\n ❯ __tests__/config/schema.test.ts (47 tests | 4 failed) 28ms\n     × normalizes lowercase l2 to L2 10ms\n     × normalizes mixed-case L3 variants 1ms\n     × auto-fills thresholds from DEFAULT_THRESHOLDS when missing 1ms\n     × auto-fills correct thresholds per governance level 1ms\n\n FAIL  __tests__/config/schema.test.ts > validateConfig — governanceLevel casing normalization > normalizes lowercase l2 to L2\nAssertionError: expected false to be true // Object.is equality\n\n FAIL  __tests__/config/schema.test.ts > validateConfig — governanceLevel casing normalization > normalizes mixed-case L3 variants\nAssertionError: expected false to be true // Object.is equality\n\n FAIL  __tests__/config/schema.test.ts > validateConfig — thresholds auto-fill > auto-fills thresholds from DEFAULT_THRESHOLDS when missing\nAssertionError: expected false to be true // Object.is equality\n\n FAIL  __tests__/config/schema.test.ts > validateConfig — thresholds auto-fill > auto-fills correct thresholds per governance level\nAssertionError: expected false to be true // Object.is equality\n\n Test Files  1 failed (1)\n      Tests  4 failed | 43 passed (47)\n   Start at  23:53:31\n   Duration  214ms (transform 57ms, setup 18ms, import 56ms, tests 28ms, environment 0ms)",
+  "observed_failure": "FAIL  __tests__/config/schema.test.ts",
+  "recorded_at": "2026-05-23T23:53:31.000Z"
+}
