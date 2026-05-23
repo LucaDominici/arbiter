@@ -55,7 +55,13 @@ function expandWorkspaces(dir: string, patterns: string[]): DetectedModule[] {
     if (match) {
       for (const child of readdirSync(parent)) {
         const childDir = join(parent, child)
-        if (!statSync(childDir).isDirectory()) continue
+        let stat: ReturnType<typeof statSync>
+        try {
+          stat = statSync(childDir)
+        } catch {
+          continue
+        }
+        if (!stat.isDirectory()) continue
         const name = readWorkspaceName(childDir) ?? child
         results.push({
           name,
