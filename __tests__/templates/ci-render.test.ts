@@ -227,3 +227,68 @@ describe('01-pr-fast.yml.ejs — T1 structural features (CANON-18)', () => {
     expect(rendered).not.toContain('%>')
   })
 })
+
+describe('01-pr-fast.yml.ejs — SonarCloud step (#211)', () => {
+  it('L2: contains SonarCloud Scan step', () => {
+    const data = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    expect(renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)).toContain('SonarCloud Scan')
+  })
+
+  it('L2: SonarCloud step gated on SONAR_TOKEN env var', () => {
+    const data = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    expect(renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)).toContain(
+      "env.SONAR_TOKEN != ''",
+    )
+  })
+
+  it('L2: SonarCloud step references secrets.SONAR_TOKEN', () => {
+    const data = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    expect(renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)).toContain(
+      'secrets.SONAR_TOKEN',
+    )
+  })
+
+  it('L3: SonarCloud step also present at L3', () => {
+    const data = makeConfig('/tmp/test', {
+      governanceLevel: 'L3',
+    }) as unknown as Record<string, unknown>
+    expect(renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)).toContain('SonarCloud Scan')
+  })
+
+  it('L1: SonarCloud step absent (governance gate)', () => {
+    const data = makeConfig('/tmp/test', {
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    expect(renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)).not.toContain(
+      'SonarCloud Scan',
+    )
+  })
+
+  it('Java + Gradle: SonarCloud uses ./gradlew sonarqube', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'gradle',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(content).toContain('./gradlew sonarqube')
+    expect(content).not.toContain('mvn sonar:sonar')
+  })
+
+  it('Java + Maven: SonarCloud uses mvn sonar:sonar', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'java',
+      buildTool: 'maven',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(content).toContain('mvn sonar:sonar')
+    expect(content).not.toContain('./gradlew sonarqube')
+  })
+})

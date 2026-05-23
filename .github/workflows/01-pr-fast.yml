@@ -226,6 +226,32 @@ jobs:
 
 
 
+  sonar-scan:
+    name: SonarCloud Scan
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    needs: [gate]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+
+      - name: SonarCloud Scan
+        if: env.SONAR_TOKEN != ''
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+
+          npx sonar-scanner -Dsonar.token="$SONAR_TOKEN"
+
+
+
+
   debt-ratchet:
     name: Debt Ratchet
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
@@ -266,7 +292,7 @@ jobs:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
-    needs: [gate, human-approval-required, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, debt-gates, debt-ratchet, classify-changes]
+    needs: [gate, human-approval-required, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, debt-gates, debt-ratchet, classify-changes]
     if: always()
     steps:
       - run: |
@@ -298,6 +324,10 @@ jobs:
           fi
           if [[ "${{ needs.docs-check.result }}" == "failure" ]]; then
             echo "docs-check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.sonar-scan.result }}" == "failure" ]]; then
+            echo "sonar-scan failed"
             exit 1
           fi
           if [[ "${{ needs.debt-gates.result }}" != "success" ]]; then

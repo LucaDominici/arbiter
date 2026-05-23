@@ -388,7 +388,7 @@ src/templates/github/workflows/nightly.yml.ejs # → 06-nightly.yml.ejs
 
 ### Reuse (do NOT duplicate)
 
-All existing sub-generators (`mutation.ts`, `security.ts`, `archunit.ts`, `contract-testing.ts`, `coverage.ts`, `debt-gates.ts`, `debt-ratchet.ts`, `evidence-retention.ts`, `observability.ts`, `stride-enforcement.ts`, `compliance.ts`, `behavioral-tests.ts`, `integration-testing.ts`, `boundaries.ts`, `go-boundaries.ts`, `python-boundaries.ts`, `rust-boundaries.ts`) — wired via new `ci-tier.ts`, not rewritten.
+All existing sub-generators (`mutation.ts`, `security.ts`, `archunit.ts`, `contract-testing.ts`, `coverage.ts`, `debt-gates.ts`, `debt-ratchet.ts`, `evidence-retention.ts`, `observability.ts`, `stride-enforcement.ts`, `compliance.ts`, `behavioral-tests.ts`, `integration-testing.ts`, `boundaries.ts`, `go-boundaries.ts`, `python-boundaries.ts`, `rust-boundaries.ts`, `quality.ts`) — wired via new `ci-tier.ts`, not rewritten.
 
 ---
 

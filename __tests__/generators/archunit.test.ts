@@ -741,3 +741,79 @@ describe('generateArchUnit — F11 unknown architectureStyle guard (#370)', () =
     }
   })
 })
+
+describe('generateArchUnit — HexagonalArchTest consolidated scaffold (#998)', () => {
+  it('emits HexagonalArchTest.java at L2 when hexagonal + basePackage', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+    })
+    const paths = generateArchUnit(config).files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('HexagonalArchTest.java'))).toBe(true)
+  })
+
+  it('emits HexagonalArchTest.java at L3 when hexagonal + basePackage', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L3',
+    })
+    const paths = generateArchUnit(config).files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('HexagonalArchTest.java'))).toBe(true)
+  })
+
+  it('does NOT emit HexagonalArchTest.java at L1 (#998 governance gate)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L1',
+    })
+    const paths = generateArchUnit(config).files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('HexagonalArchTest.java'))).toBe(false)
+  })
+
+  it('does NOT emit HexagonalArchTest.java when basePackage absent (#285 classpath-scan guard)', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: undefined,
+      governanceLevel: 'L2',
+    })
+    const paths = generateArchUnit(config).files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('HexagonalArchTest.java'))).toBe(false)
+  })
+
+  it('does NOT emit HexagonalArchTest.java for non-hexagonal style', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'layered',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+    })
+    const paths = generateArchUnit(config).files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('HexagonalArchTest.java'))).toBe(false)
+  })
+
+  it('HexagonalArchTest.java placed in packagePath/architecture directory', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.app',
+      governanceLevel: 'L2',
+    })
+    const file = generateArchUnit(config).files.find((f) =>
+      f.path.endsWith('HexagonalArchTest.java'),
+    )
+    expect(file!.path).toContain('com/example/app/architecture')
+  })
+})
