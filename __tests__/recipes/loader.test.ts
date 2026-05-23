@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -112,5 +112,70 @@ describe('loadRecipe — HTTPS guard (#546)', () => {
   it('rejects http:// URLs (non-HTTPS)', async () => {
     const { loadRecipe } = await import('../../src/recipes/loader.js')
     await expect(loadRecipe('http://example.com/recipe.json')).rejects.toThrow(/https/i)
+  })
+})
+
+describe('loadRecipe — HTTPS fetch (#546)', () => {
+  const VALID_URL = 'https://example.com/recipe.json'
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('fetches and parses a valid HTTPS recipe', async () => {
+    const fixture = readFileSync(FIXTURE_PATH, 'utf-8')
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(fixture, {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    const { loadRecipe } = await import('../../src/recipes/loader.js')
+    const result = await loadRecipe(VALID_URL)
+    expect(result.language).toBe('typescript')
+    expect(result.governanceLevel).toBe('L2')
+  })
+
+  it('throws when server returns 404', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('Not Found', { status: 404 }))
+    const { loadRecipe } = await import('../../src/recipes/loader.js')
+    await expect(loadRecipe(VALID_URL)).rejects.toThrow(/404/)
+  })
+
+  it('throws when server returns 500', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('Error', { status: 500 }))
+    const { loadRecipe } = await import('../../src/recipes/loader.js')
+    await expect(loadRecipe(VALID_URL)).rejects.toThrow(/500/)
+  })
+
+  it('throws on redirect (3xx)', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('', { status: 301, headers: { location: 'https://other.example.com/' } }),
+    )
+    const { loadRecipe } = await import('../../src/recipes/loader.js')
+    await expect(loadRecipe(VALID_URL)).rejects.toThrow(/redirect/i)
+  })
+
+  it('throws when response body is not valid JSON', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('this is not json', { status: 200 }))
+    const { loadRecipe } = await import('../../src/recipes/loader.js')
+    await expect(loadRecipe(VALID_URL)).rejects.toThrow()
+  })
+
+  it('throws when Content-Length exceeds 256 KB', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-length': String(300 * 1024) },
+      }),
+    )
+    const { loadRecipe } = await import('../../src/recipes/loader.js')
+    await expect(loadRecipe(VALID_URL)).rejects.toThrow(/size|limit/i)
+  })
+
+  it('wraps fetch network errors', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'))
+    const { loadRecipe } = await import('../../src/recipes/loader.js')
+    await expect(loadRecipe(VALID_URL)).rejects.toThrow()
   })
 })

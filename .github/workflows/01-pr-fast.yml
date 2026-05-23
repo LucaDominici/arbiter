@@ -26,10 +26,10 @@ jobs:
     name: Security (PII + Secrets)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
       - name: PII scan (INV-12, HARD)
@@ -56,13 +56,14 @@ jobs:
       infra_changed: ${{ steps.classify.outputs.infra_changed }}
       high_risk: ${{ steps.classify.outputs.high_risk }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
       - id: classify
+        if: hashFiles('scripts/ci-classify-changes.mjs') != ''
         run: node scripts/ci-classify-changes.mjs
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || 'origin/main' }}
@@ -77,8 +78,8 @@ jobs:
     needs: [security-early-fail, classify-changes]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -96,8 +97,8 @@ jobs:
     needs: [gate]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -107,7 +108,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: test-results-unit-${{ github.run_id }}
           path: test-results/
@@ -120,8 +121,8 @@ jobs:
     needs: [gate]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -135,8 +136,8 @@ jobs:
     needs: [unit-tests]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -150,8 +151,8 @@ jobs:
     needs: [unit-tests]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -167,7 +168,7 @@ jobs:
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
       - name: Check docs updated with code changes
@@ -203,9 +204,9 @@ jobs:
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     needs: [gate]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -216,7 +217,7 @@ jobs:
       - run: npx madge --circular src
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
           name: coverage-${{ github.run_id }}
@@ -230,9 +231,9 @@ jobs:
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     needs: [gate]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -249,7 +250,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Assert approved-by-human label (anti-bot gate)
-        uses: actions/github-script@v9
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

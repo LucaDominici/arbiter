@@ -175,7 +175,6 @@ jobs:
 
       - name: cosign sign image (OCI manifest, H3-M2)
         env:
-          COSIGN_EXPERIMENTAL: "1"
           IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
           REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}
@@ -183,10 +182,10 @@ jobs:
           [[ -z "$IMAGE_DIGEST" ]] && { echo "::warning::No digest — skip cosign sign"; exit 0; }
           cosign sign --yes "${REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
 
+<% if (language === 'java' && buildTool === 'maven') { %>
       - name: Generate SBOM (CycloneDX)
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
-<% if (language === 'java' && buildTool === 'maven') { %>
           MAVEN_SETTINGS_PATH: ${{ vars.MAVEN_SETTINGS_PATH || '.github/workflows/maven-settings.xml' }}
         run: |
           mvn -s "$MAVEN_SETTINGS_PATH" -B cyclonedx:makeAggregateBom \
@@ -197,17 +196,21 @@ jobs:
               -Dpmd.skip=true \
               -Djacoco.skip=true
 <% } else if (language === 'java' && buildTool === 'gradle') { %>
+      - name: Generate SBOM (CycloneDX)
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
         run: ./gradlew cyclonedxBom -x test
 <% } else { %>
-        run: |
-          # syft generates CycloneDX SBOM for non-Java stacks
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-          syft "$IMAGE_TAG" -o cyclonedx-json > bom.json
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
+        with:
+          image: ${{ steps.tag.outputs.image_tag }}
+          format: cyclonedx-json
+          output-file: bom.json
 <% } %>
 
       - name: cosign attest SBOM (CycloneDX, H3-M2)
         env:
-          COSIGN_EXPERIMENTAL: "1"
           IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
           REGISTRY: ${{ vars.CONTAINER_REGISTRY || 'ghcr.io' }}
           IMAGE_NAME: ${{ vars.IMAGE_NAME || 'app' }}

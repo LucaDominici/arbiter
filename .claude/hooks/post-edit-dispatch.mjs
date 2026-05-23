@@ -6,21 +6,12 @@
 // Always exits 0 (non-blocking, informational)
 
 import { getRepoRoot, logInfo, logWarn } from './lib.mjs'
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-// Read edited file path from tool input JSON
-const inputPath = process.env['CLAUDE_TOOL_INPUT_PATH']
-if (!inputPath) process.exit(0)
-
-let filePath = ''
-try {
-  const input = JSON.parse(readFileSync(inputPath, 'utf-8'))
-  filePath = input['file_path'] ?? input['path'] ?? ''
-} catch {
-  process.exit(0)
-}
+// CLAUDE_TOOL_INPUT_PATH is the path to the file that was just edited
+const filePath = process.env['CLAUDE_TOOL_INPUT_PATH'] ?? ''
 if (!filePath) process.exit(0)
 
 // Skip .md docs, .json config, lock files, build artifacts

@@ -94,6 +94,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Playwright / Vitest E2E (60 min budget)
+        env:
+          RUN_E2E: "1"
         run: npm run test:e2e || npm run test:soak || true
 
 

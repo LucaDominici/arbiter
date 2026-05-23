@@ -167,3 +167,214 @@ describe('generated check-all.mjs syntax (#172 smoke)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 })
+
+// Parametrised smoke tests: generate + node --check across remaining stacks × levels (#1026)
+type SmokeCase = {
+  label: string
+  language: 'java' | 'go' | 'python' | 'rust' | 'typescript'
+  buildTool: string
+  governanceLevel: 'L1' | 'L2' | 'L3' | 'L4'
+  enableSecurityScanning: boolean
+  enableDebtGates: boolean
+}
+
+const SMOKE_CASES: SmokeCase[] = [
+  // Java — gradle, all levels
+  {
+    label: 'java/gradle L1',
+    language: 'java',
+    buildTool: 'gradle',
+    governanceLevel: 'L1',
+    enableSecurityScanning: false,
+    enableDebtGates: false,
+  },
+  {
+    label: 'java/gradle L2',
+    language: 'java',
+    buildTool: 'gradle',
+    governanceLevel: 'L2',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'java/gradle L3',
+    language: 'java',
+    buildTool: 'gradle',
+    governanceLevel: 'L3',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'java/gradle L4',
+    language: 'java',
+    buildTool: 'gradle',
+    governanceLevel: 'L4',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  // Java — maven
+  {
+    label: 'java/maven L1',
+    language: 'java',
+    buildTool: 'maven',
+    governanceLevel: 'L1',
+    enableSecurityScanning: false,
+    enableDebtGates: false,
+  },
+  {
+    label: 'java/maven L2',
+    language: 'java',
+    buildTool: 'maven',
+    governanceLevel: 'L2',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  // Go — all levels
+  {
+    label: 'go/go L1',
+    language: 'go',
+    buildTool: 'go',
+    governanceLevel: 'L1',
+    enableSecurityScanning: false,
+    enableDebtGates: false,
+  },
+  {
+    label: 'go/go L2',
+    language: 'go',
+    buildTool: 'go',
+    governanceLevel: 'L2',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'go/go L3',
+    language: 'go',
+    buildTool: 'go',
+    governanceLevel: 'L3',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'go/go L4',
+    language: 'go',
+    buildTool: 'go',
+    governanceLevel: 'L4',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  // Python — all levels
+  {
+    label: 'python/pip L1',
+    language: 'python',
+    buildTool: 'pip',
+    governanceLevel: 'L1',
+    enableSecurityScanning: false,
+    enableDebtGates: false,
+  },
+  {
+    label: 'python/pip L2',
+    language: 'python',
+    buildTool: 'pip',
+    governanceLevel: 'L2',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'python/pip L3',
+    language: 'python',
+    buildTool: 'pip',
+    governanceLevel: 'L3',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'python/pip L4',
+    language: 'python',
+    buildTool: 'pip',
+    governanceLevel: 'L4',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  // Rust — L2 and L3/L4 (L1 already covered above)
+  {
+    label: 'rust/cargo L2',
+    language: 'rust',
+    buildTool: 'cargo',
+    governanceLevel: 'L2',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'rust/cargo L3',
+    language: 'rust',
+    buildTool: 'cargo',
+    governanceLevel: 'L3',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'rust/cargo L4',
+    language: 'rust',
+    buildTool: 'cargo',
+    governanceLevel: 'L4',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  // TypeScript — L2/L3/L4 (L1 already covered above)
+  {
+    label: 'typescript/npm L2',
+    language: 'typescript',
+    buildTool: 'npm',
+    governanceLevel: 'L2',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'typescript/npm L3',
+    language: 'typescript',
+    buildTool: 'npm',
+    governanceLevel: 'L3',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'typescript/npm L4',
+    language: 'typescript',
+    buildTool: 'npm',
+    governanceLevel: 'L4',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+]
+
+describe('generated check-all.mjs extended syntax smoke (#1026)', () => {
+  it.each(SMOKE_CASES)(
+    '$label — no syntax errors',
+    ({ language, buildTool, governanceLevel, enableSecurityScanning, enableDebtGates }) => {
+      const dir = mkdtempSync(join(tmpdir(), `arbiter-smoke-${language}-${governanceLevel}-`))
+      try {
+        generateCheckAll(
+          makeConfig(dir, {
+            language,
+            buildTool,
+            governanceLevel,
+            enableSecurityScanning,
+            enableDebtGates,
+          }),
+        )
+        const scriptPath = join(dir, 'scripts', 'check-all.mjs')
+        expect(
+          existsSync(scriptPath),
+          `check-all.mjs not generated for ${language}/${buildTool}/${governanceLevel}`,
+        ).toBe(true)
+        const r = spawnSync('node', ['--check', scriptPath], { encoding: 'utf-8' })
+        expect(
+          r.status,
+          `Syntax error (${language}/${buildTool}/${governanceLevel}): ${r.stderr}`,
+        ).toBe(0)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
+})

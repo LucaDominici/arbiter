@@ -11,9 +11,10 @@
 //   L1 → check --level L1
 //   L2 → gate  --level L2
 //   L3 → gate  --level L3
+//   L4 → gate  --level L4
 
 export const SUBCOMMANDS = ['check', 'gate', 'full', 'simulate-nightly', 'simulate-weekly']
-export const LEVELS = ['L1', 'L2', 'L3']
+export const LEVELS = ['L1', 'L2', 'L3', 'L4']
 
 /**
  * Parse argv into check-all options.
@@ -44,7 +45,7 @@ export function parseCheckArgs(argv) {
         jsonPath = ''
       }
     } else if (LEVELS.includes(arg)) {
-      // Back-compat: L1 → check/L1, L2/L3 → gate/level
+      // Back-compat: L1 → check/L1, L2/L3/L4 → gate/level
       level = arg
       if (subcommand === null) {
         subcommand = arg === 'L1' ? 'check' : 'gate'
