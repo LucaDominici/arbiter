@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1004",
+  "test_path": "docs/ADR/050-pipeline-complexity-tiers.md",
+  "test_commit_sha": "e0740746fa1c98cc4789c17a44b45e305b618332",
+  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter/.claude/worktrees/wt-a\n\n FAIL  __tests__/docs/adr-050.test.ts\n × docs/ADR/050-pipeline-complexity-tiers.md does not exist\n × adr-050 missing required sections: Decision, Consequences, Rejected Alternatives\n\n Test Files  1 failed (1)\n      Tests  2 failed (2)\n",
+  "observed_failure": "FAIL  docs/ADR/050-pipeline-complexity-tiers.md does not exist — pre-implementation red phase",
+  "recorded_at": "2026-05-23T20:00:00.000Z"
+}

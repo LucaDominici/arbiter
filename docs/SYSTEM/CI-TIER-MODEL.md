@@ -1,19 +1,24 @@
 ---
 title: 'Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)'
-doc_version: '1.0.0'
+doc_version: '1.1.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-05-23'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/method']
-related: []
+related: ['docs/ADR/050-pipeline-complexity-tiers.md']
 ---
 
 # Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)
 
-> **Status**: approved design — 2026-05-17  
+> **Status**: approved design — 2026-05-17; updated 2026-05-23 (archetype-driven model)
 > **Author**: arbiter team  
 > **Implements**: epic to be decomposed via `/epic-decompose`
+>
+> **ADR-050**: Pipeline shape now derives from project archetype (primary axis) with governance
+> enforcing hard minimums (floor axis). See `docs/ADR/050-pipeline-complexity-tiers.md` for the
+> full rationale and rejected alternatives. The archetype-default model supersedes the earlier
+> "tier set is constant, only thresholds vary" framing in §Context below.
 
 ## Context
 
