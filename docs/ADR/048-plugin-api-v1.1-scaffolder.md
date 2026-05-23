@@ -1,5 +1,5 @@
 ---
-title: 'ADR-032: Plugin API v1.1 — Scaffolder and Memory Interface'
+title: 'ADR-048: Plugin API v1.1 — Scaffolder and Memory Interface'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-05-20'
@@ -9,7 +9,7 @@ tags: ['audience/dev', 'kind/adr']
 related: []
 ---
 
-# ADR-032: Plugin API v1.1 — Scaffolder and Memory Interface
+# ADR-048: Plugin API v1.1 — Scaffolder and Memory Interface
 
 **Date:** 2026-05-13
 **Status:** Accepted

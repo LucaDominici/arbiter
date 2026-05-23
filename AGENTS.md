@@ -199,6 +199,18 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/check-nightly-freshness.mjs`
   - The nightly CI stamp artifact (`.arbiter/nightly/last-run.json`) must not be older than 26 hours when present. Exit 0 vacuously when no artifact exists.
 
+## Script Catalog Cohesion (INV-94)
+
+- **INV-94:** Script catalog cohesion — every new gate script must carry a CATALOG marker block
+  - _Enforcement:_ `scripts/check-script-cohesion.mjs`
+  - Every `scripts/check-*.mjs` file added after the baseline freeze must carry a `// CATALOG:` marker block of ≥3 contiguous comment lines declaring what the script aggregates and why it cannot fold into a sibling. Pre-existing scripts are grandfathered via `scripts/data/script-catalog-baseline.json`.
+
+## Fail-Closed Audit (INV-96)
+
+- **INV-96:** Fail-closed audit — every gate script must default to BLOCK on uncertainty
+  - _Enforcement:_ `scripts/check-fail-closed-audit.mjs`
+  - Every gate, hook, check, and generator emitted by arbiter must default to BLOCK on uncertainty, never SKIP. Audits scripts/, .githooks/, and .claude/hooks/ for fail-open anti-patterns. New scripts outside the baseline must pass all checks.
+
 ## Supply Chain (INV-92)
 
 - **INV-92:** Supply chain — keyless signing, SBOM attestation, and Trivy CRITICAL block
