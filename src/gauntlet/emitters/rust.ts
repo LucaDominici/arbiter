@@ -14,7 +14,11 @@ import type { GauntletSpec } from '../spec.js'
 import type { IpogRow } from '../ipog.js'
 
 export function emitRust(spec: GauntletSpec, rows: IpogRow[]): string {
-  const params = Object.keys(rows[0] ?? {})
+  if (rows.length === 0) {
+    throw new Error('Gauntlet emitter: no rows match constraints — cannot emit empty test suite')
+  }
+  const firstRow = rows[0] as IpogRow
+  const params = Object.keys(firstRow)
   const modName = toSnakeCase(spec.name)
 
   const cases = rows

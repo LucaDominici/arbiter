@@ -108,8 +108,12 @@ export class GitHubBackend implements DecompositionBackend {
       return Promise.resolve(mapIssue(issue))
     } catch (err) {
       if (err instanceof CliError && !err.notFound && !err.timedOut) {
+        // gh returned an error (e.g. issue does not exist) but did not time out
+        // and the binary was found — treat as absent item, not a network failure.
         return Promise.resolve(null)
       }
+      // timedOut (network failure) or binary-not-found → propagate so callers
+      // can distinguish infrastructure failure from a genuinely absent item.
       return Promise.reject(err instanceof Error ? err : new Error(String(err)))
     }
   }

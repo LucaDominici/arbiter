@@ -14,8 +14,12 @@ import type { GauntletSpec } from '../spec.js'
 import type { IpogRow } from '../ipog.js'
 
 export function emitJava(spec: GauntletSpec, rows: IpogRow[]): string {
+  if (rows.length === 0) {
+    throw new Error('Gauntlet emitter: no rows match constraints — cannot emit empty test suite')
+  }
+  const firstRow = rows[0] as IpogRow
   const className = toPascalCase(spec.name) + 'GauntletTest'
-  const params = Object.keys(rows[0] ?? {})
+  const params = Object.keys(firstRow)
 
   const argStream = rows
     .map((row) => {

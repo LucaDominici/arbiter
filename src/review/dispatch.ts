@@ -243,9 +243,17 @@ export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
   let attempts = 0
   let lastRaw: RawVerdict = 'FAIL'
   let totalInvocations = 0
+  let cycleError: string | undefined
   for (let cycle = 0; cycle <= MAX_REVISE_CYCLES; cycle++) {
     attempts++
-    const outcome = runCycle(dispatcher, prompt, passCount, runDir, cycle)
+    let outcome: CycleOutcome
+    try {
+      outcome = runCycle(dispatcher, prompt, passCount, runDir, cycle)
+    } catch (err) {
+      cycleError = err instanceof Error ? err.message : String(err)
+      lastRaw = 'ERROR'
+      break
+    }
     totalInvocations += outcome.passVerdicts.length
     lastRaw = outcome.cycleVerdict
     if (lastRaw === 'PASS' || lastRaw === 'FAIL' || lastRaw === 'ERROR') break
@@ -253,6 +261,7 @@ export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
   }
 
   const final = finaliseVerdict(lastRaw, attempts)
+  const resolvedReason = cycleError !== undefined ? cycleError : final.reason
   const planDigest = createHash('sha256').update(opts.planContent).digest('hex')
   const latestPath = join(evidenceDir, 'latest.json')
   const latest = {
@@ -263,7 +272,7 @@ export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
     tier: opts.tier,
     totalInvocations,
     attempts,
-    ...(final.reason !== undefined ? { reason: final.reason } : {}),
+    ...(resolvedReason !== undefined ? { reason: resolvedReason } : {}),
   }
   writeFileSync(latestPath, JSON.stringify(latest, null, 2), 'utf-8')
 
@@ -276,7 +285,7 @@ export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
     evidenceDir,
     runDir,
     latestPath,
-    ...(final.reason !== undefined ? { reason: final.reason } : {}),
+    ...(resolvedReason !== undefined ? { reason: resolvedReason } : {}),
   }
 }
 

@@ -10,7 +10,7 @@
  *     (b) INV/ADR/CANON id extraction from markdown text; no existing abstraction covers this
  */
 
-import { readdirSync, statSync } from 'node:fs'
+import { lstatSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** Extract all unique INV ids from a block of text. */
@@ -36,14 +36,32 @@ export function unique<T>(items: T[]): T[] {
  * Results are sorted lexicographically at each level for determinism across platforms.
  *
  * Does not throw on permission errors — skips unreadable directories silently.
+ * Tracks visited inodes (via lstatSync on directories) to terminate on symlink cycles.
  */
 export function walkFiles(dir: string, predicate: (filePath: string) => boolean): string[] {
   const results: string[] = []
-  _walk(dir, predicate, results)
+  const visited = new Set<string>()
+  _walk(dir, predicate, results, visited)
   return results.sort()
 }
 
-function _walk(dir: string, predicate: (filePath: string) => boolean, out: string[]): void {
+function _walk(
+  dir: string,
+  predicate: (filePath: string) => boolean,
+  out: string[],
+  visited: Set<string>,
+): void {
+  // Use lstatSync so we get the symlink's own identity — prevents following
+  // circular symlink chains back to a directory we have already visited.
+  try {
+    const { ino, dev } = lstatSync(dir)
+    const key = `${dev}:${ino}`
+    if (visited.has(key)) return
+    visited.add(key)
+  } catch {
+    return
+  }
+
   let entries: string[]
   try {
     entries = readdirSync(dir)
@@ -60,7 +78,7 @@ function _walk(dir: string, predicate: (filePath: string) => boolean, out: strin
       continue
     }
     if (stat.isDirectory()) {
-      _walk(full, predicate, out)
+      _walk(full, predicate, out, visited)
     } else if (predicate(full)) {
       out.push(full)
     }
