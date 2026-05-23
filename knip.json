@@ -4,10 +4,11 @@
       "project": ["src/**/*.ts", "!src/templates/**"]
     }
   },
-  "ignoreDependencies": ["@commitlint/cli", "jscpd"],
+  "ignoreDependencies": ["@commitlint/cli", "jscpd", "prettier"],
   "ignoreFiles": ["src/test/example.behavioral.test.ts", "src/utils/plugin-worker.ts"],
   "ignoreBinaries": [
     "stryker",
+    "vitepress",
     "license-checker",
     "Apache-2.0",
     "BSD-2-Clause",
