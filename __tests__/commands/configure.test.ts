@@ -43,10 +43,10 @@ describe('runConfigure — --set round-trips', () => {
     cleanupTestProject(dir)
   })
 
-  it('sets features.debtGates=false and writes valid v2 to disk', () => {
+  it('sets features.debtGates=false and writes valid v2 to disk', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['features.debtGates=false'] })
+    await runConfigure({ dir, sets: ['features.debtGates=false'] })
 
     const raw = readArbiterJson(dir)
     const features = raw['features'] as Record<string, unknown>
@@ -55,10 +55,10 @@ describe('runConfigure — --set round-trips', () => {
     expect(raw['version']).toBe('0.2')
   })
 
-  it('sets thresholds.lineCoverage=90 and persists', () => {
+  it('sets thresholds.lineCoverage=90 and persists', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['thresholds.lineCoverage=90'] })
+    await runConfigure({ dir, sets: ['thresholds.lineCoverage=90'] })
 
     const raw = readArbiterJson(dir)
     const thresholds = raw['thresholds'] as Record<string, unknown>
@@ -66,10 +66,10 @@ describe('runConfigure — --set round-trips', () => {
     expect(thresholds['branchCoverage']).toBe(DEFAULT_THRESHOLDS.L2.branchCoverage) // unchanged
   })
 
-  it('applies multiple --set flags atomically', () => {
+  it('applies multiple --set flags atomically', async () => {
     writeV2Config(dir)
 
-    runConfigure({
+    await runConfigure({
       dir,
       sets: ['features.mutationTesting=false', 'thresholds.lineCoverage=85'],
     })
@@ -94,34 +94,34 @@ describe('runConfigure — validation', () => {
     cleanupTestProject(dir)
   })
 
-  it('rejects an unknown dotted path and does not write', () => {
+  it('rejects an unknown dotted path and does not write', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['nonExistent.key=true'] })).toThrow()
+    await expect(runConfigure({ dir, sets: ['nonExistent.key=true'] })).rejects.toThrow()
 
     expect(readArbiterJson(dir)).toEqual(before)
   })
 
-  it('rejects out-of-range lineCoverage (>100) and does not write', () => {
+  it('rejects out-of-range lineCoverage (>100) and does not write', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['thresholds.lineCoverage=150'] })).toThrow()
+    await expect(runConfigure({ dir, sets: ['thresholds.lineCoverage=150'] })).rejects.toThrow()
 
     expect(readArbiterJson(dir)).toEqual(before)
   })
 
-  it('rejects invalid boolean value for a feature flag and does not write', () => {
+  it('rejects invalid boolean value for a feature flag and does not write', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['features.debtGates=maybe'] })).toThrow()
+    await expect(runConfigure({ dir, sets: ['features.debtGates=maybe'] })).rejects.toThrow()
 
     expect(readArbiterJson(dir)).toEqual(before)
   })
 
-  it('exits with code 2 when no --set provided and no TTY', () => {
+  it('exits with code 2 when no --set provided and no TTY', async () => {
     writeV2Config(dir)
     const exitSpy = vi
       .spyOn(process, 'exit')
@@ -129,20 +129,20 @@ describe('runConfigure — validation', () => {
         throw new Error(`process.exit(${String(_code)})`)
       })
 
-    expect(() => runConfigure({ dir, sets: [] })).toThrow('process.exit(2)')
+    await expect(runConfigure({ dir, sets: [] })).rejects.toThrow('process.exit(2)')
 
     exitSpy.mockRestore()
   })
 
-  it('throws when no arbiter.json found', () => {
-    expect(() => runConfigure({ dir, sets: ['features.debtGates=false'] })).toThrow()
+  it('throws when no arbiter.json found', async () => {
+    await expect(runConfigure({ dir, sets: ['features.debtGates=false'] })).rejects.toThrow()
   })
 
-  it('rejects an invalid tool name and does not write', () => {
+  it('rejects an invalid tool name and does not write', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['tools=claude,unknown-tool'] })).toThrow()
+    await expect(runConfigure({ dir, sets: ['tools=claude,unknown-tool'] })).rejects.toThrow()
 
     expect(readArbiterJson(dir)).toEqual(before)
   })
@@ -162,19 +162,19 @@ describe('runConfigure — tools', () => {
     cleanupTestProject(dir)
   })
 
-  it('sets tools to a comma-separated list of valid AI tools', () => {
+  it('sets tools to a comma-separated list of valid AI tools', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['tools=codex,cursor'] })
+    await runConfigure({ dir, sets: ['tools=codex,cursor'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['tools']).toEqual(['codex', 'cursor'])
   })
 
-  it('sets tools to a single tool', () => {
+  it('sets tools to a single tool', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['tools=copilot'] })
+    await runConfigure({ dir, sets: ['tools=copilot'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['tools']).toEqual(['copilot'])
@@ -195,125 +195,125 @@ describe('runConfigure — axis fields (#324)', () => {
     cleanupTestProject(dir)
   })
 
-  it('sets archetype=library and persists (#324)', () => {
+  it('sets archetype=library and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['archetype=library'] })
+    await runConfigure({ dir, sets: ['archetype=library'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['archetype']).toBe('library')
   })
 
-  it('rejects invalid archetype (#324)', () => {
+  it('rejects invalid archetype (#324)', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['archetype=invalid-archetype'] })).toThrow(
+    await expect(runConfigure({ dir, sets: ['archetype=invalid-archetype'] })).rejects.toThrow(
       /invalid archetype/i,
     )
 
     expect(readArbiterJson(dir)).toEqual(before)
   })
 
-  it('sets archetype=backend-web-db and persists (#324)', () => {
+  it('sets archetype=backend-web-db and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['archetype=backend-web-db'] })
+    await runConfigure({ dir, sets: ['archetype=backend-web-db'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['archetype']).toBe('backend-web-db')
   })
 
-  it('sets architectureStyle=hexagonal and persists (#324)', () => {
+  it('sets architectureStyle=hexagonal and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['architectureStyle=hexagonal'] })
+    await runConfigure({ dir, sets: ['architectureStyle=hexagonal'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['architectureStyle']).toBe('hexagonal')
   })
 
-  it('rejects invalid architectureStyle (#324)', () => {
+  it('rejects invalid architectureStyle (#324)', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['architectureStyle=event-driven'] })).toThrow(
+    await expect(runConfigure({ dir, sets: ['architectureStyle=event-driven'] })).rejects.toThrow(
       /invalid architecturestyle/i,
     )
 
     expect(readArbiterJson(dir)).toEqual(before)
   })
 
-  it('sets hasDatabase=true and persists (#324)', () => {
+  it('sets hasDatabase=true and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['hasDatabase=true'] })
+    await runConfigure({ dir, sets: ['hasDatabase=true'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['hasDatabase']).toBe(true)
   })
 
-  it('sets hasDatabase=false and persists (#324)', () => {
+  it('sets hasDatabase=false and persists (#324)', async () => {
     writeV2Config(dir, { hasDatabase: true })
 
-    runConfigure({ dir, sets: ['hasDatabase=false'] })
+    await runConfigure({ dir, sets: ['hasDatabase=false'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['hasDatabase']).toBe(false)
   })
 
-  it('rejects invalid boolean for hasDatabase (#324)', () => {
+  it('rejects invalid boolean for hasDatabase (#324)', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['hasDatabase=yes'] })).toThrow(
+    await expect(runConfigure({ dir, sets: ['hasDatabase=yes'] })).rejects.toThrow(
       /hasDatabase must be true or false/i,
     )
 
     expect(readArbiterJson(dir)).toEqual(before)
   })
 
-  it('sets isMultiTenant=true and persists (#324)', () => {
+  it('sets isMultiTenant=true and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['isMultiTenant=true'] })
+    await runConfigure({ dir, sets: ['isMultiTenant=true'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['isMultiTenant']).toBe(true)
   })
 
-  it('sets hasPublicApi=true and persists (#324)', () => {
+  it('sets hasPublicApi=true and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['hasPublicApi=true'] })
+    await runConfigure({ dir, sets: ['hasPublicApi=true'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['hasPublicApi']).toBe(true)
   })
 
-  it('sets contractType=graphql and persists (#324)', () => {
+  it('sets contractType=graphql and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['contractType=graphql'] })
+    await runConfigure({ dir, sets: ['contractType=graphql'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['contractType']).toBe('graphql')
   })
 
-  it('sets contractType=rest-owned and persists (#324)', () => {
+  it('sets contractType=rest-owned and persists (#324)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['contractType=rest-owned'] })
+    await runConfigure({ dir, sets: ['contractType=rest-owned'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['contractType']).toBe('rest-owned')
   })
 
-  it('rejects invalid contractType (#324)', () => {
+  it('rejects invalid contractType (#324)', async () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    expect(() => runConfigure({ dir, sets: ['contractType=openapi'] })).toThrow(
+    await expect(runConfigure({ dir, sets: ['contractType=openapi'] })).rejects.toThrow(
       /invalid contracttype/i,
     )
 
@@ -335,10 +335,10 @@ describe('runConfigure — archetype cascade (#504)', () => {
     cleanupTestProject(dir)
   })
 
-  it('cascades derived axis fields when archetype=library is set (#504)', () => {
+  it('cascades derived axis fields when archetype=library is set (#504)', async () => {
     writeV2Config(dir) // no archetype / no derived fields stored
 
-    runConfigure({ dir, sets: ['archetype=library'] })
+    await runConfigure({ dir, sets: ['archetype=library'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['archetype']).toBe('library')
@@ -348,10 +348,10 @@ describe('runConfigure — archetype cascade (#504)', () => {
     expect(raw['contractType']).toBe('none')
   })
 
-  it('cascades derived axis fields when archetype=backend-web-db is set (#504)', () => {
+  it('cascades derived axis fields when archetype=backend-web-db is set (#504)', async () => {
     writeV2Config(dir)
 
-    runConfigure({ dir, sets: ['archetype=backend-web-db'] })
+    await runConfigure({ dir, sets: ['archetype=backend-web-db'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['archetype']).toBe('backend-web-db')
@@ -361,10 +361,10 @@ describe('runConfigure — archetype cascade (#504)', () => {
     expect(raw['contractType']).toBe('rest-owned')
   })
 
-  it('cascade respects explicit --set in same batch (#504)', () => {
+  it('cascade respects explicit --set in same batch (#504)', async () => {
     writeV2Config(dir)
 
-    runConfigure({
+    await runConfigure({
       dir,
       sets: ['archetype=library', 'hasDatabase=true'],
     })
@@ -378,10 +378,10 @@ describe('runConfigure — archetype cascade (#504)', () => {
     expect(raw['contractType']).toBe('none')
   })
 
-  it('cascade preserves previously-stored explicit axis fields (#504)', () => {
+  it('cascade preserves previously-stored explicit axis fields (#504)', async () => {
     writeV2Config(dir, { hasDatabase: true, hasPublicApi: true })
 
-    runConfigure({ dir, sets: ['archetype=library'] })
+    await runConfigure({ dir, sets: ['archetype=library'] })
 
     const raw = readArbiterJson(dir)
     expect(raw['archetype']).toBe('library')
@@ -393,10 +393,10 @@ describe('runConfigure — archetype cascade (#504)', () => {
     expect(raw['contractType']).toBe('none')
   })
 
-  it('cascade does not run when archetype is not in --set batch (#504)', () => {
+  it('cascade does not run when archetype is not in --set batch (#504)', async () => {
     writeV2Config(dir, { archetype: 'library' })
 
-    runConfigure({ dir, sets: ['features.debtGates=false'] })
+    await runConfigure({ dir, sets: ['features.debtGates=false'] })
 
     const raw = readArbiterJson(dir)
     // archetype unchanged, no derived fields injected

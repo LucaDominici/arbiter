@@ -9,6 +9,7 @@ import {
   type FeatureFlags,
   type ThresholdsV2,
   DEFAULT_THRESHOLDS,
+  validateConfig,
 } from '../config/schema.js'
 import { migrate } from '../config/migrations/index.js'
 import { applyEnvOverrides } from '../config/env-overrides.js'
@@ -122,7 +123,14 @@ export function loadConfig(dir: string): ArbiterConfig | null {
   }
   try {
     const migrated = migrate(raw)
-    return applyEnvOverrides(migrated, process.env)
+    const withEnv = applyEnvOverrides(migrated, process.env)
+    const validation = validateConfig(withEnv)
+    if (!validation.ok) {
+      throw new Error(
+        `arbiter.json at ${path} failed validation: ${validation.errors.join('; ')}. Fix or delete and re-run.`,
+      )
+    }
+    return validation.config
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     throw new Error(`arbiter.json at ${path} failed migration: ${msg}. Fix or delete and re-run.`, {

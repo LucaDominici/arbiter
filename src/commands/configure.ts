@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-import { resolve } from 'node:path'
+import { resolve, join } from 'node:path'
+import { mkdirSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import { validateConfig } from '../config/schema.js'
+import { acquireLock } from '../utils/file-lock.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { deriveAxisDefaults } from '../detectors/axis.js'
 import { ArbiterError } from '../utils/errors.js'
@@ -272,7 +274,7 @@ function applySet(config: ArbiterConfigV2, path: string, value: unknown): Arbite
   )
 }
 
-export function runConfigure(options: ConfigureOptions): void {
+export async function runConfigure(options: ConfigureOptions): Promise<void> {
   if (options.sets.length === 0) {
     if (options.json) {
       jsonOutput('configure', 'error', {}, ['--set is required (non-interactive usage)'])
@@ -332,7 +334,13 @@ export function runConfigure(options: ConfigureOptions): void {
     )
   }
 
-  saveConfig(targetDir, result.config)
+  mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
+  const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
+  try {
+    saveConfig(targetDir, result.config)
+  } finally {
+    await lock.release()
+  }
 
   if (options.json) {
     jsonOutput('configure', 'ok', { updated: options.sets })

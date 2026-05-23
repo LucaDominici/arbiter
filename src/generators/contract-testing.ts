@@ -13,7 +13,11 @@ export interface ContractTestingGeneratorResult {
 /** Compute the Java contracts package path. Falls back to "contracts". */
 function javaContractsPkg(config: ProjectConfig): string {
   if (config.basePackage) {
-    return `src/test/java/${config.basePackage.replace(/\./g, '/')}/contracts`
+    if (!/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(config.basePackage)) {
+      throw new Error(`Invalid basePackage identifier: ${config.basePackage}`)
+    }
+    const javaPath = config.basePackage.replace(/\./g, '/')
+    return `src/test/java/${javaPath}/contracts`
   }
   return 'src/test/java/contracts'
 }

@@ -159,7 +159,7 @@ describe('runWorktreeOpen', () => {
   it('throws when not running from main repo', async () => {
     mockIsRunningFromMainRepo.mockReturnValue(false)
     const { runWorktreeOpen } = await import('../../src/commands/worktree.js')
-    expect(() => runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })).toThrow(
+    await expect(runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })).rejects.toThrow(
       'Must run from the main repository',
     )
   })
@@ -167,7 +167,7 @@ describe('runWorktreeOpen', () => {
   it('throws when working tree is dirty', async () => {
     mockWorkingTreeDirty.mockReturnValue(true)
     const { runWorktreeOpen } = await import('../../src/commands/worktree.js')
-    expect(() => runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })).toThrow(
+    await expect(runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })).rejects.toThrow(
       'uncommitted changes',
     )
   })
@@ -175,7 +175,7 @@ describe('runWorktreeOpen', () => {
   it('opens worktree and writes log entry on success', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
     const { runWorktreeOpen } = await import('../../src/commands/worktree.js')
-    runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })
+    await runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Worktree ready'))
     logSpy.mockRestore()
   })
@@ -188,7 +188,7 @@ describe('runWorktreeOpen', () => {
     mkdirSync(wt, { recursive: true })
 
     const { runWorktreeOpen } = await import('../../src/commands/worktree.js')
-    expect(() => runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })).toThrow(
+    await expect(runWorktreeOpen({ taskId: '123', cwd: gitRoot, worktreesDir })).rejects.toThrow(
       'Worktree already exists',
     )
   })

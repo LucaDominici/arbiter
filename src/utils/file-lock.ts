@@ -211,11 +211,27 @@ export async function acquireLock(lockPath: string, opts: AcquireOpts = {}): Pro
 
   process.once('exit', deleteLock)
 
+  const signalCleanup = (): void => {
+    try {
+      deleteLock()
+    } catch {
+      /* best-effort */
+    }
+    process.exit(130)
+  }
+  const CLEANUP_SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
+  for (const sig of CLEANUP_SIGNALS) {
+    process.once(sig, signalCleanup)
+  }
+
   return {
     path: lockPath,
     pid: process.pid,
     release: (): Promise<void> => {
       process.removeListener('exit', deleteLock)
+      for (const sig of CLEANUP_SIGNALS) {
+        process.removeListener(sig, signalCleanup)
+      }
       deleteLock()
       return Promise.resolve()
     },

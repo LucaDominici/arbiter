@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { t } from '../i18n/index.js'
 import { loadConfig } from '../utils/config.js'
+import { acquireLock } from '../utils/file-lock.js'
 import { jsonOutput } from '../utils/json-output.js'
 import {
   sanitizeTaskId,
@@ -248,7 +249,7 @@ function resolveEffectiveBase(baseBranch: string, gitRoot: string): string {
 // open
 // ---------------------------------------------------------------------------
 
-export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
+export async function runWorktreeOpen(opts: WorktreeOpenOptions): Promise<void> {
   const cwd = opts.cwd ?? process.cwd()
   const gitRoot = getGitRoot(cwd)
 
@@ -311,18 +312,25 @@ export function runWorktreeOpen(opts: WorktreeOpenOptions): void {
     : wtConfig.links
   const linkSummary = materializeLinks(linkSpecs, gitRoot, worktreePath)
 
-  const logPath = join(arbiterLogDir(gitRoot), 'worktree-open.log.json')
-  const entries = readJsonArray(logPath).filter(isOpenLogEntry)
-  entries.push({
-    taskId,
-    slug: slug ?? null,
-    worktreePath,
-    branch: branchName,
-    baseBranch,
-    baseRef,
-    openedAt: new Date().toISOString(),
-  })
-  writeJsonArray(logPath, entries)
+  const arbiterDir = arbiterLogDir(gitRoot)
+  mkdirSync(arbiterDir, { recursive: true })
+  const lock = await acquireLock(join(arbiterDir, '.lock'))
+  try {
+    const logPath = join(arbiterDir, 'worktree-open.log.json')
+    const entries = readJsonArray(logPath).filter(isOpenLogEntry)
+    entries.push({
+      taskId,
+      slug: slug ?? null,
+      worktreePath,
+      branch: branchName,
+      baseBranch,
+      baseRef,
+      openedAt: new Date().toISOString(),
+    })
+    writeJsonArray(logPath, entries)
+  } finally {
+    await lock.release()
+  }
 
   if (opts.json) {
     jsonOutput('worktree-open', 'ok', {

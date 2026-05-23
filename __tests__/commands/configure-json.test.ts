@@ -54,11 +54,11 @@ describe('configure --json', () => {
     vi.restoreAllMocks()
   })
 
-  it('emits JSON envelope on success', () => {
+  it('emits JSON envelope on success', async () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    runConfigure({ sets: ['useGitHub=true'], json: true })
+    await runConfigure({ sets: ['useGitHub=true'], json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('configure')
@@ -67,36 +67,38 @@ describe('configure --json', () => {
     expect(parsed.data).toMatchObject({ updated: ['useGitHub=true'] })
   })
 
-  it('emits JSON error when no config found', () => {
+  it('emits JSON error when no config found', async () => {
     mockLoadConfig.mockReturnValue(null)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit')
     })
 
-    expect(() => runConfigure({ sets: ['useGitHub=true'], json: true })).toThrow('process.exit')
+    await expect(runConfigure({ sets: ['useGitHub=true'], json: true })).rejects.toThrow(
+      'process.exit',
+    )
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.status).toBe('error')
     expect(exitSpy).toHaveBeenCalledWith(1)
   })
 
-  it('does not emit JSON in human mode', () => {
+  it('does not emit JSON in human mode', async () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    runConfigure({ sets: ['useGitHub=false'], json: false })
+    await runConfigure({ sets: ['useGitHub=false'], json: false })
 
     // Human mode emits text to stdout via process.stdout.write (#820), but
     // must NOT emit a JSON envelope. Assert the captured text is not JSON.
     expect(written.trim().startsWith('{')).toBe(false)
   })
 
-  it('emits JSON error envelope on empty --set with --json (BLOCKER-9)', () => {
+  it('emits JSON error envelope on empty --set with --json (BLOCKER-9)', async () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit')
     })
 
-    expect(() => runConfigure({ sets: [], json: true })).toThrow('process.exit')
+    await expect(runConfigure({ sets: [], json: true })).rejects.toThrow('process.exit')
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('configure')

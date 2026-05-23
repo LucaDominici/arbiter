@@ -71,6 +71,18 @@ export function redactEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   return out
 }
 
+const SENSITIVE_FLAGS = ['--gh-token', '--api-key', '--token', '--password', '--secret']
+
+function redactArgv(argv: readonly string[]): string[] {
+  return argv.map((arg, i) => {
+    const prev = argv[i - 1] ?? ''
+    if (SENSITIVE_FLAGS.some((f) => prev === f)) return '[REDACTED]'
+    const matched = SENSITIVE_FLAGS.find((f) => arg.startsWith(f + '='))
+    if (matched !== undefined) return `${matched}=[REDACTED]`
+    return arg
+  })
+}
+
 function snapshotArbiterState(cwd: string): Record<string, unknown> {
   const snap: Record<string, unknown> = {}
   const configPath = join(cwd, 'arbiter.json')
@@ -114,7 +126,7 @@ export function startReplay(inputs: ReplayInputs): ReplayHandle {
   mkdirSync(dir, { recursive: true })
   const output: string[] = []
 
-  writeFileSync(join(dir, 'command.txt'), inputs.argv.join(' ') + '\n')
+  writeFileSync(join(dir, 'command.txt'), redactArgv(inputs.argv).join(' ') + '\n')
   writeFileSync(join(dir, 'env.json'), JSON.stringify(redactEnv(inputs.env), null, 2))
   writeFileSync(
     join(dir, 'state-before.json'),

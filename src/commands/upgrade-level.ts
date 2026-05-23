@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { acquireLock } from '../utils/file-lock.js'
 import type { GovernanceLevel } from '../wizard/types.js'
 import { loadConfig, saveConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
@@ -22,7 +23,7 @@ export interface UpgradeLevelOptions {
 const LEVEL_RANK: Record<GovernanceLevel, number> = { L1: 1, L2: 2, L3: 3, L4: 4 }
 const DEFAULT_GRACE_DAYS = 30
 
-export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
+export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> {
   const dir = resolve(opts.dir ?? '.')
   const stored = loadConfig(dir)
 
@@ -44,7 +45,7 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   }
 
   if (opts.extend) {
-    handleExtend(dir, stored, opts.days ?? DEFAULT_GRACE_DAYS, opts.json)
+    await handleExtend(dir, stored, opts.days ?? DEFAULT_GRACE_DAYS, opts.json)
     return
   }
 
@@ -105,7 +106,13 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
     cwd: dir,
   })
 
-  saveConfig(dir, validation.config)
+  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  const lock = await acquireLock(join(dir, '.arbiter', '.lock'))
+  try {
+    saveConfig(dir, validation.config)
+  } finally {
+    await lock.release()
+  }
 
   if (opts.json) {
     jsonOutput('upgrade-level', 'ok', {
@@ -128,12 +135,12 @@ export function runUpgradeLevel(opts: UpgradeLevelOptions): void {
   }
 }
 
-function handleExtend(
+async function handleExtend(
   dir: string,
   stored: ArbiterConfig,
   days: number,
   json: boolean | undefined,
-): void {
+): Promise<void> {
   const existing = stored.graceEndsAt
   if (!existing || Date.parse(existing) <= Date.now()) {
     throw ArbiterError.fromKey(
@@ -147,9 +154,7 @@ function handleExtend(
   const newEndsAt = new Date(Date.parse(existing) + days * 86400000).toISOString()
 
   const arbiterDir = join(dir, '.arbiter')
-  if (!existsSync(arbiterDir)) {
-    mkdirSync(arbiterDir, { recursive: true })
-  }
+  mkdirSync(arbiterDir, { recursive: true })
 
   const logPath = join(arbiterDir, 'grace-log.json')
   let log: unknown[] = []
@@ -187,9 +192,13 @@ function handleExtend(
     days,
   })
 
-  writeFileSync(logPath, JSON.stringify(log, null, 2) + '\n', 'utf-8')
-
-  saveConfig(dir, { ...stored, graceEndsAt: newEndsAt })
+  const lock = await acquireLock(join(arbiterDir, '.lock'))
+  try {
+    writeFileSync(logPath, JSON.stringify(log, null, 2) + '\n', 'utf-8')
+    saveConfig(dir, { ...stored, graceEndsAt: newEndsAt })
+  } finally {
+    await lock.release()
+  }
 
   if (json) {
     jsonOutput('upgrade-level', 'ok', {

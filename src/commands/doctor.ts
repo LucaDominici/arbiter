@@ -6,8 +6,9 @@
  * - `health`: Checks Node version, git, hooks path, and AGENTS.md presence.
  * - `recover-lock`: Force-releases a stale `.arbiter/.lock` file.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { acquireLock } from '../utils/file-lock.js'
 import os from 'node:os'
 import { jsonOutput } from '../utils/json-output.js'
 import { loadConfig, writeSnapshot } from '../utils/config.js'
@@ -378,7 +379,9 @@ export interface DoctorRepairStateResult {
 
 const REPAIR_STATE_CMD = 'doctor repair-state'
 
-export function runDoctorRepairState(opts: DoctorRepairStateOptions = {}): DoctorRepairStateResult {
+export async function runDoctorRepairState(
+  opts: DoctorRepairStateOptions = {},
+): Promise<DoctorRepairStateResult> {
   const dir = resolve(opts.dir ?? '.')
   const configPath = join(dir, 'arbiter.json')
   const snapshotPath = join(dir, '.arbiter-generated.json')
@@ -404,7 +407,13 @@ export function runDoctorRepairState(opts: DoctorRepairStateOptions = {}): Docto
     return { exitCode: 2, repaired: false, snapshotPath }
   }
 
-  writeSnapshot(dir, config)
+  mkdirSync(join(dir, '.arbiter'), { recursive: true })
+  const lock = await acquireLock(join(dir, '.arbiter', '.lock'))
+  try {
+    writeSnapshot(dir, config)
+  } finally {
+    await lock.release()
+  }
 
   if (opts.json) {
     jsonOutput(REPAIR_STATE_CMD, 'ok', { snapshotPath, repaired: true })
