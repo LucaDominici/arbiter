@@ -78,12 +78,12 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
         if (dir != null) rmSync(dir, { recursive: true, force: true })
       })
 
-      // Each functional cell is currently skipped pending Wave D (#1042) —
+      // Each functional cell is currently skipped pending wave-D (#1042) —
       // multiple generator templates emit broken `check-all.mjs` references
       // (e.g. missing `scripts/check-workflow-perms.mjs`). The harness is
-      // ready; Wave D fixes the underlying templates so the generated L1 gate
+      // ready; wave-D fixes the underlying templates so the generated L1 gate
       // passes inside the baked tmpdir.
-      it.skip(`TODO(#1042): bake + execute generated L1 gate (${skipReason ?? 'toolchain present, gate broken'})`, async () => {
+      it.skip(`pending #1042: bake + execute generated L1 gate (${skipReason ?? 'toolchain present, gate broken'})`, async () => {
         await runInit({
           yes: true,
           tools: 'claude',
