@@ -5,7 +5,11 @@
     }
   },
   "ignoreDependencies": ["@commitlint/cli", "jscpd", "prettier"],
-  "ignoreFiles": ["src/test/example.behavioral.test.ts", "src/utils/plugin-worker.ts"],
+  "ignoreFiles": [
+    "src/test/example.behavioral.test.ts",
+    "src/utils/plugin-worker.ts",
+    "cucumber.js"
+  ],
   "ignoreBinaries": [
     "stryker",
     "vitepress",
