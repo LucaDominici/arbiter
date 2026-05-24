@@ -341,6 +341,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:behavioral
 <% } else if (language === 'java') { %>
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
