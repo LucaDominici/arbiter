@@ -25,7 +25,3 @@ Feature: arbiter CLI — core surface
     Then the exit code is 0
     And "arbiter.json" does not exist in the project directory
 
-  @deliberate-fail
-  Scenario: deliberate-fail sentinel
-    When I run "arbiter --version"
-    Then the exit code is 999

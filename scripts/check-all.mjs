@@ -184,6 +184,8 @@ if (subcommand !== 'check') {
     '--config',
     'vitest.integration.config.ts',
   ])
+  // INV-25 (#1040): BDD layer
+  runCheck('BDD suite (INV-25)', 'npm', ['run', 'test:bdd'])
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
