@@ -183,12 +183,12 @@ if (subcommand !== 'check') {
   runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
   runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
   // INV-25 (#1039): full integration suite in L2 gate — 19 files, not just smoke
-  runCheck('integration suite (INV-25)', 'npx', [
-    'vitest',
-    'run',
-    '--config',
-    'vitest.integration.config.ts',
-  ])
+  runCheck(
+    'integration suite (INV-25)',
+    'npx',
+    ['vitest', 'run', '--config', 'vitest.integration.config.ts'],
+    vitestEnv ? { env: vitestEnv } : {},
+  )
   // INV-25 (#1040): BDD layer
   runCheck('BDD suite (INV-25)', 'npm', ['run', 'test:bdd'])
 }

@@ -33,12 +33,12 @@ jobs:
       - name: Stryker mutation (full suite)
         run: npx stryker run
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
         with:
           distribution: temurin
           java-version: '21'
 <% if (buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
       - name: PITest mutation (full suite)
         run: ./gradlew pitest
 <% } else { %>
@@ -46,7 +46,7 @@ jobs:
         run: mvn test-compile org.pitest:pitest-maven:mutationCoverage
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
         with:
           go-version-file: go.mod
       - name: Install go-mutesting
@@ -54,7 +54,7 @@ jobs:
       - name: Mutation testing (informational)
         run: go-mutesting ./... || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
@@ -62,7 +62,7 @@ jobs:
         run: mutmut run
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
       - name: cargo-mutants (full suite)
         run: |
           cargo install cargo-mutants --locked
@@ -102,7 +102,7 @@ jobs:
         with:
           scan-args: '--lockfile=package-lock.json'
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -114,13 +114,13 @@ jobs:
           format: HTML
           args: '--failOnCVSS 7'
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
         with:
           go-version-file: go.mod
       - name: govulncheck
         uses: golang/govulncheck-action@v1
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         with:
           python-version-file: .python-version
       - run: pip install pip-audit
@@ -128,7 +128,7 @@ jobs:
         run: pip-audit --strict
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
       - name: cargo-audit
         run: |
           cargo install cargo-audit --locked
@@ -150,7 +150,7 @@ jobs:
       - name: fast-check fuzz (property-based)
         run: npm run test:fuzz || npm run test:property || true
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -162,7 +162,7 @@ jobs:
           mvn test -Djqwik.database=false
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
         with:
           go-version-file: go.mod
       - name: Go native fuzz (30 min budget)
@@ -176,7 +176,7 @@ jobs:
             done
           fi
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         with:
           python-version-file: .python-version
       - run: pip install atheris
@@ -219,7 +219,7 @@ jobs:
           RUN_E2E: "1"
         run: npm run test:e2e || npm run test:soak || true
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -231,13 +231,13 @@ jobs:
           mvn test -Dgroups='soak,e2e' || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
         with:
           go-version-file: go.mod
       - name: Go soak tests (60 min budget)
         run: go test -tags e2e,soak -timeout 60m ./... || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
@@ -245,11 +245,69 @@ jobs:
         run: pytest -m 'e2e or soak' --timeout=3600 || true
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
       - name: cargo soak tests (60 min budget)
         run: cargo test --test soak -- --nocapture || true
 <% } %>
 
+<% if (locals.enableNativeBakeE2E) { %>
+  bake-e2e-native:
+    name: Native fixture smoke (${{ matrix.stack }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack: ts
+            fixture: ts-library
+          - stack: python
+            fixture: python-library
+          - stack: go
+            fixture: go-library
+          - stack: java
+            fixture: java-library-gradle
+          - stack: rust
+            fixture: rust-library
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
+        if: matrix.stack == 'python'
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
+        if: matrix.stack == 'go'
+        with:
+          go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
+
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
+        if: matrix.stack == 'java'
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        if: matrix.stack == 'java'
+
+      - uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
+        if: matrix.stack == 'rust'
+        with:
+          toolchain: stable
+
+      - name: Native smoke (${{ matrix.stack }})
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+        run: VITEST_NATIVE=1 npx vitest run --config vitest.integration.config.ts __tests__/integration/e2e/native/ -t "$FIXTURE"
+
+<% } %>
 <% if (_isService) { %>
   toxiproxy-resilience:
     name: Toxiproxy resilience (service only)
@@ -263,22 +321,22 @@ jobs:
           cache: npm
       - run: npm ci
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
         with:
           distribution: temurin
           java-version: '21'
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
         with:
           go-version-file: go.mod
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
 <% } %>
       - name: Start Toxiproxy
         uses: shopify/toxiproxy-github-action@v1
@@ -321,6 +379,9 @@ jobs:
       - fuzz
       - soak-e2e
       - gitleaks-history
+<% if (locals.enableNativeBakeE2E) { %>
+      - bake-e2e-native
+<% } %>
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -347,6 +408,9 @@ jobs:
 <% if (_isService) { %>
       - toxiproxy-resilience
 <% } %>
+<% if (locals.enableNativeBakeE2E) { %>
+      - bake-e2e-native
+<% } %>
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -356,6 +420,9 @@ jobs:
             "${{ needs.mutation-deep.result }}"
             "${{ needs.dep-cve-refresh.result }}"
             "${{ needs.gitleaks-history.result }}"
+<% if (locals.enableNativeBakeE2E) { %>
+            "${{ needs.bake-e2e-native.result }}"
+<% } %>
           )
           FAILED=0
           for r in "${RESULTS[@]}"; do

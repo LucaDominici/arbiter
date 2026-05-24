@@ -43,5 +43,6 @@
   "contractType": "none",
   "lanes": ["docs"],
   "ciTierMode": "baseline",
-  "ciPreTestBuild": true
+  "ciPreTestBuild": true,
+  "enableNativeBakeE2E": true
 }

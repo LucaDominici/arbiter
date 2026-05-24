@@ -52,8 +52,13 @@ describe.skipIf(!NATIVE)('native — toolchain smoke tests', () => {
     it(`${fixture} — native runner exits 0`, { timeout: 300_000 }, () => {
       const dir = stageFixture(fixture)
       staged.push(dir)
-      for (const [bin, ...args] of cmds) {
-        const result = spawnSync(bin ?? '', args, { cwd: dir, encoding: 'utf-8' })
+      for (const cmd of cmds) {
+        const [bin, ...args] = cmd
+        if (bin == null) throw new Error(`[${fixture}] empty cmd in STACKS`)
+        const result = spawnSync(bin, args, { cwd: dir, encoding: 'utf-8' })
+        if (result.error != null) {
+          throw new Error(`[${fixture}] failed to spawn '${bin}': ${result.error.message}`)
+        }
         expect(
           result.status,
           `[${fixture}] ${bin} ${args.join(' ')} exited ${String(result.status)}:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,

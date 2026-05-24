@@ -100,6 +100,64 @@ jobs:
 
 
 
+  bake-e2e-native:
+    name: Native fixture smoke (${{ matrix.stack }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack: ts
+            fixture: ts-library
+          - stack: python
+            fixture: python-library
+          - stack: go
+            fixture: go-library
+          - stack: java
+            fixture: java-library-gradle
+          - stack: rust
+            fixture: rust-library
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
+        if: matrix.stack == 'python'
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
+        if: matrix.stack == 'go'
+        with:
+          go-version-file: __tests__/fixtures/real-projects/go-library/go.mod
+
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
+        if: matrix.stack == 'java'
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        if: matrix.stack == 'java'
+
+      - uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
+        if: matrix.stack == 'rust'
+        with:
+          toolchain: stable
+
+      - name: Native smoke (${{ matrix.stack }})
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+        run: VITEST_NATIVE=1 npx vitest run --config vitest.integration.config.ts __tests__/integration/e2e/native/ -t "$FIXTURE"
+
+
+
   gitleaks-history:
     name: Secret scan (full history)
     runs-on: ubuntu-latest
@@ -122,6 +180,9 @@ jobs:
       - fuzz
       - soak-e2e
       - gitleaks-history
+
+      - bake-e2e-native
+
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -146,6 +207,9 @@ jobs:
       - soak-e2e
       - gitleaks-history
 
+
+      - bake-e2e-native
+
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -155,6 +219,9 @@ jobs:
             "${{ needs.mutation-deep.result }}"
             "${{ needs.dep-cve-refresh.result }}"
             "${{ needs.gitleaks-history.result }}"
+
+            "${{ needs.bake-e2e-native.result }}"
+
           )
           FAILED=0
           for r in "${RESULTS[@]}"; do

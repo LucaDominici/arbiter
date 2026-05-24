@@ -18,11 +18,11 @@ jobs:
     name: Dependency age audit (>180 days)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -32,7 +32,7 @@ jobs:
           npx --yes npm-check-updates --jsonAll > dep-age-report.json || true
           echo "Dep age report generated."
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dep-age-report-${{ github.run_id }}
           path: dep-age-report.*
@@ -43,9 +43,9 @@ jobs:
     name: Full license compliance scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -53,7 +53,7 @@ jobs:
       - name: license-checker full report
         run: npx --yes license-checker --json --out license-report.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: license-report-${{ github.run_id }}
           path: license-report.*
@@ -66,8 +66,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -105,9 +105,9 @@ jobs:
     name: SBOM full snapshot
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -115,7 +115,7 @@ jobs:
       - name: npm sbom (CycloneDX)
         run: npm sbom --sbom-format=cyclonedx > sbom.cdx.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-snapshot-${{ github.run_id }}
           path: sbom.cdx.json
@@ -132,14 +132,14 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Collect evidence summary
         run: |
           mkdir -p monthly-evidence
           echo "Monthly run: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > monthly-evidence/summary.txt
           echo "Ref: ${{ github.sha }}" >> monthly-evidence/summary.txt
           echo "Run ID: ${{ github.run_id }}" >> monthly-evidence/summary.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: monthly-evidence-${{ github.run_id }}
           path: monthly-evidence/
