@@ -237,6 +237,16 @@ function validateFeatures(raw: unknown, errors: string[]): boolean {
   return ok
 }
 
+function autoFillThresholds(raw: Record<string, unknown>, level: unknown): void {
+  if (
+    raw['thresholds'] === undefined &&
+    typeof level === 'string' &&
+    GOVERNANCE_LEVELS.has(level)
+  ) {
+    raw['thresholds'] = { ...DEFAULT_THRESHOLDS[level as GovernanceLevel] }
+  }
+}
+
 export function validateConfig(raw: unknown): ValidateResult {
   if (!isRecord(raw)) {
     return { ok: false, errors: ['config must be a non-null object'] }
@@ -257,9 +267,11 @@ export function validateConfig(raw: unknown): ValidateResult {
     }
   }
 
-  const level = raw['governanceLevel']
+  const rawLevel = raw['governanceLevel']
+  const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
+  if (typeof rawLevel === 'string') raw['governanceLevel'] = level
   if (typeof level !== 'string' || !GOVERNANCE_LEVELS.has(level)) {
-    errors.push(`governanceLevel must be one of L1, L2, L3, L4 — got ${String(level)}`)
+    errors.push(`governanceLevel must be one of L1, L2, L3, L4 — got ${String(rawLevel)}`)
   }
 
   if (
@@ -272,6 +284,8 @@ export function validateConfig(raw: unknown): ValidateResult {
   if (typeof raw['useGitHub'] !== 'boolean') {
     errors.push('useGitHub must be a boolean')
   }
+
+  autoFillThresholds(raw, level)
 
   validateFeatures(raw['features'], errors)
   validateThresholds(raw['thresholds'], errors)

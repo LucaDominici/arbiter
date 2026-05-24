@@ -277,7 +277,7 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     targetDir: input.targetDir,
     projectName: input.projectName,
     description: answers.description,
-    language: input.language,
+    language: answers.language,
     framework: input.framework,
     archetype: answers.archetype,
     architectureStyle: answers.architectureStyle,
@@ -296,7 +296,7 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     githubOwner: input.gitInfo.githubOwner,
     githubRepo: input.gitInfo.githubRepo,
     existing: input.existing,
-    languageHooks: getLanguageHooks(input.language),
+    languageHooks: getLanguageHooks(answers.language),
     enableDebtGates: answers.governanceLevel !== 'L1',
     enableSuppressions: true,
     enableSecurityScanning: answers.governanceLevel !== 'L1',
@@ -362,18 +362,25 @@ function buildGovernanceQuestions(): object[] {
     {
       type: 'list',
       name: 'invariantPreset',
-      message: 'Invariant coverage:',
+      message: [
+        'Invariant coverage — which categories of rules to enforce:',
+        '',
+        '  Essential  — arch (no circular deps, hexagonal boundaries) + governance (no any, no orphan TODOs)',
+        '  Standard   — + data integrity (input validation, null guards) + operational (logging, error handling)',
+        '  Full       — + security tier (secrets, auth, injection guards)',
+        '',
+      ].join('\n'),
       choices: [
         {
           name: 'Essential — architectural + governance rules only (~14 rules)',
           value: 'essential',
         },
         {
-          name: 'Standard — + data integrity + operational rules (~23 rules)',
+          name: 'Standard  — + data integrity + operational rules (~23 rules)  [recommended]',
           value: 'standard',
         },
         {
-          name: 'Full — all 28 rules including security tier',
+          name: 'Full      — all 28 rules including security tier',
           value: 'full',
         },
       ],
@@ -383,12 +390,57 @@ function buildGovernanceQuestions(): object[] {
   ]
 }
 
+function buildArchitectureStyleQuestion(): object {
+  return {
+    type: 'list',
+    name: 'architectureStyle',
+    message: [
+      'Internal architecture style — generates package-level enforcement rules (ArchUnit / import checks):',
+      '',
+      '  none            — no architecture rules, use when starting or unsure',
+      '  hexagonal       — ports & adapters: domain/ has no deps on infra/; strict layer separation',
+      '  layered         — web → service → repository: unidirectional package dependencies enforced',
+      '  modular-monolith — bounded-context isolation: modules cannot directly import each other',
+      '',
+    ].join('\n'),
+    choices: [
+      {
+        name: 'none            — No architecture rules generated  [default]',
+        value: 'none',
+      },
+      {
+        name: 'hexagonal       — Ports & adapters (Clean Architecture)',
+        value: 'hexagonal',
+      },
+      {
+        name: 'layered         — Package-direction layers',
+        value: 'layered',
+      },
+      {
+        name: 'modular-monolith — Bounded-context module isolation',
+        value: 'modular-monolith',
+      },
+    ],
+    default: 'none',
+  }
+}
+
 function buildArchetypeQuestions(archetypeDefault: Archetype): object[] {
   return [
     {
       type: 'list',
       name: 'archetype',
-      message: 'Project archetype:',
+      message: [
+        'Project archetype — determines scaffold templates and enforcement gates:',
+        '',
+        '  backend-web-db  — generates REST middleware, DB migrations, Pact/OpenAPI contract tests',
+        '  cli             — generates arg parsing, exit-code enforcement, no HTTP scaffolding',
+        '  library         — generates public-API surface tracking, no runtime scaffolding',
+        '  data-pipeline   — generates data quality checks, idempotency guards',
+        '  frontend-spa    — generates bundle-size tracking, a11y stubs',
+        '  embedded        — minimal scaffold, no network/DB',
+        '',
+      ].join('\n'),
       choices: [
         {
           name: 'backend-web-db  — HTTP service with database',
@@ -414,30 +466,7 @@ function buildArchetypeQuestions(archetypeDefault: Archetype): object[] {
       ],
       default: archetypeDefault,
     },
-    {
-      type: 'list',
-      name: 'architectureStyle',
-      message: 'Internal architecture style:',
-      choices: [
-        {
-          name: 'none            — No architecture rules generated  [default]',
-          value: 'none',
-        },
-        {
-          name: 'hexagonal       — Ports & adapters (Clean Architecture)',
-          value: 'hexagonal',
-        },
-        {
-          name: 'layered         — Package-direction layers',
-          value: 'layered',
-        },
-        {
-          name: 'modular-monolith — Bounded-context module isolation',
-          value: 'modular-monolith',
-        },
-      ],
-      default: 'none',
-    },
+    buildArchitectureStyleQuestion(),
     {
       type: 'list',
       name: 'hasDatabase',
@@ -573,6 +602,21 @@ function buildMainQuestions(wizardInput: WizardInput): object[] {
     'library'
   const brownfieldDetect = detectBrownfieldClass(wizardInput.targetDir, wizardInput.language)
   return [
+    {
+      type: 'list',
+      name: 'language',
+      message: `Primary language (detected: ${wizardInput.language}):`,
+      choices: [
+        { name: 'TypeScript / JavaScript', value: 'typescript' },
+        { name: 'Java', value: 'java' },
+        { name: 'Kotlin', value: 'kotlin' },
+        { name: 'Rust', value: 'rust' },
+        { name: 'Python', value: 'python' },
+        { name: 'Go', value: 'go' },
+        { name: 'Multi-language (polyglot repo)', value: 'multi' },
+      ],
+      default: wizardInput.language === 'unknown' ? 'typescript' : wizardInput.language,
+    },
     {
       type: 'input',
       name: 'description',

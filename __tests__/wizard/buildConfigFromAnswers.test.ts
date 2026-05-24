@@ -53,6 +53,7 @@ function makeAnswers(overrides: Partial<WizardAnswers> = {}): WizardAnswers {
   return {
     description: 'Test service',
     tools: ['claude'],
+    language: 'typescript',
     governanceLevel: 'L2',
     archetype: 'backend-web-db',
     architectureStyle: 'none',
@@ -118,5 +119,21 @@ describe('buildConfigFromAnswers — deployTarget derivation (#1005)', () => {
   it('enableAzureContainerApp derives false when deployTarget is ghcr', () => {
     const config = buildConfigFromAnswers(makeInput(), makeAnswers({ archetype: 'backend-web-db' }))
     expect(config.enableAzureContainerApp).toBe(false)
+  })
+})
+
+describe('buildConfigFromAnswers — language override (#1036)', () => {
+  it('uses answers.language, not input.language', () => {
+    const input = { ...makeInput(), language: 'typescript' as const }
+    const answers = makeAnswers({ language: 'java' })
+    const config = buildConfigFromAnswers(input, answers)
+    expect(config.language).toBe('java')
+  })
+
+  it('preserves detected language when not overridden', () => {
+    const input = { ...makeInput(), language: 'rust' as const }
+    const answers = makeAnswers({ language: 'rust' })
+    const config = buildConfigFromAnswers(input, answers)
+    expect(config.language).toBe('rust')
   })
 })

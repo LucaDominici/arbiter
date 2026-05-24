@@ -2,6 +2,43 @@ import { describe, it, expect } from 'vitest'
 import { validateConfig, DEFAULT_THRESHOLDS } from '../../src/config/schema.js'
 import { migrateV1ToV2 } from '../../src/config/migrations/v1-to-v2.js'
 
+describe('validateConfig — governanceLevel casing normalization', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+    thresholds: DEFAULT_THRESHOLDS.L2,
+  }
+
+  it('normalizes lowercase l2 to L2', () => {
+    const result = validateConfig({ ...base, governanceLevel: 'l2' })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.config.governanceLevel).toBe('L2')
+  })
+
+  it('normalizes mixed-case L3 variants', () => {
+    for (const v of ['l3', 'L3', 'l3']) {
+      const result = validateConfig({ ...base, governanceLevel: v })
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(result.config.governanceLevel).toBe('L3')
+    }
+  })
+
+  it('still rejects genuinely invalid level after normalization', () => {
+    const result = validateConfig({ ...base, governanceLevel: 'L5' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.errors.some((e) => e.includes('governanceLevel'))).toBe(true)
+  })
+})
+
 describe('validateConfig — valid v2', () => {
   it('accepts a well-formed v2 config', () => {
     const config = {
@@ -624,5 +661,56 @@ describe('DEFAULT_THRESHOLDS', () => {
     expect(DEFAULT_THRESHOLDS.L1.cyclomaticComplexity).toBeGreaterThan(
       DEFAULT_THRESHOLDS.L2.cyclomaticComplexity,
     )
+  })
+})
+
+describe('validateConfig — thresholds auto-fill', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    governanceLevel: 'L2',
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+  }
+
+  it('auto-fills thresholds from DEFAULT_THRESHOLDS when missing', () => {
+    const result = validateConfig({ ...base })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.config.thresholds).toEqual(DEFAULT_THRESHOLDS.L2)
+    }
+  })
+
+  it('auto-fills correct thresholds per governance level', () => {
+    for (const level of ['L1', 'L2', 'L3'] as const) {
+      const result = validateConfig({ ...base, governanceLevel: level })
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.config.thresholds).toEqual(DEFAULT_THRESHOLDS[level])
+      }
+    }
+  })
+
+  it('does not overwrite explicitly provided thresholds', () => {
+    const custom = {
+      lineCoverage: 99,
+      branchCoverage: 99,
+      mutationScore: 99,
+      cyclomaticComplexity: 1,
+      methodLength: 10,
+      maxParams: 2,
+    }
+    const result = validateConfig({ ...base, thresholds: custom })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.config.thresholds.lineCoverage).toBe(99)
+    }
   })
 })

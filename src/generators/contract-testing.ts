@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { getLogger } from '../utils/logger.js'
@@ -8,6 +9,28 @@ import type { WriteResult } from '../utils/fs.js'
 
 export interface ContractTestingGeneratorResult {
   files: WriteResult[]
+}
+
+function injectPactPackageJson(targetDir: string): void {
+  const pkgPath = resolvedPath(targetDir, 'package.json')
+  if (!existsSync(pkgPath)) return
+  let pkg: Record<string, unknown>
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
+  } catch (err) {
+    getLogger().warn(
+      'contract_testing.inject_pact_parse_failed',
+      { path: pkgPath, err: String(err) },
+      'injectPactPackageJson: failed to parse package.json',
+    )
+    return
+  }
+  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+  if (!devDeps['@pact-foundation/pact']) {
+    devDeps['@pact-foundation/pact'] = '^16.4.0'
+    pkg.devDependencies = devDeps
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+  }
 }
 
 /** Compute the Java contracts package path. Falls back to "contracts". */
@@ -211,6 +234,10 @@ function generateRestOwned(base: string, config: ProjectConfig, data: object): W
   // F9: API contract baselines — Java only (#896)
   if (config.language === 'java' || config.language === 'multi') {
     extra.push(...generateApiContractBaselines(base, data))
+  }
+
+  if (config.language === 'typescript' || config.language === 'multi') {
+    injectPactPackageJson(base)
   }
 
   return contractFile({
