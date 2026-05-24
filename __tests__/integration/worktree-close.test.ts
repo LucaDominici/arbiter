@@ -92,7 +92,7 @@ afterEach(() => {
 // Helper: open a worktree and simulate merging its branch
 // ---------------------------------------------------------------------------
 
-function openAndMerge(taskId: string, slug: string): string {
+async function openAndMerge(taskId: string, slug: string): Promise<string> {
   await runWorktreeOpen({ taskId, slug, cwd: repoRoot, worktreesDir })
   const wtPath = join(worktreesDir, `${taskId}-${slug}`)
 
@@ -129,7 +129,7 @@ function openAndMerge(taskId: string, slug: string): string {
 
 describe('runWorktreeClose', () => {
   it('closes a merged worktree — directory removed, log written', async () => {
-    openAndMerge('#999', 'test')
+    await openAndMerge('#999', 'test')
 
     runWorktreeClose({
       taskId: '#999',
@@ -200,7 +200,7 @@ describe('runWorktreeClose', () => {
     const envPath = join(repoRoot, '.env')
     writeFileSync(envPath, 'SECRET=1')
 
-    openAndMerge('#999', 'dangling')
+    await openAndMerge('#999', 'dangling')
 
     // Remove .env from the main repo AFTER opening — symlink in worktree now dangles
     rmSync(envPath)
@@ -218,7 +218,7 @@ describe('runWorktreeClose', () => {
   })
 
   it('invokes the close hook and passes the worktree path', async () => {
-    openAndMerge('#999', 'hook')
+    await openAndMerge('#999', 'hook')
 
     // Write a simple hook script that records its argument
     const hookLog = join(repoRoot, 'hook-was-called.txt')
@@ -250,7 +250,7 @@ describe('runWorktreeClose', () => {
   })
 
   it('aborts close (without --force) when close hook exits non-zero', async () => {
-    openAndMerge('#999', 'hookfail')
+    await openAndMerge('#999', 'hookfail')
 
     const hookScript = join(repoRoot, 'fail-hook.sh')
     writeFileSync(hookScript, '#!/bin/sh\nexit 1\n')
@@ -280,7 +280,7 @@ describe('runWorktreeClose', () => {
   })
 
   it('emits warning callback but does not throw when close hook fails under --force', async () => {
-    openAndMerge('#999', 'hookforce')
+    await openAndMerge('#999', 'hookforce')
 
     const hookScript = join(repoRoot, 'fail-hook-force.sh')
     writeFileSync(hookScript, '#!/bin/sh\nexit 1\n')
@@ -324,8 +324,8 @@ describe('runWorktreeClose', () => {
 
   it('closes the second worktree when two share the same task id', async () => {
     // Open two worktrees for the same task id with different slugs
-    openAndMerge('#999', 'first')
-    openAndMerge('#999', 'second')
+    await openAndMerge('#999', 'first')
+    await openAndMerge('#999', 'second')
 
     // Close the first — picks the first matching open-log entry
     runWorktreeClose({ taskId: '#999', cwd: repoRoot, noFetch: true })

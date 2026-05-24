@@ -98,6 +98,17 @@ function assertNotNativeWindows(): void {
   }
 }
 
+// Run git guards BEFORE any FS mutation (#1039 fix): creating .arbiter/ would
+// appear as an untracked file, making the dirty-tree check a false positive.
+function runPreMutationGitGuards(targetDir: string, options: InitOptions): void {
+  const gitInfo = detectGitInfo(targetDir)
+  if (!gitInfo.isGitRepo) return
+  guardAdverseGitState(targetDir, options.force)
+  if (options.brownfield) {
+    guardBrownfieldDirtyTree(targetDir, options.force)
+  }
+}
+
 export async function runInit(options: InitOptions): Promise<void> {
   const targetDir = resolve(options.dir ?? process.cwd())
   const projectName = basename(targetDir)
@@ -118,6 +129,7 @@ export async function runInit(options: InitOptions): Promise<void> {
   }
 
   assertNotNativeWindows()
+  runPreMutationGitGuards(targetDir, options)
 
   mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
@@ -146,9 +158,6 @@ export async function runInit(options: InitOptions): Promise<void> {
 
     if (gitInfo.isGitRepo) {
       guardAdverseGitState(targetDir, options.force)
-      if (options.brownfield) {
-        guardBrownfieldDirtyTree(targetDir, options.force)
-      }
     }
 
     const recipe = await loadRecipeFromOptions(options, log)
@@ -623,13 +632,7 @@ export function guardBrownfieldDirtyTree(targetDir: string, force: boolean | und
   try {
     const result = runCli('git', ['status', '--porcelain'], { cwd: targetDir, timeoutMs: 5000 })
     if (result.stdout.trim() === '') return
-    if (!force)
-      throw ArbiterError.fromKey(
-        'E_INIT_DIRTY_TREE',
-        'errors.E_INIT_DIRTY_TREE',
-        {},
-        { hint: 'Commit or stash changes first, or use --force to override.' },
-      )
+    if (!force) throw ArbiterError.fromKey('E_INIT_DIRTY_TREE', 'errors.E_INIT_DIRTY_TREE')
     getLogger().warn('init.dirty_tree', {}, t('cli.init.dirty_tree_warn'))
   } catch (err) {
     if (err instanceof UserFacingError) throw err

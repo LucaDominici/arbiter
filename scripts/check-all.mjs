@@ -16,10 +16,11 @@
 //        ci tiers (INV-73), action pin parity, action pin sha (INV-76),
 //        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
 //        workflow-runners, workflow-docs-sync, workflow-test-integrity, pr-size-gate,
-//        validator-helptext, tier-coverage, nightly freshness (INV-93) (56)
+//        validator-helptext, tier-coverage, nightly freshness (INV-93),
+//        no passWithNoTests (INV-25, #1039) (57)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
-//       tdd-evidence + evidence-bundle (INV-90) (67)
+//       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) (69)
 //
 // --json [path]: emit gate result JSON to path (default: .arbiter/gate/local-result.json)
 //   Writes schema arbiter-gate-v1 with parityContentHash over static check gate subset.
@@ -139,6 +140,7 @@ runCheck('adapter coverage (INV-88)', 'node', ['scripts/check-adapter-coverage.m
 runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
 runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness.mjs'])
 runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', ['scripts/check-workflow-cosign.mjs'])
+runCheck('no passWithNoTests (INV-25)', 'node', ['scripts/check-no-passwithnotests.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length
@@ -175,6 +177,13 @@ if (subcommand !== 'check') {
   runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
   runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
   runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
+  // INV-25 (#1039): full integration suite in L2 gate — 19 files, not just smoke
+  runCheck('integration suite (INV-25)', 'npx', [
+    'vitest',
+    'run',
+    '--config',
+    'vitest.integration.config.ts',
+  ])
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ describe('TDD evidence gate — integration (dogfood)', () => {
     // Record evidence first: npx tsx src/cli.ts task record-red --test-path __tests__/integration/gate/tdd-evidence-l2.test.ts
     const result = runVerifyTdd({ taskId: '#551', dir: repoRoot })
     expect(result.status).toBe('PASS')
-    expect(result.checks).toHaveLength(4)
+    expect(result.checks).toHaveLength(5)
     expect(result.checks?.every((c) => c.pass)).toBe(true)
   })
 })

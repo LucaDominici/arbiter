@@ -139,15 +139,14 @@ describe('runWorktreeOpen', () => {
       stdio: 'ignore',
     })
 
-    expect(
-      () =>
-        await runWorktreeOpen({
-          taskId: '#999',
-          slug: 'dirty',
-          cwd: repoRoot,
-          worktreesDir,
-        }),
-    ).toThrow(/uncommitted/i)
+    await expect(() =>
+      runWorktreeOpen({
+        taskId: '#999',
+        slug: 'dirty',
+        cwd: repoRoot,
+        worktreesDir,
+      }),
+    ).rejects.toThrow(/uncommitted/i)
   })
 
   it('refuses when running from inside a worktree (.git is a file)', async () => {
@@ -161,28 +160,26 @@ describe('runWorktreeOpen', () => {
     const innerWt = join(worktreesDir, '#999-inner')
 
     // Now try to open from inside that worktree
-    expect(
-      () =>
-        await runWorktreeOpen({
-          taskId: '#998',
-          slug: 'nested',
-          cwd: innerWt,
-          worktreesDir,
-        }),
-    ).toThrow(/main repository/i)
+    await expect(() =>
+      runWorktreeOpen({
+        taskId: '#998',
+        slug: 'nested',
+        cwd: innerWt,
+        worktreesDir,
+      }),
+    ).rejects.toThrow(/main repository/i)
   })
 
   it('refuses when the base branch does not exist', async () => {
-    expect(
-      () =>
-        await runWorktreeOpen({
-          taskId: '#999',
-          slug: 'test',
-          base: 'nonexistent-branch',
-          cwd: repoRoot,
-          worktreesDir,
-        }),
-    ).toThrow(/does not exist/i)
+    await expect(() =>
+      runWorktreeOpen({
+        taskId: '#999',
+        slug: 'test',
+        base: 'nonexistent-branch',
+        cwd: repoRoot,
+        worktreesDir,
+      }),
+    ).rejects.toThrow(/does not exist/i)
   })
 
   it('refuses with a clear message when the worktree already exists (idempotency)', async () => {
@@ -193,15 +190,14 @@ describe('runWorktreeOpen', () => {
       worktreesDir,
     })
 
-    expect(
-      () =>
-        await runWorktreeOpen({
-          taskId: '#999',
-          slug: 'test',
-          cwd: repoRoot,
-          worktreesDir,
-        }),
-    ).toThrow(/already exists/i)
+    await expect(() =>
+      runWorktreeOpen({
+        taskId: '#999',
+        slug: 'test',
+        cwd: repoRoot,
+        worktreesDir,
+      }),
+    ).rejects.toThrow(/already exists/i)
   })
 })
 
@@ -250,15 +246,12 @@ describe('runWorktreeOpen — node_modules handling', () => {
 
   it('succeeds when node_modules does not exist (MISSING, not error)', async () => {
     // No node_modules directory in the main repo
-    expect(
-      () =>
-        await runWorktreeOpen({
-          taskId: '#776',
-          slug: 'nomodules',
-          cwd: repoRoot,
-          worktreesDir,
-        }),
-    ).not.toThrow()
+    await runWorktreeOpen({
+      taskId: '#776',
+      slug: 'nomodules',
+      cwd: repoRoot,
+      worktreesDir,
+    })
 
     const nmPath = join(worktreesDir, '#776-nomodules', 'node_modules')
     expect(existsSync(nmPath)).toBe(false)
@@ -336,16 +329,13 @@ describe('#315 base-branch origin fallback', () => {
     ).toThrow()
 
     // runWorktreeOpen should succeed via origin/feature/315 fallback
-    expect(
-      () =>
-        await runWorktreeOpen({
-          taskId: '#315',
-          slug: 'origin-fallback',
-          base: 'feature/315',
-          cwd: cloneDir,
-          worktreesDir: cloneWorktreesDir,
-        }),
-    ).not.toThrow()
+    await runWorktreeOpen({
+      taskId: '#315',
+      slug: 'origin-fallback',
+      base: 'feature/315',
+      cwd: cloneDir,
+      worktreesDir: cloneWorktreesDir,
+    })
 
     const wtPath = join(cloneWorktreesDir, '#315-origin-fallback')
     expect(existsSync(wtPath)).toBe(true)
