@@ -3,6 +3,7 @@
   "archetype": "backend-web-db",
   "buildTool": "gradle",
   "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
   "note": "Java with spring-boot plugin in build.gradle → detects as backend-web-db archetype",
   "enableSecurityScanning": true,
   "architectureStyle": "hexagonal",

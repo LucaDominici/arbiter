@@ -57,11 +57,13 @@ describe('check-matrix-fixtures.mjs', () => {
         language: 'typescript',
         archetype: 'library',
         levels: ['L1'],
+        tier: 'bake',
       })
       addFixture(fixturesDir, 'java-lib', {
         language: 'java',
         archetype: 'library',
         levels: ['L1'],
+        tier: 'bake',
       })
       const result = run(fixturesDir, matrixFile)
       expect(result.status).toBe(0)
@@ -81,6 +83,7 @@ describe('check-matrix-fixtures.mjs', () => {
         language: 'typescript',
         archetype: 'library',
         levels: ['L1'],
+        tier: 'bake',
       })
       // No rust fixture — violation
       const result = run(fixturesDir, matrixFile)
@@ -201,6 +204,7 @@ describe('check-matrix-fixtures.mjs', () => {
         language: 'typescript',
         archetype: 'library',
         levels: ['L1'],
+        tier: 'bake',
       })
       // No rust fixture — ok since rust only has beta, not proven
       const result = run(fixturesDir, matrixFile)
@@ -214,5 +218,69 @@ describe('check-matrix-fixtures.mjs', () => {
     const fixturesDir = resolve('__tests__/fixtures/real-projects')
     const result = run(fixturesDir, REAL_MATRIX)
     expect(result.status).toBe(0)
+  })
+
+  // ─── C1 (#1041): tier field — selects bake-and-run harness layer ──────────
+
+  it("exits 1 when manifest.json is missing required field 'tier'", () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const matrix = makeMatrix(['typescript'], 'proven')
+      const matrixFile = join(dir, 'matrix.json')
+      writeFileSync(matrixFile, JSON.stringify(matrix))
+      const fixturesDir = join(dir, 'fixtures')
+      addFixture(fixturesDir, 'ts-lib', {
+        language: 'typescript',
+        archetype: 'library',
+        levels: ['L1'],
+        // missing tier
+      })
+      const result = run(fixturesDir, matrixFile)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('tier')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it("exits 1 when tier value is not 'snapshot' | 'bake' | 'functional'", () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const matrix = makeMatrix(['typescript'], 'proven')
+      const matrixFile = join(dir, 'matrix.json')
+      writeFileSync(matrixFile, JSON.stringify(matrix))
+      const fixturesDir = join(dir, 'fixtures')
+      addFixture(fixturesDir, 'ts-lib', {
+        language: 'typescript',
+        archetype: 'library',
+        levels: ['L1'],
+        tier: 'invalid-tier',
+      })
+      const result = run(fixturesDir, matrixFile)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('tier')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it.each(['snapshot', 'bake', 'functional'])('accepts tier value %s', (tier) => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const matrix = makeMatrix(['typescript'], 'proven')
+      const matrixFile = join(dir, 'matrix.json')
+      writeFileSync(matrixFile, JSON.stringify(matrix))
+      const fixturesDir = join(dir, 'fixtures')
+      addFixture(fixturesDir, 'ts-lib', {
+        language: 'typescript',
+        archetype: 'library',
+        levels: ['L1'],
+        tier,
+      })
+      const result = run(fixturesDir, matrixFile)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
   })
 })

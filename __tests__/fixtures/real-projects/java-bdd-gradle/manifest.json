@@ -3,5 +3,6 @@
   "archetype": "backend-web-db",
   "buildTool": "gradle",
   "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
   "note": "Java BDD fixture with cucumber-jvm JUnit5 suite"
 }

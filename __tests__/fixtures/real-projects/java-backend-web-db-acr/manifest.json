@@ -3,6 +3,7 @@
   "archetype": "backend-web-db",
   "buildTool": "maven",
   "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
   "deployTarget": "azure-container-app",
   "note": "Java Maven + Azure Container Registry deployTarget — planning-main parity target; cosign copy ACR TEST → ACR PROD",
   "enableSecurityScanning": true,

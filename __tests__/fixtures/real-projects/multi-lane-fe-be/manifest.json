@@ -3,6 +3,7 @@
   "archetype": "frontend-spa",
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
   "lanes": ["frontend", "backend", "docs"],
   "note": "Multi-lane project: frontend (React SPA) + backend (Spring) + docs — detects all three lanes"
 }

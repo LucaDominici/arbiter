@@ -115,11 +115,28 @@ jobs:
       - run: npm run test:behavioral
 
 
+
+  bake-e2e-tests:
+    name: Bake E2E (T2)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
+      - run: npm run test:e2e:bake
+
+
   extended-required:
     name: Extended Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
-    needs: [check-trigger, integration-tests, license-scan, behavioral-tests]
+    needs: [check-trigger, integration-tests, license-scan, behavioral-tests, bake-e2e-tests]
     if: always()
     steps:
       - run: |
@@ -132,6 +149,11 @@ jobs:
           if [[ "${{ needs.behavioral-tests.result }}" == "failure" ]]; then
             echo "behavioral-tests failed"; exit 1
           fi
+
+          if [[ "${{ needs.bake-e2e-tests.result }}" == "failure" ]]; then
+            echo "bake-e2e-tests failed"; exit 1
+          fi
+
 
 
           echo "Extended CI passed or skipped"

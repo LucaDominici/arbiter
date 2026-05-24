@@ -2,5 +2,6 @@
   "language": "python",
   "archetype": "backend-web-db",
   "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
   "note": "Python backend with pytest-playwright E2E tests"
 }
