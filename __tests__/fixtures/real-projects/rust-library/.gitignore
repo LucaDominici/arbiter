@@ -1,1 +1,2 @@
 target/
+# Cargo.lock IS committed here — see manifest.json note field.

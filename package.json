@@ -46,6 +46,7 @@
     "test:integration": "vitest run __tests__/integrations",
     "test:behavioral": "vitest run __tests__/behavioral",
     "test:e2e:bake": "vitest run --config vitest.integration.config.ts __tests__/integration/e2e/bake/",
+    "test:e2e:native": "VITEST_NATIVE=1 vitest run --config vitest.integration.config.ts __tests__/integration/e2e/native/",
     "test:bdd": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber.js --format progress",
     "test:watch": "vitest",
     "lint": "eslint src __tests__",
