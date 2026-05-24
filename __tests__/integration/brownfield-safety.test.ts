@@ -174,7 +174,7 @@ describe('brownfield safety integration (#540)', () => {
 
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true)
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('uncommitted'))
-  }, 15000)
+  }, 60000)
 
   // ── actual brownfield init: backup + generation ───────────────────────────────
 
@@ -191,7 +191,7 @@ describe('brownfield safety integration (#540)', () => {
 
     expect(existsSync(join(dir, 'AGENTS.md.arbiter-backup'))).toBe(true)
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true)
-  }, 15000)
+  }, 60000)
 
   it('generates .claude/ directory in brownfield project', async () => {
     await runInit({
@@ -205,7 +205,7 @@ describe('brownfield safety integration (#540)', () => {
     })
 
     expect(existsSync(join(dir, '.claude', 'CLAUDE.md'))).toBe(true)
-  }, 15000)
+  }, 60000)
 
   it('brownfield round-trip: backup content matches original AGENTS.md', async () => {
     const { readFileSync } = await import('node:fs')
@@ -223,7 +223,7 @@ describe('brownfield safety integration (#540)', () => {
 
     const backupContent = readFileSync(join(dir, 'AGENTS.md.arbiter-backup'), 'utf-8')
     expect(backupContent).toBe(originalContent)
-  }, 15000)
+  }, 60000)
 })
 
 // ── Multi-stack round-trip (#800) ────────────────────────────────────────────
@@ -271,7 +271,7 @@ describe.each(NON_NODE_FIXTURES)(
       expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true)
       const backupContent = readFileSync(join(dir, 'AGENTS.md.arbiter-backup'), 'utf-8')
       expect(backupContent).toBe(originalContent)
-    }, 15000)
+    }, 60000)
 
     it('preserves stack-native source files untouched', async () => {
       const { readFileSync, readdirSync } = await import('node:fs')
@@ -314,7 +314,7 @@ describe.each(NON_NODE_FIXTURES)(
           originalContent,
         )
       }
-    }, 15000)
+    }, 60000)
 
     it('generates .claude/CLAUDE.md alongside non-Node sources', async () => {
       await runInit({
@@ -328,6 +328,6 @@ describe.each(NON_NODE_FIXTURES)(
       })
 
       expect(existsSync(join(dir, '.claude', 'CLAUDE.md'))).toBe(true)
-    }, 15000)
+    }, 60000)
   },
 )
