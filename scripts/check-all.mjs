@@ -69,6 +69,13 @@ runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
 runCheck('format', 'npx', ['prettier', '--check', '.'])
 runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])
 runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
+runCheck('greenfield smoke', 'npx', [
+  'vitest',
+  'run',
+  '--config',
+  'vitest.integration.config.ts',
+  '__tests__/integration/init-greenfield-smoke.test.ts',
+])
 runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts', 'src/'])
 runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
 runCheck('i18n raw strings', 'node', [
