@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1040",
+  "test_path": "features/example.feature",
+  "test_commit_sha": "d6dcef2340c3ecbc74dbc7ad0092f529f2f69007",
+  "test_run_log": "...................F.\n\nFailures:\n\n1) Scenario: deliberate-fail sentinel # features/example.feature:29\n   ✔ When I run \"arbiter --version\" # features/step_definitions/example.steps.ts:53\n   ✖ Then the exit code is 999 # features/step_definitions/example.steps.ts:58\n       AssertionError [ERR_ASSERTION]: stdout: 0.1.0\n\n       0 ≠ 999\n\n5 scenarios (1 failed, 4 passed)\n16 steps (1 failed, 15 passed)\n0m06.737s (executing steps: 0m06.689s)\n",
+  "observed_failure": "5 scenarios (1 failed, 4 passed)",
+  "recorded_at": "2026-05-24T13:25:00.000Z"
+}

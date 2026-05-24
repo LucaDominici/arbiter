@@ -22,6 +22,7 @@ export interface FailureSignatureEntry {
 export const FAILURE_SIGNATURES: FailureSignatureEntry[] = [
   { framework: 'vitest', pattern: /FAIL\s+\S+\.test\.[jt]sx?/m },
   { framework: 'jest', pattern: /FAIL\s+\S+\.(spec|test)\.[jt]sx?/m },
+  { framework: 'cucumber', pattern: /\d+ scenarios? \(\d+ failed/m },
   { framework: 'pytest', pattern: /={3,}\s*FAILURES\s*={3,}/m },
   { framework: 'gradle', pattern: /FAILED\s*$|BUILD FAILED/m },
   { framework: 'cargo', pattern: /test result: FAILED/m },
