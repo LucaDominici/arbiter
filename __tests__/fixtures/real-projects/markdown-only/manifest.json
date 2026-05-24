@@ -3,6 +3,7 @@
   "archetype": "library",
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "snapshot",
   "decompositionBackend": "markdown",
   "note": "Markdown decomposition backend — no gh required; .arbiter/work/ seeded with a sample work unit"
 }

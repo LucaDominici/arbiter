@@ -3,6 +3,7 @@
   "archetype": "backend-web-db",
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
   "deployTarget": "ghcr",
   "note": "TypeScript + GHCR deployTarget — default home scenario; signed image published to GHCR, deploy.sh customised per runtime",
   "enableSecurityScanning": true

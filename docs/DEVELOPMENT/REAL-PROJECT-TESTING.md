@@ -73,11 +73,24 @@ Every fixture lives under `__tests__/fixtures/real-projects/<name>/` and must co
   "archetype":  "library" | "backend-web-db" | "frontend-spa" | …,
   "buildTool":  "gradle" | "maven" | null,
   "levels":     ["L1"] | ["L1", "L2"],   // levels to exercise
+  "tier":       "snapshot" | "bake" | "functional",
   "note":       "optional human note"
 }
 ```
 
-Three fields are required: `language`, `archetype`, and `levels`. `buildTool` is optional — include it when applicable (e.g., `"gradle"` for Java), omit or set to `null` otherwise. `note` is optional.
+Four fields are required: `language`, `archetype`, `levels`, and `tier`. `buildTool` is optional — include it when applicable (e.g., `"gradle"` for Java), omit or set to `null` otherwise. `note` is optional.
+
+#### `tier` — bake-and-run harness layer (#1041)
+
+The `tier` field selects which E2E layer exercises the fixture:
+
+| Tier         | What runs against the fixture                                                   | Use when                                             |
+| ------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `snapshot`   | Manifest validation only — no `arbiter init`, no exec                           | Pure data/docs fixtures (`markdown-only`)            |
+| `bake`       | `arbiter init` → structural snapshot diff → parse generated manifests (no exec) | Most fixtures (`backend-*`, `bdd`, `frontend-spa` …) |
+| `functional` | `bake` + execute the generated project's own L1 gate inside a clean tmpdir copy | Smallest cheapest fixture per stack (`*-library`)    |
+
+The bake-and-run harness lives in `__tests__/e2e/bake/` and `__tests__/e2e/functional/`. Industry pattern reference: Nx (`create-nx-workspace` Verdaccio), Cookiecutter (`pytest-cookies`), Spring Initializr (`initializr-generator-test`).
 
 ---
 

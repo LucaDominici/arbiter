@@ -3,6 +3,7 @@
   "archetype": "library",
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
-  "note": "Minimal Rust library crate \u2014 no Tauri \u2192 detects as library archetype",
+  "tier": "functional",
+  "note": "Minimal Rust library crate — no Tauri → detects as library archetype",
   "enableSecurityScanning": true
 }

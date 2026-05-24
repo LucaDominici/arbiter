@@ -3,6 +3,7 @@
   "archetype": "library",
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
-  "note": "Minimal Go module \u2014 no framework \u2192 detects as library archetype",
+  "tier": "functional",
+  "note": "Minimal Go module — no framework → detects as library archetype",
   "enableSecurityScanning": true
 }

@@ -66,7 +66,11 @@ if (existsSync(FIXTURES_DIR)) {
 
 // ─── Step 3: Validate each fixture manifest ───────────────────────────────────
 
-const REQUIRED_FIELDS = ['language', 'archetype', 'levels']
+const REQUIRED_FIELDS = ['language', 'archetype', 'levels', 'tier']
+// INV-32 (#1041): tier selects which bake-and-run E2E harness layer runs against
+// the fixture — snapshot (no exec), bake (init + structural diff), functional
+// (init + run generated gate). See docs/DEVELOPMENT/REAL-PROJECT-TESTING.md.
+const VALID_TIERS = new Set(['snapshot', 'bake', 'functional'])
 const fixtureLanguages = new Set()
 
 for (const fixture of fixtureDirs) {
@@ -102,6 +106,13 @@ for (const fixture of fixtureDirs) {
       violations++
       fixtureValid = false
     }
+  }
+  if (fixtureValid && manifest.tier && !VALID_TIERS.has(manifest.tier)) {
+    process.stdout.write(
+      `  ${fixture}/manifest.json: tier '${manifest.tier}' invalid — expected one of: ${[...VALID_TIERS].join(', ')}\n`,
+    )
+    violations++
+    fixtureValid = false
   }
   if (fixtureValid && manifest.language) {
     fixtureLanguages.add(manifest.language)
