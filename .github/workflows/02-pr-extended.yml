@@ -111,6 +111,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
       - run: npm ci
+      - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:behavioral
 
 
