@@ -17,7 +17,7 @@ This document describes arbiter's test structure, conventions, fixture approach,
 
 ## Current Test Suite
 
-42 test files across detectors, utils, generators, templates, integration, brownfield, matrix, and governance categories. Key areas:
+515+ test files across detectors, utils, generators, templates, integration, behavioral, brownfield, matrix, and governance categories. Key areas:
 
 | Category                 | Files                                 | What it covers                                                      |
 | ------------------------ | ------------------------------------- | ------------------------------------------------------------------- |
@@ -28,7 +28,8 @@ This document describes arbiter's test structure, conventions, fixture approach,
 | `__tests__/matrix/`      | 6 files (5 per-stack + cross-product) | Stack-specific generation + INV-11 cross-product combinations       |
 | `__tests__/templates/`   | 4 files                               | EJS template rendering across stacks, governance levels, and tools  |
 | `__tests__/governance/`  | 1 file                                | Governance level effects on AGENTS.md and check-all.mjs             |
-| `__tests__/integration/` | 2 files                               | Full `runInit` / `update` / `diff` command flows                    |
+| `__tests__/integration/` | 19 files                              | Full `runInit` / `update` / `diff` command flows + gate scenarios   |
+| `__tests__/behavioral/`  | 1 file                                | Real CLI spawn tests: `--version`, `--help`, init E2E, dry-run      |
 | `__tests__/brownfield/`  | 4 files                               | Coexistence, backup, and merge scenarios for existing projects      |
 | `__tests__/wizard/`      | 2 files                               | Wizard prompts, dry-run, greenfield/brownfield flow                 |
 
@@ -43,6 +44,14 @@ Unit tests cover a single function or module in isolation. They use `vitest`'s `
 **Detectors** (`__tests__/detectors/`) — test the detection logic by placing marker files in a temp directory and asserting the returned value. For example, `language.test.ts` creates a `package.json` in a temp dir and asserts `detectLanguage(tmpDir)` returns `'typescript'`.
 
 **Utils** (`__tests__/utils/`) — test pure utility functions. `merge.test.ts` calls `mergeSettingsJson(existing, incoming)` with fixture objects and asserts the merged output. No filesystem access.
+
+### Behavioral Tests
+
+Behavioral tests (`__tests__/behavioral/`) spawn the real `dist/cli.js` binary via `spawnSync` and assert observable output and exit-code invariants. They test the full composed pipeline — CLI parsing, command dispatch, and generator output — without mocking any internals. Requires `npm run build` to produce `dist/cli.js` before running.
+
+Current coverage: top-level surface (`--version`, `--help`, unknown command, `init --help`), E2E init (creates `arbiter.json`, reports files created), dry-run (no `arbiter.json` created), `update` contract.
+
+Behavioral tests run as part of the default `npm test` unit suite (included by `vitest.config.ts`), so they appear in coverage and CI unit-test counts.
 
 ### Integration Tests
 
@@ -98,7 +107,7 @@ src/utils/merge.ts                 ->  __tests__/utils/merge.test.ts
 src/commands/init.ts               ->  __tests__/integration/init.test.ts
 ```
 
-Integration tests live under `__tests__/integration/` rather than mirroring a single source file, because they exercise multiple modules together.
+Integration tests live under `__tests__/integration/` (19 files) rather than mirroring a single source file, because they exercise multiple modules together.
 
 ---
 
