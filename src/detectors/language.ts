@@ -24,32 +24,40 @@ function hasKotlinSources(dir: string): boolean {
   }
 }
 
-function hasJvmBuildFile(dir: string): boolean {
-  return (
-    existsSync(join(dir, 'pom.xml')) ||
-    existsSync(join(dir, 'build.gradle')) ||
-    existsSync(join(dir, 'build.gradle.kts'))
-  )
+function findJvmBuildFile(dir: string): string | null {
+  if (existsSync(join(dir, 'pom.xml'))) return 'pom.xml'
+  if (existsSync(join(dir, 'build.gradle'))) return 'build.gradle'
+  if (existsSync(join(dir, 'build.gradle.kts'))) return 'build.gradle.kts'
+  return null
+}
+
+export function detectLanguageWithSource(dir: string): {
+  language: Language
+  source: string | null
+} {
+  const hasTs = existsSync(join(dir, 'package.json'))
+  const jvmAtRoot = findJvmBuildFile(dir)
+  const jvmInBackend = findJvmBuildFile(join(dir, 'backend'))
+
+  const jvmMultiFile = jvmAtRoot ?? jvmInBackend
+  if (hasTs && jvmMultiFile !== null) {
+    return { language: 'multi', source: `package.json + ${jvmMultiFile}` }
+  }
+  if (hasTs) return { language: 'typescript', source: 'package.json' }
+  if (existsSync(join(dir, 'Cargo.toml'))) return { language: 'rust', source: 'Cargo.toml' }
+  if (jvmAtRoot !== null) {
+    if (hasKotlinSources(dir)) return { language: 'kotlin', source: jvmAtRoot }
+    return { language: 'java', source: jvmAtRoot }
+  }
+  if (existsSync(join(dir, 'go.mod'))) return { language: 'go', source: 'go.mod' }
+  if (existsSync(join(dir, 'pyproject.toml')))
+    return { language: 'python', source: 'pyproject.toml' }
+  if (existsSync(join(dir, 'setup.py'))) return { language: 'python', source: 'setup.py' }
+  if (existsSync(join(dir, 'requirements.txt')))
+    return { language: 'python', source: 'requirements.txt' }
+  return { language: 'unknown', source: null }
 }
 
 export function detectLanguage(dir: string): Language {
-  const hasTs = existsSync(join(dir, 'package.json'))
-  const hasJvmAtRoot = hasJvmBuildFile(dir)
-  const hasJvmInBackend = hasJvmBuildFile(join(dir, 'backend'))
-
-  if (hasTs && (hasJvmAtRoot || hasJvmInBackend)) return 'multi'
-  if (hasTs) return 'typescript'
-  if (existsSync(join(dir, 'Cargo.toml'))) return 'rust'
-  if (hasJvmAtRoot) {
-    if (hasKotlinSources(dir)) return 'kotlin'
-    return 'java'
-  }
-  if (existsSync(join(dir, 'go.mod'))) return 'go'
-  if (
-    existsSync(join(dir, 'pyproject.toml')) ||
-    existsSync(join(dir, 'setup.py')) ||
-    existsSync(join(dir, 'requirements.txt'))
-  )
-    return 'python'
-  return 'unknown'
+  return detectLanguageWithSource(dir).language
 }
