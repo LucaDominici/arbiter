@@ -31,8 +31,7 @@ function spawn(
 
 // ─── Phase output assertions ───────────────────────────────────────────────────
 
-// TODO(#1043): unskip in G11 once kit-install phaseScaffold+phaseMeasure are wired
-describe.skip('arbiter kit install --dry-run (dogfood)', () => {
+describe('arbiter kit install --dry-run (dogfood)', () => {
   let firstRun: { stdout: string; stderr: string; status: number }
   let reportPathA: string
 
@@ -105,8 +104,7 @@ describe('arbiter.json immutability under --dry-run (C1)', () => {
 
 // ─── No stray file writes ─────────────────────────────────────────────────────
 
-// TODO(#1043): unskip in G11 once phaseScaffold+phaseMeasure are wired
-describe.skip('no stray file writes under --dry-run', () => {
+describe('no stray file writes under --dry-run', () => {
   it('does not create files in repo root during dry-run', () => {
     // Rely on git to detect untracked/modified files (excludes node_modules via .gitignore)
     const result = spawnSync('git', ['status', '--porcelain'], {
@@ -124,8 +122,7 @@ describe.skip('no stray file writes under --dry-run', () => {
 
 // ─── Determinism (byte-identical second run) ──────────────────────────────────
 
-// TODO(#1043): unskip in G11 once --report-path flag and audit renderer are wired
-describe.skip('audit report determinism', () => {
+describe('audit report determinism', () => {
   it('report file written to --report-path', () => {
     const reportPathA = join(tmpdir(), `arbiter-dogfood-det-A-${process.pid}.md`)
     spawn(['kit', 'install', '--experimental.kit', '--dry-run', '--report-path', reportPathA])

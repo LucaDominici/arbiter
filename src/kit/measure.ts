@@ -44,7 +44,7 @@ export function measureDim(dim: KitDimension, repoRoot: string): MeasureResult {
   if (!existsSync(repoRoot)) return { status: 'missing', evidence: [] }
 
   try {
-    if (dim.categoryRef === 'ci-cd') return measureCiCd(repoRoot)
+    if (dim.categoryRef === 'cicd') return measureCiCd(repoRoot)
     return { status: 'missing', evidence: [] }
   } catch {
     return { status: 'missing', evidence: [] }

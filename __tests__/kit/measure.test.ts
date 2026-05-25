@@ -113,7 +113,7 @@ describe('measureDim — empty repo', () => {
   })
 
   it('returns missing for dim requiring workflow files in empty repo', () => {
-    const dim = makeDim({ id: 'N20', categoryRef: 'ci-cd', status: 'missing' })
+    const dim = makeDim({ id: 'N20', categoryRef: 'cicd', status: 'missing' })
     const result = measureDim(dim, emptyRoot)
     expect(result.status).toBe('missing')
     expect(result.evidence).toHaveLength(0)
@@ -125,7 +125,7 @@ describe('measureDim — empty repo', () => {
 describe('measureDim — repo with CI/CD files', () => {
   it('returns present or partial for CI-related dim when workflow file exists', () => {
     // N20 is a CI dim — .github/workflows/*.yml exists in fixtureRoot
-    const dim = makeDim({ id: 'N20', categoryRef: 'ci-cd', status: 'covered' })
+    const dim = makeDim({ id: 'N20', categoryRef: 'cicd', status: 'covered' })
     const result = measureDim(dim, fixtureRoot)
     expect(['present', 'partial']).toContain(result.status)
   })
