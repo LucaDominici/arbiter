@@ -8,7 +8,7 @@ import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
-import { detectLanguage } from '../detectors/language.js'
+import { detectLanguage, detectLanguageWithSource } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
 import { detectFramework, detectArchetypeHint } from '../detectors/framework.js'
 import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
@@ -140,6 +140,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     log('  Detecting project...')
 
     const language = resolveLanguage(options.language, targetDir)
+    const languageLocked = options.language !== undefined
+    const languageSource = languageLocked ? null : detectLanguageWithSource(targetDir).source
     const framework = detectFramework(targetDir, language)
     const buildCmds = detectBuildCommands(targetDir, language)
     const gitInfo = detectGitInfo(targetDir)
@@ -147,7 +149,9 @@ export async function runInit(options: InitOptions): Promise<void> {
     const githubAccess = detectGithubAccess()
     const lanesResult = detectLanes(targetDir)
 
-    log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
+    log(
+      `  ├── Language: ${language}${formatLangHint(languageLocked, languageSource)}${framework ? ` / ${framework}` : ''}`,
+    )
     log(`  ├── Build: ${buildCmds.buildTool}`)
     log(
       `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
@@ -174,6 +178,8 @@ export async function runInit(options: InitOptions): Promise<void> {
       existing,
       githubAccess,
       lanes: lanesResult.lanes,
+      languageLocked,
+      languageSource,
     })
     if (config === null) return
 
@@ -373,6 +379,11 @@ function buildNonInteractiveConfig(args: {
   return config
 }
 
+function formatLangHint(locked: boolean, source: string | null): string {
+  if (locked) return ''
+  return source ? ` (detected from ${source})` : ' (no markers found)'
+}
+
 function resolveLanguage(override: Language | undefined, targetDir: string): Language {
   if (override !== undefined) return override
   return detectLanguage(targetDir)
@@ -402,6 +413,8 @@ async function resolveConfig(args: {
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
   lanes: import('../wizard/types.js').Lane[]
+  languageLocked: boolean
+  languageSource: string | null
 }): Promise<ProjectConfig | null> {
   const {
     options,
@@ -415,6 +428,8 @@ async function resolveConfig(args: {
     existing,
     githubAccess,
     lanes,
+    languageLocked,
+    languageSource,
   } = args
   if (options.yes || recipe !== undefined) {
     return buildNonInteractiveConfig({
@@ -441,6 +456,8 @@ async function resolveConfig(args: {
     existing,
     githubAccess,
     detectedLanes: lanes,
+    languageLocked,
+    languageSource,
   })
   if (wizardResult === null) {
     return null

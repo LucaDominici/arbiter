@@ -4,6 +4,9 @@ import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js
 // Module-level mocks must be at top level (hoisted by vitest)
 vi.mock('../../src/detectors/language.js', () => ({
   detectLanguage: vi.fn().mockReturnValue('typescript'),
+  detectLanguageWithSource: vi
+    .fn()
+    .mockReturnValue({ language: 'typescript', source: 'package.json' }),
 }))
 vi.mock('../../src/detectors/build.js', () => ({
   detectBuildCommands: vi.fn().mockReturnValue({
@@ -112,6 +115,7 @@ vi.mock('../../src/utils/plugin-loader.js', () => ({
 }))
 
 import { runWizard, determineFlow } from '../../src/wizard/prompts.js'
+import { detectLanguageWithSource } from '../../src/detectors/language.js'
 import { runGeneratorsFromRegistry } from '../../src/generators/registry.js'
 import { runProbes } from '../../src/compatibility/probe.js'
 import { isL3Allowed } from '../../src/utils/maturity-check.js'
@@ -132,6 +136,7 @@ const mockApplyBranchProtection = vi.mocked(applyBranchProtection)
 const mockCreateProjectBoard = vi.mocked(createProjectBoard)
 const mockLoadPlugin = vi.mocked(loadPlugin)
 const mockLoadConfig = vi.mocked(loadConfig)
+const mockDetectLanguageWithSource = vi.mocked(detectLanguageWithSource)
 
 describe('runInit', () => {
   let dir: string
@@ -751,5 +756,82 @@ describe('parseTools / parseLevel — input validation (#325)', () => {
         noVerify: true,
       }),
     ).rejects.toMatchObject({ code: 'E_INVALID_LEVEL' })
+  })
+})
+
+describe('preamble detection source (#1036)', () => {
+  let dir: string
+  let stdoutSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.clearAllMocks()
+    mockRunGeneratorsFromRegistry.mockReturnValue([])
+    mockRunProbes.mockReturnValue({
+      dir: '/tmp',
+      stack: 'typescript',
+      probes: [],
+      hasFailures: false,
+      hasWarnings: false,
+    })
+    mockIsL3Allowed.mockReturnValue({ allowed: true, errorMessage: null })
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('shows detection source in preamble when language is auto-detected from a marker', async () => {
+    mockDetectLanguageWithSource.mockReturnValue({ language: 'typescript', source: 'package.json' })
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: true,
+      brownfield: false,
+      noVerify: true,
+    })
+    const output = (stdoutSpy.mock.calls as unknown[][]).map((c) => String(c[0])).join('')
+    expect(output).toContain('Language: typescript (detected from package.json)')
+  })
+
+  it('shows no-markers hint in preamble when detection finds no markers', async () => {
+    mockDetectLanguageWithSource.mockReturnValue({ language: 'typescript', source: null })
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: true,
+      brownfield: false,
+      noVerify: true,
+    })
+    const output = (stdoutSpy.mock.calls as unknown[][]).map((c) => String(c[0])).join('')
+    expect(output).toContain('Language: typescript (no markers found)')
+  })
+
+  it('omits detection hint when --language is passed explicitly', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: true,
+      brownfield: false,
+      noVerify: true,
+      language: 'rust',
+    })
+    const output = (stdoutSpy.mock.calls as unknown[][]).map((c) => String(c[0])).join('')
+    expect(output).toContain('Language: rust')
+    expect(output).not.toContain('detected from')
+    expect(output).not.toContain('no markers found')
   })
 })
