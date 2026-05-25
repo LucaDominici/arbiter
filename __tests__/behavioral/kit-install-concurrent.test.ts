@@ -41,7 +41,9 @@ describe('concurrent kit install --dry-run', () => {
 
   it('lock file is cleaned up after concurrent run', async () => {
     const { existsSync } = await import('node:fs')
-    const lockPath = join(REPO_ROOT, '.arbiter/arbiter.lock')
+    // Lock file is `kit.lock` (see src/utils/config.ts saveConfig).
+    // Under --dry-run, saveConfig is never called, so the lock is never created.
+    const lockPath = join(REPO_ROOT, '.arbiter/kit.lock')
     // After all processes complete, lock file must be gone
     // (it should have been released after the run)
     // Note: lock file may not exist at all if no persistence occurred (--dry-run)

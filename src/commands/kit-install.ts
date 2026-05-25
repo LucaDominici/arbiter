@@ -305,6 +305,12 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
   try {
     const arbiterConfig = loadConfig(opts.targetDir)
     const config = buildProjectConfig(arbiterConfig, opts)
+    if (config.hasDatabase && !config.databaseEngine) {
+      // databaseEngine detection not yet implemented — requiresDbEngine dims will be marked NA (fail-closed, H4)
+      process.stderr.write(
+        `[kit-install] hasDatabase=true but databaseEngine unknown — dims with requiresDbEngine will be skipped (see TODO #1058)\n`,
+      )
+    }
 
     phases.push(phaseDetect(opts))
 

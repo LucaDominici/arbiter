@@ -92,6 +92,10 @@ describe('arbiter kit install --dry-run (dogfood)', () => {
 })
 
 // ─── No arbiter.json mutation (C1) ───────────────────────────────────────────
+// Note: under pre-commit, the hook rsyncs the repo to a temp dir without .git;
+// any CLI mutation would land in the temp copy, not the real repo. GIT_CWD points
+// to the real git root (ARBITER_HOOK_GIT_CWD) so git diff always sees a clean tree.
+// This assertion is authoritative in normal `vitest` runs (CLI cwd = real repo).
 
 describe('arbiter.json immutability under --dry-run (C1)', () => {
   it('arbiter.json is unchanged after dry-run (git diff --quiet)', () => {
