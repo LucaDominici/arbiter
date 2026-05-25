@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runKitInstall, type KitInstallOptions } from '../../src/commands/kit-install.js'
+import { defaultConfig } from '../../src/utils/config.js'
 
 let tmpDir: string
 
@@ -26,8 +27,8 @@ function makeOptions(overrides: Partial<KitInstallOptions> = {}): KitInstallOpti
 }
 
 describe('runKitInstall — happy path (dryRun=true)', () => {
-  it('returns a result with all 6 phase labels', () => {
-    const result = runKitInstall(makeOptions())
+  it('returns a result with all 6 phase labels', async () => {
+    const result = await runKitInstall(makeOptions())
     const phases = result.phases.map((p) => p.phase)
     expect(phases).toContain('DETECT')
     expect(phases).toContain('MEASURE')
@@ -37,33 +38,35 @@ describe('runKitInstall — happy path (dryRun=true)', () => {
     expect(phases).toContain('VERIFY')
   })
 
-  it('returns ok=true for a dry-run', () => {
-    const result = runKitInstall(makeOptions())
+  it('returns ok=true for a dry-run', async () => {
+    const result = await runKitInstall(makeOptions())
     expect(result.ok).toBe(true)
   })
 
-  it('includes a wavePlan in the result', () => {
-    const result = runKitInstall(makeOptions())
+  it('includes a wavePlan in the result', async () => {
+    const result = await runKitInstall(makeOptions())
     expect(result.wavePlan).toBeDefined()
     expect(result.wavePlan!.waves).toHaveLength(4)
   })
 
-  it('DETECT phase captures language and brownfieldClass', () => {
-    const result = runKitInstall(makeOptions({ language: 'typescript', brownfieldClass: 'medium' }))
+  it('DETECT phase captures language and brownfieldClass', async () => {
+    const result = await runKitInstall(
+      makeOptions({ language: 'typescript', brownfieldClass: 'medium' }),
+    )
     const detect = result.phases.find((p) => p.phase === 'DETECT')
     expect(detect?.output).toContain('typescript')
     expect(detect?.output).toContain('medium')
   })
 
-  it('PLAN phase output references wave labels', () => {
-    const result = runKitInstall(makeOptions())
+  it('PLAN phase output references wave labels', async () => {
+    const result = await runKitInstall(makeOptions())
     const plan = result.phases.find((p) => p.phase === 'PLAN')
     expect(plan?.output).toContain('W0')
     expect(plan?.output).toContain('W3')
   })
 
-  it('VERIFY phase reports a coverage percentage and W1 count', () => {
-    const result = runKitInstall(makeOptions())
+  it('VERIFY phase reports a coverage percentage and W1 count', async () => {
+    const result = await runKitInstall(makeOptions())
     const verify = result.phases.find((p) => p.phase === 'VERIFY')
     expect(verify?.output).toMatch(/VERIFY: coverage \d+%/)
     expect(verify?.output).toMatch(/\d+ dims in W1/)
@@ -71,16 +74,25 @@ describe('runKitInstall — happy path (dryRun=true)', () => {
 })
 
 describe('runKitInstall — SCAFFOLD phase modes', () => {
-  it('scaffold phase reports dryRun mode when dryRun=true', () => {
-    const result = runKitInstall(makeOptions({ dryRun: true }))
+  it('scaffold phase reports no arbiter.json when directory has none', async () => {
+    const result = await runKitInstall(makeOptions({ dryRun: true }))
     const scaffold = result.phases.find((p) => p.phase === 'SCAFFOLD')
-    expect(scaffold?.output).toContain('dry-run')
+    expect(scaffold?.output).toContain('no arbiter.json')
   })
 
-  it('scaffold phase reports stub when dryRun=false', () => {
-    const result = runKitInstall(makeOptions({ dryRun: false }))
+  it('scaffold phase reports file counts when arbiter.json is present', async () => {
+    writeFileSync(join(tmpDir, 'arbiter.json'), JSON.stringify(defaultConfig(), null, 2) + '\n')
+    const result = await runKitInstall(makeOptions({ dryRun: true }))
     const scaffold = result.phases.find((p) => p.phase === 'SCAFFOLD')
-    expect(scaffold?.output).toContain('java')
-    expect(scaffold?.output).toContain('gold')
+    expect(scaffold?.output).toMatch(/SCAFFOLD: \d+ files/)
+  })
+})
+
+describe('runKitInstall — MEASURE phase', () => {
+  it('MEASURE phase output includes dim counts', async () => {
+    const result = await runKitInstall(makeOptions())
+    const measure = result.phases.find((p) => p.phase === 'MEASURE')
+    expect(measure?.output).toContain('MEASURE:')
+    expect(measure?.output).toMatch(/\d+ dims measured/)
   })
 })
