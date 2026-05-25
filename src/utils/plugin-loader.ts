@@ -15,6 +15,21 @@ export interface LoadPluginOptions {
   invokeTimeoutMs?: number
 }
 
+// pathToFileURL was previously used for createRequire anchors but encodes '#' as
+// '%23', causing require.resolve to look in a non-existent percent-encoded directory.
+// createRequire(string) accepts raw fs paths directly — no URL conversion needed.
+export function validateTargetDir(targetDir: string): void {
+  for (const ch of targetDir) {
+    const code = ch.charCodeAt(0)
+    if (code < 32 || code === 127) {
+      throw new Error(`invalid targetDir: contains NUL, control character, or DEL`)
+    }
+  }
+  if (process.platform !== 'win32' && targetDir.includes('\\')) {
+    throw new Error(`invalid targetDir: contains backslash (use forward slashes on POSIX)`)
+  }
+}
+
 function resolveWorkerPath(): { path: string; execArgv: string[] } {
   const url = import.meta.url
   if (url.endsWith('.ts')) {
@@ -103,13 +118,30 @@ function invokeInWorker(
   })
 }
 
+async function loadRawMod(
+  require: NodeJS.Require,
+  entry: string,
+): Promise<Record<string, unknown>> {
+  try {
+    const loaded = require(entry) as unknown
+    if (loaded === null || typeof loaded !== 'object') {
+      throw new Error('Plugin must export a default object.')
+    }
+    return loaded as Record<string, unknown>
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ERR_REQUIRE_ESM') throw err
+    return (await import(pathToFileURL(entry).href)) as Record<string, unknown>
+  }
+}
+
 export async function loadPlugin(
   pkg: string,
   targetDir: string,
   opts?: LoadPluginOptions,
 ): Promise<ArbiterPlugin> {
+  validateTargetDir(targetDir)
   const timeoutMs = opts?.invokeTimeoutMs ?? DEFAULT_TIMEOUT_MS
-  const require = createRequire(pathToFileURL(join(targetDir, '__arbiter_anchor__.js')).href)
+  const require = createRequire(join(targetDir, '__arbiter_anchor__.js'))
   let entry: string
   try {
     entry = require.resolve(pkg)
@@ -127,11 +159,11 @@ export async function loadPlugin(
       { cause: err },
     )
   }
-  const rawMod: Record<string, unknown> = (await import(pathToFileURL(entry).href)) as Record<
-    string,
-    unknown
-  >
-  const plugin = rawMod['default'] ?? rawMod['plugin']
+  // Prefer CJS require for metadata extraction: avoids pathToFileURL encoding
+  // '#' as '%23', which breaks Vite's module resolver in test environments.
+  // Falls back to dynamic import for ESM-only plugins (ERR_REQUIRE_ESM).
+  const rawMod = await loadRawMod(require, entry)
+  const plugin = rawMod['default'] ?? rawMod['plugin'] ?? rawMod
   validatePluginShape(plugin, pkg)
   const p = plugin as Record<string, unknown>
   const pluginName = p['name'] as string

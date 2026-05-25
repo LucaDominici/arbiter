@@ -2,9 +2,8 @@
 import { resolve, join } from 'node:path'
 import { mkdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { pathToFileURL } from 'node:url'
 import { loadConfig, saveConfig } from '../utils/config.js'
-import { loadPlugin } from '../utils/plugin-loader.js'
+import { loadPlugin, validateTargetDir } from '../utils/plugin-loader.js'
 import { acquireLock } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
 import { jsonOutput } from '../utils/json-output.js'
@@ -358,7 +357,8 @@ export function runPluginListValidate(opts: PluginListValidateOptions = {}): Plu
   }
 
   const pluginNames = Array.isArray(stored.plugins) ? stored.plugins : []
-  const require = createRequire(pathToFileURL(join(targetDir, '__arbiter_anchor__.js')).href)
+  validateTargetDir(targetDir)
+  const require = createRequire(join(targetDir, '__arbiter_anchor__.js'))
   const results = pluginNames.map((pkg) => validateSinglePlugin(pkg, require))
 
   if (opts.json) {
