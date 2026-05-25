@@ -98,7 +98,7 @@ export function _translateFsError(code: string, path: string): string | null {
 
 export interface WriteResult {
   path: string
-  action: 'created' | 'skipped' | 'replaced' | 'backed-up-and-replaced'
+  action: 'created' | 'skipped' | 'replaced' | 'backed-up-and-replaced' | 'dry-run'
 }
 
 /**
@@ -110,9 +110,10 @@ export interface WriteResult {
 export function writeFile(
   filePath: string,
   content: string,
-  opts: { skipIfExists?: boolean; backup?: boolean } = {},
+  opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
-  const { skipIfExists = false, backup = false } = opts
+  const { skipIfExists = false, backup = false, dryRun = false } = opts
+  if (dryRun) return { path: filePath, action: 'dry-run' }
 
   if (existsSync(filePath)) {
     if (skipIfExists) {
@@ -137,8 +138,9 @@ export function writeFile(
 export function copyStaticFile(
   src: string,
   dest: string,
-  opts: { skipIfExists?: boolean } = {},
+  opts: { skipIfExists?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
+  if (opts.dryRun) return { path: dest, action: 'dry-run' }
   const existed = existsSync(dest)
   if (existed && opts.skipIfExists) {
     return { path: dest, action: 'skipped' }

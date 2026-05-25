@@ -111,7 +111,7 @@ function v2ToProjectConfig(
 function printStats(results: WriteResult[]): void {
   const created = results.filter((r) => r.action === 'created').length
   const replaced = results.filter((r) => r.action === 'backed-up-and-replaced').length
-  const skipped = results.filter((r) => r.action === 'skipped').length
+  const skipped = results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length
   process.stdout.write(`${t('cli.update.done', { created, replaced, skipped })}\n`)
 }
 
@@ -369,7 +369,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const summary: UpdateSummary = {
       created: results.filter((r) => r.action === 'created').length,
       updated: results.filter((r) => r.action === 'backed-up-and-replaced').length,
-      skipped: results.filter((r) => r.action === 'skipped').length,
+      skipped: results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length,
     }
     emitUpdateOutcome(options, summary, generatorErrors, backendResult.warnings)
 
