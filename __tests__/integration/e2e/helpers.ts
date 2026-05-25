@@ -28,15 +28,22 @@ export function listFixtures(...tiers: Array<FixtureManifest['tier']>): string[]
   const names = readdirSync(FIXTURES_ROOT).filter((entry) => {
     try {
       return statSync(join(FIXTURES_ROOT, entry)).isDirectory()
-    } catch {
-      return false
+    } catch (err) {
+      // FAIL-OPEN-INTENT: ENOENT/ENOTDIR are race-safe skips; all other errors re-throw
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') return false
+      throw err
     }
   })
   return names.filter((name) => {
     try {
       return accept.has(loadFixtureManifest(name).tier)
-    } catch {
-      return false
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false
+      throw new Error(
+        `fixture '${name}' has invalid manifest.json: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      )
     }
   })
 }

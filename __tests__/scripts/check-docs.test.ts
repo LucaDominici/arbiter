@@ -12,9 +12,14 @@ function git(args: string[], cwd: string): void {
 }
 
 function run(cwd: string): { status: number; out: string } {
+  // Strip ARBITER_SKIP_DOCS so tests are not affected by the pre-commit bypass env var.
+  const cleanEnv = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => k !== 'ARBITER_SKIP_DOCS'),
+  )
   const r = spawnSync('node', [join(cwd, 'scripts', 'check-docs.mjs')], {
     cwd,
     encoding: 'utf-8',
+    env: cleanEnv,
   })
   return { status: r.status ?? 1, out: (r.stdout ?? '') + (r.stderr ?? '') }
 }
