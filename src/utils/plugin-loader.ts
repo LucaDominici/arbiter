@@ -18,7 +18,7 @@ export interface LoadPluginOptions {
 // pathToFileURL was previously used for createRequire anchors but encodes '#' as
 // '%23', causing require.resolve to look in a non-existent percent-encoded directory.
 // createRequire(string) accepts raw fs paths directly — no URL conversion needed.
-export function validateTargetDir(targetDir: string): void {
+function validateTargetDir(targetDir: string): void {
   for (const ch of targetDir) {
     const code = ch.charCodeAt(0)
     if (code < 32 || code === 127) {
