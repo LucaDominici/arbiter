@@ -33,6 +33,12 @@ const ALLOWLIST = new Set([
   'seed.ts',
 ])
 
+// Default or namespace import patterns also grant access to write APIs via fs.*
+const DEFAULT_IMPORT = /import\s+\w+\s+from\s+'node:fs'/
+const NAMESPACE_IMPORT = /import\s+\*\s+as\s+\w+\s+from\s+'node:fs'/
+// write-class method calls on a namespace/default binding
+const NS_WRITE_OPS = /\b\w+\.(writeFileSync|mkdirSync|copyFileSync|appendFileSync|renameSync)\s*\(/
+
 const generatorsDir = join(process.cwd(), 'src', 'generators')
 let violations = 0
 
@@ -43,16 +49,22 @@ for (const entry of readdirSync(generatorsDir)) {
   const full = join(generatorsDir, entry)
   const src = readFileSync(full, 'utf-8')
 
-  // Check if this file imports from 'node:fs' and includes a write-class API
   if (!src.includes("from 'node:fs'")) continue
 
-  const importMatch = src.match(/import\s*\{([^}]+)\}\s*from\s*'node:fs'/)
-  if (!importMatch) continue
-
-  const imported = importMatch[1]
-  if (WRITE_OPS.test(imported)) {
+  // Named import: import { writeFileSync } from 'node:fs'
+  const namedImportMatch = src.match(/import\s*\{([^}]+)\}\s*from\s*'node:fs'/)
+  if (namedImportMatch && WRITE_OPS.test(namedImportMatch[1])) {
     process.stderr.write(
       `  ${relative(process.cwd(), full)}: imports write-op from 'node:fs' — route through utils/fs.ts or add to allowlist with guarded writes\n`,
+    )
+    violations++
+    continue
+  }
+
+  // Default or namespace import with write-class call: import fs from 'node:fs'; fs.writeFileSync(...)
+  if ((DEFAULT_IMPORT.test(src) || NAMESPACE_IMPORT.test(src)) && NS_WRITE_OPS.test(src)) {
+    process.stderr.write(
+      `  ${relative(process.cwd(), full)}: default/namespace import of 'node:fs' with write call — route through utils/fs.ts or add to allowlist with guarded writes\n`,
     )
     violations++
   }

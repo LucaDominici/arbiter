@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 
 // Mock run-cli before importing emit-issues (CANON-12)
 vi.mock('../../src/utils/run-cli.js', () => ({
-  runCli: vi.fn().mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 }),
+  runCli: vi.fn().mockReturnValue({ stdout: '', stderr: '', exitCode: 0 }),
 }))
 
 import { emitWaveIssues } from '../../src/kit/emit-issues.js'
@@ -39,16 +39,16 @@ afterEach(() => {
 // ─── No issues when W1 empty ──────────────────────────────────────────────────
 
 describe('emitWaveIssues', () => {
-  it('returns created:0 when W1 is empty', async () => {
+  it('returns created:0 when W1 is empty', () => {
     const plan = makeWavePlan([])
-    const result = await emitWaveIssues(plan, false)
+    const result = emitWaveIssues(plan, false)
     expect(result.created).toBe(0)
     expect(result.skipped).toBe(0)
   })
 
-  it('does not call runCli when W1 is empty', async () => {
+  it('does not call runCli when W1 is empty', () => {
     const plan = makeWavePlan([])
-    await emitWaveIssues(plan, false)
+    emitWaveIssues(plan, false)
     expect(runCli).not.toHaveBeenCalled()
   })
 })
@@ -56,27 +56,27 @@ describe('emitWaveIssues', () => {
 // ─── Creates one issue per W1 dim ─────────────────────────────────────────────
 
 describe('emitWaveIssues — with W1 dims', () => {
-  it('calls runCli once per W1 dim', async () => {
+  it('calls runCli once per W1 dim', () => {
     const plan = makeWavePlan([
       { dimId: 'N03', category: 'static-analysis' },
       { dimId: 'N07', category: 'testing' },
     ])
-    const result = await emitWaveIssues(plan, false)
+    const result = emitWaveIssues(plan, false)
     expect(runCli).toHaveBeenCalledTimes(2)
     expect(result.created).toBe(2)
   })
 
-  it('gh issue command contains dim ID in title', async () => {
+  it('gh issue command contains dim ID in title', () => {
     const plan = makeWavePlan([{ dimId: 'N03', category: 'static-analysis' }])
-    await emitWaveIssues(plan, false)
+    emitWaveIssues(plan, false)
     const [cmd, args] = (runCli as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string[]]
     const fullCmd = `${cmd} ${args.join(' ')}`
     expect(fullCmd).toContain('N03')
   })
 
-  it('uses gh issue create subcommand', async () => {
+  it('uses gh issue create subcommand', () => {
     const plan = makeWavePlan([{ dimId: 'N01', category: 'testing' }])
-    await emitWaveIssues(plan, false)
+    emitWaveIssues(plan, false)
     const [cmd] = (runCli as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string[]]
     expect(cmd).toBe('gh')
   })
@@ -85,18 +85,18 @@ describe('emitWaveIssues — with W1 dims', () => {
 // ─── dryRun=true logs but does NOT call runCli ────────────────────────────────
 
 describe('emitWaveIssues — dry-run mode', () => {
-  it('does not call runCli in dry-run mode', async () => {
+  it('does not call runCli in dry-run mode', () => {
     const plan = makeWavePlan([{ dimId: 'N03', category: 'static-analysis' }])
-    await emitWaveIssues(plan, true)
+    emitWaveIssues(plan, true)
     expect(runCli).not.toHaveBeenCalled()
   })
 
-  it('returns skipped count equal to W1 dim count in dry-run', async () => {
+  it('returns skipped count equal to W1 dim count in dry-run', () => {
     const plan = makeWavePlan([
       { dimId: 'N03', category: 'static-analysis' },
       { dimId: 'N07', category: 'testing' },
     ])
-    const result = await emitWaveIssues(plan, true)
+    const result = emitWaveIssues(plan, true)
     expect(result.created).toBe(0)
     expect(result.skipped).toBe(2)
   })

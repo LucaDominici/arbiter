@@ -37,6 +37,7 @@ beforeAll(() => {
 
   writeFileSync(join(fixtureRoot, 'package.json'), JSON.stringify({ name: 'test-project' }))
   writeFileSync(join(fixtureRoot, '.github/workflows/01-gate.yml'), 'name: gate')
+  writeFileSync(join(fixtureRoot, '.github/workflows/02-pr.yml'), 'name: pr')
   writeFileSync(join(fixtureRoot, 'AGENTS.md'), '# Agents')
 })
 

@@ -46,6 +46,7 @@ export function measureDim(dim: KitDimension, repoRoot: string): MeasureResult {
 
   try {
     if (dim.categoryRef === 'cicd') return measureCiCd(repoRoot)
+    // TODO(#1058): add per-category measurement rules for remaining 76 dim categories
     return { status: 'missing', evidence: [] }
   } catch (err) {
     process.stderr.write(`[measure] measureDim failed for ${dim.id}: ${String(err)}\n`)
