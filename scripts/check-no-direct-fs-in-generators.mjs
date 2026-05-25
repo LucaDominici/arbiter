@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
+// CATALOG: Guards src/generators/*.ts against direct node:fs write-op imports.
+// CATALOG: Rejected fold-in into check-all.mjs because it requires generator-specific allowlist state.
+// CATALOG: Rejected fold-in into check-no-direct-spawn.mjs because it enforces a different rule class (fs vs child_process).
+//
 // Prevents new src/generators/*.ts files from importing write-operation APIs
 // directly from 'node:fs'. New generators must route writes through utils/fs.ts
 // so that the dryRun flag is honoured at every call site.
@@ -39,41 +43,46 @@ const NAMESPACE_IMPORT = /import\s+\*\s+as\s+\w+\s+from\s+'node:fs'/
 // write-class method calls on a namespace/default binding
 const NS_WRITE_OPS = /\b\w+\.(writeFileSync|mkdirSync|copyFileSync|appendFileSync|renameSync)\s*\(/
 
-const generatorsDir = join(process.cwd(), 'src', 'generators')
-let violations = 0
+try {
+  const generatorsDir = join(process.cwd(), 'src', 'generators')
+  let violations = 0
 
-for (const entry of readdirSync(generatorsDir)) {
-  if (!entry.endsWith('.ts')) continue
-  if (ALLOWLIST.has(entry)) continue
+  for (const entry of readdirSync(generatorsDir)) {
+    if (!entry.endsWith('.ts')) continue
+    if (ALLOWLIST.has(entry)) continue
 
-  const full = join(generatorsDir, entry)
-  const src = readFileSync(full, 'utf-8')
+    const full = join(generatorsDir, entry)
+    const src = readFileSync(full, 'utf-8')
 
-  if (!src.includes("from 'node:fs'")) continue
+    if (!src.includes("from 'node:fs'")) continue
 
-  // Named import: import { writeFileSync } from 'node:fs'
-  const namedImportMatch = src.match(/import\s*\{([^}]+)\}\s*from\s*'node:fs'/)
-  if (namedImportMatch && WRITE_OPS.test(namedImportMatch[1])) {
-    process.stderr.write(
-      `  ${relative(process.cwd(), full)}: imports write-op from 'node:fs' — route through utils/fs.ts or add to allowlist with guarded writes\n`,
-    )
-    violations++
-    continue
+    // Named import: import { writeFileSync } from 'node:fs'
+    const namedImportMatch = src.match(/import\s*\{([^}]+)\}\s*from\s*'node:fs'/)
+    if (namedImportMatch && WRITE_OPS.test(namedImportMatch[1])) {
+      process.stderr.write(
+        `  ${relative(process.cwd(), full)}: imports write-op from 'node:fs' — route through utils/fs.ts or add to allowlist with guarded writes\n`,
+      )
+      violations++
+      continue
+    }
+
+    // Default or namespace import with write-class call: import fs from 'node:fs'; fs.writeFileSync(...)
+    if ((DEFAULT_IMPORT.test(src) || NAMESPACE_IMPORT.test(src)) && NS_WRITE_OPS.test(src)) {
+      process.stderr.write(
+        `  ${relative(process.cwd(), full)}: default/namespace import of 'node:fs' with write call — route through utils/fs.ts or add to allowlist with guarded writes\n`,
+      )
+      violations++
+    }
   }
 
-  // Default or namespace import with write-class call: import fs from 'node:fs'; fs.writeFileSync(...)
-  if ((DEFAULT_IMPORT.test(src) || NAMESPACE_IMPORT.test(src)) && NS_WRITE_OPS.test(src)) {
+  if (violations > 0) {
     process.stderr.write(
-      `  ${relative(process.cwd(), full)}: default/namespace import of 'node:fs' with write call — route through utils/fs.ts or add to allowlist with guarded writes\n`,
+      `\n  ${violations} generator(s) import direct write APIs from 'node:fs'.\n` +
+        `  New generators must use utils/fs.ts writeFile() which honours --dry-run.\n`,
     )
-    violations++
+    process.exit(1)
   }
-}
-
-if (violations > 0) {
-  process.stderr.write(
-    `\n  ${violations} generator(s) import direct write APIs from 'node:fs'.\n` +
-      `  New generators must use utils/fs.ts writeFile() which honours --dry-run.\n`,
-  )
+} catch (err) {
+  process.stderr.write(`check-no-direct-fs-in-generators: unexpected error: ${String(err)}\n`)
   process.exit(1)
 }
