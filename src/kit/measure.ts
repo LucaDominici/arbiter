@@ -29,7 +29,8 @@ function globWorkflows(repoRoot: string): string[] {
       .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
       .sort()
       .map((f) => toPosixRelative(repoRoot, join(dir, f)))
-  } catch {
+  } catch (err) {
+    process.stderr.write(`[measure] readdirSync failed for ${dir}: ${String(err)}\n`)
     return []
   }
 }
@@ -46,7 +47,8 @@ export function measureDim(dim: KitDimension, repoRoot: string): MeasureResult {
   try {
     if (dim.categoryRef === 'cicd') return measureCiCd(repoRoot)
     return { status: 'missing', evidence: [] }
-  } catch {
+  } catch (err) {
+    process.stderr.write(`[measure] measureDim failed for ${dim.id}: ${String(err)}\n`)
     return { status: 'missing', evidence: [] }
   }
 }

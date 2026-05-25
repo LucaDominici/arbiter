@@ -42,7 +42,12 @@ const TOKEN_ROUTER: Record<string, (c: ProjectConfig) => boolean> = {
 }
 
 function matchToken(token: string, config: ProjectConfig): boolean {
-  return TOKEN_ROUTER[token]?.(config) ?? false
+  const handler = TOKEN_ROUTER[token]
+  if (!handler) {
+    process.stderr.write(`[applicability] unknown token '${token}' — treating as non-match\n`)
+    return false
+  }
+  return handler(config)
 }
 
 export function evaluateApplicability(

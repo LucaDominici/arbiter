@@ -16,7 +16,13 @@ import { writeFile, rename, rm, open } from 'node:fs/promises'
 export async function atomicWriteFile(path: string, content: string): Promise<void> {
   const tmp = `${path}.tmp.${process.pid}`
   await writeFile(tmp, content, 'utf-8')
-  await rename(tmp, path)
+  try {
+    await rename(tmp, path)
+  } catch (err) {
+    // EXDEV: cross-device rename (tmp on different filesystem) — clean up and rethrow
+    await rm(tmp, { force: true })
+    throw err
+  }
 }
 
 export async function withLock<T>(lockPath: string, fn: () => Promise<T>): Promise<T> {
@@ -25,6 +31,8 @@ export async function withLock<T>(lockPath: string, fn: () => Promise<T>): Promi
   try {
     return await fn()
   } finally {
-    await rm(lockPath, { force: true })
+    await rm(lockPath, { force: true }).catch((err: unknown) => {
+      process.stderr.write(`[atomic-write] lock cleanup failed: ${String(err)}\n`)
+    })
   }
 }
