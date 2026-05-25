@@ -1129,8 +1129,8 @@ plugin
   .description('Remove a plugin from this project')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((pkg: string, opts: { dir?: string; json: boolean }) => {
-    runPluginRemove({
+  .action(async (pkg: string, opts: { dir?: string; json: boolean }) => {
+    await runPluginRemove({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       pkg,
       json: opts.json,

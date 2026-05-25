@@ -273,7 +273,7 @@ async function generateAndFinalize(
 
     // Load existing stored config before overwriting (brownfield re-init may have plugins)
     const storedBefore = loadConfig(targetDir)
-    saveConfig(targetDir, newConfig)
+    await saveConfig(targetDir, newConfig)
 
     const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
     const pluginResults = await runPlugins(targetDir, plugins, newConfig)

@@ -15,8 +15,8 @@ describe('ArbiterConfig.enableObsidianVault', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('persists enableObsidianVault=true round-trip', () => {
-    saveConfig(dir, {
+  it('persists enableObsidianVault=true round-trip', async () => {
+    await saveConfig(dir, {
       version: '0.1',
       tools: ['claude'],
       governanceLevel: 'L2',
@@ -27,8 +27,8 @@ describe('ArbiterConfig.enableObsidianVault', () => {
     expect(loaded?.enableObsidianVault).toBe(true)
   })
 
-  it('omits enableObsidianVault when not set', () => {
-    saveConfig(dir, {
+  it('omits enableObsidianVault when not set', async () => {
+    await saveConfig(dir, {
       version: '0.1',
       tools: ['claude'],
       governanceLevel: 'L2',
