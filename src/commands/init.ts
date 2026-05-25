@@ -470,7 +470,7 @@ async function resolveConfig(args: {
 }
 
 export function runGenerators(config: ProjectConfig): WriteResult[] {
-  return runGeneratorsFromRegistry(buildRegistry(config))
+  return runGeneratorsFromRegistry(buildRegistry(config), [], { dryRun: false })
 }
 
 /**
@@ -488,7 +488,9 @@ function runGeneratorsWithErrors(
   errors: GeneratorFailure[]
 } {
   const errors: GeneratorFailure[] = []
-  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors)
+  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors, {
+    dryRun: false,
+  })
   return { results, errors }
 }
 

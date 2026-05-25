@@ -126,21 +126,37 @@ function selectAndRun(
 } {
   const errors: GeneratorFailure[] = []
   if (!snapshot) {
-    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
+    return {
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      keysRun: null,
+      errors,
+    }
   }
   const diff = diffConfig(snapshot, stored)
   if (diff.paths.length === 0) {
     process.stdout.write(`${t('cli.update.no_config_changes')}\n`)
-    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
+    return {
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      keysRun: null,
+      errors,
+    }
   }
   const keys = impactedGenerators(diff)
   if (keys.has('*') || keys.size === 0) {
     const reason = keys.size === 0 ? 'Unknown config change' : 'Governance/axis change'
     process.stdout.write(`${t('cli.update.reason_regen', { reason })}\n`)
-    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: keys, errors }
+    return {
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      keysRun: keys,
+      errors,
+    }
   }
   process.stdout.write(`${t('cli.update.selective', { count: keys.size })}\n`)
-  return { results: runGeneratorsSelective(specs, keys, errors), keysRun: keys, errors }
+  return {
+    results: runGeneratorsSelective(specs, keys, errors, { dryRun: false }),
+    keysRun: keys,
+    errors,
+  }
 }
 
 function detectProjectInfo(

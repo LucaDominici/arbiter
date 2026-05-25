@@ -299,6 +299,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateContextPack(raw['contextPack'], errors)
   validateChannel(raw['channel'], errors)
   validateGovernance(raw['governance'], errors)
+  validateKit(raw['kit'], errors)
 
   if (errors.length > 0) {
     return { ok: false, errors }
@@ -364,6 +365,42 @@ function validateGovernance(raw: unknown, errors: string[]): void {
     errors.push(
       `governance.invariants_catalog must be 'core' or 'extended' — got ${typeof catalog === 'string' ? catalog : JSON.stringify(catalog)}`,
     )
+  }
+}
+
+const VALID_KIT_STATUSES = new Set(['present', 'partial', 'missing'])
+
+function validateKit(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('kit must be an object')
+    return
+  }
+  const measure = raw['measure']
+  if (measure === undefined || measure === null) return
+  if (!isRecord(measure)) {
+    errors.push('kit.measure must be an object')
+    return
+  }
+  for (const [dimId, entry] of Object.entries(measure)) {
+    if (!isRecord(entry)) {
+      errors.push(`kit.measure.${dimId} must be an object`)
+      continue
+    }
+    if (!VALID_KIT_STATUSES.has(entry['status'] as string)) {
+      errors.push(`kit.measure.${dimId}.status must be present, partial, or missing`)
+    }
+    if (
+      !Array.isArray(entry['evidence']) ||
+      (entry['evidence'] as unknown[]).some((e) => typeof e !== 'string')
+    ) {
+      errors.push(`kit.measure.${dimId}.evidence must be an array of strings`)
+    }
+    const known = new Set(['status', 'evidence'])
+    const extra = Object.keys(entry).filter((k) => !known.has(k))
+    if (extra.length > 0) {
+      errors.push(`kit.measure.${dimId} has unknown keys: ${extra.join(', ')}`)
+    }
   }
 }
 

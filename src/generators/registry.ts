@@ -429,7 +429,7 @@ function safeRun(
 export function runGeneratorsFromRegistry(
   specs: GeneratorSpec[],
   errors: GeneratorFailure[] = [],
-  opts: GeneratorRunOpts = { dryRun: false },
+  opts: GeneratorRunOpts,
 ): WriteResult[] {
   return specs.filter((s) => s.enabled).flatMap((s) => safeRun(s, opts, errors))
 }
@@ -438,7 +438,7 @@ export function runGeneratorsSelective(
   specs: GeneratorSpec[],
   keys: Set<GeneratorKey | '*'>,
   errors: GeneratorFailure[] = [],
-  opts: GeneratorRunOpts = { dryRun: false },
+  opts: GeneratorRunOpts,
 ): WriteResult[] {
   if (keys.has('*')) {
     return runGeneratorsFromRegistry(specs, errors, opts)

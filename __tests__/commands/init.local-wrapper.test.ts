@@ -32,14 +32,14 @@ describe('arbiter init — local-wrapper generator integration (#879, W3)', () =
 
   it('runGeneratorsFromRegistry emits Makefile and run.sh', () => {
     const specs = buildRegistry(makeConfig(dir))
-    runGeneratorsFromRegistry(specs)
+    runGeneratorsFromRegistry(specs, [], { dryRun: false })
     expect(existsSync(join(dir, 'Makefile'))).toBe(true)
     expect(existsSync(join(dir, 'run.sh'))).toBe(true)
   })
 
   it('runGeneratorsFromRegistry emits .env.example', () => {
     const specs = buildRegistry(makeConfig(dir))
-    runGeneratorsFromRegistry(specs)
+    runGeneratorsFromRegistry(specs, [], { dryRun: false })
     expect(existsSync(join(dir, '.env.example'))).toBe(true)
   })
 })

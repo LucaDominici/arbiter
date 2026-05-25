@@ -36,6 +36,7 @@ export interface KitInstallResult {
   ok: boolean
   phases: PhaseResult[]
   wavePlan?: WavePlan
+  generatorErrors?: string[]
   error?: string
 }
 
@@ -181,7 +182,10 @@ async function phaseMeasure(
   ]
 }
 
-function phaseScaffold(opts: KitInstallOptions, config: ProjectConfig): PhaseResult {
+function phaseScaffold(
+  opts: KitInstallOptions,
+  config: ProjectConfig,
+): [PhaseResult, import('../generators/registry.js').GeneratorFailure[]] {
   const errors: import('../generators/registry.js').GeneratorFailure[] = []
   const specs = buildRegistry(config, [])
   // No generatorLink on catalog dims (catalog.json field is empty for all dims).
@@ -197,15 +201,21 @@ function phaseScaffold(opts: KitInstallOptions, config: ProjectConfig): PhaseRes
 
   const suffix = errors.length > 0 ? ` (${errors.length} generator(s) failed)` : ''
   if (opts.dryRun) {
-    return {
+    return [
+      {
+        phase: 'SCAFFOLD',
+        output: `SCAFFOLD: ${results.length} files (${dryRunCount} dry-run, ${skipped} skipped) across ${genCount} generators${suffix}`,
+      },
+      errors,
+    ]
+  }
+  return [
+    {
       phase: 'SCAFFOLD',
-      output: `SCAFFOLD: ${results.length} files (${dryRunCount} dry-run, ${skipped} skipped) across ${genCount} generators${suffix}`,
-    }
-  }
-  return {
-    phase: 'SCAFFOLD',
-    output: `SCAFFOLD: ${results.length} files (${written} written, ${skipped} skipped) across ${genCount} generators${suffix}`,
-  }
+      output: `SCAFFOLD: ${results.length} files (${written} written, ${skipped} skipped) across ${genCount} generators${suffix}`,
+    },
+    errors,
+  ]
 }
 
 function phaseAssess(config: ProjectConfig): [PhaseResult, DimAssessment[]] {
@@ -305,13 +315,16 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
     )
     phases.push(measurePhase)
 
+    let scaffoldErrors: import('../generators/registry.js').GeneratorFailure[] = []
     if (!arbiterConfig) {
       phases.push({
         phase: 'SCAFFOLD',
         output: 'SCAFFOLD: no arbiter.json found — run arbiter init to generate scaffolding.',
       })
     } else {
-      phases.push(phaseScaffold(opts, config))
+      const [scaffoldPhase, genErrors] = phaseScaffold(opts, config)
+      phases.push(scaffoldPhase)
+      scaffoldErrors = genErrors
     }
 
     const [assessPhase, assessments] = phaseAssess(config)
@@ -326,10 +339,17 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
     }
 
     if (opts.emitIssues) {
-      emitWaveIssues(wavePlan, opts.dryRun ?? false)
+      const emitResult = emitWaveIssues(wavePlan, opts.dryRun ?? false)
+      process.stderr.write(
+        `[emit-issues] created:${emitResult.created} skipped:${emitResult.skipped}\n`,
+      )
     }
 
-    return { ok: true, phases, wavePlan }
+    const result: KitInstallResult = { ok: true, phases, wavePlan }
+    if (scaffoldErrors.length > 0) {
+      result.generatorErrors = scaffoldErrors.map((e) => `${e.key}: ${e.message}`)
+    }
+    return result
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return { ok: false, phases, error: message }

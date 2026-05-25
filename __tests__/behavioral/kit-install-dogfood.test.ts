@@ -12,6 +12,8 @@ import { tmpdir } from 'node:os'
 const CLI = resolve(import.meta.dirname, '../../dist/cli.js')
 const NODE = process.execPath
 const REPO_ROOT = resolve(import.meta.dirname, '../..')
+// Pre-commit hook rsyncs to a temp dir without .git; use the original worktree for git ops.
+const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD ?? REPO_ROOT
 
 function spawn(
   args: string[],
@@ -94,7 +96,7 @@ describe('arbiter kit install --dry-run (dogfood)', () => {
 describe('arbiter.json immutability under --dry-run (C1)', () => {
   it('arbiter.json is unchanged after dry-run (git diff --quiet)', () => {
     const result = spawnSync('git', ['diff', '--quiet', 'arbiter.json'], {
-      cwd: REPO_ROOT,
+      cwd: GIT_CWD,
       encoding: 'utf-8',
     })
     // exit 0 = no changes; exit 1 = changed
@@ -108,7 +110,7 @@ describe('no stray file writes under --dry-run', () => {
   it('does not create files in repo root during dry-run', () => {
     // Rely on git to detect untracked/modified files (excludes node_modules via .gitignore)
     const result = spawnSync('git', ['status', '--porcelain'], {
-      cwd: REPO_ROOT,
+      cwd: GIT_CWD,
       encoding: 'utf-8',
     })
     const newFiles = (result.stdout ?? '')
