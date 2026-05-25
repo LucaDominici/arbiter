@@ -67,7 +67,8 @@
     "E_UNKNOWN_PATH": "Unknown configuration path: {path}",
     "E_UNSUPPORTED_PATH_DEPTH": "Unsupported path depth: {path}",
     "E_INIT_WIN32": "arbiter does not support native Win32. Install WSL2 and run arbiter inside it. Setup guide: https://docs.arbiter.dev/install/windows",
-    "E_INVALID_LEVEL": "Unknown governance level: \"{level}\". Valid: L1, L2, L3, L4"
+    "E_INVALID_LEVEL": "Unknown governance level: \"{level}\". Valid: L1, L2, L3, L4",
+    "E_INVALID_LANGUAGE": "Unknown language: \"{language}\". Valid: typescript, java, kotlin, rust, python, go, multi"
   },
   "cli": {
     "shared": {

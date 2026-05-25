@@ -35,6 +35,10 @@ export interface WizardInput {
   existing: ExistingState
   githubAccess: GithubAccess
   detectedLanes?: Lane[]
+  /** When true, --language was passed on CLI; skip all language prompts and use wizardInput.language. */
+  languageLocked?: boolean
+  /** Marker file that triggered detection (e.g. 'package.json'). Null means no markers found. */
+  languageSource?: string | null
 }
 
 export function determineFlow(existing: ExistingState): WizardFlow {
@@ -213,6 +217,20 @@ function printFlowPreamble(wizardInput: WizardInput, flow: WizardFlow): void {
   process.stdout.write('\n')
 }
 
+function resolveWizardAnswers(
+  rawAnswers: Omit<WizardAnswers, 'language'> & {
+    language?: Language
+    keepDetectedLanguage?: boolean
+  },
+  wizardInput: WizardInput,
+): WizardAnswers {
+  const language = rawAnswers.language ?? wizardInput.language
+  if (language === 'unknown') {
+    throw new Error('INV: language must be a known Language value before buildConfigFromAnswers')
+  }
+  return { ...rawAnswers, language }
+}
+
 export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig | null> {
   process.stdout.write('\n')
 
@@ -220,9 +238,11 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
   printFlowPreamble(wizardInput, flow)
 
   try {
-    const answers = (await inquirer.prompt(
+    const rawAnswers = (await inquirer.prompt(
       buildMainQuestions(wizardInput) as Parameters<typeof inquirer.prompt>[0],
-    )) as WizardAnswers
+    )) as Omit<WizardAnswers, 'language'> & { language?: Language; keepDetectedLanguage?: boolean }
+
+    const answers: WizardAnswers = resolveWizardAnswers(rawAnswers, wizardInput)
 
     const tools = answers.tools.length > 0 ? answers.tools : (['claude', 'codex'] as AiTool[])
     const decompositionBackend: 'github' | 'markdown' =
@@ -595,6 +615,59 @@ function buildBrownfieldClassQuestion(
   }
 }
 
+function buildLanguageChoices(): { name: string; value: string }[] {
+  return [
+    { name: 'TypeScript / JavaScript', value: 'typescript' },
+    { name: 'Java', value: 'java' },
+    { name: 'Kotlin', value: 'kotlin' },
+    { name: 'Rust', value: 'rust' },
+    { name: 'Python', value: 'python' },
+    { name: 'Go', value: 'go' },
+    { name: 'Multi-language (polyglot repo)', value: 'multi' },
+  ]
+}
+
+function buildLanguageQuestions(wizardInput: WizardInput): object[] {
+  const isLocked = wizardInput.languageLocked ?? false
+  const detectedLang = wizardInput.language
+  const source = wizardInput.languageSource ?? null
+
+  if (isLocked) return []
+
+  if (detectedLang === 'unknown') {
+    return [
+      {
+        type: 'list',
+        name: 'language',
+        message: 'Select language:',
+        choices: buildLanguageChoices(),
+        default: 'typescript',
+      },
+    ]
+  }
+
+  const confirmMessage = source
+    ? `Use detected language '${detectedLang}' (from ${source})?`
+    : `Use detected language '${detectedLang}'?`
+
+  return [
+    {
+      type: 'confirm',
+      name: 'keepDetectedLanguage',
+      message: confirmMessage,
+      default: true,
+    },
+    {
+      type: 'list',
+      name: 'language',
+      message: 'Select language:',
+      choices: buildLanguageChoices(),
+      default: 'typescript',
+      when: (answers: Record<string, unknown>) => answers['keepDetectedLanguage'] === false,
+    },
+  ]
+}
+
 function buildMainQuestions(wizardInput: WizardInput): object[] {
   const githubChoice = buildGithubChoice(wizardInput.githubAccess)
   const archetypeDefault: Archetype =
@@ -602,21 +675,7 @@ function buildMainQuestions(wizardInput: WizardInput): object[] {
     'library'
   const brownfieldDetect = detectBrownfieldClass(wizardInput.targetDir, wizardInput.language)
   return [
-    {
-      type: 'list',
-      name: 'language',
-      message: `Primary language (detected: ${wizardInput.language}):`,
-      choices: [
-        { name: 'TypeScript / JavaScript', value: 'typescript' },
-        { name: 'Java', value: 'java' },
-        { name: 'Kotlin', value: 'kotlin' },
-        { name: 'Rust', value: 'rust' },
-        { name: 'Python', value: 'python' },
-        { name: 'Go', value: 'go' },
-        { name: 'Multi-language (polyglot repo)', value: 'multi' },
-      ],
-      default: wizardInput.language === 'unknown' ? 'typescript' : wizardInput.language,
-    },
+    ...buildLanguageQuestions(wizardInput),
     {
       type: 'input',
       name: 'description',

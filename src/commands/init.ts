@@ -8,7 +8,7 @@ import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
 import { runProbes } from '../compatibility/probe.js'
 import { formatText } from '../compatibility/report.js'
-import { detectLanguage } from '../detectors/language.js'
+import { detectLanguageWithSource } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
 import { detectFramework, detectArchetypeHint } from '../detectors/framework.js'
 import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
@@ -139,7 +139,18 @@ export async function runInit(options: InitOptions): Promise<void> {
     log('\n  Arbiter — AI Development Governance Framework\n')
     log('  Detecting project...')
 
-    const language = resolveLanguage(options.language, targetDir)
+    const resolvedLanguageOverride = parseLanguage(options.language)
+    const languageLocked = resolvedLanguageOverride !== undefined
+    let language: Language
+    let languageSource: string | null
+    if (resolvedLanguageOverride !== undefined) {
+      language = resolvedLanguageOverride
+      languageSource = null
+    } else {
+      const det = detectLanguageWithSource(targetDir)
+      language = det.language
+      languageSource = det.source
+    }
     const framework = detectFramework(targetDir, language)
     const buildCmds = detectBuildCommands(targetDir, language)
     const gitInfo = detectGitInfo(targetDir)
@@ -147,7 +158,9 @@ export async function runInit(options: InitOptions): Promise<void> {
     const githubAccess = detectGithubAccess()
     const lanesResult = detectLanes(targetDir)
 
-    log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
+    log(
+      `  ├── Language: ${language}${formatLangHint(languageLocked, languageSource)}${framework ? ` / ${framework}` : ''}`,
+    )
     log(`  ├── Build: ${buildCmds.buildTool}`)
     log(
       `  ├── Git: ${gitInfo.isGitRepo ? 'yes' : 'no'}${gitInfo.githubRepo ? ` (${gitInfo.githubOwner}/${gitInfo.githubRepo})` : ''}`,
@@ -174,6 +187,8 @@ export async function runInit(options: InitOptions): Promise<void> {
       existing,
       githubAccess,
       lanes: lanesResult.lanes,
+      languageLocked,
+      languageSource,
     })
     if (config === null) return
 
@@ -331,7 +346,7 @@ function buildNonInteractiveConfig(args: {
   recipe: Recipe | undefined
   targetDir: string
   projectName: string
-  language: ReturnType<typeof detectLanguage>
+  language: Language
   framework: string | null
   buildCmds: ReturnType<typeof detectBuildCommands>
   gitInfo: ReturnType<typeof detectGitInfo>
@@ -373,9 +388,9 @@ function buildNonInteractiveConfig(args: {
   return config
 }
 
-function resolveLanguage(override: Language | undefined, targetDir: string): Language {
-  if (override !== undefined) return override
-  return detectLanguage(targetDir)
+function formatLangHint(locked: boolean, source: string | null): string {
+  if (locked) return ''
+  return source ? ` (detected from ${source})` : ' (no markers found)'
 }
 
 function resolveToolsAndLevel(
@@ -395,13 +410,15 @@ async function resolveConfig(args: {
   recipe: Recipe | undefined
   targetDir: string
   projectName: string
-  language: ReturnType<typeof detectLanguage>
+  language: Language
   framework: string | null
   buildCmds: ReturnType<typeof detectBuildCommands>
   gitInfo: ReturnType<typeof detectGitInfo>
   existing: ReturnType<typeof detectExisting>
   githubAccess: ReturnType<typeof detectGithubAccess>
   lanes: import('../wizard/types.js').Lane[]
+  languageLocked: boolean
+  languageSource: string | null
 }): Promise<ProjectConfig | null> {
   const {
     options,
@@ -415,6 +432,8 @@ async function resolveConfig(args: {
     existing,
     githubAccess,
     lanes,
+    languageLocked,
+    languageSource,
   } = args
   if (options.yes || recipe !== undefined) {
     return buildNonInteractiveConfig({
@@ -441,6 +460,8 @@ async function resolveConfig(args: {
     existing,
     githubAccess,
     detectedLanes: lanes,
+    languageLocked,
+    languageSource,
   })
   if (wizardResult === null) {
     return null
@@ -777,7 +798,7 @@ function displayDryRunPreview(config: ProjectConfig): void {
 function buildDefaultConfig(opts: {
   targetDir: string
   projectName: string
-  language: ReturnType<typeof detectLanguage>
+  language: Language
   framework: string | null
   buildCmds: ReturnType<typeof detectBuildCommands>
   gitInfo: ReturnType<typeof detectGitInfo>
@@ -911,7 +932,7 @@ function applyPresetOptions(options: InitOptions, config: ProjectConfig): void {
 }
 
 function detectedBasePackage(
-  language: ReturnType<typeof detectLanguage>,
+  language: Language,
   targetDir: string,
 ): { basePackage: string } | Record<never, never> {
   if (language !== 'java' && language !== 'multi') return {}
@@ -942,6 +963,13 @@ function parseLevel(level: string | undefined): GovernanceLevel {
     { level },
     { hint: 'Use L1 (fast), L2 (standard, default), L3 (audit-grade), or L4 (compliance-grade).' },
   )
+}
+
+function parseLanguage(language: Language | undefined): Language | undefined {
+  if (language === undefined) return undefined
+  const VALID = new Set<Language>(['typescript', 'java', 'kotlin', 'rust', 'python', 'go', 'multi'])
+  if (VALID.has(language)) return language
+  throw ArbiterError.fromKey('E_INVALID_LANGUAGE', 'errors.E_INVALID_LANGUAGE', { language })
 }
 
 /**

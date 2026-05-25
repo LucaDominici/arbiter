@@ -513,3 +513,108 @@ describe('decompositionBackend selection', () => {
     expect(result!.useGitHub).toBe(false)
   })
 })
+
+describe('runWizard language confirmation (#1036)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.exitCode = 0
+  })
+
+  afterEach(() => {
+    process.exitCode = 0
+  })
+
+  it('skips language prompt and uses wizardInput.language when languageLocked=true', async () => {
+    const input = makeWizardInput()
+    input.languageLocked = true
+    input.language = 'rust'
+
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: 'my project',
+        tools: ['claude'],
+        governanceLevel: 'L1',
+        // no language or keepDetectedLanguage in answers
+      })
+      .mockResolvedValueOnce({ confirm: true })
+
+    const result = await runWizard(input)
+    expect(result).not.toBeNull()
+    expect(result!.language).toBe('rust')
+  })
+
+  it('uses detected language when user confirms (keepDetectedLanguage=true)', async () => {
+    const input = makeWizardInput()
+    input.language = 'go'
+
+    mockPrompt
+      .mockResolvedValueOnce({
+        keepDetectedLanguage: true,
+        description: 'my project',
+        tools: ['claude'],
+        governanceLevel: 'L1',
+        // no language field: list was skipped
+      })
+      .mockResolvedValueOnce({ confirm: true })
+
+    const result = await runWizard(input)
+    expect(result).not.toBeNull()
+    expect(result!.language).toBe('go')
+  })
+
+  it('uses list-selected language when user declines detected (keepDetectedLanguage=false)', async () => {
+    const input = makeWizardInput()
+    input.language = 'typescript'
+
+    mockPrompt
+      .mockResolvedValueOnce({
+        keepDetectedLanguage: false,
+        language: 'java',
+        description: 'my project',
+        tools: ['claude'],
+        governanceLevel: 'L1',
+      })
+      .mockResolvedValueOnce({ confirm: true })
+
+    const result = await runWizard(input)
+    expect(result).not.toBeNull()
+    expect(result!.language).toBe('java')
+  })
+
+  it('shows list directly and uses selection when language is unknown', async () => {
+    const input = makeWizardInput()
+    input.language = 'unknown'
+
+    mockPrompt
+      .mockResolvedValueOnce({
+        language: 'python',
+        description: 'my project',
+        tools: ['claude'],
+        governanceLevel: 'L1',
+        // no keepDetectedLanguage: confirm was skipped for unknown
+      })
+      .mockResolvedValueOnce({ confirm: true })
+
+    const result = await runWizard(input)
+    expect(result).not.toBeNull()
+    expect(result!.language).toBe('python')
+  })
+
+  it('existing tests: detected language injected when mock omits language field', async () => {
+    const input = makeWizardInput()
+    input.language = 'typescript'
+
+    mockPrompt
+      .mockResolvedValueOnce({
+        description: 'my project',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        // language absent from mock — simulate inquirer skipping the list
+      })
+      .mockResolvedValueOnce({ confirm: true })
+
+    const result = await runWizard(input)
+    expect(result).not.toBeNull()
+    expect(result!.language).toBe('typescript')
+  })
+})
