@@ -174,6 +174,8 @@ export interface ProjectConfig {
   enableDebtGates: boolean
   /** Whether to generate suppression templates and the check-suppressions.mjs expiry gate. Defaults to true for all governance levels. */
   enableSuppressions: boolean
+  /** Which database engine the project uses. Set when hasDatabase=true. Required by KIT dims N08/N73/N74/N75. */
+  databaseEngine?: 'postgresql' | 'mysql' | 'mongodb' | 'sqlite' | 'other'
   /** Whether to generate security scanning gates (PII scan, gitleaks, dep audit). Defaults to true for L2+. */
   enableSecurityScanning: boolean
   /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */

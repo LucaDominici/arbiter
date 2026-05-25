@@ -75,7 +75,7 @@ export interface ContextPackConfig {
  * Loading a config with `$schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION`
  * is a hard error (do not silently load); see `loadConfig`.
  */
-export const CURRENT_CONFIG_SCHEMA_VERSION = 3
+export const CURRENT_CONFIG_SCHEMA_VERSION = 4
 
 export interface ArbiterConfigV2 {
   version: string
@@ -116,6 +116,10 @@ export interface ArbiterConfigV2 {
   channel?: 'latest' | 'beta' | 'canary'
   /** Governance policy overrides. Absent = default behaviour. */
   governance?: GovernanceConfig
+  /** KIT install state. Populated by `arbiter kit install` (not under --dry-run). */
+  kit?: {
+    measure: Record<string, { status: 'present' | 'partial' | 'missing'; evidence: string[] }>
+  }
 }
 
 export interface GovernanceConfig {
