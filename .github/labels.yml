@@ -45,6 +45,9 @@ labels:
     color: "d93f0b"
     description: "Monthly workflow missed its freshness window"
   # Regression issues filed by scheduled workflows
+  - name: kit-drift
+    color: "0075ca"
+    description: "KIT catalog self-audit drift detected by kit-self-canary"
   - name: nightly-regression
     color: "b60205"
     description: "Nightly (T4) workflow detected a regression"
