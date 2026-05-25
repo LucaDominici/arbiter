@@ -7,12 +7,21 @@ import { rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { stageFixture } from '../helpers.js'
+import type { ParseCtx } from './parsers.js'
+import {
+  countGoTests,
+  countJavaTests,
+  countPytestTests,
+  countRustTests,
+  countVitestTests,
+} from './parsers.js'
 
 const NATIVE = process.env.VITEST_NATIVE === '1'
 
 interface StackDef {
   fixture: string
   cmds: string[][]
+  assertTests: (ctx: ParseCtx) => number
 }
 
 const STACKS: StackDef[] = [
@@ -20,24 +29,32 @@ const STACKS: StackDef[] = [
     fixture: 'ts-library',
     cmds: [
       ['npm', 'ci', '--no-audit', '--no-fund'],
-      ['npm', 'test'],
+      ['npm', 'test', '--', '--reporter=json'],
     ],
+    assertTests: countVitestTests,
   },
   {
     fixture: 'python-library',
-    cmds: [['pip', 'install', '-e', '.[test]'], ['pytest']],
+    cmds: [
+      ['pip', 'install', '-e', '.[test]'],
+      ['pytest', '--junit-xml=results.xml'],
+    ],
+    assertTests: countPytestTests,
   },
   {
     fixture: 'go-library',
-    cmds: [['go', 'test', './...']],
+    cmds: [['go', 'test', '-json', './...']],
+    assertTests: countGoTests,
   },
   {
     fixture: 'java-library-gradle',
     cmds: [['./gradlew', 'test', '--no-daemon']],
+    assertTests: countJavaTests,
   },
   {
     fixture: 'rust-library',
     cmds: [['cargo', 'test', '--frozen']],
+    assertTests: countRustTests,
   },
 ]
 
@@ -48,10 +65,12 @@ describe.skipIf(!NATIVE)('native — toolchain smoke tests', () => {
     for (const d of staged.splice(0)) rmSync(d, { recursive: true, force: true })
   })
 
-  for (const { fixture, cmds } of STACKS) {
-    it(`${fixture} — native runner exits 0`, { timeout: 300_000 }, () => {
+  for (const { fixture, cmds, assertTests } of STACKS) {
+    it(`${fixture} — native runner exits 0 and collects ≥1 test`, { timeout: 300_000 }, () => {
       const dir = stageFixture(fixture)
       staged.push(dir)
+      let lastStdout = ''
+      let lastStderr = ''
       for (const cmd of cmds) {
         const [bin, ...args] = cmd
         if (bin == null) throw new Error(`[${fixture}] empty cmd in STACKS`)
@@ -63,7 +82,14 @@ describe.skipIf(!NATIVE)('native — toolchain smoke tests', () => {
           result.status,
           `[${fixture}] ${bin} ${args.join(' ')} exited ${String(result.status)}:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
         ).toBe(0)
+        lastStdout = result.stdout
+        lastStderr = result.stderr
       }
+      const count = assertTests({ stdout: lastStdout, stderr: lastStderr, cwd: dir })
+      expect(
+        count,
+        `[${fixture}] assertTests returned ${count} — fixture may have zero tests collected (cwd: ${dir})`,
+      ).toBeGreaterThanOrEqual(1)
     })
   }
 })
