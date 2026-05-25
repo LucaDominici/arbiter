@@ -58,11 +58,12 @@ describe('_post-merge-notify.yml.ejs — structural invariants (CANON-18)', () =
   })
 
   it.each(STACKS)(
-    '$language: runs-on: ubuntu-latest (hardcoded, no vars wrapping)',
+    '$language: runs-on: uses CI_BUILD_RUNNER_LABEL with docker-ci-build fallback',
     ({ language, buildTool }) => {
       const rendered = renderNotify({ language, buildTool })
-      expect(rendered).toContain('runs-on: ubuntu-latest')
-      expect(rendered).not.toContain('vars.CI_BUILD_RUNNER_LABEL')
+      expect(rendered).toContain('vars.CI_BUILD_RUNNER_LABEL')
+      expect(rendered).toContain("'docker-ci-build'")
+      expect(rendered).not.toContain('runs-on: ubuntu-latest')
     },
   )
 })

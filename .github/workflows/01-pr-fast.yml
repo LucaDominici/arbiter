@@ -24,7 +24,7 @@ jobs:
 
   security-early-fail:
     name: Security (PII + Secrets)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
@@ -48,7 +48,7 @@ jobs:
 
   classify-changes:
     name: Classify Changes
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     outputs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
       backend_changed: ${{ steps.classify.outputs.backend_changed }}
@@ -74,7 +74,7 @@ jobs:
 
   gate:
     name: Lint + Typecheck
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [security-early-fail, classify-changes]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
@@ -93,7 +93,7 @@ jobs:
 
   unit-tests:
     name: Unit Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [gate]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
@@ -117,7 +117,7 @@ jobs:
 
   contract-tests:
     name: Contract Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [gate]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
@@ -132,7 +132,7 @@ jobs:
 
   integration-tests:
     name: Integration Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [unit-tests]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
@@ -147,7 +147,7 @@ jobs:
 
   behavioral-tests:
     name: Behavioral Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [unit-tests]
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
@@ -165,7 +165,7 @@ jobs:
 
   docs-check:
     name: Docs Check
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
@@ -201,7 +201,7 @@ jobs:
 
   debt-gates:
     name: Tech Debt Gates
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [gate]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
@@ -228,7 +228,7 @@ jobs:
 
   sonar-scan:
     name: SonarCloud Scan
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [gate]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
@@ -254,7 +254,7 @@ jobs:
 
   debt-ratchet:
     name: Debt Ratchet
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     needs: [gate]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
@@ -272,7 +272,7 @@ jobs:
 
   human-approval-required:
     name: Human Approval Required (INV-74)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     if: github.event_name == 'pull_request'
     steps:
       - name: Assert approved-by-human label (anti-bot gate)
@@ -290,7 +290,7 @@ jobs:
 
   ci-required:
     name: CI Required
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
 
     needs: [gate, human-approval-required, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, debt-gates, debt-ratchet, classify-changes]
     if: always()

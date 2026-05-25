@@ -15,7 +15,7 @@ permissions:
 jobs:
   ai-draft-check:
     name: AI-PR human-approval check (INV-91)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     if: github.event.pull_request.user.type == 'Bot'
     steps:
       - name: Assert approved-by-human label on bot-authored PR

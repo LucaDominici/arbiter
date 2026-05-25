@@ -8,7 +8,7 @@ on:
 jobs:
   drift-check:
     name: Gate Result Drift Check
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     permissions:
       issues: write
     steps:
