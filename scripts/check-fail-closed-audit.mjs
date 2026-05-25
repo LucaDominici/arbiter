@@ -39,10 +39,12 @@ const ROOT = rootArgIdx >= 0 ? resolve(args[rootArgIdx + 1] ?? '.') : process.cw
 const UPDATE = args.includes('--update-baseline')
 const BASELINE_PATH = resolve(ROOT, 'scripts/data/fail-closed-baseline.json')
 
+// INV-96 scope: PUBLIC dirs only. Never add .env, secrets/, or any path .gitignore'd — audit output reaches CI logs.
 const SCAN_DIRS = [
   { dir: 'scripts', recurse: true },
   { dir: '.githooks', recurse: true },
   { dir: '.claude/hooks', recurse: true },
+  { dir: '.github/workflows', recurse: false },
 ]
 
 const SKIP_DIRS = new Set([
@@ -86,8 +88,10 @@ function listFiles(absDir, recurse) {
     let st
     try {
       st = statSync(full)
-    } catch {
-      continue
+    } catch (err) {
+      // FAIL-OPEN-INTENT: ENOENT is a race (file removed between readdir and stat); rethrow all others.
+      if (err && /** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') continue
+      throw err
     }
     if (st.isDirectory()) {
       if (recurse) out.push(...listFiles(full, recurse))
@@ -114,6 +118,8 @@ function inferKind(relPath, content) {
   if (relPath.endsWith('.ts')) return 'node'
   // .githooks/pre-commit etc. have no extension; treat as bash if shebang absent.
   if (/^\.githooks\//.test(relPath)) return 'bash'
+  // Workflow YAML files — audit run: blocks for || true fail-open patterns.
+  if (/^\.github\/workflows\/.*\.(yml|yaml)$/.test(relPath)) return 'yaml'
   return null
 }
 
@@ -145,11 +151,9 @@ function isInsideCommentOrString(line, re) {
   return inSingle || inDouble || inBacktick
 }
 
-function auditBash(content) {
+function auditBashPipefail(content) {
   const lines = content.split('\n')
   const violations = []
-
-  // (1) `set -euo pipefail` (or equivalent) must appear in first 20 non-comment lines.
   let sawPipefail = false
   let nonCommentScanned = 0
   for (const line of lines) {
@@ -165,8 +169,12 @@ function auditBash(content) {
   if (!sawPipefail) {
     violations.push({ kind: 'bash-no-pipefail', detail: 'missing `set -euo pipefail` in head' })
   }
+  return violations
+}
 
-  // (2) `|| true` outside of comments and absent FAIL-OPEN-INTENT allowlist.
+function auditBashOrTrue(content) {
+  const lines = content.split('\n')
+  const violations = []
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     if (!OR_TRUE.test(line)) continue
@@ -190,8 +198,11 @@ function auditBash(content) {
       })
     }
   }
-
   return violations
+}
+
+function auditBash(content) {
+  return [...auditBashPipefail(content), ...auditBashOrTrue(content)]
 }
 
 function auditNode(content) {
@@ -278,7 +289,8 @@ function audit() {
       const rel = relative(ROOT, file).replace(/\\/g, '/')
       if (SKIP_FILES.has(rel)) continue
       // Only audit files that look like entry scripts. Skip data files and READMEs.
-      if (/\.(json|md|txt|yaml|yml|toml)$/i.test(rel)) continue
+      // yaml/yml intentionally NOT excluded — .github/workflows/ yml files are scanned for || true.
+      if (/\.(json|md|txt|toml)$/i.test(rel)) continue
       let content
       try {
         content = readFileSync(file, 'utf-8')
@@ -290,7 +302,12 @@ function audit() {
       }
       const kind = inferKind(rel, content)
       if (!kind) continue
-      const violations = kind === 'bash' ? auditBash(content) : auditNode(content)
+      const violations =
+        kind === 'bash'
+          ? auditBash(content)
+          : kind === 'yaml'
+            ? auditBashOrTrue(content)
+            : auditNode(content)
       if (violations.length > 0) {
         allViolations.push({ file: rel, kind, violations })
       }

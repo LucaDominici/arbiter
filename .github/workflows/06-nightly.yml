@@ -78,7 +78,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: fast-check fuzz (property-based)
-        run: npm run test:fuzz || npm run test:property || true
+        run: npm run test:fuzz
 
 
   soak-e2e:
@@ -93,10 +93,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Playwright / Vitest E2E (60 min budget)
+      - name: Bake E2E
+        run: npm run test:e2e:bake
+      - name: Native E2E
         env:
-          RUN_E2E: "1"
-        run: npm run test:e2e || npm run test:soak || true
+          VITEST_NATIVE: "1"
+        run: npm run test:e2e:native
 
 
 
@@ -218,6 +220,8 @@ jobs:
           RESULTS=(
             "${{ needs.mutation-deep.result }}"
             "${{ needs.dep-cve-refresh.result }}"
+            "${{ needs.fuzz.result }}"
+            "${{ needs.soak-e2e.result }}"
             "${{ needs.gitleaks-history.result }}"
 
             "${{ needs.bake-e2e-native.result }}"

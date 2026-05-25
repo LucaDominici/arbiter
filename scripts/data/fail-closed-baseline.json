@@ -1,6 +1,6 @@
 {
   "schema": "arbiter-fail-closed-baseline-v1",
-  "generated_at": "2026-05-20T21:37:38.551Z",
+  "generated_at": "2026-05-24T23:16:04.379Z",
   "files": [
     ".claude/hooks/check-circular-deps.mjs",
     ".claude/hooks/check-no-any.mjs",
@@ -21,6 +21,10 @@
     ".claude/hooks/pre-task-track-detect.mjs",
     ".claude/hooks/skill-forced-eval.mjs",
     ".claude/hooks/stop-dangerous.mjs",
+    ".github/workflows/01-pr-fast.yml",
+    ".github/workflows/02-pr-extended.yml",
+    ".github/workflows/07-weekly.yml",
+    ".github/workflows/08-monthly.yml",
     "scripts/audit-toolchain.mjs",
     "scripts/bloat-lib.mjs",
     "scripts/check-adapter-coverage.mjs",
