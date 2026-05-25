@@ -8,7 +8,7 @@
 //
 // check: build-kit, no redacted tokens, private paths ignored,
 //        typecheck, format, lint, unit tests, circular deps, placeholders, i18n raw strings,
-//        spdx headers, orphan TODOs, commitlint, test naming, hardness inventory, docs,
+//        spdx headers, orphan TODOs, no direct-fs in generators, commitlint, test naming, hardness inventory, docs,
 //        matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
 //        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
 //        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
@@ -17,7 +17,7 @@
 //        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
 //        workflow-runners, workflow-docs-sync, workflow-test-integrity, pr-size-gate,
 //        validator-helptext, tier-coverage, nightly freshness (INV-93),
-//        no passWithNoTests (INV-25, #1039) (57)
+//        no passWithNoTests (INV-25, #1039), actionlint (59)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
 //       dogfood + self-validation drill + local-ci parity + id stability + anti-telemetry +
 //       tdd-evidence + evidence-bundle (INV-90) + integration suite (INV-25, #1039) (69)
@@ -33,7 +33,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
-import { runCheck, runWarnCheck, getResults, getFailed } from './lib/run-helpers.mjs'
+import { runCheck, runWarnCheck, runToolCheck, getResults, getFailed } from './lib/run-helpers.mjs'
 import { parseCheckArgs } from './lib/parse-check-args.mjs'
 
 const { subcommand, level, jsonPath: _parsedJsonPath } = parseCheckArgs(process.argv.slice(2))
@@ -92,6 +92,7 @@ runCheck('i18n raw strings', 'node', [
 ])
 runCheck('spdx headers', 'node', ['scripts/check-spdx-headers.mjs'])
 runCheck('orphan TODOs', 'node', ['scripts/check-no-orphan-todo.mjs'])
+runCheck('no direct-fs in generators', 'node', ['scripts/check-no-direct-fs-in-generators.mjs'])
 runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'])
 runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs'])
@@ -126,6 +127,7 @@ runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
 runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
 runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
 runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
+runToolCheck('actionlint', 'actionlint', [])
 // ─── L1: Anti-drift validator family (INV-89, W6) ────────────────────────────
 runCheck('anti-drift: suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs'])
 runCheck('anti-drift: suppression expiry', 'node', ['scripts/check-suppression-expiry.mjs'])
