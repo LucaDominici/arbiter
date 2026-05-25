@@ -9,7 +9,10 @@ export interface DocsGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
+export function generateDocs(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): DocsGeneratorResult {
   if (config.governanceLevel === 'L1') {
     return { files: [] }
   }
@@ -23,7 +26,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     writeFile(
       join(adrDir, 'ADR-000_template.md'),
       renderTemplate('docs/adr/ADR-000_template.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -31,7 +34,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'SECURE_CODING_CHECKLIST.md'),
       renderTemplate('docs/SECURE_CODING_CHECKLIST.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -39,7 +42,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'CODING_STANDARDS.md'),
       renderTemplate('docs/CODING_STANDARDS.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -47,7 +50,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'MASTER_TEST_PLAN.md'),
       renderTemplate('docs/MASTER_TEST_PLAN.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -55,7 +58,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'testing', 'POST_MERGE_REVIEW_TEMPLATE.md'),
       renderTemplate('docs/POST_MERGE_REVIEW_TEMPLATE.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -64,7 +67,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
       writeFile(
         resolvedPath(base, 'docs', 'SECURITY', 'ISO27001_ANNEX_A.md'),
         renderTemplate('docs/ISO27001_ANNEX_A.md.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -73,7 +76,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'COMMANDS.md'),
       renderTemplate('documentation/cli-catalog.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -84,7 +87,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
       writeFile(
         resolvedPath(runbooksDir, `${runbook}.md`),
         renderTemplate(`docs/runbooks/${runbook}.md.ejs`, data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -94,7 +97,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'security', 'STRIDE.md'),
       renderTemplate('security/STRIDE.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -104,7 +107,7 @@ export function generateDocs(config: ProjectConfig): DocsGeneratorResult {
       writeFile(
         resolvedPath(base, 'docs', 'security', 'RISK_ASSESSMENT.md'),
         renderTemplate('security/RISK_ASSESSMENT.md.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

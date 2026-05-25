@@ -22,7 +22,10 @@ export interface CoverageGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateCoverage(config: ProjectConfig): CoverageGeneratorResult {
+export function generateCoverage(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CoverageGeneratorResult {
   if (!config.enableDebtGates) return { files: [] }
 
   const results: WriteResult[] = []
@@ -48,7 +51,7 @@ export function generateCoverage(config: ProjectConfig): CoverageGeneratorResult
       writeFile(
         resolvedPath(base, 'vitest.config.ts'),
         renderTemplate('coverage/vitest.config.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -61,7 +64,7 @@ export function generateCoverage(config: ProjectConfig): CoverageGeneratorResult
       writeFile(
         resolvedPath(base, 'gradle', 'jacoco.gradle'),
         renderTemplate('coverage/jacoco.gradle.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -71,13 +74,13 @@ export function generateCoverage(config: ProjectConfig): CoverageGeneratorResult
       writeFile(
         resolvedPath(base, 'docs', 'coverage', 'jacoco-maven-setup.md'),
         renderTemplate('coverage/jacoco-maven-setup.md.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
 
   if (config.language === 'rust') {
-    results.push(...emitRustCoverage(base, config, data))
+    results.push(...emitRustCoverage(base, config, data, opts.dryRun))
   }
 
   if (config.language === 'python') {
@@ -85,7 +88,7 @@ export function generateCoverage(config: ProjectConfig): CoverageGeneratorResult
       writeFile(
         resolvedPath(base, '.coveragerc'),
         renderTemplate('coverage/.coveragerc.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -106,12 +109,13 @@ function emitRustCoverage(
   base: string,
   config: ProjectConfig,
   data: Record<string, unknown>,
+  dryRun: boolean,
 ): WriteResult[] {
   const out: WriteResult[] = [
     writeFile(
       resolvedPath(base, '.tarpaulin.toml'),
       renderTemplate('coverage/.tarpaulin.toml.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun },
     ),
   ]
 
@@ -124,7 +128,7 @@ function emitRustCoverage(
       writeFile(
         resolvedPath(base, 'docs', 'coverage', 'Cargo.toml.profile.release'),
         renderTemplate('coverage/Cargo.toml.profile.release.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }

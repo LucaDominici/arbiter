@@ -13,7 +13,10 @@ export interface QualityGeneratorResult {
 
 const SONAR_SUPPORTED_LANGUAGES = new Set(['java', 'typescript'])
 
-export function generateQuality(config: ProjectConfig): QualityGeneratorResult {
+export function generateQuality(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): QualityGeneratorResult {
   if (config.governanceLevel === 'L1') return { files: [] }
   if (!SONAR_SUPPORTED_LANGUAGES.has(config.language)) return { files: [] }
 
@@ -25,7 +28,7 @@ export function generateQuality(config: ProjectConfig): QualityGeneratorResult {
       writeFile(
         resolvedPath(base, 'sonar-project.properties'),
         renderTemplate('sonar-project.properties.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

@@ -11,7 +11,10 @@ export interface GithubSetupGeneratorResult {
 
 const SCRIPT_MODE = 0o755
 
-export function generateGithubSetup(config: ProjectConfig): GithubSetupGeneratorResult {
+export function generateGithubSetup(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): GithubSetupGeneratorResult {
   if (!config.useGitHub) {
     return { files: [] }
   }
@@ -24,8 +27,9 @@ export function generateGithubSetup(config: ProjectConfig): GithubSetupGenerator
     const setupScript = resolvedPath(base, 'scripts', 'setup-repo.sh')
     const result = writeFile(setupScript, renderTemplate('scripts/setup-repo.sh.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     })
-    if (result.action !== 'skipped') {
+    if (!opts.dryRun && result.action !== 'skipped') {
       chmodSync(setupScript, SCRIPT_MODE)
     }
     files.push(result)
@@ -35,8 +39,9 @@ export function generateGithubSetup(config: ProjectConfig): GithubSetupGenerator
   const bpResult = writeFile(
     bpScript,
     renderTemplate('scripts/apply-branch-protection.mjs.ejs', data),
+    { dryRun: opts.dryRun },
   )
-  if (bpResult.action !== 'skipped') {
+  if (!opts.dryRun && bpResult.action !== 'skipped') {
     chmodSync(bpScript, SCRIPT_MODE)
   }
   files.push(bpResult)
@@ -47,8 +52,10 @@ export function generateGithubSetup(config: ProjectConfig): GithubSetupGenerator
     'check-workflow-perms.mjs',
   ] as const) {
     const scriptPath = resolvedPath(base, 'scripts', name)
-    const result = writeFile(scriptPath, renderTemplate(`scripts/${name}.ejs`, data))
-    if (result.action !== 'skipped') {
+    const result = writeFile(scriptPath, renderTemplate(`scripts/${name}.ejs`, data), {
+      dryRun: opts.dryRun,
+    })
+    if (!opts.dryRun && result.action !== 'skipped') {
       chmodSync(scriptPath, SCRIPT_MODE)
     }
     files.push(result)

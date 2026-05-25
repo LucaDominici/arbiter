@@ -21,7 +21,10 @@ export interface CheckAllGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult {
+export function generateCheckAll(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CheckAllGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
 
@@ -50,6 +53,7 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
   results.push(
     writeFile(scriptPath, renderTemplate('scripts/check-all.mjs.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 
@@ -60,6 +64,7 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
   results.push(
     writeFile(helpersPath, renderTemplate('scripts/lib/run-helpers.mjs.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 
@@ -74,6 +79,7 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
     results.push(
       writeFile(ephemeralPath, renderTemplate('scripts/lib/ephemeral-server.mjs.ejs', data), {
         skipIfExists: true,
+        dryRun: opts.dryRun,
       }),
     )
   }
@@ -85,14 +91,14 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
       writeFile(
         resolvedPath(base, 'scripts', 'checks', 'check-rust-no-unwrap.mjs'),
         renderTemplate('scripts/checks/check-rust-no-unwrap.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, 'scripts', 'checks', 'check-rust-no-unsafe.mjs'),
         renderTemplate('scripts/checks/check-rust-no-unsafe.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -104,7 +110,7 @@ export function generateCheckAll(config: ProjectConfig): CheckAllGeneratorResult
       writeFile(
         resolvedPath(base, 'scripts', 'check-docs.mjs'),
         renderTemplate('scripts/check-docs.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

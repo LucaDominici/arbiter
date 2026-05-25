@@ -10,7 +10,10 @@ export interface CodexGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateCodex(config: ProjectConfig): CodexGeneratorResult {
+export function generateCodex(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CodexGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = config
@@ -20,7 +23,7 @@ export function generateCodex(config: ProjectConfig): CodexGeneratorResult {
     writeFile(
       resolvedPath(base, '.agents', 'CODEX.md'),
       renderTemplate('codex/CODEX.md.ejs', data),
-      { backup: true },
+      { backup: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -44,16 +47,19 @@ export function generateCodex(config: ProjectConfig): CodexGeneratorResult {
     results.push(
       writeFile(join(rulesDir, rule.file), renderTemplate(rule.template, data), {
         skipIfExists: true,
+        dryRun: opts.dryRun,
       }),
     )
   }
 
   // Plan directory scaffold
   const planDir = resolvedPath(base, '.agents', 'plan')
-  results.push(writeFile(join(planDir, 'README.md'), PLAN_README, { skipIfExists: true }))
+  results.push(
+    writeFile(join(planDir, 'README.md'), PLAN_README, { skipIfExists: true, dryRun: opts.dryRun }),
+  )
 
   // Hook parity — .codex/config.toml + codex-adapter.mjs
-  const hookResult = generateCodexHooks(config)
+  const hookResult = generateCodexHooks(config, opts)
   results.push(...hookResult.files)
 
   return { files: results }

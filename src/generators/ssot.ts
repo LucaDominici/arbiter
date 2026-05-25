@@ -8,7 +8,10 @@ export interface SsotGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
+export function generateSsot(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): SsotGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = config
@@ -18,7 +21,7 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'METHOD', 'SSOT_CORE_SET.md'),
       renderTemplate('root/docs/METHOD/SSOT_CORE_SET.md.ejs', data),
-      { backup: true },
+      { backup: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -27,7 +30,7 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'METHOD', 'KNOWLEDGE_MAP.md'),
       renderTemplate('root/docs/METHOD/KNOWLEDGE_MAP.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -37,7 +40,7 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
       writeFile(
         resolvedPath(base, 'docs', 'METHOD', 'ENGINEERING_DEFAULTS.md'),
         renderTemplate('root/docs/METHOD/ENGINEERING_DEFAULTS.md.ejs', data),
-        { backup: true },
+        { backup: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -48,7 +51,7 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
       writeFile(
         resolvedPath(base, 'docs', 'METHOD', 'TRACK_ROUTER.md'),
         renderTemplate('root/docs/METHOD/TRACK_ROUTER.md.ejs', data),
-        { backup: true },
+        { backup: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -58,7 +61,7 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
     writeFile(
       resolvedPath(base, 'docs', 'METHOD', 'CANONICAL_PATHS.md'),
       renderTemplate('root/docs/METHOD/CANONICAL_PATHS.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -76,7 +79,7 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
       writeFile(
         resolvedPath(base, 'scripts', `${name}.mjs`),
         renderTemplate(`scripts/${name}.mjs.ejs`, data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -86,7 +89,7 @@ export function generateSsot(config: ProjectConfig): SsotGeneratorResult {
     writeFile(
       resolvedPath(base, 'scripts', 'harness.mjs'),
       renderTemplate('scripts/harness.mjs.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 

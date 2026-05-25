@@ -37,7 +37,10 @@ function buildRenderContext(config: ProjectConfig): Record<string, unknown> {
   }
 }
 
-export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
+export function generateClaude(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): ClaudeGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = buildRenderContext(config)
@@ -47,21 +50,21 @@ export function generateClaude(config: ProjectConfig): ClaudeGeneratorResult {
     writeFile(
       resolvedPath(base, '.claude', 'CLAUDE.md'),
       renderTemplate('claude/CLAUDE.md.ejs', data),
-      { backup: true },
+      { backup: true, dryRun: opts.dryRun },
     ),
   )
 
-  generateClaudeSettings(base, data, results)
-  generateClaudeHooks(base, data, config, results)
-  generateClaudeRules(base, data, config, results)
-  generateClaudeCommands(base, data, results)
+  generateClaudeSettings(base, data, results, opts.dryRun)
+  generateClaudeHooks(base, data, config, results, opts.dryRun)
+  generateClaudeRules(base, data, config, results, opts.dryRun)
+  generateClaudeCommands(base, data, results, opts.dryRun)
 
   // Machine-readable track routing map (#720)
   results.push(
     writeFile(
       resolvedPath(base, '.claude', 'knowledge-map.json'),
       renderTemplate('claude/knowledge-map.json.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -93,9 +96,18 @@ function parseExistingSettings(settingsPath: string): Record<string, unknown> {
   return parsed
 }
 
-function generateClaudeSettings(base: string, data: object, results: WriteResult[]): void {
+function generateClaudeSettings(
+  base: string,
+  data: object,
+  results: WriteResult[],
+  dryRun: boolean,
+): void {
   const settingsPath = resolvedPath(base, '.claude', 'settings.json')
   if (existsSync(settingsPath)) {
+    if (dryRun) {
+      results.push({ path: settingsPath, action: 'dry-run' })
+      return
+    }
     const existing = parseExistingSettings(settingsPath)
     const incoming = JSON.parse(renderTemplate('claude/settings.json.ejs', data)) as Record<
       string,
@@ -108,7 +120,9 @@ function generateClaudeSettings(base: string, data: object, results: WriteResult
     writeFileSync(settingsPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
     results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
   } else {
-    results.push(writeFile(settingsPath, renderTemplate('claude/settings.json.ejs', data)))
+    results.push(
+      writeFile(settingsPath, renderTemplate('claude/settings.json.ejs', data), { dryRun }),
+    )
   }
 }
 
@@ -117,14 +131,16 @@ function generateClaudeHooks(
   data: object,
   config: ProjectConfig,
   results: WriteResult[],
+  dryRun: boolean,
 ): void {
   const hooksDir = resolvedPath(base, '.claude', 'hooks')
-  mkdirSync(hooksDir, { recursive: true })
+  if (!dryRun) mkdirSync(hooksDir, { recursive: true })
 
   // Dispatcher (#248) — single entry point for all events; config table is baked in
   results.push(
     writeFile(join(hooksDir, 'hooks.mjs'), renderTemplate('claude/hooks/hooks.mjs.ejs', data), {
       skipIfExists: true,
+      dryRun,
     }),
   )
 
@@ -140,6 +156,7 @@ function generateClaudeHooks(
     results.push(
       writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}`, data), {
         skipIfExists: true,
+        dryRun,
       }),
     )
   }
@@ -149,6 +166,7 @@ function generateClaudeHooks(
     results.push(
       writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
         skipIfExists: true,
+        dryRun,
       }),
     )
   }
@@ -158,7 +176,7 @@ function generateClaudeHooks(
       writeFile(
         join(hooksDir, 'check-no-unused-exports.mjs'),
         renderTemplate('claude/hooks/check-no-unused-exports.mjs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
@@ -168,14 +186,14 @@ function generateClaudeHooks(
       writeFile(
         join(hooksDir, 'check-no-skipped-tests.mjs'),
         renderTemplate('claude/hooks/check-no-skipped-tests.mjs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
 
   for (const hook of config.languageHooks) {
     if (hook.name !== 'check-no-orphan-todo.mjs') {
-      results.push(writeFile(join(hooksDir, hook.name), hook.body, { skipIfExists: true }))
+      results.push(writeFile(join(hooksDir, hook.name), hook.body, { skipIfExists: true, dryRun }))
     }
   }
 
@@ -184,6 +202,7 @@ function generateClaudeHooks(
     results.push(
       writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
         skipIfExists: true,
+        dryRun,
       }),
     )
   }
@@ -204,6 +223,7 @@ function generateClaudeHooks(
       results.push(
         writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
           skipIfExists: true,
+          dryRun,
         }),
       )
     }
@@ -215,7 +235,7 @@ function generateClaudeHooks(
       writeFile(
         join(hooksDir, 'check-circular-deps.mjs'),
         renderTemplate('claude/hooks/check-circular-deps.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
@@ -226,6 +246,7 @@ function generateClaudeRules(
   data: object,
   config: ProjectConfig,
   results: WriteResult[],
+  dryRun: boolean,
 ): void {
   const rulesDir = resolvedPath(base, '.claude', 'rules')
   const rules = [
@@ -254,6 +275,7 @@ function generateClaudeRules(
     results.push(
       writeFile(join(rulesDir, rule.file), renderTemplate(rule.template, data), {
         skipIfExists: true,
+        dryRun,
       }),
     )
   }
@@ -262,13 +284,18 @@ function generateClaudeRules(
       writeFile(
         join(rulesDir, '45-mcp-fallback.md'),
         renderTemplate('claude/rules/45-mcp-fallback.md', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
 }
 
-function generateClaudeCommands(base: string, data: object, results: WriteResult[]): void {
+function generateClaudeCommands(
+  base: string,
+  data: object,
+  results: WriteResult[],
+  dryRun: boolean,
+): void {
   const commandsDir = resolvedPath(base, '.claude', 'commands')
   const commands = [
     'task.md',
@@ -283,6 +310,7 @@ function generateClaudeCommands(base: string, data: object, results: WriteResult
     results.push(
       writeFile(join(commandsDir, cmd), renderTemplate(`claude/commands/${cmd}.ejs`, data), {
         skipIfExists: true,
+        dryRun,
       }),
     )
   }

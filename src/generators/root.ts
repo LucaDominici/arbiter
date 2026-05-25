@@ -8,7 +8,10 @@ export interface RootGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateRoot(config: ProjectConfig): RootGeneratorResult {
+export function generateRoot(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): RootGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = config
@@ -19,7 +22,7 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
       writeFile(
         resolvedPath(base, '.github', 'CODEOWNERS'),
         renderTemplate('root/CODEOWNERS.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -28,6 +31,7 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
   results.push(
     writeFile(resolvedPath(base, 'SECURITY.md'), renderTemplate('root/SECURITY.md.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 
@@ -36,7 +40,7 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
     writeFile(
       resolvedPath(base, 'CONTRIBUTING.md'),
       renderTemplate('root/CONTRIBUTING.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -44,6 +48,7 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
   results.push(
     writeFile(resolvedPath(base, '.editorconfig'), renderTemplate('root/editorconfig.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 
@@ -53,7 +58,7 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
       writeFile(
         resolvedPath(base, 'tsconfig.json'),
         renderTemplate('root/tsconfig.json.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -63,7 +68,7 @@ export function generateRoot(config: ProjectConfig): RootGeneratorResult {
     writeFile(
       resolvedPath(base, 'commitlint.config.js'),
       renderTemplate('root/commitlint.config.js.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 

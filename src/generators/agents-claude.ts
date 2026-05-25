@@ -10,7 +10,10 @@ export interface AgentsClaudeGeneratorResult {
 
 const AGENT_NAMES = ['codebase-scanner', 'red-team', 'context-checker', 'bridge-reviewer'] as const
 
-export function generateAgentsClaude(config: ProjectConfig): AgentsClaudeGeneratorResult {
+export function generateAgentsClaude(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): AgentsClaudeGeneratorResult {
   if (!config.tools.includes('claude')) return { files: [] }
 
   const data = config
@@ -20,7 +23,7 @@ export function generateAgentsClaude(config: ProjectConfig): AgentsClaudeGenerat
     writeFile(
       resolvedPath(base, '.claude', 'agents', `${name}.md`),
       renderTemplate(`claude/agents/${name}.md.ejs`, data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 

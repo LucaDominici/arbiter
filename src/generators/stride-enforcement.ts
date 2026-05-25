@@ -8,7 +8,10 @@ export interface StrideEnforcementResult {
   files: WriteResult[]
 }
 
-export function generateStrideEnforcement(config: ProjectConfig): StrideEnforcementResult {
+export function generateStrideEnforcement(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): StrideEnforcementResult {
   if (config.governanceLevel === 'L1') return { files: [] }
 
   const base = config.targetDir
@@ -19,18 +22,18 @@ export function generateStrideEnforcement(config: ProjectConfig): StrideEnforcem
     writeFile(
       resolvedPath(base, 'docs', 'SECURITY', 'STRIDE.md'),
       renderTemplate('security/STRIDE.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     writeFile(
       resolvedPath(base, 'docs', 'GOVERNANCE', 'RACI.md'),
       renderTemplate('governance/RACI.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     // Arbiter-managed gate script — always regenerate to pick up script changes
     writeFile(
       resolvedPath(base, 'scripts', 'check-stride-traceability.mjs'),
       renderTemplate('scripts/check-stride-traceability.mjs.ejs', data),
-      { skipIfExists: false },
+      { skipIfExists: false, dryRun: opts.dryRun },
     ),
   ]
 
@@ -40,7 +43,7 @@ export function generateStrideEnforcement(config: ProjectConfig): StrideEnforcem
       writeFile(
         resolvedPath(base, 'docs', 'SECURITY', 'RISK_ASSESSMENT.md'),
         renderTemplate('security/RISK_ASSESSMENT.md.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

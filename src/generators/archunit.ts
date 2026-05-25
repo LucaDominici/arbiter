@@ -13,6 +13,7 @@ function emitHexagonalSuite(
   base: string,
   packagePath: string,
   data: ProjectConfig,
+  dryRun: boolean,
 ): WriteResult[] {
   const files: WriteResult[] = []
 
@@ -29,7 +30,7 @@ function emitHexagonalSuite(
       writeFile(
         resolvedPath(base, 'src', 'test', 'java', packagePath, name),
         renderTemplate(`archunit/${name}.ejs`, data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
@@ -39,7 +40,7 @@ function emitHexagonalSuite(
       writeFile(
         resolvedPath(base, 'gradle', 'arch-test-deps.gradle'),
         renderTemplate('archunit/arch-test-deps.gradle.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   } else if (config.buildTool === 'maven') {
@@ -47,7 +48,7 @@ function emitHexagonalSuite(
       writeFile(
         resolvedPath(base, 'docs', 'arch-test-deps-maven.md'),
         renderTemplate('archunit/arch-test-deps-maven.md.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
@@ -66,6 +67,7 @@ function emitRestAssuredScaffolding(
   base: string,
   packagePath: string,
   data: ProjectConfig,
+  dryRun: boolean,
 ): WriteResult[] {
   if (
     !config.hasDatabase ||
@@ -80,12 +82,12 @@ function emitRestAssuredScaffolding(
     writeFile(
       resolvedPath(base, 'src', 'test', 'java', supportPath, 'RestAssuredBaseIT.java'),
       renderTemplate('archunit/RestAssuredBaseIT.java.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(
       resolvedPath(base, 'src', 'test', 'java', packagePath, 'RestAssuredArchTest.java'),
       renderTemplate('archunit/RestAssuredArchTest.java.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun },
     ),
   ]
 }
@@ -94,17 +96,21 @@ function emitHexagonalConsolidated(
   base: string,
   packagePath: string,
   data: ProjectConfig,
+  dryRun: boolean,
 ): WriteResult {
   return writeFile(
     resolvedPath(base, 'src', 'test', 'java', packagePath, 'HexagonalArchTest.java'),
     renderTemplate('java/archunit-hexagonal.ejs', data),
-    { skipIfExists: true },
+    { skipIfExists: true, dryRun },
   )
 }
 
 const KNOWN_STYLES = new Set(['hexagonal', 'layered', 'modular-monolith', 'none'])
 
-export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult {
+export function generateArchUnit(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): ArchUnitGeneratorResult {
   if (config.language !== 'java') return { files: [] }
 
   if (!KNOWN_STYLES.has(config.architectureStyle)) {
@@ -129,7 +135,7 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
       writeFile(
         resolvedPath(base, 'src', 'test', 'java', packagePath, 'NoMockMvcTest.java'),
         renderTemplate('archunit/NoMockMvcTest.java.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -141,7 +147,7 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
       writeFile(
         resolvedPath(base, 'src', 'test', 'java', packagePath, 'ArchitectureTest.java'),
         renderTemplate('archunit/ArchitectureTest.java.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -150,7 +156,7 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
   // basePackage is mandatory to avoid @AnalyzeClasses(packages="") scanning the entire JVM classpath.
   // layered/modular-monolith suites are deferred; only ArchitectureTest.java is emitted for those styles.
   if (config.architectureStyle === 'hexagonal' && config.basePackage) {
-    files.push(...emitHexagonalSuite(config, base, packagePath, data))
+    files.push(...emitHexagonalSuite(config, base, packagePath, data, opts.dryRun))
   }
 
   // #998: Consolidated hexagonal ArchUnit scaffold — emitted at L2+ when hexagonal style chosen.
@@ -162,11 +168,11 @@ export function generateArchUnit(config: ProjectConfig): ArchUnitGeneratorResult
     config.governanceLevel !== 'L1' &&
     config.basePackage
   ) {
-    files.push(emitHexagonalConsolidated(base, packagePath, data))
+    files.push(emitHexagonalConsolidated(base, packagePath, data, opts.dryRun))
   }
 
   // RestAssured scaffolding — see emitRestAssuredScaffolding for guard logic (#491).
-  files.push(...emitRestAssuredScaffolding(config, base, packagePath, data))
+  files.push(...emitRestAssuredScaffolding(config, base, packagePath, data, opts.dryRun))
 
   return { files }
 }

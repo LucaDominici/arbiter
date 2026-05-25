@@ -19,7 +19,10 @@ export interface AuditToolchainGeneratorResult {
  * generator has a different responsibility: inventory audit — checking that
  * required toolchain files exist. These are architecturally distinct.
  */
-export function generateAuditToolchain(config: ProjectConfig): AuditToolchainGeneratorResult {
+export function generateAuditToolchain(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): AuditToolchainGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
 
@@ -27,6 +30,7 @@ export function generateAuditToolchain(config: ProjectConfig): AuditToolchainGen
   results.push(
     writeFile(scriptPath, renderTemplate('scripts/audit-toolchain.mjs.ejs', config), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 

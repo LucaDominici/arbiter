@@ -8,7 +8,10 @@ import { TIER_LABELS } from '../invariants/tiers.js'
 
 const OPTIONAL_TIERS: InvariantTier[] = ['data', 'security', 'operational']
 
-export function generateGlobalInvariants(config: ProjectConfig): WriteResult {
+export function generateGlobalInvariants(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): WriteResult {
   const hasOptionalTiers = config.invariantTiers.some((t) => OPTIONAL_TIERS.includes(t))
 
   if (!hasOptionalTiers) {
@@ -36,5 +39,6 @@ export function generateGlobalInvariants(config: ProjectConfig): WriteResult {
   const content = renderTemplate('global-invariants/GLOBAL_INVARIANTS.md.ejs', data)
   return writeFile(resolvedPath(config.targetDir, 'GLOBAL_INVARIANTS.md'), content, {
     backup: true,
+    dryRun: opts.dryRun,
   })
 }

@@ -8,14 +8,17 @@ export interface CursorGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateCursor(config: ProjectConfig): CursorGeneratorResult {
+export function generateCursor(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CursorGeneratorResult {
   const data = config
   return {
     files: [
       writeFile(
         resolvedPath(config.targetDir, '.cursorrules'),
         renderTemplate('cursor/.cursorrules.ejs', data),
-        { backup: true },
+        { backup: true, dryRun: opts.dryRun },
       ),
     ],
   }

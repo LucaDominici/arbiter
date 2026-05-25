@@ -8,7 +8,10 @@ export interface EnvTemplateGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateEnvTemplate(config: ProjectConfig): EnvTemplateGeneratorResult {
+export function generateEnvTemplate(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): EnvTemplateGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = { projectName: config.projectName }
@@ -17,6 +20,7 @@ export function generateEnvTemplate(config: ProjectConfig): EnvTemplateGenerator
   results.push(
     writeFile(envExamplePath, renderTemplate('local-wrapper/.env.example.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 

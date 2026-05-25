@@ -8,7 +8,10 @@ export interface EvidenceBacklogResult {
   files: WriteResult[]
 }
 
-export function generateEvidenceBacklog(config: ProjectConfig): EvidenceBacklogResult {
+export function generateEvidenceBacklog(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): EvidenceBacklogResult {
   if (config.governanceLevel !== 'L4') return { files: [] }
 
   const base = config.targetDir
@@ -19,7 +22,7 @@ export function generateEvidenceBacklog(config: ProjectConfig): EvidenceBacklogR
       writeFile(
         resolvedPath(base, '.evidence', 'BACKLOG.md.template'),
         renderTemplate('evidence/BACKLOG.md.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

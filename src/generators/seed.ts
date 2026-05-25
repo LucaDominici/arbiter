@@ -11,7 +11,10 @@ interface SeedGeneratorResult {
 
 const SCRIPT_MODE = 0o755
 
-export function generateSeed(config: ProjectConfig): SeedGeneratorResult {
+export function generateSeed(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): SeedGeneratorResult {
   if (config.archetype !== 'backend-web-db' || config.governanceLevel === 'L1') {
     return { files: [] }
   }
@@ -25,17 +28,17 @@ export function generateSeed(config: ProjectConfig): SeedGeneratorResult {
   const seedResult = writeFile(
     seedScriptPath,
     renderTemplate('scripts/seed-test-data.sh.ejs', data),
-    { skipIfExists: true },
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
 
-  if (seedResult.action !== 'skipped') {
+  if (!opts.dryRun && seedResult.action !== 'skipped') {
     chmodSync(seedScriptPath, SCRIPT_MODE)
   }
 
   const commonResult = writeFile(
     commonLibPath,
     renderTemplate('scripts/lib/seed-common.sh.ejs', data),
-    { skipIfExists: true },
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
 
   return { files: [seedResult, commonResult] }

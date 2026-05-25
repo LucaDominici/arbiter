@@ -101,6 +101,8 @@ export interface WriteResult {
   action: 'created' | 'skipped' | 'replaced' | 'backed-up-and-replaced' | 'dry-run'
 }
 
+export type GeneratorRunOpts = { dryRun: boolean }
+
 /**
  * Write a file atomically (temp-file + rename), creating parent directories as needed.
  * If the file already exists and skipIfExists=true, skip it.

@@ -19,7 +19,10 @@ function renderSecurityTemplate(templatePath: string, data: object): string {
   }
 }
 
-export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult {
+export function generateSecurity(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): SecurityGeneratorResult {
   if (!config.enableSecurityScanning) return { files: [] }
 
   const base = config.targetDir
@@ -31,7 +34,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
     writeFile(
       resolvedPath(base, 'scripts', 'pii-scan.mjs'),
       renderSecurityTemplate('scripts/pii-scan.mjs.ejs', data),
-      { skipIfExists: false },
+      { skipIfExists: false, dryRun: opts.dryRun },
     ),
   )
 
@@ -40,7 +43,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
     writeFile(
       resolvedPath(base, '.gitleaks.toml'),
       renderSecurityTemplate('security/gitleaks.toml.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -50,7 +53,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
       writeFile(
         resolvedPath(base, '.claude', 'hooks', 'check-no-pii.mjs'),
         renderSecurityTemplate('claude/hooks/check-no-pii.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -61,7 +64,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
       writeFile(
         resolvedPath(base, 'config', 'owasp-dependency-check.gradle'),
         renderSecurityTemplate('security/owasp-dependency-check.gradle.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -75,7 +78,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
       writeFile(
         resolvedPath(base, '.zap', 'rules.tsv'),
         renderSecurityTemplate('security/zap/rules.tsv.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     // baseline-auth.context is user-customised (login URL, credentials) — never overwrite
@@ -83,7 +86,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
       writeFile(
         resolvedPath(base, '.zap', 'baseline-auth.context'),
         renderSecurityTemplate('security/zap/baseline-auth.context.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     // Ingest script is generated code — always kept current
@@ -91,7 +94,7 @@ export function generateSecurity(config: ProjectConfig): SecurityGeneratorResult
       writeFile(
         resolvedPath(base, 'scripts', 'ingest-zap-report.mjs'),
         renderSecurityTemplate('scripts/ingest-zap-report.mjs.ejs', data),
-        { skipIfExists: false },
+        { skipIfExists: false, dryRun: opts.dryRun },
       ),
     )
   }

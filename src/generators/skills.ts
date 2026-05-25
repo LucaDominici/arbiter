@@ -54,6 +54,7 @@ export function computeSkipReport(installedSkills: InstalledSkill[]): SkipReport
 export function generateSkills(
   config: ProjectConfig,
   installedSkills: InstalledSkill[] = [],
+  opts: { dryRun: boolean } = { dryRun: false },
 ): SkillsGeneratorResult {
   if (!config.tools.includes('claude')) return { files: [], skipped: [] }
 
@@ -75,7 +76,7 @@ export function generateSkills(
       writeFile(
         resolvedPath(base, '.claude', 'skills', name, 'SKILL.md'),
         renderTemplate(`claude/skills/${name}/SKILL.md.ejs`, config),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

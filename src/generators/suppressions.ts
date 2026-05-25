@@ -8,7 +8,10 @@ export interface SuppressionsGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateSuppressions(config: ProjectConfig): SuppressionsGeneratorResult {
+export function generateSuppressions(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): SuppressionsGeneratorResult {
   const base = config.targetDir
   const data = config
 
@@ -17,7 +20,7 @@ export function generateSuppressions(config: ProjectConfig): SuppressionsGenerat
     writeFile(
       resolvedPath(base, 'scripts', 'check-inline-suppressions.mjs'),
       renderTemplate('scripts/check-inline-suppressions.mjs.ejs', data),
-      { skipIfExists: false },
+      { skipIfExists: false, dryRun: opts.dryRun },
     ),
   ]
 
@@ -28,24 +31,24 @@ export function generateSuppressions(config: ProjectConfig): SuppressionsGenerat
     writeFile(
       resolvedPath(base, 'suppressions', 'dependency-check-suppressions.xml'),
       renderTemplate('suppressions/dependency-check-suppressions.xml.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     writeFile(
       resolvedPath(base, 'suppressions', '.gitleaksignore'),
       renderTemplate('suppressions/gitleaksignore.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     writeFile(
       resolvedPath(base, 'suppressions', 'pii-allowlist.json'),
       renderTemplate('suppressions/pii-allowlist.json.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
     ...(config.language === 'java'
       ? [
           writeFile(
             resolvedPath(base, 'suppressions', 'archunit-baseline.json'),
             renderTemplate('suppressions/archunit-baseline.json.ejs', data),
-            { skipIfExists: true },
+            { skipIfExists: true, dryRun: opts.dryRun },
           ),
         ]
       : []),
@@ -53,12 +56,12 @@ export function generateSuppressions(config: ProjectConfig): SuppressionsGenerat
     writeFile(
       resolvedPath(base, 'suppressions', 'suppressions-schema.json'),
       renderTemplate('suppressions/suppressions-schema.json.ejs', data),
-      { skipIfExists: false },
+      { skipIfExists: false, dryRun: opts.dryRun },
     ),
     writeFile(
       resolvedPath(base, 'scripts', 'check-suppressions.mjs'),
       renderTemplate('scripts/check-suppressions.mjs.ejs', data),
-      { skipIfExists: false },
+      { skipIfExists: false, dryRun: opts.dryRun },
     ),
   )
 
@@ -71,12 +74,12 @@ export function generateSuppressions(config: ProjectConfig): SuppressionsGenerat
       writeFile(
         resolvedPath(base, 'suppressions', 'owasp-suppressions.xml'),
         renderTemplate('suppressions/owasp-suppressions.xml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'suppressions', '.trivyignore'),
         renderTemplate('suppressions/trivyignore.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

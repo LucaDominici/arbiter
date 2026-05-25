@@ -9,7 +9,10 @@ export interface LocalWrapperGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateLocalWrapper(config: ProjectConfig): LocalWrapperGeneratorResult {
+export function generateLocalWrapper(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): LocalWrapperGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = { projectName: config.projectName }
@@ -18,15 +21,17 @@ export function generateLocalWrapper(config: ProjectConfig): LocalWrapperGenerat
   results.push(
     writeFile(makefilePath, renderTemplate('local-wrapper/Makefile.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 
   const runShPath = resolvedPath(base, 'run.sh')
   const runShResult = writeFile(runShPath, renderTemplate('local-wrapper/run.sh.ejs', data), {
     skipIfExists: true,
+    dryRun: opts.dryRun,
   })
   results.push(runShResult)
-  if (runShResult.action !== 'skipped') {
+  if (!opts.dryRun && runShResult.action !== 'skipped') {
     try {
       chmodSync(runShPath, 0o755)
     } catch (err) {

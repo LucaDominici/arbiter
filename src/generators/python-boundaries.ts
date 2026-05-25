@@ -8,7 +8,10 @@ export interface BoundariesGeneratorResult {
   files: WriteResult[]
 }
 
-export function generatePythonBoundaries(config: ProjectConfig): BoundariesGeneratorResult {
+export function generatePythonBoundaries(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): BoundariesGeneratorResult {
   if (config.language !== 'python') return { files: [] }
   if (config.architectureStyle !== 'hexagonal') return { files: [] }
 
@@ -20,17 +23,17 @@ export function generatePythonBoundaries(config: ProjectConfig): BoundariesGener
       writeFile(
         resolvedPath(base, '.importlinter'),
         renderTemplate('boundaries/.importlinter.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'ruff-boundaries.toml'),
         renderTemplate('boundaries/ruff-boundaries.toml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'scripts/check-boundaries.mjs'),
         renderTemplate('boundaries/check-boundaries-python.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

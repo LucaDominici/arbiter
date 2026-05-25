@@ -8,7 +8,10 @@ export interface BoundariesGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateRustBoundaries(config: ProjectConfig): BoundariesGeneratorResult {
+export function generateRustBoundaries(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): BoundariesGeneratorResult {
   if (config.language !== 'rust') return { files: [] }
   if (config.architectureStyle !== 'hexagonal') return { files: [] }
 
@@ -19,16 +22,17 @@ export function generateRustBoundaries(config: ProjectConfig): BoundariesGenerat
     files: [
       writeFile(resolvedPath(base, 'deny.toml'), renderTemplate('boundaries/deny.toml.ejs', data), {
         skipIfExists: true,
+        dryRun: opts.dryRun,
       }),
       writeFile(
         resolvedPath(base, 'clippy.toml'),
         renderTemplate('boundaries/clippy.toml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'scripts/check-boundaries.mjs'),
         renderTemplate('boundaries/check-boundaries-rust.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

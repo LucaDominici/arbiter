@@ -8,14 +8,17 @@ export interface AiderGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateAider(config: ProjectConfig): AiderGeneratorResult {
+export function generateAider(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): AiderGeneratorResult {
   const data = config
   return {
     files: [
       writeFile(
         resolvedPath(config.targetDir, '.aider.conf.yml'),
         renderTemplate('aider/.aider.conf.yml.ejs', data),
-        { backup: true },
+        { backup: true, dryRun: opts.dryRun },
       ),
     ],
   }

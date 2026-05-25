@@ -15,22 +15,30 @@ function shouldEmit(target: 'java' | 'typescript', language: string, acceptBeta:
   return isL3Allowed(target, 'mutation', acceptBeta).allowed
 }
 
-function emitJavaMutation(targetDir: string, buildTool: string, data: object): WriteResult {
+function emitJavaMutation(
+  targetDir: string,
+  buildTool: string,
+  data: object,
+  dryRun: boolean,
+): WriteResult {
   if (buildTool === 'maven') {
     return writeFile(
       resolvedPath(targetDir, 'docs', 'mutation', 'pitest-maven-setup.md'),
       renderTemplate('mutation/pitest-maven-setup.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun },
     )
   }
   return writeFile(
     resolvedPath(targetDir, 'gradle', 'pitest.gradle'),
     renderTemplate('mutation/pitest.gradle.ejs', data),
-    { skipIfExists: true },
+    { skipIfExists: true, dryRun },
   )
 }
 
-export function generateMutation(config: ProjectConfig): MutationGeneratorResult {
+export function generateMutation(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): MutationGeneratorResult {
   if (config.governanceLevel === 'L1' || config.governanceLevel === 'L2') return { files: [] }
 
   const { language, targetDir, acceptBetaTools = false } = config
@@ -51,14 +59,14 @@ export function generateMutation(config: ProjectConfig): MutationGeneratorResult
   const files: WriteResult[] = []
 
   if (shouldEmit('java', language, acceptBetaTools)) {
-    files.push(emitJavaMutation(targetDir, config.buildTool, data))
+    files.push(emitJavaMutation(targetDir, config.buildTool, data, opts.dryRun))
   }
   if (shouldEmit('typescript', language, acceptBetaTools)) {
     files.push(
       writeFile(
         resolvedPath(targetDir, 'stryker.conf.json'),
         renderTemplate('mutation/stryker.conf.json.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -67,12 +75,12 @@ export function generateMutation(config: ProjectConfig): MutationGeneratorResult
       writeFile(
         resolvedPath(targetDir, 'cargo-mutants.toml'),
         renderTemplate('mutation/cargo-mutants.toml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(targetDir, 'scripts', 'parse-mutants.mjs'),
         renderTemplate('mutation/parse-mutants.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   } else if (language === 'python') {
@@ -80,12 +88,12 @@ export function generateMutation(config: ProjectConfig): MutationGeneratorResult
       writeFile(
         resolvedPath(targetDir, 'mutmut-config.toml'),
         renderTemplate('mutation/mutmut-config.toml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(targetDir, 'scripts', 'parse-mutmut.py'),
         renderTemplate('mutation/parse-mutmut.py.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
