@@ -217,6 +217,20 @@ function printFlowPreamble(wizardInput: WizardInput, flow: WizardFlow): void {
   process.stdout.write('\n')
 }
 
+function resolveWizardAnswers(
+  rawAnswers: Omit<WizardAnswers, 'language'> & {
+    language?: Language
+    keepDetectedLanguage?: boolean
+  },
+  wizardInput: WizardInput,
+): WizardAnswers {
+  const language = rawAnswers.language ?? wizardInput.language
+  if (language === 'unknown') {
+    throw new Error('INV: language must be a known Language value before buildConfigFromAnswers')
+  }
+  return { ...rawAnswers, language }
+}
+
 export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig | null> {
   process.stdout.write('\n')
 
@@ -228,15 +242,7 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
       buildMainQuestions(wizardInput) as Parameters<typeof inquirer.prompt>[0],
     )) as Omit<WizardAnswers, 'language'> & { language?: Language; keepDetectedLanguage?: boolean }
 
-    // Resolve language: list selection takes priority; fall back to detected/locked value.
-    const answers: WizardAnswers = {
-      ...rawAnswers,
-      language: rawAnswers.language ?? wizardInput.language,
-    }
-
-    if (answers.language === 'unknown') {
-      throw new Error('INV: language must be a known Language value before buildConfigFromAnswers')
-    }
+    const answers: WizardAnswers = resolveWizardAnswers(rawAnswers, wizardInput)
 
     const tools = answers.tools.length > 0 ? answers.tools : (['claude', 'codex'] as AiTool[])
     const decompositionBackend: 'github' | 'markdown' =
