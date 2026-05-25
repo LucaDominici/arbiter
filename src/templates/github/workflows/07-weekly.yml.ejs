@@ -21,7 +21,7 @@ jobs:
 <% if (_isService) { %>
   cross-db-matrix:
     name: Cross-DB matrix (Postgres / MySQL / MSSQL / MariaDB)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     strategy:
       fail-fast: false
       matrix:
@@ -148,7 +148,7 @@ jobs:
 <% } %>
   dep-freshness:
     name: Dependency freshness report
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
@@ -195,7 +195,7 @@ jobs:
 
   perf-trend:
     name: k6 performance trend
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: k6 performance smoke vs 7-day baseline
@@ -207,7 +207,7 @@ jobs:
 
   action-version-audit:
     name: Stale action pin audit
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Find SHA-pinned actions older than 180 days
@@ -247,7 +247,7 @@ jobs:
       - cross-os-matrix
 <% } %>
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - name: Weekly gate summary
         run: |

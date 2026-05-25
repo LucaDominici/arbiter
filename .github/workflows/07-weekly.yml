@@ -18,7 +18,7 @@ jobs:
 
   dep-freshness:
     name: Dependency freshness report
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -33,7 +33,7 @@ jobs:
 
   perf-trend:
     name: k6 performance trend
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: k6 performance smoke vs 7-day baseline
@@ -45,7 +45,7 @@ jobs:
 
   action-version-audit:
     name: Stale action pin audit
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Find SHA-pinned actions older than 180 days
@@ -81,7 +81,7 @@ jobs:
 
 
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - name: Weekly gate summary
         run: |

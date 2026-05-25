@@ -16,7 +16,7 @@ concurrency:
 jobs:
   dep-age-audit:
     name: Dependency age audit (>180 days)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -41,7 +41,7 @@ jobs:
 
   license-full-audit:
     name: Full license compliance scan
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -62,7 +62,7 @@ jobs:
 
   action-pins-stale-audit:
     name: GitHub Actions SHA pin staleness (>180d)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     permissions:
       contents: read
     steps:
@@ -103,7 +103,7 @@ jobs:
 
   sbom-archive:
     name: SBOM full snapshot
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -130,7 +130,7 @@ jobs:
       - action-pins-stale-audit
       - sbom-archive
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Collect evidence summary
@@ -153,7 +153,7 @@ jobs:
       - action-pins-stale-audit
       - sbom-archive
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - name: Assert all jobs succeeded
         run: |

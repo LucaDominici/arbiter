@@ -15,7 +15,7 @@ concurrency:
 jobs:
   archunit-extended:
     name: Extended ArchUnit + Modulith verification
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-java@v4

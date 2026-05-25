@@ -23,7 +23,7 @@ on:
 jobs:
   sign-with-retry:
     name: Sign artifact (cosign keyless, retry)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     permissions:
       id-token: write
       contents: read

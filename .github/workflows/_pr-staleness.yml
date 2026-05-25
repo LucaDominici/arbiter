@@ -15,7 +15,7 @@ permissions:
 jobs:
   stale:
     name: Mark and close stale PRs
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
     permissions:
       pull-requests: write
     steps:
