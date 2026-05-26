@@ -11,9 +11,9 @@ export interface GithooksGeneratorResult {
 
 const HOOK_MODE = 0o755
 
-function writeHook(filePath: string, content: string): WriteResult {
-  const result = writeFile(filePath, content, { skipIfExists: true })
-  if (result.action !== 'skipped') {
+function writeHook(filePath: string, content: string, dryRun: boolean): WriteResult {
+  const result = writeFile(filePath, content, { skipIfExists: true, dryRun })
+  if (!dryRun && result.action !== 'skipped') {
     chmodSync(filePath, HOOK_MODE)
   }
   return result
@@ -27,7 +27,8 @@ function isTypeScript(config: ProjectConfig): boolean {
  * Merge `git config core.hooksPath .githooks` into the prepare script of
  * package.json at targetDir. Idempotent: does nothing if already present.
  */
-function injectPrepareScript(targetDir: string): void {
+function injectPrepareScript(targetDir: string, dryRun: boolean): void {
+  if (dryRun) return
   const pkgPath = resolvedPath(targetDir, 'package.json')
   if (!existsSync(pkgPath)) return
 
@@ -55,7 +56,10 @@ function injectPrepareScript(targetDir: string): void {
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
 }
 
-export function generateGithooks(config: ProjectConfig): GithooksGeneratorResult {
+export function generateGithooks(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): GithooksGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = config
@@ -66,30 +70,37 @@ export function generateGithooks(config: ProjectConfig): GithooksGeneratorResult
     writeHook(
       resolvedPath(hooksDir, 'pre-commit'),
       renderTemplate('githooks/pre-commit.ejs', data),
+      opts.dryRun,
     ),
   )
 
   results.push(
-    writeHook(resolvedPath(hooksDir, 'pre-push'), renderTemplate('githooks/pre-push.ejs', data)),
+    writeHook(
+      resolvedPath(hooksDir, 'pre-push'),
+      renderTemplate('githooks/pre-push.ejs', data),
+      opts.dryRun,
+    ),
   )
 
   results.push(
     writeHook(
       resolvedPath(hooksDir, 'commit-msg'),
       renderTemplate('githooks/commit-msg.ejs', data),
+      opts.dryRun,
     ),
   )
 
   if (isTypeScript(config)) {
     // TypeScript: auto-wire via package.json prepare script
-    injectPrepareScript(base)
+    injectPrepareScript(base, opts.dryRun)
   } else {
     // Non-Node stacks: emit setup-hooks.sh
     const setupPath = resolvedPath(base, 'scripts', 'setup-hooks.sh')
     const setupResult = writeFile(setupPath, renderTemplate('githooks/setup-hooks.sh.ejs', data), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     })
-    if (setupResult.action !== 'skipped') {
+    if (!opts.dryRun && setupResult.action !== 'skipped') {
       chmodSync(setupPath, HOOK_MODE)
     }
     results.push(setupResult)

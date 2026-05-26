@@ -6,7 +6,8 @@ import { writeFile, resolvedPath } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
-function appendCargoDevDep(base: string, name: string, version: string): void {
+function appendCargoDevDep(base: string, name: string, version: string, dryRun: boolean): void {
+  if (dryRun) return
   const cargoPath = join(base, 'Cargo.toml')
   if (!existsSync(cargoPath)) return
   const content = readFileSync(cargoPath, 'utf-8')
@@ -42,6 +43,7 @@ export interface IntegrationTestingGeneratorResult {
  */
 export function generateIntegrationTesting(
   config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
 ): IntegrationTestingGeneratorResult {
   // Gate: only generate when hasDatabase is true AND governance level is not L1.
   // See JSDoc for #487 rationale — this generator is intentionally DB-scoped.
@@ -62,21 +64,21 @@ export function generateIntegrationTesting(
       writeFile(
         resolvedPath(base, supportPkg, 'AbstractIntegrationTest.java'),
         renderTemplate('integration-testing/AbstractIntegrationTest.java.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, supportPkg, 'NoH2ArchTest.java'),
         renderTemplate('integration-testing/NoH2ArchTest.java.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, 'config', 'testcontainers-deps.gradle'),
         renderTemplate('integration-testing/testcontainers-deps.gradle.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -85,14 +87,14 @@ export function generateIntegrationTesting(
       writeFile(
         resolvedPath(base, 'src', 'test', 'test-setup.ts'),
         renderTemplate('integration-testing/test-setup.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, '.eslintrc-no-fake-db.json'),
         renderTemplate('integration-testing/eslint-no-fake-db.json.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -101,16 +103,16 @@ export function generateIntegrationTesting(
       writeFile(
         resolvedPath(base, 'tests', 'db_fixture.rs'),
         renderTemplate('integration-testing/db_fixture.rs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
-    appendCargoDevDep(base, 'testcontainers', '0.23')
+    appendCargoDevDep(base, 'testcontainers', '0.23', opts.dryRun)
   } else if (config.language === 'go') {
     results.push(
       writeFile(
         resolvedPath(base, 'tests', 'main_test.go'),
         renderTemplate('integration-testing/main_test.go.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   } else if (config.language === 'python') {
@@ -118,7 +120,7 @@ export function generateIntegrationTesting(
       writeFile(
         resolvedPath(base, 'tests', 'conftest.py'),
         renderTemplate('integration-testing/conftest.py.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

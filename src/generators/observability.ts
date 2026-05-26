@@ -8,7 +8,10 @@ export interface ObservabilityGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateObservability(config: ProjectConfig): ObservabilityGeneratorResult {
+export function generateObservability(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): ObservabilityGeneratorResult {
   if (!config.observability || config.observability.provider === 'none') {
     return { files: [] }
   }
@@ -17,7 +20,7 @@ export function generateObservability(config: ProjectConfig): ObservabilityGener
       writeFile(
         resolvedPath(config.targetDir, 'docs', 'OBSERVABILITY.md'),
         renderTemplate('observability/setup.md.ejs', config),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

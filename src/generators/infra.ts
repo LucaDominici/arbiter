@@ -26,7 +26,10 @@ export interface InfraGeneratorResult {
  *
  * The skipIfExists flag ensures user-customized deploy specs survive re-init.
  */
-export function generateInfra(config: ProjectConfig): InfraGeneratorResult {
+export function generateInfra(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): InfraGeneratorResult {
   if (!config.enableAzureContainerApp) return { files: [] }
 
   const infraDir = resolvedPath(config.targetDir, 'infra', 'azure')
@@ -35,7 +38,7 @@ export function generateInfra(config: ProjectConfig): InfraGeneratorResult {
     writeFile(
       join(infraDir, 'containerapp.tpl.yaml'),
       renderTemplate('infra/azure/containerapp.tpl.yaml.ejs', config),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   ]
 

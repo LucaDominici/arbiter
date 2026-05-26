@@ -57,7 +57,7 @@ import { generateAuditToolchain } from './audit-toolchain.js'
 import { generatePerfK6 } from './perf-k6.js'
 import { generateModulith } from './modulith.js'
 import type { ProjectConfig } from '../wizard/types.js'
-import type { WriteResult } from '../utils/fs.js'
+import type { WriteResult, GeneratorRunOpts } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
 
 const BACKEND_WEB_DB = 'backend-web-db' as const
@@ -65,8 +65,10 @@ const BACKEND_WEB_DB = 'backend-web-db' as const
 export interface GeneratorSpec {
   key: GeneratorKey
   enabled: boolean
-  run: () => WriteResult[]
+  run: (opts: GeneratorRunOpts) => WriteResult[]
 }
+
+export type { GeneratorRunOpts }
 
 /**
  * Failure record collected by {@link runGeneratorsFromRegistry} /
@@ -89,57 +91,57 @@ function buildAiToolSpecs(
     {
       key: 'agents-md',
       enabled: true,
-      run: () => [generateAgentsMd(config, installedSkills, skipReport)],
+      run: (opts) => [generateAgentsMd(config, installedSkills, skipReport, opts)],
     },
     {
       key: 'global-invariants',
       enabled: true,
-      run: () => [generateGlobalInvariants(config)],
+      run: (opts) => [generateGlobalInvariants(config, opts)],
     },
     {
       key: 'claude',
       enabled: noAiRulez && config.tools.includes('claude'),
-      run: () => generateClaude(config).files,
+      run: (opts) => generateClaude(config, opts).files,
     },
     {
       key: 'codex',
       enabled: noAiRulez && config.tools.includes('codex'),
-      run: () => generateCodex(config).files,
+      run: (opts) => generateCodex(config, opts).files,
     },
     {
       key: 'cursor',
       enabled: noAiRulez && config.tools.includes('cursor'),
-      run: () => generateCursor(config).files,
+      run: (opts) => generateCursor(config, opts).files,
     },
     {
       key: 'copilot',
       enabled: noAiRulez && config.tools.includes('copilot'),
-      run: () => generateCopilot(config).files,
+      run: (opts) => generateCopilot(config, opts).files,
     },
     {
       key: 'gemini',
       enabled: noAiRulez && config.tools.includes('gemini'),
-      run: () => generateGemini(config).files,
+      run: (opts) => generateGemini(config, opts).files,
     },
     {
       key: 'windsurf',
       enabled: noAiRulez && config.tools.includes('windsurf'),
-      run: () => generateWindsurf(config).files,
+      run: (opts) => generateWindsurf(config, opts).files,
     },
     {
       key: 'aider',
       enabled: noAiRulez && config.tools.includes('aider'),
-      run: () => generateAider(config).files,
+      run: (opts) => generateAider(config, opts).files,
     },
     {
       key: 'skills',
       enabled: noAiRulez,
-      run: () => generateSkills(config, installedSkills).files,
+      run: (opts) => generateSkills(config, installedSkills, opts).files,
     },
     {
       key: 'agents-claude',
       enabled: noAiRulez,
-      run: () => generateAgentsClaude(config).files,
+      run: (opts) => generateAgentsClaude(config, opts).files,
     },
   ]
 }
@@ -149,17 +151,17 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     {
       key: 'github',
       enabled: config.useGitHub,
-      run: () => generateGithub(config).files,
+      run: (opts) => generateGithub(config, opts).files,
     },
     {
       key: 'root',
       enabled: config.useGitHub,
-      run: () => generateRoot(config).files,
+      run: (opts) => generateRoot(config, opts).files,
     },
     {
       key: 'check-all',
       enabled: true,
-      run: () => generateCheckAll(config).files,
+      run: (opts) => generateCheckAll(config, opts).files,
     },
     {
       key: 'debt-gates',
@@ -168,92 +170,108 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       // unconditionally for TS at L1+ (#933 F13).
       enabled:
         config.enableDebtGates || config.language === 'typescript' || config.language === 'multi',
-      run: () => generateDebtGates(config).files,
+      run: (opts) => generateDebtGates(config, opts).files,
     },
     {
       key: 'debt-ratchet',
       enabled: config.enableDebtGates,
-      run: () => generateDebtRatchet(config).files,
+      run: (opts) => generateDebtRatchet(config, opts).files,
     },
     {
       key: 'coverage',
       enabled: config.enableDebtGates,
-      run: () => generateCoverage(config).files,
+      run: (opts) => generateCoverage(config, opts).files,
     },
     {
       key: 'suppressions',
       enabled: true,
-      run: () => generateSuppressions(config).files,
+      run: (opts) => generateSuppressions(config, opts).files,
     },
     {
       key: 'security',
       enabled: config.enableSecurityScanning,
-      run: () => generateSecurity(config).files,
+      run: (opts) => generateSecurity(config, opts).files,
     },
     {
       key: 'stride-enforcement',
       enabled: config.enableDebtGates,
-      run: () => generateStrideEnforcement(config).files,
+      run: (opts) => generateStrideEnforcement(config, opts).files,
     },
     {
       key: 'githooks',
       enabled: true,
-      run: () => generateGithooks(config).files,
+      run: (opts) => generateGithooks(config, opts).files,
     },
     {
       key: 'github-setup',
       enabled: config.useGitHub && config.governanceLevel !== 'L1',
-      run: () => generateGithubSetup(config).files,
+      run: (opts) => generateGithubSetup(config, opts).files,
     },
     {
       key: 'docs',
       enabled: config.governanceLevel !== 'L1',
-      run: () => generateDocs(config).files,
+      run: (opts) => generateDocs(config, opts).files,
     },
     {
       key: 'quality',
       enabled: config.governanceLevel !== 'L1',
-      run: () => generateQuality(config).files,
+      run: (opts) => generateQuality(config, opts).files,
     },
     {
       key: 'api-middleware',
       enabled: config.hasPublicApi,
-      run: () => generateApiMiddleware(config).files,
+      run: (opts) => generateApiMiddleware(config, opts).files,
     },
     {
       key: 'seed',
       enabled: config.archetype === BACKEND_WEB_DB && config.governanceLevel !== 'L1',
-      run: () => generateSeed(config).files,
+      run: (opts) => generateSeed(config, opts).files,
     },
     {
       key: 'self-validation',
       enabled: config.enableSelfValidationHarness !== false,
-      run: () => generateSelfValidation(config).files,
+      run: (opts) => generateSelfValidation(config, opts).files,
     },
     {
       key: 'infra',
       enabled: config.enableAzureContainerApp === true,
-      run: () => generateInfra(config).files,
+      run: (opts) => generateInfra(config, opts).files,
     },
     {
       key: 'audit-toolchain',
       enabled: true,
-      run: () => generateAuditToolchain(config).files,
+      run: (opts) => generateAuditToolchain(config, opts).files,
     },
   ]
 }
 
 function buildBoundarySpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
-    { key: 'archunit', enabled: true, run: () => generateArchUnit(config).files },
-    { key: 'eslint-boundaries', enabled: true, run: () => generateEslintBoundaries(config).files },
-    { key: 'rust-boundaries', enabled: true, run: () => generateRustBoundaries(config).files },
-    { key: 'go-boundaries', enabled: true, run: () => generateGoBoundaries(config).files },
-    { key: 'python-boundaries', enabled: true, run: () => generatePythonBoundaries(config).files },
+    { key: 'archunit', enabled: true, run: (opts) => generateArchUnit(config, opts).files },
+    {
+      key: 'eslint-boundaries',
+      enabled: true,
+      run: (opts) => generateEslintBoundaries(config, opts).files,
+    },
+    {
+      key: 'rust-boundaries',
+      enabled: true,
+      run: (opts) => generateRustBoundaries(config, opts).files,
+    },
+    {
+      key: 'go-boundaries',
+      enabled: true,
+      run: (opts) => generateGoBoundaries(config, opts).files,
+    },
+    {
+      key: 'python-boundaries',
+      enabled: true,
+      run: (opts) => generatePythonBoundaries(config, opts).files,
+    },
     {
       key: 'modulith',
       enabled: config.language === 'java' || config.language === 'multi',
-      run: () => generateModulith(config).files,
+      run: (opts) => generateModulith(config, opts).files,
     },
   ]
 }
@@ -264,11 +282,19 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
     {
       key: 'mutation',
       enabled: config.enableMutationTesting !== false,
-      run: () => generateMutation(config).files,
+      run: (opts) => generateMutation(config, opts).files,
     },
-    { key: 'ci-tier', enabled: config.useGitHub, run: () => generateCiTier(config).files },
-    { key: 'local-wrapper', enabled: true, run: () => generateLocalWrapper(config).files },
-    { key: 'env-template', enabled: true, run: () => generateEnvTemplate(config).files },
+    {
+      key: 'ci-tier',
+      enabled: config.useGitHub,
+      run: (opts) => generateCiTier(config, opts).files,
+    },
+    {
+      key: 'local-wrapper',
+      enabled: true,
+      run: (opts) => generateLocalWrapper(config, opts).files,
+    },
+    { key: 'env-template', enabled: true, run: (opts) => generateEnvTemplate(config, opts).files },
     {
       // #487: this is DATABASE integration-testing (Testcontainers + PostgreSQL).
       // API-only projects (no DB but with public API) are served by `contract-testing`
@@ -277,38 +303,38 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       // would emit broken DB scaffolding for an API-only project.
       key: 'integration-testing',
       enabled: config.hasDatabase,
-      run: () => generateIntegrationTesting(config).files,
+      run: (opts) => generateIntegrationTesting(config, opts).files,
     },
     {
       // Companion to integration-testing above: covers API-only / contract paths.
       key: 'contract-testing',
       enabled: config.enableContractTesting !== false,
-      run: () => generateContractTesting(config).files,
+      run: (opts) => generateContractTesting(config, opts).files,
     },
     {
       key: 'evidence-retention',
       enabled: config.enableEvidenceHarness !== false,
-      run: () => generateEvidenceRetention(config).files,
+      run: (opts) => generateEvidenceRetention(config, opts).files,
     },
     {
       key: 'evidence-backlog',
       enabled: config.governanceLevel !== 'L1',
-      run: () => generateEvidenceBacklog(config).files,
+      run: (opts) => generateEvidenceBacklog(config, opts).files,
     },
     {
       key: 'test-taxonomy',
       enabled: true,
-      run: () => generateTestTaxonomy(config).files,
+      run: (opts) => generateTestTaxonomy(config, opts).files,
     },
     {
       key: 'operations',
       enabled: config.enableOperationsHandbook === true,
-      run: () => generateOperations(config).files,
+      run: (opts) => generateOperations(config, opts).files,
     },
     {
       key: 'risk-register',
       enabled: config.enableRiskRegister === true,
-      run: () => generateRiskRegister(config).files,
+      run: (opts) => generateRiskRegister(config, opts).files,
     },
     {
       key: 'compliance',
@@ -316,28 +342,28 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
         config.enableIso27001Mapping === true ||
         config.enableNis2Mapping === true ||
         config.enableGdprMapping === true,
-      run: () => generateCompliance(config).files,
+      run: (opts) => generateCompliance(config, opts).files,
     },
     {
       key: 'behavioral-tests',
       enabled: true,
-      run: () => generateBehavioralTests(config).files,
+      run: (opts) => generateBehavioralTests(config, opts).files,
     },
     {
       key: 'playwright-python',
       enabled:
         config.language === 'python' &&
         (config.archetype === 'frontend-spa' || config.archetype === BACKEND_WEB_DB),
-      run: () => generatePlaywrightPython(config).files,
+      run: (opts) => generatePlaywrightPython(config, opts).files,
     },
     {
       key: 'playwright-ts',
       enabled:
         config.language === 'typescript' &&
         (config.archetype === 'frontend-spa' || config.archetype === BACKEND_WEB_DB),
-      run: () => generatePlaywrightTs(config).files,
+      run: (opts) => generatePlaywrightTs(config, opts).files,
     },
-    { key: 'ssot', enabled: true, run: () => generateSsot(config).files },
+    { key: 'ssot', enabled: true, run: (opts) => generateSsot(config, opts).files },
   ]
 }
 
@@ -346,7 +372,7 @@ function buildPerfSpecs(config: ProjectConfig): GeneratorSpec[] {
     {
       key: 'perf-k6',
       enabled: config.enablePerfTesting === true,
-      run: () => generatePerfK6(config).files,
+      run: (opts) => generatePerfK6(config, opts).files,
     },
   ]
 }
@@ -356,12 +382,12 @@ function buildProviderSpecs(config: ProjectConfig): GeneratorSpec[] {
     {
       key: 'observability',
       enabled: config.observability != null && config.observability.provider !== 'none',
-      run: () => generateObservability(config).files,
+      run: (opts) => generateObservability(config, opts).files,
     },
     {
       key: 'auth',
       enabled: config.auth != null && config.auth.provider !== 'none',
-      run: () => generateAuth(config).files,
+      run: (opts) => generateAuth(config, opts).files,
     },
   ]
 }
@@ -379,9 +405,13 @@ export function buildRegistry(
   ]
 }
 
-function safeRun(spec: GeneratorSpec, errors: GeneratorFailure[]): WriteResult[] {
+function safeRun(
+  spec: GeneratorSpec,
+  opts: GeneratorRunOpts,
+  errors: GeneratorFailure[],
+): WriteResult[] {
   try {
-    return spec.run()
+    return spec.run(opts)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     // Keep the stderr line for operators tailing logs; the structured
@@ -399,17 +429,19 @@ function safeRun(spec: GeneratorSpec, errors: GeneratorFailure[]): WriteResult[]
 export function runGeneratorsFromRegistry(
   specs: GeneratorSpec[],
   errors: GeneratorFailure[] = [],
+  opts: GeneratorRunOpts,
 ): WriteResult[] {
-  return specs.filter((s) => s.enabled).flatMap((s) => safeRun(s, errors))
+  return specs.filter((s) => s.enabled).flatMap((s) => safeRun(s, opts, errors))
 }
 
 export function runGeneratorsSelective(
   specs: GeneratorSpec[],
   keys: Set<GeneratorKey | '*'>,
   errors: GeneratorFailure[] = [],
+  opts: GeneratorRunOpts,
 ): WriteResult[] {
   if (keys.has('*')) {
-    return runGeneratorsFromRegistry(specs, errors)
+    return runGeneratorsFromRegistry(specs, errors, opts)
   }
-  return specs.filter((s) => s.enabled && keys.has(s.key)).flatMap((s) => safeRun(s, errors))
+  return specs.filter((s) => s.enabled && keys.has(s.key)).flatMap((s) => safeRun(s, opts, errors))
 }

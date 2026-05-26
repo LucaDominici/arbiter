@@ -8,14 +8,17 @@ export interface GeminiGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateGemini(config: ProjectConfig): GeminiGeneratorResult {
+export function generateGemini(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): GeminiGeneratorResult {
   const data = config
   return {
     files: [
       writeFile(
         resolvedPath(config.targetDir, '.gemini', 'GEMINI.md'),
         renderTemplate('gemini/GEMINI.md.ejs', data),
-        { backup: true },
+        { backup: true, dryRun: opts.dryRun },
       ),
     ],
   }

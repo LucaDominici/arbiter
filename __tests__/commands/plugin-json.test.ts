@@ -56,10 +56,10 @@ describe('plugin --json', () => {
     expect((parsed.data as Record<string, unknown>).pkg).toBe('my-plugin')
   })
 
-  it('plugin remove emits JSON envelope on success', () => {
+  it('plugin remove emits JSON envelope on success', async () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG, plugins: ['my-plugin'] })
 
-    runPluginRemove({ pkg: 'my-plugin', json: true })
+    await runPluginRemove({ pkg: 'my-plugin', json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('plugin-remove')

@@ -273,7 +273,7 @@ async function generateAndFinalize(
 
     // Load existing stored config before overwriting (brownfield re-init may have plugins)
     const storedBefore = loadConfig(targetDir)
-    saveConfig(targetDir, newConfig)
+    await saveConfig(targetDir, newConfig)
 
     const plugins: string[] = Array.isArray(storedBefore?.plugins) ? storedBefore.plugins : []
     const pluginResults = await runPlugins(targetDir, plugins, newConfig)
@@ -470,7 +470,7 @@ async function resolveConfig(args: {
 }
 
 export function runGenerators(config: ProjectConfig): WriteResult[] {
-  return runGeneratorsFromRegistry(buildRegistry(config))
+  return runGeneratorsFromRegistry(buildRegistry(config), [], { dryRun: false })
 }
 
 /**
@@ -488,7 +488,9 @@ function runGeneratorsWithErrors(
   errors: GeneratorFailure[]
 } {
   const errors: GeneratorFailure[] = []
-  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors)
+  const results = runGeneratorsFromRegistry(buildRegistry(config, installedSkills), errors, {
+    dryRun: false,
+  })
   return { results, errors }
 }
 

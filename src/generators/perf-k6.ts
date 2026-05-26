@@ -34,14 +34,17 @@ const REPORT_NAMES = ['html-report', 'json-report', 'csv-report'] as const
  * Gated on config.enablePerfTesting — off by default.
  * All files use skipIfExists for brownfield safety.
  */
-export function generatePerfK6(config: ProjectConfig): PerfK6GeneratorResult {
+export function generatePerfK6(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): PerfK6GeneratorResult {
   if (!config.enablePerfTesting) {
     return { files: [] }
   }
 
   const base = config.targetDir
   const data = config
-  const skip = { skipIfExists: true } as const
+  const skip = { skipIfExists: true, dryRun: opts.dryRun } as const
 
   const workflowsDir = resolvedPath(base, '.github', 'workflows')
   const scenariosDir = resolvedPath(base, 'perf', 'k6', 'scenarios')

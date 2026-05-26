@@ -11,6 +11,7 @@ export function generateAgentsMd(
   config: ProjectConfig,
   installedSkills: InstalledSkill[] = [],
   skippedGenerators: SkipReport[] = [],
+  opts: { dryRun: boolean } = { dryRun: false },
 ): WriteResult {
   const invariants = getFilteredInvariants({
     language: config.language,
@@ -32,5 +33,6 @@ export function generateAgentsMd(
   const content = renderTemplate('agents-md/AGENTS.md.ejs', data)
   return writeFile(resolvedPath(config.targetDir, 'AGENTS.md'), content, {
     backup: true,
+    dryRun: opts.dryRun,
   })
 }

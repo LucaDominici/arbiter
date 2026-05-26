@@ -217,7 +217,7 @@ describe('runDoctorRepairState (#619)', () => {
   })
 
   it('re-derives snapshot from arbiter.json (no prior snapshot)', async () => {
-    saveConfig(dir, defaultConfig())
+    await saveConfig(dir, defaultConfig())
     const result = await runDoctorRepairState({ dir, json: true })
     expect(result.exitCode).toBe(0)
     expect(result.repaired).toBe(true)
@@ -242,7 +242,7 @@ describe('runDoctorRepairState (#619)', () => {
   })
 
   it('does NOT modify arbiter.json', async () => {
-    saveConfig(dir, defaultConfig())
+    await saveConfig(dir, defaultConfig())
     const before = readFileSync(join(dir, 'arbiter.json'), 'utf-8')
     await runDoctorRepairState({ dir, json: true })
     const after = readFileSync(join(dir, 'arbiter.json'), 'utf-8')

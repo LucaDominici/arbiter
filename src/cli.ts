@@ -1129,8 +1129,8 @@ plugin
   .description('Remove a plugin from this project')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((pkg: string, opts: { dir?: string; json: boolean }) => {
-    runPluginRemove({
+  .action(async (pkg: string, opts: { dir?: string; json: boolean }) => {
+    await runPluginRemove({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       pkg,
       json: opts.json,
@@ -1788,13 +1788,24 @@ kit
       .default('gold'),
   )
   .option('--dry-run', 'Skip file writes (scaffold phase reports only)', false)
+  .option('--emit-issues', 'Create GitHub issues for W1 dims via gh CLI', false)
+  .option('--report-path <path>', 'Write audit report to this path (default: no report)')
   .action(
-    (opts: { targetDir: string; language: string; brownfieldClass: string; dryRun: boolean }) => {
-      const result = runKitInstall({
+    async (opts: {
+      targetDir: string
+      language: string
+      brownfieldClass: string
+      dryRun: boolean
+      emitIssues: boolean
+      reportPath?: string
+    }) => {
+      const result = await runKitInstall({
         targetDir: opts.targetDir,
         language: opts.language,
         brownfieldClass: opts.brownfieldClass as BrownfieldClass,
         dryRun: opts.dryRun,
+        emitIssues: opts.emitIssues,
+        ...(opts.reportPath !== undefined ? { reportPath: opts.reportPath } : {}),
       })
       for (const phase of result.phases) {
         process.stdout.write(`[${phase.phase}] ${phase.output}\n`)

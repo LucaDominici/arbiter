@@ -25,8 +25,8 @@ describe('arbiter config', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('saveConfig creates arbiter.json', () => {
-    saveConfig(dir, defaultConfig())
+  it('saveConfig creates arbiter.json', async () => {
+    await saveConfig(dir, defaultConfig())
     expect(existsSync(join(dir, 'arbiter.json'))).toBe(true)
   })
 
@@ -34,9 +34,9 @@ describe('arbiter config', () => {
     expect(loadConfig(dir)).toBeNull()
   })
 
-  it('saveConfig + loadConfig round-trips v2 config correctly', () => {
+  it('saveConfig + loadConfig round-trips v2 config correctly', async () => {
     const config = defaultConfig()
-    saveConfig(dir, { ...config, useGitHub: true })
+    await saveConfig(dir, { ...config, useGitHub: true })
     const loaded = loadConfig(dir)
     expect(loaded?.useGitHub).toBe(true)
     expect(loaded?.version).toBe('0.2')
@@ -57,20 +57,20 @@ describe('arbiter config', () => {
     expect(() => loadConfig(dir)).toThrow(/invalid JSON/)
   })
 
-  it('saveConfig preserves all tool types', () => {
+  it('saveConfig preserves all tool types', async () => {
     const config = {
       version: '0.1',
       tools: ['claude', 'codex', 'cursor', 'copilot'] as const,
       governanceLevel: 'L3' as const,
       useGitHub: false,
     }
-    saveConfig(dir, config)
+    await saveConfig(dir, config)
     const loaded = loadConfig(dir)
     expect(loaded!.tools).toEqual(['claude', 'codex', 'cursor', 'copilot'])
     expect(loaded!.governanceLevel).toBe('L3')
   })
 
-  it('saveConfig + loadConfig round-trips invariantTiers', () => {
+  it('saveConfig + loadConfig round-trips invariantTiers', async () => {
     const config = {
       version: '0.1',
       tools: ['claude'] as const,
@@ -78,7 +78,7 @@ describe('arbiter config', () => {
       useGitHub: false,
       invariantTiers: ['architectural', 'data', 'governance'] as const,
     }
-    saveConfig(dir, config)
+    await saveConfig(dir, config)
     const loaded = loadConfig(dir)
     expect(loaded!.invariantTiers).toEqual(['architectural', 'data', 'governance'])
   })
@@ -121,9 +121,9 @@ describe('arbiter config — MK grace-period fields (ADR-028)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('round-trips graceEndsAt and graceFromLevel through save/load', () => {
+  it('round-trips graceEndsAt and graceFromLevel through save/load', async () => {
     const grace = '2026-05-16T00:00:00.000Z'
-    saveConfig(dir, {
+    await saveConfig(dir, {
       version: '0.1',
       tools: ['claude'],
       governanceLevel: 'L2',
@@ -214,8 +214,8 @@ describe('arbiter config — ML contractType field (ADR-028)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('round-trips contractType through save/load', () => {
-    saveConfig(dir, {
+  it('round-trips contractType through save/load', async () => {
+    await saveConfig(dir, {
       version: '0.1',
       tools: ['claude'],
       governanceLevel: 'L2',
@@ -301,8 +301,8 @@ describe('saveConfigAndSnapshot (#772)', () => {
     expect(() => loadSnapshot(dir)).toThrow(/checksum mismatch/i)
   })
 
-  it('loadSnapshot auto-migrates a v0 (pre-envelope) snapshot without throwing', () => {
-    saveConfig(dir, defaultConfig())
+  it('loadSnapshot auto-migrates a v0 (pre-envelope) snapshot without throwing', async () => {
+    await saveConfig(dir, defaultConfig())
     // v0 snapshot = bare config (legacy shape) — no envelope, no checksum
     writeFileSync(
       join(dir, '.arbiter-generated.json'),

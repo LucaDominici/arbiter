@@ -14,7 +14,10 @@ export interface CodexHooksGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateCodexHooks(config: ProjectConfig): CodexHooksGeneratorResult {
+export function generateCodexHooks(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CodexHooksGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
   const data = config
@@ -24,7 +27,7 @@ export function generateCodexHooks(config: ProjectConfig): CodexHooksGeneratorRe
     writeFile(
       resolvedPath(base, '.codex', 'config.toml'),
       renderTemplate('codex/config.toml.ejs', data),
-      { backup: true },
+      { backup: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -33,12 +36,13 @@ export function generateCodexHooks(config: ProjectConfig): CodexHooksGeneratorRe
   const adapterDest = join(resolvedPath(base, '.codex'), 'codex-adapter.mjs')
   const writeResult = writeFile(adapterDest, readFileSync(adapterSrc, 'utf-8'), {
     skipIfExists: true,
+    dryRun: opts.dryRun,
   })
   results.push(writeResult)
 
   // Post-emit format: apply target's prettier config so style matches target project (#933 F13).
   // Only format when the file was newly written; skip if the existing file was preserved.
-  if (writeResult.action !== 'skipped') {
+  if (writeResult.action !== 'skipped' && writeResult.action !== 'dry-run') {
     prettierFormat(adapterDest, base)
   }
 

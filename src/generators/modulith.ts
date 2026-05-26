@@ -35,7 +35,10 @@ function isSpringBootProject(targetDir: string): boolean {
   return false
 }
 
-export function generateModulith(config: ProjectConfig): ModulithGeneratorResult {
+export function generateModulith(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): ModulithGeneratorResult {
   if (config.language !== 'java' && config.language !== 'multi') return { files: [] }
 
   // Only emit when the target is a Spring Boot project (detected by pom.xml / build.gradle).
@@ -65,7 +68,7 @@ export function generateModulith(config: ProjectConfig): ModulithGeneratorResult
           'ApplicationModulesTest.java',
         ),
         renderTemplate('java/modulith/ApplicationModulesTest.java.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

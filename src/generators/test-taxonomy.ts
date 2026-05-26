@@ -29,7 +29,10 @@ function extractDomainDims(config: ProjectConfig): string[] {
  * #719: when enableTaxonomy25d is true, uses the 25-dimension compliance template.
  * skipIfExists: teams may want to customise the taxonomy after init.
  */
-export function generateTestTaxonomy(config: ProjectConfig): TestTaxonomyResult {
+export function generateTestTaxonomy(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): TestTaxonomyResult {
   const profile = getTestPyramidProfile(config.archetype)
   const domainDims = extractDomainDims(config)
   const path = resolvedPath(config.targetDir, 'docs', 'TEST_TAXONOMY.md')
@@ -45,6 +48,6 @@ export function generateTestTaxonomy(config: ProjectConfig): TestTaxonomyResult 
     domainDims,
   })
   return {
-    files: [writeFile(path, content, { skipIfExists: true })],
+    files: [writeFile(path, content, { skipIfExists: true, dryRun: opts.dryRun })],
   }
 }

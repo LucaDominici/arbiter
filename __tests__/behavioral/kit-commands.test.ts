@@ -50,9 +50,9 @@ describe('arbiter kit — sub-command surface', () => {
     expect(stdout + stderr).toContain('[ASSESS]')
   })
 
-  it('kit install --dry-run reports SCAFFOLD dry-run mode', () => {
+  it('kit install --dry-run reports SCAFFOLD phase', () => {
     const { stdout, stderr } = spawn(['kit', 'install', '--experimental.kit', '--dry-run'])
-    expect(stdout + stderr).toContain('dry-run mode')
+    expect(stdout + stderr).toContain('[SCAFFOLD]')
   })
 
   it('kit list exits 0 and prints a dimension table', () => {

@@ -8,7 +8,10 @@ export interface GoBoundariesGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateGoBoundaries(config: ProjectConfig): GoBoundariesGeneratorResult {
+export function generateGoBoundaries(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): GoBoundariesGeneratorResult {
   if (config.language !== 'go') return { files: [] }
   if (config.architectureStyle !== 'hexagonal') return { files: [] }
 
@@ -20,12 +23,12 @@ export function generateGoBoundaries(config: ProjectConfig): GoBoundariesGenerat
       writeFile(
         resolvedPath(base, '.golangci-boundaries.yml'),
         renderTemplate('boundaries/golangci-boundaries.yml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'scripts/check-boundaries.mjs'),
         renderTemplate('boundaries/check-boundaries-go.mjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

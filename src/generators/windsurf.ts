@@ -8,14 +8,17 @@ export interface WindsurfGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateWindsurf(config: ProjectConfig): WindsurfGeneratorResult {
+export function generateWindsurf(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): WindsurfGeneratorResult {
   const data = config
   return {
     files: [
       writeFile(
         resolvedPath(config.targetDir, 'windsurf-instructions.md'),
         renderTemplate('windsurf/windsurf-instructions.md.ejs', data),
-        { backup: true },
+        { backup: true, dryRun: opts.dryRun },
       ),
     ],
   }

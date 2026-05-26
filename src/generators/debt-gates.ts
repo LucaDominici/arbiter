@@ -10,7 +10,8 @@ export interface DebtGatesGeneratorResult {
   files: WriteResult[]
 }
 
-function injectTestScripts(targetDir: string): void {
+function injectTestScripts(targetDir: string, dryRun: boolean): void {
+  if (dryRun) return
   const pkgPath = resolvedPath(targetDir, 'package.json')
   if (!existsSync(pkgPath)) return
   let pkg: Record<string, unknown>
@@ -44,7 +45,8 @@ function injectTestScripts(targetDir: string): void {
   }
 }
 
-function injectDepCruiserPackageJson(targetDir: string): void {
+function injectDepCruiserPackageJson(targetDir: string, dryRun: boolean): void {
+  if (dryRun) return
   const pkgPath = resolvedPath(targetDir, 'package.json')
   if (!existsSync(pkgPath)) return
   let pkg: Record<string, unknown>
@@ -76,7 +78,12 @@ function injectDepCruiserPackageJson(targetDir: string): void {
   }
 }
 
-function pushJavaDebtGates(results: WriteResult[], base: string, data: object): void {
+function pushJavaDebtGates(
+  results: WriteResult[],
+  base: string,
+  data: object,
+  dryRun: boolean,
+): void {
   const files: [string, string][] = [
     [resolvedPath(base, 'config', 'pmd-ruleset.xml'), 'static-analysis/pmd-ruleset.xml.ejs'],
     [resolvedPath(base, 'config', 'checkstyle.xml'), 'static-analysis/checkstyle.xml.ejs'],
@@ -91,13 +98,16 @@ function pushJavaDebtGates(results: WriteResult[], base: string, data: object): 
     [resolvedPath(base, 'spotbugs-baseline.json'), 'scripts/spotbugs-baseline.json.ejs'],
   ]
   for (const [path, tmpl] of files) {
-    results.push(writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true }))
+    results.push(writeFile(path, renderTemplate(tmpl, data), { skipIfExists: true, dryRun }))
   }
 }
 
-export function generateDebtGates(config: ProjectConfig): DebtGatesGeneratorResult {
+export function generateDebtGates(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): DebtGatesGeneratorResult {
   if (config.language === 'typescript' || config.language === 'multi') {
-    injectTestScripts(config.targetDir)
+    injectTestScripts(config.targetDir, opts.dryRun)
   }
 
   if (!config.enableDebtGates) return { files: [] }
@@ -111,31 +121,31 @@ export function generateDebtGates(config: ProjectConfig): DebtGatesGeneratorResu
       writeFile(
         resolvedPath(base, 'knip.json'),
         renderTemplate('static-analysis/knip.json.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, '.eslintrc-static.json'),
         renderTemplate('static-analysis/eslintrc-static.json.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, '.prettierrc.json'),
         renderTemplate('static-analysis/prettierrc.json.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, '.dependency-cruiser.cjs'),
         renderTemplate('static-analysis/.dependency-cruiser.cjs.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
-    injectDepCruiserPackageJson(base)
+    injectDepCruiserPackageJson(base, opts.dryRun)
   }
 
   if (config.language === 'rust') {
@@ -143,7 +153,7 @@ export function generateDebtGates(config: ProjectConfig): DebtGatesGeneratorResu
       writeFile(
         resolvedPath(base, 'rustfmt.toml'),
         renderTemplate('static-analysis/rustfmt.toml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -153,13 +163,13 @@ export function generateDebtGates(config: ProjectConfig): DebtGatesGeneratorResu
       writeFile(
         resolvedPath(base, '.golangci.yml'),
         renderTemplate('static-analysis/.golangci.yml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
 
   if (config.language === 'java' || config.language === 'multi') {
-    pushJavaDebtGates(results, base, data)
+    pushJavaDebtGates(results, base, data, opts.dryRun)
   }
 
   if (config.language === 'python') {
@@ -167,7 +177,7 @@ export function generateDebtGates(config: ProjectConfig): DebtGatesGeneratorResu
       writeFile(
         resolvedPath(base, 'ruff.toml'),
         renderTemplate('static-analysis/ruff.toml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

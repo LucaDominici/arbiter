@@ -1,1 +1,10 @@
-[{ "version": "0.1.0", "archetype": "ts-cli", "language": "typescript", "path": "v0.1.0-ts-cli" }]
+[
+  { "version": "0.1.0", "archetype": "ts-cli", "language": "typescript", "path": "v0.1.0-ts-cli" },
+  {
+    "version": "0.3.0",
+    "archetype": "ts-cli",
+    "language": "typescript",
+    "path": "v0.3.0-baseline",
+    "note": "frozen v3-shape baseline for v3→v4 migration regression"
+  }
+]

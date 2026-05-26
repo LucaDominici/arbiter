@@ -111,7 +111,7 @@ function v2ToProjectConfig(
 function printStats(results: WriteResult[]): void {
   const created = results.filter((r) => r.action === 'created').length
   const replaced = results.filter((r) => r.action === 'backed-up-and-replaced').length
-  const skipped = results.filter((r) => r.action === 'skipped').length
+  const skipped = results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length
   process.stdout.write(`${t('cli.update.done', { created, replaced, skipped })}\n`)
 }
 
@@ -126,21 +126,37 @@ function selectAndRun(
 } {
   const errors: GeneratorFailure[] = []
   if (!snapshot) {
-    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
+    return {
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      keysRun: null,
+      errors,
+    }
   }
   const diff = diffConfig(snapshot, stored)
   if (diff.paths.length === 0) {
     process.stdout.write(`${t('cli.update.no_config_changes')}\n`)
-    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: null, errors }
+    return {
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      keysRun: null,
+      errors,
+    }
   }
   const keys = impactedGenerators(diff)
   if (keys.has('*') || keys.size === 0) {
     const reason = keys.size === 0 ? 'Unknown config change' : 'Governance/axis change'
     process.stdout.write(`${t('cli.update.reason_regen', { reason })}\n`)
-    return { results: runGeneratorsFromRegistry(specs, errors), keysRun: keys, errors }
+    return {
+      results: runGeneratorsFromRegistry(specs, errors, { dryRun: false }),
+      keysRun: keys,
+      errors,
+    }
   }
   process.stdout.write(`${t('cli.update.selective', { count: keys.size })}\n`)
-  return { results: runGeneratorsSelective(specs, keys, errors), keysRun: keys, errors }
+  return {
+    results: runGeneratorsSelective(specs, keys, errors, { dryRun: false }),
+    keysRun: keys,
+    errors,
+  }
 }
 
 function detectProjectInfo(
@@ -369,7 +385,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const summary: UpdateSummary = {
       created: results.filter((r) => r.action === 'created').length,
       updated: results.filter((r) => r.action === 'backed-up-and-replaced').length,
-      skipped: results.filter((r) => r.action === 'skipped').length,
+      skipped: results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length,
     }
     emitUpdateOutcome(options, summary, generatorErrors, backendResult.warnings)
 

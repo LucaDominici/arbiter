@@ -10,7 +10,10 @@ interface PlaywrightPythonResult {
 
 const E2E_ARCHETYPES = new Set(['frontend-spa', 'backend-web-db'])
 
-export function generatePlaywrightPython(config: ProjectConfig): PlaywrightPythonResult {
+export function generatePlaywrightPython(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): PlaywrightPythonResult {
   if (!E2E_ARCHETYPES.has(config.archetype)) {
     return { files: [] }
   }
@@ -23,12 +26,12 @@ export function generatePlaywrightPython(config: ProjectConfig): PlaywrightPytho
       writeFile(
         resolvedPath(base, 'tests', 'e2e', 'conftest.py'),
         renderTemplate('e2e/playwright-python/conftest.py.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'tests', 'e2e', 'test_smoke.py'),
         renderTemplate('e2e/playwright-python/test_smoke.py.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

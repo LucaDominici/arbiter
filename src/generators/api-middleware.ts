@@ -10,7 +10,8 @@ export interface ApiMiddlewareGeneratorResult {
   files: WriteResult[]
 }
 
-function injectExpressPackageJson(targetDir: string): void {
+function injectExpressPackageJson(targetDir: string, dryRun: boolean): void {
+  if (dryRun) return
   const pkgPath = resolvedPath(targetDir, 'package.json')
   if (!existsSync(pkgPath)) return
   let pkg: Record<string, unknown>
@@ -42,7 +43,10 @@ function injectExpressPackageJson(targetDir: string): void {
   }
 }
 
-export function generateApiMiddleware(config: ProjectConfig): ApiMiddlewareGeneratorResult {
+export function generateApiMiddleware(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): ApiMiddlewareGeneratorResult {
   if (!config.hasPublicApi) return { files: [] }
 
   const results: WriteResult[] = []
@@ -50,47 +54,47 @@ export function generateApiMiddleware(config: ProjectConfig): ApiMiddlewareGener
   const data = config
 
   if (config.language === 'typescript' || config.language === 'multi') {
-    injectExpressPackageJson(base)
+    injectExpressPackageJson(base, opts.dryRun)
     results.push(
       writeFile(
         resolvedPath(base, 'src', 'middleware', 'deprecation.ts'),
         renderTemplate('middleware/deprecation.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, 'src', 'middleware', '410-gone-handler.ts'),
         renderTemplate('middleware/410-gone-handler.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, 'src', 'middleware', 'error-handler.ts'),
         renderTemplate('middleware/error-handler.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, 'src', 'middleware', 'correlation-id.ts'),
         renderTemplate('middleware/correlation-id.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, 'src', 'middleware', 'payload-size-limit.ts'),
         renderTemplate('middleware/payload-size-limit.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
     results.push(
       writeFile(
         resolvedPath(base, '__tests__', 'contract', 'error-shape.contract.test.ts'),
         renderTemplate('__tests__/contract/error-shape.contract.test.ts.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }
@@ -110,7 +114,7 @@ export function generateApiMiddleware(config: ProjectConfig): ApiMiddlewareGener
           'DeprecationInterceptor.java',
         ),
         renderTemplate('java/DeprecationInterceptor.java.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )
   }

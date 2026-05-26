@@ -22,7 +22,10 @@ export function computeMetricsProfile(config: ProjectConfig): MetricsProfile {
   }
 }
 
-export function generateDebtRatchet(config: ProjectConfig): DebtRatchetGeneratorResult {
+export function generateDebtRatchet(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): DebtRatchetGeneratorResult {
   if (!config.enableDebtGates) return { files: [] }
 
   const base = config.targetDir
@@ -37,17 +40,17 @@ export function generateDebtRatchet(config: ProjectConfig): DebtRatchetGenerator
       writeFile(
         resolvedPath(base, 'scripts', 'debt-lib.mjs'),
         renderTemplate('scripts/debt-lib.mjs.ejs', data),
-        { skipIfExists: false, backup: true },
+        { skipIfExists: false, backup: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'scripts', 'capture-debt-baseline.mjs'),
         renderTemplate('scripts/capture-debt-baseline.mjs.ejs', data),
-        { skipIfExists: false, backup: true },
+        { skipIfExists: false, backup: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'scripts', 'debt-report.mjs'),
         renderTemplate('scripts/debt-report.mjs.ejs', data),
-        { skipIfExists: false, backup: true },
+        { skipIfExists: false, backup: true, dryRun: opts.dryRun },
       ),
     ],
   }

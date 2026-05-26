@@ -41,6 +41,8 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}internal${sep}`,
   `${sep}.claude${sep}plans${sep}`,
 ]
+// Auto-generated files that bypass frontmatter requirements
+const SKIP_FILENAMES = new Set(['SELF-KIT-AUDIT.md'])
 
 const REQUIRED_KEYS = [
   'title',
@@ -68,7 +70,7 @@ function walk(dir) {
     if (e.isDirectory()) {
       if (shouldSkip(p + sep)) continue
       out.push(...walk(p))
-    } else if (e.isFile() && e.name.endsWith('.md')) out.push(p)
+    } else if (e.isFile() && e.name.endsWith('.md') && !SKIP_FILENAMES.has(e.name)) out.push(p)
   }
   return out
 }

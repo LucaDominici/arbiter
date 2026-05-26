@@ -11,7 +11,8 @@ export interface ContractTestingGeneratorResult {
   files: WriteResult[]
 }
 
-function injectPactPackageJson(targetDir: string): void {
+function injectPactPackageJson(targetDir: string, dryRun: boolean): void {
+  if (dryRun) return
   const pkgPath = resolvedPath(targetDir, 'package.json')
   if (!existsSync(pkgPath)) return
   let pkg: Record<string, unknown>
@@ -56,12 +57,14 @@ interface ContractFileOptions {
   goFile: string
   pyFile: string
   extraFiles?: WriteResult[]
+  dryRun: boolean
 }
 
-function contractFile(opts: ContractFileOptions): WriteResult[] {
-  const { base, config, data, templateDir, tsFile, javaFile, rustFile, goFile, pyFile } = opts
-  const out: WriteResult[] = opts.extraFiles ?? []
-  const skip = { skipIfExists: true } as const
+function contractFile(cfOpts: ContractFileOptions): WriteResult[] {
+  const { base, config, data, templateDir, tsFile, javaFile, rustFile, goFile, pyFile, dryRun } =
+    cfOpts
+  const out: WriteResult[] = cfOpts.extraFiles ?? []
+  const skip = { skipIfExists: true, dryRun } as const
 
   if (config.language === 'typescript' || config.language === 'multi') {
     out.push(
@@ -117,10 +120,10 @@ function contractFile(opts: ContractFileOptions): WriteResult[] {
  * All files use skipIfExists so brownfield re-init never overwrites user-regenerated baselines.
  * (#896)
  */
-function generateApiContractBaselines(base: string, data: object): WriteResult[] {
+function generateApiContractBaselines(base: string, data: object, dryRun: boolean): WriteResult[] {
   const snapshotsBase = resolvedPath(base, 'src', 'test', 'resources', 'api-snapshots')
   const pactSamplesBase = resolvedPath(base, 'src', 'test', 'resources', 'pact-samples')
-  const skip = { skipIfExists: true } as const
+  const skip = { skipIfExists: true, dryRun } as const
   const out: WriteResult[] = []
 
   const snapshotStubs = [
@@ -184,15 +187,21 @@ function generateApiContractBaselines(base: string, data: object): WriteResult[]
   return out
 }
 
-function generateRestOwned(base: string, config: ProjectConfig, data: object): WriteResult[] {
+function generateRestOwned(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  dryRun: boolean,
+): WriteResult[] {
   const extra: WriteResult[] = [
     writeFile(
       resolvedPath(base, '.env.pact'),
       renderTemplate('contract-testing/env/.env.pact.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun },
     ),
     writeFile(resolvedPath(base, 'pacts', '.gitkeep'), '', {
       skipIfExists: true,
+      dryRun,
     }),
   ]
 
@@ -201,7 +210,7 @@ function generateRestOwned(base: string, config: ProjectConfig, data: object): W
       writeFile(
         resolvedPath(base, 'config', 'pact-deps.gradle'),
         renderTemplate('contract-testing/rest-owned/pact-deps.gradle.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
@@ -216,28 +225,28 @@ function generateRestOwned(base: string, config: ProjectConfig, data: object): W
       writeFile(
         resolvedPath(base, 'scripts', 'run-postman-tests.sh'),
         renderTemplate('scripts/run-postman-tests.sh.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
       writeFile(
         resolvedPath(base, 'scripts', 'inject-pact-samples.sh'),
         renderTemplate('scripts/inject-pact-samples.sh.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
       writeFile(
         resolvedPath(base, '.github', 'workflows', '_contract-postman.yml'),
         renderTemplate('github/workflows/_contract-postman.yml.ejs', data),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun },
       ),
     )
   }
 
   // F9: API contract baselines — Java only (#896)
   if (config.language === 'java' || config.language === 'multi') {
-    extra.push(...generateApiContractBaselines(base, data))
+    extra.push(...generateApiContractBaselines(base, data, dryRun))
   }
 
   if (config.language === 'typescript' || config.language === 'multi') {
-    injectPactPackageJson(base)
+    injectPactPackageJson(base, dryRun)
   }
 
   return contractFile({
@@ -251,10 +260,16 @@ function generateRestOwned(base: string, config: ProjectConfig, data: object): W
     goFile: 'pact_consumer_test.go',
     pyFile: 'test_pact_consumer.py',
     extraFiles: extra,
+    dryRun,
   })
 }
 
-function generateRestPublic(base: string, config: ProjectConfig, data: object): WriteResult[] {
+function generateRestPublic(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  dryRun: boolean,
+): WriteResult[] {
   return contractFile({
     base,
     config,
@@ -265,10 +280,16 @@ function generateRestPublic(base: string, config: ProjectConfig, data: object): 
     rustFile: 'openapi_diff_test.rs',
     goFile: 'openapi_diff_test.go',
     pyFile: 'test_openapi_diff.py',
+    dryRun,
   })
 }
 
-function generateGraphql(base: string, config: ProjectConfig, data: object): WriteResult[] {
+function generateGraphql(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  dryRun: boolean,
+): WriteResult[] {
   return contractFile({
     base,
     config,
@@ -279,11 +300,17 @@ function generateGraphql(base: string, config: ProjectConfig, data: object): Wri
     rustFile: 'graphql_schema_test.rs',
     goFile: 'graphql_schema_test.go',
     pyFile: 'test_graphql_schema.py',
+    dryRun,
   })
 }
 
-function generateGrpc(base: string, config: ProjectConfig, data: object): WriteResult[] {
-  const skip = { skipIfExists: true } as const
+function generateGrpc(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  dryRun: boolean,
+): WriteResult[] {
+  const skip = { skipIfExists: true, dryRun } as const
   const shared: WriteResult[] = [
     writeFile(
       resolvedPath(base, 'proto', 'buf.yaml'),
@@ -308,10 +335,16 @@ function generateGrpc(base: string, config: ProjectConfig, data: object): WriteR
     goFile: 'grpc_contract_test.go',
     pyFile: 'test_grpc_contract.py',
     extraFiles: shared,
+    dryRun,
   })
 }
 
-function generateMessageQueue(base: string, config: ProjectConfig, data: object): WriteResult[] {
+function generateMessageQueue(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  dryRun: boolean,
+): WriteResult[] {
   return contractFile({
     base,
     config,
@@ -322,17 +355,21 @@ function generateMessageQueue(base: string, config: ProjectConfig, data: object)
     rustFile: 'schema_registry_test.rs',
     goFile: 'schema_registry_test.go',
     pyFile: 'test_schema_registry.py',
+    dryRun,
   })
 }
 
-export function generateContractTesting(config: ProjectConfig): ContractTestingGeneratorResult {
+export function generateContractTesting(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): ContractTestingGeneratorResult {
   if (config.contractType === 'none' || config.governanceLevel === 'L1') {
     return { files: [] }
   }
 
   const dispatchers: Record<
     string,
-    (base: string, config: ProjectConfig, data: object) => WriteResult[]
+    (base: string, config: ProjectConfig, data: object, dryRun: boolean) => WriteResult[]
   > = {
     'rest-owned': generateRestOwned,
     'rest-public': generateRestPublic,
@@ -370,11 +407,11 @@ export function generateContractTesting(config: ProjectConfig): ContractTestingG
     writeFile(
       resolvedPath(base, 'CONTRACTS_POLICY.md'),
       renderTemplate('contract-testing/CONTRACTS_POLICY.md.ejs', data),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   ]
 
-  results.push(...handler(base, config, data))
+  results.push(...handler(base, config, data, opts.dryRun))
 
   return { files: results }
 }

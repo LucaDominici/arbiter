@@ -21,7 +21,10 @@ interface PlaywrightTsResult {
 
 const A11Y_ARCHETYPES = new Set(['frontend-spa', 'backend-web-db'])
 
-export function generatePlaywrightTs(config: ProjectConfig): PlaywrightTsResult {
+export function generatePlaywrightTs(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): PlaywrightTsResult {
   if (config.language !== 'typescript') {
     return { files: [] }
   }
@@ -36,12 +39,12 @@ export function generatePlaywrightTs(config: ProjectConfig): PlaywrightTsResult 
       writeFile(
         resolvedPath(base, 'tests', 'e2e', 'a11y', 'run-axe.ts'),
         renderTemplate('e2e/playwright-ts/run-axe.ts.ejs', config),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
       writeFile(
         resolvedPath(base, 'tests', 'e2e', 'a11y.spec.ts'),
         renderTemplate('e2e/playwright-ts/a11y.spec.ts.ejs', config),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

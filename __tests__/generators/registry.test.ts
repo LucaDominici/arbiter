@@ -151,7 +151,7 @@ describe('runGeneratorsFromRegistry', () => {
         run: () => [{ path: '/also-ok', content: 'ok2', action: 'created' }],
       },
     ]
-    const results = runGeneratorsFromRegistry(specs)
+    const results = runGeneratorsFromRegistry(specs, [], { dryRun: false })
     expect(results).toHaveLength(2)
     expect(results.map((r) => r.path)).toContain('/ok')
     expect(results.map((r) => r.path)).toContain('/also-ok')
@@ -173,7 +173,7 @@ describe('runGeneratorsFromRegistry', () => {
       },
       { key: 'root', enabled: true, run: () => [{ path: '/ok', content: 'y', action: 'created' }] },
     ]
-    const results = runGeneratorsFromRegistry(specs)
+    const results = runGeneratorsFromRegistry(specs, [], { dryRun: false })
     expect(results).toHaveLength(1)
     expect(results[0].path).toBe('/ok')
   })
@@ -196,7 +196,7 @@ describe('runGeneratorsFromRegistry — error collection (#483)', () => {
       },
     ]
     const errors: { key: string; message: string }[] = []
-    const results = runGeneratorsFromRegistry(specs, errors)
+    const results = runGeneratorsFromRegistry(specs, errors, { dryRun: false })
     expect(results).toHaveLength(1)
     expect(errors).toHaveLength(1)
     expect(errors[0].key).toBe('github')
@@ -217,11 +217,11 @@ describe('runGeneratorsFromRegistry — error collection (#483)', () => {
       },
     ]
     const errors: { key: string; message: string }[] = []
-    runGeneratorsFromRegistry(specs, errors)
+    runGeneratorsFromRegistry(specs, errors, { dryRun: false })
     expect(errors).toHaveLength(0)
   })
 
-  it('errors sink default works — backwards compatible single-arg call', () => {
+  it('errors sink is empty when no error occurs (explicit opts)', () => {
     const specs: GeneratorSpec[] = [
       {
         key: 'github',
@@ -231,8 +231,9 @@ describe('runGeneratorsFromRegistry — error collection (#483)', () => {
         },
       },
     ]
-    // No second arg: must not throw, must behave like pre-#483.
-    expect(() => runGeneratorsFromRegistry(specs)).not.toThrow()
+    const errors: { key: string; message: string }[] = []
+    expect(() => runGeneratorsFromRegistry(specs, errors, { dryRun: false })).not.toThrow()
+    expect(errors).toHaveLength(1)
   })
 })
 
@@ -253,7 +254,7 @@ describe('runGeneratorsSelective — error collection (#483)', () => {
       },
     ]
     const errors: { key: string; message: string }[] = []
-    runGeneratorsSelective(specs, new Set(['github', 'root']), errors)
+    runGeneratorsSelective(specs, new Set(['github', 'root']), errors, { dryRun: false })
     expect(errors).toHaveLength(1)
     expect(errors[0].key).toBe('github')
     expect(errors[0].message).toContain('selective boom')
@@ -275,7 +276,7 @@ describe('runGeneratorsSelective — error collection (#483)', () => {
       },
     ]
     const errors: { key: string; message: string }[] = []
-    runGeneratorsSelective(specs, new Set(['*']), errors)
+    runGeneratorsSelective(specs, new Set(['*']), errors, { dryRun: false })
     expect(errors).toHaveLength(1)
     expect(errors[0].key).toBe('check-all')
   })
@@ -302,7 +303,9 @@ describe('runGeneratorsSelective', () => {
         run: () => [{ path: '/root', content: 'ok', action: 'created' }],
       },
     ]
-    const results = runGeneratorsSelective(specs, new Set(['check-all', 'github', 'root']))
+    const results = runGeneratorsSelective(specs, new Set(['check-all', 'github', 'root']), [], {
+      dryRun: false,
+    })
     expect(results).toHaveLength(2)
     expect(results.map((r) => r.path)).toContain('/check')
     expect(results.map((r) => r.path)).toContain('/root')
@@ -323,7 +326,7 @@ describe('runGeneratorsSelective', () => {
         run: () => [{ path: '/root', content: 'ok', action: 'created' }],
       },
     ]
-    const results = runGeneratorsSelective(specs, new Set(['*']))
+    const results = runGeneratorsSelective(specs, new Set(['*']), [], { dryRun: false })
     expect(results).toHaveLength(1)
     expect(results[0].path).toBe('/root')
   })

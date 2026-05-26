@@ -109,7 +109,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
   mkdirSync(join(dir, '.arbiter'), { recursive: true })
   const lock = await acquireLock(join(dir, '.arbiter', '.lock'))
   try {
-    saveConfig(dir, validation.config)
+    await saveConfig(dir, validation.config)
   } finally {
     await lock.release()
   }
@@ -195,7 +195,7 @@ async function handleExtend(
   const lock = await acquireLock(join(arbiterDir, '.lock'))
   try {
     writeFileSync(logPath, JSON.stringify(log, null, 2) + '\n', 'utf-8')
-    saveConfig(dir, { ...stored, graceEndsAt: newEndsAt })
+    await saveConfig(dir, { ...stored, graceEndsAt: newEndsAt })
   } finally {
     await lock.release()
   }

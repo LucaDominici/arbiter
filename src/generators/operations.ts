@@ -8,10 +8,13 @@ export interface OperationsGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateOperations(config: ProjectConfig): OperationsGeneratorResult {
+export function generateOperations(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): OperationsGeneratorResult {
   const path = resolvedPath(config.targetDir, 'docs', 'OPERATIONS_HANDBOOK.md')
   const content = renderTemplate('operations/handbook.md.ejs', config)
   return {
-    files: [writeFile(path, content, { skipIfExists: true })],
+    files: [writeFile(path, content, { skipIfExists: true, dryRun: opts.dryRun })],
   }
 }

@@ -8,14 +8,17 @@ export interface CopilotGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateCopilot(config: ProjectConfig): CopilotGeneratorResult {
+export function generateCopilot(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CopilotGeneratorResult {
   const data = config
   return {
     files: [
       writeFile(
         resolvedPath(config.targetDir, '.github', 'copilot-instructions.md'),
         renderTemplate('copilot/copilot-instructions.md.ejs', data),
-        { backup: true },
+        { backup: true, dryRun: opts.dryRun },
       ),
     ],
   }

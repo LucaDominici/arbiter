@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
+// Applicability precedence: dims with applicability:'na' are excluded from W0/W1/W2
+// wave routing AND from the coverage denominator (totalDims). This mirrors the
+// AssessStatus:'NA' path. When both are present, applicability:'na' wins — the dim
+// is treated as out-of-scope regardless of its measured status.
 import type { BrownfieldClass } from './thresholds.js'
 
 export type AssessStatus = 'Y' | 'P' | 'N' | 'NA'
@@ -7,6 +11,7 @@ export interface DimAssessment {
   dimId: string
   status: AssessStatus
   category: string
+  applicability?: 'applicable' | 'na'
 }
 
 export interface WaveEntry {
@@ -41,8 +46,9 @@ export function buildWavePlan(
   assessments: DimAssessment[],
   brownfieldClass: BrownfieldClass,
 ): WavePlan {
+  const applicable = assessments.filter((a) => (a.applicability ?? 'applicable') !== 'na')
   const byStatus: Record<AssessStatus, DimAssessment[]> = { Y: [], P: [], N: [], NA: [] }
-  for (const a of assessments) {
+  for (const a of applicable) {
     byStatus[a.status].push(a)
   }
 

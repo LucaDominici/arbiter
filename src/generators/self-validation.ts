@@ -8,7 +8,10 @@ export interface SelfValidationGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateSelfValidation(config: ProjectConfig): SelfValidationGeneratorResult {
+export function generateSelfValidation(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): SelfValidationGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
 
@@ -16,6 +19,7 @@ export function generateSelfValidation(config: ProjectConfig): SelfValidationGen
   results.push(
     writeFile(scriptPath, renderTemplate('scripts/self-validation.mjs.ejs', config), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 
@@ -24,7 +28,7 @@ export function generateSelfValidation(config: ProjectConfig): SelfValidationGen
     writeFile(
       exitContractPath,
       renderTemplate('scripts/check-exit-code-contract.mjs.ejs', config),
-      { skipIfExists: true },
+      { skipIfExists: true, dryRun: opts.dryRun },
     ),
   )
 
@@ -32,6 +36,7 @@ export function generateSelfValidation(config: ProjectConfig): SelfValidationGen
   results.push(
     writeFile(pipeTeeHazardPath, renderTemplate('scripts/check-pipe-tee-hazard.mjs.ejs', config), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 

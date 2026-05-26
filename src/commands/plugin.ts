@@ -212,7 +212,7 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
     if (!plugins.includes(opts.pkg)) {
       plugins.push(opts.pkg)
     }
-    saveConfig(targetDir, { ...stored, plugins })
+    await saveConfig(targetDir, { ...stored, plugins })
   } finally {
     await lock.release()
   }
@@ -226,7 +226,7 @@ export async function runPluginAdd(opts: PluginAddOptions): Promise<void> {
   process.stdout.write(`${t('cli.plugin.security_advisory', { name: opts.pkg })}\n`)
 }
 
-export function runPluginRemove(opts: PluginRemoveOptions): void {
+export async function runPluginRemove(opts: PluginRemoveOptions): Promise<void> {
   const targetDir = resolve(opts.dir ?? process.cwd())
   const stored = loadConfig(targetDir)
   if (!stored) {
@@ -240,7 +240,7 @@ export function runPluginRemove(opts: PluginRemoveOptions): void {
   }
 
   const plugins = (stored.plugins ?? []).filter((p) => p !== opts.pkg)
-  saveConfig(targetDir, { ...stored, plugins })
+  await saveConfig(targetDir, { ...stored, plugins })
 
   if (opts.json) {
     jsonOutput('plugin-remove', 'ok', { pkg: opts.pkg })

@@ -8,7 +8,10 @@ export interface AuthGeneratorResult {
   files: WriteResult[]
 }
 
-export function generateAuth(config: ProjectConfig): AuthGeneratorResult {
+export function generateAuth(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): AuthGeneratorResult {
   if (!config.auth || config.auth.provider === 'none') {
     return { files: [] }
   }
@@ -17,7 +20,7 @@ export function generateAuth(config: ProjectConfig): AuthGeneratorResult {
       writeFile(
         resolvedPath(config.targetDir, 'docs', 'AUTH_SETUP.md'),
         renderTemplate('auth/setup.md.ejs', config),
-        { skipIfExists: true },
+        { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
   }

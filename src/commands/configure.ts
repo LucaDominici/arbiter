@@ -337,7 +337,7 @@ export async function runConfigure(options: ConfigureOptions): Promise<void> {
   mkdirSync(join(targetDir, '.arbiter'), { recursive: true })
   const lock = await acquireLock(join(targetDir, '.arbiter', '.lock'))
   try {
-    saveConfig(targetDir, result.config)
+    await saveConfig(targetDir, result.config)
   } finally {
     await lock.release()
   }

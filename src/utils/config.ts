@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFile } from './fs.js'
+import { atomicWriteFile, withLock } from './atomic-write.js'
 import { getLogger } from './logger.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import {
@@ -28,8 +29,12 @@ export type ArbiterConfig = ArbiterConfigV2
 const CONFIG_FILE = 'arbiter.json'
 const SNAPSHOT_FILE = '.arbiter-generated.json'
 
-export function saveConfig(dir: string, config: ArbiterConfig): void {
-  writeFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n')
+export async function saveConfig(dir: string, config: ArbiterConfig): Promise<void> {
+  const lockDir = join(dir, '.arbiter')
+  mkdirSync(lockDir, { recursive: true })
+  await withLock(join(lockDir, 'kit.lock'), () =>
+    atomicWriteFile(join(dir, CONFIG_FILE), JSON.stringify(config, null, 2) + '\n'),
+  )
 }
 
 export function saveConfigAndSnapshot(dir: string, config: ArbiterConfig): void {

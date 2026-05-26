@@ -11,7 +11,10 @@ export interface CiTierGeneratorResult {
 
 // Emits the 4 supplementary CI-tier artifacts (reusable workflow + label infra).
 // Standard numbered CI workflows (01–09) remain owned by github.ts with ciTierMode awareness.
-export function generateCiTier(config: ProjectConfig): CiTierGeneratorResult {
+export function generateCiTier(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): CiTierGeneratorResult {
   if (!config.useGitHub) return { files: [] }
 
   const data = config
@@ -23,15 +26,20 @@ export function generateCiTier(config: ProjectConfig): CiTierGeneratorResult {
     writeFile(
       join(workflowsDir, '_notify.yml'),
       renderTemplate('github/workflows/_notify.yml.ejs', data),
+      { dryRun: opts.dryRun },
     ),
     writeFile(
       join(workflowsDir, '_label-sync.yml'),
       renderTemplate('github/workflows/_label-sync.yml.ejs', data),
+      { dryRun: opts.dryRun },
     ),
-    writeFile(join(githubDir, 'labels.yml'), renderTemplate('github/labels.yml.ejs', data)),
+    writeFile(join(githubDir, 'labels.yml'), renderTemplate('github/labels.yml.ejs', data), {
+      dryRun: opts.dryRun,
+    }),
     writeFile(
       join(actionsDir, 'setup-node-pnpm', 'action.yml'),
       renderTemplate('github/actions/setup-node-pnpm/action.yml.ejs', data),
+      { dryRun: opts.dryRun },
     ),
   ]
 
@@ -42,6 +50,7 @@ export function generateCiTier(config: ProjectConfig): CiTierGeneratorResult {
       writeFile(
         join(workflowsDir, '_post-merge-notify.yml'),
         renderTemplate('github/workflows/_post-merge-notify.yml.ejs', data),
+        { dryRun: opts.dryRun },
       ),
     )
   }
