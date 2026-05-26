@@ -6,7 +6,7 @@ import type { BrownfieldClass } from '../kit/thresholds.js'
 import { buildWavePlan, type DimAssessment, type WavePlan } from '../kit/wave-engine.js'
 import { loadCatalog } from '../kit/catalog.js'
 import { evaluateApplicability } from '../kit/applicability.js'
-import { measureDim, type MeasureResult } from '../kit/measure.js'
+import { measureDim, getMeasureDiagnosticErrors, type MeasureResult } from '../kit/measure.js'
 import { renderAuditMarkdown } from '../kit/audit-report.js'
 import { emitWaveIssues } from '../kit/emit-issues.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
@@ -175,7 +175,7 @@ async function phaseMeasure(
   return [
     {
       phase: 'MEASURE',
-      output: `MEASURE: ${Object.keys(measurements).length} dims measured — present:${present} partial:${partial} missing:${missing} na:${naCount}`,
+      output: `MEASURE: ${Object.keys(measurements).length} dims measured — present:${present} partial:${partial} missing:${missing} na:${naCount} errors:${getMeasureDiagnosticErrors()}`,
     },
     measurements,
     applicabilityReasons,
