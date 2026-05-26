@@ -119,14 +119,33 @@ function fileContains(absPath: string, pattern: RegExp | string): boolean {
  * Recursively collects absolute paths matching matchFn.
  * Skips SKIP_DIRS and depth > maxDepth. Caps results at EVIDENCE_CAP.
  */
+function visitEntry(
+  full: string,
+  entry: string,
+  matchFn: (name: string) => boolean,
+  remainingDepth: number,
+  results: string[],
+): void {
+  let st
+  try {
+    st = lstatSync(full)
+  } catch {
+    return
+  }
+  if (st.isDirectory()) {
+    findRecursive(full, matchFn, remainingDepth - 1, results)
+  } else if (matchFn(entry)) {
+    results.push(full)
+  }
+}
+
 function findRecursive(
   dir: string,
   matchFn: (name: string) => boolean,
-  maxDepth = 12,
-  _depth = 0,
+  remainingDepth = 12,
   results: string[] = [],
 ): string[] {
-  if (_depth > maxDepth || results.length >= EVIDENCE_CAP) return results
+  if (remainingDepth < 0 || results.length >= EVIDENCE_CAP) return results
   let entries: string[]
   try {
     entries = readdirSync(dir)
@@ -136,18 +155,7 @@ function findRecursive(
   for (const entry of entries) {
     if (results.length >= EVIDENCE_CAP) break
     if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let st
-    try {
-      st = lstatSync(full)
-    } catch {
-      continue
-    }
-    if (st.isDirectory()) {
-      findRecursive(full, matchFn, maxDepth, _depth + 1, results)
-    } else if (matchFn(entry)) {
-      results.push(full)
-    }
+    visitEntry(join(dir, entry), entry, matchFn, remainingDepth, results)
   }
   return results
 }
