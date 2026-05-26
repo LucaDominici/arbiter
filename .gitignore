@@ -50,6 +50,9 @@ docs/internal/
 src/kit/derived.json
 .arbiter/private/
 
+# CI test artifact output directory (created by --outputFile=test-results/junit.xml)
+test-results/
+
 # Obsidian vault — per-user UI state (P7)
 .obsidian/workspace*.json
 .obsidian/attachments/
