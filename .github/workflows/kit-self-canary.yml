@@ -50,7 +50,8 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           DIFF_OUTPUT=$(diff docs/REFERENCE/SELF-KIT-AUDIT.md /tmp/canary-audit.md 2>&1 || echo "(diff unavailable)")
-          gh label create kit-drift --color 0075ca --description "KIT catalog self-audit drift" 2>/dev/null || true # FAIL-OPEN-INTENT: label may already exist; creation failure is harmless
+          # FAIL-OPEN-INTENT: label may already exist; creation failure is harmless
+          gh label create kit-drift --color 0075ca --description "KIT catalog self-audit drift" 2>/dev/null || true
           EXISTING=$(gh issue list \
             --label kit-drift \
             --state open \
