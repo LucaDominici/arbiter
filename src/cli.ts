@@ -393,6 +393,7 @@ program
     '--observability-provider <provider>',
     'Override observability provider (used with --preset or standalone)',
   )
+  .option('--github', 'Activate GitHub API calls and set permitGitHub:true in stored config', false)
   .option('--recipe <path>', 'Path or https:// URL to a recipe JSON file for pre-configured init')
   .option('--recipe-sha256 <hash>', 'Expected SHA-256 hex digest of the recipe file')
   .action(
@@ -407,6 +408,7 @@ program
       brownfield: boolean
       verify: boolean
       acceptBetaTools: boolean
+      github: boolean
       backend?: string
       json: boolean
       quiet: boolean
@@ -428,6 +430,7 @@ program
         brownfield: opts.brownfield,
         noVerify: !opts.verify,
         acceptBetaTools: opts.acceptBetaTools,
+        github: opts.github,
         ...(backend !== undefined ? { backend } : {}),
         json: opts.json,
         quiet: opts.quiet,
@@ -458,7 +461,11 @@ program
   .command('update')
   .description('Re-generate governance files using stored config (arbiter.json)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--github', 'Force GitHub setup even if disabled in stored config', false)
+  .option(
+    '--github',
+    'Activate live GitHub API calls (opt-in; ARBITER_GITHUB=1 also activates)',
+    false,
+  )
   .option('--json', 'Emit machine-readable JSON output', false)
   .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
   .action(async (opts: { dir?: string; github: boolean; json: boolean; force: boolean }) => {

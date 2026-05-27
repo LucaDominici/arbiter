@@ -483,7 +483,7 @@ describe('runGithubSetup', () => {
     )
     expect(mockProvisionLabels).toHaveBeenCalledWith('myorg', 'myrepo')
     expect(mockApplyBranchProtection).toHaveBeenCalledWith('myorg', 'myrepo', false)
-    expect(mockCreateProjectBoard).toHaveBeenCalledWith('myorg', 'myrepo')
+    expect(mockCreateProjectBoard).toHaveBeenCalledWith('myorg', 'myrepo', 'test-project')
   })
 
   it('logs created labels when labels are created', async () => {

@@ -150,12 +150,12 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     {
       key: 'github',
-      enabled: config.useGitHub,
+      enabled: config.permitGitHub ?? config.useGitHub,
       run: (opts) => generateGithub(config, opts).files,
     },
     {
       key: 'root',
-      enabled: config.useGitHub,
+      enabled: config.permitGitHub ?? config.useGitHub,
       run: (opts) => generateRoot(config, opts).files,
     },
     {
@@ -204,7 +204,7 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'github-setup',
-      enabled: config.useGitHub && config.governanceLevel !== 'L1',
+      enabled: (config.permitGitHub ?? config.useGitHub) && config.governanceLevel !== 'L1',
       run: (opts) => generateGithubSetup(config, opts).files,
     },
     {
@@ -286,7 +286,7 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'ci-tier',
-      enabled: config.useGitHub,
+      enabled: config.permitGitHub ?? config.useGitHub,
       run: (opts) => generateCiTier(config, opts).files,
     },
     {

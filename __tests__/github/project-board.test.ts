@@ -28,7 +28,7 @@ describe('createProjectBoard', () => {
       throw new Error('field-create: insufficient scope')
     })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(true)
     expect(result.error).toBeNull()
@@ -44,7 +44,7 @@ describe('createProjectBoard', () => {
       .mockReturnValueOnce({ fields: [] }) // existingFieldNames after create
     mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(true)
     expect(result.warnings).toHaveLength(0)
@@ -56,7 +56,7 @@ describe('createProjectBoard', () => {
       throw new Error('HTTP 403: Forbidden')
     })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(false)
     expect(result.error).toContain('HTTP 403: Forbidden')
@@ -68,7 +68,7 @@ describe('createProjectBoard', () => {
     const { createProjectBoard } = await import('../../src/github/project-board.js')
     mockRunCliJson.mockReturnValue([]) // array instead of object with "projects"
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     // findExistingBoard catches the throw and returns null → falls through to create
     // then project create also gets mocked array → throws → error captured
@@ -82,7 +82,7 @@ describe('createProjectBoard', () => {
     // Fallthrough to create — also malformed
     mockRunCliJson.mockReturnValueOnce({ not: 'a-project' })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.error).toBeTruthy()
     expect(result.created).toBe(false)
@@ -98,7 +98,7 @@ describe('createProjectBoard', () => {
       .mockReturnValueOnce({ fields: [] })
     mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(true)
     expect(result.warnings.some((w) => /rate limit hit/.test(w))).toBe(true)
@@ -111,7 +111,7 @@ describe('createProjectBoard', () => {
     // project create: missing fields
     mockRunCliJson.mockReturnValueOnce({ title: 'repo Board' })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(false)
     expect(result.error).toContain('number')
@@ -126,7 +126,7 @@ describe('createProjectBoard', () => {
       projects: [
         {
           number: 7,
-          title: 'repo Board',
+          title: 'myProject Board · owner/repo',
           url: 'https://github.com/orgs/owner/projects/7',
         },
       ],
@@ -136,7 +136,7 @@ describe('createProjectBoard', () => {
       fields: [{ name: 'Title' }, { name: 'Priority' }, { name: 'Size' }],
     })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(false)
     expect(result.projectUrl).toBe('https://github.com/orgs/owner/projects/7')
@@ -156,7 +156,7 @@ describe('createProjectBoard', () => {
     })
     mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(true)
     expect(result.projectUrl).toBe('https://github.com/orgs/owner/projects/3')
@@ -171,7 +171,7 @@ describe('createProjectBoard', () => {
       projects: [
         {
           number: 5,
-          title: 'repo Board',
+          title: 'myProject Board · owner/repo',
           url: 'https://github.com/orgs/owner/projects/5',
         },
       ],
@@ -181,7 +181,7 @@ describe('createProjectBoard', () => {
     })
     mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(false)
     const fieldCreateCalls = mockRunCli.mock.calls.filter((c) => c[1]?.includes('field-create'))
@@ -195,13 +195,19 @@ describe('createProjectBoard', () => {
     const { createProjectBoard } = await import('../../src/github/project-board.js')
     // Board exists
     mockRunCliJson.mockReturnValueOnce({
-      projects: [{ number: 11, title: 'repo Board', url: 'https://github.com/orgs/o/projects/11' }],
+      projects: [
+        {
+          number: 11,
+          title: 'myProject Board · owner/repo',
+          url: 'https://github.com/orgs/o/projects/11',
+        },
+      ],
     })
     // field-list returns malformed output (array instead of object)
     mockRunCliJson.mockReturnValueOnce([])
     mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(false)
     expect(result.warnings.some((w) => /existing-field-names|field-list/i.test(w))).toBe(true)
@@ -220,7 +226,7 @@ describe('createProjectBoard', () => {
     mockRunCliJson.mockReturnValueOnce({ fields: 'not-an-array' })
     mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0 })
 
-    const result = createProjectBoard('owner', 'repo')
+    const result = createProjectBoard('owner', 'repo', 'myProject')
 
     expect(result.created).toBe(true)
     expect(result.warnings.some((w) => /existing-field-names|field-list/i.test(w))).toBe(true)
@@ -232,7 +238,7 @@ describe('createProjectBoard', () => {
       projects: [
         {
           number: 9,
-          title: 'repo Board',
+          title: 'myProject Board · owner/repo',
           url: 'https://github.com/orgs/owner/projects/9',
         },
       ],
@@ -241,7 +247,7 @@ describe('createProjectBoard', () => {
       fields: [{ name: 'Title' }, { name: 'Priority' }, { name: 'Size' }],
     })
 
-    createProjectBoard('owner', 'repo')
+    createProjectBoard('owner', 'repo', 'myProject')
 
     expect(mockRunCli).not.toHaveBeenCalled()
   })

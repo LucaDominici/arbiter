@@ -15,7 +15,7 @@ export function generateGithubSetup(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): GithubSetupGeneratorResult {
-  if (!config.useGitHub) {
+  if (!(config.permitGitHub ?? config.useGitHub)) {
     return { files: [] }
   }
 

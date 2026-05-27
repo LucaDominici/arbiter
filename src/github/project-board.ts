@@ -20,7 +20,7 @@ interface GhField {
 
 function findExistingBoard(
   owner: string,
-  title: string,
+  prefix: string,
   warnings: string[],
 ): { number: number; url: string } | null {
   try {
@@ -42,7 +42,7 @@ function findExistingBoard(
       throw new Error(`Unexpected gh project list output: "projects" field is not an array`)
     }
     const projects = rawObj['projects'] as GhProject[]
-    const match = projects.find((p) => p.title === title)
+    const match = projects.find((p) => p.title === prefix || p.title.startsWith(prefix + ' · '))
     return match ? { number: match.number, url: match.url } : null
   } catch (err) {
     // #474: surface the error rather than returning null silently so the caller
@@ -123,14 +123,30 @@ function ensureField(
 
 /**
  * Create a GitHub Project board with standard fields (Priority, Size).
- * Idempotent: reuses an existing board with the same title rather than
- * creating a duplicate. Requires `gh` CLI with project scope.
+ * Idempotent: reuses an existing board whose title matches the
+ * `${projectName} Board · ${owner}/${repo}` prefix (date-agnostic probe).
+ * Requires `gh` CLI with project scope.
  */
-export function createProjectBoard(owner: string, repo: string): ProjectBoardResult {
-  const boardTitle = `${repo} Board`
+export function createProjectBoard(
+  owner: string,
+  repo: string,
+  projectName: string,
+): ProjectBoardResult {
+  if (!projectName) {
+    return {
+      created: false,
+      projectUrl: null,
+      error: 'projectName must not be empty',
+      warnings: [],
+    }
+  }
+
+  const prefix = `${projectName} Board · ${owner}/${repo}`
+  const utcDate = new Date().toISOString().slice(0, 10)
+  const boardTitle = `${prefix} · ${utcDate}`
   const warnings: string[] = []
 
-  const existing = findExistingBoard(owner, boardTitle, warnings)
+  const existing = findExistingBoard(owner, prefix, warnings)
   if (existing) {
     const fieldNames = existingFieldNames(owner, existing.number, warnings)
     ensureField(

@@ -15,7 +15,7 @@ export function generateCiTier(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): CiTierGeneratorResult {
-  if (!config.useGitHub) return { files: [] }
+  if (!(config.permitGitHub ?? config.useGitHub)) return { files: [] }
 
   const data = config
   const githubDir = resolvedPath(config.targetDir, '.github')

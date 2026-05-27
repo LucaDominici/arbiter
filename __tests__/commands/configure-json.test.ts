@@ -19,7 +19,7 @@ const mockValidateConfig = validateConfig as ReturnType<typeof vi.fn>
 const BASE_CONFIG = {
   governanceLevel: 'L1',
   tools: ['claude'],
-  useGitHub: false,
+  permitGitHub: false,
   features: {
     debtGates: false,
     suppressions: false,
@@ -58,13 +58,13 @@ describe('configure --json', () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    await runConfigure({ sets: ['useGitHub=true'], json: true })
+    await runConfigure({ sets: ['permitGitHub=true'], json: true })
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('configure')
     expect(parsed.version).toBe('1')
     expect(parsed.status).toBe('ok')
-    expect(parsed.data).toMatchObject({ updated: ['useGitHub=true'] })
+    expect(parsed.data).toMatchObject({ updated: ['permitGitHub=true'] })
   })
 
   it('emits JSON error when no config found', async () => {
@@ -73,7 +73,7 @@ describe('configure --json', () => {
       throw new Error('process.exit')
     })
 
-    await expect(runConfigure({ sets: ['useGitHub=true'], json: true })).rejects.toThrow(
+    await expect(runConfigure({ sets: ['permitGitHub=true'], json: true })).rejects.toThrow(
       'process.exit',
     )
 
@@ -86,7 +86,7 @@ describe('configure --json', () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
     mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
 
-    await runConfigure({ sets: ['useGitHub=false'], json: false })
+    await runConfigure({ sets: ['permitGitHub=false'], json: false })
 
     // Human mode emits text to stdout via process.stdout.write (#820), but
     // must NOT emit a JSON envelope. Assert the captured text is not JSON.

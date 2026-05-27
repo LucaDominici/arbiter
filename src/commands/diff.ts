@@ -125,7 +125,7 @@ function buildDiffConfig(
     formatCommand: buildCmds.formatCommand,
     tools: stored.tools,
     governanceLevel: stored.governanceLevel,
-    useGitHub: stored.useGitHub,
+    useGitHub: stored.permitGitHub ?? stored.useGitHub ?? false,
     githubOwner: gitInfo.githubOwner,
     githubRepo: gitInfo.githubRepo,
     existing,

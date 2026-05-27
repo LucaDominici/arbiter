@@ -110,6 +110,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     'githooks',
   ],
   useGitHub: ['github', 'root', 'check-all'],
+  permitGitHub: ['github', 'root', 'check-all', 'ci-tier', 'github-setup'],
   'features.debtGates': ['debt-gates', 'debt-ratchet', 'coverage', 'stride-enforcement'],
   'features.securityScanning': ['security'],
   'features.mutationTesting': ['mutation', 'check-all', 'nightly'],
