@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { runCli } from '../utils/run-cli.js'
+import { classifyGhError, type GhErrorKind } from './classify-gh-error.js'
 
 export interface BranchProtectionResult {
   applied: boolean
   error: string | null
+  errorKind?: GhErrorKind
 }
 
 /**
@@ -50,6 +52,6 @@ export function applyBranchProtection(
     return { applied: true, error: null }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    return { applied: false, error: msg }
+    return { applied: false, error: msg, errorKind: classifyGhError(err) }
   }
 }

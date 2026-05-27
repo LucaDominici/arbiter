@@ -235,7 +235,7 @@ function handlePluginError(err: unknown, json: boolean | undefined): never {
   const msg = err instanceof Error ? err.message : String(err)
   if (json) {
     jsonOutput('update', 'error', {}, [msg])
-    process.exit(1)
+    process.exit(2)
   }
   throw err instanceof Error ? err : new Error(msg)
 }
@@ -266,7 +266,7 @@ function emitUpdateOutcome(
       status,
       summary,
       generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
-      backendWarnings.length > 0 ? backendWarnings : undefined,
+      backendWarnings.length > 0 ? { warnings: backendWarnings } : undefined,
     )
     if (status !== 'ok') process.exit(statusToExitCode(status))
     return
@@ -278,6 +278,14 @@ function emitUpdateOutcome(
         .join('\n')}\n`,
     )
     process.exit(statusToExitCode('error'))
+  }
+  if (backendWarnings.length > 0) {
+    process.stderr.write(
+      `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
+        .map((w) => `    - ${w}`)
+        .join('\n')}\n`,
+    )
+    process.exit(statusToExitCode('warning'))
   }
   process.stdout.write(`${t('cli.update.verify_hint')}\n`)
 }
@@ -317,11 +325,13 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const stored = loadConfig(targetDir)
     if (!stored) {
       if (options.json) {
-        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
+        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'], {
+          errorClass: 'config',
+        })
       } else {
         log('  No arbiter.json found. Run `arbiter init` first.\n')
       }
-      process.exit(1)
+      process.exit(78)
       return { keysRun: null }
     }
 
@@ -384,7 +394,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
           `${t('cli.update.config_invalid', { errors: validation.errors.join('; ') })}\n`,
         )
       }
-      process.exit(1)
+      process.exit(2)
     }
 
     saveConfigAndSnapshot(targetDir, validation.config)

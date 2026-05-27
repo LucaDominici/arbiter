@@ -47,6 +47,46 @@ describe('jsonOutput', () => {
   })
 })
 
+describe('jsonOutput errorClass field (#1074)', () => {
+  let written: string
+
+  beforeEach(() => {
+    written = ''
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: unknown) => {
+      written += String(chunk)
+      return true
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('includes errorClass when provided', () => {
+    jsonOutput('update', 'warning', {}, undefined, { errorClass: 'recoverable' })
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed.errorClass).toBe('recoverable')
+  })
+
+  it('omits errorClass when not provided', () => {
+    jsonOutput('update', 'ok', {})
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed).not.toHaveProperty('errorClass')
+  })
+
+  it('accepts "fatal" errorClass', () => {
+    jsonOutput('update', 'error', {}, ['auth lost'], { errorClass: 'fatal' })
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed.errorClass).toBe('fatal')
+  })
+
+  it('accepts "config" errorClass', () => {
+    jsonOutput('update', 'error', {}, ['no config'], { errorClass: 'config' })
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed.errorClass).toBe('config')
+  })
+})
+
 describe('statusToExitCode (canonical convention: 0=ok, 1=warning, 2=error)', () => {
   it('maps ok → 0', () => {
     expect(statusToExitCode('ok')).toBe(0)

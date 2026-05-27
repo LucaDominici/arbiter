@@ -3,7 +3,7 @@
 // Validates arbiter-suppress directives in source files.
 // Directive form: arbiter-suppress(INV-NN, until=YYYY-MM-DD, reason="...", owner=@user)
 
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, lstatSync } from 'node:fs'
 import { join } from 'node:path'
 
 const REASON_MIN_LEN = 10
@@ -184,6 +184,7 @@ function walkDir(dir, counters) {
   for (const entry of readdirSync(dir)) {
     if (IGNORED_DIRS.has(entry)) continue
     const fullPath = join(dir, entry)
+    if (lstatSync(fullPath).isSymbolicLink()) continue
     const stat = statSync(fullPath)
     if (stat.isDirectory()) {
       walkDir(fullPath, counters)

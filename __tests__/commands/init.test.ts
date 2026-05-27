@@ -97,7 +97,9 @@ vi.mock('../../src/utils/maturity-check.js', () => ({
   isL3Allowed: vi.fn().mockReturnValue({ allowed: true, errorMessage: null }),
 }))
 vi.mock('../../src/github/labels.js', () => ({
-  provisionLabels: vi.fn().mockReturnValue({ created: [], updated: [], errors: [] }),
+  provisionLabels: vi
+    .fn()
+    .mockReturnValue({ created: [], updated: [], errors: [], classifiedErrors: [] }),
 }))
 vi.mock('../../src/github/branch-protection.js', () => ({
   applyBranchProtection: vi.fn().mockReturnValue({ applied: false, error: 'no admin' }),
@@ -108,6 +110,7 @@ vi.mock('../../src/github/project-board.js', () => ({
     error: 'no access',
     projectUrl: null,
     warnings: [],
+    classifiedErrors: [],
   }),
 }))
 vi.mock('../../src/utils/plugin-loader.js', () => ({
@@ -491,6 +494,7 @@ describe('runGithubSetup', () => {
       created: ['task', 'bug'],
       updated: [],
       errors: [],
+      classifiedErrors: [],
     })
     const { runGithubSetup } = await import('../../src/commands/init.js')
     runGithubSetup(makeConfig(dir, { useGitHub: true, githubOwner: 'o', githubRepo: 'r' }))
@@ -513,6 +517,7 @@ describe('runGithubSetup', () => {
       projectUrl: 'https://github.com/orgs/o/projects/1',
       error: null,
       warnings: [],
+      classifiedErrors: [],
     })
     const { runGithubSetup } = await import('../../src/commands/init.js')
     runGithubSetup(makeConfig(dir, { useGitHub: true, githubOwner: 'o', githubRepo: 'r' }))

@@ -89,7 +89,9 @@ vi.mock('../../src/utils/run-cli.js', () => ({
   CliError: class CliError extends Error {},
 }))
 vi.mock('../../src/github/labels.js', () => ({
-  provisionLabels: vi.fn().mockReturnValue({ created: [], updated: [], skipped: [], errors: [] }),
+  provisionLabels: vi
+    .fn()
+    .mockReturnValue({ created: [], updated: [], skipped: [], errors: [], classifiedErrors: [] }),
 }))
 vi.mock('../../src/github/branch-protection.js', () => ({
   applyBranchProtection: vi.fn().mockReturnValue({ applied: false, error: null }),
@@ -100,6 +102,7 @@ vi.mock('../../src/github/project-board.js', () => ({
     projectUrl: 'https://github.com/orgs/owner/projects/1',
     error: null,
     warnings: [],
+    classifiedErrors: [],
   }),
 }))
 
@@ -141,7 +144,7 @@ describe('init --json', () => {
     vi.restoreAllMocks()
   })
 
-  it('emits JSON error and exits 1 when json=true and yes=false (wizard incompatible)', async () => {
+  it('emits JSON error and exits 78 when json=true and yes=false (wizard incompatible)', async () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit')
     })
@@ -162,7 +165,7 @@ describe('init --json', () => {
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.command).toBe('init')
     expect(parsed.status).toBe('error')
-    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(exitSpy).toHaveBeenCalledWith(78)
   })
 
   it('InitOptions accepts json field', () => {
@@ -228,6 +231,7 @@ describe('init --json GitHub path', () => {
       updated: [],
       skipped: [],
       errors: [],
+      classifiedErrors: [],
     })
   })
 
@@ -244,6 +248,7 @@ describe('init --json GitHub path', () => {
       updated: [],
       skipped: [],
       errors: ['list labels failed: HTTP 401'],
+      classifiedErrors: [{ message: 'list labels failed: HTTP 401', kind: 'recoverable' }],
     })
 
     await expect(
@@ -301,6 +306,7 @@ describe('init --json GitHub path', () => {
       updated: [],
       skipped: [],
       errors: ['list labels failed: HTTP 401'],
+      classifiedErrors: [{ message: 'list labels failed: HTTP 401', kind: 'recoverable' }],
     })
 
     await runInit({

@@ -210,4 +210,28 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       docUrl: 'https://arbiter.dev/reference/cli#task',
     },
   ],
+  [
+    'E_GH_RECOVERABLE',
+    {
+      code: 'E_GH_RECOVERABLE',
+      summary: 'One or more GitHub API calls failed (recoverable)',
+      detail:
+        'A GitHub API call failed with a non-fatal error (e.g. label already exists, branch-protection requires admin access that you do not have). The command completed partial provisioning; see the list of failures above.',
+      recovery:
+        'Retry after granting the required permissions, or run `arbiter update --github` again once access is available.',
+      docUrl: 'https://arbiter.dev/reference/cli#github-setup',
+    },
+  ],
+  [
+    'E_GH_FATAL',
+    {
+      code: 'E_GH_FATAL',
+      summary: 'GitHub API call failed with a fatal error',
+      detail:
+        'A GitHub API call failed with an unrecoverable error (e.g. authentication token missing or revoked, network timeout). The command was halted.',
+      recovery:
+        'Run `gh auth login` to re-authenticate, then retry. Check your network connectivity.',
+      docUrl: 'https://arbiter.dev/reference/cli#github-setup',
+    },
+  ],
 ])

@@ -31,12 +31,12 @@
   },
   {
     "file": "commands/update.ts",
-    "line": 292,
+    "line": 300,
     "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains"
   },
   {
     "file": "commands/init.ts",
-    "line": 654,
+    "line": 689,
     "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains"
   }
 ]

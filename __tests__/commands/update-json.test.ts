@@ -154,6 +154,6 @@ describe('update --json', () => {
 
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.status).toBe('error')
-    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(exitSpy).toHaveBeenCalledWith(2)
   })
 })

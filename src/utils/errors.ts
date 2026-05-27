@@ -47,3 +47,39 @@ export class ArbiterError extends UserFacingError {
     return new ArbiterError(code, t(key, params), opts)
   }
 }
+
+export interface FatalErrorOptions extends ArbiterErrorOptions {
+  recoverableContext?: string[]
+}
+
+/** A gh API failure that should be aggregated and reported at the end (exit 1). */
+export class RecoverableError extends ArbiterError {
+  readonly kind = 'recoverable' as const
+
+  constructor(code: string, message: string, opts?: ArbiterErrorOptions) {
+    super(code, message, opts)
+    this.name = 'RecoverableError'
+  }
+}
+
+/** A mid-run failure that halts execution immediately (exit 2). */
+export class FatalError extends ArbiterError {
+  readonly kind = 'fatal' as const
+  readonly recoverableContext: string[] | undefined
+
+  constructor(code: string, message: string, opts?: FatalErrorOptions) {
+    super(code, message, opts)
+    this.name = 'FatalError'
+    this.recoverableContext = opts?.recoverableContext
+  }
+}
+
+/** A config error before any work was attempted (exit 78 / POSIX EX_CONFIG). */
+export class ConfigError extends ArbiterError {
+  readonly kind = 'config' as const
+
+  constructor(code: string, message: string, opts?: ArbiterErrorOptions) {
+    super(code, message, opts)
+    this.name = 'ConfigError'
+  }
+}
