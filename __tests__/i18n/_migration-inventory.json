@@ -36,7 +36,7 @@
   },
   {
     "file": "commands/init.ts",
-    "line": 693,
+    "line": 694,
     "justification": "Throw uses fully-dynamic adverseState.message + suggestedFix from detectAdverseGitState(); the only static string (force-override hint) is wrapped via t('cli.shared.force_override_hint') — no hardcoded English literal remains"
   }
 ]

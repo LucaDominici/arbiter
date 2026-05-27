@@ -675,6 +675,7 @@ export function runGithubSetup(
   setupBranchProtection(
     config.githubOwner,
     config.githubRepo,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     config.enableSoloDevMode === true,
     warnings,
     log,
@@ -923,6 +924,7 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
     config.enableMutationTesting = recipe.enableMutationTesting
   if (recipe.enableContractTesting !== undefined)
     config.enableContractTesting = recipe.enableContractTesting
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   if (recipe.enableSoloDevMode !== undefined) config.enableSoloDevMode = recipe.enableSoloDevMode
   if (recipe.enableMcpFallback !== undefined) config.enableMcpFallback = recipe.enableMcpFallback
   if (recipe.enableNoSkippedTests !== undefined)
@@ -946,6 +948,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       contractTesting: config.enableContractTesting !== false,
       evidenceHarness: config.enableEvidenceHarness === true,
       selfValidationHarness: config.enableSelfValidationHarness !== false,
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       soloDevMode: config.enableSoloDevMode === true,
     },
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],

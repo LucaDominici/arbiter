@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, existsSync, rmSync } from 'node:fs'
+import { mkdtempSync, existsSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generateGithub } from '../../src/generators/github.js'
 import { makeConfig } from '../helpers.js'
+import { initGit } from '../helpers.js'
 
 // Phase A regression tests: nightly/weekly/monthly/heartbeat gating per ADR-050
 // ADR-050 §54-58: nightly (T4), weekly (T5), monthly (T5b), and heartbeat (T6)
@@ -100,5 +101,166 @@ describe('generateGithub — nightly/weekly/monthly gated on L3+ (Phase A, ADR-0
   it('L4: 06-nightly emitted', () => {
     generateGithub(makeConfig(dir, { governanceLevel: 'L4' }))
     expect(existsSync(join(dir, '.github', 'workflows', '06-nightly.yml'))).toBe(true)
+  })
+})
+
+// ── Phase B: collaborationMode → pipelineStyle resolver (micro-cycle 3) ──────
+
+describe('generateGithub — collaborationMode resolver (Phase B, ADR-051)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-collab-resolver-'))
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  // trunk-solo + L1/L2 → starter: no 05-release.yml
+  it('trunk-solo + L2 → starter: 05-release NOT emitted', () => {
+    const config = makeConfig(dir, {
+      collaborationMode: 'trunk-solo',
+      governanceLevel: 'L2',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '05-release.yml'))).toBe(false)
+  })
+
+  // trunk-solo + L3 → standard: 05-release emitted, no industrial workflows
+  it('trunk-solo + L3 → standard: 05-release emitted', () => {
+    const config = makeConfig(dir, {
+      collaborationMode: 'trunk-solo',
+      governanceLevel: 'L3',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '05-release.yml'))).toBe(true)
+  })
+
+  it('trunk-solo + L3 → standard: 12-mutation NOT emitted (industrial only)', () => {
+    const config = makeConfig(dir, {
+      collaborationMode: 'trunk-solo',
+      governanceLevel: 'L3',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '12-mutation-scheduled.yml'))).toBe(false)
+  })
+
+  // gated-review + L3 → industrial: 12-mutation emitted
+  it('gated-review + L3 → industrial: 12-mutation-scheduled emitted', () => {
+    const config = makeConfig(dir, {
+      collaborationMode: 'gated-review',
+      governanceLevel: 'L3',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '12-mutation-scheduled.yml'))).toBe(true)
+  })
+
+  it('gated-review + L4 → industrial: 13-archunit-extended emitted', () => {
+    const config = makeConfig(dir, {
+      collaborationMode: 'gated-review',
+      governanceLevel: 'L4',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '13-archunit-extended.yml'))).toBe(true)
+  })
+
+  // pipelineStyle explicit override wins over collaborationMode (escape hatch)
+  it('explicit pipelineStyle=industrial overrides collaborationMode=trunk-solo', () => {
+    const config = makeConfig(dir, {
+      collaborationMode: 'trunk-solo',
+      governanceLevel: 'L2',
+      pipelineStyle: 'industrial',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '12-mutation-scheduled.yml'))).toBe(true)
+  })
+
+  it('explicit pipelineStyle=starter overrides collaborationMode=gated-review', () => {
+    const config = makeConfig(dir, {
+      collaborationMode: 'gated-review',
+      governanceLevel: 'L3',
+      pipelineStyle: 'starter',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '05-release.yml'))).toBe(false)
+  })
+
+  // soloDevMode: true → trunk-solo alias (backward-compat)
+  it('soloDevMode: true without collaborationMode → starter for L2 (trunk-solo alias)', () => {
+    const config = makeConfig(dir, {
+      enableSoloDevMode: true,
+      governanceLevel: 'L2',
+    })
+    generateGithub(config)
+    expect(existsSync(join(dir, '.github', 'workflows', '05-release.yml'))).toBe(false)
+  })
+})
+
+// ── Phase B: branchingStrategy → develop branch gating (micro-cycle 5) ───────
+
+describe('generateGithub — develop branch gating (Phase B, ADR-051)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-collab-develop-'))
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('github-flow-with-develop: 01-pr-fast.yml contains develop trigger', () => {
+    const config = makeConfig(dir, {
+      branchingStrategy: 'github-flow-with-develop',
+    })
+    generateGithub(config)
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
+    expect(content).toContain('develop')
+  })
+
+  it('trunk-direct: 01-pr-fast.yml does NOT contain develop trigger', () => {
+    const config = makeConfig(dir, {
+      branchingStrategy: 'trunk-direct',
+    })
+    generateGithub(config)
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
+    expect(content).not.toContain('develop')
+  })
+
+  it('github-flow: 01-pr-fast.yml does NOT contain develop trigger', () => {
+    const config = makeConfig(dir, {
+      branchingStrategy: 'github-flow',
+    })
+    generateGithub(config)
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
+    expect(content).not.toContain('develop')
+  })
+
+  it('github-flow-with-develop: 02-pr-extended.yml contains develop trigger', () => {
+    const config = makeConfig(dir, {
+      branchingStrategy: 'github-flow-with-develop',
+    })
+    generateGithub(config)
+    const content = readFileSync(join(dir, '.github', 'workflows', '02-pr-extended.yml'), 'utf-8')
+    expect(content).toContain('develop')
+  })
+
+  it('trunk-direct: 02-pr-extended.yml does NOT contain develop trigger', () => {
+    const config = makeConfig(dir, {
+      branchingStrategy: 'trunk-direct',
+    })
+    generateGithub(config)
+    const content = readFileSync(join(dir, '.github', 'workflows', '02-pr-extended.yml'), 'utf-8')
+    expect(content).not.toContain('develop')
+  })
+
+  it('default (no branchingStrategy): 01-pr-fast.yml does NOT contain develop', () => {
+    const config = makeConfig(dir, {})
+    generateGithub(config)
+    const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
+    expect(content).not.toContain('develop')
   })
 })

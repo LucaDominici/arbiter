@@ -5,20 +5,26 @@ permissions:
 
 on:
   push:
-    branches: [main, develop, "task/**"]
+
+    branches: [main, "task/**"]
+
   pull_request:
     types: [opened, synchronize, reopened, labeled, ready_for_review, unlabeled]
-    branches: [main, develop]
+
+    branches: [main]
+
     paths-ignore:
       - 'docs/**'
       - '*.md'
       - '.gitignore'
       - '.editorconfig'
 
-# Cancel in-progress runs on the same ref; main and develop always complete (#357).
+# Cancel in-progress runs on the same ref; main always completes (#357).
 concurrency:
   group: pr-fast-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 
 jobs:
 

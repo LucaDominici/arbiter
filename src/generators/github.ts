@@ -4,15 +4,37 @@ import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
+import {
+  resolvePipelineStyle,
+  collaborationModeFromAnswers,
+  resolveDefaultBranchingStrategy,
+} from '../config/collaboration-mode-defaults.js'
+import type { BranchingStrategy } from '../wizard/types.js'
 
 export interface GithubGeneratorResult {
   files: WriteResult[]
 }
 
+/**
+ * Resolver precedence (ADR-051):
+ * 1. explicit pipelineStyle → wins (escape hatch for advanced users)
+ * 2. collaborationMode set → table lookup (mode × governanceLevel)
+ * 3. enableSoloDevMode: true → alias to trunk-solo → table lookup
+ * 4. ciTierMode: 'baseline' → 'starter' (deprecated backward-compat)
+ * 5. default → 'standard'
+ */
 function resolveStyle(config: ProjectConfig): 'starter' | 'standard' | 'industrial' {
   if (config.pipelineStyle) return config.pipelineStyle
+  if (config.collaborationMode) {
+    return resolvePipelineStyle(config.collaborationMode, config.governanceLevel)
+  }
   // eslint-disable-next-line @typescript-eslint/no-deprecated
-  if (config.ciTierMode === 'baseline') return 'starter' // backward-compat shim
+  if (config.enableSoloDevMode) {
+    const mode = collaborationModeFromAnswers({ soloDevMode: true })
+    return resolvePipelineStyle(mode, config.governanceLevel)
+  }
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  if (config.ciTierMode === 'baseline') return 'starter'
   return 'standard'
 }
 
@@ -116,6 +138,7 @@ function generateCiWorkflows(
 
   if (style === 'industrial') files.push(...generateIndustrialWorkflows(workflowsDir, data, dryRun))
 
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   if (config.enableSoloDevMode)
     files.push(
       writeFile(
@@ -203,25 +226,38 @@ function generateIssueTemplates(
   return files
 }
 
+/**
+ * Resolves the effective branchingStrategy for template rendering.
+ * EJS throws ReferenceError for keys absent from data; always provide a defined value.
+ * Precedence: explicit branchingStrategy → derived from collaborationMode → 'github-flow'.
+ */
+function resolveBranchingStrategy(config: ProjectConfig): BranchingStrategy {
+  if (config.branchingStrategy) return config.branchingStrategy
+  if (config.collaborationMode) return resolveDefaultBranchingStrategy(config.collaborationMode)
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  if (config.enableSoloDevMode) return 'trunk-direct'
+  return 'github-flow'
+}
+
 export function generateGithub(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): GithubGeneratorResult {
-  const data = config
+  const data = { ...config, branchingStrategy: resolveBranchingStrategy(config) }
   const githubDir = resolvedPath(config.targetDir, '.github')
   const workflowsDir = join(githubDir, 'workflows')
   const issueTemplatesDir = join(githubDir, 'ISSUE_TEMPLATE')
   const actionsDir = join(githubDir, 'actions')
 
   const files: WriteResult[] = [
-    ...generateCiWorkflows(workflowsDir, config, opts.dryRun),
-    ...generateAgentGovernanceWorkflows(workflowsDir, config, opts.dryRun),
+    ...generateCiWorkflows(workflowsDir, data, opts.dryRun),
+    ...generateAgentGovernanceWorkflows(workflowsDir, data, opts.dryRun),
     writeFile(
       join(githubDir, 'PULL_REQUEST_TEMPLATE.md'),
       renderTemplate('github/PULL_REQUEST_TEMPLATE.md.ejs', data),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
-    ...generateIssueTemplates(issueTemplatesDir, config, opts.dryRun),
+    ...generateIssueTemplates(issueTemplatesDir, data, opts.dryRun),
     writeFile(
       join(workflowsDir, 'issue-state.yml'),
       renderTemplate('github/workflows/issue-state.yml.ejs', data),
