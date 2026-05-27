@@ -76,9 +76,13 @@ vi.mock('../../src/commands/init.js', () => ({
 
 import { loadConfig } from '../../src/utils/config.js'
 import { validateConfig } from '../../src/config/schema.js'
+import { runGeneratorsFromRegistry } from '../../src/generators/registry.js'
+import { runGithubSetup } from '../../src/commands/init.js'
 
 const mockLoadConfig = loadConfig as ReturnType<typeof vi.fn>
 const mockValidateConfig = validateConfig as ReturnType<typeof vi.fn>
+const mockRunGeneratorsFromRegistry = vi.mocked(runGeneratorsFromRegistry)
+const mockRunGithubSetup = vi.mocked(runGithubSetup)
 
 const BASE_CONFIG = {
   governanceLevel: 'L1' as const,
@@ -155,5 +159,32 @@ describe('update --json', () => {
     const parsed = JSON.parse(written) as Record<string, unknown>
     expect(parsed.status).toBe('error')
     expect(exitSpy).toHaveBeenCalledWith(2)
+  })
+
+  it('RT12: mixed generatorErrors + backendWarnings → exit 2, JSON carries both errors[] and warnings[]', async () => {
+    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
+    mockValidateConfig.mockReturnValue({ ok: true, config: BASE_CONFIG })
+
+    mockRunGeneratorsFromRegistry.mockImplementation(
+      (_specs: unknown, errors: { key: string; message: string }[]) => {
+        errors.push({ key: 'check-all', message: 'write failed: EACCES' })
+        return []
+      },
+    )
+    mockRunGithubSetup.mockReturnValue({ warnings: ['label 404: triage not found'] })
+
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit')
+    })
+
+    await expect(runUpdate({ dir, github: true, json: true })).rejects.toThrow('process.exit')
+
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    expect(parsed.status).toBe('error')
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(Array.isArray(parsed.errors)).toBe(true)
+    expect((parsed.errors as string[]).length).toBeGreaterThan(0)
+    expect(Array.isArray(parsed.warnings)).toBe(true)
+    expect((parsed.warnings as string[]).length).toBeGreaterThan(0)
   })
 })
