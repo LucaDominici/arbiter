@@ -5,7 +5,7 @@ import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
 import { t } from '../i18n/index.js'
-import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
+import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
 import { detectLanguage } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
@@ -234,7 +234,7 @@ function detectProjectInfo(
 function handlePluginError(err: unknown, json: boolean | undefined): never {
   const msg = err instanceof Error ? err.message : String(err)
   if (json) {
-    jsonOutput('update', 'error', {}, [msg])
+    jsonOutput('update', 'error', {}, [msg], { errorClass: 'fatal' })
     process.exit(2)
   }
   throw new FatalError('E_PLUGIN_FATAL', msg)
@@ -261,12 +261,16 @@ function emitUpdateOutcome(
   if (options.json) {
     const status =
       generatorErrorLines.length > 0 ? 'error' : backendWarnings.length > 0 ? 'warning' : 'ok'
+    const jsonOpts: JsonOutputOpts = {}
+    if (backendWarnings.length > 0) jsonOpts.warnings = backendWarnings
+    if (status === 'error') jsonOpts.errorClass = 'fatal'
+    else if (status === 'warning') jsonOpts.errorClass = 'recoverable'
     jsonOutput(
       'update',
       status,
       summary,
       generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
-      backendWarnings.length > 0 ? { warnings: backendWarnings } : undefined,
+      status !== 'ok' || backendWarnings.length > 0 ? jsonOpts : undefined,
     )
     if (status !== 'ok') process.exit(statusToExitCode(status))
     return

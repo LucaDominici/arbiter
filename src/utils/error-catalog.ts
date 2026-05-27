@@ -211,6 +211,18 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
     },
   ],
   [
+    'E_GH_NOT_INSTALLED',
+    {
+      code: 'E_GH_NOT_INSTALLED',
+      summary: 'GitHub CLI (gh) binary not found',
+      detail:
+        'arbiter tried to run a GitHub API operation but the `gh` CLI binary is not installed or not on PATH.',
+      recovery:
+        'Install the GitHub CLI: https://cli.github.com — then run `gh auth login` to authenticate.',
+      docUrl: 'https://arbiter.dev/reference/cli#github-setup',
+    },
+  ],
+  [
     'E_GH_RECOVERABLE',
     {
       code: 'E_GH_RECOVERABLE',

@@ -587,7 +587,7 @@ interface BackendResult {
 
 function throwOnFatalOrConfig(kind: GhErrorKind, msg: string, warnings: string[]): void {
   if (kind === 'fatal') throw new FatalError('E_GH_FATAL', msg, { recoverableContext: warnings })
-  if (kind === 'config') throw new ConfigError('E_CONFIG_INVALID', msg)
+  if (kind === 'config') throw new ConfigError('E_GH_NOT_INSTALLED', msg)
 }
 
 function setupLabels(

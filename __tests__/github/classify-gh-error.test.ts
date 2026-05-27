@@ -82,6 +82,16 @@ describe('classifyGhError (#1074)', () => {
     )
   })
 
+  it('lowercase "bad credentials" → fatal (case-insensitive)', () => {
+    expect(classifyGhError(makeCliError({ exitCode: 1, stderr: 'bad credentials' }))).toBe('fatal')
+  })
+
+  it('lowercase "http 401" → fatal (case-insensitive)', () => {
+    expect(classifyGhError(makeCliError({ exitCode: 1, stderr: 'http 401: unauthorized' }))).toBe(
+      'fatal',
+    )
+  })
+
   it('generic non-zero exit code defaults to recoverable', () => {
     expect(classifyGhError(makeCliError({ exitCode: 1, stderr: 'some unexpected error' }))).toBe(
       'recoverable',

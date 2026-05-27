@@ -4,15 +4,16 @@ import { CliError } from '../utils/run-cli.js'
 export type GhErrorKind = 'recoverable' | 'fatal' | 'config'
 
 // Substrings in stderr that indicate unrecoverable authentication/network failure.
+// Lowercase only — matched against the lowercased error text.
 const FATAL_PATTERNS = [
-  'Bad credentials',
-  'Token has been revoked',
+  'bad credentials',
+  'token has been revoked',
   'authentication token not found',
   'token not found',
   'not logged in',
   'gh auth login',
-  'HTTP 401',
-  '401 Unauthorized',
+  'http 401',
+  '401 unauthorized',
 ]
 
 /**
@@ -31,9 +32,8 @@ export function classifyGhError(err: unknown): GhErrorKind {
   if (err.timedOut) return 'fatal'
 
   const text = `${err.stderr} ${err.stdout}`.toLowerCase()
-  const rawText = `${err.stderr} ${err.stdout}`
 
-  if (FATAL_PATTERNS.some((p) => rawText.includes(p))) return 'fatal'
+  if (FATAL_PATTERNS.some((p) => text.includes(p))) return 'fatal'
 
   // Recoverable: permission/resource errors that don't stop auth
   if (
