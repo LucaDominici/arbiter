@@ -1,3 +1,14 @@
+---
+title: 'Migration: `useGitHub` → `permitGitHub` and `--github` opt-in'
+doc_version: '1.0.0'
+status: active
+last_review: '2026-05-27'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'kind/migration']
+related: []
+---
+
 # Migration: `useGitHub` → `permitGitHub` and `--github` opt-in
 
 ## What changed
