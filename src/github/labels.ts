@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { runCli, runCliJson } from '../utils/run-cli.js'
 import { TASK_SIZE_LABELS } from '../generators/labels.js'
+import { classifyGhError, type GhErrorKind } from './classify-gh-error.js'
 
 export interface Label {
   name: string
@@ -38,11 +39,17 @@ const STANDARD_LABELS: Label[] = [
   })),
 ]
 
+export interface LabelError {
+  message: string
+  kind: GhErrorKind
+}
+
 export interface LabelProvisionResult {
   created: string[]
   updated: string[]
   skipped: string[]
   errors: string[]
+  classifiedErrors: LabelError[]
 }
 
 export function provisionLabels(owner: string, repo: string): LabelProvisionResult {
@@ -51,6 +58,7 @@ export function provisionLabels(owner: string, repo: string): LabelProvisionResu
     updated: [],
     skipped: [],
     errors: [],
+    classifiedErrors: [],
   }
 
   // Fetch all existing labels — high limit avoids truncation on large repos
@@ -82,7 +90,9 @@ export function provisionLabels(owner: string, repo: string): LabelProvisionResu
     existingNames = new Set(parsed.map((l) => l.name.toLowerCase()))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    const kind = classifyGhError(err)
     result.errors.push(`list labels failed: ${msg}`)
+    result.classifiedErrors.push({ message: `list labels failed: ${msg}`, kind })
     existingNames = new Set()
   }
 
@@ -118,7 +128,9 @@ export function provisionLabels(owner: string, repo: string): LabelProvisionResu
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
+      const kind = classifyGhError(err)
       result.errors.push(`${label.name}: ${msg}`)
+      result.classifiedErrors.push({ message: `${label.name}: ${msg}`, kind })
     }
   }
 

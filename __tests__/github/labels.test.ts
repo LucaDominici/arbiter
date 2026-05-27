@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as runCliModule from '../../src/utils/run-cli.js'
 
-vi.mock('../../src/utils/run-cli.js', () => ({
-  runCli: vi.fn(),
-  runCliJson: vi.fn(),
-}))
+vi.mock('../../src/utils/run-cli.js', async (importActual) => {
+  const actual = await importActual<typeof import('../../src/utils/run-cli.js')>()
+  return {
+    ...actual,
+    runCli: vi.fn(),
+    runCliJson: vi.fn(),
+  }
+})
 
 const mockRunCli = vi.mocked(runCliModule.runCli)
 const mockRunCliJson = vi.mocked(runCliModule.runCliJson)
