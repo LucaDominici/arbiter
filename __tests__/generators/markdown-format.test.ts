@@ -41,21 +41,21 @@ describe('#1075 — F2: CLAUDE.md Hooks table rows must close with |', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it.skip('L2 + TypeScript: all table rows end with |', () => {
+  it('L2 + TypeScript: all table rows end with |', () => {
     generateClaude(makeConfig(dir, { language: 'typescript', governanceLevel: 'L2' }))
     const content = readFileSync(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')
     const violations = pipeViolations(content)
     expect(violations, `Bad rows (no trailing |):\n${violations.join('\n')}`).toHaveLength(0)
   })
 
-  it.skip('L1 + TypeScript: all table rows end with |', () => {
+  it('L1 + TypeScript: all table rows end with |', () => {
     generateClaude(makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }))
     const content = readFileSync(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')
     const violations = pipeViolations(content)
     expect(violations, `Bad rows (no trailing |):\n${violations.join('\n')}`).toHaveLength(0)
   })
 
-  it.skip('L2 + Rust: all table rows end with |', () => {
+  it('L2 + Rust: all table rows end with |', () => {
     generateClaude(makeConfig(dir, { language: 'rust', governanceLevel: 'L2' }))
     const content = readFileSync(join(dir, '.claude', 'CLAUDE.md'), 'utf-8')
     const violations = pipeViolations(content)
@@ -74,15 +74,22 @@ describe('#1075 — F3: generated Markdown must not emit excessive blank lines',
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it.skip('GLOBAL_INVARIANTS.md: max 1 consecutive blank line', () => {
+  it('GLOBAL_INVARIANTS.md: max 1 consecutive blank line', () => {
     generateGlobalInvariants(makeConfig(dir, { governanceLevel: 'L2' }))
     const content = readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')
     const max = maxConsecutiveBlanks(content)
     expect(max, `Found ${max} consecutive blank lines — expected ≤ 1`).toBeLessThanOrEqual(1)
   })
 
-  it.skip('AGENTS.md: max 1 consecutive blank line', () => {
+  it('AGENTS.md: max 1 consecutive blank line', () => {
     generateAgentsMd(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    const max = maxConsecutiveBlanks(content)
+    expect(max, `Found ${max} consecutive blank lines — expected ≤ 1`).toBeLessThanOrEqual(1)
+  })
+
+  it('AGENTS.md with lanes: max 1 consecutive blank line', () => {
+    generateAgentsMd(makeConfig(dir, { governanceLevel: 'L2', lanes: ['frontend', 'backend'] }))
     const content = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
     const max = maxConsecutiveBlanks(content)
     expect(max, `Found ${max} consecutive blank lines — expected ≤ 1`).toBeLessThanOrEqual(1)
