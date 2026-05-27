@@ -60,6 +60,7 @@ function v2ToProjectConfig(
     lintCommand: string
     formatCommand: string
     useGitHub: boolean
+    permitGitHub: boolean
     githubOwner: string | null
     githubRepo: string | null
     existing: ProjectConfig['existing']
@@ -180,9 +181,15 @@ function detectProjectInfo(
   const githubAccess = detectGithubAccess()
   log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
   log(`  ├── Config: tools=[${stored.tools.join(',')}] level=${stored.governanceLevel}`)
-  const useGitHub = options.github
-    ? githubAccess.authenticated
-    : stored.useGitHub && githubAccess.authenticated
+  const arbGhEnv = process.env['ARBITER_GITHUB']
+  const envGitHub = arbGhEnv === '1'
+  if (arbGhEnv !== undefined && !envGitHub) {
+    process.stderr.write(
+      `Warning: ARBITER_GITHUB=${arbGhEnv} is not '1' — only ARBITER_GITHUB=1 activates GitHub API calls. Ignored.\n`,
+    )
+  }
+  const useGitHub = options.github || envGitHub ? githubAccess.authenticated : false
+  const permitGitHub = stored.permitGitHub ?? stored.useGitHub ?? false
   const axisFields = resolveAxisFields(stored, targetDir, language, framework)
   const {
     archetype,
@@ -204,6 +211,7 @@ function detectProjectInfo(
     lintCommand: buildCmds.lintCommand,
     formatCommand: buildCmds.formatCommand,
     useGitHub,
+    permitGitHub,
     githubOwner: gitInfo.githubOwner,
     githubRepo: gitInfo.githubRepo,
     existing,
@@ -319,7 +327,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
     handleAdverseState(detectAdverseGitState(targetDir), options.force)
 
-    const { config, specs, useGitHub, axisFields } = detectProjectInfo(
+    const { config, specs, axisFields } = detectProjectInfo(
       targetDir,
       projectName,
       stored,
@@ -341,7 +349,6 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
     const nextConfig: ArbiterConfigV2 = {
       ...stored,
-      useGitHub,
       archetype,
       architectureStyle,
       isMultiTenant,

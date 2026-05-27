@@ -153,6 +153,7 @@ export interface ProjectConfig {
   governanceLevel: GovernanceLevel
 
   useGitHub: boolean
+  permitGitHub?: boolean
   decompositionBackend?: 'github' | 'markdown'
   githubOwner: string | null
   githubRepo: string | null

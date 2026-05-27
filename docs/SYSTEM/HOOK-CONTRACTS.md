@@ -73,7 +73,11 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 
 | Hook                         | Reason Not Registered                                                                                                                                    |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check-no-mockmvc.mjs`       | PostToolUse Java guard (INV-29): blocks MockMvc imports; only applies to Java files. Not registered in arbiter self-config (no Java sources here).       |
+| `check-no-raw-types.mjs`     | PostToolUse Java guard: blocks unparameterized generic types in Java files. Not registered in arbiter self-config (no Java sources here).                |
 | `check-no-skipped-tests.mjs` | Available for opt-in by generated projects; not self-applied to arbiter (arbiter uses `.skip` in `vitest.config.ts` exclusions, not inline skip markers) |
+| `enforce-gate-before-pr.mjs` | PreToolUse gate-marker guard (R1.S5): blocks `gh pr create` unless gate marker is fresh. Pending registration after full gate-marker infra lands.        |
+| `hooks.mjs`                  | Arbiter-generated hook dispatcher for target projects. Present here as dogfood; not registered as Claude Code hook in arbiter's own settings.json.       |
 | `pre-task-track-detect.mjs`  | Experimental — wired as UserPromptSubmit in development branches; not yet stable for main settings                                                       |
 
 ---

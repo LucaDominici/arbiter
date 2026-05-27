@@ -18,6 +18,7 @@ import {
   DEFAULT_THRESHOLDS,
   validateConfig,
 } from '../schema.js'
+import { getLogger } from '../../utils/logger.js'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,14 +28,28 @@ function isRecord(val: unknown): val is Record<string, unknown> {
 
 const AI_TOOLS: ReadonlySet<string> = new Set(['claude', 'codex', 'cursor', 'copilot'])
 
-let _useGitHubWarnEmitted = false
-
 function warnUseGitHubDeprecated(): void {
-  if (_useGitHubWarnEmitted) return
-  _useGitHubWarnEmitted = true
-  process.stderr.write(
-    '[arbiter] Warning: `useGitHub` is deprecated. Use `decomposition.backend: "github"|"markdown"` instead.\n',
+  getLogger().warn(
+    'config.useGitHub_deprecated',
+    {},
+    '`useGitHub` is deprecated. Use `permitGitHub` in arbiter.json and the `--github` flag for live API calls.',
   )
+}
+
+/**
+ * Migrate `useGitHub` → `permitGitHub` for v2 configs that still carry the
+ * old field name. Deletes `useGitHub` from the returned object to prevent
+ * deprecation-warning loops on every subsequent load.
+ */
+function migratePermitGitHub(cfg: ArbiterConfigV2): ArbiterConfigV2 {
+  const raw = cfg as unknown as Record<string, unknown>
+  if (!('useGitHub' in raw)) return cfg
+  const { useGitHub, ...rest } = raw
+  if (!('permitGitHub' in rest)) {
+    warnUseGitHubDeprecated()
+    return { ...(rest as unknown as ArbiterConfigV2), permitGitHub: useGitHub as boolean }
+  }
+  return rest as unknown as ArbiterConfigV2
 }
 
 interface LegacyEvidenceRetention {
@@ -67,8 +82,8 @@ function deriveFeatureFlags(raw: Record<string, unknown>, level: GovernanceLevel
 
 function applyDecompositionAlias(cfg: ArbiterConfigV2): ArbiterConfigV2 {
   if (cfg.decomposition?.backend) return cfg
-  warnUseGitHubDeprecated()
-  const backend: DecompositionBackendId = cfg.useGitHub ? 'github' : 'markdown'
+  const useGh = cfg.permitGitHub ?? cfg.useGitHub ?? false
+  const backend: DecompositionBackendId = useGh ? 'github' : 'markdown'
   return { ...cfg, decomposition: { backend } }
 }
 
@@ -84,10 +99,13 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
     throw new Error('arbiter.json must be a non-null object')
   }
 
-  // ── already v2: validate and pass through ────────────────────────────────
+  // ── already v2: migrate permitGitHub alias then pass through ─────────────
   if (raw['version'] === '0.2') {
     const result = validateConfig(raw)
-    if (result.ok) return { ...applyDecompositionAlias(result.config), $schemaVersion: 2 }
+    if (result.ok) {
+      const migrated = migratePermitGitHub(result.config)
+      return { ...applyDecompositionAlias(migrated), $schemaVersion: 2 }
+    }
     throw new Error(`arbiter.json v0.2 is invalid: ${result.errors.join('; ')}`)
   }
 
@@ -106,11 +124,12 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
     'enableDebtGates',
     'enableSecurityScanning',
     'enableSuppressions',
+    'useGitHub',
   ])
   const rest = Object.fromEntries(Object.entries(raw).filter(([k]) => !stripKeys.has(k)))
 
-  const useGitHub = typeof raw['useGitHub'] === 'boolean' ? raw['useGitHub'] : false
-  const migratedBackend: DecompositionBackendId = useGitHub ? 'github' : 'markdown'
+  const permitGitHub = typeof raw['useGitHub'] === 'boolean' ? raw['useGitHub'] : false
+  const migratedBackend: DecompositionBackendId = permitGitHub ? 'github' : 'markdown'
 
   // Preserve explicit decomposition if present (do not override)
   const decomposition: { backend: DecompositionBackendId } =
@@ -126,7 +145,7 @@ export function migrateV1ToV2(raw: unknown): ArbiterConfigV2 {
       ? (raw['tools'] as unknown[]).filter((t): t is AiTool => AI_TOOLS.has(t as string))
       : (['claude', 'codex'] as AiTool[]),
     governanceLevel: level,
-    useGitHub,
+    permitGitHub,
     decomposition,
     features,
     thresholds,

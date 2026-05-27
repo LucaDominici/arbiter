@@ -36,9 +36,9 @@ describe('arbiter config', () => {
 
   it('saveConfig + loadConfig round-trips v2 config correctly', async () => {
     const config = defaultConfig()
-    await saveConfig(dir, { ...config, useGitHub: true })
+    await saveConfig(dir, { ...config, permitGitHub: true })
     const loaded = loadConfig(dir)
-    expect(loaded?.useGitHub).toBe(true)
+    expect(loaded?.permitGitHub).toBe(true)
     expect(loaded?.version).toBe('0.2')
     expect(loaded?.features).toBeDefined()
     expect(loaded?.thresholds).toBeDefined()
@@ -48,7 +48,7 @@ describe('arbiter config', () => {
     const config = defaultConfig()
     expect(config.governanceLevel).toBe('L2')
     expect(config.tools).toEqual(['claude', 'codex'])
-    expect(config.useGitHub).toBe(false)
+    expect(config.permitGitHub).toBe(false)
   })
 
   it('loadConfig throws on malformed JSON (#679)', () => {

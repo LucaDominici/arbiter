@@ -49,7 +49,7 @@ function storedDefaults(stored: ArbiterConfig, level: GovernanceLevel): Partial<
     hasPublicApi: stored.hasPublicApi ?? false,
     tools: stored.tools,
     governanceLevel: stored.governanceLevel,
-    useGitHub: stored.useGitHub,
+    useGitHub: stored.permitGitHub ?? stored.useGitHub ?? false,
     enableDebtGates: stored.features.debtGates,
     enableSuppressions: stored.features.suppressions,
     enableSecurityScanning: stored.features.securityScanning,

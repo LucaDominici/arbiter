@@ -82,7 +82,8 @@ export interface ArbiterConfigV2 {
   $schemaVersion?: number
   tools: AiTool[]
   governanceLevel: GovernanceLevel
-  useGitHub: boolean
+  useGitHub?: boolean
+  permitGitHub?: boolean
   decomposition?: DecompositionConfig
   features: FeatureFlags
   thresholds: ThresholdsV2
@@ -285,8 +286,10 @@ export function validateConfig(raw: unknown): ValidateResult {
     errors.push('tools must be an array of valid AI tools')
   }
 
-  if (typeof raw['useGitHub'] !== 'boolean') {
-    errors.push('useGitHub must be a boolean')
+  const hasUseGitHub = typeof raw['useGitHub'] === 'boolean'
+  const hasPermitGitHub = typeof raw['permitGitHub'] === 'boolean'
+  if (!hasUseGitHub && !hasPermitGitHub) {
+    errors.push('useGitHub or permitGitHub must be a boolean')
   }
 
   autoFillThresholds(raw, level)

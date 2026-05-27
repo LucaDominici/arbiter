@@ -181,6 +181,36 @@ describe('init --json', () => {
   })
 })
 
+describe('init: ARBITER_GITHUB=1 activates GitHub API calls (F4)', () => {
+  afterEach(() => {
+    delete process.env['ARBITER_GITHUB']
+    vi.restoreAllMocks()
+  })
+
+  it('activates provisionLabels when ARBITER_GITHUB=1 and github flag absent', async () => {
+    mockDetectGitInfo.mockReturnValue(GITHUB_GIT_INFO)
+    mockDetectGithubAccess.mockReturnValue(GITHUB_ACCESS)
+    mockProvisionLabels.mockReturnValue({ created: [], updated: [], skipped: [], errors: [] })
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    process.env['ARBITER_GITHUB'] = '1'
+    await runInit({
+      yes: true,
+      tools: undefined,
+      level: 'L1',
+      dir: '/tmp/fake',
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+      json: true,
+      // github: not set — ARBITER_GITHUB=1 is the activation mechanism
+    })
+
+    expect(mockProvisionLabels).toHaveBeenCalled()
+  })
+})
+
 describe('init --json GitHub path', () => {
   let written: string
 
@@ -226,6 +256,7 @@ describe('init --json GitHub path', () => {
         brownfield: false,
         noVerify: true,
         json: true,
+        github: true,
       }),
     ).rejects.toThrow('process.exit')
 
@@ -251,6 +282,7 @@ describe('init --json GitHub path', () => {
       brownfield: false,
       noVerify: true,
       json: true,
+      github: true,
     })
 
     const lines = written
@@ -280,6 +312,7 @@ describe('init --json GitHub path', () => {
       brownfield: false,
       noVerify: true,
       json: false,
+      github: true,
     })
 
     // #820: human mode now writes via process.stdout.write captured in `written`.

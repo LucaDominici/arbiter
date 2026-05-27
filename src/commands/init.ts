@@ -68,7 +68,9 @@ export interface InitOptions {
   noVerify: boolean
   /** Allow L3 generation with beta-maturity tools. Persisted in arbiter.json for audit. */
   acceptBetaTools?: boolean
-  /** Override decomposition backend (github|markdown). If absent, derived from gh auth status. */
+  /** Activate live GitHub API calls and set permitGitHub:true in stored config. */
+  github?: boolean
+  /** Override decomposition backend (github|markdown). If absent, derived from --github flag. */
   backend?: 'github' | 'markdown'
   /** Emit machine-readable JSON envelope instead of human output. Requires --yes (wizard is incompatible). */
   json?: boolean | undefined
@@ -334,11 +336,20 @@ async function loadRecipeFromOptions(
 
 function resolveUseGitHub(
   options: InitOptions,
-  recipe: Recipe | undefined,
+  _recipe: Recipe | undefined,
   githubAccess: ReturnType<typeof detectGithubAccess>,
 ): boolean {
-  if (options.backend !== undefined) return options.backend === 'github'
-  return recipe?.useGitHub ?? githubAccess.authenticated
+  if (options.backend !== undefined)
+    return options.backend === 'github' && githubAccess.authenticated
+  if (options.github) return githubAccess.authenticated
+  const arbGhEnv = process.env['ARBITER_GITHUB']
+  if (arbGhEnv !== undefined && arbGhEnv !== '1') {
+    process.stderr.write(
+      `Warning: ARBITER_GITHUB=${arbGhEnv} is not '1' — only ARBITER_GITHUB=1 activates GitHub API calls. Ignored.\n`,
+    )
+  }
+  if (arbGhEnv === '1') return githubAccess.authenticated
+  return false
 }
 
 function buildNonInteractiveConfig(args: {
@@ -618,7 +629,7 @@ export function runGithubSetup(
   }
 
   log('  └── Creating project board...')
-  const pb = createProjectBoard(config.githubOwner, config.githubRepo)
+  const pb = createProjectBoard(config.githubOwner, config.githubRepo, config.projectName)
   if (pb.created) {
     log(`      Project board created: ${pb.projectUrl}`)
     for (const w of pb.warnings) {
@@ -886,7 +897,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     version: '0.2',
     tools: config.tools,
     governanceLevel: level,
-    useGitHub: config.useGitHub,
+    permitGitHub: config.useGitHub,
     decomposition: { backend },
     features: {
       debtGates: config.enableDebtGates,

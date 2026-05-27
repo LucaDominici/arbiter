@@ -15,6 +15,19 @@ const REPO_ROOT = resolve(import.meta.dirname, '../..')
 // Pre-commit hook rsyncs to a temp dir without .git; use the original worktree for git ops.
 const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD ?? REPO_ROOT
 
+// Snapshot pre-existing untracked files before the dry-run runs, so the stray-writes
+// check can detect only files created by the CLI (not pre-existing working-tree noise).
+let initialUntrackedFiles: Set<string>
+beforeAll(() => {
+  const result = spawnSync('git', ['status', '--porcelain'], { cwd: GIT_CWD, encoding: 'utf-8' })
+  initialUntrackedFiles = new Set(
+    (result.stdout ?? '')
+      .split('\n')
+      .filter((l) => l.match(/^\?\?/))
+      .filter((l) => !l.includes('node_modules')),
+  )
+})
+
 function spawn(
   args: string[],
   cwd = REPO_ROOT,
@@ -112,7 +125,8 @@ describe('arbiter.json immutability under --dry-run (C1)', () => {
 
 describe('no stray file writes under --dry-run', () => {
   it('does not create files in repo root during dry-run', () => {
-    // Rely on git to detect untracked/modified files (excludes node_modules via .gitignore)
+    // Rely on git to detect untracked/modified files (excludes node_modules via .gitignore).
+    // Compare against initialUntrackedFiles snapshot to ignore pre-existing working-tree noise.
     const result = spawnSync('git', ['status', '--porcelain'], {
       cwd: GIT_CWD,
       encoding: 'utf-8',
@@ -121,7 +135,7 @@ describe('no stray file writes under --dry-run', () => {
       .split('\n')
       .filter((l) => l.match(/^\?\?/))
       .filter((l) => !l.includes('node_modules'))
-    // Only the audit report we explicitly wrote to /tmp should exist
+      .filter((l) => !initialUntrackedFiles.has(l))
     expect(newFiles).toHaveLength(0)
   })
 })

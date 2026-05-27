@@ -150,7 +150,7 @@ export function defaultConfig(): ArbiterConfig {
     version: '0.2',
     tools: ['claude', 'codex'],
     governanceLevel,
-    useGitHub: false,
+    permitGitHub: false,
     features: {
       debtGates: true,
       suppressions: true,

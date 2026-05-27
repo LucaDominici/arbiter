@@ -34,7 +34,7 @@ const ARBITER_JSON = {
   version: '0.2',
   tools: ['claude', 'codex'],
   governanceLevel: 'L2',
-  useGitHub: true,
+  permitGitHub: true,
   decomposition: {
     backend: 'github',
   },
@@ -271,7 +271,7 @@ describe("migrate — v2 (version: '0.2') idempotence", () => {
     const result = migrate(ARBITER_JSON)
     expect(result.version).toBe('0.2')
     expect(result.governanceLevel).toBe('L2')
-    expect(result.useGitHub).toBe(true)
+    expect(result.permitGitHub).toBe(true)
     expect(result.decomposition?.backend).toBe('github')
     expect(result.features).toEqual(ARBITER_JSON.features)
     expect(result.thresholds).toEqual(ARBITER_JSON.thresholds)

@@ -32,7 +32,7 @@ const ALLOWED_PATHS = new Set([
   'thresholds.methodLength',
   'thresholds.maxParams',
   'governanceLevel',
-  'useGitHub',
+  'permitGitHub',
   'tools',
   'archetype',
   'architectureStyle',
@@ -155,13 +155,13 @@ function parseValue(path: string, raw: string): unknown {
       )
     return n
   }
-  if (path === 'useGitHub') {
+  if (path === 'permitGitHub') {
     if (raw === 'true') return true
     if (raw === 'false') return false
     throw ArbiterError.fromKey(
       'E_INVALID_BOOL',
       'errors.E_INVALID_BOOL',
-      { path: 'useGitHub', value: raw },
+      { path: 'permitGitHub', value: raw },
       {
         hint: 'Use `true` or `false` (lowercase).',
       },
