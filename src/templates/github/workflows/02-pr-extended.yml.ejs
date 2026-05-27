@@ -1,6 +1,7 @@
 <%
 const _bucket = ({'backend-web-db':'service',cli:'cli',embedded:'cli','data-pipeline':'batch'})[archetype] ?? 'lib';
 const _isService = _bucket === 'service';
+const _bs = (typeof branchingStrategy !== 'undefined' ? branchingStrategy : 'github-flow');
 %>name: PR Extended (T2)
 
 permissions:
@@ -8,7 +9,11 @@ permissions:
 
 on:
   pull_request:
+<% if (_bs === 'github-flow-with-develop') { %>
     branches: [main, develop]
+<% } else { %>
+    branches: [main]
+<% } %>
     types: [opened, synchronize, reopened, ready_for_review, labeled]
     paths-ignore:
       - 'docs/**'
