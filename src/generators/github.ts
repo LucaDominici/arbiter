@@ -78,6 +78,14 @@ function generateCiWorkflows(
         renderTemplate('github/workflows/_sigstore-retry-sign.yml.ejs', data),
         { dryRun },
       ),
+    )
+  }
+
+  // ADR-050 §54-58: nightly/weekly/monthly/heartbeat are L3+ only
+  const isL3Plus = config.governanceLevel === 'L3' || config.governanceLevel === 'L4'
+
+  if (style !== 'starter' && isL3Plus) {
+    files.push(
       writeFile(
         join(workflowsDir, '06-nightly.yml'),
         renderTemplate('github/workflows/06-nightly.yml.ejs', data),
@@ -96,13 +104,15 @@ function generateCiWorkflows(
     )
   }
 
-  files.push(
-    writeFile(
-      join(workflowsDir, '09-heartbeat.yml'),
-      renderTemplate('github/workflows/09-heartbeat.yml.ejs', data),
-      { dryRun },
-    ),
-  )
+  if (isL3Plus) {
+    files.push(
+      writeFile(
+        join(workflowsDir, '09-heartbeat.yml'),
+        renderTemplate('github/workflows/09-heartbeat.yml.ejs', data),
+        { dryRun },
+      ),
+    )
+  }
 
   if (style === 'industrial') files.push(...generateIndustrialWorkflows(workflowsDir, data, dryRun))
 

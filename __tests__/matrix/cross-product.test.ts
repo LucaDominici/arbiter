@@ -39,7 +39,7 @@ const TIER_LABELS: Record<InvariantTier, string> = {
  */
 
 const LANGUAGES: Language[] = ['typescript', 'java', 'rust', 'go', 'python']
-const LEVELS: GovernanceLevel[] = ['L1', 'L2', 'L3']
+const LEVELS: GovernanceLevel[] = ['L1', 'L2', 'L3', 'L4']
 
 const STACK_CONFIG: Record<Language, Partial<Parameters<typeof makeConfig>[1]>> = {
   typescript: {
@@ -122,6 +122,7 @@ describe('cross-product: AGENTS.md — governance policy across all stacks', () 
     L1: '70%',
     L2: '80% coverage minimum',
     L3: '85% coverage minimum',
+    L4: 'Evidence harness',
   }
 
   for (const lang of LANGUAGES) {
