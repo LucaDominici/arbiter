@@ -124,9 +124,13 @@ export async function runInit(options: InitOptions): Promise<void> {
   // --json requires --yes: interactive wizard reads stdin which is incompatible with
   // machine-readable output. Fail fast with a clear JSON error.
   if (options.json && !options.yes) {
-    jsonOutput('init', 'error', {}, [
-      '--json requires --yes (interactive wizard is incompatible with machine-readable output)',
-    ])
+    jsonOutput(
+      'init',
+      'error',
+      {},
+      ['--json requires --yes (interactive wizard is incompatible with machine-readable output)'],
+      { errorClass: 'config' },
+    )
     process.exit(78)
     return
   }

@@ -2,7 +2,7 @@
 import { mkdirSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
-import { UserFacingError } from '../utils/errors.js'
+import { UserFacingError, FatalError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
@@ -237,7 +237,7 @@ function handlePluginError(err: unknown, json: boolean | undefined): never {
     jsonOutput('update', 'error', {}, [msg])
     process.exit(2)
   }
-  throw err instanceof Error ? err : new Error(msg)
+  throw new FatalError('E_GH_FATAL', msg)
 }
 
 interface UpdateSummary extends Record<string, unknown> {
@@ -277,6 +277,13 @@ function emitUpdateOutcome(
         .map((line) => `    - ${line}`)
         .join('\n')}\n`,
     )
+    if (backendWarnings.length > 0) {
+      process.stderr.write(
+        `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
+          .map((w) => `    - ${w}`)
+          .join('\n')}\n`,
+      )
+    }
     process.exit(statusToExitCode('error'))
   }
   if (backendWarnings.length > 0) {
