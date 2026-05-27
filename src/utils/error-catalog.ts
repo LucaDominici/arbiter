@@ -234,4 +234,16 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       docUrl: 'https://arbiter.dev/reference/cli#github-setup',
     },
   ],
+  [
+    'E_PLUGIN_FATAL',
+    {
+      code: 'E_PLUGIN_FATAL',
+      summary: 'A plugin failed during command execution',
+      detail:
+        'A plugin raised a fatal error during generator execution (e.g. missing dependency, load failure, or runtime exception). The command was halted.',
+      recovery:
+        'Check that the plugin package is installed and compatible with the current arbiter version. Run `npm ls` to verify plugin dependencies.',
+      docUrl: 'https://arbiter.dev/reference/cli#plugins',
+    },
+  ],
 ])

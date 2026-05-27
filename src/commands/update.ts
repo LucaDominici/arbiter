@@ -237,7 +237,7 @@ function handlePluginError(err: unknown, json: boolean | undefined): never {
     jsonOutput('update', 'error', {}, [msg])
     process.exit(2)
   }
-  throw new FatalError('E_GH_FATAL', msg)
+  throw new FatalError('E_PLUGIN_FATAL', msg)
 }
 
 interface UpdateSummary extends Record<string, unknown> {
