@@ -109,8 +109,8 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 
 | # | P0 | Stima | Rationale di ordine | ADR stub |
 |---|---|---|---|---|
-| 1 | **F4 + F11** (`--no-github` flag + project-board namespacing) | 4-6h | **Stop the bleeding first**. Finché arbiter può fare side effect remoti, ogni nostro stesso Wave 0.5 lavoro rischia di creare altri board orfani. Anche: F11 cleanup va eseguito PRIMA di ogni futuro `arbiter update`. | [`.arbiter/wave0.5/ADR-001-no-github-flag.md`](../wave0.5/ADR-001-no-github-flag.md) |
-| 2 | **F9** (exit code propagation) | 2-4h | Mette in sicurezza il flusso di lavoro Wave 0.5: dopo F9, ogni nostro PR `arbiter` mostrerà subito i fail invece di nascondersi. Il check è leggero ma sblocca trust. | [`.arbiter/wave0.5/ADR-002-exit-code.md`](../wave0.5/ADR-002-exit-code.md) |
+| 1 | ✅ **F4 + F11** (`--github` opt-in default + project-board namespacing) — **DONE 2026-05-26** · issue [#1063](https://github.com/LucaDominici/arbiter/issues/1063) · 5 critical + 13 high red-team findings risolti · 23 fixture rebaked | 4-6h | **Stop the bleeding first**. Finché arbiter può fare side effect remoti, ogni nostro stesso Wave 0.5 lavoro rischia di creare altri board orfani. | [`.arbiter/wave0.5/ADR-001-no-github-flag.md`](../wave0.5/ADR-001-no-github-flag.md) |
+| 2 | 🟢 **F9** (exit code propagation) — **NEXT** | 2-4h | Mette in sicurezza il flusso di lavoro Wave 0.5: dopo F9, ogni nostro PR `arbiter` mostrerà subito i fail invece di nascondersi. Il check è leggero ma sblocca trust. | [`.arbiter/wave0.5/ADR-002-exit-code.md`](../wave0.5/ADR-002-exit-code.md) |
 | 3 | **F2** (MD pipe + table format) | 1-2h | Win chirurgico, basso rischio, materiale visibile (template MD). Buon "primo PR end-to-end" per testare il flow Wave 0.5 ora che F4 ha disabilitato gh side effect. | [`.arbiter/wave0.5/ADR-003-md-template-fix.md`](../wave0.5/ADR-003-md-template-fix.md) |
 | 4 | **F10** (templates pass L1) | 1-3 gg | Il fix più visibile/audit-positive. Tocca ~10 workflow + 57 file format. Lo facciamo dopo F2 perché alcune correzioni MD format collidono con questo. | [`.arbiter/wave0.5/ADR-004-templates-L1-pass.md`](../wave0.5/ADR-004-templates-L1-pass.md) |
 | 5 | **F1 + F7** (diff scope alignment) | 1-2 gg | Architectural. Ultimo perché richiede che F10 sia stabile (il manifest che diff deve mostrare è proprio l'output di F10). | [`.arbiter/wave0.5/ADR-005-diff-scope.md`](../wave0.5/ADR-005-diff-scope.md) |
@@ -245,6 +245,9 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 - **2026-05-26 — DEC-005**: Claude scrive ADR/audit/spec ma NON arbiter source code in autonomia. Code = Luca. PR review e ADR draft = Claude.
 - **2026-05-26 — DEC-006**: Wave 0.5 (template self-consistency) promosso davanti a "Pipeline drift fix" e davanti a Wave 2A. Trigger: 10 finding Wave 0 di cui 5 P0. Sblocca tutto il downstream (vedi [`.arbiter/wave0/haben-smoke-test.md`](../wave0/haben-smoke-test.md)).
 - **2026-05-26 — DEC-007**: Convention confermata per audit reports → `.arbiter/waveN/<topic>.md` (es. `wave0/haben-smoke-test.md`, `wave1/INDEX.md`). Logs evidence opzionali in `.arbiter/waveN/evidence/`.
+- **2026-05-26 — DEC-008** (ADR-001 / issue #1063): `useGitHub` config field → `permitGitHub` via **alias + deprecation** (option C). Alias 1 minor (v0.2.x), hard-remove v0.3. Motivo: hard-rename violerebbe 4 frozen compat fixtures + tarball consumers.
+- **2026-05-26 — DEC-009** (ADR-001 / issue #1063): `--github` come **global flag pre-stripped** + env var `ARBITER_GITHUB=1` (option 1). Mirror del pattern `--no-evidence` di cli.ts:99-104. Rimosso `--github` local da `update` (era override, ora opt-in).
+- **2026-05-26 — DEC-010** (ADR-001 / issue #1063): Gate scope **solo `runGithubSetup`** + static import-graph assertion che `diff.ts` non importi `src/github/` (option 3). Out-of-scope confermato: `decomposition/github-backend.ts`, `kit/emit-issues.ts`, `detectors/github.ts` (read-only).
 
 ---
 

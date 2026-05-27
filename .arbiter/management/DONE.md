@@ -4,7 +4,23 @@
 
 ---
 
-## 2026-05-26 — Wave 0: haben smoke test arbiter (10 finding, 5 P0)
+## 2026-05-26 — Wave 0.5 ADR-001 (F4 + F11): `--github` opt-in default + board namespacing
+
+- **Cosa**: implementato il primo P0 di Wave 0.5. `arbiter init/update` ora fa **zero** chiamate `gh` di default; `--github` o `ARBITER_GITHUB=1` per opt-in. Project board namespacing con template `<projectName> Board · owner/repo · YYYY-MM-DD UTC` + idempotence probe date-agnostic.
+- **Issue**: [#1063](https://github.com/LucaDominici/arbiter/issues/1063)
+- **Decisioni registrate**: DEC-008 (alias + deprecation per `useGitHub` → `permitGitHub`), DEC-009 (global flag pre-stripped + env var), DEC-010 (gate solo `runGithubSetup` + import-graph lock).
+- **Red-team Phase 3.5**: 5 critical findings (gate location, undefined symbol, mutation vs read carve-out, v1-to-v2 migration order, IMPACT_MAP typing) + 13 high findings tutti incorporati nel plan prima di Phase 4.
+- **Implementazione highlights**:
+  - `--github` flag globale (cli.ts pre-strip pattern) + `ARBITER_GITHUB=1` env var
+  - `permitGitHub` canonico + `useGitHub` deprecated alias (warn 1× per load)
+  - Migration doc: `docs/MIGRATION/no-github-default.md`
+  - 23 fixture bake snapshots ribakati (fewer `.github/**` files in default output — correct post-F4)
+  - Static import-graph assertion: `diff.ts` does NOT import from `src/github/` (DEC-010 lock)
+  - Hook contracts table, fail-closed baseline, 9 doc frontmatters risolti come side-effect cleanup
+- **Owner**: Claude (ADR + plan + red-team + PR review) · Luca (code via Claude Code, DEC-005)
+- **Nota operativa**: commit wave0-evidence ancora locale (push rinviato fino a F10/L2 sblocco); ADR-001 vive su `task/wave0.5-001-no-github-flag`.
+
+## 2026-05-26 — Wave 0: haben smoke test arbiter (12 finding, 6 P0)
 
 - **Cosa**: smoke test end-to-end di arbiter HEAD su haben. DOD 3/4 met; il 4° (L1 verde) convertito a hard audit per autorizzazione esplicita di Luca ("haben lo puoi seviziare, l'obiettivo è arbiter audit-proof").
 - **Artefatto**: [`.arbiter/wave0/haben-smoke-test.md`](../wave0/haben-smoke-test.md) — 10 finding numerati con repro
