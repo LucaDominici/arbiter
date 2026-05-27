@@ -37,11 +37,20 @@ vi.mock('../../src/utils/run-cli.js', () => ({
   runCli: vi.fn().mockReturnValue({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 }),
   runCliJson: vi.fn().mockImplementation((_cmd: string, args: string[]) => {
     if (args[0] === 'project' && args[1] === 'list') return { projects: [] }
+    if (args[0] === 'project' && args[1] === 'create')
+      return { number: 1, url: 'https://github.com/orgs/owner/projects/1' }
     if (args[0] === 'label' && args[1] === 'list') return []
     if (args[0] === 'project' && args[1] === 'field-list')
       return { fields: [{ name: 'Priority' }, { name: 'Size' }] }
     return {}
   }),
+  CliError: class CliError extends Error {
+    exitCode = 1
+    stdout = ''
+    stderr = ''
+    timedOut = false
+    notFound = false
+  },
 }))
 
 import { runCli, runCliJson } from '../../src/utils/run-cli.js'

@@ -193,7 +193,13 @@ describe('init: ARBITER_GITHUB=1 activates GitHub API calls (F4)', () => {
   it('activates provisionLabels when ARBITER_GITHUB=1 and github flag absent', async () => {
     mockDetectGitInfo.mockReturnValue(GITHUB_GIT_INFO)
     mockDetectGithubAccess.mockReturnValue(GITHUB_ACCESS)
-    mockProvisionLabels.mockReturnValue({ created: [], updated: [], skipped: [], errors: [] })
+    mockProvisionLabels.mockReturnValue({
+      created: [],
+      updated: [],
+      skipped: [],
+      errors: [],
+      classifiedErrors: [],
+    })
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
     vi.spyOn(console, 'log').mockImplementation(() => {})
 
