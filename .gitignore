@@ -26,6 +26,12 @@ coverage/
 !.arbiter/evidence/tdd/*.json
 # Self-dogfood workflow exemptions are committed so the gate sees them in CI
 !.arbiter/workflow-exemptions.json
+# Manager state (MILESTONES, DONE, chat protocol) — SSOT for the project plan
+!.arbiter/management/
+!.arbiter/management/**
+# Wave audits + their evidence — version-controlled audit history
+!.arbiter/wave*/
+!.arbiter/wave*/**
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/

@@ -39,7 +39,17 @@ const SCAN_EXTENSIONS = new Set([
   '.toml',
 ])
 
-const SKIP_PATHS = ['scripts/check-no-work-refs.mjs', '.claude/']
+// .arbiter/management/ and .arbiter/wave*/ are internal manager scratchpad +
+// audit history (per DEC-007). They legitimately reference work-repo names as
+// stream identifiers (e.g. "Stream D — Mainsim work" in MILESTONES.md, or the
+// wave1/mainsim-auto-pipeline.md audit). The privacy gate targets src/, docs/,
+// and other public-facing artefacts; internal audit isn't in scope.
+const SKIP_PATHS = [
+  'scripts/check-no-work-refs.mjs',
+  '.claude/',
+  '.arbiter/management/',
+  '.arbiter/wave',
+]
 
 function shouldScan(filePath) {
   const lower = filePath.toLowerCase()
