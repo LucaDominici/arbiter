@@ -145,7 +145,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         if: matrix.stack == 'java'
 
       - uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
