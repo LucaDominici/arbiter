@@ -3,5 +3,6 @@
   "archetype": "library",
   "levels": ["L1", "L2"],
   "tier": "snapshot",
-  "note": "INV-32 fixture for zero-gh-call invariant (#1063). Validates that arbiter update makes no GitHub API calls when --github flag and ARBITER_GITHUB env are absent."
+  "note": "INV-32 fixture for zero-gh-call invariant (#1063). Validates that arbiter update makes no GitHub API calls when --github flag and ARBITER_GITHUB env are absent.",
+  "collaborationMode": "trunk-solo"
 }

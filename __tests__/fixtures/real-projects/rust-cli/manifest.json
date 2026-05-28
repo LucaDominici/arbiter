@@ -5,5 +5,6 @@
   "levels": ["L1", "L2", "L3", "L4"],
   "tier": "bake",
   "note": "Minimal Rust CLI binary with clap argument parsing — detects as cli archetype",
-  "enableSecurityScanning": true
+  "enableSecurityScanning": true,
+  "collaborationMode": "trunk-solo"
 }

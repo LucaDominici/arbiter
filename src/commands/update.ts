@@ -30,6 +30,7 @@ import {
 import type { GeneratorKey } from '../config/diff.js'
 import type { ProjectConfig, Lane } from '../wizard/types.js'
 import type { ArbiterConfigV2 } from '../utils/config.js'
+import { collaborationModeFromAnswers } from '../config/collaboration-mode-defaults.js'
 
 export interface UpdateOptions {
   dir: string | undefined
@@ -89,6 +90,11 @@ function v2ToProjectConfig(
     enableEvidenceHarness: stored.features.evidenceHarness,
     enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
     enableSoloDevMode: stored.features.soloDevMode ?? false,
+    collaborationMode:
+      stored.collaborationMode ??
+      collaborationModeFromAnswers(
+        stored.features.soloDevMode === true ? { soloDevMode: true } : {},
+      ),
     invariantTiers: stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(level)),
     acceptBetaTools: stored.acceptBetaTools ?? false,
     ...(stored.evidenceRetention !== undefined && {
@@ -368,6 +374,11 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const snapshot = loadSnapshot(targetDir)
     log('\n  Updating...')
 
+    // ADR-051: migrate soloDevMode → collaborationMode on first update after upgrade.
+    const needsMigration = stored.features.soloDevMode === true && !stored.collaborationMode
+    if (needsMigration) {
+      log("  Migrating soloDevMode=true → collaborationMode='trunk-solo' (ADR-051)")
+    }
     const nextConfig: ArbiterConfigV2 = {
       ...stored,
       archetype,
@@ -377,6 +388,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       hasPublicApi,
       contractType,
       ...(lanes.length > 0 && { lanes }),
+      ...(needsMigration && { collaborationMode: 'trunk-solo' }),
     }
 
     const { results, keysRun, errors: generatorErrors } = selectAndRun(specs, snapshot, nextConfig)

@@ -1546,6 +1546,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'EJS whitelist preamble in 04-deploy-test.yml.ejs + 10-deploy-prod.yml.ejs',
   },
 
+  {
+    id: 'INV-100',
+    tier: 'architectural',
+    title: 'collaborationMode must be set in arbiter.json',
+    description:
+      'Every arbiter-scaffolded project must declare a collaborationMode field in arbiter.json. ' +
+      'Valid values: "trunk-solo" | "peer-review" | "gated-review". ' +
+      'Absent collaborationMode means CI shape and branching strategy are inferred from deprecated ' +
+      'soloDevMode, which will be removed in the next major release. ' +
+      'Enforcement: scripts/check-collab-mode-wired.mjs reads arbiter.json and fails if ' +
+      'collaborationMode is absent or not a known value.',
+    alwaysActive: true,
+    selfOnly: false,
+    enforcement: 'scripts/check-collab-mode-wired.mjs (L1)',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-83 (audit-append-only), INV-84 (audit-trigger-presence) —
   // sibling epic #TBD-sibling-epic phases B/G.

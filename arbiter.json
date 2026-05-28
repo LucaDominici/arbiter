@@ -30,5 +30,6 @@
   "hasDatabase": false,
   "hasPublicApi": false,
   "contractType": "none",
-  "lanes": ["docs"]
+  "lanes": ["docs"],
+  "collaborationMode": "trunk-solo"
 }

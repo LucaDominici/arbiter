@@ -235,6 +235,10 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ Zod schema (`src/config/schema.ts` `deployTargetSchema`) + EJS whitelist preamble in `04-deploy-test.yml.ejs` + `10-deploy-prod.yml.ejs`
   - The `deployTarget` field in `arbiter.json` must be one of: `"ghcr"`, `"azure-container-app"`, `"aws-ecs"`, `"gcp-cloud-run"`, `"none"`. Unknown values cause EJS `include()` path traversal at render time (RT-7).
 
+- **INV-100:** collaborationMode must be set in arbiter.json
+  - _Enforcement:_ `scripts/check-collab-mode-wired.mjs` (L1)
+  - Every arbiter-scaffolded project must declare `collaborationMode` in `arbiter.json`. Valid values: `trunk-solo`, `peer-review`, `gated-review`. Absent collaborationMode falls back to deprecated `soloDevMode` inference. Run `arbiter update` to auto-migrate.
+
 ---
 
 ## Coding Standards
