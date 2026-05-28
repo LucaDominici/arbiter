@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   notify:
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Post or update issue comment
         env:
