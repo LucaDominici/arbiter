@@ -66,6 +66,29 @@ import type { Archetype } from '../wizard/types.js'
 
 const WEB_ARCHETYPES = new Set<Archetype>(['frontend-spa'])
 
+// CodeQL: peer-review L2+ or gated-review (any level); Rust excluded (no native CodeQL support)
+function needsCodeql(
+  cm: string | undefined,
+  isL2Plus: boolean,
+  language: string | undefined,
+): boolean {
+  return ((cm === 'peer-review' && isL2Plus) || cm === 'gated-review') && language !== 'rust'
+}
+
+// Frontend quality: review modes (peer/gated), web archetype, L2+
+function needsFrontendQuality(
+  cm: string | undefined,
+  isL2Plus: boolean,
+  archetype: Archetype | undefined,
+): boolean {
+  return (
+    (cm === 'peer-review' || cm === 'gated-review') &&
+    isL2Plus &&
+    archetype !== undefined &&
+    WEB_ARCHETYPES.has(archetype)
+  )
+}
+
 function generateCiGapWorkflows(
   workflowsDir: string,
   config: ProjectConfig,
@@ -78,7 +101,7 @@ function generateCiGapWorkflows(
   const isL3Plus = new Set(['L3', 'L4']).has(gl)
 
   // trunk-solo L2+: lightweight nightly (integration only, no mutation/SLSA)
-  if (cm === 'trunk-solo' && isL2Plus) {
+  if (cm === 'trunk-solo' && isL2Plus)
     files.push(
       writeFile(
         join(workflowsDir, '06-nightly-lite.yml'),
@@ -86,10 +109,8 @@ function generateCiGapWorkflows(
         { dryRun },
       ),
     )
-  }
 
-  // CodeQL SAST: peer-review L2+ or gated-review (any level); Rust excluded (CodeQL has no Rust support)
-  if (((cm === 'peer-review' && isL2Plus) || cm === 'gated-review') && config.language !== 'rust') {
+  if (needsCodeql(cm, isL2Plus, config.language))
     files.push(
       writeFile(
         join(workflowsDir, '15-codeql.yml'),
@@ -97,14 +118,8 @@ function generateCiGapWorkflows(
         { dryRun },
       ),
     )
-  }
 
-  // Frontend quality: peer-review or gated-review, web archetype, L2+
-  if (
-    (cm === 'peer-review' || cm === 'gated-review') &&
-    isL2Plus &&
-    WEB_ARCHETYPES.has(config.archetype)
-  ) {
+  if (needsFrontendQuality(cm, isL2Plus, config.archetype))
     files.push(
       writeFile(
         join(workflowsDir, '16-frontend-quality.yml'),
@@ -112,10 +127,9 @@ function generateCiGapWorkflows(
         { dryRun },
       ),
     )
-  }
 
   // OSSF Scorecard: gated-review L3+
-  if (cm === 'gated-review' && isL3Plus) {
+  if (cm === 'gated-review' && isL3Plus)
     files.push(
       writeFile(
         join(workflowsDir, '17-ossf-scorecard.yml'),
@@ -123,7 +137,6 @@ function generateCiGapWorkflows(
         { dryRun },
       ),
     )
-  }
 
   return files
 }
