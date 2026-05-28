@@ -280,6 +280,8 @@ runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
 runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);
 runCheck('action pins (INV-75)', 'node', ['scripts/check-action-pins.mjs']);
 runCheck('workflow perms (INV-76)', 'node', ['scripts/check-workflow-perms.mjs']);
+// ─── L1: ff-only merge method enforcement (INV-101) ──────────────────────────
+runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs']);
 <% } %>
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {

@@ -86,6 +86,16 @@ const PROTECTION_PAYLOAD = {
   restrictions: null,
   allow_force_pushes: false,
   allow_deletions: false,
+  required_linear_history: true,
+}
+
+// INV-101: disallow squash and rebase-merge; these rewrite SHAs and invalidate cosign attestations.
+// allow_merge_commit:true is required — GitHub 422s if all three merge methods are disabled.
+// These flags live on PATCH /repos/{owner}/{repo}, NOT on the branch protection endpoint.
+const REPO_SETTINGS_PAYLOAD = {
+  allow_merge_commit: true,
+  allow_squash_merge: false,
+  allow_rebase_merge: false,
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -166,11 +176,20 @@ if (SNAPSHOT_PATH) {
 
 if (DRY_RUN) {
   if (JSON_MODE) {
-    // Emit only the payload JSON — useful for piping / inspection
-    process.stdout.write(JSON.stringify(PROTECTION_PAYLOAD, null, 2) + '\n')
+    // Emit both payloads as a JSON object — useful for piping / inspection
+    process.stdout.write(
+      JSON.stringify(
+        { branchProtection: PROTECTION_PAYLOAD, repoSettings: REPO_SETTINGS_PAYLOAD },
+        null,
+        2,
+      ) + '\n',
+    )
   } else {
-    log(`PUT body preview:`)
+    log(`PUT body preview (branch protection):`)
     log(JSON.stringify(PROTECTION_PAYLOAD, null, 2))
+    log('')
+    log(`PATCH body preview (repo merge settings):`)
+    log(JSON.stringify(REPO_SETTINGS_PAYLOAD, null, 2))
     log('')
     log('Dry-run complete. Run without --dry-run to apply.')
   }
@@ -179,19 +198,32 @@ if (DRY_RUN) {
 
 // ── Live mode ────────────────────────────────────────────────────────────────
 
-// Apply protection
+// Apply branch protection (PUT)
 const endpoint = `repos/${REPO}/branches/${BRANCH}/protection`
 log(`Applying branch protection via PUT ${endpoint}`)
 
 try {
   ghApi(endpoint, 'PUT', PROTECTION_PAYLOAD)
+  log(`Branch protection applied.`)
+} catch (err) {
+  process.stderr.write(`[apply-branch-protection] FAIL (branch protection): ${err.message}\n`)
+  process.exit(1)
+}
+
+// Apply repo merge settings (PATCH) — INV-101: disable squash-merge and rebase-merge
+const repoEndpoint = `repos/${REPO}`
+log(`Applying repo merge settings via PATCH ${repoEndpoint}`)
+
+try {
+  ghApi(repoEndpoint, 'PATCH', REPO_SETTINGS_PAYLOAD)
   log('')
-  log(`Branch protection applied successfully.`)
+  log(`Branch protection and merge settings applied successfully.`)
   log(`  Repository : ${REPO}`)
   log(`  Branch     : ${BRANCH}`)
   log(`  Checks     : ${REQUIRED_CONTEXTS.join(', ')}`)
+  log(`  Merge      : ff-only (squash-merge=false, rebase-merge=false)`)
   process.exit(0)
 } catch (err) {
-  process.stderr.write(`[apply-branch-protection] FAIL: ${err.message}\n`)
+  process.stderr.write(`[apply-branch-protection] FAIL (repo settings): ${err.message}\n`)
   process.exit(1)
 }

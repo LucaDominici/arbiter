@@ -94,7 +94,12 @@ vi.mock('../../src/github/labels.js', () => ({
     .mockReturnValue({ created: [], updated: [], skipped: [], errors: [], classifiedErrors: [] }),
 }))
 vi.mock('../../src/github/branch-protection.js', () => ({
-  applyBranchProtection: vi.fn().mockReturnValue({ applied: false, error: null }),
+  applyBranchProtection: vi.fn().mockReturnValue({
+    applied: false,
+    error: null,
+    repoSettingsApplied: false,
+    repoSettingsError: null,
+  }),
 }))
 vi.mock('../../src/github/project-board.js', () => ({
   createProjectBoard: vi.fn().mockReturnValue({

@@ -5,6 +5,7 @@ const _isCli = _bucket === 'cli';
 const _isBatch = _bucket === 'batch';
 const _mutationInfo = governanceLevel === 'L1';
 const _slsaL3 = governanceLevel === 'L3';
+const _verifyOnSign = governanceLevel !== 'L1';
 %>name: Release (T3)
 
 on:
@@ -240,6 +241,15 @@ jobs:
           echo "sigstore-status=$STATUS"
       - name: Sign artifact (keyless OIDC)
         run: cosign sign-blob --yes release-artifact.zip --bundle release-artifact.zip.bundle
+<% if (_verifyOnSign) { %>
+      - name: Verify signature (L2+ strict)
+        run: |
+          cosign verify-blob \
+            --bundle release-artifact.zip.bundle \
+            --certificate-identity-regexp ".*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            release-artifact.zip
+<% } %>
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: cosign-bundle

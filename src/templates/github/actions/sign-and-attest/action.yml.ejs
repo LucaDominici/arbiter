@@ -1,5 +1,5 @@
 <%
-const _verifyOnSign = governanceLevel === 'L4';
+const _verifyOnSign = governanceLevel !== 'L1';
 %>name: Sign and Attest Artifact
 description: >-
   Keyless cosign sign-blob + CycloneDX SBOM attestation + GitHub native attest-build-provenance.
@@ -26,7 +26,7 @@ runs:
       shell: bash
       run: cosign sign-blob --yes "${{ inputs.artifact-path }}" --bundle "${{ inputs.artifact-path }}.bundle"
 <% if (_verifyOnSign) { %>
-    - name: Verify signature (L3 strict)
+    - name: Verify signature (L2+ strict)
       shell: bash
       run: |
         cosign verify-blob \
