@@ -146,6 +146,7 @@ runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness
 runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', ['scripts/check-workflow-cosign.mjs'])
 runCheck('no passWithNoTests (INV-25)', 'node', ['scripts/check-no-passwithnotests.mjs'])
 runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs'])
+runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs'])
 
 // Capture L1 boundary for parityContentHash computation (INV-59)
 const l1EndIdx = getResults().length

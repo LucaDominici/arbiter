@@ -49,6 +49,7 @@ import type {
   AuthProvider,
   ObservabilityProvider,
   Lane,
+  CollaborationMode,
 } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
@@ -609,11 +610,11 @@ function setupLabels(
 function setupBranchProtection(
   owner: string,
   repo: string,
-  soloDevMode: boolean,
+  collaborationMode: CollaborationMode,
   warnings: string[],
   log: (msg: string) => void,
 ): void {
-  const bp = applyBranchProtection(owner, repo, soloDevMode)
+  const bp = applyBranchProtection(owner, repo, collaborationMode)
   if (bp.applied) {
     log('  │   Branch protection applied.')
   } else if (bp.error) {
@@ -622,6 +623,10 @@ function setupBranchProtection(
     warnings.push(`branch protection skipped: ${bp.error}`)
   } else {
     log('  │   Skipped (requires admin access).')
+  }
+  if (bp.repoSettingsError) {
+    log(`  │   Repo merge settings FAILED (INV-101): ${bp.repoSettingsError}`)
+    warnings.push(`repo merge settings failed (INV-101): ${bp.repoSettingsError}`)
   }
 }
 
@@ -676,7 +681,7 @@ export function runGithubSetup(
     config.githubOwner,
     config.githubRepo,
     // eslint-disable-next-line @typescript-eslint/no-deprecated
-    config.enableSoloDevMode === true,
+    config.collaborationMode ?? (config.enableSoloDevMode === true ? 'trunk-solo' : 'peer-review'),
     warnings,
     log,
   )

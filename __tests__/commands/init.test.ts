@@ -102,7 +102,12 @@ vi.mock('../../src/github/labels.js', () => ({
     .mockReturnValue({ created: [], updated: [], errors: [], classifiedErrors: [] }),
 }))
 vi.mock('../../src/github/branch-protection.js', () => ({
-  applyBranchProtection: vi.fn().mockReturnValue({ applied: false, error: 'no admin' }),
+  applyBranchProtection: vi.fn().mockReturnValue({
+    applied: false,
+    error: 'no admin',
+    repoSettingsApplied: false,
+    repoSettingsError: null,
+  }),
 }))
 vi.mock('../../src/github/project-board.js', () => ({
   createProjectBoard: vi.fn().mockReturnValue({
@@ -485,7 +490,7 @@ describe('runGithubSetup', () => {
       }),
     )
     expect(mockProvisionLabels).toHaveBeenCalledWith('myorg', 'myrepo')
-    expect(mockApplyBranchProtection).toHaveBeenCalledWith('myorg', 'myrepo', false)
+    expect(mockApplyBranchProtection).toHaveBeenCalledWith('myorg', 'myrepo', 'peer-review')
     expect(mockCreateProjectBoard).toHaveBeenCalledWith('myorg', 'myrepo', 'test-project')
   })
 
