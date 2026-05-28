@@ -84,6 +84,8 @@
     "scripts/evidence-rotate.mjs",
     "scripts/harness.mjs",
     "scripts/knowledge-map-update.mjs",
+    "scripts/lib/check-registry.mjs",
+    "scripts/lib/full-gate-blacklist.mjs",
     "scripts/lib/log-bypass.mjs",
     "scripts/run-self-canary.mjs",
     "scripts/self-validation.mjs",

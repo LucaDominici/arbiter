@@ -62,6 +62,72 @@ function generateIndustrialWorkflows(
   ]
 }
 
+import type { Archetype } from '../wizard/types.js'
+
+const WEB_ARCHETYPES = new Set<Archetype>(['frontend-spa'])
+
+function generateCiGapWorkflows(
+  workflowsDir: string,
+  config: ProjectConfig,
+  dryRun: boolean,
+): WriteResult[] {
+  const files: WriteResult[] = []
+  const cm = config.collaborationMode
+  const gl = config.governanceLevel
+  const isL2Plus = new Set(['L2', 'L3', 'L4']).has(gl)
+  const isL3Plus = new Set(['L3', 'L4']).has(gl)
+
+  // trunk-solo L2+: lightweight nightly (integration only, no mutation/SLSA)
+  if (cm === 'trunk-solo' && isL2Plus) {
+    files.push(
+      writeFile(
+        join(workflowsDir, '06-nightly-lite.yml'),
+        renderTemplate('github/workflows/06-nightly-lite.yml.ejs', config),
+        { dryRun },
+      ),
+    )
+  }
+
+  // CodeQL SAST: peer-review L2+ or gated-review (any level); Rust excluded (CodeQL has no Rust support)
+  if (((cm === 'peer-review' && isL2Plus) || cm === 'gated-review') && config.language !== 'rust') {
+    files.push(
+      writeFile(
+        join(workflowsDir, '15-codeql.yml'),
+        renderTemplate('github/workflows/15-codeql.yml.ejs', config),
+        { dryRun },
+      ),
+    )
+  }
+
+  // Frontend quality: peer-review or gated-review, web archetype, L2+
+  if (
+    (cm === 'peer-review' || cm === 'gated-review') &&
+    isL2Plus &&
+    WEB_ARCHETYPES.has(config.archetype)
+  ) {
+    files.push(
+      writeFile(
+        join(workflowsDir, '16-frontend-quality.yml'),
+        renderTemplate('github/workflows/16-frontend-quality.yml.ejs', config),
+        { dryRun },
+      ),
+    )
+  }
+
+  // OSSF Scorecard: gated-review L3+
+  if (cm === 'gated-review' && isL3Plus) {
+    files.push(
+      writeFile(
+        join(workflowsDir, '17-ossf-scorecard.yml'),
+        renderTemplate('github/workflows/17-ossf-scorecard.yml.ejs', config),
+        { dryRun },
+      ),
+    )
+  }
+
+  return files
+}
+
 function generateCiWorkflows(
   workflowsDir: string,
   config: ProjectConfig,
@@ -137,6 +203,8 @@ function generateCiWorkflows(
   }
 
   if (style === 'industrial') files.push(...generateIndustrialWorkflows(workflowsDir, data, dryRun))
+
+  files.push(...generateCiGapWorkflows(workflowsDir, config, dryRun))
 
   // eslint-disable-next-line @typescript-eslint/no-deprecated
   if (config.enableSoloDevMode)

@@ -33,271 +33,310 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { minimatch } from 'minimatch'
 import { runCheck, runWarnCheck, runToolCheck, getResults, getFailed } from './lib/run-helpers.mjs'
 import { parseCheckArgs } from './lib/parse-check-args.mjs'
 
-const { subcommand, level, jsonPath: _parsedJsonPath } = parseCheckArgs(process.argv.slice(2))
-let jsonPath = _parsedJsonPath
+// isMain guard so computeSkipped/resetSelectiveState can be imported without running checks.
+const isMain = process.argv[1] === fileURLToPath(import.meta.url)
 
-// When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
-// git-dependent checks (commitlint, docs) must run from the original repo path.
-const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
+let skippedChecks = new Set()
 
-// Worktree paths containing '#' break Vite's URL parsing. Create a symlink
-// without '#' and pass VITEST_ROOT so vitest resolves the root from the symlink.
-const _cwd = resolve('.')
-let vitestEnv
-if (_cwd.includes('#')) {
-  const sym = '/tmp/arbiter-wt-sym'
-  if (!existsSync(sym)) symlinkSync(_cwd, sym)
-  vitestEnv = { VITEST_ROOT: sym }
+export function resetSelectiveState() {
+  skippedChecks = new Set()
 }
 
-// Gates excluded from parityContentHash (INV-59): these differ structurally between
-// local and CI environments — PR-only gates or tests run with different selectors.
-const PARITY_EXCLUDE = new Set(['commitlint', 'docs', 'unit tests'])
+/**
+ * Compute which checks to skip given a set of changed files (opt-in selective gating).
+ * Returns empty Set (= full gate) on any safety-boundary violation.
+ */
+export function computeSkipped(changedFiles, registry, blacklist) {
+  if (!Array.isArray(changedFiles) || changedFiles.length > 500) return new Set()
+  for (const f of changedFiles) {
+    if (f.startsWith('/') || f.startsWith('../') || f.includes('/../')) return new Set()
+  }
+  for (const f of changedFiles) {
+    for (const pattern of blacklist) {
+      if (minimatch(f, pattern, { dot: true })) return new Set()
+    }
+  }
+  const skipped = new Set()
+  for (const entry of registry) {
+    const affected = changedFiles.some((f) =>
+      entry.affects.some((pat) => minimatch(f, pat, { dot: true })),
+    )
+    if (!affected) skipped.add(entry.name)
+  }
+  return skipped
+}
 
-process.stdout.write('\n')
-process.stdout.write(`=== arbiter Quality Gate: ${subcommand} [${level}] ===\n`)
-process.stdout.write('\n')
+if (isMain) {
+  const { subcommand, level, jsonPath: _parsedJsonPath } = parseCheckArgs(process.argv.slice(2))
+  let jsonPath = _parsedJsonPath
 
-// ─── check: T1 fast checks ───────────────────────────────────────────────────
-runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
-runCheck('no redacted tokens', 'node', ['scripts/check-no-redacted-tokens.mjs'])
-runCheck('no work refs', 'node', ['scripts/check-no-work-refs.mjs'])
-runCheck('private paths ignored', 'node', ['scripts/check-private-paths-ignored.mjs'])
-runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
-runCheck('format', 'npx', ['prettier', '--check', '.'])
-runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])
-runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
-runCheck(
-  'greenfield smoke',
-  'npx',
-  [
-    'vitest',
-    'run',
-    '--config',
-    'vitest.integration.config.ts',
-    '__tests__/integration/init-greenfield-smoke.test.ts',
-  ],
-  vitestEnv ? { env: vitestEnv } : {},
-)
-runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts', 'src/'])
-runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
-runCheck('i18n raw strings', 'node', [
-  'scripts/check-no-raw-strings.mjs',
-  'src',
-  '--inventory',
-  '__tests__/i18n/_migration-inventory.json',
-])
-runCheck('spdx headers', 'node', ['scripts/check-spdx-headers.mjs'])
-runCheck('orphan TODOs', 'node', ['scripts/check-no-orphan-todo.mjs'])
-runCheck('no direct-fs in generators', 'node', ['scripts/check-no-direct-fs-in-generators.mjs'])
-runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
-runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'])
-runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs'])
-runCheck('commitlint', 'npx', ['commitlint', '--from', 'origin/main', '--to', 'HEAD'], {
-  cwd: GIT_CWD,
-})
-runCheck('test naming', 'node', ['scripts/check-test-naming.mjs'])
-runCheck('hardness inventory', 'node', ['scripts/check-hardness-inventory.mjs'])
-runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
-runCheck('matrix fixtures', 'node', ['scripts/check-matrix-fixtures.mjs'])
-runCheck('matrix proven cells', 'node', ['scripts/check-matrix-proven-cells.mjs'])
-runCheck('skills-matrix-schema', 'node', ['scripts/check-skills-matrix.mjs'])
-runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'])
-runCheck('generator tests', 'node', ['scripts/check-generator-tests.mjs'])
-runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
-runCheck('catalog parity', 'node', ['scripts/check-catalog-agents-parity.mjs'])
-runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
-runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
-runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
-runCheck('bloat ratchet', 'node', ['scripts/check-bloat-ratchet.mjs'])
-runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
-runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs'])
-runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])
-runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
-runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
-runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
-runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
-runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
-runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
-runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
-runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
-runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
-runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
-runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
-runToolCheck('actionlint', 'actionlint', [])
-// ─── L1: Anti-drift validator family (INV-89, W6) ────────────────────────────
-runCheck('anti-drift: suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs'])
-runCheck('anti-drift: suppression expiry', 'node', ['scripts/check-suppression-expiry.mjs'])
-runCheck('anti-drift: pii scan config', 'node', ['scripts/check-pii-scan.mjs'])
-runCheck('anti-drift: secret scan', 'node', ['scripts/check-secret-scan.mjs'])
-runCheck('anti-drift: drift manifest', 'node', ['scripts/check-drift.mjs'])
-runCheck('anti-drift: workflow runners', 'node', ['scripts/check-workflow-runners.mjs'])
-runCheck('anti-drift: workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs'])
-runCheck('anti-drift: workflow integrity', 'node', ['scripts/check-workflow-test-integrity.mjs'])
-runCheck('anti-drift: pr size gate', 'node', ['scripts/check-pr-size-gate.mjs'])
-runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
-runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
-runCheck('adapter coverage (INV-88)', 'node', ['scripts/check-adapter-coverage.mjs'])
-runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
-runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness.mjs'])
-runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', ['scripts/check-workflow-cosign.mjs'])
-runCheck('no passWithNoTests (INV-25)', 'node', ['scripts/check-no-passwithnotests.mjs'])
-runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs'])
-runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs'])
+  // When the pre-commit hook rsyncs to a temp dir to work around the Vite '#' bug,
+  // git-dependent checks (commitlint, docs) must run from the original repo path.
+  const GIT_CWD = process.env.ARBITER_HOOK_GIT_CWD
 
-// Capture L1 boundary for parityContentHash computation (INV-59)
-const l1EndIdx = getResults().length
+  // Worktree paths containing '#' break Vite's URL parsing. Create a symlink
+  // without '#' and pass VITEST_ROOT so vitest resolves the root from the symlink.
+  const _cwd = resolve('.')
+  let vitestEnv
+  if (_cwd.includes('#')) {
+    const sym = '/tmp/arbiter-wt-sym'
+    if (!existsSync(sym)) symlinkSync(_cwd, sym)
+    vitestEnv = { VITEST_ROOT: sym }
+  }
 
-// ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
-if (subcommand !== 'check') {
-  runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
-  // When running from rsync'd temp dir on behalf of a '#'-path worktree,
-  // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
-  const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck
-  docsCheck('docs:build', 'npm', ['run', 'docs:build'])
-  runCheck('dead code', 'npx', ['knip'])
-  runCheck('duplication', 'npx', ['jscpd', '--silent'])
-  runCheck('audit', 'npm', ['audit', '--audit-level=high'])
-  runCheck('gitleaks', 'gitleaks', [
-    'detect',
-    '--source',
-    '.',
-    '--config',
-    '.gitleaks.toml',
-    '--gitleaks-ignore-path',
-    'suppressions/.gitleaksignore',
-    '--exit-code',
-    '1',
-  ])
-  runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
-  runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
-  runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
-  runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
-  runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
-  runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
-  runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
-  runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
-  runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
-  runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
-  runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
-  // INV-25 (#1039): full integration suite in L2 gate — 19 files, not just smoke
+  // Gates excluded from parityContentHash (INV-59): these differ structurally between
+  // local and CI environments — PR-only gates or tests run with different selectors.
+  const PARITY_EXCLUDE = new Set(['commitlint', 'docs', 'unit tests'])
+
+  process.stdout.write('\n')
+  process.stdout.write(`=== arbiter Quality Gate: ${subcommand} [${level}] ===\n`)
+  process.stdout.write('\n')
+
+  // ─── check: T1 fast checks ───────────────────────────────────────────────────
+  runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
+  runCheck('no redacted tokens', 'node', ['scripts/check-no-redacted-tokens.mjs'])
+  runCheck('no work refs', 'node', ['scripts/check-no-work-refs.mjs'])
+  runCheck('private paths ignored', 'node', ['scripts/check-private-paths-ignored.mjs'])
+  runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
+  runCheck('format', 'npx', ['prettier', '--check', '.'])
+  runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])
+  runCheck('unit tests', 'npm', ['test'], vitestEnv ? { env: vitestEnv } : {})
   runCheck(
-    'integration suite (INV-25)',
+    'greenfield smoke',
     'npx',
-    ['vitest', 'run', '--config', 'vitest.integration.config.ts'],
+    [
+      'vitest',
+      'run',
+      '--config',
+      'vitest.integration.config.ts',
+      '__tests__/integration/init-greenfield-smoke.test.ts',
+    ],
     vitestEnv ? { env: vitestEnv } : {},
   )
-  // INV-25 (#1040): BDD layer
-  runCheck('BDD suite (INV-25)', 'npm', ['run', 'test:bdd'])
-}
+  runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts', 'src/'])
+  runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
+  runCheck('i18n raw strings', 'node', [
+    'scripts/check-no-raw-strings.mjs',
+    'src',
+    '--inventory',
+    '__tests__/i18n/_migration-inventory.json',
+  ])
+  runCheck('spdx headers', 'node', ['scripts/check-spdx-headers.mjs'])
+  runCheck('orphan TODOs', 'node', ['scripts/check-no-orphan-todo.mjs'])
+  runCheck('no direct-fs in generators', 'node', ['scripts/check-no-direct-fs-in-generators.mjs'])
+  runCheck('PII scan', 'node', ['scripts/pii-scan.mjs'])
+  runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs'])
+  runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs'])
+  runCheck('commitlint', 'npx', ['commitlint', '--from', 'origin/main', '--to', 'HEAD'], {
+    cwd: GIT_CWD,
+  })
+  runCheck('test naming', 'node', ['scripts/check-test-naming.mjs'])
+  runCheck('hardness inventory', 'node', ['scripts/check-hardness-inventory.mjs'])
+  runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
+  runCheck('matrix fixtures', 'node', ['scripts/check-matrix-fixtures.mjs'])
+  runCheck('matrix proven cells', 'node', ['scripts/check-matrix-proven-cells.mjs'])
+  runCheck('skills-matrix-schema', 'node', ['scripts/check-skills-matrix.mjs'])
+  runCheck('template tests', 'node', ['scripts/check-template-tests.mjs'])
+  runCheck('generator tests', 'node', ['scripts/check-generator-tests.mjs'])
+  runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
+  runCheck('catalog parity', 'node', ['scripts/check-catalog-agents-parity.mjs'])
+  runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
+  runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
+  runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
+  runCheck('bloat ratchet', 'node', ['scripts/check-bloat-ratchet.mjs'])
+  runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
+  runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs'])
+  runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])
+  runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
+  runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
+  runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
+  runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
+  runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
+  runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
+  runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
+  runCheck('api snapshot', 'node', ['scripts/check-api-snapshot.mjs'])
+  runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
+  runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
+  runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
+  runToolCheck('actionlint', 'actionlint', [])
+  // ─── L1: Anti-drift validator family (INV-89, W6) ────────────────────────────
+  runCheck('anti-drift: suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs'])
+  runCheck('anti-drift: suppression expiry', 'node', ['scripts/check-suppression-expiry.mjs'])
+  runCheck('anti-drift: pii scan config', 'node', ['scripts/check-pii-scan.mjs'])
+  runCheck('anti-drift: secret scan', 'node', ['scripts/check-secret-scan.mjs'])
+  runCheck('anti-drift: drift manifest', 'node', ['scripts/check-drift.mjs'])
+  runCheck('anti-drift: workflow runners', 'node', ['scripts/check-workflow-runners.mjs'])
+  runCheck('anti-drift: workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs'])
+  runCheck('anti-drift: workflow integrity', 'node', ['scripts/check-workflow-test-integrity.mjs'])
+  runCheck('anti-drift: pr size gate', 'node', ['scripts/check-pr-size-gate.mjs'])
+  runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
+  runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
+  runCheck('adapter coverage (INV-88)', 'node', ['scripts/check-adapter-coverage.mjs'])
+  runCheck('nightly freshness (INV-93)', 'node', ['scripts/check-nightly-freshness.mjs'])
+  runCheck('monthly freshness (INV-82)', 'node', ['scripts/check-monthly-freshness.mjs'])
+  runCheck('deploy cosign supply-chain (INV-95/97/98)', 'node', [
+    'scripts/check-workflow-cosign.mjs',
+  ])
+  runCheck('no passWithNoTests (INV-25)', 'node', ['scripts/check-no-passwithnotests.mjs'])
+  runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs'])
+  runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs'])
 
-// ─── Summary ─────────────────────────────────────────────────────────────────
-const results = getResults()
-const failed = getFailed()
+  // Capture L1 boundary for parityContentHash computation (INV-59)
+  const l1EndIdx = getResults().length
 
-process.stdout.write('\n')
-process.stdout.write('=== Summary ===\n')
-process.stdout.write('\n')
-
-const nameWidth = Math.max(6, ...results.map((r) => r.name.length))
-const header = `${'Check'.padEnd(nameWidth)}  Status  Elapsed`
-const divider = '-'.repeat(header.length)
-process.stdout.write(String(header) + '\n')
-process.stdout.write(String(divider) + '\n')
-let totalElapsed = 0
-for (const r of results) {
-  totalElapsed += r.elapsed
-  process.stdout.write(`${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms
-`)
-}
-process.stdout.write(String(divider) + '\n')
-process.stdout.write(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms
-`)
-process.stdout.write('\n')
-
-// ─── Gate result JSON (INV-59) ────────────────────────────────────────────────
-{
-  const l1Gates = results.slice(0, l1EndIdx)
-  const parityGates = l1Gates
-    .filter((r) => !PARITY_EXCLUDE.has(r.name))
-    .map((r) => ({ name: r.name, pass: r.status === 'PASS' }))
-    .sort((a, b) => a.name.localeCompare(b.name))
-
-  const parityContentHash = createHash('sha256').update(JSON.stringify(parityGates)).digest('hex')
-
-  const allForHash = results
-    .map((r) => ({ name: r.name, pass: r.status === 'PASS' }))
-    .sort((a, b) => a.name.localeCompare(b.name))
-
-  const contentHash = createHash('sha256').update(JSON.stringify(allForHash)).digest('hex')
-
-  const artifact = {
-    schema: 'arbiter-gate-v1',
-    node: process.version,
-    level,
-    gates: results.map((r) => ({
-      name: r.name,
-      pass: r.status === 'PASS',
-      durationMs: r.elapsed,
-    })),
-    parityGates,
-    pass: failed === 0,
-    parityContentHash,
-    contentHash,
-  }
-
-  const outPath =
-    jsonPath !== null && jsonPath !== ''
-      ? jsonPath
-      : resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate/local-result.json')
-
-  try {
-    mkdirSync(dirname(outPath), { recursive: true })
-    writeFileSync(outPath, JSON.stringify(artifact, null, 2) + '\n')
-  } catch (err) {
-    process.stderr.write(
-      `check-all: warning: could not write gate result to ${outPath}: ${err.message}\n`,
+  // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
+  if (subcommand !== 'check') {
+    runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
+    // When running from rsync'd temp dir on behalf of a '#'-path worktree,
+    // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
+    const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck
+    docsCheck('docs:build', 'npm', ['run', 'docs:build'])
+    runCheck('dead code', 'npx', ['knip'])
+    runCheck('duplication', 'npx', ['jscpd', '--silent'])
+    runCheck('audit', 'npm', ['audit', '--audit-level=high'])
+    runCheck('gitleaks', 'gitleaks', [
+      'detect',
+      '--source',
+      '.',
+      '--config',
+      '.gitleaks.toml',
+      '--gitleaks-ignore-path',
+      'suppressions/.gitleaksignore',
+      '--exit-code',
+      '1',
+    ])
+    runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
+    runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
+    runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
+    runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])
+    runCheck('local-ci parity', 'node', ['scripts/check-local-ci-parity.mjs'])
+    runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
+    runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
+    runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
+    runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
+    runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
+    runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
+    // INV-25 (#1039): full integration suite in L2 gate — 19 files, not just smoke
+    runCheck(
+      'integration suite (INV-25)',
+      'npx',
+      ['vitest', 'run', '--config', 'vitest.integration.config.ts'],
+      vitestEnv ? { env: vitestEnv } : {},
     )
+    // INV-25 (#1040): BDD layer
+    runCheck('BDD suite (INV-25)', 'npm', ['run', 'test:bdd'])
   }
-}
 
-if (failed === 0) {
-  try {
-    const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim()
-    const gitUser = (() => {
-      try {
-        return execFileSync('git', ['config', 'user.name'], { encoding: 'utf-8' }).trim()
-      } catch {
-        return 'unknown'
-      }
-    })()
-    const markerPath = resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate-pass.json')
-    mkdirSync(dirname(markerPath), { recursive: true })
-    writeFileSync(
-      markerPath,
-      JSON.stringify(
-        {
-          head_sha: headSha,
-          timestamp: new Date().toISOString(),
-          level,
-          node_version: process.version,
-          git_user: gitUser,
-        },
-        null,
-        2,
-      ) + '\n',
-    )
-  } catch (err) {
-    process.stderr.write(`check-all: warning: could not write gate marker: ${err.message}\n`)
+  // ─── Summary ─────────────────────────────────────────────────────────────────
+  const results = getResults()
+  const failed = getFailed()
+
+  process.stdout.write('\n')
+  process.stdout.write('=== Summary ===\n')
+  process.stdout.write('\n')
+
+  const nameWidth = Math.max(6, ...results.map((r) => r.name.length))
+  const header = `${'Check'.padEnd(nameWidth)}  Status  Elapsed`
+  const divider = '-'.repeat(header.length)
+  process.stdout.write(String(header) + '\n')
+  process.stdout.write(String(divider) + '\n')
+  let totalElapsed = 0
+  for (const r of results) {
+    totalElapsed += r.elapsed
+    process.stdout.write(`${r.name.padEnd(nameWidth)}  ${r.status.padEnd(6)}  ${r.elapsed}ms
+`)
   }
-}
+  process.stdout.write(String(divider) + '\n')
+  process.stdout.write(`${'Total'.padEnd(nameWidth)}          ${totalElapsed}ms
+`)
+  process.stdout.write('\n')
 
-if (failed > 0) {
-  console.error(`=== FAILED: ${failed} check(s) ===\n`)
-  process.exit(1)
-} else {
-  process.stdout.write('=== ALL PASSED ===\n\n')
-}
+  // ─── Gate result JSON (INV-59) ────────────────────────────────────────────────
+  {
+    const l1Gates = results.slice(0, l1EndIdx)
+    const parityGates = l1Gates
+      .filter((r) => !PARITY_EXCLUDE.has(r.name))
+      .map((r) => ({ name: r.name, pass: r.status === 'PASS' }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    const parityContentHash = createHash('sha256').update(JSON.stringify(parityGates)).digest('hex')
+
+    const allForHash = results
+      .map((r) => ({ name: r.name, pass: r.status === 'PASS' }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    const contentHash = createHash('sha256').update(JSON.stringify(allForHash)).digest('hex')
+
+    const artifact = {
+      schema: 'arbiter-gate-v1',
+      node: process.version,
+      level,
+      gates: results.map((r) => ({
+        name: r.name,
+        pass: r.status === 'PASS',
+        durationMs: r.elapsed,
+      })),
+      parityGates,
+      pass: failed === 0,
+      parityContentHash,
+      contentHash,
+    }
+
+    const outPath =
+      jsonPath !== null && jsonPath !== ''
+        ? jsonPath
+        : resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate/local-result.json')
+
+    try {
+      mkdirSync(dirname(outPath), { recursive: true })
+      writeFileSync(outPath, JSON.stringify(artifact, null, 2) + '\n')
+    } catch (err) {
+      process.stderr.write(
+        `check-all: warning: could not write gate result to ${outPath}: ${err.message}\n`,
+      )
+    }
+  }
+
+  if (failed === 0) {
+    try {
+      const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim()
+      const gitUser = (() => {
+        try {
+          return execFileSync('git', ['config', 'user.name'], { encoding: 'utf-8' }).trim()
+        } catch {
+          return 'unknown'
+        }
+      })()
+      const markerPath = resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate-pass.json')
+      mkdirSync(dirname(markerPath), { recursive: true })
+      writeFileSync(
+        markerPath,
+        JSON.stringify(
+          {
+            head_sha: headSha,
+            timestamp: new Date().toISOString(),
+            level,
+            node_version: process.version,
+            git_user: gitUser,
+          },
+          null,
+          2,
+        ) + '\n',
+      )
+    } catch (err) {
+      process.stderr.write(`check-all: warning: could not write gate marker: ${err.message}\n`)
+    }
+  }
+
+  if (failed > 0) {
+    console.error(`=== FAILED: ${failed} check(s) ===\n`)
+    process.exit(1)
+  } else {
+    process.stdout.write('=== ALL PASSED ===\n\n')
+  }
+} // end isMain
