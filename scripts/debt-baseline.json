@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "capturedAt": "2026-05-27T14:33:19.892Z",
-  "commit": "5f2ee807",
+  "capturedAt": "2026-05-28T00:06:59.399Z",
+  "commit": "96a8fb73",
   "archetype": "library",
   "metrics": {
     "coverageLine": {
@@ -20,7 +20,7 @@
       "direction": "lower-is-better"
     },
     "complexityViolations": {
-      "value": 84,
+      "value": 85,
       "unit": "count",
       "direction": "lower-is-better"
     },
@@ -30,7 +30,7 @@
       "direction": "lower-is-better"
     },
     "publicApiSurface": {
-      "value": 1035,
+      "value": 1047,
       "unit": "count",
       "direction": "lower-is-better"
     },
