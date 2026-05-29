@@ -48,6 +48,10 @@ report/
 # Arbiter backup files created during update
 *.arbiter-backup
 
+# npm pack output: ignore stray packs, keep the vendored package consumed by sibling repos
+*.tgz
+!arbiter-cli-0.1.0.tgz
+
 # Private maintainer docs (enforcement runbooks, internal notes)
 docs/internal/
 .coverage-tmp/

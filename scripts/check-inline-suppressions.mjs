@@ -5,9 +5,8 @@
 
 import { readFileSync, readdirSync, statSync, lstatSync } from 'node:fs'
 import { join } from 'node:path'
+import { validateEntry, parseArgs } from './lib/suppressions-shared.mjs'
 
-const REASON_MIN_LEN = 10
-const WARN_DAYS = 30
 const DIRECTIVE_RE = /\/\/\s*arbiter-suppress\(([^)]+)\)/g
 const SCANNED_EXTENSIONS = new Set([
   '.ts',
@@ -65,73 +64,6 @@ const KNOWN_INV_IDS = new Set([
   'INV-38',
   'INV-39',
 ])
-
-function checkExpiry(dateStr, label, file, counters) {
-  const expiry = new Date(dateStr)
-  if (isNaN(expiry.getTime())) {
-    process.stderr.write(
-      `[FAIL] ${file}: ${label} — invalid until/expiresAt (not a date): ${dateStr}\n`,
-    )
-    counters.failed++
-    return
-  }
-  const now = new Date()
-  const diffMs = expiry.getTime() - now.getTime()
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-  if (diffMs < 0) {
-    process.stderr.write(`[FAIL] ${file}: ${label} — expired (until/expiresAt: ${dateStr})\n`)
-    counters.failed++
-  } else if (diffDays <= WARN_DAYS) {
-    process.stderr.write(`[WARN] ${file}: ${label} expires in ${diffDays} day(s) (${dateStr})\n`)
-    counters.warnings++
-  }
-}
-
-function validateEntry(entry, label, file, counters) {
-  const required = ['reason', 'owner', 'expiresAt']
-  let valid = true
-  for (const field of required) {
-    if (!entry[field]) {
-      process.stderr.write(`[FAIL] ${file}: ${label} — missing required field: ${field}\n`)
-      counters.failed++
-      valid = false
-    }
-  }
-  if (!valid) return
-  if (entry.reason.length < REASON_MIN_LEN) {
-    process.stderr.write(
-      `[FAIL] ${file}: ${label} — reason must be at least ${REASON_MIN_LEN} characters\n`,
-    )
-    counters.failed++
-    return
-  }
-  checkExpiry(entry.expiresAt, label, file, counters)
-}
-
-function parseArgs(argsStr) {
-  const parts = []
-  let current = ''
-  let inQuote = false
-  let quoteChar = ''
-  for (const ch of argsStr) {
-    if (!inQuote && (ch === '"' || ch === "'")) {
-      inQuote = true
-      quoteChar = ch
-      current += ch
-    } else if (inQuote && ch === quoteChar) {
-      inQuote = false
-      quoteChar = ''
-      current += ch
-    } else if (!inQuote && ch === ',') {
-      parts.push(current.trim())
-      current = ''
-    } else {
-      current += ch
-    }
-  }
-  if (current.trim()) parts.push(current.trim())
-  return parts
-}
 
 function parseDirective(argsStr) {
   const parts = parseArgs(argsStr)
