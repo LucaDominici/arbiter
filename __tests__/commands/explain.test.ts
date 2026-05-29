@@ -118,4 +118,29 @@ describe('runExplain', () => {
       expect(result.error).toContain('--list')
     })
   })
+
+  describe('E_GH_RECOVERABLE (RT11)', () => {
+    it('exits 0 and renders summary for E_GH_RECOVERABLE', () => {
+      const result = runExplain('E_GH_RECOVERABLE', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('E_GH_RECOVERABLE')
+      expect(result.output).toContain('recoverable')
+    })
+
+    it('returns JSON with correct fields for E_GH_RECOVERABLE', () => {
+      const result = runExplain('E_GH_RECOVERABLE', { format: 'json' })
+      expect(result.exitCode).toBe(0)
+      const parsed = JSON.parse(result.output) as Record<string, unknown>
+      expect(parsed.code).toBe('E_GH_RECOVERABLE')
+      expect(parsed.category).toBe('ERROR')
+      expect(typeof parsed.summary).toBe('string')
+      expect(typeof parsed.recovery).toBe('string')
+    })
+
+    it('is present in --list output', () => {
+      const result = runExplain('', { list: true })
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('E_GH_RECOVERABLE')
+    })
+  })
 })

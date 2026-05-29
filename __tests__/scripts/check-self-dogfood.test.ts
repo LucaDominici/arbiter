@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import {
   buildRenderContext,
   templateToMaterialized,
@@ -227,5 +229,25 @@ describe('computeDiff', () => {
     const diff = computeDiff(expected, actual)
     expect(diff?.removed).toEqual(['a', 'a'])
     expect(diff?.added).toHaveLength(0)
+  })
+})
+
+// ─── .dogfood-divergences.json anchored rationales (#1092) ────────────────────
+
+describe('.dogfood-divergences.json — anchored rationales (#1092)', () => {
+  const ANCHOR = /#\d+|INV-\d+|CANON-\d+|ADR-\d+|\d{4}-\d{2}-\d{2}|RT-[A-Z]+-\d+/
+  const path = fileURLToPath(new URL('../../.dogfood-divergences.json', import.meta.url))
+  const entries = JSON.parse(readFileSync(path, 'utf-8')) as Array<{ path: string; reason: string }>
+
+  it('every entry has path + reason', () => {
+    for (const e of entries) {
+      expect(typeof e.path, `entry ${JSON.stringify(e)}`).toBe('string')
+      expect(typeof e.reason, `entry ${e.path}`).toBe('string')
+    }
+  })
+
+  it('every divergence reason carries a traceability anchor (#NNN, INV/CANON/ADR-NN, date, or RT-XX)', () => {
+    const unanchored = entries.filter((e) => !ANCHOR.test(e.reason)).map((e) => e.path)
+    expect(unanchored, `unanchored divergence rationale(s): ${unanchored.join(', ')}`).toEqual([])
   })
 })

@@ -16,15 +16,15 @@ jobs:
 <% if (locals.language === 'java' || locals.language === 'multi') { %>
   java-mutation:
     name: PITest mutation run
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
         with:
           distribution: temurin
           java-version: '21'
 <% if (locals.buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d  # v4
       - name: PITest mutation (full suite)
         run: ./gradlew pitest
 <% } else { %>
@@ -35,7 +35,7 @@ jobs:
 <% if (locals.language === 'typescript' || locals.language === 'multi') { %>
   typescript-mutation:
     name: Stryker mutation run
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0

@@ -6,5 +6,6 @@
   "tier": "bake",
   "deployTarget": "aws-ecs",
   "note": "Python + AWS ECS deployTarget — ECR OIDC auth, ecs update-service, cosign copy ECR TEST → ECR PROD",
-  "enableSecurityScanning": true
+  "enableSecurityScanning": true,
+  "collaborationMode": "peer-review"
 }

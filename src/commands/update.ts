@@ -2,10 +2,10 @@
 import { mkdirSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
-import { UserFacingError } from '../utils/errors.js'
+import { UserFacingError, FatalError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
 import { t } from '../i18n/index.js'
-import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
+import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
 import { detectLanguage } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
@@ -30,6 +30,7 @@ import {
 import type { GeneratorKey } from '../config/diff.js'
 import type { ProjectConfig, Lane } from '../wizard/types.js'
 import type { ArbiterConfigV2 } from '../utils/config.js'
+import { collaborationModeFromAnswers } from '../config/collaboration-mode-defaults.js'
 
 export interface UpdateOptions {
   dir: string | undefined
@@ -89,6 +90,11 @@ function v2ToProjectConfig(
     enableEvidenceHarness: stored.features.evidenceHarness,
     enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
     enableSoloDevMode: stored.features.soloDevMode ?? false,
+    collaborationMode:
+      stored.collaborationMode ??
+      collaborationModeFromAnswers(
+        stored.features.soloDevMode === true ? { soloDevMode: true } : {},
+      ),
     invariantTiers: stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(level)),
     acceptBetaTools: stored.acceptBetaTools ?? false,
     ...(stored.evidenceRetention !== undefined && {
@@ -234,10 +240,10 @@ function detectProjectInfo(
 function handlePluginError(err: unknown, json: boolean | undefined): never {
   const msg = err instanceof Error ? err.message : String(err)
   if (json) {
-    jsonOutput('update', 'error', {}, [msg])
-    process.exit(1)
+    jsonOutput('update', 'error', {}, [msg], { errorClass: 'fatal' })
+    process.exit(2)
   }
-  throw err instanceof Error ? err : new Error(msg)
+  throw new FatalError('E_PLUGIN_FATAL', msg)
 }
 
 interface UpdateSummary extends Record<string, unknown> {
@@ -261,12 +267,16 @@ function emitUpdateOutcome(
   if (options.json) {
     const status =
       generatorErrorLines.length > 0 ? 'error' : backendWarnings.length > 0 ? 'warning' : 'ok'
+    const jsonOpts: JsonOutputOpts = {}
+    if (backendWarnings.length > 0) jsonOpts.warnings = backendWarnings
+    if (status === 'error') jsonOpts.errorClass = 'fatal'
+    else if (status === 'warning') jsonOpts.errorClass = 'recoverable'
     jsonOutput(
       'update',
       status,
       summary,
       generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
-      backendWarnings.length > 0 ? backendWarnings : undefined,
+      status !== 'ok' || backendWarnings.length > 0 ? jsonOpts : undefined,
     )
     if (status !== 'ok') process.exit(statusToExitCode(status))
     return
@@ -277,7 +287,22 @@ function emitUpdateOutcome(
         .map((line) => `    - ${line}`)
         .join('\n')}\n`,
     )
+    if (backendWarnings.length > 0) {
+      process.stderr.write(
+        `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
+          .map((w) => `    - ${w}`)
+          .join('\n')}\n`,
+      )
+    }
     process.exit(statusToExitCode('error'))
+  }
+  if (backendWarnings.length > 0) {
+    process.stderr.write(
+      `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
+        .map((w) => `    - ${w}`)
+        .join('\n')}\n`,
+    )
+    process.exit(statusToExitCode('warning'))
   }
   process.stdout.write(`${t('cli.update.verify_hint')}\n`)
 }
@@ -317,11 +342,13 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const stored = loadConfig(targetDir)
     if (!stored) {
       if (options.json) {
-        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
+        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'], {
+          errorClass: 'config',
+        })
       } else {
         log('  No arbiter.json found. Run `arbiter init` first.\n')
       }
-      process.exit(1)
+      process.exit(78)
       return { keysRun: null }
     }
 
@@ -347,6 +374,11 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const snapshot = loadSnapshot(targetDir)
     log('\n  Updating...')
 
+    // ADR-051: migrate soloDevMode → collaborationMode on first update after upgrade.
+    const needsMigration = stored.features.soloDevMode === true && !stored.collaborationMode
+    if (needsMigration) {
+      log("  Migrating soloDevMode=true → collaborationMode='trunk-solo' (ADR-051)")
+    }
     const nextConfig: ArbiterConfigV2 = {
       ...stored,
       archetype,
@@ -356,6 +388,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       hasPublicApi,
       contractType,
       ...(lanes.length > 0 && { lanes }),
+      ...(needsMigration && { collaborationMode: 'trunk-solo' }),
     }
 
     const { results, keysRun, errors: generatorErrors } = selectAndRun(specs, snapshot, nextConfig)
@@ -384,7 +417,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
           `${t('cli.update.config_invalid', { errors: validation.errors.join('; ') })}\n`,
         )
       }
-      process.exit(1)
+      process.exit(2)
     }
 
     saveConfigAndSnapshot(targetDir, validation.config)

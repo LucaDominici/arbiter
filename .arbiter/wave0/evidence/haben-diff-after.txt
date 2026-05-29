@@ -1,0 +1,10 @@
+
+  Arbiter — diff (dry run)
+
+  = AGENTS.md  (unchanged)
+  = GLOBAL_INVARIANTS.md  (unchanged)
+  = .claude/CLAUDE.md  (unchanged)
+  = .agents/CODEX.md  (unchanged)
+
+  All files up to date. Nothing to update.
+

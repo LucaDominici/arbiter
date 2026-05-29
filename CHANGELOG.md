@@ -6,6 +6,16 @@ This project uses [changesets](https://github.com/changesets/changesets) and fol
 
 ## [Unreleased]
 
+### Behavior
+
+- Exit-code contract extended: `arbiter update` and `arbiter init` now exit `78` (POSIX
+  `EX_CONFIG`) when no arbiter config is found or a pre-flight config error occurs, instead
+  of exiting `1` or `0`. Fatal gh API errors (e.g. auth lost) now exit `2`; recoverable
+  gh errors (e.g. 404 label not found) continue to exit `1`. (#1074, ADR-002, INV-53)
+- `--json` envelopes now include an `errorClass` field (`recoverable`|`fatal`|`config`)
+  alongside `status` when an error occurs, enabling CI wrappers to triage failures
+  without parsing error message strings. (#1074)
+
 ### Added
 
 - `audit-toolchain.mjs` generator (Track A + Track B): emits a toolchain audit script

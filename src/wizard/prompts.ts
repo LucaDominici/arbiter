@@ -326,6 +326,7 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
       'none',
     enableEvidenceHarness: answers.governanceLevel === 'L4',
     enableSelfValidationHarness: true,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     enableSoloDevMode: answers.soloDevMode ?? false,
     thresholds: DEFAULT_THRESHOLDS[answers.governanceLevel],
     invariantTiers: presetToTiers(

@@ -84,6 +84,29 @@ describe('check-exit-code-contract scanner', () => {
     }
   })
 
+  it('passes on process.exit(78) — POSIX EX_CONFIG is allowed', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeFileSync(join(dir, 'config-error.mjs'), 'process.exit(78);\n')
+      const result = runScanner(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('fails on process.exit(79) — only 0/1/2/78 are allowed', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeFileSync(join(dir, 'bad79.mjs'), 'process.exit(79);\n')
+      const result = runScanner(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('79')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('fails on negative exit code process.exit(-1)', () => {
     const { dir, cleanup } = makeDir()
     try {

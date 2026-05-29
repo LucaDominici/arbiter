@@ -2,7 +2,7 @@
 import { mkdirSync, existsSync, copyFileSync, unlinkSync } from 'node:fs'
 import { resolve, basename, join, normalize, isAbsolute, sep } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
-import { UserFacingError, ArbiterError } from '../utils/errors.js'
+import { UserFacingError, ArbiterError, FatalError, ConfigError } from '../utils/errors.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
@@ -21,6 +21,7 @@ import { runWizard, buildMigrationPlan } from '../wizard/prompts.js'
 import { provisionLabels } from '../github/labels.js'
 import { applyBranchProtection } from '../github/branch-protection.js'
 import { createProjectBoard } from '../github/project-board.js'
+import { type GhErrorKind } from '../github/classify-gh-error.js'
 import { saveConfig, loadConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
@@ -48,6 +49,7 @@ import type {
   AuthProvider,
   ObservabilityProvider,
   Lane,
+  CollaborationMode,
 } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 import { showTelemetryBannerIfFirstRun } from '../utils/first-run.js'
@@ -123,10 +125,14 @@ export async function runInit(options: InitOptions): Promise<void> {
   // --json requires --yes: interactive wizard reads stdin which is incompatible with
   // machine-readable output. Fail fast with a clear JSON error.
   if (options.json && !options.yes) {
-    jsonOutput('init', 'error', {}, [
-      '--json requires --yes (interactive wizard is incompatible with machine-readable output)',
-    ])
-    process.exit(1)
+    jsonOutput(
+      'init',
+      'error',
+      {},
+      ['--json requires --yes (interactive wizard is incompatible with machine-readable output)'],
+      { errorClass: 'config' },
+    )
+    process.exit(78)
     return
   }
 
@@ -222,7 +228,7 @@ function emitInitOutput(
       status,
       { created, skipped },
       errorLines.length > 0 ? errorLines : undefined,
-      warnings.length > 0 ? warnings : undefined,
+      warnings.length > 0 ? { warnings } : undefined,
     )
     if (status !== 'ok') process.exit(statusToExitCode(status))
     return
@@ -578,7 +584,72 @@ export async function runPlugins(
 
 interface BackendResult {
   warnings: string[]
-  errors: string[]
+}
+
+function throwOnFatalOrConfig(kind: GhErrorKind, msg: string, warnings: string[]): void {
+  if (kind === 'fatal') throw new FatalError('E_GH_FATAL', msg, { recoverableContext: warnings })
+  if (kind === 'config') throw new ConfigError('E_GH_NOT_INSTALLED', msg)
+}
+
+function setupLabels(
+  owner: string,
+  repo: string,
+  warnings: string[],
+  log: (msg: string) => void,
+): void {
+  const labelResult = provisionLabels(owner, repo)
+  if (labelResult.created.length > 0) log(`  │   Created: ${labelResult.created.join(', ')}`)
+  if (labelResult.updated.length > 0) log(`  │   Updated: ${labelResult.updated.join(', ')}`)
+  for (const e of labelResult.classifiedErrors) {
+    log(`  │   Error: ${e.message}`)
+    throwOnFatalOrConfig(e.kind, e.message, warnings)
+    warnings.push(e.message)
+  }
+}
+
+function setupBranchProtection(
+  owner: string,
+  repo: string,
+  collaborationMode: CollaborationMode,
+  warnings: string[],
+  log: (msg: string) => void,
+): void {
+  const bp = applyBranchProtection(owner, repo, collaborationMode)
+  if (bp.applied) {
+    log('  │   Branch protection applied.')
+  } else if (bp.error) {
+    if (bp.errorKind) throwOnFatalOrConfig(bp.errorKind, `branch protection: ${bp.error}`, warnings)
+    log(`  │   Skipped (requires admin access): ${bp.error}`)
+    warnings.push(`branch protection skipped: ${bp.error}`)
+  } else {
+    log('  │   Skipped (requires admin access).')
+  }
+  if (bp.repoSettingsError) {
+    log(`  │   Repo merge settings FAILED (INV-101): ${bp.repoSettingsError}`)
+    warnings.push(`repo merge settings failed (INV-101): ${bp.repoSettingsError}`)
+  }
+}
+
+function setupProjectBoard(
+  owner: string,
+  repo: string,
+  projectName: string,
+  warnings: string[],
+  log: (msg: string) => void,
+): void {
+  const pb = createProjectBoard(owner, repo, projectName)
+  if (pb.created) {
+    log(`      Project board created: ${pb.projectUrl}`)
+  } else if (pb.error) {
+    log(`      Skipped: ${pb.error}`)
+  } else {
+    log(`      Already exists: ${pb.projectUrl ?? 'unknown'}`)
+  }
+  for (const e of pb.classifiedErrors) {
+    throwOnFatalOrConfig(e.kind, e.message, warnings)
+    log(`      Warning: ${e.message}`)
+    warnings.push(`project board: ${e.message}`)
+  }
 }
 
 function runBackendSetup(config: ProjectConfig, log: (msg: string) => void): BackendResult {
@@ -589,7 +660,7 @@ function runBackendSetup(config: ProjectConfig, log: (msg: string) => void): Bac
   const workDir = join(config.targetDir, '.arbiter', 'work')
   mkdirSync(workDir, { recursive: true })
   log('\n  Markdown backend: scaffolded .arbiter/work/')
-  return { warnings: [], errors: [] }
+  return { warnings: [] }
 }
 
 export function runGithubSetup(
@@ -598,52 +669,26 @@ export function runGithubSetup(
     process.stdout.write(`${msg}\n`)
   },
 ): BackendResult {
-  if (!config.useGitHub || !config.githubOwner || !config.githubRepo)
-    return { warnings: [], errors: [] }
+  if (!config.useGitHub || !config.githubOwner || !config.githubRepo) return { warnings: [] }
 
   const warnings: string[] = []
 
   log('\n  GitHub setup...')
   log('  ├── Provisioning labels...')
-  const labelResult = provisionLabels(config.githubOwner, config.githubRepo)
-  if (labelResult.created.length > 0) log(`  │   Created: ${labelResult.created.join(', ')}`)
-  if (labelResult.updated.length > 0) log(`  │   Updated: ${labelResult.updated.join(', ')}`)
-  for (const e of labelResult.errors) {
-    log(`  │   Error: ${e}`)
-    warnings.push(e)
-  }
-
+  setupLabels(config.githubOwner, config.githubRepo, warnings, log)
   log('  ├── Applying branch protection to main...')
-  const bp = applyBranchProtection(
+  setupBranchProtection(
     config.githubOwner,
     config.githubRepo,
-    config.enableSoloDevMode === true,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    config.collaborationMode ?? (config.enableSoloDevMode === true ? 'trunk-solo' : 'peer-review'),
+    warnings,
+    log,
   )
-  if (bp.applied) {
-    log('  │   Branch protection applied.')
-  } else if (bp.error) {
-    log(`  │   Skipped (requires admin access): ${bp.error}`)
-    warnings.push(`branch protection skipped: ${bp.error}`)
-  } else {
-    log('  │   Skipped (requires admin access).')
-  }
-
   log('  └── Creating project board...')
-  const pb = createProjectBoard(config.githubOwner, config.githubRepo, config.projectName)
-  if (pb.created) {
-    log(`      Project board created: ${pb.projectUrl}`)
-    for (const w of pb.warnings) {
-      log(`      Warning: ${w}`)
-      warnings.push(`project board: ${w}`)
-    }
-  } else if (pb.error) {
-    log(`      Skipped: ${pb.error}`)
-    warnings.push(`project board: ${pb.error}`)
-  } else {
-    log(`      Already exists: ${pb.projectUrl ?? 'unknown'}`)
-  }
+  setupProjectBoard(config.githubOwner, config.githubRepo, config.projectName, warnings, log)
 
-  return { warnings, errors: [] }
+  return { warnings }
 }
 
 function guardAdverseGitState(targetDir: string, force: boolean | undefined): void {
@@ -884,6 +929,7 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
     config.enableMutationTesting = recipe.enableMutationTesting
   if (recipe.enableContractTesting !== undefined)
     config.enableContractTesting = recipe.enableContractTesting
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   if (recipe.enableSoloDevMode !== undefined) config.enableSoloDevMode = recipe.enableSoloDevMode
   if (recipe.enableMcpFallback !== undefined) config.enableMcpFallback = recipe.enableMcpFallback
   if (recipe.enableNoSkippedTests !== undefined)
@@ -907,6 +953,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       contractTesting: config.enableContractTesting !== false,
       evidenceHarness: config.enableEvidenceHarness === true,
       selfValidationHarness: config.enableSelfValidationHarness !== false,
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       soloDevMode: config.enableSoloDevMode === true,
     },
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],

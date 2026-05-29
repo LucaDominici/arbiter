@@ -251,6 +251,51 @@ function checkLockfile(dir: string): HealthCheck {
   }
 }
 
+function checkGatePassLog(dir: string): HealthCheck {
+  const logPath = join(dir, '.arbiter', 'gate-pass.jsonl')
+  if (!existsSync(logPath)) {
+    return {
+      id: 'gate-pass-log',
+      label: 'gate-pass log',
+      status: 'WARN',
+      detail: '.arbiter/gate-pass.jsonl not found — run the gate to start logging',
+      hint: 'Run `node scripts/check-all.mjs gate` to create the log.',
+    }
+  }
+  const lines = readFileSync(logPath, 'utf-8')
+    .split('\n')
+    .filter((l) => l.trim())
+  const parsed: string[] = []
+  const parseErrors: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? ''
+    try {
+      const entry = JSON.parse(line) as { sha?: string; signedAt?: string; level?: string }
+      parsed.push(
+        `${(entry.sha ?? 'unknown').slice(0, 7)} @ ${entry.signedAt ?? '?'} [${entry.level ?? '?'}]`,
+      )
+    } catch (err) {
+      parseErrors.push(`line ${i + 1}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  if (parseErrors.length > 0) {
+    return {
+      id: 'gate-pass-log',
+      label: 'gate-pass log',
+      status: 'WARN',
+      detail: `${lines.length} entries, ${parseErrors.length} unparseable: ${parseErrors.slice(0, 3).join('; ')}`,
+      hint: 'Inspect .arbiter/gate-pass.jsonl for corrupt lines.',
+    }
+  }
+  const recent = parsed.slice(-5)
+  return {
+    id: 'gate-pass-log',
+    label: 'gate-pass log',
+    status: 'PASS',
+    detail: `${lines.length} entries; last ${recent.length}: ${recent.join(', ')}`,
+  }
+}
+
 function checkChannelSetting(dir: string, channelFlag: string | undefined): HealthCheck {
   try {
     const config = loadConfig(dir)
@@ -293,6 +338,7 @@ export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<D
     gitCheck,
     ...checkArbiterProject(dir, gitOk),
     checkChannelSetting(dir, opts.channelFlag),
+    checkGatePassLog(dir),
   ]
 
   let repaired: DoctorHealthResult['repaired']

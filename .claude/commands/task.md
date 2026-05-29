@@ -37,6 +37,7 @@ Full lifecycle: plan → STOP → implement → review → gate → commit → P
    | does not start with `task/` | STOP — create proper branch                |
 
 2. **Worktree check**: If not in a worktree, suggest `/wt-open #NNN` for isolation.
+   If `tasks.worktree` in `arbiter.json` is `always`, opening a worktree is mandatory — HARD STOP if skipped.
 
 3. **Read issue**:
 
@@ -310,10 +311,31 @@ git push -u origin HEAD
 
 ### Phase 10: PR + Merge
 
+Read `collaborationMode` from `arbiter.json` (or `features.soloDevMode` for legacy configs) and branch:
+
+**`trunk-solo` + `mergeMode: direct` (default for trunk-solo):**
+
+```bash
+git fetch origin main
+git rebase origin/main
+node scripts/check-all.mjs check   # must pass before merge
+git push origin HEAD:main          # ff-only; fails if non-fast-forward
+```
+
+**`trunk-solo` + `mergeMode: pr-ff` (opt-in):**
+
 ```bash
 gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
 gh pr checks --watch
-gh pr merge --squash   # add --admin if branch protection requires it (INV-74)
+gh pr merge --merge   # ff-only enforced by branch protection
+```
+
+**`peer-review` or `gated-review`:**
+
+```bash
+gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
+gh pr checks --watch
+gh pr merge --merge   # add --admin if branch protection requires it (INV-74)
 ```
 
 ### Phase 11: Cleanup

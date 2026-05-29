@@ -356,26 +356,30 @@ describe('generateGithub — ciTierMode workflow subset', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('baseline mode emits only the 4 core workflows (01/02/03/09)', () => {
-    generateGithub(makeConfig(dir, { ciTierMode: 'baseline' }))
+  it('baseline mode emits only the 3 core workflows (01/02/03) at L2', () => {
+    // ADR-050: heartbeat (09) and nightly/weekly/monthly (06/07/08) are L3+ only.
+    // baseline/starter style at L2 must not emit them.
+    generateGithub(makeConfig(dir, { ciTierMode: 'baseline', governanceLevel: 'L2' }))
     const wfDir = join(dir, '.github', 'workflows')
-    const required = [
-      '01-pr-fast.yml',
-      '02-pr-extended.yml',
-      '03-human-approval.yml',
+    const required = ['01-pr-fast.yml', '02-pr-extended.yml', '03-human-approval.yml']
+    const excluded = [
+      '05-release.yml',
+      '06-nightly.yml',
+      '07-weekly.yml',
+      '08-monthly.yml',
       '09-heartbeat.yml',
     ]
-    const excluded = ['05-release.yml', '06-nightly.yml', '07-weekly.yml', '08-monthly.yml']
     for (const wf of required) {
       expect(existsSync(join(wfDir, wf)), `${wf} must exist in baseline mode`).toBe(true)
     }
     for (const wf of excluded) {
-      expect(existsSync(join(wfDir, wf)), `${wf} must NOT exist in baseline mode`).toBe(false)
+      expect(existsSync(join(wfDir, wf)), `${wf} must NOT exist in baseline mode at L2`).toBe(false)
     }
   })
 
-  it('full mode emits all 8 standard workflows', () => {
-    generateGithub(makeConfig(dir, { ciTierMode: 'full' }))
+  it('full mode at L3 emits all 8 standard workflows', () => {
+    // ADR-050: 06/07/08/09 require L3+; use L3 to test full emission.
+    generateGithub(makeConfig(dir, { ciTierMode: 'full', governanceLevel: 'L3' }))
     const wfDir = join(dir, '.github', 'workflows')
     const allWorkflows = [
       '01-pr-fast.yml',
@@ -388,12 +392,13 @@ describe('generateGithub — ciTierMode workflow subset', () => {
       '09-heartbeat.yml',
     ]
     for (const wf of allWorkflows) {
-      expect(existsSync(join(wfDir, wf)), `${wf} must exist in full mode`).toBe(true)
+      expect(existsSync(join(wfDir, wf)), `${wf} must exist in full mode at L3`).toBe(true)
     }
   })
 
-  it('undefined ciTierMode defaults to full (8 workflows)', () => {
-    generateGithub(makeConfig(dir))
+  it('undefined ciTierMode defaults to standard; L3 emits release and nightly', () => {
+    // ADR-050: standard style at L3 emits 05-release and 06-nightly.
+    generateGithub(makeConfig(dir, { governanceLevel: 'L3' }))
     const wfDir = join(dir, '.github', 'workflows')
     expect(existsSync(join(wfDir, '05-release.yml'))).toBe(true)
     expect(existsSync(join(wfDir, '06-nightly.yml'))).toBe(true)

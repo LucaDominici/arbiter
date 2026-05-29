@@ -8,6 +8,11 @@
             "type": "command",
             "command": "node .claude/hooks/stop-dangerous.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/enforce-gate-before-pr.mjs",
+            "timeout": 5
           }
         ]
       },

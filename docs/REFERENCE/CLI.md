@@ -2,7 +2,7 @@
 title: 'CLI Reference — Redirected'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-05-27'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']

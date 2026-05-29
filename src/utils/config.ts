@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { writeFile } from './fs.js'
 import { atomicWriteFile, withLock } from './atomic-write.js'
 import { getLogger } from './logger.js'
+import { ConfigError } from './errors.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import {
   type ArbiterConfigV2,
@@ -122,25 +123,33 @@ export function loadConfig(dir: string): ArbiterConfig | null {
     raw = JSON.parse(readFileSync(path, 'utf-8'))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`arbiter.json at ${path} has invalid JSON: ${msg}. Fix or delete and re-run.`, {
-      cause: err,
-    })
+    throw new ConfigError(
+      'E_CONFIG_INVALID',
+      `arbiter.json at ${path} has invalid JSON: ${msg}. Fix or delete and re-run.`,
+      { hint: 'Fix the JSON syntax or delete arbiter.json and run `arbiter init`.' },
+    )
   }
   try {
     const migrated = migrate(raw)
     const withEnv = applyEnvOverrides(migrated, process.env)
     const validation = validateConfig(withEnv)
     if (!validation.ok) {
-      throw new Error(
+      throw new ConfigError(
+        'E_CONFIG_INVALID',
         `arbiter.json at ${path} failed validation: ${validation.errors.join('; ')}. Fix or delete and re-run.`,
+        {
+          hint: 'Fix the configuration errors listed, or delete arbiter.json and run `arbiter init`.',
+        },
       )
     }
     return validation.config
   } catch (err) {
+    if (err instanceof ConfigError) throw err
     const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`arbiter.json at ${path} failed migration: ${msg}. Fix or delete and re-run.`, {
-      cause: err,
-    })
+    throw new ConfigError(
+      'E_CONFIG_INVALID',
+      `arbiter.json at ${path} failed migration: ${msg}. Fix or delete and re-run.`,
+    )
   }
 }
 
