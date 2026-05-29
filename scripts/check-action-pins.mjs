@@ -7,36 +7,19 @@
 // are visible when the script is run directly but suppressed in gate summary output.
 // Does not read governanceLevel — self script must not inherit L2 hard-fail semantics.
 // TODO(#886): flip process.exit(0) to process.exit(1) when W10 ships SHA-pinned workflows
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+
+import { collectYamlFiles } from './lib/workflow-scan.mjs'
 
 const CWD = process.cwd()
 
-function collectYamlFiles(dir) {
-  if (!existsSync(dir)) return []
-  const results = []
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch (err) {
-    process.stderr.write(`  [check-action-pins] warn: cannot read ${dir}: ${err.message}\n`)
-    return results
-  }
-  for (const entry of entries) {
-    if (entry.isSymbolicLink()) continue
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      results.push(...collectYamlFiles(full))
-    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
-      results.push(full)
-    }
-  }
-  return results
-}
+const onReadError = (dir, err) =>
+  process.stderr.write(`  [check-action-pins] warn: cannot read ${dir}: ${err.message}\n`)
 
 const yamlFiles = [
-  ...collectYamlFiles(join(CWD, '.github', 'workflows')),
-  ...collectYamlFiles(join(CWD, '.github', 'actions')),
+  ...collectYamlFiles(join(CWD, '.github', 'workflows'), { onReadError }),
+  ...collectYamlFiles(join(CWD, '.github', 'actions'), { onReadError }),
 ]
 
 // SHA-pinned: exactly 40 hex characters after @  (case-insensitive per git convention)
