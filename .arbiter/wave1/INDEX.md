@@ -31,7 +31,7 @@ Ogni file riceve una label e una priorità:
 | **PORT-ADAPT**    | Pattern di valore ma da rifare adattando ai concetti arbiter (INV-NN, governance level, ecc.) |
 | **PORT-PLUGIN**   | Verticalmente legato a uno stack (Java/Spring/Vue/Keycloak); candidato per un plugin arbiter |
 | **DUPLICATE**     | Arbiter ha già l'equivalente; valutare merge/cherry-pick                                     |
-| **VIAFERA-ONLY**  | Project-specific (Mainsim, Tazia, Keycloak…), non portabile                                  |
+| **VIAFERA-ONLY**  | Project-specific (aziendale, Tazia, Keycloak…), non portabile                                  |
 | **OBSOLETE**      | Sostituito da pattern più moderno, lasciare in viafera                                       |
 
 **Priorità**: P0 (do first), P1 (next), P2 (later), P3 (defer/maybe).
@@ -199,7 +199,7 @@ Aggiungerle alla §14 del `analysis-2026-05-25.md` come "pillole battle-tested v
 
 | Wave 3 | Topic                                                                                  |
 | ------ | -------------------------------------------------------------------------------------- |
-| **3A** | Confronto col Mainsim framework (`~/work/repos/Work/mainsim-ai-framework/`) — modello CLAUDE.md hierarchical vs AGENTS.md canonical |
+| **3A** | Confronto col framework aziendale (`~/work/repos/Work/personal-ai-framework/`) — modello CLAUDE.md hierarchical vs AGENTS.md canonical |
 | **3B** | Skill di /auto correggere — quando Luca recupera la sua skill /auto custom dal PC ufficio |
 | **3C** | Cleanup viafera — rimuovere "rumenta" come Luca ha menzionato                          |
 

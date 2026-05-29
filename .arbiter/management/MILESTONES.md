@@ -1,7 +1,7 @@
 # Milestones — Luca's master plan
 
 > **IRON LAW**: rileggere QUESTO FILE come primo atto di ogni chat. Aggiornarlo come ultimo atto.
-> Manager di processo: Claude (Cowork). Operatore: Luca. Nessuno skippa. Nessuno dimentica.
+> Manager di processo: Claude. Operatore: Luca. Nessuno skippa. Nessuno dimentica.
 >
 > **Ultima review**: 2026-05-26 (post-Wave-0 smoke test haben) · **Prossima review prevista**: prima chat utile (probabile: Wave 0.5 template fix)
 
@@ -27,7 +27,7 @@ Tradotto in 4 stream operativi (in ordine di priorità strategica):
 ### Stream B — Career Trampolino (priorità 2: l'obiettivo segreto)
 
 **Gold target 12-mesi:**
-- [ ] **B.G1** ≥1 offerta Senior Staff Engineer / Principal Eng / DevRel con comp+seniority strictly > ruolo Mainsim attuale, OPPURE
+- [ ] **B.G1** ≥1 offerta Senior Staff Engineer / Principal Eng / DevRel con comp+seniority strictly > ruolo aziendale attuale, OPPURE
 - [ ] **B.G2** ≥1 talk accettato in conference internazionale (target: DevOpsDays / QCon / GOTO / KubeCon / Anthropic Builder Day)
 - [ ] **B.G3** ≥1 articolo lungo pubblicato (target: InfoQ / Anthropic blog / Increment / dev.to top-trending)
 - [ ] **B.G4** ≥500 follower LinkedIn nuovi acquisiti tramite pillole arbiter-related
@@ -41,12 +41,12 @@ Tradotto in 4 stream operativi (in ordine di priorità strategica):
 - [ ] **C.G3** Luigia (79) può consultare il "decision" output in autonomia (Excel/PDF/SMS — qualcosa di accessibile)
 - [ ] **C.G4** Haben funge da reference deployment di arbiter governance L2+ (verde su tutto il gate)
 
-### Stream D — Mainsim work (priorità 4: pagare le bollette + extracting value)
+### Stream D — lavoro aziendale (priorità 4: pagare le bollette + extracting value)
 
 **Gold target 12-mesi:**
-- [ ] **D.G1** `quality-alignment-audit` skill integrata come Mainsim onboarding ufficiale per nuovi servizi
-- [ ] **D.G2** Usata su ≥3 servizi oltre `cloud.ms5.planning` (es. instance, core, ...)
-- [ ] **D.G3** Il framework Mainsim include una nota "powered by arbiter patterns" che linka arbiter
+- [ ] **D.G1** `quality-alignment-audit` skill integrata come onboarding aziendale ufficiale per nuovi servizi
+- [ ] **D.G2** Usata su ≥3 servizi enterprise di riferimento (es. instance, core, ...)
+- [ ] **D.G3** Il framework aziendale include una nota "powered by arbiter patterns" che linka arbiter
 
 ---
 
@@ -214,9 +214,9 @@ In ordine di promozione attesa:
 - **Trigger**: P3, può aspettare. Luca ha esplicitamente detto "focus arbiter + haben"
 - **Scope**: opzionale, da rifare quando arbiter è gold + haben è in produzione
 
-### Q13 — Stream D — Mainsim integration (D.G1/G2/G3)
+### Q13 — Stream D — integrazione aziendale (D.G1/G2/G3)
 
-- **Trigger**: side-effect naturale del lavoro Mainsim quotidiano. Non forzare.
+- **Trigger**: side-effect naturale del lavoro aziendale quotidiano. Non forzare.
 
 ---
 
@@ -241,7 +241,7 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 - **2026-05-26 — DEC-001**: Claude prende ruolo manager. Iron law adottata. Wave 0 (haben smoke + pipeline fix) PRIMA di Wave 2A consolidamento.
 - **2026-05-26 — DEC-002**: Career stream B parte SUBITO in background (1 pillola/settimana), non aspetta "maturità del prodotto" — discovery non si può rimandare.
 - **2026-05-26 — DEC-003**: Wave 2A consolidamento /task+/auto avrà scope MVP brutale (5-7 pattern). ADR upfront obbligatorio.
-- **2026-05-26 — DEC-004**: Stream D (Mainsim) non riceve priorità dedicata. Solo opportunistic.
+- **2026-05-26 — DEC-004**: Stream D (aziendale) non riceve priorità dedicata. Solo opportunistic.
 - **2026-05-26 — DEC-005**: Claude scrive ADR/audit/spec ma NON arbiter source code in autonomia. Code = Luca. PR review e ADR draft = Claude.
 - **2026-05-26 — DEC-006**: Wave 0.5 (template self-consistency) promosso davanti a "Pipeline drift fix" e davanti a Wave 2A. Trigger: 10 finding Wave 0 di cui 5 P0. Sblocca tutto il downstream (vedi [`.arbiter/wave0/haben-smoke-test.md`](../wave0/haben-smoke-test.md)).
 - **2026-05-26 — DEC-007**: Convention confermata per audit reports → `.arbiter/waveN/<topic>.md` (es. `wave0/haben-smoke-test.md`, `wave1/INDEX.md`). Logs evidence opzionali in `.arbiter/waveN/evidence/`.
@@ -255,7 +255,7 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 
 - [Main analysis report](../analysis-2026-05-25.md) — 634 LOC, deep tecnico + 40+ pillole career
 - [Wave 1 viafera audit](../wave1/INDEX.md) — 6 file, audit cross-family
-- [Luca's /auto pipeline audit](../wave1/mainsim-auto-pipeline.md) — 290 LOC, 12 pattern P0 + 6 nuove pillole
+- [Luca's /auto pipeline audit](../wave1/auto-pipeline-audit.md) — 290 LOC, 12 pattern P0 + 6 nuove pillole
 - [Chat protocol](chat-protocol.md) — quando aprire nuove chat, come bridarle
 
 ---

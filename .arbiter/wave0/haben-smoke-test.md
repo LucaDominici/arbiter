@@ -35,7 +35,7 @@ The smoke test surfaced **12 distinct findings** in a single `update` cycle. Two
 
 ## Findings
 
-> Numbering follows discovery order, not severity. Severity tag in header. All findings reproducible; logs preserved in scratchpad at `~/.local/share/claude-cowork/sessions/sleepy-ecstatic-faraday/haben-*.txt`.
+> Numbering follows discovery order, not severity. Severity tag in header. All findings reproducible; logs preserved in scratchpad at `~/.local/share/claude-agent/sessions/sleepy-ecstatic-faraday/haben-*.txt`.
 
 ### F1 — `arbiter diff` under-reports by 89% (SEVERE)
 
@@ -306,12 +306,12 @@ node scripts/check-all.mjs L1                    # 4 FAIL on freshly generated f
 ```
 
 Captured logs:
-- `~/.local/share/claude-cowork/sessions/sleepy-ecstatic-faraday/haben-diff.txt`
-- `~/.local/share/claude-cowork/sessions/sleepy-ecstatic-faraday/haben-diff.json`
-- `~/.local/share/claude-cowork/sessions/sleepy-ecstatic-faraday/haben-update-1st.txt`
-- `~/.local/share/claude-cowork/sessions/sleepy-ecstatic-faraday/haben-update-2nd.txt`
-- `~/.local/share/claude-cowork/sessions/sleepy-ecstatic-faraday/haben-diff-after.txt`
-- `~/.local/share/claude-cowork/sessions/sleepy-ecstatic-faraday/haben-l1-gate.txt`
+- `~/.local/share/claude-agent/sessions/sleepy-ecstatic-faraday/haben-diff.txt`
+- `~/.local/share/claude-agent/sessions/sleepy-ecstatic-faraday/haben-diff.json`
+- `~/.local/share/claude-agent/sessions/sleepy-ecstatic-faraday/haben-update-1st.txt`
+- `~/.local/share/claude-agent/sessions/sleepy-ecstatic-faraday/haben-update-2nd.txt`
+- `~/.local/share/claude-agent/sessions/sleepy-ecstatic-faraday/haben-diff-after.txt`
+- `~/.local/share/claude-agent/sessions/sleepy-ecstatic-faraday/haben-l1-gate.txt`
 
 (These are session-scratch and will rotate. Recommended: when Luca commits this report, copy the relevant `.txt` logs to `.arbiter/wave0/evidence/`.)
 

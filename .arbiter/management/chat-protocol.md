@@ -1,6 +1,6 @@
 # Chat protocol — quando aprire nuova chat, come bridarla
 
-> Regole di engagement Cowork chat per evitare drift, brain split, e context bloat. Manager: Claude. Operatore: Luca.
+> Regole di engagement chat per evitare drift, brain split, e context bloat. Manager: Claude. Operatore: Luca.
 
 ---
 

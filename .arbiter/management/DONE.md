@@ -41,13 +41,13 @@
   - [`MILESTONES.md`](MILESTONES.md) — single source of truth per gold target + WIP + queue
   - [`DONE.md`](DONE.md) — questo file
   - [`chat-protocol.md`](chat-protocol.md) — regole nuove chat / brief / hand-off
-- **Memoria persistente aggiornata** (`~/.local/share/claude-cowork/sessions/zen-confident-franklin/mnt/.auto-memory/`) con nuovo ruolo Claude
+- **Memoria persistente aggiornata** (`~/.local/share/claude-agent/sessions/zen-confident-franklin/mnt/.auto-memory/`) con nuovo ruolo Claude
 - **Owner**: Luca (decisione) + Claude (esecuzione setup)
 
 ## 2026-05-26 — Wave 1-bis: Luca's /auto pipeline audit
 
 - **Cosa**: audit di 17 skill custom recuperate dal DR snapshot Mac
-- **Artefatto**: [`.arbiter/wave1/mainsim-auto-pipeline.md`](../wave1/mainsim-auto-pipeline.md) — 290 LOC
+- **Artefatto**: [`.arbiter/wave1/auto-pipeline-audit.md`](../wave1/auto-pipeline-audit.md) — 290 LOC
 - **Correzione**: §17.2 del report principale corretta (Luca ha SUA /auto skill, NON è quella ufficiale Anthropic)
 - **Output**: 12 pattern P0 identificati + 6 nuove pillole career
 - **Owner**: Claude

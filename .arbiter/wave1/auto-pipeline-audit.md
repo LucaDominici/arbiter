@@ -1,6 +1,6 @@
-# Wave 1-bis — Audit `/auto` pipeline + 16 skill workflow Luca (mainsim-ai-framework)
+# Wave 1-bis — Audit `/auto` pipeline + 16 skill workflow Luca (personal-ai-framework)
 
-> Audit aggiuntivo della suite skill personale di Luca, recuperata dal Mac via DR snapshot in `~/work/repos/Work/mainsim-ai-framework/dr/claude-skills/`. **Correzione importante**: nel report principale §17.2 avevo scritto che `/auto` "non è tua invenzione, è ufficiale Anthropic". **Sbagliato.** L'Anthropic `claude-automation-recommender` è una skill diversa (recommender read-only); il tuo `/auto` è una **pipeline lifecycle issue→PR completa**, 1.241 LOC, di pari complessità al `/task` viafera.
+> Audit aggiuntivo della suite skill personale di Luca, recuperata dal Mac via DR snapshot in `~/work/repos/Work/personal-ai-framework/dr/claude-skills/`. **Correzione importante**: nel report principale §17.2 avevo scritto che `/auto` "non è tua invenzione, è ufficiale Anthropic". **Sbagliato.** L'Anthropic `claude-automation-recommender` è una skill diversa (recommender read-only); il tuo `/auto` è una **pipeline lifecycle issue→PR completa**, 1.241 LOC, di pari complessità al `/task` viafera.
 
 **Volume**: 17 skill, ~2.700 LOC totali + settings.json + hook enforce-gate-before-pr.sh.
 
@@ -189,7 +189,7 @@ Plus hook `enforce-gate-before-pr.sh` come PreToolUse Bash matcher + PostToolUse
 **Note interessanti**:
 - `opusplan` model = cognitive routing automatico (Opus per plan/Sonnet per exec)
 - 14 plugin abilitati (oltre 1 marketplace custom: caveman) — heavy plugin user
-- `plansDirectory: "./.claude/specs"` — coerente con quello che il framework Mainsim già documenta in `PLAN_STORAGE.md` (vedi wave 1 famiglia rules+framework)
+- `plansDirectory: "./.claude/specs"` — coerente con quello che il framework aziendale già documenta in `PLAN_STORAGE.md` (vedi wave 1 famiglia rules+framework)
 - `voiceEnabled: true` — interessante, sperimentazione voice input
 
 ## enforce-gate-before-pr.sh — il pattern marker-pinned gate
@@ -251,7 +251,7 @@ Bundle proposto come **opzionale skill set arbiter** (`arbiter init --skills luc
 
 Volume totale: ~1.200 LOC. Tutti tradotti dalle paths viafera-specific a path arbiter-neutral.
 
-### P2 — plugin Mainsim-specific
+### P2 — plugin aziendale-specific
 
 - **quality-alignment-audit** (198 LOC) → plugin `@arbiter/plugin-quality-alignment-java` (75+ dimensioni, brownfield/gold tier mapping, W0/W1/W2 wave plan, GitHub issue generation)
 
@@ -268,7 +268,7 @@ Aggiungerle alla §14 del `analysis-2026-05-25.md`. Le 6 più forti:
 
 ## DR strategy (bonus)
 
-Lateral observation: il pattern DR di Luca (snapshot Mac config + skills in `mainsim-ai-framework/dr/`) è esso stesso una pillola di metodo:
+Lateral observation: il pattern DR di Luca (snapshot Mac config + skills in `personal-ai-framework/dr/`) è esso stesso una pillola di metodo:
 
 - *"Asset critici senza remote = perdita silenziosa al primo guasto. 17 giorni di modifiche non committed in `~/.claude/skills/` sono il bug più comune nei dev AI-first."*
 
@@ -281,10 +281,10 @@ Pattern riusabile come `arbiter doctor backup` command — backup automatico dei
 - viafera porta: idempotency guards, context handoff decision, auto-checkpoint, score-based verdict, file-backed counter, track router, tier ceremony, plan review sub-agent, baseline capture
 - Luca's /auto porta: existing-work detection, opusplan integration, anti-bypass guard, spec/plan challenger, red-team self-select angle, CLAUDE.md scanner, 9-auditor intelligent routing, pre-PR integrity check, claude-mem persistence, merged mode, marker-pinned gate, pendingFollowUps fallback
 
-Combinati: il `/task` arbiter v2 punta a essere il **definitive open-source implementation della "AI-assisted task lifecycle"**, con due fonti di battle-testing (viafera Java/Spring product real-world + Luca's Mainsim work cross-project pipeline).
+Combinati: il `/task` arbiter v2 punta a essere il **definitive open-source implementation della "AI-assisted task lifecycle"**, con due fonti di battle-testing (viafera Java/Spring product real-world + Luca's aziendale work cross-project pipeline).
 
 **Bonus**: il DR pattern di Luca è una pillola di metodo a sé stante che merita un proprio `arbiter doctor backup` command.
 
 ---
 
-_Audit prodotto dopo recupero dello snapshot DR (`mainsim-ai-framework/dr/`) il 2026-05-26. File letti: `claude-skills/{auto,spec,plan,code,review,close,impact,estimate,preflight,start,status,handoff,replay,worktree-manager,wt-open,wt-close,quality-alignment-audit}/SKILL.md` + `dr/README.md` + `claude-config/settings.json` + `claude-config/hooks/enforce-gate-before-pr.sh` + `docs/adr/ADR-003_local-claude-config-dr.md`._
+_Audit prodotto dopo recupero dello snapshot DR (`personal-ai-framework/dr/`) il 2026-05-26. File letti: `claude-skills/{auto,spec,plan,code,review,close,impact,estimate,preflight,start,status,handoff,replay,worktree-manager,wt-open,wt-close,quality-alignment-audit}/SKILL.md` + `dr/README.md` + `claude-config/settings.json` + `claude-config/hooks/enforce-gate-before-pr.sh` + `docs/adr/ADR-003_local-claude-config-dr.md`._

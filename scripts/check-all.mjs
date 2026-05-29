@@ -100,7 +100,7 @@ if (isMain) {
   // ─── check: T1 fast checks ───────────────────────────────────────────────────
   runCheck('build-kit', 'node', ['scripts/build-kit.mjs'])
   runCheck('no redacted tokens', 'node', ['scripts/check-no-redacted-tokens.mjs'])
-  runCheck('no work refs', 'node', ['scripts/check-no-work-refs.mjs'])
+  runCheck('no work refs', 'node', ['scripts/check-no-work-refs.mjs', 'all'])
   runCheck('private paths ignored', 'node', ['scripts/check-private-paths-ignored.mjs'])
   runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
   runCheck('format', 'npx', ['prettier', '--check', '.'])
