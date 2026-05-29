@@ -112,31 +112,59 @@ describe('generateEvidenceRetention', () => {
     expect(readFileSync(gitignorePath, 'utf-8')).toBe('EXISTING')
   })
 
-  it('evidence-rotate.mjs always regenerated (not skipIfExists)', () => {
+  it('evidence-rotate.mjs is regenerated (backup-managed, not skipIfExists) when content differs', () => {
+    // evidence-rotate.mjs is a backup=true file (not skipIfExists): a user edit is
+    // backed up and replaced on the next run. (#1077: an unchanged re-run skips —
+    // see the idempotence test below — so this asserts the DIFFERING branch.)
     const r1 = generateEvidenceRetention(makeConfig(dir))
-    const r2 = generateEvidenceRetention(makeConfig(dir))
     const s1 = r1.files.find((f) => f.path.endsWith('evidence-rotate.mjs'))
-    const s2 = r2.files.find((f) => f.path.endsWith('evidence-rotate.mjs'))
     expect(s1?.action).toBe('created')
-    expect(s2?.action).not.toBe('skipped')
+    writeFileSync(s1!.path, '// user-edited\n', 'utf-8')
+    const r2 = generateEvidenceRetention(makeConfig(dir))
+    const s2 = r2.files.find((f) => f.path.endsWith('evidence-rotate.mjs'))
+    expect(s2?.action).toBe('backed-up-and-replaced')
   })
 
-  it('evidence-rotate.mjs creates .arbiter-backup on second run (#293)', () => {
+  it('evidence-rotate.mjs skips a byte-identical re-run with no backup (#1077 F6)', () => {
     const config = makeConfig(dir)
-    generateEvidenceRetention(config)
+    const r1 = generateEvidenceRetention(config)
+    const path = r1.files.find((f) => f.path.endsWith('evidence-rotate.mjs'))!.path
+    const r2 = generateEvidenceRetention(config)
+    const f = r2.files.find((x) => x.path.endsWith('evidence-rotate.mjs'))
+    expect(f?.action).toBe('skipped')
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(false)
+  })
+
+  it('evidence-rotate.mjs creates .arbiter-backup when content differs on second run (#293/#1077)', () => {
+    const config = makeConfig(dir)
+    const r1 = generateEvidenceRetention(config)
+    const path = r1.files.find((x) => x.path.endsWith('evidence-rotate.mjs'))!.path
+    writeFileSync(path, '// user-edited\n', 'utf-8')
     const r2 = generateEvidenceRetention(config)
     const f = r2.files.find((x) => x.path.endsWith('evidence-rotate.mjs'))
     expect(f?.action).toBe('backed-up-and-replaced')
-    expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(true)
   })
 
-  it('done-evidence.mjs creates .arbiter-backup on second run at L4 (#293)', () => {
+  it('done-evidence.mjs creates .arbiter-backup when content differs on second run at L4 (#293/#1077)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L4' })
-    generateEvidenceRetention(config)
+    const r1 = generateEvidenceRetention(config)
+    const path = r1.files.find((x) => x.path.endsWith('done-evidence.mjs'))!.path
+    writeFileSync(path, '// user-edited\n', 'utf-8')
     const r2 = generateEvidenceRetention(config)
     const f = r2.files.find((x) => x.path.endsWith('done-evidence.mjs'))
     expect(f?.action).toBe('backed-up-and-replaced')
-    expect(existsSync(`${f!.path}.arbiter-backup`)).toBe(true)
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(true)
+  })
+
+  it('done-evidence.mjs skips a byte-identical re-run with no backup at L4 (#1077 F6)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
+    const r1 = generateEvidenceRetention(config)
+    const path = r1.files.find((x) => x.path.endsWith('done-evidence.mjs'))!.path
+    const r2 = generateEvidenceRetention(config)
+    const f = r2.files.find((x) => x.path.endsWith('done-evidence.mjs'))
+    expect(f?.action).toBe('skipped')
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(false)
   })
 
   it('evidence-rotate.mjs has shebang', () => {

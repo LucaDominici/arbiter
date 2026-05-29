@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
@@ -93,10 +93,26 @@ describe('generateCodexHooks', () => {
     expect(adapter?.action).toBe('skipped')
   })
 
-  it('backs up and replaces config.toml on re-run', () => {
-    generateCodexHooks(makeConfig(dir))
+  it('backs up and replaces config.toml when its content differs on re-run', () => {
+    const first = generateCodexHooks(makeConfig(dir))
+    const tomlPath = first.files.find((f) => f.path.endsWith('config.toml'))!.path
+    // Simulate a user edit so the regenerated config.toml genuinely differs from
+    // disk — only then does writeFile take the backup-and-replace path. (#1077: a
+    // byte-identical regeneration now skips and does NOT churn a backup.)
+    writeFileSync(tomlPath, '# user-edited config.toml\n', 'utf-8')
     const result2 = generateCodexHooks(makeConfig(dir))
     const toml = result2.files.find((f) => f.path.endsWith('config.toml'))
     expect(toml?.action).toBe('backed-up-and-replaced')
+    expect(existsSync(`${tomlPath}.arbiter-backup`)).toBe(true)
+  })
+
+  it('skips config.toml on a byte-identical re-run (#1077 F6 idempotence)', () => {
+    const first = generateCodexHooks(makeConfig(dir))
+    const tomlPath = first.files.find((f) => f.path.endsWith('config.toml'))!.path
+    // Second run, no on-disk change → byte-identical → skipped, no churned backup.
+    const result2 = generateCodexHooks(makeConfig(dir))
+    const toml = result2.files.find((f) => f.path.endsWith('config.toml'))
+    expect(toml?.action).toBe('skipped')
+    expect(existsSync(`${tomlPath}.arbiter-backup`)).toBe(false)
   })
 })
