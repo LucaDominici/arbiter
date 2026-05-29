@@ -210,7 +210,9 @@
       "changed_file": "  ~ {key}  (would update)",
       "unchanged_file": "  = {key}  (unchanged)",
       "up_to_date": "\n  All files up to date. Nothing to update.\n",
-      "run_update": "\n  Run `arbiter update` to apply changes.\n"
+      "run_update": "\n  Run `arbiter update` to apply changes.\n",
+      "remote_header": "\n  Remote side effects (`arbiter update --github` would perform):",
+      "remote_effect": "  → {op}  {target}"
     },
     "worktree": {
       "ready": "\nWorktree ready: {path}",
