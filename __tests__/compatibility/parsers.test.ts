@@ -36,6 +36,9 @@ describe('parseNodeVersion', () => {
   it('returns null for garbage', () => {
     expect(parseNodeVersion('not a version')).toBeNull()
   })
+  it('returns null for a pre-release suffix (anchored $)', () => {
+    expect(parseNodeVersion('v20.11.1-rc')).toBeNull()
+  })
 })
 
 describe('parseNpmVersion', () => {
@@ -48,6 +51,9 @@ describe('parseNpmVersion', () => {
   })
   it('returns null for empty', () => {
     expect(parseNpmVersion('')).toBeNull()
+  })
+  it('returns null for trailing non-numeric junk (anchored $)', () => {
+    expect(parseNpmVersion('10.2.4-beta')).toBeNull()
   })
 })
 
@@ -143,6 +149,13 @@ describe('parseGoVersion', () => {
       patch: 3,
     })
   })
+  it('parses go version without patch (2-part, optionalPatch)', () => {
+    expect(parseGoVersion('go version go1.22 linux/amd64\n')).toEqual({
+      major: 1,
+      minor: 22,
+      patch: 0,
+    })
+  })
   it('returns null for empty', () => {
     expect(parseGoVersion('')).toBeNull()
   })
@@ -192,6 +205,9 @@ describe('parseRuffVersion', () => {
   })
   it('returns null for garbage', () => {
     expect(parseRuffVersion('ruff --version: 0.4.5')).toBeNull()
+  })
+  it('returns null when ruff is not at line start (anchored ^)', () => {
+    expect(parseRuffVersion('info: ruff 0.4.5')).toBeNull()
   })
 })
 
