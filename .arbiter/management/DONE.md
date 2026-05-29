@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-05-28 — Wave 0.5 ADR-004 (F10): generated templates pass L1
+
+- **Cosa**: chiuso F10 (smoking gun di Wave 0). Templates `arbiter init/update` ora producono output che passa `node scripts/check-all.mjs L1` senza alcuna correzione manuale. INV-32 fixture binding inclusa.
+- **Issue**: [#1076](https://github.com/LucaDominici/arbiter/issues/1076) chiusa COMPLETED 2026-05-28 15:32 UTC
+- **PR**: closedByPullRequestsReferences vuoto su issue — chiusura probabilmente raccolta da uno dei PR multi-issue del 28/05 ([#1080](https://github.com/LucaDominici/arbiter/pull/1080) collab axis + drift fix, oppure [#1083](https://github.com/LucaDominici/arbiter/pull/1083) CI gap closures). Da verificare a posteriori con `git log --all --grep="1076\|F10"`.
+- **Impatto**: il primo dei 4 fail L1 di Wave 0 (`format`, `INV-75 action pins`, `INV-76 workflow perms`, `workflow runners`) è ora risolto strutturalmente. Demo arbiter è di nuovo credibile.
+- **Owner**: Claude Code (impl in autonomia, fuori dalla view manager) · Luca (PR review/merge)
+
+## 2026-05-27 — Wave 0.5 ADR-003 (F2 + F3): MD template fixes
+
+- **Cosa**: chiuso F2 (pipe di chiusura tabella mancante in `.claude/CLAUDE.md`) + F3 (blank-line bloat in `GLOBAL_INVARIANTS.md`, padding regression, idempotence jitter). Template MD ora idempotenti + markdownlint-clean.
+- **Issue**: [#1075](https://github.com/LucaDominici/arbiter/issues/1075)
+- **PR**: [#1079](https://github.com/LucaDominici/arbiter/pull/1079) "fix(#1075): pipe closure + blank-line bloat in MD templates (F2+F3)" — mergiata 2026-05-27 20:56 UTC
+- **Owner**: Claude Code · Luca (PR review/merge)
+
+## 2026-05-27 — Wave 0.5 ADR-002 (F9): tiered POSIX exit codes for gh failures
+
+- **Cosa**: chiuso F9 (exit 0 nonostante 25 errori `gh`). Exit code contract: 0 success, 1 recoverable aggregated, 2 fatal, 78 config error. Error taxonomy `RecoverableError`/`FatalError`/`ConfigError` library-wide.
+- **Issue**: [#1074](https://github.com/LucaDominici/arbiter/issues/1074)
+- **PR**: [#1078](https://github.com/LucaDominici/arbiter/pull/1078) "feat(#1074): tiered POSIX exit codes for gh failures (ADR-002, F9)" — mergiata 2026-05-27 15:04 UTC
+- **Owner**: Claude Code · Luca (PR review/merge)
+
+## 2026-05-27 — Wave 0 evidence + Wave 0.5 scaffold pushed to main
+
+- **Cosa**: il branch `task/wave0-evidence` (commit `a5d133e4` + `033ed299`) è finalmente atterrato su main, sbloccando management files versionati.
+- **PR**: [#1073](https://github.com/LucaDominici/arbiter/pull/1073) "docs(wave0): Wave 0 evidence + Wave 0.5 ADR-001 + hook fix" — mergiata 2026-05-27 15:03 UTC
+- **Owner**: Claude Code (probabilmente sbloccato L2 dopo merge di altri fix) · Luca (merge)
+
 ## 2026-05-26 — Wave 0.5 ADR-001 (F4 + F11): `--github` opt-in default + board namespacing
 
 - **Cosa**: implementato il primo P0 di Wave 0.5. `arbiter init/update` ora fa **zero** chiamate `gh` di default; `--github` o `ARBITER_GITHUB=1` per opt-in. Project board namespacing con template `<projectName> Board · owner/repo · YYYY-MM-DD UTC` + idempotence probe date-agnostic.

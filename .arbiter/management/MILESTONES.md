@@ -3,7 +3,7 @@
 > **IRON LAW**: rileggere QUESTO FILE come primo atto di ogni chat. Aggiornarlo come ultimo atto.
 > Manager di processo: Claude. Operatore: Luca. Nessuno skippa. Nessuno dimentica.
 >
-> **Ultima review**: 2026-05-26 (post-Wave-0 smoke test haben) · **Prossima review prevista**: prima chat utile (probabile: Wave 0.5 template fix)
+> **Ultima review**: 2026-05-29 (sync con GH reale: Wave 0.5 4/5 done) · **Prossima review prevista**: a chiusura ADR-005 #1077
 
 ---
 
@@ -109,11 +109,11 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 
 | # | P0 | Stima | Rationale di ordine | ADR stub |
 |---|---|---|---|---|
-| 1 | ✅ **F4 + F11** (`--github` opt-in default + project-board namespacing) — **DONE 2026-05-26** · issue [#1063](https://github.com/LucaDominici/arbiter/issues/1063) · 5 critical + 13 high red-team findings risolti · 23 fixture rebaked | 4-6h | **Stop the bleeding first**. Finché arbiter può fare side effect remoti, ogni nostro stesso Wave 0.5 lavoro rischia di creare altri board orfani. | [`.arbiter/wave0.5/ADR-001-no-github-flag.md`](../wave0.5/ADR-001-no-github-flag.md) |
-| 2 | 🟢 **F9** (exit code propagation) — **NEXT** | 2-4h | Mette in sicurezza il flusso di lavoro Wave 0.5: dopo F9, ogni nostro PR `arbiter` mostrerà subito i fail invece di nascondersi. Il check è leggero ma sblocca trust. | [`.arbiter/wave0.5/ADR-002-exit-code.md`](../wave0.5/ADR-002-exit-code.md) |
-| 3 | **F2** (MD pipe + table format) | 1-2h | Win chirurgico, basso rischio, materiale visibile (template MD). Buon "primo PR end-to-end" per testare il flow Wave 0.5 ora che F4 ha disabilitato gh side effect. | [`.arbiter/wave0.5/ADR-003-md-template-fix.md`](../wave0.5/ADR-003-md-template-fix.md) |
-| 4 | **F10** (templates pass L1) | 1-3 gg | Il fix più visibile/audit-positive. Tocca ~10 workflow + 57 file format. Lo facciamo dopo F2 perché alcune correzioni MD format collidono con questo. | [`.arbiter/wave0.5/ADR-004-templates-L1-pass.md`](../wave0.5/ADR-004-templates-L1-pass.md) |
-| 5 | **F1 + F7** (diff scope alignment) | 1-2 gg | Architectural. Ultimo perché richiede che F10 sia stabile (il manifest che diff deve mostrare è proprio l'output di F10). | [`.arbiter/wave0.5/ADR-005-diff-scope.md`](../wave0.5/ADR-005-diff-scope.md) |
+| 1 | ✅ **F4 + F11** (`--github` opt-in default + project-board namespacing) — **DONE 2026-05-26** · issue [#1063](https://github.com/LucaDominici/arbiter/issues/1063) · PR [#1064](https://github.com/LucaDominici/arbiter/pull/1064) · 5 critical + 13 high red-team findings risolti · 23 fixture rebaked | 4-6h | **Stop the bleeding first**. | [`.arbiter/wave0.5/ADR-001-no-github-flag.md`](../wave0.5/ADR-001-no-github-flag.md) |
+| 2 | ✅ **F9** (exit code propagation) — **DONE 2026-05-27** · issue [#1074](https://github.com/LucaDominici/arbiter/issues/1074) · PR [#1078](https://github.com/LucaDominici/arbiter/pull/1078) "tiered POSIX exit codes for gh failures" | 2-4h | CI wrapper di arbiter ora vede subito i fail invece di nascondersi. | [`.arbiter/wave0.5/ADR-002-exit-code.md`](../wave0.5/ADR-002-exit-code.md) |
+| 3 | ✅ **F2 + F3** (MD pipe + table format) — **DONE 2026-05-27** · issue [#1075](https://github.com/LucaDominici/arbiter/issues/1075) · PR [#1079](https://github.com/LucaDominici/arbiter/pull/1079) "pipe closure + blank-line bloat" | 1-2h | Template MD passano markdownlint + Prettier. | [`.arbiter/wave0.5/ADR-003-md-template-fix.md`](../wave0.5/ADR-003-md-template-fix.md) |
+| 4 | ✅ **F10** (templates pass L1) — **DONE 2026-05-28** · issue [#1076](https://github.com/LucaDominici/arbiter/issues/1076) chiusa COMPLETED (probabilmente raccolta da #1080 drift fix / #1083 CI gap closures — closedByPullRequest cross-ref non match, verificare a posteriori) | 1-3 gg | Templates ora passano L1 su fresh `arbiter init`. | [`.arbiter/wave0.5/ADR-004-templates-L1-pass.md`](../wave0.5/ADR-004-templates-L1-pass.md) |
+| 5 | 🟢 **F1 + F7** (diff scope alignment) — **NEXT, ultimo P0** · issue [#1077](https://github.com/LucaDominici/arbiter/issues/1077) | 1-2 gg | Architectural. Chiude Wave 0.5. Refactor Manifest contract shared diff/update. | [`.arbiter/wave0.5/ADR-005-diff-scope.md`](../wave0.5/ADR-005-diff-scope.md) |
 | ⬢ | **fixture INV-32** (regression asserts L1-green) | 4-6h | Non un P0 standalone, ma il binding INV-32. Va aggiunto in coda a F10 nello stesso PR set. | dentro ADR-004 |
 | ⬢ | **F12** (arbiter local remote misconfig) | 5 min | Non arbiter bug, fix locale tuo: `git remote set-url`. Da fare PRIMA di qualunque PR Wave 0.5. | nessuno (one-liner) |
 - **Definition of Done**:
@@ -248,6 +248,7 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 - **2026-05-26 — DEC-008** (ADR-001 / issue #1063): `useGitHub` config field → `permitGitHub` via **alias + deprecation** (option C). Alias 1 minor (v0.2.x), hard-remove v0.3. Motivo: hard-rename violerebbe 4 frozen compat fixtures + tarball consumers.
 - **2026-05-26 — DEC-009** (ADR-001 / issue #1063): `--github` come **global flag pre-stripped** + env var `ARBITER_GITHUB=1` (option 1). Mirror del pattern `--no-evidence` di cli.ts:99-104. Rimosso `--github` local da `update` (era override, ora opt-in).
 - **2026-05-26 — DEC-010** (ADR-001 / issue #1063): Gate scope **solo `runGithubSetup`** + static import-graph assertion che `diff.ts` non importi `src/github/` (option 3). Out-of-scope confermato: `decomposition/github-backend.ts`, `kit/emit-issues.ts`, `detectors/github.ts` (read-only).
+- **2026-05-29 — Note di sync** (no DEC, solo registrazione): tra il 2026-05-27 e 2026-05-28, fuori dalla mia view manager, Claude Code ha mergiato 3 ADR addizionali non programmati in Wave 0.5: **ADR-051** (#1080 collaboration-mode axis + WT merge-train foundation + generator-spec drift fix), **ADR-052** (#1082/#1084 ff-only merge policy + cosign SHA preservation, INV-101), **ADR-053** (#1083/#1085 CI gap closures: CodeQL, OSSF Scorecard, frontend-quality, nightly-lite). In corso: refactor #1098 (table-drive agent generators + compatibility parsers). Questi NON consumano slot Active (sono lavoro continuo di Claude Code dentro lo Stream A); il WIP=2 hard-limit del management resta vincolato sui due Active del manager (Wave 0.5 + Pipeline drift fix sospeso).
 
 ---
 
