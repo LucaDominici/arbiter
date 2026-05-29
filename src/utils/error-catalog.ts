@@ -210,4 +210,52 @@ export const ERROR_CATALOG: ReadonlyMap<string, ErrorEntry> = new Map([
       docUrl: 'https://arbiter.dev/reference/cli#task',
     },
   ],
+  [
+    'E_GH_NOT_INSTALLED',
+    {
+      code: 'E_GH_NOT_INSTALLED',
+      summary: 'GitHub CLI (gh) binary not found',
+      detail:
+        'arbiter tried to run a GitHub API operation but the `gh` CLI binary is not installed or not on PATH.',
+      recovery:
+        'Install the GitHub CLI: https://cli.github.com — then run `gh auth login` to authenticate.',
+      docUrl: 'https://arbiter.dev/reference/cli#github-setup',
+    },
+  ],
+  [
+    'E_GH_RECOVERABLE',
+    {
+      code: 'E_GH_RECOVERABLE',
+      summary: 'One or more GitHub API calls failed (recoverable)',
+      detail:
+        'A GitHub API call failed with a non-fatal error (e.g. label already exists, branch-protection requires admin access that you do not have). The command completed partial provisioning; see the list of failures above.',
+      recovery:
+        'Retry after granting the required permissions, or run `arbiter update --github` again once access is available.',
+      docUrl: 'https://arbiter.dev/reference/cli#github-setup',
+    },
+  ],
+  [
+    'E_GH_FATAL',
+    {
+      code: 'E_GH_FATAL',
+      summary: 'GitHub API call failed with a fatal error',
+      detail:
+        'A GitHub API call failed with an unrecoverable error (e.g. authentication token missing or revoked, network timeout). The command was halted.',
+      recovery:
+        'Run `gh auth login` to re-authenticate, then retry. Check your network connectivity.',
+      docUrl: 'https://arbiter.dev/reference/cli#github-setup',
+    },
+  ],
+  [
+    'E_PLUGIN_FATAL',
+    {
+      code: 'E_PLUGIN_FATAL',
+      summary: 'A plugin failed during command execution',
+      detail:
+        'A plugin raised a fatal error during generator execution (e.g. missing dependency, load failure, or runtime exception). The command was halted.',
+      recovery:
+        'Check that the plugin package is installed and compatible with the current arbiter version. Run `npm ls` to verify plugin dependencies.',
+      docUrl: 'https://arbiter.dev/reference/cli#plugins',
+    },
+  ],
 ])

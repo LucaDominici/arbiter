@@ -14,8 +14,6 @@
  * #263
  */
 
-import { readFileSync, appendFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 
 /** A raw parsed git log entry. */
@@ -41,15 +39,6 @@ export interface HistoryEvent {
   notaryIntent?: string
 }
 
-/** Schema for one line in `.arbiter/graph.history.ndjson`. */
-export interface HistoryNdjsonEntry {
-  ts: string
-  sha: string
-  event: 'node_added' | 'edge_added' | 'node_modified'
-  node?: { id: string; kind: string }
-  edge?: { from: string; to: string; kind: string }
-}
-
 // ── Git log parsing ────────────────────────────────────────────────────────
 
 const GIT_LOG_SEPARATOR = '---ARBITER-LOG-ENTRY---'
@@ -62,11 +51,7 @@ const GIT_LOG_FORMAT = `--format=format:${GIT_LOG_SEPARATOR}%n%H%n%aI%n%s%n%b`
  *
  * The optional pathspec limits the log to commits touching a specific file.
  */
-export function runGitLog(opts: {
-  cwd: string
-  pathspec?: string
-  maxEntries?: number
-}): GitLogEntry[] {
+function runGitLog(opts: { cwd: string; pathspec?: string; maxEntries?: number }): GitLogEntry[] {
   const args: string[] = ['log', GIT_LOG_FORMAT, '--date=iso-strict', '--reverse']
 
   if (opts.maxEntries !== undefined) {
@@ -91,7 +76,7 @@ export function runGitLog(opts: {
 /**
  * Parse the raw stdout from git log into GitLogEntry objects.
  */
-export function parseGitLogOutput(raw: string): GitLogEntry[] {
+function parseGitLogOutput(raw: string): GitLogEntry[] {
   const entries: GitLogEntry[] = []
   const blocks = raw.split(GIT_LOG_SEPARATOR).filter((b) => b.trim() !== '')
 
@@ -203,49 +188,4 @@ export function harvestHistoryForNode(opts: {
   }
 
   return filterEventsForNode(events, opts.nodeId)
-}
-
-// ── NDJSON history store ───────────────────────────────────────────────────
-
-export const HISTORY_RELATIVE_PATH = join('.arbiter', 'graph.history.ndjson')
-
-/**
- * Append one entry to `.arbiter/graph.history.ndjson`.
- * Creates the directory if needed. Never throws — history writing is best-effort.
- */
-export function appendHistoryEntry(entry: HistoryNdjsonEntry, dir: string): void {
-  try {
-    const path = join(dir, HISTORY_RELATIVE_PATH)
-    mkdirSync(join(dir, '.arbiter'), { recursive: true })
-    appendFileSync(path, JSON.stringify(entry) + '\n', 'utf-8')
-  } catch {
-    // Swallow — history logging is best-effort
-  }
-}
-
-/**
- * Read `.arbiter/graph.history.ndjson` and return all valid entries.
- * Returns empty array when file does not exist.
- */
-export function readHistoryEntries(dir: string): HistoryNdjsonEntry[] {
-  const path = join(dir, HISTORY_RELATIVE_PATH)
-  if (!existsSync(path)) return []
-
-  const entries: HistoryNdjsonEntry[] = []
-  try {
-    const lines = readFileSync(path, 'utf-8')
-      .split('\n')
-      .filter((l) => l.trim() !== '')
-    for (const line of lines) {
-      try {
-        const parsed = JSON.parse(line) as HistoryNdjsonEntry
-        entries.push(parsed)
-      } catch {
-        // Skip malformed lines
-      }
-    }
-  } catch {
-    // Return empty on read failure
-  }
-  return entries
 }

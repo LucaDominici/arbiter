@@ -16,7 +16,7 @@ concurrency:
 jobs:
   assert-nightly-freshness:
     name: Assert nightly ran within 26h
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Check nightly workflow freshness
         env:
@@ -85,7 +85,7 @@ jobs:
 
   assert-weekly-freshness:
     name: Assert weekly ran within 8 days
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Check weekly workflow freshness
         env:
@@ -154,7 +154,7 @@ jobs:
 
   assert-monthly-freshness:
     name: Assert monthly ran within 35 days
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Check monthly workflow freshness
         env:

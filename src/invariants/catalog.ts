@@ -1546,6 +1546,38 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'EJS whitelist preamble in 04-deploy-test.yml.ejs + 10-deploy-prod.yml.ejs',
   },
 
+  {
+    id: 'INV-100',
+    tier: 'architectural',
+    title: 'collaborationMode must be set in arbiter.json',
+    description:
+      'Every arbiter-scaffolded project must declare a collaborationMode field in arbiter.json. ' +
+      'Valid values: "trunk-solo" | "peer-review" | "gated-review". ' +
+      'Absent collaborationMode means CI shape and branching strategy are inferred from deprecated ' +
+      'soloDevMode, which will be removed in the next major release. ' +
+      'Enforcement: scripts/check-collab-mode-wired.mjs reads arbiter.json and fails if ' +
+      'collaborationMode is absent or not a known value.',
+    alwaysActive: true,
+    selfOnly: false,
+    enforcement: 'scripts/check-collab-mode-wired.mjs (L1)',
+  },
+
+  {
+    id: 'INV-101',
+    tier: 'architectural',
+    title: 'ff-only merge is the only allowed merge method',
+    description:
+      'Every arbiter-scaffolded project must disallow squash-merge and rebase-merge. ' +
+      'Squash loses commit granularity; rebase rewrites SHAs, invalidating cosign attestations. ' +
+      'The only permitted merge path is merge-commit with required_linear_history:true (ff-only ' +
+      'enforced server-side) or direct push via git push origin HEAD:main (trunk-solo mode). ' +
+      'Repo settings: allow_merge_commit:true, allow_squash_merge:false, allow_rebase_merge:false. ' +
+      'Branch protection: required_linear_history:true, required_signatures:true (L3+).',
+    alwaysActive: true,
+    selfOnly: false,
+    enforcement: 'scripts/check-merge-method.mjs (L1)',
+  },
+
   // arbiter:noscan-inv-reservation
   // RESERVED: INV-83 (audit-append-only), INV-84 (audit-trigger-presence) —
   // sibling epic #TBD-sibling-epic phases B/G.

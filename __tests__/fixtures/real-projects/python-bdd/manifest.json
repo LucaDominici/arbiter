@@ -4,5 +4,6 @@
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
   "tier": "bake",
-  "note": "Python BDD fixture with pytest-bdd step bindings"
+  "note": "Python BDD fixture with pytest-bdd step bindings",
+  "collaborationMode": "peer-review"
 }

@@ -8,24 +8,27 @@
 
 ---
 
-<% for (const [tier, tierInvariants] of invariantsByTier.entries()) { %>
+<% for (const [tier, tierInvariants] of invariantsByTier.entries()) { -%>
 ## <%- tierLabels[tier] %>
 
-<% for (const inv of tierInvariants) { %>
+<% for (const inv of tierInvariants) { -%>
 ### <%- inv.id %>: <%- (inv.languageDetail && inv.languageDetail[language]) ? inv.languageDetail[language] : inv.title %>
 
 <%- inv.description %>
+<% if (inv.languageDetail && inv.languageDetail[language] && inv.languageDetail[language] !== inv.title) { -%>
 
-<% if (inv.languageDetail && inv.languageDetail[language] && inv.languageDetail[language] !== inv.title) { %>
 **<%- language.charAt(0).toUpperCase() + language.slice(1) %> guidance:** <%- inv.languageDetail[language] %>
+<% } -%>
+<% if (inv.enforcement) { -%>
 
-<% } %><% if (inv.enforcement) { %>
 **Enforcement:** <%- inv.enforcement %>
+<% } -%>
+<% if (inv.minGovernanceLevel) { -%>
 
-<% } %><% if (inv.minGovernanceLevel) { %>
 **Minimum governance level:** <%- inv.minGovernanceLevel %>+
+<% } -%>
 
-<% } %>
 ---
-<% } %>
-<% } %>
+<% } -%>
+
+<% } -%>

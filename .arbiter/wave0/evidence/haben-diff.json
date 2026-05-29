@@ -1,0 +1,1 @@
+{"command":"diff","version":"1","status":"warning","data":{"hasChanges":true,"files":[{"key":"AGENTS.md","status":"changed"},{"key":"GLOBAL_INVARIANTS.md","status":"changed"},{"key":".claude/CLAUDE.md","status":"changed"},{"key":".agents/CODEX.md","status":"changed"}]}}

@@ -26,6 +26,12 @@ coverage/
 !.arbiter/evidence/tdd/*.json
 # Self-dogfood workflow exemptions are committed so the gate sees them in CI
 !.arbiter/workflow-exemptions.json
+# Manager state (MILESTONES, DONE, chat protocol) — SSOT for the project plan
+!.arbiter/management/
+!.arbiter/management/**
+# Wave audits + their evidence — version-controlled audit history
+!.arbiter/wave*/
+!.arbiter/wave*/**
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/
@@ -41,6 +47,23 @@ report/
 
 # Arbiter backup files created during update
 *.arbiter-backup
+
+# npm pack output: ignore stray packs, keep the vendored package consumed by sibling repos
+*.tgz
+!arbiter-cli-0.1.0.tgz
+
+# Stray target-project output regenerated into this TS repo root by `arbiter init/update`
+# (#1088). Root-anchored so only the alien Java/Gradle artifacts are ignored, never nested
+# source. Proper fix = run the self-dogfood flow in a temp dir; until then this keeps the
+# working tree clean. Remove the on-disk files with `git clean -fX` after reviewing.
+/config/
+/gradle/
+/spotbugs.gradle
+/spotless.gradle
+/spotbugs-baseline.json
+/src/test/java/
+/src/test/resources/
+/suppressions/owasp-suppressions.xml
 
 # Private maintainer docs (enforcement runbooks, internal notes)
 docs/internal/

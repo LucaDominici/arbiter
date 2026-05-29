@@ -35,13 +35,13 @@ Level 3:  Source code + tests — implementation truth
 
 Violation protocol: **STOP → REFUSE → cite INV-XX**.
 
-<% for (const [tier, tierInvariants] of invariantsByTier.entries()) { %>
+<% for (const [tier, tierInvariants] of invariantsByTier.entries()) { -%>
 ### <%- tierLabels[tier] %>
 
-<% for (const inv of tierInvariants) { %>- **<%- inv.id %>:** <%- (inv.languageDetail && inv.languageDetail[language]) ? inv.languageDetail[language] : inv.title %>
-<% } %>
-<% } %>
+<% for (const inv of tierInvariants) { -%>- **<%- inv.id %>:** <%- (inv.languageDetail && inv.languageDetail[language]) ? inv.languageDetail[language] : inv.title %>
+<% } -%>
 
+<% } -%>
 ---
 
 ## Coding Standards
@@ -285,8 +285,9 @@ Changes pass through five enforcement layers:
 <% } %>Bypass surface: only `git commit --no-verify` (documented, audited at PR review).
 
 ---
-<% if (enableDebtGates) { %>
-<% const threshold = (governanceLevel === 'L3' || governanceLevel === 'L4') ? 85 : 80; %>
+<% if (enableDebtGates) { -%>
+<% const threshold = (governanceLevel === 'L3' || governanceLevel === 'L4') ? 85 : 80; -%>
+
 ## Tech Debt Gates
 
 Enforced at L2+ (automated, runs in CI and locally via `node scripts/check-all.mjs L2`):
@@ -359,8 +360,8 @@ Suppression file: `suppressions/dependency-check-suppressions.xml`
 **Claude hook**: `check-no-pii.mjs` (PostToolUse, Edit|Write) blocks PII from being written to source files.
 
 ---
-<% } %>
-<% { const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; if (_multiLane) { %>
+<% } -%>
+<% { const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; if (_multiLane) { -%>
 ---
 
 ## Lane Discipline
@@ -375,7 +376,8 @@ This project uses lane-isolated development. **Cross-stack rule:** if a task tou
 <% } %>
 **Single-lane task**: identify lane, run lane gate, PR touches only that lane's files.
 **Cross-lane task**: STOP → split into N single-lane PRs, one per affected lane.
-<% } } %>
+<% } } -%>
+
 ## Multi-Agent Tool Extensions
 
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:

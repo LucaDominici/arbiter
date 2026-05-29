@@ -6,5 +6,6 @@
   "tier": "functional",
   "note": "Minimal Rust library crate — no Tauri → detects as library archetype",
   "lockfileNote": "Cargo.lock committed (library convention waived) — required for `cargo test --frozen` reproducibility in native E2E. See docs/SYSTEM/E2E-RUNTIMES.md.",
-  "enableSecurityScanning": true
+  "enableSecurityScanning": true,
+  "collaborationMode": "trunk-solo"
 }

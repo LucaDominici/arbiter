@@ -236,7 +236,7 @@ describe('06-nightly.yml.ejs — gitleaks full history', () => {
 
   it('gitleaks action with full-history log-opts', () => {
     const rendered = renderNightly({})
-    expect(rendered).toContain('gitleaks-action@v2')
+    expect(rendered).toMatch(/gitleaks-action@[0-9a-f]{40}/)
     expect(rendered).toContain('--full-history')
   })
 })

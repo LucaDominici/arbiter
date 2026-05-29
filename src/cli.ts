@@ -52,7 +52,14 @@ import type { WorkUnitPhase, WorkUnitStatus } from './decomposition/types.js'
 import { appendEvidenceLine } from './utils/evidence-log.js'
 import { parseBooleanEnv } from './utils/env.js'
 import { runCli } from './utils/run-cli.js'
-import { ArbiterError, UserFacingError } from './utils/errors.js'
+import {
+  ArbiterError,
+  UserFacingError,
+  FatalError,
+  ConfigError,
+  RecoverableError,
+} from './utils/errors.js'
+import { SnapshotChecksumError } from './state/envelope.js'
 import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
 import { runBenchmarkHooks } from './commands/benchmark.js'
@@ -1824,6 +1831,54 @@ kit
     },
   )
 
+function _writeArbiterError(err: ArbiterError, prefix = 'Error'): void {
+  process.stderr.write(`\n${prefix} [${err.code}]: ${err.message}\n`)
+  if (err.hint) process.stderr.write(`  Hint: ${err.hint}\n`)
+  if (err.docUrl) process.stderr.write(`  Docs: ${err.docUrl}\n`)
+  process.stderr.write(`\nRun \`arbiter explain ${err.code}\` for more detail.\n`)
+  if (_verbose && err.stack) process.stderr.write(`\n${err.stack}\n`)
+}
+
+function _writeStackIfVerbose(err: Error): void {
+  if (_verbose && err.stack) process.stderr.write(`\n${err.stack}\n`)
+}
+
+function _handleTopLevelError(err: unknown): void {
+  if (err instanceof FatalError) {
+    if (err.recoverableContext?.length) {
+      process.stderr.write(
+        `\n  Recoverable errors before fatal:\n${err.recoverableContext.map((w) => `    - ${w}`).join('\n')}\n`,
+      )
+    }
+    _writeArbiterError(err, 'Fatal error')
+    process.exit(2)
+  } else if (err instanceof ConfigError) {
+    _writeArbiterError(err, 'Config error')
+    process.exit(78)
+  } else if (err instanceof RecoverableError) {
+    _writeArbiterError(err)
+    process.exit(1)
+  } else if (err instanceof SnapshotChecksumError) {
+    process.stderr.write(`\nChecksum error: ${err.message}\n`)
+    process.stderr.write(
+      '  The .arbiter-generated.json snapshot is corrupt. Delete it and re-run `arbiter update`.\n',
+    )
+    _writeStackIfVerbose(err)
+    process.exit(2)
+  } else if (err instanceof ArbiterError) {
+    _writeArbiterError(err)
+  } else if (err instanceof UserFacingError) {
+    process.stderr.write(`Error: ${err.message}\n`)
+    _writeStackIfVerbose(err)
+  } else if (err instanceof Error) {
+    process.stderr.write(`Unexpected error: ${err.message}\n`)
+    if (_verbose) process.stderr.write(`${err.stack ?? ''}\n`)
+  } else {
+    process.stderr.write(`Unexpected error: ${String(err)}\n`)
+  }
+  process.exit(1)
+}
+
 async function _main(): Promise<void> {
   await _startProfileIfRequested()
   try {
@@ -1840,23 +1895,4 @@ async function _main(): Promise<void> {
   }
 }
 
-_main().catch((err: unknown) => {
-  if (err instanceof ArbiterError) {
-    process.stderr.write(`\nError [${err.code}]: ${err.message}\n`)
-    if (err.hint) process.stderr.write(`  Hint: ${err.hint}\n`)
-    if (err.docUrl) process.stderr.write(`  Docs: ${err.docUrl}\n`)
-    process.stderr.write(`\nRun \`arbiter explain ${err.code}\` for more detail.\n`)
-    if (_verbose && err.stack) process.stderr.write(`\n${err.stack}\n`)
-  } else if (err instanceof UserFacingError) {
-    process.stderr.write(`Error: ${err.message}\n`)
-    if (_verbose && err.stack) process.stderr.write(`\n${err.stack}\n`)
-  } else if (err instanceof Error) {
-    process.stderr.write(`Unexpected error: ${err.message}\n`)
-    if (_verbose) {
-      process.stderr.write(`${err.stack ?? ''}\n`)
-    }
-  } else {
-    process.stderr.write(`Unexpected error: ${String(err)}\n`)
-  }
-  process.exit(1)
-})
+_main().catch(_handleTopLevelError)

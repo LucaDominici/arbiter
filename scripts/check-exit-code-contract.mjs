@@ -5,7 +5,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
-const VALID_EXITS = new Set([0, 1, 2])
+const VALID_EXITS = new Set([0, 1, 2, 78])
 
 // Match process.exit(N) only when not inside a string literal.
 // Heuristic: count unescaped quotes before the match; odd count = inside string.
@@ -87,7 +87,7 @@ function scanFile(filePath) {
         if (!VALID_EXITS.has(code)) {
           const rel = relative(baseDir, filePath)
           process.stdout.write(
-            `  ${rel}:${i + 1}  [${label}]  exit(${code}) — must be 0, 1, or 2  ${line.trim()}\n`,
+            `  ${rel}:${i + 1}  [${label}]  exit(${code}) — must be 0, 1, 2, or 78  ${line.trim()}\n`,
           )
           violations++
         }
@@ -119,7 +119,7 @@ if (args.length > 0) {
 
 if (violations > 0) {
   process.stdout.write(
-    `\n  Found ${violations} violation(s). All scripts must exit 0=PASS / 1=FAIL / 2=ERROR.\n`,
+    `\n  Found ${violations} violation(s). All scripts must exit 0=PASS / 1=FAIL / 2=ERROR / 78=CONFIG.\n`,
   )
   process.exit(1)
 }

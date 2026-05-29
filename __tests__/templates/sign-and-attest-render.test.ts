@@ -70,17 +70,19 @@ describe('sign-and-attest/action.yml.ejs — governance branching', () => {
     expect(rendered).toContain('token.actions.githubusercontent.com')
   })
 
-  it('L3: no verify step (verify moved to L4)', () => {
+  it('L3: verify step present (INV-101: all non-L1 verify signature)', () => {
     const rendered = renderAction({ governanceLevel: 'L3' })
-    expect(rendered).not.toContain('cosign verify-blob')
+    expect(rendered).toContain('cosign verify-blob')
+    expect(rendered).toContain('token.actions.githubusercontent.com')
   })
 
-  it('L2: no verify step', () => {
+  it('L2: verify step present (INV-101: all non-L1 verify signature)', () => {
     const rendered = renderAction({ governanceLevel: 'L2' })
-    expect(rendered).not.toContain('cosign verify-blob')
+    expect(rendered).toContain('cosign verify-blob')
+    expect(rendered).toContain('token.actions.githubusercontent.com')
   })
 
-  it('L1: no verify step', () => {
+  it('L1: no verify step (L1 stays lightweight, no sigstore.dev hard dependency)', () => {
     const rendered = renderAction({ governanceLevel: 'L1' })
     expect(rendered).not.toContain('cosign verify-blob')
   })

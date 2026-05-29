@@ -7,5 +7,6 @@
   "note": "Java with spring-boot plugin in build.gradle → detects as backend-web-db archetype",
   "enableSecurityScanning": true,
   "architectureStyle": "hexagonal",
-  "basePackage": "com.example"
+  "basePackage": "com.example",
+  "collaborationMode": "peer-review"
 }
