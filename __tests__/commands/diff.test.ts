@@ -148,17 +148,23 @@ describe('runDiff', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('~ AGENTS.md'))
   })
 
-  it('prints all-up-to-date message when no changes detected', async () => {
+  it('prints the run-update suggestion when the registry has new files to emit', async () => {
+    // #1077: diff now enumerates the FULL generator registry (registry-dryRun),
+    // not a hardcoded ~9-file subset. On a bare project the registry reports many
+    // "new file" entries, so diff prints the run-`arbiter update` suggestion
+    // rather than "all up to date". The all-up-to-date path (every registry file
+    // byte-identical) is covered end-to-end by the wave0-reproducer F7 test.
     mockLoadConfig.mockReturnValue(
       makeStoredConfig({
         tools: [],
         invariantTiers: ['architectural', 'governance'],
       }),
     )
-    writeFileSync(join(dir, 'AGENTS.md'), 'rendered-content')
     const { runDiff } = await import('../../src/commands/diff.js')
     runDiff({ dir })
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('All files up to date'))
+    const calls = logSpy.mock.calls.map((c) => String(c[0]))
+    expect(calls.some((c) => c.includes('arbiter update'))).toBe(true)
+    expect(calls.some((c) => c.includes('All files up to date'))).toBe(false)
   })
 
   it('prints update suggestion when changes detected', async () => {
@@ -218,7 +224,13 @@ describe('runDiff', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('GLOBAL_INVARIANTS.md'))
   })
 
-  it('does not include GLOBAL_INVARIANTS.md when no optional tiers', async () => {
+  it('reports GLOBAL_INVARIANTS.md as unchanged (skipped) when no optional tiers', async () => {
+    // #1077: diff runs the SAME generator registry as update (registry-dryRun),
+    // so GLOBAL_INVARIANTS.md is always enumerated. With only architectural +
+    // governance tiers the generator's prospective action is 'skipped' (no
+    // optional-tier content to write), which diff surfaces as "unchanged" rather
+    // than omitting the entry entirely (the old hardcoded behaviour). It must
+    // never be reported as a new/changed file in this configuration.
     mockLoadConfig.mockReturnValue(
       makeStoredConfig({
         tools: [],
@@ -228,7 +240,11 @@ describe('runDiff', () => {
     const { runDiff } = await import('../../src/commands/diff.js')
     runDiff({ dir })
     const calls = logSpy.mock.calls.map((c) => String(c[0]))
-    expect(calls.some((c) => c.includes('GLOBAL_INVARIANTS.md'))).toBe(false)
+    const globalInvLines = calls.filter((c) => c.includes('GLOBAL_INVARIANTS.md'))
+    // It is enumerated, but only ever as unchanged — never new (+) or would-update (~).
+    expect(globalInvLines.every((c) => c.includes('(unchanged)'))).toBe(true)
+    expect(globalInvLines.some((c) => c.includes('(new file)'))).toBe(false)
+    expect(globalInvLines.some((c) => c.includes('(would update)'))).toBe(false)
   })
 
   it('uses cwd when no dir option provided', async () => {

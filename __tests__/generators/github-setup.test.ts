@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateGithubSetup } from '../../src/generators/github-setup.js'
@@ -60,15 +60,48 @@ describe('generateGithubSetup', () => {
     expect(setupFile?.action).toBe('skipped')
   })
 
-  it('apply-branch-protection.mjs is always regenerated on re-run', () => {
+  it('apply-branch-protection.mjs is regenerated (replaced) when its content differs on re-run', () => {
+    // apply-branch-protection.mjs is a non-skipIfExists, non-backup file: it is
+    // overwritten when content differs. (#1077: a byte-identical re-run now skips —
+    // see the idempotence test below — so this asserts the DIFFERING branch.)
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
-    generateGithubSetup(config)
+    const first = generateGithubSetup(config)
+    const path = first.files.find((f) => f.path.endsWith('apply-branch-protection.mjs'))!.path
+    writeFileSync(path, '// user-edited\n', 'utf-8')
     const second = generateGithubSetup(config)
     const bpFile = second.files.find((f) => f.path.endsWith('apply-branch-protection.mjs'))
     expect(bpFile?.action).toBe('replaced')
   })
 
-  it('gate scripts are always regenerated on re-run', () => {
+  it('apply-branch-protection.mjs skips a byte-identical re-run (#1077 F6 idempotence)', () => {
+    const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
+    generateGithubSetup(config)
+    const second = generateGithubSetup(config)
+    const bpFile = second.files.find((f) => f.path.endsWith('apply-branch-protection.mjs'))
+    expect(bpFile?.action).toBe('skipped')
+  })
+
+  it('gate scripts are regenerated (replaced) when their content differs on re-run', () => {
+    const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
+    const first = generateGithubSetup(config)
+    const names = [
+      'check-ci-tiers.mjs',
+      'check-action-pins.mjs',
+      'check-workflow-perms.mjs',
+      'check-merge-method.mjs',
+    ]
+    for (const name of names) {
+      const path = first.files.find((r) => r.path.endsWith(name))!.path
+      writeFileSync(path, '// user-edited\n', 'utf-8')
+    }
+    const second = generateGithubSetup(config)
+    for (const name of names) {
+      const f = second.files.find((r) => r.path.endsWith(name))
+      expect(f?.action).toBe('replaced')
+    }
+  })
+
+  it('gate scripts skip a byte-identical re-run (#1077 F6 idempotence)', () => {
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
     generateGithubSetup(config)
     const second = generateGithubSetup(config)
@@ -79,7 +112,7 @@ describe('generateGithubSetup', () => {
       'check-merge-method.mjs',
     ]) {
       const f = second.files.find((r) => r.path.endsWith(name))
-      expect(f?.action).toBe('replaced')
+      expect(f?.action).toBe('skipped')
     }
   })
 
