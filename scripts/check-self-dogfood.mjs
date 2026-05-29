@@ -8,7 +8,7 @@
 //
 // Exports for unit tests:
 //   buildRenderContext, templateToMaterialized, isAllowlisted,
-//   isConfigGated, normalizeLines, computeDiff
+//   isConfigGated, normalizeLines, computeDiff, checkRawHooks, REQUIRED_RAW_HOOKS
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
@@ -16,6 +16,22 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
+
+// Raw .mjs hooks copied verbatim by src/generators/claude.ts (readTemplate →
+// writeFile, no EJS render). The .ejs corpus walk never saw them, so they were
+// historically unchecked (#1090, INV-45). Each must have a byte-identical
+// materialized copy under .claude/hooks/, OR be listed in
+// .dogfood-divergences.json as intentional arbiter-internal self-hardening.
+export const REQUIRED_RAW_HOOKS = [
+  'stop-dangerous.mjs',
+  'enforce-read-only.mjs',
+  'pre-edit-ssot-guard.mjs',
+  'check-no-orphan-todo.mjs',
+  'check-no-placeholders.mjs',
+  'enforce-gate-before-pr.mjs',
+  'check-no-unused-exports.mjs',
+  'check-no-skipped-tests.mjs',
+]
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -225,6 +241,53 @@ function loadDivergences() {
   return new Set(entries.map((e) => join(repoRoot, '.claude', e.path)))
 }
 
+// ─── raw .mjs hook corpus (#1090) ─────────────────────────────────────────────
+
+/**
+ * Compare each hook in REQUIRED_RAW_HOOKS (emitted verbatim by
+ * src/generators/claude.ts) against its materialized .claude/hooks copy.
+ *
+ * Hooks whose materialized path is listed in .dogfood-divergences.json are
+ * intentional arbiter-internal self-hardening (e.g. enforce-read-only drops
+ * AGENTS.md from the read-only set because arbiter authors its own AGENTS.md,
+ * whereas a target's AGENTS.md is generated and must stay read-only) — those
+ * are skipped but still counted. Any UNDOCUMENTED drift fails the gate
+ * (fail-closed, INV-45/INV-96), which is what makes shipping a silently-weaker
+ * hook to targets impossible without an explicit, dated rationale.
+ *
+ * Returns { checked, skipped, drifted }.
+ */
+export async function checkRawHooks(root = repoRoot, divergences = loadDivergences()) {
+  const drifted = []
+  let checked = 0
+  let skipped = 0
+  for (const name of REQUIRED_RAW_HOOKS) {
+    const template = join(root, 'src/templates/claude/hooks', name)
+    const materialized = join(root, '.claude/hooks', name)
+    if (!existsSync(template)) {
+      drifted.push({ name, reason: 'shipped template missing' })
+      continue
+    }
+    if (!existsSync(materialized)) {
+      drifted.push({ name, reason: 'materialized .claude/hooks copy missing' })
+      continue
+    }
+    if (divergences.has(materialized)) {
+      skipped++
+      continue
+    }
+    const expected = await normalizeLines(readFileSync(template, 'utf-8'), template)
+    const actual = await normalizeLines(readFileSync(materialized, 'utf-8'), materialized)
+    const diff = computeDiff(expected, actual)
+    if (diff) {
+      drifted.push({ name, added: diff.added.slice(0, 5), removed: diff.removed.slice(0, 5) })
+    } else {
+      checked++
+    }
+  }
+  return { checked, skipped, drifted }
+}
+
 // ─── main ────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -339,24 +402,50 @@ async function main() {
     }
   }
 
-  process.stdout.write(`[dogfood] ${skipped} template(s) skipped (config-gated or diverged).
-`)
+  // #1090: also verify the raw .mjs hook corpus (copied verbatim, no EJS render).
+  const raw = await checkRawHooks(repoRoot, divergences)
 
-  if (drifted.length > 0) {
-    console.error(`[dogfood] FAIL — ${drifted.length} template(s) have unexpected drift:`)
-    for (const d of drifted) {
-      console.error(`\n  template:     ${d.template}`)
-      console.error(`  materialized: ${d.materialized}`)
-      if (d.reason) {
-        console.error(`  reason:       ${d.reason}`)
-      } else {
-        if (d.removed && d.removed.length > 0) {
-          console.error(`  removed lines (in rendered but not in materialized):`)
-          d.removed.forEach((l) => console.error(`    - ${l}`))
+  process.stdout.write(
+    `[dogfood] ${skipped} template(s) + ${raw.skipped} raw hook(s) skipped (config-gated or diverged).\n`,
+  )
+
+  if (drifted.length > 0 || raw.drifted.length > 0) {
+    if (drifted.length > 0) {
+      console.error(`[dogfood] FAIL — ${drifted.length} template(s) have unexpected drift:`)
+      for (const d of drifted) {
+        console.error(`\n  template:     ${d.template}`)
+        console.error(`  materialized: ${d.materialized}`)
+        if (d.reason) {
+          console.error(`  reason:       ${d.reason}`)
+        } else {
+          if (d.removed && d.removed.length > 0) {
+            console.error(`  removed lines (in rendered but not in materialized):`)
+            d.removed.forEach((l) => console.error(`    - ${l}`))
+          }
+          if (d.added && d.added.length > 0) {
+            console.error(`  added lines (in materialized but not in rendered):`)
+            d.added.forEach((l) => console.error(`    + ${l}`))
+          }
         }
-        if (d.added && d.added.length > 0) {
-          console.error(`  added lines (in materialized but not in rendered):`)
-          d.added.forEach((l) => console.error(`    + ${l}`))
+      }
+    }
+    if (raw.drifted.length > 0) {
+      console.error(
+        `\n[dogfood] FAIL — ${raw.drifted.length} raw .mjs hook(s) drift from shipped template:`,
+      )
+      for (const d of raw.drifted) {
+        console.error(`\n  hook:         ${d.name}`)
+        if (d.reason) {
+          console.error(`  reason:       ${d.reason}`)
+        } else {
+          if (d.removed && d.removed.length > 0) {
+            console.error(`  removed lines (in template but not in .claude copy):`)
+            d.removed.forEach((l) => console.error(`    - ${l}`))
+          }
+          if (d.added && d.added.length > 0) {
+            console.error(`  added lines (in .claude copy but not in template):`)
+            d.added.forEach((l) => console.error(`    + ${l}`))
+          }
         }
       }
     }
@@ -365,7 +454,7 @@ async function main() {
   }
 
   process.stdout.write(
-    `[dogfood] ${checked} template(s) checked. All templates match materialized .claude/ files.\n`,
+    `[dogfood] ${checked} template(s) + ${raw.checked} raw hook(s) checked. All match materialized .claude/ files.\n`,
   )
 }
 
