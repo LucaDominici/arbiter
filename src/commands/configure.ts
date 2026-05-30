@@ -25,6 +25,7 @@ const ALLOWED_PATHS = new Set([
   'features.debtGates',
   'features.suppressions',
   'features.soloDevMode',
+  'collaborationMode',
   'thresholds.lineCoverage',
   'thresholds.branchCoverage',
   'thresholds.mutationScore',
