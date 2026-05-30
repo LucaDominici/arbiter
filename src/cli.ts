@@ -1795,7 +1795,7 @@ kit
     'Run the 6-phase kit install lifecycle: DETECT → MEASURE → SCAFFOLD → ASSESS → PLAN → VERIFY',
   )
   .option('--target-dir <dir>', 'Target project directory', process.cwd())
-  .option('--language <lang>', 'Project language (e.g. java, typescript)', 'java')
+  .option('--language <lang>', 'Project language (auto-detected from the repo if omitted)')
   .addOption(
     new Option('--brownfield-class <cls>', 'Brownfield class (auto-detected if omitted)')
       .choices(['gold', 'light', 'medium', 'heavy'])
@@ -1807,7 +1807,7 @@ kit
   .action(
     async (opts: {
       targetDir: string
-      language: string
+      language?: string
       brownfieldClass: string
       dryRun: boolean
       emitIssues: boolean
@@ -1815,7 +1815,7 @@ kit
     }) => {
       const result = await runKitInstall({
         targetDir: opts.targetDir,
-        language: opts.language,
+        ...(opts.language !== undefined ? { language: opts.language } : {}),
         brownfieldClass: opts.brownfieldClass as BrownfieldClass,
         dryRun: opts.dryRun,
         emitIssues: opts.emitIssues,
