@@ -85,6 +85,16 @@ describe('06-nightly.yml.ejs — structural invariants (CANON-18)', () => {
     expect(rendered).not.toContain('<%')
     expect(rendered).not.toContain('%>')
   })
+
+  // #1086: the upstream shopify/toxiproxy-github-action repo was deleted (404),
+  // so the service-archetype resilience job must not reference the dead action;
+  // it pins + runs the official toxiproxy-server release binary instead.
+  it('service archetype: no dead toxiproxy action; uses pinned server binary', () => {
+    const rendered = renderNightly({ archetype: 'backend-web-db' })
+    expect(rendered).toContain('toxiproxy-resilience:')
+    expect(rendered).not.toContain('shopify/toxiproxy-github-action')
+    expect(rendered).toContain('releases/download/v2.12.0/toxiproxy-server-linux-amd64')
+  })
 })
 
 // ─── Schedule and triggers ────────────────────────────────────────────────────
