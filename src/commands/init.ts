@@ -936,6 +936,17 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
     config.enableNoSkippedTests = recipe.enableNoSkippedTests
 }
 
+/**
+ * Resolve the collaborationMode axis for a generated arbiter.json. Falls back to
+ * the legacy soloDevMode flag when the mode is not explicitly set, mirroring the
+ * init-time branch-protection default (ADR-051, #1093).
+ */
+function resolveCollaborationMode(config: ProjectConfig): CollaborationMode {
+  if (config.collaborationMode !== undefined) return config.collaborationMode
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy soloDevMode alias
+  return config.enableSoloDevMode === true ? 'trunk-solo' : 'peer-review'
+}
+
 export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
   const level = config.governanceLevel
   const backend = config.decompositionBackend ?? (config.useGitHub ? 'github' : 'markdown')
@@ -956,6 +967,10 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       soloDevMode: config.enableSoloDevMode === true,
     },
+    // ADR-051 (#1093): collaborationMode is the primary workflow axis. Persist it
+    // into every generated arbiter.json at init time (not only retro-fitted by
+    // `arbiter update`'s migration). See resolveCollaborationMode for the default.
+    collaborationMode: resolveCollaborationMode(config),
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],
     invariantTiers: config.invariantTiers,
     archetype: config.archetype,
