@@ -49,6 +49,23 @@ describe('runKitInstall — happy path (dryRun=true)', () => {
     expect(result.wavePlan!.waves).toHaveLength(4)
   })
 
+  // #1095: when `language` is omitted, the stack is auto-detected from the target
+  // repo (NOT defaulted to a hardcoded value).
+  it('auto-detects language from the target repo when language is omitted', async () => {
+    writeFileSync(join(tmpDir, 'package.json'), JSON.stringify({ name: 'x', version: '1.0.0' }))
+    const result = await runKitInstall({ targetDir: tmpDir, brownfieldClass: 'gold', dryRun: true })
+    const detect = result.phases.find((p) => p.phase === 'DETECT')
+    expect(detect?.output).toContain('typescript')
+    expect(detect?.output).not.toContain('Detected stack: java')
+  })
+
+  it('respects an explicit language override over auto-detection (#1095)', async () => {
+    writeFileSync(join(tmpDir, 'package.json'), JSON.stringify({ name: 'x', version: '1.0.0' }))
+    const result = await runKitInstall(makeOptions({ language: 'java' }))
+    const detect = result.phases.find((p) => p.phase === 'DETECT')
+    expect(detect?.output).toContain('java')
+  })
+
   it('DETECT phase captures language and brownfieldClass', async () => {
     const result = await runKitInstall(
       makeOptions({ language: 'typescript', brownfieldClass: 'medium' }),

@@ -38,10 +38,16 @@ export function branchNameFor(taskId: string, slug?: string): string {
 
 /**
  * Compute the directory name for a task worktree.
- * Format: `<taskId>[-<slug>]`
+ * Format: `<taskNumber>[-<slug>]`
+ *
+ * The leading `#` of the task id is stripped: `#` is a URL-fragment delimiter
+ * that breaks Vite/Vitest/Node-ESM path resolution when it appears in a
+ * directory path (the tool reads everything after `#` as a fragment, truncating
+ * the real path). The git BRANCH keeps the `#` for issue linking — see
+ * {@link branchNameFor}; only the on-disk directory is sanitised. (#1108)
  */
 export function worktreeDirectoryName(taskId: string, slug?: string): string {
-  const id = sanitizeTaskId(taskId)
+  const id = sanitizeTaskId(taskId).replace(/^#/, '')
   if (!slug) return id
   return `${id}-${sanitizeSlug(slug)}`
 }

@@ -1,0 +1,148 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Unit tests — Phase B coherence validation layer (micro-cycle 4)
+ * Validates the L4+trunk-solo rejection rule and ⚠️ cell warnings.
+ * Non-regression guard for #1080.
+ */
+import { describe, it, expect } from 'vitest'
+import type { CollaborationMode, GovernanceLevel } from '../../src/wizard/types.js'
+import {
+  validateCollaborationCoherence,
+  type CoherenceResult,
+} from '../../src/commands/wizard/coherence.js'
+
+// ── L4 + trunk-solo rejection ────────────────────────────────────────────────
+
+describe('validateCollaborationCoherence — L4 + trunk-solo (CRITICAL)', () => {
+  it('rejects L4 + trunk-solo with CRITICAL severity', () => {
+    const result = validateCollaborationCoherence('trunk-solo', 'L4')
+    expect(result.valid).toBe(false)
+    expect(result.severity).toBe('CRITICAL')
+    expect(result.message).toContain('L4')
+    expect(result.message).toContain('trunk-solo')
+  })
+
+  it('CRITICAL result includes a remediation hint', () => {
+    const result = validateCollaborationCoherence('trunk-solo', 'L4')
+    expect(result.remediation).toBeTruthy()
+    expect(result.remediation).toMatch(/peer-review|gated-review|L3/i)
+  })
+})
+
+// ── ⚠️ warning cells ─────────────────────────────────────────────────────────
+
+describe('validateCollaborationCoherence — warning cells', () => {
+  it('L3 + trunk-solo → valid but WARN (no human-approval gate active)', () => {
+    const result = validateCollaborationCoherence('trunk-solo', 'L3')
+    expect(result.valid).toBe(true)
+    expect(result.severity).toBe('WARN')
+    expect(result.message).toMatch(/human.?approval|no reviewer/i)
+  })
+
+  it('L1 + gated-review → valid but WARN (uncommon cell)', () => {
+    const result = validateCollaborationCoherence('gated-review', 'L1')
+    expect(result.valid).toBe(true)
+    expect(result.severity).toBe('WARN')
+  })
+
+  it('L4 + peer-review → valid but WARN (pr-ff mandatory override)', () => {
+    const result = validateCollaborationCoherence('peer-review', 'L4')
+    expect(result.valid).toBe(true)
+    expect(result.severity).toBe('WARN')
+    expect(result.message).toMatch(/pr-ff|merge mode/i)
+  })
+})
+
+// ── ✅ ideal cells ────────────────────────────────────────────────────────────
+
+describe('validateCollaborationCoherence — ideal cells (no warnings)', () => {
+  const idealCells: Array<[CollaborationMode, GovernanceLevel]> = [
+    ['trunk-solo', 'L1'],
+    ['trunk-solo', 'L2'],
+    ['peer-review', 'L1'],
+    ['peer-review', 'L2'],
+    ['peer-review', 'L3'],
+    ['gated-review', 'L2'],
+    ['gated-review', 'L3'],
+    ['gated-review', 'L4'],
+  ]
+
+  for (const [mode, level] of idealCells) {
+    it(`${mode} + ${level} → valid, no warning`, () => {
+      const result = validateCollaborationCoherence(mode, level)
+      expect(result.valid, `expected valid for ${mode}+${level}`).toBe(true)
+      expect(result.severity, `expected OK for ${mode}+${level}`).toBe('OK')
+    })
+  }
+})
+
+// ── full 4×3 matrix exhaustiveness ───────────────────────────────────────────
+
+describe('validateCollaborationCoherence — complete 12-cell matrix', () => {
+  const ALL_MODES: CollaborationMode[] = ['trunk-solo', 'peer-review', 'gated-review']
+  const ALL_LEVELS: GovernanceLevel[] = ['L1', 'L2', 'L3', 'L4']
+
+  it('returns a CoherenceResult for every (mode × level) cell', () => {
+    for (const mode of ALL_MODES) {
+      for (const level of ALL_LEVELS) {
+        const result = validateCollaborationCoherence(mode, level)
+        expect(result, `${mode}+${level}`).toBeDefined()
+        expect(['OK', 'WARN', 'CRITICAL'], `${mode}+${level}`).toContain(result.severity)
+        expect(typeof result.valid, `${mode}+${level}`).toBe('boolean')
+      }
+    }
+  })
+
+  it('only L4+trunk-solo produces CRITICAL', () => {
+    for (const mode of ALL_MODES) {
+      for (const level of ALL_LEVELS) {
+        const result = validateCollaborationCoherence(mode, level)
+        if (result.severity === 'CRITICAL') {
+          expect(mode).toBe('trunk-solo')
+          expect(level).toBe('L4')
+        }
+      }
+    }
+  })
+
+  it('CRITICAL cells are always invalid', () => {
+    for (const mode of ALL_MODES) {
+      for (const level of ALL_LEVELS) {
+        const result = validateCollaborationCoherence(mode, level)
+        if (result.severity === 'CRITICAL') {
+          expect(result.valid).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('OK and WARN cells are always valid', () => {
+    for (const mode of ALL_MODES) {
+      for (const level of ALL_LEVELS) {
+        const result = validateCollaborationCoherence(mode, level)
+        if (result.severity === 'OK' || result.severity === 'WARN') {
+          expect(result.valid).toBe(true)
+        }
+      }
+    }
+  })
+})
+
+// ── CoherenceResult shape ────────────────────────────────────────────────────
+
+describe('CoherenceResult interface', () => {
+  it('has required fields valid, severity, message', () => {
+    const result: CoherenceResult = validateCollaborationCoherence('peer-review', 'L2')
+    expect(typeof result.valid).toBe('boolean')
+    expect(typeof result.severity).toBe('string')
+    expect(typeof result.message).toBe('string')
+  })
+
+  it('remediation is present on CRITICAL results and absent on OK results', () => {
+    const critical = validateCollaborationCoherence('trunk-solo', 'L4')
+    expect(critical.remediation).toBeTruthy()
+
+    const ok = validateCollaborationCoherence('peer-review', 'L2')
+    expect(ok.remediation).toBeUndefined()
+  })
+})

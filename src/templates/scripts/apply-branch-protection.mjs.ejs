@@ -16,6 +16,18 @@ function gh(...args) {
   return result.stdout.trim()
 }
 
+function ghApi(endpoint, method, body) {
+  const input = JSON.stringify(body)
+  const result = spawnSync('gh', ['api', '--method', method, endpoint, '--input', '-'], {
+    input,
+    encoding: 'utf8',
+  })
+  if (result.status !== 0) {
+    console.error(`ERROR: gh api ${method} ${endpoint} failed — ${result.stderr?.trim() ?? ''}`)
+    process.exit(1)
+  }
+}
+
 const repo = gh('repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner')
 
 console.log(`Applying branch protection to ${repo} main branch...`)
@@ -34,17 +46,21 @@ const payload = JSON.stringify({
   restrictions: null,
   allow_force_pushes: false,
   allow_deletions: false,
+  required_linear_history: true,
 })
 
-const result = spawnSync(
-  'gh',
-  ['api', '--method', 'PUT', `repos/${repo}/branches/main/protection`, '--input', '-'],
-  { input: payload, stdio: ['pipe', 'inherit', 'inherit'], encoding: 'utf8' },
-)
+ghApi(`repos/${repo}/branches/main/protection`, 'PUT', JSON.parse(payload))
 
-if (result.status !== 0) {
-  console.error('ERROR: branch protection requires admin access — run as repo admin.')
-  process.exit(1)
-}
+// INV-101: disable squash-merge and rebase-merge to preserve cosign SHA attestations.
+// allow_merge_commit:true is required — GitHub 422s if all three methods are disabled.
+// These settings live on PATCH /repos/{owner}/{repo}, not on the branch protection endpoint.
+const repoSettings = JSON.stringify({
+  allow_merge_commit: true,
+  allow_squash_merge: false,
+  allow_rebase_merge: false,
+})
 
-console.log('Branch protection applied.')
+ghApi(`repos/${repo}`, 'PATCH', JSON.parse(repoSettings))
+
+console.log('Branch protection and merge settings applied.')
+console.log('  Merge method: ff-only (squash-merge=false, rebase-merge=false)')

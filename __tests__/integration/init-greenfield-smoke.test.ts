@@ -123,6 +123,30 @@ describe('greenfield smoke test — runInit produces valid arbiter.json (#1038)'
       result.ok ? '' : `errors: ${(result as { errors: string[] }).errors.join(', ')}`,
     ).toBe(true)
   })
+
+  // #1093 part 1: fresh `arbiter init` must persist the collaborationMode axis.
+  // Before the fix, buildArbiterConfig omitted the field and only `arbiter update`'s
+  // migration retro-fitted it — leaving the primary workflow axis unreachable for
+  // greenfield projects. This is RED on main (field absent) and green with the fix.
+  it('writes collaborationMode into generated arbiter.json (#1093)', async () => {
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    const raw = readArbiterJson(dir) as { collaborationMode?: unknown }
+    expect(
+      raw.collaborationMode,
+      'fresh init must persist collaborationMode, not leave it to the update migration',
+    ).toBeDefined()
+    expect(['trunk-solo', 'peer-review', 'gated-review']).toContain(raw.collaborationMode)
+    // Non-solo default resolves to peer-review (mirrors the branch-protection default).
+    expect(raw.collaborationMode).toBe('peer-review')
+  })
 })
 
 // ── Wizard→validator contract matrix ────────────────────────────────────────

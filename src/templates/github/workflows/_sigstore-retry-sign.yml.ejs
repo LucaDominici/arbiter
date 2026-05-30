@@ -31,11 +31,14 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   sign-with-retry:
     name: Sign artifact (cosign keyless, retry)
     if: github.event_name == 'workflow_call'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:
       id-token: write
       contents: read
@@ -76,7 +79,7 @@ jobs:
   resign-oci-image:
     name: Re-sign OCI image (manual dispatch, post-outage)
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:
       id-token: write
       contents: read

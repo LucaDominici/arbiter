@@ -15,12 +15,14 @@ import { detectFramework } from '../detectors/framework.js'
 import { detectExisting } from '../detectors/existing.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { detectGitInfo } from '../detectors/git.js'
+import { detectLanguageWithSource } from '../detectors/language.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import type { ProjectConfig, Language, GovernanceLevel } from '../wizard/types.js'
 
 export interface KitInstallOptions {
   targetDir: string
-  language: string
+  /** Project language. When omitted, auto-detected from the target repo (#1095). */
+  language?: string
   brownfieldClass: BrownfieldClass
   dryRun?: boolean
   emitIssues?: boolean
@@ -303,8 +305,14 @@ function writeAuditReport(
 export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstallResult> {
   const phases: PhaseResult[] = []
   try {
-    const arbiterConfig = loadConfig(opts.targetDir)
-    const config = buildProjectConfig(arbiterConfig, opts)
+    // #1095: when --language is omitted, auto-detect from the target repo instead
+    // of defaulting to a hardcoded stack. An explicit --language always wins.
+    const resolvedOpts: KitInstallOptions = {
+      ...opts,
+      language: opts.language ?? detectLanguageWithSource(opts.targetDir).language,
+    }
+    const arbiterConfig = loadConfig(resolvedOpts.targetDir)
+    const config = buildProjectConfig(arbiterConfig, resolvedOpts)
     if (config.hasDatabase && !config.databaseEngine) {
       // databaseEngine detection not yet implemented — requiresDbEngine dims will be marked NA (fail-closed, H4)
       process.stderr.write(
@@ -312,10 +320,10 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
       )
     }
 
-    phases.push(phaseDetect(opts))
+    phases.push(phaseDetect(resolvedOpts))
 
     const [measurePhase, measurements, applicabilityReasons] = await phaseMeasure(
-      opts,
+      resolvedOpts,
       arbiterConfig,
       config,
     )
@@ -328,7 +336,7 @@ export async function runKitInstall(opts: KitInstallOptions): Promise<KitInstall
         output: 'SCAFFOLD: no arbiter.json found — run arbiter init to generate scaffolding.',
       })
     } else {
-      const [scaffoldPhase, genErrors] = phaseScaffold(opts, config)
+      const [scaffoldPhase, genErrors] = phaseScaffold(resolvedOpts, config)
       phases.push(scaffoldPhase)
       scaffoldErrors = genErrors
     }

@@ -25,7 +25,20 @@ export interface WizardAnswers {
   decompositionBackend?: 'github' | 'markdown'
   /** Phase 9.5 ML: set only when hasPublicApi=true. Absent = default "none". */
   contractType?: ContractType
-  /** #470: solo-dev mode — skip PR CI, merge directly after local L2 gate passes. Default false. */
+  /**
+   * ADR-051: collaboration mode axis. Drives branching strategy, CI shape, and merge method.
+   * When absent, defaults to 'peer-review' (safe default). Overrides soloDevMode when both present.
+   */
+  collaborationMode?: CollaborationMode
+  /**
+   * ADR-051: branching strategy. When absent, derived from collaborationMode.
+   * Explicit value overrides the derived default.
+   */
+  branchingStrategy?: BranchingStrategy
+  /**
+   * #470: solo-dev mode — skip PR CI, merge directly after local L2 gate passes. Default false.
+   * @deprecated Use collaborationMode: 'trunk-solo' instead. Kept as alias for one minor version.
+   */
   soloDevMode?: boolean
   /** #1005: container registry / cloud deploy target. Absent = 'none'. */
   deployTarget?: DeployTarget
@@ -93,6 +106,29 @@ export interface LanguageHook {
   /** Hook body (Node.js ESM) */
   body: string
 }
+
+/**
+ * ADR-051: collaboration-mode axis — replaces soloDevMode/teamSize as the
+ * primary driver for branching, CI shape, and merge method.
+ * trunk-solo  = one author; direct push or opt-in pr-ff.
+ * peer-review = 1+ reviewers, shared trust; mandatory PR with ff-only merge.
+ * gated-review = CODEOWNERS, merge queue, attestation chain.
+ */
+export type CollaborationMode = 'trunk-solo' | 'peer-review' | 'gated-review'
+
+/**
+ * ADR-051: branching strategy driven by collaborationMode.
+ * trunk-direct            = push directly to main (no long-lived branches).
+ * github-flow             = feature branches → main only.
+ * github-flow-with-develop = feature branches → develop → main.
+ */
+export type BranchingStrategy = 'trunk-direct' | 'github-flow' | 'github-flow-with-develop'
+
+/** ADR-051: merge method for trunk-solo mode. */
+export type SoloMergeMode = 'direct' | 'pr-ff'
+
+/** ADR-051: whether /task auto-opens a worktree. */
+export type WorktreeAutoMode = 'always' | 'optional' | 'never'
 
 export type WorktreeLinkStrategy = 'symlink' | 'copy'
 
@@ -191,7 +227,32 @@ export interface ProjectConfig {
   enableEvidenceHarness?: boolean
   /** Whether to generate the A/B/C self-validation drill harness. Default true. */
   enableSelfValidationHarness?: boolean
-  /** Whether to enable solo-dev mode: skip PR CI ceremony, nightly drift shadow. Default false. */
+  /**
+   * ADR-051: collaboration mode axis. Primary driver for branching, CI shape, merge method.
+   * Absent = legacy mode (falls back to enableSoloDevMode → peer-review).
+   */
+  collaborationMode?: CollaborationMode
+  /**
+   * ADR-051: branching strategy. When absent, derived from collaborationMode defaults table.
+   * github-flow-with-develop gates `develop` branch references in CI templates.
+   */
+  branchingStrategy?: BranchingStrategy
+  /**
+   * ADR-051: worktree auto-open behavior for /task command.
+   * Derived from collaborationMode when absent.
+   */
+  tasks?: { worktree: WorktreeAutoMode }
+  /**
+   * ADR-051: trunk-solo merge method.
+   * 'direct' = git push --ff-only without PR.
+   * 'pr-ff'  = gh pr create + ff-only merge (audit trail preserved).
+   * Only meaningful when collaborationMode = 'trunk-solo'.
+   */
+  solo?: { mergeMode: SoloMergeMode }
+  /**
+   * Whether to enable solo-dev mode: skip PR CI ceremony, nightly drift shadow. Default false.
+   * @deprecated Use collaborationMode: 'trunk-solo' instead. Kept as alias for one minor version.
+   */
   enableSoloDevMode?: boolean
   /** Whether to generate the MCP fallback determinism rule (45-mcp-fallback.md). Default false (opt-in). */
   enableMcpFallback?: boolean

@@ -44,6 +44,15 @@ describe('01-pr-fast.yml.ejs rendering', () => {
     const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toContain('concurrency:')
     expect(rendered).toContain('group: pr-fast-${{ github.head_ref || github.ref }}')
+    // Default strategy (github-flow): no develop branch in cancel condition
+    expect(rendered).toMatch(/cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/)
+  })
+
+  it('includes develop in cancel-in-progress when branchingStrategy=github-flow-with-develop (#357)', () => {
+    const data = makeConfig('/tmp/test', {
+      branchingStrategy: 'github-flow-with-develop',
+    }) as unknown as Record<string, unknown>
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
     expect(rendered).toMatch(
       /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' && github\.ref != 'refs\/heads\/develop' \}\}/,
     )

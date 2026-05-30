@@ -1,0 +1,231 @@
+
+  Arbiter — update
+
+  Detecting project...
+  ├── Language: typescript / express
+  ├── Config: tools=[claude,codex] level=L3
+
+  Updating...
+  No config changes detected — re-running to pick up template updates.
+  ├── AGENTS.md (backed up + replaced)
+  ├── GLOBAL_INVARIANTS.md (backed up + replaced)
+  ├── .claude/CLAUDE.md (backed up + replaced)
+  ├── .claude/settings.json (backed up + replaced)
+  │   .claude/hooks/hooks.mjs (skipped — already exists)
+  │   .claude/hooks/stop-dangerous.mjs (skipped — already exists)
+  │   .claude/hooks/enforce-read-only.mjs (skipped — already exists)
+  │   .claude/hooks/pre-edit-ssot-guard.mjs (skipped — already exists)
+  │   .claude/hooks/check-no-orphan-todo.mjs (skipped — already exists)
+  │   .claude/hooks/check-no-placeholders.mjs (skipped — already exists)
+  │   .claude/hooks/enforce-gate-before-pr.mjs (skipped — already exists)
+  │   .claude/hooks/lib.mjs (skipped — already exists)
+  │   .claude/hooks/post-commit-check.mjs (skipped — already exists)
+  │   .claude/hooks/pre-task-track-detect.mjs (skipped — already exists)
+  │   .claude/hooks/check-no-unused-exports.mjs (skipped — already exists)
+  │   .claude/hooks/check-no-skipped-tests.mjs (skipped — already exists)
+  │   .claude/hooks/check-no-any.mjs (skipped — already exists)
+  │   .claude/hooks/pre-edit-plan-anchor.mjs (skipped — already exists)
+  │   .claude/hooks/pre-compact.mjs (skipped — already exists)
+  │   .claude/hooks/post-edit-dispatch.mjs (skipped — already exists)
+  │   .claude/hooks/debug-state-on-failure.mjs (skipped — already exists)
+  │   .claude/hooks/skill-forced-eval.mjs (skipped — already exists)
+  │   .claude/hooks/guard-task-completion.mjs (skipped — already exists)
+  │   .claude/hooks/check-circular-deps.mjs (skipped — already exists)
+  │   .claude/rules/05-agent-lifecycle.md (skipped — already exists)
+  │   .claude/rules/25-todo-folder-policy.md (skipped — already exists)
+  │   .claude/rules/40-context-economy.md (skipped — already exists)
+  │   .claude/rules/50-batch-execution.md (skipped — already exists)
+  │   .claude/rules/90-exec-protocol.md (skipped — already exists)
+  │   .claude/commands/task.md (skipped — already exists)
+  │   .claude/commands/wt-open.md (skipped — already exists)
+  │   .claude/commands/wt-close.md (skipped — already exists)
+  │   .claude/commands/wt-list.md (skipped — already exists)
+  │   .claude/commands/wt-prune.md (skipped — already exists)
+  │   .claude/commands/review-plan.md (skipped — already exists)
+  │   .claude/commands/review-code.md (skipped — already exists)
+  │   .claude/knowledge-map.json (skipped — already exists)
+  ├── .agents/CODEX.md (backed up + replaced)
+  │   .agents/rules/05-agent-lifecycle.md (skipped — already exists)
+  │   .agents/rules/25-todo-folder-policy.md (skipped — already exists)
+  │   .agents/rules/90-exec-protocol.md (skipped — already exists)
+  │   .agents/plan/README.md (skipped — already exists)
+  ├── .codex/config.toml (backed up + replaced)
+  │   .codex/codex-adapter.mjs (skipped — already exists)
+  │   .claude/skills/tdd/SKILL.md (skipped — already exists)
+  │   .claude/skills/verification/SKILL.md (skipped — already exists)
+  │   .claude/skills/architect-review/SKILL.md (skipped — already exists)
+  │   .claude/skills/clean-code/SKILL.md (skipped — already exists)
+  │   .claude/skills/understand-code/SKILL.md (skipped — already exists)
+  │   .claude/skills/codebase-audit/SKILL.md (skipped — already exists)
+  │   .claude/skills/epic-decompose/SKILL.md (skipped — already exists)
+  │   .claude/skills/configure/SKILL.md (skipped — already exists)
+  │   .claude/agents/codebase-scanner.md (skipped — already exists)
+  │   .claude/agents/red-team.md (skipped — already exists)
+  │   .claude/agents/context-checker.md (skipped — already exists)
+  │   .claude/agents/bridge-reviewer.md (skipped — already exists)
+  ├── .github/workflows/01-pr-fast.yml
+  ├── .github/workflows/02-pr-extended.yml
+  ├── .github/workflows/03-human-approval.yml
+  ├── .github/workflows/05-release.yml
+  ├── .github/workflows/_sigstore-retry-sign.yml
+  ├── .github/workflows/06-nightly.yml
+  ├── .github/workflows/07-weekly.yml
+  ├── .github/workflows/08-monthly.yml
+  ├── .github/workflows/09-heartbeat.yml
+  │   .github/workflows/_label-on-approve.yml (skipped — already exists)
+  │   .github/workflows/_ai-draft-check.yml (skipped — already exists)
+  │   .github/workflows/_pr-staleness.yml (skipped — already exists)
+  │   .github/PULL_REQUEST_TEMPLATE.md (skipped — already exists)
+  │   .github/ISSUE_TEMPLATE/task-brief.yml (skipped — already exists)
+  │   .github/ISSUE_TEMPLATE/bug-report.yml (skipped — already exists)
+  │   .github/ISSUE_TEMPLATE/feature-request.yml (skipped — already exists)
+  │   .github/ISSUE_TEMPLATE/epic.yml (skipped — already exists)
+  │   .github/ISSUE_TEMPLATE/config.yml (skipped — already exists)
+  │   .github/ISSUE_TEMPLATE/compliance-item.yml (skipped — already exists)
+  │   .github/workflows/issue-state.yml (skipped — already exists)
+  │   .github/dependabot.yml (skipped — already exists)
+  ├── .github/actions/sign-and-attest/action.yml
+  ├── .github/CODEOWNERS
+  │   SECURITY.md (skipped — already exists)
+  │   CONTRIBUTING.md (skipped — already exists)
+  │   .editorconfig (skipped — already exists)
+  │   tsconfig.json (skipped — already exists)
+  │   commitlint.config.js (skipped — already exists)
+  │   scripts/check-all.mjs (skipped — already exists)
+  │   scripts/lib/run-helpers.mjs (skipped — already exists)
+  │   scripts/lib/ephemeral-server.mjs (skipped — already exists)
+  │   scripts/check-docs.mjs (skipped — already exists)
+  │   knip.json (skipped — already exists)
+  │   .eslintrc-static.json (skipped — already exists)
+  │   .prettierrc.json (skipped — already exists)
+  │   .dependency-cruiser.cjs (skipped — already exists)
+  ├── scripts/debt-lib.mjs (backed up + replaced)
+  ├── scripts/capture-debt-baseline.mjs (backed up + replaced)
+  ├── scripts/debt-report.mjs (backed up + replaced)
+  │   vitest.config.ts (skipped — already exists)
+  ├── scripts/check-inline-suppressions.mjs
+  │   suppressions/dependency-check-suppressions.xml (skipped — already exists)
+  │   suppressions/.gitleaksignore (skipped — already exists)
+  │   suppressions/pii-allowlist.json (skipped — already exists)
+  ├── suppressions/suppressions-schema.json
+  ├── scripts/check-suppressions.mjs
+  ├── scripts/pii-scan.mjs
+  │   .gitleaks.toml (skipped — already exists)
+  │   .claude/hooks/check-no-pii.mjs (skipped — already exists)
+  │   .zap/rules.tsv (skipped — already exists)
+  │   .zap/baseline-auth.context (skipped — already exists)
+  ├── scripts/ingest-zap-report.mjs
+  │   docs/SECURITY/STRIDE.md (skipped — already exists)
+  │   docs/GOVERNANCE/RACI.md (skipped — already exists)
+  ├── scripts/check-stride-traceability.mjs
+  │   .githooks/pre-commit (skipped — already exists)
+  │   .githooks/pre-push (skipped — already exists)
+  │   .githooks/commit-msg (skipped — already exists)
+  │   scripts/setup-repo.sh (skipped — already exists)
+  ├── scripts/apply-branch-protection.mjs
+  ├── scripts/check-ci-tiers.mjs
+  ├── scripts/check-action-pins.mjs
+  ├── scripts/check-workflow-perms.mjs
+  │   docs/adr/ADR-000_template.md (skipped — already exists)
+  │   docs/SECURE_CODING_CHECKLIST.md (skipped — already exists)
+  │   docs/CODING_STANDARDS.md (skipped — already exists)
+  │   docs/MASTER_TEST_PLAN.md (skipped — already exists)
+  │   docs/testing/POST_MERGE_REVIEW_TEMPLATE.md (skipped — already exists)
+  │   docs/SECURITY/ISO27001_ANNEX_A.md (skipped — already exists)
+  │   docs/COMMANDS.md (skipped — already exists)
+  │   docs/runbooks/rollback.md (skipped — already exists)
+  │   docs/runbooks/troubleshooting.md (skipped — already exists)
+  │   docs/runbooks/prod-checklist.md (skipped — already exists)
+  │   docs/runbooks/deployment.md (skipped — already exists)
+  │   docs/security/STRIDE.md (skipped — already exists)
+  │   docs/security/RISK_ASSESSMENT.md (skipped — already exists)
+  │   sonar-project.properties (skipped — already exists)
+  │   src/middleware/deprecation.ts (skipped — already exists)
+  │   src/middleware/410-gone-handler.ts (skipped — already exists)
+  │   src/middleware/error-handler.ts (skipped — already exists)
+  │   src/middleware/correlation-id.ts (skipped — already exists)
+  │   src/middleware/payload-size-limit.ts (skipped — already exists)
+  │   __tests__/contract/error-shape.contract.test.ts (skipped — already exists)
+  │   scripts/seed-test-data.sh (skipped — already exists)
+  │   scripts/lib/seed-common.sh (skipped — already exists)
+  │   scripts/self-validation.mjs (skipped — already exists)
+  │   scripts/check-exit-code-contract.mjs (skipped — already exists)
+  │   scripts/check-pipe-tee-hazard.mjs (skipped — already exists)
+  │   scripts/audit-toolchain.mjs (skipped — already exists)
+  │   .eslintrc-boundaries.cjs (skipped — already exists)
+  │   scripts/check-boundaries.mjs (skipped — already exists)
+  │   stryker.conf.json (skipped — already exists)
+  ├── .github/workflows/_notify.yml
+  ├── .github/workflows/_label-sync.yml
+  ├── .github/labels.yml
+  ├── .github/actions/setup-node-pnpm/action.yml
+  │   Makefile (skipped — already exists)
+  │   run.sh (skipped — already exists)
+  │   .env.example (skipped — already exists)
+  │   src/test/test-setup.ts (skipped — already exists)
+  │   .eslintrc-no-fake-db.json (skipped — already exists)
+  │   CONTRACTS_POLICY.md (skipped — already exists)
+  │   .env.pact (skipped — already exists)
+  │   pacts/.gitkeep (skipped — already exists)
+  │   src/test/contracts/pact-consumer.test.ts (skipped — already exists)
+  │   docs/TEST_TAXONOMY.md (skipped — already exists)
+  │   src/test/example.behavioral.test.ts (skipped — already exists)
+  │   features/step_definitions/example.steps.ts (skipped — already exists)
+  │   features/example.feature (skipped — already exists)
+  │   docs/TESTING_POLICY.md (skipped — already exists)
+  ├── scripts/check-test-naming.mjs
+  │   tests/e2e/a11y/run-axe.ts (skipped — already exists)
+  │   tests/e2e/a11y.spec.ts (skipped — already exists)
+  ├── docs/METHOD/SSOT_CORE_SET.md (backed up + replaced)
+  │   docs/METHOD/KNOWLEDGE_MAP.md (skipped — already exists)
+  ├── docs/METHOD/ENGINEERING_DEFAULTS.md (backed up + replaced)
+  │   docs/METHOD/CANONICAL_PATHS.md (skipped — already exists)
+  │   scripts/check-ssot-core.mjs (skipped — already exists)
+  │   scripts/check-doc-links.mjs (skipped — already exists)
+  │   scripts/check-knowledge-map.mjs (skipped — already exists)
+  │   scripts/check-canonical-paths.mjs (skipped — already exists)
+  │   scripts/knowledge-map-update.mjs (skipped — already exists)
+  │   scripts/harness.mjs (skipped — already exists)
+
+  Done! 1 created, 11 updated, 142 skipped.
+
+  GitHub setup...
+  ├── Provisioning labels...
+  │   Error: list labels failed: Command failed (exit 1): gh label list -R LucaDominici/haben --limit 1000 --json name
+GraphQL: Could not resolve to a Repository with the name 'LucaDominici/haben'. (repository)
+  │   Error: bug: Command failed (exit 1): gh label create bug -R LucaDominici/haben --color d73a4a --description Something isn't working
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: feature: Command failed (exit 1): gh label create feature -R LucaDominici/haben --color a2eeef --description New feature or request
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: task: Command failed (exit 1): gh label create task -R LucaDominici/haben --color 0075ca --description Implementation task
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: docs: Command failed (exit 1): gh label create docs -R LucaDominici/haben --color 0075ca --description Documentation only
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: refactor: Command failed (exit 1): gh label create refactor -R LucaDominici/haben --color e4e669 --description Code refactoring
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: test: Command failed (exit 1): gh label create test -R LucaDominici/haben --color fbca04 --description Test additions or fixes
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: ci: Command failed (exit 1): gh label create ci -R LucaDominici/haben --color bfd4f2 --description CI/CD changes
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: deps: Command failed (exit 1): gh label create deps -R LucaDominici/haben --color 0366d6 --description Dependency updates
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: priority/P0: Command failed (exit 1): gh label create priority/P0 -R LucaDominici/haben --color b60205 --description Critical — drop everything
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: priority/P1: Command failed (exit 1): gh label create priority/P1 -R LucaDominici/haben --color ff9f1c --description High — next up
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: priority/P2: Command failed (exit 1): gh label create priority/P2 -R LucaDominici/haben --color fbca04 --description Normal — in backlog
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: size:XS: Command failed (exit 1): gh label create size:XS -R LucaDominici/haben --color c2e0c6 --description Tiny task — single file, minimal plan, 3 review agents
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: size:S: Command failed (exit 1): gh label create size:S -R LucaDominici/haben --color fef2c0 --description Small task — 2–5 files, brief plan, 3 review agents
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  │   Error: size:Standard: Command failed (exit 1): gh label create size:Standard -R LucaDominici/haben --color fbca04 --description Standard task — multi-file, full plan, 5 review agents
+HTTP 404: Not Found (https://api.github.com/repos/LucaDominici/haben/labels)
+  ├── Applying branch protection to main...
+  │   Skipped (requires admin access): Command failed (exit 1): gh api repos/LucaDominici/haben/branches/main/protection --method PUT --input -
+gh: Not Found (HTTP 404)
+  └── Creating project board...
+      Project board created: https://github.com/users/LucaDominici/projects/153
+
+  Run: node scripts/check-all.mjs L1  to verify
+

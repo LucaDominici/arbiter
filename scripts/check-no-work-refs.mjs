@@ -20,7 +20,7 @@ const FORBIDDEN = [
   /\bms5\b/i,
   /cloud\.ms5/i,
   /\bcmms\b/i,
-  /cowork\s*os/i,
+  /\bcowork\b/i,
   /ci-fleet/i,
 ]
 
@@ -39,7 +39,17 @@ const SCAN_EXTENSIONS = new Set([
   '.toml',
 ])
 
-const SKIP_PATHS = ['scripts/check-no-work-refs.mjs', '.claude/']
+// Skip only the enforcement infrastructure that legitimately contains the
+// forbidden tokens by design: this gate's own pattern list, the redaction
+// lexicon, and the redaction unit-test fixtures. Everything else — including
+// .arbiter/ manager scratchpad + audit history — is in scope (the gate runs in
+// `all` mode from check-all.mjs, so already-committed leaks are caught too).
+const SKIP_PATHS = [
+  'scripts/check-no-work-refs.mjs',
+  'scripts/data/redaction-lexicon.json',
+  '__tests__/kit/redaction.test.ts',
+  '.claude/',
+]
 
 function shouldScan(filePath) {
   const lower = filePath.toLowerCase()

@@ -125,14 +125,29 @@ describe('generateStrideEnforcement', () => {
     expect(readFileSync(raciPath, 'utf-8')).toBe('EXISTING')
   })
 
-  it('check-stride-traceability.mjs always regenerated (not skipIfExists)', () => {
+  it('check-stride-traceability.mjs is regenerated (replaced, not skipIfExists) when content differs', () => {
+    // check-stride-traceability.mjs is a non-skipIfExists, non-backup managed
+    // script: it is overwritten (replaced) when content differs. (#1077: a
+    // byte-identical re-run now skips — see the idempotence test below — so this
+    // asserts the DIFFERING branch.)
     const result1 = generateStrideEnforcement(makeConfig(dir))
     const script1 = result1.files.find((f) => f.path.endsWith('check-stride-traceability.mjs'))
     expect(script1?.action).toBe('created')
 
+    writeFileSync(script1!.path, '// user-edited\n', 'utf-8')
     const result2 = generateStrideEnforcement(makeConfig(dir))
     const script2 = result2.files.find((f) => f.path.endsWith('check-stride-traceability.mjs'))
     expect(script2?.action).not.toBe('skipped')
+    expect(script2?.action).toBe('replaced')
+  })
+
+  it('check-stride-traceability.mjs skips a byte-identical re-run (#1077 F6 idempotence)', () => {
+    const result1 = generateStrideEnforcement(makeConfig(dir))
+    const path = result1.files.find((f) => f.path.endsWith('check-stride-traceability.mjs'))!.path
+    const result2 = generateStrideEnforcement(makeConfig(dir))
+    const script2 = result2.files.find((f) => f.path.endsWith('check-stride-traceability.mjs'))
+    expect(script2?.action).toBe('skipped')
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(false)
   })
 
   it('includes project name in generated files', () => {

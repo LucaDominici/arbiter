@@ -18,7 +18,7 @@ jobs:
 
   dep-freshness:
     name: Dependency freshness report
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -33,11 +33,11 @@ jobs:
 
   perf-trend:
     name: k6 performance trend
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: k6 performance smoke vs 7-day baseline
-        uses: grafana/k6-action@v0.3.1
+        uses: grafana/k6-action@e4714b734f2b0afaabeb7b4a69142745548ab9ec  # v0.3.1
         with:
           filename: k6/perf-trend.js
           flags: '--duration=120s'
@@ -45,7 +45,7 @@ jobs:
 
   action-version-audit:
     name: Stale action pin audit
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Find SHA-pinned actions older than 180 days
@@ -81,7 +81,7 @@ jobs:
 
 
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Weekly gate summary
         run: |

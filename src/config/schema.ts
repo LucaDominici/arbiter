@@ -4,6 +4,7 @@ import type {
   Archetype,
   ArchitectureStyle,
   AuthConfig,
+  CollaborationMode,
   ContractType,
   EvidenceRetentionConfig,
   GovernanceLevel,
@@ -121,6 +122,8 @@ export interface ArbiterConfigV2 {
   kit?: {
     measure: Record<string, { status: 'present' | 'partial' | 'missing'; evidence: string[] }>
   }
+  /** ADR-051: collaboration-mode axis. Absent = inferred from features.soloDevMode or defaults to 'peer-review'. */
+  collaborationMode?: CollaborationMode
 }
 
 export interface GovernanceConfig {

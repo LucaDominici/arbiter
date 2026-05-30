@@ -16,7 +16,7 @@ concurrency:
 jobs:
   dep-age-audit:
     name: Dependency age audit (>180 days)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -32,12 +32,12 @@ jobs:
           npx --yes npm-check-updates --jsonAll > dep-age-report.json || true
           echo "Dep age report generated."
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
         with:
           distribution: temurin
           java-version: '21'
 <% if (buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d  # v4
       - name: gradle dependencyUpdates report
         run: ./gradlew dependencyUpdates -Drevision=release || true
 <% } else { %>
@@ -45,13 +45,13 @@ jobs:
         run: mvn versions:display-dependency-updates -DprocessDependencyManagement=true || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0  # v5
         with:
           go-version-file: go.mod
       - name: go list -u -m all
         run: go list -u -m all > dep-age-report.txt || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca  # v5
         with:
           python-version-file: .python-version
       - run: pip install pip-outdated
@@ -59,7 +59,7 @@ jobs:
         run: pip list --outdated --format=json > dep-age-report.json || true
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd  # branch:stable @ 2026-05-24
       - name: cargo outdated report
         run: |
           cargo install cargo-outdated --locked
@@ -74,7 +74,7 @@ jobs:
 
   license-full-audit:
     name: Full license compliance scan
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
@@ -86,12 +86,12 @@ jobs:
       - name: license-checker full report
         run: npx --yes license-checker --json --out license-report.json
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
         with:
           distribution: temurin
           java-version: '21'
 <% if (buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d  # v4
       - name: gradle license report
         run: ./gradlew licenseReport || true
 <% } else { %>
@@ -99,7 +99,7 @@ jobs:
         run: mvn license:aggregate-third-party-report || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0  # v5
         with:
           go-version-file: go.mod
       - name: go-licenses full report
@@ -107,7 +107,7 @@ jobs:
           go install github.com/google/go-licenses@latest
           go-licenses report ./... > license-report.csv || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca  # v5
         with:
           python-version-file: .python-version
       - run: pip install pip-licenses
@@ -115,7 +115,7 @@ jobs:
         run: pip-licenses --format=json --output-file=license-report.json
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd  # branch:stable @ 2026-05-24
       - name: cargo-deny licenses full audit
         run: |
           cargo install cargo-deny --locked
@@ -130,7 +130,7 @@ jobs:
 
   action-pins-stale-audit:
     name: GitHub Actions SHA pin staleness (>180d)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:
       contents: read
     steps:
@@ -171,7 +171,7 @@ jobs:
 
   sbom-archive:
     name: SBOM full snapshot
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
@@ -183,12 +183,12 @@ jobs:
       - name: npm sbom (CycloneDX)
         run: npm sbom --sbom-format=cyclonedx > sbom.cdx.json
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
         with:
           distribution: temurin
           java-version: '21'
 <% if (buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d  # v4
       - name: gradle CycloneDX SBOM
         run: ./gradlew cyclonedxBom || true
 <% } else { %>
@@ -196,16 +196,16 @@ jobs:
         run: mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0  # v5
         with:
           go-version-file: go.mod
       - name: syft SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@f6c3d0fe42c3cf876e3462574e4c9416b5e0f07a  # v0.9.0
         with:
           format: cyclonedx-json
           output-file: sbom.cdx.json
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca  # v5
         with:
           python-version-file: .python-version
       - run: pip install cyclonedx-bom
@@ -213,7 +213,7 @@ jobs:
         run: cyclonedx-py environment -o sbom.cdx.json || true
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd  # branch:stable @ 2026-05-24
       - name: cargo-cyclonedx SBOM
         run: |
           cargo install cargo-cyclonedx --locked
@@ -234,7 +234,7 @@ jobs:
       - action-pins-stale-audit
       - sbom-archive
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Collect evidence summary
@@ -257,7 +257,7 @@ jobs:
       - action-pins-stale-audit
       - sbom-archive
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Assert all jobs succeeded
         run: |

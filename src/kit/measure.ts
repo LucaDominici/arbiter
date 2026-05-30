@@ -453,6 +453,8 @@ const DIM_HANDLERS: Partial<Record<string, (repoRoot: string) => MeasureResult>>
       'stryker.config.ts',
       'stryker.config.mjs',
       'stryker.config.cjs',
+      'stryker.config.json',
+      'stryker.conf.json',
       '.mutmut.toml',
     ])
     if (fromFile.status === 'present') return fromFile

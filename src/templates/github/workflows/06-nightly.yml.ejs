@@ -19,7 +19,7 @@ concurrency:
 jobs:
   mutation-deep:
     name: Deep mutation testing
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -74,11 +74,11 @@ jobs:
 <% if (!_isService) { %>
     if: false
 <% } %>
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: ZAP full scan
-        uses: zaproxy/action-full-scan@v0.10.0
+        uses: zaproxy/action-full-scan@d479641f7e99facb91d7738171b3448e3f3c7bba  # v0.10.0
         with:
           target: 'http://localhost:8080'
           fail_action: false
@@ -86,7 +86,7 @@ jobs:
 
   dep-cve-refresh:
     name: Dependency CVE refresh
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
@@ -107,7 +107,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
+        uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c  # main @ 2026-05-28
         with:
           project: '${{ github.repository }}'
           path: '.'
@@ -118,7 +118,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: govulncheck
-        uses: golang/govulncheck-action@v1
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee  # v1
 <% } else if (language === 'python') { %>
       - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         with:
@@ -137,7 +137,7 @@ jobs:
 
   fuzz:
     name: Fuzz testing
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -204,7 +204,7 @@ jobs:
 
   soak-e2e:
     name: Soak / E2E full suite
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -255,7 +255,7 @@ jobs:
 <% if (locals.enableNativeBakeE2E) { %>
   bake-e2e-native:
     name: Native fixture smoke (${{ matrix.stack }})
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -313,7 +313,7 @@ jobs:
 <% if (_isService) { %>
   toxiproxy-resilience:
     name: Toxiproxy resilience (service only)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
@@ -341,7 +341,18 @@ jobs:
         uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd # branch:stable @ 2026-05-24
 <% } %>
       - name: Start Toxiproxy
-        uses: shopify/toxiproxy-github-action@v1
+        # #1086: the upstream Toxiproxy GitHub Action was deleted (repo 404s), so
+        # the action reference failed at runtime. Pin + run the official
+        # toxiproxy-server release binary directly instead.
+        run: |
+          curl -fsSL https://github.com/Shopify/toxiproxy/releases/download/v2.12.0/toxiproxy-server-linux-amd64 \
+            -o /usr/local/bin/toxiproxy-server
+          chmod +x /usr/local/bin/toxiproxy-server
+          /usr/local/bin/toxiproxy-server &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8474/version && break
+            sleep 1
+          done
       - name: DB stall + network partition resilience test
         run: |
 <% if (language === 'typescript') { %>
@@ -361,13 +372,13 @@ jobs:
 <% } %>
   gitleaks-history:
     name: Secret scan (full history)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Gitleaks full history scan
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -385,7 +396,7 @@ jobs:
       - bake-e2e-native
 <% } %>
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Collect evidence summary
@@ -414,7 +425,7 @@ jobs:
       - bake-e2e-native
 <% } %>
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Assert no hard failures
         run: |
