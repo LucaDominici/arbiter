@@ -64,6 +64,10 @@ report/
 /src/test/java/
 /src/test/resources/
 /suppressions/owasp-suppressions.xml
+# dogfood-generated target artifacts (arbiter self-run) — see #1088
+/suppressions/.trivyignore
+/.env.example
+/scripts/setup-hooks.sh
 
 # Private maintainer docs (enforcement runbooks, internal notes)
 docs/internal/
