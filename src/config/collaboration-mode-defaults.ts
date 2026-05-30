@@ -16,6 +16,7 @@ import type {
   WorktreeAutoMode,
   GovernanceLevel,
   WizardAnswers,
+  ProjectConfig,
 } from '../wizard/types.js'
 
 // ── Pipeline style table: (collaborationMode × governanceLevel) ──────────────
@@ -103,4 +104,49 @@ export function collaborationModeFromAnswers(answers: Partial<WizardAnswers>): C
   // eslint-disable-next-line @typescript-eslint/no-deprecated
   if (answers.soloDevMode === true) return 'trunk-solo'
   return 'peer-review'
+}
+
+/**
+ * Canonical resolver for collaborationMode from a ProjectConfig.
+ * Precedence: explicit collaborationMode > soloDevMode alias > default 'peer-review'.
+ * ADR-051 (#1119): SINGLE derivation site — all callers (init, update/diff, branch-
+ * protection, generators) delegate here. Eliminates the ≥3 duplicated fallback chains.
+ */
+export function resolveCollaborationMode(config: {
+  collaborationMode?: CollaborationMode
+  enableSoloDevMode?: boolean
+}): CollaborationMode {
+  if (config.collaborationMode !== undefined) return config.collaborationMode
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- back-compat alias
+  return config.enableSoloDevMode === true ? 'trunk-solo' : 'peer-review'
+}
+
+/** The full derived axis bundle resolved from a ProjectConfig. */
+export interface CollaborationAxes {
+  collaborationMode: CollaborationMode
+  mergeMode: SoloMergeMode
+  worktreeMode: WorktreeAutoMode
+  branchingStrategy: BranchingStrategy
+  pipelineStyle: PipelineStyle
+}
+
+/**
+ * Resolve the full collaboration-mode axis bundle from a ProjectConfig.
+ * Explicit overrides take precedence; absent fields are derived from the resolver tables.
+ *
+ * Design invariant (ADR-051 §#1119): only collaborationMode + user overrides
+ * (solo.mergeMode, branchingStrategy) are persisted in arbiter.json; the rest is
+ * always re-derived here at render time so init and update produce identical output.
+ */
+export function resolveCollaborationAxes(config: ProjectConfig): CollaborationAxes {
+  const collaborationMode = resolveCollaborationMode(config)
+  return {
+    collaborationMode,
+    mergeMode: config.solo?.mergeMode ?? resolveDefaultMergeMode(collaborationMode),
+    worktreeMode: config.tasks?.worktree ?? resolveDefaultWorktreeMode(collaborationMode),
+    branchingStrategy:
+      config.branchingStrategy ?? resolveDefaultBranchingStrategy(collaborationMode),
+    pipelineStyle:
+      config.pipelineStyle ?? resolvePipelineStyle(collaborationMode, config.governanceLevel),
+  }
 }

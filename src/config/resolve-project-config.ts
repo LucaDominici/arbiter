@@ -19,7 +19,7 @@ import { detectExisting } from '../detectors/existing.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { resolveAxisFields } from '../detectors/axis.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
-import { collaborationModeFromAnswers } from './collaboration-mode-defaults.js'
+import { resolveCollaborationMode } from './collaboration-mode-defaults.js'
 import type { ProjectConfig, Lane } from '../wizard/types.js'
 import type { ArbiterConfigV2 } from '../utils/config.js'
 
@@ -79,11 +79,22 @@ function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFiel
     enableEvidenceHarness: stored.features.evidenceHarness,
     enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
     enableSoloDevMode: stored.features.soloDevMode ?? false,
-    collaborationMode:
-      stored.collaborationMode ??
-      collaborationModeFromAnswers(
-        stored.features.soloDevMode === true ? { soloDevMode: true } : {},
-      ),
+    // ADR-051 (#1119): use canonical resolver — honours stored.collaborationMode first,
+    // then soloDevMode alias, then defaults to 'peer-review'. Replaces inline derivation.
+    collaborationMode: resolveCollaborationMode({
+      ...(stored.collaborationMode !== undefined
+        ? { collaborationMode: stored.collaborationMode }
+        : {}),
+      ...(stored.features.soloDevMode !== undefined
+        ? { enableSoloDevMode: stored.features.soloDevMode }
+        : {}),
+    }),
+    // Map persisted overrides from arbiter.json into ProjectConfig so resolveCollaborationAxes
+    // can honour them when building the template render context.
+    ...(stored.solo !== undefined ? { solo: stored.solo } : {}),
+    ...(stored.branchingStrategy !== undefined
+      ? { branchingStrategy: stored.branchingStrategy }
+      : {}),
     invariantTiers: stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(level)),
     acceptBetaTools: stored.acceptBetaTools ?? false,
     ...(stored.evidenceRetention !== undefined && {

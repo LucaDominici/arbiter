@@ -2,7 +2,12 @@
 import { resolve, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'
-import { validateConfig } from '../config/schema.js'
+import {
+  validateConfig,
+  VALID_COLLABORATION_MODES,
+  VALID_SOLO_MERGE_MODES,
+  VALID_BRANCHING_STRATEGIES,
+} from '../config/schema.js'
 import { acquireLock } from '../utils/file-lock.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { deriveAxisDefaults } from '../detectors/axis.js'
@@ -26,6 +31,8 @@ const ALLOWED_PATHS = new Set([
   'features.suppressions',
   'features.soloDevMode',
   'collaborationMode',
+  'solo.mergeMode',
+  'branchingStrategy',
   'thresholds.lineCoverage',
   'thresholds.branchCoverage',
   'thresholds.mutationScore',
@@ -186,6 +193,40 @@ function parseValue(path: string, raw: string): unknown {
     return toolList
   }
   if (AXIS_PATHS.has(path)) return parseAxisValue(path, raw)
+  // ADR-051 (#1119): enum-validate collaboration-mode axis paths.
+  const COLLAB_PATHS = new Set(['collaborationMode', 'solo.mergeMode', 'branchingStrategy'])
+  if (COLLAB_PATHS.has(path)) return parseCollaborationAxisValue(path, raw)
+  return raw
+}
+
+/**
+ * ADR-051 (#1119): enum-validate collaboration-mode settable paths.
+ * Extracted from parseValue to keep it below the 100-line / complexity-15 limits.
+ */
+function parseCollaborationAxisValue(path: string, raw: string): string {
+  const SPECS: Record<string, { valid: ReadonlySet<string>; hint: string }> = {
+    collaborationMode: {
+      valid: VALID_COLLABORATION_MODES,
+      hint: 'Valid values: trunk-solo, peer-review, gated-review. Example: `arbiter configure --set collaborationMode=peer-review`.',
+    },
+    'solo.mergeMode': {
+      valid: VALID_SOLO_MERGE_MODES,
+      hint: 'Valid values: direct, pr-ff. Example: `arbiter configure --set solo.mergeMode=pr-ff`.',
+    },
+    branchingStrategy: {
+      valid: VALID_BRANCHING_STRATEGIES,
+      hint: 'Valid values: trunk-direct, github-flow, github-flow-with-develop.',
+    },
+  }
+  const spec = SPECS[path]
+  if (spec !== undefined && !spec.valid.has(raw)) {
+    throw ArbiterError.fromKey(
+      'E_INVALID_ARCHETYPE',
+      'errors.E_INVALID_ARCHETYPE',
+      { field: path, value: raw, valid: [...spec.valid].join(', ') },
+      { hint: spec.hint },
+    )
+  }
   return raw
 }
 

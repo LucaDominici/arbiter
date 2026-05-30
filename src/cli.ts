@@ -401,6 +401,11 @@ program
     'Override observability provider (used with --preset or standalone)',
   )
   .option('--github', 'Activate GitHub API calls and set permitGitHub:true in stored config', false)
+  .option(
+    '--solo',
+    'Set collaborationMode=trunk-solo (direct-merge, minimal CI). Shorthand for ADR-051 trunk-solo mode.',
+    false,
+  )
   .option('--recipe <path>', 'Path or https:// URL to a recipe JSON file for pre-configured init')
   .option('--recipe-sha256 <hash>', 'Expected SHA-256 hex digest of the recipe file')
   .action(
@@ -416,6 +421,7 @@ program
       verify: boolean
       acceptBetaTools: boolean
       github: boolean
+      solo: boolean
       backend?: string
       json: boolean
       quiet: boolean
@@ -438,6 +444,7 @@ program
         noVerify: !opts.verify,
         acceptBetaTools: opts.acceptBetaTools,
         github: opts.github,
+        ...(opts.solo ? { solo: true as const } : {}),
         ...(backend !== undefined ? { backend } : {}),
         json: opts.json,
         quiet: opts.quiet,

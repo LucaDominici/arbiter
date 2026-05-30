@@ -361,8 +361,11 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
       'none',
     enableEvidenceHarness: answers.governanceLevel === 'L4',
     enableSelfValidationHarness: true,
+    // ADR-051 (#1119): collaborationMode is now the primary axis from the wizard.
+    // Keep writing enableSoloDevMode as a back-compat alias for legacy readers.
+    collaborationMode: answers.collaborationMode ?? 'peer-review',
     // eslint-disable-next-line @typescript-eslint/no-deprecated
-    enableSoloDevMode: answers.soloDevMode ?? false,
+    enableSoloDevMode: answers.collaborationMode === 'trunk-solo' || (answers.soloDevMode ?? false),
     thresholds: DEFAULT_THRESHOLDS[answers.governanceLevel],
     invariantTiers: presetToTiers(
       answers.invariantPreset ?? defaultPresetForLevel(answers.governanceLevel),
@@ -736,14 +739,32 @@ function buildMainQuestions(wizardInput: WizardInput): object[] {
     ...buildArchetypeQuestions(archetypeDefault),
     ...githubChoice,
     {
-      type: 'confirm',
-      name: 'soloDevMode',
-      message:
-        'Solo-dev mode: skip CI on PRs, merge directly after local L2 gate.\n' +
-        '  Requires Node version SSOT (.nvmrc) + gate result parity (INV-58/INV-59).\n' +
-        '  Branch protection becomes permissive. Nightly drift shadow runs on main.\n' +
-        '  Enable solo-dev mode?',
-      default: false,
+      // ADR-051 (#1119): 3-way collaborationMode replaces deprecated soloDevMode boolean.
+      type: 'list',
+      name: 'collaborationMode',
+      message: [
+        'Collaboration mode — controls branching, CI shape, and merge ceremony:',
+        '',
+        '  trunk-solo    — push to trunk directly; minimal CI; no PR required',
+        '  peer-review   — feature branches + PR + fast-forward merge (recommended)',
+        '  gated-review  — PR + required approvals + full CI (enterprise / regulated)',
+        '',
+      ].join('\n'),
+      choices: [
+        {
+          name: 'trunk-solo    — solo dev, commit directly to main',
+          value: 'trunk-solo',
+        },
+        {
+          name: 'peer-review   — small team, PR-based workflow  [recommended]',
+          value: 'peer-review',
+        },
+        {
+          name: 'gated-review  — regulated / enterprise, required approvals',
+          value: 'gated-review',
+        },
+      ],
+      default: 'peer-review',
     },
     buildPipelineStyleQuestion(),
     buildBrownfieldClassQuestion(

@@ -1,34 +1,46 @@
 {
-  "version": "0.2",
-  "tools": ["claude", "codex"],
-  "governanceLevel": "L2",
-  "useGitHub": true,
-  "decomposition": {
-    "backend": "github"
-  },
-  "features": {
-    "debtGates": true,
-    "suppressions": true,
-    "securityScanning": true,
-    "mutationTesting": true,
-    "contractTesting": false,
-    "evidenceHarness": false,
-    "soloDevMode": true
-  },
-  "thresholds": {
-    "lineCoverage": 80,
-    "branchCoverage": 70,
-    "mutationScore": 80,
-    "cyclomaticComplexity": 15,
-    "methodLength": 65,
-    "maxParams": 7
-  },
-  "invariantTiers": ["architectural", "governance", "data", "operational"],
-  "archetype": "library",
-  "architectureStyle": "none",
-  "isMultiTenant": false,
-  "hasDatabase": false,
-  "hasPublicApi": false,
-  "contractType": "none",
-  "lanes": ["docs"]
+  ".checksum": "413444555bd2a2e95508ddbd9af47dceef99a478f11c447dde9c78719e598c1c",
+  "$schemaVersion": 1,
+  "config": {
+    "$schemaVersion": 4,
+    "archetype": "library",
+    "architectureStyle": "none",
+    "collaborationMode": "trunk-solo",
+    "contractType": "none",
+    "decomposition": {
+      "backend": "github"
+    },
+    "features": {
+      "contractTesting": false,
+      "debtGates": true,
+      "evidenceHarness": false,
+      "mutationTesting": true,
+      "securityScanning": true,
+      "soloDevMode": true,
+      "suppressions": true
+    },
+    "governanceLevel": "L2",
+    "hasDatabase": false,
+    "hasPublicApi": false,
+    "invariantTiers": ["architectural", "governance", "data", "operational"],
+    "isMultiTenant": false,
+    "kit": {
+      "measure": {}
+    },
+    "lanes": ["docs"],
+    "permitGitHub": true,
+    "solo": {
+      "mergeMode": "pr-ff"
+    },
+    "thresholds": {
+      "branchCoverage": 70,
+      "cyclomaticComplexity": 15,
+      "lineCoverage": 80,
+      "maxParams": 7,
+      "methodLength": 65,
+      "mutationScore": 80
+    },
+    "tools": ["claude", "codex"],
+    "version": "0.2"
+  }
 }

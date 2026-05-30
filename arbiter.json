@@ -2,7 +2,6 @@
   "version": "0.2",
   "tools": ["claude", "codex"],
   "governanceLevel": "L2",
-  "useGitHub": true,
   "decomposition": {
     "backend": "github"
   },
@@ -31,5 +30,13 @@
   "hasPublicApi": false,
   "contractType": "none",
   "lanes": ["docs"],
-  "collaborationMode": "trunk-solo"
+  "collaborationMode": "trunk-solo",
+  "solo": {
+    "mergeMode": "pr-ff"
+  },
+  "permitGitHub": true,
+  "$schemaVersion": 4,
+  "kit": {
+    "measure": {}
+  }
 }
