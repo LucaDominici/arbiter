@@ -280,6 +280,8 @@ runCheck('ssot core set', 'node', ['scripts/check-ssot-core.mjs']);
 runCheck('doc links', 'node', ['scripts/check-doc-links.mjs']);
 runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs']);
 runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs']);
+// ─── L1: collaborationMode wired (INV-100, #1093) ────────────────────────────
+runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wired.mjs']);
 <% if (useGitHub) { %>
 // ─── L1: GitHub CI tier gates (INV-72, INV-75, INV-76) ───────────────────────
 runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);

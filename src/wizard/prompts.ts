@@ -24,6 +24,8 @@ import { ARCHETYPE_DB_SET } from '../detectors/axis.js'
 import { defaultContractType, shouldAskContractType } from './archetype-defaults.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
 import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
+import { collaborationModeFromAnswers } from '../config/collaboration-mode-defaults.js'
+import { validateCollaborationCoherence } from '../commands/wizard/coherence.js'
 
 export interface WizardInput {
   targetDir: string
@@ -231,6 +233,41 @@ function resolveWizardAnswers(
   return { ...rawAnswers, language }
 }
 
+/**
+ * ADR-051 (#1093): apply the (collaborationMode × governanceLevel) coherence gate.
+ * Prints a remediation message and returns true when the cell is CRITICAL (init
+ * must abort); prints an advisory for WARN; returns false to proceed.
+ */
+function coherenceBlocksInit(answers: WizardAnswers): boolean {
+  const coherence = validateCollaborationCoherence(
+    collaborationModeFromAnswers(answers),
+    answers.governanceLevel,
+  )
+  if (coherence.severity === 'CRITICAL') {
+    process.stdout.write(`\n${coherence.message}\n`)
+    if (coherence.remediation !== undefined) process.stdout.write(`→ ${coherence.remediation}\n`)
+    return true
+  }
+  if (coherence.severity === 'WARN') {
+    process.stdout.write(`\n⚠ ${coherence.message}\n`)
+  }
+  return false
+}
+
+/** Print the brownfield migration plan, or the greenfield tools header. */
+function displayFlowSummary(
+  flow: WizardFlow,
+  wizardInput: WizardInput,
+  tools: AiTool[],
+  useGitHub: boolean,
+): void {
+  if (flow === 'brownfield') {
+    displayMigrationPlan(buildMigrationPlan(wizardInput.existing, tools, useGitHub))
+  } else {
+    process.stdout.write(`${t('cli.wizard.tools_header', { tools: tools.join(', ') })}\n`)
+  }
+}
+
 export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig | null> {
   process.stdout.write('\n')
 
@@ -253,16 +290,14 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
 
     const config = buildConfigFromAnswers(wizardInput, answers)
 
-    if (flow === 'brownfield') {
-      const plan = buildMigrationPlan(
-        wizardInput.existing,
-        tools,
-        decompositionBackend === 'github',
-      )
-      displayMigrationPlan(plan)
-    } else {
-      process.stdout.write(`${t('cli.wizard.tools_header', { tools: tools.join(', ') })}\n`)
+    // ADR-051 (#1093): reject CRITICAL (collaborationMode × governanceLevel) cells
+    // before writing the project; WARN cells print an advisory and proceed.
+    if (coherenceBlocksInit(answers)) {
+      process.exitCode = 1
+      return null
     }
+
+    displayFlowSummary(flow, wizardInput, tools, decompositionBackend === 'github')
 
     const confirmMsg = flow === 'brownfield' ? 'Proceed with migration?' : 'Proceed?'
     if (!(await promptConfirm(confirmMsg))) {
