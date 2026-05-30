@@ -42,7 +42,7 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}.claude${sep}plans${sep}`,
 ]
 // Auto-generated files that bypass frontmatter requirements
-const SKIP_FILENAMES = new Set(['SELF-KIT-AUDIT.md'])
+const SKIP_FILENAMES = new Set(['SELF-KIT-AUDIT.md', 'INDEX.md'])
 
 const REQUIRED_KEYS = [
   'title',

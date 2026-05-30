@@ -1560,6 +1560,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: true,
     selfOnly: false,
     enforcement: 'scripts/check-collab-mode-wired.mjs (L1)',
+    adr: 'ADR-051',
   },
 
   {
@@ -1576,6 +1577,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     alwaysActive: true,
     selfOnly: false,
     enforcement: 'scripts/check-merge-method.mjs (L1)',
+    adr: 'ADR-052',
   },
 
   // arbiter:noscan-inv-reservation

@@ -154,6 +154,7 @@ if (isMain) {
   runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])
   runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
   runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
+  runCheck('doc index (#1102)', 'node', ['scripts/gen-doc-index.mjs', '--check'])
   runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
   runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
