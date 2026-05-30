@@ -497,7 +497,7 @@ program
 
 program
   .command('configure')
-  .description('Modify arbiter.json configuration (non-interactive: use --set)')
+  .description('Modify arbiter.json configuration (interactive on TTY, or use --set)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option(
     '--set <path=value>',
@@ -507,7 +507,14 @@ program
   )
   .option('--json', 'Emit machine-readable JSON output', false)
   .action((opts: { dir?: string | undefined; set: string[]; json: boolean }) => {
-    runConfigure({ dir: opts.dir, sets: opts.set, json: opts.json }).catch((err: unknown) => {
+    const handler = async (): Promise<void> => {
+      if (opts.set.length === 0 && !opts.json && process.stdin.isTTY) {
+        const { runInteractiveConfigure } = await import('./commands/configure-interactive.js')
+        return runInteractiveConfigure(opts.dir)
+      }
+      return runConfigure({ dir: opts.dir, sets: opts.set, json: opts.json })
+    }
+    handler().catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`  Error: ${msg}\n`)
       process.exit(1)
