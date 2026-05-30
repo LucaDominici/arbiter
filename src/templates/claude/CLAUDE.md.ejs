@@ -1,3 +1,8 @@
+<% /* ADR-051 (#1119): safety defaults for out-of-band renders; buildRenderContext always injects these. */
+const _collaborationMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : 'peer-review';
+const _mergeMode = (typeof mergeMode !== 'undefined' && mergeMode) ? mergeMode : 'pr-ff';
+const _branchingStrategy = (typeof branchingStrategy !== 'undefined' && branchingStrategy) ? branchingStrategy : 'github-flow';
+%>
 # <%= projectName %> — Claude Code Configuration
 
 @AGENTS.md
@@ -14,6 +19,7 @@
 | **Project** | <%= projectName %> |
 | **Gate** | `node scripts/check-all.mjs` |
 | **Full governance** | `../AGENTS.md` (auto-imported above) |
+| **Collaboration mode** | `<%= _collaborationMode %>` — merge: `<%= _mergeMode %>` / branch: `<%= _branchingStrategy %>` |
 
 ---
 
@@ -58,7 +64,11 @@ See `../AGENTS.md` §Invariants for the complete list.
 
 **Never:**
 - Skip the gate before committing
-- Commit directly to `main`
+<% if (_mergeMode !== 'direct') { %>
+- Commit directly to `main` (use PR branches — see collaboration mode above)
+<% } else { %>
+- Skip local gate before pushing to trunk (`collaborationMode: trunk-solo, mergeMode: direct`)
+<% } %>
 - Add `any` type (TS) or `.unwrap()` (Rust)
 - Leave orphan TODOs without task IDs
 

@@ -30,6 +30,7 @@ import {
   runGeneratorsFromRegistry,
   type GeneratorFailure,
 } from '../generators/registry.js'
+import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
 import { isWindows, isWSL2 } from '../utils/platform.js'
@@ -94,6 +95,11 @@ export interface InitOptions {
   recipe?: string
   /** Expected SHA-256 hex digest of the recipe file for integrity verification. */
   recipeSha256?: string
+  /**
+   * ADR-051 (#1119): shorthand for collaborationMode='trunk-solo'.
+   * Equivalent to the `--solo` CLI flag; overrides wizard collaborationMode question.
+   */
+  solo?: boolean
 }
 
 function assertNotNativeWindows(): void {
@@ -400,6 +406,7 @@ function buildNonInteractiveConfig(args: {
     acceptBetaTools: options.acceptBetaTools ?? false,
     lanes,
     ...(options.archetype !== undefined ? { archetypeOverride: options.archetype } : {}),
+    solo: options.solo === true,
   })
   if (recipe) applyRecipeOverrides(config, recipe)
   return config
@@ -680,8 +687,8 @@ export function runGithubSetup(
   setupBranchProtection(
     config.githubOwner,
     config.githubRepo,
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    config.collaborationMode ?? (config.enableSoloDevMode === true ? 'trunk-solo' : 'peer-review'),
+    // ADR-051 (#1119): use canonical resolver — removes third inline derivation copy.
+    resolveCollaborationMode(config),
     warnings,
     log,
   )
@@ -867,6 +874,8 @@ function buildDefaultConfig(opts: {
   acceptBetaTools?: boolean
   lanes?: import('../wizard/types.js').Lane[]
   archetypeOverride?: Archetype
+  /** ADR-051 (#1119): when true, sets collaborationMode='trunk-solo' (--solo flag). */
+  solo?: boolean
 }): ProjectConfig {
   const archetype =
     opts.archetypeOverride ??
@@ -906,6 +915,9 @@ function buildDefaultConfig(opts: {
     enableEvidenceHarness: opts.governanceLevel === 'L4',
     enableSelfValidationHarness: true,
     enableSoloDevMode: false,
+    // ADR-051 (#1119): --solo flag sets collaborationMode='trunk-solo' at init time.
+    // Default (non-interactive): 'peer-review'. Wizard overrides this with user choice.
+    collaborationMode: opts.solo === true ? 'trunk-solo' : 'peer-review',
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     acceptBetaTools: opts.acceptBetaTools ?? false,
     contractType: defaultContractType(archetype, hasPublicApi),
@@ -937,14 +949,23 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
 }
 
 /**
- * Resolve the collaborationMode axis for a generated arbiter.json. Falls back to
- * the legacy soloDevMode flag when the mode is not explicitly set, mirroring the
- * init-time branch-protection default (ADR-051, #1093).
+ * ADR-051 (#1119): build the collaboration-mode portion of the stored config.
+ * Extracted from buildArbiterConfig to keep its complexity within the 15-statement limit.
+ * Only collaborationMode + explicit user overrides (solo.mergeMode, branchingStrategy) are
+ * persisted; derived values are re-computed at render time by resolveCollaborationAxes.
  */
-function resolveCollaborationMode(config: ProjectConfig): CollaborationMode {
-  if (config.collaborationMode !== undefined) return config.collaborationMode
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- legacy soloDevMode alias
-  return config.enableSoloDevMode === true ? 'trunk-solo' : 'peer-review'
+function buildCollaborationOverrides(config: ProjectConfig): {
+  collaborationMode: CollaborationMode
+  solo?: { mergeMode: import('../wizard/types.js').SoloMergeMode }
+  branchingStrategy?: import('../wizard/types.js').BranchingStrategy
+} {
+  return {
+    collaborationMode: resolveCollaborationMode(config),
+    ...(config.solo !== undefined ? { solo: config.solo } : {}),
+    ...(config.branchingStrategy !== undefined
+      ? { branchingStrategy: config.branchingStrategy }
+      : {}),
+  }
 }
 
 export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
@@ -967,10 +988,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
       // eslint-disable-next-line @typescript-eslint/no-deprecated
       soloDevMode: config.enableSoloDevMode === true,
     },
-    // ADR-051 (#1093): collaborationMode is the primary workflow axis. Persist it
-    // into every generated arbiter.json at init time (not only retro-fitted by
-    // `arbiter update`'s migration). See resolveCollaborationMode for the default.
-    collaborationMode: resolveCollaborationMode(config),
+    ...buildCollaborationOverrides(config),
     thresholds: config.thresholds ?? DEFAULT_THRESHOLDS[level],
     invariantTiers: config.invariantTiers,
     archetype: config.archetype,

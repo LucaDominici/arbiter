@@ -9,6 +9,11 @@ argument-hint: '#NNN [--skip-review] [--dry-run]'
       _safetyNet is only triggered for out-of-band renders (e.g. check-self-dogfood). */ %>
 <% const _safetyNet = { XS: { planDepth: 'minimal', reviewAgentCount: 3 }, S: { planDepth: 'brief', reviewAgentCount: 3 }, Standard: { planDepth: 'full', reviewAgentCount: 4 } }; %>
 <% const _tiers = (typeof taskTiers !== 'undefined' && taskTiers) ? taskTiers : _safetyNet; %>
+<% /* ADR-051 (#1119): collaboration-mode axis defaults for out-of-band renders (e.g. check-self-dogfood,
+      unit tests). buildRenderContext (claude.ts) always injects these via resolveCollaborationAxes. */ %>
+<% const _collaborationMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : 'peer-review'; %>
+<% const _mergeMode = (typeof mergeMode !== 'undefined' && mergeMode) ? mergeMode : 'pr-ff'; %>
+<% const _branchingStrategy = (typeof branchingStrategy !== 'undefined' && branchingStrategy) ? branchingStrategy : 'github-flow'; %>
 
 # /task #NNN
 
@@ -32,7 +37,11 @@ Full lifecycle: plan → STOP → implement → review → gate → commit → P
    ```
    | Branch | Action |
    |--------|--------|
+<% if (_mergeMode === 'direct') { %>
+   | `main` or `master` | trunk-solo/direct — working on trunk is expected; confirm intentional |
+<% } else { %>
    | `main` or `master` | HARD STOP — create task branch or worktree |
+<% } %>
    | does not start with `task/` | STOP — create proper branch |
 
 <% if (governanceLevel !== 'L1') { %>
@@ -85,19 +94,19 @@ Phase 6 below.
 
 - **Criteria:** Single file, obvious scope.
 - **Plan depth:** <%= _tiers.XS.planDepth %>
-- **Review agents:** <%= _tiers.XS.reviewAgentCount %> review agents minimum.
+- **Review agents:** <% if (_collaborationMode === 'trunk-solo') { %>1<% } else { %><%= _tiers.XS.reviewAgentCount %><% } %> review agents minimum.
 
 ### Tier S
 
 - **Criteria:** 2–5 files, clear scope.
 - **Plan depth:** <%= _tiers.S.planDepth %>
-- **Review agents:** <%= _tiers.S.reviewAgentCount %> review agents minimum.
+- **Review agents:** <% if (_collaborationMode === 'trunk-solo') { %>1<% } else { %><%= _tiers.S.reviewAgentCount %><% } %> review agents minimum.
 
 ### Tier Standard
 
 - **Criteria:** Multi-file, complex logic, schema changes.
 - **Plan depth:** <%= _tiers.Standard.planDepth %>
-- **Review agents:** <%= _tiers.Standard.reviewAgentCount %> review agents minimum.
+- **Review agents:** <% if (_collaborationMode === 'trunk-solo') { %>1<% } else { %><%= _tiers.Standard.reviewAgentCount %><% } %> review agents minimum.
 
 Write the selected tier to the state file:
 ```bash
@@ -240,6 +249,22 @@ Before implementation: identify which lane(s) your change touches. If only one l
 <% if (governanceLevel !== 'L1') { %>
 ### Phase 6: Code Review (MANDATORY)
 
+<% if (_collaborationMode === 'trunk-solo') { %>
+**Solo review — self-audit pass (1 agent):**
+
+Dispatch a single self-review agent covering:
+- Bugs & logic errors: null/undefined mishandling, incorrect conditions, off-by-one
+- Type safety: unsafe casts, `any` leaks, missing guards
+- Domain consistency: invariants (AGENTS.md), ADRs
+- Silent failures: swallowed exceptions, wrong fallbacks
+
+```bash
+echo "1" > .agents-dispatched
+```
+
+**HARD STOP** if the self-review agent was not actually dispatched.
+
+<% } else { %>
 **Agent minimums (from `taskTiers` config):**
 - XS: <%= _tiers.XS.reviewAgentCount %> agents minimum
 - S: <%= _tiers.S.reviewAgentCount %> agents minimum
@@ -260,7 +285,7 @@ Hunt specifically for: swallowed exceptions (`catch {}`), `??` defaults that mas
 
 After dispatching agents, record the count:
 ```bash
-echo "3" > .agents-dispatched   # or 4 for Standard
+echo "<%= _tiers.XS.reviewAgentCount %>" > .agents-dispatched   # XS; S: same; Standard: <%= _tiers.Standard.reviewAgentCount %>
 ```
 
 **HARD STOP** if agents were not actually dispatched. "I reviewed it" without agent tool calls does not satisfy this gate.
@@ -268,6 +293,8 @@ echo "3" > .agents-dispatched   # or 4 for Standard
 #### 6.4 — Acceptance criteria verification
 
 Re-read the original GitHub issue. For each acceptance criterion, state: PASS / FAIL / NOT TESTED. If any FAIL, fix before proceeding.
+
+<% } %>
 
 ### Phase 7: Adversarial Verifier (MANDATORY)
 
@@ -308,13 +335,23 @@ git commit -m "type(#NNN): summary"
 git push -u origin HEAD
 ```
 
-### Phase 10: PR + Merge
+### Phase 10: Merge
 
-<% if (_backend === 'github') { %>
+<% if (_mergeMode === 'direct') { %>
+**Trunk-solo / direct merge — no PR required:**
+```bash
+git push -u origin HEAD
+```
+<% } else if (_backend === 'github') { %>
+**PR-based merge (ff-only, ADR-051):**
 ```bash
 gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
 gh pr checks
-gh pr merge --squash
+<% if (_collaborationMode === 'gated-review') { %>
+gh pr merge --merge   # ff-only; use --admin if required approvals block merge
+<% } else { %>
+gh pr merge --merge   # ff-only enforced by branch protection
+<% } %>
 ```
 <% } else { %>
 ```bash

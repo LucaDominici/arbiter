@@ -4,6 +4,7 @@ import type {
   Archetype,
   ArchitectureStyle,
   AuthConfig,
+  BranchingStrategy,
   CollaborationMode,
   ContractType,
   EvidenceRetentionConfig,
@@ -13,6 +14,7 @@ import type {
   ObservabilityConfig,
   PlanDepth,
   ProjectPreset,
+  SoloMergeMode,
   StrictnessTier,
   TaskTierConfig,
   TaskTiers,
@@ -124,6 +126,17 @@ export interface ArbiterConfigV2 {
   }
   /** ADR-051: collaboration-mode axis. Absent = inferred from features.soloDevMode or defaults to 'peer-review'. */
   collaborationMode?: CollaborationMode
+  /**
+   * ADR-051: branching strategy. When absent, derived from collaborationMode defaults table.
+   * Persisted only when set via `arbiter configure --set branchingStrategy=…`.
+   */
+  branchingStrategy?: BranchingStrategy
+  /**
+   * ADR-051: trunk-solo merge method override.
+   * 'direct' = push to trunk, no PR. 'pr-ff' = gh pr + ff-only merge.
+   * Persisted only when set via `arbiter configure --set solo.mergeMode=…`.
+   */
+  solo?: { mergeMode: SoloMergeMode }
 }
 
 export interface GovernanceConfig {
@@ -173,6 +186,17 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
 }
 
 const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3', 'L4'])
+export const VALID_COLLABORATION_MODES: ReadonlySet<string> = new Set([
+  'trunk-solo',
+  'peer-review',
+  'gated-review',
+])
+export const VALID_SOLO_MERGE_MODES: ReadonlySet<string> = new Set(['direct', 'pr-ff'])
+export const VALID_BRANCHING_STRATEGIES: ReadonlySet<string> = new Set([
+  'trunk-direct',
+  'github-flow',
+  'github-flow-with-develop',
+])
 const AI_TOOLS: ReadonlySet<string> = new Set([
   'claude',
   'codex',
@@ -245,6 +269,35 @@ function validateFeatures(raw: unknown, errors: string[]): boolean {
   return ok
 }
 
+/**
+ * ADR-051 (#1119): validate collaboration-mode axis fields when present in the raw config.
+ * Extracted from validateConfig to keep its complexity below the 15-statement threshold.
+ */
+function validateCollaborationAxes(raw: Record<string, unknown>, errors: string[]): void {
+  if ('collaborationMode' in raw && raw['collaborationMode'] !== undefined) {
+    const cm = raw['collaborationMode'] as string
+    if (!VALID_COLLABORATION_MODES.has(cm)) {
+      errors.push(
+        `collaborationMode must be one of trunk-solo, peer-review, gated-review — got ${cm}`,
+      )
+    }
+  }
+  if ('branchingStrategy' in raw && raw['branchingStrategy'] !== undefined) {
+    const bs = raw['branchingStrategy'] as string
+    if (!VALID_BRANCHING_STRATEGIES.has(bs)) {
+      errors.push(
+        `branchingStrategy must be one of trunk-direct, github-flow, github-flow-with-develop — got ${bs}`,
+      )
+    }
+  }
+  if (isRecord(raw['solo']) && raw['solo']['mergeMode'] !== undefined) {
+    const mm = raw['solo']['mergeMode'] as string
+    if (!VALID_SOLO_MERGE_MODES.has(mm)) {
+      errors.push(`solo.mergeMode must be one of direct, pr-ff — got ${mm}`)
+    }
+  }
+}
+
 function autoFillThresholds(raw: Record<string, unknown>, level: unknown): void {
   if (
     raw['thresholds'] === undefined &&
@@ -294,6 +347,9 @@ export function validateConfig(raw: unknown): ValidateResult {
   if (!hasUseGitHub && !hasPermitGitHub) {
     errors.push('useGitHub or permitGitHub must be a boolean')
   }
+
+  // ADR-051 (#1119): validate collaboration-mode axis fields when present.
+  validateCollaborationAxes(raw, errors)
 
   autoFillThresholds(raw, level)
 

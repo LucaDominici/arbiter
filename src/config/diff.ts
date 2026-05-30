@@ -119,7 +119,13 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'features.selfValidationHarness': ['self-validation'],
   'features.suppressions': ['suppressions'],
   'features.soloDevMode': ['github', 'githooks'],
-  collaborationMode: ['github', 'githooks', 'root', 'check-all'],
+  // ADR-051 (#1119): collaborationMode drives claude template ceremony (task.md / CLAUDE.md),
+  // github CI shape, githooks, root docs, and check-all gate variants.
+  collaborationMode: ['github', 'githooks', 'root', 'check-all', 'claude'],
+  // solo.mergeMode and branchingStrategy override the derived merge/branch axis — affects
+  // claude templates (task.md Phase 10) and github workflows (branching strategy).
+  solo: ['claude', 'github'],
+  branchingStrategy: ['claude', 'github'],
   'thresholds.lineCoverage': ['check-all', 'coverage'],
   'thresholds.branchCoverage': ['check-all', 'coverage'],
   'thresholds.mutationScore': ['mutation', 'check-all'],
