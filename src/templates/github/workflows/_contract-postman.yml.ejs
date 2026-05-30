@@ -27,7 +27,7 @@ concurrency:
 jobs:
   contract-postman:
     name: Postman/Newman Contract Tests (INV-35)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
     services:
 <%  if (language === 'java') { %>

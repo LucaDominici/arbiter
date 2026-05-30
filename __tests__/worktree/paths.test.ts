@@ -69,12 +69,21 @@ describe('branchNameFor', () => {
 })
 
 describe('worktreeDirectoryName', () => {
-  it('returns just the task id when no slug', () => {
-    expect(worktreeDirectoryName('#97')).toBe('#97')
+  // The directory name must be filesystem- and tool-safe. The leading `#` of a
+  // task id is a URL-fragment delimiter that breaks Vite/Vitest/Node-ESM when it
+  // appears in a path, so it is stripped from the directory (the git BRANCH keeps
+  // it — see branchNameFor). (#1108)
+  it('strips the leading # from the task id when no slug', () => {
+    expect(worktreeDirectoryName('#97')).toBe('97')
   })
 
-  it('appends sanitized slug separated by hyphen', () => {
-    expect(worktreeDirectoryName('#97', 'my feature')).toBe('#97-my-feature')
+  it('strips # and appends sanitized slug separated by hyphen', () => {
+    expect(worktreeDirectoryName('#97', 'my feature')).toBe('97-my-feature')
+  })
+
+  it('never contains a # character', () => {
+    expect(worktreeDirectoryName('#1088', 'dogfood')).not.toContain('#')
+    expect(worktreeDirectoryName('1088')).not.toContain('#')
   })
 })
 
@@ -101,13 +110,17 @@ describe('resolveWorktreeBase', () => {
 })
 
 describe('worktreePathFor', () => {
-  it('joins base + directory name', () => {
-    expect(worktreePathFor('/base/dir', '#97')).toBe(join('/base/dir', '#97'))
+  it('joins base + #-free directory name', () => {
+    expect(worktreePathFor('/base/dir', '#97')).toBe(join('/base/dir', '97'))
   })
 
-  it('includes slug in the directory name', () => {
+  it('includes slug in the #-free directory name', () => {
     expect(worktreePathFor('/base/dir', '#97', 'my-feature')).toBe(
-      join('/base/dir', '#97-my-feature'),
+      join('/base/dir', '97-my-feature'),
     )
+  })
+
+  it('produces a path with no # character (#1108)', () => {
+    expect(worktreePathFor('/base/dir', '#1088', 'dogfood')).not.toContain('#')
   })
 })

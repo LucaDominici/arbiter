@@ -162,6 +162,23 @@ describe('05-release.yml.ejs — governance level branching', () => {
     const rendered = renderRelease({ governanceLevel: 'L1' })
     expect(rendered).toContain('L2 signed')
   })
+
+  it('L2: cosign verify-blob step present in cosign-sign job (INV-101)', () => {
+    const rendered = renderRelease({ governanceLevel: 'L2' })
+    expect(rendered).toContain('cosign verify-blob')
+    expect(rendered).toContain('token.actions.githubusercontent.com')
+  })
+
+  it('L3: cosign verify-blob step present in cosign-sign job (INV-101)', () => {
+    const rendered = renderRelease({ governanceLevel: 'L3' })
+    expect(rendered).toContain('cosign verify-blob')
+    expect(rendered).toContain('token.actions.githubusercontent.com')
+  })
+
+  it('L1: no cosign verify-blob step (L1 stays lightweight)', () => {
+    const rendered = renderRelease({ governanceLevel: 'L1' })
+    expect(rendered).not.toContain('cosign verify-blob')
+  })
 })
 
 // ─── Archetype gating ─────────────────────────────────────────────────────────

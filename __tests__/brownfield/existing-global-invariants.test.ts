@@ -57,15 +57,32 @@ describe('brownfield: existing GLOBAL_INVARIANTS.md', () => {
     expect(existsSync(join(dir, 'GLOBAL_INVARIANTS.md'))).toBe(true)
   })
 
-  it('second run backs up the first-generated content', () => {
+  it('second identical run skips and writes no backup (#1077 F6 idempotence)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    // First run creates the file (no pre-existing file → no backup yet).
+    const first = generateGlobalInvariants(config)
+    expect(first.action).toBe('created')
+    expect(existsSync(join(dir, 'GLOBAL_INVARIANTS.md.arbiter-backup'))).toBe(false)
+
+    // Second run with no on-disk change → byte-identical → skipped, still no backup.
+    const second = generateGlobalInvariants(config)
+    expect(second.action).toBe('skipped')
+    expect(existsSync(join(dir, 'GLOBAL_INVARIANTS.md.arbiter-backup'))).toBe(false)
+  })
+
+  it('a differing second run backs up the first-generated content before replacing (#1077)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L2' })
     generateGlobalInvariants(config)
     const firstGenerated = readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')
 
+    // Simulate a manual edit so the regenerated content genuinely differs from disk.
+    writeFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), '# manually edited\n')
+
     generateGlobalInvariants(config)
 
     const backup = readFileSync(join(dir, 'GLOBAL_INVARIANTS.md.arbiter-backup'), 'utf-8')
-    expect(backup).toBe(firstGenerated)
+    expect(backup).toBe('# manually edited\n')
+    expect(readFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), 'utf-8')).toBe(firstGenerated)
   })
 
   it('returns skipped action for L1 config (no optional tiers)', () => {

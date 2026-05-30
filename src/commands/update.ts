@@ -2,25 +2,20 @@
 import { mkdirSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
-import { UserFacingError } from '../utils/errors.js'
+import { UserFacingError, FatalError } from '../utils/errors.js'
 import type { WriteResult } from '../utils/fs.js'
 import { t } from '../i18n/index.js'
-import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
+import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
-import { detectLanguage } from '../detectors/language.js'
-import { detectBuildCommands } from '../detectors/build.js'
-import { detectFramework } from '../detectors/framework.js'
-import { detectGitInfo, detectAdverseGitState } from '../detectors/git.js'
-import { detectExisting } from '../detectors/existing.js'
+import { detectAdverseGitState } from '../detectors/git.js'
 import { detectGithubAccess } from '../detectors/github.js'
-import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { resolveAxisFields } from '../detectors/axis.js'
 import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { loadConfig, loadSnapshot, saveConfigAndSnapshot } from '../utils/config.js'
 import { runGithubSetup, printResults, runPlugins } from './init.js'
-import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { diffConfig, impactedGenerators } from '../config/diff.js'
 import { validateConfig } from '../config/schema.js'
+import { resolveProjectConfig } from '../config/resolve-project-config.js'
 import {
   buildRegistry,
   runGeneratorsFromRegistry,
@@ -28,7 +23,7 @@ import {
   type GeneratorFailure,
 } from '../generators/registry.js'
 import type { GeneratorKey } from '../config/diff.js'
-import type { ProjectConfig, Lane } from '../wizard/types.js'
+import type { ProjectConfig } from '../wizard/types.js'
 import type { ArbiterConfigV2 } from '../utils/config.js'
 
 export interface UpdateOptions {
@@ -41,72 +36,6 @@ export interface UpdateOptions {
 
 export interface UpdateResult {
   keysRun: Set<GeneratorKey | '*'> | null
-}
-
-function resolveExtendedInvariants(stored: ArbiterConfigV2): boolean {
-  return stored.governance?.invariants_catalog === 'extended'
-}
-
-function v2ToProjectConfig(
-  stored: ArbiterConfigV2,
-  detectorFields: {
-    targetDir: string
-    projectName: string
-    language: ReturnType<typeof detectLanguage>
-    framework: string | null
-    buildTool: string
-    buildCommand: string
-    testCommand: string
-    lintCommand: string
-    formatCommand: string
-    useGitHub: boolean
-    permitGitHub: boolean
-    githubOwner: string | null
-    githubRepo: string | null
-    existing: ProjectConfig['existing']
-    languageHooks: ProjectConfig['languageHooks']
-    archetype: ProjectConfig['archetype']
-    architectureStyle: ProjectConfig['architectureStyle']
-    isMultiTenant: boolean
-    hasDatabase: boolean
-    hasPublicApi: boolean
-    contractType: ProjectConfig['contractType']
-    lanes: Lane[]
-  },
-): ProjectConfig {
-  const level = stored.governanceLevel
-  return {
-    ...detectorFields,
-    projectName: detectorFields.projectName,
-    description: `${detectorFields.projectName} project`,
-    tools: stored.tools,
-    governanceLevel: level,
-    enableDebtGates: stored.features.debtGates,
-    enableSuppressions: stored.features.suppressions,
-    enableSecurityScanning: stored.features.securityScanning,
-    enableMutationTesting: stored.features.mutationTesting,
-    enableContractTesting: stored.features.contractTesting,
-    enableEvidenceHarness: stored.features.evidenceHarness,
-    enableSelfValidationHarness: stored.features.selfValidationHarness ?? true,
-    enableSoloDevMode: stored.features.soloDevMode ?? false,
-    invariantTiers: stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(level)),
-    acceptBetaTools: stored.acceptBetaTools ?? false,
-    ...(stored.evidenceRetention !== undefined && {
-      evidenceRetention: stored.evidenceRetention,
-    }),
-    ...(stored.thresholdProfile !== undefined && {
-      thresholdProfile: stored.thresholdProfile,
-    }),
-    ...(stored.strictnessTier !== undefined && {
-      strictnessTier: stored.strictnessTier,
-    }),
-    contractType: detectorFields.contractType,
-    ...(stored.basePackage !== undefined ? { basePackage: stored.basePackage } : {}),
-    thresholds: stored.thresholds,
-    lanes: detectorFields.lanes,
-    ...(stored.taskTiers !== undefined && { taskTiers: stored.taskTiers }),
-    includeExtendedInvariants: resolveExtendedInvariants(stored),
-  }
 }
 
 function printStats(results: WriteResult[]): void {
@@ -167,20 +96,12 @@ function detectProjectInfo(
   options: UpdateOptions,
   log: (msg: string) => void,
 ): {
-  config: ReturnType<typeof v2ToProjectConfig>
+  config: ProjectConfig
   specs: ReturnType<typeof buildRegistry>
   useGitHub: boolean
   axisFields: ReturnType<typeof resolveAxisFields>
 } {
   log('  Detecting project...')
-  const language = detectLanguage(targetDir)
-  const framework = detectFramework(targetDir, language)
-  const buildCmds = detectBuildCommands(targetDir, language)
-  const gitInfo = detectGitInfo(targetDir)
-  const existing = detectExisting(targetDir)
-  const githubAccess = detectGithubAccess()
-  log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
-  log(`  ├── Config: tools=[${stored.tools.join(',')}] level=${stored.governanceLevel}`)
   const arbGhEnv = process.env['ARBITER_GITHUB']
   const envGitHub = arbGhEnv === '1'
   if (arbGhEnv !== undefined && !envGitHub) {
@@ -188,43 +109,16 @@ function detectProjectInfo(
       `Warning: ARBITER_GITHUB=${arbGhEnv} is not '1' — only ARBITER_GITHUB=1 activates GitHub API calls. Ignored.\n`,
     )
   }
-  const useGitHub = options.github || envGitHub ? githubAccess.authenticated : false
-  const permitGitHub = stored.permitGitHub ?? stored.useGitHub ?? false
+  const useGitHub = options.github || envGitHub ? detectGithubAccess().authenticated : false
+
+  // Shared resolver: builds the SAME ProjectConfig as `diff` (registry-dryRun)
+  // so the two commands cannot drift on config either (#1077 secondary drift).
+  const { config } = resolveProjectConfig(targetDir, projectName, stored, useGitHub)
+  const { language, framework } = config
+  log(`  ├── Language: ${language}${framework ? ` / ${framework}` : ''}`)
+  log(`  ├── Config: tools=[${stored.tools.join(',')}] level=${stored.governanceLevel}`)
+
   const axisFields = resolveAxisFields(stored, targetDir, language, framework)
-  const {
-    archetype,
-    architectureStyle,
-    isMultiTenant,
-    hasDatabase,
-    hasPublicApi,
-    contractType,
-    lanes,
-  } = axisFields
-  const detectorFields = {
-    targetDir,
-    projectName,
-    language,
-    framework,
-    buildTool: buildCmds.buildTool,
-    buildCommand: buildCmds.buildCommand,
-    testCommand: buildCmds.testCommand,
-    lintCommand: buildCmds.lintCommand,
-    formatCommand: buildCmds.formatCommand,
-    useGitHub,
-    permitGitHub,
-    githubOwner: gitInfo.githubOwner,
-    githubRepo: gitInfo.githubRepo,
-    existing,
-    languageHooks: getLanguageHooks(language),
-    archetype,
-    architectureStyle,
-    isMultiTenant,
-    hasDatabase,
-    hasPublicApi,
-    contractType,
-    lanes,
-  }
-  const config = v2ToProjectConfig(stored, detectorFields)
   const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
   const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
   const specs = buildRegistry(config, installedSkills)
@@ -234,10 +128,10 @@ function detectProjectInfo(
 function handlePluginError(err: unknown, json: boolean | undefined): never {
   const msg = err instanceof Error ? err.message : String(err)
   if (json) {
-    jsonOutput('update', 'error', {}, [msg])
-    process.exit(1)
+    jsonOutput('update', 'error', {}, [msg], { errorClass: 'fatal' })
+    process.exit(2)
   }
-  throw err instanceof Error ? err : new Error(msg)
+  throw new FatalError('E_PLUGIN_FATAL', msg)
 }
 
 interface UpdateSummary extends Record<string, unknown> {
@@ -261,12 +155,16 @@ function emitUpdateOutcome(
   if (options.json) {
     const status =
       generatorErrorLines.length > 0 ? 'error' : backendWarnings.length > 0 ? 'warning' : 'ok'
+    const jsonOpts: JsonOutputOpts = {}
+    if (backendWarnings.length > 0) jsonOpts.warnings = backendWarnings
+    if (status === 'error') jsonOpts.errorClass = 'fatal'
+    else if (status === 'warning') jsonOpts.errorClass = 'recoverable'
     jsonOutput(
       'update',
       status,
       summary,
       generatorErrorLines.length > 0 ? generatorErrorLines : undefined,
-      backendWarnings.length > 0 ? backendWarnings : undefined,
+      status !== 'ok' || backendWarnings.length > 0 ? jsonOpts : undefined,
     )
     if (status !== 'ok') process.exit(statusToExitCode(status))
     return
@@ -277,7 +175,22 @@ function emitUpdateOutcome(
         .map((line) => `    - ${line}`)
         .join('\n')}\n`,
     )
+    if (backendWarnings.length > 0) {
+      process.stderr.write(
+        `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
+          .map((w) => `    - ${w}`)
+          .join('\n')}\n`,
+      )
+    }
     process.exit(statusToExitCode('error'))
+  }
+  if (backendWarnings.length > 0) {
+    process.stderr.write(
+      `\n  GitHub warnings (${backendWarnings.length}):\n${backendWarnings
+        .map((w) => `    - ${w}`)
+        .join('\n')}\n`,
+    )
+    process.exit(statusToExitCode('warning'))
   }
   process.stdout.write(`${t('cli.update.verify_hint')}\n`)
 }
@@ -317,11 +230,13 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const stored = loadConfig(targetDir)
     if (!stored) {
       if (options.json) {
-        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'])
+        jsonOutput('update', 'error', {}, ['No arbiter.json found. Run `arbiter init` first.'], {
+          errorClass: 'config',
+        })
       } else {
         log('  No arbiter.json found. Run `arbiter init` first.\n')
       }
-      process.exit(1)
+      process.exit(78)
       return { keysRun: null }
     }
 
@@ -347,6 +262,11 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     const snapshot = loadSnapshot(targetDir)
     log('\n  Updating...')
 
+    // ADR-051: migrate soloDevMode → collaborationMode on first update after upgrade.
+    const needsMigration = stored.features.soloDevMode === true && !stored.collaborationMode
+    if (needsMigration) {
+      log("  Migrating soloDevMode=true → collaborationMode='trunk-solo' (ADR-051)")
+    }
     const nextConfig: ArbiterConfigV2 = {
       ...stored,
       archetype,
@@ -356,6 +276,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       hasPublicApi,
       contractType,
       ...(lanes.length > 0 && { lanes }),
+      ...(needsMigration && { collaborationMode: 'trunk-solo' }),
     }
 
     const { results, keysRun, errors: generatorErrors } = selectAndRun(specs, snapshot, nextConfig)
@@ -384,7 +305,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
           `${t('cli.update.config_invalid', { errors: validation.errors.join('; ') })}\n`,
         )
       }
-      process.exit(1)
+      process.exit(2)
     }
 
     saveConfigAndSnapshot(targetDir, validation.config)

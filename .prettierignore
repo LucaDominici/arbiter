@@ -11,4 +11,5 @@ __tests__/fixtures/real-projects/**/.pytest_cache/
 docs/REFERENCE/dim-*.md
 docs/REFERENCE/GLOBAL_KIT.md
 docs/REFERENCE/SELF-KIT-AUDIT.md
+docs/INDEX.md
 .github/

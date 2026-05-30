@@ -29,4 +29,12 @@ describe('drift-shadow.yml.ejs rendering (#470)', () => {
     expect(rendered).toContain('inv-59-drift')
     expect(rendered).toContain('github.rest.issues.create')
   })
+
+  it('has top-level permissions block (INV-77, #1076)', () => {
+    const data = makeConfig('/tmp/test', {
+      enableSoloDevMode: true,
+    }) as unknown as Record<string, unknown>
+    const rendered = renderTemplate('github/workflows/drift-shadow.yml.ejs', data)
+    expect(rendered).toMatch(/^permissions:/m)
+  })
 })

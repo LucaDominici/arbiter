@@ -90,9 +90,10 @@ describe('siblingWorktreePathFor', () => {
 })
 
 describe('worktreeDirectoryName fallback for sibling slug', () => {
-  it('produces taskId slug when no explicit sibling slug given', async () => {
+  it('produces a #-free taskId slug when no explicit sibling slug given (#1108)', async () => {
     const name = worktreeDirectoryName('#699')
-    expect(name).toBe('#699')
+    expect(name).toBe('699')
+    expect(name).not.toContain('#')
   })
 })
 
@@ -231,7 +232,9 @@ describe('runWorktreeOpen — default placement unchanged without --sibling', ()
     const wtAddCall = mockRunCli.mock.calls.find((c) => c[1]?.includes('worktree'))
     expect(wtAddCall).toBeDefined()
     const pathArg = wtAddCall?.[1]?.find((a) => a.includes('.worktrees'))
-    expect(pathArg).toContain('#698')
+    // #1108: worktree DIR is #-free (the git branch keeps #, asserted elsewhere).
+    expect(pathArg).toContain('698')
+    expect(pathArg).not.toContain('#')
     expect(pathArg).not.toContain('undefined')
   })
 })

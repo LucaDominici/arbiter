@@ -22,14 +22,14 @@ permissions:
 jobs:
   update-state:
     name: Update issue state
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
     steps:
       - name: Extract linked issue number
         id: issue
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           result-encoding: string
           script: |
@@ -48,7 +48,7 @@ jobs:
           (github.event.action == 'opened' || github.event.action == 'ready_for_review')
         env:
           ISSUE_NUMBER: ${{ steps.issue.outputs.result }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           script: |
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
@@ -74,7 +74,7 @@ jobs:
           github.event.pull_request.base.ref == 'main'
         env:
           ISSUE_NUMBER: ${{ steps.issue.outputs.result }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           script: |
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);

@@ -4,5 +4,6 @@
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
   "tier": "bake",
-  "note": "TypeScript BDD fixture with @cucumber/cucumber step definitions"
+  "note": "TypeScript BDD fixture with @cucumber/cucumber step definitions",
+  "collaborationMode": "peer-review"
 }

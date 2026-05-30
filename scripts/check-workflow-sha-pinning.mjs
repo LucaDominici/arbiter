@@ -7,53 +7,28 @@
 //
 // Usage: node scripts/check-workflow-sha-pinning.mjs [--dir <path>] [--help]
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import { collectYamlFiles, parseHelpAndDir } from './lib/workflow-scan.mjs'
 
 const args = process.argv.slice(2)
-if (args.includes('--help') || args.includes('-h')) {
-  process.stdout.write(
-    [
-      'Usage: node scripts/check-workflow-sha-pinning.mjs [options]',
-      '',
-      'Validates that all GitHub Actions references in .github/ are SHA-pinned.',
-      'Exits 0 when all refs are SHA-pinned; exits 1 when tag/branch refs are found.',
-      '',
-      'Options:',
-      '  --dir <path>    Root directory to scan (default: cwd)',
-      '  --help, -h      Show this help and exit',
-      '',
-    ].join('\n'),
-  )
-  process.exit(0)
-}
-
-const dirArg = args.indexOf('--dir')
-const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
+const { cwd: CWD } = parseHelpAndDir(args, {
+  usage: [
+    'Usage: node scripts/check-workflow-sha-pinning.mjs [options]',
+    '',
+    'Validates that all GitHub Actions references in .github/ are SHA-pinned.',
+    'Exits 0 when all refs are SHA-pinned; exits 1 when tag/branch refs are found.',
+    '',
+    'Options:',
+    '  --dir <path>    Root directory to scan (default: cwd)',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'),
+})
 
 const SHA_RE = /^[0-9a-f]{40}$/
 const USES_RE = /^\s*(?:-\s+)?uses:\s+(?:"([^"]+)"|'([^']+)'|(\S+))/
-
-function collectYamlFiles(dir) {
-  if (!existsSync(dir)) return []
-  const results = []
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return results
-  }
-  for (const entry of entries) {
-    if (entry.isSymbolicLink()) continue
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      results.push(...collectYamlFiles(full))
-    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
-      results.push(full)
-    }
-  }
-  return results
-}
 
 const yamlFiles = [
   ...collectYamlFiles(join(CWD, '.github', 'workflows')),

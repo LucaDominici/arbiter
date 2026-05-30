@@ -4,5 +4,6 @@
   "buildTool": null,
   "levels": ["L1", "L2", "L3", "L4"],
   "tier": "bake",
-  "note": "Go BDD fixture with godog TestSuite"
+  "note": "Go BDD fixture with godog TestSuite",
+  "collaborationMode": "peer-review"
 }

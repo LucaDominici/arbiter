@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generateGlobalInvariants } from '../../src/generators/global-invariants.js'
@@ -99,13 +99,33 @@ describe('generateGlobalInvariants', () => {
     expect(content).toContain('.unwrap()')
   })
 
-  it('backs up existing file on regeneration', () => {
+  it('backs up existing file when regenerated content differs', () => {
     const config = makeConfig(dir, {
       governanceLevel: 'L2',
       invariantTiers: presetToTiers('standard'),
     })
     generateGlobalInvariants(config)
+    // Simulate a user edit so the regenerated content genuinely differs from disk;
+    // only then does writeFile take the backup-and-replace path. (#1077: a
+    // byte-identical regeneration now skips and does NOT churn a backup.)
+    writeFileSync(join(dir, 'GLOBAL_INVARIANTS.md'), '# user-edited\n', 'utf-8')
     const result = generateGlobalInvariants(config)
     expect(result.action).toBe('backed-up-and-replaced')
+    expect(existsSync(join(dir, 'GLOBAL_INVARIANTS.md.arbiter-backup'))).toBe(true)
+    expect(readFileSync(join(dir, 'GLOBAL_INVARIANTS.md.arbiter-backup'), 'utf-8')).toBe(
+      '# user-edited\n',
+    )
+  })
+
+  it('skips a byte-identical regeneration without backing up (#1077 F6 idempotence)', () => {
+    const config = makeConfig(dir, {
+      governanceLevel: 'L2',
+      invariantTiers: presetToTiers('standard'),
+    })
+    generateGlobalInvariants(config)
+    // Second run, no on-disk change → byte-identical → skipped, no churned backup.
+    const result = generateGlobalInvariants(config)
+    expect(result.action).toBe('skipped')
+    expect(existsSync(join(dir, 'GLOBAL_INVARIANTS.md.arbiter-backup'))).toBe(false)
   })
 })

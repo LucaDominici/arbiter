@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -287,5 +291,68 @@ describe('check-workflow-perms.mjs.ejs rendering (CANON-04)', () => {
     const content = renderPerms({ governanceLevel: level })
     expect(content).not.toContain('<%')
     expect(content).not.toContain('%>')
+  })
+})
+
+// ─── check-merge-method.mjs.ejs (INV-101, #1089) ─────────────────────────────
+
+describe('check-merge-method.mjs.ejs rendering + runtime (CANON-04, INV-101, #1089)', () => {
+  function render(name: string, overrides: Record<string, unknown> = {}) {
+    return renderTemplate(
+      `scripts/${name}`,
+      makeConfig('/tmp/test', overrides as Parameters<typeof makeConfig>[1]) as unknown as Record<
+        string,
+        unknown
+      >,
+    )
+  }
+
+  it('renders the INV-101 ff-only flag checks with no EJS leaks', () => {
+    const content = render('check-merge-method.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' })
+    expect(content).toContain('INV-101')
+    expect(content).toContain('allow_squash_merge')
+    expect(content).toContain('allow_rebase_merge')
+    expect(content).toContain('required_linear_history')
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+
+  it('generated check passes against a generated apply-branch-protection.mjs (#1089 regression)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arb-mm-'))
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      writeFileSync(
+        join(dir, 'scripts', 'apply-branch-protection.mjs'),
+        render('apply-branch-protection.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' }),
+      )
+      writeFileSync(
+        join(dir, 'scripts', 'check-merge-method.mjs'),
+        render('check-merge-method.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' }),
+      )
+      // The #1089 bug (no template emitted) made this exit non-zero (module-not-found).
+      const out = execFileSync('node', ['scripts/check-merge-method.mjs'], {
+        cwd: dir,
+        encoding: 'utf-8',
+      })
+      expect(out).toContain('ff-only merge flags present')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails closed when apply-branch-protection.mjs is absent', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arb-mm-'))
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+      writeFileSync(
+        join(dir, 'scripts', 'check-merge-method.mjs'),
+        render('check-merge-method.mjs.ejs', { useGitHub: true, governanceLevel: 'L2' }),
+      )
+      expect(() => execFileSync('node', ['scripts/check-merge-method.mjs'], { cwd: dir })).toThrow()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

@@ -82,7 +82,7 @@ describe('runWorktreeOpen', () => {
       worktreesDir,
     })
 
-    const wtPath = join(worktreesDir, '#999-test')
+    const wtPath = join(worktreesDir, '999-test')
     expect(existsSync(wtPath)).toBe(true)
 
     // Branch must be task/#999-test
@@ -105,7 +105,7 @@ describe('runWorktreeOpen', () => {
       worktreesDir,
     })
 
-    const linkPath = join(worktreesDir, '#999-test', '.claude', 'settings.local.json')
+    const linkPath = join(worktreesDir, '999-test', '.claude', 'settings.local.json')
     expect(existsSync(linkPath)).toBe(true)
     expect(lstatSync(linkPath).isSymbolicLink()).toBe(true)
     // Target must be absolute
@@ -157,7 +157,7 @@ describe('runWorktreeOpen', () => {
       cwd: repoRoot,
       worktreesDir,
     })
-    const innerWt = join(worktreesDir, '#999-inner')
+    const innerWt = join(worktreesDir, '999-inner')
 
     // Now try to open from inside that worktree
     await expect(() =>
@@ -238,7 +238,7 @@ describe('runWorktreeOpen — node_modules handling', () => {
       worktreesDir,
     })
 
-    const nmLink = join(worktreesDir, '#777-nodelink', 'node_modules')
+    const nmLink = join(worktreesDir, '777-nodelink', 'node_modules')
     expect(existsSync(nmLink)).toBe(true)
     expect(lstatSync(nmLink).isSymbolicLink()).toBe(true)
     expect(readlinkSync(nmLink)).toBe(resolve(repoRoot, 'node_modules'))
@@ -253,7 +253,7 @@ describe('runWorktreeOpen — node_modules handling', () => {
       worktreesDir,
     })
 
-    const nmPath = join(worktreesDir, '#776-nomodules', 'node_modules')
+    const nmPath = join(worktreesDir, '776-nomodules', 'node_modules')
     expect(existsSync(nmPath)).toBe(false)
   })
 })
@@ -337,7 +337,7 @@ describe('#315 base-branch origin fallback', () => {
       worktreesDir: cloneWorktreesDir,
     })
 
-    const wtPath = join(cloneWorktreesDir, '#315-origin-fallback')
+    const wtPath = join(cloneWorktreesDir, '315-origin-fallback')
     expect(existsSync(wtPath)).toBe(true)
   }, 30_000)
 })

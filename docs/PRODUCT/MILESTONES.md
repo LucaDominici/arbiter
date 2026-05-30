@@ -442,7 +442,7 @@ Per-stack generated enforcement:
 **Epic:** #81
 **Purpose:** Resolve the 7 CRITICAL (C1-C7) and 10 HIGH (H1-H10) issues identified in the antagonist review of the prior-art baseline + Archivio synthesis. These prerequisites must ship before M22-M32 can execute on a reliable foundation.
 
-**Why this phase exists.** Both evidence sources for Phase 10 (the prior-art baseline and cloud.ms5.planning) are Java-Spring backends (N=2). Extrapolating to 5 languages × multiple archetypes has no empirical basis. The M22-M32 roadmap as originally written would:
+**Why this phase exists.** Both evidence sources for Phase 10 (the prior-art baseline and an enterprise reference backend) are Java-Spring backends (N=2). Extrapolating to 5 languages × multiple archetypes has no empirical basis. The M22-M32 roadmap as originally written would:
 
 - Pick hexagonal (prior-art baseline) OR layered (planning) architecture, breaking the other
 - Generate fail-closed gates with no brownfield migration path (50k LoC projects couldn't even commit the init PR)

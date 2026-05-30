@@ -18,6 +18,8 @@ import type { LockInfo } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
 import { detectLanguage } from '../detectors/language.js'
+import { validateCollaborationCoherence } from './wizard/coherence.js'
+import type { CollaborationMode, GovernanceLevel } from '../wizard/types.js'
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
 
@@ -123,8 +125,46 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
 
   out.push(checkLockfile(dir))
   out.push(checkStackAdapterHealth(dir))
+  out.push(checkCollaborationCoherence(dir))
 
   return out
+}
+
+/**
+ * ADR-051 (#1093): surface incoherent (collaborationMode × governanceLevel) cells.
+ * WARN cells (e.g. trunk-solo @ L3) become advisory health warnings; CRITICAL
+ * cells (e.g. trunk-solo @ L4) — which the wizard rejects at init — fail the check.
+ */
+function checkCollaborationCoherence(dir: string): HealthCheck {
+  const check: HealthCheck = {
+    id: 'collab-coherence',
+    label: 'collaborationMode × governanceLevel coherence',
+    status: 'PASS',
+    detail: 'coherent',
+  }
+  let cfg: { collaborationMode?: CollaborationMode; governanceLevel?: GovernanceLevel }
+  try {
+    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
+  } catch {
+    check.status = 'WARN'
+    check.detail = 'could not read arbiter.json for coherence check'
+    return check
+  }
+  if (cfg.collaborationMode === undefined || cfg.governanceLevel === undefined) {
+    check.status = 'WARN'
+    check.detail = 'collaborationMode or governanceLevel missing from arbiter.json'
+    check.hint = 'Run `arbiter update` to migrate the collaborationMode axis.'
+    return check
+  }
+  const r = validateCollaborationCoherence(cfg.collaborationMode, cfg.governanceLevel)
+  if (r.severity === 'OK') {
+    check.detail = `${cfg.collaborationMode} @ ${cfg.governanceLevel} — coherent`
+    return check
+  }
+  check.status = r.severity === 'CRITICAL' ? 'FAIL' : 'WARN'
+  check.detail = r.message
+  if (r.remediation !== undefined) check.hint = r.remediation
+  return check
 }
 
 const ADAPTER_EXEMPT_LANGUAGES = ['kotlin', 'multi', 'unknown'] as const
@@ -251,6 +291,51 @@ function checkLockfile(dir: string): HealthCheck {
   }
 }
 
+function checkGatePassLog(dir: string): HealthCheck {
+  const logPath = join(dir, '.arbiter', 'gate-pass.jsonl')
+  if (!existsSync(logPath)) {
+    return {
+      id: 'gate-pass-log',
+      label: 'gate-pass log',
+      status: 'WARN',
+      detail: '.arbiter/gate-pass.jsonl not found — run the gate to start logging',
+      hint: 'Run `node scripts/check-all.mjs gate` to create the log.',
+    }
+  }
+  const lines = readFileSync(logPath, 'utf-8')
+    .split('\n')
+    .filter((l) => l.trim())
+  const parsed: string[] = []
+  const parseErrors: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? ''
+    try {
+      const entry = JSON.parse(line) as { sha?: string; signedAt?: string; level?: string }
+      parsed.push(
+        `${(entry.sha ?? 'unknown').slice(0, 7)} @ ${entry.signedAt ?? '?'} [${entry.level ?? '?'}]`,
+      )
+    } catch (err) {
+      parseErrors.push(`line ${i + 1}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  if (parseErrors.length > 0) {
+    return {
+      id: 'gate-pass-log',
+      label: 'gate-pass log',
+      status: 'WARN',
+      detail: `${lines.length} entries, ${parseErrors.length} unparseable: ${parseErrors.slice(0, 3).join('; ')}`,
+      hint: 'Inspect .arbiter/gate-pass.jsonl for corrupt lines.',
+    }
+  }
+  const recent = parsed.slice(-5)
+  return {
+    id: 'gate-pass-log',
+    label: 'gate-pass log',
+    status: 'PASS',
+    detail: `${lines.length} entries; last ${recent.length}: ${recent.join(', ')}`,
+  }
+}
+
 function checkChannelSetting(dir: string, channelFlag: string | undefined): HealthCheck {
   try {
     const config = loadConfig(dir)
@@ -293,6 +378,7 @@ export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<D
     gitCheck,
     ...checkArbiterProject(dir, gitOk),
     checkChannelSetting(dir, opts.channelFlag),
+    checkGatePassLog(dir),
   ]
 
   let repaired: DoctorHealthResult['repaired']
