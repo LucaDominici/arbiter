@@ -66,5 +66,21 @@
   {
     "path": "commands/review-code.md",
     "reason": "Arbiter self-dogfood: materialized file includes an Auditor Routing section (auditor-routing.json + route-auditors.mjs) specific to arbiter's own code-review infrastructure. This section is arbiter-internal and not emitted by the target-project template. (Confirmed intentional 2026-05-29, #1092.)"
+  },
+  {
+    "path": "hooks/enforce-gate-before-pr.mjs",
+    "reason": "Arbiter self-dogfood: materialized hook carries one extra FAIL-OPEN-INTENT documentation comment clarifying the exit-code contract (0 for non-PR commands, 2 on explicit gate-fail). Comment-only divergence, no behavioural difference. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry that was dropped from the merged commit.)"
+  },
+  {
+    "path": "hooks/check-no-orphan-todo.mjs",
+    "reason": "Arbiter self-dogfood: materialized hook adds repo-root scoping and inline-suppression support via findInlineSuppression() from lib.mjs (INV-21 directive). The shipped template omits the lib.mjs dependency, so the suppression branch cannot be back-ported without shipping arbiter-internal lib.mjs changes. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)"
+  },
+  {
+    "path": "hooks/enforce-read-only.mjs",
+    "reason": "Arbiter self-dogfood: materialized hook scopes enforcement to the repo root and drops AGENTS.md from READ_ONLY_PATTERNS because arbiter AUTHORS its own AGENTS.md (it is the source), whereas a target project's AGENTS.md is generated and must stay read-only. Back-porting the repo-root bypass was empirically proven to break the INV-36 HARD-hook contract. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)"
+  },
+  {
+    "path": "hooks/check-no-unused-exports.mjs",
+    "reason": "Arbiter self-dogfood: materialized hook scopes the unused-export check to the single edited file for fast per-edit execution in arbiter's own repo; the shipped template runs the broader project-wide check. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)"
   }
 ]
