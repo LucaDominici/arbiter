@@ -3,7 +3,7 @@
 > **IRON LAW**: rileggere QUESTO FILE come primo atto di ogni chat. Aggiornarlo come ultimo atto.
 > Manager di processo: Claude. Operatore: Luca. Nessuno skippa. Nessuno dimentica.
 >
-> **Ultima review**: 2026-05-29 (sync con GH reale: Wave 0.5 4/5 done) · **Prossima review prevista**: a chiusura ADR-005 #1077
+> **Ultima review**: 2026-05-30 (Wave 0.5 CHIUSA + scaffold Wave 0.6 pronto + Wave 2A promosso Active 1) · **Prossima review prevista**: dopo merge batch 1 Wave 0.6
 
 ---
 
@@ -100,7 +100,7 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 - **Kill criterion**: **triggered** — L1 non andrà verde finché i template arbiter non vengono fixati (F10). Non è 2-week countdown, è gap strutturale. → promosso Wave 0.5 davanti a Wave 2A.
 - **Side effect da bonificare**: project board 153 creato su `LucaDominici/projects/153` da F4 (cleanup manuale richiesto)
 
-### 🟢 Attivo 2 (PROMOSSO da Wave 0): Stream A — Wave 0.5 template self-consistency fix
+### ✅ CHIUSO 2026-05-29: Stream A — Wave 0.5 template self-consistency fix
 
 - **Cosa**: rendere arbiter audit-proof sui suoi propri output. Senza questo, OGNI arbiter-governed repo nasce con L1 rosso e perdita di trust visibile.
 - **Perché P0 ora**: i finding P0 di Wave 0 (vedi [`.arbiter/wave0/haben-smoke-test.md`](../wave0/haben-smoke-test.md)) sono gap strutturali. Bloccano qualsiasi cosa downstream — Wave 2A, plugin Java, doc site, talk submission. Wave 0 ha aggiornato il conteggio a **6 P0** (aggiunto F11: 152 project board orfani su LucaDominici account → cleanup script in `evidence/`).
@@ -113,7 +113,7 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 | 2 | ✅ **F9** (exit code propagation) — **DONE 2026-05-27** · issue [#1074](https://github.com/LucaDominici/arbiter/issues/1074) · PR [#1078](https://github.com/LucaDominici/arbiter/pull/1078) "tiered POSIX exit codes for gh failures" | 2-4h | CI wrapper di arbiter ora vede subito i fail invece di nascondersi. | [`.arbiter/wave0.5/ADR-002-exit-code.md`](../wave0.5/ADR-002-exit-code.md) |
 | 3 | ✅ **F2 + F3** (MD pipe + table format) — **DONE 2026-05-27** · issue [#1075](https://github.com/LucaDominici/arbiter/issues/1075) · PR [#1079](https://github.com/LucaDominici/arbiter/pull/1079) "pipe closure + blank-line bloat" | 1-2h | Template MD passano markdownlint + Prettier. | [`.arbiter/wave0.5/ADR-003-md-template-fix.md`](../wave0.5/ADR-003-md-template-fix.md) |
 | 4 | ✅ **F10** (templates pass L1) — **DONE 2026-05-28** · issue [#1076](https://github.com/LucaDominici/arbiter/issues/1076) chiusa COMPLETED (probabilmente raccolta da #1080 drift fix / #1083 CI gap closures — closedByPullRequest cross-ref non match, verificare a posteriori) | 1-3 gg | Templates ora passano L1 su fresh `arbiter init`. | [`.arbiter/wave0.5/ADR-004-templates-L1-pass.md`](../wave0.5/ADR-004-templates-L1-pass.md) |
-| 5 | 🟢 **F1 + F7** (diff scope alignment) — **NEXT, ultimo P0** · issue [#1077](https://github.com/LucaDominici/arbiter/issues/1077) | 1-2 gg | Architectural. Chiude Wave 0.5. Refactor Manifest contract shared diff/update. | [`.arbiter/wave0.5/ADR-005-diff-scope.md`](../wave0.5/ADR-005-diff-scope.md) |
+| 5 | ✅ **F1 + F7** (diff scope alignment) — **DONE 2026-05-29** · issue [#1077](https://github.com/LucaDominici/arbiter/issues/1077) · PR [#1106](https://github.com/LucaDominici/arbiter/pull/1106) | 1-2 gg | Architectural. Chiude Wave 0.5. Manifest contract unified diff/update. F6 idempotence side effect. | [`.arbiter/wave0.5/ADR-005-diff-scope.md`](../wave0.5/ADR-005-diff-scope.md) |
 | ⬢ | **fixture INV-32** (regression asserts L1-green) | 4-6h | Non un P0 standalone, ma il binding INV-32. Va aggiunto in coda a F10 nello stesso PR set. | dentro ADR-004 |
 | ⬢ | **F12** (arbiter local remote misconfig) | 5 min | Non arbiter bug, fix locale tuo: `git remote set-url`. Da fare PRIMA di qualunque PR Wave 0.5. | nessuno (one-liner) |
 - **Definition of Done**:
@@ -130,19 +130,30 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 - **Kill criterion**: se in 4 settimane meno di 4/5 P0 sono risolti, escalate a re-architect del template layer (separare in `@arbiter/templates` package versionato).
 - **Started**: TBD (prossima chat dedicata) · **Target close**: +4 settimane
 
-### 🟡 In coda alta priorità (sospeso): Stream A — Pipeline drift fix (§17.5 del report)
+### 🟢 Attivo 2 (PROMOSSO da queue dopo chiusura Wave 0.5): Stream A — Wave 0.6 Pipeline drift fix (§17.5)
 
-- **Cosa**: implementare i 3 fix concreti che sbloccano performance CI (cache reactor handoff, action pin update, parallelism)
-- **Perché sospeso**: Wave 0.5 blocca — non ha senso ottimizzare la performance di workflow che non passano nemmeno i loro check di formattazione/sicurezza. Una volta che template = clean, questo riprende.
-- **Definition of Done** (invariata):
-  - [ ] PR arbiter mergiata con fix (1) cache reactor handoff template Java
-  - [ ] PR arbiter mergiata con fix (2) action pin SHA update + composite action `setup-java-maven`
-  - [ ] PR arbiter mergiata con fix (3) workflow parallelization + `strategy.max-parallel`
-  - [ ] INV-59 rinforzata (rimossi `PARITY_EXCLUDE`, hash include unit tests/commitlint/docs)
-  - [ ] Nuovo `check-workflow-cache-strategy.mjs` + `check-workflow-parallelism.mjs` wired in L1 gate
-- **Owner**: Luca (chat dedicata, può essere split in 3 PR distinte)
-- **Kill criterion**: se in 3 settimane non si arriva a tutte e 3 le PR mergiate, prioritize cache+parallelism, skip pin update a wave successive
-- **Sblocco**: chiusura Wave 0.5
+- **Cosa**: chiudere §17.5 end-to-end. 8 ADR in `.arbiter/wave0.6-pipeline-drift/`. Scope unico (no split — DEC-012).
+- **Triage source**: [`PIPELINE-DRIFT-TRIAGE-2026-05-30.md`](../wave0.5/PIPELINE-DRIFT-TRIAGE-2026-05-30.md). Drift point B (action pin drift) GIÀ DONE in ADR-004; 7 sub-fix residui + 1 meta-ADR.
+
+**8 ADR ordinati per dipendenze**:
+
+| # | ADR | Sub-fix | Stima | Batch |
+|---|---|---|---|---|
+| 1 | [pipeline-001](../wave0.6-pipeline-drift/ADR-pipeline-001-java-maven-reactor.md) | Java Maven reactor handoff + `setup-java-maven` composite action | 6-8h | 1 (parallel) |
+| 2 | [pipeline-002](../wave0.6-pipeline-drift/ADR-pipeline-002-workflow-parallelization.md) | Parallelize 01/02/03 workflow + `strategy.max-parallel: 2` | 3-4h | 1 (parallel) |
+| 3 | [pipeline-003](../wave0.6-pipeline-drift/ADR-pipeline-003-reference-implementation.md) | Reference impl in `docs/REFERENCE/workflow-pr-fast.md` | 1-2h | 1 (parallel) |
+| 4 | [pipeline-004](../wave0.6-pipeline-drift/ADR-pipeline-004-inv59-reinforcement.md) | INV-59 triage (KEEP / REINFORCE / REDESIGN) | 1-2h + impl | 1 (parallel) |
+| 5 | [pipeline-005](../wave0.6-pipeline-drift/ADR-pipeline-005-check-cache-strategy.md) | New L1 gate `check-workflow-cache-strategy.mjs` | 4-6h | 2 (post #001) |
+| 6 | [pipeline-006](../wave0.6-pipeline-drift/ADR-pipeline-006-check-parallelism.md) | New L1 gate `check-workflow-parallelism.mjs` | 3-4h | 2 (post #002) |
+| 7 | [pipeline-007](../wave0.6-pipeline-drift/ADR-pipeline-007-workflow-perf-test.md) | `workflow-perf.test.ts` integration test | 4-6h | 3 (last) |
+| 8 | [pipeline-008](../wave0.6-pipeline-drift/ADR-pipeline-008-perf-budget-adr.md) | Meta-ADR "Workflow Performance Budget" | 1-2h | 1 (parallel) |
+
+- **Totale stima**: ~25-35h (3-5 giorni Claude Code autonomous)
+- **Owner**: Claude (ADR/plan/PR review) · Luca/Claude Code (implementation, DEC-005)
+- **Label issue**: `priority/P0,wave:1-immediate` (parità Wave 0.5)
+- **Brief chat 1°**: [`.arbiter/wave0.6-pipeline-drift/HANDOFF-BRIEF.md`](../wave0.6-pipeline-drift/HANDOFF-BRIEF.md)
+- **Kill criterion**: se in 5 settimane meno di 6/8 ADR mergiati → split scope (Java in Wave 2D, mantenere general-purpose in Wave 0.6).
+- **Started**: TBD (prossima chat) · **Target close**: +4 settimane
 
 ---
 
@@ -150,12 +161,14 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 
 In ordine di promozione attesa:
 
-### Q1 — Wave 2A: `/task` arbiter v2 design (mining viafera + Luca's /auto)
+### 🟢 Attivo 1 (PROMOSSO da Q1 dopo chiusura Wave 0.5): Wave 2A — `/task` arbiter v2 design (mining viafera + Luca's /auto)
 
-- **Trigger di promozione**: entrambi gli active stream sopra completati
 - **Scope MVP brutale**: 5-7 pattern P0 (suggerimento: existing-work detection, anti-bypass guard, score-based verdict, marker-pinned gate, pre-PR integrity check). Resto in v2.1/v2.2.
 - **Pre-requisito**: ADR upfront ("`/task v2 design` — questi 5 pattern sì, questi 15 no, perché X")
-- **Target**: shippare /task v2 MVP in 6 settimane dalla promozione
+- **Target**: shippare /task v2 MVP in 6 settimane dalla promozione (2026-07-11)
+- **Stato attuale**: design phase — ADR upfront ancora da scrivere. Chat dedicata da aprire dopo che Wave 0.6 ha shippato almeno batch 1 (5 ADR parallel).
+- **Sinergia con Wave 0.6**: entrambi toccano workflow. Wave 0.6 stabilizza i template; Wave 2A ridefinisce `/task` lifecycle sopra di essi.
+- **Owner**: Claude (ADR design) · Luca (decide quali 5-7 pattern dei 12+ vincono)
 
 ### Q2 — Stream B — Discovery iniziale (LinkedIn pillole drip)
 
@@ -248,6 +261,9 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 - **2026-05-26 — DEC-008** (ADR-001 / issue #1063): `useGitHub` config field → `permitGitHub` via **alias + deprecation** (option C). Alias 1 minor (v0.2.x), hard-remove v0.3. Motivo: hard-rename violerebbe 4 frozen compat fixtures + tarball consumers.
 - **2026-05-26 — DEC-009** (ADR-001 / issue #1063): `--github` come **global flag pre-stripped** + env var `ARBITER_GITHUB=1` (option 1). Mirror del pattern `--no-evidence` di cli.ts:99-104. Rimosso `--github` local da `update` (era override, ora opt-in).
 - **2026-05-26 — DEC-010** (ADR-001 / issue #1063): Gate scope **solo `runGithubSetup`** + static import-graph assertion che `diff.ts` non importi `src/github/` (option 3). Out-of-scope confermato: `decomposition/github-backend.ts`, `kit/emit-issues.ts`, `detectors/github.ts` (read-only).
+- **2026-05-30 — DEC-011** (chiusura Wave 0.5): Pipeline drift fix promosso da queue ad Active 2. Triage 2026-05-30 mostra che drift B (action pin) era già DONE in ADR-004; restano 7 sub-fix + 1 meta-ADR (Wave 0.6 scope).
+- **2026-05-30 — DEC-012** (Wave 0.6 scope): NO split — scope unico per Active 2 (8 ADR). Java + general + INV-59 triage tutto dentro. Scaffold in `.arbiter/wave0.6-pipeline-drift/`. Issue da aprire come Wave 0.5 in batch, priority/P0.
+- **2026-05-30 — DEC-013** (Active 1 = Wave 2A): promosso Wave 2A `/task` v2 design da Q1. Sinergia con Wave 0.6 (entrambi su workflow). Design phase ora; chat dedicata dopo Wave 0.6 batch 1.
 - **2026-05-29 — Note di sync** (no DEC, solo registrazione): tra il 2026-05-27 e 2026-05-28, fuori dalla mia view manager, Claude Code ha mergiato 3 ADR addizionali non programmati in Wave 0.5: **ADR-051** (#1080 collaboration-mode axis + WT merge-train foundation + generator-spec drift fix), **ADR-052** (#1082/#1084 ff-only merge policy + cosign SHA preservation, INV-101), **ADR-053** (#1083/#1085 CI gap closures: CodeQL, OSSF Scorecard, frontend-quality, nightly-lite). In corso: refactor #1098 (table-drive agent generators + compatibility parsers). Questi NON consumano slot Active (sono lavoro continuo di Claude Code dentro lo Stream A); il WIP=2 hard-limit del management resta vincolato sui due Active del manager (Wave 0.5 + Pipeline drift fix sospeso).
 
 ---

@@ -136,7 +136,18 @@
       "list_header": "Current arbiter configuration:",
       "no_changes": "No changes made.",
       "reset_confirm": "Reset all configuration to defaults?",
-      "usage_hint": "  Usage: arbiter configure --set <path>=<value>\n  Interactive mode requires a TTY. Non-interactive usage requires --set."
+      "usage_hint": "  Usage: arbiter configure --set <path>=<value>\n  Interactive mode requires a TTY. Non-interactive usage requires --set.",
+      "interactive": {
+        "intro": "arbiter configure — interactive mode",
+        "save_confirm": "Save these changes?",
+        "invalid_number": "Must be a positive integer",
+        "no_config": "No arbiter.json found. Run `arbiter init` first.",
+        "axis_header": "Project shape",
+        "features_header": "Feature flags",
+        "thresholds_header": "Quality thresholds",
+        "collaboration_header": "Collaboration mode",
+        "access_header": "AI tools & GitHub access"
+      }
     },
     "work": {
       "no_units": "No work units found.",
