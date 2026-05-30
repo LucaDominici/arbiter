@@ -6,79 +6,78 @@ Brownfield class: **gold**
 
 | Dim | Status | Evidence |
 |-----|--------|----------|
-| N07 | MISSING |  |
-| N09 | MISSING |  |
-| N10 | MISSING |  |
-| N17 | MISSING |  |
-| N18 | MISSING |  |
+| N07 | PARTIAL | package.json |
+| N09 | PRESENT | eslint.config.js |
+| N10 | PRESENT | .prettierrc.json |
+| N17 | PRESENT | vitest.config.ts |
+| N18 | PRESENT | vitest.config.ts |
 | N19 | MISSING |  |
-| N22 | MISSING |  |
-| N24 | MISSING |  |
-| N25 | MISSING |  |
-| N26 | MISSING |  |
-| N27 | MISSING |  |
+| N22 | PRESENT | scripts/check-test-naming.mjs |
+| N24 | PRESENT | package.json |
+| N25 | PRESENT | package.json |
+| N26 | PRESENT | .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_pr-staleness.yml, .github/workflows/kit-self-canary.yml |
+| N27 | PRESENT | __tests__/integration/ai-pr-gate-e2e.test.ts, __tests__/integration/blame-dogfood.test.ts, __tests__/integration/brownfield-baseline.test.ts, __tests__/integration/brownfield-safety.test.ts, __tests__/integration/check-all-summary.test.ts, __tests__/integration/evidence-cmd-log.test.ts, __tests__/integration/example-plugin-spring-boot.test.ts, __tests__/integration/generated-check-all.test.ts, __tests__/integration/githooks-generation.test.ts, __tests__/integration/init-greenfield-smoke.test.ts, __tests__/integration/init.test.ts, __tests__/integration/inline-suppressions.test.ts, __tests__/integration/security-template-error.test.ts, __tests__/integration/skills.test.ts, __tests__/integration/update-diff.test.ts, __tests__/integration/wave0-reproducer.test.ts, __tests__/integration/wizard-abort.test.ts, __tests__/integration/worktree-close.test.ts, __tests__/integration/worktree-open.test.ts |
 | N34 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
-| N35 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
-| N36 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
-| N37 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
-| N38 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
+| N35 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/dependabot-actions-sync.yml |
+| N36 | PRESENT | .github/workflows/05-release.yml |
+| N37 | PRESENT | .github/workflows/06-nightly.yml |
+| N38 | PRESENT | .github/workflows/07-weekly.yml |
 | N39 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
-| N40 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
-| N41 | MISSING |  |
+| N40 | PRESENT | .github/workflows/05-release.yml, .github/workflows/_sigstore-retry-sign.yml |
+| N41 | PRESENT | __tests__/e2e |
 | N45 | MISSING |  |
-| N46 | MISSING |  |
-| N47 | MISSING |  |
-| N48 | MISSING |  |
-| N49 | MISSING |  |
-| N50 | MISSING |  |
-| N51 | MISSING |  |
-| N52 | MISSING |  |
-| N53 | MISSING |  |
-| N54 | MISSING |  |
-| N55 | MISSING |  |
-| N56 | MISSING |  |
-| N59 | MISSING |  |
+| N46 | PRESENT | scripts/check-spdx-headers.mjs |
+| N47 | PRESENT | scripts/check-no-orphan-todo.mjs |
+| N48 | PRESENT | scripts/check-no-placeholders.mjs |
+| N49 | PRESENT | scripts/check-doc-links.mjs |
+| N50 | PRESENT | scripts/check-bloat-ratchet.mjs |
+| N51 | PRESENT | scripts/debt-report.mjs |
+| N52 | PRESENT | scripts/check-self-dogfood.mjs |
+| N53 | PRESENT | scripts/check-api-snapshot.mjs |
+| N54 | PRESENT | package.json |
+| N55 | PRESENT | .gitleaks.toml |
+| N56 | PARTIAL | .github/workflows/01-pr-fast.yml, .github/workflows/06-nightly.yml |
+| N59 | PRESENT | commitlint.config.js |
 | N60 | MISSING |  |
-| N61 | MISSING |  |
-| N62 | MISSING |  |
-| N63 | MISSING |  |
-| N65 | MISSING |  |
-| N68 | MISSING |  |
-| N69 | MISSING |  |
+| N61 | PRESENT | .github/PULL_REQUEST_TEMPLATE.md |
+| N62 | PRESENT | .github/ISSUE_TEMPLATE/bug-report.yml, .github/ISSUE_TEMPLATE/compliance-item.yml, .github/ISSUE_TEMPLATE/config.yml, .github/ISSUE_TEMPLATE/epic-kit-gold-standard.md, .github/ISSUE_TEMPLATE/epic.yml, .github/ISSUE_TEMPLATE/feature-request.yml, .github/ISSUE_TEMPLATE/task-brief.yml |
+| N63 | PRESENT | .claude/CLAUDE.md, AGENTS.md |
+| N65 | PRESENT | docs/SYSTEM/DECISIONS.md |
+| N68 | PRESENT | docs/METHOD/KNOWLEDGE_MAP.md, scripts/check-knowledge-map.mjs |
+| N69 | PRESENT | .nvmrc |
 | N70 | MISSING |  |
-| N71 | MISSING |  |
+| N71 | PRESENT | src/experimental/registry.ts |
 
 ## W1 — Enforcement — close partial gaps (brownfield: gold)
 
 | Dim | Status | Evidence |
 |-----|--------|----------|
 | N11 | MISSING |  |
-| N12 | MISSING |  |
 | N13 | MISSING |  |
-| N14 | MISSING |  |
-| N15 | MISSING |  |
+| N14 | PRESENT | knip.json |
+| N15 | PRESENT | .jscpd.json |
 | N16 | MISSING |  |
-| N20 | MISSING |  |
-| N21 | MISSING |  |
-| N23 | MISSING |  |
-| N28 | MISSING |  |
-| N29 | MISSING |  |
+| N20 | PRESENT | stryker.config.json |
+| N21 | PRESENT | vitest.config.ts |
+| N23 | PRESENT | .arbiter/evidence/tdd/#1000.json, .arbiter/evidence/tdd/#1002.json, .arbiter/evidence/tdd/#1004.json, .arbiter/evidence/tdd/#1008.json, .arbiter/evidence/tdd/#1014.json, .arbiter/evidence/tdd/#1018.json, .arbiter/evidence/tdd/#1019.json, .arbiter/evidence/tdd/#1020.json, .arbiter/evidence/tdd/#1021.json, .arbiter/evidence/tdd/#1022.json, .arbiter/evidence/tdd/#1023.json, .arbiter/evidence/tdd/#1035.json, .arbiter/evidence/tdd/#1036.json, .arbiter/evidence/tdd/#1038.json, .arbiter/evidence/tdd/#1039.json, .arbiter/evidence/tdd/#1040.json, .arbiter/evidence/tdd/#1041.json, .arbiter/evidence/tdd/#1074.json, .arbiter/evidence/tdd/#1095.json, .arbiter/evidence/tdd/#1096.json |
+| N28 | PRESENT | __tests__/contract/api-snapshot.test.ts, __tests__/contract/cli-deprecated-flag.test.ts, __tests__/contract/cli-experimental-flag.test.ts |
+| N29 | PRESENT | __tests__/behavioral/cli-smoke.test.ts, __tests__/behavioral/kit-commands.test.ts, __tests__/behavioral/kit-install-concurrent.test.ts, __tests__/behavioral/kit-install-dogfood.test.ts, __tests__/behavioral/verify-commands.test.ts |
 | N31 | MISSING |  |
-| N33 | MISSING |  |
-| N43 | MISSING |  |
-| N57 | MISSING |  |
+| N33 | PRESENT | scripts/check-api-snapshot.mjs |
+| N43 | PRESENT | .github/workflows/06-nightly.yml |
+| N57 | PRESENT | .trivyignore |
 | N58 | MISSING |  |
 
 ## W2 — Advanced — implement missing tooling
 
 | Dim | Status | Evidence |
 |-----|--------|----------|
-| N32 | MISSING |  |
+| N32 | PRESENT | package.json |
 | N42 | MISSING |  |
 | N44 | MISSING |  |
 | N64 | MISSING |  |
 | N66 | MISSING |  |
-| N67 | MISSING |  |
+| N67 | PRESENT | docs/runbooks/deployment.md, docs/runbooks/prod-checklist.md, docs/runbooks/rollback.md, docs/runbooks/troubleshooting.md |
 | N72 | MISSING |  |
 
 ## W3 — Gold — achieve full quality-gate parity
@@ -96,6 +95,7 @@ _No dimensions in this wave._
 | N05 | no applies token matched: [hexagonal, spring] |
 | N06 | no applies token matched: [hexagonal, spring] |
 | N08 | database engine not in required set |
+| N12 | no applies token matched: [java] |
 | N30 | no applies token matched: [hexagonal] |
 | N73 | database engine not in required set |
 | N74 | database engine not in required set |
@@ -103,4 +103,4 @@ _No dimensions in this wave._
 | N76 | no applies token matched: [frontend, fullstack] |
 | N77 | no applies token matched: [backend, api, fullstack] |
 
-Summary: 64 dims total
+Summary: 63 dims total

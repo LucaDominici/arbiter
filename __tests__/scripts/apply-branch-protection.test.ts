@@ -86,7 +86,7 @@ describe('apply-branch-protection.mjs (#868)', () => {
   })
 
   describe('PUT body structure (dry-run JSON preview)', () => {
-    it('dry-run --json flag emits valid JSON with required_status_checks', () => {
+    it('dry-run --json flag emits valid JSON with branchProtection and repoSettings keys (INV-101)', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
       expect(result.status).toBe(0)
       let parsed: unknown
@@ -95,35 +95,65 @@ describe('apply-branch-protection.mjs (#868)', () => {
       } catch {
         throw new Error(`stdout is not valid JSON: ${result.stdout}`)
       }
-      expect(parsed).toHaveProperty('required_status_checks')
+      expect(parsed).toHaveProperty('branchProtection')
+      expect(parsed).toHaveProperty('repoSettings')
+      expect(parsed).toHaveProperty('branchProtection.required_status_checks')
     })
 
-    it('dry-run --json body includes CI Required context (job name, not job id)', () => {
+    it('dry-run --json branchProtection includes CI Required context (job name, not job id)', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
-      const body = JSON.parse(result.stdout.trim()) as {
-        required_status_checks: { contexts: string[] }
+      const parsed = JSON.parse(result.stdout.trim()) as {
+        branchProtection: { required_status_checks: { contexts: string[] } }
       }
-      expect(body.required_status_checks.contexts).toContain('CI Required')
+      expect(parsed.branchProtection.required_status_checks.contexts).toContain('CI Required')
     })
 
-    it('dry-run --json body includes Human Approval Required (INV-74) context (job name, not job id)', () => {
+    it('dry-run --json branchProtection includes Human Approval Required (INV-74) context (job name, not job id)', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
-      const body = JSON.parse(result.stdout.trim()) as {
-        required_status_checks: { contexts: string[] }
+      const parsed = JSON.parse(result.stdout.trim()) as {
+        branchProtection: { required_status_checks: { contexts: string[] } }
       }
-      expect(body.required_status_checks.contexts).toContain('Human Approval Required (INV-74)')
+      expect(parsed.branchProtection.required_status_checks.contexts).toContain(
+        'Human Approval Required (INV-74)',
+      )
     })
 
-    it('dry-run --json body has allow_force_pushes: false', () => {
+    it('dry-run --json branchProtection has allow_force_pushes: false', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
-      const body = JSON.parse(result.stdout.trim()) as { allow_force_pushes: boolean }
-      expect(body.allow_force_pushes).toBe(false)
+      const parsed = JSON.parse(result.stdout.trim()) as {
+        branchProtection: { allow_force_pushes: boolean }
+      }
+      expect(parsed.branchProtection.allow_force_pushes).toBe(false)
     })
 
-    it('dry-run --json body has allow_deletions: false', () => {
+    it('dry-run --json branchProtection has allow_deletions: false', () => {
       const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
-      const body = JSON.parse(result.stdout.trim()) as { allow_deletions: boolean }
-      expect(body.allow_deletions).toBe(false)
+      const parsed = JSON.parse(result.stdout.trim()) as {
+        branchProtection: { allow_deletions: boolean }
+      }
+      expect(parsed.branchProtection.allow_deletions).toBe(false)
+    })
+
+    it('dry-run --json repoSettings has allow_squash_merge:false and allow_rebase_merge:false (INV-101)', () => {
+      const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
+      const parsed = JSON.parse(result.stdout.trim()) as {
+        repoSettings: {
+          allow_merge_commit: boolean
+          allow_squash_merge: boolean
+          allow_rebase_merge: boolean
+        }
+      }
+      expect(parsed.repoSettings.allow_merge_commit).toBe(true)
+      expect(parsed.repoSettings.allow_squash_merge).toBe(false)
+      expect(parsed.repoSettings.allow_rebase_merge).toBe(false)
+    })
+
+    it('dry-run --json branchProtection has required_linear_history: true (INV-101)', () => {
+      const result = run(['--dry-run', '--repo', 'owner/repo', '--json'])
+      const parsed = JSON.parse(result.stdout.trim()) as {
+        branchProtection: { required_linear_history: boolean }
+      }
+      expect(parsed.branchProtection.required_linear_history).toBe(true)
     })
   })
 

@@ -24,12 +24,24 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 2 files at L1 (no rust checkers, no docs-check)', () => {
-    // L1: no docs-check; non-rust language: no Rust checkers → only check-all + run-helpers.
+  it('emits exactly 3 files at L1 (check-all + run-helpers + collab-mode check)', () => {
+    // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
+    // + check-collab-mode-wired (INV-100, #1093 — unconditional).
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(2)
+    expect(result.files).toHaveLength(3)
+  })
+
+  it('emits scripts/check-collab-mode-wired.mjs and wires it into check-all.mjs (#1093, INV-100)', () => {
+    const result = generateCheckAll(makeConfig(dir, { language: 'typescript' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('scripts/check-collab-mode-wired.mjs'))).toBe(true)
+    const script = readFileSync(join(dir, 'scripts', 'check-collab-mode-wired.mjs'), 'utf-8')
+    expect(script).toContain('[INV-100]')
+    expect(script).toContain('collaborationMode')
+    const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(checkAll).toContain('check-collab-mode-wired.mjs')
   })
 
   it('emits run-helpers.mjs with the trinity exports (#351)', () => {

@@ -21,7 +21,7 @@ jobs:
 <% if (_isService) { %>
   cross-db-matrix:
     name: Cross-DB matrix (Postgres / MySQL / MSSQL / MariaDB)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,12 +39,12 @@ jobs:
         env:
           DB_TYPE: ${{ matrix.db }}
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
         with:
           distribution: temurin
           java-version: '21'
 <% if (buildTool === 'gradle') { %>
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d  # v4
       - name: Run integration tests against ${{ matrix.db }}
         run: ./gradlew integrationTest
         env:
@@ -56,7 +56,7 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0  # v5
         with:
           go-version-file: go.mod
       - name: Run integration tests against ${{ matrix.db }}
@@ -64,7 +64,7 @@ jobs:
         env:
           DB_TYPE: ${{ matrix.db }}
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca  # v5
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]"
@@ -74,7 +74,7 @@ jobs:
           DB_TYPE: ${{ matrix.db }}
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd  # branch:stable @ 2026-05-24
       - name: Run integration tests against ${{ matrix.db }}
         run: cargo test --test integration
         env:
@@ -97,7 +97,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0  # v5
         with:
           go-version-file: go.mod
       - name: Build CLI binary (${{ matrix.os }} / ${{ matrix.arch }})
@@ -107,7 +107,7 @@ jobs:
         run: dist/cli-${{ matrix.os }}-${{ matrix.arch }} --version
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd  # branch:stable @ 2026-05-24
       - name: Build CLI binary (${{ matrix.os }} / ${{ matrix.arch }})
         run: cargo build --release
       - name: Smoke test binary
@@ -123,7 +123,7 @@ jobs:
           npm run build
           node dist/index.js --version || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca  # v5
         with:
           python-version-file: .python-version
       - run: pip install -e ".[dev]" pyinstaller
@@ -132,7 +132,7 @@ jobs:
       - name: Smoke test binary
         run: dist/main --version || true
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -148,7 +148,7 @@ jobs:
 <% } %>
   dep-freshness:
     name: Dependency freshness report
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
@@ -160,7 +160,7 @@ jobs:
       - name: Check outdated packages
         run: npm outdated || true
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -172,13 +172,13 @@ jobs:
           mvn versions:display-dependency-updates || true
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0  # v5
         with:
           go-version-file: go.mod
       - name: Check outdated Go modules
         run: go list -u -m all 2>/dev/null | grep '\[' || true
 <% } else if (language === 'python') { %>
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca  # v5
         with:
           python-version-file: .python-version
       - run: pip install pip-review
@@ -186,7 +186,7 @@ jobs:
         run: pip-review || true
 <% } else if (language === 'rust') { %>
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef335eb45f53c3dc45d8f50abf17af8e2b0bd  # branch:stable @ 2026-05-24
       - name: Check outdated crates
         run: |
           cargo install cargo-outdated --locked || true
@@ -195,11 +195,11 @@ jobs:
 
   perf-trend:
     name: k6 performance trend
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: k6 performance smoke vs 7-day baseline
-        uses: grafana/k6-action@v0.3.1
+        uses: grafana/k6-action@e4714b734f2b0afaabeb7b4a69142745548ab9ec  # v0.3.1
         with:
           filename: k6/perf-trend.js
           flags: '--duration=120s'
@@ -207,7 +207,7 @@ jobs:
 
   action-version-audit:
     name: Stale action pin audit
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Find SHA-pinned actions older than 180 days
@@ -247,7 +247,7 @@ jobs:
       - cross-os-matrix
 <% } %>
     if: always()
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Weekly gate summary
         run: |

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 export type JsonStatus = 'ok' | 'warning' | 'error'
+export type JsonErrorClass = 'recoverable' | 'fatal' | 'config'
 
 interface JsonEnvelope {
   command: string
@@ -8,6 +9,12 @@ interface JsonEnvelope {
   data: Record<string, unknown>
   errors?: string[]
   warnings?: string[]
+  errorClass?: JsonErrorClass
+}
+
+export interface JsonOutputOpts {
+  warnings?: string[]
+  errorClass?: JsonErrorClass
 }
 
 /**
@@ -20,7 +27,7 @@ export function jsonOutput(
   status: JsonStatus,
   data: Record<string, unknown>,
   errors?: string[],
-  warnings?: string[],
+  opts?: JsonOutputOpts,
 ): void {
   const envelope: JsonEnvelope = {
     command,
@@ -28,7 +35,10 @@ export function jsonOutput(
     status,
     data,
     ...(errors !== undefined && errors.length > 0 ? { errors } : {}),
-    ...(warnings !== undefined && warnings.length > 0 ? { warnings } : {}),
+    ...(opts?.warnings !== undefined && opts.warnings.length > 0
+      ? { warnings: opts.warnings }
+      : {}),
+    ...(opts?.errorClass !== undefined ? { errorClass: opts.errorClass } : {}),
   }
   process.stdout.write(JSON.stringify(envelope) + '\n')
 }

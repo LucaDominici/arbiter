@@ -40,6 +40,7 @@
   "enableContractTesting": false,
   "enableEvidenceHarness": false,
   "enableSoloDevMode": false,
+  "branchingStrategy": "github-flow",
   "contractType": "none",
   "lanes": ["docs"],
   "ciTierMode": "baseline",

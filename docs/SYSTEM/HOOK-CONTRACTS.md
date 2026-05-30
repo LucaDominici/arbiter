@@ -88,3 +88,22 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 2. **Shared log writes are append-only.** `lib.mjs` `logInfo/logWarn/logError` use `appendFileSync` → POSIX atomic for entries < 4KB (PIPE_BUF).
 3. **debug-state-on-failure is SAFE.** Uses `openSync('wx')` (O_CREAT|O_EXCL) for header creation — concurrent first-creates fail silently on EEXIST and fall through to `appendFileSync`. Each attempt entry is a single `appendFileSync` call (< 4KB).
 4. **Hooks must not acquire file locks.** If a hook needs exclusive access, redesign using atomic primitives above. `src/utils/file-lock.ts` is for CLI commands, not hooks.
+
+---
+
+## Shipped-hook dogfood corpus (#1090)
+
+Eight hooks are emitted **verbatim** to target projects by `src/generators/claude.ts`
+(`readTemplate` → `writeFile`, no EJS render): `stop-dangerous`, `enforce-read-only`,
+`pre-edit-ssot-guard`, `check-no-orphan-todo`, `check-no-placeholders`, `enforce-gate-before-pr`,
+`check-no-unused-exports`, `check-no-skipped-tests`. `scripts/check-self-dogfood.mjs`
+(`checkRawHooks`, exported as `REQUIRED_RAW_HOOKS`) diffs each shipped template against arbiter's
+materialized `.claude/hooks/` copy and **fails closed** on undocumented drift — closing the INV-45
+gap where the corpus walk collected only `.ejs`, so a shipped hook could silently weaken.
+
+Arbiter intentionally self-hardens four of these beyond the shipped template (repo-root scoping,
+`lib.mjs` inline-suppression, and dropping `AGENTS.md` from `enforce-read-only`'s read-only set
+because arbiter _authors_ its own `AGENTS.md` whereas a target's is generated and must stay locked).
+Each divergence carries a dated rationale in `.dogfood-divergences.json` and is deliberately **not**
+back-ported: back-porting the repo-root bypass was empirically shown to break the INV-36 HARD-hook
+contract.

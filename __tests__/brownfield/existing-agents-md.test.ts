@@ -75,18 +75,42 @@ describe('brownfield: existing AGENTS.md', () => {
     expect(agentsResult!.action).toBe('backed-up-and-replaced')
   })
 
-  it('second run backs up the previously generated content', () => {
+  it('second identical run skips and leaves the first-run backup untouched (#1077 F6)', () => {
+    const userContent = '# first version'
+    writeFileSync(join(dir, 'AGENTS.md'), userContent)
+
+    const config = configWithExistingAgentsMd()
+    // First run backs up the user content and writes arbiter content.
+    const first = runGenerators(config)
+    expect(first.find((r) => r.path.endsWith('AGENTS.md'))?.action).toBe('backed-up-and-replaced')
+    const backupPath = join(dir, 'AGENTS.md.arbiter-backup')
+    expect(readFileSync(backupPath, 'utf-8')).toBe(userContent)
+
+    // Second run with no on-disk change: arbiter content is byte-identical, so
+    // writeFile SKIPS — it does NOT re-back-up or churn the file. The backup
+    // therefore still holds the user's original content, not the arbiter output.
+    // (Previously this was non-idempotent: every run overwrote the backup.)
+    const second = runGenerators(config)
+    expect(second.find((r) => r.path.endsWith('AGENTS.md'))?.action).toBe('skipped')
+    expect(readFileSync(backupPath, 'utf-8')).toBe(userContent)
+  })
+
+  it('a differing second run backs up the current content before replacing (#1077)', () => {
     writeFileSync(join(dir, 'AGENTS.md'), '# first version')
 
     const config = configWithExistingAgentsMd()
+    // First run replaces user content with arbiter content.
     runGenerators(config)
+    const backupPath = join(dir, 'AGENTS.md.arbiter-backup')
+    const arbiterContent = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
 
-    const firstGenerated = readFileSync(join(dir, 'AGENTS.md'), 'utf-8')
+    // Simulate a manual edit so the next regeneration genuinely differs from disk.
+    writeFileSync(join(dir, 'AGENTS.md'), '# manually edited again\n')
 
-    // Second run should back up the first generated version
-    runGenerators(config)
-
-    const backup = readFileSync(join(dir, 'AGENTS.md.arbiter-backup'), 'utf-8')
-    expect(backup).toBe(firstGenerated)
+    // Second (differing) run backs up the latest pre-run state and restores arbiter content.
+    const second = runGenerators(config)
+    expect(second.find((r) => r.path.endsWith('AGENTS.md'))?.action).toBe('backed-up-and-replaced')
+    expect(readFileSync(backupPath, 'utf-8')).toBe('# manually edited again\n')
+    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf-8')).toBe(arbiterContent)
   })
 })

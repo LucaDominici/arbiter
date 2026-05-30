@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, mkdirSync, writeFileSync, copyFileSync, renameSync, unlinkSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  copyFileSync,
+  renameSync,
+  unlinkSync,
+  readFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { ArbiterError } from './errors.js'
@@ -96,6 +104,15 @@ export function _translateFsError(code: string, path: string): string | null {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * `'dry-run'` is retained for backward compatibility — a small number of
+ * consumers (e.g. `kit-install` SCAFFOLD reporting) still pattern-match it. As
+ * of #1077, the standard fs helpers (`writeFile`, `copyStaticFile`) no longer
+ * emit it: in dryRun they compute the *prospective* action (created / skipped /
+ * replaced / backed-up-and-replaced) without touching disk, so `diff` (registry-
+ * dryRun) reports exactly what `update` (real run) would do. This is what makes
+ * the two commands structurally incapable of drifting (F1/F7).
+ */
 export interface WriteResult {
   path: string
   action: 'created' | 'skipped' | 'replaced' | 'backed-up-and-replaced' | 'dry-run'
@@ -104,9 +121,53 @@ export interface WriteResult {
 export type GeneratorRunOpts = { dryRun: boolean }
 
 /**
+ * Read existing file bytes for a content-equality check. Treats any read
+ * failure (permission, race, directory-at-path) as "not equal" so the caller
+ * converges toward writing — the safe direction for an idempotent generator and
+ * the over-reporting (never under-reporting) direction for `diff` (INV-96).
+ */
+function contentEquals(filePath: string, content: string): boolean {
+  try {
+    return readFileSync(filePath, 'utf-8') === content
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Compute the action `writeFile` would take, given the on-disk state. Single
+ * source of truth shared by the real and dryRun paths so they can never
+ * diverge. Precedence (order matters):
+ *   1. missing                         → created
+ *   2. exists + skipIfExists           → skipped
+ *   3. exists + byte-identical content → skipped   (#1077 F6 idempotence)
+ *   4. exists + backup                 → backed-up-and-replaced
+ *   5. exists                          → replaced
+ *
+ * Content-equality is checked BEFORE the backup branch: an unchanged backup
+ * file (AGENTS.md, CLAUDE.md, GLOBAL_INVARIANTS.md) must NOT be churned/backed
+ * up on every run, or `update` is non-idempotent and `diff` over-reports.
+ */
+function resolveWriteAction(
+  filePath: string,
+  content: string,
+  skipIfExists: boolean,
+  backup: boolean,
+): WriteResult['action'] {
+  if (!existsSync(filePath)) return 'created'
+  if (skipIfExists) return 'skipped'
+  if (contentEquals(filePath, content)) return 'skipped'
+  return backup ? 'backed-up-and-replaced' : 'replaced'
+}
+
+/**
  * Write a file atomically (temp-file + rename), creating parent directories as needed.
  * If the file already exists and skipIfExists=true, skip it.
- * If backup=true and file exists, copy it to <path>.arbiter-backup before writing.
+ * If the file already exists and its content is byte-identical, skip it (idempotent).
+ * If backup=true and file exists with differing content, copy it to
+ * <path>.arbiter-backup before writing.
+ * In dryRun mode the prospective action is computed and returned WITHOUT any
+ * filesystem mutation.
  * On ENOSPC the temp file is cleaned up and a UserFacingError is thrown.
  */
 export function writeFile(
@@ -115,41 +176,61 @@ export function writeFile(
   opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
   const { skipIfExists = false, backup = false, dryRun = false } = opts
-  if (dryRun) return { path: filePath, action: 'dry-run' }
+  const action = resolveWriteAction(filePath, content, skipIfExists, backup)
 
-  if (existsSync(filePath)) {
-    if (skipIfExists) {
-      return { path: filePath, action: 'skipped' }
+  if (dryRun || action === 'created') {
+    if (!dryRun) {
+      mkdirSync(dirname(filePath), { recursive: true })
+      atomicWrite(filePath, content)
     }
-    if (backup) {
-      copyFileSync(filePath, `${filePath}.arbiter-backup`)
-    }
-    mkdirSync(dirname(filePath), { recursive: true })
-    atomicWrite(filePath, content)
-    return { path: filePath, action: backup ? 'backed-up-and-replaced' : 'replaced' }
+    return { path: filePath, action }
   }
 
+  if (action === 'skipped') return { path: filePath, action }
+
+  if (action === 'backed-up-and-replaced') {
+    copyFileSync(filePath, `${filePath}.arbiter-backup`)
+  }
   mkdirSync(dirname(filePath), { recursive: true })
   atomicWrite(filePath, content)
-  return { path: filePath, action: 'created' }
+  return { path: filePath, action }
 }
 
 /**
  * Copy a static file (non-template) to the target.
+ * Mirrors {@link writeFile}'s skip semantics: skips when the destination exists
+ * with byte-identical content (idempotent) and computes the prospective action
+ * without writing in dryRun mode.
  */
 export function copyStaticFile(
   src: string,
   dest: string,
   opts: { skipIfExists?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
-  if (opts.dryRun) return { path: dest, action: 'dry-run' }
-  const existed = existsSync(dest)
-  if (existed && opts.skipIfExists) {
-    return { path: dest, action: 'skipped' }
+  const { skipIfExists = false, dryRun = false } = opts
+  let action: WriteResult['action']
+  if (!existsSync(dest)) {
+    action = 'created'
+  } else if (skipIfExists) {
+    action = 'skipped'
+  } else {
+    action = sameFileContent(src, dest) ? 'skipped' : 'replaced'
   }
-  mkdirSync(dirname(dest), { recursive: true })
-  copyFileSync(src, dest)
-  return { path: dest, action: existed ? 'replaced' : 'created' }
+
+  if (!dryRun && action !== 'skipped') {
+    mkdirSync(dirname(dest), { recursive: true })
+    copyFileSync(src, dest)
+  }
+  return { path: dest, action }
+}
+
+/** True when src and dest exist with byte-identical content. */
+function sameFileContent(src: string, dest: string): boolean {
+  try {
+    return readFileSync(src).equals(readFileSync(dest))
+  } catch {
+    return false
+  }
 }
 
 /**

@@ -7,57 +7,32 @@
 //
 // Usage: node scripts/check-workflow-runners.mjs [--dir <path>] [--runner <label>] [--help]
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import { collectYamlFiles, parseHelpAndDir } from './lib/workflow-scan.mjs'
 
 const args = process.argv.slice(2)
-if (args.includes('--help') || args.includes('-h')) {
-  process.stdout.write(
-    [
-      'Usage: node scripts/check-workflow-runners.mjs [options]',
-      '',
-      'Validates that all workflow jobs use the expected runner label.',
-      'Exits 0 when all runners match; exits 1 when unexpected labels are found.',
-      '',
-      'Options:',
-      '  --dir <path>        Root directory to scan (default: cwd)',
-      '  --runner <label>    Expected runner label (default: ubuntu-latest)',
-      '  --help, -h          Show this help and exit',
-      '',
-    ].join('\n'),
-  )
-  process.exit(0)
-}
-
-const dirArg = args.indexOf('--dir')
-const CWD = dirArg >= 0 && args[dirArg + 1] ? resolve(args[dirArg + 1]) : process.cwd()
+const { cwd: CWD } = parseHelpAndDir(args, {
+  usage: [
+    'Usage: node scripts/check-workflow-runners.mjs [options]',
+    '',
+    'Validates that all workflow jobs use the expected runner label.',
+    'Exits 0 when all runners match; exits 1 when unexpected labels are found.',
+    '',
+    'Options:',
+    '  --dir <path>        Root directory to scan (default: cwd)',
+    '  --runner <label>    Expected runner label (default: ubuntu-latest)',
+    '  --help, -h          Show this help and exit',
+    '',
+  ].join('\n'),
+})
 
 const runnerArg = args.indexOf('--runner')
 const EXPECTED_RUNNER =
   runnerArg >= 0 && args[runnerArg + 1] ? args[runnerArg + 1] : 'ubuntu-latest'
 
 const RUNS_ON_RE = /^\s*runs-on:\s+(.+)$/
-
-function collectYamlFiles(dir) {
-  if (!existsSync(dir)) return []
-  const results = []
-  let entries
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
-    return results
-  }
-  for (const entry of entries) {
-    if (entry.isSymbolicLink()) continue
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      results.push(...collectYamlFiles(full))
-    } else if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
-      results.push(full)
-    }
-  }
-  return results
-}
 
 const yamlFiles = collectYamlFiles(join(CWD, '.github', 'workflows'))
 

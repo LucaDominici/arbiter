@@ -50,17 +50,31 @@ describe('arbiter update', () => {
     expect(config!.governanceLevel).toBe('L2')
   })
 
-  it('update re-generates AGENTS.md', async () => {
+  it('update leaves AGENTS.md byte-identical and writes no backup (#1077 idempotence)', async () => {
     const agentsPath = join(dir, 'AGENTS.md')
     const before = readFileSync(agentsPath, 'utf-8')
 
     await runUpdate({ dir, github: false })
 
     const after = readFileSync(agentsPath, 'utf-8')
-    // Content should be the same (same config)
+    // Content unchanged because config is unchanged.
     expect(after).toBe(before)
-    // Backup should exist (always backs up on update)
+    // #1077: writeFile now skips byte-identical content, so an idempotent update
+    // does NOT back up or rewrite AGENTS.md. (Previously this created a churned
+    // .arbiter-backup on every run — the F6 non-idempotence bug.)
+    expect(existsSync(agentsPath + '.arbiter-backup')).toBe(false)
+  })
+
+  it('update DOES back up AGENTS.md when its content actually changed (#1077)', async () => {
+    const agentsPath = join(dir, 'AGENTS.md')
+    // Simulate user edit so the regenerated content differs from disk.
+    writeFileSync(agentsPath, 'user-edited AGENTS.md\n', 'utf-8')
+
+    await runUpdate({ dir, github: false })
+
+    // Now content differs → backup is written, file replaced.
     expect(existsSync(agentsPath + '.arbiter-backup')).toBe(true)
+    expect(readFileSync(agentsPath + '.arbiter-backup', 'utf-8')).toBe('user-edited AGENTS.md\n')
   })
 
   it('update preserves existing hooks', async () => {

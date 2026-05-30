@@ -50,6 +50,7 @@ export function generateGithubSetup(
     'check-ci-tiers.mjs',
     'check-action-pins.mjs',
     'check-workflow-perms.mjs',
+    'check-merge-method.mjs',
   ] as const) {
     const scriptPath = resolvedPath(base, 'scripts', name)
     const result = writeFile(scriptPath, renderTemplate(`scripts/${name}.ejs`, data), {

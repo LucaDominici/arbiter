@@ -6,5 +6,6 @@
   "tier": "bake",
   "deployTarget": "ghcr",
   "note": "TypeScript + GHCR deployTarget — default home scenario; signed image published to GHCR, deploy.sh customised per runtime",
-  "enableSecurityScanning": true
+  "enableSecurityScanning": true,
+  "collaborationMode": "peer-review"
 }

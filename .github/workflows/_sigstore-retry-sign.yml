@@ -20,10 +20,13 @@ on:
         type: number
         default: 3
 
+permissions:
+  contents: read
+
 jobs:
   sign-with-retry:
     name: Sign artifact (cosign keyless, retry)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:
       id-token: write
       contents: read

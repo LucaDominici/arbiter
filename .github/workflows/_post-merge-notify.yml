@@ -28,7 +28,7 @@ permissions:
 jobs:
   notify-codeowners:
     if: github.event.pull_request.merged == true && github.run_attempt == 1
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
     steps:
       - name: Checkout

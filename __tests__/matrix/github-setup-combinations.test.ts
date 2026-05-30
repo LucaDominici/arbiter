@@ -52,7 +52,7 @@ describe('generateGithubSetup combinations (Task 19 — INV-32 / CANON-04)', () 
         })
         const result = generateGithubSetup(config)
 
-        const expectedCount = level === 'L1' ? 4 : 5
+        const expectedCount = level === 'L1' ? 5 : 6
         expect(
           result.files,
           `${language}-${archetype}-${level}: expected ${expectedCount} files`,
@@ -82,6 +82,7 @@ describe('generateGithubSetup combinations (Task 19 — INV-32 / CANON-04)', () 
           'check-ci-tiers.mjs',
           'check-action-pins.mjs',
           'check-workflow-perms.mjs',
+          'check-merge-method.mjs',
         ]) {
           expect(
             result.files.some((f) => f.path.endsWith(name)),

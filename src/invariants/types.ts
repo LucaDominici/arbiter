@@ -37,6 +37,13 @@ export interface Invariant {
   /** How this invariant is enforced (e.g. "hook + CI", "CI only", "manual") */
   enforcement?: string
   /**
+   * Optional ADR id this invariant traces to, e.g. "ADR-051". When set, the
+   * referenced ADR file MUST exist under docs/ADR/ — enforced by the
+   * invariant↔ADR traceability test (#1102), giving a machine-checked
+   * catalog→ADR cross-reference.
+   */
+  adr?: string
+  /**
    * Lifecycle status. Omit (or "active") for in-use invariants.
    * Set to "retired" when an invariant is superseded or removed — IDs must never be reused.
    */

@@ -15,15 +15,31 @@ related: []
 
 All `arbiter` subcommands obey one exit-code convention:
 
-| Code | Meaning            | CI semantics                      |
-| ---- | ------------------ | --------------------------------- |
-| `0`  | ok                 | must pass                         |
-| `1`  | warning / advisory | CI should pass but surface a flag |
-| `2`  | error / blocker    | CI must fail (hard stop)          |
+| Code | Meaning                     | CI semantics                                    |
+| ---- | --------------------------- | ----------------------------------------------- |
+| `0`  | ok                          | must pass                                       |
+| `1`  | warning / recoverable error | CI should pass but surface a flag               |
+| `2`  | error / fatal blocker       | CI must fail (hard stop)                        |
+| `78` | config error (EX_CONFIG)    | nothing attempted — fix config/state and re-run |
 
 The mapping `ok ↔ 0`, `warning ↔ 1`, `error ↔ 2` is encoded in
 `src/utils/json-output.ts::statusToExitCode` and applies to every
-command that emits a `--json` envelope.
+command that emits a `--json` envelope. Exit code `78` (POSIX `EX_CONFIG`)
+signals that the command could not start due to a configuration or pre-flight
+error; no changes were attempted.
+
+### `errorClass` field (JSON output)
+
+When a command emits `--json` output, the envelope may include an `errorClass`
+field alongside `status`:
+
+| `errorClass`  | Meaning                                       | Typical exit code |
+| ------------- | --------------------------------------------- | ----------------- |
+| `recoverable` | gh API errors that do not block CI (e.g. 404) | `1`               |
+| `fatal`       | gh API errors that halt execution (e.g. 401)  | `2`               |
+| `config`      | config or pre-flight error; nothing attempted | `78`              |
+
+The `errorClass` field is omitted on `status: "ok"` responses.
 
 ## Commands
 

@@ -18,7 +18,7 @@ jobs:
       github.event.review.state == 'approved' &&
       github.event.review.user.login != github.event.pull_request.user.login &&
       github.event.review.user.type != 'Bot'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:
       pull-requests: write
     steps:
@@ -47,7 +47,7 @@ jobs:
   # Prevents stale approval from bypassing the gate after a rewrite.
   revoke-approval-label:
     if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:
       pull-requests: write
     steps:
