@@ -39,7 +39,7 @@ const TIER_LABELS: Record<InvariantTier, string> = {
  */
 
 const LANGUAGES: Language[] = ['typescript', 'java', 'rust', 'go', 'python']
-const LEVELS: GovernanceLevel[] = ['L1', 'L2', 'L3']
+const LEVELS: GovernanceLevel[] = ['L1', 'L2', 'L3', 'L4']
 
 const STACK_CONFIG: Record<Language, Partial<Parameters<typeof makeConfig>[1]>> = {
   typescript: {
@@ -122,6 +122,7 @@ describe('cross-product: AGENTS.md — governance policy across all stacks', () 
     L1: '70%',
     L2: '80% coverage minimum',
     L3: '85% coverage minimum',
+    L4: 'Evidence harness',
   }
 
   for (const lang of LANGUAGES) {
@@ -1320,4 +1321,157 @@ describe('cross-product: classify-changes gate (#161) — L2+ single-lane', () =
       expect(rendered).toContain('needs.classify-changes.outputs.docs_only')
     })
   }
+})
+
+// ── #1076 Sub-1: SHA-pinned action refs (INV-76) ─────────────────────────────
+
+const SHA_RE = /^[0-9a-f]{40}$/i
+// Matches both `- uses: owner/repo@ref` and `uses: owner/repo@ref`
+const USES_RE = /^\s+(?:-\s+)?uses:\s+["']?([^@\s"']+)@([^\s#"']+)/gm
+
+function extractActionRefs(yaml: string): Array<{ action: string; ref: string }> {
+  const refs: Array<{ action: string; ref: string }> = []
+  for (const m of yaml.matchAll(USES_RE)) {
+    const action = m[1].replace(/^['"]|['"]$/g, '')
+    const ref = m[2].replace(/^['"]|['"]$/g, '')
+    if (action.startsWith('.') || action.startsWith('docker://')) continue
+    refs.push({ action, ref })
+  }
+  return refs
+}
+
+describe('cross-product: workflow templates — SHA-pinned action refs (INV-76, #1076)', () => {
+  // Known exclusion: shopify/toxiproxy-github-action has no public SHA-resolvable tag (#1086)
+  const EXCLUDED_ACTIONS = new Set(['shopify/toxiproxy-github-action'])
+
+  const TEMPLATES_REQUIRING_SHA: Array<{
+    tpl: string
+    level: GovernanceLevel
+    lang?: string
+    /** At least one action ref must be present in the rendered output */
+    expectRefs?: boolean
+  }> = [
+    { tpl: 'github/workflows/drift-shadow.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_ai-draft-check.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_sigstore-retry-sign.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/semantic-review.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/issue-state.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_label-sync.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_post-merge-notify.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_k6-runner.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/_contract-postman.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/01-pr-fast.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/02-pr-extended.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/04-deploy-test.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/05-release.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/10-deploy-prod.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: true },
+    { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
+    { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', expectRefs: true },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'java', expectRefs: true },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'go', expectRefs: true },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'python', expectRefs: true },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2', lang: 'rust', expectRefs: true },
+    {
+      tpl: 'github/workflows/12-mutation-scheduled.yml.ejs',
+      level: 'L2',
+      lang: 'java',
+      expectRefs: true,
+    },
+    {
+      tpl: 'github/workflows/13-archunit-extended.yml.ejs',
+      level: 'L2',
+      lang: 'java',
+      expectRefs: true,
+    },
+    {
+      tpl: 'github/workflows/14-license-scan.yml.ejs',
+      level: 'L2',
+      lang: 'java',
+      expectRefs: true,
+    },
+  ]
+
+  for (const { tpl, level, lang = 'typescript', expectRefs = false } of TEMPLATES_REQUIRING_SHA) {
+    it(`${tpl} at ${level} (${lang}): all third-party action refs are SHA-pinned`, () => {
+      const rendered = renderTemplate(tpl, configFor(lang as Language, level))
+      const refs = extractActionRefs(rendered)
+      if (expectRefs) expect(refs.length).toBeGreaterThan(0)
+      const nonSha = refs
+        .filter(({ ref }) => !SHA_RE.test(ref))
+        .filter(({ action }) => !EXCLUDED_ACTIONS.has(action))
+      expect(nonSha).toEqual([])
+    })
+  }
+})
+
+// ── #1076 Sub-2: Top-level permissions block (INV-77) ────────────────────────
+
+describe('cross-product: workflow templates — top-level permissions block (INV-77, #1076)', () => {
+  // All 26 *.yml.ejs templates must render with a top-level permissions: block.
+  // This ratchet prevents future template edits from accidentally removing permissions.
+  const ALL_WORKFLOW_TEMPLATES: Array<{ tpl: string; level: GovernanceLevel; lang?: string }> = [
+    { tpl: 'github/workflows/01-pr-fast.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/02-pr-extended.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/03-human-approval.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/04-deploy-test.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/05-release.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/06-nightly.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/07-weekly.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/08-monthly.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/09-heartbeat.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/10-deploy-prod.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/11-k6-on-demand.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/12-mutation-scheduled.yml.ejs', level: 'L2', lang: 'java' },
+    { tpl: 'github/workflows/13-archunit-extended.yml.ejs', level: 'L2', lang: 'java' },
+    { tpl: 'github/workflows/14-license-scan.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_ai-draft-check.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_contract-postman.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/drift-shadow.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/issue-state.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_k6-runner.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_label-on-approve.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_label-sync.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_notify.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_post-merge-notify.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_pr-staleness.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/semantic-review.yml.ejs', level: 'L2' },
+    { tpl: 'github/workflows/_sigstore-retry-sign.yml.ejs', level: 'L2' },
+  ]
+
+  for (const { tpl, level, lang = 'typescript' } of ALL_WORKFLOW_TEMPLATES) {
+    it(`${tpl} at ${level} (${lang}): rendered output has top-level permissions: block`, () => {
+      const rendered = renderTemplate(tpl, configFor(lang as Language, level))
+      expect(rendered).toMatch(/^permissions:/m)
+    })
+  }
+})
+
+// ── #1076 Sub-3: Inline runner check covers RUNNER_LABELS forms (INV-89) ─────
+
+describe('cross-product: generated check-all.mjs — runner allowlist covers RUNNER_LABELS (INV-89, #1076)', () => {
+  it('rendered check-all.mjs pattern matches RUNNER_LABELS_BUILD', () => {
+    const rendered = renderTemplate('scripts/check-all.mjs.ejs', configFor('typescript', 'L3'))
+    expect(rendered).toContain('RUNNER_LABELS_BUILD')
+  })
+
+  it('rendered check-all.mjs pattern matches RUNNER_LABELS_DEPLOY', () => {
+    const rendered = renderTemplate('scripts/check-all.mjs.ejs', configFor('typescript', 'L3'))
+    expect(rendered).toContain('RUNNER_LABELS_DEPLOY')
+  })
+
+  it('rendered check-all.mjs violation message references ubuntu-latest not docker-ci-build', () => {
+    const rendered = renderTemplate('scripts/check-all.mjs.ejs', configFor('typescript', 'L3'))
+    // Violation message must name the correct fallback per ADR-023 amendment #959
+    const violationLine = rendered
+      .split('\n')
+      .find((l) => l.includes('violation') && l.includes('use '))
+    expect(violationLine).toBeDefined()
+    expect(violationLine).toContain('ubuntu-latest')
+    expect(violationLine).not.toContain('docker-ci-build')
+  })
 })

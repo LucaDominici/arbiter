@@ -36,7 +36,8 @@ export function generateGlobalInvariants(
     tierLabels: TIER_LABELS,
   }
 
-  const content = renderTemplate('global-invariants/GLOBAL_INVARIANTS.md.ejs', data)
+  const content =
+    renderTemplate('global-invariants/GLOBAL_INVARIANTS.md.ejs', data).trimEnd() + '\n'
   return writeFile(resolvedPath(config.targetDir, 'GLOBAL_INVARIANTS.md'), content, {
     backup: true,
     dryRun: opts.dryRun,

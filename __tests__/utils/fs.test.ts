@@ -76,6 +76,116 @@ describe('writeFile', () => {
   })
 })
 
+describe('writeFile — content-equality skipping (#1077 F6)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('skips when existing content is byte-identical (no skipIfExists, no backup)', () => {
+    const path = join(dir, 'idem.txt')
+    writeFileSync(path, 'same bytes')
+    const result = writeFile(path, 'same bytes')
+    expect(result.action).toBe('skipped')
+    // No write happened — no orphan tmp files
+    const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
+    expect(orphans).toHaveLength(0)
+  })
+
+  it('skips identical content even when backup=true (idempotence beats backup)', () => {
+    const path = join(dir, 'idem-backup.txt')
+    writeFileSync(path, 'identical')
+    const result = writeFile(path, 'identical', { backup: true })
+    expect(result.action).toBe('skipped')
+    // No backup is written when content is unchanged
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(false)
+  })
+
+  it('replaces when content differs (no backup)', () => {
+    const path = join(dir, 'diff.txt')
+    writeFileSync(path, 'old')
+    const result = writeFile(path, 'new')
+    expect(result.action).toBe('replaced')
+    expect(readFileSync(path, 'utf-8')).toBe('new')
+  })
+
+  it('backs-up-and-replaces when content differs and backup=true', () => {
+    const path = join(dir, 'diff-backup.txt')
+    writeFileSync(path, 'old')
+    const result = writeFile(path, 'new', { backup: true })
+    expect(result.action).toBe('backed-up-and-replaced')
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(true)
+  })
+})
+
+describe('writeFile — dryRun action parity (#1077 F1/F7)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('missing path → created, and writes nothing to disk', () => {
+    const path = join(dir, 'missing.txt')
+    const result = writeFile(path, 'content', { dryRun: true })
+    expect(result.action).toBe('created')
+    expect(existsSync(path)).toBe(false)
+  })
+
+  it('existing identical content → skipped, and writes nothing', () => {
+    const path = join(dir, 'same.txt')
+    writeFileSync(path, 'content')
+    const result = writeFile(path, 'content', { dryRun: true })
+    expect(result.action).toBe('skipped')
+    expect(readFileSync(path, 'utf-8')).toBe('content')
+  })
+
+  it('existing differing content → replaced, and leaves original untouched', () => {
+    const path = join(dir, 'differ.txt')
+    writeFileSync(path, 'original')
+    const result = writeFile(path, 'incoming', { dryRun: true })
+    expect(result.action).toBe('replaced')
+    expect(readFileSync(path, 'utf-8')).toBe('original')
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(false)
+  })
+
+  it('existing differing content with backup → backed-up-and-replaced, no backup written', () => {
+    const path = join(dir, 'differ-backup.txt')
+    writeFileSync(path, 'original')
+    const result = writeFile(path, 'incoming', { backup: true, dryRun: true })
+    expect(result.action).toBe('backed-up-and-replaced')
+    expect(readFileSync(path, 'utf-8')).toBe('original')
+    expect(existsSync(`${path}.arbiter-backup`)).toBe(false)
+  })
+
+  it('existing file with skipIfExists → skipped (skipIfExists wins over backup)', () => {
+    const path = join(dir, 'skip.txt')
+    writeFileSync(path, 'original')
+    const result = writeFile(path, 'incoming', {
+      skipIfExists: true,
+      backup: true,
+      dryRun: true,
+    })
+    expect(result.action).toBe('skipped')
+    expect(readFileSync(path, 'utf-8')).toBe('original')
+  })
+
+  it('dryRun never leaves orphan tmp files', () => {
+    const path = join(dir, 'no-orphan.txt')
+    writeFileSync(path, 'before')
+    writeFile(path, 'after', { dryRun: true })
+    const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
+    expect(orphans).toHaveLength(0)
+  })
+})
+
 describe('copyStaticFile', () => {
   let dir: string
 
@@ -111,6 +221,43 @@ describe('copyStaticFile', () => {
     const result = copyStaticFile(src, dest, { skipIfExists: true })
     expect(result.action).toBe('skipped')
     expect(readFileSync(dest, 'utf-8')).toBe('old content')
+  })
+
+  it('skips when destination content is byte-identical to source (#1077 F6)', () => {
+    const src = join(dir, 'source.txt')
+    const dest = join(dir, 'dest.txt')
+    writeFileSync(src, 'identical bytes')
+    writeFileSync(dest, 'identical bytes')
+    const result = copyStaticFile(src, dest)
+    expect(result.action).toBe('skipped')
+  })
+
+  it('dryRun missing dest → created, writes nothing (#1077 F1)', () => {
+    const src = join(dir, 'source.txt')
+    const dest = join(dir, 'dest.txt')
+    writeFileSync(src, 'payload')
+    const result = copyStaticFile(src, dest, { dryRun: true })
+    expect(result.action).toBe('created')
+    expect(existsSync(dest)).toBe(false)
+  })
+
+  it('dryRun differing dest → replaced, leaves dest untouched (#1077 F7)', () => {
+    const src = join(dir, 'source.txt')
+    const dest = join(dir, 'dest.txt')
+    writeFileSync(src, 'incoming')
+    writeFileSync(dest, 'original')
+    const result = copyStaticFile(src, dest, { dryRun: true })
+    expect(result.action).toBe('replaced')
+    expect(readFileSync(dest, 'utf-8')).toBe('original')
+  })
+
+  it('dryRun identical dest → skipped (#1077 F6)', () => {
+    const src = join(dir, 'source.txt')
+    const dest = join(dir, 'dest.txt')
+    writeFileSync(src, 'same')
+    writeFileSync(dest, 'same')
+    const result = copyStaticFile(src, dest, { dryRun: true })
+    expect(result.action).toBe('skipped')
   })
 })
 

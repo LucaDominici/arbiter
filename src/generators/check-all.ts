@@ -68,6 +68,18 @@ export function generateCheckAll(
     }),
   )
 
+  // #1093 (CANON-01, INV-100): emit the collaborationMode-wired check alongside
+  // check-all.mjs. Run at L1, it asserts the generated arbiter.json declares a
+  // valid collaborationMode — the primary workflow axis (ADR-051). Unconditional
+  // because every arbiter.json carries the field after init.
+  const collabCheckPath = resolvedPath(base, 'scripts', 'check-collab-mode-wired.mjs')
+  results.push(
+    writeFile(collabCheckPath, renderTemplate('scripts/check-collab-mode-wired.mjs.ejs', data), {
+      skipIfExists: true,
+      dryRun: opts.dryRun,
+    }),
+  )
+
   // #358 (CANON-02, CANON-15, Phase 7F): emit ephemeral-server runner used by
   // integration/e2e gate steps (Playwright TS, pytest-playwright Python) to
   // bring up a server, poll for readiness, run tests, and tear it down. Only

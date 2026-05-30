@@ -6,5 +6,6 @@
   "tier": "bake",
   "deployTarget": "none",
   "note": "TypeScript + deployTarget none — scaffold-only path; no cloud deploy steps emitted, deploy workflows are not generated",
-  "enableSecurityScanning": true
+  "enableSecurityScanning": true,
+  "collaborationMode": "peer-review"
 }

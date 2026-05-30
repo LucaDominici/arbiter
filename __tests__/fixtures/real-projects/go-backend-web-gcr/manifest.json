@@ -6,5 +6,6 @@
   "tier": "bake",
   "deployTarget": "gcp-cloud-run",
   "note": "Go + GCP Cloud Run deployTarget — Workload Identity Federation, GAR cosign copy, gcloud run services update",
-  "enableSecurityScanning": true
+  "enableSecurityScanning": true,
+  "collaborationMode": "peer-review"
 }

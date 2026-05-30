@@ -25,7 +25,7 @@ describe('tool output: github', () => {
   }
 
   it('generates T1+T2+T3+T4+T5+T5b+T6 CI workflows, PR template, 5 issue templates, compliance-item, issue-state, dependabot, sign-and-attest action, sigstore-retry-sign, and AI-PR gate workflows (22 files total)', () => {
-    const config = githubConfig()
+    const config = githubConfig({ governanceLevel: 'L3' })
     const result = generateGithub(config)
     expect(result.files).toHaveLength(22)
   })

@@ -103,27 +103,40 @@ function generateClaudeSettings(
   dryRun: boolean,
 ): void {
   const settingsPath = resolvedPath(base, '.claude', 'settings.json')
-  if (existsSync(settingsPath)) {
-    if (dryRun) {
-      results.push({ path: settingsPath, action: 'dry-run' })
-      return
-    }
-    const existing = parseExistingSettings(settingsPath)
-    const incoming = JSON.parse(renderTemplate('claude/settings.json.ejs', data)) as Record<
-      string,
-      unknown
-    >
-    const merged = mergeSettingsJson(existing, incoming)
-    // Always overwrite the backup with the current pre-merge state so users can undo
-    // this specific merge. Long-term history lives in git, not in .arbiter-backup (#285).
-    copyFileSync(settingsPath, `${settingsPath}.arbiter-backup`)
-    writeFileSync(settingsPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
-    results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
-  } else {
+  if (!existsSync(settingsPath)) {
     results.push(
       writeFile(settingsPath, renderTemplate('claude/settings.json.ejs', data), { dryRun }),
     )
+    return
   }
+
+  // Existing settings.json: merge incoming defaults into the user's file. The
+  // result is compared to disk so an idempotent run skips (no churned backup) —
+  // this is the only generator with a non-trivial merge, so it computes its own
+  // prospective action rather than delegating to writeFile (#1077 F6).
+  const existing = parseExistingSettings(settingsPath)
+  const incoming = JSON.parse(renderTemplate('claude/settings.json.ejs', data)) as Record<
+    string,
+    unknown
+  >
+  const merged = mergeSettingsJson(existing, incoming)
+  const mergedText = JSON.stringify(merged, null, 2) + '\n'
+
+  if (readFileSync(settingsPath, 'utf-8') === mergedText) {
+    results.push({ path: settingsPath, action: 'skipped' })
+    return
+  }
+
+  if (dryRun) {
+    results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
+    return
+  }
+
+  // Always overwrite the backup with the current pre-merge state so users can undo
+  // this specific merge. Long-term history lives in git, not in .arbiter-backup (#285).
+  copyFileSync(settingsPath, `${settingsPath}.arbiter-backup`)
+  writeFileSync(settingsPath, mergedText, 'utf-8')
+  results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
 }
 
 function generateClaudeHooks(

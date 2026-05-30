@@ -154,4 +154,14 @@ Run `arbiter --profile <your-command>`. A `.cpuprofile` is written to `~/.arbite
 
 ---
 
+**Does `arbiter diff` show exactly what `arbiter update` will do?**  
+Yes. `diff` is `update` with the writes elided: it builds the same project config and runs the same generator registry in dry-run mode, so it enumerates **every** file `update` manages — not a subset — and can never under- or over-report relative to `update`. It is strictly read-only (it never writes, backs up, or calls `gh`). Run `arbiter diff` before `arbiter update` to preview created (`+`), changed (`~`), and unchanged (`=`) files. With `--json`, `data.remoteSideEffect[]` additionally lists (but never executes) the GitHub operations `update --github` would perform.
+
+---
+
+**Is `arbiter update` idempotent — does running it twice change anything the second time?**  
+No. `update` skips any file whose generated content is byte-identical to what is already on disk, so a second consecutive run touches zero files (and writes no `.arbiter-backup`). Only files you have customised — where the content genuinely differs — are backed up to `<file>.arbiter-backup` and replaced; missing files are created.
+
+---
+
 _For deeper questions, open a GitHub Discussion or file an issue._

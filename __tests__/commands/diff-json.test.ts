@@ -52,9 +52,16 @@ vi.mock('../../src/invariants/filter.js', () => ({
 vi.mock('../../src/utils/render.js', () => ({
   renderTemplate: vi.fn().mockReturnValue('content'),
 }))
-vi.mock('../../src/utils/fs.js', () => ({
-  resolvedPath: vi.fn((...args: string[]) => args.join('/')),
-}))
+// #1077: diff now runs the real generator registry (registry-dryRun), which
+// calls writeFile/copyStaticFile. Spread the real module so those exist; only
+// resolvedPath is overridden for deterministic paths.
+vi.mock('../../src/utils/fs.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/utils/fs.js')>()
+  return {
+    ...actual,
+    resolvedPath: vi.fn((...args: string[]) => args.join('/')),
+  }
+})
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>()
   return {
@@ -112,7 +119,11 @@ describe('diff --json', () => {
 
   it('emits JSON envelope with new files as warning status and exits 1 (canonical)', () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
-    mockExistsSync.mockReturnValue(false) // all files new
+    // existsSync mocked false ⇒ every registry file is reported "new". The
+    // registry-dryRun (#1077) therefore yields hasChanges ⇒ status 'warning'
+    // ⇒ exit 1 (canonical 0/1/2 convention, INV-53).
+    mockExistsSync.mockReturnValue(false)
+    mockReadFileSync.mockReturnValue('mocked-content')
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((): never => {
       return undefined as never
     })
@@ -126,6 +137,7 @@ describe('diff --json', () => {
     const data = parsed.data as Record<string, unknown>
     expect(data.hasChanges).toBe(true)
     expect(Array.isArray(data.files)).toBe(true)
+    expect((data.files as unknown[]).length).toBeGreaterThan(0)
     expect(exitSpy).toHaveBeenCalledWith(1)
   })
 

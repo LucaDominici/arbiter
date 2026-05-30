@@ -1,0 +1,74 @@
+<%
+const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'peer-review');
+const _runner = (_cm === 'gated-review' && (governanceLevel === 'L3' || governanceLevel === 'L4'))
+  ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
+  : "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}";
+const _codeqlLang = language === 'typescript' ? 'javascript-typescript'
+  : language === 'java' ? 'java-kotlin'
+  : language === 'go' ? 'go'
+  : language === 'python' ? 'python'
+  : 'javascript-typescript';
+%>name: CodeQL SAST (T1)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL analysis
+    runs-on: <%- _runner %>
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@4f3212b61783c3c68e8309a0f18a699764811cda # v3.28.8
+        with:
+          languages: <%- _codeqlLang %>
+
+<% if (language === 'java') { %>
+      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+<% if (buildTool === 'gradle') { %>
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+      - name: Build
+        run: ./gradlew classes testClasses
+<% } else { %>
+      - name: Build
+        run: mvn compile test-compile -DskipTests
+<% } %>
+<% } else if (language === 'go') { %>
+      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build ./...
+<% } else if (language === 'typescript') { %>
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+<% } %>
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@4f3212b61783c3c68e8309a0f18a699764811cda # v3.28.8
+        with:
+          category: '/language:<%- _codeqlLang %>'

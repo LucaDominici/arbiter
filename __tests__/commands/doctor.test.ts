@@ -66,6 +66,29 @@ describe('runDoctorHealth (#539)', () => {
     expect(result.exitCode).toBe(1)
   })
 
+  // ADR-051 (#1093): collaborationMode × governanceLevel coherence surfaced by doctor.
+  it('collab-coherence PASS for a coherent cell (peer-review @ L2)', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ collaborationMode: 'peer-review', governanceLevel: 'L2' }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'collab-coherence')
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('collab-coherence WARN for an advisory cell (trunk-solo @ L3)', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ collaborationMode: 'trunk-solo', governanceLevel: 'L3' }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'collab-coherence')
+    expect(c?.status).toBe('WARN')
+  })
+
   it('WARN when arbiter.json exists but AGENTS.md missing', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')

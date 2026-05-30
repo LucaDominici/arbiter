@@ -1,0 +1,10 @@
+
+  Arbiter — diff (dry run)
+
+  ~ AGENTS.md  (would update)
+  ~ GLOBAL_INVARIANTS.md  (would update)
+  ~ .claude/CLAUDE.md  (would update)
+  ~ .agents/CODEX.md  (would update)
+
+  Run `arbiter update` to apply changes.
+

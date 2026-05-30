@@ -20,7 +20,7 @@ on:
 jobs:
   sync-action-pins:
     name: Sync EJS Action Pins
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     if: >
       github.actor == 'dependabot[bot]' &&
       startsWith(github.head_ref, 'dependabot/github_actions/')

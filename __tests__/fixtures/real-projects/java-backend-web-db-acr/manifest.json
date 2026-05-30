@@ -8,5 +8,6 @@
   "note": "Java Maven + Azure Container Registry deployTarget — planning-main parity target; cosign copy ACR TEST → ACR PROD",
   "enableSecurityScanning": true,
   "architectureStyle": "layered",
-  "basePackage": "com.example"
+  "basePackage": "com.example",
+  "collaborationMode": "peer-review"
 }
