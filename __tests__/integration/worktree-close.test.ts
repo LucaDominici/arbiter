@@ -94,7 +94,8 @@ afterEach(() => {
 
 async function openAndMerge(taskId: string, slug: string): Promise<string> {
   await runWorktreeOpen({ taskId, slug, cwd: repoRoot, worktreesDir })
-  const wtPath = join(worktreesDir, `${taskId}-${slug}`)
+  // #1108: worktree dir name strips the task id's leading # (branch keeps it).
+  const wtPath = join(worktreesDir, `${taskId.replace(/^#/, '')}-${slug}`)
 
   // Make a commit in the worktree — stage only the feature file, not any symlinks
   // that materializeLink may have created (to avoid merge conflicts). Use a
@@ -137,7 +138,7 @@ describe('runWorktreeClose', () => {
       noFetch: true, // skip network fetch in test — remote is already up to date
     })
 
-    const wtPath = join(worktreesDir, '#999-test')
+    const wtPath = join(worktreesDir, '999-test')
     expect(existsSync(wtPath)).toBe(false)
 
     const logPath = join(repoRoot, '.arbiter', 'worktree-close.log.json')
@@ -156,7 +157,7 @@ describe('runWorktreeClose', () => {
       worktreesDir,
     })
     // Add a commit so the branch has work not yet in origin/main
-    const wtPath = join(worktreesDir, '#999-unmerged')
+    const wtPath = join(worktreesDir, '999-unmerged')
     writeFileSync(join(wtPath, 'work.txt'), 'wip')
     execFileSync('git', ['add', '.'], { cwd: wtPath, stdio: 'ignore' })
     execFileSync('git', ['commit', '-m', 'wip'], {
@@ -176,7 +177,7 @@ describe('runWorktreeClose', () => {
       cwd: repoRoot,
       worktreesDir,
     })
-    const wtPath = join(worktreesDir, '#999-unmerged')
+    const wtPath = join(worktreesDir, '999-unmerged')
     writeFileSync(join(wtPath, 'work.txt'), 'wip')
     execFileSync('git', ['add', '.'], { cwd: wtPath, stdio: 'ignore' })
     execFileSync('git', ['commit', '-m', 'wip'], {
@@ -214,7 +215,7 @@ describe('runWorktreeClose', () => {
     })
 
     expect(warnings.some((w) => w.includes('.env'))).toBe(true)
-    expect(existsSync(join(worktreesDir, '#999-dangling'))).toBe(false)
+    expect(existsSync(join(worktreesDir, '999-dangling'))).toBe(false)
   })
 
   it('invokes the close hook and passes the worktree path', async () => {
@@ -245,7 +246,7 @@ describe('runWorktreeClose', () => {
     runWorktreeClose({ taskId: '#999', cwd: repoRoot, noFetch: true })
 
     expect(existsSync(hookLog)).toBe(true)
-    const wtPath = join(worktreesDir, '#999-hook')
+    const wtPath = join(worktreesDir, '999-hook')
     expect(readFileSync(hookLog, 'utf-8').trim()).toBe(resolve(wtPath))
   })
 
@@ -276,7 +277,7 @@ describe('runWorktreeClose', () => {
     )
 
     // Worktree must still be present
-    expect(existsSync(join(worktreesDir, '#999-hookfail'))).toBe(true)
+    expect(existsSync(join(worktreesDir, '999-hookfail'))).toBe(true)
   })
 
   it('emits warning callback but does not throw when close hook fails under --force', async () => {
@@ -315,7 +316,7 @@ describe('runWorktreeClose', () => {
 
     expect(warnings.join('\n')).toMatch(/close hook failed/i)
     // Worktree should be removed despite hook failure
-    expect(existsSync(join(worktreesDir, '#999-hookforce'))).toBe(false)
+    expect(existsSync(join(worktreesDir, '999-hookforce'))).toBe(false)
   })
 
   it('refuses when no open log entry exists for the task', async () => {
@@ -329,12 +330,12 @@ describe('runWorktreeClose', () => {
 
     // Close the first — picks the first matching open-log entry
     runWorktreeClose({ taskId: '#999', cwd: repoRoot, noFetch: true })
-    expect(existsSync(join(worktreesDir, '#999-first'))).toBe(false)
-    expect(existsSync(join(worktreesDir, '#999-second'))).toBe(true)
+    expect(existsSync(join(worktreesDir, '999-first'))).toBe(false)
+    expect(existsSync(join(worktreesDir, '999-second'))).toBe(true)
 
     // Close the second — must skip the stale first entry and find the second
     runWorktreeClose({ taskId: '#999', cwd: repoRoot, noFetch: true })
-    expect(existsSync(join(worktreesDir, '#999-second'))).toBe(false)
+    expect(existsSync(join(worktreesDir, '999-second'))).toBe(false)
   })
 })
 
@@ -346,7 +347,7 @@ describe('runWorktreeClose --harvest', () => {
       cwd: repoRoot,
       worktreesDir,
     })
-    const wtPath = join(worktreesDir, '#888-harvest')
+    const wtPath = join(worktreesDir, '888-harvest')
 
     // Create a tracked file in main repo and commit it
     mkdirSync(join(repoRoot, 'src'), { recursive: true })
@@ -387,7 +388,7 @@ describe('runWorktreeClose --harvest', () => {
       cwd: repoRoot,
       worktreesDir,
     })
-    const wtPath = join(worktreesDir, '#887-harvest-new')
+    const wtPath = join(worktreesDir, '887-harvest-new')
 
     // Create a new file in the worktree (untracked)
     mkdirSync(join(wtPath, 'src'), { recursive: true })
@@ -416,7 +417,7 @@ describe('runWorktreeClose --harvest', () => {
       cwd: repoRoot,
       worktreesDir,
     })
-    const wtPath = join(worktreesDir, '#886-harvest-force')
+    const wtPath = join(worktreesDir, '886-harvest-force')
 
     // Don't merge the branch — harvestAll should still close
     writeFileSync(join(wtPath, 'work.txt'), 'wip')
@@ -524,7 +525,7 @@ describe('#314 stale log entry pruning', () => {
     const fakeEntry = {
       taskId: '#314',
       slug: 'gone',
-      worktreePath: join(worktreesDir, '#314-gone-deleted'),
+      worktreePath: join(worktreesDir, '314-gone-deleted'),
       branch: 'task/#314-gone',
       baseBranch: 'main',
       baseRef: 'abc1234',
