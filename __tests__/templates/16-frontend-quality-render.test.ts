@@ -25,7 +25,7 @@ describe('16-frontend-quality.yml.ejs — structural invariants (CANON-18)', () 
     { language: 'rust', buildTool: 'cargo' },
   ] as const
 
-  const LEVELS = ['L1', 'L2', 'L3'] as const
+  const LEVELS = ['L1', 'L2', 'L3', 'L4'] as const
 
   it.each(STACKS)(
     '$language: workflow name contains "Frontend Quality"',

@@ -29,10 +29,17 @@ try {
   process.exit(1)
 }
 
-function parseSize(sizeStr) {
-  if (!sizeStr) return Infinity
+function parseSize(sizeStr, context) {
+  if (sizeStr == null) return Infinity // caller decides if null is fatal
   const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(kb|mb|b)$/i)
-  if (!match) return Infinity
+  if (!match) {
+    // Malformed size string → hard fail. Silently returning Infinity would unenforce the budget.
+    process.stderr.write(
+      `[check-bundle-size] FATAL: unrecognized size format "${sizeStr}" in ${context}\n` +
+        `  Accepted formats: "200kb", "1.5mb", "4096b" (case-insensitive, no space required)\n`,
+    )
+    process.exit(1)
+  }
   const num = parseFloat(match[1])
   const unit = match[2].toLowerCase()
   if (unit === 'mb') return Math.round(num * 1024 * 1024)
@@ -58,10 +65,20 @@ function matchGlob(pattern, filePath) {
 function walkDir(dir) {
   const files = []
   if (!existsSync(dir)) return files
-  const entries = readdirSync(dir)
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return files
+  }
   for (const entry of entries) {
     const full = join(dir, entry)
-    const st = statSync(full)
+    let st
+    try {
+      st = statSync(full)
+    } catch {
+      continue
+    }
     if (st.isDirectory()) {
       files.push(...walkDir(full))
     } else {
@@ -75,7 +92,11 @@ const distFiles = walkDir(DIST_DIR)
 let violations = 0
 
 for (const b of budget.budgets ?? []) {
-  const maxBytes = parseSize(b.maxSize)
+  if (b.maxSize == null) {
+    process.stderr.write(`[check-bundle-size] FATAL: budget entry "${b.name}" missing maxSize\n`)
+    process.exit(1)
+  }
+  const maxBytes = parseSize(b.maxSize, `bundle-budget.json budgets[].maxSize ("${b.name}")`)
   const pattern = b.path.replace(/^dist\//, '')
   const matching = distFiles.filter((f) => {
     const rel = f.path.replace(ROOT + '/', '').replace(/\\/g, '/')
@@ -101,8 +122,8 @@ if (budget.totals) {
     .filter((f) => f.path.endsWith('.css'))
     .reduce((sum, f) => sum + f.size, 0)
 
-  const maxTotalJs = parseSize(budget.totals.maxTotalJsSize)
-  const maxTotalCss = parseSize(budget.totals.maxTotalCssSize)
+  const maxTotalJs = parseSize(budget.totals.maxTotalJsSize, 'bundle-budget.json totals.maxTotalJsSize')
+  const maxTotalCss = parseSize(budget.totals.maxTotalCssSize, 'bundle-budget.json totals.maxTotalCssSize')
 
   if (totalJs > maxTotalJs) {
     process.stderr.write(

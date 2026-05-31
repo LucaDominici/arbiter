@@ -946,14 +946,11 @@ function inferFEFramework(framework: string | null): FrontendConfig['framework']
   const lower = framework.toLowerCase()
   if (lower === 'vue' || lower.endsWith('+vue') || lower.startsWith('vue+')) return 'vue'
   if (lower === 'svelte') return 'svelte'
-  if (
-    lower === 'react' ||
-    lower === 'next' ||
-    lower.includes('react') ||
-    lower.startsWith('express+react') ||
-    lower.startsWith('tauri+react')
-  )
-    return 'react'
+  // 'next' → backend-web-db archetype (never reaches here from auto-detection).
+  // 'express+react' → backend-web-db archetype (same). Both branches are intentionally
+  // omitted to avoid silently setting frontend.framework on non-SPA archetypes.
+  // 'tauri+react' → frontend-spa, reachable.
+  if (lower === 'react' || lower.includes('react')) return 'react'
   return undefined
 }
 

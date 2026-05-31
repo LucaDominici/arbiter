@@ -56,13 +56,23 @@ function buildTokenVarNames(tokens, prefix = '--') {
 let validTokenNames = new Set()
 let tokensLoaded = false
 if (existsSync(TOKENS_FILE)) {
+  // Parse failure is fatal — phantom token check cannot run on a corrupt token file.
+  // Silently continuing would produce false-negatives (INV-105 passes with no phantom detection).
   try {
     const tokens = JSON.parse(readFileSync(TOKENS_FILE, 'utf-8'))
     validTokenNames = buildTokenVarNames(tokens)
     tokensLoaded = true
   } catch (err) {
-    process.stderr.write(`[INV-105] Failed to parse design-tokens.json: ${err.message}\n`)
+    process.stderr.write(
+      `[INV-105] FATAL: failed to parse design-tokens.json: ${err.message}\n` +
+        `  Phantom token check cannot run. Fix design-tokens.json or delete it to skip.\n`,
+    )
+    process.exit(1)
   }
+} else {
+  process.stderr.write(
+    '[INV-105] WARNING: design-tokens.json not found — phantom token check skipped\n',
+  )
 }
 
 function checkFile(absPath) {

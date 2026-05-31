@@ -16,9 +16,18 @@ const SLACK = 0.5 // tolerated regression in percentage points
 const UPDATE_BASELINE = process.argv.includes('--update-baseline')
 
 if (!existsSync(COVERAGE_FILE)) {
-  // Coverage not yet generated — skip gracefully (pre-run scenario)
+  if (existsSync(BASELINE_FILE)) {
+    // Baseline exists but coverage was not generated — this is a CI misconfiguration,
+    // not a first-run scenario. Exiting 0 here would produce a false-negative.
+    process.stderr.write(
+      '[verify-fe-coverage] FAIL: coverage-summary.json not found but fe-coverage-baseline.json exists.\n' +
+        '  Run vitest --coverage before this gate, or delete the baseline for a fresh project.\n',
+    )
+    process.exit(1)
+  }
+  // True first-run: no baseline and no coverage — seed baseline first.
   process.stdout.write(
-    '[verify-fe-coverage] coverage-summary.json not found — run vitest --coverage first\n',
+    '[verify-fe-coverage] no baseline found — run with --update-baseline to seed, then re-run\n',
   )
   process.exit(0)
 }

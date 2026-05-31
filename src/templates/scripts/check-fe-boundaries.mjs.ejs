@@ -49,20 +49,20 @@ const BROWSER_GLOBALS = [
   /\bIndexedDB\b/,
 ]
 
-// Patterns for async API calls in store files (INV-104)
-const ASYNC_IN_STORE = [
-  /\basync\s+\w+\s*\([^)]*\)\s*{[\s\S]*?\bfetch\s*\(/,
-  /\bawait\s+fetch\s*\(/,
-  /\bawait\s+axios\s*\./,
-]
-
 let violations = 0
 
-function isUILayer(relPath) {
-  // FSD layers that are NOT the API adapter layer
-  const uiLayers = ['app', 'pages', 'widgets', 'features']
-  const parts = relPath.replace(/^src\//, '').split('/')
-  return uiLayers.includes(parts[0])
+// Designated adapter/api paths that legitimately contain HTTP calls.
+const ADAPTER_PATH_HINTS = ['/api/', '/adapters/', '/adapter/', '/services/', '/service/']
+
+function isNonAdapterSource(relPath) {
+  // True for any source file that is NOT in a designated adapter/api directory.
+  // This covers all FSD layers (app/pages/widgets/features/entities/shared)
+  // EXCEPT their api/ subdirectories, which are the correct home for HTTP calls.
+  if (ADAPTER_PATH_HINTS.some((h) => relPath.includes(h))) return false
+  // Also exclude top-level src/api/ or src/services/ directories
+  const normalized = relPath.replace(/\\/g, '/')
+  if (/^src\/(api|services|adapters)\//.test(normalized)) return false
+  return true
 }
 
 function isDomainOrStore(relPath) {
@@ -113,12 +113,13 @@ function checkFile(absPath) {
     return
   }
 
-  // A) HTTP calls outside the API layer
-  if (isUILayer(rel)) {
+  // A) HTTP calls outside the API layer — scans all non-adapter source files (INV-102).
+  // Adapter/api paths (entities/api/, shared/api/, src/api/) are excluded as legitimate HTTP homes.
+  if (isNonAdapterSource(rel)) {
     const hits = scanLines(content, HTTP_PATTERNS)
     for (const { line, lineNum } of hits) {
       process.stderr.write(
-        `[INV-102] ${rel}:${lineNum}: raw HTTP call in UI layer — move to adapter/api layer\n` +
+        `[INV-102] ${rel}:${lineNum}: raw HTTP call outside adapter/api layer — move to a designated api/ directory\n` +
           `         ${line.trim()}\n`,
       )
       violations++
