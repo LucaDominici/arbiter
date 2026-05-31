@@ -118,4 +118,41 @@ describe('generateFrontendQuality (#1127)', () => {
     const content = readFileSync(join(dir, 'scripts', 'verify-tokens.mjs'), 'utf-8')
     expect(content).toContain('.tsx')
   })
+
+  // ── S4/5/6 artifacts ───────────────────────────────────────────────────────
+
+  it('emits scripts/verify-fe-coverage.mjs', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'scripts', 'verify-fe-coverage.mjs'))).toBe(true)
+  })
+
+  it('emits vitest.browser.config.ts', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'vitest.browser.config.ts'))).toBe(true)
+  })
+
+  it('emits .lighthouserc.json with Core Web Vitals 2026 budgets', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, '.lighthouserc.json'))).toBe(true)
+    const rc = JSON.parse(readFileSync(join(dir, '.lighthouserc.json'), 'utf-8'))
+    expect(rc.ci.assert.assertions['largest-contentful-paint'][1].maxNumericValue).toBe(2500)
+    expect(rc.ci.assert.assertions['cumulative-layout-shift'][1].maxNumericValue).toBe(0.1)
+  })
+
+  it('emits bundle-budget.json', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'bundle-budget.json'))).toBe(true)
+  })
+
+  it('emits scripts/check-bundle-size.mjs', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'scripts', 'check-bundle-size.mjs'))).toBe(true)
+  })
+
+  it('emits total of 10 files for frontend-spa L2', () => {
+    const result = generateFrontendQuality(
+      makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }),
+    )
+    expect(result.files).toHaveLength(10)
+  })
 })

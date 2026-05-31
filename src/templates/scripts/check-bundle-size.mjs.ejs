@@ -1,0 +1,130 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: Bundle size budget gate (#1127 Slice 6).
+// Reads bundle-budget.json and checks dist/ output against budgets.
+// Exit 1 if any file exceeds its maxSize budget (HARD gate).
+
+import { existsSync, readdirSync, statSync, readFileSync } from 'node:fs'
+import { join, basename } from 'node:path'
+
+const ROOT = process.cwd()
+const BUDGET_FILE = join(ROOT, 'bundle-budget.json')
+const DIST_DIR = join(ROOT, 'dist')
+
+if (!existsSync(BUDGET_FILE)) {
+  process.stdout.write('[check-bundle-size] no bundle-budget.json found — skip\n')
+  process.exit(0)
+}
+
+if (!existsSync(DIST_DIR)) {
+  process.stdout.write('[check-bundle-size] dist/ not found — run npm run build first\n')
+  process.exit(0)
+}
+
+let budget
+try {
+  budget = JSON.parse(readFileSync(BUDGET_FILE, 'utf-8'))
+} catch (err) {
+  process.stderr.write(`[check-bundle-size] failed to parse bundle-budget.json: ${err.message}\n`)
+  process.exit(1)
+}
+
+function parseSize(sizeStr) {
+  if (!sizeStr) return Infinity
+  const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(kb|mb|b)$/i)
+  if (!match) return Infinity
+  const num = parseFloat(match[1])
+  const unit = match[2].toLowerCase()
+  if (unit === 'mb') return Math.round(num * 1024 * 1024)
+  if (unit === 'kb') return Math.round(num * 1024)
+  return Math.round(num)
+}
+
+function matchGlob(pattern, filePath) {
+  // Simplified glob: replace * with .* for matching
+  const regex = new RegExp(
+    '^' +
+      pattern
+        .replace(/\\/g, '/')
+        .replace(/[.+^${}()|[\]]/g, '\\$&')
+        .replace(/\*\*/g, '__DOUBLESTAR__')
+        .replace(/\*/g, '[^/]*')
+        .replace(/__DOUBLESTAR__/g, '.*') +
+      '$',
+  )
+  return regex.test(filePath.replace(/\\/g, '/'))
+}
+
+function walkDir(dir) {
+  const files = []
+  if (!existsSync(dir)) return files
+  const entries = readdirSync(dir)
+  for (const entry of entries) {
+    const full = join(dir, entry)
+    const st = statSync(full)
+    if (st.isDirectory()) {
+      files.push(...walkDir(full))
+    } else {
+      files.push({ path: full, size: st.size })
+    }
+  }
+  return files
+}
+
+const distFiles = walkDir(DIST_DIR)
+let violations = 0
+
+for (const b of budget.budgets ?? []) {
+  const maxBytes = parseSize(b.maxSize)
+  const pattern = b.path.replace(/^dist\//, '')
+  const matching = distFiles.filter((f) => {
+    const rel = f.path.replace(ROOT + '/', '').replace(/\\/g, '/')
+    return matchGlob(b.path, rel)
+  })
+  for (const f of matching) {
+    if (f.size > maxBytes) {
+      const actualKb = (f.size / 1024).toFixed(1)
+      process.stderr.write(
+        `[check-bundle-size] OVER BUDGET: ${basename(f.path)}: ${actualKb}kb > ${b.maxSize} (budget: ${b.name})\n`,
+      )
+      violations++
+    }
+  }
+}
+
+// Check totals
+if (budget.totals) {
+  const totalJs = distFiles
+    .filter((f) => f.path.endsWith('.js'))
+    .reduce((sum, f) => sum + f.size, 0)
+  const totalCss = distFiles
+    .filter((f) => f.path.endsWith('.css'))
+    .reduce((sum, f) => sum + f.size, 0)
+
+  const maxTotalJs = parseSize(budget.totals.maxTotalJsSize)
+  const maxTotalCss = parseSize(budget.totals.maxTotalCssSize)
+
+  if (totalJs > maxTotalJs) {
+    process.stderr.write(
+      `[check-bundle-size] OVER TOTAL JS BUDGET: ${(totalJs / 1024).toFixed(1)}kb > ${budget.totals.maxTotalJsSize}\n`,
+    )
+    violations++
+  }
+  if (totalCss > maxTotalCss) {
+    process.stderr.write(
+      `[check-bundle-size] OVER TOTAL CSS BUDGET: ${(totalCss / 1024).toFixed(1)}kb > ${budget.totals.maxTotalCssSize}\n`,
+    )
+    violations++
+  }
+}
+
+if (violations > 0) {
+  process.stderr.write(
+    `\n[check-bundle-size] ${violations} bundle budget violation(s).\n` +
+      `  Reduce bundle size or update bundle-budget.json with justification.\n` +
+      `  See docs/GOVERNANCE/FE_DESIGN_PRINCIPLES.md for budget rationale.\n`,
+  )
+  process.exit(1)
+}
+
+process.stdout.write('[check-bundle-size] all bundle budgets OK\n')

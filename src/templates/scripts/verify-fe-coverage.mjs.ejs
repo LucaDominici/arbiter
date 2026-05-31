@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: FE per-layer coverage ratchet (#1127 Slice 4).
+// Reads Vitest coverage-summary.json and enforces per-layer coverage
+// thresholds against fe-coverage-baseline.json. Upward-only ratchet:
+// coverage may increase but never decrease below the baseline.
+// Exit 1 if any layer falls below baseline − SLACK.
+
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const ROOT = process.cwd()
+const COVERAGE_FILE = join(ROOT, 'coverage', 'coverage-summary.json')
+const BASELINE_FILE = join(ROOT, 'fe-coverage-baseline.json')
+const SLACK = 0.5 // tolerated regression in percentage points
+const UPDATE_BASELINE = process.argv.includes('--update-baseline')
+
+if (!existsSync(COVERAGE_FILE)) {
+  // Coverage not yet generated — skip gracefully (pre-run scenario)
+  process.stdout.write(
+    '[verify-fe-coverage] coverage-summary.json not found — run vitest --coverage first\n',
+  )
+  process.exit(0)
+}
+
+let coverageSummary
+try {
+  coverageSummary = JSON.parse(readFileSync(COVERAGE_FILE, 'utf-8'))
+} catch (err) {
+  process.stderr.write(`[verify-fe-coverage] failed to parse coverage-summary.json: ${err.message}\n`)
+  process.exit(1)
+}
+
+// Aggregate coverage by layer (FSD: app, pages, widgets, features, entities, shared)
+const FSD_LAYERS = ['app', 'pages', 'widgets', 'features', 'entities', 'shared']
+
+function classifyFile(filePath) {
+  for (const layer of FSD_LAYERS) {
+    if (filePath.includes(`/src/${layer}/`) || filePath.includes(`\\src\\${layer}\\`)) {
+      return layer
+    }
+  }
+  return 'other'
+}
+
+const layerStats = {}
+for (const [filePath, stats] of Object.entries(coverageSummary)) {
+  if (filePath === 'total') continue
+  const layer = classifyFile(filePath)
+  if (!layerStats[layer]) {
+    layerStats[layer] = { lines: { covered: 0, total: 0 }, branches: { covered: 0, total: 0 } }
+  }
+  layerStats[layer].lines.covered += stats.lines?.covered ?? 0
+  layerStats[layer].lines.total += stats.lines?.total ?? 0
+  layerStats[layer].branches.covered += stats.branches?.covered ?? 0
+  layerStats[layer].branches.total += stats.branches?.total ?? 0
+}
+
+// Compute percentages
+const layerPct = {}
+for (const [layer, s] of Object.entries(layerStats)) {
+  layerPct[layer] = {
+    lines: s.lines.total > 0 ? (s.lines.covered / s.lines.total) * 100 : 100,
+    branches: s.branches.total > 0 ? (s.branches.covered / s.branches.total) * 100 : 100,
+  }
+}
+
+if (UPDATE_BASELINE) {
+  const baseline = {}
+  for (const [layer, pct] of Object.entries(layerPct)) {
+    baseline[layer] = {
+      lines: Math.round(pct.lines * 100) / 100,
+      branches: Math.round(pct.branches * 100) / 100,
+    }
+  }
+  writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2) + '\n')
+  process.stdout.write(`[verify-fe-coverage] baseline updated (${Object.keys(baseline).length} layers)\n`)
+  process.exit(0)
+}
+
+if (!existsSync(BASELINE_FILE)) {
+  // No baseline yet — generate it on first run
+  process.stdout.write(
+    '[verify-fe-coverage] no baseline found — run with --update-baseline to seed\n',
+  )
+  process.exit(0)
+}
+
+let baseline
+try {
+  baseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'))
+} catch (err) {
+  process.stderr.write(`[verify-fe-coverage] failed to parse fe-coverage-baseline.json: ${err.message}\n`)
+  process.exit(1)
+}
+
+let violations = 0
+for (const [layer, base] of Object.entries(baseline)) {
+  const current = layerPct[layer]
+  if (!current) {
+    process.stderr.write(`[verify-fe-coverage] layer "${layer}" in baseline but not in coverage — possible rename\n`)
+    violations++
+    continue
+  }
+  if (base.lines !== undefined && current.lines < base.lines - SLACK) {
+    process.stderr.write(
+      `[verify-fe-coverage] ${layer}: lines coverage dropped: ${current.lines.toFixed(1)}% < ${base.lines}% (slack: ${SLACK}pp)\n`,
+    )
+    violations++
+  }
+  if (base.branches !== undefined && current.branches < base.branches - SLACK) {
+    process.stderr.write(
+      `[verify-fe-coverage] ${layer}: branches coverage dropped: ${current.branches.toFixed(1)}% < ${base.branches}% (slack: ${SLACK}pp)\n`,
+    )
+    violations++
+  }
+}
+
+if (violations > 0) {
+  process.stderr.write(
+    `\n[verify-fe-coverage] ${violations} coverage regression(s) found.\n` +
+      `  Ratchet is upward-only — coverage must not decrease below fe-coverage-baseline.json.\n` +
+      `  To advance baseline: node scripts/verify-fe-coverage.mjs --update-baseline\n`,
+  )
+  process.exit(1)
+}
+
+const layerCount = Object.keys(baseline).length
+process.stdout.write(`[verify-fe-coverage] FE coverage OK — ${layerCount} layers within baseline (slack: ${SLACK}pp)\n`)

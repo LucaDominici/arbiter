@@ -345,6 +345,16 @@ if (level === 'L2') {
   if (existsSync('scripts/verify-i18n-parity.mjs')) {
     runCheck('i18n parity (INV-106)', 'node', ['scripts/verify-i18n-parity.mjs'], { soft: graceActive });
   }
+  // ─── L2: FE coverage ratchet (#1127) ─────────────────────────────────────
+  // Per-layer coverage baseline enforcement (upward-only, slack-tolerant).
+  if (existsSync('scripts/verify-fe-coverage.mjs') && existsSync('fe-coverage-baseline.json')) {
+    runCheck('fe coverage ratchet', 'node', ['scripts/verify-fe-coverage.mjs'], { soft: graceActive });
+  }
+  // ─── L2: Bundle size budget (#1127) ──────────────────────────────────────
+  // Real budget gate vs dist/ output (mirrors Rust binarySizeBudget).
+  if (existsSync('scripts/check-bundle-size.mjs') && existsSync('bundle-budget.json')) {
+    runCheck('bundle size budget', 'node', ['scripts/check-bundle-size.mjs'], { soft: graceActive });
+  }
 <% } %>
 <% if ((archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1') { %>
   // ─── L2: Playwright E2E (#348, CANON-02) — matrix proven for TS frontend-spa / backend-web-db.
