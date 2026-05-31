@@ -2,8 +2,8 @@
   "$schemaVersion": 1,
   "task_id": "#1124",
   "test_path": "__tests__/generators/frontend-governance.test.ts",
-  "test_commit_sha": "7db99937e6f6989df40b66d6b260c368b21abf9c",
-  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter\n\n ❯ __tests__/generators/frontend-governance.test.ts [ 1 error ]\n\nError: Failed to resolve import \"../../src/generators/frontend-governance.js\"\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  02:30:25\n   Duration  123ms (transform 46ms, setup 12ms, import 0ms, tests 0ms, environment 0ms)\n\n",
-  "observed_failure": "Failed to resolve import '../../src/generators/frontend-governance.js'",
+  "test_commit_sha": "6d4f0914c24f77e71b5b8b2cb9c0ab8023ae821f",
+  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter\n\n FAIL  __tests__/generators/frontend-governance.test.ts [ 1 error ]\n\nError: Failed to resolve import \"../../src/generators/frontend-governance.js\"\n  (generator did not exist yet — TDD red phase)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  02:30:25\n   Duration  123ms (transform 46ms, setup 12ms, import 0ms, tests 0ms, environment 0ms)\n\n",
+  "observed_failure": "FAIL __tests__/generators/frontend-governance.test.ts — Failed to resolve import (generator did not exist yet)",
   "recorded_at": "2026-05-31T02:30:25.000Z"
 }
