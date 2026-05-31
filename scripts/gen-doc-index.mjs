@@ -12,6 +12,7 @@
 // Exported functions (for unit tests):
 //   collectDocs(docsDir, indexPath) → record[]
 //   buildIndex(records)             → string
+//   runCli(docsDir, indexPath, check) → Promise<number>  (0 = ok, 1 = error/stale)
 //
 // Uses process.cwd() as the repo root (matching other gate scripts).
 
@@ -150,6 +151,35 @@ export function buildIndex(records) {
   return header + sections.join('\n')
 }
 
+/**
+ * Execute the write or check logic.
+ * Returns 0 on success, 1 on stale/error. Does not call process.exit — exported for testing.
+ * Fail-closed (INV-96): IO/parse errors return 1 rather than producing a partial index.
+ */
+export async function runCli(docsDir, indexPath, check) {
+  try {
+    const records = collectDocs(docsDir, indexPath)
+    const generated = buildIndex(records)
+    if (check) {
+      const current = existsSync(indexPath) ? readFileSync(indexPath, 'utf-8') : ''
+      if (current !== generated) {
+        process.stderr.write(
+          'docs/INDEX.md is stale. Run `node scripts/gen-doc-index.mjs` and commit the result.\n',
+        )
+        return 1
+      }
+      process.stdout.write('docs/INDEX.md is up to date.\n')
+      return 0
+    }
+    writeFileSync(indexPath, generated)
+    process.stdout.write(`Wrote ${indexPath}\n`)
+    return 0
+  } catch (err) {
+    process.stderr.write(`gen-doc-index: ${err instanceof Error ? err.message : String(err)}\n`)
+    return 1
+  }
+}
+
 // ---------------------------------------------------------------------------
 // CLI entry point — guarded so imports don't trigger side-effects
 // ---------------------------------------------------------------------------
@@ -161,29 +191,5 @@ if (isMain) {
   const repoRoot = resolve('.')
   const docsDir = join(repoRoot, 'docs')
   const indexPath = join(docsDir, 'INDEX.md')
-
-  // Fail-closed (INV-96): any error in scan/parse/IO exits non-zero rather than
-  // silently producing an empty or partial index.
-  try {
-    const records = collectDocs(docsDir, indexPath)
-    const generated = buildIndex(records)
-    const check = process.argv.includes('--check')
-
-    if (check) {
-      const current = existsSync(indexPath) ? readFileSync(indexPath, 'utf-8') : ''
-      if (current !== generated) {
-        process.stderr.write(
-          'docs/INDEX.md is stale. Run `node scripts/gen-doc-index.mjs` and commit the result.\n',
-        )
-        process.exit(1)
-      }
-      process.stdout.write('docs/INDEX.md is up to date.\n')
-    } else {
-      writeFileSync(indexPath, generated)
-      process.stdout.write(`Wrote ${indexPath}\n`)
-    }
-  } catch (err) {
-    process.stderr.write(`gen-doc-index: ${err instanceof Error ? err.message : String(err)}\n`)
-    process.exit(1)
-  }
+  runCli(docsDir, indexPath, process.argv.includes('--check')).then((code) => process.exit(code))
 }

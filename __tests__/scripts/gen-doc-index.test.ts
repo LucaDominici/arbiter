@@ -8,8 +8,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-// These imports will fail until gen-doc-index.mjs exports the functions (RED phase).
-import { collectDocs, buildIndex } from '../../scripts/gen-doc-index.mjs'
+import { collectDocs, buildIndex, runCli } from '../../scripts/gen-doc-index.mjs'
 
 const SCRIPT = resolve('scripts/gen-doc-index.mjs')
 
@@ -257,5 +256,78 @@ describe('gen-doc-index --check CLI', () => {
     } finally {
       cleanup()
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// firstH1 fallback — collectDocs falls back to first H1 when no fm title
+// ---------------------------------------------------------------------------
+
+describe('collectDocs() — firstH1 fallback', () => {
+  it('uses the first H1 heading when frontmatter has no title', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const docs = join(dir, 'docs')
+      mkdirSync(docs, { recursive: true })
+      writeFileSync(join(docs, 'FOO.md'), '# H1 Heading\n\nSome content.\n')
+      const [rec] = collectDocs(docs, join(docs, 'INDEX.md'))
+      expect(rec.title).toBe('H1 Heading')
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// runCli() — exported CLI logic (covers the write/check/error paths in-process)
+// ---------------------------------------------------------------------------
+
+describe('runCli()', () => {
+  it('write mode: writes INDEX.md and returns 0', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const docs = join(dir, 'docs')
+      mkdirSync(docs, { recursive: true })
+      writeFileSync(join(docs, 'FOO.md'), fmDoc('Foo'))
+      const indexPath = join(docs, 'INDEX.md')
+      const code = await runCli(docs, indexPath, false)
+      expect(code).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('check mode: returns 1 when INDEX.md is stale', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const docs = join(dir, 'docs')
+      mkdirSync(docs, { recursive: true })
+      writeFileSync(join(docs, 'FOO.md'), fmDoc('Foo'))
+      writeFileSync(join(docs, 'INDEX.md'), '# stale\n')
+      const code = await runCli(docs, join(docs, 'INDEX.md'), true)
+      expect(code).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('check mode: returns 0 when INDEX.md is up to date', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const docs = join(dir, 'docs')
+      mkdirSync(docs, { recursive: true })
+      writeFileSync(join(docs, 'FOO.md'), fmDoc('Foo'))
+      const indexPath = join(docs, 'INDEX.md')
+      await runCli(docs, indexPath, false) // write first
+      const code = await runCli(docs, indexPath, true)
+      expect(code).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('returns 1 on IO error (non-existent directory)', async () => {
+    const code = await runCli('/nonexistent/__gen_doc_test__', '/nonexistent/INDEX.md', false)
+    expect(code).toBe(1)
   })
 })
