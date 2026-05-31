@@ -127,5 +127,20 @@ export function generateCheckAll(
     )
   }
 
+  // #1127 (INV-102/103/104, CANON-01, CANON-09): FE boundary purity gate.
+  // Emitted for frontend-spa archetype or projects with a 'frontend' lane.
+  // Checks: API-layer isolation (INV-102), headless domain (INV-103),
+  // state-mgmt discipline (INV-104). L2+ only (matches governance level).
+  const isFrontend = config.archetype === 'frontend-spa' || config.lanes.includes('frontend')
+  if (isFrontend && config.governanceLevel !== 'L1') {
+    results.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'check-fe-boundaries.mjs'),
+        renderTemplate('scripts/check-fe-boundaries.mjs.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
   return { files: results }
 }

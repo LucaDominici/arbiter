@@ -22,14 +22,15 @@ const ALL_TIERS: InvariantTier[] = [
 // ---------------------------------------------------------------------------
 
 describe('INVARIANT_CATALOG', () => {
-  it('has exactly 99 entries', () => {
-    expect(INVARIANT_CATALOG).toHaveLength(99)
+  it('has exactly 104 entries', () => {
+    // Updated in #1127: +4 (INV-102/103/104 boundary purity + INV-105 token discipline)
+    expect(INVARIANT_CATALOG).toHaveLength(104)
   })
 
   it('all IDs are unique', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(99)
+    expect(unique.size).toBe(104)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -99,9 +100,10 @@ describe('INVARIANT_CATALOG', () => {
     expect(tier3).toHaveLength(16)
   })
 
-  it('has exactly 28 Tier 4 invariants', () => {
+  it('has exactly 33 Tier 4 invariants', () => {
+    // Updated in #1127: +4 (INV-102/103/104/105 — FE governance, tier=operational)
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(28)
+    expect(tier4).toHaveLength(33)
   })
 
   it('has exactly 35 Tier 5 invariants', () => {
@@ -349,13 +351,14 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-33')
   })
 
-  it('returns 63 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 included)', () => {
+  it('returns 68 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 included)', () => {
+    // Updated in #1127: +4 (INV-102/103/104/105 — typescript, L2, operational tier)
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(63)
+    expect(result).toHaveLength(68)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')

@@ -46,6 +46,7 @@ import { generateEvidenceBacklog } from './evidence-backlog.js'
 import { generateSelfValidation } from './self-validation.js'
 import { generateOperations } from './operations.js'
 import { generateFrontendGovernance } from './frontend-governance.js'
+import { generateFrontendQuality } from './frontend-quality.js'
 import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
 import { generateObservability } from './observability.js'
@@ -369,6 +370,14 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'frontend-governance',
       enabled: config.archetype === 'frontend-spa' || config.lanes.includes('frontend'),
       run: (opts) => generateFrontendGovernance(config, opts).files,
+    },
+    {
+      // #1127: frontend quality enforcement — token gate, i18n, coverage, VRT, perf.
+      // Gated on FE signal; separate from frontend-governance (docs) to keep
+      // each generator single-responsibility (CANON-05 test constraint).
+      key: 'frontend-quality',
+      enabled: config.archetype === 'frontend-spa' || config.lanes.includes('frontend'),
+      run: (opts) => generateFrontendQuality(config, opts).files,
     },
   ]
 }

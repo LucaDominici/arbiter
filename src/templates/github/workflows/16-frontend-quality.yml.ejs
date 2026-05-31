@@ -48,9 +48,9 @@ jobs:
           temporaryPublicStorage: false
 
   axe-accessibility:
-    name: axe accessibility
+    name: axe accessibility (WCAG 2.2, INV-61)
     runs-on: <%- _runner %>
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -61,8 +61,21 @@ jobs:
 
       - run: npm ci
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
       - name: Build
         run: npm run build
 
-      - name: axe accessibility scan
-        run: npx axe-core-npm/cli --exit http://localhost:3000 || true
+      - name: axe accessibility (Playwright E2E, WCAG 2.2 AA, INV-61)
+        # Routes through the Playwright a11y spec which uses the generated
+        # run-axe.ts wrapper with wcag2a+wcag2aa+wcag21a+wcag21aa+wcag22aa tags.
+        # ephemeral-server starts the app, polls port readiness, runs spec, tears down.
+        # Hard gate: a11y failures block the PR (INV-61). No soft-fail permitted.
+        run: |
+          node scripts/lib/ephemeral-server.mjs \
+            --start "${E2E_START_CMD:-npm run start:test}" \
+            --test "npx playwright test tests/e2e/a11y.spec.ts" \
+            --port "${E2E_PORT:-4173}"
+        env:
+          E2E_BASE_URL: "http://localhost:${{ vars.E2E_PORT || '4173' }}"

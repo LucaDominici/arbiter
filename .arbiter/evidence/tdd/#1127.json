@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1127",
+  "test_path": "__tests__/generators/boundaries.test.ts",
+  "test_commit_sha": "de7c5821de7b8d167d7ae6de7937728df7ab6f50",
+  "test_run_log": " RUN  v4.1.7 /home/luca/work/repos/arbiter.worktrees/1127-fe-governance-family\n\n FAIL  __tests__/generators/boundaries.test.ts > generateEslintBoundaries > vue framework: boundaries/include contains .vue glob (#1127) 4ms\n FAIL  __tests__/generators/boundaries.test.ts > generateEslintBoundaries > vue framework: boundaries/include does NOT contain .tsx glob (#1127) 1ms\n\n Test Files  1 failed (1)\n      Tests  5 failed | 16 passed (21)\n   Start at  11:08:36\n   Duration  173ms (transform 59ms, setup 12ms, import 63ms, tests 21ms, environment 0ms)\n",
+  "observed_failure": "FAIL  __tests__/generators/boundaries.test.ts \u2014 vue framework: boundaries/include contains .vue glob (#1127) \u2014 pre-implementation red phase",
+  "recorded_at": "2026-05-31T11:08:36.000Z"
+}

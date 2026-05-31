@@ -152,13 +152,14 @@ describe('build-matrix.mjs', () => {
     }
   })
 
-  it('produces 95 entries for the real fixture set', () => {
+  it('produces 99 entries for the real fixture set', () => {
+    // Updated in #1127: +4 (vue-frontend-spa fixture × 4 levels)
+    // 19 fixtures × 4 levels + rust-embedded × 1 + 5 deployTarget × 4 + zero-gh-invariant × 2 (L1/L2) = 99
     const fixturesDir = resolve('__tests__/fixtures/real-projects')
     const result = run(fixturesDir)
     expect(result.status).toBe(0)
     const line = result.stdout.split('\n').find((l) => l.startsWith('matrix='))
     const json = JSON.parse(line!.replace('matrix=', ''))
-    // 18 fixtures × 4 levels + rust-embedded × 1 + 5 deployTarget × 4 + zero-gh-invariant × 2 (L1/L2) = 95
-    expect(json.include).toHaveLength(95)
+    expect(json.include).toHaveLength(99)
   })
 })

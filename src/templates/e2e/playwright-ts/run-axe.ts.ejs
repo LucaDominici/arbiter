@@ -1,4 +1,5 @@
 // a11y axe-core wrapper — INV-61 (#349, CANON-02).
+// Updated to WCAG 2.2 AA in #1127.
 //
 // Threshold policy (deliberate, not negotiable without an INV revision):
 //   - HARD-throw on impact === 'critical'
@@ -9,8 +10,9 @@
 // 'serious' too) by wrapping or replacing this helper. They may NOT loosen
 // it without recording a project-level exception that cites INV-61.
 //
-// Tag set: wcag2a + wcag2aa — the WCAG 2.1 AA baseline. Add 'wcag21aa' or
-// 'best-practice' tags if your team has ratcheted higher.
+// Tag set: full WCAG 2.2 AA — wcag2a + wcag2aa + wcag21a + wcag21aa + wcag22aa.
+// Covers: target-size (2.5.8), focus-appearance (2.4.11), accessible-auth (3.3.8).
+// WCAG 2.2 AA is the 2026 baseline — do NOT drop to wcag2a+wcag2aa only.
 
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
@@ -34,7 +36,7 @@ const HARD_FAIL_IMPACTS = new Set<ImpactLevel>(['critical'])
 
 export async function runAxe(page: Page, label: string): Promise<void> {
   const results = (await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa'])
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze()) as unknown as AxeResults
 
   const hardFailures: AxeViolation[] = []

@@ -1,0 +1,83 @@
+# Visual Regression Testing — Setup Guide
+
+<!-- arbiter-managed: frontend-quality (#1127) -->
+
+**Framework:** <%= (typeof frontend !== 'undefined' && frontend && frontend.framework) ? frontend.framework : 'the frontend framework' %>
+**Tool:** Vitest Browser Mode + Playwright (`toMatchScreenshot`)
+**Baseline location:** `__tests__/screenshots/`
+
+---
+
+## Quick Start
+
+### 1. Install peer dependencies
+
+```bash
+npm install -D @vitest/browser playwright
+npx playwright install chromium
+```
+
+### 2. Write a component test
+
+Create `src/components/MyComponent.browser.test.ts`:
+
+```typescript
+import { test, expect } from 'vitest'
+import { render } from '@testing-library/dom'  // or vue / svelte / react equivalent
+
+test('MyComponent — visual snapshot', async () => {
+  const { container } = render('<my-component title="Hello" />')
+  await expect(container).toMatchScreenshot('my-component-default')
+})
+```
+
+### 3. Capture baselines (first run)
+
+```bash
+npx vitest --config vitest.browser.config.ts --update-snapshots
+```
+
+Baselines are written to `__tests__/screenshots/`. Commit them.
+
+### 4. Run VRT in CI
+
+```bash
+npx vitest --config vitest.browser.config.ts
+```
+
+Fails if any component's rendered output differs from its baseline by more than the pixelmatch threshold.
+
+---
+
+## Configuration
+
+The VRT threshold and baseline directory are set in `vitest.browser.setup.ts`:
+
+```typescript
+// vitest.browser.setup.ts
+import { expect } from 'vitest'
+expect.extend({
+  toMatchScreenshot: (el, name) =>
+    // pixelmatch threshold: 0.1 = 10% pixel difference tolerance
+    screenshotMatcher(el, name, { threshold: 0.1, baselineDir: '__tests__/screenshots' }),
+})
+```
+
+---
+
+## Governance
+
+- VRT is triggered by the `16-frontend-quality.yml` CI workflow on PR.
+- No baseline pre-generated at arbiter init — you must capture baselines after first render.
+- A failing VRT is a **blocking** gate: do not merge visual regressions without intentional baseline update.
+- For layout/visual changes: update baselines and include screenshots in the PR description.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Screenshot diffs on CI font rendering | Pin to a specific Playwright version; use `--headless=new` |
+| Flaky layout shifts | Add `await page.waitForLoadState('networkidle')` before snapshot |
+| Baseline stale after design change | Run `--update-snapshots` and commit the new baselines |

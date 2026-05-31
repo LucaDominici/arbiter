@@ -2,41 +2,61 @@
   {
     "pattern": "fetch(",
     "file": "src/templates/contract-testing/message-queue/schema-registry-check.ts.ejs",
-    "justification": "Generated test fixture fetching a local schema-registry URL in contract tests — not telemetry. The URL is user-supplied and scoped to test environments only."
+    "justification": "Generated test fixture fetching a local schema-registry URL in contract tests \u2014 not telemetry. The URL is user-supplied and scoped to test environments only."
   },
   {
     "pattern": "fetch(",
     "file": "src/templates/contract-testing/rest-owned/pact-consumer.test.ts.ejs",
-    "justification": "Generated Pact consumer test calling a local mock provider URL — not telemetry. URL is constructed from the mock service baseUrl in test scope only."
+    "justification": "Generated Pact consumer test calling a local mock provider URL \u2014 not telemetry. URL is constructed from the mock service baseUrl in test scope only."
   },
   {
     "pattern": "axios",
     "file": "src/templates/boundaries/.eslintrc-boundaries.cjs.ejs",
-    "justification": "ESLint boundaries config listing axios as a banned external import — this is an enforcement rule string, not a network call."
+    "justification": "ESLint boundaries config listing axios as a banned external import \u2014 this is an enforcement rule string, not a network call."
   },
   {
     "pattern": "sentry",
     "file": "src/templates/observability/setup.md.ejs",
-    "justification": "Generated observability setup doc referencing the Sentry SaaS provider SDK — not telemetry from arbiter itself. Content is emitted only when the user selects provider='saas-sentry' in their arbiter config."
+    "justification": "Generated observability setup doc referencing the Sentry SaaS provider SDK \u2014 not telemetry from arbiter itself. Content is emitted only when the user selects provider='saas-sentry' in their arbiter config."
   },
   {
     "pattern": "sentry",
     "file": "dist/wizard/types.d.ts",
-    "justification": "Compiled TypeScript declaration for ObservabilityProvider type union — 'saas-sentry' is a string literal member of the union type, not a telemetry call or network reference. The value is only used when the user explicitly configures observability.provider='saas-sentry' in their arbiter config."
+    "justification": "Compiled TypeScript declaration for ObservabilityProvider type union \u2014 'saas-sentry' is a string literal member of the union type, not a telemetry call or network reference. The value is only used when the user explicitly configures observability.provider='saas-sentry' in their arbiter config."
   },
   {
     "pattern": "fetch(",
     "file": "dist/recipes/loader.js",
-    "justification": "Compiled output of src/recipes/loader.ts — fetches a user-supplied https:// recipe URL on explicit user request via --recipe flag. Not telemetry; URL is user-provided and user-controlled."
+    "justification": "Compiled output of src/recipes/loader.ts \u2014 fetches a user-supplied https:// recipe URL on explicit user request via --recipe flag. Not telemetry; URL is user-provided and user-controlled."
   },
   {
     "pattern": "fetch(",
     "file": "src/templates/scripts/validate-openapi-field-types.mjs.ejs",
-    "justification": "Generated OpenAPI drift validator fetching the live OpenAPI spec from a user-configured base URL for drift detection — not telemetry. URL is user-supplied via OPENAPI_BASE_URL env var and used only in CI drift checks."
+    "justification": "Generated OpenAPI drift validator fetching the live OpenAPI spec from a user-configured base URL for drift detection \u2014 not telemetry. URL is user-supplied via OPENAPI_BASE_URL env var and used only in CI drift checks."
   },
   {
     "pattern": "axios",
     "file": "src/templates/frontend/FRONTEND_CONSTITUTION.md.ejs",
-    "justification": "Generated governance doc citing 'axios' as an example of an HTTP client that is FORBIDDEN in the UI layer (FE001 rule) — this is a prohibition in the output Markdown, not a network call from arbiter itself."
+    "justification": "Generated governance doc citing 'axios' as an example of an HTTP client that is FORBIDDEN in the UI layer (FE001 rule) \u2014 this is a prohibition in the output Markdown, not a network call from arbiter itself."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/scripts/check-fe-boundaries.mjs.ejs",
+    "justification": "Generated FE boundary gate scanning user project source for raw fetch() calls that violate INV-102 (API isolation). The pattern string is a regex search term in a lint script, not a network call from arbiter itself."
+  },
+  {
+    "pattern": "axios",
+    "file": "src/templates/scripts/check-fe-boundaries.mjs.ejs",
+    "justification": "Generated FE boundary gate listing axios as a banned HTTP client pattern (INV-102). The string is a match pattern in a lint script, not a network call from arbiter itself."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "dist/invariants/catalog.js",
+    "justification": "Compiled output of catalog.ts \u2014 INV-102 enforcement description cites fetch() as an example of a forbidden HTTP call in UI components. Not a network call; the string appears in documentation text within the catalog entry."
+  },
+  {
+    "pattern": "axios",
+    "file": "dist/invariants/catalog.js",
+    "justification": "Compiled output of catalog.ts \u2014 INV-102/103/104 enforcement descriptions cite axios as an example of a forbidden HTTP client. Not a network call; the string appears in documentation text within the catalog entries."
   }
 ]

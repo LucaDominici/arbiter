@@ -43,6 +43,7 @@ import { defaultContractType } from '../wizard/archetype-defaults.js'
 import type {
   ProjectConfig,
   AiTool,
+  FrontendConfig,
   GovernanceLevel,
   Language,
   Archetype,
@@ -924,7 +925,33 @@ function buildDefaultConfig(opts: {
     thresholds: DEFAULT_THRESHOLDS[opts.governanceLevel],
     lanes: opts.lanes ?? [],
     ...detectedBasePackage(opts.language, opts.targetDir),
+    // #1127: auto-derive frontend.framework for frontend-spa projects from detected framework.
+    // This makes the generated ESLint config and gate scripts framework-aware without
+    // requiring an explicit --frontend.framework flag on init.
+    ...(archetype === 'frontend-spa'
+      ? inferFEFramework(opts.framework) !== undefined
+        ? { frontend: { framework: inferFEFramework(opts.framework) } as FrontendConfig }
+        : {}
+      : {}),
   }
+}
+
+/**
+ * #1127: Map the detected top-level framework string (e.g. 'vue', 'react', 'next')
+ * to the FrontendConfig.framework discriminant for frontend-spa projects.
+ * Returns undefined for unknown or non-FE frameworks (e.g. 'spring-boot').
+ */
+function inferFEFramework(framework: string | null): FrontendConfig['framework'] | undefined {
+  if (!framework) return undefined
+  const lower = framework.toLowerCase()
+  if (lower === 'vue' || lower.endsWith('+vue') || lower.startsWith('vue+')) return 'vue'
+  if (lower === 'svelte') return 'svelte'
+  // 'next' → backend-web-db archetype (never reaches here from auto-detection).
+  // 'express+react' → backend-web-db archetype (same). Both branches are intentionally
+  // omitted to avoid silently setting frontend.framework on non-SPA archetypes.
+  // 'tauri+react' → frontend-spa, reachable.
+  if (lower === 'react' || lower.includes('react')) return 'react'
+  return undefined
 }
 
 function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {

@@ -1,5 +1,5 @@
 {
-  "fixture": "ts-frontend-spa",
+  "fixture": "vue-frontend-spa",
   "level": "L1",
   "generated": [
     ".claude/CLAUDE.md",

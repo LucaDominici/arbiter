@@ -58,6 +58,7 @@ export type GeneratorKey =
   | 'modulith'
   | 'quality'
   | 'frontend-governance'
+  | 'frontend-quality'
 
 export interface ConfigDiff {
   paths: string[]
@@ -139,11 +140,11 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'observability.provider': ['observability'],
   'auth.provider': ['auth'],
   // bare 'frontend' path: emitted when frontend block is added/removed wholesale
-  frontend: ['frontend-governance'],
-  'frontend.framework': ['frontend-governance'],
+  frontend: ['frontend-governance', 'frontend-quality'],
+  'frontend.framework': ['frontend-governance', 'frontend-quality'],
   'frontend.stateManager': ['frontend-governance'],
   'frontend.validationLib': ['frontend-governance'],
-  lanes: ['frontend-governance', 'playwright-ts', 'playwright-python'],
+  lanes: ['frontend-governance', 'frontend-quality', 'playwright-ts', 'playwright-python'],
 }
 
 function diffLeaf(prefix: string, a: unknown, b: unknown, paths: string[]): void {

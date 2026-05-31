@@ -958,16 +958,19 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     tier: 'operational',
     languages: ['typescript'],
     minGovernanceLevel: 'L2',
+    // #1127: upgraded from WCAG 2.1 AA to WCAG 2.2 AA. Title deliberately unchanged
+    // to preserve AGENTS.md parity — the enforcement description carries the version detail.
     title: 'a11y critical violations are HARD-fail at L2',
     description:
       'For TS web archetypes (frontend-spa, backend-web-db) the generated ' +
       'tests/e2e/a11y/run-axe.ts wrapper runs @axe-core/playwright with the ' +
-      'wcag2a + wcag2aa tag set and throws on any violation whose impact is ' +
-      '`critical` OR unclassified (impact === null/undefined). serious / ' +
-      'moderate / minor violations are logged without throwing — they remain ' +
-      'evidence but do not block the gate. The default threshold matches the ' +
-      'axe-core WCAG 2.1 AA baseline; downstream projects can ratchet it ' +
-      'stricter by extending the wrapper. Matrix cell: a11y × typescript = ' +
+      'full WCAG 2.2 AA tag set (wcag2a + wcag2aa + wcag21a + wcag21aa + wcag22aa) ' +
+      'and throws on any violation whose impact is `critical` OR unclassified ' +
+      '(impact === null/undefined). serious / moderate / minor violations are logged ' +
+      'without throwing — they remain evidence but do not block the gate. ' +
+      'WCAG 2.2 AA adds: target-size (2.5.8 ≥24×24px), focus-appearance (2.4.11), ' +
+      'accessible-auth (3.3.8 no cognitive test). Downstream projects can ratchet ' +
+      'stricter by extending the wrapper (#1127). Matrix cell: a11y × typescript = ' +
       'proven (axe-core/playwright). Python pairs with axe-playwright-python ' +
       'at beta maturity. Other languages have no browser surface (unavailable).',
     alwaysActive: false,
@@ -1585,4 +1588,97 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   // sibling epic #TBD-sibling-epic phases B/G.
   // INV-82 promoted to active entry in #869.
   // Do NOT claim these numbers before those PRs land.
+
+  // ── Frontend governance family (#1127) ────────────────────────────────────
+  {
+    id: 'INV-106',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'i18n parity — all locale files must have identical key sets',
+    description:
+      'In FE projects, all locale JSON files must contain the same set of translation keys. ' +
+      'Missing keys in any locale cause runtime fallback rendering (often empty strings or ' +
+      'key identifiers instead of translated text). Raw UI text literals in component ' +
+      'source (unfixed hardcoded strings) are also flagged. ' +
+      'Bidirectional diff: missing in reference → target AND missing in target → reference ' +
+      'are both failures. Mirrors P6 (i18n governance) of the FE_DESIGN_PRINCIPLES.',
+    alwaysActive: false,
+    enforcement:
+      'Generated scripts/verify-i18n-parity.mjs checks bidirectional key-set parity ' +
+      'across all locale files. Generated scripts/i18n-literal-scanner.mjs scans component ' +
+      'source for raw UI text not wrapped in t(). Both fail the L2 gate step in check-all.mjs.',
+  },
+  {
+    id: 'INV-105',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'design token discipline — no raw colors or phantom tokens in UI components',
+    description:
+      'In FE projects, UI component files MUST use semantic design tokens from ' +
+      'design-tokens.json (W3C DTCG format). Raw hex/rgb/hsl color values in component ' +
+      'source are FORBIDDEN. Foundation/primitive tokens (--f-* prefix) MUST NOT be ' +
+      'referenced directly in components. Phantom tokens (CSS var references not in ' +
+      'design-tokens.json) produce invisible elements and must be eliminated. ' +
+      'Mirrors FE006 + P1 of the FRONTEND_CONSTITUTION and FE_DESIGN_PRINCIPLES.',
+    alwaysActive: false,
+    enforcement:
+      'Generated scripts/verify-tokens.mjs scans component source files for raw ' +
+      'hex/rgb/hsl values and phantom token references, then fails the L2 gate step ' +
+      'in scripts/check-all.mjs on any violation.',
+  },
+  {
+    id: 'INV-102',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'API-layer isolation — no HTTP calls outside the adapter layer',
+    description:
+      'In FE projects (archetype frontend-spa or lanes:[frontend]), direct ' +
+      'fetch()/axios.* calls MUST NOT appear in UI component files, composables/hooks, ' +
+      'or state stores. All HTTP I/O must be confined to a dedicated adapter/api layer ' +
+      '(FSD entities/shared api modules, or src/api/). Mirrors FE001 of the ' +
+      'FRONTEND_CONSTITUTION. Framework-aware: scans .ts/.tsx/.jsx (react), ' +
+      '.ts/.vue (vue), or .ts/.svelte (svelte) files as appropriate.',
+    alwaysActive: false,
+    enforcement:
+      'Generated check-fe-boundaries.mjs (emitted by check-all generator, #1127) scans ' +
+      'UI-layer component files for raw HTTP client calls (fetch, axios, XMLHttpRequest) ' +
+      'and fails the L2 gate step in scripts/check-all.mjs on any violation.',
+  },
+  {
+    id: 'INV-103',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'Headless domain logic — no browser APIs in domain or store layer',
+    description:
+      'In FE projects, domain and store files MUST NOT import or reference browser APIs ' +
+      '(window, document, localStorage, sessionStorage, matchMedia, navigator, location, ' +
+      'history, IndexedDB). Browser coupling makes domain logic untestable in Node.js and ' +
+      'prevents server-side rendering. Mirrors FE002 of the FRONTEND_CONSTITUTION.',
+    alwaysActive: false,
+    enforcement:
+      'Generated check-fe-boundaries.mjs (emitted by check-all generator, #1127) scans ' +
+      'store/domain-hinted files for browser-global references and fails the L2 gate step ' +
+      'in scripts/check-all.mjs on any violation.',
+  },
+  {
+    id: 'INV-104',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'State-management discipline — stores are synchronous and client-only',
+    description:
+      'In FE projects, state store files MUST NOT contain async fetch calls or direct ' +
+      'API caching. Server state MUST be delegated to a data-fetching library (TanStack Query, ' +
+      'SWR, or equivalent). Store getters MUST NOT encode business logic. ' +
+      'Mirrors FE003 of the FRONTEND_CONSTITUTION.',
+    alwaysActive: false,
+    enforcement:
+      'Generated check-fe-boundaries.mjs (emitted by check-all generator, #1127) detects ' +
+      '`await fetch` and `await axios` inside store/domain-hinted files and fails the L2 ' +
+      'gate step in scripts/check-all.mjs on any violation.',
+  },
 ]

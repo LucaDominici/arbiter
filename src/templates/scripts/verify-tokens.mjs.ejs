@@ -1,0 +1,177 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: INV-105 enforcement — design token discipline gate (#1127).
+// Checks:
+//   A) No raw hex/rgb colors in component source files
+//   B) No phantom token references (token name not in design-tokens.json)
+//   C) No direct foundation/primitive token refs in component files
+// Exit 1 if any violation found (HARD gate — L2+).
+// Framework-aware: scans appropriate file extensions per detected framework.
+
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { extname, join, relative } from 'node:path'
+<%
+const _fw = (typeof frontend !== 'undefined' && frontend && frontend.framework)
+  ? frontend.framework : 'react'
+const _exts = _fw === 'vue'
+  ? ['.ts', '.vue', '.css', '.scss']
+  : _fw === 'svelte'
+  ? ['.ts', '.svelte', '.css', '.scss']
+  : ['.ts', '.tsx', '.jsx', '.css', '.scss']
+const _extList = JSON.stringify(_exts)
+%>
+const ROOT = process.cwd()
+const SRC = join(ROOT, 'src')
+const TOKENS_FILE = join(ROOT, 'design-tokens.json')
+const SOURCE_EXTS = new Set(<%- _extList %>)
+
+// Raw color patterns that should never appear in component files
+const RAW_HEX_PATTERN = /#[0-9a-fA-F]{3,8}\b/g
+const RAW_RGB_PATTERN = /\brgba?\s*\(/g
+const RAW_HSL_PATTERN = /\bhsla?\s*\(/g
+
+// Foundation/primitive token prefix that should NOT be used in components
+const FOUNDATION_PREFIX_PATTERN = /var\(--f-[a-z]/
+
+let violations = 0
+
+// Build a set of valid semantic token CSS var names from design-tokens.json
+function buildTokenVarNames(tokens, prefix = '--') {
+  const names = new Set()
+  for (const [key, value] of Object.entries(tokens)) {
+    if (key.startsWith('$')) continue
+    const cssVarName = `${prefix}${key}`
+    if (typeof value === 'object' && value !== null && !('$value' in value)) {
+      // Nested group — recurse
+      for (const name of buildTokenVarNames(value, `${cssVarName}-`)) {
+        names.add(name)
+      }
+    } else if ('$value' in value) {
+      names.add(cssVarName)
+    }
+  }
+  return names
+}
+
+let validTokenNames = new Set()
+let tokensLoaded = false
+if (existsSync(TOKENS_FILE)) {
+  // Parse failure is fatal — phantom token check cannot run on a corrupt token file.
+  // Silently continuing would produce false-negatives (INV-105 passes with no phantom detection).
+  try {
+    const tokens = JSON.parse(readFileSync(TOKENS_FILE, 'utf-8'))
+    validTokenNames = buildTokenVarNames(tokens)
+    tokensLoaded = true
+  } catch (err) {
+    process.stderr.write(
+      `[INV-105] FATAL: failed to parse design-tokens.json: ${err.message}\n` +
+        `  Phantom token check cannot run. Fix design-tokens.json or delete it to skip.\n`,
+    )
+    process.exit(1)
+  }
+} else {
+  process.stderr.write(
+    '[INV-105] WARNING: design-tokens.json not found — phantom token check skipped\n',
+  )
+}
+
+function checkFile(absPath) {
+  const rel = relative(ROOT, absPath)
+  let content
+  try {
+    content = readFileSync(absPath, 'utf-8')
+  } catch {
+    return
+  }
+
+  const lines = content.split('\n')
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const lineNum = i + 1
+
+    // A) Raw hex colors
+    const hexMatches = line.match(RAW_HEX_PATTERN) ?? []
+    // Allow hex in comments, string literals in test files, and token definitions
+    const isTokenDef = /"\$value"\s*:/.test(line) || /'\$value'\s*:/.test(line)
+    const isComment = /^\s*(\/\/|\/\*|\*|<!--)/.test(line)
+    if (!isTokenDef && !isComment && hexMatches.length > 0) {
+      for (const hex of hexMatches) {
+        process.stderr.write(
+          `[INV-105] ${rel}:${lineNum}: raw hex color ${hex} — use a semantic token instead\n`,
+        )
+        violations++
+      }
+    }
+
+    // B) Raw rgb/hsl functions (excluding CSS custom property definitions)
+    if (!isTokenDef && !isComment && (RAW_RGB_PATTERN.test(line) || RAW_HSL_PATTERN.test(line))) {
+      process.stderr.write(
+        `[INV-105] ${rel}:${lineNum}: raw color function — use a semantic token instead\n`,
+      )
+      violations++
+    }
+    RAW_RGB_PATTERN.lastIndex = 0
+    RAW_HSL_PATTERN.lastIndex = 0
+
+    // C) Foundation/primitive token refs
+    if (FOUNDATION_PREFIX_PATTERN.test(line) && !isComment) {
+      process.stderr.write(
+        `[INV-105] ${rel}:${lineNum}: foundation token (--f-*) used in component — use semantic token instead\n`,
+      )
+      violations++
+    }
+  }
+
+  // B) Phantom token detection (var(--something) not in design-tokens.json)
+  if (tokensLoaded && (absPath.endsWith('.css') || absPath.endsWith('.scss'))) {
+    const cssVarRefs = [...content.matchAll(/var\((--[a-z][a-z0-9-]*)\)/g)].map((m) => m[1])
+    for (const varName of cssVarRefs) {
+      if (!validTokenNames.has(varName) && !varName.startsWith('--f-')) {
+        // Phantom: referenced but not defined in token file
+        process.stderr.write(
+          `[INV-105] ${rel}: phantom token reference: ${varName} not in design-tokens.json\n`,
+        )
+        violations++
+      }
+    }
+  }
+}
+
+function walkSrc(dir) {
+  if (!existsSync(dir)) return
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry)
+    let st
+    try {
+      st = statSync(full)
+    } catch {
+      continue
+    }
+    if (st.isDirectory()) {
+      if (entry === 'node_modules' || entry === '.git' || entry === '__tests__') continue
+      walkSrc(full)
+    } else if (st.isFile() && SOURCE_EXTS.has(extname(entry))) {
+      checkFile(full)
+    }
+  }
+}
+
+walkSrc(SRC)
+
+if (violations > 0) {
+  process.stderr.write(
+    `\n[verify-tokens] ${violations} violation(s) found.\n` +
+      `  INV-105: Use semantic tokens from design-tokens.json, not raw colors.\n` +
+      `  See docs/GOVERNANCE/FE_DESIGN_PRINCIPLES.md P1.\n`,
+  )
+  process.exit(1)
+}
+
+process.stdout.write('[verify-tokens] design token discipline OK (INV-105)\n')

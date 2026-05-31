@@ -174,4 +174,92 @@ describe('generateEslintBoundaries', () => {
     const result = generateEslintBoundaries(config)
     expect(result.files).toHaveLength(0)
   })
+
+  // ── framework-aware globs (#1127) ───────────────────────────────────────────
+
+  it('react framework: boundaries/include contains .tsx and .jsx globs (#1127)', () => {
+    generateEslintBoundaries(
+      makeConfig(dir, {
+        language: 'typescript',
+        archetype: 'frontend-spa',
+        frontend: { framework: 'react' },
+      }),
+    )
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).toContain('.tsx')
+    expect(content).toContain('.jsx')
+  })
+
+  it('react framework: boundaries/include does NOT contain .vue globs (#1127)', () => {
+    generateEslintBoundaries(
+      makeConfig(dir, {
+        language: 'typescript',
+        archetype: 'frontend-spa',
+        frontend: { framework: 'react' },
+      }),
+    )
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).not.toContain('.vue')
+  })
+
+  it('vue framework: boundaries/include contains .vue glob (#1127)', () => {
+    generateEslintBoundaries(
+      makeConfig(dir, {
+        language: 'typescript',
+        archetype: 'frontend-spa',
+        frontend: { framework: 'vue' },
+      }),
+    )
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).toContain('.vue')
+  })
+
+  it('vue framework: boundaries/include does NOT contain .tsx glob (#1127)', () => {
+    generateEslintBoundaries(
+      makeConfig(dir, {
+        language: 'typescript',
+        archetype: 'frontend-spa',
+        frontend: { framework: 'vue' },
+      }),
+    )
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).not.toContain('.tsx')
+  })
+
+  it('svelte framework: boundaries/include contains .svelte glob (#1127)', () => {
+    generateEslintBoundaries(
+      makeConfig(dir, {
+        language: 'typescript',
+        archetype: 'frontend-spa',
+        frontend: { framework: 'svelte' },
+      }),
+    )
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).toContain('.svelte')
+  })
+
+  it('svelte framework: boundaries/include does NOT contain .tsx glob (#1127)', () => {
+    generateEslintBoundaries(
+      makeConfig(dir, {
+        language: 'typescript',
+        archetype: 'frontend-spa',
+        frontend: { framework: 'svelte' },
+      }),
+    )
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).not.toContain('.tsx')
+  })
+
+  it('no frontend config: defaults to react-like (.tsx included, .vue absent) (#1127)', () => {
+    generateEslintBoundaries(
+      makeConfig(dir, {
+        language: 'typescript',
+        archetype: 'frontend-spa',
+        // no frontend config
+      }),
+    )
+    const content = readFileSync(join(dir, '.eslintrc-frontend-spa.cjs'), 'utf-8')
+    expect(content).toContain('.tsx')
+    expect(content).not.toContain('.vue')
+  })
 })
