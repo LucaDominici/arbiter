@@ -20,14 +20,14 @@ const BASE_SNAP: GraphSnapshot = {
     { id: 'INV-04', kind: 'INV', attrs: { title: 'No any' } },
     { id: 'GATE:eslint-no-any', kind: 'GATE', attrs: { mechanism: 'eslint-no-any' } },
     { id: 'TEST:no-any-test', kind: 'TEST', attrs: { title: 'no-any-test' } },
-    { id: 'ADR:ADR-040', kind: 'ADR', attrs: { title: 'Use TypeScript strict' } },
+    { id: 'ADR:040', kind: 'ADR', attrs: { title: 'Use TypeScript strict' } },
     { id: 'FILE:src/types.ts', kind: 'FILE', attrs: { path: 'src/types.ts' } },
   ],
   edges: [
     { from: 'INV-04', to: 'GATE:eslint-no-any', kind: 'enforces', attrs: {} },
     { from: 'TEST:no-any-test', to: 'INV-04', kind: 'proves', attrs: {} },
-    { from: 'ADR:ADR-040', to: 'INV-04', kind: 'decides', attrs: {} },
-    { from: 'FILE:src/types.ts', to: 'ADR:ADR-040', kind: 'implements', attrs: {} },
+    { from: 'ADR:040', to: 'INV-04', kind: 'decides', attrs: {} },
+    { from: 'FILE:src/types.ts', to: 'ADR:040', kind: 'implements', attrs: {} },
   ],
 }
 
@@ -92,7 +92,7 @@ describe('review diff (#262)', () => {
     const result = runReviewDiff({ base: BASE_SNAP, head: headSnap })
     expect(result.changes.adr_supersessions.length).toBeGreaterThan(0)
     const sup = result.changes.adr_supersessions[0]!
-    expect(sup.adr).toBe('ADR:ADR-040')
+    expect(sup.adr).toBe('ADR:040')
   })
 
   it('--json returns structured output', () => {

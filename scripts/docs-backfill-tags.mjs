@@ -42,7 +42,7 @@ const SKIP_PATH_SEGMENTS = [
 // All tags must exist in docs/METHOD/TAG_TAXONOMY.md.
 const KIND_RULES = [
   [/^docs\/ADR\//, 'kind/adr'],
-  [/^docs\/RUNBOOKS\//, 'kind/runbook'],
+  [/^docs\/runbooks\//, 'kind/runbook'],
   [/^docs\/audits\//, 'kind/audit'],
   [/^docs\/MIGRATION\//, 'kind/migration'],
   [/^docs\/SECURITY\//, 'kind/security'],
@@ -98,7 +98,7 @@ const AUDIENCE_RULES = [
   [/^\.claude\/|^\.agents\/|^\.codex\//, 'audience/agent'],
   [/^docs\/SECURITY\//, 'audience/auditor'],
   [/^docs\/audits\//, 'audience/auditor'],
-  [/^docs\/RUNBOOKS\//, 'audience/ops'],
+  [/^docs\/runbooks\//, 'audience/ops'],
 ]
 
 const SCOPE_RULES = [

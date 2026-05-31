@@ -1,15 +1,15 @@
 ---
-title: 'ADR-001: Task Workflow via /task Slash Command'
+title: 'ADR-041: Task Workflow via /task Slash Command'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-05-20'
 owner: ''
-canonical_id: ''
+canonical_id: '041'
 tags: ['audience/dev', 'kind/adr']
 related: []
 ---
 
-# ADR-001: Task Workflow via /task Slash Command
+# ADR-041: Task Workflow via /task Slash Command
 
 **Project:** arbiter
 **Date:** 2025-01-01

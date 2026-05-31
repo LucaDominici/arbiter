@@ -4,7 +4,7 @@ doc_version: '1.0.0'
 status: active
 last_review: '2026-05-28'
 owner: ''
-canonical_id: ''
+canonical_id: '053'
 tags: ['audience/dev', 'kind/adr']
 related:
   ['docs/ADR/050-pipeline-complexity-tiers.md', 'docs/ADR/051-collaboration-mode-workflow-axis.md']

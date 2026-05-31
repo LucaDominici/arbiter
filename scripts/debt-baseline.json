@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "capturedAt": "2026-05-31T11:00:58.256Z",
-  "commit": "e8db052c",
+  "capturedAt": "2026-05-31T21:49:17.066Z",
+  "commit": "2cc6dd0d",
   "archetype": "library",
   "metrics": {
     "coverageLine": {
@@ -20,7 +20,7 @@
       "direction": "lower-is-better"
     },
     "complexityViolations": {
-      "value": 88,
+      "value": 87,
       "unit": "count",
       "direction": "lower-is-better"
     },

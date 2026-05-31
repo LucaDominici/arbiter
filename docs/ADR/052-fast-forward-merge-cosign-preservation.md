@@ -4,7 +4,7 @@ doc_version: '1.0.0'
 status: active
 last_review: '2026-05-28'
 owner: ''
-canonical_id: ''
+canonical_id: '052'
 tags: ['audience/dev', 'kind/adr']
 related: ['docs/ADR/051-merge-train-collaboration-mode.md']
 ---

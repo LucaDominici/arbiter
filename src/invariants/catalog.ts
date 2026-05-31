@@ -1681,4 +1681,24 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '`await fetch` and `await axios` inside store/domain-hinted files and fails the L2 ' +
       'gate step in scripts/check-all.mjs on any violation.',
   },
+
+  // ── ADR SSOT integrity (#1099) ─────────────────────────────────────────────
+  {
+    id: 'INV-107',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: true,
+    title:
+      'docs/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync',
+    description:
+      'Every numbered ADR file in docs/ADR/ must have canonical_id set to its 3-digit ' +
+      'filename prefix, ADR numbers must be unique across all files, and docs/ADR/README.md ' +
+      'must list every numbered ADR file. docs/SYSTEM/DECISIONS.md is frozen legacy and ' +
+      'must not receive new entries. Enforced at L1 to catch drift before commit.',
+    adr: 'ADR-073',
+    enforcement:
+      'scripts/check-adr-index.mjs verifies unique numbers, canonical_id match, and ' +
+      'README coverage. Wired into scripts/check-all.mjs L1 (#1099).',
+  },
 ]

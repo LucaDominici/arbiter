@@ -4,7 +4,7 @@ doc_version: '1.0.0'
 status: active
 last_review: '2026-05-23'
 owner: ''
-canonical_id: ''
+canonical_id: '050'
 tags: ['audience/dev', 'kind/adr']
 related: ['docs/SYSTEM/CI-TIER-MODEL.md']
 ---

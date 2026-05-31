@@ -1,15 +1,15 @@
 ---
-title: 'ADR-002: Three-Tier Gate System (L1/L2/L3)'
+title: 'ADR-042: Three-Tier Gate System (L1/L2/L3)'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-05-20'
 owner: ''
-canonical_id: ''
+canonical_id: '042'
 tags: ['audience/dev', 'kind/adr']
 related: []
 ---
 
-# ADR-002: Three-Tier Gate System (L1/L2/L3)
+# ADR-042: Three-Tier Gate System (L1/L2/L3)
 
 **Project:** arbiter
 **Date:** 2025-01-01
