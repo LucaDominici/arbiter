@@ -1591,6 +1591,25 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
 
   // ── Frontend governance family (#1127) ────────────────────────────────────
   {
+    id: 'INV-105',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'design token discipline — no raw colors or phantom tokens in UI components',
+    description:
+      'In FE projects, UI component files MUST use semantic design tokens from ' +
+      'design-tokens.json (W3C DTCG format). Raw hex/rgb/hsl color values in component ' +
+      'source are FORBIDDEN. Foundation/primitive tokens (--f-* prefix) MUST NOT be ' +
+      'referenced directly in components. Phantom tokens (CSS var references not in ' +
+      'design-tokens.json) produce invisible elements and must be eliminated. ' +
+      'Mirrors FE006 + P1 of the FRONTEND_CONSTITUTION and FE_DESIGN_PRINCIPLES.',
+    alwaysActive: false,
+    enforcement:
+      'Generated scripts/verify-tokens.mjs scans component source files for raw ' +
+      'hex/rgb/hsl values and phantom token references, then fails the L2 gate step ' +
+      'in scripts/check-all.mjs on any violation.',
+  },
+  {
     id: 'INV-102',
     tier: 'operational',
     languages: ['typescript'],

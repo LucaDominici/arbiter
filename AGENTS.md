@@ -243,6 +243,10 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/check-merge-method.mjs` (L1)
   - Every arbiter-scaffolded project must disallow squash-merge and rebase-merge. Squash loses commit granularity; rebase rewrites SHAs, invalidating cosign attestations. The only permitted merge path is merge-commit with `required_linear_history:true` (ff-only enforced server-side) or direct push via `git push origin HEAD:main` (trunk-solo mode). Repo settings: `allow_merge_commit:true`, `allow_squash_merge:false`, `allow_rebase_merge:false`. Branch protection: `required_linear_history:true`, `required_signatures:true` (L3+).
 
+- **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
+  - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)
+  - In FE projects, UI component files MUST use semantic design tokens from design-tokens.json (W3C DTCG format). Raw hex/rgb/hsl colors, foundation/primitive tokens (--f-\*), and phantom token references are FORBIDDEN. Mirrors FE006 + P1 of the FRONTEND_CONSTITUTION.
+
 - **INV-102:** API-layer isolation — no HTTP calls outside the adapter layer
   - _Enforcement:_ Generated `scripts/check-fe-boundaries.mjs` (L2, frontend-spa and frontend-lane projects)
   - In FE projects (archetype frontend-spa or lanes:[frontend]), direct fetch()/axios.\* calls MUST NOT appear in UI component files, composables/hooks, or state stores. All HTTP I/O must be confined to a dedicated adapter/api layer. Mirrors FE001 of the FRONTEND_CONSTITUTION.

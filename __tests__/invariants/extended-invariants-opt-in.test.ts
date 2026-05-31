@@ -18,9 +18,9 @@ const EXTENDED_IDS = [
 ]
 
 describe('extended opt-in invariants', () => {
-  it('catalog has exactly 102 entries after adding extended set, INV-82, INV-94, INV-96, INV-95/97/98/99, INV-100, INV-101, and INV-102/103/104', () => {
-    // Updated in #1127: +3 (INV-102/103/104 — FE boundary purity invariants)
-    expect(INVARIANT_CATALOG).toHaveLength(102)
+  it('catalog has exactly 103 entries after adding extended set, INV-82, INV-94, INV-96, INV-95/97/98/99, INV-100, INV-101, and INV-102/103/104/105', () => {
+    // Updated in #1127: +4 (INV-102/103/104 boundary + INV-105 token discipline)
+    expect(INVARIANT_CATALOG).toHaveLength(103)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {
