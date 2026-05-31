@@ -2,43 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 // scripts/gen-doc-index.mjs
 // #1102: generate docs/INDEX.md from doc frontmatter — a single discoverable
-// inventory of every doc with its canonical_id, title, and lifecycle status.
+// inventory of every governance doc, grouped by directory, with real markdown links
+// (Obsidian-friendly: clickable, graph-wiring, GitHub/VitePress-portable).
 //
 // Usage:
 //   node scripts/gen-doc-index.mjs           # (re)write docs/INDEX.md
 //   node scripts/gen-doc-index.mjs --check   # fail (exit 1) if docs/INDEX.md is stale
 //
-// The index lists paths as inline code (not links) so it is inert for the
-// doc-links gate. docs/INDEX.md is excluded from its own scan and from the
-// frontmatter gate (check-doc-style SKIP_FILENAMES).
+// Exported functions (for unit tests):
+//   collectDocs(docsDir, indexPath) → record[]
+//   buildIndex(records)             → string
+//
+// Uses process.cwd() as the repo root (matching other gate scripts).
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-
-const repoRoot = fileURLToPath(new URL('..', import.meta.url))
-const docsDir = join(repoRoot, 'docs')
-const indexPath = join(docsDir, 'INDEX.md')
 
 // Directories under docs/ whose contents are excluded from the inventory.
 const SKIP_SEGMENTS = new Set(['report'])
 
-/** Recursively collect .md files under dir (excluding SKIP_SEGMENTS + INDEX.md). */
-function collectMarkdown(dir) {
-  const out = []
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry)
-    if (statSync(full).isDirectory()) {
-      if (SKIP_SEGMENTS.has(entry)) continue
-      out.push(...collectMarkdown(full))
-    } else if (entry.endsWith('.md') && full !== indexPath) {
-      out.push(full)
-    }
-  }
-  return out
-}
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
 
-/** Parse a leading `---`-delimited YAML-ish frontmatter block (flat string keys). */
+/** Parse a leading `---`-delimited YAML-ish frontmatter block.
+ *  Returns a map of scalar keys and, for inline-array values, a string[]. */
 function parseFrontmatter(content) {
   if (!content.startsWith('---\n')) return {}
   const end = content.indexOf('\n---', 4)
@@ -47,60 +36,154 @@ function parseFrontmatter(content) {
   const fm = {}
   for (const line of block.split('\n')) {
     const m = line.match(/^([a-z_]+):\s*(.*)$/)
-    if (m) fm[m[1]] = m[2].trim().replace(/^['"]|['"]$/g, '')
+    if (!m) continue
+    const raw = m[2].trim()
+    if (raw.startsWith('[')) {
+      // Parse YAML inline array: ['a', 'b'] or ["a", "b"]
+      fm[m[1]] = [...raw.matchAll(/'([^']+)'|"([^"]+)"/g)].map((x) => x[1] ?? x[2])
+    } else {
+      fm[m[1]] = raw.replace(/^['"]|['"]$/g, '')
+    }
   }
   return fm
 }
 
-/** First H1 text, used as a fallback title for frontmatter-less docs. */
+/** First H1 text, used as a title fallback for frontmatter-less docs. */
 function firstH1(content) {
   const m = content.match(/^#\s+(.+)$/m)
   return m ? m[1].trim() : ''
 }
 
-function buildIndex() {
-  const files = collectMarkdown(docsDir).sort()
-  const rows = []
-  for (const file of files) {
-    const content = readFileSync(file, 'utf-8')
-    const fm = parseFrontmatter(content)
-    const relPath = relative(repoRoot, file).split(sep).join('/')
-    const title = (fm.title || firstH1(content) || relPath).replace(/\|/g, '\\|')
-    const id = fm.canonical_id || ''
-    const status = fm.status || '—'
-    rows.push(`| ${id || '—'} | ${title} | ${status} | \`${relPath}\` |`)
+/** Recursively collect .md files under dir (excluding SKIP_SEGMENTS + indexPath). */
+function walkMarkdown(dir, indexPath) {
+  const out = []
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) {
+      if (SKIP_SEGMENTS.has(entry)) continue
+      out.push(...walkMarkdown(full, indexPath))
+    } else if (entry.endsWith('.md') && full !== indexPath) {
+      out.push(full)
+    }
   }
-  return (
+  return out
+}
+
+/** Format one table row. */
+function tableRow(r) {
+  return `| [${r.title}](${r.relPath}) | ${r.id || '—'} | ${r.status} | ${r.kind || '—'} |`
+}
+
+// ---------------------------------------------------------------------------
+// Exported API
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect and parse all docs under docsDir.
+ * Returns records sorted alphabetically by relPath, each with:
+ *   relPath  – path relative to docsDir (forward slashes)
+ *   title    – from frontmatter, first H1, or relPath (pipe-escaped)
+ *   id       – canonical_id or ''
+ *   status   – from frontmatter or '—'
+ *   kind     – first 'kind/*' tag from the tags array, or ''
+ *   tags     – full string[] of tags
+ */
+export function collectDocs(docsDir, indexPath) {
+  return walkMarkdown(docsDir, indexPath)
+    .sort()
+    .map((file) => {
+      const content = readFileSync(file, 'utf-8')
+      const fm = parseFrontmatter(content)
+      const relPath = relative(docsDir, file).split(sep).join('/')
+      const tags = Array.isArray(fm.tags) ? fm.tags : []
+      return {
+        relPath,
+        title: (fm.title || firstH1(content) || relPath).replace(/\|/g, '\\|'),
+        id: fm.canonical_id || '',
+        status: fm.status || '—',
+        kind: tags.find((t) => t.startsWith('kind/')) ?? '',
+        tags,
+      }
+    })
+}
+
+/**
+ * Build the grouped INDEX.md content from doc records.
+ * Groups by top-level directory; root-level docs (directly under docs/) appear first
+ * under a '## docs' heading. Each entry is a real markdown link for Obsidian + GitHub.
+ */
+export function buildIndex(records) {
+  // Group by top-level directory (empty string = root level docs)
+  const groups = new Map()
+  for (const r of records) {
+    const parts = r.relPath.split('/')
+    const key = parts.length > 1 ? parts[0] : ''
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(r)
+  }
+
+  const header =
     `# Documentation Index\n\n` +
     `> Generated by \`scripts/gen-doc-index.mjs\` from doc frontmatter. Do not edit by hand;\n` +
     `> run \`node scripts/gen-doc-index.mjs\` after adding or relabeling a doc.\n\n` +
-    `${rows.length} documents.\n\n` +
-    `| canonical_id | title | status | path |\n` +
-    `|--------------|-------|--------|------|\n` +
-    `${rows.join('\n')}\n`
-  )
+    `${records.length} documents.\n\n`
+
+  const TABLE_HEADER =
+    `| title | canonical_id | status | kind |\n` + `|-------|--------------|--------|------|\n`
+
+  // Root-level files first, then subdirectories sorted alphabetically
+  const rootDocs = groups.get('') ?? []
+  const dirGroups = [...groups.entries()]
+    .filter(([k]) => k !== '')
+    .sort(([a], [b]) => a.localeCompare(b))
+
+  const sections = []
+
+  if (rootDocs.length > 0) {
+    sections.push(`## docs\n\n` + TABLE_HEADER + rootDocs.map(tableRow).join('\n') + '\n')
+  }
+
+  for (const [dir, docs] of dirGroups) {
+    sections.push(`## ${dir}\n\n` + TABLE_HEADER + docs.map(tableRow).join('\n') + '\n')
+  }
+
+  return header + sections.join('\n')
 }
 
-// Fail-closed (INV-96): any error in scan/parse/IO exits non-zero rather than
-// silently producing an empty or partial index.
-try {
-  const check = process.argv.includes('--check')
-  const generated = buildIndex()
+// ---------------------------------------------------------------------------
+// CLI entry point — guarded so imports don't trigger side-effects
+// ---------------------------------------------------------------------------
 
-  if (check) {
-    const current = existsSync(indexPath) ? readFileSync(indexPath, 'utf-8') : ''
-    if (current !== generated) {
-      process.stderr.write(
-        'docs/INDEX.md is stale. Run `node scripts/gen-doc-index.mjs` and commit the result.\n',
-      )
-      process.exit(1)
+const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+
+if (isMain) {
+  // Use process.cwd() as repo root (matches check-doc-links.mjs and other gate scripts)
+  const repoRoot = resolve('.')
+  const docsDir = join(repoRoot, 'docs')
+  const indexPath = join(docsDir, 'INDEX.md')
+
+  // Fail-closed (INV-96): any error in scan/parse/IO exits non-zero rather than
+  // silently producing an empty or partial index.
+  try {
+    const records = collectDocs(docsDir, indexPath)
+    const generated = buildIndex(records)
+    const check = process.argv.includes('--check')
+
+    if (check) {
+      const current = existsSync(indexPath) ? readFileSync(indexPath, 'utf-8') : ''
+      if (current !== generated) {
+        process.stderr.write(
+          'docs/INDEX.md is stale. Run `node scripts/gen-doc-index.mjs` and commit the result.\n',
+        )
+        process.exit(1)
+      }
+      process.stdout.write('docs/INDEX.md is up to date.\n')
+    } else {
+      writeFileSync(indexPath, generated)
+      process.stdout.write(`Wrote ${indexPath}\n`)
     }
-    process.stdout.write('docs/INDEX.md is up to date.\n')
-  } else {
-    writeFileSync(indexPath, generated)
-    process.stdout.write(`Wrote ${indexPath}\n`)
+  } catch (err) {
+    process.stderr.write(`gen-doc-index: ${err instanceof Error ? err.message : String(err)}\n`)
+    process.exit(1)
   }
-} catch (err) {
-  process.stderr.write(`gen-doc-index: ${err instanceof Error ? err.message : String(err)}\n`)
-  process.exit(1)
 }
