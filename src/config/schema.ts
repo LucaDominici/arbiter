@@ -379,7 +379,7 @@ const VALID_FRONTEND_FRAMEWORKS: ReadonlySet<string> = new Set(['vue', 'react', 
 const FRONTEND_IDENT_RE = /^[@a-zA-Z0-9][a-zA-Z0-9@/._-]{0,59}$/
 
 function validateFrontend(raw: unknown, errors: string[]): void {
-  if (raw === undefined || raw === null) return
+  if (raw == null) return
   if (!isRecord(raw)) {
     errors.push('frontend must be an object')
     return

@@ -54,6 +54,8 @@
     "AGENTS.md",
     "Makefile",
     "arbiter.json",
+    "docs/GOVERNANCE/FE_DESIGN_PRINCIPLES.md",
+    "docs/GOVERNANCE/FRONTEND_CONSTITUTION.md",
     "docs/METHOD/CANONICAL_PATHS.md",
     "docs/METHOD/KNOWLEDGE_MAP.md",
     "docs/METHOD/SSOT_CORE_SET.md",

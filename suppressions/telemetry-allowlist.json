@@ -33,5 +33,10 @@
     "pattern": "fetch(",
     "file": "src/templates/scripts/validate-openapi-field-types.mjs.ejs",
     "justification": "Generated OpenAPI drift validator fetching the live OpenAPI spec from a user-configured base URL for drift detection — not telemetry. URL is user-supplied via OPENAPI_BASE_URL env var and used only in CI drift checks."
+  },
+  {
+    "pattern": "axios",
+    "file": "src/templates/frontend/FRONTEND_CONSTITUTION.md.ejs",
+    "justification": "Generated governance doc citing 'axios' as an example of an HTTP client that is FORBIDDEN in the UI layer (FE001 rule) — this is a prohibition in the output Markdown, not a network call from arbiter itself."
   }
 ]
