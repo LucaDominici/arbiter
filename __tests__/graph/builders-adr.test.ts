@@ -2,134 +2,155 @@ import { writeFileSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
-import { parseDecisions, buildAdrNodes } from '../../src/graph/builders/adr.js'
+import { parseFrontmatter, parseAdrFile, buildAdrNodes } from '../../src/graph/builders/adr.js'
 import { GraphStore } from '../../src/graph/store.js'
 
-const SAMPLE_DECISIONS = `
-# Architectural Decision Records
-
+const ADR_FILE = (num: string, title: string, status = 'active', invRefs = 'INV-58, INV-59') => `\
+---
+title: '${title}'
+doc_version: '1.0.0'
+status: ${status}
+last_review: '2026-01-01'
+owner: ''
+canonical_id: '${num}'
+tags: []
+related: []
 ---
 
-## feat(#470): soloDevMode (2026-05-13)
+# ${title}
 
 **Status:** Accepted
-**Reference:** Issue #470; INV-58, INV-59
+**Reference:** Issue #470; ${invRefs}
 
-**Context:** Solo-dev workflow.
-
-**Decisions:** Allow direct merge after L2 green.
-
-**Consequences:** Faster merges.
-
----
-
-## feat(#253): verification bridge (2026-05-01)
-
-**Status:** Accepted
-**Reference:** Issue #253; INV-55
-
-**Context:** Verification bridge.
-
----
+Body content.
 `
 
-describe('parseDecisions (#259-followup)', () => {
-  it('extracts ADR entries from DECISIONS.md', () => {
-    const entries = parseDecisions(SAMPLE_DECISIONS)
-    expect(entries.length).toBe(2)
-    expect(entries[0]?.id).toMatch(/^ADR:/)
-    expect(entries[0]?.status).toBe('Accepted')
+function makeAdrDir(): { dir: string; adrDir: string } {
+  const dir = mkdtempSync(join(tmpdir(), 'adr-builder-'))
+  const adrDir = join(dir, 'docs', 'ADR')
+  mkdirSync(adrDir, { recursive: true })
+  return { dir, adrDir }
+}
+
+describe('parseFrontmatter', () => {
+  it('extracts key-value pairs from YAML block', () => {
+    const text = "---\ntitle: 'Hello World'\nstatus: active\ncanonical_id: '042'\n---\n\nBody"
+    const fm = parseFrontmatter(text)
+    expect(fm['title']).toBe('Hello World')
+    expect(fm['status']).toBe('active')
+    expect(fm['canonical_id']).toBe('042')
   })
 
-  it('extracts INV refs from Reference lines', () => {
-    const entries = parseDecisions(SAMPLE_DECISIONS)
-    const first = entries[0]
-    expect(first?.invRefs).toContain('INV-58')
-    expect(first?.invRefs).toContain('INV-59')
-    const second = entries[1]
-    expect(second?.invRefs).toContain('INV-55')
-  })
-
-  it('returns empty array for text with no ADR sections', () => {
-    const entries = parseDecisions('# Just a title\n\nNo decisions here.')
-    expect(entries).toEqual([])
-  })
-
-  it('ignores sections without Status or Reference', () => {
-    const text = `## Not a Decision\n\nSome content.\n\n---\n\n## feat(#1): real decision (2026-01-01)\n\n**Status:** Accepted\n**Reference:** INV-01\n`
-    const entries = parseDecisions(text)
-    expect(entries).toHaveLength(1)
-    expect(entries[0]?.invRefs).toContain('INV-01')
+  it('returns empty object when no frontmatter', () => {
+    expect(parseFrontmatter('# Just a heading\n\nNo frontmatter.')).toEqual({})
   })
 })
 
-describe('buildAdrNodes (#259-followup)', () => {
-  const created: string[] = []
+describe('parseAdrFile', () => {
+  it('returns null when canonical_id is empty', () => {
+    const text = ADR_FILE('001', 'ADR-001: Test')
+    const withEmpty = text.replace("canonical_id: '001'", "canonical_id: ''")
+    expect(parseAdrFile(withEmpty)).toBeNull()
+  })
+
+  it('returns null when canonical_id is non-numeric', () => {
+    const withBad = ADR_FILE('abc', 'ADR-abc: Bad')
+    expect(parseAdrFile(withBad)).toBeNull()
+  })
+
+  it('extracts id, title, status, invRefs', () => {
+    const text = ADR_FILE('042', 'ADR-042: Gate Tiers')
+    const entry = parseAdrFile(text)
+    expect(entry).not.toBeNull()
+    expect(entry?.id).toBe('ADR:042')
+    expect(entry?.title).toBe('ADR-042: Gate Tiers')
+    expect(entry?.status).toBe('active')
+    expect(entry?.invRefs).toContain('INV-58')
+    expect(entry?.invRefs).toContain('INV-59')
+  })
+
+  it('returns empty invRefs when no Reference lines', () => {
+    const noRef = `---\ntitle: 'ADR-001: Test'\nstatus: active\ncanonical_id: '001'\ntags: []\nrelated: []\n---\n\n# ADR-001\n\nNo reference lines.\n`
+    const entry = parseAdrFile(noRef)
+    expect(entry?.invRefs).toEqual([])
+  })
+})
+
+describe('buildAdrNodes', () => {
+  const cleanup: string[] = []
   afterEach(() => {
-    while (created.length > 0) {
-      const d = created.pop()
+    while (cleanup.length > 0) {
+      const d = cleanup.pop()
       if (d !== undefined) rmSync(d, { recursive: true, force: true })
     }
   })
 
-  it('emits ADR nodes and decides edges', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'adr-builder-'))
-    created.push(dir)
-    const decisionsDir = join(dir, 'docs', 'SYSTEM')
-    mkdirSync(decisionsDir, { recursive: true })
-    writeFileSync(join(decisionsDir, 'DECISIONS.md'), SAMPLE_DECISIONS, 'utf-8')
+  it('emits ADR nodes and INV stubs from per-file ADR directory', () => {
+    const { dir, adrDir } = makeAdrDir()
+    cleanup.push(dir)
+    writeFileSync(join(adrDir, '042-gate-tiers.md'), ADR_FILE('042', 'ADR-042: Gate Tiers'))
+    writeFileSync(
+      join(adrDir, '043-docs-site-ia.md'),
+      ADR_FILE('043', 'ADR-043: Docs IA', 'active', 'INV-10'),
+    )
 
-    const store = buildAdrNodes(new GraphStore(), {}, dir)
+    const store = buildAdrNodes(new GraphStore(), { adrDir }, dir)
     const adrs = store.nodesByKind('ADR')
     expect(adrs.length).toBe(2)
-
-    const invNodes = store.nodesByKind('INV')
-    expect(invNodes.map((n) => n.id)).toContain('INV-58')
-    expect(invNodes.map((n) => n.id)).toContain('INV-59')
+    expect(adrs.map((n) => n.id)).toContain('ADR:042')
+    expect(adrs.map((n) => n.id)).toContain('ADR:043')
+    expect(store.nodesByKind('INV').map((n) => n.id)).toContain('INV-58')
   })
 
   it('emits decides edges from ADR to INV', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'adr-edges-'))
-    created.push(dir)
-    const decisionsDir = join(dir, 'docs', 'SYSTEM')
-    mkdirSync(decisionsDir, { recursive: true })
-    writeFileSync(join(decisionsDir, 'DECISIONS.md'), SAMPLE_DECISIONS, 'utf-8')
+    const { dir, adrDir } = makeAdrDir()
+    cleanup.push(dir)
+    writeFileSync(join(adrDir, '042-gate-tiers.md'), ADR_FILE('042', 'ADR-042: Gate Tiers'))
 
-    const store = buildAdrNodes(new GraphStore(), {}, dir)
-    const adrs = store.nodesByKind('ADR')
-    const firstAdr = adrs[0]
-    if (firstAdr === undefined) throw new Error('no ADR nodes')
-    const edges = store.outgoing(firstAdr.id, 'decides')
+    const store = buildAdrNodes(new GraphStore(), { adrDir }, dir)
+    const edges = store.outgoing('ADR:042', 'decides')
     expect(edges.length).toBeGreaterThan(0)
   })
 
-  it('degrades gracefully when DECISIONS.md is missing', () => {
+  it('degrades gracefully when adrDir is missing', () => {
     const dir = mkdtempSync(join(tmpdir(), 'adr-missing-'))
-    created.push(dir)
-    const store = buildAdrNodes(new GraphStore(), {}, dir)
+    cleanup.push(dir)
+    const store = buildAdrNodes(new GraphStore(), { adrDir: join(dir, 'docs', 'ADR') }, dir)
     expect(store.nodesByKind('ADR')).toHaveLength(0)
   })
 
-  it('uses decisionsPath override for tests', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'adr-override-'))
-    created.push(dir)
-    const overridePath = join(dir, 'my-decisions.md')
-    writeFileSync(overridePath, SAMPLE_DECISIONS, 'utf-8')
-    const store = buildAdrNodes(new GraphStore(), { decisionsPath: overridePath }, dir)
-    expect(store.nodesByKind('ADR').length).toBe(2)
+  it('skips files with empty canonical_id', () => {
+    const { dir, adrDir } = makeAdrDir()
+    cleanup.push(dir)
+    const noId = ADR_FILE('042', 'ADR-042: Gate Tiers').replace(
+      "canonical_id: '042'",
+      "canonical_id: ''",
+    )
+    writeFileSync(join(adrDir, '042-gate-tiers.md'), noId)
+
+    const store = buildAdrNodes(new GraphStore(), { adrDir }, dir)
+    expect(store.nodesByKind('ADR')).toHaveLength(0)
+  })
+
+  it('skips non-numbered files (README.md, ADR-000_template.md)', () => {
+    const { dir, adrDir } = makeAdrDir()
+    cleanup.push(dir)
+    writeFileSync(join(adrDir, 'README.md'), '# index\n')
+    writeFileSync(join(adrDir, 'ADR-000_template.md'), '# template\n')
+    writeFileSync(join(adrDir, '042-gate-tiers.md'), ADR_FILE('042', 'ADR-042: Gate Tiers'))
+
+    const store = buildAdrNodes(new GraphStore(), { adrDir }, dir)
+    expect(store.nodesByKind('ADR')).toHaveLength(1)
   })
 
   it('re-uses pre-built INV nodes from inv builder', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'adr-reuse-'))
-    created.push(dir)
-    const overridePath = join(dir, 'decisions.md')
-    writeFileSync(overridePath, SAMPLE_DECISIONS, 'utf-8')
-    // Pre-seed INV-58
+    const { dir, adrDir } = makeAdrDir()
+    cleanup.push(dir)
+    writeFileSync(join(adrDir, '042-gate-tiers.md'), ADR_FILE('042', 'ADR-042: Gate Tiers'))
+
     const store = new GraphStore()
     store.addNode({ id: 'INV-58', kind: 'INV', attrs: { title: 'pre-seeded' } })
-    buildAdrNodes(store, { decisionsPath: overridePath }, dir)
-    // Should not throw (upsertNode is idempotent)
-    const inv58 = store.getNode('INV-58')
-    expect(inv58?.attrs['title']).toBe('pre-seeded')
+    buildAdrNodes(store, { adrDir }, dir)
+    expect(store.getNode('INV-58')?.attrs['title']).toBe('pre-seeded')
   })
 })

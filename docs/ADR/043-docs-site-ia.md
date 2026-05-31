@@ -1,15 +1,15 @@
 ---
-title: 'ADR-003: Docs Site Information Architecture'
+title: 'ADR-043: Docs Site Information Architecture'
 doc_version: '1.0.0'
 status: active
 last_review: '2026-05-20'
 owner: ''
-canonical_id: ''
+canonical_id: '043'
 tags: ['audience/dev', 'kind/adr']
 related: []
 ---
 
-# ADR-003: Docs Site Information Architecture
+# ADR-043: Docs Site Information Architecture
 
 **Project:** arbiter
 **Date:** 2026-05-15

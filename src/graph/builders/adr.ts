@@ -1,37 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * ADR builder (#259, followup).
+ * ADR builder — reads docs/ADR/NNN-*.md per-file SSOT (Wave 2 migration).
  *
- * Reads `docs/SYSTEM/DECISIONS.md` and emits:
- *   - one ADR node per `## <title> (<date>)` section
- *   - ADR --decides--> INV edges for INV-NN refs in **Reference:** lines
+ * Each ADR file carries YAML frontmatter:
+ *   canonical_id: 'NNN'
+ *   title: 'ADR-NNN: ...'
+ *   status: active | superseded | proposed
  *
- * DECISIONS.md format (no YAML frontmatter — confirmed by reading the actual file):
- *   ## feat(#NNN): title (YYYY-MM-DD)
- *   **Status:** Accepted
- *   **Reference:** Issue #NNN; INV-NN, INV-MM
- *   ...body...
- *   ---
+ * ADR node id: "ADR:NNN" (3-digit canonical_id).
+ * Edges: ADR --decides--> INV for every INV-NN ref found in **Reference:** lines.
  *
- * ADR node id: "ADR:<slug>" where slug is the heading normalised to stable alphanum form.
- *
- * Existing Code Survey (CANON-16):
- *   - no existing ADR parser found in src/
- *   - no YAML frontmatter needed (format confirmed from docs/SYSTEM/DECISIONS.md)
+ * Existing Code Survey (CANON-16, Wave 2 rewrite):
+ *   - prior impl read docs/SYSTEM/DECISIONS.md (section-heading format)
+ *   - repointed to docs/ADR/ per-file YAML in Wave 2 (ADR-073, issue #1099)
+ *   - DECISIONS.md frozen as legacy; graph.json now reflects per-file SSOT
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { GraphNode, GraphEdge } from '../model.js'
 import { GraphStore } from '../store.js'
 import { extractInvRefs } from './utils.js'
 
-const DECISIONS_PATH = join('docs', 'SYSTEM', 'DECISIONS.md')
+const ADR_DIR = join('docs', 'ADR')
+const NUMBERED_FILE_RE = /^(\d{3})-.+\.md$/
 
 export interface BuildAdrOptions {
   source?: string
-  /** Override path to DECISIONS.md (for tests). */
-  decisionsPath?: string
+  /** Override path to docs/ADR/ directory (for tests). */
+  adrDir?: string
 }
 
 export interface AdrEntry {
@@ -41,54 +38,45 @@ export interface AdrEntry {
   invRefs: string[]
 }
 
-/**
- * Parse DECISIONS.md into ADR entries.
- * Returns an empty array when the file is missing (builder degrades gracefully).
- */
-export function parseDecisions(text: string): AdrEntry[] {
-  const entries: AdrEntry[] = []
-  // Split on `## ` headings that start a line
-  const sections = text.split(/^(?=## )/m)
-  for (const section of sections) {
-    const headingMatch = /^## (.+)/.exec(section)
-    if (headingMatch === null) continue
-    const headingRaw = headingMatch[1]
-    if (headingRaw === undefined) continue
-    const heading = headingRaw.trim()
-    // Only treat sections that look like decision entries (have Status or Reference)
-    if (!section.includes('**Status:**') && !section.includes('**Reference:**')) continue
-
-    const id = headingToAdrId(heading)
-    const statusMatch = /\*\*Status:\*\*\s*(.+)/.exec(section)
-    const statusRaw = statusMatch !== null ? statusMatch[1] : undefined
-    const status = statusRaw !== undefined ? statusRaw.trim() : 'Unknown'
-
-    // Collect INV refs from Reference lines
-    const invRefs: string[] = []
-    for (const line of section.split('\n')) {
-      if (line.includes('**Reference:**') || line.includes('Reference:')) {
-        invRefs.push(...extractInvRefs(line))
-      }
-    }
-
-    entries.push({ id, title: heading, status, invRefs })
+/** Parse YAML frontmatter (between --- delimiters) into a key-value map. */
+export function parseFrontmatter(text: string): Record<string, string> {
+  const match = /^---\n([\s\S]*?)\n---/.exec(text)
+  if (match === null) return {}
+  const block = match[1]
+  if (block === undefined) return {}
+  const fm: Record<string, string> = {}
+  for (const line of block.split('\n')) {
+    const colon = line.indexOf(':')
+    if (colon === -1) continue
+    const key = line.slice(0, colon).trim()
+    const raw = line.slice(colon + 1).trim()
+    fm[key] = raw.replace(/^['"]|['"]$/g, '')
   }
-  return entries
+  return fm
 }
 
 /**
- * Normalise a heading to a stable ADR node id.
- * e.g. "feat(#470): soloDevMode (2026-05-13)" -> "ADR:feat-#470-soloDevMode"
+ * Parse a docs/ADR/NNN-*.md file into an AdrEntry.
+ * Returns null when canonical_id is missing or non-numeric.
  */
-function headingToAdrId(heading: string): string {
-  // Strip trailing date in parens
-  const withoutDate = heading.replace(/\s*\(\d{4}-\d{2}-\d{2}\)\s*$/, '').trim()
-  // Replace non-alnum (except # and -) with -; collapse multiple dashes
-  const slug = withoutDate
-    .replace(/[^\w#-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-  return `ADR:${slug}`
+export function parseAdrFile(text: string): AdrEntry | null {
+  const fm = parseFrontmatter(text)
+  const canonicalId = fm['canonical_id']
+  if (canonicalId === undefined || canonicalId === '') return null
+  if (!/^\d+$/.test(canonicalId)) return null
+
+  const id = `ADR:${canonicalId}`
+  const title = fm['title'] ?? ''
+  const status = fm['status'] ?? 'Unknown'
+
+  const invRefs: string[] = []
+  for (const line of text.split('\n')) {
+    if (line.includes('**Reference:**') || line.includes('Reference:')) {
+      invRefs.push(...extractInvRefs(line))
+    }
+  }
+
+  return { id, title, status, invRefs }
 }
 
 export function buildAdrNodes(
@@ -97,24 +85,32 @@ export function buildAdrNodes(
   projectRoot = '.',
 ): GraphStore {
   const source = opts.source ?? 'adr-builder'
-  const decisionsFile =
-    opts.decisionsPath !== undefined ? opts.decisionsPath : join(projectRoot, DECISIONS_PATH)
+  const adrDirectory = opts.adrDir !== undefined ? opts.adrDir : join(projectRoot, ADR_DIR)
 
-  if (!existsSync(decisionsFile)) {
-    // Degrade gracefully — target projects may not have DECISIONS.md yet
+  if (!existsSync(adrDirectory)) {
     return store
   }
 
-  let text: string
+  let fileNames: string[]
   try {
-    text = readFileSync(decisionsFile, 'utf-8')
+    fileNames = readdirSync(adrDirectory)
+      .filter((f) => NUMBERED_FILE_RE.test(f))
+      .sort()
   } catch {
     return store
   }
 
-  const entries = parseDecisions(text)
+  for (const fileName of fileNames) {
+    let text: string
+    try {
+      text = readFileSync(join(adrDirectory, fileName), 'utf-8')
+    } catch {
+      continue
+    }
 
-  for (const entry of entries) {
+    const entry = parseAdrFile(text)
+    if (entry === null) continue
+
     const node: GraphNode = {
       id: entry.id,
       kind: 'ADR',
@@ -126,9 +122,7 @@ export function buildAdrNodes(
     }
     store.upsertNode(node)
 
-    // ADR --decides--> INV edges
     for (const invId of entry.invRefs) {
-      // Ensure the INV node exists (upsert a stub if not yet seeded by inv builder)
       if (!store.hasNode(invId)) {
         store.upsertNode({ id: invId, kind: 'INV', attrs: { source: 'adr-stub' } })
       }
