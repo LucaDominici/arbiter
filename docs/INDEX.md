@@ -412,7 +412,7 @@
 | [arbiter Canon — Lessons Learned](SYSTEM/CANON.md) | — | active | kind/canon |
 | [CI Migration Guide](SYSTEM/CI-MIGRATION.md) | — | active | kind/method |
 | [Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)](SYSTEM/CI-TIER-MODEL.md) | — | active | kind/method |
-| [Architectural Decision Records](SYSTEM/DECISIONS.md) | — | active | kind/adr |
+| [Architectural Decision Records](SYSTEM/DECISIONS.md) | — | frozen | kind/adr |
 | [E2E Runtime Matrix](SYSTEM/E2E-RUNTIMES.md) | — | active | kind/method |
 | [arbiter — Fail-Closed Doctrine](SYSTEM/FAIL_CLOSED.md) | — | active | kind/security |
 | [Hook Contracts — `.claude/hooks/*.mjs`](SYSTEM/HOOK-CONTRACTS.md) | — | active | kind/method |

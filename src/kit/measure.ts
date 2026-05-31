@@ -758,8 +758,12 @@ const DIM_HANDLERS: Partial<Record<string, (repoRoot: string) => MeasureResult>>
       'docs/ci-developer-reference.md',
     ]),
   N65: (r) => {
-    const fromDir = checkDir(r, 'docs/adr')
-    if (fromDir.status === 'present') return fromDir
+    // Check both cases: generated target projects use docs/adr/ (lowercase);
+    // arbiter self uses docs/ADR/ (uppercase). DECISIONS.md as legacy fallback.
+    const fromDirLower = checkDir(r, 'docs/adr')
+    if (fromDirLower.status === 'present') return fromDirLower
+    const fromDirUpper = checkDir(r, 'docs/ADR')
+    if (fromDirUpper.status === 'present') return fromDirUpper
     return checkAny(r, ['docs/SYSTEM/DECISIONS.md'])
   },
   N66: (r) =>

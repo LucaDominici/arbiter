@@ -1,7 +1,7 @@
 ---
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
-status: active
+status: frozen
 last_review: '2026-05-20'
 owner: ''
 canonical_id: ''
@@ -12,6 +12,9 @@ related: []
 # Architectural Decision Records
 
 This file documents architectural decisions made in the Arbiter project.
+
+> **FROZEN — append to this file is prohibited. New ADRs go in `docs/ADR/` (see README). This file is a legacy log preserved for historical reference.**
+
 Individual ADR files also live in `docs/ADR/` for historical records.
 
 ---

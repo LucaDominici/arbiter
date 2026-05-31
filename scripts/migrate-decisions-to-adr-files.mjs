@@ -14,16 +14,20 @@ const decisionsText = readFileSync(DECISIONS_PATH, 'utf-8')
 
 /** Extract section body for ## ADR-NNN: heading. Returns first match by default, or Nth match. */
 function extractSection(text, numStr, occurrence = 1) {
-  const re = new RegExp(`^## ADR-${numStr}:[^\\n]+\\n([\\s\\S]*?)(?=^## |^---\\n\\n## |$)`, 'gm')
+  // Locate heading lines using gm mode — no body capture in the regex.
+  // Body extraction uses string slicing to avoid the gm+$ matching-every-newline bug.
+  const headingRe = new RegExp(`^## ADR-${numStr}:[^\\n]+`, 'gm')
   let match
   let count = 0
-  while ((match = re.exec(text)) !== null) {
+  while ((match = headingRe.exec(text)) !== null) {
     count++
     if (count === occurrence) {
-      return {
-        heading: match[0].split('\n')[0].replace(/^## /, ''),
-        body: match[1].trimEnd(),
-      }
+      const startPos = match.index + match[0].length + 1 // skip past the heading \n
+      const rest = text.slice(startPos)
+      // Stop at the next "---" section separator on its own line, or end of string
+      const sepIdx = rest.search(/^\n*---\s*$/m)
+      const body = (sepIdx === -1 ? rest : rest.slice(0, sepIdx)).trimEnd()
+      return { heading: match[0].replace(/^## /, ''), body }
     }
   }
   return null

@@ -75,11 +75,12 @@ try {
     return `| ${r.num} | ${pad(link, maxTitle)} | ${pad(r.status, maxStatus)} | ${r.date} | ${r.summary} |`
   })
 
+  const today = new Date().toISOString().slice(0, 10)
   const STATIC_HEADER = `---
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-31'
+last_review: '${today}'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
