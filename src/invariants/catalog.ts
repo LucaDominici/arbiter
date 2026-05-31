@@ -1585,4 +1585,59 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   // sibling epic #TBD-sibling-epic phases B/G.
   // INV-82 promoted to active entry in #869.
   // Do NOT claim these numbers before those PRs land.
+
+  // ── Frontend governance family (#1127) ────────────────────────────────────
+  {
+    id: 'INV-102',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'API-layer isolation — no HTTP calls outside the adapter layer',
+    description:
+      'In FE projects (archetype frontend-spa or lanes:[frontend]), direct ' +
+      'fetch()/axios.* calls MUST NOT appear in UI component files, composables/hooks, ' +
+      'or state stores. All HTTP I/O must be confined to a dedicated adapter/api layer ' +
+      '(FSD entities/shared api modules, or src/api/). Mirrors FE001 of the ' +
+      'FRONTEND_CONSTITUTION. Framework-aware: scans .ts/.tsx/.jsx (react), ' +
+      '.ts/.vue (vue), or .ts/.svelte (svelte) files as appropriate.',
+    alwaysActive: false,
+    enforcement:
+      'Generated check-fe-boundaries.mjs (emitted by check-all generator, #1127) scans ' +
+      'UI-layer component files for raw HTTP client calls (fetch, axios, XMLHttpRequest) ' +
+      'and fails the L2 gate step in scripts/check-all.mjs on any violation.',
+  },
+  {
+    id: 'INV-103',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'Headless domain logic — no browser APIs in domain or store layer',
+    description:
+      'In FE projects, domain and store files MUST NOT import or reference browser APIs ' +
+      '(window, document, localStorage, sessionStorage, matchMedia, navigator, location, ' +
+      'history, IndexedDB). Browser coupling makes domain logic untestable in Node.js and ' +
+      'prevents server-side rendering. Mirrors FE002 of the FRONTEND_CONSTITUTION.',
+    alwaysActive: false,
+    enforcement:
+      'Generated check-fe-boundaries.mjs (emitted by check-all generator, #1127) scans ' +
+      'store/domain-hinted files for browser-global references and fails the L2 gate step ' +
+      'in scripts/check-all.mjs on any violation.',
+  },
+  {
+    id: 'INV-104',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'State-management discipline — stores are synchronous and client-only',
+    description:
+      'In FE projects, state store files MUST NOT contain async fetch calls or direct ' +
+      'API caching. Server state MUST be delegated to a data-fetching library (TanStack Query, ' +
+      'SWR, or equivalent). Store getters MUST NOT encode business logic. ' +
+      'Mirrors FE003 of the FRONTEND_CONSTITUTION.',
+    alwaysActive: false,
+    enforcement:
+      'Generated check-fe-boundaries.mjs (emitted by check-all generator, #1127) detects ' +
+      '`await fetch` and `await axios` inside store/domain-hinted files and fails the L2 ' +
+      'gate step in scripts/check-all.mjs on any violation.',
+  },
 ]

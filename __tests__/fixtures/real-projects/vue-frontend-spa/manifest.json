@@ -1,0 +1,9 @@
+{
+  "language": "typescript",
+  "archetype": "frontend-spa",
+  "buildTool": null,
+  "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
+  "note": "TypeScript with vue dep → detects as frontend-spa archetype with Vue framework",
+  "collaborationMode": "peer-review"
+}

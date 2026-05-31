@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: INV-102/103/104 enforcement — FE boundary purity gate (#1127).
+// Checks:
+//   A) No raw fetch()/axios.* calls outside the adapter/API layer (INV-102)
+//   B) No browser globals in domain/store files (INV-103)
+//   C) No async API calls inside state store files (INV-104)
+// Exit 1 if any violation found (HARD gate — L2+).
+// Framework-aware: reads .eslintrc-frontend-spa.cjs to determine source globs;
+//   falls back to TS/TSX glob set when config absent.
+
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { extname, join, relative } from 'node:path'
+<%
+const _fw = (typeof frontend !== 'undefined' && frontend && frontend.framework)
+  ? frontend.framework
+  : 'react'
+const _exts = _fw === 'vue'
+  ? ['.ts', '.vue']
+  : _fw === 'svelte'
+  ? ['.ts', '.svelte']
+  : ['.ts', '.tsx', '.jsx']
+const _extList = JSON.stringify(_exts)
+%>
+const ROOT = process.cwd()
+const SRC = join(ROOT, 'src')
+const SOURCE_EXTS = new Set(<%- _extList %>)
+
+// Patterns that signal raw HTTP calls (INV-102 — API-layer isolation)
+const HTTP_PATTERNS = [
+  /\bfetch\s*\(/,
+  /\baxios\s*\./,
+  /\bnew\s+XMLHttpRequest\s*\(/,
+  /\bsuperagent\s*\./,
+  /\bgot\s*\(/,
+  /\bky\s*\./,
+]
+
+// Patterns that signal browser globals in domain/store (INV-103)
+const BROWSER_GLOBALS = [
+  /\blocalStorage\s*[.[]/,
+  /\bsessionStorage\s*[.[]/,
+  /\bwindow\s*\./,
+  /\bdocument\s*\./,
+  /\bmatchMedia\s*\(/,
+  /\bnavigator\s*\./,
+  /\blocation\s*\./,
+  /\bhistory\s*\./,
+  /\bIndexedDB\b/,
+]
+
+// Patterns for async API calls in store files (INV-104)
+const ASYNC_IN_STORE = [
+  /\basync\s+\w+\s*\([^)]*\)\s*{[\s\S]*?\bfetch\s*\(/,
+  /\bawait\s+fetch\s*\(/,
+  /\bawait\s+axios\s*\./,
+]
+
+let violations = 0
+
+function isUILayer(relPath) {
+  // FSD layers that are NOT the API adapter layer
+  const uiLayers = ['app', 'pages', 'widgets', 'features']
+  const parts = relPath.replace(/^src\//, '').split('/')
+  return uiLayers.includes(parts[0])
+}
+
+function isDomainOrStore(relPath) {
+  // Files in entities/shared that are stores or pure domain
+  const domainHints = ['store', 'stores', 'domain', 'pinia', 'zustand', 'slice']
+  const lower = relPath.toLowerCase()
+  return domainHints.some((h) => lower.includes(`/${h}`) || lower.includes(`/${h}.`))
+}
+
+function scanLines(content, patterns) {
+  return content
+    .split('\n')
+    .map((line, idx) => ({ line: line.trimEnd(), lineNum: idx + 1 }))
+    .filter(({ line }) => patterns.some((p) => p.test(line)))
+}
+
+function walkSrc(dir, fn) {
+  if (!existsSync(dir)) return
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry)
+    let st
+    try {
+      st = statSync(full)
+    } catch {
+      continue
+    }
+    if (st.isDirectory()) {
+      if (entry === 'node_modules' || entry === '.git' || entry === '__tests__') continue
+      walkSrc(full, fn)
+    } else if (st.isFile() && SOURCE_EXTS.has(extname(entry))) {
+      fn(full)
+    }
+  }
+}
+
+function checkFile(absPath) {
+  const rel = relative(ROOT, absPath)
+  let content
+  try {
+    content = readFileSync(absPath, 'utf-8')
+  } catch {
+    return
+  }
+
+  // A) HTTP calls outside the API layer
+  if (isUILayer(rel)) {
+    const hits = scanLines(content, HTTP_PATTERNS)
+    for (const { line, lineNum } of hits) {
+      process.stderr.write(
+        `[INV-102] ${rel}:${lineNum}: raw HTTP call in UI layer — move to adapter/api layer\n` +
+          `         ${line.trim()}\n`,
+      )
+      violations++
+    }
+  }
+
+  // B) Browser globals in domain/store
+  if (isDomainOrStore(rel)) {
+    const hits = scanLines(content, BROWSER_GLOBALS)
+    for (const { line, lineNum } of hits) {
+      process.stderr.write(
+        `[INV-103] ${rel}:${lineNum}: browser global in domain/store — domain must be pure TS\n` +
+          `         ${line.trim()}\n`,
+      )
+      violations++
+    }
+  }
+
+  // C) Async API calls in store files (simplified line-level scan)
+  if (isDomainOrStore(rel)) {
+    const awaitFetch = /\bawait\s+(?:fetch|axios)\b/
+    const lines = content.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      if (awaitFetch.test(lines[i])) {
+        process.stderr.write(
+          `[INV-104] ${rel}:${i + 1}: async API call in store/domain — use a data-fetching library instead\n` +
+            `         ${lines[i].trim()}\n`,
+        )
+        violations++
+      }
+    }
+  }
+}
+
+walkSrc(SRC, checkFile)
+
+if (violations > 0) {
+  process.stderr.write(
+    `\n[check-fe-boundaries] ${violations} violation(s) found.\n` +
+      `  INV-102: No raw HTTP calls outside adapter/api layer.\n` +
+      `  INV-103: No browser globals in domain/store files.\n` +
+      `  INV-104: No async API calls in state stores.\n` +
+      `  See docs/GOVERNANCE/FRONTEND_CONSTITUTION.md FE001-FE003.\n`,
+  )
+  process.exit(1)
+}
+
+process.stdout.write('[check-fe-boundaries] FE boundary purity OK (INV-102/103/104)\n')
