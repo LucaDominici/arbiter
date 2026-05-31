@@ -50,6 +50,27 @@ describe('e2e/playwright-ts/a11y templates (#349, CANON-02/04)', () => {
       expect(out).toMatch(/#349/)
       expect(out).toMatch(/CANON-02/)
     })
+
+    // ── WCAG 2.2 upgrade (#1127) ─────────────────────────��────────────────────
+    it('includes wcag22aa tag (#1127 WCAG 2.2 upgrade)', () => {
+      const out = render('e2e/playwright-ts/run-axe.ts.ejs')
+      expect(out).toContain('wcag22aa')
+    })
+
+    it('includes wcag21aa tag (#1127 WCAG 2.2 upgrade)', () => {
+      const out = render('e2e/playwright-ts/run-axe.ts.ejs')
+      expect(out).toContain('wcag21aa')
+    })
+
+    it('includes wcag21a tag (#1127 WCAG 2.2 upgrade)', () => {
+      const out = render('e2e/playwright-ts/run-axe.ts.ejs')
+      expect(out).toContain('wcag21a')
+    })
+
+    it('header comment references WCAG 2.2 (#1127)', () => {
+      const out = render('e2e/playwright-ts/run-axe.ts.ejs')
+      expect(out).toMatch(/WCAG 2\.2/)
+    })
   })
 
   describe('a11y.spec.ts.ejs', () => {

@@ -65,3 +65,31 @@ describe('16-frontend-quality.yml.ejs — triggers', () => {
     expect(rendered).toContain('pull_request:')
   })
 })
+
+// ─── a11y blocking gate (#1127 Slice 1) ──────────────────────────────────────
+describe('16-frontend-quality.yml.ejs — a11y blocking gate (#1127)', () => {
+  it('a11y step does NOT use || true (must be blocking, not soft-fail)', () => {
+    const rendered = renderFrontendQuality({})
+    // Must not suppress failures in the a11y step
+    expect(rendered).not.toContain('|| true')
+  })
+
+  it('a11y step routes through playwright spec (uses npx playwright test)', () => {
+    const rendered = renderFrontendQuality({})
+    expect(rendered).toMatch(/playwright\s+test/)
+  })
+
+  it('a11y job does NOT directly call axe-core-npm/cli (old broken approach)', () => {
+    const rendered = renderFrontendQuality({})
+    // The old approach hit localhost:3000 with no server — must be replaced
+    expect(rendered).not.toContain('axe-core-npm/cli')
+  })
+
+  it.each(['L1', 'L2', 'L3', 'L4'] as const)(
+    'governance %s: no || true in rendered output',
+    (governanceLevel) => {
+      const rendered = renderFrontendQuality({ governanceLevel })
+      expect(rendered).not.toContain('|| true')
+    },
+  )
+})

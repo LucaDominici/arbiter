@@ -958,16 +958,19 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     tier: 'operational',
     languages: ['typescript'],
     minGovernanceLevel: 'L2',
+    // #1127: upgraded from WCAG 2.1 AA to WCAG 2.2 AA. Title deliberately unchanged
+    // to preserve AGENTS.md parity — the enforcement description carries the version detail.
     title: 'a11y critical violations are HARD-fail at L2',
     description:
       'For TS web archetypes (frontend-spa, backend-web-db) the generated ' +
       'tests/e2e/a11y/run-axe.ts wrapper runs @axe-core/playwright with the ' +
-      'wcag2a + wcag2aa tag set and throws on any violation whose impact is ' +
-      '`critical` OR unclassified (impact === null/undefined). serious / ' +
-      'moderate / minor violations are logged without throwing — they remain ' +
-      'evidence but do not block the gate. The default threshold matches the ' +
-      'axe-core WCAG 2.1 AA baseline; downstream projects can ratchet it ' +
-      'stricter by extending the wrapper. Matrix cell: a11y × typescript = ' +
+      'full WCAG 2.2 AA tag set (wcag2a + wcag2aa + wcag21a + wcag21aa + wcag22aa) ' +
+      'and throws on any violation whose impact is `critical` OR unclassified ' +
+      '(impact === null/undefined). serious / moderate / minor violations are logged ' +
+      'without throwing — they remain evidence but do not block the gate. ' +
+      'WCAG 2.2 AA adds: target-size (2.5.8 ≥24×24px), focus-appearance (2.4.11), ' +
+      'accessible-auth (3.3.8 no cognitive test). Downstream projects can ratchet ' +
+      'stricter by extending the wrapper (#1127). Matrix cell: a11y × typescript = ' +
       'proven (axe-core/playwright). Python pairs with axe-playwright-python ' +
       'at beta maturity. Other languages have no browser surface (unavailable).',
     alwaysActive: false,
