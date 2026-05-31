@@ -90,34 +90,39 @@ const MIGRATIONS = [
   [74, '050', 2], // second occurrence = Risk register (L129) → reassigned 074
 ]
 
-let created = 0
-let skipped = 0
+try {
+  let created = 0
+  let skipped = 0
 
-for (const [targetNum, sourceNum, occurrence] of MIGRATIONS) {
-  const section = extractSection(decisionsText, sourceNum, occurrence)
-  if (section === null) {
-    process.stdout.write(
-      `  WARN: no section found for ADR-${sourceNum} (occurrence ${occurrence})\n`,
-    )
-    continue
+  for (const [targetNum, sourceNum, occurrence] of MIGRATIONS) {
+    const section = extractSection(decisionsText, sourceNum, occurrence)
+    if (section === null) {
+      process.stdout.write(
+        `  WARN: no section found for ADR-${sourceNum} (occurrence ${occurrence})\n`,
+      )
+      continue
+    }
+
+    const { filename, content } = makeAdrFile(targetNum, section.heading, section.body)
+    const outPath = join(ADR_DIR, filename)
+
+    if (existsSync(outPath)) {
+      process.stdout.write(`  skip (exists): ${filename}\n`)
+      skipped++
+      continue
+    }
+
+    if (DRY_RUN) {
+      process.stdout.write(`  [dry-run] would create: ${filename}\n`)
+    } else {
+      writeFileSync(outPath, content, 'utf-8')
+      process.stdout.write(`  created: ${filename}\n`)
+      created++
+    }
   }
 
-  const { filename, content } = makeAdrFile(targetNum, section.heading, section.body)
-  const outPath = join(ADR_DIR, filename)
-
-  if (existsSync(outPath)) {
-    process.stdout.write(`  skip (exists): ${filename}\n`)
-    skipped++
-    continue
-  }
-
-  if (DRY_RUN) {
-    process.stdout.write(`  [dry-run] would create: ${filename}\n`)
-  } else {
-    writeFileSync(outPath, content, 'utf-8')
-    process.stdout.write(`  created: ${filename}\n`)
-    created++
-  }
+  process.stdout.write(`\nDone. Created: ${created}, Skipped: ${skipped}\n`)
+} catch (err) {
+  process.stdout.write(`  migrate-decisions-to-adr-files: fatal — ${err.message}\n`)
+  process.exit(1)
 }
-
-process.stdout.write(`\nDone. Created: ${created}, Skipped: ${skipped}\n`)

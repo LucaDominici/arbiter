@@ -28,54 +28,59 @@ const OLD_H1 = {
   '044': '# ADR-004: Docs Site Versioning Strategy',
 }
 
-const files = readdirSync(ADR_DIR)
-  .filter((f) => NUMBERED.test(f))
-  .sort()
-let patched = 0
-let titleFixed = 0
+try {
+  const files = readdirSync(ADR_DIR)
+    .filter((f) => NUMBERED.test(f))
+    .sort()
+  let patched = 0
+  let titleFixed = 0
 
-for (const file of files) {
-  const match = NUMBERED.exec(file)
-  if (match === null) continue
-  const num = match[1]
-  const path = join(ADR_DIR, file)
-  let text = readFileSync(path, 'utf-8')
-  let changed = false
+  for (const file of files) {
+    const match = NUMBERED.exec(file)
+    if (match === null) continue
+    const num = match[1]
+    const path = join(ADR_DIR, file)
+    let text = readFileSync(path, 'utf-8')
+    let changed = false
 
-  // Patch canonical_id if empty or wrong
-  const canonicalMatch = /^(canonical_id:\s*)['"]([^'"]*)['"]/m.exec(text)
-  if (canonicalMatch !== null) {
-    const current = canonicalMatch[2]
-    if (current !== num) {
-      text = text.replace(/^(canonical_id:\s*)['"][^'"]*['"]/m, `$1'${num}'`)
-      changed = true
+    // Patch canonical_id if empty or wrong
+    const canonicalMatch = /^(canonical_id:\s*)['"]([^'"]*)['"]/m.exec(text)
+    if (canonicalMatch !== null) {
+      const current = canonicalMatch[2]
+      if (current !== num) {
+        text = text.replace(/^(canonical_id:\s*)['"][^'"]*['"]/m, `$1'${num}'`)
+        changed = true
+      }
+    }
+
+    // Fix title field for 041-044
+    if (num in TITLE_FIXES) {
+      const wrongTitle = text.match(/^title: '.*ADR-00[1-4].*'/m)
+      if (wrongTitle !== null) {
+        text = text.replace(/^(title: ').*(')/m, `$1${TITLE_FIXES[num]}'`)
+        changed = true
+        titleFixed++
+      }
+      // Fix H1 heading
+      if (num in OLD_H1 && text.includes(OLD_H1[num])) {
+        text = text.replace(OLD_H1[num], H1_FIXES[num])
+        changed = true
+      }
+    }
+
+    if (changed) {
+      if (DRY_RUN) {
+        process.stdout.write(`  [dry-run] would patch: ${file}\n`)
+      } else {
+        writeFileSync(path, text, 'utf-8')
+        process.stdout.write(`  patched: ${file}\n`)
+      }
+      patched++
     }
   }
 
-  // Fix title field for 041-044
-  if (num in TITLE_FIXES) {
-    const wrongTitle = text.match(/^title: '.*ADR-00[1-4].*'/m)
-    if (wrongTitle !== null) {
-      text = text.replace(/^(title: ').*(')/m, `$1${TITLE_FIXES[num]}'`)
-      changed = true
-      titleFixed++
-    }
-    // Fix H1 heading
-    if (num in OLD_H1 && text.includes(OLD_H1[num])) {
-      text = text.replace(OLD_H1[num], H1_FIXES[num])
-      changed = true
-    }
-  }
-
-  if (changed) {
-    if (DRY_RUN) {
-      process.stdout.write(`  [dry-run] would patch: ${file}\n`)
-    } else {
-      writeFileSync(path, text, 'utf-8')
-      process.stdout.write(`  patched: ${file}\n`)
-    }
-    patched++
-  }
+  process.stdout.write(`\nPatched: ${patched} files (${titleFixed} title fixes)\n`)
+} catch (err) {
+  process.stdout.write(`  fix-adr-canonical-ids: fatal — ${err.message}\n`)
+  process.exit(1)
 }
-
-process.stdout.write(`\nPatched: ${patched} files (${titleFixed} title fixes)\n`)

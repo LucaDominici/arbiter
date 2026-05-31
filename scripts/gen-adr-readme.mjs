@@ -37,44 +37,45 @@ function extractSummary(text) {
   return ''
 }
 
-const files = readdirSync(ADR_DIR)
-  .filter((f) => NUMBERED.test(f))
-  .sort()
+try {
+  const files = readdirSync(ADR_DIR)
+    .filter((f) => NUMBERED.test(f))
+    .sort()
 
-const rows = []
-for (const file of files) {
-  const match = NUMBERED.exec(file)
-  if (match === null) continue
-  const num = match[1]
-  const text = readFileSync(join(ADR_DIR, file), 'utf-8')
-  const fm = parseFrontmatter(text)
-  const rawTitle = (fm['title'] ?? file).replace(/^ADR-\d+[:\s—–-]+/, '').trim()
-  const status = fm['status'] === 'active' ? 'Accepted' : (fm['status'] ?? 'Accepted')
-  const date = fm['last_review'] ?? ''
-  const summary = extractSummary(text)
-  rows.push({ num, file, title: rawTitle, status, date, summary })
-}
+  const rows = []
+  for (const file of files) {
+    const match = NUMBERED.exec(file)
+    if (match === null) continue
+    const num = match[1]
+    const text = readFileSync(join(ADR_DIR, file), 'utf-8')
+    const fm = parseFrontmatter(text)
+    const rawTitle = (fm['title'] ?? file).replace(/^ADR-\d+[:\s—–-]+/, '').trim()
+    const status = fm['status'] === 'active' ? 'Accepted' : (fm['status'] ?? 'Accepted')
+    const date = fm['last_review'] ?? ''
+    const summary = extractSummary(text)
+    rows.push({ num, file, title: rawTitle, status, date, summary })
+  }
 
-// Calculate column widths for alignment
-const maxTitle = Math.max(5, ...rows.map((r) => `[${r.title}](${r.file})`.length))
-const maxStatus = Math.max(6, ...rows.map((r) => r.status.length))
-const maxSummary = Math.max(7, ...rows.map((r) => r.summary.length))
+  // Calculate column widths for alignment
+  const maxTitle = Math.max(5, ...rows.map((r) => `[${r.title}](${r.file})`.length))
+  const maxStatus = Math.max(6, ...rows.map((r) => r.status.length))
+  const maxSummary = Math.max(7, ...rows.map((r) => r.summary.length))
 
-function pad(s, n) {
-  return s + ' '.repeat(Math.max(0, n - s.length))
-}
+  function pad(s, n) {
+    return s + ' '.repeat(Math.max(0, n - s.length))
+  }
 
-const tableHeader = [
-  `| ${'#'.padEnd(4)} | ${pad('Title', maxTitle)} | ${pad('Status', maxStatus)} | Date       | ${pad('Summary', maxSummary)} |`,
-  `| ${'-'.repeat(4)} | ${'-'.repeat(maxTitle)} | ${'-'.repeat(maxStatus)} | ---------- | ${'-'.repeat(maxSummary)} |`,
-].join('\n')
+  const tableHeader = [
+    `| ${'#'.padEnd(4)} | ${pad('Title', maxTitle)} | ${pad('Status', maxStatus)} | Date       | ${pad('Summary', maxSummary)} |`,
+    `| ${'-'.repeat(4)} | ${'-'.repeat(maxTitle)} | ${'-'.repeat(maxStatus)} | ---------- | ${'-'.repeat(maxSummary)} |`,
+  ].join('\n')
 
-const tableRows = rows.map((r) => {
-  const link = `[${r.title}](${r.file})`
-  return `| ${r.num} | ${pad(link, maxTitle)} | ${pad(r.status, maxStatus)} | ${r.date} | ${r.summary} |`
-})
+  const tableRows = rows.map((r) => {
+    const link = `[${r.title}](${r.file})`
+    return `| ${r.num} | ${pad(link, maxTitle)} | ${pad(r.status, maxStatus)} | ${r.date} | ${r.summary} |`
+  })
 
-const STATIC_HEADER = `---
+  const STATIC_HEADER = `---
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
@@ -104,19 +105,23 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 `
 
-const generated = STATIC_HEADER + tableHeader + '\n' + tableRows.join('\n') + '\n'
+  const generated = STATIC_HEADER + tableHeader + '\n' + tableRows.join('\n') + '\n'
 
-if (CHECK) {
-  const current = existsSync(README_PATH) ? readFileSync(README_PATH, 'utf-8') : ''
-  if (current !== generated) {
-    process.stdout.write(
-      '  gen-adr-readme: README.md is out of date — run node scripts/gen-adr-readme.mjs\n',
-    )
-    process.exit(1)
+  if (CHECK) {
+    const current = existsSync(README_PATH) ? readFileSync(README_PATH, 'utf-8') : ''
+    if (current !== generated) {
+      process.stdout.write(
+        '  gen-adr-readme: README.md is out of date — run node scripts/gen-adr-readme.mjs\n',
+      )
+      process.exit(1)
+    }
+    process.stdout.write(`  gen-adr-readme: README.md is up to date (${rows.length} ADRs)\n`)
+    process.exit(0)
   }
-  process.stdout.write(`  gen-adr-readme: README.md is up to date (${rows.length} ADRs)\n`)
-  process.exit(0)
-}
 
-writeFileSync(README_PATH, generated, 'utf-8')
-process.stdout.write(`  gen-adr-readme: wrote README.md (${rows.length} ADRs)\n`)
+  writeFileSync(README_PATH, generated, 'utf-8')
+  process.stdout.write(`  gen-adr-readme: wrote README.md (${rows.length} ADRs)\n`)
+} catch (err) {
+  process.stdout.write(`  gen-adr-readme: fatal — ${err.message}\n`)
+  process.exit(1)
+}

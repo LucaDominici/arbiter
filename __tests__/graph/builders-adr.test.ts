@@ -2,7 +2,7 @@ import { writeFileSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach } from 'vitest'
-import { parseFrontmatter, parseAdrFile, buildAdrNodes } from '../../src/graph/builders/adr.js'
+import { parseAdrFile, buildAdrNodes } from '../../src/graph/builders/adr.js'
 import { GraphStore } from '../../src/graph/store.js'
 
 const ADR_FILE = (num: string, title: string, status = 'active', invRefs = 'INV-58, INV-59') => `\
@@ -31,20 +31,6 @@ function makeAdrDir(): { dir: string; adrDir: string } {
   mkdirSync(adrDir, { recursive: true })
   return { dir, adrDir }
 }
-
-describe('parseFrontmatter', () => {
-  it('extracts key-value pairs from YAML block', () => {
-    const text = "---\ntitle: 'Hello World'\nstatus: active\ncanonical_id: '042'\n---\n\nBody"
-    const fm = parseFrontmatter(text)
-    expect(fm['title']).toBe('Hello World')
-    expect(fm['status']).toBe('active')
-    expect(fm['canonical_id']).toBe('042')
-  })
-
-  it('returns empty object when no frontmatter', () => {
-    expect(parseFrontmatter('# Just a heading\n\nNo frontmatter.')).toEqual({})
-  })
-})
 
 describe('parseAdrFile', () => {
   it('returns null when canonical_id is empty', () => {

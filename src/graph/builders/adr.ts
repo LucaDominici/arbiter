@@ -39,7 +39,7 @@ export interface AdrEntry {
 }
 
 /** Parse YAML frontmatter (between --- delimiters) into a key-value map. */
-export function parseFrontmatter(text: string): Record<string, string> {
+function parseFrontmatter(text: string): Record<string, string> {
   const match = /^---\n([\s\S]*?)\n---/.exec(text)
   if (match === null) return {}
   const block = match[1]
