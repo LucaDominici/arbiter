@@ -47,6 +47,8 @@ report/
 
 # Arbiter backup files created during update
 *.arbiter-backup
+# Timestamped generated-file backups (anti-recurrence)
+*.bak.*
 
 # npm pack output: ignore stray packs, keep the vendored package consumed by sibling repos
 *.tgz
