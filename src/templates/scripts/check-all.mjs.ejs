@@ -335,6 +335,16 @@ if (level === 'L2') {
   if (existsSync('scripts/verify-tokens.mjs')) {
     runCheck('token discipline (INV-105)', 'node', ['scripts/verify-tokens.mjs'], { soft: graceActive });
   }
+  // ─── L2: i18n raw-literal scan (INV-106, #1127) ───────────────────────────
+  // Scans component source for hardcoded text that should use t('key').
+  if (existsSync('scripts/i18n-literal-scanner.mjs')) {
+    runCheck('i18n literals (INV-106)', 'node', ['scripts/i18n-literal-scanner.mjs'], { soft: graceActive });
+  }
+  // ─── L2: i18n locale key parity (INV-106, #1127) ─────────────────────────
+  // Verifies all locale files have identical key sets.
+  if (existsSync('scripts/verify-i18n-parity.mjs')) {
+    runCheck('i18n parity (INV-106)', 'node', ['scripts/verify-i18n-parity.mjs'], { soft: graceActive });
+  }
 <% } %>
 <% if ((archetype === 'frontend-spa' || archetype === 'backend-web-db') && governanceLevel !== 'L1') { %>
   // ─── L2: Playwright E2E (#348, CANON-02) — matrix proven for TS frontend-spa / backend-web-db.

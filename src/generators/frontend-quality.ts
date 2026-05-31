@@ -25,6 +25,8 @@ export function generateFrontendQuality(
   // Render all templates before writing to avoid partial-write state.
   const tokensDef = renderTemplate('frontend/design-tokens.json.ejs', templateData)
   const verifyTokens = renderTemplate('scripts/verify-tokens.mjs.ejs', templateData)
+  const i18nScanner = renderTemplate('scripts/i18n-literal-scanner.mjs.ejs', templateData)
+  const i18nParity = renderTemplate('scripts/verify-i18n-parity.mjs.ejs', templateData)
 
   return {
     files: [
@@ -35,6 +37,16 @@ export function generateFrontendQuality(
       }),
       // Token discipline gate script — INV-105 enforcement
       writeFile(resolvedPath(base, 'scripts', 'verify-tokens.mjs'), verifyTokens, {
+        skipIfExists: true,
+        dryRun: opts.dryRun,
+      }),
+      // i18n raw-literal scanner — INV-106 enforcement
+      writeFile(resolvedPath(base, 'scripts', 'i18n-literal-scanner.mjs'), i18nScanner, {
+        skipIfExists: true,
+        dryRun: opts.dryRun,
+      }),
+      // i18n locale key-parity gate — INV-106 enforcement
+      writeFile(resolvedPath(base, 'scripts', 'verify-i18n-parity.mjs'), i18nParity, {
         skipIfExists: true,
         dryRun: opts.dryRun,
       }),

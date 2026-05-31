@@ -1591,6 +1591,25 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
 
   // ── Frontend governance family (#1127) ────────────────────────────────────
   {
+    id: 'INV-106',
+    tier: 'operational',
+    languages: ['typescript'],
+    minGovernanceLevel: 'L2',
+    title: 'i18n parity — all locale files must have identical key sets',
+    description:
+      'In FE projects, all locale JSON files must contain the same set of translation keys. ' +
+      'Missing keys in any locale cause runtime fallback rendering (often empty strings or ' +
+      'key identifiers instead of translated text). Raw UI text literals in component ' +
+      'source (unfixed hardcoded strings) are also flagged. ' +
+      'Bidirectional diff: missing in reference → target AND missing in target → reference ' +
+      'are both failures. Mirrors P6 (i18n governance) of the FE_DESIGN_PRINCIPLES.',
+    alwaysActive: false,
+    enforcement:
+      'Generated scripts/verify-i18n-parity.mjs checks bidirectional key-set parity ' +
+      'across all locale files. Generated scripts/i18n-literal-scanner.mjs scans component ' +
+      'source for raw UI text not wrapped in t(). Both fail the L2 gate step in check-all.mjs.',
+  },
+  {
     id: 'INV-105',
     tier: 'operational',
     languages: ['typescript'],

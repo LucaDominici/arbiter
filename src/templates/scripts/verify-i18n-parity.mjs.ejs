@@ -1,0 +1,114 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: INV-106 enforcement — i18n locale key-parity gate (#1127).
+// Verifies that all i18n locale files have the same set of translation keys.
+// Bidirectional diff: missing in any locale is a failure.
+// Exit 1 if key sets diverge across locales.
+
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const ROOT = process.cwd()
+const LOCALES_DIRS = [
+  join(ROOT, 'src', 'i18n', 'locales'),
+  join(ROOT, 'src', 'locales'),
+  join(ROOT, 'public', 'locales'),
+  join(ROOT, 'locales'),
+]
+
+function flattenKeys(obj, prefix = '') {
+  const keys = []
+  for (const [k, v] of Object.entries(obj)) {
+    const full = prefix ? `${prefix}.${k}` : k
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      keys.push(...flattenKeys(v, full))
+    } else {
+      keys.push(full)
+    }
+  }
+  return keys
+}
+
+function findLocalesDir() {
+  for (const dir of LOCALES_DIRS) {
+    if (existsSync(dir)) return dir
+  }
+  return null
+}
+
+const localesDir = findLocalesDir()
+
+if (!localesDir) {
+  // No locales directory — project may not use i18n yet; skip gracefully
+  process.stdout.write('[verify-i18n-parity] no locales directory found — skip (INV-106)\n')
+  process.exit(0)
+}
+
+let files
+try {
+  files = readdirSync(localesDir).filter((f) => f.endsWith('.json'))
+} catch (err) {
+  process.stderr.write(`[INV-106] cannot read locales directory: ${err.message}\n`)
+  process.exit(1)
+}
+
+if (files.length < 2) {
+  // Only one locale — nothing to compare
+  process.stdout.write(
+    `[verify-i18n-parity] only ${files.length} locale file(s) — skip parity check (INV-106)\n`,
+  )
+  process.exit(0)
+}
+
+const keysByLocale = {}
+for (const file of files) {
+  const locale = file.replace(/\.json$/, '')
+  try {
+    const content = JSON.parse(readFileSync(join(localesDir, file), 'utf-8'))
+    keysByLocale[locale] = new Set(flattenKeys(content))
+  } catch (err) {
+    process.stderr.write(`[INV-106] failed to parse ${file}: ${err.message}\n`)
+    process.exit(1)
+  }
+}
+
+const locales = Object.keys(keysByLocale)
+const referenceLocale = locales[0]
+const referenceKeys = keysByLocale[referenceLocale]
+let violations = 0
+
+for (const locale of locales.slice(1)) {
+  const targetKeys = keysByLocale[locale]
+
+  // Keys in reference but missing from target
+  const missingInTarget = [...referenceKeys].filter((k) => !targetKeys.has(k))
+  for (const key of missingInTarget) {
+    process.stderr.write(
+      `[INV-106] key missing in ${locale}: "${key}" (present in ${referenceLocale})\n`,
+    )
+    violations++
+  }
+
+  // Keys in target but missing from reference
+  const missingInReference = [...targetKeys].filter((k) => !referenceKeys.has(k))
+  for (const key of missingInReference) {
+    process.stderr.write(
+      `[INV-106] key missing in ${referenceLocale}: "${key}" (present in ${locale})\n`,
+    )
+    violations++
+  }
+}
+
+if (violations > 0) {
+  process.stderr.write(
+    `\n[verify-i18n-parity] ${violations} parity violation(s) found.\n` +
+      `  INV-106: All locale files must have identical key sets.\n` +
+      `  Reference locale: ${referenceLocale} (${referenceKeys.size} keys)\n` +
+      `  Locales checked: ${locales.join(', ')}\n`,
+  )
+  process.exit(1)
+}
+
+process.stdout.write(
+  `[verify-i18n-parity] i18n key parity OK — ${locales.length} locales, ${referenceKeys.size} keys (INV-106)\n`,
+)
