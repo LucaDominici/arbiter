@@ -949,6 +949,20 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
 }
 
 /**
+ * Extracted from buildArbiterConfig to keep its complexity within the 15-statement limit.
+ * Builds the optional provider config fields (observability, auth, frontend).
+ */
+function buildProviderFields(
+  config: ProjectConfig,
+): Pick<ArbiterConfig, 'observability' | 'auth' | 'frontend'> {
+  return {
+    ...(config.observability !== undefined ? { observability: config.observability } : {}),
+    ...(config.auth !== undefined ? { auth: config.auth } : {}),
+    ...(config.frontend !== undefined ? { frontend: config.frontend } : {}),
+  }
+}
+
+/**
  * ADR-051 (#1119): build the collaboration-mode portion of the stored config.
  * Extracted from buildArbiterConfig to keep its complexity within the 15-statement limit.
  * Only collaborationMode + explicit user overrides (solo.mergeMode, branchingStrategy) are
@@ -1006,8 +1020,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
     ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),
-    ...(config.observability !== undefined ? { observability: config.observability } : {}),
-    ...(config.auth !== undefined ? { auth: config.auth } : {}),
+    ...buildProviderFields(config),
     ...(config.preset !== undefined && config.preset !== 'none' ? { preset: config.preset } : {}),
   }
 }

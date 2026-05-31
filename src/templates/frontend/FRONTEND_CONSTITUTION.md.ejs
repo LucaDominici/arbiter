@@ -1,0 +1,170 @@
+<%
+const _fw = (typeof frontend !== 'undefined' && frontend && frontend.framework)
+  ? frontend.framework
+  : 'the frontend layer'
+const _sm = (typeof frontend !== 'undefined' && frontend && frontend.stateManager)
+  ? frontend.stateManager
+  : (_fw === 'vue' ? 'Pinia' : _fw === 'react' ? 'Zustand' : 'the state store')
+const _vl = (typeof frontend !== 'undefined' && frontend && frontend.validationLib)
+  ? frontend.validationLib
+  : 'Zod'
+%>
+# Frontend Constitution — <%= projectName %>
+
+<!-- arbiter-managed: frontend-governance (#1124) -->
+
+**Framework:** <%= _fw %>
+**Status:** RATIFIED
+**Scope:** FE001–FE006
+
+---
+
+## 1. Definitions
+
+**Adapter / API layer**
+Infrastructure boundary implementing all I/O operations (HTTP, storage, external APIs).
+No business logic lives here.
+
+**Domain layer**
+Pure business logic with zero framework coupling (no UI framework, no browser APIs, no state libraries).
+
+**Application layer**
+Glue connecting domain logic to UI via composables / hooks / services.
+
+**State store**
+Restricted to synchronous, client-only state. No async actions, no API caching.
+
+---
+
+## 2. Non-Negotiables (MUST)
+
+- All HTTP calls to the backend API MUST occur within the adapter/API layer.
+- The domain layer MUST contain pure business logic — no UI framework, state library, or browser API imports.
+- Server state MUST be managed via a data-fetching library with stale-while-revalidate strategy.
+- Every API response MUST be validated by a schema validator (<%= _vl %>) at the system boundary.
+- All errors MUST be normalized to a standard `AppError` shape and routed via a centralized notification bus.
+- UI components MUST use semantic design tokens (`--bg-*`, `--text-*`, etc.), NOT raw palette colors.
+
+---
+
+## 3. Pillar Rules (FE001–FE006)
+
+### FE001 — Governed ACL (Anti-Corruption Layer)
+
+**MUST:**
+- All I/O and external mutations MUST occur within the adapter/API layer.
+- Access to external systems MUST be via port interfaces or data-fetching hooks.
+- Linting MUST restrict `fetch`/HTTP client imports to the API layer only.
+
+**FORBIDDEN:**
+- Direct `fetch`, `axios`, or equivalent HTTP calls in UI components, composables/hooks, or state stores.
+- Cross-module HTTP calls outside the API layer.
+
+**Enforcement:**
+- ESLint `no-restricted-imports`: forbid HTTP clients outside the adapter layer.
+- CI grep check: `rg "fetch\(|axios\." src/*/ui` MUST be empty.
+
+---
+
+### FE002 — Headless Domain Logic
+
+**MUST:**
+- The domain layer MUST contain pure business logic with zero framework coupling.
+- Domain modules MUST import only pure language constructs, validation schemas, date utilities, and standard `Error` classes.
+
+**FORBIDDEN:**
+- Importing the UI framework (<%= _fw %>) in the domain layer.
+- Importing state management libraries in the domain layer.
+- Accessing browser APIs (`window`, `document`, `localStorage`, `matchMedia`) in the domain layer.
+
+**Enforcement:**
+- CI grep check: `rg "localStorage|matchMedia|document\.|window\." src/*/domain` MUST be empty.
+- Architectural boundary tests enforce domain purity.
+
+---
+
+### FE003 — Application Layer & State Management
+
+**MUST:**
+- Server state MUST be managed via a data-fetching library with stale-while-revalidate strategy.
+- <%= _sm %> MUST be restricted to synchronous, client-only state (no async actions, no API caching).
+- Query keys MUST be co-located with their API functions.
+
+**FORBIDDEN:**
+- Async actions in <%= _sm %>.
+- Business logic in store getters.
+- Manually caching API responses in a client store.
+
+**Enforcement:**
+- Code review: verify no async/await in <%= _sm %> actions.
+
+---
+
+### FE004 — Centralized Error Handling
+
+**MUST:**
+- All exceptions MUST be normalized to a standard `AppError` schema.
+- Errors MUST be routed via a centralized feedback/notification bus.
+- A global error interceptor MUST convert 4xx/5xx responses to `AppError` objects.
+- UI components MUST consume `AppError` to display user-friendly messages.
+
+**FORBIDDEN:**
+- Swallowing errors without reporting.
+- Ad-hoc alerts or component-level `try/catch` blocks that suppress errors.
+- `console.error` as the primary error handling mechanism in production code.
+
+**Enforcement:**
+- Code review: verify all API errors route through the global interceptor.
+
+---
+
+### FE005 — Async UX Policy
+
+**MUST:**
+- User intent MUST be acknowledged immediately via visual feedback.
+- A loading/skeleton state MUST appear for first loads (no cached data available).
+- A background-refresh indicator MUST appear for stale-while-revalidate refreshes.
+- Skeleton components MUST have fixed heights matching real content dimensions (anti-layout-shift).
+- Interactive elements MUST enter a disabled/loading state during in-flight operations.
+
+**FORBIDDEN:**
+- Frozen UI (blocking the main thread).
+- Interactive elements lacking a loading state during operations.
+- Silent failures (errors must surface via the notification bus).
+- Manual `isLoading` refs duplicating what the data-fetching library already provides.
+
+**Enforcement:**
+- Code review: verify loading-state semantics (first load vs. background refetch).
+- Design QA: verify skeleton heights match loaded content.
+
+---
+
+### FE006 — Design Tokens & Multi-Theme
+
+**MUST:**
+- UI components MUST use semantic design tokens (`--bg-*`, `--text-*`, etc.) exclusively.
+- Foundation/primitive tokens are abstract values and MUST NOT be referenced directly by components.
+- Theme switching MUST be controlled via a `data-theme` attribute on `<html>`.
+- The app MUST support at minimum `light`, `dark`, and `system` (default) themes.
+- FOUC prevention MUST be implemented via an inline script applied BEFORE CSS loads.
+
+**FORBIDDEN:**
+- Raw palette color classes (`bg-white`, `text-gray-500`, etc.) in production UI files.
+- Foundation/primitive tokens used directly in component styles.
+- Side-effects (DOM manipulation, localStorage) in the dumb state store.
+
+**Enforcement:**
+- CI grep check: `rg "bg-white|text-gray-|bg-slate-" src/*/ui` MUST be empty.
+- Code review: verify `ThemeController` location and state-store purity.
+
+---
+
+## 4. Ratification Checklist (PR Reviewers)
+
+- [ ] All HTTP calls originate from the adapter/API layer.
+- [ ] Domain layer contains only pure logic (no UI framework, state lib, browser APIs).
+- [ ] Server state managed via data-fetching library; state store restricted to client-only sync state.
+- [ ] All API responses validated by <%= _vl %> at boundary.
+- [ ] Errors normalized to `AppError` and routed via notification bus.
+- [ ] Loading-state semantics correct (first load vs. background refetch).
+- [ ] Semantic tokens used exclusively in UI components.

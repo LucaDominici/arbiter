@@ -1,0 +1,115 @@
+<%
+const _fw = (typeof frontend !== 'undefined' && frontend && frontend.framework)
+  ? frontend.framework
+  : 'the frontend framework'
+%>
+# FE Design Principles — <%= projectName %>
+
+<!-- arbiter-managed: frontend-governance (#1124) -->
+
+**Framework:** <%= _fw %>
+**Authority:** Binding project policy. Violations are defects, not style suggestions.
+
+---
+
+## P1: Semantic Tokens Only
+
+Every color reference in UI templates MUST come from the semantic token layer.
+
+- **NO** raw palette colors (`bg-amber-500`, `text-red-600`, `border-slate-200`)
+- **NO** phantom tokens (undefined CSS vars produce zero CSS output → invisible elements)
+- **NO** numbered shades outside the token system
+
+**Why:** Semantic tokens are theme-aware. Raw palette classes break dark mode and require
+per-component manual overrides. Using semantic tokens makes multi-theme correctness structural.
+
+**Enforcement:** CI grep check for raw palette classes in UI source.
+
+---
+
+## P2: Page Header Consistency
+
+All route-level views MUST use a shared `<PageHeader>` (or equivalent) component for
+title/subtitle rendering. This enforces visual consistency across all pages.
+
+**Exceptions (explicit, not default):**
+- Dashboard — hero-card layout with custom visual hierarchy
+- Auth / Error pages — centered full-page layouts
+- Mobile execution views with full-bleed layouts
+
+---
+
+## P3: Explicit Component Imports (Runtime Safety)
+
+Every component used in a template MUST have an explicit import in its script block.
+Auto-import plugins are opt-in, not the default.
+
+**Why:** Without explicit imports, a missing component renders as a raw HTML element
+(e.g., `<appcard>`) with zero styling — invisible to users with no console error.
+This is a runtime safety rule, not a style preference.
+
+---
+
+## P4: Container Heights Flow Down
+
+The parent provides the height constraint. The child fills with `height: 100%`.
+
+- **NEVER:** child forces a fixed height inside a smaller parent container
+- **Pattern:** parent wraps with a fixed-height container, child chart/component uses `h-full`
+
+**Why:** Prevents layout overflow and ensures chart/canvas components resize correctly.
+
+---
+
+## P5: Layout Fills Available Width
+
+Page content containers MUST fill the layout shell's available width.
+No `max-width` constraints on page content unless it is explicitly a reading layout.
+
+**Why:** The layout shell controls the outer constraint. Per-page `max-width` overrides
+create inconsistent widths across pages.
+
+---
+
+## P6: i18n Governance
+
+All user-facing strings MUST use the i18n translation function (`t('key')`).
+Keys MUST exist in all supported locale files. No raw UI literals.
+
+**Enforcement:** CI grep check for unlocalized string literals in UI template files.
+
+---
+
+## P7: Visual Verification Protocol
+
+Any layout or styling change requires:
+
+1. **Unit tests** — component renders without crash
+2. **Local visual verification** — rendered page inspected in browser
+3. **Responsive check** — 375px mobile and 1280px desktop minimum
+4. **Dark mode check** — verify no raw palette breakage
+
+**Unit tests passing does NOT equal visual correctness.** Browser evidence is mandatory
+for any visual claim.
+
+---
+
+## P8: Dark Mode by Design
+
+Semantic tokens are theme-aware via CSS custom properties scoped to `[data-theme]`.
+Raw palette colors break dark mode. Using semantic tokens makes dark-mode correctness
+a structural guarantee, not a per-component concern.
+
+**Corollary:** Every phantom token fix is simultaneously a dark-mode fix.
+
+---
+
+## P9: Accessibility by Default
+
+All interactive elements MUST be keyboard-accessible and meet WCAG 2.1 AA contrast ratios.
+
+- Form inputs MUST have associated labels (not just placeholder text).
+- Icon-only buttons MUST have `aria-label` or equivalent.
+- Focus indicators MUST be visible and not suppressed with `outline: none` without replacement.
+
+**Enforcement:** Automated a11y checks in CI (e.g., axe-core Playwright integration).

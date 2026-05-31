@@ -45,6 +45,7 @@ import { generateSeed } from './seed.js'
 import { generateEvidenceBacklog } from './evidence-backlog.js'
 import { generateSelfValidation } from './self-validation.js'
 import { generateOperations } from './operations.js'
+import { generateFrontendGovernance } from './frontend-governance.js'
 import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
 import { generateObservability } from './observability.js'
@@ -364,6 +365,11 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       run: (opts) => generatePlaywrightTs(config, opts).files,
     },
     { key: 'ssot', enabled: true, run: (opts) => generateSsot(config, opts).files },
+    {
+      key: 'frontend-governance',
+      enabled: config.archetype === 'frontend-spa' || config.lanes.includes('frontend'),
+      run: (opts) => generateFrontendGovernance(config, opts).files,
+    },
   ]
 }
 

@@ -274,6 +274,8 @@ export interface ProjectConfig {
   observability?: ObservabilityConfig
   /** Auth provider configuration. Default: absent (no auth setup files generated). */
   auth?: AuthConfig
+  /** Frontend framework + tooling configuration. Absent = no framework-specific governance text. */
+  frontend?: FrontendConfig
   /**
    * User explicitly acknowledges that one or more beta tools will be used.
    * Set by --accept-beta-tools on `arbiter init`. Persisted in arbiter.json for audit.
@@ -488,6 +490,15 @@ export interface AuthConfig {
   protocols?: Array<'oidc' | 'oauth2' | 'saml' | 'session'>
   tenantIsolation?: boolean
   themeSync?: boolean
+}
+
+export interface FrontendConfig {
+  /** UI framework in use. Controls state-manager defaults in FE governance templates. */
+  framework?: 'vue' | 'react' | 'svelte'
+  /** State management library (e.g. 'pinia', 'zustand', 'svelte-store'). */
+  stateManager?: string
+  /** Schema validation library (e.g. 'zod', 'yup', 'valibot'). */
+  validationLib?: string
 }
 
 export type EvidenceRetentionMode = 'local-last-N' | 'external-bucket' | 'none'

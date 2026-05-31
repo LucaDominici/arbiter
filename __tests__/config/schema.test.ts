@@ -714,3 +714,73 @@ describe('validateConfig — thresholds auto-fill', () => {
     }
   })
 })
+
+describe('validateConfig — frontend block (#1124)', () => {
+  const base = {
+    version: '0.2',
+    tools: ['claude'],
+    governanceLevel: 'L2',
+    useGitHub: false,
+    features: {
+      contractTesting: false,
+      mutationTesting: false,
+      securityScanning: false,
+      evidenceHarness: false,
+      debtGates: false,
+      suppressions: true,
+    },
+    thresholds: DEFAULT_THRESHOLDS.L2,
+  }
+
+  it('accepts valid frontend block', () => {
+    const result = validateConfig({
+      ...base,
+      frontend: { framework: 'vue', stateManager: 'pinia' },
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('accepts scoped npm package names for stateManager', () => {
+    const result = validateConfig({ ...base, frontend: { stateManager: '@tanstack/query' } })
+    expect(result.ok).toBe(true)
+  })
+
+  it('accepts absent frontend block', () => {
+    const result = validateConfig({ ...base })
+    expect(result.ok).toBe(true)
+  })
+
+  it('rejects invalid framework value', () => {
+    const result = validateConfig({ ...base, frontend: { framework: 'angular' } })
+    expect(result.ok).toBe(false)
+    if (!result.ok)
+      expect(result.errors).toEqual(
+        expect.arrayContaining([expect.stringMatching(/frontend\.framework/i)]),
+      )
+  })
+
+  it('rejects non-string framework', () => {
+    const result = validateConfig({ ...base, frontend: { framework: 42 } })
+    expect(result.ok).toBe(false)
+    if (!result.ok)
+      expect(result.errors).toEqual(
+        expect.arrayContaining([expect.stringMatching(/frontend\.framework/i)]),
+      )
+  })
+
+  it('rejects non-string stateManager', () => {
+    const result = validateConfig({ ...base, frontend: { stateManager: true } })
+    expect(result.ok).toBe(false)
+    if (!result.ok)
+      expect(result.errors).toEqual(
+        expect.arrayContaining([expect.stringMatching(/frontend\.stateManager/i)]),
+      )
+  })
+
+  it('rejects non-object frontend', () => {
+    const result = validateConfig({ ...base, frontend: 'vue' })
+    expect(result.ok).toBe(false)
+    if (!result.ok)
+      expect(result.errors).toEqual(expect.arrayContaining([expect.stringMatching(/frontend/i)]))
+  })
+})

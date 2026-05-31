@@ -233,4 +233,31 @@ describe('impactedGenerators — scoped regen', () => {
     expect(keys.has('global-invariants')).toBe(true)
     expect(keys.has('agents-md')).toBe(true)
   })
+
+  it('frontend.framework change → frontend-governance (dotted path, not *)', () => {
+    const a = baseV2({ frontend: { framework: 'vue' } })
+    const b = baseV2({ frontend: { framework: 'react' } })
+    const diff = diffConfig(a, b)
+    expect(diff.paths).toContain('frontend.framework')
+    const keys = impactedGenerators(diff)
+    expect(keys.has('*')).toBe(false)
+    expect(keys.has('frontend-governance')).toBe(true)
+  })
+
+  it('frontend block added wholesale → frontend-governance via bare path', () => {
+    const a = baseV2()
+    const b = baseV2({ frontend: { framework: 'vue' } })
+    const diff = diffConfig(a, b)
+    expect(diff.paths).toContain('frontend')
+    const keys = impactedGenerators(diff)
+    expect(keys.has('*')).toBe(false)
+    expect(keys.has('frontend-governance')).toBe(true)
+  })
+
+  it('lanes change to include frontend → frontend-governance', () => {
+    const a = baseV2({ lanes: ['backend'] })
+    const b = baseV2({ lanes: ['backend', 'frontend'] })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('frontend-governance')).toBe(true)
+  })
 })

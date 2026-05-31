@@ -57,6 +57,7 @@ export type GeneratorKey =
   | 'perf-k6'
   | 'modulith'
   | 'quality'
+  | 'frontend-governance'
 
 export interface ConfigDiff {
   paths: string[]
@@ -137,6 +138,12 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   language: ['quality', 'archunit'],
   'observability.provider': ['observability'],
   'auth.provider': ['auth'],
+  // bare 'frontend' path: emitted when frontend block is added/removed wholesale
+  frontend: ['frontend-governance'],
+  'frontend.framework': ['frontend-governance'],
+  'frontend.stateManager': ['frontend-governance'],
+  'frontend.validationLib': ['frontend-governance'],
+  lanes: ['frontend-governance', 'playwright-ts', 'playwright-python'],
 }
 
 function diffLeaf(prefix: string, a: unknown, b: unknown, paths: string[]): void {
@@ -167,7 +174,13 @@ export function diffConfig(stored: ArbiterConfigV2, next: ArbiterConfigV2): Conf
   for (const k of keys) {
     const a = normField(k, s[k])
     const b = normField(k, n[k])
-    if (k === 'features' || k === 'thresholds' || k === 'observability' || k === 'auth') {
+    if (
+      k === 'features' ||
+      k === 'thresholds' ||
+      k === 'observability' ||
+      k === 'auth' ||
+      k === 'frontend'
+    ) {
       diffLeaf(k, a, b, paths)
     } else if (JSON.stringify(a) !== JSON.stringify(b)) {
       paths.push(k)

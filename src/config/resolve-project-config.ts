@@ -111,6 +111,7 @@ function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFiel
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
     ...(stored.taskTiers !== undefined && { taskTiers: stored.taskTiers }),
+    ...(stored.frontend !== undefined ? { frontend: stored.frontend } : {}),
     includeExtendedInvariants: resolveExtendedInvariants(stored),
   }
 }

@@ -8,6 +8,7 @@ import type {
   CollaborationMode,
   ContractType,
   EvidenceRetentionConfig,
+  FrontendConfig,
   GovernanceLevel,
   InvariantTier,
   Lane,
@@ -114,6 +115,8 @@ export interface ArbiterConfigV2 {
   observability?: ObservabilityConfig
   /** Auth provider configuration. Absent = no auth setup files generated. */
   auth?: AuthConfig
+  /** Frontend framework + tooling configuration. Absent = no framework-specific governance text. */
+  frontend?: FrontendConfig
   /** Active project preset for audit/drift detection. Absent = no preset applied. */
   preset?: ProjectPreset
   /** Release channel preference. Controls `arbiter doctor` reporting + downgrade warnings. Default: latest. */
@@ -356,6 +359,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateFeatures(raw['features'], errors)
   validateThresholds(raw['thresholds'], errors)
   validateDecomposition(raw['decomposition'], errors)
+  validateFrontend(raw['frontend'], errors)
   validateLanes(raw['lanes'], errors)
   validateTaskTiers(raw['taskTiers'], errors)
   validateContextPack(raw['contextPack'], errors)
@@ -369,6 +373,33 @@ export function validateConfig(raw: unknown): ValidateResult {
 
   const config = { ...raw } as unknown as ArbiterConfigV2
   return { ok: true, config }
+}
+
+const VALID_FRONTEND_FRAMEWORKS: ReadonlySet<string> = new Set(['vue', 'react', 'svelte'])
+const FRONTEND_IDENT_RE = /^[@a-zA-Z0-9][a-zA-Z0-9@/._-]{0,59}$/
+
+function validateFrontend(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('frontend must be an object')
+    return
+  }
+  if (raw['framework'] != null) {
+    if (typeof raw['framework'] !== 'string') {
+      errors.push('frontend.framework must be a string')
+    } else if (!VALID_FRONTEND_FRAMEWORKS.has(raw['framework'])) {
+      errors.push(`frontend.framework must be one of vue, react, svelte — got ${raw['framework']}`)
+    }
+  }
+  for (const k of ['stateManager', 'validationLib'] as const) {
+    if (raw[k] != null) {
+      if (typeof raw[k] !== 'string') {
+        errors.push(`frontend.${k} must be a string`)
+      } else if (!FRONTEND_IDENT_RE.test(raw[k])) {
+        errors.push(`frontend.${k} must match [a-zA-Z0-9-], max 40 chars — got ${raw[k]}`)
+      }
+    }
+  }
 }
 
 const DECOMPOSITION_BACKENDS = new Set(['github', 'markdown'])
