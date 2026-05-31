@@ -191,5 +191,11 @@ if (isMain) {
   const repoRoot = resolve('.')
   const docsDir = join(repoRoot, 'docs')
   const indexPath = join(docsDir, 'INDEX.md')
-  runCli(docsDir, indexPath, process.argv.includes('--check')).then((code) => process.exit(code))
+  runCli(docsDir, indexPath, process.argv.includes('--check'))
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      // Safety net for unexpected promise rejections (INV-96 fail-closed).
+      process.stderr.write(`gen-doc-index: ${err instanceof Error ? err.message : String(err)}\n`)
+      process.exit(1)
+    })
 }
