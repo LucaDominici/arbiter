@@ -85,6 +85,38 @@ Before any new file is written under src/, a valid Existing Code Survey block mu
 
 ---
 
+### INV-99: deployTarget must be a known cloud or "none"
+
+`deployTarget` selects which deploy workflows are generated. An unknown value would silently skip deploy governance, so the config schema rejects anything outside the known cloud set (default `none` prevents an undefined target).
+
+**Enforcement:** Zod schema validation on config load + EJS whitelist preamble in the deploy workflow templates
+
+---
+
+### INV-100: collaborationMode must be set in arbiter.json
+
+`collaborationMode` selects the worktree / merge / review governance axis. A missing value leaves that axis undefined, so the gate fails closed until it is set.
+
+**Enforcement:** scripts/check-collab-mode-wired.mjs (L1)
+
+---
+
+### INV-101: ff-only merge is the only allowed merge method
+
+Fast-forward-only merges keep history linear and preserve the cosign signature bound to the merged commit; a merge commit would orphan that attestation.
+
+**Enforcement:** scripts/check-merge-method.mjs (L1)
+
+---
+
+### INV-29: No MockMvc — use RestAssured for integration tests (Java)
+
+Java integration tests must exercise the real HTTP stack via RestAssured; MockMvc bypasses the servlet container and gives false confidence about wire-level behaviour.
+
+**Enforcement:** hook (check-no-mockmvc.mjs) + ArchUnit (NoMockMvcTest.java) + policy
+
+---
+
 ## Tier 2: Data Integrity
 
 ### INV-07: Schema changes via versioned migrations only — no manual DDL
@@ -160,6 +192,30 @@ All third-party dependencies must be scanned for CVEs before each release. High-
 **Enforcement:** CI dep-audit step per stack — TypeScript: `npm audit --audit-level=high`; Rust: rustsec/audit-check action; Java: OWASP Dependency-Check (failBuildOnCVSS=7.0, apply config/owasp-dependency-check.gradle); Go: golang/govulncheck-action; Python: pip-audit. Local gate (L2 block): same commands, soft: graceActive
 
 **Minimum governance level:** L2+
+
+---
+
+### INV-95: release.yml must invoke cosign sign on container image builds
+
+Container images shipped from `release.yml` must be signed so downstream consumers can verify provenance; a release that builds an image without `cosign sign` is rejected.
+
+**Enforcement:** scripts/check-workflow-cosign.mjs (L1)
+
+---
+
+### INV-97: deploy-prod must cosign-verify before traffic shift
+
+Production deploys must `cosign verify` the image before shifting traffic, so an unsigned or tampered image can never reach prod.
+
+**Enforcement:** scripts/check-workflow-cosign.mjs (L1)
+
+---
+
+### INV-98: release workflow trigger must be tag-only (no branch push)
+
+The release workflow must trigger only on `push.tags` — a branch-push trigger would publish unversioned artifacts and bypass the tag-gated release flow.
+
+**Enforcement:** scripts/check-workflow-cosign.mjs (L1)
 
 ---
 
@@ -480,5 +536,61 @@ Doctrine: arbiter's gates default to block-on-uncertainty, never skip-on-uncerta
 Doctrine: the `scripts/check-*.mjs` namespace is a finite, human-readable catalog, not a graveyard. Every gate script added since the catalog baseline was frozen MUST carry a `// CATALOG:` header block (≥3 contiguous comment lines beginning with `// CATALOG:`) that (a) names what behaviour the script aggregates, (b) names which sibling scripts were considered and rejected as a fold-in target, and (c) cites a concrete reason the new file is preferable to extending an existing one. Pre-existing scripts are grandfathered through `scripts/data/script-catalog-baseline.json` — the baseline is a debt ledger captured once and only widened deliberately. The cohesion gate hard-fails when a script outside the baseline lacks the marker. It also emits a soft warning when the total `scripts/check-*.mjs` count exceeds the baseline by more than 5, signalling that a refactor pass is overdue before the next addition. The marker convention is paraphrased from the `// FAIL-OPEN-INTENT:` pattern used by INV-96 — both are intent-declaring comments enforced at gate time.
 
 **Enforcement:** scripts/check-script-cohesion.mjs (L2 gate) — exits 1 when a new file outside the baseline lacks a `// CATALOG:` marker block; emits a warning (still exit 0) when the catalog grows by more than 5 scripts past the baseline; promoted from CANON-21
+
+---
+
+### INV-27: Evidence artifacts must be generated for all gate runs
+
+Every gate run must emit its evidence artifacts (`.evidence/SUMMARY.json` and friends) so pass/fail decisions are auditable after the fact rather than asserted.
+
+**Enforcement:** CI (evidence collection step)
+
+---
+
+### INV-28: SSOT documents must not contradict — run drift check before merge
+
+Single-source-of-truth documents must agree; a drift check runs pre-merge so contradictory SSOT edits cannot land together.
+
+**Enforcement:** CI (drift check / pre-merge hook)
+
+---
+
+### INV-33: L4 merges require valid evidence with obs_gate == PASS
+
+At governance level L4 a merge is permitted only when the evidence summary validates and `obs_gate == PASS` — no green-by-assertion.
+
+**Enforcement:** check-all.mjs L4 block (reads `.evidence/SUMMARY.json`) + nightly `evidence-collect.mjs` + `src/evidence/summary.ts` validator
+
+---
+
+### INV-72: File-lock semantics — process-bound exclusive lock with bootId + pid + cmd
+
+Any `.arbiter/` mutator must take a process-bound exclusive lock keyed by bootId + pid + cmd, so a crashed process's stale lock is detectable and recoverable rather than wedging the repo.
+
+**Enforcement:** doctor health check + code review for any new `.arbiter/` mutator
+
+---
+
+### INV-107: docs/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync
+
+Every numbered ADR file in `docs/ADR/` must have a unique number and a populated `canonical_id`, and the README index must list it. `docs/ADR/` is the single source for architectural decisions.
+
+**Enforcement:** scripts/check-adr-index.mjs (unique numbers, canonical_id match, README in sync)
+
+---
+
+### INV-108: SSOT core set exhaustiveness — every qualifying doc must be listed
+
+Every document that qualifies for the SSOT core set (per the `selectSsotDocs` predicate) must be listed in the core index, so the index cannot silently omit a governing doc.
+
+**Enforcement:** scripts/check-ssot-core.mjs
+
+---
+
+### INV-110: GLOBAL_INVARIANTS.md must document every always-active invariant — coverage parity
+
+This document is the deep-reference companion to AGENTS.md. Every always-active invariant in the catalog must have a `### INV-NN` section here (no silent coverage gap), and every section here must point at a real catalog entry (no phantom). Mirrors the AGENTS.md↔catalog parity gate (CANON-08) for the companion doc.
+
+**Enforcement:** scripts/check-global-invariants-parity.mjs (L1)
 
 ---

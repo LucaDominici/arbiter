@@ -145,6 +145,7 @@ if (isMain) {
   runCheck('generator tests', 'node', ['scripts/check-generator-tests.mjs'])
   runCheck('command tests', 'node', ['scripts/check-command-tests.mjs'])
   runCheck('catalog parity', 'node', ['scripts/check-catalog-agents-parity.mjs'])
+  runCheck('global-invariants parity', 'node', ['scripts/check-global-invariants-parity.mjs'])
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
   runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
