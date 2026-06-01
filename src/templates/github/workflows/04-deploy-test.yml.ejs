@@ -90,7 +90,7 @@ jobs:
 
 <% } else { %>
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -230,7 +230,7 @@ jobs:
       - name: Upload SBOM artifact (14d retention)
         # INTENTIONAL-NON-BLOCKING: artifact upload failures must not block CI
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: sbom-develop-${{ github.sha }}
           path: |
@@ -243,7 +243,7 @@ jobs:
         if: always() && steps.trivy_scan.conclusion != 'skipped'
         # INTENTIONAL-NON-BLOCKING: artifact upload failures must not block CI
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: trivy-report-develop-${{ github.sha }}
           path: trivy-report.txt
@@ -314,7 +314,7 @@ const _dt = ({
         if: always()
         # INTENTIONAL-NON-BLOCKING: artifact upload failures must not block CI
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: k6-smoke-post-deploy-${{ github.sha }}
           path: k6-smoke-post-deploy.json
