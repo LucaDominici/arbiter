@@ -3,7 +3,6 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   writeFile,
-  copyStaticFile,
   resolvedPath,
   mergeSettingsJson,
   registerCleanupHandlers,
@@ -183,81 +182,6 @@ describe('writeFile — dryRun action parity (#1077 F1/F7)', () => {
     writeFile(path, 'after', { dryRun: true })
     const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
     expect(orphans).toHaveLength(0)
-  })
-})
-
-describe('copyStaticFile', () => {
-  let dir: string
-
-  beforeEach(() => {
-    dir = createTestProject()
-  })
-  afterEach(() => {
-    cleanupTestProject(dir)
-  })
-
-  it('copies a file to destination', () => {
-    const src = join(dir, 'source.txt')
-    const dest = join(dir, 'dest.txt')
-    writeFileSync(src, 'source content')
-    const result = copyStaticFile(src, dest)
-    expect(readFileSync(dest, 'utf-8')).toBe('source content')
-    expect(result.path).toBe(dest)
-  })
-
-  it('creates parent directories for destination', () => {
-    const src = join(dir, 'source.txt')
-    const dest = join(dir, 'subdir', 'dest.txt')
-    writeFileSync(src, 'content')
-    copyStaticFile(src, dest)
-    expect(readFileSync(dest, 'utf-8')).toBe('content')
-  })
-
-  it('skips when destination exists and skipIfExists=true', () => {
-    const src = join(dir, 'source.txt')
-    const dest = join(dir, 'dest.txt')
-    writeFileSync(src, 'new content')
-    writeFileSync(dest, 'old content')
-    const result = copyStaticFile(src, dest, { skipIfExists: true })
-    expect(result.action).toBe('skipped')
-    expect(readFileSync(dest, 'utf-8')).toBe('old content')
-  })
-
-  it('skips when destination content is byte-identical to source (#1077 F6)', () => {
-    const src = join(dir, 'source.txt')
-    const dest = join(dir, 'dest.txt')
-    writeFileSync(src, 'identical bytes')
-    writeFileSync(dest, 'identical bytes')
-    const result = copyStaticFile(src, dest)
-    expect(result.action).toBe('skipped')
-  })
-
-  it('dryRun missing dest → created, writes nothing (#1077 F1)', () => {
-    const src = join(dir, 'source.txt')
-    const dest = join(dir, 'dest.txt')
-    writeFileSync(src, 'payload')
-    const result = copyStaticFile(src, dest, { dryRun: true })
-    expect(result.action).toBe('created')
-    expect(existsSync(dest)).toBe(false)
-  })
-
-  it('dryRun differing dest → replaced, leaves dest untouched (#1077 F7)', () => {
-    const src = join(dir, 'source.txt')
-    const dest = join(dir, 'dest.txt')
-    writeFileSync(src, 'incoming')
-    writeFileSync(dest, 'original')
-    const result = copyStaticFile(src, dest, { dryRun: true })
-    expect(result.action).toBe('replaced')
-    expect(readFileSync(dest, 'utf-8')).toBe('original')
-  })
-
-  it('dryRun identical dest → skipped (#1077 F6)', () => {
-    const src = join(dir, 'source.txt')
-    const dest = join(dir, 'dest.txt')
-    writeFileSync(src, 'same')
-    writeFileSync(dest, 'same')
-    const result = copyStaticFile(src, dest, { dryRun: true })
-    expect(result.action).toBe('skipped')
   })
 })
 

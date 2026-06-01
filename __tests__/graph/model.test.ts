@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ALL_NODE_KINDS, ALL_EDGE_KINDS, isNodeKind, isEdgeKind } from '../../src/graph/model.js'
+import { ALL_NODE_KINDS, ALL_EDGE_KINDS } from '../../src/graph/model.js'
 
 describe('graph model (#259)', () => {
   it('declares exactly 9 node kinds', () => {
@@ -31,18 +31,5 @@ describe('graph model (#259)', () => {
       'supersedes',
       'promotes',
     ])
-  })
-
-  it('validates node kinds via type guard', () => {
-    expect(isNodeKind('INV')).toBe(true)
-    expect(isNodeKind('GATE')).toBe(true)
-    expect(isNodeKind('not-a-kind')).toBe(false)
-    expect(isNodeKind('')).toBe(false)
-  })
-
-  it('validates edge kinds via type guard', () => {
-    expect(isEdgeKind('enforces')).toBe(true)
-    expect(isEdgeKind('supersedes')).toBe(true)
-    expect(isEdgeKind('not-a-kind')).toBe(false)
   })
 })

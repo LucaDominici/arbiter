@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import {
-  evaluateApplicability,
-  UNIVERSAL_APPLIES,
-  type ApplicabilityResult,
-} from '../../src/kit/applicability.js'
+import { evaluateApplicability, type ApplicabilityResult } from '../../src/kit/applicability.js'
 import type { KitDimension } from '../../src/kit/schema.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 
@@ -62,14 +58,6 @@ function makeConfig(overrides: Partial<ProjectConfig> = {}): ProjectConfig {
     ...overrides,
   } as ProjectConfig
 }
-
-// ─── UNIVERSAL_APPLIES constant ───────────────────────────────────────────────
-
-describe('UNIVERSAL_APPLIES', () => {
-  it('is a sentinel distinguishable from a filled applies array', () => {
-    expect(UNIVERSAL_APPLIES).toBeDefined()
-  })
-})
 
 // ─── applies: [] = universal ──────────────────────────────────────────────────
 

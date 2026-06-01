@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runKitInstall, type KitInstallOptions } from '../../src/commands/kit-install.js'
-import { defaultConfig } from '../../src/utils/config.js'
+import { defaultConfig } from '../helpers/default-config.js'
 
 let tmpDir: string
 

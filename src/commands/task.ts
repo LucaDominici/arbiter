@@ -229,20 +229,6 @@ function backlogPath(dir: string, sanitisedId: string): string {
   return join(dir, '.arbiter', 'evidence', sanitisedId, 'BACKLOG.md')
 }
 
-export interface WriteBacklogOptions {
-  taskDir: string
-  taskId: string
-  content: string
-}
-
-/** Write `<repoRoot>/.arbiter/evidence/<sanitized-id>/BACKLOG.md` atomically. */
-export function writeBacklog({ taskDir, taskId, content }: WriteBacklogOptions): void {
-  const sanit = sanitizeTaskId(taskId)
-  const target = backlogPath(taskDir, sanit)
-  mkdirSync(join(taskDir, '.arbiter', 'evidence', sanit), { recursive: true })
-  writeFile(target, content)
-}
-
 export interface TaskRecoverOptions {
   dir?: string
   taskId?: string

@@ -197,43 +197,6 @@ export function writeFile(
 }
 
 /**
- * Copy a static file (non-template) to the target.
- * Mirrors {@link writeFile}'s skip semantics: skips when the destination exists
- * with byte-identical content (idempotent) and computes the prospective action
- * without writing in dryRun mode.
- */
-export function copyStaticFile(
-  src: string,
-  dest: string,
-  opts: { skipIfExists?: boolean; dryRun?: boolean } = {},
-): WriteResult {
-  const { skipIfExists = false, dryRun = false } = opts
-  let action: WriteResult['action']
-  if (!existsSync(dest)) {
-    action = 'created'
-  } else if (skipIfExists) {
-    action = 'skipped'
-  } else {
-    action = sameFileContent(src, dest) ? 'skipped' : 'replaced'
-  }
-
-  if (!dryRun && action !== 'skipped') {
-    mkdirSync(dirname(dest), { recursive: true })
-    copyFileSync(src, dest)
-  }
-  return { path: dest, action }
-}
-
-/** True when src and dest exist with byte-identical content. */
-function sameFileContent(src: string, dest: string): boolean {
-  try {
-    return readFileSync(src).equals(readFileSync(dest))
-  } catch {
-    return false
-  }
-}
-
-/**
  * Deeply merge two settings.json objects. Arrays are unioned (no duplicates by 'command').
  * All top-level keys from `existing` are preserved unchanged unless arbiter manages them
  * (currently: `hooks`, `permissions`).

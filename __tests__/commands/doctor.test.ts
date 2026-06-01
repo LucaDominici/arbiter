@@ -9,7 +9,8 @@ import {
   runDoctorHealth,
   runDoctorRecoverLock,
 } from '../../src/commands/doctor.js'
-import { defaultConfig, saveConfig, saveConfigAndSnapshot } from '../../src/utils/config.js'
+import { saveConfig, saveConfigAndSnapshot } from '../../src/utils/config.js'
+import { defaultConfig } from '../helpers/default-config.js'
 import type { LockInfo } from '../../src/utils/file-lock.js'
 
 vi.mock('../../src/utils/run-cli.js', () => ({

@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { resolve, join } from 'node:path'
-import { mkdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { mkdirSync, existsSync, writeFileSync } from 'node:fs'
 import { loadConfig, saveConfig } from '../utils/config.js'
-import { loadPlugin, validateTargetDir } from '../utils/plugin-loader.js'
+import { loadPlugin } from '../utils/plugin-loader.js'
 import { acquireLock } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
 import { jsonOutput } from '../utils/json-output.js'
-import { validatePluginPackageJson } from '../integrations/plugin-schema.js'
 import { t } from '../i18n/index.js'
 
 export interface PluginAddOptions {
@@ -298,89 +296,4 @@ export async function runPluginList(opts: PluginListOptions): Promise<void> {
     }
     process.stdout.write(`${t('cli.plugin.plugin_row', { name: pkg, status })}\n`)
   }
-}
-
-export interface PluginValidateEntry {
-  pkg: string
-  ok: boolean
-  errors: string[]
-}
-
-export interface PluginListValidateOptions {
-  dir?: string
-  json?: boolean
-}
-
-function validateSinglePlugin(pkg: string, require: NodeJS.Require): PluginValidateEntry {
-  let pkgJsonPath: string
-  try {
-    pkgJsonPath = require.resolve(`${pkg}/package.json`)
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code
-    const msg =
-      code === 'MODULE_NOT_FOUND' || code === 'ERR_PACKAGE_PATH_NOT_EXPORTED'
-        ? `package.json not found for "${pkg}"`
-        : `failed to resolve "${pkg}": ${err instanceof Error ? err.message : String(err)}`
-    return { pkg, ok: false, errors: [msg] }
-  }
-  let raw: unknown
-  try {
-    raw = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'))
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { pkg, ok: false, errors: [`failed to read/parse package.json for "${pkg}": ${msg}`] }
-  }
-  const validation = validatePluginPackageJson(raw)
-  return { pkg, ok: validation.ok, errors: validation.errors }
-}
-
-function exitWithValidateError(opts: PluginListValidateOptions, msg: string): never {
-  if (opts.json) {
-    jsonOutput('plugin-list-validate', 'error', {}, [msg])
-  } else {
-    process.stderr.write(`  ${msg}\n`)
-  }
-  process.exit(1)
-}
-
-// Schema-only validation — reads package.json, never executes plugin code.
-export function runPluginListValidate(opts: PluginListValidateOptions = {}): PluginValidateEntry[] {
-  const targetDir = resolve(opts.dir ?? process.cwd())
-  let stored: ReturnType<typeof loadConfig>
-  try {
-    stored = loadConfig(targetDir)
-  } catch (err) {
-    exitWithValidateError(opts, err instanceof Error ? err.message : String(err))
-  }
-  if (!stored) {
-    exitWithValidateError(opts, 'No arbiter.json found. Run `arbiter init` first.')
-  }
-
-  const pluginNames = Array.isArray(stored.plugins) ? stored.plugins : []
-  validateTargetDir(targetDir)
-  const require = createRequire(join(targetDir, '__arbiter_anchor__.js'))
-  const results = pluginNames.map((pkg) => validateSinglePlugin(pkg, require))
-
-  if (opts.json) {
-    jsonOutput('plugin-list-validate', 'ok', { results })
-    return results
-  }
-
-  if (results.length === 0) {
-    process.stdout.write('  No plugins configured.\n')
-    return results
-  }
-
-  process.stdout.write('  Plugin manifest validation:\n')
-  let exitCode = 0
-  for (const r of results) {
-    const icon = r.ok ? '[PASS]' : '[FAIL]'
-    process.stdout.write(`  ${icon}  ${r.pkg}\n`)
-    for (const e of r.errors) {
-      process.stdout.write(`         ${e}\n`)
-      exitCode = 1
-    }
-  }
-  if (exitCode !== 0) process.exit(exitCode)
-  return results
 }

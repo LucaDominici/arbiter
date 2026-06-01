@@ -6,9 +6,9 @@ import {
   saveConfig,
   saveConfigAndSnapshot,
   loadConfig,
-  defaultConfig,
   loadSnapshot,
 } from '../../src/utils/config.js'
+import { defaultConfig } from '../helpers/default-config.js'
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-config-test-'))

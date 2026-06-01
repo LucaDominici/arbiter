@@ -15,7 +15,6 @@ import {
   writeTaskStatus,
   runTaskResume,
   runTaskAdvance,
-  writeBacklog,
   runTaskRecover,
   requirePlanReviewPass,
 } from '../../src/commands/task.js'
@@ -339,40 +338,13 @@ function makeRunner(replies: Array<{ stdout: string }>): {
   return { runner, calls }
 }
 
-describe('writeBacklog (#694)', () => {
-  let dir: string
-  beforeEach(() => {
-    dir = createTestProject()
-  })
-  afterEach(() => cleanupTestProject(dir))
-
-  it('writes BACKLOG.md atomically to sanitized path', () => {
-    writeBacklog({ taskDir: dir, taskId: '#694', content: '# backlog\n- step 1\n' })
-    const expected = join(dir, '.arbiter', 'evidence', '_694', 'BACKLOG.md')
-    expect(existsSync(expected)).toBe(true)
-    expect(readFileSync(expected, 'utf-8')).toContain('step 1')
-  })
-
-  it('sanitizes path traversal in taskId', () => {
-    writeBacklog({ taskDir: dir, taskId: '../../etc', content: 'x' })
-    const evDir = join(dir, '.arbiter', 'evidence')
-    const subdirs = readdirSync(evDir)
-    expect(subdirs.every((s) => !s.includes('..'))).toBe(true)
-  })
-
-  it('round-trip: write then read returns same content', () => {
-    const c = '# Layer 1 — done\n- foo\n- bar\n'
-    writeBacklog({ taskDir: dir, taskId: '#999', content: c })
-    const r = readFileSync(join(dir, '.arbiter', 'evidence', '_999', 'BACKLOG.md'), 'utf-8')
-    expect(r).toBe(c)
-  })
-
-  it('leaves no .tmp files after write', () => {
-    writeBacklog({ taskDir: dir, taskId: '#1', content: 'x' })
-    const files = readdirSync(join(dir, '.arbiter', 'evidence', '_1'))
-    expect(files.filter((f) => f.includes('.tmp'))).toHaveLength(0)
-  })
-})
+/** Write a BACKLOG.md to the same sanitized path runTaskRecover reads from. */
+function plantBacklog(dir: string, taskId: string, content: string): void {
+  const sanit = taskId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'unknown'
+  const evDir = join(dir, '.arbiter', 'evidence', sanit)
+  mkdirSync(evDir, { recursive: true })
+  writeFileSync(join(evDir, 'BACKLOG.md'), content)
+}
 
 describe('runTaskRecover (#694)', () => {
   let dir: string
@@ -398,7 +370,7 @@ describe('runTaskRecover (#694)', () => {
   }
 
   it('includes BACKLOG.md content when present', () => {
-    writeBacklog({ taskDir: dir, taskId: '#42', content: '# BACKLOG body\n- todo X\n' })
+    plantBacklog(dir, '#42', '# BACKLOG body\n- todo X\n')
     const { runner } = makeRunner([{ stdout: '' }, { stdout: '' }])
     const out = captureStdout(() => runTaskRecover({ dir, taskId: '#42', runner }))
     expect(out).toMatch(/BACKLOG body/)
@@ -429,7 +401,7 @@ describe('runTaskRecover (#694)', () => {
 
   it('falls back to .claude/.task-id when taskId not provided', () => {
     writeFileSync(join(dir, '.claude', '.task-id'), '#777\n')
-    writeBacklog({ taskDir: dir, taskId: '#777', content: 'autoresolved\n' })
+    plantBacklog(dir, '#777', 'autoresolved\n')
     const { runner } = makeRunner([{ stdout: '' }, { stdout: '' }])
     const out = captureStdout(() => runTaskRecover({ dir, runner }))
     expect(out).toMatch(/autoresolved/)
