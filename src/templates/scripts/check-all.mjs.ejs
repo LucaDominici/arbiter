@@ -136,10 +136,12 @@ const _feGlob = _feFramework === 'vue'
 %>
 <% if (_isFE && language === 'typescript') { %>
 // ─── L1: Stylelint + design-token enforcement (#352, CANON-02/15) ────────────
-// Runs ONLY when a stylelint config is present so CI does not FAIL on a missing
-// config (no generator emits one yet — the #352 design-token config — that is a
-// follow-up). Matches the gate-on-present pattern of the fsd-boundaries check below.
-// HARD rules to enforce once emitted: color-no-hex, length-zero-no-unit,
+// Runs ONLY when a stylelint config is present. The frontend-quality generator
+// emits .stylelintrc.json for frontend TypeScript targets (#352, PR #1138);
+// non-frontend or partial setups won't have it, so this gate-on-present guard
+// keeps CI from FAILing on a missing config. Matches the gate-on-present pattern
+// of the fsd-boundaries check below.
+// HARD rules enforced: color-no-hex, length-zero-no-unit,
 // custom-property-no-missing-var-function (var(--color-*) from src/styles/theme.css).
 if (existsSync('.stylelintrc.json') || existsSync('.stylelintrc')) {
   runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']);
