@@ -11,6 +11,10 @@ permissions:
 
 jobs:
   sync:
+    # Opt-out: a repo that manages its own labels manually (e.g. the framework
+    # source repo with its own taxonomy) sets the DISABLE_LABEL_SYNC variable to
+    # 'true' so labels.yml is NOT applied to that repo's live label set (#1131).
+    if: ${{ vars.DISABLE_LABEL_SYNC != 'true' }}
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
