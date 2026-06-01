@@ -47,4 +47,4 @@ The scaffolded `check-provider-states.mjs` walks `contract-testing/pact-samples/
 
 - `src/generators/contract-testing.ts` — gates emission on `contractType !== 'none'` and `governanceLevel !== 'L1'`
 - `src/templates/contract-testing/CONTRACTS_POLICY.md.ejs` — the top-level policy doc that this convention extends
-- `docs/REFERENCE/dim-28-contract-tests-spring-cloud-contract-pact.md` — capability matrix entry for contract testing
+- `docs/REFERENCE/coverage/dim-28-contract-tests-spring-cloud-contract-pact.md` — capability matrix entry for contract testing

@@ -89,6 +89,10 @@ export function generateKitDocs(options: KitGenerateOptions): KitGenerateResult 
   const derivedKit = DerivedKitSchema.parse(JSON.parse(readFileSync(derivedPath, 'utf-8')))
 
   mkdirSync(options.outDir, { recursive: true })
+  // #1100: per-dimension stubs live under coverage/ so they stop drowning the
+  // hand-authored REFERENCE docs. GLOBAL_KIT.md stays at outDir top as the index.
+  const coverageDir = join(options.outDir, 'coverage')
+  mkdirSync(coverageDir, { recursive: true })
 
   const slugs = computeSlugs(derivedKit)
   const result: KitGenerateResult = {
@@ -106,7 +110,7 @@ export function generateKitDocs(options: KitGenerateOptions): KitGenerateResult 
     const slug = slugs.get(dim.id) ?? dim.id.toLowerCase()
     const numPart = dim.id.replace('N', '').padStart(2, '0')
     const filename = `dim-${numPart}-${slug}.md`
-    const outPath = join(options.outDir, filename)
+    const outPath = join(coverageDir, filename)
     expectedFiles.add(filename)
 
     const stackRows = STACKS.map((stack) => ({
@@ -163,10 +167,10 @@ export function generateKitDocs(options: KitGenerateOptions): KitGenerateResult 
 
   // ─── Prune ────────────────────────────────────────────────────────────────
   if (options.prune) {
-    const existing = readdirSync(options.outDir).filter((f) => f.match(/^dim-\d+-/))
+    const existing = readdirSync(coverageDir).filter((f) => f.match(/^dim-\d+-/))
     for (const f of existing) {
       if (expectedFiles.has(f)) continue
-      const p = join(options.outDir, f)
+      const p = join(coverageDir, f)
       const content = readFileSync(p, 'utf-8')
       const marker = parseMarker(content)
       if (marker) {

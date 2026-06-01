@@ -75,7 +75,7 @@ lines where the context string appears (e.g., `Keycloak-compatible IdP` exempts 
 
 ### Generation Marker (Brownfield Discrimination)
 
-Generator output files (`docs/REFERENCE/dim-NN-<slug>.md`, `docs/REFERENCE/GLOBAL_KIT.md`) carry
+Generator output files (`docs/REFERENCE/coverage/dim-NN-<slug>.md`, `docs/REFERENCE/GLOBAL_KIT.md`) carry
 a hash marker as the first line:
 
 ```html

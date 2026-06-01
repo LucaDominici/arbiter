@@ -6,6 +6,10 @@ dist/
 .env
 coverage/
 !src/templates/coverage/
+# #1100: docs/REFERENCE/coverage/ holds the generated dim-NN reference stubs —
+# tracked docs, not test-coverage output. Directory-level negation is required
+# (git cannot re-include a file whose parent dir stays excluded).
+!docs/REFERENCE/coverage/
 
 # Claude Code local settings (user-specific permissions)
 .claude/settings.local.json

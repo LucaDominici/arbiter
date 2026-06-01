@@ -9,9 +9,13 @@ import { generateKitDocs } from '../../src/generators/kit.js'
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 let outDir: string
+// #1100: dim-*.md stubs are emitted under <outDir>/coverage/; GLOBAL_KIT.md
+// stays at <outDir> top. Helper keeps the per-dim assertions pointed at coverage/.
+let covDir: string
 
 beforeEach(() => {
   outDir = mkdtempSync(join(tmpdir(), 'arbiter-kit-gen-'))
+  covDir = join(outDir, 'coverage')
 })
 
 afterEach(() => {
@@ -23,7 +27,7 @@ afterEach(() => {
 describe('greenfield generation', () => {
   it('emits exactly 77 dim-*.md files', () => {
     generateKitDocs({ outDir })
-    const dimFiles = readdirSync(outDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
+    const dimFiles = readdirSync(covDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
     expect(dimFiles.length).toBe(77)
   })
 
@@ -40,10 +44,10 @@ describe('greenfield generation', () => {
 
   it('every dim file starts with a valid hash marker line', () => {
     generateKitDocs({ outDir })
-    const dimFiles = readdirSync(outDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
+    const dimFiles = readdirSync(covDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
     const markerRe = /^<!-- arbiter-generated dim=\S+ hash=[0-9a-f]{64} generator=\S+ -->$/
     for (const f of dimFiles) {
-      const firstLine = readFileSync(join(outDir, f), 'utf-8').split('\n')[0]
+      const firstLine = readFileSync(join(covDir, f), 'utf-8').split('\n')[0]
       expect(markerRe.test(firstLine), `${f} missing valid marker: ${firstLine}`).toBe(true)
     }
   })
@@ -58,9 +62,9 @@ describe('greenfield generation', () => {
 
   it('each dim file contains its dim ID', () => {
     generateKitDocs({ outDir })
-    const dimFiles = readdirSync(outDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
+    const dimFiles = readdirSync(covDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
     for (const f of dimFiles) {
-      const content = readFileSync(join(outDir, f), 'utf-8')
+      const content = readFileSync(join(covDir, f), 'utf-8')
       // filename is dim-NN-<slug>.md; extract NN to get id N01..N77
       const match = f.match(/^dim-(\d{2})-/)
       if (match) {
@@ -77,8 +81,8 @@ describe('brownfield — user edit detected', () => {
   it('skips file with modified body (hash mismatch)', () => {
     generateKitDocs({ outDir })
     // Find first dim file
-    const dimFile = readdirSync(outDir).find((f) => /^dim-01-/.test(f))!
-    const filePath = join(outDir, dimFile)
+    const dimFile = readdirSync(covDir).find((f) => /^dim-01-/.test(f))!
+    const filePath = join(covDir, dimFile)
     const original = readFileSync(filePath, 'utf-8')
     // Append user edit after marker
     writeFileSync(filePath, original + '\n<!-- user edit -->\n')
@@ -92,8 +96,8 @@ describe('brownfield — user edit detected', () => {
 
   it('overwrites user-edited file with --force', () => {
     generateKitDocs({ outDir })
-    const dimFile = readdirSync(outDir).find((f) => /^dim-01-/.test(f))!
-    const filePath = join(outDir, dimFile)
+    const dimFile = readdirSync(covDir).find((f) => /^dim-01-/.test(f))!
+    const filePath = join(covDir, dimFile)
     writeFileSync(filePath, readFileSync(filePath, 'utf-8') + '\n<!-- user edit -->\n')
 
     const result = generateKitDocs({ outDir, force: true })
@@ -107,7 +111,7 @@ describe('brownfield — user edit detected', () => {
 describe('brownfield — pristine file', () => {
   it('overwrites pristine file on regenerate (hash matches = safe)', () => {
     generateKitDocs({ outDir })
-    const dimFile = readdirSync(outDir).find((f) => /^dim-01-/.test(f))!
+    const dimFile = readdirSync(covDir).find((f) => /^dim-01-/.test(f))!
 
     // Second run: pristine file gets overwritten cleanly
     const result2 = generateKitDocs({ outDir })
@@ -121,8 +125,8 @@ describe('brownfield — pristine file', () => {
 describe('brownfield — no marker', () => {
   it('skips file with no marker line', () => {
     generateKitDocs({ outDir })
-    const dimFile = readdirSync(outDir).find((f) => /^dim-01-/.test(f))!
-    const filePath = join(outDir, dimFile)
+    const dimFile = readdirSync(covDir).find((f) => /^dim-01-/.test(f))!
+    const filePath = join(covDir, dimFile)
     // Replace with a file that has no marker
     writeFileSync(filePath, '# user-managed file\n\nNo marker here.\n')
 
@@ -133,8 +137,8 @@ describe('brownfield — no marker', () => {
 
   it('overwrites no-marker file with --force', () => {
     generateKitDocs({ outDir })
-    const dimFile = readdirSync(outDir).find((f) => /^dim-01-/.test(f))!
-    const filePath = join(outDir, dimFile)
+    const dimFile = readdirSync(covDir).find((f) => /^dim-01-/.test(f))!
+    const filePath = join(covDir, dimFile)
     writeFileSync(filePath, '# user-managed file\n\nNo marker here.\n')
 
     const result = generateKitDocs({ outDir, force: true })
@@ -147,17 +151,22 @@ describe('brownfield — no marker', () => {
 
 describe('idempotency', () => {
   it('second run produces byte-identical files for all dims', () => {
-    generateKitDocs({ outDir })
-    const after1 = readdirSync(outDir)
-      .filter((f) => f.endsWith('.md'))
-      .sort()
-      .map((f) => ({ f, content: readFileSync(join(outDir, f), 'utf-8') }))
+    // Scan coverage/ (the 77 dims) AND GLOBAL_KIT.md at top — the latter carries
+    // the dynamic <%= dims.length %> count and is the highest-risk file for a
+    // non-idempotent regression, so it must stay in the idempotency assertion.
+    const snapshot = () =>
+      [
+        ...readdirSync(covDir)
+          .filter((f) => f.endsWith('.md'))
+          .map((f) => ({ f: `coverage/${f}`, content: readFileSync(join(covDir, f), 'utf-8') })),
+        { f: 'GLOBAL_KIT.md', content: readFileSync(join(outDir, 'GLOBAL_KIT.md'), 'utf-8') },
+      ].sort((a, b) => a.f.localeCompare(b.f))
 
     generateKitDocs({ outDir })
-    const after2 = readdirSync(outDir)
-      .filter((f) => f.endsWith('.md'))
-      .sort()
-      .map((f) => ({ f, content: readFileSync(join(outDir, f), 'utf-8') }))
+    const after1 = snapshot()
+
+    generateKitDocs({ outDir })
+    const after2 = snapshot()
 
     expect(after2.length).toBe(after1.length)
     for (let i = 0; i < after1.length; i++) {
@@ -174,15 +183,15 @@ describe('--prune flag', () => {
     // Plant a pristine orphan (simulate a renamed dim)
     // We need a valid marker + hash. Since the file content is self-consistent,
     // just copy an existing dim file with a new name.
-    const dimFiles = readdirSync(outDir).filter((f) => /^dim-\d{2}-/.test(f))
-    const src = join(outDir, dimFiles[0])
+    const dimFiles = readdirSync(covDir).filter((f) => /^dim-\d{2}-/.test(f))
+    const src = join(covDir, dimFiles[0])
     const orphanName = 'dim-99-orphan-dim.md'
-    writeFileSync(join(outDir, orphanName), readFileSync(src, 'utf-8'))
+    writeFileSync(join(covDir, orphanName), readFileSync(src, 'utf-8'))
 
     const result = generateKitDocs({ outDir, prune: true })
     // Orphan should be pruned (it has a valid marker, body matches hash)
     expect(result.pruned).toContain(orphanName)
-    expect(existsSync(join(outDir, orphanName))).toBe(false)
+    expect(existsSync(join(covDir, orphanName))).toBe(false)
   })
 
   it('reports non-pristine orphan as pruneProtected (not deleted)', () => {
@@ -190,12 +199,33 @@ describe('--prune flag', () => {
     // Plant an orphan with mismatched hash (user-edited)
     const orphanName = 'dim-98-orphan-user-edited.md'
     writeFileSync(
-      join(outDir, orphanName),
+      join(covDir, orphanName),
       '<!-- arbiter-generated dim=N98 hash=0000000000000000000000000000000000000000000000000000000000000000 generator=kit@1 -->\n# N98: User edited\n',
     )
 
     const result = generateKitDocs({ outDir, prune: true })
     expect(result.pruneProtected).toContain(orphanName)
-    expect(existsSync(join(outDir, orphanName))).toBe(true)
+    expect(existsSync(join(covDir, orphanName))).toBe(true)
+  })
+})
+
+// ─── Coverage relocation (#1100) ───────────────────────────────────────────────
+
+describe('coverage relocation (#1100)', () => {
+  it('writes all dim files under coverage/, none at outDir top level', () => {
+    generateKitDocs({ outDir })
+    const topDims = readdirSync(outDir).filter((f) => /^dim-\d{2}-/.test(f))
+    expect(topDims).toHaveLength(0)
+    const covDims = readdirSync(join(outDir, 'coverage')).filter(
+      (f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'),
+    )
+    expect(covDims).toHaveLength(77)
+  })
+
+  it('keeps GLOBAL_KIT.md at outDir top with coverage/-prefixed links', () => {
+    generateKitDocs({ outDir })
+    expect(existsSync(join(outDir, 'GLOBAL_KIT.md'))).toBe(true)
+    const global = readFileSync(join(outDir, 'GLOBAL_KIT.md'), 'utf-8')
+    expect(global).toContain('(coverage/dim-01-')
   })
 })
