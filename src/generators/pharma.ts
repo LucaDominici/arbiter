@@ -44,7 +44,10 @@ function archTestPkg(config: ProjectConfig): string {
  *
  * All three use skipIfExists so brownfield re-init does not overwrite user customisations.
  */
-export function generatePharma(config: ProjectConfig): PharmaGeneratorResult {
+export function generatePharma(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): PharmaGeneratorResult {
   // Java-only guard
   if (config.language !== 'java') {
     return { files: [] }
@@ -57,7 +60,7 @@ export function generatePharma(config: ProjectConfig): PharmaGeneratorResult {
 
   const base = config.targetDir
   const data = config
-  const skip = { skipIfExists: true } as const
+  const skip = { skipIfExists: true, dryRun: opts.dryRun } as const
 
   const mainPkg = auditMainPkg(config)
   const testPkg = archTestPkg(config)

@@ -25,13 +25,14 @@ describe('INVARIANT_CATALOG', () => {
   it('has exactly 106 entries', () => {
     // Updated in #1099: +1 (INV-107 ADR SSOT integrity, selfOnly governance)
     // Updated in #1100: +1 (INV-108 SSOT core set exhaustiveness, selfOnly governance)
-    expect(INVARIANT_CATALOG).toHaveLength(106)
+    // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, typescript operational)
+    expect(INVARIANT_CATALOG).toHaveLength(107)
   })
 
   it('all IDs are unique', () => {
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(106)
+    expect(unique.size).toBe(107)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -103,8 +104,9 @@ describe('INVARIANT_CATALOG', () => {
 
   it('has exactly 33 Tier 4 invariants', () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — FE governance, tier=operational)
+    // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, operational)
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(33)
+    expect(tier4).toHaveLength(34)
   })
 
   it('has exactly 37 Tier 5 invariants', () => {
@@ -354,14 +356,15 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-33')
   })
 
-  it('returns 68 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 included)', () => {
+  it('returns 69 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 + INV-109 included)', () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — typescript, L2, operational tier)
+    // Updated CANON-22: +1 (INV-109 duplication gate, typescript L2 operational)
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(68)
+    expect(result).toHaveLength(69)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')

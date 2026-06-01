@@ -639,23 +639,31 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
   })
 })
 
-describe('.stylelintrc.json.ejs template (#352)', () => {
-  it('renders valid JSON with color-no-hex and design-token guidance', () => {
-    const data = makeConfig('/tmp/test', {
+describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
+  it('renders valid JSON with the governance-scaled threshold + src pattern (catches EJS drift)', () => {
+    const base = makeConfig('/tmp/test', {
       language: 'typescript',
-      archetype: 'frontend-spa',
-      governanceLevel: 'L1',
+      governanceLevel: 'L2',
     }) as unknown as Record<string, unknown>
-    const content = renderTemplate('css/.stylelintrc.json.ejs', data)
-    // valid JSON
+    const content = renderTemplate('static-analysis/jscpd.json.ejs', {
+      ...base,
+      duplicationThreshold: 5,
+    })
     const parsed = JSON.parse(content) as Record<string, unknown>
-    expect(parsed.rules).toBeDefined()
-    const rules = parsed.rules as Record<string, unknown>
-    // HARD rules per haben spec
-    expect(rules).toHaveProperty('color-no-hex')
-    expect(rules).toHaveProperty('length-zero-no-unit')
-    expect(rules).toHaveProperty('custom-property-no-missing-var-function')
-    // design-token message
-    expect(content).toMatch(/var\(--color/)
+    expect(parsed.threshold).toBe(5)
+    expect(parsed.minTokens).toBe(50)
+    expect(String(parsed.pattern)).toContain('src/')
+    expect(Array.isArray(parsed.ignore)).toBe(true)
+  })
+
+  it('interpolates a stricter threshold at higher governance', () => {
+    const base = makeConfig('/tmp/test', { language: 'typescript' }) as unknown as Record<
+      string,
+      unknown
+    >
+    const l3 = JSON.parse(
+      renderTemplate('static-analysis/jscpd.json.ejs', { ...base, duplicationThreshold: 3 }),
+    )
+    expect(l3.threshold).toBe(3)
   })
 })

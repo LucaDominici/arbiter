@@ -737,7 +737,8 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement:
       '.claude/hooks/pre-edit-plan-anchor.mjs (CANON-16 Survey gate, exit 2) + ' +
       'scripts/check-bloat-ratchet.mjs (L1 ratchet) + ' +
-      'npx jscpd (L2 duplication, see .jscpd.json)',
+      'npx jscpd (L2 duplication, see .jscpd.json) + ' +
+      'scripts/debt-report.mjs duplicationPercentage ratchet (CANON-22, see INV-109)',
   },
 
   {
@@ -1718,5 +1719,26 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-ssot-core.mjs verifies exhaustiveness using the selectSsotDocs predicate ' +
       'from scripts/gen-ssot-core.mjs (single source of the rule); the generator --check guards ' +
       'staleness. Wired into scripts/check-all.mjs L1 (#1100).',
+  },
+
+  {
+    id: 'INV-109',
+    tier: 'operational',
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    alwaysActive: false,
+    languages: ['typescript'],
+    title: 'Duplication (DRY) gate + ratchet — generated and dogfooded',
+    description:
+      'Code duplication is BOTH a hard gate (jscpd, fails above the governance-scaled threshold: ' +
+      'L1 10% → L2 5% → L3/L4 3%) AND a debt-ratchet metric: a patch may not increase the ' +
+      'duplicated-token percentage (Lehman entropy). CANON-22 Tier-1 — Juergens et al. ICSE 2009: ' +
+      'inconsistent (diverged) clones are latent bugs. Dual-sided (CANON-01): arbiter dogfoods the ' +
+      'gate at scripts/check-all.mjs and emits the same gate to TypeScript targets via ' +
+      'src/generators/duplication.ts (.jscpd.json + jscpd devDep + the check-all jscpd step).',
+    enforcement:
+      'npx jscpd (L2 gate, see .jscpd.json) + scripts/debt-report.mjs --gate ' +
+      '(duplicationPercentage metric collected in scripts/debt-lib.mjs); generated for target ' +
+      'projects by src/generators/duplication.ts.',
   },
 ]

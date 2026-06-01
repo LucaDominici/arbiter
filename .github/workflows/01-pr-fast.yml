@@ -196,7 +196,7 @@ jobs:
       - run: npm run build && node scripts/build-kit.mjs
       - run: npx vitest run --coverage --coverage.thresholds.lines=80
       - run: npx knip
-      - run: npx madge --circular src
+      - run: npx madge --circular --extensions ts,tsx,js,jsx src
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4

@@ -1,0 +1,21 @@
+<%# jscpd duplication (DRY) gate config — CANON-22 Tier-1 (Juergens et al. ICSE'09).
+    `threshold` is a CEILING (% duplicated tokens); the debt ratchet additionally
+    enforces monotonic non-increase (Lehman's law of rising entropy). Juergens'09:
+    INCONSISTENT clones — a fragment duplicated then edited in one copy but not the
+    other — are the dangerous ones (latent bugs), so minTokens is kept low to surface
+    near-duplicates rather than only exact copies. Threshold scales with governance. -%>
+{
+  "threshold": <%= duplicationThreshold %>,
+  "minTokens": 50,
+  "reporters": ["json", "consoleFull"],
+  "absolute": true,
+  "ignore": [
+    "**/node_modules/**",
+    "dist/**",
+    "build/**",
+    "coverage/**",
+    "**/__tests__/fixtures/**",
+    "**/*.min.js"
+  ],
+  "pattern": "src/**/*.{ts,tsx,js,jsx,mjs}"
+}

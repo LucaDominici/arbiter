@@ -19,6 +19,7 @@ export type GeneratorKey =
   | 'debt-gates'
   | 'debt-ratchet'
   | 'coverage'
+  | 'duplication'
   | 'suppressions'
   | 'security'
   | 'archunit'
@@ -47,6 +48,7 @@ export type GeneratorKey =
   | 'operations'
   | 'risk-register'
   | 'compliance'
+  | 'pharma'
   | 'observability'
   | 'auth'
   | 'ci-tier'
@@ -113,7 +115,13 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   ],
   useGitHub: ['github', 'root', 'check-all'],
   permitGitHub: ['github', 'root', 'check-all', 'ci-tier', 'github-setup'],
-  'features.debtGates': ['debt-gates', 'debt-ratchet', 'coverage', 'stride-enforcement'],
+  'features.debtGates': [
+    'debt-gates',
+    'debt-ratchet',
+    'coverage',
+    'duplication',
+    'stride-enforcement',
+  ],
   'features.securityScanning': ['security'],
   'features.mutationTesting': ['mutation', 'check-all', 'nightly'],
   'features.contractTesting': ['contract-testing', 'integration-testing', 'github'],
@@ -137,6 +145,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   invariantTiers: ['global-invariants', 'agents-md'],
   hasPublicApi: ['api-middleware'],
   language: ['quality', 'archunit'],
+  industryOverlay: ['pharma'],
   'observability.provider': ['observability'],
   'auth.provider': ['auth'],
   // bare 'frontend' path: emitted when frontend block is added/removed wholesale

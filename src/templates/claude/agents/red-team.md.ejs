@@ -50,6 +50,18 @@ For each input, probe:
 | **Async errors** | Are all promises awaited? Are rejections handled? |<% } %>
 | **Concurrency** | Can two requests interfere with each other? |
 
+## Anti-Bloat & Root-Cause Vectors (CANON-22)
+
+These are **blocking-eligible** — a confirmed finding here is a HIGH (merge blocker), not a nit:
+
+| Vector | Questions to Ask |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Symptom vs root cause** | Does the change fix the underlying defect, or paper over a symptom while the root cause survives? |
+| **Dup-of-existing-helper** | Does this introduce logic that already exists as a helper/util elsewhere? (Grep for the behaviour before accepting new code.) |
+| **Missed extraction** | Are ≥2 near-identical blocks introduced or left adjacent that should be one extracted function? (Juergens'09: inconsistent clones are latent bugs.) |
+
+If a root-cause fix is genuinely out of scope, the change must carry an `arbiter task record-tech-debt` reference; absence of one with a live smell is a blocking finding.
+
 ## SSOT Alignment Vectors (arbiter-specific)
 
 When reviewing arbiter generator or template changes, also probe:

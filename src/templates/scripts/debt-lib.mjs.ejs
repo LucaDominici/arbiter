@@ -134,6 +134,21 @@ export function collectMetrics(cwd) {
     } catch { metrics.deadCode = { value: 0, unit: 'count', direction: 'lower-is-better' }; }
   }
 
+  // ── Duplication (jscpd) — CANON-22 DRY ratchet (Lehman entropy) ────────────
+  // jscpd writes report/jscpd-report.json (reporters configured in .jscpd.json);
+  // statistics.total.percentage is the duplicated-token ratio. The ratchet blocks
+  // any patch that raises it.
+  const jscpdRaw = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', ['jscpd', '--silent'], { cwd });
+  if (jscpdRaw !== null) {
+    try {
+      const dup = JSON.parse(readFileSync(resolve(cwd, 'report', 'jscpd-report.json'), 'utf-8'));
+      metrics.duplicationPercentage = {
+        value: dup.statistics?.total?.percentage ?? 0,
+        unit: 'percent', direction: 'lower-is-better',
+      };
+    } catch { metrics.duplicationPercentage = { value: 0, unit: 'percent', direction: 'lower-is-better' }; }
+  }
+
 <% if (metricsProfile.includeBundleSize) { %>
   // ── Bundle size (frontend-spa only) ───────────────────────────────────────
   if (existsSync(resolve(cwd, 'dist'))) {

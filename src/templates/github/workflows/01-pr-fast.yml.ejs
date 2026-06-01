@@ -413,7 +413,7 @@ jobs:
 <% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
 <% } %>      - run: npx vitest run --coverage --coverage.thresholds.lines=<%= threshold %>
       - run: npx knip
-      - run: npx madge --circular src
+      - run: npx madge --circular --extensions ts,tsx,js,jsx src
 <% } %><% if (language === 'rust') { %>
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
         with:

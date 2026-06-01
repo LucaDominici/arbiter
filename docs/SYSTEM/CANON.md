@@ -304,3 +304,33 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Promoted to:** INV-94
 
 **Source issues:** #989
+
+---
+
+## CANON-22 — Evidence-based quality: validated metrics gate, contested heuristics advise
+
+**Rule:** A code-quality rule may be promoted to a **HARD GATE** (fails the build) only if it is **Tier-1** — backed by replicated empirical evidence linking the metric to a defect/maintainability outcome. Rules that are **Tier-2** — intuitive but empirically contested — may inform review and advisory output but MUST NOT fail the gate on their own. Every claimed gate must be wired to a real check (CANON-09); a gate that mutes its own findings is a lie and is forbidden.
+
+**Tier-1 (gate-eligible):**
+
+- **Cyclomatic complexity** — McCabe 1976; ceiling enforced per function (`eslint` complexity + debt ratchet).
+- **Coupling / cohesion** — Chidamber–Kemerer 1994 (CK suite) validated by Basili et al. 1996 as defect predictors; boundary/arch gates.
+- **Code smells** — Khomh et al. 2009 and Palomba et al. 2018 link antipatterns to change/fault-proneness.
+- **Duplication, esp. inconsistent clones** — Juergens et al. ICSE 2009: inconsistent (diverged) clones are a significant source of bugs (`jscpd` gate).
+- **Monotonic non-regression** — Lehman's laws (rising entropy): the debt ratchet blocks any net increase in complexity, dead code, or duplication.
+- **Technical-debt accounting** — SEI / Kruchten et al. 2012 and the SQALE method: debt is measurable and must be recorded, not silently absorbed (`arbiter task record-tech-debt`).
+- **Shift-left** — Boehm 1981: defect cost rises sharply with discovery latency; gates run at L1/L2 pre-merge.
+
+**Tier-2 (advisory only — do NOT hard-gate alone):**
+
+- **SOLID principles** — useful design vocabulary; little controlled evidence that mechanical conformance reduces defects.
+- **DRY-as-dogma** — duplication _count_ gates, but "never repeat anything" over-abstracts; only inconsistent/significant clones are Tier-1.
+- **Cognitive complexity (Campbell / SonarSource 2018)** — plausible and popular but not independently replicated to McCabe's standard; advisory until validated.
+
+**Why:** Quality enforcement that fails the build on contested heuristics breeds gate-fatigue and bypasses, eroding trust in the gates that _are_ validated. Anchoring hard gates to replicated evidence keeps the gate set defensible and the signal high. Conversely, leaving a validated concern (duplication, complexity, debt) to advice alone is how anti-bloat rots — the owner's primary failure mode. This rule draws the line and forces each new gate to declare its tier.
+
+**Enforcement:** Tier-1 metrics are wired as hard gates in `scripts/check-all.mjs` (+ generated `check-all.mjs.ejs`): `jscpd` duplication, `eslint` complexity, `knip` dead code, `madge` circular deps, and the debt ratchet (`scripts/debt-report.mjs`) with a `duplicationPercentage` metric. The machine-checkable duplication gate + ratchet are promoted to INV-109. Tier-2 heuristics live in the `clean-code` skill (gate-map) and the red-team **Anti-Bloat & Root-Cause** vectors as advisory/blocking-eligible review, never as a standalone build failure.
+
+**Promoted to:** INV-109 (duplication gate + ratchet)
+
+**Source issues:** corrective evidence-based-quality wave 2026-06-01 (audit lineage #151–#186)

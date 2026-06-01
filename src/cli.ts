@@ -11,6 +11,7 @@ import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
 import { runDoctorRepairState, runDoctorHealth, runDoctorRecoverLock } from './commands/doctor.js'
+import { runIntegrationsList } from './commands/integrations.js'
 import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
@@ -1015,6 +1016,22 @@ doctor
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`  Error: ${msg}\n`)
       process.exit(1)
+    })
+  })
+
+const integrations = program
+  .command('integrations')
+  .description('Inspect agent-tool integrations (skills, plugins) detected for this project')
+
+integrations
+  .command('list')
+  .description('List detected integrations and recommend missing ones (doctor advisory target)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; json: boolean }) => {
+    runIntegrationsList({
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      json: opts.json,
     })
   })
 

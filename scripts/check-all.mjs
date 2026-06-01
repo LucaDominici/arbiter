@@ -118,7 +118,7 @@ if (isMain) {
     ],
     vitestEnv ? { env: vitestEnv } : {},
   )
-  runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts', 'src/'])
+  runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src/'])
   runCheck('placeholders', 'node', ['scripts/check-no-placeholders.mjs', 'src'])
   runCheck('i18n raw strings', 'node', [
     'scripts/check-no-raw-strings.mjs',

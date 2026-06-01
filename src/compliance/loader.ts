@@ -23,7 +23,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ComplianceMapping } from '../graph/blame.js'
 
-export const COMPLIANCE_RELATIVE_PATH = join('.arbiter', 'compliance.yaml')
+const COMPLIANCE_RELATIVE_PATH = join('.arbiter', 'compliance.yaml')
 
 const TOP_KEY_RE = /^([A-Z][A-Z0-9_-]*):$/
 const LIST_ITEM_RE = /^\s+-\s+standard:\s+(.+)$/

@@ -1,6 +1,6 @@
 ---
 name: clean-code
-description: Clean Code principles (DRY, KISS, YAGNI), naming conventions, and refactoring. Use when reviewing code quality or improving readability.
+description: Gate-map for code quality — which gate mechanically enforces each limit (jscpd/knip/madge/complexity/ratchet). Use when reviewing code quality or before adding code that might duplicate or over-complicate.
 title: 'Clean Code'
 doc_version: '1.0.0'
 status: active
@@ -13,45 +13,24 @@ related: []
 
 # Clean Code
 
-## Core Principles
+This skill is a **gate-map, not a lecture.** Every limit below is mechanically enforced — the gate is the source of truth. When in doubt, run the gate; don't argue the principle.
 
-| Principle | Rule                     | Violation Sign                |
-| --------- | ------------------------ | ----------------------------- |
-| **DRY**   | Don't Repeat Yourself    | Copy-pasted logic blocks      |
-| **KISS**  | Keep It Simple           | Over-engineered solutions     |
-| **YAGNI** | You Aren't Gonna Need It | Features added "just in case" |
+## Limits → enforcing gate
 
-## Naming
+| Concern                  | Limit                                 | Enforced by                                                          |
+| ------------------------ | ------------------------------------- | -------------------------------------------------------------------- |
+| **DRY / duplication**    | clones below threshold; no copy-paste | `jscpd` (CANON-22) + debt ratchet — no net increase (Lehman entropy) |
+| **Complexity (KISS)**    | cyclomatic ≤ 10 per function          | `eslint` complexity rule + debt ratchet                              |
+| **No dead code (YAGNI)** | no unused files/exports               | `knip`                                                               |
+| **No cycles**            | no circular imports                   | `madge --circular`                                                   |
+| **No bloat**             | file / LOC ceilings                   | bloat ratchet + debt ratchet                                         |
 
-- Names should reveal intent
-- Avoid abbreviations unless universally known (`i`, `err`, `ctx`)
-- Functions: verb + noun (`getUserById`, `calculateTotal`)
-- Booleans: `is`, `has`, `can` prefix (`isActive`, `hasPermission`)
+## When a gate fires
 
-## Functions
+Fix the **root cause** — extract the shared helper, simplify the function, delete the dead branch — or run `arbiter task record-tech-debt` with a rationale. A symptom patch over a flagged smell is a stop condition (see `90-exec-protocol.md` → Root-Cause Discipline). Juergens'09: an _inconsistent_ clone (duplicated, then edited in one copy only) is a latent bug — dedup before it diverges.
 
-- One level of abstraction per function
-- Max ~20 lines — if longer, extract
-- No more than 3 parameters — use a config object if more are needed
-- No side effects in pure calculation functions
+## Naming & extraction (review heuristic — not gated)
 
-## Comments
-
-- Comments explain **why**, not **what**
-- If you need a comment to explain **what**, the code needs renaming
-- Delete commented-out code — use git history instead
-
-## TypeScript-Specific
-
-- No `any` — use `unknown` and narrow, or define a type
-- Prefer `const` over `let`; avoid `var`
-- Use discriminated unions over nullable fields
-- Small interfaces over large ones (Interface Segregation)
-
-## Refactoring Moves
-
-1. **Extract function** — repeated code block → named function
-2. **Rename** — confusing name → intent-revealing name
-3. **Inline** — one-liner wrapper that adds no clarity
-4. **Extract variable** — complex expression → named variable
-5. **Replace condition with polymorphism** — long if/else on type → strategy pattern
+- Names reveal intent: verb+noun functions (`getUserById`); `is`/`has`/`can` booleans; no cryptic abbreviations.
+- Repeated block → **extract function**. Long `if/else` on a type → polymorphism. One-liner wrapper that adds no clarity → **inline**. Complex expression → **extract variable**.
+- **TypeScript:** no `any` (use `unknown` and narrow — enforced by the `check-no-any` hook, INV-04); `const` over `let`; discriminated unions over nullable fields.
