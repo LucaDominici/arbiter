@@ -84,10 +84,22 @@ Deleted in #1131 — no consumer found anywhere (workflow, gate, CLI, or documen
 | `ready-for-review`                        | nothing applies it; `issue-state.yml` uses `in-review`, not this label                                |
 | `ai-generated`                            | never applied; the INV-91 gate keys on `pull_request.user.type == 'Bot'`, not this label              |
 
-## Live arbiter-self label reconciliation
+## Two taxonomies, by design
 
-The live arbiter GitHub repo carries a larger, historically-divergent label set
-(multiple shape conventions: `size: `, `size:`, `size/`; `priority/*`; `severity/*`;
-`canon/*`; `audit/*`). Reconciling and pruning that live set against this canonical
-catalogue is tracked separately (#1131 slice 3) and requires item-level review
-because many live labels tag active issues.
+This catalogue is the **shipped/canonical set** — what arbiter generates _for
+target projects_. The live **arbiter-self** GitHub repo intentionally runs a
+separate, richer **legacy namespaced taxonomy** for its own project management
+(`size/*` slash, `priority/P*`, `severity/*`, `tier/N-name`, `canon/NN-*`,
+`wave:N-*`, `area/*`, plus type labels like `epic`/`feat`/`port`/`task`). These
+labels are actively applied across hundreds of issues; they are **not drift**.
+
+Because the canonical and legacy forms differ in shape (`size: Standard` vs
+`size/M`, `tier: T3` vs `tier/2-launch`), arbiter-self **opts out of
+`_label-sync`** via the `DISABLE_LABEL_SYNC=true` repo variable — otherwise the
+additive sync would inject the canonical set _alongside_ the legacy one and
+create duplicate-shape pairs. Generated projects keep label-sync on (they start
+from this canonical set).
+
+Converging arbiter-self onto the canonical shape (a lossy ~800-application
+re-tag) is **deferred and optional** — tracked in #1134, default "do nothing".
+Slice 3 of #1131 pruned only true 0-use duplicates from the live set.
