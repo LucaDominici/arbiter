@@ -13,6 +13,8 @@ related: []
 
 **Issue:** #649
 
+> **Public intro:** new to brownfield adoption? Start with the public recipe `website/recipes/brownfield.md` (published at `/recipes/brownfield`). This page is the **contributor deep-dive** — per-CI integration patterns (GitHub Actions / GitLab / Jenkins / CircleCI) and a phased rollout — complementing, not duplicating, the public overview.
+
 ## Context
 
 Most arbiter adoptions happen on projects with an existing CI pipeline (GitHub Actions, GitLab CI, Jenkins, CircleCI). This recipe covers how to slot arbiter gates in alongside existing jobs without disrupting running pipelines.

@@ -140,7 +140,7 @@ Every arbiter error message includes a footer line like `Run ID: arb-20260516-12
 ---
 
 **Something is broken and I want to file a bug. What is the fastest way to get arbiter to tell me what went wrong?**  
-The first step is `arbiter --debug <your-command>`. This is identical to passing `--log-level debug` and produces structured records on stderr at every internal phase (config load, plugin load, generator dispatch, hook fire). Pair it with `--log-format json` if you want jq-friendly output. See [recipes/B10-debug-mode.md](RECIPES/B10-debug-mode.md).
+The first step is `arbiter --debug <your-command>`. This is identical to passing `--log-level debug` and produces structured records on stderr at every internal phase (config load, plugin load, generator dispatch, hook fire). Pair it with `--log-format json` if you want jq-friendly output. See [recipes/B10-debug-mode.md](REFERENCE/recipes/B10-debug-mode.md).
 
 ---
 
@@ -150,7 +150,7 @@ Run `arbiter report`. It bundles the most recent run's argv, redacted environmen
 ---
 
 **How do I profile a slow arbiter command?**  
-Run `arbiter --profile <your-command>`. A `.cpuprofile` is written to `~/.arbiter/profiles/<runId>.cpuprofile`. Open it in Chrome DevTools (chrome://inspect → "Open dedicated DevTools for Node" → Profiler → Load). See [recipes/perf-debugging.md](RECIPES/perf-debugging.md).
+Run `arbiter --profile <your-command>`. A `.cpuprofile` is written to `~/.arbiter/profiles/<runId>.cpuprofile`. Open it in Chrome DevTools (chrome://inspect → "Open dedicated DevTools for Node" → Profiler → Load). See [recipes/perf-debugging.md](REFERENCE/recipes/perf-debugging.md).
 
 ---
 

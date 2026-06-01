@@ -64,4 +64,4 @@ Flag wins over env. Env wins over default (`info` / `text`).
 
 ## When `--debug` is not enough
 
-Bundle the full replay (argv + redacted env + output + arbiter state) with [`arbiter report`](../FAQ.md), or profile the command with [`--profile`](perf-debugging.md).
+Bundle the full replay (argv + redacted env + output + arbiter state) with [`arbiter report`](../../FAQ.md), or profile the command with [`--profile`](perf-debugging.md).

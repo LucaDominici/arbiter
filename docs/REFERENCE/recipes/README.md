@@ -11,7 +11,9 @@ related: []
 
 # arbiter Recipes
 
-Practical, step-by-step guides for common arbiter adoption scenarios.
+Practical, step-by-step guides for common arbiter adoption scenarios. This is the
+**internal / contributor** recipe home; the public, adopter-facing recipe hub is the
+VitePress site under `website/recipes/`. The two are complementary — see the note below.
 
 | Recipe                                                               | Description                                             |
 | -------------------------------------------------------------------- | ------------------------------------------------------- |
@@ -25,3 +27,13 @@ Practical, step-by-step guides for common arbiter adoption scenarios.
 | [customize-wizard.md](./customize-wizard.md)                         | Pre-fill, extend, and skip wizard prompts               |
 | [brownfield-existing-ci.md](./brownfield-existing-ci.md)             | Add arbiter gates to an existing CI/CD pipeline         |
 | [recover-from-update-failure.md](./recover-from-update-failure.md)   | Recover when `arbiter update` fails mid-flight          |
+| [B10-debug-mode.md](./B10-debug-mode.md)                             | Debug an arbiter command (`--debug` / `--log-format`)   |
+| [perf-debugging.md](./perf-debugging.md)                             | Profile a slow command (`--profile`, `.cpuprofile`)     |
+| [sibling-worktree.md](./sibling-worktree.md)                         | Work in an isolated sibling git worktree                |
+| [cost-optimized-phase-handoff.md](./cost-optimized-phase-handoff.md) | Phase 3.5 cost-optimized handoff across `/clear`        |
+
+> **Internal vs public:** `brownfield-existing-ci.md` and `custom-invariant-advanced.md` are
+> contributor deep-dives that complement the public intros at `website/recipes/brownfield.md`
+> and `website/recipes/custom-invariant.md`. The four operational playbooks at the bottom
+> (debug, perf, worktree, phase-handoff) were consolidated here from the former `docs/RECIPES/`
+> home (#1100) — see `docs/METHOD/CANONICAL_PATHS.md` for the redirects.

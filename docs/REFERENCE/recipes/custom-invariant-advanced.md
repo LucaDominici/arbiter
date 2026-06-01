@@ -13,6 +13,8 @@ related: []
 
 **Issue:** #646 (extends B10 — basic custom invariant)
 
+> **Public intro:** for the basics, see the public recipe `website/recipes/custom-invariant.md` (published at `/recipes/custom-invariant`). This page is the **contributor deep-dive** — cross-file, AST-based, and language-specific invariant patterns — complementing, not duplicating, the public overview.
+
 ## Context
 
 B10 covers adding a simple custom invariant. This recipe covers three advanced patterns: cross-file invariants, AST-based invariants, and language-specific invariants. It also documents where to wire each pattern for best performance, how to test it, and how to share it as a plugin.
@@ -109,9 +111,7 @@ if (language === 'python' && level >= 1) {
 
 ## Testing Your Custom Invariant
 
-arbiter's G5 hook regression suite (ships in G5 — track in the G-series milestone) provides a harness for testing that hooks fire correctly and produce the expected exit code.
-
-**Status (2026-05-16):** G5 hook regression suite is not yet merged. Until it ships, test invariants by:
+Test a custom invariant end-to-end by exercising its check script directly against fixtures:
 
 ```bash
 # 1. Create a fixture file that violates the invariant

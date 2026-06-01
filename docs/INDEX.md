@@ -250,15 +250,6 @@
 | [Test Pyramid Profiles](PRODUCT/TEST-PYRAMID-PROFILES.md) | — | active | kind/reference |
 | [What arbiter Is NOT](PRODUCT/WHAT-ARBITER-IS-NOT.md) | — | active | kind/reference |
 
-## RECIPES
-
-| title | canonical_id | status | kind |
-|-------|--------------|--------|------|
-| [Recipe B10 — Debugging an arbiter command](RECIPES/B10-debug-mode.md) | — | active | kind/reference |
-| [Cost-Optimized Phase Handoff (Phase 3.5)](RECIPES/cost-optimized-phase-handoff.md) | — | active | kind/reference |
-| [Recipe — Profiling a slow arbiter command](RECIPES/perf-debugging.md) | — | active | kind/reference |
-| [Recipe: Sibling Worktree Pattern (`--sibling`)](RECIPES/sibling-worktree.md) | — | active | kind/reference |
-
 ## REFERENCE
 
 | title | canonical_id | status | kind |
@@ -366,16 +357,20 @@
 | [Pharma Overlay — Reference](REFERENCE/pharma-overlay.md) | — | active | kind/reference |
 | [Plan Template — Context Block](REFERENCE/plan-template.md) | — | active | kind/reference |
 | [Postman/Newman Contract Tests — Reference](REFERENCE/postman-newman-contract.md) | — | active | kind/reference |
+| [Recipe B10 — Debugging an arbiter command](REFERENCE/recipes/B10-debug-mode.md) | — | active | kind/reference |
 | [arbiter Recipes](REFERENCE/recipes/README.md) | — | active | kind/reference |
 | [Recipe: Brownfield Onboarding with Existing CI/CD](REFERENCE/recipes/brownfield-existing-ci.md) | — | active | kind/reference |
 | [Recipe: Compose with Frontend Design Skill](REFERENCE/recipes/compose-with-frontend-design.md) | — | active | kind/reference |
+| [Cost-Optimized Phase Handoff (Phase 3.5)](REFERENCE/recipes/cost-optimized-phase-handoff.md) | — | active | kind/reference |
 | [Recipe: Adding a Custom AI Tool Target](REFERENCE/recipes/custom-ai-tool-target.md) | — | active | kind/reference |
 | [Recipe: Custom Invariant — Advanced Patterns](REFERENCE/recipes/custom-invariant-advanced.md) | — | active | kind/reference |
 | [Recipe: Customizing the Wizard](REFERENCE/recipes/customize-wizard.md) | — | active | kind/reference |
 | [Recipe: Mapping BMAD-METHOD to arbiter](REFERENCE/recipes/migrate-from-bmad.md) | — | active | kind/reference |
 | [Recipe: Migrating from Spec Kit to arbiter](REFERENCE/recipes/migrate-from-spec-kit.md) | — | active | kind/reference |
 | [Recipe: Adopting arbiter in a Monorepo](REFERENCE/recipes/monorepo-adoption.md) | — | active | kind/reference |
+| [Recipe — Profiling a slow arbiter command](REFERENCE/recipes/perf-debugging.md) | — | active | kind/reference |
 | [Recipe: Recovering from an arbiter Update Failure](REFERENCE/recipes/recover-from-update-failure.md) | — | active | kind/reference |
+| [Recipe: Sibling Worktree Pattern (`--sibling`)](REFERENCE/recipes/sibling-worktree.md) | — | active | kind/reference |
 | [Recipe: TDD Evidence Enforcement (INV-26)](REFERENCE/recipes/tdd-enforcement.md) | — | active | kind/reference |
 | [Stack Adapter Contract](REFERENCE/stack-adapter-contract.md) | — | active | kind/reference |
 | [`.arbiter-generated.json` State File](REFERENCE/state-file.md) | — | active | kind/reference |

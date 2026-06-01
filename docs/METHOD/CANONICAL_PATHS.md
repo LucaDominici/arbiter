@@ -18,13 +18,17 @@ related: []
 
 ## Aliases
 
-| Old Path                                        | Current Path                                     | Moved Date |
-| ----------------------------------------------- | ------------------------------------------------ | ---------- |
-| `docs/ARCHITECTURE/CANONICAL-SOURCE-MODEL.md`   | `docs/architecture/CANONICAL-SOURCE-MODEL.md`    | 2026-05-19 |
-| `docs/ARCHITECTURE/CONFLICT-RESOLUTION.md`      | `docs/architecture/CONFLICT-RESOLUTION.md`       | 2026-05-19 |
-| `docs/ARCHITECTURE/OVERVIEW.md`                 | `docs/architecture/OVERVIEW.md`                  | 2026-05-19 |
-| `docs/ARCHITECTURE/TEMPLATE-SYSTEM.md`          | `docs/architecture/TEMPLATE-SYSTEM.md`           | 2026-05-19 |
-| `docs/AUDIT/compat-fixes-854-855-2026-05-18.md` | `docs/audits/compat-fixes-854-855-2026-05-18.md` | 2026-05-19 |
+| Old Path                                        | Current Path                                             | Moved Date |
+| ----------------------------------------------- | -------------------------------------------------------- | ---------- |
+| `docs/ARCHITECTURE/CANONICAL-SOURCE-MODEL.md`   | `docs/architecture/CANONICAL-SOURCE-MODEL.md`            | 2026-05-19 |
+| `docs/ARCHITECTURE/CONFLICT-RESOLUTION.md`      | `docs/architecture/CONFLICT-RESOLUTION.md`               | 2026-05-19 |
+| `docs/ARCHITECTURE/OVERVIEW.md`                 | `docs/architecture/OVERVIEW.md`                          | 2026-05-19 |
+| `docs/ARCHITECTURE/TEMPLATE-SYSTEM.md`          | `docs/architecture/TEMPLATE-SYSTEM.md`                   | 2026-05-19 |
+| `docs/AUDIT/compat-fixes-854-855-2026-05-18.md` | `docs/audits/compat-fixes-854-855-2026-05-18.md`         | 2026-05-19 |
+| `docs/RECIPES/B10-debug-mode.md`                | `docs/REFERENCE/recipes/B10-debug-mode.md`               | 2026-06-01 |
+| `docs/RECIPES/perf-debugging.md`                | `docs/REFERENCE/recipes/perf-debugging.md`               | 2026-06-01 |
+| `docs/RECIPES/sibling-worktree.md`              | `docs/REFERENCE/recipes/sibling-worktree.md`             | 2026-06-01 |
+| `docs/RECIPES/cost-optimized-phase-handoff.md`  | `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md` | 2026-06-01 |
 
 ---
 
