@@ -37,12 +37,18 @@ export default defineConfig({
   ],
 
   themeConfig: {
+    // Outcome-first, audience-split IA (ADR-075). Order is load-bearing.
     nav: [
-      { text: 'Docs', link: '/quickstart/' },
-      { text: 'Comparisons', link: '/comparisons/' },
-      { text: 'Recipes', link: '/recipes/' },
-      { text: 'Changelog', link: '/changelog/' },
+      { text: 'Get Started', link: '/quickstart/' },
+      { text: 'Architecture', link: '/concepts/' },
+      { text: 'Features', link: '/features/' },
+      { text: 'Use-Cases', link: '/use-cases/' },
+      { text: 'Problems Solved', link: '/problems/' },
+      { text: 'Reference', link: '/reference/' },
+      { text: 'Governance & Legal', link: '/governance/' },
+      // Utility (not part of the 7 outcome sections)
       { text: 'Community', link: '/community/' },
+      { text: 'Changelog', link: '/changelog/' },
       { text: 'GitHub', link: 'https://github.com/LucaDominici/arbiter' },
       {
         text: 'v0 (next)',
@@ -55,8 +61,48 @@ export default defineConfig({
 
     sidebar: [
       { text: 'Home', link: '/' },
-      { text: 'Quickstart', link: '/quickstart/' },
-      { text: 'Concepts', link: '/concepts/' },
+
+      // 1. Get Started
+      { text: 'Get Started', link: '/quickstart/' },
+
+      // 2. Architecture
+      { text: 'Architecture', link: '/concepts/' },
+
+      // 3. Features
+      { text: 'Features', link: '/features/' },
+
+      // 4. Use-Cases (+ the consolidated recipe set)
+      {
+        text: 'Use-Cases',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/use-cases/' },
+          { text: 'Recipes', link: '/recipes/' },
+          { text: 'Custom invariant', link: '/recipes/custom-invariant' },
+          { text: 'Custom generator', link: '/recipes/custom-generator' },
+          { text: 'Write a plugin', link: '/recipes/plugin' },
+          { text: 'Brownfield onboarding', link: '/recipes/brownfield' },
+        ],
+      },
+
+      // 5. Problems Solved & How
+      {
+        text: 'Problems Solved & How',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/problems/' },
+          { text: 'Agents drift from conventions', link: '/problems/agents-drift' },
+          { text: 'Standards not enforced', link: '/problems/enforced-not-advisory' },
+          { text: 'Secrets / PII in commits', link: '/problems/secrets-pii' },
+          { text: 'Vulnerable dependencies', link: '/problems/vulnerable-deps' },
+          { text: 'Suppressions become permanent', link: '/problems/suppression-expiry' },
+          { text: 'Direct pushes / self-approval', link: '/problems/branch-protection' },
+          { text: 'Tests written after the fact', link: '/problems/tdd-evidence' },
+          { text: 'Can I trust the tool itself?', link: '/problems/dogfooding-trust' },
+        ],
+      },
+
+      // 6. Reference
       {
         text: 'Reference',
         collapsed: false,
@@ -68,44 +114,11 @@ export default defineConfig({
           { text: 'Experimental Policy', link: '/reference/experimental-policy' },
         ],
       },
+
+      // 7. Governance & Legal (Comparisons folds in here)
       {
-        text: 'Recipes',
+        text: 'Governance & Legal',
         collapsed: false,
-        items: [
-          { text: 'Overview', link: '/recipes/' },
-          { text: 'Custom invariant', link: '/recipes/custom-invariant' },
-          { text: 'Custom generator', link: '/recipes/custom-generator' },
-          { text: 'Write a plugin', link: '/recipes/plugin' },
-          { text: 'Brownfield onboarding', link: '/recipes/brownfield' },
-        ],
-      },
-      {
-        text: 'Comparisons',
-        collapsed: true,
-        items: [
-          { text: 'Overview', link: '/comparisons/' },
-          { text: 'vs spec-kit', link: '/comparisons/spec-kit' },
-          { text: 'vs BMAD', link: '/comparisons/bmad' },
-          { text: 'vs GSD2', link: '/comparisons/gsd2' },
-          { text: 'vs claude-flow', link: '/comparisons/claude-flow' },
-          { text: 'vs SuperClaude', link: '/comparisons/superclaude' },
-        ],
-      },
-      { text: 'Integrations', link: '/integrations/' },
-      { text: 'Community', link: '/community/' },
-      {
-        text: 'Changelog',
-        collapsed: true,
-        items: [
-          { text: 'Overview', link: '/changelog/' },
-          { text: 'Stable', link: '/changelog/stable' },
-          { text: 'Beta', link: '/changelog/beta' },
-          { text: 'Canary', link: '/changelog/canary' },
-        ],
-      },
-      {
-        text: 'Governance',
-        collapsed: true,
         items: [
           { text: 'Overview', link: '/governance/' },
           {
@@ -120,12 +133,40 @@ export default defineConfig({
             text: 'Decisions',
             link: 'https://github.com/LucaDominici/arbiter/blob/main/docs/SYSTEM/DECISIONS.md',
           },
+          {
+            text: 'Comparisons',
+            collapsed: true,
+            items: [
+              { text: 'Overview', link: '/comparisons/' },
+              { text: 'vs spec-kit', link: '/comparisons/spec-kit' },
+              { text: 'vs BMAD', link: '/comparisons/bmad' },
+              { text: 'vs GSD2', link: '/comparisons/gsd2' },
+              { text: 'vs claude-flow', link: '/comparisons/claude-flow' },
+              { text: 'vs SuperClaude', link: '/comparisons/superclaude' },
+            ],
+          },
         ],
       },
+
+      // Utility / secondary (outside the 7 outcome sections)
       {
-        text: 'Contribute',
+        text: 'More',
         collapsed: true,
-        items: [{ text: 'Translations', link: '/i18n/CONTRIBUTING' }],
+        items: [
+          { text: 'Integrations', link: '/integrations/' },
+          { text: 'Community', link: '/community/' },
+          {
+            text: 'Changelog',
+            collapsed: true,
+            items: [
+              { text: 'Overview', link: '/changelog/' },
+              { text: 'Stable', link: '/changelog/stable' },
+              { text: 'Beta', link: '/changelog/beta' },
+              { text: 'Canary', link: '/changelog/canary' },
+            ],
+          },
+          { text: 'Translations', link: '/i18n/CONTRIBUTING' },
+        ],
       },
     ],
 
