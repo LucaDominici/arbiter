@@ -53,7 +53,8 @@ describe('matrix: TypeScript project', () => {
     const config = tsConfig()
     runGenerators(config)
     const ci = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
-    expect(ci).toContain('npm ci')
+    // #1131: `npm ci` is bundled in the setup-node-pnpm composite, not inline.
+    expect(ci).toContain('./.github/actions/setup-node-pnpm')
     expect(ci).toContain('npm run lint')
     expect(ci).toContain('test:unit')
   })

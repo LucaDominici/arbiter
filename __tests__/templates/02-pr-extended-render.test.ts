@@ -93,10 +93,10 @@ describe('02-pr-extended.yml.ejs — structural invariants (CANON-18)', () => {
 // ─── Per-language integration-tests steps ────────────────────────────────────
 
 describe('02-pr-extended.yml.ejs — per-language integration steps', () => {
-  it('TypeScript: setup-node + npm ci + npm run test:integration', () => {
+  it('TypeScript: setup-node-pnpm composite + npm run test:integration', () => {
     const rendered = renderExt({ language: 'typescript', buildTool: 'npm' })
-    expect(rendered).toContain('setup-node')
-    expect(rendered).toContain('npm ci')
+    // #1131: setup-node + `npm ci` consolidated into the setup-node-pnpm composite.
+    expect(rendered).toContain('./.github/actions/setup-node-pnpm')
     expect(rendered).toContain('test:integration')
   })
 

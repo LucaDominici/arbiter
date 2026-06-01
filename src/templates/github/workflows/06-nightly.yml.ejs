@@ -25,11 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - name: Stryker mutation (full suite)
         run: npx stryker run
 <% } else if (language === 'java') { %>
@@ -90,11 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - name: npm audit
         run: npm audit --omit=dev --audit-level=high
       - name: osv-scanner
@@ -142,11 +134,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - name: fast-check fuzz (property-based)
         run: npm run test:fuzz
 <% } else if (language === 'java') { %>
@@ -209,11 +197,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - name: Bake E2E
         run: npm run test:e2e:bake
       - name: Native E2E
@@ -274,11 +258,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
 
       - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         if: matrix.stack == 'python'
@@ -317,11 +297,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
 <% } else if (language === 'java') { %>
       - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
         with:

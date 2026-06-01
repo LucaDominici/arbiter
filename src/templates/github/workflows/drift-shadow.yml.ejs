@@ -16,11 +16,7 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - name: Emit local L1 gate result
         run: node scripts/check-all.mjs L1 --json .arbiter/gate/local-result.json
       - name: Compare local vs CI parity hash
