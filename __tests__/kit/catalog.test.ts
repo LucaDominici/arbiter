@@ -3,16 +3,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
-import {
-  KitCatalogSchema,
-  KitOverlaySchema,
-  KitCategoryMapSchema,
-  DerivedKitSchema,
-  deriveKit,
-  type DerivedKit,
-} from '../../src/kit/schema.js'
+import { KitCatalogSchema, DerivedKitSchema, type DerivedKit } from '../../src/kit/schema.js'
 import { scanForRedactedTokens, type LexiconEntry } from '../../src/kit/redaction.js'
-import { loadCatalog, findById, byTml, byGate } from '../../src/kit/catalog.js'
+import { loadCatalog } from '../../src/kit/catalog.js'
 
 const ROOT = resolve(__dirname, '../..')
 const REDACTION_LEXICON: LexiconEntry[] = JSON.parse(
@@ -41,48 +34,9 @@ describe('catalog.json parses', () => {
     expect(() => KitCatalogSchema.parse(raw)).not.toThrow()
   })
 
-  it('overlay.json is valid KitOverlay', () => {
-    const raw = JSON.parse(readFileSync(join(ROOT, 'src/kit/overlay.json'), 'utf-8'))
-    expect(() => KitOverlaySchema.parse(raw)).not.toThrow()
-  })
-
-  it('category-map.json is valid KitCategoryMap', () => {
-    const raw = JSON.parse(readFileSync(join(ROOT, 'src/kit/category-map.json'), 'utf-8'))
-    expect(() => KitCategoryMapSchema.parse(raw)).not.toThrow()
-  })
-
   it('derived.json is valid DerivedKit', () => {
     expect(derived).toBeDefined()
     expect(derived.length).toBe(77)
-  })
-})
-
-// ─── Round-trip: deriveKit() == derived.json ─────────────────────────────────
-
-describe('deriveKit round-trip (schema.ts == build-kit.mjs)', () => {
-  it('deriveKit() produces output matching derived.json', () => {
-    const catalog = KitCatalogSchema.parse(
-      JSON.parse(readFileSync(join(ROOT, 'src/kit/catalog.json'), 'utf-8')),
-    )
-    const overlay = KitOverlaySchema.parse(
-      JSON.parse(readFileSync(join(ROOT, 'src/kit/overlay.json'), 'utf-8')),
-    )
-    const matrix = JSON.parse(
-      readFileSync(join(ROOT, 'src/compatibility/cross-language-matrix.json'), 'utf-8'),
-    )
-    const categoryMap = KitCategoryMapSchema.parse(
-      JSON.parse(readFileSync(join(ROOT, 'src/kit/category-map.json'), 'utf-8')),
-    )
-    const result = deriveKit(catalog, overlay, matrix, categoryMap)
-    expect(result.length).toBe(derived.length)
-    for (let i = 0; i < derived.length; i++) {
-      expect(result[i].id, `index ${i} id mismatch`).toBe(derived[i].id)
-      for (const stack of STACKS) {
-        expect(result[i].perStack[stack].kind, `${result[i].id}.${stack} kind mismatch`).toBe(
-          derived[i].perStack[stack].kind,
-        )
-      }
-    }
   })
 })
 
@@ -302,54 +256,6 @@ describe('loadCatalog()', () => {
 
   it('first entry is N01', () => {
     expect(loadCatalog()[0].id).toBe('N01')
-  })
-})
-
-describe('findById()', () => {
-  it('returns N01 for findById("N01")', () => {
-    const dim = findById('N01')
-    expect(dim).toBeDefined()
-    expect(dim!.id).toBe('N01')
-  })
-
-  it('returns N77 for findById("N77")', () => {
-    const dim = findById('N77')
-    expect(dim).toBeDefined()
-    expect(dim!.id).toBe('N77')
-  })
-
-  it('returns undefined for findById("N78")', () => {
-    expect(findById('N78')).toBeUndefined()
-  })
-
-  it('returns undefined for findById("")', () => {
-    expect(findById('')).toBeUndefined()
-  })
-})
-
-describe('byTml()', () => {
-  it('filters L1 correctly', () => {
-    const l1 = byTml('L1')
-    expect(l1.length).toBeGreaterThan(0)
-    expect(l1.every((d) => d.tml === 'L1')).toBe(true)
-  })
-
-  it('L1 + L2 + L3 = 77', () => {
-    const total = byTml('L1').length + byTml('L2').length + byTml('L3').length
-    expect(total).toBe(77)
-  })
-})
-
-describe('byGate()', () => {
-  it('filters BLOCKING correctly', () => {
-    const blocking = byGate('BLOCKING')
-    expect(blocking.length).toBeGreaterThan(0)
-    expect(blocking.every((d) => d.gate === 'BLOCKING')).toBe(true)
-  })
-
-  it('BLOCKING + ADVISORY + REFERENCE = 77', () => {
-    const total = byGate('BLOCKING').length + byGate('ADVISORY').length + byGate('REFERENCE').length
-    expect(total).toBe(77)
   })
 })
 

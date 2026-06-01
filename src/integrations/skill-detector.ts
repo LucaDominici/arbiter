@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
 import type { InstalledSkill } from './types.js'
 
 const MAX_DEPTH = 6
@@ -132,17 +131,4 @@ const skillCache = new Map<string, InstalledSkill[]>()
  */
 export function clearSkillCache(): void {
   skillCache.clear()
-}
-
-// Compatibility shim for #550 — check presence of a named superpowers skill.
-export function hasSuperpowersSkill(
-  skillName: string,
-  projectRoot: string,
-  homeDir?: string,
-): boolean {
-  const local = join(projectRoot, '.claude', 'skills', skillName, 'SKILL.md')
-  if (existsSync(local)) return true
-  const resolvedHome = homeDir ?? homedir()
-  const globalPath = join(resolvedHome, '.claude', 'skills', 'superpowers', skillName, 'SKILL.md')
-  return existsSync(globalPath)
 }

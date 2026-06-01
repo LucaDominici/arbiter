@@ -5,12 +5,10 @@ import { writeFile } from './fs.js'
 import { atomicWriteFile, withLock } from './atomic-write.js'
 import { getLogger } from './logger.js'
 import { ConfigError } from './errors.js'
-import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import {
   type ArbiterConfigV2,
   type FeatureFlags,
   type ThresholdsV2,
-  DEFAULT_THRESHOLDS,
   validateConfig,
 } from '../config/schema.js'
 import { migrate } from '../config/migrations/index.js'
@@ -150,32 +148,5 @@ export function loadConfig(dir: string): ArbiterConfig | null {
       'E_CONFIG_INVALID',
       `arbiter.json at ${path} failed migration: ${msg}. Fix or delete and re-run.`,
     )
-  }
-}
-
-export function defaultConfig(): ArbiterConfig {
-  const governanceLevel = 'L2'
-  return {
-    version: '0.2',
-    tools: ['claude', 'codex'],
-    governanceLevel,
-    permitGitHub: false,
-    features: {
-      debtGates: true,
-      suppressions: true,
-      securityScanning: true,
-      mutationTesting: true,
-      contractTesting: false,
-      evidenceHarness: false,
-      selfValidationHarness: true,
-    },
-    thresholds: DEFAULT_THRESHOLDS[governanceLevel],
-    invariantTiers: presetToTiers(defaultPresetForLevel(governanceLevel)),
-    archetype: 'library',
-    architectureStyle: 'none',
-    isMultiTenant: false,
-    hasDatabase: false,
-    hasPublicApi: false,
-    contractType: 'none',
   }
 }

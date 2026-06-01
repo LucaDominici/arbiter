@@ -16,7 +16,42 @@ related: []
 **Date:** 2026-06-01
 **Wave:** CANON-22 evidence-based quality (un-blind gates)
 **Tool:** `npx ts-prune` (tsconfig excludes `__tests__/`, so an export with no _non-test_ importer is surfaced).
-**Status:** OPEN burn-down. The `ts-prune --error` **hard gate is deferred to this burn-down**, not muted in the CANON-22 PR.
+**Status:** BURN-DOWN COMPLETE (2026-06-01). All 37 entries resolved by **deletion** —
+user confirmed "delete all" (the kit subsystem feature stays intact; only its
+callerless helper exports were removed, see Resolution). The `ts-prune --error`
+hard gate is **not yet wired** — its promotion is a follow-up (see Gate promotion),
+deliberately split out because wiring a generated gate for target projects is a
+Track-B change requiring a generic exempt policy, not arbiter-specific barrels.
+
+## Resolution (2026-06-01)
+
+All 37 deleted. tsc clean, full vitest green, repo-wide non-`.ts` sweep
+(`.mjs`/`.cjs`/`.ejs`/`.json`) found zero references to any deleted symbol or
+file. `ts-prune` now reports **0 non-exempt findings** (exempt = the published-API
+barrels `adapters|compatibility|invariants|experimental/index.ts`, named-convention
+helpers `_*`/`*ForTest`/`*Cache`/`__internal`, INV-89 `generateAntiDriftValidators`,
+and cross-module re-exports `DebtBaseline*`/`SkillMatrixEntry`).
+
+**Second-order cascades beyond the 37** (dead once their only callers — the 37 —
+were removed; each verified zero external + zero non-`.ts` reference):
+
+- **Whole files deleted (8):** `src/config/strictness-tiers.ts`,
+  `src/config/thresholds-by-level.ts`, `src/detectors/modules.ts`,
+  `src/kit/tooling-discovery.ts`, `src/notary/delta.ts`,
+  `src/utils/release-bucket.ts`, `src/utils/seed.ts`, `src/utils/vault-sync.ts`.
+- **`src/utils/seed.ts`** — note: `createSeededRng` + `canonicalJsonHash` were **not**
+  in the original 37; they were kept alive only by the (test-only) `seededClock` /
+  `deriveSeedFromConfig`. Once those went, the whole module was unreferenced (the
+  `#637`/`#639` "reproducible build" consumers no longer exist). Deleted as a
+  cascade, not exempted (exempting live-dead code would be a CANON-09 lie).
+- **Trimmed type/data cascades:** the `KIT_THRESHOLDS` data + its interfaces in
+  `src/kit/thresholds.ts` (kept only `BrownfieldClass`); the overlay/category-map
+  schemas + `deriveKit`/`normalizeMatrixCell` in `src/kit/schema.ts`; the dead
+  `TML`/`Gate`/`Disposition` + `VALID_DISPOSITIONS` in `src/kit/taxonomy.ts`;
+  the `ContextBlock`/`RedTeamFinding`/`RedTeamEvidenceV1` schemas in `src/types/plan.ts`.
+- **`defaultConfig`** relocated to a test-only fixture
+  (`__tests__/helpers/default-config.ts`) — it had no production caller but seeded
+  three test suites; relocating keeps the fixture without claiming it is product code.
 
 ---
 
@@ -95,9 +130,21 @@ Verified 2026-06-01: each symbol below has a dedicated unit test but **zero** no
 
 ---
 
-## Gate promotion (definition of done for this burn-down)
+## Gate promotion — FOLLOW-UP (separate Track-B PR)
 
-1. Resolve every entry above (delete symbol+test, or wire a production caller).
-2. Add `ts-prune` devDep + `.ts-prunerc.json` (self) and `static-analysis/ts-prunerc.json.ejs` (template, dual-sided) ignoring **only** the published-API entrypoints + INV-88/89 surfaces + named-convention helpers.
-3. Wire `runCheck('unwired exports', 'npx', ['ts-prune', '--error'])` at L2 in `scripts/check-all.mjs` and `src/templates/scripts/check-all.mjs.ejs`. Add `ts-prune` to the target devDeps in `src/generators/debt-gates.ts` (or it is dead-on-arrival).
+Step 1 (resolve every entry) is **DONE** (see Resolution). The remaining gate-wiring
+is a deliberate follow-up: it is a **Track-B (template/generator) change** and must
+ship dual-complete with a _generic_ exempt policy, not arbiter's specific barrels.
+A bare `ts-prune --error` also over-fires on `(used in module)` exports, so the gate
+needs a filter wrapper (drop `used in module`, drop the exempt allowlist, fail on the
+remainder) rather than the raw CLI flag.
+
+1. ✅ Resolve every entry above (all 37 deleted; see Resolution).
+2. Add `ts-prune` devDep + a self filter-gate (`scripts/check-unwired-exports.mjs`)
+   and the template mirror (`static-analysis/ts-prunerc.json.ejs` +
+   `src/templates/scripts/check-all.mjs.ejs`). The template exempt policy must be
+   **generic** — named-convention helpers + the target's own `package.json` `exports`
+   / barrels — since a generated TS project has none of arbiter's `adapters|compatibility|invariants/index.ts` surfaces.
+3. Wire the filter-gate at L2 in `scripts/check-all.mjs` and the template; add `ts-prune`
+   to target devDeps in `src/generators/debt-gates.ts` (or it is dead-on-arrival).
 4. Gate must be **green with zero ignored real findings** — no baseline of live dead code (CANON-09).

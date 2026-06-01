@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  classifyPath,
-  isClassified,
-  assertClassified,
-  highestRisk,
-  UNCLASSIFIED_LEVEL,
-} from '../../src/risk/classifier.js'
+import { classifyPath, highestRisk, UNCLASSIFIED_LEVEL } from '../../src/risk/classifier.js'
 
 describe('classifyPath (#238)', () => {
   it('javascript: classifies migrations as R0 (highest risk)', () => {
@@ -55,28 +49,6 @@ describe('classifyPath (#238)', () => {
 
   it('returns UNCLASSIFIED when no rule matches the path', () => {
     expect(classifyPath('random/file.xyz', 'typescript')).toBe(UNCLASSIFIED_LEVEL)
-  })
-})
-
-describe('isClassified / assertClassified (#238)', () => {
-  it('isClassified true for R0..R4', () => {
-    for (const l of ['R0', 'R1', 'R2', 'R3', 'R4'] as const) {
-      expect(isClassified(l)).toBe(true)
-    }
-  })
-
-  it('isClassified false for UNCLASSIFIED', () => {
-    expect(isClassified(UNCLASSIFIED_LEVEL)).toBe(false)
-  })
-
-  it('assertClassified returns the level when classified', () => {
-    expect(assertClassified('R2')).toBe('R2')
-  })
-
-  it('assertClassified throws on UNCLASSIFIED (fail-closed)', () => {
-    expect(() => assertClassified(UNCLASSIFIED_LEVEL, 'test path')).toThrow(
-      /UNCLASSIFIED.*test path/,
-    )
   })
 })
 

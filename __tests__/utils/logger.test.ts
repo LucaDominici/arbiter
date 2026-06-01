@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { Writable } from 'node:stream'
-import { Logger, withRunId, setRootLogger, getLogger } from '../../src/utils/logger.js'
+import { Logger } from '../../src/utils/logger.js'
 
 class CapturingStream extends Writable {
   chunks: string[] = []
@@ -95,33 +95,5 @@ describe('Logger text format', () => {
     expect(line).toContain('thing-happened')
     expect(line).toContain('short msg')
     expect(line).toContain('count=2')
-  })
-})
-
-describe('AsyncLocalStorage runId override', () => {
-  it('withRunId binds a runId visible to the singleton logger inside the callback', () => {
-    const stream = new CapturingStream()
-    setRootLogger({ level: 'info', format: 'json', stream })
-    withRunId('scoped-run', () => {
-      getLogger().info('inside')
-    })
-    getLogger().info('outside')
-    const lines = stream.lines()
-    const inside = JSON.parse(lines[0]!) as Record<string, unknown>
-    const outside = JSON.parse(lines[1]!) as Record<string, unknown>
-    expect(inside.runId).toBe('scoped-run')
-    expect(outside).not.toHaveProperty('runId')
-  })
-
-  it('ALS runId overrides logger-level runId inside scope', () => {
-    const stream = new CapturingStream()
-    const logger = setRootLogger({ level: 'info', format: 'json', stream, runId: 'static' })
-    withRunId('dynamic', () => {
-      logger.info('e')
-    })
-    logger.info('e2')
-    const [a, b] = stream.lines().map((l) => JSON.parse(l) as Record<string, unknown>)
-    expect(a!.runId).toBe('dynamic')
-    expect(b!.runId).toBe('static')
   })
 })

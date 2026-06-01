@@ -28,6 +28,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
+      // Measure the coverage floor against shipped product code only. Build/dev
+      // tooling (scripts/*.mjs, .claude/hooks/*) and test helpers are exercised
+      // incidentally by tests but are not the product; counting them made the
+      // global average a misleading proxy for product-code quality.
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        '__tests__/**',
+        'scripts/**',
+        '.claude/**',
+        '**/*.config.ts',
+      ],
       thresholds: {
         lines: 85,
         branches: 75,

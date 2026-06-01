@@ -114,29 +114,6 @@ export function classifyPath(path: string, stack: Language): ClassifyResult {
   }
 }
 
-/** Type-guard: true when a `ClassifyResult` is a real RiskLevel (R0–R4). */
-export function isClassified(level: ClassifyResult): level is RiskLevel {
-  return level !== UNCLASSIFIED_LEVEL
-}
-
-/**
- * Fail-closed helper for callers that cannot proceed without a real
- * risk level. Throws if the result is `UNCLASSIFIED_LEVEL`.
- *
- * Use this in evidence gating, CI gates, or any place where "no opinion"
- * must be treated as "block until a human classifies".
- */
-export function assertClassified(level: ClassifyResult, context?: string): RiskLevel {
-  if (level === UNCLASSIFIED_LEVEL) {
-    const where = context ? ` (${context})` : ''
-    throw new Error(
-      `classifyPath returned UNCLASSIFIED${where} — refusing to fail open. ` +
-        `Add a rule for this path/stack or treat as manual-review.`,
-    )
-  }
-  return level
-}
-
 /**
  * Numeric ordering for risk comparison. Lower index = higher risk.
  * Useful for `Math.min`-style "pick the most dangerous level seen".

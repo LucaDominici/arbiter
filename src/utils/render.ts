@@ -21,10 +21,6 @@ export function renderTemplate(templatePath: string, data: object): string {
   return ejs.render(source, data, { filename: fullPath })
 }
 
-export function renderString(template: string, data: object): string {
-  return ejs.render(template, data)
-}
-
 /**
  * Render an EJS template from an absolute file path.
  * Used by the plugin runner to render templates from plugin-owned templateRoot.

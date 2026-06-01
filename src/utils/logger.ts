@@ -140,7 +140,3 @@ export function setRootLogger(opts: LoggerOptions): Logger {
 export function getLogger(): Logger {
   return rootLogger
 }
-
-export function withRunId<T>(runId: string, fn: () => T): T {
-  return runContext.run({ runId }, fn)
-}

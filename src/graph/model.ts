@@ -122,11 +122,3 @@ export const ALL_EDGE_KINDS: readonly EdgeKind[] = [
   'supersedes',
   'promotes',
 ] as const
-
-export function isNodeKind(value: string): value is NodeKind {
-  return (ALL_NODE_KINDS as readonly string[]).includes(value)
-}
-
-export function isEdgeKind(value: string): value is EdgeKind {
-  return (ALL_EDGE_KINDS as readonly string[]).includes(value)
-}

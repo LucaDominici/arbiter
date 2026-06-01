@@ -16,8 +16,6 @@
 import type { KitDimension } from './schema.js'
 import type { ProjectConfig } from '../wizard/types.js'
 
-export const UNIVERSAL_APPLIES = Symbol('UNIVERSAL_APPLIES')
-
 export interface ApplicabilityResult {
   applicability: 'applicable' | 'na'
   reason?: string
