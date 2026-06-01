@@ -597,7 +597,7 @@ describe('check-all.mjs.ejs — mutation gate wiring (#347, CANON-02/09/15)', ()
 // ─── #352: Stylelint + design-token enforcement (CANON-02/15) ────────────────
 
 describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () => {
-  it('TS frontend-spa L1: emits stylelint runToolCheck', () => {
+  it('TS frontend-spa L1: emits stylelint runToolCheck gated on a present config', () => {
     const data = makeConfig('/tmp/test', {
       language: 'typescript',
       archetype: 'frontend-spa',
@@ -605,6 +605,8 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
     expect(content).toContain("runToolCheck('lint:css', 'npx', ['stylelint', 'src/**/*.css']")
+    // gate-on-present: CI must not FAIL when no .stylelintrc is emitted (#352 config is a follow-up)
+    expect(content).toContain("if (existsSync('.stylelintrc.json') || existsSync('.stylelintrc'))")
   })
 
   it('TS library L1: does NOT emit stylelint step (archetype gate)', () => {

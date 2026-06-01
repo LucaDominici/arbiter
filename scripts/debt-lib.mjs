@@ -200,15 +200,30 @@ export function collectMetrics(cwd) {
     cwd,
   })
   if (jscpdRaw !== null) {
-    try {
-      const dup = JSON.parse(readFileSync(resolve(cwd, 'report', 'jscpd-report.json'), 'utf-8'))
-      metrics.duplicationPercentage = {
-        value: dup.statistics?.total?.percentage ?? 0,
-        unit: 'percent',
-        direction: 'lower-is-better',
+    // jscpd writes report/jscpd-report.json ONLY when clones are found. So:
+    // report present → real value; exit 0 + no report → genuinely 0%; ran but
+    // failed with no report → OMIT the metric (ratchet skips) rather than record a
+    // false 0 that would mask duplication (fail-closed, CANON-22).
+    const reportPath = resolve(cwd, 'report', 'jscpd-report.json')
+    if (existsSync(reportPath)) {
+      try {
+        const dup = JSON.parse(readFileSync(reportPath, 'utf-8'))
+        metrics.duplicationPercentage = {
+          value: dup.statistics?.total?.percentage ?? 0,
+          unit: 'percent',
+          direction: 'lower-is-better',
+        }
+      } catch {
+        process.stderr.write(
+          '[baseline] warn: jscpd report unreadable — skipping duplicationPercentage\n',
+        )
       }
-    } catch {
+    } else if ((jscpdRaw.status ?? 0) === 0) {
       metrics.duplicationPercentage = { value: 0, unit: 'percent', direction: 'lower-is-better' }
+    } else {
+      process.stderr.write(
+        '[baseline] warn: jscpd failed with no report — skipping duplicationPercentage\n',
+      )
     }
   }
 
