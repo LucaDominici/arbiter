@@ -33,6 +33,7 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `docs/GOVERNANCE/GOOD-FIRST-ISSUE-POLICY.md` — Good First Issue Policy
 - `docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md` — Good First Issue Template
 - `docs/GOVERNANCE/index.md` — arbiter Governance
+- `docs/GOVERNANCE/LABELS.md` — arbiter Label Catalogue
 - `docs/GOVERNANCE/RACI.md` — RACI Matrix — arbiter
 - `docs/GOVERNANCE/README.md` — arbiter Governance
 
