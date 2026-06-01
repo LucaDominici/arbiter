@@ -37,7 +37,9 @@ describe('generateGithub', () => {
   it('CI workflow contains TypeScript-specific steps', () => {
     generateGithub(makeConfig(dir, { language: 'typescript' }))
     const content = readFileSync(join(dir, '.github', 'workflows', '01-pr-fast.yml'), 'utf-8')
-    expect(content).toContain('npm ci')
+    // #1131: setup-node + `npm ci` is now the setup-node-pnpm composite (the
+    // install runs inside the action, not inline in the workflow).
+    expect(content).toContain('./.github/actions/setup-node-pnpm')
     expect(content).toContain('test:unit')
   })
 

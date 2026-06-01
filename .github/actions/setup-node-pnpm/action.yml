@@ -1,19 +1,30 @@
-name: Setup Node.js
+# NOTE: directory is named `setup-node-pnpm` for historical reasons; it sets up
+# Node + npm (not pnpm). The name is retained to avoid orphaning the dir in
+# already-generated repos on their next `arbiter update` (#1131).
+name: Setup Node.js + npm ci
 description: >-
-  Sets up Node.js using the version from .nvmrc.
-  Restores npm cache for faster installs.
+  Sets up Node.js from .nvmrc with the npm cache, then runs `npm ci`.
+  Set the `install` input to 'false' for setup-only jobs.
 
 inputs:
   node-version-file:
     description: Path to the node version file
     required: false
     default: .nvmrc
+  install:
+    description: Run `npm ci` after setup (set 'false' to skip install)
+    required: false
+    default: 'true'
 
 runs:
   using: composite
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: npm
+    - name: Install dependencies (npm ci)
+      if: ${{ inputs.install == 'true' }}
+      shell: bash
+      run: npm ci

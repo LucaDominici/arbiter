@@ -108,11 +108,15 @@ This binds the 5 baseline workflows as required status checks (INV-74 anti-bot g
 
 `.github/actions/setup-node-pnpm/action.yml` is a composite action that:
 
-1. Sets up Node (version from `.nvmrc` if present)
-2. Enables corepack
-3. Runs `npm ci`
+1. Sets up Node (version from `.nvmrc`) with the npm cache
+2. Runs `npm ci` — skip with the `install: 'false'` input for setup-only jobs
 
-Referenced in workflows as `uses: ./.github/actions/setup-node-pnpm`.
+Referenced in workflows as `uses: ./.github/actions/setup-node-pnpm`. It pins a
+single canonical `actions/setup-node` SHA, so the per-job `setup-node + npm ci`
+boilerplate lives in one place (#1131). The directory name is historical — the
+action uses npm, not pnpm. Node-only jobs (PII/secret scans, change classify,
+action-pin audit) and the publish job (which needs `registry-url`) keep their
+own inline `actions/setup-node`.
 
 ## Heartbeat Watchdog
 

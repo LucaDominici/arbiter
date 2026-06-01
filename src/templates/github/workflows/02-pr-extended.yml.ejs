@@ -78,11 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - run: npm run test:integration
 <% if (_isService) { %>
       - name: Toxiproxy resilience test
@@ -145,11 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
 <% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
       - name: Pact can-i-deploy
         if: vars.PACT_BROKER_BASE_URL != ''
@@ -289,11 +281,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - name: License check
         run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0'
 <% } else if (language === 'java') { %>
@@ -341,11 +329,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 <% if (language === 'typescript') { %>
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:behavioral
 <% } else if (language === 'java') { %>
@@ -384,11 +368,7 @@ jobs:
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-pnpm
       - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:e2e:bake
 <% } %>
