@@ -81,7 +81,7 @@ describe('_post-merge-notify.yml.ejs — security invariants', () => {
   })
 
   it('SHA-pinned download-artifact (INV-76)', () => {
-    expect(rendered).toContain('actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093')
+    expect(rendered).toContain('actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c')
   })
 
   it('uses GITHUB_OUTPUT not ::set-output for changed files', () => {
