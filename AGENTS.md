@@ -253,6 +253,9 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-108:** SSOT core set exhaustiveness — every qualifying doc must be listed
   - _Enforcement:_ `scripts/check-ssot-core.mjs` (reverse check via `gen-ssot-core.mjs` `selectSsotDocs`) + `gen-ssot-core.mjs --check` (L1, selfOnly — arbiter self-governance only)
 
+- **INV-109:** Duplication (DRY) gate + ratchet — generated and dogfooded
+  - _Enforcement:_ `npx jscpd` (L2, see `.jscpd.json`) + `scripts/debt-report.mjs --gate` (`duplicationPercentage` ratchet); generated for TypeScript targets by `src/generators/duplication.ts` (CANON-22 Tier-1)
+
 - **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
   - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)
   - In FE projects, UI component files MUST use semantic design tokens from design-tokens.json (W3C DTCG format). Raw hex/rgb/hsl colors, foundation/primitive tokens (--f-\*), and phantom token references are FORBIDDEN. Mirrors FE006 + P1 of the FRONTEND_CONSTITUTION.

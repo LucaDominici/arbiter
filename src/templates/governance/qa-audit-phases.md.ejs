@@ -32,7 +32,7 @@ Each phase is defined by a JSON document at `.arbiter/qa-audit/phase-<NN>.json`:
     },
     {
       "id": "no-circular-deps",
-      "command": "npx madge --circular src/",
+      "command": "npx madge --circular --extensions ts,tsx,js,jsx src/",
       "expect_exit_code": 0,
       "rationale": "circular deps regress maintainability",
     },

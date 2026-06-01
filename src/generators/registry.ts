@@ -11,6 +11,7 @@ import { generateCheckAll } from './check-all.js'
 import { generateCursor } from './cursor.js'
 import { generateCopilot } from './copilot.js'
 import { generateCoverage } from './coverage.js'
+import { generateDuplication } from './duplication.js'
 import { generateDebtGates } from './debt-gates.js'
 import { generateDebtRatchet } from './debt-ratchet.js'
 import { generateSuppressions } from './suppressions.js'
@@ -49,6 +50,7 @@ import { generateFrontendGovernance } from './frontend-governance.js'
 import { generateFrontendQuality } from './frontend-quality.js'
 import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
+import { generatePharma } from './pharma.js'
 import { generateObservability } from './observability.js'
 import { generateAuth } from './auth.js'
 import { generateCiTier } from './ci-tier.js'
@@ -183,6 +185,13 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'coverage',
       enabled: config.enableDebtGates,
       run: (opts) => generateCoverage(config, opts).files,
+    },
+    {
+      // CANON-22: DRY/duplication gate (jscpd). Dogfooded by arbiter at
+      // scripts/check-all.mjs; this emits the same gate to TypeScript targets.
+      key: 'duplication',
+      enabled: config.enableDebtGates,
+      run: (opts) => generateDuplication(config, opts).files,
     },
     {
       key: 'suppressions',
@@ -345,6 +354,13 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
         config.enableNis2Mapping === true ||
         config.enableGdprMapping === true,
       run: (opts) => generateCompliance(config, opts).files,
+    },
+    {
+      // F5 (#888): pharma audit-trail overlay — opt-in via industryOverlay, Java only.
+      // Gated here (not dead): un-blinds the generator without firing for non-pharma targets.
+      key: 'pharma',
+      enabled: config.language === 'java' && config.industryOverlay === 'pharma',
+      run: (opts) => generatePharma(config, opts).files,
     },
     {
       key: 'behavioral-tests',

@@ -1,6 +1,7 @@
 {
   "workspaces": {
     ".": {
+      "entry": ["src/adapters/index.ts!"],
       "project": ["src/**/*.ts", "!src/templates/**"]
     }
   },
@@ -20,11 +21,5 @@
     "Unlicense",
     "Python-2.0"
   ],
-  "exclude": ["types", "nsTypes", "enumMembers"],
-  "ignoreIssues": {
-    "src/compliance/loader.ts": ["exports"],
-    "src/experimental/index.ts": ["exports"],
-    "src/kit/index.ts": ["files", "exports"],
-    "src/adapters/index.ts": ["files", "exports"]
-  }
+  "exclude": ["types", "nsTypes", "enumMembers"]
 }

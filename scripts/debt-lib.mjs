@@ -192,6 +192,26 @@ export function collectMetrics(cwd) {
     }
   }
 
+  // ── Duplication (jscpd) — CANON-22 DRY ratchet (Lehman entropy) ────────────
+  // jscpd writes report/jscpd-report.json (reporters configured in .jscpd.json);
+  // statistics.total.percentage is the duplicated-token ratio. The ratchet blocks
+  // any patch that raises it.
+  const jscpdRaw = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', ['jscpd', '--silent'], {
+    cwd,
+  })
+  if (jscpdRaw !== null) {
+    try {
+      const dup = JSON.parse(readFileSync(resolve(cwd, 'report', 'jscpd-report.json'), 'utf-8'))
+      metrics.duplicationPercentage = {
+        value: dup.statistics?.total?.percentage ?? 0,
+        unit: 'percent',
+        direction: 'lower-is-better',
+      }
+    } catch {
+      metrics.duplicationPercentage = { value: 0, unit: 'percent', direction: 'lower-is-better' }
+    }
+  }
+
   // ── Public API surface (library archetype — count of top-level exports) ───
   {
     const grepOut = run('grep', ['-rh', '--include=*.ts', '--include=*.mts', '^export', 'src/'], {
