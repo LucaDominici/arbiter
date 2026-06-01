@@ -4,6 +4,7 @@
 // CATALOG: projects. Companion to frontend-governance.ts (which emits docs). (#1127)
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { injectDevDependency } from '../utils/pkg.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -33,8 +34,9 @@ export function generateFrontendQuality(
   const lighthouseRc = renderTemplate('perf/lighthouserc.json.ejs', templateData)
   const bundleBudget = renderTemplate('perf/bundle-budget.json.ejs', templateData)
   const checkBundleSize = renderTemplate('scripts/check-bundle-size.mjs.ejs', templateData)
+  const stylelintRc = renderTemplate('static-analysis/stylelintrc.json.ejs', templateData)
 
-  return {
+  const result = {
     files: [
       // S2: Design tokens (W3C DTCG format) — INV-105 seed file
       writeFile(resolvedPath(base, 'design-tokens.json'), tokensDef, {
@@ -86,6 +88,16 @@ export function generateFrontendQuality(
         skipIfExists: true,
         dryRun: opts.dryRun,
       }),
+      // #352: stylelint design-token config — the lint:css gate runs `npx stylelint`
+      writeFile(resolvedPath(base, '.stylelintrc.json'), stylelintRc, {
+        skipIfExists: true,
+        dryRun: opts.dryRun,
+      }),
     ],
   }
+
+  // #352: ensure the CI lint:css gate resolves (`npx stylelint` needs the tool present).
+  injectDevDependency(base, 'stylelint', '^16.0.0', opts.dryRun)
+
+  return result
 }

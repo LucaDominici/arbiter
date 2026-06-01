@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // CANON-05 generator unit tests for frontend-quality.ts (#1127)
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 import { generateFrontendQuality } from '../../src/generators/frontend-quality.js'
@@ -149,10 +149,32 @@ describe('generateFrontendQuality (#1127)', () => {
     expect(existsSync(join(dir, 'scripts', 'check-bundle-size.mjs'))).toBe(true)
   })
 
-  it('emits total of 10 files for frontend-spa L2', () => {
+  it('emits total of 11 files for frontend-spa L2', () => {
     const result = generateFrontendQuality(
       makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }),
     )
-    expect(result.files).toHaveLength(10)
+    expect(result.files).toHaveLength(11)
+  })
+
+  // ── #352: stylelint design-token config ──────────────────────────────────────
+  it('emits .stylelintrc.json with the #352 design-token rules', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, '.stylelintrc.json'))).toBe(true)
+    const cfg = JSON.parse(readFileSync(join(dir, '.stylelintrc.json'), 'utf-8'))
+    expect(cfg.rules['color-no-hex']).toBeDefined()
+    expect(cfg.rules['length-zero-no-unit']).toBe(true)
+    expect(cfg.rules['custom-property-no-missing-var-function']).toBe(true)
+  })
+
+  it('injects the stylelint devDep so the CI lint:css gate resolves', () => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'fe', devDependencies: {} }))
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8'))
+    expect(pkg.devDependencies.stylelint).toBeTruthy()
+  })
+
+  it('does NOT emit .stylelintrc.json for a non-frontend project', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'library' }))
+    expect(existsSync(join(dir, '.stylelintrc.json'))).toBe(false)
   })
 })

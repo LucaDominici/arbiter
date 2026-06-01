@@ -669,3 +669,20 @@ describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
     expect(l3.threshold).toBe(3)
   })
 })
+
+describe('static-analysis/stylelintrc.json.ejs (#352 design-token config)', () => {
+  it('renders valid JSON with the HARD design-token rules (catches EJS drift)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      archetype: 'frontend-spa',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('static-analysis/stylelintrc.json.ejs', data)
+    const cfg = JSON.parse(content) as { rules: Record<string, unknown> }
+    expect(cfg.rules['color-no-hex']).toBeDefined()
+    expect(cfg.rules['length-zero-no-unit']).toBe(true)
+    expect(cfg.rules['custom-property-no-missing-var-function']).toBe(true)
+    // no `extends`/plugins — design-token enforcement only, brownfield-safe
+    expect(content).not.toContain('"extends"')
+  })
+})

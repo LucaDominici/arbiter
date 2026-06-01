@@ -2,10 +2,9 @@
 // CANON-22: duplication (DRY) gate generator. Emits a jscpd config + injects the
 // jscpd devDep so the `npx jscpd` gate wired into the generated check-all is not
 // dead-on-arrival (CANON-01: arbiter dogfoods the same gate at scripts/check-all.mjs).
-import { existsSync, readFileSync } from 'node:fs'
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
-import { getLogger } from '../utils/logger.js'
+import { injectDevDependency } from '../utils/pkg.js'
 import type { GovernanceLevel, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -21,35 +20,6 @@ function duplicationThresholdFor(level: GovernanceLevel): number {
   if (level === 'L1') return 10
   if (level === 'L2') return 5
   return 3 // L3 / L4 — strict
-}
-
-/**
- * Inject the jscpd devDependency into the target package.json so the emitted
- * `npx jscpd` gate resolves. Single-writer; skips silently if package.json is
- * absent or unparseable (non-TS targets never reach here).
- */
-function injectJscpdDevDep(targetDir: string, dryRun: boolean): void {
-  if (dryRun) return
-  const pkgPath = resolvedPath(targetDir, 'package.json')
-  if (!existsSync(pkgPath)) return
-  let pkg: Record<string, unknown>
-  try {
-    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
-  } catch (err) {
-    getLogger().warn(
-      'duplication.inject_devdep_parse_failed',
-      { path: pkgPath, err: String(err) },
-      'injectJscpdDevDep: failed to parse package.json',
-    )
-    return
-  }
-  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
-  if (!devDeps['jscpd']) {
-    devDeps['jscpd'] = '^4.2.4'
-    pkg.devDependencies = devDeps
-    // Route through the fs façade (honours --dry-run; INV / direct-write gate).
-    writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n', { dryRun })
-  }
 }
 
 export function generateDuplication(
@@ -76,7 +46,7 @@ export function generateDuplication(
     ),
   ]
 
-  injectJscpdDevDep(config.targetDir, opts.dryRun)
+  injectDevDependency(config.targetDir, 'jscpd', '^4.2.4', opts.dryRun)
 
   return { files }
 }

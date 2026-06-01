@@ -1,0 +1,16 @@
+<%# #352 stylelint design-token enforcement (HARD). Core stylelint rules only —
+    no `extends`/plugins — so it enforces tokens without flooding a brownfield
+    project with general-CSS findings. Emitted by frontend-quality.ts for
+    frontend-spa / frontend-lane targets; the lint:css gate runs it (gate-on-present). -%>
+{
+  "rules": {
+    "color-no-hex": [
+      true,
+      {
+        "message": "Use a var(--color-*) token from src/styles/theme.css, not a raw hex color. See docs/PRODUCT/UI-UX-STANDARDS.md."
+      }
+    ],
+    "length-zero-no-unit": true,
+    "custom-property-no-missing-var-function": true
+  }
+}
