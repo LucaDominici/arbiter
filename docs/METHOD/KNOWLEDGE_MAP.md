@@ -19,7 +19,7 @@ related: []
 ## AGENTS.md
 
 **Location:** `AGENTS.md`
-**Lines:** 366
+**Lines:** 430
 **Purpose:** Canonical agent governance — invariants, coding standards, commit convention, gate commands.
 
 | Section           | Description                                                  |
@@ -34,7 +34,7 @@ related: []
 ## docs/METHOD/SSOT_CORE_SET.md
 
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
-**Lines:** 66
+**Lines:** 117
 **Purpose:** Authoritative inventory of all SSOT documents. Start here to discover what documentation exists.
 
 | Section    | Description                       |

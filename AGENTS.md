@@ -245,10 +245,13 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 
 - **INV-106:** i18n parity — all locale files must have identical key sets
   - _Enforcement:_ Generated `scripts/verify-i18n-parity.mjs` + `scripts/i18n-literal-scanner.mjs` (L2, frontend-spa and frontend-lane projects)
+  - In FE projects, all locale JSON files must contain the same set of translation keys. Raw UI text literals in component source are also flagged. Mirrors P6 of FE_DESIGN_PRINCIPLES.
 
 - **INV-107:** docs/ADR/ is the canonical ADR SSOT — numbers unique, canonical_id populated, README in sync
   - _Enforcement:_ `scripts/check-adr-index.mjs` (L1, selfOnly — arbiter self-governance only)
-  - In FE projects, all locale JSON files must contain the same set of translation keys. Raw UI text literals in component source are also flagged. Mirrors P6 of FE_DESIGN_PRINCIPLES.
+
+- **INV-108:** SSOT core set exhaustiveness — every qualifying doc must be listed
+  - _Enforcement:_ `scripts/check-ssot-core.mjs` (reverse check via `gen-ssot-core.mjs` `selectSsotDocs`) + `gen-ssot-core.mjs --check` (L1, selfOnly — arbiter self-governance only)
 
 - **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
   - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)

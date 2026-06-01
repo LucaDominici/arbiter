@@ -12,4 +12,7 @@ docs/REFERENCE/coverage/dim-*.md
 docs/REFERENCE/GLOBAL_KIT.md
 docs/REFERENCE/SELF-KIT-AUDIT.md
 docs/INDEX.md
+# #1100: generated inventory region — gen-ssot-core.mjs owns formatting; keep
+# prettier from fighting the generator over markdown in doc titles (*, _, |, etc.)
+docs/METHOD/SSOT_CORE_SET.md
 .github/

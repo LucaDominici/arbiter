@@ -117,3 +117,63 @@ describe('check-ssot-core (#255)', () => {
     }
   })
 })
+
+// #1100: INV-108 — reverse exhaustiveness (qualifying doc on disk MUST be listed)
+function writeQualifyingDoc(dir: string, relPath: string, kind = 'method'): void {
+  const abs = join(dir, relPath)
+  mkdirSync(join(abs, '..'), { recursive: true })
+  writeFileSync(
+    abs,
+    `---\ntitle: '${relPath}'\nstatus: active\ntags: ['audience/dev', 'kind/${kind}']\n---\n\n# ${relPath}\n`,
+  )
+}
+
+describe('check-ssot-core exhaustiveness (INV-108, #1100)', () => {
+  it('exits 1 when an active backbone doc on disk is absent from SSOT_CORE_SET', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeQualifyingDoc(dir, 'docs/METHOD/LISTED.md')
+      writeQualifyingDoc(dir, 'docs/METHOD/UNLISTED.md')
+      writeCore(
+        dir,
+        '# SSOT\n\n<!-- BEGIN GENERATED INVENTORY -->\n- `docs/METHOD/LISTED.md` — listed\n<!-- END GENERATED INVENTORY -->\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).toMatch(/UNLISTED\.md/)
+      expect(result.stdout + result.stderr).toMatch(/gen-ssot-core/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when every qualifying doc is listed', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeQualifyingDoc(dir, 'docs/METHOD/LISTED.md')
+      writeCore(
+        dir,
+        '# SSOT\n\n<!-- BEGIN GENERATED INVENTORY -->\n- `docs/METHOD/LISTED.md` — listed\n<!-- END GENERATED INVENTORY -->\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('does not require non-qualifying docs (kind/reference) to be listed', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeQualifyingDoc(dir, 'docs/REFERENCE/some-ref.md', 'reference')
+      writeCore(
+        dir,
+        '# SSOT\n\n<!-- BEGIN GENERATED INVENTORY -->\n<!-- END GENERATED INVENTORY -->\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})

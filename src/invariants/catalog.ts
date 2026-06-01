@@ -1701,4 +1701,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-adr-index.mjs verifies unique numbers, canonical_id match, and ' +
       'README coverage. Wired into scripts/check-all.mjs L1 (#1099).',
   },
+  {
+    id: 'INV-108',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'SSOT core set exhaustiveness — every qualifying doc must be listed',
+    description:
+      'docs/METHOD/SSOT_CORE_SET.md must list every doc that qualifies as a canonical SSOT ' +
+      'doc (status: active AND its first kind/* tag is a backbone kind, or a non-empty ' +
+      'canonical_id; excluding ADRs and generated dim-NN coverage stubs). The generated inventory region is the ' +
+      'authoritative source; the gate exits 1 if a qualifying doc on disk is absent from the ' +
+      'list. Complements INV-54 (listed→exists) with the reverse direction (qualifies→listed).',
+    enforcement:
+      'scripts/check-ssot-core.mjs verifies exhaustiveness using the selectSsotDocs predicate ' +
+      'from scripts/gen-ssot-core.mjs (single source of the rule); the generator --check guards ' +
+      'staleness. Wired into scripts/check-all.mjs L1 (#1100).',
+  },
 ]
