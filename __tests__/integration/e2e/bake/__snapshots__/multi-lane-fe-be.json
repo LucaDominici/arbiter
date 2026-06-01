@@ -52,6 +52,7 @@
     ".githooks/pre-commit",
     ".githooks/pre-push",
     ".lighthouserc.json",
+    ".stylelintrc.json",
     "AGENTS.md",
     "Makefile",
     "arbiter.json",
