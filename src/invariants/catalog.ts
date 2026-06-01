@@ -1741,4 +1741,23 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(duplicationPercentage metric collected in scripts/debt-lib.mjs); generated for target ' +
       'projects by src/generators/duplication.ts.',
   },
+
+  {
+    id: 'INV-110',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'GLOBAL_INVARIANTS.md must document every always-active invariant — coverage parity',
+    description:
+      'GLOBAL_INVARIANTS.md is the deep-reference companion to AGENTS.md. Every alwaysActive ' +
+      'invariant in the catalog must have a `### INV-NN` section there (no silent coverage gap — ' +
+      'the drift this gate prevents), and every documented INV must exist in the catalog (no ' +
+      'phantom row). Mirrors the AGENTS.md<->catalog parity gate (CANON-08) for the companion doc. ' +
+      'selfOnly: target GLOBAL_INVARIANTS.md is generated from the catalog and is in parity by ' +
+      'construction, so the gate guards only the hand-maintained arbiter-self doc.',
+    enforcement:
+      'scripts/check-global-invariants-parity.mjs verifies forward (alwaysActive->documented) and ' +
+      'reverse (documented->catalog) parity. Wired into scripts/check-all.mjs L1.',
+  },
 ]
