@@ -198,6 +198,78 @@ describe('generateGithub — collaborationMode resolver (Phase B, ADR-051)', () 
   })
 })
 
+// ── #1131: exactly-one-nightly — trunk-solo gets nightly-lite INSTEAD of full ──
+// Bug: trunk-solo L3/L4 (pipelineStyle 'standard') previously satisfied BOTH the
+// full-nightly guard (style !== 'starter' && isL3Plus) and the trunk-solo lite
+// guard, emitting 06-nightly.yml AND 06-nightly-lite.yml. trunk-solo is the
+// lightweight profile (ADR-053): lite nightly only, no full nightly/weekly/monthly.
+
+describe('generateGithub — exactly-one-nightly for trunk-solo (#1131)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-collab-1nightly-'))
+    initGit(dir)
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  const wf = (name: string) => join(dir, '.github', 'workflows', name)
+
+  // trunk-solo L2: lite only (already correct pre-fix — characterization)
+  it('trunk-solo + L2: 06-nightly-lite emitted, 06-nightly NOT', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L2' }))
+    expect(existsSync(wf('06-nightly-lite.yml'))).toBe(true)
+    expect(existsSync(wf('06-nightly.yml'))).toBe(false)
+  })
+
+  // trunk-solo L3: lite only — NOT full nightly/weekly/monthly (the bug)
+  it('trunk-solo + L3: 06-nightly-lite emitted, 06-nightly NOT (no double-emit)', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L3' }))
+    expect(existsSync(wf('06-nightly-lite.yml'))).toBe(true)
+    expect(existsSync(wf('06-nightly.yml'))).toBe(false)
+  })
+
+  it('trunk-solo + L3: 07-weekly + 08-monthly NOT emitted (lightweight profile)', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L3' }))
+    expect(existsSync(wf('07-weekly.yml'))).toBe(false)
+    expect(existsSync(wf('08-monthly.yml'))).toBe(false)
+  })
+
+  // trunk-solo L4: same lightweight profile
+  it('trunk-solo + L4: 06-nightly-lite emitted, 06-nightly/07-weekly/08-monthly NOT', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L4' }))
+    expect(existsSync(wf('06-nightly-lite.yml'))).toBe(true)
+    expect(existsSync(wf('06-nightly.yml'))).toBe(false)
+    expect(existsSync(wf('07-weekly.yml'))).toBe(false)
+    expect(existsSync(wf('08-monthly.yml'))).toBe(false)
+  })
+
+  // enableSoloDevMode alias (ADR-051): resolves to trunk-solo — must follow the same rule
+  it('enableSoloDevMode:true + L3 (trunk-solo alias): lite only, no full nightly', () => {
+    generateGithub(makeConfig(dir, { enableSoloDevMode: true, governanceLevel: 'L3' }))
+    expect(existsSync(wf('06-nightly-lite.yml'))).toBe(true)
+    expect(existsSync(wf('06-nightly.yml'))).toBe(false)
+    expect(existsSync(wf('07-weekly.yml'))).toBe(false)
+  })
+
+  // Regression: non-trunk-solo modes still get the FULL nightly suite at L3/L4
+  it('peer-review + L3: 06-nightly emitted, 06-nightly-lite NOT', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'peer-review', governanceLevel: 'L3' }))
+    expect(existsSync(wf('06-nightly.yml'))).toBe(true)
+    expect(existsSync(wf('06-nightly-lite.yml'))).toBe(false)
+  })
+
+  it('gated-review + L4: 06-nightly + 07-weekly + 08-monthly emitted', () => {
+    generateGithub(makeConfig(dir, { collaborationMode: 'gated-review', governanceLevel: 'L4' }))
+    expect(existsSync(wf('06-nightly.yml'))).toBe(true)
+    expect(existsSync(wf('07-weekly.yml'))).toBe(true)
+    expect(existsSync(wf('08-monthly.yml'))).toBe(true)
+  })
+})
+
 // ── Phase B: branchingStrategy → develop branch gating (micro-cycle 5) ───────
 
 describe('generateGithub — develop branch gating (Phase B, ADR-051)', () => {

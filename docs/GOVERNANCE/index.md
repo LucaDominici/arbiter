@@ -24,6 +24,7 @@ are applied and enforced.
 | [`AGENTS.md`](../../AGENTS.md)               | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
 | [`docs/SYSTEM/CANON.md`](../SYSTEM/CANON.md) | 15 process-level rules derived from audit waves #151–#186                             |
 | [`docs/GOVERNANCE/RACI.md`](./RACI.md)       | Responsibility matrix for governance decisions                                        |
+| [`docs/GOVERNANCE/LABELS.md`](./LABELS.md)   | Label catalogue — every label's consumer (no-consumer labels are removed)             |
 
 ## Architecture Decision Records
 

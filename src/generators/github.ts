@@ -7,6 +7,7 @@ import type { WriteResult } from '../utils/fs.js'
 import {
   resolvePipelineStyle,
   collaborationModeFromAnswers,
+  resolveCollaborationMode,
   resolveDefaultBranchingStrategy,
 } from '../config/collaboration-mode-defaults.js'
 import type { BranchingStrategy } from '../wizard/types.js'
@@ -95,7 +96,9 @@ function generateCiGapWorkflows(
   dryRun: boolean,
 ): WriteResult[] {
   const files: WriteResult[] = []
-  const cm = config.collaborationMode
+  // ADR-051: resolve via the single derivation site — raw config.collaborationMode
+  // is undefined for the enableSoloDevMode alias, which would skip the lite nightly.
+  const cm = resolveCollaborationMode(config)
   const gl = config.governanceLevel
   const isL2Plus = new Set(['L2', 'L3', 'L4']).has(gl)
   const isL3Plus = new Set(['L3', 'L4']).has(gl)
@@ -148,6 +151,7 @@ function generateCiWorkflows(
 ): WriteResult[] {
   const data = config
   const style = resolveStyle(config)
+  const cm = resolveCollaborationMode(config)
 
   const files: WriteResult[] = [
     writeFile(
@@ -185,7 +189,10 @@ function generateCiWorkflows(
   // ADR-050 §54-58: nightly/weekly/monthly/heartbeat are L3+ only
   const isL3Plus = config.governanceLevel === 'L3' || config.governanceLevel === 'L4'
 
-  if (style !== 'starter' && isL3Plus) {
+  // #1131: trunk-solo gets the lightweight 06-nightly-lite (emitted in
+  // generateCiGapWorkflows) INSTEAD of the full nightly/weekly/monthly suite.
+  // Excluding it here prevents the double-emit of 06-nightly + 06-nightly-lite.
+  if (style !== 'starter' && isL3Plus && cm !== 'trunk-solo') {
     files.push(
       writeFile(
         join(workflowsDir, '06-nightly.yml'),
