@@ -13,7 +13,7 @@ related: []
 
 **Project:** arbiter
 **Date:** 2026-05-15
-**Status:** Accepted
+**Status:** Superseded by [ADR-075](075-docs-site-ia-v2.md)
 
 ## Context
 

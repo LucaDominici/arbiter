@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-31'
+last_review: '2026-06-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -102,3 +102,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 072 | [Loud-bypass contract library (Workstream C Port #10, #970)](072-loud-bypass-contract-library-workstream-c-port-10-970.md)                                            | Accepted | 2026-05-31 | - scripts/lib/loud-bypass.mjs (Level A only): exports checkBypass(envName, opts). Returns { bypassed: true,... |
 | 073 | [Frontend Governance Generator — FrontendConfig + skipIfExists policy](073-frontend-governance-generator-frontendconfig-skipifexists-po.md)                           | Accepted | 2026-05-31 | Gate on archetype === 'frontend-spa'                                                                           |                                                       | lanes.includes('frontend') — both existing config fields, no new me... |
 | 074 | [Risk register + P×I assessment template](074-risk-register-p-i-assessment-template.md)                                                                               | Accepted | 2026-05-31 | Add opt-in enableRiskRegister: true flag. When set, generateRiskRegister emits two files into docs/GOVERNAN... |
+| 075 | [Docs Site Information Architecture v2 — Outcome-First Navigation](075-docs-site-ia-v2.md)                                                                            | Accepted | 2026-06-01 |                                                                                                                |
