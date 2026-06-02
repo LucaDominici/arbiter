@@ -82,6 +82,60 @@ describe('check-inv-enforcement-wired.mjs (INV-52 / CANON-09)', () => {
     }
   })
 
+  // RED tests: prove the CANON-09 blind spot (#1148 Slice A)
+  // These MUST fail against the old regex before the fix is applied.
+
+  it('exits 1 when enforcement cites a non-check- script absent from gate [EXPLOIT #1148]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-99',\n  enforcement: 'scripts/verify-fake.mjs (L1 fail-closed)',`,
+      )
+      writeFileSync(gate, `// gate with no scripts`)
+      const result = run(catalog, gate)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('verify-fake.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when enforcement cites a digit-containing script absent from gate [EXPLOIT #1148]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(catalog, `  id: 'INV-99',\n  enforcement: 'scripts/check-inv-42.mjs (L1)',`)
+      writeFileSync(gate, `// gate with no scripts`)
+      const result = run(catalog, gate)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('check-inv-42.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when enforcement cites a .mjs.ejs Track-B template ((?!\\.ejs) lookahead guards)', () => {
+    // Use a script name NOT in TRACK_B_EXEMPT so only the lookahead prevents the false positive.
+    // Removing (?!\.ejs) from the regex would match check-generated-thing.mjs → exit 1.
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(
+        catalog,
+        `  id: 'INV-44',\n  enforcement: 'src/templates/scripts/check-generated-thing.mjs.ejs',`,
+      )
+      writeFileSync(gate, `// gate with no scripts`)
+      expect(run(catalog, gate).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real catalog and check-all.mjs', () => {
     const result = run(resolve('src/invariants/catalog.ts'), resolve('scripts/check-all.mjs'))
     expect(result.status).toBe(0)

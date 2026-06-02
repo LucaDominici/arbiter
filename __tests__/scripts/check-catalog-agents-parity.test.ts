@@ -236,7 +236,7 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
     }
   })
 
-  it('exits 0 when CANON.md and AGENTS.md CANON-NN sets agree (#485 happy path)', () => {
+  it('exits 0 when CANON.md and AGENTS.md CANON-NN sets are exact match (#485 happy path)', () => {
     const { dir, cleanup } = makeTemp()
     try {
       const catalog = join(dir, 'catalog.ts')
@@ -245,9 +245,68 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       writeFileSync(catalog, makeCatalog(['INV-01']))
       writeFileSync(
         agents,
-        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon refs\n\n- **CANON-01:** ok\n- **CANON-02:** ok`,
+        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon refs\n\n- **CANON-01:** ok\n- **CANON-02:** ok\n- **CANON-03:** ok`,
       )
       writeFileSync(canon, makeCanon(['CANON-01', 'CANON-02', 'CANON-03']))
+      expect(run(catalog, agents, canon).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // RED tests: prove the vacuous CANON forward-loop (#1148 Slice A)
+  // These MUST fail against the current vacuous gate before the fix is applied.
+
+  it('exits 1 when CANON.md heading absent from AGENTS.md [FORWARD GAP #1148]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const canon = join(dir, 'CANON.md')
+      writeFileSync(catalog, makeCatalog(['INV-01']))
+      writeFileSync(agents, makeAgents(['INV-01']))
+      writeFileSync(canon, makeCanon(['CANON-99']))
+      // CANON-99 is in CANON.md but NOT in AGENTS.md — must fail with MISSING
+      const result = run(catalog, agents, canon)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-99')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when multiple CANON.md headings absent from AGENTS.md (all reported)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const canon = join(dir, 'CANON.md')
+      writeFileSync(catalog, makeCatalog(['INV-01']))
+      writeFileSync(agents, makeAgents(['INV-01']))
+      writeFileSync(canon, makeCanon(['CANON-01', 'CANON-02', 'CANON-03']))
+      // AGENTS.md has zero CANON rows — all 3 must be reported MISSING
+      const result = run(catalog, agents, canon)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-01')
+      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-02')
+      expect(result.stdout).toContain('MISSING from AGENTS.md: CANON-03')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when CANON.md headings all present in AGENTS.md (forward parity satisfied)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const canon = join(dir, 'CANON.md')
+      writeFileSync(catalog, makeCatalog(['INV-01']))
+      writeFileSync(
+        agents,
+        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon\n\n- **CANON-01:** rule one\n- **CANON-02:** rule two`,
+      )
+      writeFileSync(canon, makeCanon(['CANON-01', 'CANON-02']))
       expect(run(catalog, agents, canon).status).toBe(0)
     } finally {
       cleanup()

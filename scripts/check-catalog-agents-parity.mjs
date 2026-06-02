@@ -19,17 +19,25 @@ const catalogPath = catalogArg
   ? resolve(catalogArg.split('=')[1])
   : resolve(root, 'src/invariants/catalog.ts')
 const agentsPath = agentsArg ? resolve(agentsArg.split('=')[1]) : resolve(root, 'AGENTS.md')
-const canonPath = canonArg ? resolve(canonArg.split('=')[1]) : resolve(root, 'docs/SYSTEM/CANON.md')
+// canonPath is only resolved when --canon is explicitly passed OR when running against real
+// repo files (no --catalog/--agents override). Fixture-only tests skip canon checks entirely.
+const canonPath =
+  canonArg != null
+    ? resolve(canonArg.split('=')[1])
+    : catalogArg == null && agentsArg == null
+      ? resolve(root, 'docs/SYSTEM/CANON.md')
+      : null
 
 const catalogSrc = readFileSync(catalogPath, 'utf-8')
 const agentsSrc = readFileSync(agentsPath, 'utf-8')
-// CANON.md is optional — only required for the CANON reverse loop. If absent,
-// the script behaves as before (INV-only parity).
+// CANON.md is optional — only loaded when explicitly requested or when using real repo files.
 let canonSrc = ''
-try {
-  canonSrc = readFileSync(canonPath, 'utf-8')
-} catch {
-  canonSrc = ''
+if (canonPath != null) {
+  try {
+    canonSrc = readFileSync(canonPath, 'utf-8')
+  } catch {
+    canonSrc = ''
+  }
 }
 
 // Extract {id, title} pairs from catalog.ts.
@@ -139,6 +147,18 @@ if (canonSrc) {
   }
 }
 
+// Forward (#1148): every `## CANON-NN` heading in CANON.md must have a
+// `**CANON-NN:**` row in AGENTS.md. The previous reverse loop only caught
+// phantom refs — this closes the gap where all Canon rules could be absent.
+if (canonSrc) {
+  for (const id of canonIds) {
+    if (!agentsCanonIds.has(id)) {
+      process.stdout.write(`  MISSING from AGENTS.md: ${id}\n`)
+      violations++
+    }
+  }
+}
+
 if (violations > 0) {
   process.stdout.write(
     `[check-catalog-agents-parity] FAIL: ${violations} parity violation(s) between catalog/CANON.md and AGENTS.md\n`,
@@ -146,5 +166,5 @@ if (violations > 0) {
   process.exit(1)
 }
 process.stdout.write(
-  `[check-catalog-agents-parity] OK — ${catalogEntries.size} catalog IDs and ${agentsCanonIds.size} CANON refs in AGENTS.md verified (bidirectional)\n`,
+  `[check-catalog-agents-parity] OK — ${catalogEntries.size} catalog IDs and ${canonIds.size} CANON refs verified (bidirectional)\n`,
 )

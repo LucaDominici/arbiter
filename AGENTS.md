@@ -422,6 +422,37 @@ arbiter uses a detect-and-reference posture with other Claude Code skill suites.
 
 ---
 
+## Process Canon (CANON-01..23)
+
+Structural process rules enforced by `scripts/check-catalog-agents-parity.mjs` (CANON-08).
+Canonical source: `docs/SYSTEM/CANON.md`.
+
+- **CANON-01:** Dual-sided declination
+- **CANON-02:** Proven cell ⇒ gated step
+- **CANON-03:** Proven cell ⇒ fixture
+- **CANON-04:** Every .ejs has a render test
+- **CANON-05:** Every generator has a unit test
+- **CANON-06:** Every CLI command has a test
+- **CANON-07:** Generated scripts must be executed in tests
+- **CANON-08:** Catalog ↔ AGENTS.md parity
+- **CANON-09:** Invariant enforcement claim = wired gate step
+- **CANON-10:** Every active hook is documented in .claude/CLAUDE.md
+- **CANON-11:** Every file-emitting generator has a brownfield test
+- **CANON-12:** INV-12 applies to arbiter's own source
+- **CANON-13:** EJS conditionals preserved on every template edit
+- **CANON-14:** Self-config ⊇ template at equal governance level
+- **CANON-15:** Boundary/security templates require a wired gate step
+- **CANON-16:** Refactor-first before creating new source files
+- **CANON-17:** FS errno translation
+- **CANON-18:** Every workflow EJS template edit must be tested across all stacks × governance
+- **CANON-19:** sign-and-attest composite action edits require release workflow re-validation
+- **CANON-20:** Governance threshold table changes require cross-product fixture update
+- **CANON-21:** Aggregate, don't proliferate
+- **CANON-22:** Evidence-based quality: validated metrics gate, contested heuristics advise
+- **CANON-23:** RTM-required-by-level: every governed project ships a gated FEATURE_MATRIX
+
+---
+
 ## Multi-Agent Tool Extensions
 
 This project uses AGENTS.md as the canonical source. Tool-specific files add only what each tool uniquely needs:
