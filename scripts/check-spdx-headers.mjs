@@ -8,7 +8,7 @@ import { resolve, join, extname } from 'node:path'
 const args = process.argv.slice(2)
 const dirArg = args.find((a) => a.startsWith('--dir='))
 const root = process.cwd()
-const srcDir = dirArg ? resolve(dirArg.split('=')[1]) : resolve(root, 'src')
+const srcDir = dirArg ? resolve(dirArg.slice('--dir='.length)) : resolve(root, 'src')
 
 const SPDX_IDENTIFIER = 'SPDX-License-Identifier: Apache-2.0'
 
