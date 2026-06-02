@@ -1,0 +1,31 @@
+# pytest a11y spec — INV-61 (#1149).
+#
+# Exercises run_axe against representative views. Extend the VIEWS list
+# as new top-level routes ship.
+#
+# `page` and `base_url` fixtures come from the arbiter-generated conftest.py.
+# base_url defaults to E2E_BASE_URL env var or http://localhost:8000.
+
+from typing import NamedTuple
+
+import pytest
+from playwright.sync_api import Page
+
+from a11y.run_axe import run_axe
+
+
+class View(NamedTuple):
+    label: str
+    path: str
+
+
+VIEWS = [
+    View("home", "/"),
+]
+
+
+@pytest.mark.parametrize("view", VIEWS, ids=lambda v: v.label)
+def test_a11y(page: Page, base_url: str, view: View) -> None:
+    """a11y gate — INV-61 (WCAG 2.2 AA, axe-playwright-python)."""
+    page.goto(f"{base_url}{view.path}")
+    run_axe(page, view.label)

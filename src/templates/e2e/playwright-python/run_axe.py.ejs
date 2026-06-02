@@ -1,0 +1,88 @@
+# a11y axe-playwright-python wrapper — INV-61 (#1149, CANON-02).
+#
+# Threshold policy (mirrors run-axe.ts, deliberate — not negotiable without
+# an INV revision):
+#   - HARD-raise on impact == 'critical'
+#   - HARD-raise on unclassified impact (None) — never silently pass
+#   - LOG without raise on serious / moderate / minor — captured as evidence
+#
+# Downstream projects may ratchet stricter (e.g. raise on 'serious') by
+# extending or replacing this helper. They may NOT loosen it without recording
+# a project-level exception that cites INV-61.
+#
+# Tag set: full WCAG 2.2 AA — wcag2a + wcag2aa + wcag21a + wcag21aa + wcag22aa.
+# Covers: target-size (2.5.8), focus-appearance (2.4.11), accessible-auth (3.3.8).
+# WCAG 2.2 AA is the 2026 baseline — do NOT drop to wcag2a+wcag2aa only.
+#
+# Minimum version: axe-playwright-python>=0.1.7 (bundles axe-core >=4.5.0, which
+# introduced the wcag22aa tag). Older versions silently ignore wcag22aa and yield
+# false-negative passes — pin the version in requirements.txt / pyproject.toml.
+#
+# Must use sync_playwright.Axe — pytest-playwright's `page` fixture is
+# synchronous. Swapping to async_playwright.Axe without await produces a
+# coroutine object instead of AxeResults and raises AttributeError.
+
+import warnings
+from typing import TYPE_CHECKING
+
+from axe_playwright_python.sync_playwright import Axe
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
+
+# Instantiate once — re-reading axe.min.js per-call is wasteful.
+_AXE = Axe()
+
+_A11Y_OPTIONS = {
+    "resultTypes": ["violations"],
+    "runOnly": {
+        "type": "tag",
+        "values": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"],
+    },
+}
+
+_HARD_FAIL_IMPACTS = {"critical"}
+
+
+def run_axe(page: "Page", label: str) -> None:
+    """Run axe-core against the current page and enforce INV-61.
+
+    Raises on critical violations or unclassified (None) impact.
+    Logs serious / moderate / minor violations without raising.
+    """
+    results = _AXE.run(page, options=_A11Y_OPTIONS)
+    violations = results.response.get("violations", [])
+
+    hard_failures = []
+    unclassified = []
+    soft = []
+
+    for v in violations:
+        impact = v.get("impact")
+        if impact is None:
+            unclassified.append(v)
+        elif impact in _HARD_FAIL_IMPACTS:
+            hard_failures.append(v)
+        else:
+            soft.append(v)
+
+    for v in soft:
+        impact_label = v.get("impact", "?")
+        warnings.warn(
+            f"[a11y][{label}] {impact_label}: {v.get('id')} — {v.get('help')}",
+            stacklevel=2,
+        )
+
+    if unclassified:
+        ids = ", ".join(v.get("id", "?") for v in unclassified)
+        raise AssertionError(
+            f"[a11y][{label}] INV-61: unclassified-impact violations not permitted: {ids}"
+        )
+
+    if hard_failures:
+        summary = ", ".join(
+            f"{v.get('id')} ({len(v.get('nodes', []))} node(s))" for v in hard_failures
+        )
+        raise AssertionError(
+            f"[a11y][{label}] INV-61: critical violations detected: {summary}"
+        )
