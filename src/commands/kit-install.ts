@@ -116,10 +116,6 @@ function buildProjectConfig(
     enableIso27001Mapping: false,
     enableNis2Mapping: false,
     enableGdprMapping: false,
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    enableDeployWorkflows: false,
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    enableAzureContainerApp: false,
     enablePerfTesting: false,
     enableMutationTesting: false,
     enableContractTesting: false,

@@ -18,22 +18,22 @@ describe('brownfield: Azure ContainerApp infra generator (CANON-11, #893)', () =
     cleanupTestProject(dir)
   })
 
-  it('does not emit containerapp.tpl.yaml when enableAzureContainerApp is false (default)', () => {
-    const config = makeConfig(dir, { enableAzureContainerApp: false })
+  it('does not emit containerapp.tpl.yaml when deployTarget is not azure-container-app (default)', () => {
+    const config = makeConfig(dir, { deployTarget: 'none' })
     generateInfra(config)
     const path = join(dir, 'infra', 'azure', 'containerapp.tpl.yaml')
     expect(existsSync(path)).toBe(false)
   })
 
-  it('emits containerapp.tpl.yaml when enableAzureContainerApp is true', () => {
-    const config = makeConfig(dir, { enableAzureContainerApp: true })
+  it('emits containerapp.tpl.yaml when deployTarget is azure-container-app', () => {
+    const config = makeConfig(dir, { deployTarget: 'azure-container-app' })
     generateInfra(config)
     const path = join(dir, 'infra', 'azure', 'containerapp.tpl.yaml')
     expect(existsSync(path)).toBe(true)
   })
 
   it('does not overwrite user-customized containerapp.tpl.yaml on re-run (skipIfExists)', () => {
-    const config = makeConfig(dir, { enableAzureContainerApp: true })
+    const config = makeConfig(dir, { deployTarget: 'azure-container-app' })
     generateInfra(config)
 
     const path = join(dir, 'infra', 'azure', 'containerapp.tpl.yaml')
@@ -45,7 +45,7 @@ describe('brownfield: Azure ContainerApp infra generator (CANON-11, #893)', () =
   })
 
   it('generateInfra returns files array with containerapp path when enabled', () => {
-    const config = makeConfig(dir, { enableAzureContainerApp: true })
+    const config = makeConfig(dir, { deployTarget: 'azure-container-app' })
     const result = generateInfra(config)
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.includes('containerapp.tpl.yaml'))).toBe(true)

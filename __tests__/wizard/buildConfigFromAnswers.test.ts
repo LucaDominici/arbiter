@@ -96,29 +96,20 @@ describe('buildConfigFromAnswers — deployTarget derivation (#1005)', () => {
     expect(config.deployTarget).toBe('none')
   })
 
-  it('enableDeployWorkflows derives true when deployTarget is ghcr', () => {
-    const config = buildConfigFromAnswers(makeInput(), makeAnswers({ archetype: 'backend-web-db' }))
-    expect(config.deployTarget).toBe('ghcr')
-    expect(config.enableDeployWorkflows).toBe(true)
-  })
-
-  it('enableDeployWorkflows derives false when deployTarget is none', () => {
+  // #1145/#1146: enableDeployWorkflows + enableAzureContainerApp removed; deploy
+  // emission now keys directly off deployTarget. The explicit azure answer must
+  // still flow through to config.deployTarget.
+  it('cli archetype yields deployTarget none', () => {
     const config = buildConfigFromAnswers(makeInput(), makeAnswers({ archetype: 'cli' }))
     expect(config.deployTarget).toBe('none')
-    expect(config.enableDeployWorkflows).toBe(false)
   })
 
-  it('enableAzureContainerApp derives true when deployTarget is azure-container-app', () => {
+  it('explicit azure-container-app answer flows through to deployTarget', () => {
     const config = buildConfigFromAnswers(
       makeInput(),
       makeAnswers({ archetype: 'backend-web-db', deployTarget: 'azure-container-app' }),
     )
-    expect(config.enableAzureContainerApp).toBe(true)
-  })
-
-  it('enableAzureContainerApp derives false when deployTarget is ghcr', () => {
-    const config = buildConfigFromAnswers(makeInput(), makeAnswers({ archetype: 'backend-web-db' }))
-    expect(config.enableAzureContainerApp).toBe(false)
+    expect(config.deployTarget).toBe('azure-container-app')
   })
 })
 
