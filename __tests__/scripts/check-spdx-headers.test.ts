@@ -68,4 +68,37 @@ describe('check-spdx-headers.mjs (SPDX license header enforcement)', () => {
       cleanup()
     }
   })
+
+  // #1160: --dir= was parsed with split('=')[1], truncating any path containing
+  // an '=' character. A truncated path resolves to a non-existent dir → no files
+  // scanned → false exit 0. These tests pin the full-path parse.
+  it('parses --dir paths containing an "=" character (does not truncate)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const weird = join(dir, 'a=b')
+      mkdirSync(weird)
+      // missing SPDX header — must be detected, proving the dir was actually scanned
+      writeFileSync(join(weird, 'missing.ts'), 'export const x = 1\n')
+      const result = run(weird)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('FAIL')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 for a valid file under a "=" path (full path resolved)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const weird = join(dir, 'x=y=z')
+      mkdirSync(weird)
+      writeFileSync(
+        join(weird, 'ok.ts'),
+        '// SPDX-License-Identifier: Apache-2.0\nexport const a = 1\n',
+      )
+      expect(run(weird).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
 })
