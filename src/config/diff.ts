@@ -61,6 +61,7 @@ export type GeneratorKey =
   | 'quality'
   | 'frontend-governance'
   | 'frontend-quality'
+  | 'feature-matrix'
 
 export interface ConfigDiff {
   paths: string[]

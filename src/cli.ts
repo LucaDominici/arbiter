@@ -86,6 +86,7 @@ import type { KitListFormat, KitListFilter } from './commands/kit.js'
 import type { Stack } from './kit/schema.js'
 import { runKitInstall } from './commands/kit-install.js'
 import type { BrownfieldClass } from './kit/thresholds.js'
+import { runFeatureMatrixExport } from './commands/feature-matrix.js'
 
 registerCleanupHandlers()
 
@@ -1861,6 +1862,31 @@ kit
       }
     },
   )
+
+// ── feature-matrix — export Product-Truth RTM ─────────────────────────────────
+const featureMatrix = program
+  .command('feature-matrix')
+  .description('Feature/RTM matrix commands (INV-112)')
+
+featureMatrix
+  .command('export')
+  .description('Export docs/PRODUCT/FEATURE_MATRIX.md to CSV or xlsx')
+  .option('--format <fmt>', 'Output format: csv or xlsx', 'csv')
+  .option('--out <path>', 'Output file path', 'feature-matrix.csv')
+  .option('--matrix <path>', 'Path to FEATURE_MATRIX.md (default: docs/PRODUCT/FEATURE_MATRIX.md)')
+  .action(async (opts: { format: string; out: string; matrix?: string }) => {
+    const fmt = opts.format
+    if (fmt !== 'csv' && fmt !== 'xlsx') {
+      process.stderr.write(`Error: --format must be csv or xlsx (got "${fmt}")\n`)
+      process.exit(2)
+    }
+    await runFeatureMatrixExport({
+      format: fmt,
+      out: opts.out,
+      ...(opts.matrix !== undefined ? { matrixPath: opts.matrix } : {}),
+    })
+    process.stdout.write(`  feature-matrix: exported to ${opts.out}\n`)
+  })
 
 function _writeArbiterError(err: ArbiterError, prefix = 'Error'): void {
   process.stderr.write(`\n${prefix} [${err.code}]: ${err.message}\n`)

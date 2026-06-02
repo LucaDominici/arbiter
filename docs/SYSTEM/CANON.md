@@ -334,3 +334,17 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 **Promoted to:** INV-109 (duplication gate + ratchet)
 
 **Source issues:** corrective evidence-based-quality wave 2026-06-01 (audit lineage #151–#186)
+
+---
+
+## CANON-23 — RTM-required-by-level: every governed project ships a gated FEATURE_MATRIX
+
+**Rule:** Every governance mechanism that arbiter generates for a target project MUST be backed by a Product-Truth RTM (FEATURE_MATRIX.md) that tracks 100% of the project's KIT dimensions to a committed status, machine-validated by a fail-closed gate (`scripts/check-feature-matrix.mjs`). Arbiter ships the matrix both as a self-doc (Track A: `docs/PRODUCT/FEATURE_MATRIX.md`) and as a generator template (Track B: `src/generators/feature-matrix.ts`) — CANON-01 compliance.
+
+**Why:** Without a committed RTM, governance claims ("this project enforces STRIDE", "audit trail is present") are assertions, not evidence. The kit experimental-gate fiction (root cause of this rule) showed that a gate wired in a template but never validated against the actual project state produces a false "covered" signal. The matrix converts soft claims into machine-checkable evidence pointers.
+
+**Enforcement:** `scripts/check-feature-matrix.mjs --check` (L1 gate, fail-closed). Generated for target projects at L2+ by `src/generators/feature-matrix.ts`. Template at `src/templates/docs/FEATURE_MATRIX.md.ejs`. Parity between Track A and Track B schema enforced in generator tests.
+
+**Promoted to:** INV-112 (RTM/FEATURE_MATRIX required at L2+)
+
+**Source issues:** feat-feature-matrix-rtm 2026-06-02

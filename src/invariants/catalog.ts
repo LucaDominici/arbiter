@@ -1778,4 +1778,28 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/gen-cli-ref.mjs --check verifies bidirectional parity (registered<->documented). ' +
       'Wired into scripts/check-all.mjs L1.',
   },
+
+  {
+    id: 'INV-112',
+    tier: 'governance',
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    alwaysActive: true,
+    title: 'RTM/FEATURE_MATRIX required at L2+; serious-test DoD at L3+; 21CFR audit-trail at L4',
+    description:
+      'Every project at L2+ must ship and maintain a docs/FEATURE_MATRIX.md ' +
+      '(RTM) covering 100% of its KIT catalog dimensions. The matrix uses a fail-closed ' +
+      'status ladder: Missing (issue_ref required) → Partial (code_ref required) → Done ' +
+      '(code_ref+test_ref+doc_ref required) → Verified (all four refs + test title parsed). ' +
+      'At L3+ every Done/Verified row must reference a real test title (serious-test DoD). ' +
+      'At L4 audit_trail-category rows must carry code_ref+test_ref. ' +
+      'The matrix is machine-validated by scripts/check-feature-matrix.mjs on every gate run. ' +
+      'The generator (src/generators/feature-matrix.ts) scaffolds the initial matrix for new ' +
+      'projects; the committed doc is the authoritative Product-Truth source.',
+    enforcement:
+      'scripts/check-feature-matrix.mjs (L1 gate, fail-closed): validates status ladder, ' +
+      'KIT-dim coverage, counter integrity, ref existence, and level-gated DoD rules. ' +
+      'Wired into scripts/check-all.mjs L1. Generated for target projects at L2+ by ' +
+      'src/generators/feature-matrix.ts (CANON-23).',
+  },
 ]
