@@ -96,7 +96,8 @@ describe('generatePlaywrightPython', () => {
       language: 'python',
       archetype: 'backend-web-db',
     })
-    generatePlaywrightPython(config)
+    const result = generatePlaywrightPython(config)
+    expect(result.files).toHaveLength(5)
     expect(existsSync(join(dir, 'tests', 'e2e', 'a11y', '__init__.py'))).toBe(true)
     expect(existsSync(join(dir, 'tests', 'e2e', 'a11y', 'run_axe.py'))).toBe(true)
     expect(existsSync(join(dir, 'tests', 'e2e', 'test_a11y.py'))).toBe(true)
@@ -129,7 +130,7 @@ describe('generatePlaywrightPython', () => {
     expect(content).toMatch(/raise/)
   })
 
-  it('emitted run_axe.py uses resultTypes=violations to prevent payload bloat', () => {
+  it('emitted run_axe.py uses resultTypes=violations and guards missing key', () => {
     const config = makeConfig(dir, {
       language: 'python',
       archetype: 'frontend-spa',
@@ -138,6 +139,8 @@ describe('generatePlaywrightPython', () => {
     const content = readFileSync(join(dir, 'tests', 'e2e', 'a11y', 'run_axe.py'), 'utf-8')
     expect(content).toMatch(/resultTypes/)
     expect(content).toMatch(/violations/)
+    // Guard: explicit key-presence check prevents silent false-green when key absent
+    expect(content).toContain('"violations" not in response')
   })
 
   it('emitted run_axe.py imports axe_playwright_python sync module', () => {
@@ -179,6 +182,10 @@ describe('generatePlaywrightPython', () => {
     expect(a11yWrapper?.action).toBe('created')
     expect(a11ySpec?.action).toBe('created')
     expect(a11yInit?.action).toBe('created')
+    // All 5 files must be absent from disk in dryRun mode
+    expect(existsSync(join(dir, 'tests', 'e2e', 'conftest.py'))).toBe(false)
+    expect(existsSync(join(dir, 'tests', 'e2e', 'test_smoke.py'))).toBe(false)
+    expect(existsSync(join(dir, 'tests', 'e2e', 'a11y', '__init__.py'))).toBe(false)
     expect(existsSync(join(dir, 'tests', 'e2e', 'a11y', 'run_axe.py'))).toBe(false)
     expect(existsSync(join(dir, 'tests', 'e2e', 'test_a11y.py'))).toBe(false)
   })

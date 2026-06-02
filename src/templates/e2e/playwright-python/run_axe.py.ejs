@@ -51,7 +51,14 @@ def run_axe(page: "Page", label: str) -> None:
     Logs serious / moderate / minor violations without raising.
     """
     results = _AXE.run(page, options=_A11Y_OPTIONS)
-    violations = results.response.get("violations", [])
+    response = results.response
+    if "violations" not in response:
+        raise AssertionError(
+            f"[a11y][{label}] axe response missing 'violations' key — "
+            "check axe-playwright-python version (>=0.1.7 required). "
+            f"Keys present: {list(response.keys())}"
+        )
+    violations = response["violations"]
 
     hard_failures = []
     unclassified = []
@@ -73,16 +80,20 @@ def run_axe(page: "Page", label: str) -> None:
             stacklevel=2,
         )
 
-    if unclassified:
-        ids = ", ".join(v.get("id", "?") for v in unclassified)
-        raise AssertionError(
-            f"[a11y][{label}] INV-61: unclassified-impact violations not permitted: {ids}"
-        )
-
-    if hard_failures:
-        summary = ", ".join(
-            f"{v.get('id')} ({len(v.get('nodes', []))} node(s))" for v in hard_failures
-        )
-        raise AssertionError(
-            f"[a11y][{label}] INV-61: critical violations detected: {summary}"
-        )
+    # Merge both failure categories into one raise so all violations surface
+    # in a single error report (not just the first category encountered).
+    if hard_failures or unclassified:
+        parts = []
+        if hard_failures:
+            parts.append(
+                "critical: "
+                + ", ".join(
+                    f"{v.get('id')} ({len(v.get('nodes', []))} node(s))"
+                    for v in hard_failures
+                )
+            )
+        if unclassified:
+            parts.append(
+                "unclassified: " + ", ".join(v.get("id", "?") for v in unclassified)
+            )
+        raise AssertionError(f"[a11y][{label}] INV-61: {'; '.join(parts)}")

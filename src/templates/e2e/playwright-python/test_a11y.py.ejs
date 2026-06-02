@@ -23,6 +23,13 @@ VIEWS = [
     View("home", "/"),
 ]
 
+# Guard: empty VIEWS silently produces zero tests and bypasses INV-61.
+if not VIEWS:
+    raise RuntimeError(
+        "test_a11y.py: VIEWS list is empty — add at least one View entry. "
+        "INV-61 requires at least the home route ('/')."
+    )
+
 
 @pytest.mark.parametrize("view", VIEWS, ids=lambda v: v.label)
 def test_a11y(page: Page, base_url: str, view: View) -> None:

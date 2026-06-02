@@ -52,6 +52,18 @@ describe('generatePlaywrightPython brownfield (CANON-11)', () => {
     expect(result.files.every((f) => f.action === 'skipped')).toBe(true)
   })
 
+  it('does not overwrite existing __init__.py on re-run', () => {
+    const a11yDir = join(dir, 'tests', 'e2e', 'a11y')
+    mkdirSync(a11yDir, { recursive: true })
+    const target = join(a11yDir, '__init__.py')
+    const sentinel = '# User-added package docstring — do not overwrite\n'
+    writeFileSync(target, sentinel)
+
+    generatePlaywrightPython(makeConfig(dir, { language: 'python', archetype: 'frontend-spa' }))
+
+    expect(readFileSync(target, 'utf-8')).toBe(sentinel)
+  })
+
   it('does not overwrite existing conftest.py on re-run', () => {
     const e2eDir = join(dir, 'tests', 'e2e')
     mkdirSync(e2eDir, { recursive: true })
