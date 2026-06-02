@@ -13,7 +13,7 @@ related: []
 
 ## Source
 
-`docs/SYSTEM/CANON.md` — 20 process-level rules derived from audit waves #151–#186.
+`docs/SYSTEM/CANON.md` — 23 process-level rules derived from audit waves #151–#186.
 
 ## Protocol
 
@@ -50,3 +50,4 @@ The citation protocol is identical to INV-NN: **STOP → REFUSE → cite CANON-N
 | CANON-18 | Adding/modifying any `src/templates/github/workflows/*.ejs`                              |
 | CANON-19 | Adding/modifying any `.github/actions/sign-and-attest/*`                                 |
 | CANON-20 | Changing governance threshold table in `thresholds-by-level.ts`                          |
+| CANON-23 | Adding or updating a Feature/RTM matrix (FEATURE_MATRIX.md or its generator/gate)        |

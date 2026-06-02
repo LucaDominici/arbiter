@@ -258,6 +258,8 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `npx jscpd` (L2, see `.jscpd.json`) + `scripts/debt-report.mjs --gate` (`duplicationPercentage` ratchet); generated for TypeScript targets by `src/generators/duplication.ts` (CANON-22 Tier-1)
 - **INV-111:** CLI reference must document every registered command — no phantom, no missing
   - _Enforcement:_ `scripts/gen-cli-ref.mjs --check` (L1, selfOnly — arbiter self-governance only)
+- **INV-112:** RTM/FEATURE_MATRIX required at L2+; serious-test DoD at L3+; 21CFR audit-trail at L4
+  - _Enforcement:_ `scripts/check-feature-matrix.mjs` (L1, fail-closed status ladder + KIT-dim coverage + counter integrity + level-gated DoD)
 
 - **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
   - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)

@@ -502,36 +502,37 @@ arbiter update  # regenerate canonical files, preserve customizations
 
 ## Command Reference
 
-| Command                 | Description                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `arbiter agent-rules`   | Export or verify AI agent governance rules (#265)                              |
-| `arbiter benchmark`     | Performance benchmarks for arbiter                                             |
-| `arbiter blame`         | —                                                                              |
-| `arbiter ci`            | Governance-aware CI planning (#261)                                            |
-| `arbiter compare`       | —                                                                              |
-| `arbiter configure`     | Modify arbiter.json configuration (interactive on TTY, or use --set)           |
-| `arbiter diff`          | Show what arbiter update would change (dry run)                                |
-| `arbiter doctor`        | Diagnose and repair arbiter state                                              |
-| `arbiter experiments`   | Inspect registered experimental features                                       |
-| `arbiter explain`       | —                                                                              |
-| `arbiter gauntlet`      | Pairwise/combinatorial test generation (#260)                                  |
-| `arbiter graph`         | —                                                                              |
-| `arbiter harness`       | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths) |
-| `arbiter init`          | —                                                                              |
-| `arbiter integrations`  | Inspect agent-tool integrations (skills, plugins) detected for this project    |
-| `arbiter kit`           | Cross-stack governance kit commands (requires --experimental.kit)              |
-| `arbiter knowledge-map` | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                 |
-| `arbiter notary`        | Notary system — track semantic doc changes                                     |
-| `arbiter plugin`        | [BETA] Manage arbiter plugins (API not yet stable)                             |
-| `arbiter report`        | Bundle a replay run for bug reports                                            |
-| `arbiter review`        | Review artefacts (plans, code) against governance invariants                   |
-| `arbiter task`          | Manage task lifecycle state                                                    |
-| `arbiter trace`         | —                                                                              |
-| `arbiter update`        | Re-generate governance files using stored config (arbiter.json)                |
-| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                     |
-| `arbiter verify`        | Probe toolchain compatibility for the detected stack                           |
-| `arbiter work`          | Manage work units via decomposition backend                                    |
-| `arbiter worktree`      | Manage git worktrees for parallel task development                             |
+| Command                  | Description                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `arbiter agent-rules`    | Export or verify AI agent governance rules (#265)                              |
+| `arbiter benchmark`      | Performance benchmarks for arbiter                                             |
+| `arbiter blame`          | —                                                                              |
+| `arbiter ci`             | Governance-aware CI planning (#261)                                            |
+| `arbiter compare`        | —                                                                              |
+| `arbiter configure`      | Modify arbiter.json configuration (interactive on TTY, or use --set)           |
+| `arbiter diff`           | Show what arbiter update would change (dry run)                                |
+| `arbiter doctor`         | Diagnose and repair arbiter state                                              |
+| `arbiter experiments`    | Inspect registered experimental features                                       |
+| `arbiter explain`        | —                                                                              |
+| `arbiter feature-matrix` | Feature/RTM matrix commands (INV-112)                                          |
+| `arbiter gauntlet`       | Pairwise/combinatorial test generation (#260)                                  |
+| `arbiter graph`          | —                                                                              |
+| `arbiter harness`        | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths) |
+| `arbiter init`           | —                                                                              |
+| `arbiter integrations`   | Inspect agent-tool integrations (skills, plugins) detected for this project    |
+| `arbiter kit`            | Cross-stack governance kit commands (requires --experimental.kit)              |
+| `arbiter knowledge-map`  | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                 |
+| `arbiter notary`         | Notary system — track semantic doc changes                                     |
+| `arbiter plugin`         | [BETA] Manage arbiter plugins (API not yet stable)                             |
+| `arbiter report`         | Bundle a replay run for bug reports                                            |
+| `arbiter review`         | Review artefacts (plans, code) against governance invariants                   |
+| `arbiter task`           | Manage task lifecycle state                                                    |
+| `arbiter trace`          | —                                                                              |
+| `arbiter update`         | Re-generate governance files using stored config (arbiter.json)                |
+| `arbiter upgrade-level`  | Upgrade governance level with a grace period for new gates                     |
+| `arbiter verify`         | Probe toolchain compatibility for the detected stack                           |
+| `arbiter work`           | Manage work units via decomposition backend                                    |
+| `arbiter worktree`       | Manage git worktrees for parallel task development                             |
 
 ## arbiter agent-rules
 
@@ -614,6 +615,14 @@ Inspect registered experimental features.
 - `arbiter experiments list` — List open task worktrees
 
 ## arbiter explain
+
+## arbiter feature-matrix
+
+Feature/RTM matrix commands (INV-112).
+
+**Subcommands:**
+
+- `arbiter feature-matrix export`
 
 ## arbiter gauntlet
 

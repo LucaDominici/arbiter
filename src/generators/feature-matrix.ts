@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0
+import { renderTemplate } from '../utils/render.js'
+import { writeFile, resolvedPath } from '../utils/fs.js'
+import type { ProjectConfig } from '../wizard/types.js'
+import type { WriteResult } from '../utils/fs.js'
+
+export interface FeatureMatrixResult {
+  files: WriteResult[]
+}
+
+/**
+ * Generate docs/FEATURE_MATRIX.md for governed projects at L2+ (INV-112, CANON-23).
+ *
+ * Track B generator: scaffold the initial matrix template. The generated file is
+ * user-owned after the first write (skipIfExists). The gate (check-feature-matrix.mjs)
+ * validates the committed matrix on every gate run.
+ */
+export function generateFeatureMatrix(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): FeatureMatrixResult {
+  if (config.governanceLevel === 'L1') return { files: [] }
+
+  const base = config.targetDir
+  const data = config
+
+  const result = writeFile(
+    resolvedPath(base, 'docs', 'FEATURE_MATRIX.md'),
+    renderTemplate('docs/FEATURE_MATRIX.md.ejs', data),
+    { skipIfExists: true, dryRun: opts.dryRun },
+  )
+
+  return { files: [result] }
+}

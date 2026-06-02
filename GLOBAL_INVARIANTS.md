@@ -602,3 +602,11 @@ This document is the deep-reference companion to AGENTS.md. Every always-active 
 **Enforcement:** scripts/gen-cli-ref.mjs --check (L1)
 
 ---
+
+### INV-112: RTM/FEATURE_MATRIX required at L2+; serious-test DoD at L3+; 21CFR audit-trail at L4
+
+Every project at L2+ must ship and maintain a `docs/FEATURE_MATRIX.md` (RTM) covering 100% of its KIT catalog dimensions. The matrix uses a fail-closed status ladder: `Missing` (issue_ref required) → `Partial` (code_ref required) → `Done` (code_ref+test_ref+doc_ref required) → `Verified` (all four refs + test title parsed). At L3+, every Done/Verified row must reference a real test title (serious-test DoD proxy). At L4, `audit_trail`-category rows must carry code_ref+test_ref. The generator (`src/generators/feature-matrix.ts`) scaffolds the initial matrix; the committed doc is the authoritative Product-Truth source.
+
+**Enforcement:** scripts/check-feature-matrix.mjs (L1, fail-closed): validates status ladder, KIT-dim coverage, counter integrity, ref existence, and level-gated DoD rules. Generated for target projects at L2+ by `src/generators/feature-matrix.ts` (CANON-23).
+
+---

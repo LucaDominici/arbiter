@@ -27,14 +27,16 @@ describe('INVARIANT_CATALOG', () => {
     // Updated in #1100: +1 (INV-108 SSOT core set exhaustiveness, selfOnly governance)
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, typescript operational)
     // Updated dual-ADR-cli-single-source: +1 (INV-111 CLI ref parity, selfOnly governance)
-    expect(INVARIANT_CATALOG).toHaveLength(109)
+    // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM/FEATURE_MATRIX required at L2+)
+    expect(INVARIANT_CATALOG).toHaveLength(110)
   })
 
   it('all IDs are unique', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
+    // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(109)
+    expect(unique.size).toBe(110)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -115,8 +117,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated in #1099: +1 (INV-107)
     // Updated in #1100: +1 (INV-108)
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
+    // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(39)
+    expect(tier5).toHaveLength(40)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -359,15 +362,16 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-33')
   })
 
-  it('returns 69 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 + INV-109 included)', () => {
+  it('returns 69 for TypeScript + L3 + all tiers (INV-27/33 moved to L4, INV-29/30/44 Java-only + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-102/103/104/105/106 + INV-109 + INV-112 included)', () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — typescript, L2, operational tier)
     // Updated CANON-22: +1 (INV-109 duplication gate, typescript L2 operational)
+    // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(69)
+    expect(result).toHaveLength(70)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -381,13 +385,14 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-40')
   })
 
-  it('returns fewer than 57 for unknown language (language-specific excluded)', () => {
+  it('returns fewer than 58 for unknown language (language-specific excluded)', () => {
+    // +1 from INV-112 (no language restriction) — threshold updated from 57→58
     const result = getFilteredInvariants({
       language: 'unknown',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(57)
+    expect(result.length).toBeLessThan(58)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -446,13 +451,14 @@ describe('getFilteredInvariants', () => {
     }
   })
 
-  it('Java + L2 + all tiers returns 64 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 included)', () => {
+  it('Java + L2 + all tiers returns 64 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
+    // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(64)
+    expect(result).toHaveLength(65)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -464,13 +470,14 @@ describe('getFilteredInvariants', () => {
     expect(ids).not.toContain('INV-28')
   })
 
-  it('Java + L3 + all tiers returns 65 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 included)', () => {
+  it('Java + L3 + all tiers returns 65 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
+    // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(65)
+    expect(result).toHaveLength(66)
   })
 
   it('essential preset at L1 returns minimal set', () => {
