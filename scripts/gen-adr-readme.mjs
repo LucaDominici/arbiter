@@ -167,7 +167,9 @@ ${digestRows.join('\n')}
       process.stdout.write(`  gen-adr-readme: DECISIONS.md digest is up to date\n`)
     }
 
-    process.exit(failures > 0 ? 1 : 0)
+    // process.exit(1) = drift (INV-53); fail-closed audit requires literal exit(1)
+    if (failures > 0) process.exit(1)
+    process.exit(0)
   }
 
   writeFileSync(README_PATH, generatedReadme, 'utf-8')
