@@ -136,6 +136,41 @@ describe('check-inv-enforcement-wired.mjs (INV-52 / CANON-09)', () => {
     }
   })
 
+  // #1153: hook-style citations — bare `(name.mjs)` with no scripts/ prefix —
+  // were invisible to the wiring check. A citation to a nonexistent hook is
+  // fiction enforcement and must fail; an existing hook must pass.
+  it('exits 1 when a bare hook citation points at a nonexistent script [#1153]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      writeFileSync(catalog, `  id: 'INV-77',\n  enforcement: 'hook (check-ghost-xyz.mjs) + CI',`)
+      writeFileSync(gate, `// gate with no scripts`)
+      const result = run(catalog, gate)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('check-ghost-xyz.mjs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when a bare hook citation points at an existing .claude/hooks script [#1153]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const gate = join(dir, 'check-all.mjs')
+      // check-no-orphan-todo.mjs exists under .claude/hooks/ in the repo (cwd).
+      writeFileSync(
+        catalog,
+        `  id: 'INV-06',\n  enforcement: 'hook (check-no-orphan-todo.mjs) + CI',`,
+      )
+      writeFileSync(gate, `// gate with no scripts`)
+      expect(run(catalog, gate).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('passes against the real catalog and check-all.mjs', () => {
     const result = run(resolve('src/invariants/catalog.ts'), resolve('scripts/check-all.mjs'))
     expect(result.status).toBe(0)
