@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // INV-52: Every enforcement script cited in catalog must be wired in check-all.mjs (CANON-09).
 // Usage: node scripts/check-inv-enforcement-wired.mjs [--catalog=path] [--gate=path]
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const args = process.argv.slice(2)
@@ -47,12 +47,33 @@ for (const script of uniqueScripts) {
   }
 }
 
+// #1153: close the blind spot for hook-style enforcement citations. The catalog
+// also cites enforcement as bare parenthesised filenames — e.g. `hook
+// (check-no-orphan-todo.mjs)` — which carry no `scripts/` prefix and so were
+// invisible to the wiring check above. These run via .claude hooks, not
+// check-all.mjs, so the correct validation is existence: a citation to a script
+// that does not exist as a hook (or script) is fiction enforcement.
+const hookRefs = [...catalogSrc.matchAll(/\(([a-z][a-z0-9-]+\.mjs)\)(?!\.ejs)/g)].map((m) => m[1])
+const uniqueHooks = [...new Set(hookRefs)].filter(
+  (s) => !uniqueScripts.includes(s) && s !== 'check-all.mjs' && !TRACK_B_EXEMPT.has(s),
+)
+for (const hook of uniqueHooks) {
+  const existsAsHook = existsSync(resolve(root, '.claude/hooks', hook))
+  const existsAsScript = existsSync(resolve(root, 'scripts', hook))
+  if (!existsAsHook && !existsAsScript) {
+    process.stdout.write(
+      `  CITED hook does not exist (.claude/hooks/ or scripts/): ${hook}\n`,
+    )
+    violations++
+  }
+}
+
 if (violations > 0) {
   process.stdout.write(
-    `[check-inv-enforcement-wired] FAIL: ${violations} enforcement script(s) not wired in gate\n`,
+    `[check-inv-enforcement-wired] FAIL: ${violations} enforcement script(s) not wired/found\n`,
   )
   process.exit(1)
 }
 process.stdout.write(
-  `[check-inv-enforcement-wired] OK — all ${uniqueScripts.length} enforcement scripts wired in check-all.mjs\n`,
+  `[check-inv-enforcement-wired] OK — ${uniqueScripts.length} gate scripts wired, ${uniqueHooks.length} hook citations verified\n`,
 )

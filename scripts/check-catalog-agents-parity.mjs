@@ -90,18 +90,19 @@ for (const m of agentsSrc.matchAll(/\*\*(INV-\d+):\*\*\s*(.+)/g)) {
   agentsInvEntries.set(m[1], m[2].trim())
 }
 
-// Extract **CANON-NN:** ids from AGENTS.md (no title-parity check today; CANON
-// titles in AGENTS.md, when present, are informal cross-references).
-const agentsCanonIds = new Set()
-for (const m of agentsSrc.matchAll(/\*\*(CANON-\d+):\*\*/g)) {
-  agentsCanonIds.add(m[1])
+// Extract {id, title} from AGENTS.md: format is **CANON-NN:** title (#1158).
+const agentsCanonEntries = new Map()
+for (const m of agentsSrc.matchAll(/\*\*(CANON-\d+):\*\*\s*(.+)/g)) {
+  agentsCanonEntries.set(m[1], m[2].trim())
 }
+const agentsCanonIds = agentsCanonEntries
 
-// Extract `## CANON-NN` headings from CANON.md.
-const canonIds = new Set()
-for (const m of canonSrc.matchAll(/^##\s+(CANON-\d+)\b/gm)) {
-  canonIds.add(m[1])
+// Extract {id, title} from CANON.md headings: `## CANON-NN — title` (#1158).
+const canonEntries = new Map()
+for (const m of canonSrc.matchAll(/^##\s+(CANON-\d+)\b\s*[—-]+\s*(.+)/gm)) {
+  canonEntries.set(m[1], m[2].trim())
 }
+const canonIds = canonEntries
 
 let violations = 0
 
@@ -138,7 +139,7 @@ for (const id of agentsInvEntries.keys()) {
 // heading in CANON.md. If CANON.md is missing entirely the check is skipped
 // (canonSrc is the empty string, so we only flag when canonSrc was loaded).
 if (canonSrc) {
-  for (const id of agentsCanonIds) {
+  for (const id of agentsCanonIds.keys()) {
     if (!canonIds.has(id)) {
       process.stdout.write(`  ORPHAN in AGENTS.md: ${id} (no heading in CANON.md)
 `)
@@ -151,9 +152,24 @@ if (canonSrc) {
 // `**CANON-NN:**` row in AGENTS.md. The previous reverse loop only caught
 // phantom refs — this closes the gap where all Canon rules could be absent.
 if (canonSrc) {
-  for (const id of canonIds) {
+  for (const id of canonIds.keys()) {
     if (!agentsCanonIds.has(id)) {
       process.stdout.write(`  MISSING from AGENTS.md: ${id}\n`)
+      violations++
+    }
+  }
+}
+
+// Title parity (#1158): for every CANON-NN present in both, the AGENTS.md row
+// title must match the CANON.md heading title — keeps the summary in sync with
+// canon, mirroring the INV-NN title-parity check above.
+if (canonSrc) {
+  for (const [id, canonTitle] of canonEntries) {
+    const agentsTitle = agentsCanonEntries.get(id)
+    if (agentsTitle !== undefined && agentsTitle !== canonTitle) {
+      process.stdout.write(`  CANON TITLE MISMATCH: ${id}\n`)
+      process.stdout.write(`    canon:  ${canonTitle}\n`)
+      process.stdout.write(`    agents: ${agentsTitle}\n`)
       violations++
     }
   }

@@ -245,7 +245,7 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       writeFileSync(catalog, makeCatalog(['INV-01']))
       writeFileSync(
         agents,
-        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon refs\n\n- **CANON-01:** ok\n- **CANON-02:** ok\n- **CANON-03:** ok`,
+        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon refs\n\n- **CANON-01:** placeholder rule\n- **CANON-02:** placeholder rule\n- **CANON-03:** placeholder rule`,
       )
       writeFileSync(canon, makeCanon(['CANON-01', 'CANON-02', 'CANON-03']))
       expect(run(catalog, agents, canon).status).toBe(0)
@@ -304,10 +304,31 @@ describe('check-catalog-agents-parity.mjs (INV-51 / CANON-08)', () => {
       writeFileSync(catalog, makeCatalog(['INV-01']))
       writeFileSync(
         agents,
-        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon\n\n- **CANON-01:** rule one\n- **CANON-02:** rule two`,
+        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon\n\n- **CANON-01:** placeholder rule\n- **CANON-02:** placeholder rule`,
       )
       writeFileSync(canon, makeCanon(['CANON-01', 'CANON-02']))
       expect(run(catalog, agents, canon).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 and reports CANON TITLE MISMATCH when AGENTS.md CANON title drifts [#1158]', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const catalog = join(dir, 'catalog.ts')
+      const agents = join(dir, 'AGENTS.md')
+      const canon = join(dir, 'CANON.md')
+      writeFileSync(catalog, makeCatalog(['INV-01']))
+      // CANON-01 present in both, but the AGENTS.md title drifts from CANON.md.
+      writeFileSync(
+        agents,
+        `## Invariants\n\n- **INV-01:** Default title for INV-01\n\n## Canon\n\n- **CANON-01:** drifted title`,
+      )
+      writeFileSync(canon, makeCanon(['CANON-01']))
+      const result = run(catalog, agents, canon)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain('CANON TITLE MISMATCH: CANON-01')
     } finally {
       cleanup()
     }
