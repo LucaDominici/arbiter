@@ -216,9 +216,24 @@ function runParityCheck(root: string, catalogArr: CatalogArr): string[] {
   return fails
 }
 
-export function runKitValidate(): void {
+/** Result of a kit-state validation pass. severity: 0 OK, 1 FAIL, 2 ERROR. */
+interface KitValidation {
+  severity: number
+  stdout: string[]
+  stderr: string[]
+}
+
+/**
+ * Validate the kit catalog against its real state — schema, mapping parity, and
+ * redaction. Pure with respect to process streams: returns the lines and the
+ * aggregate severity rather than writing/exiting, so both the `kit validate`
+ * command and the `kit` experimental gate (preAction) can reuse it (#1151).
+ */
+function computeKitValidation(): KitValidation {
   const root = resolve(fileURLToPath(import.meta.url), '../../..')
   let maxSeverity = 0
+  const stdout: string[] = []
+  const stderr: string[] = []
 
   // ─── Subcheck 1: schema ───────────────────────────────────────────────────
   let catalog: CatalogArr | null = null
@@ -226,8 +241,8 @@ export function runKitValidate(): void {
     const catalogPath = resolve(root, 'src/kit/catalog.json')
     catalog = KitCatalogSchema.parse(JSON.parse(readFileSync(catalogPath, 'utf-8')) as unknown)
   } catch (err) {
-    process.stderr.write(
-      `[arbiter kit validate] schema ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+    stderr.push(
+      `[arbiter kit validate] schema ERROR: ${err instanceof Error ? err.message : String(err)}`,
     )
     maxSeverity = Math.max(maxSeverity, 2)
   }
@@ -237,13 +252,13 @@ export function runKitValidate(): void {
     try {
       const fails = runParityCheck(root, catalog)
       if (fails.length > 0) {
-        process.stdout.write('[INV-86] kit catalog parity FAIL\n')
-        for (const f of fails) process.stdout.write(`  [parity] ${f}\n`)
+        stdout.push('[INV-86] kit catalog parity FAIL')
+        for (const f of fails) stdout.push(`  [parity] ${f}`)
         maxSeverity = Math.max(maxSeverity, 1)
       }
     } catch (err) {
-      process.stderr.write(
-        `[arbiter kit validate] parity ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+      stderr.push(
+        `[arbiter kit validate] parity ERROR: ${err instanceof Error ? err.message : String(err)}`,
       )
       maxSeverity = Math.max(maxSeverity, 2)
     }
@@ -257,26 +272,50 @@ export function runKitValidate(): void {
     const catalogText = readFileSync(resolve(root, 'src/kit/catalog.json'), 'utf-8')
     const matches = scanForRedactedTokens(catalogText, lexicon)
     if (matches.length > 0) {
-      process.stdout.write('[INV-85] redaction FAIL\n')
-      for (const m of matches)
-        process.stdout.write(`  line ${m.line} [${m.token}]: ${m.lineContent.trim()}\n`)
+      stdout.push('[INV-85] redaction FAIL')
+      for (const m of matches) stdout.push(`  line ${m.line} [${m.token}]: ${m.lineContent.trim()}`)
       maxSeverity = Math.max(maxSeverity, 1)
     }
   } catch (err) {
-    process.stderr.write(
-      `[arbiter kit validate] redaction ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
+    stderr.push(
+      `[arbiter kit validate] redaction ERROR: ${err instanceof Error ? err.message : String(err)}`,
     )
     maxSeverity = Math.max(maxSeverity, 2)
   }
 
   // ─── Summary ──────────────────────────────────────────────────────────────
   if (maxSeverity === 0) {
-    process.stdout.write(
-      `[arbiter kit validate] OK (${catalog?.length ?? 0} dims, parity green, no redacted tokens)\n`,
+    stdout.push(
+      `[arbiter kit validate] OK (${catalog?.length ?? 0} dims, parity green, no redacted tokens)`,
     )
   }
 
-  process.exit(maxSeverity)
+  return { severity: maxSeverity, stdout, stderr }
+}
+
+export function runKitValidate(): void {
+  const { severity, stdout, stderr } = computeKitValidation()
+  for (const l of stdout) process.stdout.write(`${l}\n`)
+  for (const l of stderr) process.stderr.write(`${l}\n`)
+  process.exit(severity)
+}
+
+/**
+ * Experimental-gate enforcement for the `kit` command family (#1151, INV-85/86).
+ * Fails closed: if the kit catalog is invalid, parity-broken, or leaks redacted
+ * tokens, the gate writes the offending lines and returns a nonzero severity so
+ * the caller can exit. Returns 0 (silent) when the kit state is clean.
+ */
+export function enforceKitGate(): number {
+  const { severity, stdout, stderr } = computeKitValidation()
+  if (severity === 0) return 0
+  for (const l of stdout) process.stderr.write(`${l}\n`)
+  for (const l of stderr) process.stderr.write(`${l}\n`)
+  process.stderr.write(
+    `arbiter: "kit" gate blocked — kit catalog state is invalid (severity ${severity}). ` +
+      `Run \`arbiter kit validate\` for details.\n`,
+  )
+  return severity
 }
 
 export interface KitGenerateOptions {

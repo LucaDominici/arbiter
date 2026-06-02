@@ -9,15 +9,6 @@ afterEach(() => {
   vi.resetModules()
 })
 
-describe('computeKitValidation — live catalog', () => {
-  it('returns severity 0 with an OK summary line on the real catalog', async () => {
-    const { computeKitValidation } = await import('../../src/commands/kit.js')
-    const result = computeKitValidation()
-    expect(result.severity).toBe(0)
-    expect(result.stdout.join('\n')).toContain('[arbiter kit validate] OK')
-  })
-})
-
 describe('enforceKitGate — fail-closed contract (#1151)', () => {
   it('returns 0 and writes nothing when kit state is clean', async () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)

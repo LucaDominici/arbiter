@@ -81,6 +81,7 @@ import {
   runKitExplain,
   runKitValidate,
   runKitGenerate,
+  enforceKitGate,
 } from './commands/kit.js'
 import type { KitListFormat, KitListFilter } from './commands/kit.js'
 import type { Stack } from './kit/schema.js'
@@ -1767,6 +1768,9 @@ kit.hook('preAction', () => {
     )
     process.exit(1)
   }
+  // #1151: fail-closed against real kit state, not just the feature flag.
+  const severity = enforceKitGate()
+  if (severity > 0) process.exit(severity)
 })
 
 kit
