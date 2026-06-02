@@ -118,4 +118,40 @@ describe('generateRustBoundaries', () => {
     expect(result.files[1].action).toBe('skipped')
     expect(result.files[2].action).toBe('skipped')
   })
+
+  // RED tests: strictnessTier gating (#1148 Slice D)
+
+  it('practical: clippy.toml does NOT contain pedantic lint [RED #1148]', () => {
+    const config = makeConfig(dir, {
+      language: 'rust',
+      architectureStyle: 'hexagonal',
+      strictnessTier: 'practical',
+    })
+    generateRustBoundaries(config)
+    const content = readFileSync(join(dir, 'clippy.toml'), 'utf-8')
+    expect(content).not.toContain('pedantic = "warn"')
+  })
+
+  it('pedantic: clippy.toml DOES contain pedantic lint [#1148]', () => {
+    const config = makeConfig(dir, {
+      language: 'rust',
+      architectureStyle: 'hexagonal',
+      strictnessTier: 'pedantic',
+    })
+    generateRustBoundaries(config)
+    const content = readFileSync(join(dir, 'clippy.toml'), 'utf-8')
+    expect(content).toContain('pedantic = "warn"')
+  })
+
+  it('practical: clippy.toml still contains panic-safety baseline lints [#1148]', () => {
+    const config = makeConfig(dir, {
+      language: 'rust',
+      architectureStyle: 'hexagonal',
+      strictnessTier: 'practical',
+    })
+    generateRustBoundaries(config)
+    const content = readFileSync(join(dir, 'clippy.toml'), 'utf-8')
+    expect(content).toContain('unwrap_used = "warn"')
+    expect(content).toContain('panic = "warn"')
+  })
 })

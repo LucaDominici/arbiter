@@ -35,16 +35,16 @@ disallowed_macros = [
   # Axum route macros (if used)
 ]
 
-# ── Pedantic Static Analysis (M29) ────────────────────────────────────────
-# These lints fire when running: cargo clippy -- -W clippy::pedantic -D warnings
+# ── Static Analysis (M29) ─────────────────────────────────────────────────
 # Configured here so they can be suppressed per-item with #[allow(...)] + reason.
 [lints.clippy]
-# Correctness & panic safety
+# Correctness & panic safety (baseline — always enabled)
 unwrap_used = "warn"
 expect_used = "warn"
 panic = "warn"
 indexing_slicing = "warn"
-
-# Code quality
+<% if (locals.strictnessTier === 'pedantic') { %>
+# Pedantic quality (enabled by strictnessTier = pedantic)
 pedantic = "warn"
 nursery = "warn"
+<% } %>

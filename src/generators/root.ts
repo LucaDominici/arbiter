@@ -14,7 +14,7 @@ export function generateRoot(
 ): RootGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config
+  const data = { ...config, strictnessTier: config.strictnessTier ?? 'practical' }
 
   // CODEOWNERS — create if missing
   if (config.githubOwner) {
@@ -60,6 +60,20 @@ export function generateRoot(
         renderTemplate('root/tsconfig.json.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
+    )
+  }
+
+  // clippy.toml — Rust pedantic lints for non-hexagonal projects (hexagonal gets it via rust-boundaries)
+  if (
+    config.language === 'rust' &&
+    data.strictnessTier === 'pedantic' &&
+    config.architectureStyle !== 'hexagonal'
+  ) {
+    results.push(
+      writeFile(resolvedPath(base, 'clippy.toml'), renderTemplate('rust/clippy.toml.ejs', data), {
+        skipIfExists: true,
+        dryRun: opts.dryRun,
+      }),
     )
   }
 

@@ -16,7 +16,7 @@ export function generateRustBoundaries(
   if (config.architectureStyle !== 'hexagonal') return { files: [] }
 
   const base = config.targetDir
-  const data = config
+  const data = { ...config, strictnessTier: config.strictnessTier ?? 'practical' }
 
   return {
     files: [
