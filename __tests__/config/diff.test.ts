@@ -260,4 +260,11 @@ describe('impactedGenerators — scoped regen', () => {
     const keys = impactedGenerators(diffConfig(a, b))
     expect(keys.has('frontend-governance')).toBe(true)
   })
+
+  it('language change → full regen (language is an axis field)', () => {
+    const a = baseV2({ language: 'typescript' })
+    const b = baseV2({ language: 'python' })
+    const keys = impactedGenerators(diffConfig(a, b))
+    expect(keys.has('*')).toBe(true)
+  })
 })

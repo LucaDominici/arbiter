@@ -12,6 +12,7 @@ import type {
   GovernanceLevel,
   InvariantTier,
   Lane,
+  Language,
   ObservabilityConfig,
   PlanDepth,
   ProjectPreset,
@@ -91,6 +92,8 @@ export interface ArbiterConfigV2 {
   decomposition?: DecompositionConfig
   features: FeatureFlags
   thresholds: ThresholdsV2
+  /** Detected project language. Persisted so `arbiter update` can detect language migrations and re-run language-gated generators. */
+  language?: Language
   archetype?: Archetype
   architectureStyle?: ArchitectureStyle
   isMultiTenant?: boolean

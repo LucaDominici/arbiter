@@ -258,6 +258,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       contractType,
       lanes,
     } = axisFields
+    const { language } = config
 
     const snapshot = loadSnapshot(targetDir)
     log('\n  Updating...')
@@ -275,6 +276,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       hasDatabase,
       hasPublicApi,
       contractType,
+      language,
       ...(lanes.length > 0 && { lanes }),
       ...(needsMigration && { collaborationMode: 'trunk-solo' }),
     }
