@@ -61,9 +61,7 @@ for (const hook of uniqueHooks) {
   const existsAsHook = existsSync(resolve(root, '.claude/hooks', hook))
   const existsAsScript = existsSync(resolve(root, 'scripts', hook))
   if (!existsAsHook && !existsAsScript) {
-    process.stdout.write(
-      `  CITED hook does not exist (.claude/hooks/ or scripts/): ${hook}\n`,
-    )
+    process.stdout.write(`  CITED hook does not exist (.claude/hooks/ or scripts/): ${hook}\n`)
     violations++
   }
 }
