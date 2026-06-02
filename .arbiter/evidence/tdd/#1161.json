@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1161",
+  "test_path": "__tests__/config/diff.test.ts",
+  "test_commit_sha": "79387dd20fe302476ec36d5c37b64718bd44ced5",
+  "test_run_log": " FAIL  __tests__/config/diff.test.ts > impactedGenerators — scoped regen > language change → full regen (language is an axis field)\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/config/diff.test.ts:268:39\n    266|     const b = baseV2({ language: 'python' })\n    267|     const keys = impactedGenerators(diffConfig(a, b))\n    268|     expect(keys.has('*')).toBe(true)\n       |                           ^\n    269|   })\n\n Test Files  1 failed (1)\n      Tests  1 failed | 30 passed (31)\n   Start at  20:59:01\n   Duration  111ms",
+  "observed_failure": "FAIL  __tests__/config/diff.test.ts — language change did not produce '*' wildcard because 'language' was absent from AXIS_FIELDS — pre-implementation red phase",
+  "recorded_at": "2026-06-02T20:59:01.000Z"
+}
