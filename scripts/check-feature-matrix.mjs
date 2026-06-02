@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
+// CATALOG: validates docs/PRODUCT/FEATURE_MATRIX.md status ladder, KIT-dim coverage, and level DoD.
+// CATALOG: rejected fold-in into check-catalog-agents-parity.mjs (different domain: RTM vs invariant catalog).
+// CATALOG: rejected fold-in into check-kit-catalog-parity.mjs (different concern: matrix gate vs catalog sync).
 /**
  * check-feature-matrix.mjs — FEATURE_MATRIX.md gate (INV-112, CANON-23)
  *

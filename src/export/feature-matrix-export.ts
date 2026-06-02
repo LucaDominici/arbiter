@@ -29,33 +29,25 @@ function isDataRow(cells: string[]): boolean {
   return id !== '' && id !== 'feature_id' && !/^-+$/.test(id)
 }
 
+function at(cells: string[], i: number): string {
+  return cells[i] ?? ''
+}
+
 function cellsToRow(cells: string[]): FeatureMatrixRow {
-  const [
-    featureId,
-    capability,
-    kitDimsRaw,
-    level,
-    status,
-    codeRef,
-    testRef,
-    docRef,
-    issueRef,
-    note,
-  ] = cells
   return {
-    featureId: featureId ?? '',
-    capability: capability ?? '',
-    kitDims: (kitDimsRaw ?? '')
+    featureId: at(cells, 0),
+    capability: at(cells, 1),
+    kitDims: at(cells, 2)
       .split(',')
       .map((d) => d.trim())
       .filter(Boolean),
-    level: level ?? '',
-    status: status ?? '',
-    codeRef: codeRef ?? '',
-    testRef: testRef ?? '',
-    docRef: docRef ?? '',
-    issueRef: issueRef ?? '',
-    note: note ?? '',
+    level: at(cells, 3),
+    status: at(cells, 4),
+    codeRef: at(cells, 5),
+    testRef: at(cells, 6),
+    docRef: at(cells, 7),
+    issueRef: at(cells, 8),
+    note: at(cells, 9),
   }
 }
 
