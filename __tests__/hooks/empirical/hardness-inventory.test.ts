@@ -35,7 +35,7 @@ describe('check-hardness-inventory', () => {
     expect(result.status).toBe(0)
   })
 
-  it('fails when manifest references a non-existent hook file (drift detection)', () => {
+  it('exits 1 when manifest references a non-existent hook file (drift detection)', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-manifest-drift-'))
     try {
       const raw = JSON.parse(readFileSync(MANIFEST, 'utf-8')) as unknown
@@ -59,14 +59,14 @@ describe('check-hardness-inventory', () => {
       writeFileSync(brokenManifestPath, JSON.stringify(broken, null, 2))
 
       const result = runVerifier(['--manifest', brokenManifestPath])
-      expect(result.status).not.toBe(0)
+      expect(result.status).toBe(1)
       expect(result.stdout + result.stderr).toMatch(/ghost-hook|not found|drift/i)
     } finally {
       rmSync(tmpDir, { recursive: true, force: true })
     }
   })
 
-  it('fails when a HARD spawnable hook exits 0 on known violation (ceremony regression)', () => {
+  it('exits 1 when a HARD spawnable hook exits 0 on known violation (ceremony regression)', () => {
     // Use a synthetic single-entry manifest pointing only to ssot-guard,
     // so drift detection passes (exactly one file, one entry) and only the
     // empirical exit-code assertion fires — confirming ceremony regression detection.
@@ -91,8 +91,47 @@ describe('check-hardness-inventory', () => {
       writeFileSync(syntheticManifestPath, JSON.stringify(syntheticManifest, null, 2))
 
       const result = runVerifier(['--manifest', syntheticManifestPath, '--hooks-dir', fakeHooksDir])
-      expect(result.status).not.toBe(0)
+      expect(result.status).toBe(1)
       expect(result.stdout + result.stderr).toMatch(/ceremony regression|hardness-drift/i)
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 1 when a Codex entry points to a hook absent from the Codex config template (Codex parity)', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-codex-parity-'))
+    try {
+      const syntheticManifest: Manifest = {
+        version: 1,
+        hooks: [
+          {
+            file: 'my-hook-not-in-template.mjs',
+            classification: 'SOFT',
+            tools: ['codex'],
+            rationale: 'test Codex parity',
+          },
+        ],
+      }
+      const manifestPath = join(tmpDir, 'hooks-manifest.json')
+      writeFileSync(manifestPath, JSON.stringify(syntheticManifest, null, 2))
+
+      const hooksDir = join(tmpDir, 'hooks')
+      mkdirSync(hooksDir, { recursive: true })
+      writeFileSync(join(hooksDir, 'my-hook-not-in-template.mjs'), '#!/usr/bin/env node\n')
+
+      const codexTemplate = join(tmpDir, 'config.toml.ejs')
+      writeFileSync(codexTemplate, '# codex config\n# no hooks listed here\n')
+
+      const result = runVerifier([
+        '--manifest',
+        manifestPath,
+        '--hooks-dir',
+        hooksDir,
+        '--codex-template',
+        codexTemplate,
+      ])
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).toMatch(/codex|missing from/i)
     } finally {
       rmSync(tmpDir, { recursive: true, force: true })
     }
