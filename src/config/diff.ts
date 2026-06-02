@@ -76,6 +76,10 @@ const AXIS_FIELDS = new Set([
   'hasDatabase',
   'hasPublicApi',
   'contractType',
+  // language is an axis field: a language migration (TS→Python, Python→Java, etc.) affects
+  // nearly every generator (e2e, quality, archunit, modulith, …). Full regen is correct.
+  // language is persisted in ArbiterConfigV2 so diffConfig can detect it.
+  'language',
 ])
 
 // Normalize undefined optional fields to their semantic defaults so
@@ -147,7 +151,6 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'thresholds.maxParams': ['debt-gates'],
   invariantTiers: ['global-invariants', 'agents-md'],
   hasPublicApi: ['api-middleware'],
-  language: ['quality', 'archunit'],
   industryOverlay: ['pharma'],
   'observability.provider': ['observability'],
   'auth.provider': ['auth'],
