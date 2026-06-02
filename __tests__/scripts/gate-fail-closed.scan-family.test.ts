@@ -326,3 +326,48 @@ describe('check-pr-size-gate.mjs (INV-89)', () => {
     }
   })
 })
+// ─── check-workflow-docs-sync.mjs ─────────────────────────────────────────────
+// RED test: gate currently exits 0 (WARN mode) — must exit 1 after Slice C fix.
+
+describe('check-workflow-docs-sync.mjs (INV-89)', () => {
+  it('exits 0 (skip) when .github/workflows/ directory is absent', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      expect(run('scripts/check-workflow-docs-sync.mjs', ['--dir', dir]).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when a workflow is not referenced in any docs/ markdown [FAIL-CLOSE #1148]', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      // Workflow with a unique name that no doc can accidentally mention
+      writeFileSync(join(dir, '.github', 'workflows', 'orphan-xzqq9.yml'), 'on:\n  push:\n')
+      writeFileSync(join(dir, 'docs', 'unrelated.md'), '# Nothing about that workflow\n')
+      const result = run('scripts/check-workflow-docs-sync.mjs', ['--dir', dir])
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('[FAIL]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when all workflows are referenced in docs/', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(join(dir, '.github', 'workflows', 'ci.yml'), 'on:\n  push:\n')
+      writeFileSync(
+        join(dir, 'docs', 'workflows.md'),
+        '## ci workflow\nThe ci workflow runs tests.\n',
+      )
+      expect(run('scripts/check-workflow-docs-sync.mjs', ['--dir', dir]).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})

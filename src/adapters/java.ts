@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { StackAdapter } from './StackAdapter.js'
-import { registerAdapter } from './_registry.js'
 
 /**
  * Java/Spring stack adapter — full implementation (#889, F2-java).
@@ -24,5 +23,4 @@ const javaAdapter: StackAdapter = {
   supportsMutation: () => true,
 }
 
-registerAdapter(javaAdapter)
 export { javaAdapter }

@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+// Test-only registry: no runtime generator or command calls resolveAdapter/listAdapters.
+// Runtime enforcement is via check-adapter-coverage.mjs (file existence) and doctor.ts.
+// INV-88 does NOT require a runtime dispatch Map.
 import type { Language } from '../wizard/types.js'
 import type { StackAdapter } from './StackAdapter.js'
 

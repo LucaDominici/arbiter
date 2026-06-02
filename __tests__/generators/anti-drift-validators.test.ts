@@ -153,6 +153,15 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     expect(content).toContain('has no name: field')
   })
 
+  // RED test: registry integration (#1148 Slice C)
+  it('buildRegistry includes anti-drift-validators spec [WIRING #1148]', async () => {
+    const { buildRegistry } = await import('../../src/generators/registry.js')
+    const specs = buildRegistry(makeConfig(dir))
+    const spec = specs.find((s) => s.key === 'anti-drift-validators')
+    expect(spec).toBeDefined()
+    expect(spec?.enabled).toBe(true)
+  })
+
   it('no EJS tag leaks in any emitted script', () => {
     generateAntiDriftValidators(makeConfig(dir))
     for (const name of [

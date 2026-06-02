@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { StackAdapter } from './StackAdapter.js'
-import { registerAdapter } from './_registry.js'
 
 const pythonAdapter: StackAdapter = {
   language: 'python',
@@ -12,5 +11,4 @@ const pythonAdapter: StackAdapter = {
   supportsMutation: () => false,
 }
 
-registerAdapter(pythonAdapter)
 export { pythonAdapter }

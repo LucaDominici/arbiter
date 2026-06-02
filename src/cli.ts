@@ -1733,13 +1733,7 @@ experiments
       process.stdout.write(`${t('cli.experiments.none')}\n`)
       return
     }
-    const activeFlags: Record<string, boolean> = (() => {
-      try {
-        return JSON.parse(process.env['ARBITER_EXPERIMENTAL'] ?? '{}') as Record<string, boolean>
-      } catch {
-        return {}
-      }
-    })()
+    const activeFlags = getActiveExperimentalFlags()
     for (const exp of all) {
       const active = isEnabled(exp.name, activeFlags)
       const status = active ? '[active]' : '[inactive]'
@@ -1754,9 +1748,26 @@ experiments
 
 // ── kit — read-only kit catalog commands (--experimental.kit) ─────────────────
 
+function getActiveExperimentalFlags(): Record<string, boolean> {
+  try {
+    return JSON.parse(process.env['ARBITER_EXPERIMENTAL'] ?? '{}') as Record<string, boolean>
+  } catch {
+    return {}
+  }
+}
+
 const kit = program
   .command('kit')
   .description('Cross-stack governance kit commands (requires --experimental.kit)')
+
+kit.hook('preAction', () => {
+  if (!isEnabled('kit', getActiveExperimentalFlags())) {
+    process.stderr.write(
+      'arbiter: "kit" requires --experimental.kit. Run `arbiter experiments list` to see available experiments.\n',
+    )
+    process.exit(1)
+  }
+})
 
 kit
   .command('list')

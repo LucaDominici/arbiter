@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // arbiter — workflow runner label drift detector (INV-89)
 // Validates that all workflow jobs use the expected runner label.
-// Exits 0 when all runners match; exits 1 when unexpected labels are found.
+// Advisory: warns but does not fail; runner customization is allowed per INV-13.
+// Exits 0 always (unexpected labels emit WARN, not FAIL).
 // Part of the anti-drift validator family (W6).
 //
 // Usage: node scripts/check-workflow-runners.mjs [--dir <path>] [--runner <label>] [--help]
@@ -18,7 +19,7 @@ const { cwd: CWD } = parseHelpAndDir(args, {
     'Usage: node scripts/check-workflow-runners.mjs [options]',
     '',
     'Validates that all workflow jobs use the expected runner label.',
-    'Exits 0 when all runners match; exits 1 when unexpected labels are found.',
+    'Advisory: warns but does not fail (runner customization allowed per INV-13).',
     '',
     'Options:',
     '  --dir <path>        Root directory to scan (default: cwd)',

@@ -62,6 +62,7 @@ export type GeneratorKey =
   | 'frontend-governance'
   | 'frontend-quality'
   | 'feature-matrix'
+  | 'anti-drift-validators'
 
 export interface ConfigDiff {
   paths: string[]
@@ -122,6 +123,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     'coverage',
     'duplication',
     'stride-enforcement',
+    'anti-drift-validators',
   ],
   'features.securityScanning': ['security'],
   'features.mutationTesting': ['mutation', 'check-all', 'nightly'],

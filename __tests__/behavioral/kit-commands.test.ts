@@ -60,4 +60,21 @@ describe('arbiter kit — sub-command surface', () => {
     expect(status, `stdout: ${stdout}\nstderr: ${stderr}`).toBe(0)
     expect(stdout + stderr).toMatch(/N\d+/)
   })
+
+  // RED test: kit guard (#1148 Slice C)
+  it('kit list without --experimental.kit exits non-zero [GUARD #1148]', () => {
+    const { status, stderr } = spawn(['kit', 'list'])
+    expect(status, `stderr: ${stderr}`).not.toBe(0)
+    expect(stderr).toMatch(/experimental|--experimental\.kit/i)
+  })
+
+  it('kit --help still exits 0 without --experimental.kit (guard does not block help)', () => {
+    const { status } = spawn(['kit', '--help'])
+    expect(status).toBe(0)
+  })
+
+  it('non-kit command exits 0 without --experimental.kit (guard scoped to kit only)', () => {
+    const { status } = spawn(['--version'])
+    expect(status).toBe(0)
+  })
 })

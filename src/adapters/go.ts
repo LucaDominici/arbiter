@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { StackAdapter } from './StackAdapter.js'
-import { registerAdapter } from './_registry.js'
 
 const goAdapter: StackAdapter = {
   language: 'go',
@@ -12,5 +11,4 @@ const goAdapter: StackAdapter = {
   supportsMutation: () => false,
 }
 
-registerAdapter(goAdapter)
 export { goAdapter }

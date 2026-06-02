@@ -9,7 +9,11 @@ export interface AntiDriftValidatorsResult {
 }
 
 /** Emit W6 dual-track scripts (also wired in arbiter's own L1 gate). */
-function emitW6DualTrack(base: string, config: ProjectConfig): WriteResult[] {
+function emitW6DualTrack(
+  base: string,
+  config: ProjectConfig,
+  opts: { dryRun: boolean },
+): WriteResult[] {
   const scripts = [
     'check-suppression-rationale.mjs',
     'check-suppression-expiry.mjs',
@@ -24,22 +28,32 @@ function emitW6DualTrack(base: string, config: ProjectConfig): WriteResult[] {
   return scripts.map((name) =>
     writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 }
 
 /** Emit W6 Track-B-only scripts (emitted for target projects; not wired in arbiter). */
-function emitW6TrackBOnly(base: string, config: ProjectConfig): WriteResult[] {
+function emitW6TrackBOnly(
+  base: string,
+  config: ProjectConfig,
+  opts: { dryRun: boolean },
+): WriteResult[] {
   const scripts = ['check-workflow-sha-pinning.mjs', 'check-workflow-job-naming.mjs']
   return scripts.map((name) =>
     writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 }
 
 /** Emit F4 batch — 9 remaining agnostic anti-drift validators (INV-89). */
-function emitF4Validators(base: string, config: ProjectConfig): WriteResult[] {
+function emitF4Validators(
+  base: string,
+  config: ProjectConfig,
+  opts: { dryRun: boolean },
+): WriteResult[] {
   const scripts = [
     'check-validator-helptext.mjs',
     'check-tier-coverage.mjs',
@@ -54,6 +68,7 @@ function emitF4Validators(base: string, config: ProjectConfig): WriteResult[] {
   return scripts.map((name) =>
     writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
       skipIfExists: true,
+      dryRun: opts.dryRun,
     }),
   )
 }
@@ -72,12 +87,15 @@ function emitF4Validators(base: string, config: ProjectConfig): WriteResult[] {
  * issues, and workflow structural problems in generated projects.
  * See docs/REFERENCE/anti-drift-family.md for the full family reference.
  */
-export function generateAntiDriftValidators(config: ProjectConfig): AntiDriftValidatorsResult {
+export function generateAntiDriftValidators(
+  config: ProjectConfig,
+  opts: { dryRun: boolean } = { dryRun: false },
+): AntiDriftValidatorsResult {
   const base = config.targetDir
   const files: WriteResult[] = [
-    ...emitW6DualTrack(base, config),
-    ...emitW6TrackBOnly(base, config),
-    ...emitF4Validators(base, config),
+    ...emitW6DualTrack(base, config, opts),
+    ...emitW6TrackBOnly(base, config, opts),
+    ...emitF4Validators(base, config, opts),
   ]
   return { files }
 }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { StackAdapter } from './StackAdapter.js'
 import type { LanguageHook } from '../wizard/types.js'
-import { registerAdapter } from './_registry.js'
 
 const tsAdapter: StackAdapter = {
   language: 'typescript',
@@ -19,5 +18,4 @@ const tsAdapter: StackAdapter = {
   supportsMutation: () => true,
 }
 
-registerAdapter(tsAdapter)
 export { tsAdapter }

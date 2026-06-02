@@ -88,18 +88,17 @@ for (const entry of wfEntries) {
   // Check if the workflow name (without extension) is referenced in any doc
   if (!docContent.includes(name) && !docContent.includes(entry.name)) {
     process.stderr.write(
-      `[WARN] workflow "${entry.name}" not referenced in any docs/ markdown (INV-89)\n`,
+      `[FAIL] workflow "${entry.name}" not referenced in any docs/ markdown (INV-89)\n`,
     )
     violations++
   }
 }
 
 if (violations > 0) {
-  process.stdout.write(
-    `check-workflow-docs-sync: WARN — ${violations}/${checked} workflow(s) not documented in docs/ (INV-89)\n`,
+  process.stderr.write(
+    `check-workflow-docs-sync: FAIL — ${violations}/${checked} workflow(s) not documented in docs/ (INV-89)\n`,
   )
-  // Warning only — docs are often written after implementation
-  process.exit(0)
+  process.exit(1)
 }
 process.stdout.write(
   `check-workflow-docs-sync: OK — all ${checked} workflows referenced in docs/ (INV-89)\n`,

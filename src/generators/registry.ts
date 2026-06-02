@@ -35,6 +35,7 @@ import { generateWindsurf } from './windsurf.js'
 import { generateAider } from './aider.js'
 import { generateAgentsClaude } from './agents-claude.js'
 import { generateSsot } from './ssot.js'
+import { generateAntiDriftValidators } from './anti-drift-validators.js'
 import { generateBehavioralTests } from './behavioral-tests.js'
 import { generatePlaywrightPython } from './playwright-python.js'
 import { generatePlaywrightTs } from './playwright-ts.js'
@@ -435,6 +436,11 @@ export function buildRegistry(
     ...buildAnalysisSpecs(config),
     ...buildPerfSpecs(config),
     ...buildProviderSpecs(config),
+    {
+      key: 'anti-drift-validators' as const,
+      enabled: true,
+      run: (opts) => generateAntiDriftValidators(config, opts).files,
+    },
     {
       key: 'feature-matrix',
       enabled: config.governanceLevel !== 'L1',
