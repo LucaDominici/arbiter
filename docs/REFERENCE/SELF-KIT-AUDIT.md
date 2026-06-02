@@ -16,7 +16,7 @@ Brownfield class: **gold**
 | N24 | PRESENT | package.json |
 | N25 | PRESENT | package.json |
 | N26 | PRESENT | .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_pr-staleness.yml, .github/workflows/kit-self-canary.yml |
-| N27 | PRESENT | __tests__/integration/ai-pr-gate-e2e.test.ts, __tests__/integration/blame-dogfood.test.ts, __tests__/integration/brownfield-baseline.test.ts, __tests__/integration/brownfield-safety.test.ts, __tests__/integration/check-all-summary.test.ts, __tests__/integration/evidence-cmd-log.test.ts, __tests__/integration/example-plugin-spring-boot.test.ts, __tests__/integration/generated-check-all.test.ts, __tests__/integration/githooks-generation.test.ts, __tests__/integration/init-greenfield-smoke.test.ts, __tests__/integration/init.test.ts, __tests__/integration/inline-suppressions.test.ts, __tests__/integration/security-template-error.test.ts, __tests__/integration/skills.test.ts, __tests__/integration/update-diff.test.ts, __tests__/integration/wave0-reproducer.test.ts, __tests__/integration/wizard-abort.test.ts, __tests__/integration/worktree-close.test.ts, __tests__/integration/worktree-open.test.ts |
+| N27 | PRESENT | __tests__/integration/ai-pr-gate-e2e.test.ts, __tests__/integration/blame-dogfood.test.ts, __tests__/integration/brownfield-baseline.test.ts, __tests__/integration/brownfield-safety.test.ts, __tests__/integration/check-all-summary.test.ts, __tests__/integration/collab-mode-ceremony.test.ts, __tests__/integration/evidence-cmd-log.test.ts, __tests__/integration/example-plugin-spring-boot.test.ts, __tests__/integration/generated-check-all.test.ts, __tests__/integration/githooks-generation.test.ts, __tests__/integration/init-greenfield-smoke.test.ts, __tests__/integration/init.test.ts, __tests__/integration/inline-suppressions.test.ts, __tests__/integration/security-template-error.test.ts, __tests__/integration/skills.test.ts, __tests__/integration/update-diff.test.ts, __tests__/integration/wave0-reproducer.test.ts, __tests__/integration/wizard-abort.test.ts, __tests__/integration/worktree-close.test.ts, __tests__/integration/worktree-open.test.ts |
 | N34 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/06-nightly.yml, .github/workflows/07-weekly.yml, .github/workflows/08-monthly.yml, .github/workflows/09-heartbeat.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_label-sync.yml, .github/workflows/_notify.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/_pr-staleness.yml, .github/workflows/_sigstore-retry-sign.yml, .github/workflows/dependabot-actions-sync.yml, .github/workflows/kit-self-canary.yml |
 | N35 | PRESENT | .github/workflows/01-pr-fast.yml, .github/workflows/02-pr-extended.yml, .github/workflows/03-human-approval.yml, .github/workflows/05-release.yml, .github/workflows/_ai-draft-check.yml, .github/workflows/_label-on-approve.yml, .github/workflows/_post-merge-notify.yml, .github/workflows/dependabot-actions-sync.yml |
 | N36 | PRESENT | .github/workflows/05-release.yml |
@@ -42,7 +42,7 @@ Brownfield class: **gold**
 | N61 | PRESENT | .github/PULL_REQUEST_TEMPLATE.md |
 | N62 | PRESENT | .github/ISSUE_TEMPLATE/bug-report.yml, .github/ISSUE_TEMPLATE/compliance-item.yml, .github/ISSUE_TEMPLATE/config.yml, .github/ISSUE_TEMPLATE/epic-kit-gold-standard.md, .github/ISSUE_TEMPLATE/epic.yml, .github/ISSUE_TEMPLATE/feature-request.yml, .github/ISSUE_TEMPLATE/task-brief.yml |
 | N63 | PRESENT | .claude/CLAUDE.md, AGENTS.md |
-| N65 | PRESENT | docs/SYSTEM/DECISIONS.md |
+| N65 | PRESENT | docs/ADR/001-agents-md-canonical.md, docs/ADR/002-thin-pointer-pattern.md, docs/ADR/003-gh-cli-required.md, docs/ADR/004-skip-if-exists.md, docs/ADR/005-deep-merge-settings.md, docs/ADR/006-typescript-node-cli.md, docs/ADR/007-standard-labels.md, docs/ADR/008-governance-levels.md, docs/ADR/009-ejs-over-handlebars.md, docs/ADR/010-ai-rulez-coexistence.md, docs/ADR/011-brownfield-first-design.md, docs/ADR/012-doc-enforcement.md, docs/ADR/013-testing-matrix.md, docs/ADR/014-tech-debt-prevention-strategy.md, docs/ADR/015-debt-ratchet.md, docs/ADR/016-restassured-mutation-testing.md, docs/ADR/017-skills-agents-generation.md, docs/ADR/018-ssot-framework-generation.md, docs/ADR/019-richer-github-integration.md, docs/ADR/020-cli-first-over-mcp.md |
 | N68 | PRESENT | docs/METHOD/KNOWLEDGE_MAP.md, scripts/check-knowledge-map.mjs |
 | N69 | PRESENT | .nvmrc |
 | N70 | MISSING |  |
@@ -77,7 +77,7 @@ Brownfield class: **gold**
 | N44 | MISSING |  |
 | N64 | MISSING |  |
 | N66 | MISSING |  |
-| N67 | PRESENT | docs/runbooks/deployment.md, docs/runbooks/prod-checklist.md, docs/runbooks/rollback.md, docs/runbooks/troubleshooting.md |
+| N67 | PRESENT | docs/runbooks/dependabot-handling.md, docs/runbooks/deployment.md, docs/runbooks/prod-checklist.md, docs/runbooks/rollback.md, docs/runbooks/troubleshooting.md |
 | N72 | MISSING |  |
 
 ## W3 — Gold — achieve full quality-gate parity
