@@ -18,33 +18,33 @@ describe('generateInfra', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('returns empty files when enableAzureContainerApp is unset (default off)', () => {
+  it('returns empty files when deployTarget is not azure-container-app (default off)', () => {
     const result = generateInfra(makeConfig(dir))
     expect(result.files.length).toBe(0)
   })
 
-  it('returns empty files when enableAzureContainerApp is false', () => {
-    const result = generateInfra(makeConfig(dir, { enableAzureContainerApp: false }))
+  it('returns empty files when deployTarget is none', () => {
+    const result = generateInfra(makeConfig(dir, { deployTarget: 'none' }))
     expect(result.files.length).toBe(0)
   })
 
-  it('emits exactly one file when enableAzureContainerApp is true', () => {
-    const result = generateInfra(makeConfig(dir, { enableAzureContainerApp: true }))
+  it('emits exactly one file when deployTarget is azure-container-app', () => {
+    const result = generateInfra(makeConfig(dir, { deployTarget: 'azure-container-app' }))
     expect(result.files.length).toBe(1)
   })
 
   it('emits containerapp.tpl.yaml to infra/azure/', () => {
-    generateInfra(makeConfig(dir, { enableAzureContainerApp: true }))
+    generateInfra(makeConfig(dir, { deployTarget: 'azure-container-app' }))
     expect(existsSync(join(dir, 'infra', 'azure', 'containerapp.tpl.yaml'))).toBe(true)
   })
 
   it('result.files path includes containerapp.tpl.yaml', () => {
-    const result = generateInfra(makeConfig(dir, { enableAzureContainerApp: true }))
+    const result = generateInfra(makeConfig(dir, { deployTarget: 'azure-container-app' }))
     expect(result.files[0].path).toContain('containerapp.tpl.yaml')
   })
 
   it('emitted file contains project name from config', () => {
-    generateInfra(makeConfig(dir, { enableAzureContainerApp: true, projectName: 'my-svc' }))
+    generateInfra(makeConfig(dir, { deployTarget: 'azure-container-app', projectName: 'my-svc' }))
     const content = readFileSync(join(dir, 'infra', 'azure', 'containerapp.tpl.yaml'), 'utf-8')
     expect(content).toContain('my-svc')
   })
@@ -54,7 +54,7 @@ describe('generateInfra', () => {
       const levelDir = mkdtempSync(join(tmpdir(), `arbiter-infra-${level}-`))
       try {
         const result = generateInfra(
-          makeConfig(levelDir, { enableAzureContainerApp: true, governanceLevel: level }),
+          makeConfig(levelDir, { deployTarget: 'azure-container-app', governanceLevel: level }),
         )
         expect(result.files.length, `${level}: expected 1 file`).toBe(1)
         expect(existsSync(join(levelDir, 'infra', 'azure', 'containerapp.tpl.yaml'))).toBe(true)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // F11: Azure ContainerApp infra template generator (#893)
-// Emits infra/azure/containerapp.tpl.yaml when enableAzureContainerApp is true.
-// Gate: config.enableAzureContainerApp === true (default off — opt-in per downstream project).
+// Emits infra/azure/containerapp.tpl.yaml when deployTarget === 'azure-container-app'.
+// Gate: config.deployTarget === 'azure-container-app' (default off — opt-in per downstream project).
 //
 // Existing Code Survey (CANON-16):
 //   - grep "export function generate" src/generators/*.ts — no existing infra generator found.
@@ -21,7 +21,7 @@ export interface InfraGeneratorResult {
 /**
  * Generate Azure ContainerApp infra template.
  *
- * Emits one file when enableAzureContainerApp is true:
+ * Emits one file when deployTarget === 'azure-container-app':
  *   infra/azure/containerapp.tpl.yaml  — envsubst deploy template (skipIfExists)
  *
  * The skipIfExists flag ensures user-customized deploy specs survive re-init.
@@ -30,8 +30,7 @@ export function generateInfra(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): InfraGeneratorResult {
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
-  if (!config.enableAzureContainerApp) return { files: [] }
+  if (config.deployTarget !== 'azure-container-app') return { files: [] }
 
   const infraDir = resolvedPath(config.targetDir, 'infra', 'azure')
 

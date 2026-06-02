@@ -374,10 +374,6 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
       answers.contractType ?? defaultContractType(answers.archetype, answers.hasPublicApi),
     lanes: input.detectedLanes ?? [],
     deployTarget,
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    enableDeployWorkflows: deployTarget !== 'none',
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    enableAzureContainerApp: deployTarget === 'azure-container-app',
     pipelineStyle: answers.pipelineStyle ?? 'standard',
     brownfieldClass: answers.brownfieldClass ?? 'gold',
     kitEnabled: true,

@@ -407,9 +407,9 @@ describe('generateGithub — ciTierMode workflow subset', () => {
   })
 })
 
-// ─── CANON-05: enableDeployWorkflows flag tests ───────────────────────────────
+// ─── CANON-05: deployTarget deploy-workflow gate tests ───────────────────────────────
 
-describe('generateGithub — enableDeployWorkflows flag (CANON-05, #899)', () => {
+describe('generateGithub — deployTarget deploy-workflow gate (CANON-05, #899, #1145)', () => {
   let dir: string
 
   beforeEach(() => {
@@ -420,46 +420,46 @@ describe('generateGithub — enableDeployWorkflows flag (CANON-05, #899)', () =>
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('deploy workflows NOT emitted by default (enableDeployWorkflows unset)', () => {
+  it('deploy workflows NOT emitted by default (deployTarget unset)', () => {
     generateGithub(makeConfig(dir))
     const wfDir = join(dir, '.github', 'workflows')
     expect(existsSync(join(wfDir, '04-deploy-test.yml'))).toBe(false)
     expect(existsSync(join(wfDir, '10-deploy-prod.yml'))).toBe(false)
   })
 
-  it('enableDeployWorkflows=false does not emit deploy workflows', () => {
-    generateGithub(makeConfig(dir, { enableDeployWorkflows: false }))
+  it('deployTarget=none does not emit deploy workflows', () => {
+    generateGithub(makeConfig(dir, { deployTarget: 'none' }))
     const wfDir = join(dir, '.github', 'workflows')
     expect(existsSync(join(wfDir, '04-deploy-test.yml'))).toBe(false)
     expect(existsSync(join(wfDir, '10-deploy-prod.yml'))).toBe(false)
   })
 
-  it('enableDeployWorkflows=true emits 04-deploy-test.yml', () => {
-    generateGithub(makeConfig(dir, { enableDeployWorkflows: true }))
+  it('deployTarget=ghcr emits 04-deploy-test.yml', () => {
+    generateGithub(makeConfig(dir, { deployTarget: 'ghcr' }))
     const wfDir = join(dir, '.github', 'workflows')
     expect(existsSync(join(wfDir, '04-deploy-test.yml'))).toBe(true)
   })
 
-  it('enableDeployWorkflows=true emits 10-deploy-prod.yml', () => {
-    generateGithub(makeConfig(dir, { enableDeployWorkflows: true }))
+  it('deployTarget=ghcr emits 10-deploy-prod.yml', () => {
+    generateGithub(makeConfig(dir, { deployTarget: 'ghcr' }))
     const wfDir = join(dir, '.github', 'workflows')
     expect(existsSync(join(wfDir, '10-deploy-prod.yml'))).toBe(true)
   })
 
   it('04-deploy-test.yml contains "Deploy Test" name', () => {
-    generateGithub(makeConfig(dir, { enableDeployWorkflows: true }))
+    generateGithub(makeConfig(dir, { deployTarget: 'ghcr' }))
     const content = readFileSync(join(dir, '.github', 'workflows', '04-deploy-test.yml'), 'utf-8')
     expect(content).toContain('name: Deploy Test')
   })
 
   it('10-deploy-prod.yml contains "Deploy Prod" name', () => {
-    generateGithub(makeConfig(dir, { enableDeployWorkflows: true }))
+    generateGithub(makeConfig(dir, { deployTarget: 'ghcr' }))
     const content = readFileSync(join(dir, '.github', 'workflows', '10-deploy-prod.yml'), 'utf-8')
     expect(content).toContain('name: Deploy Prod')
   })
 
   it('deploy workflows appear in result.files when enabled', () => {
-    const result = generateGithub(makeConfig(dir, { enableDeployWorkflows: true }))
+    const result = generateGithub(makeConfig(dir, { deployTarget: 'ghcr' }))
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.includes('04-deploy-test.yml'))).toBe(true)
     expect(paths.some((p) => p.includes('10-deploy-prod.yml'))).toBe(true)

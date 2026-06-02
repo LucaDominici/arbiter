@@ -247,8 +247,7 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'infra',
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      enabled: config.enableAzureContainerApp === true,
+      enabled: config.deployTarget === 'azure-container-app',
       run: (opts) => generateInfra(config, opts).files,
     },
     {

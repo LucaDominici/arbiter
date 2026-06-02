@@ -211,7 +211,13 @@ export interface ProjectConfig {
   enableDebtGates: boolean
   /** Whether to generate suppression templates and the check-suppressions.mjs expiry gate. Defaults to true for all governance levels. */
   enableSuppressions: boolean
-  /** Which database engine the project uses. Set when hasDatabase=true. Required by KIT dims N08/N73/N74/N75. */
+  /**
+   * Which database engine the project uses. Set when hasDatabase=true. Still
+   * consumed by KIT applicability gating for dims N08/N73/N74/N75
+   * (src/kit/applicability.ts) — NOT dead. Auto-detection is not yet
+   * implemented (tracked by #1058); until then this is set manually or left unset
+   * (requiresDbEngine dims fail-closed to NA). #1157.
+   */
   databaseEngine?: 'postgresql' | 'mysql' | 'mongodb' | 'sqlite' | 'other'
   /** Whether to generate security scanning gates (PII scan, gitleaks, dep audit). Defaults to true for L2+. */
   enableSecurityScanning: boolean
@@ -339,7 +345,8 @@ export interface ProjectConfig {
    * Container registry / cloud deploy target.
    * 'ghcr' = default for backend-web-db (home scenario). All others = paid-cloud targets.
    * 'none' = no deploy workflows emitted (default for all non-service archetypes).
-   * Absent field treated as 'none'. Derives enableDeployWorkflows + enableAzureContainerApp.
+   * Absent field treated as 'none'. Sole gate for deploy-workflow and Azure
+   * Container Apps infra emission (#1145/#1146 removed the derived boolean flags).
    */
   deployTarget?: DeployTarget
 
@@ -371,28 +378,12 @@ export interface ProjectConfig {
   kitEnabled?: boolean
 
   /**
-   * Emit deploy workflow templates (04-deploy-test.yml + 10-deploy-prod.yml).
-   * Off by default — downstream projects opt in when they have a container deploy pipeline.
-   * Slot 04 was reserved in CI-TIER-MODEL.md; slot 10 is new (post 09-heartbeat).
-   * @deprecated Derive from deployTarget instead.
-   */
-  enableDeployWorkflows?: boolean
-
-  /**
    * Industry overlay — emits domain-specific compliance scaffolding on top of the base project.
    * 'pharma' → pharma audit-trail overlay (KIT dims 73-75, ArchUnit R-35..R-39). Java only.
    * 'none'   → no overlay (default).
    * Absent field is treated as 'none'.
    */
   industryOverlay?: 'pharma' | 'none'
-
-  /**
-   * F11 (#893): emit Azure Container Apps infra template (infra/azure/containerapp.tpl.yaml).
-   * Off by default — downstream projects opt in when targeting Azure Container Apps.
-   * File is emitted with skipIfExists so user-customized specs survive re-init.
-   * @deprecated Derive from `deployTarget === 'azure-container-app'` instead (#1146).
-   */
-  enableAzureContainerApp?: boolean
 
   /**
    * F6: Emit k6 performance testing ecosystem.

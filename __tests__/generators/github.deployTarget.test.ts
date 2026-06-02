@@ -32,7 +32,7 @@ describe('generateGithub — deployTarget dispatch (#1005)', () => {
     expect(existsSync(join(wfDir, '10-deploy-prod.yml'))).toBe(false)
   })
 
-  it('undefined deployTarget + undefined enableDeployWorkflows does NOT emit deploy workflows', () => {
+  it('undefined deployTarget does NOT emit deploy workflows', () => {
     generateGithub(makeConfig(dir, { archetype: 'library' }))
     const wfDir = join(dir, '.github', 'workflows')
     expect(existsSync(join(wfDir, '04-deploy-test.yml'))).toBe(false)
