@@ -30,6 +30,7 @@ export function generateInfra(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): InfraGeneratorResult {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   if (!config.enableAzureContainerApp) return { files: [] }
 
   const infraDir = resolvedPath(config.targetDir, 'infra', 'azure')

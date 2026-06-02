@@ -390,6 +390,7 @@ export interface ProjectConfig {
    * F11 (#893): emit Azure Container Apps infra template (infra/azure/containerapp.tpl.yaml).
    * Off by default — downstream projects opt in when targeting Azure Container Apps.
    * File is emitted with skipIfExists so user-customized specs survive re-init.
+   * @deprecated Derive from `deployTarget === 'azure-container-app'` instead (#1146).
    */
   enableAzureContainerApp?: boolean
 
