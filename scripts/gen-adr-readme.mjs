@@ -80,12 +80,13 @@ try {
   })
 
   // ── README.md ──────────────────────────────────────────────────────────────
-  const today = new Date().toISOString().slice(0, 10)
+  // Use latestDate (derived from ADR frontmatter) for deterministic --check.
+  // new Date() would cause the --check gate to fail every day after a write.
   const README_HEADER = `---
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '${today}'
+last_review: '${latestDate}'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -175,6 +176,7 @@ ${digestRows.join('\n')}
   writeFileSync(DECISIONS_PATH, DECISIONS_DIGEST, 'utf-8')
   process.stdout.write(`  gen-adr-readme: wrote DECISIONS.md digest\n`)
 } catch (err) {
+  // Exit 2 = invocation/fatal error (INV-53: 0=PASS, 1=FAIL/drift, 2=ERROR)
   process.stdout.write(`  gen-adr-readme: fatal — ${err.message}\n`)
-  process.exit(1)
+  process.exit(2)
 }

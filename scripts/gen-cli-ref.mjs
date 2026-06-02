@@ -185,6 +185,8 @@ function generateRegion(commands) {
     }
   }
 
+  // Ensure content ends with newline so END_MARKER appears on its own line.
+  if (lines[lines.length - 1] !== '') lines.push('')
   return lines.join('\n')
 }
 

@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-02'
+last_review: '2026-06-01'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
