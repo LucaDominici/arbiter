@@ -26,13 +26,15 @@ describe('INVARIANT_CATALOG', () => {
     // Updated in #1099: +1 (INV-107 ADR SSOT integrity, selfOnly governance)
     // Updated in #1100: +1 (INV-108 SSOT core set exhaustiveness, selfOnly governance)
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, typescript operational)
-    expect(INVARIANT_CATALOG).toHaveLength(108)
+    // Updated dual-ADR-cli-single-source: +1 (INV-111 CLI ref parity, selfOnly governance)
+    expect(INVARIANT_CATALOG).toHaveLength(109)
   })
 
   it('all IDs are unique', () => {
+    // Updated dual-ADR-cli-single-source: +1 (INV-111)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(108)
+    expect(unique.size).toBe(109)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -112,8 +114,9 @@ describe('INVARIANT_CATALOG', () => {
   it('has exactly 37 Tier 5 invariants', () => {
     // Updated in #1099: +1 (INV-107)
     // Updated in #1100: +1 (INV-108)
+    // Updated dual-ADR-cli-single-source: +1 (INV-111)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(38)
+    expect(tier5).toHaveLength(39)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -515,8 +518,9 @@ describe('getFilteredInvariants', () => {
   })
 
   it('catalog has exactly 23 selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)', () => {
+    // Updated dual-ADR-cli-single-source: +1 (INV-111)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(23)
+    expect(selfOnly).toHaveLength(24)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')
@@ -534,6 +538,7 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-88')
     expect(ids).toContain('INV-90')
     expect(ids).toContain('INV-93')
+    expect(ids).toContain('INV-111')
   })
 })
 

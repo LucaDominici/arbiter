@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-// Generates docs/ADR/README.md from docs/ADR/NNN-*.md per-file SSOT.
+// Generates docs/ADR/README.md and docs/SYSTEM/DECISIONS.md from docs/ADR/NNN-*.md per-file SSOT.
 // Usage:
-//   node scripts/gen-adr-readme.mjs          # write
-//   node scripts/gen-adr-readme.mjs --check  # exit 1 if out of date
+//   node scripts/gen-adr-readme.mjs          # write both files
+//   node scripts/gen-adr-readme.mjs --check  # exit 1 if either is out of date
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const root = resolve('.')
 const ADR_DIR = join(root, 'docs', 'ADR')
 const README_PATH = join(ADR_DIR, 'README.md')
+const DECISIONS_PATH = join(root, 'docs', 'SYSTEM', 'DECISIONS.md')
 const CHECK = process.argv.includes('--check')
 const NUMBERED = /^(\d{3})-(.+)\.md$/
 
@@ -56,6 +57,9 @@ try {
     rows.push({ num, file, title: rawTitle, status, date, summary })
   }
 
+  // Use the most recent ADR date as the digest's last_review (deterministic, not new Date())
+  const latestDate = [...rows.map((r) => r.date)].filter(Boolean).sort().at(-1) ?? '2026-01-01'
+
   // Calculate column widths for alignment
   const maxTitle = Math.max(5, ...rows.map((r) => `[${r.title}](${r.file})`.length))
   const maxStatus = Math.max(6, ...rows.map((r) => r.status.length))
@@ -75,8 +79,9 @@ try {
     return `| ${r.num} | ${pad(link, maxTitle)} | ${pad(r.status, maxStatus)} | ${r.date} | ${r.summary} |`
   })
 
+  // ── README.md ──────────────────────────────────────────────────────────────
   const today = new Date().toISOString().slice(0, 10)
-  const STATIC_HEADER = `---
+  const README_HEADER = `---
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
@@ -92,36 +97,83 @@ related: []
 This directory contains the Architectural Decision Records (ADRs) for the Arbiter project. Each ADR captures a significant design decision, its context, rationale, and consequences.
 
 > **SSOT:** \`docs/ADR/\` is the canonical ADR source (since Wave 2, 2026-05-31).
-> \`docs/SYSTEM/DECISIONS.md\` is a frozen legacy log; do not append to it.
+> \`docs/SYSTEM/DECISIONS.md\` is a generated digest — do not edit it directly.
 
 ## Process
 
-1. Create \`NNN-short-title.md\` in this directory (next free number after 074)
+1. Create \`NNN-short-title.md\` in this directory (next free number after ${rows.length > 0 ? rows[rows.length - 1].num : '076'})
 2. Copy from \`ADR-000_template.md\`
 3. Set \`canonical_id\` to the 3-digit number
-4. Run \`node scripts/gen-adr-readme.mjs\` to refresh this index
+4. Run \`node scripts/gen-adr-readme.mjs\` to refresh this index and DECISIONS.md digest
 5. Status: \`proposed\` → \`active\` after review; \`superseded\` with a note when replaced
 
 ## Index
 
 `
 
-  const generated = STATIC_HEADER + tableHeader + '\n' + tableRows.join('\n') + '\n'
+  const generatedReadme = README_HEADER + tableHeader + '\n' + tableRows.join('\n') + '\n'
+
+  // ── DECISIONS.md digest (deterministic — uses latest ADR date, not new Date()) ──
+  const digestRows = rows.map((r) => {
+    const link = `[${r.title}](../ADR/${r.file})`
+    return `| ${r.num} | ${link} | ${r.status} | ${r.date} |`
+  })
+
+  const DECISIONS_DIGEST = `---
+title: 'Architectural Decision Records — Generated Digest'
+doc_version: '1.0.0'
+status: generated
+last_review: '${latestDate}'
+owner: ''
+canonical_id: ''
+tags: ['audience/dev', 'kind/adr']
+related: []
+---
+
+# Architectural Decision Records — Generated Digest
+
+> **GENERATED — do not edit.** Run \`node scripts/gen-adr-readme.mjs\` to regenerate.
+> Canonical ADR source: \`docs/ADR/\` — see [docs/ADR/README.md](../ADR/README.md) for the full index.
+> Historical prose log preserved in git history prior to consolidation (2026-06-02).
+
+## ADR Index
+
+| # | Title | Status | Date |
+|---|-------|--------|------|
+${digestRows.join('\n')}
+`
 
   if (CHECK) {
-    const current = existsSync(README_PATH) ? readFileSync(README_PATH, 'utf-8') : ''
-    if (current !== generated) {
+    let failures = 0
+
+    const currentReadme = existsSync(README_PATH) ? readFileSync(README_PATH, 'utf-8') : ''
+    if (currentReadme !== generatedReadme) {
       process.stdout.write(
         '  gen-adr-readme: README.md is out of date — run node scripts/gen-adr-readme.mjs\n',
       )
-      process.exit(1)
+      failures++
+    } else {
+      process.stdout.write(`  gen-adr-readme: README.md is up to date (${rows.length} ADRs)\n`)
     }
-    process.stdout.write(`  gen-adr-readme: README.md is up to date (${rows.length} ADRs)\n`)
-    process.exit(0)
+
+    const currentDecisions = existsSync(DECISIONS_PATH) ? readFileSync(DECISIONS_PATH, 'utf-8') : ''
+    if (currentDecisions !== DECISIONS_DIGEST) {
+      process.stdout.write(
+        '  gen-adr-readme: DECISIONS.md digest is out of date — run node scripts/gen-adr-readme.mjs\n',
+      )
+      failures++
+    } else {
+      process.stdout.write(`  gen-adr-readme: DECISIONS.md digest is up to date\n`)
+    }
+
+    process.exit(failures > 0 ? 1 : 0)
   }
 
-  writeFileSync(README_PATH, generated, 'utf-8')
+  writeFileSync(README_PATH, generatedReadme, 'utf-8')
   process.stdout.write(`  gen-adr-readme: wrote README.md (${rows.length} ADRs)\n`)
+
+  writeFileSync(DECISIONS_PATH, DECISIONS_DIGEST, 'utf-8')
+  process.stdout.write(`  gen-adr-readme: wrote DECISIONS.md digest\n`)
 } catch (err) {
   process.stdout.write(`  gen-adr-readme: fatal — ${err.message}\n`)
   process.exit(1)

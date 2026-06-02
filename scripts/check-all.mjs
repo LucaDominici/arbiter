@@ -158,6 +158,8 @@ if (isMain) {
   runCheck('doc index (#1102)', 'node', ['scripts/gen-doc-index.mjs', '--check'])
   runCheck('ssot core index (#1100)', 'node', ['scripts/gen-ssot-core.mjs', '--check'])
   runCheck('adr index (INV-107)', 'node', ['scripts/check-adr-index.mjs'])
+  runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])
+  runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
   runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
   runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])

@@ -22,7 +22,8 @@ describe('extended opt-in invariants', () => {
     // Updated in #1099: +1 (INV-107 ADR SSOT integrity)
     // Updated in #1100: +1 (INV-108 SSOT core set exhaustiveness)
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet)
-    expect(INVARIANT_CATALOG).toHaveLength(108)
+    // Updated dual-ADR-cli-single-source: +1 (INV-111 CLI ref parity)
+    expect(INVARIANT_CATALOG).toHaveLength(109)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {
