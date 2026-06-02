@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "capturedAt": "2026-06-02T07:48:26.167Z",
-  "commit": "1343ba58",
+  "capturedAt": "2026-06-02T12:28:57.743Z",
+  "commit": "1ef3df96",
   "archetype": "library",
   "metrics": {
     "coverageLine": {
@@ -40,7 +40,7 @@
       "direction": "lower-is-better"
     },
     "todoCount": {
-      "value": 42,
+      "value": 50,
       "unit": "count",
       "direction": "lower-is-better"
     }
