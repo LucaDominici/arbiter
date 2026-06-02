@@ -497,3 +497,291 @@ npm update -g @arbiter/cli
 arbiter diff    # preview what would change
 arbiter update  # regenerate canonical files, preserve customizations
 ```
+
+<!-- BEGIN GENERATED:cli -->
+
+## Command Reference
+
+| Command                 | Description                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `arbiter agent-rules`   | Export or verify AI agent governance rules (#265)                              |
+| `arbiter benchmark`     | Performance benchmarks for arbiter                                             |
+| `arbiter blame`         | —                                                                              |
+| `arbiter ci`            | Governance-aware CI planning (#261)                                            |
+| `arbiter compare`       | —                                                                              |
+| `arbiter configure`     | Modify arbiter.json configuration (interactive on TTY, or use --set)           |
+| `arbiter diff`          | Show what arbiter update would change (dry run)                                |
+| `arbiter doctor`        | Diagnose and repair arbiter state                                              |
+| `arbiter experiments`   | Inspect registered experimental features                                       |
+| `arbiter explain`       | —                                                                              |
+| `arbiter gauntlet`      | Pairwise/combinatorial test generation (#260)                                  |
+| `arbiter graph`         | —                                                                              |
+| `arbiter harness`       | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths) |
+| `arbiter init`          | —                                                                              |
+| `arbiter integrations`  | Inspect agent-tool integrations (skills, plugins) detected for this project    |
+| `arbiter kit`           | Cross-stack governance kit commands (requires --experimental.kit)              |
+| `arbiter knowledge-map` | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                 |
+| `arbiter notary`        | Notary system — track semantic doc changes                                     |
+| `arbiter plugin`        | [BETA] Manage arbiter plugins (API not yet stable)                             |
+| `arbiter report`        | Bundle a replay run for bug reports                                            |
+| `arbiter review`        | Review artefacts (plans, code) against governance invariants                   |
+| `arbiter task`          | Manage task lifecycle state                                                    |
+| `arbiter trace`         | —                                                                              |
+| `arbiter update`        | Re-generate governance files using stored config (arbiter.json)                |
+| `arbiter upgrade-level` | Upgrade governance level with a grace period for new gates                     |
+| `arbiter verify`        | Probe toolchain compatibility for the detected stack                           |
+| `arbiter work`          | Manage work units via decomposition backend                                    |
+| `arbiter worktree`      | Manage git worktrees for parallel task development                             |
+
+## arbiter agent-rules
+
+Export or verify AI agent governance rules (#265).
+
+**Subcommands:**
+
+- `arbiter agent-rules export`
+- `arbiter agent-rules verify` — Probe toolchain compatibility for the detected stack
+
+## arbiter benchmark
+
+Performance benchmarks for arbiter.
+
+**Subcommands:**
+
+- `arbiter benchmark hooks`
+
+## arbiter blame
+
+**Options:**
+
+- `--format <fmt>` — Output format: text | json | mermaid | markdown-audit (default: text)
+- `--dir <dir>` — Target directory (default: current directory)
+- `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
+- `--git-dir <path>` — Git repository directory for log harvesting (default: --dir)
+- `--since <duration>` — Informational: time window for violation query (e.g. 90d)
+
+## arbiter ci
+
+Governance-aware CI planning (#261).
+
+**Subcommands:**
+
+- `arbiter ci plan`
+- `arbiter ci verify-plan`
+
+## arbiter compare
+
+## arbiter configure
+
+Modify arbiter.json configuration (interactive on TTY, or use --set).
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--set <path=value>` — Set a config path to a value (repeatable)
+- `--json` — Emit machine-readable JSON output
+
+## arbiter diff
+
+Show what arbiter update would change (dry run).
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--json` — Emit machine-readable JSON output
+
+## arbiter doctor
+
+Diagnose and repair arbiter state.
+
+**Subcommands:**
+
+- `arbiter doctor repair-state`
+- `arbiter doctor recover-lock`
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--json` — Emit machine-readable JSON output
+- `--repair` — Auto-release stale .arbiter/.lock files detected by the health check (#824)
+
+## arbiter experiments
+
+Inspect registered experimental features.
+
+**Subcommands:**
+
+- `arbiter experiments list` — List open task worktrees
+
+## arbiter explain
+
+## arbiter gauntlet
+
+Pairwise/combinatorial test generation (#260).
+
+**Subcommands:**
+
+- `arbiter gauntlet generate` — Generate per-dimension reference docs (requires --experimental.kit)
+- `arbiter gauntlet verify` — Probe toolchain compatibility for the detected stack
+
+## arbiter graph
+
+**Subcommands:**
+
+- `arbiter graph build`
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
+- `--json` — Emit machine-readable JSON output
+
+## arbiter harness
+
+Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths).
+
+**Options:**
+
+- `--fast` — Stop at first gate failure
+- `--dir <dir>` — Target directory (default: current directory)
+
+## arbiter init
+
+## arbiter integrations
+
+Inspect agent-tool integrations (skills, plugins) detected for this project.
+
+**Subcommands:**
+
+- `arbiter integrations list` — List open task worktrees
+
+## arbiter kit
+
+Cross-stack governance kit commands (requires --experimental.kit).
+
+**Subcommands:**
+
+- `arbiter kit list` — List open task worktrees
+- `arbiter kit validate` — Validate kit catalog: schema, parity, and redaction (requires --experimental.kit)
+- `arbiter kit generate` — Generate per-dimension reference docs (requires --experimental.kit)
+- `arbiter kit install`
+
+## arbiter knowledge-map
+
+Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes.
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+
+## arbiter notary
+
+Notary system — track semantic doc changes.
+
+**Subcommands:**
+
+- `arbiter notary check` — Validate Notary footer for staged doc changes (fails if footer missing)
+- `arbiter notary template` — Print expected Notary footer for staged doc changes
+
+## arbiter plugin
+
+[BETA] Manage arbiter plugins (API not yet stable).
+
+**Subcommands:**
+
+- `arbiter plugin list` — List open task worktrees
+
+## arbiter report
+
+Bundle a replay run for bug reports.
+
+**Options:**
+
+- `--run-id <id>` — Specific run to bundle (default: most recent in ~/.arbiter/logs/)
+- `--auto` — Skip editor preview; bundle all files
+- `--print-only` — Print manifest path without producing a tarball
+
+## arbiter review
+
+Review artefacts (plans, code) against governance invariants.
+
+**Subcommands:**
+
+- `arbiter review code`
+- `arbiter review diff` — Show what arbiter update would change (dry run)
+
+## arbiter task
+
+Manage task lifecycle state.
+
+**Subcommands:**
+
+- `arbiter task resume` — Print recovery instructions for the current task phase
+- `arbiter task advance`
+- `arbiter task recover` — Print 3-layer recovery context for the current task (#694)
+- `arbiter task record-red`
+- `arbiter task record-tech-debt`
+
+## arbiter trace
+
+**Options:**
+
+- `--depth <n>` — Maximum BFS depth (default: unlimited)
+- `--format <fmt>` — Output format: json | dot | mermaid (default: json)
+- `--dir <dir>` — Target directory (default: current directory)
+- `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
+
+## arbiter update
+
+Re-generate governance files using stored config (arbiter.json).
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--github` — Activate live GitHub API calls (opt-in; ARBITER_GITHUB=1 also activates)
+- `--json` — Emit machine-readable JSON output
+- `--force` — Override adverse git state check (detached HEAD, rebase, etc.)
+
+## arbiter upgrade-level
+
+Upgrade governance level with a grace period for new gates.
+
+**Options:**
+
+- `--target <level>` — Target level (L2, L3, or L4)
+- `--extend` — Extend an existing active grace period by --days (default: 30)
+- `--days <n>` — Grace period length in days (default: 30)
+- `--dir <dir>` — Target directory (default: current directory)
+- `--json` — Emit machine-readable JSON output
+
+## arbiter verify
+
+Probe toolchain compatibility for the detected stack.
+
+**Subcommands:**
+
+- `arbiter verify evidence`
+- `arbiter verify graph` — Manage the provenance graph (#259)
+
+**Options:**
+
+- `--json` — Emit JSON report
+- `--dir <dir>` — Target directory (default: current directory)
+
+## arbiter work
+
+Manage work units via decomposition backend.
+
+**Subcommands:**
+
+- `arbiter work list` — List open task worktrees
+- `arbiter work create`
+
+## arbiter worktree
+
+Manage git worktrees for parallel task development.
+
+**Subcommands:**
+
+- `arbiter worktree list` — List open task worktrees
+<!-- END GENERATED:cli -->

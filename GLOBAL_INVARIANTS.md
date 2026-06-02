@@ -594,3 +594,11 @@ This document is the deep-reference companion to AGENTS.md. Every always-active 
 **Enforcement:** scripts/check-global-invariants-parity.mjs (L1)
 
 ---
+
+### INV-111: CLI reference must document every registered command — no phantom, no missing
+
+`website/reference/cli.md` hosts a machine-generated command-reference region (between `<!-- BEGIN GENERATED:cli -->` / `<!-- END GENERATED:cli -->` markers). Every top-level command registered in `src/cli.ts` must have a section in that region, and every section must correspond to a registered command (bidirectional). Hand-written prose outside the markers is preserved on every regeneration. Drift is caught at L1 by the gate. Applies to arbiter-self only (`selfOnly`).
+
+**Enforcement:** scripts/gen-cli-ref.mjs --check (L1)
+
+---

@@ -256,6 +256,8 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
 - **INV-109:** Duplication (DRY) gate + ratchet — generated and dogfooded
 - **INV-110:** GLOBAL_INVARIANTS.md must document every always-active invariant — coverage parity
   - _Enforcement:_ `npx jscpd` (L2, see `.jscpd.json`) + `scripts/debt-report.mjs --gate` (`duplicationPercentage` ratchet); generated for TypeScript targets by `src/generators/duplication.ts` (CANON-22 Tier-1)
+- **INV-111:** CLI reference must document every registered command — no phantom, no missing
+  - _Enforcement:_ `scripts/gen-cli-ref.mjs --check` (L1, selfOnly — arbiter self-governance only)
 
 - **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
   - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)

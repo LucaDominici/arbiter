@@ -1760,4 +1760,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-global-invariants-parity.mjs verifies forward (alwaysActive->documented) and ' +
       'reverse (documented->catalog) parity. Wired into scripts/check-all.mjs L1.',
   },
+  {
+    id: 'INV-111',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'CLI reference must document every registered command — no phantom, no missing',
+    description:
+      'website/reference/cli.md hosts a machine-generated command-reference region ' +
+      '(between BEGIN/END GENERATED:cli markers). Every top-level command registered in ' +
+      'src/cli.ts must have a section in that region, and every section must correspond to ' +
+      'a registered command (bidirectional, no phantom). Drift is caught at L1 by the gate; ' +
+      'the hand-written prose outside the markers is preserved on every regeneration. ' +
+      "selfOnly: this guards arbiter's own CLI reference doc, not generated target projects.",
+    enforcement:
+      'scripts/gen-cli-ref.mjs --check verifies bidirectional parity (registered<->documented). ' +
+      'Wired into scripts/check-all.mjs L1.',
+  },
 ]
