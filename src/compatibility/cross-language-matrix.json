@@ -449,7 +449,7 @@
     "python": {
       "tool": "axe-playwright-python",
       "maturity": "beta",
-      "reason": "axe-playwright-python wraps the same axe-core rules but the API surface is small and tag selection less ergonomic than the TS binding"
+      "reason": "axe-playwright-python wraps the same axe-core rules but the API surface is small and tag selection less ergonomic than the TS binding; now generated (#1149) via run_axe.py wrapper for frontend-spa/backend-web-db archetypes"
     },
     "rust": {
       "tool": "N/A",

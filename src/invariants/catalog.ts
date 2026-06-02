@@ -957,28 +957,34 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   {
     id: 'INV-61',
     tier: 'operational',
-    languages: ['typescript'],
+    languages: ['typescript', 'python'],
     minGovernanceLevel: 'L2',
     // #1127: upgraded from WCAG 2.1 AA to WCAG 2.2 AA. Title deliberately unchanged
     // to preserve AGENTS.md parity — the enforcement description carries the version detail.
+    // #1149: extended to Python — axe-playwright-python wrapper generated for
+    // Python web archetypes (frontend-spa, backend-web-db).
     title: 'a11y critical violations are HARD-fail at L2',
     description:
-      'For TS web archetypes (frontend-spa, backend-web-db) the generated ' +
-      'tests/e2e/a11y/run-axe.ts wrapper runs @axe-core/playwright with the ' +
-      'full WCAG 2.2 AA tag set (wcag2a + wcag2aa + wcag21a + wcag21aa + wcag22aa) ' +
-      'and throws on any violation whose impact is `critical` OR unclassified ' +
-      '(impact === null/undefined). serious / moderate / minor violations are logged ' +
-      'without throwing — they remain evidence but do not block the gate. ' +
+      'For web archetypes (frontend-spa, backend-web-db) the generated a11y wrapper ' +
+      'runs the full WCAG 2.2 AA tag set (wcag2a + wcag2aa + wcag21a + wcag21aa + wcag22aa) ' +
+      'and raises/throws on any violation whose impact is `critical` OR unclassified ' +
+      '(impact === null/undefined/None). serious / moderate / minor violations are logged ' +
+      'without raising — they remain evidence but do not block the gate. ' +
       'WCAG 2.2 AA adds: target-size (2.5.8 ≥24×24px), focus-appearance (2.4.11), ' +
       'accessible-auth (3.3.8 no cognitive test). Downstream projects can ratchet ' +
-      'stricter by extending the wrapper (#1127). Matrix cell: a11y × typescript = ' +
-      'proven (axe-core/playwright). Python pairs with axe-playwright-python ' +
-      'at beta maturity. Other languages have no browser surface (unavailable).',
+      'stricter by extending the wrapper (#1127). ' +
+      'TypeScript: generated tests/e2e/a11y/run-axe.ts (@axe-core/playwright, #349). ' +
+      'Python: generated tests/e2e/a11y/run_axe.py (axe-playwright-python>=0.1.7, ' +
+      'resultTypes=[violations], #1149). ' +
+      'Matrix: a11y × typescript = proven; a11y × python = beta. ' +
+      'Other languages have no browser surface (unavailable).',
     alwaysActive: false,
     enforcement:
-      'Generated tests/e2e/a11y/run-axe.ts wrapper throws on critical / ' +
-      'unclassified impact — pytest/playwright surfaces the throw as a failed ' +
-      'spec, which fails the L2 playwright-e2e gate step in scripts/check-all.mjs',
+      'TypeScript: generated tests/e2e/a11y/run-axe.ts throws on critical/unclassified ' +
+      '— Playwright surfaces as failed spec, fails L2 playwright-e2e gate in scripts/check-all.mjs. ' +
+      'Python: generated tests/e2e/a11y/run_axe.py raises on critical/unclassified ' +
+      '— pytest collects tests/e2e/test_a11y.py, fails the L2 pytest-playwright e2e ' +
+      'gate step in scripts/check-all.mjs (#1149).',
   },
 
   // --- Extended opt-in set (INV-62..INV-71) ---

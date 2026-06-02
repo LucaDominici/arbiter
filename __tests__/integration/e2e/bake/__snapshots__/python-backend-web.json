@@ -95,6 +95,9 @@
     "suppressions/suppressions-schema.json",
     "tests/bdd/features/example.feature",
     "tests/bdd/test_example_bdd.py",
+    "tests/e2e/a11y/__init__.py",
+    "tests/e2e/a11y/run_axe.py",
+    "tests/e2e/test_a11y.py",
     "tests/test_example_behavioral.py"
   ]
 }
