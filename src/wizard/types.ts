@@ -378,12 +378,14 @@ export interface ProjectConfig {
   kitEnabled?: boolean
 
   /**
-   * Industry overlay — emits domain-specific compliance scaffolding on top of the base project.
-   * 'pharma' → pharma audit-trail overlay (KIT dims 73-75, ArchUnit R-35..R-39). Java only.
-   * 'none'   → no overlay (default).
+   * Industry overlay — emits domain-specific audit-trail compliance scaffolding.
+   * 'pharma'            → pharma audit-trail overlay (KIT dims 73-75, ArchUnit R-35..R-39). Java only.
+   * 'sox'|'gdpr'|'generic' → language-neutral L4 audit-trail docs + gate rules,
+   *                       decoupled from the pharma Java scaffolding (#1156).
+   * 'none'              → no overlay (default).
    * Absent field is treated as 'none'.
    */
-  industryOverlay?: 'pharma' | 'none'
+  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'none'
 
   /**
    * F6: Emit k6 performance testing ecosystem.

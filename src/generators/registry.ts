@@ -358,10 +358,12 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       run: (opts) => generateCompliance(config, opts).files,
     },
     {
-      // F5 (#888): pharma audit-trail overlay — opt-in via industryOverlay, Java only.
-      // Gated here (not dead): un-blinds the generator without firing for non-pharma targets.
+      // F5 (#888) + #1156: audit-trail overlay — opt-in via industryOverlay.
+      // 'pharma' → Java JPA/ArchUnit scaffolding (the generator self-guards on Java);
+      // 'sox'|'gdpr'|'generic' → language-neutral audit docs + gate rules.
+      // Gated here (not dead): fires only when an overlay is selected.
       key: 'pharma',
-      enabled: config.language === 'java' && config.industryOverlay === 'pharma',
+      enabled: config.industryOverlay != null && config.industryOverlay !== 'none',
       run: (opts) => generatePharma(config, opts).files,
     },
     {
