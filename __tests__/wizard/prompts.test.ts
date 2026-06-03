@@ -1,19 +1,88 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import inquirer from 'inquirer'
+import * as clack from '@clack/prompts'
 import { determineFlow, buildMigrationPlan, runWizard } from '../../src/wizard/prompts.js'
 import type { WizardInput } from '../../src/wizard/prompts.js'
 import type { ExistingState } from '../../src/detectors/existing.js'
 import { presetToTiers } from '../../src/invariants/filter.js'
 
-vi.mock('inquirer', () => ({
-  default: { prompt: vi.fn() },
+vi.mock('@clack/prompts', () => ({
+  select: vi.fn(),
+  multiselect: vi.fn(),
+  confirm: vi.fn(),
+  text: vi.fn(),
+  isCancel: vi.fn(() => false),
 }))
 
 vi.mock('../../src/utils/fs.js', () => ({
   cleanupInFlightTmpFiles: vi.fn(),
 }))
 
-const mockPrompt = vi.mocked(inquirer.prompt)
+/**
+ * Wizard prompts are now collected via sequential @clack/prompts calls. Tests
+ * drive them with a message-keyed mockImplementation rather than a positional
+ * mockResolvedValueOnce chain: each test passes a partial `answers` object, and
+ * any key it omits resolves to `undefined` — exactly mirroring inquirer's old
+ * "field absent from the batch" behaviour, which `buildConfigFromAnswers`
+ * absorbs through its `?? default` fallbacks. This keeps the matrix stable when
+ * conditional prompts (language list, contractType, decompositionBackend) skip.
+ */
+interface ClackAnswers {
+  keepDetectedLanguage?: boolean
+  language?: string
+  description?: string
+  tools?: string[]
+  governanceLevel?: string
+  invariantPreset?: string
+  archetype?: string
+  architectureStyle?: string
+  hasDatabase?: boolean
+  hasPublicApi?: boolean
+  isMultiTenant?: boolean
+  contractType?: string
+  decompositionBackend?: string
+  collaborationMode?: string
+  pipelineStyle?: string
+  brownfieldClass?: string
+  /** Final "Proceed?" confirmation. Defaults to true. */
+  proceed?: boolean
+}
+
+const CANCEL = Symbol('clack-cancel')
+
+/** Wire the @clack mocks to answer by prompt message. */
+function setupClack(answers: ClackAnswers): void {
+  vi.mocked(clack.isCancel).mockImplementation((v): v is symbol => typeof v === 'symbol')
+  vi.mocked(clack.text).mockResolvedValue(answers.description ?? 'mock project')
+  vi.mocked(clack.multiselect).mockResolvedValue(answers.tools ?? [])
+  vi.mocked(clack.confirm).mockImplementation(async ({ message }: { message: string }) => {
+    if (message.includes('Proceed')) return answers.proceed ?? true
+    // language confirmation (Use detected language …?)
+    return answers.keepDetectedLanguage ?? true
+  })
+  vi.mocked(clack.select).mockImplementation(async ({ message }: { message: string }) => {
+    if (message.startsWith('Select language')) return answers.language
+    if (message.startsWith('Governance level')) return answers.governanceLevel
+    if (message.startsWith('Invariant coverage')) return answers.invariantPreset
+    if (message.startsWith('Project archetype')) return answers.archetype
+    if (message.startsWith('Internal architecture style')) return answers.architectureStyle
+    if (message.startsWith('Does the project connect to a database')) return answers.hasDatabase
+    if (message.startsWith('Does the project expose a public API')) return answers.hasPublicApi
+    if (message.startsWith('Is the project multi-tenant')) return answers.isMultiTenant
+    if (message.startsWith('Contract testing style')) return answers.contractType
+    if (message.startsWith('Decomposition backend')) return answers.decompositionBackend
+    if (message.startsWith('Collaboration mode')) return answers.collaborationMode
+    if (message.startsWith('Pipeline style')) return answers.pipelineStyle
+    if (message.startsWith('Brownfield class')) return answers.brownfieldClass
+    return undefined
+  })
+}
+
+/** Make the prompt whose message matches `predicate` return a cancel symbol. */
+function cancelSelectWhen(predicate: (message: string) => boolean): void {
+  vi.mocked(clack.select).mockImplementation(async ({ message }: { message: string }) =>
+    predicate(message) ? CANCEL : undefined,
+  )
+}
 
 function makeExisting(overrides: Partial<ExistingState> = {}): ExistingState {
   return {
@@ -172,14 +241,12 @@ describe('runWizard greenfield flow', () => {
   })
 
   it('returns config when user confirms', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result).not.toBeNull()
@@ -188,28 +255,21 @@ describe('runWizard greenfield flow', () => {
   })
 
   it('returns null when user cancels at confirmation', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-      })
-
-      .mockResolvedValueOnce({ confirm: false })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: false,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result).toBeNull()
+    // An explicit decline is NOT an abort: exitCode stays 0.
+    expect(process.exitCode).toBe(0)
   })
 
   it('defaults to claude+codex when no tools selected', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: [],
-        governanceLevel: 'L1',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({ description: 'my project', tools: [], governanceLevel: 'L1', proceed: true })
 
     const result = await runWizard(makeWizardInput())
     expect(result!.tools).toEqual(['claude', 'codex'])
@@ -217,10 +277,9 @@ describe('runWizard greenfield flow', () => {
 
   it('returns null, prints abort message, and sets exitCode 130 on Ctrl+C at main prompt (#621)', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const exitError = Object.assign(new Error('User force closed prompt with 0'), {
-      name: 'ExitPromptError',
-    })
-    mockPrompt.mockRejectedValueOnce(exitError)
+    setupClack({ description: 'my project', tools: ['claude'], governanceLevel: 'L2' })
+    // Cancel the first select prompt (governance level).
+    cancelSelectWhen((m) => m.startsWith('Governance level'))
 
     const result = await runWizard(makeWizardInput())
     expect(result).toBeNull()
@@ -231,16 +290,11 @@ describe('runWizard greenfield flow', () => {
 
   it('returns null, prints abort message, and sets exitCode 130 on Ctrl+C at confirm prompt (#621)', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const exitError = Object.assign(new Error('User force closed prompt with 0'), {
-      name: 'ExitPromptError',
-    })
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-      })
-      .mockRejectedValueOnce(exitError)
+    setupClack({ description: 'my project', tools: ['claude'], governanceLevel: 'L2' })
+    // The final confirm returns a cancel symbol.
+    vi.mocked(clack.confirm).mockImplementation(async ({ message }: { message: string }) =>
+      message.includes('Proceed') ? CANCEL : true,
+    )
 
     const result = await runWizard(makeWizardInput())
     expect(result).toBeNull()
@@ -249,9 +303,12 @@ describe('runWizard greenfield flow', () => {
     consoleSpy.mockRestore()
   })
 
-  it('re-throws non-cancellation errors from inquirer (#318)', async () => {
-    const unexpectedError = new Error('unexpected failure')
-    mockPrompt.mockRejectedValueOnce(unexpectedError)
+  it('re-throws unexpected (non-cancel) errors from a prompt (#318)', async () => {
+    setupClack({ description: 'my project', tools: ['claude'], governanceLevel: 'L2' })
+    vi.mocked(clack.select).mockImplementation(async ({ message }: { message: string }) => {
+      if (message.startsWith('Governance level')) throw new Error('unexpected failure')
+      return undefined
+    })
 
     await expect(runWizard(makeWizardInput())).rejects.toThrow('unexpected failure')
   })
@@ -264,15 +321,12 @@ describe('runWizard brownfield flow', () => {
 
   it('returns config when user confirms migration', async () => {
     const existing = makeExisting({ agentsMd: true, claudeDir: true })
-
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput(existing))
     expect(result).not.toBeNull()
@@ -281,15 +335,12 @@ describe('runWizard brownfield flow', () => {
 
   it('returns null when user cancels migration', async () => {
     const existing = makeExisting({ agentsMd: true })
-
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-      })
-
-      .mockResolvedValueOnce({ confirm: false })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: false,
+    })
 
     const result = await runWizard(makeWizardInput(existing))
     expect(result).toBeNull()
@@ -302,15 +353,13 @@ describe('runWizard invariant preset selection', () => {
   })
 
   it('uses essential preset tiers when user selects essential', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L1',
-        invariantPreset: 'essential',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L1',
+      invariantPreset: 'essential',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result!.invariantTiers).toEqual(presetToTiers('essential'))
@@ -320,15 +369,13 @@ describe('runWizard invariant preset selection', () => {
   })
 
   it('uses full preset tiers when user selects full', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L3',
-        invariantPreset: 'full',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L3',
+      invariantPreset: 'full',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result!.invariantTiers).toEqual(presetToTiers('full'))
@@ -337,62 +384,52 @@ describe('runWizard invariant preset selection', () => {
   })
 
   it('uses essential preset even when governance level is L2', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-        invariantPreset: 'essential',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      invariantPreset: 'essential',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
-    // essential has no data/operational tiers even though L2 default would be standard
     expect(result!.invariantTiers).toEqual(presetToTiers('essential'))
     expect(result!.invariantTiers).not.toContain('data')
     expect(result!.invariantTiers).not.toContain('operational')
   })
 
   it('falls back to governance-level default when preset omitted', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-        // no invariantPreset
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      // invariantPreset omitted → select resolves undefined → buildConfig uses L2 default
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
-    // L2 default is "standard"
     expect(result!.invariantTiers).toEqual(presetToTiers('standard'))
   })
 
   it('L1 default preset is essential', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L1',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L1',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result!.invariantTiers).toEqual(presetToTiers('essential'))
   })
 
   it('L3 default preset is full', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L3',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L3',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result!.invariantTiers).toEqual(presetToTiers('full'))
@@ -404,43 +441,62 @@ describe('runWizard ML — contractType', () => {
     vi.clearAllMocks()
   })
 
-  it('hasPublicApi=false → contractType defaults to none (when: skipped)', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-        archetype: 'library',
-        architectureStyle: 'none',
-        hasDatabase: false,
-        hasPublicApi: false,
-        isMultiTenant: false,
-        // contractType absent: when: returned false, no answer provided
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+  it('hasPublicApi=false → contractType defaults to none (prompt skipped)', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'library',
+      architectureStyle: 'none',
+      hasDatabase: false,
+      hasPublicApi: false,
+      isMultiTenant: false,
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result!.contractType).toBe('none')
   })
 
-  it('hasPublicApi=true + contractType=graphql → contractType propagates', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-        archetype: 'backend-web-db',
-        architectureStyle: 'none',
-        hasDatabase: true,
-        hasPublicApi: true,
-        isMultiTenant: false,
-        contractType: 'graphql',
-      })
+  it('does NOT show the contractType prompt when hasPublicApi=false (when→imperative)', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'library',
+      architectureStyle: 'none',
+      hasDatabase: false,
+      hasPublicApi: false,
+      isMultiTenant: false,
+      proceed: true,
+    })
 
-      .mockResolvedValueOnce({ confirm: true })
+    await runWizard(makeWizardInput())
+    const askedContract = vi
+      .mocked(clack.select)
+      .mock.calls.some((c) => (c[0] as { message: string }).message.startsWith('Contract testing'))
+    expect(askedContract).toBe(false)
+  })
+
+  it('shows the contractType prompt and propagates the value when hasPublicApi=true', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'backend-web-db',
+      architectureStyle: 'none',
+      hasDatabase: true,
+      hasPublicApi: true,
+      isMultiTenant: false,
+      contractType: 'graphql',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
+    const askedContract = vi
+      .mocked(clack.select)
+      .mock.calls.some((c) => (c[0] as { message: string }).message.startsWith('Contract testing'))
+    expect(askedContract).toBe(true)
     expect(result!.contractType).toBe('graphql')
   })
 })
@@ -451,38 +507,43 @@ describe('decompositionBackend selection', () => {
   })
 
   it('defaults to markdown when gh not available', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
 
     const result = await runWizard(makeWizardInput())
     expect(result!.decompositionBackend).toBe('markdown')
     expect(result!.useGitHub).toBe(false)
   })
 
+  it('does NOT show decomposition prompt when gh unavailable', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
+
+    await runWizard(makeWizardInput())
+    const asked = vi
+      .mocked(clack.select)
+      .mock.calls.some((c) => (c[0] as { message: string }).message.startsWith('Decomposition'))
+    expect(asked).toBe(false)
+  })
+
   it('uses github when user selects github from prompt', async () => {
     const input = makeWizardInput()
-    input.githubAccess = {
-      available: true,
-      authenticated: true,
-      username: 'testuser',
-      error: null,
-    }
-
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-        decompositionBackend: 'github',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    input.githubAccess = { available: true, authenticated: true, username: 'testuser', error: null }
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      decompositionBackend: 'github',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
     expect(result!.decompositionBackend).toBe('github')
@@ -491,22 +552,14 @@ describe('decompositionBackend selection', () => {
 
   it('uses markdown when user selects markdown even with gh available', async () => {
     const input = makeWizardInput()
-    input.githubAccess = {
-      available: true,
-      authenticated: true,
-      username: 'testuser',
-      error: null,
-    }
-
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-        decompositionBackend: 'markdown',
-      })
-
-      .mockResolvedValueOnce({ confirm: true })
+    input.githubAccess = { available: true, authenticated: true, username: 'testuser', error: null }
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      decompositionBackend: 'markdown',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
     expect(result!.decompositionBackend).toBe('markdown')
@@ -529,89 +582,100 @@ describe('runWizard language confirmation (#1036)', () => {
     input.languageLocked = true
     input.language = 'rust'
 
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L1',
-        // no language or keepDetectedLanguage in answers
-      })
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L1',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
     expect(result).not.toBeNull()
     expect(result!.language).toBe('rust')
+    // Neither the language confirm nor the language list should have been shown.
+    const askedLangList = vi
+      .mocked(clack.select)
+      .mock.calls.some((c) => (c[0] as { message: string }).message.startsWith('Select language'))
+    expect(askedLangList).toBe(false)
   })
 
   it('uses detected language when user confirms (keepDetectedLanguage=true)', async () => {
     const input = makeWizardInput()
     input.language = 'go'
 
-    mockPrompt
-      .mockResolvedValueOnce({
-        keepDetectedLanguage: true,
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L1',
-        // no language field: list was skipped
-      })
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      keepDetectedLanguage: true,
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L1',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
     expect(result).not.toBeNull()
     expect(result!.language).toBe('go')
+    // List skipped because the user kept the detected language.
+    const askedLangList = vi
+      .mocked(clack.select)
+      .mock.calls.some((c) => (c[0] as { message: string }).message.startsWith('Select language'))
+    expect(askedLangList).toBe(false)
   })
 
-  it('uses list-selected language when user declines detected (keepDetectedLanguage=false)', async () => {
+  it('shows list and uses selection when user declines detected (keepDetectedLanguage=false)', async () => {
     const input = makeWizardInput()
     input.language = 'typescript'
 
-    mockPrompt
-      .mockResolvedValueOnce({
-        keepDetectedLanguage: false,
-        language: 'java',
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L1',
-      })
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      keepDetectedLanguage: false,
+      language: 'java',
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L1',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
     expect(result).not.toBeNull()
     expect(result!.language).toBe('java')
+    const askedLangList = vi
+      .mocked(clack.select)
+      .mock.calls.some((c) => (c[0] as { message: string }).message.startsWith('Select language'))
+    expect(askedLangList).toBe(true)
   })
 
-  it('shows list directly and uses selection when language is unknown', async () => {
+  it('shows list directly (no confirm) and uses selection when language is unknown', async () => {
     const input = makeWizardInput()
     input.language = 'unknown'
 
-    mockPrompt
-      .mockResolvedValueOnce({
-        language: 'python',
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L1',
-        // no keepDetectedLanguage: confirm was skipped for unknown
-      })
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      language: 'python',
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L1',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
     expect(result).not.toBeNull()
     expect(result!.language).toBe('python')
+    // The "Use detected language" confirm must NOT be shown for unknown.
+    const askedKeep = vi
+      .mocked(clack.confirm)
+      .mock.calls.some((c) => (c[0] as { message: string }).message.startsWith('Use detected'))
+    expect(askedKeep).toBe(false)
   })
 
-  it('existing tests: detected language injected when mock omits language field', async () => {
+  it('existing tests: detected language injected when list selection is skipped', async () => {
     const input = makeWizardInput()
     input.language = 'typescript'
 
-    mockPrompt
-      .mockResolvedValueOnce({
-        description: 'my project',
-        tools: ['claude'],
-        governanceLevel: 'L2',
-        // language absent from mock — simulate inquirer skipping the list
-      })
-      .mockResolvedValueOnce({ confirm: true })
+    setupClack({
+      keepDetectedLanguage: true,
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
 
     const result = await runWizard(input)
     expect(result).not.toBeNull()

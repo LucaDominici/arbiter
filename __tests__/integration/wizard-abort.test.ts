@@ -4,15 +4,31 @@ import { mkdtempSync, writeFileSync, rmSync, existsSync, readdirSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import inquirer from 'inquirer'
+import * as clack from '@clack/prompts'
 import { runInit } from '../../src/commands/init.js'
 import { _registerTmpPath } from '../../src/utils/fs.js'
 
-vi.mock('inquirer', () => ({
-  default: { prompt: vi.fn() },
+// The wizard collects answers via @clack/prompts. A user abort (Ctrl+C /
+// Escape) surfaces as a cancel symbol — clack does NOT throw. We simulate that
+// by returning a cancel symbol from the first prompt and making isCancel()
+// recognise it.
+const CANCEL = Symbol('clack-cancel')
+
+vi.mock('@clack/prompts', () => ({
+  select: vi.fn(),
+  multiselect: vi.fn(),
+  confirm: vi.fn(),
+  text: vi.fn(),
+  isCancel: vi.fn((v: unknown) => typeof v === 'symbol'),
 }))
 
-const mockPrompt = vi.mocked(inquirer.prompt)
+/** Make every prompt return the cancel symbol (abort at the first prompt). */
+function mockUserAbort(): void {
+  vi.mocked(clack.confirm).mockResolvedValue(CANCEL as never)
+  vi.mocked(clack.select).mockResolvedValue(CANCEL as never)
+  vi.mocked(clack.multiselect).mockResolvedValue(CANCEL as never)
+  vi.mocked(clack.text).mockResolvedValue(CANCEL as never)
+}
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-abort-test-'))
@@ -22,12 +38,6 @@ function initGit(dir: string): void {
   execFileSync('git', ['init'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.email', 'test@test.com'], { cwd: dir, stdio: 'ignore' })
   execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir, stdio: 'ignore' })
-}
-
-function makeExitError(): Error {
-  return Object.assign(new Error('User force closed prompt with 0'), {
-    name: 'ExitPromptError',
-  })
 }
 
 describe('wizard abort (#621)', () => {
@@ -47,7 +57,7 @@ describe('wizard abort (#621)', () => {
   })
 
   it('sets exitCode 130 when user aborts wizard', async () => {
-    mockPrompt.mockRejectedValueOnce(makeExitError())
+    mockUserAbort()
 
     await runInit({
       yes: false,
@@ -67,7 +77,7 @@ describe('wizard abort (#621)', () => {
     writeFileSync(tmpFile, '')
     _registerTmpPath(tmpFile)
 
-    mockPrompt.mockRejectedValueOnce(makeExitError())
+    mockUserAbort()
 
     await runInit({
       yes: false,

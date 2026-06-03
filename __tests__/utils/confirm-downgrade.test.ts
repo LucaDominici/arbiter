@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-vi.mock('inquirer', () => ({
-  default: {
-    prompt: vi.fn(),
-  },
+vi.mock('@clack/prompts', () => ({
+  confirm: vi.fn(),
+  isCancel: vi.fn((v: unknown) => typeof v === 'symbol'),
 }))
 
-import inquirer from 'inquirer'
-const mockPrompt = vi.mocked(inquirer.prompt)
+import * as clack from '@clack/prompts'
+const mockConfirm = vi.mocked(clack.confirm)
 
 import { confirmChannelDowngrade } from '../../src/utils/confirm-downgrade.js'
 
@@ -96,7 +95,7 @@ describe('confirmChannelDowngrade (#662)', () => {
 
   it('resolves when TTY and user confirms', async () => {
     setTTY(true)
-    mockPrompt.mockResolvedValue({ confirmed: true })
+    mockConfirm.mockResolvedValue(true)
     await expect(confirmChannelDowngrade('canary', 'latest')).resolves.toBeUndefined()
     expect(exitSpy).not.toHaveBeenCalled()
   })
@@ -105,16 +104,23 @@ describe('confirmChannelDowngrade (#662)', () => {
 
   it('exits 1 when TTY and user declines', async () => {
     setTTY(true)
-    mockPrompt.mockResolvedValue({ confirmed: false })
+    mockConfirm.mockResolvedValue(false)
     await expect(confirmChannelDowngrade('canary', 'latest')).rejects.toThrow('exit:1')
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('cancelled'))
   })
 
-  it('prompt uses default:false (does not silently accept)', async () => {
+  it('exits 1 when TTY and user cancels (Ctrl+C) — cancel treated as decline', async () => {
     setTTY(true)
-    mockPrompt.mockResolvedValue({ confirmed: true })
+    mockConfirm.mockResolvedValue(Symbol('clack-cancel') as never)
+    await expect(confirmChannelDowngrade('canary', 'latest')).rejects.toThrow('exit:1')
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('cancelled'))
+  })
+
+  it('prompt uses initialValue:false (does not silently accept)', async () => {
+    setTTY(true)
+    mockConfirm.mockResolvedValue(true)
     await confirmChannelDowngrade('canary', 'latest')
-    const callArgs = mockPrompt.mock.calls[0]?.[0] as Array<{ default?: boolean }>
-    expect(callArgs[0]?.default).toBe(false)
+    const callArgs = mockConfirm.mock.calls[0]?.[0] as { initialValue?: boolean }
+    expect(callArgs?.initialValue).toBe(false)
   })
 })
