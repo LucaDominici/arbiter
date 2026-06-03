@@ -39,7 +39,9 @@ export function generateModulith(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): ModulithGeneratorResult {
-  if (config.language !== 'java' && config.language !== 'multi') return { files: [] }
+  // #1150: kotlin (beta) — Spring Modulith runs on the JVM; Java scaffolding applies.
+  if (config.language !== 'java' && config.language !== 'kotlin' && config.language !== 'multi')
+    return { files: [] }
 
   // Only emit when the target is a Spring Boot project (detected by pom.xml / build.gradle).
   // Greenfield targets don't have a pom yet, so we treat kitEnabled=true as sufficient signal

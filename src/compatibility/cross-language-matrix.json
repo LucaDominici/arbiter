@@ -26,6 +26,11 @@
       "tool": "ruff",
       "maturity": "proven",
       "reason": "Comprehensive rules (complexity/unused/security) wired into L1 gate"
+    },
+    "kotlin": {
+      "tool": "detekt",
+      "maturity": "beta",
+      "reason": "detekt is the de facto Kotlin static-analysis tool; Gradle/Maven plugins stable, severity mapping still maturing vs Java Checkstyle/PMD"
     }
   },
   "mutation": {
@@ -53,6 +58,11 @@
       "tool": "mutmut",
       "maturity": "beta",
       "reason": "mutmut runtime can exceed 6h on mid-sized codebases; no reliable timeout-per-mutant control"
+    },
+    "kotlin": {
+      "tool": "pitest",
+      "maturity": "beta",
+      "reason": "pitest operates on JVM bytecode; Kotlin compilation transparent but not yet fixture-verified"
     }
   },
   "contract": {
@@ -80,6 +90,11 @@
       "tool": "pact-python",
       "maturity": "beta",
       "reason": "pact-python lacks provider-verification parity with pact-jvm; V4 migration in progress"
+    },
+    "kotlin": {
+      "tool": "pact-jvm",
+      "maturity": "beta",
+      "reason": "pact-jvm works on compiled Kotlin; consumer/provider flow not yet fixture-verified"
     }
   },
   "coverage": {
@@ -107,6 +122,11 @@
       "tool": "pytest-cov",
       "maturity": "proven",
       "reason": "pytest-cov with coverage.py is the standard Python coverage stack"
+    },
+    "kotlin": {
+      "tool": "kover",
+      "maturity": "beta",
+      "reason": "Kotlin-native coverage (JetBrains Kover); Gradle-native, report shape differs from JaCoCo so thresholds need validation"
     }
   },
   "architecture": {
@@ -134,6 +154,11 @@
       "tool": "import-linter + ruff",
       "maturity": "proven",
       "reason": "import-linter enforces import contracts; ruff handles style"
+    },
+    "kotlin": {
+      "tool": "ArchUnit",
+      "maturity": "beta",
+      "reason": "ArchUnit inspects compiled JVM bytecode so it works on Kotlin; not yet exercised across Kotlin fixtures"
     }
   },
   "e2e": {
@@ -188,6 +213,11 @@
       "tool": "pip-audit",
       "maturity": "proven",
       "reason": "pip-audit is stable and maintained by PyPA"
+    },
+    "kotlin": {
+      "tool": "OWASP DependencyCheck",
+      "maturity": "beta",
+      "reason": "JVM dependency scanning is language-agnostic; pending Kotlin fixture verification"
     }
   },
   "bdd": {
@@ -324,7 +354,7 @@
     "go": {
       "tool": "syft",
       "maturity": "beta",
-      "reason": "syft (Anchore) closes the Go SBOM gap — used by 05-release.yml.ejs T3 and 06-nightly.yml.ejs T4"
+      "reason": "syft (Anchore) closes the Go SBOM gap \u2014 used by 05-release.yml.ejs T3 and 06-nightly.yml.ejs T4"
     },
     "python": {
       "tool": "cyclonedx-py",
@@ -454,12 +484,12 @@
     "rust": {
       "tool": "N/A",
       "maturity": "unavailable",
-      "reason": "No browser surface for Rust CLI/embedded archetypes — a11y is a UI-layer concern"
+      "reason": "No browser surface for Rust CLI/embedded archetypes \u2014 a11y is a UI-layer concern"
     },
     "go": {
       "tool": "N/A",
       "maturity": "unavailable",
-      "reason": "No browser surface for Go CLI/server archetypes — a11y is a UI-layer concern"
+      "reason": "No browser surface for Go CLI/server archetypes \u2014 a11y is a UI-layer concern"
     },
     "java": {
       "tool": "N/A",

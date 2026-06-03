@@ -11,7 +11,9 @@ export interface QualityGeneratorResult {
   files: WriteResult[]
 }
 
-const SONAR_SUPPORTED_LANGUAGES = new Set(['java', 'typescript'])
+// #1150: kotlin (beta) — SonarQube analyses compiled JVM bytecode, so the Java
+// sonar-project.properties template applies unchanged.
+const SONAR_SUPPORTED_LANGUAGES = new Set(['java', 'typescript', 'kotlin'])
 
 export function generateQuality(
   config: ProjectConfig,
