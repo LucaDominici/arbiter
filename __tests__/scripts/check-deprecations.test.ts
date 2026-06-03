@@ -34,8 +34,10 @@ describe('check-deprecations.mjs (deprecation window enforcement)', () => {
       // DEPRECATIONS.md with no Active Deprecations section
       writeFileSync(join(dir, 'docs', 'DEPRECATIONS.md'), '# Removed Deprecations\n\nNone yet.\n')
       const result = run(dir)
+      // #1170: still exits 0 with zero active rows (no symbol or CLI-flag violations),
+      // but no longer early-returns — the CLI-flag validation now also runs.
       expect(result.status).toBe(0)
-      expect(result.stdout).toContain('no active deprecations')
+      expect(result.stdout).toContain('OK')
     } finally {
       cleanup()
     }
@@ -173,6 +175,31 @@ describe('check-deprecations.mjs (deprecation window enforcement)', () => {
       const result = run(dir)
       expect(result.status).toBe(1)
       expect(result.stderr).toContain('--old-flag')
+      expect(result.stderr).toContain('insufficient version gap')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 on a bad CLI flag gap even with ZERO active doc rows (#1170 — no early-return)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, 'docs'))
+      mkdirSync(join(dir, 'src', 'internal'), { recursive: true })
+      // Empty active table — pre-#1170 this early-returned exit 0, hiding the
+      // CLI-flag version-gap violation below.
+      writeFileSync(join(dir, 'docs', 'DEPRECATIONS.md'), '# Active Deprecations\n\n_None yet._\n')
+      writeFileSync(
+        join(dir, 'src', 'internal', 'cli-deprecation-registry.ts'),
+        [
+          'export const CLI_DEPRECATED_FLAGS = [',
+          "  { flag: '--ghost-flag', deprecatedIn: '2.0.0', removeIn: '2.0.1', replacement: '--x' },",
+          ']',
+        ].join('\n'),
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('--ghost-flag')
       expect(result.stderr).toContain('insufficient version gap')
     } finally {
       cleanup()
