@@ -1,0 +1,24 @@
+<%# Generic L4 audit-trail gate rules — language-neutral, overlay-parametrized (#1156). %>
+# Audit-Trail Gate Rules — <%= industryOverlay.toUpperCase() %> overlay
+
+> Checkable rules for the **<%= industryOverlay %>** audit-trail overlay on project
+> **<%= projectName %>** (governance **<%= governanceLevel %>**). These rules are
+> framework-agnostic — adapt the evidence column to your stack's audit
+> implementation. Each rule is PASS/FAIL; a failing rule blocks an L4 release.
+
+| Rule    | Statement                                                                 | Evidence to produce                                  |
+| ------- | ------------------------------------------------------------------------- | ---------------------------------------------------- |
+| AUD-01  | Every governed write path emits exactly one audit record.                 | Coverage report mapping write paths → audit emitters |
+| AUD-02  | Audit records are append-only (no UPDATE/DELETE on the audit store).      | Schema/permission proof; migration review            |
+| AUD-03  | `actor` is always a resolved, non-anonymous identity.                     | Test asserting rejection of anonymous mutation       |
+| AUD-04  | `timestamp` is server-assigned UTC; client values are ignored.            | Test asserting client timestamp is overridden        |
+| AUD-05  | Records are integrity-protected (hash chain or signed).                   | Integrity-verification test over a sample chain      |
+| AUD-06  | Retention window is enforced and documented.                              | Retention config + purge-after-window test           |
+| AUD-07  | Audit export is reproducible and complete for any time range.             | Export round-trip test                               |
+
+## Applying these rules
+
+These rules are the L4 audit-trail Definition of Done for the
+**<%= industryOverlay %>** overlay. They are intentionally implementation-neutral:
+the pharma overlay satisfies them via JPA `AuditEvent` + ArchUnit rules, while a
+generic project satisfies them with whatever audit store and tests fit its stack.
