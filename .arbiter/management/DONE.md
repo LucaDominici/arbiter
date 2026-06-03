@@ -51,7 +51,7 @@
 ## 2026-05-26 — Wave 0: haben smoke test arbiter (12 finding, 6 P0)
 
 - **Cosa**: smoke test end-to-end di arbiter HEAD su haben. DOD 3/4 met; il 4° (L1 verde) convertito a hard audit per autorizzazione esplicita di Luca ("haben lo puoi seviziare, l'obiettivo è arbiter audit-proof").
-- **Artefatto**: [`.arbiter/wave0/haben-smoke-test.md`](../wave0/haben-smoke-test.md) — 10 finding numerati con repro
+- **Artefatto**: `.arbiter/wave0/haben-smoke-test.md` — 10 finding numerati con repro (removed from tree in chore/batch-a; see git history)
 - **Highlight P0**:
   - F1/F7: `arbiter diff` sotto-riporta 89% (4 annunciati / 37 toccati); inconsistent con `update`
   - F2: template MD `.claude/CLAUDE.md` perde la pipe di chiusura → tabella rotta
@@ -75,7 +75,7 @@
 ## 2026-05-26 — Wave 1-bis: Luca's /auto pipeline audit
 
 - **Cosa**: audit di 17 skill custom recuperate dal DR snapshot Mac
-- **Artefatto**: [`.arbiter/wave1/auto-pipeline-audit.md`](../wave1/auto-pipeline-audit.md) — 290 LOC
+- **Artefatto**: `.arbiter/wave1/auto-pipeline-audit.md` — 290 LOC (removed from tree in chore/batch-a; see git history)
 - **Correzione**: §17.2 del report principale corretta (Luca ha SUA /auto skill, NON è quella ufficiale Anthropic)
 - **Output**: 12 pattern P0 identificati + 6 nuove pillole career
 - **Owner**: Claude
@@ -83,7 +83,7 @@
 ## 2026-05-26 — Wave 1: viafera AI-layer audit completo
 
 - **Cosa**: audit file-per-file di 88 file viafera (.claude/* + FRAMEWORK/DOCS/)
-- **Artefatti**: [`.arbiter/wave1/`](../wave1/) — INDEX + 5 file di famiglia (skills, agents, hooks, commands, rules-templates-prompts-framework)
+- **Artefatti**: `.arbiter/wave1/` — INDEX + 5 file di famiglia (skills, agents, hooks, commands, rules-templates-prompts-framework) (removed from tree in chore/batch-a; see git history)
 - **Volume**: 1.157 LOC di analisi
 - **Output**: 18 candidati P0 + plugin Java bundle + 18 pillole career
 - **Owner**: Claude

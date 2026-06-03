@@ -95,7 +95,7 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
   - [x] `arbiter update --dry-run` su haben produce diff coerente — comando reale è `arbiter diff` (NB: flag `--dry-run` non esiste su `update`). Output ristretto a 4 file SSOT ma coerente in scope.
   - [~] `arbiter update` applicato, gate L1 verde — applicato; L1 RED 4/20 (tutti su file generati da arbiter). Override esplicito di Luca: "haben sevizialo, vince audit di arbiter".
   - [x] Almeno 1 INV viola → fixata o documentata come issue arbiter — **10 finding** documentati, 5 P0.
-  - [x] Report in `.arbiter/wave0/haben-smoke-test.md`
+  - [x] Report in `.arbiter/wave0/haben-smoke-test.md` (removed from tree in chore/batch-a; see git history)
 - **Owner**: Claude (audit) · Luca (autorizzazione)
 - **Kill criterion**: **triggered** — L1 non andrà verde finché i template arbiter non vengono fixati (F10). Non è 2-week countdown, è gap strutturale. → promosso Wave 0.5 davanti a Wave 2A.
 - **Side effect da bonificare**: project board 153 creato su `LucaDominici/projects/153` da F4 (cleanup manuale richiesto)
@@ -103,17 +103,17 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 ### ✅ CHIUSO 2026-05-29: Stream A — Wave 0.5 template self-consistency fix
 
 - **Cosa**: rendere arbiter audit-proof sui suoi propri output. Senza questo, OGNI arbiter-governed repo nasce con L1 rosso e perdita di trust visibile.
-- **Perché P0 ora**: i finding P0 di Wave 0 (vedi [`.arbiter/wave0/haben-smoke-test.md`](../wave0/haben-smoke-test.md)) sono gap strutturali. Bloccano qualsiasi cosa downstream — Wave 2A, plugin Java, doc site, talk submission. Wave 0 ha aggiornato il conteggio a **6 P0** (aggiunto F11: 152 project board orfani su LucaDominici account → cleanup script in `evidence/`).
+- **Perché P0 ora**: i finding P0 di Wave 0 (vedi `.arbiter/wave0/haben-smoke-test.md`, rimosso dal tree in chore/batch-a; disponibile in git history) sono gap strutturali. Bloccano qualsiasi cosa downstream — Wave 2A, plugin Java, doc site, talk submission. Wave 0 ha aggiornato il conteggio a **6 P0** (aggiunto F11: 152 project board orfani su LucaDominici account → cleanup script in `evidence/`).
 
 **Ordine P0 (motivato da rischio + dipendenze, NON da convenienza)**:
 
 | # | P0 | Stima | Rationale di ordine | ADR stub |
 |---|---|---|---|---|
-| 1 | ✅ **F4 + F11** (`--github` opt-in default + project-board namespacing) — **DONE 2026-05-26** · issue [#1063](https://github.com/LucaDominici/arbiter/issues/1063) · PR [#1064](https://github.com/LucaDominici/arbiter/pull/1064) · 5 critical + 13 high red-team findings risolti · 23 fixture rebaked | 4-6h | **Stop the bleeding first**. | [`.arbiter/wave0.5/ADR-001-no-github-flag.md`](../wave0.5/ADR-001-no-github-flag.md) |
-| 2 | ✅ **F9** (exit code propagation) — **DONE 2026-05-27** · issue [#1074](https://github.com/LucaDominici/arbiter/issues/1074) · PR [#1078](https://github.com/LucaDominici/arbiter/pull/1078) "tiered POSIX exit codes for gh failures" | 2-4h | CI wrapper di arbiter ora vede subito i fail invece di nascondersi. | [`.arbiter/wave0.5/ADR-002-exit-code.md`](../wave0.5/ADR-002-exit-code.md) |
-| 3 | ✅ **F2 + F3** (MD pipe + table format) — **DONE 2026-05-27** · issue [#1075](https://github.com/LucaDominici/arbiter/issues/1075) · PR [#1079](https://github.com/LucaDominici/arbiter/pull/1079) "pipe closure + blank-line bloat" | 1-2h | Template MD passano markdownlint + Prettier. | [`.arbiter/wave0.5/ADR-003-md-template-fix.md`](../wave0.5/ADR-003-md-template-fix.md) |
-| 4 | ✅ **F10** (templates pass L1) — **DONE 2026-05-28** · issue [#1076](https://github.com/LucaDominici/arbiter/issues/1076) chiusa COMPLETED (probabilmente raccolta da #1080 drift fix / #1083 CI gap closures — closedByPullRequest cross-ref non match, verificare a posteriori) | 1-3 gg | Templates ora passano L1 su fresh `arbiter init`. | [`.arbiter/wave0.5/ADR-004-templates-L1-pass.md`](../wave0.5/ADR-004-templates-L1-pass.md) |
-| 5 | ✅ **F1 + F7** (diff scope alignment) — **DONE 2026-05-29** · issue [#1077](https://github.com/LucaDominici/arbiter/issues/1077) · PR [#1106](https://github.com/LucaDominici/arbiter/pull/1106) | 1-2 gg | Architectural. Chiude Wave 0.5. Manifest contract unified diff/update. F6 idempotence side effect. | [`.arbiter/wave0.5/ADR-005-diff-scope.md`](../wave0.5/ADR-005-diff-scope.md) |
+| 1 | ✅ **F4 + F11** (`--github` opt-in default + project-board namespacing) — **DONE 2026-05-26** · issue [#1063](https://github.com/LucaDominici/arbiter/issues/1063) · PR [#1064](https://github.com/LucaDominici/arbiter/pull/1064) · 5 critical + 13 high red-team findings risolti · 23 fixture rebaked | 4-6h | **Stop the bleeding first**. | `.arbiter/wave0.5/ADR-001-no-github-flag.md` (removed; see git history) |
+| 2 | ✅ **F9** (exit code propagation) — **DONE 2026-05-27** · issue [#1074](https://github.com/LucaDominici/arbiter/issues/1074) · PR [#1078](https://github.com/LucaDominici/arbiter/pull/1078) "tiered POSIX exit codes for gh failures" | 2-4h | CI wrapper di arbiter ora vede subito i fail invece di nascondersi. | `.arbiter/wave0.5/ADR-002-exit-code.md` (removed; see git history) |
+| 3 | ✅ **F2 + F3** (MD pipe + table format) — **DONE 2026-05-27** · issue [#1075](https://github.com/LucaDominici/arbiter/issues/1075) · PR [#1079](https://github.com/LucaDominici/arbiter/pull/1079) "pipe closure + blank-line bloat" | 1-2h | Template MD passano markdownlint + Prettier. | `.arbiter/wave0.5/ADR-003-md-template-fix.md` (removed; see git history) |
+| 4 | ✅ **F10** (templates pass L1) — **DONE 2026-05-28** · issue [#1076](https://github.com/LucaDominici/arbiter/issues/1076) chiusa COMPLETED (probabilmente raccolta da #1080 drift fix / #1083 CI gap closures — closedByPullRequest cross-ref non match, verificare a posteriori) | 1-3 gg | Templates ora passano L1 su fresh `arbiter init`. | `.arbiter/wave0.5/ADR-004-templates-L1-pass.md` (removed; see git history) |
+| 5 | ✅ **F1 + F7** (diff scope alignment) — **DONE 2026-05-29** · issue [#1077](https://github.com/LucaDominici/arbiter/issues/1077) · PR [#1106](https://github.com/LucaDominici/arbiter/pull/1106) | 1-2 gg | Architectural. Chiude Wave 0.5. Manifest contract unified diff/update. F6 idempotence side effect. | `.arbiter/wave0.5/ADR-005-diff-scope.md` (removed; see git history) |
 | ⬢ | **fixture INV-32** (regression asserts L1-green) | 4-6h | Non un P0 standalone, ma il binding INV-32. Va aggiunto in coda a F10 nello stesso PR set. | dentro ADR-004 |
 | ⬢ | **F12** (arbiter local remote misconfig) | 5 min | Non arbiter bug, fix locale tuo: `git remote set-url`. Da fare PRIMA di qualunque PR Wave 0.5. | nessuno (one-liner) |
 - **Definition of Done**:
@@ -133,7 +133,7 @@ Vedi [`chat-protocol.md`](chat-protocol.md). Sintesi:
 ### 🟢 Attivo 2 (PROMOSSO da queue dopo chiusura Wave 0.5): Stream A — Wave 0.6 Pipeline drift fix (§17.5)
 
 - **Cosa**: chiudere §17.5 end-to-end. 8 ADR in `.arbiter/wave0.6-pipeline-drift/`. Scope unico (no split — DEC-012).
-- **Triage source**: [`PIPELINE-DRIFT-TRIAGE-2026-05-30.md`](../wave0.5/PIPELINE-DRIFT-TRIAGE-2026-05-30.md). Drift point B (action pin drift) GIÀ DONE in ADR-004; 7 sub-fix residui + 1 meta-ADR.
+- **Triage source**: `.arbiter/wave0.5/PIPELINE-DRIFT-TRIAGE-2026-05-30.md` (removed from tree in chore/batch-a; see git history). Drift point B (action pin drift) GIÀ DONE in ADR-004; 7 sub-fix residui + 1 meta-ADR.
 
 **8 ADR ordinati per dipendenze**:
 
@@ -256,7 +256,7 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 - **2026-05-26 — DEC-003**: Wave 2A consolidamento /task+/auto avrà scope MVP brutale (5-7 pattern). ADR upfront obbligatorio.
 - **2026-05-26 — DEC-004**: Stream D (aziendale) non riceve priorità dedicata. Solo opportunistic.
 - **2026-05-26 — DEC-005**: Claude scrive ADR/audit/spec ma NON arbiter source code in autonomia. Code = Luca. PR review e ADR draft = Claude.
-- **2026-05-26 — DEC-006**: Wave 0.5 (template self-consistency) promosso davanti a "Pipeline drift fix" e davanti a Wave 2A. Trigger: 10 finding Wave 0 di cui 5 P0. Sblocca tutto il downstream (vedi [`.arbiter/wave0/haben-smoke-test.md`](../wave0/haben-smoke-test.md)).
+- **2026-05-26 — DEC-006**: Wave 0.5 (template self-consistency) promosso davanti a "Pipeline drift fix" e davanti a Wave 2A. Trigger: 10 finding Wave 0 di cui 5 P0. Sblocca tutto il downstream (vedi `.arbiter/wave0/haben-smoke-test.md`, rimosso dal tree in chore/batch-a; disponibile in git history).
 - **2026-05-26 — DEC-007**: Convention confermata per audit reports → `.arbiter/waveN/<topic>.md` (es. `wave0/haben-smoke-test.md`, `wave1/INDEX.md`). Logs evidence opzionali in `.arbiter/waveN/evidence/`.
 - **2026-05-26 — DEC-008** (ADR-001 / issue #1063): `useGitHub` config field → `permitGitHub` via **alias + deprecation** (option C). Alias 1 minor (v0.2.x), hard-remove v0.3. Motivo: hard-rename violerebbe 4 frozen compat fixtures + tarball consumers.
 - **2026-05-26 — DEC-009** (ADR-001 / issue #1063): `--github` come **global flag pre-stripped** + env var `ARBITER_GITHUB=1` (option 1). Mirror del pattern `--no-evidence` di cli.ts:99-104. Rimosso `--github` local da `update` (era override, ora opt-in).
@@ -264,6 +264,7 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 - **2026-05-30 — DEC-011** (chiusura Wave 0.5): Pipeline drift fix promosso da queue ad Active 2. Triage 2026-05-30 mostra che drift B (action pin) era già DONE in ADR-004; restano 7 sub-fix + 1 meta-ADR (Wave 0.6 scope).
 - **2026-05-30 — DEC-012** (Wave 0.6 scope): NO split — scope unico per Active 2 (8 ADR). Java + general + INV-59 triage tutto dentro. Scaffold in `.arbiter/wave0.6-pipeline-drift/`. Issue da aprire come Wave 0.5 in batch, priority/P0.
 - **2026-05-30 — DEC-013** (Active 1 = Wave 2A): promosso Wave 2A `/task` v2 design da Q1. Sinergia con Wave 0.6 (entrambi su workflow). Design phase ora; chat dedicata dopo Wave 0.6 batch 1.
+- **2026-06-03 — DEC-014** (Batch A hygiene): wave0, wave0.5, wave1 audit dirs rimossi dal working tree (`git rm`). Audit history disponibile in git log (commit chore/batch-a). MILESTONES.md + DONE.md relative links convertiti a plain text. `!.arbiter/wave*/` gitignore negations mantenute per future wave (wave0.6+). Loose file `.arbiter/wave-session-2026-05-29.md` rimosso (era scratch non storico). File sessione #1177 aperta per Kotlin follow-up (REQ-026 smoke test → real generation).
 - **2026-05-29 — Note di sync** (no DEC, solo registrazione): tra il 2026-05-27 e 2026-05-28, fuori dalla mia view manager, Claude Code ha mergiato 3 ADR addizionali non programmati in Wave 0.5: **ADR-051** (#1080 collaboration-mode axis + WT merge-train foundation + generator-spec drift fix), **ADR-052** (#1082/#1084 ff-only merge policy + cosign SHA preservation, INV-101), **ADR-053** (#1083/#1085 CI gap closures: CodeQL, OSSF Scorecard, frontend-quality, nightly-lite). In corso: refactor #1098 (table-drive agent generators + compatibility parsers). Questi NON consumano slot Active (sono lavoro continuo di Claude Code dentro lo Stream A); il WIP=2 hard-limit del management resta vincolato sui due Active del manager (Wave 0.5 + Pipeline drift fix sospeso).
 
 ---
@@ -271,8 +272,8 @@ Decisioni che hanno effetto fuori chat singola. Le ADR vere vanno in `docs/ADR/`
 ## Riferimenti
 
 - [Main analysis report](../analysis-2026-05-25.md) — 634 LOC, deep tecnico + 40+ pillole career
-- [Wave 1 viafera audit](../wave1/INDEX.md) — 6 file, audit cross-family
-- [Luca's /auto pipeline audit](../wave1/auto-pipeline-audit.md) — 290 LOC, 12 pattern P0 + 6 nuove pillole
+- `.arbiter/wave1/INDEX.md` — 6 file, audit cross-family (removed from tree in chore/batch-a; see git history)
+- `.arbiter/wave1/auto-pipeline-audit.md` — 290 LOC, 12 pattern P0 + 6 nuove pillole (removed from tree in chore/batch-a; see git history)
 - [Chat protocol](chat-protocol.md) — quando aprire nuove chat, come bridarle
 
 ---
