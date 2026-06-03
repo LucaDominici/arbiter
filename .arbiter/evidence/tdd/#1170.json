@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1170",
+  "test_path": "__tests__/scripts/check-deprecations.test.ts",
+  "test_commit_sha": "bbe1daf665bd87f20e8544e7d4f39d8a19f63660",
+  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter.worktrees/1170-deprecations-fix\n\n ❯ __tests__/scripts/check-deprecations.test.ts (10 tests | 1 failed) 189ms\n     × exits 1 on a bad CLI flag gap even with ZERO active doc rows (#1170 — no early-return) 19ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 9 passed (10)\n   Start at  18:44:43\n   Duration  280ms (transform 18ms, setup 12ms, import 14ms, tests 189ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-deprecations.test.ts > check-deprecations.mjs (deprecation window enforcement) > exits 1 on a bad CLI flag gap even with ZERO active doc rows (#1170 — no early-return)\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-deprecations.test.ts:201:29\n    199|       )\n    200|       const result = run(dir)\n    201|       expect(result.status).toBe(1)\n       |                             ^\n    202|       expect(result.stderr).toContain('--ghost-flag')\n    203|       expect(result.stderr).toContain('insufficient version gap')\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-deprecations.test.ts",
+  "recorded_at": "2026-06-03T16:44:44.161Z"
+}
