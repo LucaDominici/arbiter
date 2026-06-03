@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import inquirer from 'inquirer'
+import { select, multiselect, confirm, text, isCancel } from '@clack/prompts'
 import { t } from '../i18n/index.js'
 import type {
   ProjectConfig,
@@ -11,6 +11,11 @@ import type {
   WizardAnswers,
   Language,
   Lane,
+  GovernanceLevel,
+  InvariantPreset,
+  ArchitectureStyle,
+  ContractType,
+  CollaborationMode,
 } from './types.js'
 import type { BuildCommands } from '../detectors/build.js'
 import type { GitInfo } from '../detectors/git.js'
@@ -179,20 +184,25 @@ function displayMigrationPlan(plan: MigrationPlan): void {
   }
 }
 
-function isUserCancellation(err: unknown): boolean {
-  return (
-    err instanceof Error &&
-    (err.name === 'ExitPromptError' ||
-      err.message.includes('User force closed') ||
-      err.message === 'Prompt was cancelled')
-  )
+/**
+ * Sentinel thrown internally when a @clack prompt returns a cancel symbol
+ * (the user pressed Ctrl+C / Escape). runWizard catches it, performs the abort
+ * cleanup, and returns null with exitCode 130. clack does not throw on cancel —
+ * each prompt resolves to a cancel symbol checked via isCancel(), so we
+ * centralise that check in `ask*` helpers to avoid per-prompt repetition.
+ */
+class WizardAborted extends Error {
+  constructor() {
+    super('wizard aborted')
+    this.name = 'WizardAborted'
+  }
 }
 
-async function promptConfirm(message: string): Promise<boolean> {
-  const { confirm } = (await inquirer.prompt([
-    { type: 'confirm', name: 'confirm', message, default: true },
-  ] as Parameters<typeof inquirer.prompt>[0])) as { confirm: boolean }
-  return confirm
+/** Resolve a clack prompt, throwing WizardAborted when the user cancels. */
+async function unwrap<T>(promise: Promise<T | symbol>): Promise<T> {
+  const value = await promise
+  if (isCancel(value)) throw new WizardAborted()
+  return value
 }
 
 function printFlowPreamble(wizardInput: WizardInput, flow: WizardFlow): void {
@@ -268,6 +278,229 @@ function displayFlowSummary(
   }
 }
 
+type RawAnswers = Omit<WizardAnswers, 'language'> & {
+  language?: Language
+  keepDetectedLanguage?: boolean
+}
+
+/**
+ * Prompts 1a/1b — language confirmation + selection. SKIP the confirm entirely
+ * when --language is locked or when detection is 'unknown'; the language list
+ * is shown directly for 'unknown' and otherwise only when the user declines the
+ * detected language. Mutates `raw` in place.
+ */
+async function collectLanguageAnswers(wizardInput: WizardInput, raw: RawAnswers): Promise<void> {
+  if (wizardInput.languageLocked === true) return
+
+  const detectedLang = wizardInput.language
+  const langSource = wizardInput.languageSource ?? null
+  let showLanguageList = detectedLang === 'unknown'
+
+  if (detectedLang !== 'unknown') {
+    const confirmMessage = langSource
+      ? `Use detected language '${detectedLang}' (from ${langSource})?`
+      : `Use detected language '${detectedLang}'?`
+    const keep = await unwrap(confirm({ message: confirmMessage, initialValue: true }))
+    raw.keepDetectedLanguage = keep
+    showLanguageList = !keep
+  }
+
+  if (showLanguageList) {
+    raw.language = await unwrap(
+      select({
+        message: 'Select language:',
+        options: buildLanguageOptions(),
+        initialValue: 'typescript',
+      }),
+    )
+  }
+}
+
+/**
+ * Prompts 8–11 — hasDatabase / hasPublicApi / isMultiTenant / contractType.
+ * contractType is asked only when hasPublicApi === true (the old inquirer
+ * `when:` becomes an imperative guard). Mutates `raw` in place.
+ */
+async function collectAxisAnswers(raw: RawAnswers): Promise<void> {
+  // 8 — hasDatabase (default from archetype DB set).
+  raw.hasDatabase = await unwrap(
+    select({
+      message: 'Does the project connect to a database?',
+      options: YES_NO_OPTIONS,
+      initialValue: ARCHETYPE_DB_SET.has(raw.archetype),
+    }),
+  )
+
+  // 9 — hasPublicApi (default from deploy archetypes).
+  raw.hasPublicApi = await unwrap(
+    select({
+      message: 'Does the project expose a public API?',
+      options: YES_NO_OPTIONS,
+      initialValue: DEPLOY_ARCHETYPES.includes(raw.archetype),
+    }),
+  )
+
+  // 10 — multi-tenant.
+  raw.isMultiTenant = await unwrap(
+    select({
+      message: 'Is the project multi-tenant?',
+      options: YES_NO_OPTIONS,
+      initialValue: false,
+    }),
+  )
+
+  // 11 — contractType — only when hasPublicApi === true.
+  if (shouldAskContractType({ hasPublicApi: raw.hasPublicApi })) {
+    raw.contractType = await unwrap(
+      select({
+        message: 'Contract testing style:',
+        options: CONTRACT_TYPE_OPTIONS,
+        initialValue: defaultContractType(raw.archetype, raw.hasPublicApi),
+      }),
+    )
+  }
+}
+
+/**
+ * Prompt 12 — decomposition backend. Shown only when gh is available AND
+ * authenticated. When gh is available but unauthenticated, print the access
+ * note (parity with the old buildGithubChoice) and skip the prompt.
+ */
+async function collectDecompositionBackend(
+  wizardInput: WizardInput,
+  raw: RawAnswers,
+): Promise<void> {
+  const { available, authenticated, username, error } = wizardInput.githubAccess
+  if (available && !authenticated) {
+    process.stdout.write(
+      `${t('cli.wizard.gh_access_note', {
+        message: error ?? 'gh not authenticated — GitHub assets skipped',
+      })}\n`,
+    )
+  }
+  if (available && authenticated) {
+    raw.decompositionBackend = await unwrap(
+      select({
+        message: 'Decomposition backend (where tasks/work units are stored):',
+        options: [
+          { value: 'github', label: `github — gh authenticated as ${username ?? 'unknown'}` },
+          {
+            value: 'markdown',
+            label: 'markdown — local .arbiter/work/*.md files (no gh required)',
+          },
+        ],
+        initialValue: 'github',
+      }),
+    )
+  }
+}
+
+/**
+ * Collect the wizard answers via sequential @clack/prompts calls. Returns the
+ * raw answer object in the same shape inquirer produced; conditional prompts
+ * (`when:` in the old inquirer model) are expressed as imperative `if`s here,
+ * and function `default:`s are precomputed into `initialValue`s. Throws
+ * WizardAborted if the user cancels any prompt.
+ */
+async function collectRawAnswers(wizardInput: WizardInput): Promise<RawAnswers> {
+  const raw: RawAnswers = {} as never
+
+  // 1a/1b — language confirmation + selection.
+  await collectLanguageAnswers(wizardInput, raw)
+
+  // 2 — description.
+  raw.description = await unwrap(
+    text({
+      message: 'Project description:',
+      defaultValue: `${wizardInput.projectName} project`,
+    }),
+  )
+
+  // 3 — AI tools (empty selection allowed).
+  raw.tools = await unwrap(
+    multiselect({
+      message: 'Which AI tools will you use?',
+      options: TOOL_OPTIONS,
+      initialValues: ['claude', 'codex'],
+      required: false,
+    }),
+  )
+
+  // 4 — governance level.
+  raw.governanceLevel = await unwrap(
+    select({ message: GOVERNANCE_MESSAGE, options: GOVERNANCE_OPTIONS, initialValue: 'L2' }),
+  )
+
+  // 5 — invariant preset (default derived from the chosen governance level).
+  raw.invariantPreset = await unwrap(
+    select({
+      message: INVARIANT_PRESET_MESSAGE,
+      options: INVARIANT_PRESET_OPTIONS,
+      initialValue: defaultPresetForLevel(raw.governanceLevel),
+    }),
+  )
+
+  // 6 — archetype (default from framework hint).
+  const archetypeDefault: Archetype =
+    detectArchetypeHint(wizardInput.targetDir, wizardInput.language, wizardInput.framework) ??
+    'library'
+  raw.archetype = await unwrap(
+    select({
+      message: ARCHETYPE_MESSAGE,
+      options: ARCHETYPE_OPTIONS,
+      initialValue: archetypeDefault,
+    }),
+  )
+
+  // 7 — architecture style.
+  raw.architectureStyle = await unwrap(
+    select({
+      message: ARCHITECTURE_STYLE_MESSAGE,
+      options: ARCHITECTURE_STYLE_OPTIONS,
+      initialValue: 'none',
+    }),
+  )
+
+  // 8–11 — DB / public-API / multi-tenant / contract-type axis questions.
+  await collectAxisAnswers(raw)
+
+  // 12 — decomposition backend (only when gh is available AND authenticated).
+  await collectDecompositionBackend(wizardInput, raw)
+
+  // 13 — collaboration mode.
+  raw.collaborationMode = await unwrap(
+    select({
+      message: COLLABORATION_MODE_MESSAGE,
+      options: COLLABORATION_MODE_OPTIONS,
+      initialValue: DEFAULT_COLLABORATION_MODE,
+    }),
+  )
+
+  // 14 — pipeline style.
+  raw.pipelineStyle = await unwrap(
+    select({
+      message: PIPELINE_STYLE_MESSAGE,
+      options: PIPELINE_STYLE_OPTIONS,
+      initialValue: 'standard',
+    }),
+  )
+
+  // 15 — brownfield class (default auto-detected).
+  const brownfieldDetect = detectBrownfieldClass(wizardInput.targetDir, wizardInput.language)
+  raw.brownfieldClass = await unwrap(
+    select({
+      message: buildBrownfieldClassMessage(
+        brownfieldDetect.brownfieldClass,
+        brownfieldDetect.sourceFileCount,
+      ),
+      options: BROWNFIELD_CLASS_OPTIONS,
+      initialValue: brownfieldDetect.brownfieldClass,
+    }),
+  )
+
+  return raw
+}
+
 export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig | null> {
   process.stdout.write('\n')
 
@@ -275,9 +508,7 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
   printFlowPreamble(wizardInput, flow)
 
   try {
-    const rawAnswers = (await inquirer.prompt(
-      buildMainQuestions(wizardInput) as Parameters<typeof inquirer.prompt>[0],
-    )) as Omit<WizardAnswers, 'language'> & { language?: Language; keepDetectedLanguage?: boolean }
+    const rawAnswers = await collectRawAnswers(wizardInput)
 
     const answers: WizardAnswers = resolveWizardAnswers(rawAnswers, wizardInput)
 
@@ -299,15 +530,18 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
 
     displayFlowSummary(flow, wizardInput, tools, decompositionBackend === 'github')
 
+    // 16 — final confirmation. isCancel (Ctrl+C) → abort (exitCode 130);
+    // an explicit `false` → cancelled, return null with exitCode unchanged.
     const confirmMsg = flow === 'brownfield' ? 'Proceed with migration?' : 'Proceed?'
-    if (!(await promptConfirm(confirmMsg))) {
+    const proceed = await unwrap(confirm({ message: confirmMsg, initialValue: true }))
+    if (!proceed) {
       process.stdout.write(`${t('cli.wizard.cancelled')}\n`)
       return null
     }
 
     return config
   } catch (err) {
-    if (isUserCancellation(err)) {
+    if (err instanceof WizardAborted) {
       cleanupInFlightTmpFiles()
       // TODO(#614): release L4 file lock here once lock infra lands
       process.stdout.write(`${t('cli.wizard.aborted')}\n`)
@@ -319,6 +553,7 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
 }
 
 const DEPLOY_ARCHETYPES: Archetype[] = ['backend-web-db']
+const DEFAULT_COLLABORATION_MODE: CollaborationMode = 'peer-review'
 
 function deriveDeployTarget(answers: WizardAnswers): DeployTarget {
   if (!DEPLOY_ARCHETYPES.includes(answers.archetype)) return 'none'
@@ -363,7 +598,7 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     enableSelfValidationHarness: true,
     // ADR-051 (#1119): collaborationMode is now the primary axis from the wizard.
     // Keep writing enableSoloDevMode as a back-compat alias for legacy readers.
-    collaborationMode: answers.collaborationMode ?? 'peer-review',
+    collaborationMode: answers.collaborationMode ?? DEFAULT_COLLABORATION_MODE,
     // eslint-disable-next-line @typescript-eslint/no-deprecated
     enableSoloDevMode: answers.collaborationMode === 'trunk-solo' || (answers.soloDevMode ?? false),
     thresholds: DEFAULT_THRESHOLDS[answers.governanceLevel],
@@ -380,426 +615,184 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
   }
 }
 
-function buildGovernanceQuestions(): object[] {
+// ── @clack option tables + message strings (Phase 4 migration) ───────────────
+// Inquirer `list`/`checkbox` choices become @clack select/multiselect options
+// ({ value, label }). Multi-line inquirer `message` strings are preserved
+// verbatim so the on-screen prompt text is unchanged.
+
+type Opt<T extends string | boolean> = { value: T; label: string }
+
+function buildLanguageOptions(): Opt<Language>[] {
   return [
-    {
-      type: 'list',
-      name: 'governanceLevel',
-      message: [
-        'Governance level:',
-        '',
-        '  Level  | Activates',
-        '  -------|----------------------------------------------------------',
-        '  L1     | lint + format + unit tests',
-        '  L2     | + coverage + integration + debt gates + security scan',
-        '  L3     | + E2E + mutation testing',
-        '  L4     | + evidence harness + STRIDE risk + TRACK_ROUTER + SLSA',
-        '',
-      ].join('\n'),
-      choices: [
-        {
-          name: 'L1 — Lightweight (lint + format + unit tests)',
-          value: 'L1',
-        },
-        {
-          name: 'L2 — Standard (+ coverage + integration + debt + security)  [recommended]',
-          value: 'L2',
-        },
-        {
-          name: 'L3 — Strict (+ E2E + mutation testing)',
-          value: 'L3',
-        },
-        {
-          name: 'L4 — Audit/Compliance (+ evidence harness + STRIDE risk + SLSA)',
-          value: 'L4',
-        },
-      ],
-      default: 'L2',
-    },
-    {
-      type: 'list',
-      name: 'invariantPreset',
-      message: [
-        'Invariant coverage — which categories of rules to enforce:',
-        '',
-        '  Essential  — arch (no circular deps, hexagonal boundaries) + governance (no any, no orphan TODOs)',
-        '  Standard   — + data integrity (input validation, null guards) + operational (logging, error handling)',
-        '  Full       — + security tier (secrets, auth, injection guards)',
-        '',
-      ].join('\n'),
-      choices: [
-        {
-          name: 'Essential — architectural + governance rules only (~14 rules)',
-          value: 'essential',
-        },
-        {
-          name: 'Standard  — + data integrity + operational rules (~23 rules)  [recommended]',
-          value: 'standard',
-        },
-        {
-          name: 'Full      — all 28 rules including security tier',
-          value: 'full',
-        },
-      ],
-      default: (answers: { governanceLevel: string }): string =>
-        defaultPresetForLevel(answers.governanceLevel as import('./types.js').GovernanceLevel),
-    },
+    { value: 'typescript', label: 'TypeScript / JavaScript' },
+    { value: 'java', label: 'Java' },
+    { value: 'kotlin', label: 'Kotlin' },
+    { value: 'rust', label: 'Rust' },
+    { value: 'python', label: 'Python' },
+    { value: 'go', label: 'Go' },
+    { value: 'multi', label: 'Multi-language (polyglot repo)' },
   ]
 }
 
-function buildArchitectureStyleQuestion(): object {
-  return {
-    type: 'list',
-    name: 'architectureStyle',
-    message: [
-      'Internal architecture style — generates package-level enforcement rules (ArchUnit / import checks):',
-      '',
-      '  none            — no architecture rules, use when starting or unsure',
-      '  hexagonal       — ports & adapters: domain/ has no deps on infra/; strict layer separation',
-      '  layered         — web → service → repository: unidirectional package dependencies enforced',
-      '  modular-monolith — bounded-context isolation: modules cannot directly import each other',
-      '',
-    ].join('\n'),
-    choices: [
-      {
-        name: 'none            — No architecture rules generated  [default]',
-        value: 'none',
-      },
-      {
-        name: 'hexagonal       — Ports & adapters (Clean Architecture)',
-        value: 'hexagonal',
-      },
-      {
-        name: 'layered         — Package-direction layers',
-        value: 'layered',
-      },
-      {
-        name: 'modular-monolith — Bounded-context module isolation',
-        value: 'modular-monolith',
-      },
-    ],
-    default: 'none',
-  }
-}
+const TOOL_OPTIONS: Opt<AiTool>[] = [
+  { value: 'claude', label: 'Claude Code (Anthropic)' },
+  { value: 'codex', label: 'Codex (OpenAI)' },
+  { value: 'cursor', label: 'Cursor' },
+  { value: 'copilot', label: 'Copilot' },
+  { value: 'gemini', label: 'Gemini CLI (Google)' },
+  { value: 'windsurf', label: 'Windsurf (Codeium)' },
+  { value: 'aider', label: 'Aider (terminal pair)' },
+]
 
-function buildArchetypeQuestions(archetypeDefault: Archetype): object[] {
-  return [
-    {
-      type: 'list',
-      name: 'archetype',
-      message: [
-        'Project archetype — determines scaffold templates and enforcement gates:',
-        '',
-        '  backend-web-db  — generates REST middleware, DB migrations, Pact/OpenAPI contract tests',
-        '  cli             — generates arg parsing, exit-code enforcement, no HTTP scaffolding',
-        '  library         — generates public-API surface tracking, no runtime scaffolding',
-        '  data-pipeline   — generates data quality checks, idempotency guards',
-        '  frontend-spa    — generates bundle-size tracking, a11y stubs',
-        '  embedded        — minimal scaffold, no network/DB',
-        '',
-      ].join('\n'),
-      choices: [
-        {
-          name: 'backend-web-db  — HTTP service with database',
-          value: 'backend-web-db',
-        },
-        { name: 'cli             — Command-line tool', value: 'cli' },
-        {
-          name: 'library         — Reusable library / package',
-          value: 'library',
-        },
-        {
-          name: 'data-pipeline   — ETL / batch processing',
-          value: 'data-pipeline',
-        },
-        {
-          name: 'frontend-spa    — Browser / desktop UI',
-          value: 'frontend-spa',
-        },
-        {
-          name: 'embedded        — Firmware / bare-metal',
-          value: 'embedded',
-        },
-      ],
-      default: archetypeDefault,
-    },
-    buildArchitectureStyleQuestion(),
-    {
-      type: 'list',
-      name: 'hasDatabase',
-      message: 'Does the project connect to a database?',
-      choices: [
-        { name: 'Yes', value: true },
-        { name: 'No', value: false },
-      ],
-      default: (answers: { archetype: Archetype }): boolean =>
-        ARCHETYPE_DB_SET.has(answers.archetype),
-    },
-    {
-      type: 'list',
-      name: 'hasPublicApi',
-      message: 'Does the project expose a public API?',
-      choices: [
-        { name: 'Yes', value: true },
-        { name: 'No', value: false },
-      ],
-      default: (answers: { archetype: Archetype }): boolean =>
-        DEPLOY_ARCHETYPES.includes(answers.archetype),
-    },
-    {
-      type: 'list',
-      name: 'isMultiTenant',
-      message: 'Is the project multi-tenant?',
-      choices: [
-        { name: 'Yes', value: true },
-        { name: 'No', value: false },
-      ],
-      default: false,
-    },
-    buildContractTypeQuestion(),
-  ]
-}
+const YES_NO_OPTIONS: Opt<boolean>[] = [
+  { value: true, label: 'Yes' },
+  { value: false, label: 'No' },
+]
 
-function buildContractTypeQuestion(): object {
-  return {
-    type: 'list',
-    name: 'contractType',
-    message: 'Contract testing style:',
-    // shouldAskContractType is a named export so it can be unit-tested directly.
-    // The inquirer `when` function is NOT exercised by the mocked runWizard tests.
-    when: (answers: { hasPublicApi?: boolean }) => shouldAskContractType(answers),
-    choices: [
-      {
-        name: 'rest-owned     — Pact (consumer + provider you own)',
-        value: 'rest-owned',
-      },
-      {
-        name: 'rest-public    — OpenAPI diff (breaking-change detector)',
-        value: 'rest-public',
-      },
-      {
-        name: 'graphql        — Schema diff (graphql-inspector)',
-        value: 'graphql',
-      },
-      { name: 'grpc           — buf breaking', value: 'grpc' },
-      {
-        name: 'message-queue  — Schema registry (Avro/Protobuf)',
-        value: 'message-queue',
-      },
-      { name: 'none           — No contract testing', value: 'none' },
-    ],
-    default: (answers: { archetype?: Archetype; hasPublicApi?: boolean }) =>
-      defaultContractType(answers.archetype, answers.hasPublicApi ?? false),
-  }
-}
+const GOVERNANCE_MESSAGE = [
+  'Governance level:',
+  '',
+  '  Level  | Activates',
+  '  -------|----------------------------------------------------------',
+  '  L1     | lint + format + unit tests',
+  '  L2     | + coverage + integration + debt gates + security scan',
+  '  L3     | + E2E + mutation testing',
+  '  L4     | + evidence harness + STRIDE risk + TRACK_ROUTER + SLSA',
+  '',
+].join('\n')
 
-function buildPipelineStyleQuestion(): object {
-  return {
-    type: 'list',
-    name: 'pipelineStyle',
-    message: [
-      'Pipeline style — controls which GitHub Actions workflows are emitted:',
-      '',
-      '  starter    — 3 workflows: pr-fast, main-build, heartbeat',
-      '  standard   — 8 workflows: starter + pr-extended, nightly, release, dependabot-auto, sbom, gitleaks',
-      '  industrial — 18 workflows: standard + perf, chaos, mutation-nightly, archunit-extended,',
-      '               cosign, attestation, rebuild, trivy-scheduled, license-scan, policy-eval',
-      '',
-    ].join('\n'),
-    choices: [
-      {
-        name: 'starter    — minimal solo/small team CI (3 workflows)',
-        value: 'starter',
-      },
-      {
-        name: 'standard   — recommended team CI (8 workflows)  [recommended]',
-        value: 'standard',
-      },
-      {
-        name: 'industrial — enterprise-grade CI (18 workflows)',
-        value: 'industrial',
-      },
-    ],
-    default: 'standard',
-  }
-}
+const GOVERNANCE_OPTIONS: Opt<GovernanceLevel>[] = [
+  { value: 'L1', label: 'L1 — Lightweight (lint + format + unit tests)' },
+  {
+    value: 'L2',
+    label: 'L2 — Standard (+ coverage + integration + debt + security)  [recommended]',
+  },
+  { value: 'L3', label: 'L3 — Strict (+ E2E + mutation testing)' },
+  { value: 'L4', label: 'L4 — Audit/Compliance (+ evidence harness + STRIDE risk + SLSA)' },
+]
 
-function buildBrownfieldClassQuestion(
+const INVARIANT_PRESET_MESSAGE = [
+  'Invariant coverage — which categories of rules to enforce:',
+  '',
+  '  Essential  — arch (no circular deps, hexagonal boundaries) + governance (no any, no orphan TODOs)',
+  '  Standard   — + data integrity (input validation, null guards) + operational (logging, error handling)',
+  '  Full       — + security tier (secrets, auth, injection guards)',
+  '',
+].join('\n')
+
+const INVARIANT_PRESET_OPTIONS: Opt<InvariantPreset>[] = [
+  { value: 'essential', label: 'Essential — architectural + governance rules only (~14 rules)' },
+  {
+    value: 'standard',
+    label: 'Standard  — + data integrity + operational rules (~23 rules)  [recommended]',
+  },
+  { value: 'full', label: 'Full      — all 28 rules including security tier' },
+]
+
+const ARCHETYPE_MESSAGE = [
+  'Project archetype — determines scaffold templates and enforcement gates:',
+  '',
+  '  backend-web-db  — generates REST middleware, DB migrations, Pact/OpenAPI contract tests',
+  '  cli             — generates arg parsing, exit-code enforcement, no HTTP scaffolding',
+  '  library         — generates public-API surface tracking, no runtime scaffolding',
+  '  data-pipeline   — generates data quality checks, idempotency guards',
+  '  frontend-spa    — generates bundle-size tracking, a11y stubs',
+  '  embedded        — minimal scaffold, no network/DB',
+  '',
+].join('\n')
+
+const ARCHETYPE_OPTIONS: Opt<Archetype>[] = [
+  { value: 'backend-web-db', label: 'backend-web-db  — HTTP service with database' },
+  { value: 'cli', label: 'cli             — Command-line tool' },
+  { value: 'library', label: 'library         — Reusable library / package' },
+  { value: 'data-pipeline', label: 'data-pipeline   — ETL / batch processing' },
+  { value: 'frontend-spa', label: 'frontend-spa    — Browser / desktop UI' },
+  { value: 'embedded', label: 'embedded        — Firmware / bare-metal' },
+]
+
+const ARCHITECTURE_STYLE_MESSAGE = [
+  'Internal architecture style — generates package-level enforcement rules (ArchUnit / import checks):',
+  '',
+  '  none            — no architecture rules, use when starting or unsure',
+  '  hexagonal       — ports & adapters: domain/ has no deps on infra/; strict layer separation',
+  '  layered         — web → service → repository: unidirectional package dependencies enforced',
+  '  modular-monolith — bounded-context isolation: modules cannot directly import each other',
+  '',
+].join('\n')
+
+const ARCHITECTURE_STYLE_OPTIONS: Opt<ArchitectureStyle>[] = [
+  { value: 'none', label: 'none            — No architecture rules generated  [default]' },
+  { value: 'hexagonal', label: 'hexagonal       — Ports & adapters (Clean Architecture)' },
+  { value: 'layered', label: 'layered         — Package-direction layers' },
+  {
+    value: 'modular-monolith',
+    label: 'modular-monolith — Bounded-context module isolation',
+  },
+]
+
+const CONTRACT_TYPE_OPTIONS: Opt<ContractType>[] = [
+  { value: 'rest-owned', label: 'rest-owned     — Pact (consumer + provider you own)' },
+  { value: 'rest-public', label: 'rest-public    — OpenAPI diff (breaking-change detector)' },
+  { value: 'graphql', label: 'graphql        — Schema diff (graphql-inspector)' },
+  { value: 'grpc', label: 'grpc           — buf breaking' },
+  { value: 'message-queue', label: 'message-queue  — Schema registry (Avro/Protobuf)' },
+  { value: 'none', label: 'none           — No contract testing' },
+]
+
+const COLLABORATION_MODE_MESSAGE = [
+  'Collaboration mode — controls branching, CI shape, and merge ceremony:',
+  '',
+  '  trunk-solo    — push to trunk directly; minimal CI; no PR required',
+  '  peer-review   — feature branches + PR + fast-forward merge (recommended)',
+  '  gated-review  — PR + required approvals + full CI (enterprise / regulated)',
+  '',
+].join('\n')
+
+const COLLABORATION_MODE_OPTIONS: Opt<CollaborationMode>[] = [
+  { value: 'trunk-solo', label: 'trunk-solo    — solo dev, commit directly to main' },
+  { value: 'peer-review', label: 'peer-review   — small team, PR-based workflow  [recommended]' },
+  {
+    value: 'gated-review',
+    label: 'gated-review  — regulated / enterprise, required approvals',
+  },
+]
+
+const PIPELINE_STYLE_MESSAGE = [
+  'Pipeline style — controls which GitHub Actions workflows are emitted:',
+  '',
+  '  starter    — 3 workflows: pr-fast, main-build, heartbeat',
+  '  standard   — 8 workflows: starter + pr-extended, nightly, release, dependabot-auto, sbom, gitleaks',
+  '  industrial — 18 workflows: standard + perf, chaos, mutation-nightly, archunit-extended,',
+  '               cosign, attestation, rebuild, trivy-scheduled, license-scan, policy-eval',
+  '',
+].join('\n')
+
+const PIPELINE_STYLE_OPTIONS: Opt<'starter' | 'standard' | 'industrial'>[] = [
+  { value: 'starter', label: 'starter    — minimal solo/small team CI (3 workflows)' },
+  { value: 'standard', label: 'standard   — recommended team CI (8 workflows)  [recommended]' },
+  { value: 'industrial', label: 'industrial — enterprise-grade CI (18 workflows)' },
+]
+
+function buildBrownfieldClassMessage(
   detected: 'gold' | 'light' | 'medium' | 'heavy',
   fileCount: number,
-): object {
-  return {
-    type: 'list',
-    name: 'brownfieldClass',
-    message: [
-      `Brownfield class (auto-detected: ${detected}, ${fileCount} source files):`,
-      '  Determines which threshold column applies to existing code.',
-      '  New code always uses gold-grade thresholds regardless of class.',
-      '',
-      '  gold   — greenfield / mature repo  (< 50 source files)',
-      '  light  — light brownfield          (50–500 files, coverage > 30 %)',
-      '  medium — medium brownfield         (500–2 000 files, coverage 5–30 %)',
-      '  heavy  — heavy brownfield          (2 000+ files, coverage < 5 %)',
-      '',
-    ].join('\n'),
-    choices: [
-      { name: 'gold   — greenfield / already mature', value: 'gold' },
-      { name: 'light  — light brownfield', value: 'light' },
-      { name: 'medium — medium brownfield', value: 'medium' },
-      { name: 'heavy  — heavy brownfield', value: 'heavy' },
-    ],
-    default: detected,
-  }
-}
-
-function buildLanguageChoices(): { name: string; value: string }[] {
+): string {
   return [
-    { name: 'TypeScript / JavaScript', value: 'typescript' },
-    { name: 'Java', value: 'java' },
-    { name: 'Kotlin', value: 'kotlin' },
-    { name: 'Rust', value: 'rust' },
-    { name: 'Python', value: 'python' },
-    { name: 'Go', value: 'go' },
-    { name: 'Multi-language (polyglot repo)', value: 'multi' },
-  ]
+    `Brownfield class (auto-detected: ${detected}, ${fileCount} source files):`,
+    '  Determines which threshold column applies to existing code.',
+    '  New code always uses gold-grade thresholds regardless of class.',
+    '',
+    '  gold   — greenfield / mature repo  (< 50 source files)',
+    '  light  — light brownfield          (50–500 files, coverage > 30 %)',
+    '  medium — medium brownfield         (500–2 000 files, coverage 5–30 %)',
+    '  heavy  — heavy brownfield          (2 000+ files, coverage < 5 %)',
+    '',
+  ].join('\n')
 }
 
-function buildLanguageQuestions(wizardInput: WizardInput): object[] {
-  const isLocked = wizardInput.languageLocked ?? false
-  const detectedLang = wizardInput.language
-  const source = wizardInput.languageSource ?? null
-
-  if (isLocked) return []
-
-  if (detectedLang === 'unknown') {
-    return [
-      {
-        type: 'list',
-        name: 'language',
-        message: 'Select language:',
-        choices: buildLanguageChoices(),
-        default: 'typescript',
-      },
-    ]
-  }
-
-  const confirmMessage = source
-    ? `Use detected language '${detectedLang}' (from ${source})?`
-    : `Use detected language '${detectedLang}'?`
-
-  return [
-    {
-      type: 'confirm',
-      name: 'keepDetectedLanguage',
-      message: confirmMessage,
-      default: true,
-    },
-    {
-      type: 'list',
-      name: 'language',
-      message: 'Select language:',
-      choices: buildLanguageChoices(),
-      default: 'typescript',
-      when: (answers: Record<string, unknown>) => answers['keepDetectedLanguage'] === false,
-    },
-  ]
-}
-
-function buildMainQuestions(wizardInput: WizardInput): object[] {
-  const githubChoice = buildGithubChoice(wizardInput.githubAccess)
-  const archetypeDefault: Archetype =
-    detectArchetypeHint(wizardInput.targetDir, wizardInput.language, wizardInput.framework) ??
-    'library'
-  const brownfieldDetect = detectBrownfieldClass(wizardInput.targetDir, wizardInput.language)
-  return [
-    ...buildLanguageQuestions(wizardInput),
-    {
-      type: 'input',
-      name: 'description',
-      message: 'Project description:',
-      default: `${wizardInput.projectName} project`,
-    },
-    {
-      type: 'checkbox',
-      name: 'tools',
-      message: 'Which AI tools will you use?',
-      choices: [
-        { name: 'Claude Code (Anthropic)', value: 'claude', checked: true },
-        { name: 'Codex (OpenAI)', value: 'codex', checked: true },
-        { name: 'Cursor', value: 'cursor', checked: false },
-        { name: 'Copilot', value: 'copilot', checked: false },
-        { name: 'Gemini CLI (Google)', value: 'gemini', checked: false },
-        { name: 'Windsurf (Codeium)', value: 'windsurf', checked: false },
-        { name: 'Aider (terminal pair)', value: 'aider', checked: false },
-      ],
-    },
-    ...buildGovernanceQuestions(),
-    ...buildArchetypeQuestions(archetypeDefault),
-    ...githubChoice,
-    {
-      // ADR-051 (#1119): 3-way collaborationMode replaces deprecated soloDevMode boolean.
-      type: 'list',
-      name: 'collaborationMode',
-      message: [
-        'Collaboration mode — controls branching, CI shape, and merge ceremony:',
-        '',
-        '  trunk-solo    — push to trunk directly; minimal CI; no PR required',
-        '  peer-review   — feature branches + PR + fast-forward merge (recommended)',
-        '  gated-review  — PR + required approvals + full CI (enterprise / regulated)',
-        '',
-      ].join('\n'),
-      choices: [
-        {
-          name: 'trunk-solo    — solo dev, commit directly to main',
-          value: 'trunk-solo',
-        },
-        {
-          name: 'peer-review   — small team, PR-based workflow  [recommended]',
-          value: 'peer-review',
-        },
-        {
-          name: 'gated-review  — regulated / enterprise, required approvals',
-          value: 'gated-review',
-        },
-      ],
-      default: 'peer-review',
-    },
-    buildPipelineStyleQuestion(),
-    buildBrownfieldClassQuestion(
-      brownfieldDetect.brownfieldClass,
-      brownfieldDetect.sourceFileCount,
-    ),
-  ]
-}
-
-function buildGithubChoice(access: GithubAccess): object[] {
-  if (!access.available) {
-    return []
-  }
-  if (!access.authenticated) {
-    process.stdout.write(
-      `${t('cli.wizard.gh_access_note', {
-        message: access.error ?? 'gh not authenticated — GitHub assets skipped',
-      })}\n`,
-    )
-    return []
-  }
-  return [
-    {
-      type: 'list',
-      name: 'decompositionBackend',
-      message: 'Decomposition backend (where tasks/work units are stored):',
-      choices: [
-        {
-          name: `github — gh authenticated as ${access.username ?? 'unknown'}`,
-          value: 'github',
-        },
-        {
-          name: 'markdown — local .arbiter/work/*.md files (no gh required)',
-          value: 'markdown',
-        },
-      ],
-      default: 'github',
-    },
-  ]
-}
+const BROWNFIELD_CLASS_OPTIONS: Opt<'gold' | 'light' | 'medium' | 'heavy'>[] = [
+  { value: 'gold', label: 'gold   — greenfield / already mature' },
+  { value: 'light', label: 'light  — light brownfield' },
+  { value: 'medium', label: 'medium — medium brownfield' },
+  { value: 'heavy', label: 'heavy  — heavy brownfield' },
+]

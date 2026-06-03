@@ -24,9 +24,9 @@ export function defaultContractType(
 
 /**
  * Whether the wizard should show the contractType question.
- * Only asked when hasPublicApi === true. The `when:` property in the
- * inquirer prompt delegates to this helper so it can be unit-tested
- * independently (inquirer `when` functions are not exercised by mock harness).
+ * Only asked when hasPublicApi === true. The wizard's imperative guard
+ * delegates to this helper so the show/hide rule can be unit-tested
+ * independently of the prompt-collection layer.
  */
 export function shouldAskContractType(answers: { hasPublicApi?: boolean }): boolean {
   return answers.hasPublicApi === true

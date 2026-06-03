@@ -607,6 +607,7 @@ Diagnose and repair arbiter state.
 - `--dir <dir>` — Target directory (default: current directory)
 - `--json` — Emit machine-readable JSON output
 - `--repair` — Auto-release stale .arbiter/.lock files detected by the health check (#824)
+- `--interactive` — Guided health check with one-key repair on a TTY (#1168)
 
 ## arbiter experiments
 
@@ -780,6 +781,7 @@ Upgrade governance level with a grace period for new gates.
 - `--extend` — Extend an existing active grace period by --days (default: 30)
 - `--days <n>` — Grace period length in days (default: 30)
 - `--dir <dir>` — Target directory (default: current directory)
+- `--interactive` — Guided level selection on a TTY (#1168)
 - `--json` — Emit machine-readable JSON output
 
 ## arbiter verify

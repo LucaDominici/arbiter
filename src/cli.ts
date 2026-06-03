@@ -966,9 +966,28 @@ program
   .option('--extend', 'Extend an existing active grace period by --days (default: 30)', false)
   .option('--days <n>', 'Grace period length in days (default: 30)', parseInt)
   .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--interactive', 'Guided level selection on a TTY (#1168)', false)
   .option('--json', 'Emit machine-readable JSON output', false)
   .action(
-    (opts: { target?: string; extend: boolean; days?: number; dir?: string; json: boolean }) => {
+    (opts: {
+      target?: string
+      extend: boolean
+      days?: number
+      dir?: string
+      interactive: boolean
+      json: boolean
+    }) => {
+      if (opts.interactive && !opts.json && process.stdin.isTTY) {
+        void import('./commands/upgrade-level-interactive.js')
+          .then(({ runInteractiveUpgradeLevel }) =>
+            runInteractiveUpgradeLevel({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
+          )
+          .catch((err: unknown) => {
+            process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
+            process.exit(1)
+          })
+        return
+      }
       const upgradeOpts: import('./commands/upgrade-level.js').UpgradeLevelOptions = {
         extend: opts.extend,
         json: opts.json,
@@ -1001,7 +1020,19 @@ const doctor = program
     'Auto-release stale .arbiter/.lock files detected by the health check (#824)',
     false,
   )
-  .action((opts: { dir?: string; json: boolean; repair: boolean }) => {
+  .option('--interactive', 'Guided health check with one-key repair on a TTY (#1168)', false)
+  .action((opts: { dir?: string; json: boolean; repair: boolean; interactive: boolean }) => {
+    if (opts.interactive && !opts.json && process.stdin.isTTY) {
+      void import('./commands/doctor-interactive.js')
+        .then(({ runInteractiveDoctor }) =>
+          runInteractiveDoctor({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }),
+        )
+        .catch((err: unknown) => {
+          process.stderr.write(`  Error: ${err instanceof Error ? err.message : String(err)}\n`)
+          process.exit(1)
+        })
+      return
+    }
     runDoctorHealth({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
       json: opts.json,

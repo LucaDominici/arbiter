@@ -33,13 +33,13 @@ async function dispatch(action: TuiAction, dir: string | undefined): Promise<boo
       runSettings({ ...(dir !== undefined ? { dir } : {}) })
       return true
     case 'doctor': {
-      const { runDoctorHealth } = await import('./doctor.js')
-      await runDoctorHealth({ ...(dir !== undefined ? { dir } : {}), json: false, repair: false })
+      const { runInteractiveDoctor } = await import('./doctor-interactive.js')
+      await runInteractiveDoctor({ ...(dir !== undefined ? { dir } : {}) })
       return true
     }
     case 'upgrade': {
-      const { runUpgradeLevel } = await import('./upgrade-level.js')
-      await runUpgradeLevel({ ...(dir !== undefined ? { dir } : {}), extend: false, json: false })
+      const { runInteractiveUpgradeLevel } = await import('./upgrade-level-interactive.js')
+      await runInteractiveUpgradeLevel({ ...(dir !== undefined ? { dir } : {}) })
       return true
     }
     case 'exit':

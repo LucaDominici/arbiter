@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { confirm, isCancel } from '@clack/prompts'
 import type { ReleaseChannel } from './channel.js'
 import { needsDowngradeWarn } from './channel.js'
 
@@ -31,17 +32,13 @@ export async function confirmChannelDowngrade(
     process.exit(1)
   }
 
-  const inquirer = await import('inquirer')
-  const { confirmed } = (await inquirer.default.prompt([
-    {
-      type: 'confirm',
-      name: 'confirmed',
-      message: `--channel ${flagChannel ?? ''} is less stable than your configured channel (${configChannel ?? 'latest'}). Continue?`,
-      default: false,
-    },
-  ] as Parameters<typeof inquirer.default.prompt>[0])) as { confirmed: boolean }
+  const confirmed = await confirm({
+    message: `--channel ${flagChannel ?? ''} is less stable than your configured channel (${configChannel ?? 'latest'}). Continue?`,
+    initialValue: false,
+  })
 
-  if (!confirmed) {
+  // Treat a cancel (Ctrl+C / Escape) the same as an explicit decline.
+  if (isCancel(confirmed) || !confirmed) {
     process.stderr.write('[arbiter] Channel downgrade cancelled.\n')
     process.exit(1)
   }
