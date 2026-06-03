@@ -24,25 +24,6 @@ function makeTemp(): { dir: string; cleanup: () => void } {
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
-interface MetricEntry {
-  value: number
-  unit: string
-  direction: string
-}
-
-function createBaseline(dir: string, metrics: Record<string, MetricEntry>) {
-  const scriptsDir = join(dir, 'scripts')
-  mkdirSync(scriptsDir, { recursive: true })
-  const baseline = {
-    version: 2,
-    capturedAt: '2026-06-02T12:28:57.743Z',
-    commit: 'abc1234',
-    archetype: 'library',
-    metrics,
-  }
-  writeFileSync(join(scriptsDir, 'debt-baseline.json'), JSON.stringify(baseline, null, 2))
-}
-
 describe('debt-report.mjs (gate: debt ratchet enforcement)', () => {
   it('exits 0 when no baseline exists (grace period)', () => {
     const { dir, cleanup } = makeTemp()
