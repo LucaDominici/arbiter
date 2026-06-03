@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { generateAntiDriftValidators } from '../../src/generators/anti-drift-validators.js'
 import { makeConfig } from '../helpers.js'
 
@@ -17,9 +17,15 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('emits 20 scripts total (11 W6 + 9 F4)', () => {
+  it('emits 18 scripts total (10 W6 + 8 F4) — #1152 dropped check-pii-scan + check-tier-coverage', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
-    expect(result.files).toHaveLength(20)
+    expect(result.files).toHaveLength(18)
+  })
+
+  it('does NOT emit check-pii-scan (duplicate of native pii-scan) or check-tier-coverage (arbiter-self meta-gate) (#1152)', () => {
+    const paths = generateAntiDriftValidators(makeConfig(dir)).files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('check-pii-scan.mjs'))).toBe(false)
+    expect(paths.some((p) => p.endsWith('check-tier-coverage.mjs'))).toBe(false)
   })
 
   it('emits all W6 script paths', () => {
@@ -28,7 +34,6 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     const expected = [
       'check-suppression-rationale.mjs',
       'check-suppression-expiry.mjs',
-      'check-pii-scan.mjs',
       'check-secret-scan.mjs',
       'check-drift.mjs',
       'check-workflow-runners.mjs',
@@ -48,7 +53,6 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     const paths = result.files.map((f) => f.path)
     const f4Expected = [
       'check-validator-helptext.mjs',
-      'check-tier-coverage.mjs',
       'check-inline-suppressions.mjs',
       'check-suppressions.mjs',
       'check-action-pins.mjs',
@@ -90,7 +94,6 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     for (const name of [
       'check-suppression-rationale.mjs',
       'check-suppression-expiry.mjs',
-      'check-pii-scan.mjs',
       'check-secret-scan.mjs',
       'check-drift.mjs',
       'check-workflow-runners.mjs',
@@ -100,7 +103,6 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
       'check-validator-helptext.mjs',
-      'check-tier-coverage.mjs',
       'check-inline-suppressions.mjs',
       'check-suppressions.mjs',
       'check-action-pins.mjs',
@@ -162,12 +164,23 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     expect(spec?.enabled).toBe(true)
   })
 
+  // #1152: every emitted anti-drift script MUST be wired into the generated
+  // target check-all.mjs.ejs — otherwise it is dead weight giving a false
+  // 'covered' signal. This locks emission and wiring in lockstep.
+  it('every emitted anti-drift script is wired in the target check-all template (#1152)', () => {
+    const template = readFileSync(resolve('src/templates/scripts/check-all.mjs.ejs'), 'utf-8')
+    const emitted = generateAntiDriftValidators(makeConfig(dir)).files.map((f) =>
+      f.path.split('/').pop(),
+    )
+    const unwired = emitted.filter((name) => name && !template.includes(`scripts/${name}`))
+    expect(unwired).toEqual([])
+  })
+
   it('no EJS tag leaks in any emitted script', () => {
     generateAntiDriftValidators(makeConfig(dir))
     for (const name of [
       'check-suppression-rationale.mjs',
       'check-suppression-expiry.mjs',
-      'check-pii-scan.mjs',
       'check-secret-scan.mjs',
       'check-drift.mjs',
       'check-workflow-runners.mjs',
@@ -177,7 +190,6 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
       'check-validator-helptext.mjs',
-      'check-tier-coverage.mjs',
       'check-inline-suppressions.mjs',
       'check-suppressions.mjs',
       'check-action-pins.mjs',
