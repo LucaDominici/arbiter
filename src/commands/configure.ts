@@ -22,7 +22,9 @@ export interface ConfigureOptions {
   json?: boolean | undefined
 }
 
-const ALLOWED_PATHS = new Set([
+// Exported so `arbiter settings` (#1121) and check-settings-coverage.mjs can
+// enforce that every settable path is surfaced in the settings catalog.
+export const ALLOWED_PATHS = new Set([
   'features.contractTesting',
   'features.mutationTesting',
   'features.securityScanning',

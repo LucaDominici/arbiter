@@ -526,8 +526,10 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter plugin`         | [BETA] Manage arbiter plugins (API not yet stable)                             |
 | `arbiter report`         | Bundle a replay run for bug reports                                            |
 | `arbiter review`         | Review artefacts (plans, code) against governance invariants                   |
+| `arbiter settings`       | List every settable arbiter.json path with its current value (#1121)           |
 | `arbiter task`           | Manage task lifecycle state                                                    |
 | `arbiter trace`          | —                                                                              |
+| `arbiter tui`            | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122) |
 | `arbiter update`         | Re-generate governance files using stored config (arbiter.json)                |
 | `arbiter upgrade-level`  | Upgrade governance level with a grace period for new gates                     |
 | `arbiter verify`         | Probe toolchain compatibility for the detected stack                           |
@@ -719,6 +721,15 @@ Review artefacts (plans, code) against governance invariants.
 - `arbiter review code`
 - `arbiter review diff` — Show what arbiter update would change (dry run)
 
+## arbiter settings
+
+List every settable arbiter.json path with its current value (#1121).
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
+- `--json` — Emit machine-readable JSON output
+
 ## arbiter task
 
 Manage task lifecycle state.
@@ -739,6 +750,14 @@ Manage task lifecycle state.
 - `--format <fmt>` — Output format: json | dot | mermaid (default: json)
 - `--dir <dir>` — Target directory (default: current directory)
 - `--input <path>` — Override graph snapshot path (default: &lt;dir&gt;/.arbiter/graph.json)
+
+## arbiter tui
+
+Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122).
+
+**Options:**
+
+- `--dir <dir>` — Target directory (default: current directory)
 
 ## arbiter update
 
