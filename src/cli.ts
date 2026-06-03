@@ -5,6 +5,8 @@ import { runInit } from './commands/init.js'
 import { runUpdate } from './commands/update.js'
 import { runDiff } from './commands/diff.js'
 import { runConfigure } from './commands/configure.js'
+import { runSettings } from './commands/settings.js'
+import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
@@ -522,6 +524,37 @@ program
       process.stderr.write(`  Error: ${msg}\n`)
       process.exit(1)
     })
+  })
+
+program
+  .command('tui')
+  .description('Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts: { dir?: string | undefined }) => {
+    if (!process.stdin.isTTY) {
+      process.stderr.write('arbiter tui requires an interactive terminal (TTY).\n')
+      process.exit(1)
+    }
+    runTui({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('settings')
+  .description('List every settable arbiter.json path with its current value (#1121)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string | undefined; json: boolean }) => {
+    try {
+      runSettings({ ...(opts.dir !== undefined ? { dir: opts.dir } : {}), json: opts.json })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    }
   })
 
 program

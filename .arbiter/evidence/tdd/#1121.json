@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1121",
+  "test_path": "__tests__/commands/settings.test.ts",
+  "test_commit_sha": "3f664c699537d2b30ba7dc8608e037c5e2331612",
+  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter.worktrees/1121-group-a-tui\n\n \u276f __tests__/commands/settings.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  09:07:26\n   Duration  84ms (transform 15ms, setup 13ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n\u23af\u23af\u23af\u23af\u23af\u23af Failed Suites 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/commands/settings.test.ts [ __tests__/commands/settings.test.ts ]\nError: Cannot find module '../../src/commands/settings.js' imported from /home/luca/work/repos/arbiter.worktrees/1121-group-a-tui/__tests__/commands/settings.test.ts\n \u276f __tests__/commands/settings.test.ts:8:1\n      6| import { join } from 'node:path'\n      7| import { tmpdir } from 'node:os'\n      8| import {\n       | ^\n      9|   SETTINGS_CATALOG,\n     10|   SETTINGS_PATHS,\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/1]\u23af\n\n",
+  "observed_failure": "FAIL  __tests__/commands/settings.test.ts",
+  "recorded_at": "2026-06-03T07:07:26.748Z"
+}
