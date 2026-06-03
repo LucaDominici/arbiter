@@ -57,11 +57,9 @@ for (const line of content.split('\n')) {
   activeRows.push(symbol)
 }
 
-if (activeRows.length === 0) {
-  process.stdout.write('check-deprecations: no active deprecations — OK\n')
-  process.exit(0)
-}
-
+// #1170: do NOT early-exit when there are zero active doc rows — the CLI-flag
+// version-gap validation below must run regardless (it is independent of the
+// DEPRECATIONS.md active table). The symbol loop is a no-op for an empty table.
 let violations = 0
 for (const symbol of activeRows) {
   try {
@@ -120,6 +118,6 @@ if (violations > 0) {
   process.exit(1)
 } else {
   process.stdout.write(
-    `check-deprecations: OK (${activeRows.length} active deprecated symbol(s) still present)\n`,
+    `check-deprecations: OK (${activeRows.length} active deprecated symbol(s) present; CLI flag version gaps valid)\n`,
   )
 }
