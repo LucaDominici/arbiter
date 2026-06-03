@@ -283,7 +283,8 @@ function buildBoundarySpecs(config: ProjectConfig): GeneratorSpec[] {
     },
     {
       key: 'modulith',
-      enabled: config.language === 'java' || config.language === 'multi',
+      enabled:
+        config.language === 'java' || config.language === 'kotlin' || config.language === 'multi',
       run: (opts) => generateModulith(config, opts).files,
     },
   ]
