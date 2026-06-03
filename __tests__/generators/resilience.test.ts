@@ -103,14 +103,14 @@ describe('generateResilience', () => {
   // Output path
   // --------------------------------------------------------------------------
 
-  it('emits docs/governance/RESILIENCE.md relative to targetDir', () => {
+  it('emits docs/GOVERNANCE/RESILIENCE.md relative to targetDir', () => {
     const config = makeConfig(dir, {
       archetype: 'backend-web-db',
       language: 'typescript',
       governanceLevel: 'L2',
     })
     generateResilience(config)
-    expect(existsSync(join(dir, 'docs', 'governance', 'RESILIENCE.md'))).toBe(true)
+    expect(existsSync(join(dir, 'docs', 'GOVERNANCE', 'RESILIENCE.md'))).toBe(true)
   })
 
   // --------------------------------------------------------------------------
@@ -124,7 +124,7 @@ describe('generateResilience', () => {
       governanceLevel: 'L2',
     })
     generateResilience(config)
-    const content = readFileSync(join(dir, 'docs', 'governance', 'RESILIENCE.md'), 'utf-8')
+    const content = readFileSync(join(dir, 'docs', 'GOVERNANCE', 'RESILIENCE.md'), 'utf-8')
     expect(content).toContain('cockatiel')
   })
 
@@ -137,7 +137,7 @@ describe('generateResilience', () => {
         governanceLevel: 'L2',
       })
       generateResilience(config)
-      const content = readFileSync(join(javaDir, 'docs', 'governance', 'RESILIENCE.md'), 'utf-8')
+      const content = readFileSync(join(javaDir, 'docs', 'GOVERNANCE', 'RESILIENCE.md'), 'utf-8')
       expect(content).toContain('Resilience4j')
     } finally {
       cleanupTestProject(javaDir)
@@ -153,7 +153,7 @@ describe('generateResilience', () => {
         governanceLevel: 'L2',
       })
       generateResilience(config)
-      const content = readFileSync(join(multiDir, 'docs', 'governance', 'RESILIENCE.md'), 'utf-8')
+      const content = readFileSync(join(multiDir, 'docs', 'GOVERNANCE', 'RESILIENCE.md'), 'utf-8')
       expect(content).toContain('cockatiel')
       expect(content).toContain('Resilience4j')
     } finally {
@@ -162,10 +162,10 @@ describe('generateResilience', () => {
   })
 
   // --------------------------------------------------------------------------
-  // Null-guard: java config without basePackage must not throw
+  // Template renders for java even when optional config fields are absent
   // --------------------------------------------------------------------------
 
-  it('java without basePackage renders without throwing', () => {
+  it('java with no optional config fields (basePackage, framework) generates 1 file', () => {
     const config = makeConfig(dir, {
       archetype: 'backend-web-db',
       language: 'java',
@@ -173,7 +173,8 @@ describe('generateResilience', () => {
       basePackage: undefined,
       framework: null,
     })
-    expect(() => generateResilience(config)).not.toThrow()
+    // Template only reads `language` and `governanceLevel` — does not reference basePackage/framework.
+    // This test confirms the generator does not bail early when optional fields are absent.
     expect(generateResilience(config).files).toHaveLength(1)
   })
 

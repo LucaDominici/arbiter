@@ -76,20 +76,25 @@ describe('resilience/RESILIENCE.md.ejs render (#1176)', () => {
     expect(out.toLowerCase()).toContain('checklist')
   })
 
-  it('renders without throwing when basePackage is undefined (java null-guard)', () => {
+  it('java with absent optional fields (basePackage, framework) renders without throwing', () => {
+    // Template reads only `language` and `governanceLevel` — optional fields are unused.
     expect(() =>
       renderTemplate(TEMPLATE, cfg({ language: 'java', basePackage: undefined, framework: null })),
     ).not.toThrow()
   })
 
-  it('L3/L4 section appears at L3', () => {
+  it('L3/L4 enforcement section appears at L3', () => {
     const out = renderTemplate(TEMPLATE, cfg({ governanceLevel: 'L3' }))
-    expect(out.toLowerCase()).toMatch(/l3|strict|enforcement/)
+    expect(out).toContain('L3/L4 enforcement')
   })
 
-  it('L3/L4 section does NOT appear at L2', () => {
+  it('L3/L4 enforcement section appears at L4', () => {
+    const out = renderTemplate(TEMPLATE, cfg({ governanceLevel: 'L4' }))
+    expect(out).toContain('L3/L4 enforcement')
+  })
+
+  it('L3/L4 enforcement section does NOT appear at L2', () => {
     const out = renderTemplate(TEMPLATE, cfg({ governanceLevel: 'L2' }))
-    // L3 enforcement note should not appear at L2
     expect(out).not.toMatch(/L3\/L4 enforcement/)
   })
 })

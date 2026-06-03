@@ -33,7 +33,7 @@ describe('brownfield: resilience generator — skipIfExists', () => {
     // First run: generate the file
     generateResilience(config)
 
-    const outputPath = join(dir, 'docs', 'governance', 'RESILIENCE.md')
+    const outputPath = join(dir, 'docs', 'GOVERNANCE', 'RESILIENCE.md')
     expect(existsSync(outputPath)).toBe(true)
 
     // Simulate user modification: write a sentinel into the generated file

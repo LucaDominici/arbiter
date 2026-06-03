@@ -34,39 +34,63 @@ The CB observes the final result of the whole retry sequence — not each indivi
 
 ```typescript
 import {
-  CircuitBreakerPolicy,
-  RetryPolicy,
   ExponentialBackoff,
-  circuitBreaker,
-  retry,
-  handleAll,
-  wrap,
-  ConsecutiveBreaker,
   SamplingBreaker,
+  circuitBreaker,
+  handleWhen,
+  retry,
+  wrap,
 } from 'cockatiel'
 import type { IPolicy } from 'cockatiel'
+
+/** Error thrown for HTTP 4xx responses — must NOT be retried. */
+export class ClientError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ClientError'
+  }
+}
+
+/** Error thrown for HTTP 5xx / connectivity failures — eligible for retry. */
+export class ServerError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ServerError'
+  }
+}
 
 /**
  * Build a resilience policy: circuit-breaker (outer) wrapping retry (inner).
  * The CB observes the final outcome of the whole retry sequence.
+ *
+ * IMPORTANT: use handleWhen, not handleAll. handleAll retries every error
+ * including 4xx (ClientError). handleWhen lets us exclude 4xx explicitly.
  */
 export function buildResiliencePolicy(): IPolicy {
-  const retryPolicy = retry(handleAll, {
+  // Retry only on ServerError and network errors — never ClientError (4xx).
+  const retryPolicy = retry(handleWhen((err) => !(err instanceof ClientError)), {
     maxAttempts: 3,
     backoff: new ExponentialBackoff({
-      initialDelay: 1_000,  // 1 s
-      maxDelay: 30_000,     // 30 s cap
+      initialDelay: 1_000, // 1 s
+      maxDelay: 30_000, // 30 s cap
       exponent: 2,
-      random: true,         // 50 % jitter
+      random: true, // 50 % jitter
     }),
   })
 
-  const cbPolicy = circuitBreaker(handleAll, {
+  // CB observes the final result of the whole retry sequence.
+  const cbPolicy = circuitBreaker(handleWhen((err) => !(err instanceof ClientError)), {
     halfOpenAfter: 5_000,
     breaker: new SamplingBreaker({
-      threshold: 0.5,       // open at 50 % failure rate
-      duration: 30_000,     // 30 s sampling window
-      minimumRps: 10,       // minimum calls before evaluating
+      threshold: 0.5, // open at 50 % failure rate
+      duration: 30_000, // 30 s sampling window
+      minimumRps: 10, // minimum calls before evaluating
     }),
   })
 
@@ -74,20 +98,24 @@ export function buildResiliencePolicy(): IPolicy {
   return wrap(cbPolicy, retryPolicy)
 }
 
-/**
- * Retry predicate — only 5xx and network errors; never 4xx.
- */
-export const resilientFetch = buildResiliencePolicy().execute(async () => {
-  const response = await fetch(/* ... */)
-  if (response.status >= 400 && response.status < 500) {
-    // 4xx — do NOT retry; surface immediately
-    throw Object.assign(new Error(`Client error: ${response.status}`), { noRetry: true })
-  }
-  if (!response.ok) {
-    throw new Error(`Server error: ${response.status}`)
-  }
-  return response
-})
+/** Call an external service with the resilience policy applied. */
+const policy = buildResiliencePolicy()
+
+export function callWithResilience<T>(fn: () => Promise<T>): Promise<T> {
+  return policy.execute(fn)
+}
+
+// Usage:
+// const data = await callWithResilience(async () => {
+//   const response = await fetch(url, { signal: AbortSignal.timeout(5_000) })
+//   if (response.status >= 400 && response.status < 500) {
+//     throw new ClientError(response.status, `Client error: ${response.status}`)
+//   }
+//   if (!response.ok) {
+//     throw new ServerError(response.status, `Server error: ${response.status}`)
+//   }
+//   return response.json() as Promise<T>
+// })
 ```
 
 <% } %>

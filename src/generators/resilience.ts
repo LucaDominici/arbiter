@@ -6,7 +6,7 @@ import { writeFile, resolvedPath } from '../utils/fs.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
-export interface ResilienceGeneratorResult {
+interface ResilienceGeneratorResult {
   files: WriteResult[]
 }
 
@@ -18,18 +18,11 @@ export function generateResilience(
     return { files: [] }
   }
 
-  // Inject safe defaults for optional/nullable fields used in the template
-  const templateData = {
-    ...config,
-    basePackage: config.basePackage ?? null,
-    framework: config.framework ?? null,
-  }
-
   return {
     files: [
       writeFile(
-        resolvedPath(config.targetDir, 'docs', 'governance', 'RESILIENCE.md'),
-        renderTemplate('resilience/RESILIENCE.md.ejs', templateData),
+        resolvedPath(config.targetDir, 'docs', 'GOVERNANCE', 'RESILIENCE.md'),
+        renderTemplate('resilience/RESILIENCE.md.ejs', config),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     ],
