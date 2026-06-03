@@ -14,10 +14,12 @@ function emitW6DualTrack(
   config: ProjectConfig,
   opts: { dryRun: boolean },
 ): WriteResult[] {
+  // #1152: check-pii-scan.mjs intentionally NOT emitted — it duplicates the
+  // target-native pii-scan.mjs (already wired in check-all) and fails in a target
+  // because it expects an arbiter-internal PII-patterns config file.
   const scripts = [
     'check-suppression-rationale.mjs',
     'check-suppression-expiry.mjs',
-    'check-pii-scan.mjs',
     'check-secret-scan.mjs',
     'check-drift.mjs',
     'check-workflow-runners.mjs',
@@ -54,9 +56,11 @@ function emitF4Validators(
   config: ProjectConfig,
   opts: { dryRun: boolean },
 ): WriteResult[] {
+  // #1152: check-tier-coverage.mjs intentionally NOT emitted — it is an
+  // arbiter-self meta-gate that asserts arbiter's own check-all tier names; it
+  // fails in a target whose gate has a different tier set.
   const scripts = [
     'check-validator-helptext.mjs',
-    'check-tier-coverage.mjs',
     'check-inline-suppressions.mjs',
     'check-suppressions.mjs',
     'check-action-pins.mjs',
@@ -76,13 +80,15 @@ function emitF4Validators(
 /**
  * W6+F4 Anti-Drift Validator Family (INV-89)
  *
- * Emits 20 check-*.mjs scripts for target projects:
- * - W6 batch (11 scripts):
- *   - 9 dual-track scripts (also wired in arbiter's own check-all.mjs)
+ * Emits 18 check-*.mjs scripts for target projects (#1152):
+ * - W6 batch (10 scripts):
+ *   - 8 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan)
  *   - 2 Track-B-only scripts (not wired in arbiter's own gate)
- * - F4 batch (9 scripts): remaining agnostic anti-drift validators
- *   making them dual-track for target projects
+ * - F4 batch (8 scripts): remaining agnostic anti-drift validators
+ *   (check-tier-coverage excluded — arbiter-self meta-gate, not target-portable)
  *
+ * Every emitted script is wired into the generated target's check-all.mjs (under
+ * the appropriate conditional) — enforced by the anti-drift emission↔wiring test.
  * These scripts catch configuration drift, secret leakage, suppression quality
  * issues, and workflow structural problems in generated projects.
  * See docs/REFERENCE/anti-drift-family.md for the full family reference.

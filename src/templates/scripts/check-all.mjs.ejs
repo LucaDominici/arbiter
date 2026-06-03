@@ -60,6 +60,8 @@ console.log('');
 <% if (enableSecurityScanning) { %>
 // ─── Early-fail: PII scan (INV-12, HARD — no grace period) ────────────────────
 runCheck('PII scan', 'node', ['scripts/pii-scan.mjs']);
+// ─── L1: Secret-pattern drift (anti-drift, INV-89, #1152) ────────────────────
+runCheck('secret scan', 'node', ['scripts/check-secret-scan.mjs']);
 <% } %>
 // ─── L1: Fast checks ──────────────────────────────────────────────────────────
 <% if (language === 'typescript') { %>
@@ -121,6 +123,9 @@ runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
 // ─── L1: Pipe/tee hazard (advisory — always exits 0) ─────────────────────────
 runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
+// ─── L1: Anti-drift validators (INV-89, #1152) ───────────────────────────────
+runCheck('config drift', 'node', ['scripts/check-drift.mjs']);
+runCheck('validator help text', 'node', ['scripts/check-validator-helptext.mjs']);
 <%
 // #1127: FE-signal matches the generator predicate (archetype OR lane), not just archetype.
 // This ensures multi-lane projects (backend-web-db + frontend lane) also get FE gate steps.
@@ -161,6 +166,9 @@ if (existsSync(join('node_modules', 'eslint-plugin-playwright'))) {
 <% if (enableSuppressions) { %>
 // ─── L1: Suppression expiry ───────────────────────────────────────────────────
 runCheck('suppressions expiry', 'node', ['scripts/check-suppressions.mjs']);
+// ─── L1: Suppression quality (anti-drift, INV-89, #1152) ─────────────────────
+runCheck('suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs']);
+runCheck('suppression expiry (anti-drift)', 'node', ['scripts/check-suppression-expiry.mjs']);
 <% } %>
 // ─── L1: Inline suppression directives (INV-31) ──────────────────────────────
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
@@ -305,6 +313,13 @@ runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wire
 runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);
 runCheck('action pins (INV-75)', 'node', ['scripts/check-action-pins.mjs']);
 runCheck('workflow perms (INV-76)', 'node', ['scripts/check-workflow-perms.mjs']);
+// ─── L1: Workflow anti-drift validators (INV-89, #1152) ──────────────────────
+runCheck('workflow runners', 'node', ['scripts/check-workflow-runners.mjs']);
+runCheck('workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs']);
+runCheck('workflow test integrity', 'node', ['scripts/check-workflow-test-integrity.mjs']);
+runCheck('workflow sha pinning', 'node', ['scripts/check-workflow-sha-pinning.mjs']);
+runCheck('workflow job naming', 'node', ['scripts/check-workflow-job-naming.mjs']);
+runCheck('pr size gate', 'node', ['scripts/check-pr-size-gate.mjs']);
 // ─── L1: ff-only merge method enforcement (INV-101) ──────────────────────────
 runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs']);
 <% } %>
