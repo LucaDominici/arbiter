@@ -116,6 +116,15 @@ export function shipSequence(tier: string | undefined): ShipStep[] {
   return PHASE_ORDER.map((p) => shipStepFor(p, tier))
 }
 
+/**
+ * The phase `--advance` moves to from `phase`. The lateral `red-team-rework` re-enters the
+ * `red-team-review` gate; every other phase advances one step forward (null at the end).
+ */
+function advanceTargetFor(phase: TaskPhase): TaskPhase | null {
+  if (phase === 'red-team-rework') return 'red-team-review'
+  return nextPhase(phase)
+}
+
 export interface TaskShipOptions {
   dir?: string
   taskId?: string
@@ -156,7 +165,7 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   let advanced = false
   if (opts.advance) {
-    const target = nextPhase(phase)
+    const target = advanceTargetFor(phase)
     if (target !== null) {
       runTaskAdvance({ to: target, dir: root, ...(opts.advanceOpts ?? {}) })
       phase = target

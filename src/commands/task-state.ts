@@ -56,6 +56,11 @@ export function isValidPhase(s: string): s is TaskPhase {
 
 export type TddPhase = 'RED' | 'GREEN' | 'REFACTOR' | null
 
+/** Narrow an arbitrary string to a non-null TddPhase. */
+export function isTddPhase(s: string): s is Exclude<TddPhase, null> {
+  return s === 'RED' || s === 'GREEN' || s === 'REFACTOR'
+}
+
 export interface StepCursor {
   /** Fine-grained TDD sub-phase within the coarse `red`/`green`/`refactor` phases. */
   tddPhase: TddPhase
@@ -72,14 +77,12 @@ export interface UnifiedTaskState {
   /** Repo-relative path to the active plan file. */
   plan: string
   cursor: StepCursor
-  /** Task branch name, when known. */
+  /** Task branch name, when known (stamped by `arbiter task init`). */
   branch?: string
   handoffStrategy: HandoffStrategy
   handoffReady: boolean
   planningHandoffReady?: string
   postClearResumed?: string
-  hostCapabilities?: { modelSwitch: boolean; transcriptAvailable: boolean }
-  cost?: { byPhase: Record<string, { in: number; out: number; samples: number }> }
   runId: string
   timestamps: Record<string, string>
   gateDecisions: string[]
@@ -169,7 +172,11 @@ export function readUnifiedState(root: string): UnifiedTaskState | null {
     try {
       parsed = JSON.parse(readFileSync(p, 'utf-8')) as Partial<UnifiedTaskState>
     } catch (err: unknown) {
-      throw new Error(`readUnifiedState: corrupted status at ${p}: ${msg(err)}`, { cause: err })
+      throw new Error(
+        `readUnifiedState: corrupted status at ${p}: ${msg(err)}. ` +
+          `Remove .claude/.task/ and re-run with --to preflight to reset.`,
+        { cause: err },
+      )
     }
     return normalize(parsed)
   }
@@ -243,9 +250,9 @@ function legacyPerIdStatusPath(claudeDir: string, idRaw: string): string {
 /**
  * Seed the unified document from legacy state and delete the legacy files. Merges BOTH legacy
  * sources — flat dotfiles (authoritative phase/id/tier/plan) AND the per-id
- * `.task-{sanit}/status.json` (rich cost/runId/handoff/timestamps) — so nothing is orphaned and
- * cost is not double-counted. Crash-safe: the unified doc is written atomically FIRST; legacy is
- * removed only after. Returns `null` when there is no legacy state to migrate.
+ * `.task-{sanit}/status.json` (rich runId/handoff/timestamps) — so nothing is orphaned. Crash-safe:
+ * the unified doc is written atomically FIRST; legacy is removed only after, and a corrupt rich
+ * file is preserved (not deleted). Returns `null` when there is no legacy state to migrate.
  */
 export function seedFromLegacy(root: string): UnifiedTaskState | null {
   const claudeDir = join(root, '.claude')
@@ -254,13 +261,20 @@ export function seedFromLegacy(root: string): UnifiedTaskState | null {
   if (phaseRaw === undefined && idRaw === undefined) return null
 
   let rich: Partial<UnifiedTaskState> = {}
+  let richCorrupt = false
   if (idRaw) {
     const richPath = legacyPerIdStatusPath(claudeDir, idRaw)
     if (existsSync(richPath)) {
       try {
         rich = JSON.parse(readFileSync(richPath, 'utf-8')) as Partial<UnifiedTaskState>
-      } catch {
-        // Corrupt legacy rich state — ignore; flat dotfiles are authoritative for the migration.
+      } catch (err: unknown) {
+        // Corrupt legacy rich state — warn loudly and PRESERVE the file (do not delete below) so
+        // its metadata (runId/handoff/timestamps) is recoverable rather than silently destroyed.
+        richCorrupt = true
+        process.stderr.write(
+          `[arbiter] warn: legacy rich state at ${richPath} is unreadable (${msg(err)}); ` +
+            `migrating flat dotfiles only and preserving the corrupt file for recovery.\n`,
+        )
       }
     }
   }
@@ -277,7 +291,8 @@ export function seedFromLegacy(root: string): UnifiedTaskState | null {
 
   writeFile(statusPath(root), JSON.stringify(seeded, null, 2) + '\n')
   for (const f of LEGACY_DOTFILES) rmSync(join(claudeDir, f), { force: true })
-  if (idRaw) {
+  // Only delete the per-id rich dir when it parsed cleanly — a corrupt rich file is preserved.
+  if (idRaw && !richCorrupt) {
     rmSync(join(claudeDir, '.task-' + sanitizeTaskId(idRaw)), { recursive: true, force: true })
   }
   return seeded

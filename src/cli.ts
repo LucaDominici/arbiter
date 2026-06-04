@@ -30,6 +30,7 @@ import {
   BudgetBreachError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
+import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip } from './commands/task-ship.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
@@ -1265,10 +1266,19 @@ program
       digest?: string
       dir?: string
     }) => {
+      let tddPhase: 'RED' | 'GREEN' | 'REFACTOR' | undefined
+      if (opts.tdd !== undefined) {
+        const upper = opts.tdd.toUpperCase()
+        if (!isTddPhase(upper)) {
+          process.stderr.write(`Invalid --tdd value "${opts.tdd}". Valid: RED, GREEN, REFACTOR\n`)
+          process.exit(2)
+        }
+        tddPhase = upper
+      }
       runTaskMark({
         ...(opts.next !== undefined ? { next: opts.next } : {}),
         ...(opts.last !== undefined ? { last: opts.last } : {}),
-        ...(opts.tdd !== undefined ? { tddPhase: opts.tdd as 'RED' | 'GREEN' | 'REFACTOR' } : {}),
+        ...(tddPhase !== undefined ? { tddPhase } : {}),
         ...(opts.task !== undefined ? { taskId: opts.task } : {}),
         ...(opts.digest !== undefined ? { digest: opts.digest } : {}),
         ...(opts.dir !== undefined ? { dir: opts.dir } : {}),

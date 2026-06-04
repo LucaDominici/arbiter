@@ -12,6 +12,7 @@ import {
   appendLog,
   seedFromLegacy,
   normalizePhase,
+  isTddPhase,
   statusPath,
   taskStateDir,
 } from '../../src/commands/task-state.js'
@@ -55,7 +56,7 @@ describe('unified task-state document (#1206)', () => {
         taskId: '#1',
         phase: 'red',
         branch: 'task/#1',
-        cost: { byPhase: { red: { in: 10, out: 5, samples: 1 } } },
+        tier: 'Standard',
       })
       writeUnifiedState(dir, { cursor: { nextAction: 'implement X in src/a.ts' } })
       // advance phase — must preserve everything above
@@ -63,7 +64,7 @@ describe('unified task-state document (#1206)', () => {
       expect(after.phase).toBe('green')
       expect(after.taskId).toBe('#1')
       expect(after.branch).toBe('task/#1')
-      expect(after.cost?.byPhase.red.in).toBe(10)
+      expect(after.tier).toBe('Standard')
       expect(after.cursor.nextAction).toBe('implement X in src/a.ts')
     })
 
@@ -118,6 +119,19 @@ describe('unified task-state document (#1206)', () => {
     })
   })
 
+  describe('isTddPhase', () => {
+    it('accepts the three valid TDD sub-phases', () => {
+      expect(isTddPhase('RED')).toBe(true)
+      expect(isTddPhase('GREEN')).toBe(true)
+      expect(isTddPhase('REFACTOR')).toBe(true)
+    })
+    it('rejects anything else', () => {
+      expect(isTddPhase('red')).toBe(false)
+      expect(isTddPhase('bogus')).toBe(false)
+      expect(isTddPhase('')).toBe(false)
+    })
+  })
+
   describe('seedFromLegacy (migration)', () => {
     const writeDot = (name: string, val: string) =>
       writeFileSync(join(dir, '.claude', name), `${val}\n`, 'utf-8')
@@ -142,19 +156,34 @@ describe('unified task-state document (#1206)', () => {
       expect(existsSync(statusPath(dir))).toBe(true)
     })
 
-    it('merges rich per-id status.json (cost not orphaned) and removes the per-id dir', () => {
+    it('merges rich per-id status.json metadata (not orphaned) and removes the per-id dir', () => {
       writeDot('.task-id', '#7')
       writeDot('.task-phase', 'red')
       const perId = join(dir, '.claude', '.task-_7')
       mkdirSync(perId, { recursive: true })
       writeFileSync(
         join(perId, 'status.json'),
-        JSON.stringify({ cost: { byPhase: { red: { in: 100, out: 50, samples: 2 } } } }),
+        JSON.stringify({
+          handoffStrategy: 'interactive',
+          planningHandoffReady: '2026-06-04T10:00:00.000Z',
+        }),
         'utf-8',
       )
       const seeded = seedFromLegacy(dir)
-      expect(seeded?.cost?.byPhase.red.in).toBe(100)
+      expect(seeded?.handoffStrategy).toBe('interactive')
+      expect(seeded?.planningHandoffReady).toBe('2026-06-04T10:00:00.000Z')
       expect(existsSync(perId)).toBe(false)
+    })
+
+    it('preserves a corrupt per-id rich file instead of deleting it', () => {
+      writeDot('.task-id', '#7')
+      writeDot('.task-phase', 'red')
+      const perId = join(dir, '.claude', '.task-_7')
+      mkdirSync(perId, { recursive: true })
+      writeFileSync(join(perId, 'status.json'), '{ corrupt', 'utf-8')
+      const seeded = seedFromLegacy(dir)
+      expect(seeded?.phase).toBe('red') // flat dotfiles still migrate
+      expect(existsSync(perId)).toBe(true) // corrupt rich file preserved for recovery
     })
 
     it('sets handoffReady when the legacy marker is present', () => {

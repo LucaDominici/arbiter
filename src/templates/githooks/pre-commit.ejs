@@ -2,11 +2,16 @@
 # pre-commit: runs L1 gate before each commit
 set -e
 
-# Phase guard: refuse commits during preflight or plan phases
-_phase=$(node -e "try{process.stdout.write((JSON.parse(require('fs').readFileSync('.claude/.task/status.json','utf-8')).phase)||'unknown')}catch{process.stdout.write('unknown')}" 2>/dev/null || echo "unknown")
+# Phase guard: refuse commits during preflight or plan phases. Distinguish an absent document
+# (fresh tree → allow) from a corrupt one (→ fail closed) so corruption can't silently bypass.
+_phase=$(node -e "const f=require('fs'),p='.claude/.task/status.json';if(!f.existsSync(p)){process.stdout.write('unknown')}else{try{process.stdout.write(JSON.parse(f.readFileSync(p,'utf-8')).phase||'unknown')}catch{process.stdout.write('corrupt')}}" 2>/dev/null || echo "unknown")
 case "$_phase" in
   preflight|plan)
     echo "ERROR: cannot commit during phase=$_phase. Run: arbiter task advance --to red" >&2
+    exit 1
+    ;;
+  corrupt)
+    echo "ERROR: .claude/.task/status.json is corrupt — fix or delete it before committing." >&2
     exit 1
     ;;
 esac

@@ -124,8 +124,21 @@ export function runTaskInit(opts: TaskInitOptions = {}): void {
   if (opts.id !== undefined) patch.taskId = opts.id
   if (opts.tier !== undefined) patch.tier = opts.tier
   if (opts.plan !== undefined) patch.plan = opts.plan
+  const branch = detectCurrentBranch(root)
+  if (branch !== undefined) patch.branch = branch
   const state = writeUnifiedState(root, patch)
   appendLog(root, `init task ${state.taskId || '(unset)'} tier=${state.tier || '(unset)'}`)
+}
+
+/** Current git branch name, or undefined if not a repo / detached. */
+function detectCurrentBranch(root: string): string | undefined {
+  try {
+    const r = runCli('git', ['branch', '--show-current'], { cwd: root, timeoutMs: 5000 })
+    const name = r.stdout.trim()
+    return name.length > 0 ? name : undefined
+  } catch {
+    return undefined
+  }
 }
 
 const GETTABLE_FIELDS = ['phase', 'taskId', 'tier', 'plan', 'tddPhase', 'lastAction', 'nextAction']

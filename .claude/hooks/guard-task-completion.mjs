@@ -22,7 +22,12 @@ function readTaskState(root) {
   if (existsSync(statusPath)) {
     try {
       state = JSON.parse(readFileSync(statusPath, 'utf-8'))
-    } catch {
+    } catch (err) {
+      // Fail visibly: a corrupt document silently disarms this guard, so warn rather than
+      // treat corruption as a fresh tree.
+      process.stderr.write(
+        `[arbiter] warn: ${statusPath} is unreadable (${err.message}); treating task state as unknown.\n`,
+      )
       state = {}
     }
   }

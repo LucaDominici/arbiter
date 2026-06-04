@@ -18,6 +18,7 @@ import type { LockInfo } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
 import { detectLanguage } from '../detectors/language.js'
+import { isValidPhase } from './task-state.js'
 import { validateCollaborationCoherence } from './wizard/coherence.js'
 import type { CollaborationMode, GovernanceLevel } from '../wizard/types.js'
 
@@ -383,12 +384,12 @@ function checkTaskDocument(dir: string): HealthCheck {
       phase?: string
       taskId?: string
     }
-    if (typeof state.phase !== 'string' || state.phase.length === 0) {
+    if (typeof state.phase !== 'string' || !isValidPhase(state.phase)) {
       return {
         id,
         label,
         status: 'WARN',
-        detail: '.claude/.task/status.json is missing a "phase" field',
+        detail: `.claude/.task/status.json has an invalid phase: ${JSON.stringify(state.phase)}`,
         hint: 'Re-run `arbiter task init` / `arbiter task advance` to repair task state.',
       }
     }

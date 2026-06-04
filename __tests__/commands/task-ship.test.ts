@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runTaskShip, shipSequence, shipStepFor, nextPhase } from '../../src/commands/task-ship.js'
-import { readUnifiedState } from '../../src/commands/task-state.js'
+import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
 
 // Gates that would otherwise require a real repo / model switch
@@ -83,6 +83,14 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
     expect(r.done).toBe(false)
     expect(readUnifiedState(dir)?.taskId).toBe('#1206')
     expect(readUnifiedState(dir)?.tier).toBe('Standard')
+  })
+
+  it('--advance from red-team-rework re-enters red-team-review (no silent stall)', () => {
+    runTaskShip({ dir, taskId: '#1206', tier: 'Standard' })
+    writeUnifiedState(dir, { phase: 'red-team-rework' })
+    const r = runTaskShip({ dir, advance: true })
+    expect(r.advanced).toBe(true)
+    expect(r.phase).toBe('red-team-review')
   })
 
   it('auto-advances phase-by-phase through gate-green to complete', () => {
