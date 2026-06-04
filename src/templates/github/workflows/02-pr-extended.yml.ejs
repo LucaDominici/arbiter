@@ -32,7 +32,7 @@ jobs:
     outputs:
       should_run: ${{ steps.decide.outputs.should_run }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
       - name: Decide whether to run extended CI
@@ -76,7 +76,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - run: npm run test:integration
@@ -139,7 +139,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
 <% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
@@ -206,7 +206,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
       - name: Check Dockerfile changed
@@ -239,7 +239,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - name: Start application
         run: docker compose up -d --wait
       - name: OWASP ZAP baseline scan
@@ -259,7 +259,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - name: Install k6
         run: |
           curl -sSL https://github.com/grafana/k6/releases/download/v0.52.0/k6-v0.52.0-linux-amd64.tar.gz \
@@ -279,7 +279,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: License check
@@ -327,7 +327,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - run: npm run build && node scripts/build-kit.mjs
@@ -367,7 +367,7 @@ jobs:
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
       - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:e2e:bake

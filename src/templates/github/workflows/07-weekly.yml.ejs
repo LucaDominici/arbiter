@@ -27,7 +27,7 @@ jobs:
       matrix:
         db: [postgres, mysql, mssql, mariadb]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: Run integration tests against ${{ matrix.db }}
@@ -91,7 +91,7 @@ jobs:
           - os: windows-latest
             arch: arm64
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 <% if (language === 'go') { %>
       - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0  # v5
         with:
@@ -142,7 +142,7 @@ jobs:
     name: Dependency freshness report
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
       - name: Check outdated packages
@@ -185,7 +185,7 @@ jobs:
     name: k6 performance trend
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: k6 performance smoke vs 7-day baseline
         uses: grafana/k6-action@e4714b734f2b0afaabeb7b4a69142745548ab9ec  # v0.3.1
         with:
@@ -197,7 +197,7 @@ jobs:
     name: Stale action pin audit
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Find SHA-pinned actions older than 180 days
         env:
           GH_TOKEN: ${{ github.token }}
