@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Claude hook: blocks unused TypeScript exports in files being written/edited.
+// Claude hook: blocks unused TypeScript value-level exports in files being written/edited.
 // Fires on: PostToolUse → Edit|Write (TypeScript projects only)
 import { existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
