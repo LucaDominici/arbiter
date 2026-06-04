@@ -172,28 +172,32 @@ function parseSummaryCounts(text) {
   return counts
 }
 
+/** Read and parse the KIT catalog; exits 2 on read/parse failure (absent → empty array). */
+function safeLoadCatalog(catalogPath) {
+  if (!existsSync(catalogPath)) return []
+  try {
+    const raw = JSON.parse(readFileSync(catalogPath, 'utf-8'))
+    return Array.isArray(raw) ? raw : Object.values(raw)
+  } catch (err) {
+    process.stdout.write(
+      `  check-feature-matrix: ERROR — cannot read/parse KIT catalog at ${catalogPath}: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
+}
+
 /** Load audit_trail dim IDs from KIT catalog. */
 function loadAuditTrailDims(catalogPath) {
-  if (!existsSync(catalogPath)) return new Set()
-  try {
-    const catalog = JSON.parse(readFileSync(catalogPath, 'utf-8'))
-    const arr = Array.isArray(catalog) ? catalog : Object.values(catalog)
-    return new Set(arr.filter((d) => d.categoryRef === 'audit_trail').map((d) => d.id))
-  } catch {
-    return new Set()
-  }
+  return new Set(
+    safeLoadCatalog(catalogPath)
+      .filter((d) => d.categoryRef === 'audit_trail')
+      .map((d) => d.id),
+  )
 }
 
 /** Load all dim IDs from KIT catalog. */
 function loadAllDimIds(catalogPath) {
-  if (!existsSync(catalogPath)) return new Set()
-  try {
-    const catalog = JSON.parse(readFileSync(catalogPath, 'utf-8'))
-    const arr = Array.isArray(catalog) ? catalog : Object.values(catalog)
-    return new Set(arr.map((d) => d.id))
-  } catch {
-    return new Set()
-  }
+  return new Set(safeLoadCatalog(catalogPath).map((d) => d.id))
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
