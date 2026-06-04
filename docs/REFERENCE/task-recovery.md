@@ -1,8 +1,8 @@
 ---
 title: 'Task Recovery Reference'
-doc_version: '1.0.0'
+doc_version: '2.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-06-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -11,8 +11,8 @@ related: []
 
 # Task Recovery Reference
 
-**Issues:** #690, #694
-**Commands:** `arbiter task resume`, `arbiter task recover`
+**Issues:** #690, #694, #1206
+**Commands:** `arbiter task resume`, `arbiter mark`, `arbiter task recover`, `arbiter ship`
 
 Use this when a session interrupted mid-task and you need to know where to pick up.
 
@@ -24,7 +24,43 @@ Use this when a session interrupted mid-task and you need to know where to pick 
 arbiter task resume
 ```
 
-Reads `.claude/.task-phase` (and `.claude/.task-id` if present) and prints the recovery action for the current phase.
+Reads the unified task document (`.claude/.task/status.json`, see below) and prints where to resume.
+If a step-cursor was set with `arbiter mark`, resume lands on the **exact** next action; otherwise it
+falls back to phase-level recovery guidance.
+
+---
+
+## Pinpoint resume — `arbiter mark` (#1206)
+
+`arbiter task resume` is phase-granular by default. For an interrupted session to resume at the EXACT
+sub-step (not "you were somewhere in green"), drop a step-cursor as you work:
+
+```bash
+arbiter mark --tdd GREEN \
+  --last "wrote failing test for validateEmail" \
+  --next "implement validateEmail in src/validators.ts" \
+  --digest "green: stubbing validateEmail"
+```
+
+After a mid-task `/clear`, `arbiter task resume` reads the cursor from disk and prints:
+
+```
+Phase: green (GREEN)
+Last action: wrote failing test for validateEmail
+Next action: implement validateEmail in src/validators.ts
+```
+
+The cursor lives in the single unified document, so resume is exact — not inferred from the
+filesystem. `--digest` also appends a one-line entry to `.claude/.task/log.md`.
+
+---
+
+## Orchestrated runs — `arbiter ship` (#1206)
+
+`arbiter ship <id>` drives an issue toward a reviewed, merged PR by auto-sequencing the existing
+engine (worktree → plan → review-plan gate → TDD impl → review-code → verify → gate → merge → cleanup).
+It computes the next concrete step and, with `--advance`, advances one phase when that phase's gate is
+green. It sits alongside `/task` (it does not replace it).
 
 ---
 
@@ -79,43 +115,67 @@ git commit -m "CHECKPOINT(#694): refactor dispatch.ts before context window fill
 
 ## Phase Recovery Table
 
-| Phase                | What Happened                                         | Recovery Action                                                                                                                          |
-| -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `preflight`          | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                           |
-| `plan`               | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                                         |
-| `red-team-review`    | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to implementation` |
-| _(handoff boundary)_ | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter task advance --post-clear --to red`; see `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md`             |
-| `red-team-rework`    | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                                      |
-| `implementation`     | Coding in progress                                    | Check `git status` + `.claude/.task-plan`; resume TDD cycle; run `node scripts/check-all.mjs L1`                                         |
-| `verification`       | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; fix failures; commit and push                                                                    |
-| `complete`           | Task done                                             | Verify PR created: `gh pr list --head $(git branch --show-current)`; confirm issue closed                                                |
+| Phase                        | What Happened                                         | Recovery Action                                                                                                               |
+| ---------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `preflight`                  | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                |
+| `plan`                       | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                              |
+| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to red` |
+| _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter task advance --post-clear --to red`; see `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md`  |
+| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                           |
+| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if `arbiter mark` was used); run `node scripts/check-all.mjs L1`                   |
+| `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; fix failures; commit and push                                                         |
+| `complete`                   | Task done                                             | Verify PR created: `gh pr list --head $(git branch --show-current)`; confirm issue closed                                     |
 
 ---
 
-## Status File
+## The unified task document (#1206)
 
-The task runner writes `.claude/.task-NNN/status.json` after each phase transition. Schema:
+All task state lives in **one** authoritative document pair at a fixed path (one active task per
+working tree). The legacy split-brain — flat `.claude/.task-*` dotfiles plus a per-id
+`.claude/.task-{sanitized}/status.json` — has been collapsed into it. Reading a tree that still has
+the legacy files migrates it transparently (seed + delete) on first access.
+
+```
+.claude/.task/status.json   structured state — single atomic writer
+.claude/.task/log.md         append-only digest (every phase transition + every `arbiter mark`)
+```
+
+`status.json` schema:
 
 ```json
 {
-  "phase": "implementation",
-  "timestamps": {
-    "plan": "2026-05-16T00:08:00.000Z",
-    "implementation": "2026-05-16T00:08:30.000Z"
+  "taskId": "#NNN",
+  "phase": "green",
+  "tier": "Standard",
+  "plan": ".claude/plans/task-NNN.md",
+  "cursor": {
+    "tddPhase": "GREEN",
+    "lastAction": "wrote failing test for validateEmail",
+    "nextAction": "implement validateEmail in src/validators.ts"
   },
+  "handoffStrategy": "interactive",
+  "handoffReady": true,
   "runId": "12345-1715817000000",
-  "gateDecisions": [],
-  "task": "#NNN"
+  "timestamps": { "plan": "2026-05-16T00:08:00.000Z", "green": "2026-05-16T00:08:30.000Z" },
+  "gateDecisions": []
 }
 ```
 
-| Field           | Description                                                         |
-| --------------- | ------------------------------------------------------------------- |
-| `phase`         | Current lifecycle phase                                             |
-| `timestamps`    | ISO timestamps for each phase entered (accumulated across sessions) |
-| `runId`         | `<pid>-<epoch-ms>` — unique per process invocation                  |
-| `gateDecisions` | Gate pass/fail records (populated by gate runner)                   |
-| `task`          | Task ID if provided at write time                                   |
-| `branch`        | Git branch name if provided via extras at write time                |
+| Field             | Description                                                                |
+| ----------------- | -------------------------------------------------------------------------- |
+| `taskId`          | Active task id (was `.task-id`)                                            |
+| `phase`           | Current lifecycle phase — authoritative, single writer (was `.task-phase`) |
+| `tier`            | Task tier XS/S/Standard (was `.task-tier`)                                 |
+| `plan`            | Repo-relative path to the plan file (was `.task-plan`)                     |
+| `cursor`          | Step-cursor written by `arbiter mark` — drives pinpoint resume             |
+| `handoffStrategy` | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy  |
+| `handoffReady`    | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)      |
+| `timestamps`      | ISO timestamps per phase entered (accumulated across sessions)             |
+| `runId`           | `<pid>-<epoch-ms>` — unique per process invocation                         |
+| `gateDecisions`   | Gate pass/fail records                                                     |
 
-Writes are atomic: `writeTaskStatus` routes through `writeFile` (which calls `atomicWrite`), so the temp file is registered in `inFlightTmpPaths` and cleaned up by SIGTERM/SIGINT handlers (#613). A hex-suffix temp name (`status.json.arbiter-tmp-XXXX`) prevents name collisions under concurrent writes.
+Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
+update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file
+is registered for SIGTERM/SIGINT cleanup (#613). Shell consumers read fields via
+`arbiter task get --field <phase|taskId|tier|plan|tddPhase|lastAction|nextAction>` and seed state via
+`arbiter task init --id #NNN --tier <tier> --plan <path>`.

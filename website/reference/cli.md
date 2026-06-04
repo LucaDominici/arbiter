@@ -502,39 +502,41 @@ arbiter update  # regenerate canonical files, preserve customizations
 
 ## Command Reference
 
-| Command                  | Description                                                                    |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| `arbiter agent-rules`    | Export or verify AI agent governance rules (#265)                              |
-| `arbiter benchmark`      | Performance benchmarks for arbiter                                             |
-| `arbiter blame`          | —                                                                              |
-| `arbiter ci`             | Governance-aware CI planning (#261)                                            |
-| `arbiter compare`        | —                                                                              |
-| `arbiter configure`      | Modify arbiter.json configuration (interactive on TTY, or use --set)           |
-| `arbiter diff`           | Show what arbiter update would change (dry run)                                |
-| `arbiter doctor`         | Diagnose and repair arbiter state                                              |
-| `arbiter experiments`    | Inspect registered experimental features                                       |
-| `arbiter explain`        | —                                                                              |
-| `arbiter feature-matrix` | Feature/RTM matrix commands (INV-112)                                          |
-| `arbiter gauntlet`       | Pairwise/combinatorial test generation (#260)                                  |
-| `arbiter graph`          | —                                                                              |
-| `arbiter harness`        | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths) |
-| `arbiter init`           | —                                                                              |
-| `arbiter integrations`   | Inspect agent-tool integrations (skills, plugins) detected for this project    |
-| `arbiter kit`            | Cross-stack governance kit commands (requires --experimental.kit)              |
-| `arbiter knowledge-map`  | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                 |
-| `arbiter notary`         | Notary system — track semantic doc changes                                     |
-| `arbiter plugin`         | [BETA] Manage arbiter plugins (API not yet stable)                             |
-| `arbiter report`         | Bundle a replay run for bug reports                                            |
-| `arbiter review`         | Review artefacts (plans, code) against governance invariants                   |
-| `arbiter settings`       | List every settable arbiter.json path with its current value (#1121)           |
-| `arbiter task`           | Manage task lifecycle state                                                    |
-| `arbiter trace`          | —                                                                              |
-| `arbiter tui`            | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122) |
-| `arbiter update`         | Re-generate governance files using stored config (arbiter.json)                |
-| `arbiter upgrade-level`  | Upgrade governance level with a grace period for new gates                     |
-| `arbiter verify`         | Probe toolchain compatibility for the detected stack                           |
-| `arbiter work`           | Manage work units via decomposition backend                                    |
-| `arbiter worktree`       | Manage git worktrees for parallel task development                             |
+| Command                  | Description                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| `arbiter agent-rules`    | Export or verify AI agent governance rules (#265)                               |
+| `arbiter benchmark`      | Performance benchmarks for arbiter                                              |
+| `arbiter blame`          | —                                                                               |
+| `arbiter ci`             | Governance-aware CI planning (#261)                                             |
+| `arbiter compare`        | —                                                                               |
+| `arbiter configure`      | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
+| `arbiter diff`           | Show what arbiter update would change (dry run)                                 |
+| `arbiter doctor`         | Diagnose and repair arbiter state                                               |
+| `arbiter experiments`    | Inspect registered experimental features                                        |
+| `arbiter explain`        | —                                                                               |
+| `arbiter feature-matrix` | Feature/RTM matrix commands (INV-112)                                           |
+| `arbiter gauntlet`       | Pairwise/combinatorial test generation (#260)                                   |
+| `arbiter graph`          | —                                                                               |
+| `arbiter harness`        | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)  |
+| `arbiter init`           | Initialise / update the unified task document (#1206)                           |
+| `arbiter integrations`   | Inspect agent-tool integrations (skills, plugins) detected for this project     |
+| `arbiter kit`            | Cross-stack governance kit commands (requires --experimental.kit)               |
+| `arbiter knowledge-map`  | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                  |
+| `arbiter mark`           | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
+| `arbiter notary`         | Notary system — track semantic doc changes                                      |
+| `arbiter plugin`         | [BETA] Manage arbiter plugins (API not yet stable)                              |
+| `arbiter report`         | Bundle a replay run for bug reports                                             |
+| `arbiter review`         | Review artefacts (plans, code) against governance invariants                    |
+| `arbiter settings`       | List every settable arbiter.json path with its current value (#1121)            |
+| `arbiter ship`           | —                                                                               |
+| `arbiter task`           | Manage task lifecycle state                                                     |
+| `arbiter trace`          | —                                                                               |
+| `arbiter tui`            | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)  |
+| `arbiter update`         | Re-generate governance files using stored config (arbiter.json)                 |
+| `arbiter upgrade-level`  | Upgrade governance level with a grace period for new gates                      |
+| `arbiter verify`         | Probe toolchain compatibility for the detected stack                            |
+| `arbiter work`           | Manage work units via decomposition backend                                     |
+| `arbiter worktree`       | Manage git worktrees for parallel task development                              |
 
 ## arbiter agent-rules
 
@@ -659,6 +661,15 @@ Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths).
 
 ## arbiter init
 
+Initialise / update the unified task document (#1206).
+
+**Options:**
+
+- `--id <id>` — Task id, e.g. #1206
+- `--tier <tier>` — Task tier (XS|S|Standard)
+- `--plan <path>` — Repo-relative path to the plan file
+- `--dir <dir>` — Target directory (default: current directory)
+
 ## arbiter integrations
 
 Inspect agent-tool integrations (skills, plugins) detected for this project.
@@ -684,6 +695,19 @@ Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes.
 
 **Options:**
 
+- `--dir <dir>` — Target directory (default: current directory)
+
+## arbiter mark
+
+Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206).
+
+**Options:**
+
+- `--next <action>` — The exact next sub-step to resume on
+- `--last <action>` — The sub-step just completed
+- `--tdd <phase>` — TDD sub-phase (RED|GREEN|REFACTOR)
+- `--task <id>` — Set/override the active task id
+- `--digest <line>` — One-line progress digest for log.md
 - `--dir <dir>` — Target directory (default: current directory)
 
 ## arbiter notary
@@ -731,6 +755,8 @@ List every settable arbiter.json path with its current value (#1121).
 - `--dir <dir>` — Target directory (default: current directory)
 - `--json` — Emit machine-readable JSON output
 
+## arbiter ship
+
 ## arbiter task
 
 Manage task lifecycle state.
@@ -742,6 +768,8 @@ Manage task lifecycle state.
 - `arbiter task recover` — Print 3-layer recovery context for the current task (#694)
 - `arbiter task record-red`
 - `arbiter task record-tech-debt`
+- `arbiter task init`
+- `arbiter task get` — Print a single task-state field for shell consumers (#1206)
 
 ## arbiter trace
 

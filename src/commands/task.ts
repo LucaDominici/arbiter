@@ -1,9 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { writeFile } from '../utils/fs.js'
 import { sanitizeTaskId } from '../review/dispatch.js'
+import {
+  type TaskPhase,
+  type UnifiedTaskState,
+  type TaskStatePatch,
+  PHASE_ORDER,
+  LATERAL_PHASES,
+  isValidPhase,
+  readUnifiedState,
+  writeUnifiedState,
+  readTaskId,
+  appendLog,
+} from './task-state.js'
 import { runCli, type RunCliResult } from '../utils/run-cli.js'
 import { loadTddEvidence, extractFailureSignature } from '../evidence/tdd.js'
 import { shaExistsOnBranch, pathExistsInCommit } from '../evidence/git-checks.js'
@@ -26,94 +37,10 @@ export class BudgetBreachError extends Error {
   }
 }
 
-export type TaskPhase =
-  | 'preflight'
-  | 'plan'
-  | 'red-team-review'
-  | 'red-team-rework'
-  | 'red'
-  | 'green'
-  | 'refactor'
-  | 'verification'
-  | 'complete'
-
-export type HandoffStrategy = 'interactive' | 'inline' | null
-
-export interface TaskStatusExtras {
-  task?: string
-  branch?: string
-  handoffStrategy?: HandoffStrategy
-  planningHandoffReady?: string
-  postClearResumed?: string
-  hostCapabilities?: { modelSwitch: boolean; transcriptAvailable: boolean }
-  cost?: { byPhase: Record<string, { in: number; out: number; samples: number }> }
-  [key: string]: unknown
-}
-
-export interface TaskStatus {
-  phase: TaskPhase
-  timestamps: Record<string, string>
-  runId: string
-  gateDecisions: string[]
-  branch?: string
-  handoffStrategy?: HandoffStrategy
-  planningHandoffReady?: string
-  postClearResumed?: string
-  hostCapabilities?: { modelSwitch: boolean; transcriptAvailable: boolean }
-  cost?: { byPhase: Record<string, { in: number; out: number; samples: number }> }
-  [key: string]: unknown
-}
-
-export interface WriteTaskStatusOptions {
-  taskDir: string
-  phase: TaskPhase
-  extras?: TaskStatusExtras
-}
-
-/**
- * Atomically write status.json to taskDir via temp-file + rename.
- * Merges timestamps from any existing status.json before writing.
- */
-export function writeTaskStatus({ taskDir, phase, extras }: WriteTaskStatusOptions): void {
-  const target = join(taskDir, 'status.json')
-
-  let existingTimestamps: Record<string, string> = {}
-  try {
-    const existing = JSON.parse(readFileSync(target, 'utf-8')) as Partial<TaskStatus>
-    existingTimestamps = existing.timestamps ?? {}
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw new Error(
-        `writeTaskStatus: failed to read existing status at ${target}: ${err instanceof Error ? err.message : String(err)}`,
-        { cause: err },
-      )
-    }
-  }
-
-  const now = new Date().toISOString()
-  const status: TaskStatus = {
-    ...extras,
-    phase,
-    timestamps: { ...existingTimestamps, [phase]: now },
-    runId: `${process.pid}-${Date.now()}`,
-    gateDecisions: [],
-  }
-
-  writeFile(target, JSON.stringify(status, null, 2) + '\n')
-}
-
-const PHASE_ORDER: TaskPhase[] = [
-  'preflight',
-  'plan',
-  'red-team-review',
-  'red',
-  'green',
-  'refactor',
-  'verification',
-  'complete',
-]
-
-const LATERAL_PHASES: TaskPhase[] = ['red-team-rework']
+// Task-state vocabulary and the unified-document I/O live in `./task-state.ts`.
+// Re-export the phase types here so existing importers (e.g. src/cli.ts) keep their import path.
+export type { TaskPhase, HandoffStrategy } from './task-state.js'
+export { runTaskMark, type TaskMarkOptions } from './task-mark.js'
 
 export interface TaskAdvanceOptions {
   to: TaskPhase
@@ -127,46 +54,9 @@ export interface TaskAdvanceOptions {
   skipBudget?: boolean
 }
 
-function isValidPhase(s: string): s is TaskPhase {
-  return (
-    (PHASE_ORDER as readonly string[]).includes(s) ||
-    (LATERAL_PHASES as readonly string[]).includes(s)
-  )
-}
-
-function readPhase(claudeDir: string): TaskPhase {
-  const p = join(claudeDir, '.task-phase')
-  try {
-    const raw = readFileSync(p, 'utf-8').trim()
-    if (!raw) return 'preflight'
-    // Migrate legacy 'implementation' to 'red' (#549) — write once so subsequent reads are native
-    if (raw === 'implementation') {
-      const timestamp = new Date().toISOString()
-      writeFileSync(p, 'red\n')
-      try {
-        appendFileSync(
-          join(claudeDir, '.task-phase-history'),
-          `${timestamp} implementation → red [auto-migrated]\n`,
-        )
-      } catch (histErr) {
-        process.stderr.write(
-          `Warning: could not write migration audit to .task-phase-history: ${String(histErr)}\n`,
-        )
-      }
-      return 'red'
-    }
-    if (!isValidPhase(raw)) {
-      throw new Error(
-        `Corrupted phase file at ${p}: unexpected value "${raw}". ` +
-          `Valid phases: ${PHASE_ORDER.join(', ')}. ` +
-          `Remove the file and re-run with --to preflight to reset.`,
-      )
-    }
-    return raw
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return 'preflight'
-    throw err
-  }
+/** Current phase from the unified document (`preflight` for a fresh tree). */
+function currentPhase(root: string): TaskPhase {
+  return readUnifiedState(root)?.phase ?? 'preflight'
 }
 
 export interface TaskResumeOptions {
@@ -194,25 +84,81 @@ const RECOVERY_TABLE: Record<TaskPhase, string> = {
 
 export function runTaskResume({ dir }: TaskResumeOptions = {}): void {
   const root = dir ?? process.cwd()
-  const claudeDir = join(root, '.claude')
-  const phase = readPhase(claudeDir)
+  const state = readUnifiedState(root)
+  const phase = state?.phase ?? 'preflight'
+  const taskId = state?.taskId && state.taskId.length > 0 ? state.taskId : undefined
+  const header = taskId ? `Task: ${taskId}\n` : ''
 
-  let taskId: string | undefined
-  try {
-    const taskIdRaw = readFileSync(join(claudeDir, '.task-id'), 'utf-8').trim()
-    if (taskIdRaw) taskId = taskIdRaw
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw new Error(
-        `runTaskResume: failed to read .task-id: ${err instanceof Error ? err.message : String(err)}`,
-        { cause: err },
-      )
-    }
+  // Pinpoint resume (#1206): if a step-cursor was marked, land on the EXACT next action
+  // rather than the coarse, phase-level RECOVERY_TABLE blurb.
+  const cursor = state?.cursor
+  if (cursor && cursor.nextAction.trim().length > 0) {
+    const lines = [
+      `${header}Phase: ${phase}${cursor.tddPhase ? ` (${cursor.tddPhase})` : ''}`,
+      cursor.lastAction.trim().length > 0 ? `Last action: ${cursor.lastAction}` : undefined,
+      `Next action: ${cursor.nextAction}`,
+    ].filter((l): l is string => l !== undefined)
+    process.stdout.write(lines.join('\n') + '\n')
+    return
   }
 
-  const header = taskId ? `Task: ${taskId}\n` : ''
-  const recovery = RECOVERY_TABLE[phase]
-  process.stdout.write(`${header}${recovery}\n`)
+  process.stdout.write(`${header}${RECOVERY_TABLE[phase]}\n`)
+}
+
+/* ────────────────────────  #1206 — shell-facing state I/O  ──────────────────────── */
+
+export interface TaskInitOptions {
+  dir?: string
+  id?: string
+  tier?: string
+  plan?: string
+}
+
+/**
+ * Initialise / update the unified task document from the slash-command shell layer (replaces the
+ * historical `echo "#NNN" > .claude/.task-id` writes). Never advances the phase.
+ */
+export function runTaskInit(opts: TaskInitOptions = {}): void {
+  const root = opts.dir ?? process.cwd()
+  const patch: TaskStatePatch = {}
+  if (opts.id !== undefined) patch.taskId = opts.id
+  if (opts.tier !== undefined) patch.tier = opts.tier
+  if (opts.plan !== undefined) patch.plan = opts.plan
+  const state = writeUnifiedState(root, patch)
+  appendLog(root, `init task ${state.taskId || '(unset)'} tier=${state.tier || '(unset)'}`)
+}
+
+const GETTABLE_FIELDS = ['phase', 'taskId', 'tier', 'plan', 'tddPhase', 'lastAction', 'nextAction']
+
+export interface TaskGetOptions {
+  dir?: string
+  field: string
+}
+
+/**
+ * Print a single task-state field to stdout for shell consumers (replaces `cat .claude/.task-*`).
+ * Exit 2 on an unknown field name.
+ */
+export function runTaskGet(opts: TaskGetOptions): void {
+  const root = opts.dir ?? process.cwd()
+  const s = readUnifiedState(root)
+  const values: Record<string, string> = s
+    ? {
+        phase: s.phase,
+        taskId: s.taskId,
+        tier: s.tier,
+        plan: s.plan,
+        tddPhase: s.cursor.tddPhase ?? '',
+        lastAction: s.cursor.lastAction,
+        nextAction: s.cursor.nextAction,
+      }
+    : Object.fromEntries(GETTABLE_FIELDS.map((f) => [f, f === 'phase' ? 'preflight' : '']))
+  const value = values[opts.field]
+  if (value === undefined) {
+    process.stderr.write(`Unknown field "${opts.field}". Valid: ${GETTABLE_FIELDS.join(', ')}\n`)
+    process.exit(2)
+  }
+  process.stdout.write(`${value}\n`)
 }
 
 /* ────────────────────────  #694 — backlog + recover  ──────────────────────── */
@@ -236,10 +182,7 @@ export interface TaskRecoverOptions {
 }
 
 function readTaskIdFromDisk(dir: string): string | undefined {
-  const p = join(dir, '.claude', '.task-id')
-  if (!existsSync(p)) return undefined
-  const raw = readFileSync(p, 'utf-8').trim()
-  return raw.length > 0 ? raw : undefined
+  return readTaskId(dir)
 }
 
 /**
@@ -398,11 +341,12 @@ function writeBypassRecord(dir: string, sanitisedId: string, reason: 'flag' | 'e
 }
 
 function loadPlanContentIfAvailable(dir: string): string | undefined {
-  const ptr = join(dir, '.claude', '.task-plan')
-  if (!existsSync(ptr)) return undefined
-  const planPath = readFileSync(ptr, 'utf-8').trim()
-  if (planPath.length === 0 || !existsSync(planPath)) return undefined
-  return readFileSync(planPath, 'utf-8')
+  const planPath = readUnifiedState(dir)?.plan.trim()
+  if (!planPath || planPath.length === 0) return undefined
+  const resolved = join(dir, planPath)
+  const candidate = existsSync(planPath) ? planPath : existsSync(resolved) ? resolved : undefined
+  if (candidate === undefined) return undefined
+  return readFileSync(candidate, 'utf-8')
 }
 
 function checkPlanReviewGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
@@ -453,7 +397,7 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
     )
   }
 
-  const current = readPhase(claudeDir)
+  const current = currentPhase(dir)
 
   if (current === to) return
 
@@ -491,10 +435,11 @@ export function runTaskAdvance(opts: TaskAdvanceOptions): void {
   }
   phaseGates[to]?.()
 
-  mkdirSync(claudeDir, { recursive: true })
-  const timestamp = new Date().toISOString()
-  writeFileSync(join(claudeDir, '.task-phase'), to + '\n')
-  appendFileSync(join(claudeDir, '.task-phase-history'), `${timestamp} ${current} → ${to}\n`)
+  // Single authoritative write: phase advances in the unified document; the transition is
+  // recorded in the append-only log. Gates that throw (handoff) run BEFORE this and never
+  // mutate the phase — see checkHandoffGate (C1, #1206).
+  writeUnifiedState(dir, { phase: to })
+  appendLog(dir, `${current} → ${to}`)
 }
 
 function checkTddEvidenceGate(dir: string, claudeDir: string): void {
@@ -570,25 +515,8 @@ function runBudgetCheck(rawId: string, dir: string, opts: TaskAdvanceOptions): v
   }
 }
 
-function handlePostClearReEntry(
-  rawId: string,
-  taskDir: string,
-  dir: string,
-  opts: TaskAdvanceOptions,
-): void {
-  let existing: Partial<TaskStatus> = {}
-  try {
-    existing = JSON.parse(
-      readFileSync(join(taskDir, 'status.json'), 'utf-8'),
-    ) as Partial<TaskStatus>
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw new Error(
-        `checkHandoffGate: failed to read status at ${join(taskDir, 'status.json')}: ${err instanceof Error ? err.message : String(err)}`,
-        { cause: err },
-      )
-    }
-  }
+function handlePostClearReEntry(rawId: string, dir: string, opts: TaskAdvanceOptions): void {
+  const existing: Partial<UnifiedTaskState> = readUnifiedState(dir) ?? {}
   if (existing.postClearResumed === undefined) {
     const caps = detectHostCapabilities()
     const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
@@ -602,42 +530,37 @@ function handlePostClearReEntry(
       dir,
     )
     runBudgetCheck(rawId, dir, opts)
-    writeTaskStatus({
-      taskDir,
-      phase: 'red',
-      extras: { ...existing, postClearResumed: new Date().toISOString() },
-    })
+    // Metadata only — never the phase. runTaskAdvance writes phase:'red' AFTER this returns,
+    // which is what keeps the `current !== to` budget-gate trigger load-bearing (C1, #1206).
+    writeUnifiedState(dir, { postClearResumed: new Date().toISOString() })
   }
 }
 
 function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
+  void claudeDir
   const rawId = readTaskIdFromDisk(dir) ?? 'unknown'
-  const sanit = sanitizeTaskId(rawId)
-  const taskDir = join(claudeDir, '.task-' + sanit)
-  mkdirSync(taskDir, { recursive: true })
 
   const isPostClear = opts.postClear === true || process.env['ARBITER_POST_CLEAR'] === '1'
 
   if (isPostClear) {
-    handlePostClearReEntry(rawId, taskDir, dir, opts)
+    handlePostClearReEntry(rawId, dir, opts)
     return
   }
 
   const caps = detectHostCapabilities()
   if (!caps.modelSwitch) {
-    writeTaskStatus({ taskDir, phase: 'red', extras: { handoffStrategy: 'inline' } })
+    // Inline handoff: record strategy only, no phase write. runTaskAdvance proceeds to red.
+    writeUnifiedState(dir, { handoffStrategy: 'inline' })
     return
   }
 
-  writeTaskStatus({
-    taskDir,
-    phase: 'red',
-    extras: {
-      handoffStrategy: 'interactive',
-      planningHandoffReady: new Date().toISOString(),
-    },
+  // Interactive handoff: record strategy + readiness marker, then THROW before any phase write.
+  // The phase stays at the current planning phase until post-clear re-entry advances it (C1).
+  writeUnifiedState(dir, {
+    handoffStrategy: 'interactive',
+    handoffReady: true,
+    planningHandoffReady: new Date().toISOString(),
   })
-  writeFileSync(join(claudeDir, '.task-handoff-ready'), '', 'utf-8')
   throw new HandoffRequiredError(
     'Plan complete. Run `/clear`, then re-invoke `/task #' +
       rawId.replace(/^#/, '') +

@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runReviewPlan } from '../../src/commands/review.js'
 import { buildReviewPrompt, type SubagentDispatcher } from '../../src/review/dispatch.js'
+import { writeUnifiedState } from '../../src/commands/task-state.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURES = join(__dirname, '..', 'fixtures', 'plans')
@@ -87,9 +88,8 @@ describe('runReviewPlan (#235)', () => {
 
   describe('tier auto-detect (#695)', () => {
     function writeTierFile(envDir: string, tier: string): void {
-      const cl = join(envDir, '.claude')
-      mkdirSync(cl, { recursive: true })
-      writeFileSync(join(cl, '.task-tier'), tier + '\n')
+      mkdirSync(join(envDir, '.claude'), { recursive: true })
+      writeUnifiedState(envDir, { tier })
     }
 
     it('reads tier from .claude/.task-tier when opts.tier omitted (M → Standard → 5 passes)', () => {

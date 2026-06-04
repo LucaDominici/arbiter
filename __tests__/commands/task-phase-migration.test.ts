@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// Tests for #549: legacy 'implementation' phase migration → 'red'
+// Legacy → unified migration (#1206) + the historical 'implementation' → 'red' alias (#549).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
 import { runTaskAdvance, runTaskResume } from '../../src/commands/task.js'
+import { readUnifiedState } from '../../src/commands/task-state.js'
 
 // Stub git SHA check — migration tests don't exercise a real repo
 vi.mock('../../src/evidence/git-checks.js', () => ({
@@ -35,110 +36,84 @@ function writeEvidence(dir: string): void {
   writeFileSync(join(evDir, '#549.json'), JSON.stringify(VALID_EVIDENCE), 'utf-8')
 }
 
-describe('legacy implementation phase migration (#549)', () => {
+function captureStdout(fn: () => void): string {
+  let out = ''
+  const orig = process.stdout.write.bind(process.stdout)
+  // @ts-expect-error overriding the readonly stdout.write overload for a test capture shim
+  process.stdout.write = (s: string | Uint8Array) => {
+    out += typeof s === 'string' ? s : ''
+    return true
+  }
+  try {
+    fn()
+  } finally {
+    process.stdout.write = orig
+  }
+  return out
+}
+
+describe('legacy → unified migration (#1206, #549)', () => {
   let dir: string
+  const seedLegacy = (phase: string) => {
+    writeFileSync(join(dir, '.claude', '.task-id'), '#549\n', 'utf-8')
+    writeFileSync(join(dir, '.claude', '.task-phase'), `${phase}\n`, 'utf-8')
+  }
+  const phaseOf = () => readUnifiedState(dir)?.phase
 
   beforeEach(() => {
     dir = createTestProject()
     mkdirSync(join(dir, '.claude'), { recursive: true })
-    writeFileSync(join(dir, '.claude', '.task-id'), '#549\n', 'utf-8')
   })
-
   afterEach(() => {
     cleanupTestProject(dir)
   })
 
-  it('legacy implementation on disk: advance to green succeeds (migrated to red)', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
+  it('legacy implementation on disk migrates to red; advance to green succeeds', () => {
+    seedLegacy('implementation')
     writeEvidence(dir)
-    // If migration works: disk 'implementation' → read as 'red'; 'green' is next after 'red' → should succeed
     expect(() => runTaskAdvance({ to: 'green', dir })).not.toThrow()
-    const phase = readFileSync(join(dir, '.claude', '.task-phase'), 'utf-8').trim()
-    expect(phase).toBe('green')
+    expect(phaseOf()).toBe('green')
   })
 
-  it('legacy implementation on disk: phase file rewritten to red (migration is idempotent)', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
-    // trigger migration via resume (read-only path)
-    let out = ''
-    const orig = process.stdout.write.bind(process.stdout)
-    process.stdout.write = (s: string | Uint8Array) => {
-      out += typeof s === 'string' ? s : ''
-      return true
-    }
-    try {
-      runTaskResume({ dir })
-    } finally {
-      process.stdout.write = orig
-    }
-    void out
-    // disk must now say 'red', not 'implementation'
-    const phase = readFileSync(join(dir, '.claude', '.task-phase'), 'utf-8').trim()
-    expect(phase).toBe('red')
-    // second read should NOT append another history line
-    process.stdout.write = (s: string | Uint8Array) => {
-      out += typeof s === 'string' ? s : ''
-      return true
-    }
-    try {
-      runTaskResume({ dir })
-    } finally {
-      process.stdout.write = orig
-    }
-    const history = readFileSync(join(dir, '.claude', '.task-phase-history'), 'utf-8')
-    const lines = history.split('\n').filter((l) => l.includes('auto-migrated'))
-    expect(lines).toHaveLength(1)
-  })
-
-  it('legacy implementation on disk: history records migration audit line', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
-    writeEvidence(dir)
-    runTaskAdvance({ to: 'green', dir })
-    const history = readFileSync(join(dir, '.claude', '.task-phase-history'), 'utf-8')
-    expect(history).toContain('implementation → red [auto-migrated]')
+  it('migration deletes legacy dotfiles and seeds the unified document at red', () => {
+    seedLegacy('implementation')
+    // any read triggers migration
+    expect(phaseOf()).toBe('red')
+    expect(existsSync(join(dir, '.claude', '.task-phase'))).toBe(false)
+    expect(existsSync(join(dir, '.claude', '.task-id'))).toBe(false)
+    expect(existsSync(join(dir, '.claude', '.task', 'status.json'))).toBe(true)
+    expect(readUnifiedState(dir)?.taskId).toBe('#549')
   })
 
   it('legacy implementation on disk: resume shows red phase recovery', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
-    let output = ''
-    const origWrite = process.stdout.write.bind(process.stdout)
-    process.stdout.write = (s: string | Uint8Array) => {
-      output += typeof s === 'string' ? s : ''
-      return true
-    }
-    try {
-      runTaskResume({ dir })
-    } finally {
-      process.stdout.write = origWrite
-    }
-    expect(output).toContain('red')
+    seedLegacy('implementation')
+    const out = captureStdout(() => runTaskResume({ dir }))
+    expect(out).toContain('red')
   })
 
   it('--to implementation rejected as invalid phase', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'plan\n')
+    seedLegacy('plan')
     expect(() => runTaskAdvance({ to: 'implementation' as never, dir })).toThrow(
       /invalid.*to|unknown.*phase/i,
     )
   })
 
-  it('red → green → refactor sequence succeeds', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'red-team-review\n')
+  it('red-team-review → red → green → refactor sequence succeeds from legacy seed', () => {
+    seedLegacy('red-team-review')
     writeEvidence(dir)
     runTaskAdvance({ to: 'red', dir })
     runTaskAdvance({ to: 'green', dir })
     runTaskAdvance({ to: 'refactor', dir })
-    const phase = readFileSync(join(dir, '.claude', '.task-phase'), 'utf-8').trim()
-    expect(phase).toBe('refactor')
+    expect(phaseOf()).toBe('refactor')
   })
 
   it('refactor → verification succeeds', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'refactor\n')
+    seedLegacy('refactor')
     expect(() => runTaskAdvance({ to: 'verification', dir })).not.toThrow()
   })
 
-  it('plan-review gate triggers on --to red (not implementation)', () => {
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'red-team-review\n')
-    // skipPlanReview bypasses gate — verify advance works
+  it('plan-review gate path: advance to red with skipPlanReview succeeds', () => {
+    seedLegacy('red-team-review')
     expect(() => runTaskAdvance({ to: 'red', dir, skipPlanReview: true })).not.toThrow()
   })
 })

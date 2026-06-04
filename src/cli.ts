@@ -23,10 +23,14 @@ import {
   runTaskAdvance,
   runTaskRecover,
   runTaskResume,
+  runTaskInit,
+  runTaskGet,
+  runTaskMark,
   HandoffRequiredError,
   BudgetBreachError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
+import { runTaskShip } from './commands/task-ship.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
@@ -1217,6 +1221,114 @@ task
       process.exit(1)
     }
   })
+
+task
+  .command('init')
+  .description('Initialise / update the unified task document (#1206)')
+  .option('--id <id>', 'Task id, e.g. #1206')
+  .option('--tier <tier>', 'Task tier (XS|S|Standard)')
+  .option('--plan <path>', 'Repo-relative path to the plan file')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts: { id?: string; tier?: string; plan?: string; dir?: string }) => {
+    runTaskInit({
+      ...(opts.id !== undefined ? { id: opts.id } : {}),
+      ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+      ...(opts.plan !== undefined ? { plan: opts.plan } : {}),
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+  })
+
+task
+  .command('get')
+  .description('Print a single task-state field for shell consumers (#1206)')
+  .requiredOption('--field <field>', 'phase|taskId|tier|plan|tddPhase|lastAction|nextAction')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts: { field: string; dir?: string }) => {
+    runTaskGet({ field: opts.field, ...(opts.dir !== undefined ? { dir: opts.dir } : {}) })
+  })
+
+program
+  .command('mark')
+  .description('Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206)')
+  .option('--next <action>', 'The exact next sub-step to resume on')
+  .option('--last <action>', 'The sub-step just completed')
+  .option('--tdd <phase>', 'TDD sub-phase (RED|GREEN|REFACTOR)')
+  .option('--task <id>', 'Set/override the active task id')
+  .option('--digest <line>', 'One-line progress digest for log.md')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action(
+    (opts: {
+      next?: string
+      last?: string
+      tdd?: string
+      task?: string
+      digest?: string
+      dir?: string
+    }) => {
+      runTaskMark({
+        ...(opts.next !== undefined ? { next: opts.next } : {}),
+        ...(opts.last !== undefined ? { last: opts.last } : {}),
+        ...(opts.tdd !== undefined ? { tddPhase: opts.tdd as 'RED' | 'GREEN' | 'REFACTOR' } : {}),
+        ...(opts.task !== undefined ? { taskId: opts.task } : {}),
+        ...(opts.digest !== undefined ? { digest: opts.digest } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+    },
+  )
+
+program
+  .command('ship [id]')
+  .description('Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)')
+  .option('--tier <tier>', 'Task tier (XS|S|Standard)')
+  .option('--advance', 'Advance to the next phase (runs that phase gate; fails if red)', false)
+  .option('--skip-plan-review', 'Bypass the plan-review gate on advance', false)
+  .option('--post-clear', 'Signal post-/clear re-entry on advance', false)
+  .option('--skip-budget', 'Skip the budget assertion on advance', false)
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action(
+    (
+      id: string | undefined,
+      opts: {
+        tier?: string
+        advance: boolean
+        skipPlanReview: boolean
+        postClear: boolean
+        skipBudget: boolean
+        dir?: string
+      },
+    ) => {
+      try {
+        const result = runTaskShip({
+          ...(id !== undefined ? { taskId: id } : {}),
+          ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+          advance: opts.advance,
+          advanceOpts: {
+            skipPlanReview: opts.skipPlanReview,
+            postClear: opts.postClear,
+            skipBudget: opts.skipBudget,
+          },
+          ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        })
+        const lines = [
+          `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
+          `Action: ${result.step.action}`,
+          ...(result.step.command ? [`Command: ${result.step.command}`] : []),
+          ...(result.step.reviewAgents > 0 ? [`Review agents: ${result.step.reviewAgents}`] : []),
+        ]
+        process.stdout.write(lines.join('\n') + '\n')
+      } catch (err) {
+        if (err instanceof HandoffRequiredError) {
+          process.stderr.write(err.message + '\n')
+          process.exit(78)
+        }
+        if (err instanceof BudgetBreachError) {
+          process.stderr.write(err.message + '\n')
+          process.exit(79)
+        }
+        throw err
+      }
+    },
+  )
 
 const plugin = program
   .command('plugin')

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { runTaskAdvance, HandoffRequiredError, BudgetBreachError } from '../../src/commands/task.js'
+import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 
 vi.mock('../../src/capabilities/host-probe.js', () => ({
   detectHostCapabilities: vi.fn().mockReturnValue({
@@ -33,9 +34,7 @@ describe('handoff roundtrip E2E (#703)', () => {
     const d = mkdtempSync(join(tmpdir(), 'handoff-e2e-'))
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
-    writeFileSync(join(d, '.claude', '.task-id'), '#703\n', 'utf-8')
-    writeFileSync(join(d, '.claude', '.task-phase'), phase + '\n', 'utf-8')
-    mkdirSync(join(d, '.claude', '.task-_703'), { recursive: true })
+    writeUnifiedState(d, { taskId: '#703', phase: phase as never })
     return d
   }
 
@@ -53,35 +52,25 @@ describe('handoff roundtrip E2E (#703)', () => {
   it('full roundtrip: STOP on first crossing, resume on post-clear', () => {
     const dir = tmpRepo('red-team-review')
 
-    // Step 1: first crossing → STOP
+    // Step 1: first crossing → STOP, metadata recorded, phase NOT advanced (C1)
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(HandoffRequiredError)
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as {
-      planningHandoffReady: string
-      handoffStrategy: string
-    }
-    expect(status.handoffStrategy).toBe('interactive')
-    expect(typeof status.planningHandoffReady).toBe('string')
+    const status = readUnifiedState(dir)
+    expect(status?.handoffStrategy).toBe('interactive')
+    expect(typeof status?.planningHandoffReady).toBe('string')
+    expect(status?.phase).toBe('red-team-review')
 
-    // Step 2: simulate /clear → new session → post-clear re-entry
+    // Step 2: simulate /clear → new session → post-clear re-entry advances to red
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
     vi.stubEnv('ARBITER_COST_BUDGET_SKIP', '1')
     expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
-    const status2 = JSON.parse(readFileSync(statusPath, 'utf-8')) as {
-      postClearResumed: string
-    }
-    expect(typeof status2.postClearResumed).toBe('string')
+    const status2 = readUnifiedState(dir)
+    expect(typeof status2?.postClearResumed).toBe('string')
+    expect(status2?.phase).toBe('red')
   })
 
   it('budget assertion passes when cost evidence is under threshold', () => {
     const dir = tmpRepo('red-team-review')
-    // Pre-set planningHandoffReady
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    writeFileSync(
-      statusPath,
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
     writeCostEvidence(dir, 10_000, 5)
 
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
@@ -90,12 +79,7 @@ describe('handoff roundtrip E2E (#703)', () => {
 
   it('budget assertion blocks when cost evidence is over threshold', () => {
     const dir = tmpRepo('red-team-review')
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    writeFileSync(
-      statusPath,
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
     writeCostEvidence(dir, 80_000, 3)
 
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
@@ -104,12 +88,7 @@ describe('handoff roundtrip E2E (#703)', () => {
 
   it('--skip-budget bypasses hard breach', () => {
     const dir = tmpRepo('red-team-review')
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    writeFileSync(
-      statusPath,
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
     writeCostEvidence(dir, 80_000, 3)
 
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
@@ -118,12 +97,7 @@ describe('handoff roundtrip E2E (#703)', () => {
 
   it('cost evidence file written during post-clear re-entry', () => {
     const dir = tmpRepo('red-team-review')
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    writeFileSync(
-      statusPath,
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
 
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
     runTaskAdvance({ to: 'red', dir })
@@ -147,9 +121,7 @@ describe('handoff via CLI subprocess (#703)', () => {
     const d = mkdtempSync(join(tmpdir(), 'handoff-cli-'))
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
-    writeFileSync(join(d, '.claude', '.task-id'), '#703\n', 'utf-8')
-    writeFileSync(join(d, '.claude', '.task-phase'), 'red-team-review\n', 'utf-8')
-    mkdirSync(join(d, '.claude', '.task-_703'), { recursive: true })
+    writeUnifiedState(d, { taskId: '#703', phase: 'red-team-review' })
     return d
   }
 
@@ -168,11 +140,7 @@ describe('handoff via CLI subprocess (#703)', () => {
 
   it('CLI exits 79 on budget breach (modelSwitch=false, over-threshold evidence)', () => {
     const dir = tmpRepo()
-    writeFileSync(
-      join(dir, '.claude', '.task-_703', 'status.json'),
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
     const evidenceDir = join(dir, '.arbiter', 'evidence', 'cost')
     mkdirSync(evidenceDir, { recursive: true })
     writeFileSync(

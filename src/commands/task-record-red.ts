@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { runCli } from '../utils/run-cli.js'
 import { extractFailureSignature, writeTddEvidence, type TddEvidence } from '../evidence/tdd.js'
+import { readTaskId } from './task-state.js'
 
 export interface RecordRedOptions {
   testPath: string
@@ -39,18 +38,13 @@ function captureTestOutput(cmd: string, args: string[], dir: string): string | R
 
 export function runTaskRecordRed(opts: RecordRedOptions): RecordRedSuccess | RecordRedFailure {
   const dir = opts.dir ?? process.cwd()
-  const claudeDir = join(dir, '.claude')
 
-  const taskIdFile = join(claudeDir, '.task-id')
-  if (!existsSync(taskIdFile)) {
+  const taskId = readTaskId(dir)
+  if (taskId === undefined) {
     return {
       ok: false,
-      reason: `.claude/.task-id not found — run \`arbiter task advance --to preflight\` to initialise the task first`,
+      reason: `no active task — run \`arbiter task init --id #NNN\` (or \`/task #NNN\`) to initialise the task first`,
     }
-  }
-  const taskId = readFileSync(taskIdFile, 'utf-8').trim()
-  if (!taskId) {
-    return { ok: false, reason: `.claude/.task-id is empty` }
   }
 
   // Get current HEAD sha (this becomes the test commit sha)

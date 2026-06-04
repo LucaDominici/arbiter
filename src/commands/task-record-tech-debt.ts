@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { writeFile } from '../utils/fs.js'
 import { sanitizeTaskId } from '../review/dispatch.js'
 import { runCli, CliError } from '../utils/run-cli.js'
+import { readTaskId } from './task-state.js'
 
 export interface RecordTechDebtOptions {
   description: string
@@ -104,17 +105,12 @@ function invokeGhCreate(
   }
 }
 
-function resolveTaskId(
-  opts: RecordTechDebtOptions,
-  claudeDir: string,
-): string | RecordTechDebtFailure {
+function resolveTaskId(opts: RecordTechDebtOptions, dir: string): string | RecordTechDebtFailure {
   if (opts.triggeredBy) return opts.triggeredBy
-  const taskIdFile = join(claudeDir, '.task-id')
-  if (!existsSync(taskIdFile)) {
-    return { ok: false, reason: 'no task-id: neither --triggered-by nor .claude/.task-id found' }
-  }
-  const taskId = readFileSync(taskIdFile, 'utf-8').trim()
-  return taskId || { ok: false, reason: '.claude/.task-id is empty' }
+  const taskId = readTaskId(dir)
+  return (
+    taskId ?? { ok: false, reason: 'no task-id: neither --triggered-by nor an active task found' }
+  )
 }
 
 function parseIssueNumber(stdout: string): number | null {
@@ -128,7 +124,7 @@ export function runTaskRecordTechDebt(
 ): RecordTechDebtSuccess | RecordTechDebtFailure {
   const dir = opts.dir ?? process.cwd()
 
-  const taskIdResult = resolveTaskId(opts, join(dir, '.claude'))
+  const taskIdResult = resolveTaskId(opts, dir)
   if (typeof taskIdResult === 'object') return taskIdResult
   const taskId = taskIdResult
 

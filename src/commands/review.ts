@@ -33,6 +33,7 @@ import {
 import type { ReviewTier } from '../review/tier-constants.js'
 import { jsonOutput, type JsonStatus } from '../utils/json-output.js'
 import { runCli } from '../utils/run-cli.js'
+import { readUnifiedState, readTaskId } from './task-state.js'
 
 export interface ReviewPlanOptions {
   file: string
@@ -58,23 +59,16 @@ function verdictToJsonStatus(verdict: DispatchResult['verdict']): JsonStatus {
 const VALID_TIERS: readonly ReviewTier[] = ['XS', 'S', 'Standard']
 
 function readTierFile(dir: string): ReviewTier | null {
-  const p = join(dir, '.claude', '.task-tier')
-  if (!existsSync(p)) return null
-  const raw = readFileSync(p, 'utf-8').trim()
+  const raw = readUnifiedState(dir)?.tier.trim() ?? ''
   if (raw.length === 0) return null
   if (raw === 'XS') return 'XS'
   if (raw === 'S') return 'S'
   if (raw === 'M' || raw === 'L' || raw === 'Standard') return 'Standard'
-  throw new Error(
-    `Unknown tier "${raw}" in .claude/.task-tier. Valid values: XS, S, M, L, Standard.`,
-  )
+  throw new Error(`Unknown tier "${raw}" in task state. Valid values: XS, S, M, L, Standard.`)
 }
 
 function readTaskIdFile(dir: string): string | undefined {
-  const p = join(dir, '.claude', '.task-id')
-  if (!existsSync(p)) return undefined
-  const raw = readFileSync(p, 'utf-8').trim()
-  return raw.length > 0 ? raw : undefined
+  return readTaskId(dir)
 }
 
 export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {

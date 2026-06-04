@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { runTaskAdvance, HandoffRequiredError, BudgetBreachError } from '../../src/commands/task.js'
+import { writeUnifiedState, readUnifiedState } from '../../src/commands/task-state.js'
 
 vi.mock('../../src/capabilities/host-probe.js', () => ({
   detectHostCapabilities: vi.fn().mockReturnValue({
@@ -17,7 +18,7 @@ vi.mock('../../src/evidence/git-checks.js', () => ({
   pathExistsInCommit: vi.fn().mockReturnValue(true),
 }))
 
-describe('task advance --to red: handoff gate (#703)', () => {
+describe('task advance --to red: handoff gate (#703, C1 #1206)', () => {
   const dirs: string[] = []
 
   beforeEach(() => {
@@ -37,9 +38,7 @@ describe('task advance --to red: handoff gate (#703)', () => {
     const d = mkdtempSync(join(tmpdir(), 'task-handoff-test-'))
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
-    writeFileSync(join(d, '.claude', '.task-id'), '#703\n', 'utf-8')
-    writeFileSync(join(d, '.claude', '.task-phase'), phase + '\n', 'utf-8')
-    mkdirSync(join(d, '.claude', '.task-_703'), { recursive: true })
+    writeUnifiedState(d, { taskId: '#703', phase: phase as never })
     return d
   }
 
@@ -53,76 +52,47 @@ describe('task advance --to red: handoff gate (#703)', () => {
     expect(() => runTaskAdvance({ to: 'red', dir, reverse: true })).toThrow(HandoffRequiredError)
   })
 
-  it('writes planningHandoffReady to status.json on STOP', () => {
+  it('records handoff metadata WITHOUT advancing phase on STOP (C1)', () => {
     const dir = tmpRepo('red-team-review')
     try {
       runTaskAdvance({ to: 'red', dir })
     } catch {
       // expected
     }
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    expect(existsSync(statusPath)).toBe(true)
-    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as {
-      planningHandoffReady: string
-      handoffStrategy: string
-    }
-    expect(typeof status.planningHandoffReady).toBe('string')
-    expect(status.handoffStrategy).toBe('interactive')
+    const state = readUnifiedState(dir)
+    expect(typeof state?.planningHandoffReady).toBe('string')
+    expect(state?.handoffStrategy).toBe('interactive')
+    expect(state?.handoffReady).toBe(true)
+    // C1: the phase must NOT advance to red — that would short-circuit the post-clear budget gate.
+    expect(state?.phase).toBe('red-team-review')
   })
 
-  it('writes flat-file .task-handoff-ready on STOP', () => {
-    const dir = tmpRepo('red-team-review')
-    try {
-      runTaskAdvance({ to: 'red', dir })
-    } catch {
-      // expected
-    }
-    expect(existsSync(join(dir, '.claude', '.task-handoff-ready'))).toBe(true)
-  })
-
-  it('advances normally when ARBITER_POST_CLEAR=1 and planningHandoffReady set', () => {
+  it('advances to red when ARBITER_POST_CLEAR=1 and planningHandoffReady set', () => {
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
     const dir = tmpRepo('red-team-review')
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    writeFileSync(
-      statusPath,
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
     expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
+    expect(readUnifiedState(dir)?.phase).toBe('red')
   })
 
   it('sets postClearResumed after --post-clear re-entry', () => {
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
     const dir = tmpRepo('red-team-review')
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    writeFileSync(
-      statusPath,
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
     runTaskAdvance({ to: 'red', dir })
-    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as { postClearResumed: string }
-    expect(typeof status.postClearResumed).toBe('string')
+    expect(typeof readUnifiedState(dir)?.postClearResumed).toBe('string')
   })
 
-  it('re-entry is idempotent (second call via checkHandoffGate does not overwrite postClearResumed)', () => {
+  it('re-entry is idempotent (does not overwrite postClearResumed)', () => {
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
-    // Keep phase as red-team-review so advance actually reaches checkHandoffGate
     const dir = tmpRepo('red-team-review')
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
     const firstResumed = '2026-05-18T10:05:00.000Z'
-    writeFileSync(
-      statusPath,
-      JSON.stringify({
-        planningHandoffReady: '2026-05-18T10:00:00.000Z',
-        postClearResumed: firstResumed,
-      }),
-      'utf-8',
-    )
+    writeUnifiedState(dir, {
+      planningHandoffReady: '2026-05-18T10:00:00.000Z',
+      postClearResumed: firstResumed,
+    })
     runTaskAdvance({ to: 'red', dir })
-    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as { postClearResumed: string }
-    expect(status.postClearResumed).toBe(firstResumed)
+    expect(readUnifiedState(dir)?.postClearResumed).toBe(firstResumed)
   })
 
   it('skips STOP and sets handoffStrategy=inline when modelSwitch=false (CI/no-CC)', async () => {
@@ -135,9 +105,9 @@ describe('task advance --to red: handoff gate (#703)', () => {
     })
     const dir = tmpRepo('red-team-review')
     expect(() => runTaskAdvance({ to: 'red', dir })).not.toThrow()
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as { handoffStrategy: string }
-    expect(status.handoffStrategy).toBe('inline')
+    const state = readUnifiedState(dir)
+    expect(state?.handoffStrategy).toBe('inline')
+    expect(state?.phase).toBe('red')
   })
 
   it('does not interfere with non-planning → red transitions (e.g. refactor → red)', () => {
@@ -145,16 +115,11 @@ describe('task advance --to red: handoff gate (#703)', () => {
     expect(() => runTaskAdvance({ to: 'red', dir, reverse: true })).not.toThrow()
   })
 
-  it('budget breach does NOT write postClearResumed (write-order invariant)', () => {
+  it('budget breach does NOT write postClearResumed and leaves phase un-advanced (write-order)', () => {
     vi.stubEnv('ARBITER_POST_CLEAR', '1')
     const dir = tmpRepo('red-team-review')
-    const statusPath = join(dir, '.claude', '.task-_703', 'status.json')
-    writeFileSync(
-      statusPath,
-      JSON.stringify({ planningHandoffReady: '2026-05-18T10:00:00.000Z' }),
-      'utf-8',
-    )
-    // Write over-budget cost evidence so runBudgetCheck throws
+    writeUnifiedState(dir, { planningHandoffReady: '2026-05-18T10:00:00.000Z' })
+    // Over-budget cost evidence so runBudgetCheck throws
     const costDir = join(dir, '.arbiter', 'evidence', 'cost')
     mkdirSync(costDir, { recursive: true })
     writeFileSync(
@@ -167,7 +132,8 @@ describe('task advance --to red: handoff gate (#703)', () => {
       'utf-8',
     )
     expect(() => runTaskAdvance({ to: 'red', dir })).toThrow(BudgetBreachError)
-    const status = JSON.parse(readFileSync(statusPath, 'utf-8')) as Record<string, unknown>
-    expect(status['postClearResumed']).toBeUndefined()
+    const state = readUnifiedState(dir)
+    expect(state?.postClearResumed).toBeUndefined()
+    expect(state?.phase).toBe('red-team-review')
   })
 })

@@ -24,12 +24,14 @@
  */
 
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CliError, runCli } from '../utils/run-cli.js'
 import type { AgentReport, AgentResult, Finding } from './multi-agent.js'
 import { computeSsotDigest, escapeXml } from './ssot.js'
 import { TIER_PASS_COUNT, type ReviewTier } from './tier-constants.js'
+import { sanitizeTaskId } from '../utils/task-id.js'
+import { readTaskId } from '../commands/task-state.js'
 
 export type Verdict = 'PASS' | 'WARN' | 'FAIL'
 type RawVerdict = Verdict | 'ERROR'
@@ -74,17 +76,12 @@ export interface DispatchResult {
 const MAX_REVISE_CYCLES = 2
 
 /**
- * Sanitize a task id into a safe filesystem segment AND safe regex literal.
- * Whitelist `[a-zA-Z0-9_-]`, replace anything else with `_`, cap at 64 chars,
- * fall back to `'unknown'` for empty input.
- *
- * Shared with `.claude/hooks/lib.mjs::sanitizeTaskId` — parity asserted by
- * `__tests__/lib/sanitize-task-id-parity.test.ts`.
+ * Re-exported from the leaf utility `src/utils/task-id.ts` so existing importers
+ * (and the parity test `__tests__/lib/sanitize-task-id-parity.test.ts`) keep working.
+ * The leaf module is the single source shared with `src/commands/task-state.ts` and
+ * `.claude/hooks/lib.mjs::sanitizeTaskId`.
  */
-export function sanitizeTaskId(raw: string): string {
-  const cleaned = raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
-  return cleaned.length > 0 ? cleaned : 'unknown'
-}
+export { sanitizeTaskId }
 
 export function buildReviewPrompt(opts: BuildPromptOptions): string {
   const digest = computeSsotDigest(opts.dir)
@@ -150,13 +147,8 @@ function verdictToExitCode(verdict: Verdict): 0 | 1 | 2 {
 
 function resolveTaskId(opts: DispatchOptions): string {
   if (opts.taskId !== undefined && opts.taskId.length > 0) return sanitizeTaskId(opts.taskId)
-  try {
-    const raw = readFileSync(join(opts.dir, '.claude', '.task-id'), 'utf-8').trim()
-    if (raw.length > 0) return sanitizeTaskId(raw)
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-  }
-  return 'unknown'
+  const id = readTaskId(opts.dir)
+  return id !== undefined ? sanitizeTaskId(id) : 'unknown'
 }
 
 function planReviewEvidenceDir(dir: string, sanitisedTaskId: string): string {

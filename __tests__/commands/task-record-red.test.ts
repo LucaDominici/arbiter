@@ -80,17 +80,17 @@ describe('runTaskRecordRed()', () => {
     dirs.push(d)
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir: d })
     expect(result.ok).toBe(false)
-    expect(result.reason).toMatch(/task-id/)
+    expect(result.reason).toMatch(/no active task/i)
   })
 
-  it('returns ok:false when .claude/.task-id is empty', () => {
+  it('returns ok:false when the active task id is empty/whitespace', () => {
     const d = mkdtempSync(join(tmpdir(), 'record-red-empty-'))
     dirs.push(d)
     mkdirSync(join(d, '.claude'), { recursive: true })
     writeFileSync(join(d, '.claude', '.task-id'), '   \n', 'utf-8')
     const result = runTaskRecordRed({ testPath: 'src/foo.test.ts', dir: d })
     expect(result.ok).toBe(false)
-    expect(result.reason).toMatch(/empty/)
+    expect(result.reason).toMatch(/no active task/i)
   })
 
   it('returns ok:false when git rev-parse fails', () => {
