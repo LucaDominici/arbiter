@@ -65,8 +65,8 @@
     "docs:preview": "npm run preview -w @arbiter/website"
   },
   "dependencies": {
-    "@clack/prompts": "^1.5.0",
-    "commander": "^14.0.3",
+    "@clack/prompts": "^1.5.1",
+    "commander": "^15.0.0",
     "ejs": "^6.0.1",
     "exceljs": "^4.4.0",
     "zod": "^4.4.3"
