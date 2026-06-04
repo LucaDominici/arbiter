@@ -156,6 +156,7 @@ if (isMain) {
   runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
   runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
   runCheck('doc index (#1102)', 'node', ['scripts/gen-doc-index.mjs', '--check'])
+  runCheck('status dashboard', 'node', ['scripts/gen-status.mjs', '--check'])
   runCheck('ssot core index (#1100)', 'node', ['scripts/gen-ssot-core.mjs', '--check'])
   runCheck('adr index (INV-107)', 'node', ['scripts/check-adr-index.mjs'])
   runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])

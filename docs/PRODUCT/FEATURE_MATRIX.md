@@ -113,6 +113,7 @@ Promotion is fail-closed (cannot skip a step).
 | REQ-049    | Risk register                                                    |                                 | L3    | Partial  | src/generators/risk-register.ts                                                                                                             |                                                                                                                                          |                                                                                 |           | Risk register template generated at L3+                                                                                                                                                                                                                                                                                                                                                                                                      |
 | REQ-050    | Compliance mapping (ISO 27001 / GDPR)                            |                                 | L3    | Partial  | src/generators/compliance.ts                                                                                                                |                                                                                                                                          |                                                                                 |           | ISO 27001 Annex A + GDPR/NIS2 mapping templates                                                                                                                                                                                                                                                                                                                                                                                              |
 | REQ-051    | Resilience patterns (circuit-breaker/retry/rate-limiter/timeout) | N78                             | L2    | Done     | src/generators/resilience.ts,src/templates/resilience/RESILIENCE.md.ejs                                                                     | **tests**/generators/resilience.test.ts,**tests**/templates/resilience-md-ejs.test.ts,**tests**/brownfield/resilience-brownfield.test.ts | docs/REFERENCE/RESILIENCE.md                                                    | #1176     | Advisory guide: CB+retry+rate-limiter+timeout defaults + external-call checklist; ts (cockatiel) + java (Resilience4j) concrete blocks; multi emits both; L3/L4 enforcement addendum                                                                                                                                                                                                                                                         |
+| REQ-052    | Living STATUS dashboard (generated, drift-proof)                 |                                 | L1    | Done     | scripts/gen-status.mjs                                                                                                                      | **tests**/scripts/gen-status.test.ts                                                                                                     | docs/PRODUCT/STATUS.md                                                          |           | Drift-proof STATUS.md generated from FEATURE_MATRIX + MILESTONES + PRD; --check gate wired in check-all L1; mirrors gen-doc-index harness                                                                                                                                                                                                                                                                                                    |
 
 <!-- FEATURE_MATRIX_END -->
 
@@ -123,10 +124,10 @@ Promotion is fail-closed (cannot skip a step).
 | Status    | Count  |
 | --------- | ------ |
 | Verified  | 3      |
-| Done      | 2      |
+| Done      | 3      |
 | Partial   | 45     |
 | Missing   | 1      |
-| **Total** | **51** |
+| **Total** | **52** |
 
 ---
 

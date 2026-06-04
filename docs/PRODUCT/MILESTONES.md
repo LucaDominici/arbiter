@@ -38,7 +38,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M2 — PRD & Product Docs
+## M2 — PRD & Product Docs ✅ DONE
 
 **Issue:** #11
 **Scope:** Write `docs/PRODUCT/PRD.md`, `docs/PRODUCT/MILESTONES.md`, `docs/PRODUCT/COMPETITION.md`.
@@ -55,7 +55,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M3 — Architecture & Development Docs
+## M3 — Architecture & Development Docs ✅ DONE
 
 **Issue:** #12
 **Scope:** Architecture deep-dives, development guides, and retroactive ADRs 009-011.
@@ -79,7 +79,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M4 — Reference Docs
+## M4 — Reference Docs ✅ DONE
 
 **Issue:** #13
 **Scope:** User-facing reference documentation.
@@ -99,7 +99,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M5 — Test Infrastructure
+## M5 — Test Infrastructure ✅ DONE
 
 **Issue:** #14
 **Scope:** Shared helpers, fixtures, detector unit tests, utility tests. 42 → ~80 tests.
@@ -122,7 +122,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M6 — Generator & Template Tests
+## M6 — Generator & Template Tests ✅ DONE
 
 **Issue:** #15
 **Scope:** Generator unit tests, template rendering tests, governance level tests. ~80 → ~145 tests.
@@ -140,7 +140,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M7 — Matrix, Tool & Brownfield Tests
+## M7 — Matrix, Tool & Brownfield Tests ✅ DONE
 
 **Issue:** #16
 **Scope:** Language matrix integration, brownfield scenarios, integration expansion. ~145 → 200+ tests.
@@ -157,7 +157,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M8 — Documentation Enforcement
+## M8 — Documentation Enforcement ✅ DONE
 
 **Issue:** #17
 **Scope:** CI job that blocks PRs changing `src/` without updating `docs/`. Write ADR-012 and ADR-013. Propagate to generated CI template for L2+ projects.
@@ -175,7 +175,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M9 — Real Repo Validation
+## M9 — Real Repo Validation ✅ DONE
 
 **Issue:** #18
 **Scope:** Run `arbiter update` on haben and coach-system. Verify output. Fix any regressions.
@@ -193,7 +193,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M10 — Smart Init Wizard Redesign
+## M10 — Smart Init Wizard Redesign ✅ DONE
 
 **Issue:** #19
 **Scope:** Rewrite `src/wizard/prompts.ts` to implement state-reactive flows. Brownfield mapping, migration plan display, confirm step, `--dry-run` flag for init.
@@ -238,7 +238,7 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 
 ---
 
-## M12 — Go/Python Stack Parity (foundation repair)
+## M12 — Go/Python Stack Parity (foundation repair) ✅ DONE
 
 **Issue:** #44
 **Scope:** Fix the 5 CRITICAL findings from the retroactive analysis. Go and Python currently produce non-functional governance (empty CI, empty gates, no coding standards, no invariants). Also fix Java Maven template gap. See ADR-014.
@@ -274,7 +274,7 @@ Report attached to issue as comment.
 
 ---
 
-## M13 — Documentation Alignment + Retroactive Fixes
+## M13 — Documentation Alignment + Retroactive Fixes ✅ DONE
 
 **Issue:** #45
 **Scope:** Fix all documentation drift (.sh → .mjs references), remove dead files, align AGENTS.md claims with reality. See ADR-014 retroactive analysis findings.
@@ -358,7 +358,7 @@ Per-stack generated enforcement:
 
 ---
 
-## M16 — Novel Anti-Tech-Debt Mechanism
+## M16 — Novel Anti-Tech-Debt Mechanism ✅ DONE
 
 **Issue:** #43
 **Status:** ✅ DONE
@@ -390,7 +390,7 @@ Per-stack generated enforcement:
 
 ---
 
-## M17 — Advanced Hooks (previously M12)
+## M17 — Advanced Hooks (previously M12) ✅ DONE
 
 **Issue:** #35
 **Scope:** Generate advanced Claude Code hooks for target projects: plan-anchor, debug-state, pre-compact, dispatch.
@@ -399,7 +399,7 @@ Per-stack generated enforcement:
 
 ---
 
-## M18 — Rich Invariant Catalog (previously M14)
+## M18 — Rich Invariant Catalog (previously M14) ✅ DONE
 
 **Issue:** #37
 **Scope:** Expand from 10 to 25+ invariants across 5 tiers. Now includes Go and Python invariants (made possible by M12).
@@ -408,7 +408,7 @@ Per-stack generated enforcement:
 
 ---
 
-## M19 — Skills & Sub-Agents Generation (previously M13)
+## M19 — Skills & Sub-Agents Generation (previously M13) ✅ DONE
 
 **Issue:** #36
 **Scope:** Skeleton skills and agent definitions for target projects.
@@ -417,7 +417,7 @@ Per-stack generated enforcement:
 
 ---
 
-## M20 — SSOT Framework Generation (previously M15)
+## M20 — SSOT Framework Generation (previously M15) ✅ DONE
 
 **Issue:** #38
 **Scope:** Knowledge map, track router, engineering defaults.
@@ -426,7 +426,7 @@ Per-stack generated enforcement:
 
 ---
 
-## M21 — Richer GitHub Integration (previously M16)
+## M21 — Richer GitHub Integration (previously M16) ✅ DONE
 
 **Issue:** #39
 **Scope:** Task-brief templates, epic template, project board.
@@ -589,7 +589,7 @@ Based on the exhaustive gap analysis (alignment doc removed). Principle: **once 
 
 ---
 
-## M22 — Architecture Verification Suite
+## M22 — Architecture Verification Suite ✅ DONE
 
 **Issue:** #70
 **Scope:** Generate complete architecture enforcement for all languages. Currently arbiter generates 1 ArchUnit test; the prior-art baseline has 9+.
