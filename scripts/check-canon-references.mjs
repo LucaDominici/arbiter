@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * Validates that every CANON-NN ID referenced in docs/SYSTEM/CANON.md
- * exists as a heading in that file. Warn-only for now; promote to L1 gate
- * once all open issues carry canon labels.
+ * exists as a heading in that file. Fails with exit 1 on undefined references.
  */
 
 import { readFileSync } from 'fs'
@@ -22,7 +21,7 @@ if (undefinedRefs.length > 0) {
     `[check-canon-references] WARNING: referenced but undefined CANON IDs: ${undefinedRefs.join(', ')}`,
   )
   console.warn('[check-canon-references] Add missing entries to docs/SYSTEM/CANON.md')
-  process.exit(0) // warn-only; change to process.exit(1) when promoted to gate
+  process.exit(1)
 }
 
 process.stdout.write(
