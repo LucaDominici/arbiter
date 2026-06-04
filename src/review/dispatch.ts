@@ -54,7 +54,7 @@ export interface BuildPromptOptions {
 export interface DispatchOptions extends BuildPromptOptions {
   /** Optional dispatcher override — tests pass a fake here. */
   dispatcher?: SubagentDispatcher
-  /** Task id used for per-task evidence path. Falls back to `.claude/.task-id` then `'unknown'`. */
+  /** Task id used for per-task evidence path. Falls back to the active task then `'unknown'`. */
   taskId?: string
 }
 

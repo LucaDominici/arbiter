@@ -26,11 +26,13 @@ describe('hooks/lib.mjs.ejs — rendered output', () => {
     expect(rendered).toContain('export function getRepoRoot')
   })
 
-  it('readTaskState reads the 4 expected state files', () => {
-    expect(rendered).toContain('.task-id')
-    expect(rendered).toContain('.task-phase')
-    expect(rendered).toContain('.task-plan')
-    expect(rendered).toContain('.task-tier')
+  it('readTaskState reads the unified document and returns the 4 expected fields', () => {
+    expect(rendered).toContain('.task')
+    expect(rendered).toContain('status.json')
+    expect(rendered).toContain('taskId')
+    expect(rendered).toContain('phase')
+    expect(rendered).toContain('plan')
+    expect(rendered).toContain('tier')
   })
 
   it('readTaskState returns defaults for missing files', () => {

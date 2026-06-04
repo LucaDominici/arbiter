@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig } from '../../helpers.js'
+import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 
 function configFor() {
   return makeConfig('/tmp/test', {
@@ -45,15 +45,13 @@ function setup(phase: string, planContent: string | null, planPath?: string) {
   const hookPath = join(hooksDir, 'pre-edit-plan-anchor.mjs')
   writeFileSync(hookPath, renderTemplate('claude/hooks/pre-edit-plan-anchor.mjs.ejs', configFor()))
 
-  writeFileSync(join(dir, '.claude', '.task-phase'), phase + '\n')
-
   const resolvedPlanPath = planPath ?? join(dir, '.claude', 'plans', 'task.md')
   if (planContent !== null) {
     mkdirSync(join(dir, '.claude', 'plans'), { recursive: true })
     writeFileSync(resolvedPlanPath, planContent)
-    writeFileSync(join(dir, '.claude', '.task-plan'), resolvedPlanPath + '\n')
+    writeTaskStateFile(dir, { phase, plan: resolvedPlanPath })
   } else {
-    writeFileSync(join(dir, '.claude', '.task-plan'), 'unknown\n')
+    writeTaskStateFile(dir, { phase })
   }
 
   return { dir, hookPath }
@@ -102,8 +100,7 @@ describe('pre-edit-plan-anchor', () => {
       hookPath,
       renderTemplate('claude/hooks/pre-edit-plan-anchor.mjs.ejs', configFor()),
     )
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'red\n')
-    writeFileSync(join(dir, '.claude', '.task-plan'), '/nonexistent/path/to/plan.md\n')
+    writeTaskStateFile(dir, { phase: 'red', plan: '/nonexistent/path/to/plan.md' })
     try {
       const result = run(hookPath, dir)
       expect(result.status).toBe(2)

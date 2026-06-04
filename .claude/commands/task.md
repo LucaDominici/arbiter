@@ -95,7 +95,7 @@ Phase 6 below.
 Write the selected tier to the state file:
 
 ```bash
-echo "<tier>" > .claude/.task-tier
+arbiter task init --tier <tier>
 ```
 
 ### Phase 3: Plan Creation
@@ -131,16 +131,15 @@ Ensure runtime state stays local-only before writing task state:
 GIT_INFO_DIR=$(git rev-parse --git-dir)/info
 mkdir -p "$GIT_INFO_DIR" .claude/plans
 touch "$GIT_INFO_DIR/exclude"
-for pattern in ".claude/.task-*" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
+for pattern in ".claude/.task-*" ".claude/.task/" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
   grep -qxF "$pattern" "$GIT_INFO_DIR/exclude" || printf "%s\n" "$pattern" >> "$GIT_INFO_DIR/exclude"
 done
 ```
 
-Write state files:
+Write task state:
 
 ```bash
-echo "#NNN" > .claude/.task-id
-echo ".claude/plans/task-NNN.md" > .claude/.task-plan
+arbiter task init --id "#NNN" --plan ".claude/plans/task-NNN.md"
 arbiter task advance --to plan
 ```
 

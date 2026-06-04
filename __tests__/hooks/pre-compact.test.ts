@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeTaskStateFile } from '../helpers.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const HOOK = join(__dirname, '..', '..', '.claude', 'hooks', 'pre-compact.mjs')
@@ -35,7 +36,7 @@ describe('pre-compact hook (#694 BACKLOG inclusion)', () => {
   })
 
   it('includes BACKLOG.md content between markers when file present', () => {
-    writeFileSync(join(dir, '.claude', '.task-id'), '#694\n')
+    writeTaskStateFile(dir, { taskId: '#694' })
     const evDir = join(dir, '.arbiter', 'evidence', '_694')
     mkdirSync(evDir, { recursive: true })
     writeFileSync(join(evDir, 'BACKLOG.md'), '# Layer 1\n- todo recovery item\n')
@@ -46,13 +47,13 @@ describe('pre-compact hook (#694 BACKLOG inclusion)', () => {
   })
 
   it('omits BACKLOG section when file missing', () => {
-    writeFileSync(join(dir, '.claude', '.task-id'), '#001\n')
+    writeTaskStateFile(dir, { taskId: '#001' })
     const out = runHook(dir)
     expect(out).not.toMatch(/BACKLOG \(recovery layer 1\)/)
   })
 
   it('resolves sanitized path for taskId containing #', () => {
-    writeFileSync(join(dir, '.claude', '.task-id'), '#999\n')
+    writeTaskStateFile(dir, { taskId: '#999' })
     const evDir = join(dir, '.arbiter', 'evidence', '_999')
     mkdirSync(evDir, { recursive: true })
     writeFileSync(join(evDir, 'BACKLOG.md'), 'sanitized-found\n')

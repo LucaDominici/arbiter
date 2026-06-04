@@ -1171,7 +1171,7 @@ task
   .command('recover')
   .description('Print 3-layer recovery context for the current task (#694)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .option('--task <id>', 'Task id (default: from .claude/.task-id)')
+  .option('--task <id>', 'Task id (default: the active task)')
   .action((opts: { dir?: string; task?: string }) => {
     runTaskRecover({
       ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
@@ -1205,7 +1205,7 @@ task
   .requiredOption('--description <text>', 'Short description of the tech-debt finding')
   .option(
     '--triggered-by <task-id>',
-    'Task ID that triggered this debt filing (default: reads .claude/.task-id)',
+    'Task ID that triggered this debt filing (default: the active task)',
   )
   .option('--dir <dir>', 'Target directory / repo root (default: current directory)')
   .action((opts: { description: string; triggeredBy?: string; dir?: string }) => {

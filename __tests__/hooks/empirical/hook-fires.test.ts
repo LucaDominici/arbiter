@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig } from '../../helpers.js'
+import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 
 const STATIC_HOOKS_DIR = join(process.cwd(), 'src/templates/claude/hooks')
 
@@ -266,9 +266,7 @@ describe('pre-compact — empirical fire', () => {
     ;({ dir, hooksDir } = makeHookDir())
     hookPath = renderEjsHook(hooksDir, 'pre-compact.mjs.ejs')
     mkdirSync(join(dir, '.claude'), { recursive: true })
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
-    writeFileSync(join(dir, '.claude', '.task-id'), '#1\n')
-    writeFileSync(join(dir, '.claude', '.task-tier'), 'S\n')
+    writeTaskStateFile(dir, { phase: 'implementation', taskId: '#1', tier: 'S' })
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
@@ -290,9 +288,7 @@ describe('skill-forced-eval — empirical fire', () => {
     ;({ dir, hooksDir } = makeHookDir())
     hookPath = renderEjsHook(hooksDir, 'skill-forced-eval.mjs.ejs')
     mkdirSync(join(dir, '.claude'), { recursive: true })
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'plan\n')
-    writeFileSync(join(dir, '.claude', '.task-id'), '#1\n')
-    writeFileSync(join(dir, '.claude', '.task-tier'), 'S\n')
+    writeTaskStateFile(dir, { phase: 'plan', taskId: '#1', tier: 'S' })
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
@@ -340,9 +336,7 @@ describe('debug-state-on-failure — empirical fire', () => {
     ;({ dir, hooksDir } = makeHookDir())
     hookPath = renderEjsHook(hooksDir, 'debug-state-on-failure.mjs.ejs')
     mkdirSync(join(dir, '.claude'), { recursive: true })
-    writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
-    writeFileSync(join(dir, '.claude', '.task-id'), '#1\n')
-    writeFileSync(join(dir, '.claude', '.task-tier'), 'S\n')
+    writeTaskStateFile(dir, { phase: 'implementation', taskId: '#1', tier: 'S' })
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })

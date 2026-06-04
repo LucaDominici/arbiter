@@ -28,7 +28,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, typescript operational)
     // Updated dual-ADR-cli-single-source: +1 (INV-111 CLI ref parity, selfOnly governance)
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM/FEATURE_MATRIX required at L2+)
-    expect(INVARIANT_CATALOG).toHaveLength(110)
+    // Updated #1206: +1 (INV-113 single authoritative task-phase document, selfOnly governance)
+    expect(INVARIANT_CATALOG).toHaveLength(111)
   })
 
   it('all IDs are unique', () => {
@@ -36,7 +37,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(110)
+    expect(unique.size).toBe(111)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -119,7 +120,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(40)
+    expect(tier5).toHaveLength(41)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -526,8 +527,9 @@ describe('getFilteredInvariants', () => {
 
   it('catalog has exactly 23 selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
+    // Updated #1206: +1 (INV-113 single authoritative task-phase document)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(24)
+    expect(selfOnly).toHaveLength(25)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')

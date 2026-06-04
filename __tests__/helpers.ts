@@ -7,6 +7,31 @@ import { presetToTiers, defaultPresetForLevel } from '../src/invariants/filter.j
 export { DEFAULT_THRESHOLDS } from '../src/config/schema.js'
 
 /**
+ * Write the unified task document (`.claude/.task/status.json`) for a test fixture (#1206).
+ * Replaces the legacy pattern of writing individual `.claude/.task-*` dotfiles.
+ */
+export function writeTaskStateFile(
+  dir: string,
+  fields: { phase?: string; plan?: string; tier?: string; taskId?: string } = {},
+): void {
+  const taskDir = join(dir, '.claude', '.task')
+  mkdirSync(taskDir, { recursive: true })
+  const status = {
+    taskId: fields.taskId ?? '',
+    phase: fields.phase ?? 'preflight',
+    tier: fields.tier ?? '',
+    plan: fields.plan ?? '',
+    cursor: { tddPhase: null, lastAction: '', nextAction: '' },
+    handoffStrategy: null,
+    handoffReady: false,
+    runId: 'test',
+    timestamps: {},
+    gateDecisions: [],
+  }
+  writeFileSync(join(taskDir, 'status.json'), JSON.stringify(status, null, 2) + '\n')
+}
+
+/**
  * Create a temp directory with language-specific marker files.
  */
 export function createTestProject(language: Language = 'unknown'): string {

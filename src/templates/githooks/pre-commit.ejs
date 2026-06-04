@@ -3,7 +3,7 @@
 set -e
 
 # Phase guard: refuse commits during preflight or plan phases
-_phase=$(cat .claude/.task-phase 2>/dev/null || echo "unknown")
+_phase=$(node -e "try{process.stdout.write((JSON.parse(require('fs').readFileSync('.claude/.task/status.json','utf-8')).phase)||'unknown')}catch{process.stdout.write('unknown')}" 2>/dev/null || echo "unknown")
 case "$_phase" in
   preflight|plan)
     echo "ERROR: cannot commit during phase=$_phase. Run: arbiter task advance --to red" >&2

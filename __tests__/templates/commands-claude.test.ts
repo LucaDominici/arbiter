@@ -75,21 +75,21 @@ describe('claude commands: task.md — structural sections', () => {
     expect(content).toMatch(/Standard/)
   })
 
-  it('contains state file writes (.task-id, .task-plan) and arbiter task advance', () => {
+  it('initialises the unified task document via arbiter task init/advance', () => {
     const content = renderTask()
-    expect(content).toMatch(/\.task-id/)
-    expect(content).toMatch(/\.task-plan/)
+    expect(content).toContain('arbiter task init')
     expect(content).toContain('arbiter task advance')
   })
 
   it('sets local exclude entries before writing task state', () => {
     const content = renderTask()
     const excludeIdx = content.indexOf('touch .git/info/exclude')
-    const taskStateIdx = content.indexOf('echo "#NNN" > .claude/.task-id')
+    const taskStateIdx = content.indexOf('arbiter task init --id "#NNN"')
     expect(excludeIdx).toBeGreaterThan(-1)
     expect(taskStateIdx).toBeGreaterThan(excludeIdx)
     for (const pattern of [
       '.claude/.task-*',
+      '.claude/.task/',
       '.claude/plans/',
       '.agents-dispatched',
       '.arbiter/',

@@ -116,7 +116,7 @@ export interface TaskInitOptions {
 
 /**
  * Initialise / update the unified task document from the slash-command shell layer (replaces the
- * historical `echo "#NNN" > .claude/.task-id` writes). Never advances the phase.
+ * historical per-task dotfile writes). Never advances the phase.
  */
 export function runTaskInit(opts: TaskInitOptions = {}): void {
   const root = opts.dir ?? process.cwd()
@@ -200,7 +200,7 @@ export function runTaskRecover(opts: TaskRecoverOptions = {}): void {
     opts.taskId !== undefined && opts.taskId.length > 0 ? opts.taskId : readTaskIdFromDisk(dir)
   if (rawId === undefined) {
     process.stdout.write(
-      'No task id provided and .claude/.task-id missing. Pass --task <id> to recover.\n',
+      'No task id provided and no active task found. Pass --task <id> to recover.\n',
     )
     return
   }

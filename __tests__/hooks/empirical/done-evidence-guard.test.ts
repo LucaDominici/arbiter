@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig } from '../../helpers.js'
+import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 
 function configFor() {
   return makeConfig('/tmp/test', {
@@ -36,9 +36,7 @@ function setup() {
   const hookPath = join(hooksDir, 'guard-done-evidence.mjs')
   writeFileSync(hookPath, renderTemplate('claude/hooks/guard-done-evidence.mjs.ejs', configFor()))
 
-  writeFileSync(join(dir, '.claude', '.task-phase'), 'verification\n')
-  writeFileSync(join(dir, '.claude', '.task-tier'), 'Standard\n')
-  writeFileSync(join(dir, '.claude', '.task-id'), '#407\n')
+  writeTaskStateFile(dir, { phase: 'verification', tier: 'Standard', taskId: '#407' })
 
   // Create a representative pinned file
   const srcDir = join(dir, 'src')
@@ -183,8 +181,8 @@ describe('guard-done-evidence — empirical spawn', () => {
   it('exits 0 on done claim when phase is not verification (phase guard)', () => {
     const { dir, hookPath } = setup()
     try {
-      // Overwrite phase to implementation — hook should stand down
-      writeFileSync(join(dir, '.claude', '.task-phase'), 'implementation\n')
+      // Overwrite phase to a non-verification phase — hook should stand down
+      writeTaskStateFile(dir, { phase: 'green', tier: 'Standard', taskId: '#407' })
       // No evidence file — but hook should exit 0 because phase guard fires first
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(0)

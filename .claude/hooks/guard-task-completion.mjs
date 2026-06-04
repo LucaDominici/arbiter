@@ -2,7 +2,7 @@
 // Arbiter hook: hard-block premature task-completion claims
 // Hook type: UserPromptSubmit — fires before every user prompt
 // Hard block (exit 2) — returns stderr to Claude as error context
-// Reads .claude/.task-phase + prompt to detect early "complete" declarations
+// Reads .claude/.task/status.json + prompt to detect early "complete" declarations
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -17,15 +17,20 @@ function getRepoRoot() {
 }
 
 function readTaskState(root) {
-  function read(file) {
-    const p = join(root, '.claude', file)
-    if (!existsSync(p)) return 'unknown'
-    return readFileSync(p, 'utf-8').trim() || 'unknown'
+  const statusPath = join(root, '.claude', '.task', 'status.json')
+  let state = {}
+  if (existsSync(statusPath)) {
+    try {
+      state = JSON.parse(readFileSync(statusPath, 'utf-8'))
+    } catch {
+      state = {}
+    }
   }
+  const pick = (v) => (typeof v === 'string' && v.length > 0 ? v : 'unknown')
   return {
-    taskId: read('.task-id'),
-    phase: read('.task-phase'),
-    tier: read('.task-tier'),
+    taskId: pick(state.taskId),
+    phase: pick(state.phase),
+    tier: pick(state.tier),
   }
 }
 

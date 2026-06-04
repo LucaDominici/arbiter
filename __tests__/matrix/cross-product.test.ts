@@ -1473,3 +1473,31 @@ describe('cross-product: generated check-all.mjs — runner allowlist covers RUN
     expect(violationLine).not.toContain('docker-ci-build')
   })
 })
+
+// ─── Claude commands: ship.md (#1206) ──────────────────────────────────────────
+
+describe('cross-product: ship.md — orchestrator content across all stacks × levels', () => {
+  function renderShip(lang: Language, level: GovernanceLevel): string {
+    return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
+  }
+
+  for (const lang of LANGUAGES) {
+    for (const level of LEVELS) {
+      it(`${lang}+${level}: loop commands + testCommand "${TEST_COMMANDS[lang]}" present`, () => {
+        const out = renderShip(lang, level)
+        expect(out).toContain('arbiter ship')
+        expect(out).toContain('arbiter mark')
+        expect(out).toContain(TEST_COMMANDS[lang])
+      })
+    }
+  }
+
+  for (const lang of LANGUAGES) {
+    it(`${lang}+L1: omits tier-classification guidance`, () => {
+      expect(renderShip(lang, 'L1')).not.toContain('sets the number of review agents')
+    })
+    it(`${lang}+L4: includes tier-classification guidance`, () => {
+      expect(renderShip(lang, 'L4')).toContain('sets the number of review agents')
+    })
+  }
+})

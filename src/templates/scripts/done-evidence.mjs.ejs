@@ -33,7 +33,7 @@ process.chdir(_rootResult.stdout.trim());
 
 const EVIDENCE_PATH = '.claude/.last-done-evidence.json';
 const CONFIG_PATH = 'evidence-files.json';
-const TASK_ID_PATH = '.claude/.task-id';
+const STATUS_PATH = '.claude/.task/status.json';
 
 /** Read evidence-files.json config or exit 1 on corrupt JSON. */
 function loadConfig() {
@@ -155,9 +155,14 @@ for (const dir of pinDirs) {
 
 // ─── Step 3: Read task ID ─────────────────────────────────────────────────────
 
-const taskId = existsSync(TASK_ID_PATH)
-  ? readFileSync(TASK_ID_PATH, 'utf-8').trim()
-  : 'unknown';
+let taskId = 'unknown';
+if (existsSync(STATUS_PATH)) {
+  try {
+    taskId = JSON.parse(readFileSync(STATUS_PATH, 'utf-8')).taskId || 'unknown';
+  } catch {
+    taskId = 'unknown';
+  }
+}
 
 // ─── Step 4: Write evidence JSON ──────────────────────────────────────────────
 

@@ -97,19 +97,24 @@ export function getRepoRoot() {
 }
 
 /**
- * Reads task state files from .claude/ in the given root directory.
- * Returns defaults ('unknown') for any missing files.
+ * Reads task state from the unified document `.claude/.task/status.json` in the given root.
+ * Returns defaults ('unknown') when the document is absent or unreadable.
  */
 export function readTaskState(root) {
-  function read(file) {
-    const p = join(root, '.claude', file)
-    if (!existsSync(p)) return 'unknown'
-    return readFileSync(p, 'utf-8').trim() || 'unknown'
+  const statusPath = join(root, '.claude', '.task', 'status.json')
+  let state = {}
+  if (existsSync(statusPath)) {
+    try {
+      state = JSON.parse(readFileSync(statusPath, 'utf-8'))
+    } catch {
+      state = {}
+    }
   }
+  const pick = (v) => (typeof v === 'string' && v.length > 0 ? v : 'unknown')
   return {
-    taskId: read('.task-id'),
-    phase: read('.task-phase'),
-    plan: read('.task-plan'),
-    tier: read('.task-tier'),
+    taskId: pick(state.taskId),
+    phase: pick(state.phase),
+    plan: pick(state.plan),
+    tier: pick(state.tier),
   }
 }

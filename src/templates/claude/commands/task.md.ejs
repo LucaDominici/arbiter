@@ -108,9 +108,9 @@ Phase 6 below.
 - **Plan depth:** <%= _tiers.Standard.planDepth %>
 - **Review agents:** <% if (_collaborationMode === 'trunk-solo') { %>1<% } else { %><%= _tiers.Standard.reviewAgentCount %><% } %> review agents minimum.
 
-Write the selected tier to the state file:
+Write the selected tier to the unified task document:
 ```bash
-echo "<tier>" > .claude/.task-tier
+arbiter task init --tier <tier>
 ```
 <% } %>
 
@@ -177,15 +177,14 @@ Ensure runtime state stays local-only before writing task state:
 ```bash
 mkdir -p .git/info .claude/plans
 touch .git/info/exclude
-for pattern in ".claude/.task-*" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
+for pattern in ".claude/.task-*" ".claude/.task/" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
   grep -qxF "$pattern" .git/info/exclude || printf "%s\n" "$pattern" >> .git/info/exclude
 done
 ```
 
-Write state files:
+Write task state:
 ```bash
-echo "#NNN" > .claude/.task-id
-echo ".claude/plans/task-NNN.md" > .claude/.task-plan
+arbiter task init --id "#NNN" --plan ".claude/plans/task-NNN.md"
 arbiter task advance --to plan
 ```
 <% } %>

@@ -95,9 +95,9 @@ describe('claude commands — governance level L2', () => {
     expect(content).toMatch(/\bCleanup\b/)
   })
 
-  it('includes state file writes and arbiter task advance', () => {
+  it('includes unified task-document init and arbiter task advance', () => {
     const content = renderTaskForLevel('L2')
-    expect(content).toMatch(/\.task-id/)
+    expect(content).toContain('arbiter task init')
     expect(content).toContain('arbiter task advance')
   })
 
@@ -122,6 +122,6 @@ describe('claude commands — governance level L3', () => {
     const content = renderTaskForLevel('L3')
     expect(content).toMatch(/agents-dispatched/)
     expect(content).toMatch(/wt-open/)
-    expect(content).toMatch(/\.task-id/)
+    expect(content).toContain('arbiter task init')
   })
 })

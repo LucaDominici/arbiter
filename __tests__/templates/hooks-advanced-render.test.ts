@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { generateClaude } from '../../src/generators/claude.js'
-import { makeConfig } from '../helpers.js'
+import { makeConfig, writeTaskStateFile } from '../helpers.js'
 import type { Language, GovernanceLevel } from '../../src/wizard/types.js'
 
 /**
@@ -113,9 +113,10 @@ describe('hooks/pre-edit-plan-anchor.mjs.ejs', () => {
     expect(out).toContain("'refactor'")
   })
 
-  it('reads from .task-plan state file', () => {
+  it('reads the plan pointer via the unified task state', () => {
     const out = renderTemplate('claude/hooks/pre-edit-plan-anchor.mjs.ejs', configFor('typescript'))
-    expect(out).toContain('.task-plan')
+    expect(out).toContain('readTaskState')
+    expect(out).toContain('plan')
   })
 
   it('imports readTaskState from lib.mjs', () => {
@@ -426,8 +427,7 @@ describe('hooks/guard-task-completion.mjs.ejs', () => {
         hookPath,
         renderTemplate('claude/hooks/guard-task-completion.mjs.ejs', configFor('typescript')),
       )
-      writeFileSync(join(dir, '.claude', '.task-phase'), 'red\n')
-      writeFileSync(join(dir, '.claude', '.task-tier'), 'Standard\n')
+      writeTaskStateFile(dir, { phase: 'red', tier: 'Standard' })
       writeFileSync(join(dir, '.agents-dispatched'), '4\n')
 
       const result = spawnSync('node', [hookPath], {

@@ -161,6 +161,7 @@ if (isMain) {
   runCheck('adr index (INV-107)', 'node', ['scripts/check-adr-index.mjs'])
   runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])
   runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
+  runCheck('phase doc consistency (INV-113)', 'node', ['scripts/check-phase-doc-consistency.mjs'])
   runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
   runCheck('canon references', 'node', ['scripts/check-canon-references.mjs'])

@@ -370,6 +370,45 @@ function emitHealthOutput(checks: HealthCheck[], pass: number, warn: number, fai
   process.stdout.write(`\n  ${pass} passed, ${warn} warnings, ${fail} failed\n\n`)
 }
 
+/** Validate the unified task document (#1206, INV-113) when an active task is present. */
+function checkTaskDocument(dir: string): HealthCheck {
+  const statusPath = join(dir, '.claude', '.task', 'status.json')
+  const id = 'task-document'
+  const label = 'unified task document'
+  if (!existsSync(statusPath)) {
+    return { id, label, status: 'PASS', detail: 'no active task (.claude/.task/ absent)' }
+  }
+  try {
+    const state = JSON.parse(readFileSync(statusPath, 'utf-8')) as {
+      phase?: string
+      taskId?: string
+    }
+    if (typeof state.phase !== 'string' || state.phase.length === 0) {
+      return {
+        id,
+        label,
+        status: 'WARN',
+        detail: '.claude/.task/status.json is missing a "phase" field',
+        hint: 'Re-run `arbiter task init` / `arbiter task advance` to repair task state.',
+      }
+    }
+    return {
+      id,
+      label,
+      status: 'PASS',
+      detail: `active task ${state.taskId || '(unset)'} at phase=${state.phase}`,
+    }
+  } catch (err) {
+    return {
+      id,
+      label,
+      status: 'WARN',
+      detail: `.claude/.task/status.json is not valid JSON — ${err instanceof Error ? err.message : String(err)}`,
+      hint: 'Delete .claude/.task/ and re-initialise with `arbiter task init`.',
+    }
+  }
+}
+
 export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<DoctorHealthResult> {
   const dir = resolve(opts.dir ?? '.')
   const [gitCheck, gitOk] = checkGitAvailable(dir)
@@ -378,6 +417,7 @@ export async function runDoctorHealth(opts: DoctorHealthOptions = {}): Promise<D
     gitCheck,
     ...checkArbiterProject(dir, gitOk),
     checkChannelSetting(dir, opts.channelFlag),
+    checkTaskDocument(dir),
     checkGatePassLog(dir),
   ]
 

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
-import { makeConfig } from '../../helpers.js'
+import { makeConfig, writeTaskStateFile } from '../../helpers.js'
 
 function configFor() {
   return makeConfig('/tmp/test', {
@@ -27,8 +27,7 @@ function setup(phase: string) {
   const hookPath = join(hooksDir, 'guard-task-completion.mjs')
   writeFileSync(hookPath, renderTemplate('claude/hooks/guard-task-completion.mjs.ejs', configFor()))
 
-  writeFileSync(join(dir, '.claude', '.task-phase'), phase + '\n')
-  writeFileSync(join(dir, '.claude', '.task-tier'), 'Standard\n')
+  writeTaskStateFile(dir, { phase, tier: 'Standard' })
   writeFileSync(join(dir, '.agents-dispatched'), '4\n')
 
   return { dir, hookPath }

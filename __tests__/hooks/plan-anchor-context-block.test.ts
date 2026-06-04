@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { writeTaskStateFile } from '../helpers.js'
 
 const REPO_ROOT = resolve(process.cwd())
 const HOOK = join(REPO_ROOT, '.claude/hooks/pre-edit-plan-anchor.mjs')
@@ -98,12 +99,10 @@ function runHook(
   const tmpDir = mkdtempSync(join(tmpdir(), 'arbiter-plan-anchor-'))
   const claudeDir = join(tmpDir, '.claude')
   const planFile = join(tmpDir, 'plan.md')
-  const taskPlanFile = join(claudeDir, '.task-plan')
 
   mkdirSync(claudeDir, { recursive: true })
-  writeFileSync(join(claudeDir, '.task-phase'), 'red\n')
   writeFileSync(planFile, planContent)
-  writeFileSync(taskPlanFile, planFile)
+  writeTaskStateFile(tmpDir, { phase: 'red', plan: planFile })
 
   const env = {
     ...process.env,

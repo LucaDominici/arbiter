@@ -260,6 +260,8 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/gen-cli-ref.mjs --check` (L1, selfOnly — arbiter self-governance only)
 - **INV-112:** RTM/FEATURE_MATRIX required at L2+; serious-test DoD at L3+; 21CFR audit-trail at L4
   - _Enforcement:_ `scripts/check-feature-matrix.mjs` (L1, fail-closed status ladder + KIT-dim coverage + counter integrity + level-gated DoD)
+- **INV-113:** Single authoritative task-phase document — no split-brain dotfiles
+  - _Enforcement:_ `scripts/check-phase-doc-consistency.mjs` (L1; bans legacy `.task-*` dotfile literals in src/\*\* except the migration shim + validates `.claude/.task/status.json`)
 
 - **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
   - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)

@@ -610,3 +610,11 @@ Every project at L2+ must ship and maintain a `docs/FEATURE_MATRIX.md` (RTM) cov
 **Enforcement:** scripts/check-feature-matrix.mjs (L1, fail-closed): validates status ladder, KIT-dim coverage, counter integrity, ref existence, and level-gated DoD rules. Generated for target projects at L2+ by `src/generators/feature-matrix.ts` (CANON-23).
 
 ---
+
+### INV-113: Single authoritative task-phase document — no split-brain dotfiles
+
+Task lifecycle state is sourced from ONE authoritative document pair: `.claude/.task/status.json` (structured phase + step-cursor + metadata) and `.claude/.task/log.md` (append-only digest). The legacy split-brain — flat `.claude/.task-*` dotfiles plus a per-id status.json that froze at `phase:red` — is abolished. All phase writes route through one atomic read-modify-write so the document can never diverge, and every reader (engine, generated hooks, shell consumers) reads the unified document. No source or template code may read or write the legacy flat dotfiles; only the migration shim `src/commands/task-state.ts` may name them (to consume-and-delete during migration).
+
+**Enforcement:** scripts/check-phase-doc-consistency.mjs (L1): scans `src/**` for legacy `.task-*` dotfile-name literals (allowlisting the migration shim) and validates `.claude/.task/status.json` well-formedness when present. Wired into scripts/check-all.mjs L1.
+
+---

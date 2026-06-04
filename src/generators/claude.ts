@@ -320,6 +320,7 @@ function generateClaudeCommands(
   const commandsDir = resolvedPath(base, '.claude', 'commands')
   const commands = [
     'task.md',
+    'ship.md',
     'wt-open.md',
     'wt-close.md',
     'wt-list.md',
