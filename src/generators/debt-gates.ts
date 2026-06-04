@@ -182,5 +182,24 @@ export function generateDebtGates(
     )
   }
 
+  if (config.language === 'kotlin') {
+    pushKotlinDebtGates(results, base, data, opts.dryRun)
+  }
+
   return { files: results }
+}
+
+function pushKotlinDebtGates(
+  results: WriteResult[],
+  base: string,
+  data: object,
+  dryRun: boolean,
+): void {
+  results.push(
+    writeFile(
+      resolvedPath(base, 'config', 'detekt', 'detekt.yml'),
+      renderTemplate('static-analysis/detekt.yml.ejs', data),
+      { skipIfExists: true, dryRun },
+    ),
+  )
 }

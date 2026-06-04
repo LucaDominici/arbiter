@@ -1,0 +1,11 @@
+{
+  "language": "kotlin",
+  "archetype": "backend-web-db",
+  "buildTool": "gradle",
+  "levels": ["L1", "L2", "L3"],
+  "tier": "snapshot",
+  "note": "Kotlin with Spring Boot — JVM stack; detekt for static analysis, kover for coverage, ArchUnit via JVM bytecode inspection",
+  "architectureStyle": "hexagonal",
+  "basePackage": "com.example",
+  "collaborationMode": "peer-review"
+}

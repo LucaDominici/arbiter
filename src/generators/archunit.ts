@@ -111,7 +111,10 @@ export function generateArchUnit(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): ArchUnitGeneratorResult {
-  if (config.language !== 'java') return { files: [] }
+  // #1177: Kotlin compiles to JVM bytecode; ArchUnit reads bytecode and works unchanged.
+  // Java test files are emitted into src/test/java — Kotlin Gradle projects can mix source sets.
+  // Operators must add `sourceSets { test { java { srcDirs += 'src/test/java' } } }` if needed.
+  if (config.language !== 'java' && config.language !== 'kotlin') return { files: [] }
 
   if (!KNOWN_STYLES.has(config.architectureStyle)) {
     throw new Error(

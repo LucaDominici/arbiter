@@ -16,4 +16,10 @@ sonar.sources=src
 sonar.tests=__tests__
 sonar.javascript.lcov.reportPaths=coverage/lcov.info
 sonar.exclusions=**/node_modules/**,**/dist/**,**/*.test.ts,**/*.spec.ts
+<% } else if (language === 'kotlin') { %>
+sonar.sources=src/main/kotlin
+sonar.tests=src/test/kotlin,src/test/java
+sonar.java.coveragePlugin=jacoco
+sonar.coverage.jacoco.xmlReportPaths=build/reports/kover/report.xml
+sonar.exclusions=**/generated/**,**/build/**
 <% } %>
