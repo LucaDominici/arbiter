@@ -115,6 +115,15 @@ runCheck('unit tests', 'go', ['test', './...']);
 runCheck('lint', 'ruff', ['check', '.']);
 runCheck('format', 'ruff', ['format', '--check', '.']);
 runCheck('unit tests', 'pytest', []);
+<% } %><% if (language === 'kotlin' && buildTool === 'gradle') { %>
+// ─── L1: Kotlin gate (#1194) ──────────────────────────────────────────────────
+// HARD: unit tests via Gradle (not a beta tool — the real enforcement hole).
+runCheck('unit tests', './gradlew', ['test', '-q']);
+// SOFT (CANON-02 is proven⇒gated, one-directional; beta MAY be soft-gated):
+// detekt — the Gradle plugin is operator-applied (config/detekt/detekt.yml emitted
+// by arbiter; plugin must be declared manually per detekt.yml header). Soft so a
+// fresh project that has not yet wired the plugin does not false-fail its own gate.
+runCheck('detekt (beta)', './gradlew', ['detekt'], { soft: true });
 <% } %>
 
 // ─── L1: Test naming convention (M27) ────────────────────────────────────────
@@ -461,6 +470,15 @@ if (level === 'L2') {
     { soft: graceActive },
   );
 <% } %>
+<% } %><% if (language === 'kotlin' && buildTool === 'gradle') { %>
+<% if (architectureStyle !== 'none' && basePackage) { %>
+  // ─── L2: Kotlin architecture tests via ArchUnit (#1194, beta) ─────────────
+  // SOFT: ArchUnit reads JVM bytecode (works on Kotlin), but the Java tests in
+  // src/test/java only run if build.gradle adds:
+  //   sourceSets { test { java { srcDirs += 'src/test/java' } } }
+  // CANON-02 is proven⇒gated (one-directional); beta tools may be soft-gated.
+  runCheck('architecture tests (beta)', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: true });
+<% } %>
 <% } %>
 <% if (enableDebtGates) { %>
   // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────
@@ -575,10 +593,21 @@ if (level === 'L2') {
 <% } %>
   runCheck('complexity', 'ruff', ['check', '--select', 'C901,PLR0911,PLR0912,PLR0913,PLR0915', '.'], { soft: graceActive });
   runCheck('unused imports', 'ruff', ['check', '--select', 'F401,F811', '.'], { soft: graceActive });
+<% } %><% if (language === 'kotlin' && buildTool === 'gradle') { %>
+<% if (coverageEnabled) { %>
+  // ─── L2: Kotlin coverage via Kover (#1194, beta) ──────────────────────────
+  // SOFT: kover Gradle plugin is operator-applied (kover.gradle emitted by arbiter,
+  // plugin must be declared manually in build.gradle plugins block per kover.gradle
+  // header). koverVerify enforces minValue=<%= coverageThreshold %>%.
+  // CANON-02 is proven⇒gated (one-directional); beta tools may be soft-gated.
+  runCheck('coverage (kover, beta)', './gradlew', ['koverVerify', 'koverXmlReport'], { soft: true });
+<% } %>
 <% } %>
   // ─── L2: Mutation testing gate (#347, INV-30, CANON-02/09/15) ───────────────
   // Proven cells: java (pitest), typescript (stryker). Rust/Python (beta) and Go (unsafe)
-  // are intentionally not wired — CANON-02 forbids gating beta/unsafe tools.
+  // are not wired. CANON-02 is proven⇒gated (one-directional); Kotlin (beta) kover is
+  // soft-gated above (plugin operator-applied, not auto-wired by arbiter). Kotlin pitest
+  // is not wired (beta cell, separate from kover coverage).
   // Threshold (mutationThreshold) is rendered into the tool config (stryker.conf.json,
   // pitest.gradle) by generateMutation at L3. At L2 the gate runs against whatever
   // config is present locally; the helper is `runToolCheck` for stryker (npx auto-fetch
