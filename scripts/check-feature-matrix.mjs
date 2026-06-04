@@ -50,8 +50,10 @@ function resolveLevel() {
     try {
       const cfg = JSON.parse(readFileSync(arbiterJsonPath, 'utf-8'))
       if (cfg.governanceLevel && /^L[1-4]$/.test(cfg.governanceLevel)) return cfg.governanceLevel
-    } catch {
-      // ignore parse errors
+    } catch (err) {
+      process.stdout.write(
+        `  check-feature-matrix: WARN — cannot parse arbiter.json at ${arbiterJsonPath}, defaulting to L2: ${err instanceof Error ? err.message : String(err)}\n`,
+      )
     }
   }
   return 'L2' // default
