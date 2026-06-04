@@ -238,3 +238,38 @@ describe('check-feature-matrix.mjs --check', () => {
     expect(stdout).not.toContain('lack a tracked issue_ref')
   })
 })
+
+describe('KIT catalog error handling (#1196)', () => {
+  const MINIMAL_MATRIX = makeMatrix([
+    `| REQ-001 | Architecture | N01 | L2 | Partial | src/foo.ts | | | | |`,
+  ])
+
+  it('exits 2 when KIT catalog exists but contains corrupt JSON', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'check-fm-corrupt-'))
+    try {
+      mkdirSync(join(dir, 'docs', 'PRODUCT'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md'), MINIMAL_MATRIX, 'utf-8')
+      mkdirSync(join(dir, 'src', 'kit'), { recursive: true })
+      writeFileSync(join(dir, 'src', 'kit', 'catalog.json'), '{ not valid json', 'utf-8')
+      const r = spawnSync('node', [SCRIPT, '--check'], { encoding: 'utf-8', cwd: dir })
+      expect(r.status).toBe(2)
+      expect((r.stdout ?? '') + (r.stderr ?? '')).toContain('cannot read/parse KIT catalog')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 0 with WARN when KIT catalog is absent (intentional fail-open)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'check-fm-nocatalog-'))
+    try {
+      mkdirSync(join(dir, 'docs', 'PRODUCT'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'PRODUCT', 'FEATURE_MATRIX.md'), MINIMAL_MATRIX, 'utf-8')
+      // no src/kit/catalog.json
+      const r = spawnSync('node', [SCRIPT, '--check'], { encoding: 'utf-8', cwd: dir })
+      expect(r.status).toBe(0)
+      expect((r.stdout ?? '') + (r.stderr ?? '')).toContain('KIT catalog not found')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
