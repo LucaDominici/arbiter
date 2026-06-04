@@ -13,5 +13,7 @@
   "documentation": [],
   "configuration": [],
   "audit_trail": [],
-  "a11y": ["a11y"]
+  "a11y": ["a11y"],
+  "module_boundaries": [],
+  "resilience": []
 }

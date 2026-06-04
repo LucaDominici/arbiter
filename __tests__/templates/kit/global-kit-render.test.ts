@@ -42,7 +42,7 @@ beforeAll(() => {
   )
 })
 
-describe('GLOBAL_KIT.md.ejs renders all 76 dims', () => {
+describe('GLOBAL_KIT.md.ejs renders all dims', () => {
   it('renders without throw', () => {
     expect(() => renderGlobal(derived)).not.toThrow()
   })
@@ -57,7 +57,7 @@ describe('GLOBAL_KIT.md.ejs renders all 76 dims', () => {
     }
   })
 
-  it('contains all 76 dim IDs', () => {
+  it('contains all dim IDs', () => {
     const output = renderGlobal(derived)
     for (const dim of derived) {
       expect(output, `missing id ${dim.id}`).toContain(dim.id)

@@ -83,19 +83,46 @@ export function generateCoverage(
     results.push(...emitRustCoverage(base, config, data, opts.dryRun))
   }
 
-  if (config.language === 'python') {
-    results.push(
+  // #1177: python + kotlin extracted to keep generateCoverage complexity ≤ 15.
+  // Go: no config file — gate script handles coverage inline
+  results.push(...emitSingleFileCoverage(config.language, base, data, opts.dryRun))
+
+  return { files: results }
+}
+
+function emitSingleFileCoverage(
+  language: string,
+  base: string,
+  data: Record<string, unknown>,
+  dryRun: boolean,
+): WriteResult[] {
+  if (language === 'python') {
+    return [
       writeFile(
         resolvedPath(base, '.coveragerc'),
         renderTemplate('coverage/.coveragerc.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
+        { skipIfExists: true, dryRun },
       ),
-    )
+    ]
   }
+  if (language === 'kotlin') {
+    return emitKotlinCoverage(base, data, dryRun)
+  }
+  return []
+}
 
-  // Go: no config file — gate script handles coverage inline
-
-  return { files: results }
+function emitKotlinCoverage(
+  base: string,
+  data: Record<string, unknown>,
+  dryRun: boolean,
+): WriteResult[] {
+  return [
+    writeFile(
+      resolvedPath(base, 'kover.gradle'),
+      renderTemplate('coverage/kover.gradle.ejs', data),
+      { skipIfExists: true, dryRun },
+    ),
+  ]
 }
 
 /**

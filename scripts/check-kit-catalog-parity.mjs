@@ -196,5 +196,7 @@ if (anyFail) {
   process.exit(1)
 }
 
-process.stdout.write('[INV-86] kit catalog parity PASS (76 dims, all checks green)\n')
+process.stdout.write(
+  `[INV-86] kit catalog parity PASS (${catalog.length} dims, all checks green)\n`,
+)
 process.exit(0)

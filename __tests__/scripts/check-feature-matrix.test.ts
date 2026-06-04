@@ -217,4 +217,24 @@ describe('check-feature-matrix.mjs --check', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('emits WARN and exits 0 when Partial row has empty issue_ref (non-blocking)', () => {
+    // Partial row with non-empty code_ref but no issue_ref — WARN fires, gate still passes
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | | no issue tracked |`,
+    ])
+    const { status, stdout } = runWithMatrix(matrix)
+    expect(status).toBe(0)
+    expect(stdout).toContain('lack a tracked issue_ref')
+  })
+
+  it('does NOT emit WARN when Partial row has issue_ref populated', () => {
+    // Partial row with code_ref AND issue_ref — no governance-gap warning
+    const matrix = makeMatrix([
+      `| REQ-001 | Architecture | ${ALL_DIMS} | L2 | Partial | src/foo.ts | | | #42 | tracked |`,
+    ])
+    const { status, stdout } = runWithMatrix(matrix)
+    expect(status).toBe(0)
+    expect(stdout).not.toContain('lack a tracked issue_ref')
+  })
 })

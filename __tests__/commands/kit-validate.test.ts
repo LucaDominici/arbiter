@@ -34,7 +34,7 @@ describe('runKitValidate — happy path with live data', () => {
     expect(exitCode).toBe(0)
     const output = stdoutSpy.mock.calls.map((c) => String(c[0])).join('')
     expect(output).toContain('[arbiter kit validate] OK')
-    expect(output).toContain('77 dims')
+    expect(output).toContain('78 dims')
   })
 })
 

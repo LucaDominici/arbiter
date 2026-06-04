@@ -1354,7 +1354,6 @@ describe('cross-product: workflow templates — SHA-pinned action refs (INV-76, 
     { tpl: 'github/workflows/drift-shadow.yml.ejs', level: 'L2', expectRefs: true },
     { tpl: 'github/workflows/_ai-draft-check.yml.ejs', level: 'L2', expectRefs: true },
     { tpl: 'github/workflows/_sigstore-retry-sign.yml.ejs', level: 'L2', expectRefs: true },
-    { tpl: 'github/workflows/semantic-review.yml.ejs', level: 'L2', expectRefs: true },
     { tpl: 'github/workflows/issue-state.yml.ejs', level: 'L2', expectRefs: true },
     { tpl: 'github/workflows/_label-sync.yml.ejs', level: 'L2', expectRefs: true },
     { tpl: 'github/workflows/_post-merge-notify.yml.ejs', level: 'L2', expectRefs: true },
@@ -1439,7 +1438,6 @@ describe('cross-product: workflow templates — top-level permissions block (INV
     { tpl: 'github/workflows/_notify.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/_post-merge-notify.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/_pr-staleness.yml.ejs', level: 'L2' },
-    { tpl: 'github/workflows/semantic-review.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/_sigstore-retry-sign.yml.ejs', level: 'L2' },
   ]
 

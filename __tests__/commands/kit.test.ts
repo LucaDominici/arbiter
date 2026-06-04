@@ -71,17 +71,17 @@ describe('kit CLI', () => {
     mockWrite.mockRestore()
   })
 
-  it('kit list --format=table outputs 77 rows', () => {
+  it('kit list --format=table outputs 78 rows', () => {
     runKitList({ format: 'table' })
     const lines = stdout.split('\n').filter((l) => l.startsWith('N'))
-    expect(lines.length).toBe(77)
+    expect(lines.length).toBe(78)
   })
 
-  it('kit list --format=json outputs valid JSON array with 77 elements', () => {
+  it('kit list --format=json outputs valid JSON array with 78 elements', () => {
     runKitList({ format: 'json' })
     const parsed = JSON.parse(stdout)
     expect(Array.isArray(parsed)).toBe(true)
-    expect(parsed.length).toBe(77)
+    expect(parsed.length).toBe(78)
     // Each element has required fields
     for (const dim of parsed) {
       expect(dim.id).toBeDefined()
@@ -90,11 +90,11 @@ describe('kit CLI', () => {
     }
   })
 
-  it('kit list --format=csv has header + 77 data rows', () => {
+  it('kit list --format=csv has header + 78 data rows', () => {
     runKitList({ format: 'csv' })
     // CSV uses \r\n as line ending per RFC 4180
     const lines = stdout.split('\r\n').filter(Boolean)
-    expect(lines.length).toBe(78) // header + 77 rows
+    expect(lines.length).toBe(79) // header + 78 rows
     expect(lines[0]).toContain('id')
     expect(lines[0]).toContain('name')
     expect(lines[0]).toContain('tml')

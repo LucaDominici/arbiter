@@ -376,6 +376,15 @@ if (levelAtLeast(effectiveLevel, 'L4') && auditTrailDims.size > 0) {
   }
 }
 
+// 6. Governance visibility: Partial rows lacking a tracked follow-up issue_ref (warn-only, INV-112)
+const partialNoIssue = rows.filter((r) => r.status === 'Partial' && !/#\d+/.test(r.issueRef.trim()))
+if (partialNoIssue.length > 0) {
+  const totalPartial = rows.filter((r) => r.status === 'Partial').length
+  process.stdout.write(
+    `  check-feature-matrix: WARN — ${partialNoIssue.length}/${totalPartial} Partial rows lack a tracked issue_ref (governance gap, non-blocking): ${partialNoIssue.map((r) => r.featureId).join(', ')}\n`,
+  )
+}
+
 // ─── Report ──────────────────────────────────────────────────────────────────
 if (failures.length === 0) {
   process.stdout.write(

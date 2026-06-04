@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1192",
+  "test_path": "__tests__/scripts/check-feature-matrix.test.ts",
+  "test_commit_sha": "3993e1ecb80f90fdc2865bf7d2736e2b5ac50fa1",
+  "test_run_log": "\n RUN  v4.1.7 /home/luca/work/repos/arbiter.worktrees/1192-feature-matrix-governance\n\n FAIL  __tests__/scripts/check-feature-matrix.test.ts > check-feature-matrix.mjs --check > emits WARN and exits 0 when Partial row has empty issue_ref (non-blocking)\nAssertionError: expected '  check-feature-matrix: OK — 1 rows, …' to contain 'lack a tracked issue_ref'\n\n Test Files  1 failed (1)\n      Tests  1 failed | 12 passed (13)\n   Start at  15:22:06\n   Duration  347ms\n",
+  "observed_failure": "stdout does not contain 'lack a tracked issue_ref' — WARN block did not exist at RED phase",
+  "recorded_at": "2026-06-04T15:22:06.000Z"
+}

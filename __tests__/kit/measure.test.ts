@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest'
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from 'vitest'
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { measureDim, clearMeasureCache, type MeasureResult } from '../../src/kit/measure.js'
@@ -727,5 +727,55 @@ describe('module_boundaries — N77: spring-modulith', () => {
     const result = measureDim(dim('N77', 'module_boundaries'), fixtureRoot)
     expect(result.status).toBe('present')
     expect(result.evidence.length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('resilience — N78: resilience patterns guide', () => {
+  let resRoot: string
+
+  beforeEach(() => {
+    resRoot = mkdtempSync(join(tmpdir(), 'n78-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(resRoot, { recursive: true, force: true })
+  })
+
+  it('returns present when docs/GOVERNANCE/RESILIENCE.md exists', () => {
+    mkdirSync(join(resRoot, 'docs', 'GOVERNANCE'), { recursive: true })
+    writeFileSync(join(resRoot, 'docs', 'GOVERNANCE', 'RESILIENCE.md'), '# Resilience\n')
+    clearMeasureCache()
+    const result = measureDim(dim('N78', 'resilience'), resRoot)
+    expect(result.status).toBe('present')
+    expect(result.evidence).toContain('docs/GOVERNANCE/RESILIENCE.md')
+  })
+
+  it('returns present when cockatiel in package.json', () => {
+    writeFileSync(
+      join(resRoot, 'package.json'),
+      JSON.stringify({ dependencies: { cockatiel: '^3.0.0' } }),
+    )
+    clearMeasureCache()
+    const result = measureDim(dim('N78', 'resilience'), resRoot)
+    expect(result.status).toBe('present')
+    expect(result.evidence).toContain('package.json')
+  })
+
+  it('returns present when resilience4j in pom.xml', () => {
+    writeFileSync(
+      join(resRoot, 'pom.xml'),
+      '<dependency><groupId>io.github.resilience4j</groupId></dependency>',
+    )
+    clearMeasureCache()
+    const result = measureDim(dim('N78', 'resilience'), resRoot)
+    expect(result.status).toBe('present')
+    expect(result.evidence).toContain('pom.xml')
+  })
+
+  it('returns missing when no resilience signals found', () => {
+    clearMeasureCache()
+    const result = measureDim(dim('N78', 'resilience'), resRoot)
+    expect(result.status).toBe('missing')
+    expect(result.evidence).toHaveLength(0)
   })
 })

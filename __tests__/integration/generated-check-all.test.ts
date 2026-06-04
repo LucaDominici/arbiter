@@ -171,7 +171,7 @@ describe('generated check-all.mjs syntax (#172 smoke)', () => {
 // Parametrised smoke tests: generate + node --check across remaining stacks × levels (#1026)
 type SmokeCase = {
   label: string
-  language: 'java' | 'go' | 'python' | 'rust' | 'typescript'
+  language: 'java' | 'go' | 'python' | 'rust' | 'typescript' | 'kotlin'
   buildTool: string
   governanceLevel: 'L1' | 'L2' | 'L3' | 'L4'
   enableSecurityScanning: boolean
@@ -345,6 +345,39 @@ const SMOKE_CASES: SmokeCase[] = [
     enableSecurityScanning: true,
     enableDebtGates: true,
   },
+  // Kotlin — gradle, all levels (#1194)
+  {
+    label: 'kotlin/gradle L1',
+    language: 'kotlin',
+    buildTool: 'gradle',
+    governanceLevel: 'L1',
+    enableSecurityScanning: false,
+    enableDebtGates: false,
+  },
+  {
+    label: 'kotlin/gradle L2',
+    language: 'kotlin',
+    buildTool: 'gradle',
+    governanceLevel: 'L2',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'kotlin/gradle L3',
+    language: 'kotlin',
+    buildTool: 'gradle',
+    governanceLevel: 'L3',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
+  {
+    label: 'kotlin/gradle L4',
+    language: 'kotlin',
+    buildTool: 'gradle',
+    governanceLevel: 'L4',
+    enableSecurityScanning: true,
+    enableDebtGates: true,
+  },
 ]
 
 describe('generated check-all.mjs extended syntax smoke (#1026)', () => {
@@ -377,4 +410,82 @@ describe('generated check-all.mjs extended syntax smoke (#1026)', () => {
       }
     },
   )
+})
+
+// Kotlin gate wiring behavioral assertions (#1194)
+// Red-Green proof: these fail before the EJS branches are added, pass after.
+describe('kotlin/gradle gate wiring (#1194)', () => {
+  it('L1 output contains HARD unit-test invocation and SOFT detekt (beta)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-kotlin-l1-'))
+    try {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: 'kotlin',
+          buildTool: 'gradle',
+          governanceLevel: 'L1',
+          enableSecurityScanning: false,
+          enableDebtGates: false,
+        }),
+      )
+      const scriptPath = join(dir, 'scripts', 'check-all.mjs')
+      const content = readFileSync(scriptPath, 'utf-8')
+      // HARD check — unit tests must block the gate on failure
+      expect(content).toContain("runCheck('unit tests', './gradlew', ['test', '-q'])")
+      // SOFT check — detekt is beta (operator-applied plugin); must not HARD-fail a fresh project
+      expect(content).toContain(
+        "runCheck('detekt (beta)', './gradlew', ['detekt'], { soft: true })",
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('L2 output contains SOFT ArchUnit invocation when architectureStyle is set (#1194)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-kotlin-l2-arch-'))
+    try {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: 'kotlin',
+          buildTool: 'gradle',
+          governanceLevel: 'L2',
+          enableSecurityScanning: true,
+          enableDebtGates: true,
+          architectureStyle: 'hexagonal',
+          basePackage: 'com.example',
+        }),
+      )
+      const scriptPath = join(dir, 'scripts', 'check-all.mjs')
+      const content = readFileSync(scriptPath, 'utf-8')
+      // ArchUnit is beta — SOFT via { soft: true }
+      expect(content).toContain(
+        "runCheck('architecture tests (beta)', './gradlew', ['test', '--tests', '*.architecture.*', '-q'], { soft: true })",
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('L2 debt-gates output contains SOFT kover coverage when coverageEnabled (#1194)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-kotlin-l2-cov-'))
+    try {
+      generateCheckAll(
+        makeConfig(dir, {
+          language: 'kotlin',
+          buildTool: 'gradle',
+          governanceLevel: 'L2',
+          enableSecurityScanning: true,
+          enableDebtGates: true,
+          // coverageEnabled is derived from governanceLevel via computeThresholds
+        }),
+      )
+      const scriptPath = join(dir, 'scripts', 'check-all.mjs')
+      const content = readFileSync(scriptPath, 'utf-8')
+      // Kover is beta — SOFT; placed inside enableDebtGates block (mirrors java jacoco pattern)
+      expect(content).toContain(
+        "runCheck('coverage (kover, beta)', './gradlew', ['koverVerify', 'koverXmlReport'], { soft: true })",
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
