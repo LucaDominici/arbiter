@@ -2,7 +2,7 @@
 title: 'Arbiter — Product Requirements Document'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-06-04'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -12,8 +12,8 @@ related: []
 # Arbiter — Product Requirements Document
 
 **Status:** Active
-**Version:** 0.1
-**Last updated:** 2026-04-09
+**Version:** 0.2 (in-progress)
+**Last updated:** 2026-06-04
 **Owner:** Luca Dominici
 
 ---
@@ -106,7 +106,7 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 
 ### Phase 5 — Comprehensive Tests and Documentation (M5-M7)
 
-- 200+ tests: per-detector, per-generator, per-language matrix, per-governance-level
+- 9,000+ tests: per-detector, per-generator, per-language matrix, per-governance-level
 - 4-layer documentation hierarchy: PRODUCT / ARCHITECTURE / DEVELOPMENT / REFERENCE
 - Testing strategy documented (claim-backed testing: every README claim has a test)
 
@@ -140,31 +140,27 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 - SSOT framework generation: knowledge map, track router, engineering defaults
 - Richer GitHub integration: task-brief templates, epic templates, project boards
 
-### Phase 10 — Production Baseline Enforcement (M22-M25)
+### Phase 10 — Production Baseline Enforcement (M22-M30, in progress)
 
-Based on exhaustive gap analysis (alignment doc removed). Principle: **once chosen, enforced** (`ENFORCEMENT-PHILOSOPHY.md`).
+Based on exhaustive gap analysis. Principle: **once chosen, enforced** (`ENFORCEMENT-PHILOSOPHY.md`).
+M22 (architecture verification suite) shipped. M23-M24 (mutation, security) and M29-M30 (static analysis, coverage) in progress.
 
-- Architecture verification suite: full ArchUnit (Java), eslint-plugin-boundaries (TS), cargo-deny (Rust), go/analysis (Go), import-linter (Python)
-- Mutation testing as hard gate: PIT (Java), Stryker (TS), cargo-mutants (Rust), go-mutesting (Go), mutmut (Python)
-- Security scanning suite: dep audit, secrets detection (Gitleaks), PII scan, container scan (Trivy)
-- Nightly pipeline (L3): E2E full, mutation, security deep, evidence harness, change detection
+- Architecture verification suite (M22 ✅): full ArchUnit (Java), eslint-plugin-boundaries (TS), cargo-deny (Rust), go/analysis (Go), import-linter (Python)
+- Mutation testing as hard gate (M23): PIT (Java), Stryker (TS), cargo-mutants (Rust), go-mutesting (Go), mutmut (Python)
+- Security scanning suite (M24): dep audit, secrets detection (Gitleaks), PII scan, container scan (Trivy)
+- Nightly pipeline (M25 ✅): E2E full, mutation, security deep, evidence harness, change detection
+- Real database testing (M26 ✅): Testcontainers for all stacks, H2/in-memory explicitly forbidden
+- Behavioral test structure (M27 ✅): @Nested/@DisplayName (Java), describe/it (TS), subtests (Go), pytest classes (Python)
+- Contract testing (M28 ✅): Pact consumer/provider for projects with APIs
+- Complete static analysis (M29): Checkstyle + PMD + SpotBugs (Java), ESLint full (TS), clippy pedantic (Rust), golangci-lint full (Go), ruff full (Python)
+- Coverage tool integration (M30 ✅): JaCoCo in build.gradle (Java), vitest config (TS), cargo-tarpaulin (Rust), go test -cover (Go), pytest-cov (Python)
 
-### Phase 11 — Testing Discipline (M26-M28)
-
-- Real database testing: Testcontainers for all stacks, H2/in-memory explicitly forbidden
-- Behavioral test structure: @Nested/@DisplayName (Java), describe/it (TS), subtests (Go), pytest classes (Python)
-- Contract testing (configurable): Pact consumer/provider for projects with APIs
-
-### Phase 12 — Code Quality Enforcement (M29-M30)
-
-- Complete static analysis suite: Checkstyle + PMD + SpotBugs (Java), ESLint full (TS), clippy pedantic (Rust), golangci-lint full (Go), ruff full (Python)
-- Coverage tool integration: JaCoCo in build.gradle (Java), vitest config (TS), cargo-tarpaulin (Rust), go test -cover (Go), pytest-cov (Python)
-
-### Phase 13 — Ecosystem (M31-M32, shipped)
+### Phase 11 — Ecosystem (M31-M33, in progress)
 
 - Configuration skill (`/arbiter configure`): post-init feature toggle, threshold override, arbiter.json v2 (M31)
 - Extended AI tool support: Gemini CLI, Windsurf, Aider generators + brownfield detection (M32)
 - Plugin API v1: `ArbiterPlugin` interface + `arbiter plugin add/remove/list` CLI; organizations ship framework generators without forking arbiter (M32)
+- CLI-first policy: consolidate `spawnSync` sites into `src/utils/run-cli.ts`, enforce as architectural invariant (M33)
 
 ---
 
@@ -184,11 +180,12 @@ Multi-language repos: detected from the presence of multiple signal files. Arbit
 
 ## Governance Levels
 
-| Level  | Gate                                                        | Use case                                                    |
-| ------ | ----------------------------------------------------------- | ----------------------------------------------------------- |
-| **L1** | Lint + format + unit tests                                  | Pre-commit, fast feedback, personal repos                   |
-| **L2** | L1 + integration tests + coverage ≥ 80% + dependency audit  | Default, matches CI, team repos                             |
-| **L3** | L2 + E2E tests + coverage ≥ 85% + SBOM + evidence artifacts | Audit-grade, regulated industries, OSS with strict policies |
+| Level  | Gate                                                                   | Use case                                                                    |
+| ------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **L1** | Lint + format + unit tests                                             | Pre-commit, fast feedback, personal repos                                   |
+| **L2** | L1 + integration tests + coverage ≥ 80% + dependency audit             | Default, matches CI, team repos                                             |
+| **L3** | L2 + E2E tests + coverage ≥ 85% + SBOM + evidence artifacts            | Audit-grade, regulated industries, OSS with strict policies                 |
+| **L4** | L3 + 21CFR/SOX/GDPR audit trail + evidence bundle + tamper-evident log | Pharma, finance, and regulated industries requiring compliance traceability |
 
 Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
@@ -196,13 +193,13 @@ Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
 ## Success Metrics
 
-| Metric                                                             | Target                     |
-| ------------------------------------------------------------------ | -------------------------- |
-| Time from `npx arbiter init` to complete governance stack          | < 60 seconds               |
-| Tests passing (all stacks, all governance levels)                  | 200+ tests, 85%+ coverage  |
-| Idempotency: running init twice produces no unintended changes     | 100%                       |
-| Brownfield safety: existing customizations preserved               | 100% of custom hooks/rules |
-| Zero proprietary or tool-specific lock-in in generated `AGENTS.md` | Always                     |
+| Metric                                                             | Target                      |
+| ------------------------------------------------------------------ | --------------------------- |
+| Time from `npx arbiter init` to complete governance stack          | < 60 seconds                |
+| Tests passing (all stacks, all governance levels)                  | 9,000+ tests, 85%+ coverage |
+| Idempotency: running init twice produces no unintended changes     | 100%                        |
+| Brownfield safety: existing customizations preserved               | 100% of custom hooks/rules  |
+| Zero proprietary or tool-specific lock-in in generated `AGENTS.md` | Always                      |
 
 ---
 
@@ -217,9 +214,9 @@ Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
 ## Open Questions
 
-| Question                                       | Status  | Recommendation                                               |
-| ---------------------------------------------- | ------- | ------------------------------------------------------------ |
-| npm package name (`arbiter` vs `@arbiter/cli`) | Decided | `@arbiter/cli` (avoids conflicts, namespace reserved)        |
-| License                                        | Open    | MIT (compatible with AGENTS.md spec, standard for CLI tools) |
-| Docs site                                      | Open    | Start markdown-only; plan Mintlify for v1.0                  |
-| Plugin API design                              | Future  | Not needed before v1.0                                       |
+| Question                                       | Status  | Recommendation                                                          |
+| ---------------------------------------------- | ------- | ----------------------------------------------------------------------- |
+| npm package name (`arbiter` vs `@arbiter/cli`) | Decided | `@arbiter/cli` (avoids conflicts, namespace reserved)                   |
+| License                                        | Decided | Apache 2.0 (SPDX headers already added; compatible with AGENTS.md spec) |
+| Docs site                                      | Decided | Mintlify planned for v1.0; markdown-only until then                     |
+| Plugin API design                              | Future  | Not needed before v1.0                                                  |
