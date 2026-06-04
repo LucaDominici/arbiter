@@ -9,6 +9,7 @@
     ".claude/agents/red-team.md",
     ".claude/commands/review-code.md",
     ".claude/commands/review-plan.md",
+    ".claude/commands/ship.md",
     ".claude/commands/task.md",
     ".claude/commands/wt-close.md",
     ".claude/commands/wt-list.md",
