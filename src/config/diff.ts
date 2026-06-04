@@ -63,6 +63,7 @@ export type GeneratorKey =
   | 'frontend-quality'
   | 'feature-matrix'
   | 'anti-drift-validators'
+  | 'resilience'
 
 export interface ConfigDiff {
   paths: string[]

@@ -209,7 +209,6 @@
 
 | title | canonical_id | status | kind |
 |-------|--------------|--------|------|
-| [Code of Conduct Enforcement Runbook](internal/coc-enforcement-runbook.md) | — | — | — |
 | [Docs Site: A11y + Mobile Responsiveness Checklist](internal/mobile-responsiveness-checklist.md) | — | active | kind/internal |
 | [Mutation Testing](internal/mutation-testing.md) | — | active | kind/internal |
 | [Pre-Launch Manual QA Checklist](internal/qa-checklist.md) | — | active | kind/internal |
@@ -277,6 +276,7 @@
 | [Codex Governance Parity Reference](REFERENCE/CODEX-PARITY.md) | — | active | kind/reference |
 | [KIT Canonical Dimensions Reference](REFERENCE/GLOBAL_KIT.md) | — | active | kind/reference |
 | [Hooks Reference — Redirected](REFERENCE/HOOKS.md) | — | active | kind/reference |
+| [Resilience Patterns Generator](REFERENCE/RESILIENCE.md) | — | active | kind/reference |
 | [SELF-KIT Audit Report](REFERENCE/SELF-KIT-AUDIT.md) | — | — | — |
 | [Stack Support Reference — Redirected](REFERENCE/STACK-SUPPORT.md) | — | active | kind/reference |
 | [Templates Reference — Redirected](REFERENCE/TEMPLATES.md) | — | active | kind/reference |

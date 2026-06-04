@@ -58,5 +58,10 @@
     "pattern": "axios",
     "file": "dist/invariants/catalog.js",
     "justification": "Compiled output of catalog.ts \u2014 INV-102/103/104 enforcement descriptions cite axios as an example of a forbidden HTTP client. Not a network call; the string appears in documentation text within the catalog entries."
+  },
+  {
+    "pattern": "fetch(",
+    "file": "src/templates/resilience/RESILIENCE.md.ejs",
+    "justification": "Generated resilience guide showing example TypeScript usage of the Fetch API inside a cockatiel resilience policy wrapper. The fetch() call is example code in advisory documentation emitted to target projects, not a network call from arbiter itself. Users adapt the example to their own URL."
   }
 ]

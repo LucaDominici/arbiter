@@ -62,6 +62,7 @@ import { generateAuditToolchain } from './audit-toolchain.js'
 import { generatePerfK6 } from './perf-k6.js'
 import { generateModulith } from './modulith.js'
 import { generateFeatureMatrix } from './feature-matrix.js'
+import { generateResilience } from './resilience.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult, GeneratorRunOpts } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -236,11 +237,6 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       run: (opts) => generateApiMiddleware(config, opts).files,
     },
     {
-      key: 'seed',
-      enabled: config.archetype === BACKEND_WEB_DB && config.governanceLevel !== 'L1',
-      run: (opts) => generateSeed(config, opts).files,
-    },
-    {
       key: 'self-validation',
       enabled: config.enableSelfValidationHarness !== false,
       run: (opts) => generateSelfValidation(config, opts).files,
@@ -254,6 +250,23 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'audit-toolchain',
       enabled: true,
       run: (opts) => generateAuditToolchain(config, opts).files,
+    },
+  ]
+}
+
+/** Specs gated on archetype=backend-web-db + level≠L1 (service-pattern generators). */
+function buildBackendServiceSpecs(config: ProjectConfig): GeneratorSpec[] {
+  const enabled = config.archetype === BACKEND_WEB_DB && config.governanceLevel !== 'L1'
+  return [
+    {
+      key: 'seed',
+      enabled,
+      run: (opts) => generateSeed(config, opts).files,
+    },
+    {
+      key: 'resilience',
+      enabled,
+      run: (opts) => generateResilience(config, opts).files,
     },
   ]
 }
@@ -435,6 +448,7 @@ export function buildRegistry(
   return [
     ...buildAiToolSpecs(config, installedSkills),
     ...buildInfraSpecs(config),
+    ...buildBackendServiceSpecs(config),
     ...buildAnalysisSpecs(config),
     ...buildPerfSpecs(config),
     ...buildProviderSpecs(config),
