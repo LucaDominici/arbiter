@@ -102,7 +102,7 @@ export function taskStateDir(root: string): string {
 export function statusPath(root: string): string {
   return join(taskStateDir(root), STATUS_FILENAME)
 }
-export function logPath(root: string): string {
+function logPath(root: string): string {
   return join(taskStateDir(root), 'log.md')
 }
 

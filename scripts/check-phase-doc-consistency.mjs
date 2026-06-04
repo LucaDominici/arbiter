@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// CATALOG: enforces INV-113 — task state lives in one .claude/.task/status.json, no legacy dotfiles.
+// CATALOG: rejected fold-in into check-catalog-agents-parity.mjs because that checks INV↔doc title
+// CATALOG: parity, a doc-text concern, not source-code dotfile-literal scanning + status.json schema.
 // arbiter — INV-113: single authoritative task-phase document.
 //
 // Task state is sourced from ONE document pair — `.claude/.task/status.json` (+ `log.md`) — not

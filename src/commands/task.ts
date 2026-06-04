@@ -289,9 +289,7 @@ interface LatestJson {
  * Check `<dir>/.arbiter/evidence/plan-review/<sanitized-id>/latest.json`
  * for a PASS verdict matching the supplied plan content (digest check).
  */
-export function requirePlanReviewPass(
-  opts: RequirePlanReviewPassOptions,
-): RequirePlanReviewPassResult {
+function requirePlanReviewPass(opts: RequirePlanReviewPassOptions): RequirePlanReviewPassResult {
   const sanit = sanitizeTaskId(opts.taskId)
   const latestPath = join(planReviewDir(opts.dir, sanit), 'latest.json')
   if (!existsSync(latestPath)) {
