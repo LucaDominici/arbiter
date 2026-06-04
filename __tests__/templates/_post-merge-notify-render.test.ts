@@ -77,7 +77,7 @@ describe('_post-merge-notify.yml.ejs — security invariants', () => {
   })
 
   it('SHA-pinned checkout (INV-76)', () => {
-    expect(rendered).toContain('actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683')
+    expect(rendered).toContain('actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10')
   })
 
   it('SHA-pinned download-artifact (INV-76)', () => {
