@@ -36,6 +36,7 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `docs/GOVERNANCE/LABELS.md` — arbiter Label Catalogue
 - `docs/GOVERNANCE/RACI.md` — RACI Matrix — arbiter
 - `docs/GOVERNANCE/README.md` — arbiter Governance
+- `docs/PRODUCT/CONVERGENCE-2026-06.md` — Convergence Report — Batch C (2026-06)
 
 ### Method
 
