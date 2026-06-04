@@ -158,4 +158,4 @@ All 77 KIT dimensions (N01–N77) are tracked. Coverage breakdown by category:
 
 | Version | Date       | Changes                                                              |
 | ------- | ---------- | -------------------------------------------------------------------- |
-| 1.0.0   | 2026-06-02 | Initial seeding from reconciliation audit; 50 rows, all dims covered |
+| 1.0.0   | 2026-06-02 | Initial seeding from reconciliation audit; 51 rows, all dims covered |

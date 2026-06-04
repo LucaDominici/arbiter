@@ -79,7 +79,7 @@ Arbiter detects language and archetype automatically. To override, pass `--arche
 
 **CI**
 
-- `.github/workflows/ci.yml` — runs `node scripts/check-all.mjs L2` on every PR. Installs Rust toolchain via `dtolnay/rust-toolchain`.
+- `.github/workflows/01-pr-fast.yml` — runs the PR fast gate (lint, typecheck, unit tests) on every PR. Installs Rust toolchain via `dtolnay/rust-toolchain`.
 
 **Tooling configs**
 

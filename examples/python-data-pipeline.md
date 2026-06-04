@@ -87,7 +87,7 @@ To override detection: `--archetype data-pipeline --language python`.
 
 **CI**
 
-- `.github/workflows/ci.yml` — sets up Python 3.12 via `actions/setup-python`, installs deps, runs L2 gate.
+- `.github/workflows/01-pr-fast.yml` — sets up Python 3.12 via `actions/setup-python`, installs deps, runs the PR fast gate (lint, typecheck, unit tests).
 
 **Tooling configs**
 
