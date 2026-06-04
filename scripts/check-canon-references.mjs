@@ -12,6 +12,13 @@ const content = readFileSync(canonPath, 'utf8')
 
 const definedIds = new Set([...content.matchAll(/^## (CANON-\d+)/gm)].map((m) => m[1]))
 
+if (definedIds.size === 0) {
+  console.error(
+    '[check-canon-references] ERROR — no CANON-NN headings found in docs/SYSTEM/CANON.md; file may be empty or corrupt',
+  )
+  process.exit(1)
+}
+
 const referencedIds = new Set([...content.matchAll(/CANON-(\d+)/g)].map((m) => `CANON-${m[1]}`))
 
 const undefinedRefs = [...referencedIds].filter((id) => !definedIds.has(id))
