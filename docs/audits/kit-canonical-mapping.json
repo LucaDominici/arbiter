@@ -3,7 +3,7 @@
   "source": "[tools]/KIT_gold-standard_76-dimensions_REDACTED.xlsx",
   "revision": "Rev00 07/05/2026",
   "generated_at": "2026-05-19T00:00:00Z",
-  "total_dims": 76,
+  "total_dims": 78,
   "tml_alias_note": "tml field uses arbiter canonical M1/M2/M3; tml_source preserves XLSX L1/L2/L3; ADR-045 records the alias",
   "dimensions": [
     {
@@ -1929,6 +1929,30 @@
       },
       "planning_notes": null,
       "canonical_id": "N77"
+    },
+    {
+      "id": "N78",
+      "name": "Resilience patterns guide (circuit-breaker/retry/rate-limiter/timeout)",
+      "detail": "Emits docs/GOVERNANCE/RESILIENCE.md with circuit-breaker/retry/rate-limiter/timeout defaults and external-call checklist for backend archetypes.",
+      "tml": "L2",
+      "tml_source": "L2",
+      "gate_type": "ADVISORY",
+      "stack_tag": "agnostic",
+      "conditional": "always",
+      "planning_evidence_paths": ["docs/GOVERNANCE/RESILIENCE.md"],
+      "arbiter_target_path": "docs/GOVERNANCE/RESILIENCE.md",
+      "arbiter_target_kind": "doc",
+      "invariant_id": "INV-19",
+      "implementing_wave": "W4",
+      "disposition": "done",
+      "framework_realization": {
+        "template": "resilience/RESILIENCE.md.ejs",
+        "generator": "src/generators/resilience.ts",
+        "validator": null,
+        "docs": "docs/REFERENCE/RESILIENCE.md"
+      },
+      "planning_notes": null,
+      "canonical_id": "N78"
     }
   ]
 }

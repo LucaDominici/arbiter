@@ -25,10 +25,10 @@ afterEach(() => {
 // ─── Greenfield ───────────────────────────────────────────────────────────────
 
 describe('greenfield generation', () => {
-  it('emits exactly 77 dim-*.md files', () => {
+  it('emits exactly 78 dim-*.md files', () => {
     generateKitDocs({ outDir })
     const dimFiles = readdirSync(covDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
-    expect(dimFiles.length).toBe(77)
+    expect(dimFiles.length).toBe(78)
   })
 
   it('emits exactly one GLOBAL_KIT.md', () => {
@@ -36,9 +36,9 @@ describe('greenfield generation', () => {
     expect(existsSync(join(outDir, 'GLOBAL_KIT.md'))).toBe(true)
   })
 
-  it('result.written has 78 entries (77 dims + GLOBAL_KIT)', () => {
+  it('result.written has 79 entries (78 dims + GLOBAL_KIT)', () => {
     const result = generateKitDocs({ outDir })
-    expect(result.written.length).toBe(78)
+    expect(result.written.length).toBe(79)
     expect(result.skipped.length).toBe(0)
   })
 
@@ -65,7 +65,7 @@ describe('greenfield generation', () => {
     const dimFiles = readdirSync(covDir).filter((f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'))
     for (const f of dimFiles) {
       const content = readFileSync(join(covDir, f), 'utf-8')
-      // filename is dim-NN-<slug>.md; extract NN to get id N01..N77
+      // filename is dim-NN-<slug>.md; extract NN to get id N01..N78
       const match = f.match(/^dim-(\d{2})-/)
       if (match) {
         const id = `N${parseInt(match[1], 10).toString().padStart(2, '0')}`
@@ -151,7 +151,7 @@ describe('brownfield — no marker', () => {
 
 describe('idempotency', () => {
   it('second run produces byte-identical files for all dims', () => {
-    // Scan coverage/ (the 77 dims) AND GLOBAL_KIT.md at top — the latter carries
+    // Scan coverage/ (the 78 dims) AND GLOBAL_KIT.md at top — the latter carries
     // the dynamic <%= dims.length %> count and is the highest-risk file for a
     // non-idempotent regression, so it must stay in the idempotency assertion.
     const snapshot = () =>
@@ -219,7 +219,7 @@ describe('coverage relocation (#1100)', () => {
     const covDims = readdirSync(join(outDir, 'coverage')).filter(
       (f) => /^dim-\d{2}-/.test(f) && f.endsWith('.md'),
     )
-    expect(covDims).toHaveLength(77)
+    expect(covDims).toHaveLength(78)
   })
 
   it('keeps GLOBAL_KIT.md at outDir top with coverage/-prefixed links', () => {

@@ -8,7 +8,7 @@ Brownfield class: **gold**
 |-----|--------|----------|
 | N07 | PARTIAL | package.json |
 | N09 | PRESENT | eslint.config.js |
-| N10 | PRESENT | .prettierrc.json, spotless.gradle |
+| N10 | PRESENT | .prettierrc.json |
 | N17 | PRESENT | vitest.config.ts |
 | N18 | PRESENT | vitest.config.ts |
 | N19 | MISSING |  |
@@ -45,7 +45,7 @@ Brownfield class: **gold**
 | N65 | PRESENT | docs/ADR/001-agents-md-canonical.md, docs/ADR/002-thin-pointer-pattern.md, docs/ADR/003-gh-cli-required.md, docs/ADR/004-skip-if-exists.md, docs/ADR/005-deep-merge-settings.md, docs/ADR/006-typescript-node-cli.md, docs/ADR/007-standard-labels.md, docs/ADR/008-governance-levels.md, docs/ADR/009-ejs-over-handlebars.md, docs/ADR/010-ai-rulez-coexistence.md, docs/ADR/011-brownfield-first-design.md, docs/ADR/012-doc-enforcement.md, docs/ADR/013-testing-matrix.md, docs/ADR/014-tech-debt-prevention-strategy.md, docs/ADR/015-debt-ratchet.md, docs/ADR/016-restassured-mutation-testing.md, docs/ADR/017-skills-agents-generation.md, docs/ADR/018-ssot-framework-generation.md, docs/ADR/019-richer-github-integration.md, docs/ADR/020-cli-first-over-mcp.md |
 | N68 | PRESENT | docs/METHOD/KNOWLEDGE_MAP.md, scripts/check-knowledge-map.mjs |
 | N69 | PRESENT | .nvmrc |
-| N70 | PRESENT | .env.example |
+| N70 | MISSING |  |
 | N71 | PRESENT | src/experimental/registry.ts |
 
 ## W1 — Enforcement — close partial gaps (brownfield: gold)
@@ -102,5 +102,6 @@ _No dimensions in this wave._
 | N75 | database engine not in required set |
 | N76 | no applies token matched: [frontend, fullstack] |
 | N77 | no applies token matched: [backend, api, fullstack] |
+| N78 | no applies token matched: [backend, api, fullstack] |
 
 Summary: 63 dims total

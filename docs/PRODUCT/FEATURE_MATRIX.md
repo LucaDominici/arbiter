@@ -54,6 +54,7 @@ Promotion is fail-closed (cannot skip a step).
 | configuration      | N69–N72      | arbiter.json config surface                 |
 | a11y               | N76          | Accessibility enforcement                   |
 | module_boundaries  | N77          | Module import boundary enforcement          |
+| resilience         | N78          | Circuit-breaker/retry/rate-limiter/timeout  |
 
 ---
 
@@ -111,7 +112,7 @@ Promotion is fail-closed (cannot skip a step).
 | REQ-048    | STRIDE / RACI governance                                         |                                 | L2    | Partial  | src/generators/stride-enforcement.ts                                                                                                        |                                                                                                                                          |                                                                                 |           | STRIDE threat model + RACI matrix generated at L2+                                                                                                                                                                                                                                                                                                                                                                                           |
 | REQ-049    | Risk register                                                    |                                 | L3    | Partial  | src/generators/risk-register.ts                                                                                                             |                                                                                                                                          |                                                                                 |           | Risk register template generated at L3+                                                                                                                                                                                                                                                                                                                                                                                                      |
 | REQ-050    | Compliance mapping (ISO 27001 / GDPR)                            |                                 | L3    | Partial  | src/generators/compliance.ts                                                                                                                |                                                                                                                                          |                                                                                 |           | ISO 27001 Annex A + GDPR/NIS2 mapping templates                                                                                                                                                                                                                                                                                                                                                                                              |
-| REQ-051    | Resilience patterns (circuit-breaker/retry/rate-limiter/timeout) |                                 | L2    | Done     | src/generators/resilience.ts,src/templates/resilience/RESILIENCE.md.ejs                                                                     | **tests**/generators/resilience.test.ts,**tests**/templates/resilience-md-ejs.test.ts,**tests**/brownfield/resilience-brownfield.test.ts | docs/REFERENCE/RESILIENCE.md                                                    | #1176     | Advisory guide: CB+retry+rate-limiter+timeout defaults + external-call checklist; ts (cockatiel) + java (Resilience4j) concrete blocks; multi emits both; L3/L4 enforcement addendum                                                                                                                                                                                                                                                         |
+| REQ-051    | Resilience patterns (circuit-breaker/retry/rate-limiter/timeout) | N78                             | L2    | Done     | src/generators/resilience.ts,src/templates/resilience/RESILIENCE.md.ejs                                                                     | **tests**/generators/resilience.test.ts,**tests**/templates/resilience-md-ejs.test.ts,**tests**/brownfield/resilience-brownfield.test.ts | docs/REFERENCE/RESILIENCE.md                                                    | #1176     | Advisory guide: CB+retry+rate-limiter+timeout defaults + external-call checklist; ts (cockatiel) + java (Resilience4j) concrete blocks; multi emits both; L3/L4 enforcement addendum                                                                                                                                                                                                                                                         |
 
 <!-- FEATURE_MATRIX_END -->
 
@@ -131,7 +132,7 @@ Promotion is fail-closed (cannot skip a step).
 
 ## Coverage
 
-All 77 KIT dimensions (N01–N77) are tracked. Coverage breakdown by category:
+All 78 KIT dimensions (N01–N78) are tracked. Coverage breakdown by category:
 
 | Category           | Dims         | Covered by       |
 | ------------------ | ------------ | ---------------- |
@@ -151,6 +152,7 @@ All 77 KIT dimensions (N01–N77) are tracked. Coverage breakdown by category:
 | configuration      | N69–N72      | REQ-014          |
 | a11y               | N76          | REQ-015          |
 | module_boundaries  | N77          | REQ-016          |
+| resilience         | N78          | REQ-051          |
 
 ---
 

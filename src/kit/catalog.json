@@ -805,5 +805,19 @@
     "conditionalFlag": "spring-boot",
     "status": "covered",
     "note": "Spring Modulith verifies no cyclic module dependencies and no forbidden cross-module access. Requires spring-modulith-test on the classpath."
+  },
+  {
+    "id": "N78",
+    "name": "Resilience patterns guide (circuit-breaker/retry/rate-limiter/timeout)",
+    "tml": "L2",
+    "gate": "ADVISORY",
+    "categoryRef": "resilience",
+    "archetypeGating": {
+      "applies": ["backend", "api", "fullstack"],
+      "excludes": ["frontend", "cli", "embedded"]
+    },
+    "invLink": "INV-19",
+    "status": "covered",
+    "note": "Resilience patterns guide emitted for external-call-heavy archetypes. cockatiel (TS) + Resilience4j (Java) concrete blocks. INV-19 governs external-call resilience."
   }
 ]

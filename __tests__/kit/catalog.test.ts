@@ -36,7 +36,7 @@ describe('catalog.json parses', () => {
 
   it('derived.json is valid DerivedKit', () => {
     expect(derived).toBeDefined()
-    expect(derived.length).toBe(77)
+    expect(derived.length).toBe(78)
   })
 })
 
@@ -229,8 +229,8 @@ describe('followupIssue uniqueness', () => {
 // ─── ID format ────────────────────────────────────────────────────────────────
 
 describe('ID format', () => {
-  it('all IDs match N01..N77 pattern', () => {
-    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-7])$/
+  it('all IDs match N01..N78 pattern', () => {
+    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-8])$/
     for (const dim of derived) {
       expect(idPattern.test(dim.id), `invalid id: ${dim.id}`).toBe(true)
     }
@@ -245,9 +245,9 @@ describe('ID format', () => {
 // ─── catalog.ts typed access layer ───────────────────────────────────────────
 
 describe('loadCatalog()', () => {
-  it('returns 77 entries', () => {
+  it('returns 78 entries', () => {
     const catalog = loadCatalog()
-    expect(catalog.length).toBe(77)
+    expect(catalog.length).toBe(78)
   })
 
   it('parses through Zod without throw (consistent with KitCatalogSchema)', () => {
@@ -270,11 +270,11 @@ describe('re-export sanity — Stack/TML/Gate from taxonomy.ts and schema.ts are
 // ─── canonical_id present in mapping ─────────────────────────────────────────
 
 describe('mapping canonical_id', () => {
-  it('all mapping entries have canonical_id matching N01..N77', () => {
+  it('all mapping entries have canonical_id matching N01..N78', () => {
     const mapping = JSON.parse(
       readFileSync(join(ROOT, 'docs/audits/kit-canonical-mapping.json'), 'utf-8'),
     ) as { dimensions: Array<{ canonical_id?: string }> }
-    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-7])$/
+    const idPattern = /^N(0[1-9]|[1-6]\d|7[0-8])$/
     for (const dim of mapping.dimensions) {
       expect(dim.canonical_id, `missing canonical_id on mapping entry`).toBeDefined()
       expect(

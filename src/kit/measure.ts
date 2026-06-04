@@ -840,6 +840,27 @@ const DIM_HANDLERS: Partial<Record<string, (repoRoot: string) => MeasureResult>>
     }
     return { status: 'present', evidence: [src] }
   },
+
+  // ── resilience ────────────────────────────────────────────────────────────
+  N78: (r) => {
+    const fromGuide = checkAny(r, ['docs/GOVERNANCE/RESILIENCE.md'])
+    if (fromGuide.status === 'present') return fromGuide
+    const pkg = readPkgJson(r)
+    if (hasDep(pkg, 'cockatiel') || hasDep(pkg, 'opossum')) {
+      return { status: 'present', evidence: ['package.json'] }
+    }
+    if (
+      fileContains(join(r, 'pom.xml'), 'resilience4j') ||
+      fileContains(join(r, 'build.gradle'), 'resilience4j')
+    ) {
+      const src = fileContains(join(r, 'pom.xml'), 'resilience4j') ? 'pom.xml' : 'build.gradle'
+      return { status: 'present', evidence: [src] }
+    }
+    if (fileContains(join(r, 'requirements.txt'), 'tenacity')) {
+      return { status: 'present', evidence: ['requirements.txt'] }
+    }
+    return { status: 'missing', evidence: [] }
+  },
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────

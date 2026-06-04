@@ -1,25 +1,25 @@
 {
-  "capturedAt": "2026-05-22",
-  "capturedForTask": "#1008",
+  "capturedAt": "2026-06-04",
+  "capturedForTask": "#1191",
   "tml": {
     "L1": 20,
-    "L2": 34,
+    "L2": 35,
     "L3": 23
   },
-  "total": 77,
+  "total": 78,
   "gapPerStack": {
-    "java": 36,
-    "typescript": 35,
-    "python": 35,
-    "go": 36,
-    "rust": 36
+    "java": 37,
+    "typescript": 36,
+    "python": 36,
+    "go": 37,
+    "rust": 37
   },
   "matrixRatioPerStack": {
-    "java": 0.5325,
-    "typescript": 0.5195,
-    "python": 0.5195,
-    "go": 0.4805,
-    "rust": 0.4805
+    "java": 0.5256,
+    "typescript": 0.5128,
+    "python": 0.5128,
+    "go": 0.4744,
+    "rust": 0.4744
   },
   "ids": [
     "N01",
@@ -98,6 +98,7 @@
     "N74",
     "N75",
     "N76",
-    "N77"
+    "N77",
+    "N78"
   ]
 }
