@@ -89,6 +89,19 @@ function checkRefExists(ref, projectRoot) {
   return null
 }
 
+function checkAllRefs(row, projectRoot, failures, id) {
+  for (const [label, value] of [
+    ['code_ref', row.codeRef],
+    ['test_ref', row.testRef],
+    ['doc_ref', row.docRef],
+  ]) {
+    for (const ref of splitRefs(value)) {
+      const err = checkRefExists(ref, projectRoot)
+      if (err) failures.push(`${id}: ${label} — ${err}`)
+    }
+  }
+}
+
 /** Parse the table rows from within the sentinel block. */
 function parseTableRows(text) {
   const start = text.indexOf(START_MARKER)
@@ -277,18 +290,7 @@ for (const row of rows) {
     if (!row.codeRef.trim()) failures.push(`${id}: Done requires code_ref`)
     if (!row.testRef.trim()) failures.push(`${id}: Done requires test_ref`)
     if (!row.docRef.trim()) failures.push(`${id}: Done requires doc_ref`)
-    for (const ref of splitRefs(row.codeRef)) {
-      const err = checkRefExists(ref, projectRoot)
-      if (err) failures.push(`${id}: code_ref — ${err}`)
-    }
-    for (const ref of splitRefs(row.testRef)) {
-      const err = checkRefExists(ref, projectRoot)
-      if (err) failures.push(`${id}: test_ref — ${err}`)
-    }
-    for (const ref of splitRefs(row.docRef)) {
-      const err = checkRefExists(ref, projectRoot)
-      if (err) failures.push(`${id}: doc_ref — ${err}`)
-    }
+    checkAllRefs(row, projectRoot, failures, id)
     continue
   }
 
@@ -297,18 +299,7 @@ for (const row of rows) {
     if (!row.testRef.trim()) failures.push(`${id}: Verified requires test_ref`)
     if (!row.docRef.trim()) failures.push(`${id}: Verified requires doc_ref`)
     if (!row.issueRef.trim()) failures.push(`${id}: Verified requires issue_ref`)
-    for (const ref of splitRefs(row.codeRef)) {
-      const err = checkRefExists(ref, projectRoot)
-      if (err) failures.push(`${id}: code_ref — ${err}`)
-    }
-    for (const ref of splitRefs(row.testRef)) {
-      const err = checkRefExists(ref, projectRoot)
-      if (err) failures.push(`${id}: test_ref — ${err}`)
-    }
-    for (const ref of splitRefs(row.docRef)) {
-      const err = checkRefExists(ref, projectRoot)
-      if (err) failures.push(`${id}: doc_ref — ${err}`)
-    }
+    checkAllRefs(row, projectRoot, failures, id)
     // test_ref title parsing: check that the referenced test file exists (presence proxy)
     // Full title parsing would require reading test files — presence is the enforceable signal.
   }
