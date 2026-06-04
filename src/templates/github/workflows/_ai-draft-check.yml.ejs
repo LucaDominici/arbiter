@@ -19,7 +19,7 @@ jobs:
     if: github.event.pull_request.user.type == 'Bot'
     steps:
       - name: Assert approved-by-human label on bot-authored PR
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553  # v9
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
