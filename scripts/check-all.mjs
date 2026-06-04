@@ -162,6 +162,7 @@ if (isMain) {
   runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
   runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
+  runCheck('canon references', 'node', ['scripts/check-canon-references.mjs'])
   runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
   runCheck('deprecations', 'node', ['scripts/check-deprecations.mjs'])
   runCheck('hook contracts', 'node', ['scripts/check-hook-contracts.mjs'])
