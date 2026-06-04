@@ -68,7 +68,7 @@ To override detection, pass `--archetype library --language go`.
 
 **CI**
 
-- `.github/workflows/ci.yml` — installs Go via `actions/setup-go`, runs L2 gate.
+- `.github/workflows/01-pr-fast.yml` — installs Go via `actions/setup-go`, runs the PR fast gate (lint, typecheck, unit tests).
 
 **Tooling configs**
 
