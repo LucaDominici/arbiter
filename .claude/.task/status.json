@@ -1,0 +1,28 @@
+{
+  "taskId": "#1218",
+  "phase": "complete",
+  "tier": "Standard",
+  "plan": ".claude/plans/arbiter-1216-dynamic-blum.md",
+  "cursor": {
+    "tddPhase": null,
+    "lastAction": "",
+    "nextAction": ""
+  },
+  "handoffStrategy": "interactive",
+  "handoffReady": true,
+  "runId": "1912060-1780667991348",
+  "timestamps": {
+    "plan": "2026-06-05T13:59:51.448Z",
+    "red-team-review": "2026-06-05T14:00:07.570Z",
+    "red": "2026-06-05T14:10:19.816Z",
+    "green": "2026-06-05T14:15:51.158Z",
+    "refactor": "2026-06-05T14:35:17.068Z",
+    "verification": "2026-06-05T15:22:03.370Z",
+    "complete": "2026-06-05T16:05:56.460Z"
+  },
+  "gateDecisions": [],
+  "branch": "task/1218-docs-structure-audit",
+  "planningHandoffReady": "2026-06-05T14:10:08.301Z",
+  "postClearCostRecorded": "2026-06-05T14:10:19.815Z",
+  "postClearResumed": "2026-06-05T14:10:19.816Z"
+}

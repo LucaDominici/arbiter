@@ -21,6 +21,7 @@
 | [Secure Coding Checklist](SECURE_CODING_CHECKLIST.md) | — | active | kind/security |
 | [Semver Policy](SEMVER.md) | — | active | kind/reference |
 | [Repository Setup (CANON-01)](SETUP.md) | — | active | kind/setup |
+| [Docs Structure Audit](STRUCTURE-AUDIT.md) | — | active | kind/reference |
 | [Testing Policy — arbiter](TESTING_POLICY.md) | — | active | kind/method |
 | [Test Taxonomy — arbiter](TEST_TAXONOMY.md) | — | active | kind/method |
 | [Sponsors & Funding](sponsors.md) | — | active | kind/reference |
