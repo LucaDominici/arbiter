@@ -22,7 +22,7 @@
       "description": "Auth bypass, injection, PII leaks, secret exposure, supply-chain."
     },
     "data-integrity": {
-      "weight": 3,
+      "weight": 4,
       "description": "Schema migrations, soft deletes, audit trails, concurrent mutation safety."
     },
     "silent-failures": {

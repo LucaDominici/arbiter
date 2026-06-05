@@ -155,6 +155,12 @@ Dispatch **N parallel red-team agents** based on tier (XS=1, S=2, Standard=3). E
 
 Agents write findings to `.arbiter/evidence/redteam/<task-id>.json` using the `RedTeamEvidenceV1` schema.
 
+**Forward-link to code-review (#1212):** also record each finding in the unified task document as
+`redTeamFindings` — `{ id: "RT-01", severity, summary, auditorHint, resolved: false }` — where
+`auditorHint` is the `auditor-routing.json` auditor whose remit it falls under. At code-review,
+every still-`resolved:false` finding caps its mapped auditor's verdict score and is tagged
+`[RT-xx UNRESOLVED]` (see `/review-code`). Flip `resolved` to `true` once addressed.
+
 **Routing by finding impact:**
 
 | Impact        | Action                                                                       |

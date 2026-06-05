@@ -206,4 +206,58 @@ describe('unified task-state document (#1206)', () => {
       expect(existsSync(statusPath(dir))).toBe(true)
     })
   })
+
+  describe('redTeamFindings forward-link (#1212)', () => {
+    it('round-trips RT findings through write/read', () => {
+      writeUnifiedState(dir, {
+        taskId: '#1212',
+        redTeamFindings: [
+          {
+            id: 'RT-01',
+            severity: 'HIGH',
+            summary: 'unchecked input',
+            auditorHint: 'security',
+            resolved: false,
+          },
+          {
+            id: 'RT-02',
+            severity: 'MEDIUM',
+            summary: 'race',
+            auditorHint: 'data-integrity',
+            resolved: true,
+          },
+        ],
+      })
+      const state = readUnifiedState(dir)
+      expect(state?.redTeamFindings).toHaveLength(2)
+      expect(state?.redTeamFindings?.[0]).toMatchObject({
+        id: 'RT-01',
+        auditorHint: 'security',
+        resolved: false,
+      })
+      expect(state?.redTeamFindings?.[1].resolved).toBe(true)
+    })
+
+    it('replaces the findings array wholesale on a subsequent patch', () => {
+      writeUnifiedState(dir, {
+        redTeamFindings: [
+          { id: 'RT-01', severity: 'HIGH', summary: 'a', auditorHint: 'bugs', resolved: false },
+        ],
+      })
+      // Mark RT-01 resolved by rewriting the full array (the agent's resolve flow).
+      writeUnifiedState(dir, {
+        redTeamFindings: [
+          { id: 'RT-01', severity: 'HIGH', summary: 'a', auditorHint: 'bugs', resolved: true },
+        ],
+      })
+      const state = readUnifiedState(dir)
+      expect(state?.redTeamFindings).toHaveLength(1)
+      expect(state?.redTeamFindings?.[0].resolved).toBe(true)
+    })
+
+    it('is absent on a state written without findings', () => {
+      writeUnifiedState(dir, { taskId: '#1212', phase: 'plan' })
+      expect(readUnifiedState(dir)?.redTeamFindings).toBeUndefined()
+    })
+  })
 })

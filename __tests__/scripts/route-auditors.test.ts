@@ -236,3 +236,71 @@ describe('route-auditors — --explain flag', () => {
     expect(r.stdout).toMatch(/critical.path|force.activ/i)
   })
 })
+
+// #1212 (F2) — weighted anti-inflation verdict score.
+// Denominator is the TOTAL auditor weight, so skipping a would-fail auditor
+// equals failing it (contributes 0 either way) — a skip can never RAISE the score.
+describe('route-auditors — --score weighted verdict (#1212)', () => {
+  function score(results: Record<string, boolean>, caps?: Record<string, number>) {
+    const args = ['--score', '--results', JSON.stringify(results)]
+    if (caps) args.push('--caps', JSON.stringify(caps))
+    const r = runScript(args)
+    return {
+      status: r.status,
+      json: r.status === 0 ? JSON.parse(r.stdout) : null,
+      stderr: r.stderr,
+    }
+  }
+
+  it('all auditors passing → score 100, verdict PASS', () => {
+    const { json } = score({
+      bugs: true,
+      'type-safety': true,
+      domain: true,
+      'test-quality': true,
+      security: true,
+      'data-integrity': true,
+      'silent-failures': true,
+    })
+    expect(json.score).toBe(100)
+    expect(json.verdict).toBe('PASS')
+  })
+
+  it('a skipped auditor does NOT raise the aggregate score (anti-inflation)', () => {
+    // security active+failing vs security skipped — total-weight denominator means
+    // the score is identical, so skipping never inflates the verdict.
+    const baseline = score({ bugs: true, security: false })
+    const skipped = score({ bugs: true }) // security omitted = skipped
+    expect(baseline.json.score).toBe(skipped.json.score)
+    expect(skipped.json.score).toBeLessThanOrEqual(baseline.json.score)
+  })
+
+  it('maps the weighted fraction onto the 80/60/40 verdict ladder', () => {
+    // bugs+type-safety+domain+test-quality+silent-failures pass (3+2+3+2+2=12),
+    // security+data-integrity fail (4+4). total=20 → 60 → CONCERNS.
+    const { json } = score({
+      bugs: true,
+      'type-safety': true,
+      domain: true,
+      'test-quality': true,
+      'silent-failures': true,
+      security: false,
+      'data-integrity': false,
+    })
+    expect(json.score).toBe(60)
+    expect(json.verdict).toBe('CONCERNS')
+  })
+
+  it('a cap lowers only the capped auditor’s contribution (RT-unresolved)', () => {
+    const uncapped = score({ bugs: true })
+    const capped = score({ bugs: true }, { bugs: 0 })
+    expect(capped.json.score).toBeLessThan(uncapped.json.score)
+    expect(capped.json.score).toBe(0)
+    expect(capped.json.capped).toContain('bugs')
+  })
+
+  it('rejects malformed --results JSON with exit 2', () => {
+    const r = runScript(['--score', '--results', '{not json'])
+    expect(r.status).toBe(2)
+  })
+})
