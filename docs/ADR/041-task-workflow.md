@@ -1,13 +1,17 @@
 ---
 title: 'ADR-041: Task Workflow via /task Slash Command'
 doc_version: '1.0.0'
-status: active
-last_review: '2026-05-20'
+status: deprecated
+last_review: '2026-06-05'
 owner: ''
 canonical_id: '041'
 tags: ['audience/dev', 'kind/adr']
-related: []
+related: ['088-ship-as-orchestration-entrypoint']
 ---
+
+> **Superseded by ADR-088** (#1216, 2026-06-05). `/ship` is now the single orchestration
+> entrypoint; `/task` subcommands document the low-level engine/CLI. This ADR remains for
+> historical reference.
 
 # ADR-041: Task Workflow via /task Slash Command
 

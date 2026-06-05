@@ -1,394 +1,87 @@
 ---
-description: Full task lifecycle — plan, implement, review, gate, merge
-argument-hint: '#NNN [--skip-review] [--dry-run]'
+description: Low-level task engine/CLI reference — use /ship for full orchestration
+argument-hint: '<subcommand> [options]'
+title: '/task'
+doc_version: '2.0.0'
+status: active
+last_review: '2026-06-05'
+owner: ''
+canonical_id: ''
+tags: ['audience/agent', 'audience/dev', 'kind/internal']
+related: []
 ---
 <% const _backend = (typeof decompositionBackend !== 'undefined' ? decompositionBackend : null) ?? (useGitHub ? 'github' : 'markdown'); %>
-<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; const _codeLanes = _lanes.filter(l => l !== 'docs'); %>
-<% /* taskTiers comes from buildRenderContext() in src/generators/claude.ts,
-      which always injects DEFAULT_TASK_TIERS when config.taskTiers is unset.
-      _safetyNet is only triggered for out-of-band renders (e.g. check-self-dogfood). */ %>
 <% const _safetyNet = { XS: { planDepth: 'minimal', reviewAgentCount: 3 }, S: { planDepth: 'brief', reviewAgentCount: 3 }, Standard: { planDepth: 'full', reviewAgentCount: 4 } }; %>
 <% const _tiers = (typeof taskTiers !== 'undefined' && taskTiers) ? taskTiers : _safetyNet; %>
-<% /* ADR-051 (#1119): collaboration-mode axis defaults for out-of-band renders (e.g. check-self-dogfood,
-      unit tests). buildRenderContext (claude.ts) always injects these via resolveCollaborationAxes. */ %>
 <% const _collaborationMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : 'peer-review'; %>
 <% const _mergeMode = (typeof mergeMode !== 'undefined' && mergeMode) ? mergeMode : 'pr-ff'; %>
-<% const _branchingStrategy = (typeof branchingStrategy !== 'undefined' && branchingStrategy) ? branchingStrategy : 'github-flow'; %>
 
-# /task #NNN
+# /task
 
-Full lifecycle: plan → STOP → implement → review → gate → commit → PR → merge.
+> **Orchestration → use [`/ship`](ship.md)**. `/task` is the low-level engine/CLI behind `/ship`.
+> Use the subcommands below for recovery, manual phase control, or one-off engine calls only.
 
-**Plan Mode Required:** Must run in plan mode. If not in plan mode, STOP and tell user to enter plan mode first.
-
-<% if (governanceLevel !== 'L1') { %>
-**Worktree Recommended:** Run from worktree (created via `/wt-open`). If on main or a non-task branch, STOP and suggest `/wt-open #NNN`.
-<% } %>
+Read `AGENTS.md` before using — invariants govern every phase transition.
 
 ---
 
-## PHASE PLAN — Read-Only
+## Subcommand reference
 
-### Phase 0: Preflight
-
-1. **Branch guard**:
-   ```bash
-   git branch --show-current
-   ```
-   | Branch | Action |
-   |--------|--------|
-<% if (_mergeMode === 'direct') { %>
-   | `main` or `master` | trunk-solo/direct — working on trunk is expected; confirm intentional |
-<% } else { %>
-   | `main` or `master` | HARD STOP — create task branch or worktree |
-<% } %>
-   | does not start with `task/` | STOP — create proper branch |
-
-<% if (governanceLevel !== 'L1') { %>
-2. **Worktree check**: If not in a worktree, suggest `/wt-open #NNN` for isolation.
-<% } else { %>
-2. **Branch check**: Ensure you're on a task-specific branch (not `main`).
-<% } %>
-
-3. **Read issue**:
-<% if (_backend === 'github') { %>
-   ```bash
-   gh issue view NNN
-   ```
-   Confirm issue is OPEN. If closed, warn user.
-<% } else { %>
-   ```bash
-   arbiter work show <NNN>
-   ```
-   Confirm work unit exists and is open.
-<% } %>
-
-4. **Duplicate guard**: Check for existing branch:
-   ```bash
-   git branch --list "task/#NNN-*"
-   ```
-   If exists, confirm before reusing or recreating.
-
-5. **Flag parsing**: Check for `--skip-review` and `--dry-run` flags in the command arguments.
-
-### Phase 1: Context
-
-1. Read `AGENTS.md` — internalize invariants.
-<% if (governanceLevel !== 'L1') { %>
-2. Read `docs/SYSTEM/CANON.md` — internalize process rules.
-<% } %>
-3. Check for existing plan: `ls .claude/plans/ | grep -i NNN`
-4. Identify scope: which files need to change?
-<% if (governanceLevel !== 'L1') { %>
-5. For Standard-tier tasks: `mkdir -p ".evidence/#NNN" && cp .evidence/BACKLOG.md.template ".evidence/#NNN/BACKLOG.md"`
-<% } %>
-
-<% if (governanceLevel !== 'L1') { %>
-### Phase 2: Classification
-
-Classify the task into one of three tiers. Each tier sets the **plan depth**
-and the **minimum number of parallel code-review agents** to dispatch in
-Phase 6 below.
-
-### Tier XS
-
-- **Criteria:** Single file, obvious scope.
-- **Plan depth:** <%= _tiers.XS.planDepth %>
-- **Review agents:** <% if (_collaborationMode === 'trunk-solo') { %>1<% } else { %><%= _tiers.XS.reviewAgentCount %><% } %> review agents minimum.
-
-### Tier S
-
-- **Criteria:** 2–5 files, clear scope.
-- **Plan depth:** <%= _tiers.S.planDepth %>
-- **Review agents:** <% if (_collaborationMode === 'trunk-solo') { %>1<% } else { %><%= _tiers.S.reviewAgentCount %><% } %> review agents minimum.
-
-### Tier Standard
-
-- **Criteria:** Multi-file, complex logic, schema changes.
-- **Plan depth:** <%= _tiers.Standard.planDepth %>
-- **Review agents:** <% if (_collaborationMode === 'trunk-solo') { %>1<% } else { %><%= _tiers.Standard.reviewAgentCount %><% } %> review agents minimum.
-
-Write the selected tier to the unified task document:
-```bash
-arbiter task init --tier <tier>
-```
-<% } %>
-
-<% if (governanceLevel !== 'L1') { %>
-### Phase 2.7: Red-Team Review (Pre-Plan Adversarial Review)
-
-Advance phase before dispatching agents:
-```bash
-arbiter task advance --to red-team-review
-```
-
-Dispatch **N parallel red-team agents** based on tier (XS=1, S=2, Standard=3). Each agent self-selects an attack angle from: `security`, `concurrency`, `performance`, `edge-cases`, `regression`, `dependency`, `data-integrity`, `error-handling`.
-
-Agents write findings to `.arbiter/evidence/redteam/<task-id>.json` using the `RedTeamEvidenceV1` schema.
-
-**Forward-link to code-review (#1212):** also record each finding in the unified task document as
-`redTeamFindings` — `{ id: "RT-01", severity, summary, auditorHint, resolved: false }` — where
-`auditorHint` is the `auditor-routing.json` auditor whose remit it falls under. At code-review,
-every still-`resolved:false` finding caps its mapped auditor's verdict score and is tagged
-`[RT-xx UNRESOLVED]` (see `/review-code`). Flip `resolved` to `true` once addressed.
-
-**Routing by finding impact:**
-
-| Impact | Action |
-|--------|--------|
-| CRITICAL | `arbiter task advance --to red-team-rework` → revise plan → re-run Phase 2.7 |
-| HIGH / MEDIUM | Adapt plan in-place before advancing |
-| SUGGESTION | Note only — no blocking |
-
-Once all findings are CLEAR or resolved:
-```bash
-arbiter task advance --to red
-```
-
-<% } %>
-
-### Phase 3: Plan Creation
-
-Every plan MUST begin with a YAML front-matter **Context Block** (see `docs/REFERENCE/plan-template.md`). Copy the template below and fill in each field before writing the plan body:
-
-```markdown
----
-context:
-  issue: "#NNN"          # or: issues: ["#NNN", "#MMM"]
-  type: feat             # feat | fix | docs | chore | refactor
-  pipeline: "plan → impl → gate → PR"
-  branch_convention: "task/#NNN-kebab-description"
-  base_branch: main
-  key_constraints:
-    - "Constraint 1"
-  red_team_warnings:
-    - "Warning 1"
-  estimate: "S (2h)"     # S|M|L with rough hours
----
-```
-
-Produce a plan containing:
-
-1. **Scope**: Files to create/modify (no "etc." or "various")
-2. **Test plan**: What tests to write first (TDD)
-3. **Gate command**: `<%= testCommand %>`
-4. **Risk**: What could break (at least 1 item)
-<% if (governanceLevel === 'L3') { %>
-5. **Verification criteria**: Evidence for each acceptance criterion
-6. **SSOT updates**: Which docs need updating alongside code
-<% } %>
-
-<% if (governanceLevel !== 'L1') { %>
-Ensure runtime state stays local-only before writing task state:
-```bash
-mkdir -p .git/info .claude/plans
-touch .git/info/exclude
-for pattern in ".claude/.task-*" ".claude/.task/" ".claude/plans/" ".agents-dispatched" ".arbiter/"; do
-  grep -qxF "$pattern" .git/info/exclude || printf "%s\n" "$pattern" >> .git/info/exclude
-done
-```
-
-Write task state:
-```bash
-arbiter task init --id "#NNN" --plan ".claude/plans/task-NNN.md"
-arbiter task advance --to plan
-```
-<% } %>
-
-<% if (_multiLane) { %>
----
-
-## Lane Discipline
-
-This project has multiple lanes.<% if (_codeLanes.length >= 2) { %> **Cross-stack rule:** if your task touches both **<%= _codeLanes.join('** and **') %>**, STOP and split into separate tasks/PRs.<% } %>
-
-| Lane | Scope | Test command |
-|------|-------|--------------|
-<% if (_lanes.includes('frontend')) { %>| **frontend** | Files under `frontend/` | `<%= testCommand %> --filter frontend` |
-<% } %><% if (_lanes.includes('backend')) { %>| **backend** | Files under `backend/` | `<%= testCommand %> --filter backend` |
-<% } %><% if (_lanes.includes('docs')) { %>| **docs** | Files under `docs/` | Documentation review only — no code gate |
-<% } %>
-Before implementation: identify which lane(s) your change touches. If only one lane — proceed. If multiple — STOP and request split.
-<% } %>
-
-**STOP HERE** — await user GO before editing any file.
+| Subcommand | Purpose |
+|---|---|
+| `arbiter task init --id <id> --plan <path> --tier <tier>` | Seed task state (id, plan path, tier) |
+| `arbiter task advance --to <phase>` | Advance (or recover) to the target phase |
+| `arbiter task resume` | Restore context from the last cursor (`arbiter mark`) |
+| `arbiter task recover` | Repair corrupted or stale task state |
+| `arbiter task record-red --test-path <path>` | Record TDD red evidence (failing test file) |
+| `arbiter task record-tech-debt --description <d>` | File a tech-debt issue and record it |
+| `arbiter task get` | Print current task state as JSON |
 
 ---
 
-## PHASE EXEC — After GO
+## State machine
 
-### Phase 4: Setup
+Phase order: `preflight → plan → red-team-review → red → green → refactor → verification → complete`
 
-1. **Dirty-tree guard**: Working tree must be clean before starting.
-   ```bash
-   git status --porcelain
-   ```
-   If dirty, STOP and commit/stash changes first.
+Lateral re-entry: `red-team-rework → red-team-review` (for CRITICAL red-team findings).
 
-2. **Create branch** if not already on one:
-   ```bash
-   git checkout -b task/#NNN-kebab-case-description
-   ```
+---
 
-<% if (governanceLevel !== 'L1') { %>
-3. **Update phase**:
-   ```bash
-   arbiter task advance --to red
-   ```
-<% } %>
+## Manual recovery
 
-### Phase 5: Implementation (TDD)
-
-<% if (governanceLevel !== 'L1') { %>
-- Use TDD: write test first, then implementation (Red → Green → Refactor)
-<% } else { %>
-- Write tests alongside implementation. Run gate after each logical unit.
-<% } %>
-- Run gate after each logical unit:
-  ```bash
-  <%= testCommand %>
-  ```
-- Keep commits atomic: one logical change per commit
-- Commit format: `type(#NNN): summary`
-
-<% if (governanceLevel !== 'L1') { %>
-### Phase 6: Code Review (MANDATORY)
-
-<% if (_collaborationMode === 'trunk-solo') { %>
-**Solo review — self-audit pass (1 agent):**
-
-Dispatch a single self-review agent covering:
-- Bugs & logic errors: null/undefined mishandling, incorrect conditions, off-by-one
-- Type safety: unsafe casts, `any` leaks, missing guards
-- Domain consistency: invariants (AGENTS.md), ADRs
-- Silent failures: swallowed exceptions, wrong fallbacks
+If mid-phase or stuck, advance directly:
 
 ```bash
-echo "1" > .agents-dispatched
-# #1212: branch+sha sidecar so the fail-closed Stop hook can correlate dispatch evidence
-mkdir -p .arbiter && printf '{"count":1,"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
+arbiter task advance --to <phase>
+# Examples:
+# arbiter task advance --to red          # resume from plan approval
+# arbiter task advance --to refactor     # resume after implementation
+# arbiter task advance --to verification # resume after code review
 ```
 
-**HARD STOP** if the self-review agent was not actually dispatched.
+Do NOT use the ordered sequence to re-run all phases — that is what `/ship --advance` does.
 
-<% } else { %>
-**Agent minimums (from `taskTiers` config):**
-- XS: <%= _tiers.XS.reviewAgentCount %> agents minimum
-- S: <%= _tiers.S.reviewAgentCount %> agents minimum
-- Standard: <%= _tiers.Standard.reviewAgentCount %> agents minimum
+---
 
-#### 6.1 — Dispatch parallel review agents (run ALL simultaneously)
+## Tech-debt filing
 
-- **Agent 1 — Bugs & logic errors**: Null/undefined mishandling, incorrect conditions, wrong defaults, off-by-one errors
-- **Agent 2 — Type safety & patterns**: Unsafe casts, `any` leaks, missing type guards, SOLID violations
-- **Agent 3 — Domain consistency**: Do changes respect invariants (AGENTS.md), ADRs, and governance contracts?
-- **Agent 4 — (Standard only) Test quality**: Are tests meaningful? Edge cases covered? Not just happy path?
-
-#### 6.2 — Silent failure hunter (always runs, separate agent)
-
-Hunt specifically for: swallowed exceptions (`catch {}`), `??` defaults that mask undefined with wrong fallbacks, conditions that silently produce no output, unhandled promise rejections.
-
-#### 6.3 — File-backed dispatch gate
-
-After dispatching agents, record the count:
-```bash
-echo "<%= _tiers.XS.reviewAgentCount %>" > .agents-dispatched   # XS; S: same; Standard: <%= _tiers.Standard.reviewAgentCount %>
-# #1212: branch+sha sidecar so the fail-closed Stop hook can correlate dispatch evidence
-mkdir -p .arbiter && printf '{"count":<%= _tiers.XS.reviewAgentCount %>,"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
-```
-
-**HARD STOP** if agents were not actually dispatched. "I reviewed it" without agent tool calls does not satisfy this gate.
-
-#### 6.4 — Acceptance criteria verification
-
-Re-read the original GitHub issue. For each acceptance criterion, state: PASS / FAIL / NOT TESTED. If any FAIL, fix before proceeding.
-
-<% } %>
-
-### Phase 7: Adversarial Verifier (MANDATORY)
-
-Dispatch a single adversarial verifier agent. This runs AFTER code review but BEFORE the gate.
-
-The verifier must:
-- Trace each new feature end-to-end
-- Check for dead code / defined-but-never-used fields
-- Verify CLI option wiring end-to-end (flag declared → parsed → forwarded)
-- Check fixture assumptions and test setup
-
-**HARD STOP** if verifier agent was not dispatched. Treat [ISSUE] findings as blockers.
-
-<% } %>
-
-### Phase 8: Gate
+When you discover a pre-existing violation in code you are **not** changing (ADR violation in untouched
+code, missing enforcement, fragile abstraction requiring out-of-scope rework), file a tech-debt issue:
 
 ```bash
-<%= testCommand %>
+arbiter task record-tech-debt \
+  --description "brief finding description" \
+  --triggered-by "#NNN"   # defaults to active task from .claude/.task/status.json
 ```
 
-Gate must be **GREEN**. If it fails:
-- Fix root cause. No `--no-verify`. No skipping.
-- Report blocker if fails after two focused attempts.
+Creates a GitHub issue labeled `tech-debt` and appends the issue number to
+`.arbiter/evidence/<task-id>/tech-debt.json`. Failure is soft (exit 0); reason is emitted to stderr.
 
-<% if (governanceLevel !== 'L1') { %>
-Update phase:
-```bash
-arbiter task advance --to verification
-```
-<% } %>
+---
 
-### Phase 9: Commit + Push
+## Gate commands
 
 ```bash
-git add <specific-files>
-git commit -m "type(#NNN): summary"
-git push -u origin HEAD
+node scripts/check-all.mjs L1   # fast: lint + format + unit tests
+node scripts/check-all.mjs L2   # full: L1 + coverage + integration
 ```
-
-### Phase 10: Merge
-
-<% if (_mergeMode === 'direct') { %>
-**Trunk-solo / direct merge — no PR required:**
-```bash
-git push -u origin HEAD
-```
-<% } else if (_backend === 'github') { %>
-**PR-based merge (ff-only, ADR-051):**
-```bash
-gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
-gh pr checks
-<% if (_collaborationMode === 'gated-review') { %>
-gh pr merge --merge   # ff-only; use --admin if required approvals block merge
-<% } else { %>
-gh pr merge --merge   # ff-only enforced by branch protection
-<% } %>
-```
-<% } else { %>
-```bash
-git push -u origin HEAD
-arbiter work close <NNN>
-```
-<% } %>
-
-<% if (governanceLevel !== 'L1') { %>
-### Phase 11: Cleanup
-
-```bash
-node scripts/done-evidence.mjs
-<% if (_backend === 'github') { %>
-gh issue close NNN
-<% } else { %>
-arbiter work close NNN
-<% } %>
-arbiter task advance --to complete
-```
-
-If using worktree, close it:
-```bash
-/wt-close NNN
-```
-<% } %>
-
-## Gate Failure
-
-If gate fails: fix root cause. No `--no-verify`. No skipping.
-Report blocker if fails after two focused attempts.

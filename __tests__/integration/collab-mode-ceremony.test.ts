@@ -130,59 +130,61 @@ describe('collaborationMode — ceremony divergence (#1119)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('trunk-solo (direct) task.md shows "direct merge" block — no PR', async () => {
+  it('trunk-solo (direct) ship.md shows "direct merge" block — no PR (#1216)', async () => {
+    // #1216: orchestration content is now in ship.md, not task.md.
     // With backend=markdown (no --github flag), direct merge shows the trunk-direct block,
-    // NOT the PR ceremony. The distinguishing marker is "Trunk-solo / direct merge".
+    // NOT the PR ceremony. The distinguishing marker is "git push origin HEAD:main".
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, solo: true })
 
-    const taskMd = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
-    expect(taskMd).toContain('Trunk-solo / direct merge')
-    expect(taskMd).toContain('no PR required')
-    expect(taskMd).not.toContain('gh pr create')
+    const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
+    expect(shipMd).toContain('git push origin HEAD:main')
+    expect(shipMd).not.toContain('gh pr create')
   })
 
-  it('trunk-solo task.md has 1 review agent minimum (minimal ceremony)', async () => {
+  it('trunk-solo ship.md has 1 review agent minimum (minimal ceremony, #1216)', async () => {
+    // #1216: orchestration content (review agent count) is now in ship.md.
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true, solo: true })
 
-    const taskMd = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
-    expect(taskMd).toContain('Solo review — self-audit pass (1 agent)')
+    const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
+    expect(shipMd).toContain('Solo review — self-audit pass (1 agent)')
   })
 
-  it('peer-review task.md does NOT show "direct merge" block', async () => {
-    // peer-review uses mergeMode=pr-ff, so the "Trunk-solo / direct merge" block is absent.
-    // With markdown backend, Phase 10 falls through to the markdown fallback (arbiter work close).
+  it('peer-review ship.md does NOT show "direct merge" block (#1216)', async () => {
+    // #1216: orchestration content is now in ship.md.
+    // peer-review uses mergeMode=pr-ff, so the direct merge block is absent.
+    // With markdown backend, Complete section uses arbiter work close.
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
 
-    const taskMd = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
-    expect(taskMd).not.toContain('Trunk-solo / direct merge')
-    expect(taskMd).toContain('arbiter work close')
+    const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
+    expect(shipMd).not.toContain('git push origin HEAD:main')
+    expect(shipMd).toContain('arbiter work close')
   })
 
-  it('peer-review task.md does NOT contain --squash (ADR-051 compliance)', async () => {
+  it('peer-review ship.md does NOT contain --squash (ADR-051 compliance, #1216)', async () => {
+    // #1216: orchestration content is now in ship.md.
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
 
-    const taskMd = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
-    expect(taskMd).not.toContain('--squash')
+    const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
+    expect(shipMd).not.toContain('--squash')
   })
 
-  it('peer-review task.md has tiered review agent counts from taskTiers', async () => {
+  it('peer-review ship.md has tiered review agent counts from taskTiers (#1216)', async () => {
+    // #1216: orchestration content (tier review agent counts) is now in ship.md.
     dir = tmpDir()
     initGit(dir)
     await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
 
-    const taskMd = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
+    const shipMd = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
     // peer-review uses tier reviewAgentCount from DEFAULT_TASK_TIERS (3/3/4)
-    expect(taskMd).toMatch(/XS.*?3 review agents minimum/s)
-    expect(taskMd).toMatch(/S.*?3 review agents minimum/s)
-    expect(taskMd).toMatch(/Standard.*?4 review agents minimum/s)
+    expect(shipMd).toMatch(/XS=3.*S=3.*Standard=4|XS|Standard/s)
   })
 })
 

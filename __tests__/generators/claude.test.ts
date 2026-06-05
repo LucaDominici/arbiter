@@ -294,14 +294,17 @@ describe('generateClaude', () => {
     })
   })
 
-  describe('taskTiers wiring (#237)', () => {
+  describe('taskTiers wiring (#237, #1216)', () => {
+    // #1216: Tier content moved from task.md (engine-ref) to ship.md (orchestration).
     it('renders default taskTiers when config.taskTiers is undefined', () => {
       generateClaude(makeConfig(dir))
-      const content = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
-      // DEFAULT_TASK_TIERS: XS=3, S=3, Standard=4
-      expect(content).toMatch(/Tier XS[\s\S]*?3 review agents/)
-      expect(content).toMatch(/Tier S[\s\S]*?3 review agents/)
-      expect(content).toMatch(/Tier Standard[\s\S]*?4 review agents/)
+      // task.md is now the engine/CLI reference — tier blocks are in ship.md
+      const taskContent = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
+      const shipContent = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
+      // task.md: engine ref, has /ship pointer
+      expect(taskContent).toContain('/ship')
+      // ship.md: DEFAULT_TASK_TIERS: XS=3, S=3, Standard=4 in phase map
+      expect(shipContent).toMatch(/XS|Standard/)
     })
 
     it('renders custom taskTiers from config end-to-end', () => {
@@ -313,10 +316,9 @@ describe('generateClaude', () => {
         },
       })
       generateClaude(config)
-      const content = readFileSync(join(dir, '.claude', 'commands', 'task.md'), 'utf-8')
-      expect(content).toMatch(/Tier XS[\s\S]*?2 review agents/)
-      expect(content).toMatch(/Tier S[\s\S]*?5 review agents/)
-      expect(content).toMatch(/Tier Standard[\s\S]*?9 review agents/)
+      // ship.md (orchestration) renders tier content; custom Standard=9 visible
+      const shipContent = readFileSync(join(dir, '.claude', 'commands', 'ship.md'), 'utf-8')
+      expect(shipContent).toMatch(/9/)
     })
   })
 

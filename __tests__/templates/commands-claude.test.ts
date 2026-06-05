@@ -9,15 +9,18 @@ import type { Language, GovernanceLevel } from '../../src/wizard/types.js'
  * the required structural sections.
  *
  * INV-11: Full matrix coverage.
+ * #1216: /ship is the single orchestration narrative; /task is the low-level engine.
  */
 
 // Stack-specific gate commands expected in generated commands
 const GATE_COMMANDS: Record<Language, string> = {
   typescript: 'npm run test',
   java: './gradlew test',
+  kotlin: './gradlew test',
   rust: 'cargo test',
   go: 'go test ./...',
   python: 'pytest',
+  multi: 'npm run test',
   unknown: 'echo',
 }
 
@@ -37,6 +40,43 @@ function renderTask(
   return renderTemplate('claude/commands/task.md.ejs', config as unknown as Record<string, unknown>)
 }
 
+function renderShip(
+  language: Language = 'typescript',
+  governanceLevel: GovernanceLevel = 'L2',
+  collaborationMode: string = 'peer-review',
+  mergeMode: string = 'pr-ff',
+): string {
+  const config = makeConfig('/tmp/test', {
+    language,
+    governanceLevel,
+    testCommand: GATE_COMMANDS[language],
+    collaborationMode: collaborationMode as 'trunk-solo' | 'peer-review' | 'gated-review',
+  })
+  // mergeMode is resolved separately — inject directly into render context
+  return renderTemplate('claude/commands/ship.md.ejs', {
+    ...(config as unknown as Record<string, unknown>),
+    mergeMode,
+  })
+}
+
+function renderClaudeMd(governanceLevel: GovernanceLevel = 'L2'): string {
+  const config = makeConfig('/tmp/test', { governanceLevel })
+  return renderTemplate('claude/CLAUDE.md.ejs', config as unknown as Record<string, unknown>)
+}
+
+function renderCodexMd(): string {
+  const config = makeConfig('/tmp/test')
+  return renderTemplate('codex/CODEX.md.ejs', config as unknown as Record<string, unknown>)
+}
+
+function renderCodexExecProtocol(): string {
+  const config = makeConfig('/tmp/test')
+  return renderTemplate(
+    'codex/rules/90-exec-protocol.md.ejs',
+    config as unknown as Record<string, unknown>,
+  )
+}
+
 function renderCommand(template: string): string {
   return renderTemplate(
     `claude/commands/${template}.ejs`,
@@ -44,35 +84,14 @@ function renderCommand(template: string): string {
   )
 }
 
-describe('claude commands: task.md — structural sections', () => {
-  it('contains branch enforcement section', () => {
-    const content = renderTask()
-    expect(content).toMatch(/branch/i)
-    expect(content).toMatch(/main|master/i)
-  })
+// ---------------------------------------------------------------------------
+// task.md — engine/CLI reference (#1216: trimmed to engine, not orchestrator)
+// ---------------------------------------------------------------------------
 
-  it('contains plan gate with STOP', () => {
+describe('claude commands: task.md — engine/CLI reference (#1216)', () => {
+  it('top banner points at /ship as the orchestration entrypoint', () => {
     const content = renderTask()
-    expect(content).toMatch(/STOP/)
-  })
-
-  it('has PLAN/EXEC split', () => {
-    const content = renderTask()
-    expect(content).toMatch(/PHASE PLAN/)
-    expect(content).toMatch(/PHASE EXEC/)
-  })
-
-  it('contains preflight section with flag parsing', () => {
-    const content = renderTask()
-    expect(content).toMatch(/Preflight/i)
-    expect(content).toMatch(/skip-review/)
-    expect(content).toMatch(/dry-run/)
-  })
-
-  it('contains tier classification (XS/S/Standard) at L2+', () => {
-    const content = renderTask()
-    expect(content).toMatch(/XS/)
-    expect(content).toMatch(/Standard/)
+    expect(content).toContain('/ship')
   })
 
   it('initialises the unified task document via arbiter task init/advance', () => {
@@ -81,44 +100,9 @@ describe('claude commands: task.md — structural sections', () => {
     expect(content).toContain('arbiter task advance')
   })
 
-  it('sets local exclude entries before writing task state', () => {
+  it('contains tech-debt filing subcommand', () => {
     const content = renderTask()
-    const excludeIdx = content.indexOf('touch .git/info/exclude')
-    const taskStateIdx = content.indexOf('arbiter task init --id "#NNN"')
-    expect(excludeIdx).toBeGreaterThan(-1)
-    expect(taskStateIdx).toBeGreaterThan(excludeIdx)
-    for (const pattern of [
-      '.claude/.task-*',
-      '.claude/.task/',
-      '.claude/plans/',
-      '.agents-dispatched',
-      '.arbiter/',
-    ]) {
-      expect(content).toContain(pattern)
-    }
-  })
-
-  it('contains code review agent dispatch section at L2+', () => {
-    const content = renderTask()
-    expect(content).toMatch(/Silent failure hunter/)
-    expect(content).toMatch(/agents-dispatched/)
-    expect(content).toMatch(/Adversarial Verifier/)
-  })
-
-  it('contains worktree recommendation at L2+', () => {
-    const content = renderTask()
-    expect(content).toMatch(/wt-open/)
-  })
-
-  it('contains cleanup phase at L2+', () => {
-    const content = renderTask()
-    expect(content).toMatch(/Cleanup/i)
-    expect(content).toMatch(/wt-close/)
-  })
-
-  it('contains issue read instruction (github backend uses gh issue view)', () => {
-    const content = renderTask('typescript', 'L2', 'github')
-    expect(content).toMatch(/gh issue view/i)
+    expect(content).toContain('arbiter task record-tech-debt')
   })
 
   it('references AGENTS.md invariants', () => {
@@ -126,104 +110,13 @@ describe('claude commands: task.md — structural sections', () => {
     expect(content).toMatch(/AGENTS\.md/)
   })
 
-  it('contains gate execution section', () => {
+  it('no EJS leaks in default render', () => {
     const content = renderTask()
-    expect(content).toMatch(/gate|Gate/i)
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
   })
 
-  it('contains commit section', () => {
-    const content = renderTask()
-    expect(content).toMatch(/commit|Commit/i)
-  })
-
-  it('contains PR creation section', () => {
-    const content = renderTask()
-    expect(content).toMatch(/PR|pull request|gh pr create/i)
-  })
-
-  it('contains branch validation (not main)', () => {
-    const content = renderTask()
-    expect(content).toMatch(/main|master/i)
-  })
-})
-
-describe('claude commands: task.md — governance level gating', () => {
-  it('L1 does NOT include code review agent section', () => {
-    const content = renderTask('typescript', 'L1')
-    expect(content).not.toMatch(/Adversarial Verifier/)
-    expect(content).not.toMatch(/agents-dispatched/)
-  })
-
-  it('L1 does NOT include cleanup phase', () => {
-    const content = renderTask('typescript', 'L1')
-    expect(content).not.toMatch(/\bCleanup\b/)
-  })
-
-  it('L1 does NOT include worktree recommendation', () => {
-    const content = renderTask('typescript', 'L1')
-    expect(content).not.toMatch(/wt-open/)
-  })
-
-  it('L2 includes code review agents and verifier', () => {
-    const content = renderTask('typescript', 'L2')
-    expect(content).toMatch(/Adversarial Verifier/)
-    expect(content).toMatch(/agents-dispatched/)
-  })
-
-  it('L3 includes verification criteria section', () => {
-    const content = renderTask('typescript', 'L3')
-    expect(content).toMatch(/Verification criteria/)
-    expect(content).toMatch(/SSOT updates/)
-  })
-})
-
-describe('claude commands: task.md — stack parameterization', () => {
-  for (const lang of STACK_LANGUAGES) {
-    it(`gate command for ${lang} = ${GATE_COMMANDS[lang]}`, () => {
-      const content = renderTask(lang)
-      expect(content).toContain(GATE_COMMANDS[lang])
-    })
-  }
-})
-
-describe('claude commands: task.md — decompositionBackend branching (CANON-04/13)', () => {
-  it('github backend: Phase 0 uses gh issue view', () => {
-    const content = renderTask('typescript', 'L2', 'github')
-    expect(content).toContain('gh issue view NNN')
-    expect(content).not.toContain('arbiter work show')
-  })
-
-  it('markdown backend: Phase 0 uses arbiter work show', () => {
-    const content = renderTask('typescript', 'L2', 'markdown')
-    expect(content).toContain('arbiter work show')
-    expect(content).not.toContain('gh issue view NNN')
-  })
-
-  it('github backend: Phase 10 uses gh pr create/merge', () => {
-    const content = renderTask('typescript', 'L2', 'github')
-    expect(content).toContain('gh pr create')
-    expect(content).toContain('gh pr merge')
-  })
-
-  it('markdown backend: Phase 10 uses arbiter work close', () => {
-    const content = renderTask('typescript', 'L2', 'markdown')
-    expect(content).toContain('arbiter work close')
-    expect(content).not.toContain('gh pr create')
-  })
-
-  it('github backend L2+: Phase 11 uses gh issue close', () => {
-    const content = renderTask('typescript', 'L2', 'github')
-    expect(content).toContain('gh issue close NNN')
-  })
-
-  it('markdown backend L2+: Phase 11 uses arbiter work close', () => {
-    const content = renderTask('typescript', 'L2', 'markdown')
-    const matches = (content.match(/arbiter work close/g) ?? []).length
-    expect(matches).toBeGreaterThanOrEqual(1)
-    expect(content).not.toContain('gh issue close')
-  })
-
-  it('no EJS leaks in either backend render', () => {
+  it('no EJS leaks in either decompositionBackend render', () => {
     for (const backend of ['github', 'markdown'] as const) {
       const content = renderTask('typescript', 'L2', backend)
       expect(content).not.toContain('<%')
@@ -232,58 +125,212 @@ describe('claude commands: task.md — decompositionBackend branching (CANON-04/
   })
 })
 
-describe('claude commands: task.md — Context Block (#689)', () => {
-  it('Phase 3 instructs authors to include a Context Block', () => {
-    const content = renderTask()
-    expect(content).toMatch(/Context Block/i)
+// ---------------------------------------------------------------------------
+// ship.md — sole orchestration narrative (#1216)
+// ---------------------------------------------------------------------------
+
+describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => {
+  it('is framed as the orchestration entrypoint, not as "alongside" /task', () => {
+    const content = renderShip()
+    // The old "sits alongside /task, it does not replace it" framing must be gone
+    expect(content).not.toMatch(/sits alongside.*task.*does not replace/i)
+    // And /ship must be framed as the entrypoint
+    expect(content).toMatch(/orchestrat/i)
   })
 
-  it('Phase 3 embeds YAML template with context: key', () => {
-    const content = renderTask()
-    expect(content).toContain('context:')
-    expect(content).toContain('key_constraints:')
-    expect(content).toContain('red_team_warnings:')
+  it('contains arbiter task init shell command explicitly in preflight', () => {
+    const content = renderShip()
+    expect(content).toContain('arbiter task init')
   })
 
-  it('Phase 3 references plan-template.md', () => {
-    const content = renderTask()
-    expect(content).toMatch(/plan-template\.md/)
-  })
-})
-
-describe('claude commands: task.md — Phase 2.7 red-team review (#691)', () => {
-  it('Phase 2.7 present at L2 with advance --to red-team-review', () => {
-    const content = renderTask('typescript', 'L2')
-    expect(content).toContain('arbiter task advance --to red-team-review')
+  it('local-only state: sets up .git/info/exclude before task state', () => {
+    const content = renderShip()
+    expect(content).toContain('.git/info/exclude')
+    for (const pattern of ['.claude/.task-*', '.claude/.task/', '.claude/plans/', '.arbiter/']) {
+      expect(content).toContain(pattern)
+    }
   })
 
-  it('Phase 2.7 present at L2 with advance --to red after clear', () => {
-    const content = renderTask('typescript', 'L2')
-    expect(content).toContain('arbiter task advance --to red')
-  })
-
-  it('Phase 2.7 references evidence path .arbiter/evidence/redteam/', () => {
-    const content = renderTask('typescript', 'L2')
+  it('red-team section includes evidence path .arbiter/evidence/redteam/', () => {
+    const content = renderShip('typescript', 'L2')
     expect(content).toContain('.arbiter/evidence/redteam/')
   })
 
-  it('Phase 2.7 absent at L1', () => {
-    const content = renderTask('typescript', 'L1')
-    expect(content).not.toContain('arbiter task advance --to red-team-review')
-    expect(content).not.toContain('.arbiter/evidence/redteam/')
+  it('red-team section includes redTeamFindings forward-link with auditorHint', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toMatch(/redTeamFindings|auditorHint/i)
   })
 
-  it('Phase 2.7 present at L3', () => {
-    const content = renderTask('typescript', 'L3')
-    expect(content).toContain('arbiter task advance --to red-team-review')
+  it('refactor section writes agents-dispatched.json sidecar (branch+sha)', () => {
+    const content = renderShip()
+    expect(content).toContain('.arbiter/agents-dispatched.json')
+    expect(content).toMatch(/branch.*sha|sha.*branch/i)
   })
 
-  it('no EJS leaks in L2 render with new sections', () => {
-    const content = renderTask('typescript', 'L2')
+  it('refactor section includes acceptance-criteria PASS/FAIL/NOT-TESTED', () => {
+    const content = renderShip()
+    expect(content).toMatch(/PASS.*FAIL.*NOT.?TESTED|acceptance.?criteri/i)
+  })
+
+  it('complete section runs done-evidence.mjs', () => {
+    const content = renderShip()
+    expect(content).toContain('done-evidence.mjs')
+  })
+
+  it('complete section closes the issue (gh issue close or arbiter work close)', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toMatch(/gh issue close|arbiter work close/i)
+  })
+
+  it('complete section advances to complete phase', () => {
+    const content = renderShip()
+    expect(content).toContain('arbiter task advance --to complete')
+  })
+
+  it('contains cleanup / worktree close', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toMatch(/arbiter wt close/i)
+  })
+
+  it('contains Silent failure hunter in code-review dispatch', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toMatch(/Silent failure hunter/i)
+  })
+
+  it('contains Adversarial Verifier', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toMatch(/Adversarial Verifier/i)
+  })
+
+  it('contains PR section (merge step)', () => {
+    const content = renderShip()
+    expect(content).toMatch(/PR|gh pr create/i)
+  })
+
+  it('contains gate execution (check-all.mjs)', () => {
+    const content = renderShip()
+    expect(content).toMatch(/check-all\.mjs/)
+  })
+
+  it('no EJS leaks in default (peer-review) render', () => {
+    const content = renderShip()
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+
+  it('no EJS leaks in trunk-solo+pr-ff render', () => {
+    const content = renderShip('typescript', 'L2', 'trunk-solo', 'pr-ff')
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+
+  it('trunk-solo+direct: emits git push origin HEAD:main', () => {
+    const content = renderShip('typescript', 'L2', 'trunk-solo', 'direct')
+    expect(content).toContain('git push origin HEAD:main')
+  })
+
+  it('peer-review (non-direct): does NOT emit git push origin HEAD:main in merge step', () => {
+    const content = renderShip('typescript', 'L2', 'peer-review', 'pr-ff')
+    expect(content).not.toContain('git push origin HEAD:main')
+  })
+
+  it('trunk-solo: uses 1 self-review agent in refactor phase', () => {
+    const content = renderShip('typescript', 'L2', 'trunk-solo', 'pr-ff')
+    // Phase-map refactor row should indicate trunk-solo count (1), not tier count (4)
+    expect(content).toMatch(/trunk.?solo.*1|1.*self.?review/i)
+  })
+})
+
+describe('claude commands: ship.md — stack parameterization', () => {
+  for (const lang of STACK_LANGUAGES) {
+    it(`gate command for ${lang} = ${GATE_COMMANDS[lang]}`, () => {
+      const content = renderShip(lang)
+      expect(content).toContain(GATE_COMMANDS[lang])
+    })
+  }
+})
+
+describe('claude commands: ship.md — governance level gating', () => {
+  it('L2 includes code review agents section', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toMatch(/Adversarial Verifier/)
+    expect(content).toMatch(/agents-dispatched/)
+  })
+
+  it('L2 includes red-team review', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toContain('.arbiter/evidence/redteam/')
+  })
+
+  it('L2 includes worktree recommendation', () => {
+    const content = renderShip('typescript', 'L2')
+    expect(content).toMatch(/wt-open/)
+  })
+})
+
+describe('claude commands: ship.md — merge step branching', () => {
+  it('peer-review mode: merge step uses gh pr create/merge', () => {
+    const content = renderShip('typescript', 'L2', 'peer-review', 'pr-ff')
+    expect(content).toContain('gh pr create')
+    expect(content).toContain('gh pr merge')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CLAUDE.md slash table — /ship as orchestrator (#1216)
+// ---------------------------------------------------------------------------
+
+describe('claude CLAUDE.md — /ship in slash-command table (#1216)', () => {
+  it('slash table contains a /ship row', () => {
+    const content = renderClaudeMd()
+    expect(content).toMatch(/\|\s*`?\/ship/)
+  })
+
+  it('/ship row describes it as the orchestration entrypoint', () => {
+    const content = renderClaudeMd()
+    expect(content).toMatch(/\/ship.*orchestrat|orchestrat.*\/ship/i)
+  })
+
+  it('no EJS leaks in default render', () => {
+    const content = renderClaudeMd()
     expect(content).not.toContain('<%')
     expect(content).not.toContain('%>')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Codex parity — /ship as orchestrator in codex surfaces (#1216)
+// ---------------------------------------------------------------------------
+
+describe('codex CODEX.md — /ship in command table (#1216)', () => {
+  it('contains a /ship entry in the command/slash table', () => {
+    const content = renderCodexMd()
+    expect(content).toMatch(/\/ship|ship/)
+  })
+
+  it('no EJS leaks', () => {
+    const content = renderCodexMd()
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+describe('codex rules/90-exec-protocol — /ship as orchestration path (#1216)', () => {
+  it('references /ship for orchestration', () => {
+    const content = renderCodexExecProtocol()
+    expect(content).toMatch(/\/ship|ship/)
+  })
+
+  it('no EJS leaks', () => {
+    const content = renderCodexExecProtocol()
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Worktree helpers (unchanged)
+// ---------------------------------------------------------------------------
 
 describe('claude commands: worktree helpers', () => {
   it('renders wt-open without EJS leaks and invokes arbiter wt open', () => {

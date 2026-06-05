@@ -78,6 +78,6 @@ Largest cost: mapping Spec Kit validators to arbiter invariants (requires readin
 
 ## Gotchas
 
-- Spec Kit plan files use different front-matter keys. Add `context.issue`, `context.type`, and `context.estimate` before using `/task` commands.
+- Spec Kit plan files use different front-matter keys. Add `context.issue`, `context.type`, and `context.estimate` before using `/ship` to drive the task.
 - If Spec Kit hooks write to `.speckit/state/`, add that path to `.gitignore` and mirror any state you need to `.arbiter/`.
 - Shared Spec Kit rules become AGENTS.md invariants. Enforce them with `required: true` in the catalog entry so the L1 gate catches violations.

@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-01'
+last_review: '2026-06-05'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -59,7 +59,7 @@ related: []
 | 038 | [Mission Elevation — v1.0 Scope](../ADR/038-mission-elevation-v1.md) | Accepted | 2026-05-20 |
 | 039 | [V1 Verification Bridge](../ADR/039-verification-bridge-v1.md) | Accepted | 2026-05-20 |
 | 040 | [Provenance Graph as a first-class primitive](../ADR/040-provenance-graph-primitive.md) | Accepted | 2026-05-20 |
-| 041 | [Task Workflow via /task Slash Command](../ADR/041-task-workflow.md) | Accepted | 2026-05-20 |
+| 041 | [Task Workflow via /task Slash Command](../ADR/041-task-workflow.md) | deprecated | 2026-06-05 |
 | 042 | [Three-Tier Gate System (L1/L2/L3)](../ADR/042-gate-tiers.md) | Accepted | 2026-05-20 |
 | 043 | [Docs Site Information Architecture](../ADR/043-docs-site-ia.md) | Accepted | 2026-05-20 |
 | 044 | [Docs Site Versioning Strategy](../ADR/044-docs-versioning.md) | Accepted | 2026-05-20 |
@@ -106,3 +106,4 @@ related: []
 | 085 | [Evidence Prune Script and Red-Team SSOT Alignment Vectors](../ADR/085-evidence-prune-and-red-team-ssot-alignment-vectors.md) | Accepted | 2026-05-16 |
 | 086 | [Four-Pillar SSOT Infrastructure (AC#1 Deviation)](../ADR/086-four-pillar-ssot-infrastructure.md) | Accepted | 2026-05-13 |
 | 087 | [Rust Context-Aware INV-04 Checkers and Rebased-Aware Docs-Check](../ADR/087-rust-context-aware-inv04-checkers-and-rebased-docs-check.md) | Accepted | 2026-05-14 |
+| 088 | [/ship as the Single Orchestration Entrypoint](../ADR/088-ship-as-orchestration-entrypoint.md) | Accepted | 2026-06-05 |

@@ -121,18 +121,24 @@ describe('tool output: claude', () => {
     expect(existsSync(join(rulesDir, '90-exec-protocol.md'))).toBe(true)
   })
 
-  it('generates 1 command file; task.md references gh issue view for github backend', () => {
+  it('generates task.md + ship.md; ship.md is the orchestration entrypoint (#1216)', () => {
     const config = claudeConfig({
       useGitHub: true,
       decompositionBackend: 'github',
     })
     generateClaude(config)
     const commandsDir = join(dir, '.claude', 'commands')
+    // Both files generated
     expect(existsSync(join(commandsDir, 'task.md'))).toBe(true)
+    expect(existsSync(join(commandsDir, 'ship.md'))).toBe(true)
     expect(existsSync(join(commandsDir, 'start-task.md'))).toBe(false)
     expect(existsSync(join(commandsDir, 'complete-task.md'))).toBe(false)
+    // task.md: engine-ref — points at /ship
     const taskContent = readFileSync(join(commandsDir, 'task.md'), 'utf-8')
-    expect(taskContent).toContain('gh issue view')
+    expect(taskContent).toContain('/ship')
+    // ship.md: orchestration — references the issue (read in preflight)
+    const shipContent = readFileSync(join(commandsDir, 'ship.md'), 'utf-8')
+    expect(shipContent).toMatch(/read.*issue|issue.*read|preflight/i)
   })
 
   it('TypeScript language hooks generate check-no-any.mjs', () => {

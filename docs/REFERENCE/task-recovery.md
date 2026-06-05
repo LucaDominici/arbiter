@@ -55,12 +55,13 @@ filesystem. `--digest` also appends a one-line entry to `.claude/.task/log.md`.
 
 ---
 
-## Orchestrated runs — `arbiter ship` (#1206)
+## Orchestrated runs — `/ship` (orchestration entrypoint, #1216)
 
-`arbiter ship <id>` drives an issue toward a reviewed, merged PR by auto-sequencing the existing
-engine (worktree → plan → review-plan gate → TDD impl → review-code → verify → gate → merge → cleanup).
-It computes the next concrete step and, with `--advance`, advances one phase when that phase's gate is
-green. It sits alongside `/task` (it does not replace it).
+`/ship #NNN` (Claude Code) / `arbiter ship <id>` (CLI) is the **single orchestration entrypoint** —
+it drives an issue to a reviewed, merged PR by auto-sequencing
+(worktree → plan → red-team → TDD impl → review → gate → merge → cleanup).
+Use `/task` subcommands (`arbiter task advance`, `record-red`, etc.) only for recovery or manual
+phase control; the `/ship` loop auto-advances phases when their gates are green.
 
 ---
 
