@@ -11,109 +11,109 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-// --- stdin (Stop event payload) ---------------------------------------------
-let input = {}
-try {
-  input = JSON.parse(readFileSync(0, 'utf-8')) ?? {}
-} catch {
-  // Unreadable/non-JSON stdin is not something we can correlate against — the
-  // guard only ever blocks on a *detected* completion claim, so stand down.
+function main() {
+  // --- stdin (Stop event payload) -------------------------------------------
+  let input = {}
+  try {
+    input = JSON.parse(readFileSync(0, 'utf-8')) ?? {}
+  } catch {
+    // Unreadable/non-JSON stdin is not something we can correlate against — the
+    // guard only ever blocks on a *detected* completion claim, so stand down.
+    process.exit(0)
+  }
+
+  // Re-entry guard: exit 2 re-prompts the model with this hook still active. If we
+  // fired again we would loop forever, so always allow the stop on re-entry.
+  if (input.stop_hook_active === true) process.exit(0)
+
+  const root = getRepoRoot()
+
+  const git = (args) => spawnSync('git', args, { cwd: root, encoding: 'utf-8' })
+  const gitLine = (args) => {
+    const r = git(args)
+    return r.status === 0 ? String(r.stdout).trim() : ''
+  }
+
+  // Only guard on task/ship branches.
+  const branch = gitLine(['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (!branch.startsWith('task/') && !branch.startsWith('ship/')) process.exit(0)
+
+  // Only guard for an active, not-yet-complete task.
+  const { phase, taskId } = readTaskState(root)
+  if (phase === 'complete' || phase === 'unknown') process.exit(0)
+
+  // Only guard when the final assistant message claims completion.
+  const claimText = latestAssistantText(input.transcript_path)
+  if (claimText === null) process.exit(0) // missing/unreadable transcript → stand down
+  const COMPLETION_PATTERNS =
+    /\b(task complete|task completed|all phases complete|pr merged|merged to main|wrapping up|ready to (merge|close))\b/i
+  if (!COMPLETION_PATTERNS.test(claimText)) process.exit(0)
+
+  // --- completion claimed: require correlated evidence ----------------------
+  const head = gitLine(['rev-parse', 'HEAD'])
+
+  const fail = (reason) => {
+    process.stderr.write(
+      `━━━ STOP EVIDENCE GUARD ━━━\n` +
+        `Completion claim blocked on ${branch} (phase: ${phase}):\n` +
+        `  ${reason}\n\n` +
+        `A completion claim requires plan-review + dispatch + gate-pass evidence,\n` +
+        `each recorded on this branch at a commit reachable from HEAD.\n` +
+        `Re-run the missing step, then claim completion again.\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
+    )
+    process.exit(2)
+  }
+
+  const readJson = (path) => {
+    try {
+      return JSON.parse(readFileSync(path, 'utf-8'))
+    } catch {
+      return null
+    }
+  }
+
+  // exit 0 = ancestor-or-equal; anything else (incl. bad sha error) = uncorrelated.
+  const isAncestor = (sha) => {
+    if (typeof sha !== 'string' || sha.length === 0) return false
+    return git(['merge-base', '--is-ancestor', sha, 'HEAD']).status === 0
+  }
+
+  // 1. plan-review — verdict PASS, on this branch, sha is an ancestor of HEAD.
+  const planPath = join(
+    root,
+    '.arbiter',
+    'evidence',
+    'plan-review',
+    sanitizeTaskId(taskId),
+    'latest.json',
+  )
+  const plan = readJson(planPath)
+  if (plan === null) fail('plan-review evidence missing or unreadable (latest.json)')
+  if (plan.verdict !== 'PASS')
+    fail(`plan-review verdict is ${JSON.stringify(plan.verdict)} — must be PASS`)
+  if (plan.branch !== branch)
+    fail(`plan-review evidence is for branch ${JSON.stringify(plan.branch)}, not ${branch}`)
+  if (!isAncestor(plan.sha)) fail('plan-review evidence sha is not an ancestor of HEAD (stale)')
+
+  // 2. dispatch sidecar — review agents dispatched on this branch, ancestor of HEAD.
+  const dispatch = readJson(join(root, '.arbiter', 'agents-dispatched.json'))
+  if (dispatch === null) fail('dispatch evidence missing (.arbiter/agents-dispatched.json)')
+  if (dispatch.branch !== branch)
+    fail(`dispatch evidence is for branch ${JSON.stringify(dispatch.branch)}, not ${branch}`)
+  if (!isAncestor(dispatch.sha)) fail('dispatch evidence sha is not an ancestor of HEAD (stale)')
+
+  // 3. gate-pass — strict: this exact tree was verified (branch + head_sha == HEAD).
+  const gate = readJson(join(root, '.arbiter', 'gate-pass.json'))
+  if (gate === null) fail('gate-pass evidence missing (.arbiter/gate-pass.json)')
+  if (gate.branch !== branch)
+    fail(`gate-pass evidence is for branch ${JSON.stringify(gate.branch)}, not ${branch}`)
+  if (gate.head_sha !== head)
+    fail('gate-pass head_sha does not equal HEAD — re-run the gate on the current tree')
+
+  // All three correlated — allow the stop.
   process.exit(0)
 }
-
-// Re-entry guard: exit 2 re-prompts the model with this hook still active. If we
-// fired again we would loop forever, so always allow the stop on re-entry.
-if (input.stop_hook_active === true) process.exit(0)
-
-const root = getRepoRoot()
-
-function git(args) {
-  return spawnSync('git', args, { cwd: root, encoding: 'utf-8' })
-}
-function gitLine(args) {
-  const r = git(args)
-  return r.status === 0 ? String(r.stdout).trim() : ''
-}
-
-// Only guard on task/ship branches.
-const branch = gitLine(['rev-parse', '--abbrev-ref', 'HEAD'])
-if (!branch.startsWith('task/') && !branch.startsWith('ship/')) process.exit(0)
-
-// Only guard for an active, not-yet-complete task.
-const { phase, taskId } = readTaskState(root)
-if (phase === 'complete' || phase === 'unknown') process.exit(0)
-
-// Only guard when the final assistant message claims completion.
-const claimText = latestAssistantText(input.transcript_path)
-if (claimText === null) process.exit(0) // missing/unreadable transcript → stand down
-const COMPLETION_PATTERNS =
-  /\b(task complete|task completed|all phases complete|pr merged|merged to main|wrapping up|ready to (merge|close))\b/i
-if (!COMPLETION_PATTERNS.test(claimText)) process.exit(0)
-
-// --- completion claimed: require correlated evidence ------------------------
-const head = gitLine(['rev-parse', 'HEAD'])
-
-function fail(reason) {
-  process.stderr.write(
-    `━━━ STOP EVIDENCE GUARD ━━━\n` +
-      `Completion claim blocked on ${branch} (phase: ${phase}):\n` +
-      `  ${reason}\n\n` +
-      `A completion claim requires plan-review + dispatch + gate-pass evidence,\n` +
-      `each recorded on this branch at a commit reachable from HEAD.\n` +
-      `Re-run the missing step, then claim completion again.\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`,
-  )
-  process.exit(2)
-}
-
-function readJson(path) {
-  try {
-    return JSON.parse(readFileSync(path, 'utf-8'))
-  } catch {
-    return null
-  }
-}
-
-// exit 0 = ancestor-or-equal; anything else (incl. bad sha error) = uncorrelated.
-function isAncestor(sha) {
-  if (typeof sha !== 'string' || sha.length === 0) return false
-  return git(['merge-base', '--is-ancestor', sha, 'HEAD']).status === 0
-}
-
-// 1. plan-review — verdict PASS, on this branch, sha is an ancestor of HEAD.
-const planPath = join(
-  root,
-  '.arbiter',
-  'evidence',
-  'plan-review',
-  sanitizeTaskId(taskId),
-  'latest.json',
-)
-const plan = readJson(planPath)
-if (plan === null) fail('plan-review evidence missing or unreadable (latest.json)')
-if (plan.verdict !== 'PASS')
-  fail(`plan-review verdict is ${JSON.stringify(plan.verdict)} — must be PASS`)
-if (plan.branch !== branch)
-  fail(`plan-review evidence is for branch ${JSON.stringify(plan.branch)}, not ${branch}`)
-if (!isAncestor(plan.sha)) fail('plan-review evidence sha is not an ancestor of HEAD (stale)')
-
-// 2. dispatch sidecar — review agents dispatched on this branch, ancestor of HEAD.
-const dispatch = readJson(join(root, '.arbiter', 'agents-dispatched.json'))
-if (dispatch === null) fail('dispatch evidence missing (.arbiter/agents-dispatched.json)')
-if (dispatch.branch !== branch)
-  fail(`dispatch evidence is for branch ${JSON.stringify(dispatch.branch)}, not ${branch}`)
-if (!isAncestor(dispatch.sha)) fail('dispatch evidence sha is not an ancestor of HEAD (stale)')
-
-// 3. gate-pass — strict: this exact tree was verified (branch + head_sha == HEAD).
-const gate = readJson(join(root, '.arbiter', 'gate-pass.json'))
-if (gate === null) fail('gate-pass evidence missing (.arbiter/gate-pass.json)')
-if (gate.branch !== branch)
-  fail(`gate-pass evidence is for branch ${JSON.stringify(gate.branch)}, not ${branch}`)
-if (gate.head_sha !== head)
-  fail('gate-pass head_sha does not equal HEAD — re-run the gate on the current tree')
-
-// All three correlated — allow the stop.
-process.exit(0)
 
 /** Concatenated text of the last assistant message, or null if unreadable. */
 function latestAssistantText(transcriptPath) {
@@ -142,4 +142,16 @@ function latestAssistantText(transcriptPath) {
     .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
     .map((b) => b.text)
     .join('\n')
+}
+
+// Fail-visible backstop: an *unexpected* crash exits 1 (a non-blocking Stop-hook
+// notice — the agent can still stop, but the failure is surfaced, never swallowed).
+// Deliberate exit(0)/exit(2) decisions inside main() are unaffected.
+try {
+  main()
+} catch (err) {
+  process.stderr.write(
+    `[stop-evidence-guard] unexpected error: ${err?.message ?? err} — allowing stop\n`,
+  )
+  process.exit(1)
 }
