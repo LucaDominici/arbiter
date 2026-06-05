@@ -18,13 +18,13 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 
 ## v1 Blockers
 
-| feature_id | capability            | status  | issue | missing                                               |
+| feature_id | capability            | status  | issue | notes                                                 |
 | ---------- | --------------------- | ------- | ----- | ----------------------------------------------------- |
 | REQ-033    | Kit experimental gate | Missing | #1151 | Gate is fiction — not enforced against real kit state |
 
 ## Feature Gaps
 
-| feature_id | capability                                             | status  | severity | blocks_v1 | issue | missing                                                                                                                                                                                                                                                                                                                                                                    |
+| feature_id | capability                                             | status  | severity | blocks_v1 | issue | notes                                                                                                                                                                                                                                                                                                                                                                      |
 | ---------- | ------------------------------------------------------ | ------- | -------- | --------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | REQ-033    | Kit experimental gate                                  | Missing | high     | yes       | #1151 | Gate is fiction — not enforced against real kit state                                                                                                                                                                                                                                                                                                                      |
 | REQ-001    | Architecture enforcement (hexagonal / layered)         | Partial | medium   | no        | —     | ArchUnit (Java) + ESLint boundaries (TS); cross-stack coverage partial                                                                                                                                                                                                                                                                                                     |
