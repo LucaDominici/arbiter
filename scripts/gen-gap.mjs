@@ -152,10 +152,20 @@ export function collectData(root) {
   if (!existsSync(matrixPath)) throw new Error(`FEATURE_MATRIX.md not found: ${matrixPath}`)
   const matrixContent = readFileSync(matrixPath, 'utf-8')
 
-  // Parse FEATURE_MATRIX rows — emit gap for Partial/Missing only
+  // Parse FEATURE_MATRIX rows — scoped to sentinel block (RT-05)
   /** @type {FeatureGap[]} */
   const featureGaps = []
+  let inside = false
   for (const line of matrixContent.split('\n')) {
+    if (line.includes('<!-- FEATURE_MATRIX_START -->')) {
+      inside = true
+      continue
+    }
+    if (line.includes('<!-- FEATURE_MATRIX_END -->')) {
+      inside = false
+      continue
+    }
+    if (!inside) continue
     // feature_id | capability | kit_dims | level | status | code_ref | test_ref | doc_ref | issue_ref | note
     const m = line.match(
       /^\|\s*(REQ-\d+)\s*\|([^|]+)\|([^|]+)\|([^|]+)\|\s*(Partial|Missing)\s*\|([^|]*)\|([^|]*)\|([^|]*)\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|/,
@@ -164,9 +174,9 @@ export function collectData(root) {
     const status = /** @type {'Partial'|'Missing'} */ (m[5])
     featureGaps.push({
       id: m[1].trim(),
-      area: m[2].trim(),
+      area: m[2].trim().replace(/\|/g, '\\|'),
       status,
-      missing: m[10].trim(),
+      missing: m[10].trim().replace(/\|/g, '\\|'),
       issue: m[9].trim(),
       severity: status === 'Missing' ? 'high' : 'medium',
       blocksV1: status === 'Missing',
@@ -185,10 +195,18 @@ export function collectData(root) {
         encoding: 'utf-8',
         timeout: 60_000,
       })
-      if (result.stdout) {
+      // RT-01: check result.error before parsing stdout
+      if (!result.error && result.stdout) {
         for (const gap of parseUnenforceable(result.stdout)) {
-          enforcementGaps.push({ ...gap, severity: 'medium', blocksV1: false })
+          enforcementGaps.push({
+            ...gap,
+            signal: gap.signal.replace(/\|/g, '\\|'),
+            severity: 'medium',
+            blocksV1: false,
+          })
         }
+      } else if (result.error) {
+        process.stderr.write(`gen-gap: constraint-scan spawn error: ${result.error.message}\n`)
       }
     }
   } catch {
@@ -241,7 +259,15 @@ export function collectData(root) {
     }
   }
 
-  return { featureGaps, enforcementGaps, knownDebt, lastReview }
+  // RT-03: deduplicate knownDebt by issue string
+  const seen = new Set()
+  const deduped = knownDebt.filter((d) => {
+    if (seen.has(d.issue)) return false
+    seen.add(d.issue)
+    return true
+  })
+
+  return { featureGaps, enforcementGaps, knownDebt: deduped, lastReview }
 }
 
 /**

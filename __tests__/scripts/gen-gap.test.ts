@@ -64,9 +64,11 @@ function makeFixtures(
       ``,
       `# FEATURE_MATRIX`,
       ``,
+      `<!-- FEATURE_MATRIX_START -->`,
       `| feature_id | capability | kit_dims | level | status | code_ref | test_ref | doc_ref | issue_ref | note |`,
       `|---|---|---|---|---|---|---|---|---|---|`,
       tableRows,
+      `<!-- FEATURE_MATRIX_END -->`,
     ].join('\n'),
   )
 
