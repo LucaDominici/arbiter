@@ -30,7 +30,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM/FEATURE_MATRIX required at L2+)
     // Updated #1206: +1 (INV-113 single authoritative task-phase document, selfOnly governance)
     // Updated #1212: +1 (INV-114 fail-closed Stop gate, L2+ governance, target-facing)
-    expect(INVARIANT_CATALOG).toHaveLength(112)
+    // Updated #1214: +1 (INV-115 free-text governance prohibition scanner, L1+ governance)
+    expect(INVARIANT_CATALOG).toHaveLength(113)
   })
 
   it('all IDs are unique', () => {
@@ -38,7 +39,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(112)
+    expect(unique.size).toBe(113)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -120,8 +121,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated in #1100: +1 (INV-108)
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
+    // Updated #1214: +1 (INV-115 constraint-scan)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(42)
+    expect(tier5).toHaveLength(43)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -368,12 +370,13 @@ describe('getFilteredInvariants', () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — typescript, L2, operational tier)
     // Updated CANON-22: +1 (INV-109 duplication gate, typescript L2 operational)
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
+    // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(71)
+    expect(result).toHaveLength(72)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -387,14 +390,15 @@ describe('getFilteredInvariants', () => {
     expect(ids).toContain('INV-40')
   })
 
-  it('returns fewer than 58 for unknown language (language-specific excluded)', () => {
+  it('returns fewer than 59 for unknown language (language-specific excluded)', () => {
     // +1 from INV-112 (no language restriction) — threshold updated from 57→58
+    // +1 from INV-115 (no language restriction, governance L1+) — threshold 58→59
     const result = getFilteredInvariants({
       language: 'unknown',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(59)
+    expect(result.length).toBeLessThan(60)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -455,12 +459,13 @@ describe('getFilteredInvariants', () => {
 
   it('Java + L2 + all tiers returns 64 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
+    // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(66)
+    expect(result).toHaveLength(67)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -474,12 +479,13 @@ describe('getFilteredInvariants', () => {
 
   it('Java + L3 + all tiers returns 65 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
+    // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages, governance tier)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(67)
+    expect(result).toHaveLength(68)
   })
 
   it('essential preset at L1 returns minimal set', () => {

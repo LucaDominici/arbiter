@@ -24,13 +24,26 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 3 files at L1 (check-all + run-helpers + collab-mode check)', () => {
+  it('emits exactly 4 files at L1 (check-all + run-helpers + collab-mode + constraint-scan)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
-    // + check-collab-mode-wired (INV-100, #1093 — unconditional).
+    // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214) —
+    // both unconditional.
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(3)
+    expect(result.files).toHaveLength(4)
+  })
+
+  it('emits scripts/check-constraint-scan.mjs and wires it into check-all.mjs (#1214, INV-115)', () => {
+    const result = generateCheckAll(makeConfig(dir, { language: 'typescript' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('scripts/check-constraint-scan.mjs'))).toBe(true)
+    const script = readFileSync(join(dir, 'scripts', 'check-constraint-scan.mjs'), 'utf-8')
+    expect(script).toContain('INV-115')
+    // Emitted twin defaults to warn (start-warn-promote-later) so a fresh init can't hard-fail.
+    expect(script).toContain('const ENFORCE_DEFAULT = false')
+    const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(checkAll).toContain('check-constraint-scan.mjs')
   })
 
   it('emits scripts/check-collab-mode-wired.mjs and wires it into check-all.mjs (#1093, INV-100)', () => {

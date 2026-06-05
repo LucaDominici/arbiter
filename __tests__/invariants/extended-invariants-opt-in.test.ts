@@ -25,7 +25,8 @@ describe('extended opt-in invariants', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111 CLI ref parity)
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM/FEATURE_MATRIX required at L2+)
     // Updated #1206: +1 (INV-113 single authoritative task-phase document)
-    expect(INVARIANT_CATALOG).toHaveLength(112)
+    // Updated #1214: +1 (INV-115 free-text governance prohibition scanner)
+    expect(INVARIANT_CATALOG).toHaveLength(113)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

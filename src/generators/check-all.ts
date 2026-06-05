@@ -80,6 +80,20 @@ export function generateCheckAll(
     }),
   )
 
+  // #1214 (CANON-01, INV-115): emit the governance constraint scanner. It extracts
+  // free-text hard prohibitions (NEVER / MUST NOT / DO NOT / 🛑) from the project's
+  // governance docs and classifies each as COVERED / ENFORCED-BY-SCAN / UNENFORCEABLE.
+  // Warn-default on targets (ENFORCE_DEFAULT=false) so a fresh init can never hard-fail
+  // on an un-curated token; projects curate scripts/constraint-map.json and flip
+  // --enforce=true to promote. Unconditional — every governed project ships governance docs.
+  const constraintScanPath = resolvedPath(base, 'scripts', 'check-constraint-scan.mjs')
+  results.push(
+    writeFile(constraintScanPath, renderTemplate('scripts/check-constraint-scan.mjs.ejs', data), {
+      skipIfExists: true,
+      dryRun: opts.dryRun,
+    }),
+  )
+
   // #358 (CANON-02, CANON-15, Phase 7F): emit ephemeral-server runner used by
   // integration/e2e gate steps (Playwright TS, pytest-playwright Python) to
   // bring up a server, poll for readiness, run tests, and tear it down. Only

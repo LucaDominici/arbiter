@@ -1,0 +1,9 @@
+{
+  "any": { "enforcer": "@typescript-eslint/no-explicit-any", "kind": "lint" },
+  "var": { "enforcer": "no-var", "kind": "lint" },
+  "child_process": { "enforcer": "check-no-direct-spawn.mjs", "kind": "hook" },
+  ".unwrap()": {
+    "enforcer": "src/templates/scripts/checks/check-rust-no-unwrap.mjs.ejs",
+    "kind": "template"
+  }
+}

@@ -157,6 +157,8 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 **Promoted to:** INV-52
 
+**Extended to:** INV-115 (#1214) — the claimed-enforcement = wired-gate rule is generalised from invariant catalog citations to free-text governance prohibitions (NEVER / MUST NOT / DO NOT / 🛑) via `scripts/check-constraint-scan.mjs`.
+
 ---
 
 ## CANON-10 — Every active hook is documented in .claude/CLAUDE.md

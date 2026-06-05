@@ -17,6 +17,10 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
+      // INV-115: `var` is a hard prohibition in AGENTS.md ("never `var`"); enforce it in the
+      // ACTIVE flat config so the constraint-map COVERED claim (var → no-var) is honest, not
+      // resolved against the dormant .eslintrc-static.json.
+      'no-var': 'error',
       '@typescript-eslint/explicit-function-return-type': 'warn',
       '@typescript-eslint/restrict-template-expressions': [
         'error',

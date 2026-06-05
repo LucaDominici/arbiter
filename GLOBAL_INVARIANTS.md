@@ -626,3 +626,11 @@ On a `task/` or `ship/` branch whose phase is not yet `complete`, an agent may n
 **Enforcement:** `.claude/hooks/stop-evidence-guard.mjs` (Claude Code `Stop` event, exit 2 = block-the-stop and return stderr to the model). Generated for target projects at L2+ by `src/generators/claude.ts` and dogfooded in arbiter's own `.claude/` (CANON-01/14). Evidence writers (`src/review/dispatch.ts`, `scripts/check-all.mjs`, the /task dispatch sidecar) stamp branch+sha so correlation is possible. Empirical coverage: `__tests__/hooks/empirical/stop-evidence-guard.test.ts`.
 
 ---
+
+### INV-115: Free-text governance prohibitions must resolve to a verified enforcer, live scan, or explicit triage
+
+Every hard prohibition declared in free-text governance (AGENTS.md, CANON.md, CLAUDE.md) via a directive marker (NEVER / MUST NOT / DO NOT / 🛑 / `No <tok>` / `never <tok>`) must resolve to exactly one honest state — it may not be merely asserted in prose. (1) **COVERED**: mapped in `scripts/constraint-map.json` to an enforcer whose existence is verified at scan time (gate→referenced in check-all.mjs, hook→file under .claude/hooks, inv→id in catalog.ts, lint→rule in an eslint config, template→path under src/templates); a map entry naming a missing enforcer is MAP-FICTION and fails the gate (the CANON-23 fiction guard). (2) **ENFORCED-BY-SCAN**: a derivable code token, live-grepped against source every run — the scan itself is the wiring. (3) **UNENFORCEABLE**: prose / path / non-code token surfaced for human triage. Extends CANON-09 (claimed-enforcement = wired-gate) from invariant citations to free-text prohibitions.
+
+**Enforcement:** `scripts/check-constraint-scan.mjs` (L1 gate, wired in scripts/check-all.mjs): extracts directive prohibitions, classifies via `scripts/constraint-map.json` with enforcer-existence verification, hard-fails on a live un-covered derivable violation or a map-fiction entry. Emitted for target projects as `src/templates/scripts/check-constraint-scan.mjs.ejs` (warn-default, `--enforce` to promote) and dogfooded on arbiter's own governance (CANON-01/14). Empirical coverage: `__tests__/scripts/check-constraint-scan.test.ts`.
+
+---
