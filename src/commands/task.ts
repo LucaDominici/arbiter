@@ -553,7 +553,6 @@ export function decideClearStrategy({
   modelSwitch,
 }: {
   units: number | undefined
-  tier?: string
   modelSwitch: boolean
 }): 'inline' | 'sub-agent' | 'stop' {
   if (!modelSwitch) return 'inline'
@@ -582,7 +581,9 @@ export function buildHandoffBanner({
   const continueHint =
     strategy === 'inline'
       ? `Continue in this context: run \`${resumeCmd}\` or \`arbiter task advance --to red --post-clear\``
-      : `1. Run: /clear\n2. Re-invoke: \`${resumeCmd}\``
+      : strategy === 'sub-agent'
+        ? `Spawn a sub-agent for the exec phase, then pass \`--post-clear\` on re-entry:\n  \`${resumeCmd}\``
+        : `1. Run: /clear\n2. Re-invoke: \`${resumeCmd}\``
   return [
     `━━━ Plan complete — handoff required ━━━`,
     `Task: ${taskId}${tierInfo}${unitsInfo}`,

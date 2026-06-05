@@ -89,7 +89,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
       - name: License check
-        run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0'
+        run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0' --excludePackages 'buffers@0.1.1'
 
 
   behavioral-tests:

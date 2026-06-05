@@ -95,12 +95,17 @@ Do NOT call EnterPlanMode when resuming an exec phase (check the phase-doc first
 
 At **GO/handoff** (plan-review gate green):
 1. Call `ExitPlanMode`.
-2. Run the advance command with the unit count from the plan (§7 estimate):
+2. Advance to red-team-review (no units yet — `checkHandoffGate` is not triggered here):
+   ```bash
+   arbiter ship #NNN --advance
+   ```
+3. After red-team-review completes, advance to **red** with the unit count from the plan (§7):
    ```bash
    arbiter ship #NNN --advance --units <N>
    ```
-3. Follow the printed banner: it shows the size-driven strategy (`inline` / `sub-agent` / `stop`)
-   and the exact resume steps (use `--post-clear` on re-entry after a `/clear`).
+   This is the transition where `checkHandoffGate` fires and the size-driven strategy applies.
+4. Follow the printed banner: it shows the strategy (`inline` / `sub-agent` / `stop`) and the
+   exact resume steps (use `--post-clear` on re-entry after a `/clear`).
 
 ---
 
