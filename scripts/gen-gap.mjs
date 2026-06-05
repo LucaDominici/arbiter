@@ -244,6 +244,8 @@ export function collectData(root) {
         const json = JSON.parse(readFileSync(debtPath, 'utf-8'))
         if (Array.isArray(json.issues)) {
           for (const issue of json.issues) {
+            // RT-02: validate issue is a number or string before interpolating
+            if (typeof issue !== 'number' && typeof issue !== 'string') continue
             knownDebt.push({
               issue: `#${issue}`,
               title: `Tech debt #${issue}`,
@@ -337,7 +339,7 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 
 ${
   blockers.length > 0
-    ? `| feature_id | capability | status | issue | missing |
+    ? `| feature_id | capability | status | issue | notes |
 | --- | --- | --- | --- | --- |
 ${v1BlockersSection}`
     : 'No v1-blocking gaps.'
@@ -345,7 +347,7 @@ ${v1BlockersSection}`
 
 ## Feature Gaps
 
-| feature_id | capability | status | severity | blocks_v1 | issue | missing |
+| feature_id | capability | status | severity | blocks_v1 | issue | notes |
 | --- | --- | --- | --- | --- | --- | --- |
 ${featureGapsRows}
 
