@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-01'
+last_review: '2026-06-05'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 087)
+1. Create `NNN-short-title.md` in this directory (next free number after 088)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -115,3 +115,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 085 | [Evidence Prune Script and Red-Team SSOT Alignment Vectors](085-evidence-prune-and-red-team-ssot-alignment-vectors.md)                                                | Accepted | 2026-05-16 |  |
 | 086 | [Four-Pillar SSOT Infrastructure (AC#1 Deviation)](086-four-pillar-ssot-infrastructure.md)                                                                            | Accepted | 2026-05-13 |  |
 | 087 | [Rust Context-Aware INV-04 Checkers and Rebased-Aware Docs-Check](087-rust-context-aware-inv04-checkers-and-rebased-docs-check.md)                                    | Accepted | 2026-05-14 |  |
+| 088 | [/ship as the Single Orchestration Entrypoint](088-ship-as-orchestration-entrypoint.md)                                                                               | Accepted | 2026-06-05 |  |
