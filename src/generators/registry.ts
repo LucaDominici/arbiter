@@ -62,6 +62,7 @@ import { generateAuditToolchain } from './audit-toolchain.js'
 import { generatePerfK6 } from './perf-k6.js'
 import { generateModulith } from './modulith.js'
 import { generateFeatureMatrix } from './feature-matrix.js'
+import { generateGap } from './gap.js'
 import { generateResilience } from './resilience.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult, GeneratorRunOpts } from '../utils/fs.js'
@@ -461,6 +462,11 @@ export function buildRegistry(
       key: 'feature-matrix',
       enabled: config.governanceLevel !== 'L1',
       run: (opts) => generateFeatureMatrix(config, opts).files,
+    },
+    {
+      key: 'gap',
+      enabled: config.governanceLevel !== 'L1',
+      run: (opts) => generateGap(config, opts).files,
     },
   ]
 }

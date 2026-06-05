@@ -211,7 +211,6 @@
 
 | title | canonical_id | status | kind |
 |-------|--------------|--------|------|
-| [Code of Conduct Enforcement Runbook](internal/coc-enforcement-runbook.md) | — | — | — |
 | [Docs Site: A11y + Mobile Responsiveness Checklist](internal/mobile-responsiveness-checklist.md) | — | active | kind/internal |
 | [Mutation Testing](internal/mutation-testing.md) | — | active | kind/internal |
 | [Pre-Launch Manual QA Checklist](internal/qa-checklist.md) | — | active | kind/internal |
@@ -262,6 +261,7 @@
 | [Extended Invariants — Rationale and Usage](PRODUCT/EXTENDED-INVARIANTS.md) | — | active | kind/reference |
 | [Arbiter — Feature Comparison Matrix](PRODUCT/FEATURE_COMPARISON.md) | — | active | kind/reference |
 | [FEATURE_MATRIX — Product Truth RTM](PRODUCT/FEATURE_MATRIX.md) | — | active | kind/product |
+| [GAP — arbiter gap register](PRODUCT/GAP.md) | — | active | kind/product |
 | [How to Measure arbiter Value Yourself](PRODUCT/MEASUREMENT-GUIDE.md) | — | active | kind/reference |
 | [Arbiter — Milestones](PRODUCT/MILESTONES.md) | — | active | kind/reference |
 | [Arbiter — Product Requirements Document](PRODUCT/PRD.md) | — | active | kind/reference |
