@@ -316,6 +316,17 @@ if (isMain) {
   if (failed === 0) {
     try {
       const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim()
+      // #1212: stamp the branch so the fail-closed Stop hook can require this
+      // gate-pass to belong to the current branch (strict branch+sha match).
+      const branch = (() => {
+        try {
+          return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+            encoding: 'utf-8',
+          }).trim()
+        } catch {
+          return 'unknown'
+        }
+      })()
       const gitUser = (() => {
         try {
           return execFileSync('git', ['config', 'user.name'], { encoding: 'utf-8' }).trim()
@@ -330,6 +341,7 @@ if (isMain) {
         JSON.stringify(
           {
             head_sha: headSha,
+            branch,
             timestamp: new Date().toISOString(),
             level,
             node_version: process.version,

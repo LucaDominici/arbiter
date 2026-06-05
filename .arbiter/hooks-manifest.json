@@ -178,6 +178,16 @@
       "rationale": "UserPromptSubmit hard block (exit 2) \u2014 premature task-completion claims return stderr to Claude as error context; empirical coverage in __tests__/hooks/empirical/completion-guard.test.ts"
     },
     {
+      "file": "stop-evidence-guard.mjs.ejs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "expectedExitCode": 2,
+      "spawnable": false,
+      "rationale": "Stop event hard block (exit 2) \u2014 a completion claim on a task/ship branch (phase != complete) without correlated plan-review + dispatch + gate-pass evidence (branch + sha) is rejected; empirical coverage in __tests__/hooks/empirical/stop-evidence-guard.test.ts. INV-114."
+    },
+    {
       "file": "post-commit-check.mjs.ejs",
       "classification": "ADVISORY",
       "tools": [

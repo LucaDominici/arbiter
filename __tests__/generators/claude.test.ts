@@ -110,7 +110,7 @@ describe('generateClaude', () => {
     expect(existsSync(join(dir, '.claude', 'hooks', 'pre-edit-plan-anchor.mjs'))).toBe(true)
   })
 
-  it('generates all 6 advanced hooks at L2', () => {
+  it('generates all advanced hooks at L2 (incl. stop-evidence-guard, #1212)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L2' })
     generateClaude(config)
     const hooksDir = join(dir, '.claude', 'hooks')
@@ -120,6 +120,7 @@ describe('generateClaude', () => {
     expect(existsSync(join(hooksDir, 'debug-state-on-failure.mjs'))).toBe(true)
     expect(existsSync(join(hooksDir, 'skill-forced-eval.mjs'))).toBe(true)
     expect(existsSync(join(hooksDir, 'guard-task-completion.mjs'))).toBe(true)
+    expect(existsSync(join(hooksDir, 'stop-evidence-guard.mjs'))).toBe(true)
   })
 
   it('does NOT generate L2-only advanced hooks at L1', () => {
@@ -130,6 +131,7 @@ describe('generateClaude', () => {
     expect(existsSync(join(hooksDir, 'debug-state-on-failure.mjs'))).toBe(false)
     expect(existsSync(join(hooksDir, 'skill-forced-eval.mjs'))).toBe(false)
     expect(existsSync(join(hooksDir, 'guard-task-completion.mjs'))).toBe(false)
+    expect(existsSync(join(hooksDir, 'stop-evidence-guard.mjs'))).toBe(false)
   })
 
   it('generates wt-list.md with git worktree list reference', () => {
@@ -240,6 +242,16 @@ describe('generateClaude', () => {
     // Handler name in dispatcher config table
     const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
     expect(dispatcherContent).toContain('guard-task-completion.mjs')
+  })
+
+  it('registers the Stop event in settings.json + dispatcher at L2 (#1212/INV-114)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    generateClaude(config)
+    const raw = readFileSync(join(dir, '.claude', 'settings.json'), 'utf-8')
+    expect(raw).toContain('"Stop"')
+    expect(JSON.parse(raw).hooks.Stop).toBeDefined()
+    const dispatcherContent = readFileSync(join(dir, '.claude', 'hooks', 'hooks.mjs'), 'utf-8')
+    expect(dispatcherContent).toContain('stop-evidence-guard.mjs')
   })
 
   describe('review-code.md SSOT (#236, BLOCKER-10)', () => {

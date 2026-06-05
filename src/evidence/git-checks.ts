@@ -31,3 +31,31 @@ export function pathExistsInCommit(sha: string, path: string, dir?: string): boo
     return false
   }
 }
+
+/** Symbolic name of the current branch, or 'unknown' outside a git work tree (#1212). */
+export function currentBranch(dir?: string): string {
+  try {
+    const result = runCli('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      cwd: gitCwd(dir),
+      timeoutMs: 5000,
+    })
+    const out = result.stdout.trim()
+    return result.exitCode === 0 && out.length > 0 ? out : 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
+/** Full SHA of HEAD, or 'unknown' outside a git work tree (#1212). */
+export function headSha(dir?: string): string {
+  try {
+    const result = runCli('git', ['rev-parse', 'HEAD'], {
+      cwd: gitCwd(dir),
+      timeoutMs: 5000,
+    })
+    const out = result.stdout.trim()
+    return result.exitCode === 0 && out.length > 0 ? out : 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}

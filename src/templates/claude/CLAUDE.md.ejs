@@ -38,6 +38,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs` | Block orphan TODOs (INV-21) |
 <% if (governanceLevel !== 'L1') { -%>
 | `UserPromptSubmit` → * | `guard-task-completion.mjs` | Warn on premature task-completion claims |
+| `Stop` → * | `stop-evidence-guard.mjs` | Block completion claims without correlated evidence (INV-114) |
 <% } -%>
 <% if (language === 'typescript') { -%>
 | `PostToolUse` → Edit\|Write | `check-no-any.mjs` | Block `any` types (INV-04) |

@@ -64,6 +64,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `UserPromptSubmit` → \*     | `post-brainstorm-stop.mjs`    | Block /task while brainstorm session active                                 |
 | `UserPromptSubmit` → \*     | `skill-forced-eval.mjs`       | Enforce skill invocation before responses                                   |
 | `UserPromptSubmit` → \*     | `guard-task-completion.mjs`   | Warn on premature task-completion claims                                    |
+| `Stop` → \*                 | `stop-evidence-guard.mjs`     | Block completion claims without correlated evidence (INV-114, #1212)        |
 | `PreCompact` → \*           | `pre-compact.mjs`             | Persist context before auto-compaction                                      |
 
 ### Slash Commands

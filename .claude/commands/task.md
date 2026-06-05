@@ -262,6 +262,8 @@ After dispatching agents, record the count:
 
 ```bash
 echo "3" > .agents-dispatched   # or 4 for Standard
+# #1212: branch+sha sidecar so the fail-closed Stop hook can correlate dispatch evidence
+mkdir -p .arbiter && printf '{"count":3,"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
 **HARD STOP** if agents were not actually dispatched. "I reviewed it" without agent tool calls does not satisfy this gate.
