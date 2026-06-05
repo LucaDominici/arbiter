@@ -115,16 +115,16 @@ git commit -m "CHECKPOINT(#694): refactor dispatch.ts before context window fill
 
 ## Phase Recovery Table
 
-| Phase                        | What Happened                                         | Recovery Action                                                                                                               |
-| ---------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `preflight`                  | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                |
-| `plan`                       | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                              |
-| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to red` |
-| _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter task advance --post-clear --to red`; see `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md`  |
-| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                           |
-| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if `arbiter mark` was used); run `node scripts/check-all.mjs L1`                   |
-| `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; fix failures; commit and push                                                         |
-| `complete`                   | Task done                                             | Verify PR created: `gh pr list --head $(git branch --show-current)`; confirm issue closed                                     |
+| Phase                        | What Happened                                         | Recovery Action                                                                                                                        |
+| ---------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `preflight`                  | Task not started                                      | Run `/task #NNN` to initialize branch and plan                                                                                         |
+| `plan`                       | Plan being written                                    | Check `.claude/plans/` for draft — await user GO                                                                                       |
+| `red-team-review`            | Red-team agents running                               | Review `.arbiter/evidence/redteam/<task-id>.json`; CRITICAL → `arbiter task advance --to red-team-rework`; clear → `--to red`          |
+| _(handoff boundary)_         | `planningHandoffReady` set, `postClearResumed` absent | Run `/clear` then `arbiter ship #NNN --advance --post-clear --units <N>`; see `docs/REFERENCE/recipes/cost-optimized-phase-handoff.md` |
+| `red-team-rework`            | Critical findings                                     | Fix plan; re-run red-team: `arbiter task advance --to red-team-review`; or full replan: `--to plan`                                    |
+| `red` / `green` / `refactor` | TDD cycle in progress                                 | `arbiter task resume` (lands on the cursor if `arbiter mark` was used); run `node scripts/check-all.mjs L1`                            |
+| `verification`               | Gate running                                          | Re-run `node scripts/check-all.mjs L2`; fix failures; commit and push                                                                  |
+| `complete`                   | Task done                                             | Verify PR created: `gh pr list --head $(git branch --show-current)`; confirm issue closed                                              |
 
 ---
 
@@ -161,18 +161,21 @@ the legacy files migrates it transparently (seed + delete) on first access.
 }
 ```
 
-| Field             | Description                                                                |
-| ----------------- | -------------------------------------------------------------------------- |
-| `taskId`          | Active task id (was `.task-id`)                                            |
-| `phase`           | Current lifecycle phase — authoritative, single writer (was `.task-phase`) |
-| `tier`            | Task tier XS/S/Standard (was `.task-tier`)                                 |
-| `plan`            | Repo-relative path to the plan file (was `.task-plan`)                     |
-| `cursor`          | Step-cursor written by `arbiter mark` — drives pinpoint resume             |
-| `handoffStrategy` | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy  |
-| `handoffReady`    | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)      |
-| `timestamps`      | ISO timestamps per phase entered (accumulated across sessions)             |
-| `runId`           | `<pid>-<epoch-ms>` — unique per process invocation                         |
-| `gateDecisions`   | Gate pass/fail records                                                     |
+| Field                   | Description                                                                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `taskId`                | Active task id (was `.task-id`)                                                                                                                     |
+| `phase`                 | Current lifecycle phase — authoritative, single writer (was `.task-phase`)                                                                          |
+| `tier`                  | Task tier XS/S/Standard (was `.task-tier`)                                                                                                          |
+| `plan`                  | Repo-relative path to the plan file (was `.task-plan`)                                                                                              |
+| `cursor`                | Step-cursor written by `arbiter mark` — drives pinpoint resume                                                                                      |
+| `handoffStrategy`       | `interactive` / `inline` / `null` — cost-optimized phase handoff strategy                                                                           |
+| `handoffReady`          | Plan-to-impl handoff marker (was the `.task-handoff-ready` flat file)                                                                               |
+| `planningHandoffReady`  | ISO timestamp when the interactive handoff gate was triggered                                                                                       |
+| `postClearCostRecorded` | ISO timestamp set after the planning transcript window is recorded once (#1208); guards against double-counting on retry if `runBudgetCheck` throws |
+| `postClearResumed`      | ISO timestamp set after a successful post-clear re-entry (budget gate passed)                                                                       |
+| `timestamps`            | ISO timestamps per phase entered (accumulated across sessions)                                                                                      |
+| `runId`                 | `<pid>-<epoch-ms>` — unique per process invocation                                                                                                  |
+| `gateDecisions`         | Gate pass/fail records                                                                                                                              |
 
 Writes route through `writeUnifiedState`, a read-modify-write over `writeFile` (`atomicWrite`): every
 update merges all prior fields (a phase advance never clobbers the cursor or cost), and the temp file

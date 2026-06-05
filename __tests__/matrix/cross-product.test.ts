@@ -1500,4 +1500,27 @@ describe('cross-product: ship.md — orchestrator content across all stacks × l
       expect(renderShip(lang, 'L4')).toContain('sets the number of review agents')
     })
   }
+
+  // ─── Plan-mode auto enter/exit (#1209) ──────────────────────────────────────
+  it('ship.md: contains EnterPlanMode instruction (auto plan-mode enter)', () => {
+    // All stacks/levels should instruct the model to call EnterPlanMode at plan start
+    expect(renderShip('typescript', 'L4')).toContain('EnterPlanMode')
+  })
+
+  it('ship.md: contains ExitPlanMode instruction (auto plan-mode exit at handoff)', () => {
+    expect(renderShip('typescript', 'L4')).toContain('ExitPlanMode')
+  })
+
+  it('ship.md: contains --units flag in the handoff advance command', () => {
+    // The skill should instruct the model to pass --units when calling arbiter ship --advance
+    expect(renderShip('typescript', 'L4')).toContain('--units')
+  })
+
+  it('ship.md: plan-mode enter is conditional on phase (preflight or plan only)', () => {
+    // The rendered skill must mention the phase condition so the model does not re-enter plan mode
+    const out = renderShip('typescript', 'L4')
+    // Must include both the conditional instruction and EnterPlanMode
+    expect(out).toContain('EnterPlanMode')
+    expect(out).toMatch(/preflight|plan.*phase|phase.*plan/i)
+  })
 })

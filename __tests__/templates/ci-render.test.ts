@@ -301,3 +301,35 @@ describe('01-pr-fast.yml.ejs — SonarCloud step (#211)', () => {
     expect(content).not.toContain('./gradlew sonarqube')
   })
 })
+
+describe('01-pr-fast.yml.ejs — solo-dev human-approval gate (INV-74)', () => {
+  // The sole human in trunk-solo authors the PR and cannot self-approve, so the
+  // approved-by-human gate is impossible. trunk-solo drops it; collaborative modes keep it.
+  it('trunk-solo: omits the impossible human-approval-required gate', () => {
+    const data = makeConfig('/tmp/test', {
+      collaborationMode: 'trunk-solo',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(content).not.toContain('human-approval-required:')
+    expect(content).not.toContain('needs.human-approval-required.result')
+  })
+
+  it('peer-review: keeps the human-approval-required gate', () => {
+    const data = makeConfig('/tmp/test', {
+      collaborationMode: 'peer-review',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(content).toContain('human-approval-required:')
+    expect(content).toContain('needs.human-approval-required.result')
+  })
+
+  it('undefined collaborationMode: keeps the gate (safe default)', () => {
+    const data = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('github/workflows/01-pr-fast.yml.ejs', data)
+    expect(content).toContain('human-approval-required:')
+  })
+})

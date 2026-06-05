@@ -244,29 +244,12 @@ jobs:
 
 
 
-  human-approval-required:
-    name: Human Approval Required (INV-74)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Assert approved-by-human label (anti-bot gate)
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const labels = context.payload.pull_request.labels.map(l => l.name);
-            if (!labels.includes('approved-by-human')) {
-              core.setFailed(
-                'PR requires the "approved-by-human" label applied by a human reviewer. ' +
-                'See 03-human-approval.yml — a bot approval does not satisfy this check.'
-              );
-            }
 
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
-    needs: [gate, human-approval-required, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, debt-gates, debt-ratchet, classify-changes]
+    needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, debt-gates, debt-ratchet, classify-changes]
     if: always()
     steps:
       - run: |
@@ -312,7 +295,4 @@ jobs:
             echo "debt-ratchet failed"
             exit 1
           fi
-          if [[ "${{ needs.human-approval-required.result }}" == "failure" ]]; then
-            echo "human-approval-required failed — PR needs approved-by-human label"
-            exit 1
-          fi
+

@@ -12,6 +12,8 @@ docs/REFERENCE/coverage/dim-*.md
 docs/REFERENCE/GLOBAL_KIT.md
 docs/REFERENCE/SELF-KIT-AUDIT.md
 docs/INDEX.md
+# Generated slash command file — template system (ship.md.ejs) owns formatting
+.claude/commands/ship.md
 # ADR index (gen-adr-readme.mjs) and DECISIONS digest — generators own table formatting
 docs/ADR/README.md
 docs/SYSTEM/DECISIONS.md

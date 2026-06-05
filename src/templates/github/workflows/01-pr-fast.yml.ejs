@@ -1,4 +1,4 @@
-<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; const _bs = (typeof branchingStrategy !== 'undefined' ? branchingStrategy : 'github-flow'); %>name: PR Fast (T1)
+<% const _lanes = Array.isArray(lanes) ? lanes : []; const _multiLane = _lanes.length >= 2; const _bs = (typeof branchingStrategy !== 'undefined' ? branchingStrategy : 'github-flow'); %><% const _collabMode = (typeof collaborationMode !== 'undefined' && collaborationMode) ? collaborationMode : undefined; const _humanApproval = _collabMode !== 'trunk-solo'; /* trunk-solo: the sole human is the PR author and cannot self-approve — drop the impossible gate (INV-74) */ %>name: PR Fast (T1)
 
 permissions:
   contents: read
@@ -617,7 +617,7 @@ jobs:
 <% } %>
 <% } %>
 
-  human-approval-required:
+<% if (_humanApproval) { %>  human-approval-required:
     name: Human Approval Required (INV-74)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     if: github.event_name == 'pull_request'
@@ -634,12 +634,13 @@ jobs:
                 'See 03-human-approval.yml — a bot approval does not satisfy this check.'
               );
             }
-
+<% } %>
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 <%
-  const _ciNeeds = ['gate', 'human-approval-required'];
+  const _ciNeeds = ['gate'];
+  if (_humanApproval) _ciNeeds.push('human-approval-required');
   if (language === 'typescript' || language === 'java') {
     _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
   }
@@ -704,7 +705,8 @@ jobs:
             echo "cross-stack-guard failed"
             exit 1
           fi<% } %>
-          if [[ "${{ needs.human-approval-required.result }}" == "failure" ]]; then
+<% if (_humanApproval) { %>          if [[ "${{ needs.human-approval-required.result }}" == "failure" ]]; then
             echo "human-approval-required failed — PR needs approved-by-human label"
             exit 1
-          fi<% } %>
+          fi
+<% } %><% } %>

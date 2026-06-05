@@ -11,6 +11,11 @@ tags: ['audience/agent', 'audience/dev', 'kind/internal']
 related: []
 ---
 
+
+
+
+
+
 # /ship #NNN
 
 Drive an issue toward a **reviewed, merged PR** by auto-sequencing arbiter's existing engine
@@ -49,24 +54,27 @@ arbiter mark --tdd GREEN --last "<done>" --next "<exact next action>" --digest "
 
 ## Phase map
 
+
 The tier (XS / S / Standard) sets the number of review agents dispatched per review phase.
 
-| Phase             | What `/ship` does                                                    | Review agents |
-| ----------------- | -------------------------------------------------------------------- | ------------- |
-| `preflight`       | Open worktree, read issue, `arbiter task init`                       | —             |
-| `plan`            | Write the plan; pass the plan-review gate (`arbiter review plan`)    | —             |
-| `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework`  | tier-N        |
-| `red`             | Write failing tests (TDD red); `arbiter task record-red`             | —             |
-| `green`           | Implement the minimum to pass                                        | —             |
-| `refactor`        | Clean up; dispatch 4 code-review agents + 1 adversarial verifier     | 4 (Standard)  |
-| `verification`    | Run the gate: `npm run test` then `node scripts/check-all.mjs check` | —             |
-| `complete`        | Commit, push, open/merge PR, close issue, clean up                   | —             |
+
+| Phase | What `/ship` does | Review agents |
+|-------|-------------------|---------------|
+| `preflight` | Open worktree, read issue, `arbiter task init` | — |
+| `plan` | Write the plan; pass the plan-review gate (`arbiter review plan`) | — |
+| `red-team-review` | Dispatch tier-N red-team agents; route CRITICAL → `red-team-rework` | tier-N |
+| `red` | Write failing tests (TDD red); `arbiter task record-red` | — |
+| `green` | Implement the minimum to pass | — |
+| `refactor` | Clean up; dispatch 4 code-review agents + 1 adversarial verifier | 4 (Standard) |
+| `verification` | Run the gate: `npm run test` then `node scripts/check-all.mjs check` | — |
+| `complete` | Commit, push, open/merge PR, close issue, clean up | — |
 
 Review-agent minimums by tier: XS=3, S=3, Standard=4.
 
 ---
 
 ## Merge step
+
 
 **peer-review / gated-review (or pr-ff):** open a PR and merge once checks pass:
 
@@ -75,6 +83,29 @@ gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
 gh pr checks --watch
 gh pr merge --merge
 ```
+
+
+---
+
+## Plan mode (auto)
+
+At the **start of the `plan` phase** — and only when `.claude/.task/status.json` shows `phase` ∈
+{`preflight`, `plan`} — call `EnterPlanMode` to enforce no-edit discipline while drafting the plan.
+Do NOT call EnterPlanMode when resuming an exec phase (check the phase-doc first).
+
+At **GO/handoff** (plan-review gate green):
+1. Call `ExitPlanMode`.
+2. Advance to red-team-review (no units yet — `checkHandoffGate` is not triggered here):
+   ```bash
+   arbiter ship #NNN --advance
+   ```
+3. After red-team-review completes, advance to **red** with the unit count from the plan (§7):
+   ```bash
+   arbiter ship #NNN --advance --units <N>
+   ```
+   This is the transition where `checkHandoffGate` fires and the size-driven strategy applies.
+4. Follow the printed banner: it shows the strategy (`inline` / `sub-agent` / `stop`) and the
+   exact resume steps (use `--post-clear` on re-entry after a `/clear`).
 
 ---
 
