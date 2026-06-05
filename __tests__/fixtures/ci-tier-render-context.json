@@ -45,5 +45,6 @@
   "lanes": ["docs"],
   "ciTierMode": "baseline",
   "ciPreTestBuild": true,
-  "enableNativeBakeE2E": true
+  "enableNativeBakeE2E": true,
+  "collaborationMode": "trunk-solo"
 }
