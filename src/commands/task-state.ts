@@ -70,6 +70,25 @@ export interface StepCursor {
   nextAction: string
 }
 
+/**
+ * A red-team finding carried forward from the pre-implementation red-team phase
+ * into code-review (#1212). Stable `id` (`RT-01`, `RT-02`, …) lets the review
+ * map each finding to an auditor and cap that auditor's verdict contribution
+ * while the finding is unresolved (see `.claude/commands/review-code.md`).
+ */
+export interface RedTeamFinding {
+  /** Stable forward-link id, e.g. `RT-01`. */
+  id: string
+  /** CRITICAL | HIGH | MEDIUM | LOW. */
+  severity: string
+  /** One-line description of the finding. */
+  summary: string
+  /** The auditor whose remit this falls under (a key of auditor-routing.json `auditors`). */
+  auditorHint: string
+  /** True once the finding has been addressed in the implementation. */
+  resolved: boolean
+}
+
 export interface UnifiedTaskState {
   taskId: string
   phase: TaskPhase
@@ -91,6 +110,8 @@ export interface UnifiedTaskState {
   runId: string
   timestamps: Record<string, string>
   gateDecisions: string[]
+  /** Red-team findings forward-linked into code-review (#1212, INV-114 sibling). */
+  redTeamFindings?: RedTeamFinding[]
 }
 
 /** A partial update applied to the unified document; `cursor` may itself be partial. */

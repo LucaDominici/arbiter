@@ -78,6 +78,45 @@ a 100% `pass_rate` on 1 auditor is not the same as 100% on all 7.
 
 Empty diff or empty active set → `route-auditors.mjs` exits 1 (refused to score).
 
+### Weighted verdict score (#1212)
+
+After the auditors run, compute a single anti-inflation verdict:
+
+```bash
+node scripts/route-auditors.mjs --score \
+  --results '{"bugs":true,"security":false,...}' \
+  --caps    '{"security":0}'   # optional — see forward-link below
+```
+
+`score = 100 × Σ(weight of passing active auditors) / Σ(weight of ALL auditors)`.
+The denominator is the **total** auditor weight, never the active subset — so a
+skipped auditor contributes 0 to the numerator exactly like a failing one and **a
+skip can never raise the score** (no inflation by omission). Verdict ladder:
+
+| Score | Verdict    |
+| ----- | ---------- |
+| ≥ 80  | `PASS`     |
+| ≥ 60  | `CONCERNS` |
+| ≥ 40  | `REWORK`   |
+| < 40  | `FAIL`     |
+
+`--caps` lowers a single auditor's contribution to at most `pct`% of its weight.
+This is how an unaddressed red-team finding caps its mapped auditor (see
+**Forward-linked red-team findings** below). Caps are **agent-applied** at review
+time — the agent passes them based on the unresolved-finding ledger; the script
+does not itself read task state.
+
+### Forward-linked red-team findings (#1212, INV-114 sibling)
+
+If the plan / unified task document (`.claude/.task/status.json`) carries
+`redTeamFindings` (`RT-01`, `RT-02`, …), re-verify each at code-review:
+
+1. Map every **unresolved** `RT-xx` to the auditor whose remit it falls under
+   (its `auditorHint` — one of the `auditors` keys above).
+2. Pass `--caps '{"<auditor>":0}'` for each such auditor so its contribution is
+   capped, and tag the auditor's section `[RT-xx UNRESOLVED]` in the report.
+3. A finding marked `resolved` in the ledger imposes no cap.
+
 ## Hard stops
 
 - Any agent emits a `blocker` finding → exit 2, no merge.

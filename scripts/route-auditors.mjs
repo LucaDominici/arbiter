@@ -24,12 +24,18 @@ let base = 'origin/main'
 let diffStdin = false
 let artifactDir = null
 let explainPath = null
+let scoreMode = false
+let resultsArg = null
+let capsArg = null
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--base' && args[i + 1]) base = args[++i]
   else if (args[i] === '--diff-stdin') diffStdin = true
   else if (args[i] === '--artifact-dir' && args[i + 1]) artifactDir = args[++i]
   else if (args[i] === '--explain' && args[i + 1]) explainPath = args[++i]
+  else if (args[i] === '--score') scoreMode = true
+  else if (args[i] === '--results' && args[i + 1]) resultsArg = args[++i]
+  else if (args[i] === '--caps' && args[i + 1]) capsArg = args[++i]
 }
 
 // --- Load + validate routing config ---
@@ -164,6 +170,64 @@ function computeScores(config, activeNames) {
   }
 }
 
+// --- --score mode (#1212 F2) ---
+// Weighted anti-inflation verdict. A skipped auditor contributes nothing to the
+// numerator but the denominator stays the FULL auditor weight, so skipping a
+// would-fail auditor equals failing it — a skip can never raise the score.
+// `results`: { auditorName: passed } for the auditors that actually ran.
+// `caps`:    { auditorName: pct }   max % of that auditor's weight it may earn
+//                                   (e.g. an unaddressed [RT-xx] finding caps it).
+function scoreFromResults(config, results, caps) {
+  const auditors = config.auditors
+  const totalWeight = Object.values(auditors).reduce((s, a) => s + (a?.weight ?? 0), 0)
+  const capped = []
+  let earned = 0
+  for (const [name, passed] of Object.entries(results)) {
+    const weight = auditors[name]?.weight ?? 0
+    let contribution = passed === true ? weight : 0
+    if (caps && Object.prototype.hasOwnProperty.call(caps, name)) {
+      const ceiling = (weight * caps[name]) / 100
+      if (ceiling < contribution) {
+        contribution = ceiling
+        capped.push(name)
+      }
+    }
+    earned += contribution
+  }
+  const score = totalWeight > 0 ? Math.round((100 * earned) / totalWeight) : 0
+  let verdict
+  if (score >= 80) verdict = 'PASS'
+  else if (score >= 60) verdict = 'CONCERNS'
+  else if (score >= 40) verdict = 'REWORK'
+  else verdict = 'FAIL'
+  return {
+    score,
+    verdict,
+    earned_weight: Math.round(earned * 1000) / 1000,
+    total_weight: totalWeight,
+    evaluated: Object.keys(results),
+    capped,
+  }
+}
+
+function runScoreMode(config) {
+  if (resultsArg === null) {
+    process.stderr.write('[route-auditors] --score requires --results <json>\n')
+    process.exit(2)
+  }
+  let results
+  let caps
+  try {
+    results = JSON.parse(resultsArg)
+    caps = capsArg !== null ? JSON.parse(capsArg) : undefined
+  } catch (e) {
+    process.stderr.write(`[route-auditors] --score: invalid JSON: ${e.message}\n`)
+    process.exit(2)
+  }
+  process.stdout.write(JSON.stringify(scoreFromResults(config, results, caps), null, 2) + '\n')
+  process.exit(0)
+}
+
 // --- --explain mode ---
 function explainFile(config, filePath) {
   const auditorNames = Object.keys(config.auditors)
@@ -197,6 +261,10 @@ function explainFile(config, filePath) {
 
 // --- Main ---
 const config = loadConfig()
+
+if (scoreMode) {
+  runScoreMode(config)
+}
 
 if (explainPath !== null) {
   explainFile(config, explainPath)
