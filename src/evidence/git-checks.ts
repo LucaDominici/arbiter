@@ -32,13 +32,10 @@ export function pathExistsInCommit(sha: string, path: string, dir?: string): boo
   }
 }
 
-/** Symbolic name of the current branch, or 'unknown' outside a git work tree (#1212). */
-export function currentBranch(dir?: string): string {
+/** Trimmed stdout of a `git` query, or 'unknown' outside a git work tree (#1212). */
+function gitValue(args: readonly string[], dir?: string): string {
   try {
-    const result = runCli('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-      cwd: gitCwd(dir),
-      timeoutMs: 5000,
-    })
+    const result = runCli('git', [...args], { cwd: gitCwd(dir), timeoutMs: 5000 })
     const out = result.stdout.trim()
     return result.exitCode === 0 && out.length > 0 ? out : 'unknown'
   } catch {
@@ -46,16 +43,12 @@ export function currentBranch(dir?: string): string {
   }
 }
 
+/** Symbolic name of the current branch, or 'unknown' outside a git work tree (#1212). */
+export function currentBranch(dir?: string): string {
+  return gitValue(['rev-parse', '--abbrev-ref', 'HEAD'], dir)
+}
+
 /** Full SHA of HEAD, or 'unknown' outside a git work tree (#1212). */
 export function headSha(dir?: string): string {
-  try {
-    const result = runCli('git', ['rev-parse', 'HEAD'], {
-      cwd: gitCwd(dir),
-      timeoutMs: 5000,
-    })
-    const out = result.stdout.trim()
-    return result.exitCode === 0 && out.length > 0 ? out : 'unknown'
-  } catch {
-    return 'unknown'
-  }
+  return gitValue(['rev-parse', 'HEAD'], dir)
 }
