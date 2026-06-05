@@ -93,6 +93,10 @@ export function buildRenderContext(cfg = {}) {
     enableMutationTesting: cfg.enableMutationTesting ?? false,
     enableContractTesting: cfg.enableContractTesting ?? false,
     invariantTiers: cfg.invariantTiers ?? ['architectural', 'governance', 'data', 'operational'],
+    // ADR-051: collaboration-mode axis — read from arbiter.json so trunk-solo conditional
+    // blocks in templates render correctly during dogfood parity checks. (#1216)
+    collaborationMode: cfg.collaborationMode ?? 'peer-review',
+    mergeMode: cfg.mergeMode ?? 'pr-ff',
     existing: cfg.existing ?? {
       agentsMd: true,
       claudeDir: true,
@@ -322,6 +326,10 @@ async function main() {
     projectName: 'arbiter',
     archetype: arbiterConfig.archetype ?? 'library',
     lanes: arbiterConfig.lanes ?? [],
+    // ADR-051: inject collaboration-mode axis so trunk-solo conditional blocks render
+    // correctly during dogfood parity checks. (#1216)
+    collaborationMode: arbiterConfig.collaborationMode,
+    mergeMode: arbiterConfig.solo?.mergeMode,
     languageHooks: [
       {
         name: 'check-no-orphan-todo.mjs',

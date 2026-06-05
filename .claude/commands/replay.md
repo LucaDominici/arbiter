@@ -17,7 +17,7 @@ Re-enter a specific task phase's instructions without resetting state.
 
 Load and present the instructions for the named phase from the active task skill. Useful when you need to re-execute a phase (e.g., re-run code review, re-verify gate) without losing current progress.
 
-**Supported phase names:** `plan`, `context`, `classification`, `setup`, `implementation`, `review`, `gate`, `commit`, `pr`, `cleanup`
+**Supported phase names:** `plan`, `red-team`, `red`, `green`, `refactor`, `review`, `gate`, `merge`, `complete`
 
 **Example:**
 
@@ -25,36 +25,33 @@ Load and present the instructions for the named phase from the active task skill
 /replay review
 ```
 
-Re-presents Phase 6 (Code Review) instructions for the active task.
+Re-presents the code-review / Refactor section instructions from `/ship` for the active task.
 
 ## Steps
 
-1. Read `.claude/.task-id` to confirm active task (e.g., `#191`).
+1. Read `.claude/.task/status.json` to confirm active task and current phase.
 
-2. Read `.claude/.task-phase` to confirm current phase.
+2. Match the argument (e.g., `review`) to the corresponding section in `/ship`.
 
-3. Match the argument (e.g., `review`) to the corresponding phase section in `/task`.
+3. Present the full phase instructions as if the user had just reached that phase.
 
-4. Present the full phase instructions as if the user had just reached that phase.
+4. Do NOT reset state files. Do NOT revert the phase to an earlier value.
 
-5. Do NOT reset state files. Do NOT revert `.task-phase` to an earlier value.
-
-6. If argument is missing or unrecognized, list valid phase names and exit.
+5. If argument is missing or unrecognized, list valid phase names and exit.
 
 ## Phase → Section mapping
 
-| Argument       | Phase section in /task  |
-| -------------- | ----------------------- |
-| plan           | Phase 3: Plan Creation  |
-| context        | Phase 1: Context        |
-| classification | Phase 2: Classification |
-| setup          | Phase 4: Setup          |
-| implementation | Phase 5: Implementation |
-| review         | Phase 6: Code Review    |
-| gate           | Phase 8: Gate           |
-| commit         | Phase 9: Commit + Push  |
-| pr             | Phase 10: PR + Merge    |
-| cleanup        | Phase 11: Cleanup       |
+| Argument | Section in /ship                               |
+| -------- | ---------------------------------------------- |
+| plan     | § Local-only state + § Phase map (plan row)    |
+| red-team | § Red-team review                              |
+| red      | § Phase map (red row) + TDD evidence recording |
+| green    | § Phase map (green row)                        |
+| refactor | § Refactor / code-review evidence              |
+| review   | § Refactor / code-review evidence              |
+| gate     | § Phase map (verification row)                 |
+| merge    | § Merge step                                   |
+| complete | § Complete                                     |
 
 ## Allowed Tools
 

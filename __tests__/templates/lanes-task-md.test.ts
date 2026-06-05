@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
-describe('task.md.ejs lane discipline', () => {
+// #1216: Lane discipline section was in task.md (orchestration prose). task.md is now
+// the engine/CLI reference — no lane discipline section. Lane discipline in /ship is a
+// follow-up (tech-debt). For now: verify task.md does NOT emit lane discipline content.
+
+describe('task.md.ejs lane discipline (#1216)', () => {
   it('single-lane: no lane discipline section emitted', () => {
     const data = makeConfig('/tmp/test', { lanes: [] }) as unknown as Record<string, unknown>
     const rendered = renderTemplate('claude/commands/task.md.ejs', data)
@@ -10,23 +14,13 @@ describe('task.md.ejs lane discipline', () => {
     expect(rendered).not.toContain('Cross-stack')
   })
 
-  it('multi-lane: lane discipline section present', () => {
+  it('multi-lane: task.md (engine-ref) does NOT emit lane discipline section', () => {
+    // After #1216, task.md is engine-ref only — no orchestration prose including lane discipline.
     const data = makeConfig('/tmp/test', {
       lanes: ['frontend', 'backend'],
     }) as unknown as Record<string, unknown>
     const rendered = renderTemplate('claude/commands/task.md.ejs', data)
-    expect(rendered).toContain('Lane Discipline')
-    expect(rendered).toContain('Cross-stack')
-  })
-
-  it('multi-lane: shows detected lanes in table', () => {
-    const data = makeConfig('/tmp/test', {
-      lanes: ['frontend', 'backend', 'docs'],
-    }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('claude/commands/task.md.ejs', data)
-    expect(rendered).toContain('frontend')
-    expect(rendered).toContain('backend')
-    expect(rendered).toContain('docs')
+    expect(rendered).not.toContain('Lane Discipline')
   })
 
   it('single-lane: output identical for lanes:[] across L1/L2/L3', () => {
@@ -43,14 +37,5 @@ describe('task.md.ejs lane discipline', () => {
         renderTemplate('claude/commands/task.md.ejs', withEmptyLanes),
       )
     }
-  })
-
-  it('multi-lane: cross-stack STOP rule present', () => {
-    const data = makeConfig('/tmp/test', {
-      lanes: ['frontend', 'backend'],
-    }) as unknown as Record<string, unknown>
-    const rendered = renderTemplate('claude/commands/task.md.ejs', data)
-    expect(rendered).toContain('STOP')
-    expect(rendered).toMatch(/touch.*both|both.*lanes?|split/i)
   })
 })

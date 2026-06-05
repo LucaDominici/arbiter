@@ -69,13 +69,14 @@ Configured in `.claude/settings.json`. Active hooks:
 
 ### Slash Commands
 
-| Command      | Purpose                                           |
-| ------------ | ------------------------------------------------- |
-| `/task #NNN` | Full lifecycle: branch, plan, implement, gate, PR |
-| `/wt-open`   | Open an isolated task worktree                    |
-| `/wt-close`  | Close or harvest a task worktree                  |
-| `/wt-list`   | List active git worktrees with status             |
-| `/wt-prune`  | Prune stale worktree metadata                     |
+| Command      | Purpose                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| `/ship #NNN` | **Orchestration entrypoint** — drive an issue to a merged PR (plan → review → gate → merge) |
+| `/task`      | Low-level engine/CLI: `arbiter task init/advance/record-red/recover/get`                    |
+| `/wt-open`   | Open an isolated task worktree                                                              |
+| `/wt-close`  | Close or harvest a task worktree                                                            |
+| `/wt-list`   | List active git worktrees with status                                                       |
+| `/wt-prune`  | Prune stale worktree metadata                                                               |
 
 ---
 

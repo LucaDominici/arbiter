@@ -21,18 +21,18 @@ This document is factual. It does not compare the two systems qualitatively.
 
 ## Mapping Table
 
-| BMAD construct                               | arbiter equivalent                                      | Scope delta                                                     |
-| -------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------- |
-| BMAD `analyst` agent                         | `feature-dev:code-explorer` subagent                    | arbiter scopes to codebase exploration; BMAD analyst is broader |
-| BMAD `architect` agent                       | `feature-dev:code-architect` subagent                   | Direct equivalent — architecture design role                    |
-| BMAD `developer` agent                       | Implementation phase of `/task #N`                      | arbiter bundles dev into task lifecycle                         |
-| BMAD `qa` agent                              | `code-review:code-review` + adversarial verifier        | arbiter separates code review from QA gate                      |
-| BMAD `story` file                            | Task brief (`.claude/plans/*.md` front-matter)          | Front-matter schema differs; see plan-template.md               |
-| BMAD `epic`                                  | GitHub issue with `epic` label                          | arbiter uses GitHub issues natively; no separate epic file      |
-| BMAD `prd.md`                                | `AGENTS.md` §Governance + `docs/` reference             | Product-level rules live in AGENTS.md; docs are free-form       |
-| BMAD phases (Analyse → Architect → Dev → QA) | `/task` phases (plan → impl → gate → PR)                | Phase names differ; semantics are similar                       |
-| BMAD `checklist`                             | AGENTS.md `§Invariants` + gate enforcement              | arbiter enforces checklists mechanically via gate/hooks         |
-| BMAD `*.cursorrules` / `CLAUDE.md`           | arbiter-generated `AGENTS.md` + `.claude/settings.json` | arbiter generates these per-project from wizard output          |
+| BMAD construct                               | arbiter equivalent                                              | Scope delta                                                       |
+| -------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------- |
+| BMAD `analyst` agent                         | `feature-dev:code-explorer` subagent                            | arbiter scopes to codebase exploration; BMAD analyst is broader   |
+| BMAD `architect` agent                       | `feature-dev:code-architect` subagent                           | Direct equivalent — architecture design role                      |
+| BMAD `developer` agent                       | Implementation phase of `/ship #N`                              | arbiter bundles dev into task lifecycle via `/ship` orchestration |
+| BMAD `qa` agent                              | `code-review:code-review` + adversarial verifier                | arbiter separates code review from QA gate                        |
+| BMAD `story` file                            | Task brief (`.claude/plans/*.md` front-matter)                  | Front-matter schema differs; see plan-template.md                 |
+| BMAD `epic`                                  | GitHub issue with `epic` label                                  | arbiter uses GitHub issues natively; no separate epic file        |
+| BMAD `prd.md`                                | `AGENTS.md` §Governance + `docs/` reference                     | Product-level rules live in AGENTS.md; docs are free-form         |
+| BMAD phases (Analyse → Architect → Dev → QA) | `/ship` phases (plan → red-team → impl → review → gate → merge) | Phase names differ; `/ship` orchestrates all automatically        |
+| BMAD `checklist`                             | AGENTS.md `§Invariants` + gate enforcement                      | arbiter enforces checklists mechanically via gate/hooks           |
+| BMAD `*.cursorrules` / `CLAUDE.md`           | arbiter-generated `AGENTS.md` + `.claude/settings.json`         | arbiter generates these per-project from wizard output            |
 
 ## What BMAD Has That arbiter Does Not
 
@@ -77,6 +77,6 @@ BMAD and arbiter share a core belief: structured, phase-gated AI workflows produ
 
 ## Gotchas
 
-- BMAD story files have their own front-matter format. arbiter plan files require `context.issue`, `context.type`, `context.estimate` — add these before using `/task` commands.
+- BMAD story files have their own front-matter format. arbiter plan files require `context.issue`, `context.type`, `context.estimate` — add these before using `/ship` to drive the task.
 - BMAD `.cursorrules` and `CLAUDE.md` are handwritten. arbiter generates `AGENTS.md` from wizard output; if you have existing rules, merge them into the generated file rather than replacing it.
 - BMAD's QA phase often calls external services. arbiter's gate is local-only; move any external checks to a separate CI job wired as a required check.
