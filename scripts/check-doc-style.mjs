@@ -40,6 +40,7 @@ const SKIP_PATH_SEGMENTS = [
   `${sep}report${sep}`,
   `${sep}internal${sep}`,
   `${sep}.claude${sep}plans${sep}`,
+  `${sep}.claude${sep}.task${sep}`,
 ]
 // Auto-generated files that bypass frontmatter requirements
 const SKIP_FILENAMES = new Set([

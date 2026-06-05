@@ -1294,6 +1294,15 @@ program
   .option('--skip-plan-review', 'Bypass the plan-review gate on advance', false)
   .option('--post-clear', 'Signal post-/clear re-entry on advance', false)
   .option('--skip-budget', 'Skip the budget assertion on advance', false)
+  .option(
+    '--units <n>',
+    'Implementation unit count from the plan — drives the size-driven clear decision',
+    (v: string) => {
+      const n = parseInt(v, 10)
+      if (isNaN(n) || n <= 0) throw new Error('--units must be a positive integer')
+      return n
+    },
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
@@ -1304,6 +1313,7 @@ program
         skipPlanReview: boolean
         postClear: boolean
         skipBudget: boolean
+        units?: number
         dir?: string
       },
     ) => {
@@ -1316,6 +1326,7 @@ program
             skipPlanReview: opts.skipPlanReview,
             postClear: opts.postClear,
             skipBudget: opts.skipBudget,
+            ...(opts.units !== undefined ? { units: opts.units } : {}),
           },
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         })

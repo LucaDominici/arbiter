@@ -52,6 +52,9 @@ export interface TaskAdvanceOptions {
   postClear?: boolean
   /** Skip the budget assertion on post-clear re-entry (writes warning). */
   skipBudget?: boolean
+  /** Caller-supplied implementation unit count; drives the clear-strategy decision.
+   *  When absent, falls back to the tier's conservative default (→ 'stop'). */
+  units?: number
 }
 
 /** Current phase from the unified document (`preflight` for a fresh tree). */
@@ -526,25 +529,118 @@ function runBudgetCheck(rawId: string, dir: string, opts: TaskAdvanceOptions): v
   }
 }
 
+// ─── Clear-strategy decision (#1209) ─────────────────────────────────────────────────────────────
+
+/** Max units that fit comfortably in-context without a /clear. */
+const INLINE_MAX = 10
+/** Max units that can be handled via a sub-agent handoff (no full /clear needed). */
+const SUBAGENT_MAX = 20
+
+const STRATEGY_DESCRIPTION: Record<'inline' | 'sub-agent' | 'stop', string> = {
+  inline: 'Strategy: inline (context is small — continuing in-context)',
+  'sub-agent': 'Strategy: sub-agent (medium context — spawn a sub-agent for the exec phase)',
+  stop: 'Strategy: stop (large context — run /clear then re-invoke to free context)',
+}
+
+/** Compute the appropriate clear strategy given known context pressure.
+ *
+ *  When `units` is absent, conservatively defaults to `'stop'` (backward-compatible: all
+ *  existing callers that do not pass --units continue to throw the interactive handoff).
+ *  Callers supply `units` from the plan §7 estimate — no auto-inference.
+ */
+export function decideClearStrategy({
+  units,
+  modelSwitch,
+}: {
+  units: number | undefined
+  tier?: string
+  modelSwitch: boolean
+}): 'inline' | 'sub-agent' | 'stop' {
+  if (!modelSwitch) return 'inline'
+  if (units === undefined) return 'stop'
+  if (units <= INLINE_MAX) return 'inline'
+  if (units <= SUBAGENT_MAX) return 'sub-agent'
+  return 'stop'
+}
+
+/** Build the clear+resume banner that replaces the terse HandoffRequiredError message. */
+export function buildHandoffBanner({
+  taskId,
+  strategy,
+  units,
+  tier,
+}: {
+  taskId: string
+  strategy: 'inline' | 'sub-agent' | 'stop'
+  units: number | undefined
+  tier: string | undefined
+}): string {
+  const numericId = taskId.replace(/^#/, '')
+  const tierInfo = tier !== undefined ? ` (tier: ${tier})` : ''
+  const unitsInfo = units !== undefined ? `, units: ${units}` : ''
+  const resumeCmd = `arbiter ship #${numericId} --advance --post-clear`
+  const continueHint =
+    strategy === 'inline'
+      ? `Continue in this context: run \`${resumeCmd}\` or \`arbiter task advance --to red --post-clear\``
+      : `1. Run: /clear\n2. Re-invoke: \`${resumeCmd}\``
+  return [
+    `━━━ Plan complete — handoff required ━━━`,
+    `Task: ${taskId}${tierInfo}${unitsInfo}`,
+    STRATEGY_DESCRIPTION[strategy],
+    ``,
+    continueHint,
+    ``,
+    `Flag: --post-clear signals the re-entry to the budget gate.`,
+  ].join('\n')
+}
+
+/** Record the planning transcript window into the cost evidence file exactly once (#1208).
+ *  The postClearCostRecorded marker guards against double-counting when runBudgetCheck throws
+ *  on a budget breach and the caller retries. Marker written AFTER recordPhaseCost: if we
+ *  crash between the two writes the worst outcome is a re-count (false breach, recoverable via
+ *  ARBITER_COST_BUDGET_SKIP=1) rather than a missed count (false pass). */
+function recordPlanningCostOnce(
+  taskId: string,
+  existing: Partial<UnifiedTaskState>,
+  dir: string,
+): void {
+  if (existing.postClearCostRecorded !== undefined) return
+  const caps = detectHostCapabilities()
+  const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
+  const costs = caps.transcriptPath
+    ? readTranscriptCosts(caps.transcriptPath, sinceISO)
+    : { input: 0, output: 0, samples: 0 }
+  recordPhaseCost(
+    taskId,
+    'red',
+    { in: costs.input, out: costs.output, samples: costs.samples },
+    dir,
+  )
+  writeUnifiedState(dir, { postClearCostRecorded: new Date().toISOString() })
+}
+
 function handlePostClearReEntry(rawId: string, dir: string, opts: TaskAdvanceOptions): void {
   const existing: Partial<UnifiedTaskState> = readUnifiedState(dir) ?? {}
-  if (existing.postClearResumed === undefined) {
-    const caps = detectHostCapabilities()
-    const sinceISO = existing.planningHandoffReady ?? new Date(0).toISOString()
-    const costs = caps.transcriptPath
-      ? readTranscriptCosts(caps.transcriptPath, sinceISO)
-      : { input: 0, output: 0, samples: 0 }
-    recordPhaseCost(
-      rawId,
-      'red',
-      { in: costs.input, out: costs.output, samples: costs.samples },
-      dir,
+
+  // Fast path: already fully resumed — this call is a no-op.
+  if (existing.postClearResumed !== undefined) return
+
+  // Resolve the canonical task id. Prefer the one persisted in state (authoritative) over the
+  // raw id from disk which may be 'unknown' if state was not initialized yet.
+  const taskId = existing.taskId || (rawId !== 'unknown' ? rawId : undefined)
+  if (!taskId) {
+    throw new Error(
+      `Post-clear re-entry: task state has no taskId — refusing to record cost under unknown.json. ` +
+        `Re-initialize the task with \`arbiter task init --id #NNN\` before resuming. ` +
+        `(rawId="${rawId}", existing.taskId="${existing.taskId ?? ''}")`,
     )
-    runBudgetCheck(rawId, dir, opts)
-    // Metadata only — never the phase. runTaskAdvance writes phase:'red' AFTER this returns,
-    // which is what keeps the `current !== to` budget-gate trigger load-bearing (C1, #1206).
-    writeUnifiedState(dir, { postClearResumed: new Date().toISOString() })
   }
+
+  recordPlanningCostOnce(taskId, existing, dir)
+  runBudgetCheck(taskId, dir, opts)
+  // Metadata only — never the phase. runTaskAdvance writes phase:'red' AFTER this returns,
+  // which is what keeps the `current !== to` budget-gate trigger load-bearing (C1, #1206).
+  writeUnifiedState(dir, { postClearResumed: new Date().toISOString() })
 }
 
 function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptions): void {
@@ -565,6 +661,13 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
     return
   }
 
+  // Size-driven strategy: inline → proceed; sub-agent or stop → throw with banner (#1209).
+  const strategy = decideClearStrategy({ units: opts.units, modelSwitch: caps.modelSwitch })
+  if (strategy === 'inline') {
+    writeUnifiedState(dir, { handoffStrategy: 'inline' })
+    return
+  }
+
   // Interactive handoff: record strategy + readiness marker, then THROW before any phase write.
   // The phase stays at the current planning phase until post-clear re-entry advances it (C1).
   writeUnifiedState(dir, {
@@ -572,9 +675,8 @@ function checkHandoffGate(dir: string, claudeDir: string, opts: TaskAdvanceOptio
     handoffReady: true,
     planningHandoffReady: new Date().toISOString(),
   })
+  const tier = readUnifiedState(dir)?.tier
   throw new HandoffRequiredError(
-    'Plan complete. Run `/clear`, then re-invoke `/task #' +
-      rawId.replace(/^#/, '') +
-      '` (it will resume from disk).',
+    buildHandoffBanner({ taskId: rawId, strategy, units: opts.units, tier }),
   )
 }

@@ -95,6 +95,23 @@ gh pr merge --merge
 
 ---
 
+## Plan mode (auto)
+
+At the **start of the `plan` phase** — and only when `.claude/.task/status.json` shows `phase` ∈
+{`preflight`, `plan`} — call `EnterPlanMode` to enforce no-edit discipline while drafting the plan.
+Do NOT call EnterPlanMode when resuming an exec phase (check the phase-doc first).
+
+At **GO/handoff** (plan-review gate green):
+1. Call `ExitPlanMode`.
+2. Run the advance command with the unit count from the plan (§7 estimate):
+   ```bash
+   arbiter ship #NNN --advance --units <N>
+   ```
+3. Follow the printed banner: it shows the size-driven strategy (`inline` / `sub-agent` / `stop`)
+   and the exact resume steps (use `--post-clear` on re-entry after a `/clear`).
+
+---
+
 ## Hard stops
 
 - A phase gate throws (plan-review FAIL, TDD evidence missing, budget breach) → fix the root cause; do

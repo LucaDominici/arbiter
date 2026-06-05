@@ -132,7 +132,12 @@ export interface TaskShipOptions {
   /** Advance to the next phase first (runs that phase's gate; throws if the gate is red). */
   advance?: boolean
   /** Bubble handoff/budget control-flow to the caller instead of being swallowed. */
-  advanceOpts?: { skipPlanReview?: boolean; postClear?: boolean; skipBudget?: boolean }
+  advanceOpts?: {
+    skipPlanReview?: boolean
+    postClear?: boolean
+    skipBudget?: boolean
+    units?: number
+  }
 }
 
 export interface ShipResult {
