@@ -115,6 +115,10 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | #1191 | Resilience capability has no kit dimension (N77 max)                                  | Open (new)                | low      |
 | #1192 | FEATURE_MATRIX — 40/46 Partial rows lack tracked follow-up                            | Open (new)                | low      |
 | #1193 | Trivia cleanup bundle                                                                 | Open (new)                | low      |
+| #1160 | Tech debt #1160                                                                       | Open                      | low      |
+| #1161 | Tech debt #1161                                                                       | Open                      | low      |
+| #1208 | Tech debt #1208                                                                       | Open                      | low      |
+| #1215 | Tech debt #1215                                                                       | Open                      | low      |
 | #1222 | Tech debt #1222                                                                       | Open                      | low      |
 
 <!-- GAP_END -->

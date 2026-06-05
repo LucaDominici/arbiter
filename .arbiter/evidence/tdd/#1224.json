@@ -1,0 +1,40 @@
+{
+  "taskId": "#1224",
+  "phase": "green",
+  "timestamp": "2026-06-06T01:30:00.000Z",
+  "evidence": [
+    {
+      "check": "gap-register",
+      "phase": "red",
+      "command": "node scripts/gen-gap.mjs --check",
+      "result": "FAIL",
+      "output": "docs/PRODUCT/GAP.md is stale. Run `node scripts/gen-gap.mjs --write` and commit the result.",
+      "exitCode": 1
+    },
+    {
+      "check": "gap-register",
+      "phase": "green",
+      "command": "node scripts/gen-gap.mjs --check",
+      "result": "PASS",
+      "output": "docs/PRODUCT/GAP.md is up to date.",
+      "exitCode": 0
+    },
+    {
+      "check": "doc-index",
+      "phase": "green",
+      "command": "node scripts/gen-doc-index.mjs --check",
+      "result": "PASS",
+      "output": "docs/INDEX.md is up to date.",
+      "exitCode": 0
+    },
+    {
+      "check": "gitleaks",
+      "phase": "green",
+      "command": "gitleaks detect",
+      "result": "PASS",
+      "output": "no leaks found",
+      "exitCode": 0
+    }
+  ],
+  "description": "Tech-debt evidence files for tasks #1160/#1161/#1177/#1208/#1215 were untracked. Force-added to git. GAP.md regenerated with 4 new tech-debt rows. All drift gates green."
+}
