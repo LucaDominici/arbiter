@@ -77,12 +77,13 @@ Follow this lifecycle for every task:
 
 ## Command Translation
 
-| Claude Code                     | Codex Equivalent                                      |
-| ------------------------------- | ----------------------------------------------------- |
-| `/task #NNN`                    | Full lifecycle: branch → plan → implement → gate → PR |
-| `npm run test`                  | Run tests for this stack                              |
-| `node scripts/check-all.mjs L1` | Run before each commit                                |
-| `node scripts/check-all.mjs L2` | Run before push/PR                                    |
+| Claude Code                     | Codex Equivalent                                                         |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| `/ship #NNN`                    | **Orchestration entrypoint** — drive an issue to a merged PR             |
+| `/task`                         | Low-level engine/CLI: `arbiter task init/advance/record-red/recover/get` |
+| `npm run test`                  | Run tests for this stack                                                 |
+| `node scripts/check-all.mjs L1` | Run before each commit                                                   |
+| `node scripts/check-all.mjs L2` | Run before push/PR                                                       |
 
 ## Hard Stops
 

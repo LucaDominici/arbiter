@@ -63,12 +63,13 @@ If empty, run `git config core.hooksPath .githooks` once.
 ## 5. Open a task
 
 ```sh
-/task #NNN              # in Claude Code
-arbiter task start --id NNN   # equivalent CLI
+/ship #NNN                      # in Claude Code (orchestration entrypoint)
+arbiter ship #NNN --tier Standard   # equivalent CLI
 ```
 
-`/task` opens an isolated worktree, sets the task ID, and walks you through
-plan → red-phase test → implementation → gate → PR.
+`/ship` is the single orchestration entrypoint — it auto-sequences an issue through
+plan → red-team → TDD impl → review → gate → merge. Use `/task` subcommands only
+for low-level engine control or recovery (`arbiter task advance`, `record-red`, etc.).
 
 ## Common next reads
 

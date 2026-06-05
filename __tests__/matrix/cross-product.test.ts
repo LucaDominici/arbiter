@@ -449,70 +449,69 @@ describe('cross-product: AGENTS.md — tech debt section at L2+, absent at L1', 
 })
 
 // ─── Claude commands ──────────────────────────────────────────────────────────
+// #1216: /ship is the orchestration entrypoint; /task is the engine/CLI ref.
+// testCommand, tier classification, and verification live in ship.md (not task.md).
 
-describe('cross-product: task.md — testCommand in output for all stack × level combinations', () => {
-  function renderTask(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('claude/commands/task.md.ejs', configFor(lang, level))
+describe('cross-product: ship.md — testCommand in output for all stack × level combinations (#1216)', () => {
+  function renderShip(lang: Language, level: GovernanceLevel): string {
+    return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
   }
 
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
       it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" appears in output`, () => {
-        expect(renderTask(lang, level)).toContain(TEST_COMMANDS[lang])
+        expect(renderShip(lang, level)).toContain(TEST_COMMANDS[lang])
       })
     }
   }
 })
 
-describe('cross-product: task.md — governance structure across all stacks', () => {
-  function renderTask(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('claude/commands/task.md.ejs', configFor(lang, level))
+describe('cross-product: ship.md — governance structure across all stacks (#1216)', () => {
+  function renderShip(lang: Language, level: GovernanceLevel): string {
+    return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
   }
 
   for (const lang of LANGUAGES) {
-    it(`${lang}+L1: no tier classification, has STOP gate`, () => {
-      const content = renderTask(lang, 'L1')
-      expect(content).not.toMatch(/\bXS\b/)
-      expect(content).not.toMatch(/\bStandard\b/)
-      expect(content).toMatch(/STOP HERE/)
+    it(`${lang}+L1: no tier classification note at L1`, () => {
+      const content = renderShip(lang, 'L1')
+      expect(content).not.toMatch(/The tier \(XS \/ S \/ Standard\) sets/)
     })
 
-    it(`${lang}+L2: tier classification present`, () => {
-      const content = renderTask(lang, 'L2')
+    it(`${lang}+L2: tier classification note present`, () => {
+      const content = renderShip(lang, 'L2')
       expect(content).toMatch(/XS|Standard/)
     })
 
-    it(`${lang}+L3: tier classification and verification present`, () => {
-      const content = renderTask(lang, 'L3')
+    it(`${lang}+L3: tier classification and evidence present`, () => {
+      const content = renderShip(lang, 'L3')
       expect(content).toMatch(/XS|Standard/)
       expect(content).toMatch(/verif|evidence/i)
     })
   }
 })
 
-describe('cross-product: task.md — testCommand and verification across all stacks', () => {
-  function renderTask(lang: Language, level: GovernanceLevel): string {
-    return renderTemplate('claude/commands/task.md.ejs', configFor(lang, level))
+describe('cross-product: ship.md — testCommand and verification across all stacks (#1216)', () => {
+  function renderShip(lang: Language, level: GovernanceLevel): string {
+    return renderTemplate('claude/commands/ship.md.ejs', configFor(lang, level))
   }
 
   for (const lang of LANGUAGES) {
     for (const level of LEVELS) {
-      it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" in gate section`, () => {
-        expect(renderTask(lang, level)).toContain(TEST_COMMANDS[lang])
+      it(`${lang}+${level}: testCommand "${TEST_COMMANDS[lang]}" in verification row`, () => {
+        expect(renderShip(lang, level)).toContain(TEST_COMMANDS[lang])
       })
     }
   }
 
   for (const lang of LANGUAGES) {
-    it(`${lang}+L3: verification section present`, () => {
-      const content = renderTask(lang, 'L3')
-      expect(content).toMatch(/Verification|evidence/i)
+    it(`${lang}+L2: evidence section present`, () => {
+      const content = renderShip(lang, 'L2')
+      expect(content).toMatch(/evidence/i)
     })
 
-    it(`${lang}+L1: no verification section`, () => {
-      const content = renderTask(lang, 'L1')
-      expect(content).not.toMatch(/Verification/)
-      expect(content).not.toMatch(/evidence/i)
+    it(`${lang}+L1: no red-team dispatch section`, () => {
+      const content = renderShip(lang, 'L1')
+      expect(content).not.toMatch(/RedTeamEvidenceV1/)
     })
   }
 })
@@ -699,24 +698,27 @@ describe('cross-product: settings.json — advanced hooks governance gating', ()
   }
 })
 
-// ─── start-task task state files (M17) ───────────────────────────────────────
+// ─── task engine subcommand ref (M17) ────────────────────────────────────────
+// #1216: task.md is now the engine/CLI reference (all governance levels).
+// arbiter task advance appears in the subcommand reference table for all levels.
 
-describe('cross-product: task.md — task state files for advanced hooks', () => {
+describe('cross-product: task.md — engine subcommand reference (#1216)', () => {
   function renderTask(lang: Language, level: GovernanceLevel): string {
     return renderTemplate('claude/commands/task.md.ejs', configFor(lang, level))
   }
 
   for (const lang of LANGUAGES) {
-    it(`${lang}+L2: contains arbiter task advance instruction`, () => {
+    it(`${lang}+L2: contains arbiter task advance (engine subcommand)`, () => {
       expect(renderTask(lang, 'L2')).toContain('arbiter task advance')
     })
 
-    it(`${lang}+L3: contains arbiter task advance instruction`, () => {
+    it(`${lang}+L3: contains arbiter task advance (engine subcommand)`, () => {
       expect(renderTask(lang, 'L3')).toContain('arbiter task advance')
     })
 
-    it(`${lang}+L1: does NOT contain arbiter task advance instruction`, () => {
-      expect(renderTask(lang, 'L1')).not.toContain('arbiter task advance')
+    it(`${lang}+L1: task.md has engine subcommand reference (arbiter task advance)`, () => {
+      // #1216: engine-ref is governance-level-agnostic; all levels have the subcommand table
+      expect(renderTask(lang, 'L1')).toContain('arbiter task advance')
     })
   }
 })
@@ -1231,7 +1233,9 @@ describe('cross-product: multi-lane (#403) — ci.yml + task.md contain lane dis
       expect(rendered).toContain('cross-stack-guard')
     })
 
-    it(`${lang}+${level}+lanes[${lanes.join(',')}]: task.md has Lane Discipline section`, () => {
+    it(`${lang}+${level}+lanes[${lanes.join(',')}]: task.md is engine-ref (no Lane Discipline — #1216)`, () => {
+      // #1216: task.md is now the engine/CLI reference only. Lane discipline was
+      // orchestration prose; it has been removed. Lane discipline in /ship is a follow-up.
       const rendered = renderTemplate(
         'claude/commands/task.md.ejs',
         makeConfig('/tmp/test', {
@@ -1241,7 +1245,7 @@ describe('cross-product: multi-lane (#403) — ci.yml + task.md contain lane dis
           ...STACK_CONFIG[lang],
         }) as unknown as Record<string, unknown>,
       )
-      expect(rendered).toContain('Lane Discipline')
+      expect(rendered).not.toContain('Lane Discipline')
     })
   }
 })

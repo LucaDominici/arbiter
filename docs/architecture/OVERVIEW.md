@@ -25,7 +25,7 @@ AGENTS.md                           <- Layer 0: Canonical governance
 |   +-- settings.json               |   Hooks wiring, permissions, sub-agent definitions
 |   +-- hooks/                      |   PreToolUse/PostToolUse enforcement scripts
 |   +-- rules/                      |   Additional rules (lifecycle, exec protocol)
-|   +-- commands/                   |   Slash commands (/task)
+|   +-- commands/                   |   Slash commands (/ship orchestration, /task engine/CLI)
 |
 +-- .agents/CODEX.md                <- Layer 1: Codex overlay
 |   +-- rules/                      |   Mirrored rule set (same content as .claude/rules/)

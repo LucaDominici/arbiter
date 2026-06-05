@@ -70,7 +70,7 @@
 | [ADR-038: Mission Elevation — v1.0 Scope](ADR/038-mission-elevation-v1.md) | 038 | active | kind/adr |
 | [ADR-039: V1 Verification Bridge](ADR/039-verification-bridge-v1.md) | 039 | active | kind/adr |
 | [ADR-040: Provenance Graph as a first-class primitive](ADR/040-provenance-graph-primitive.md) | 040 | active | kind/adr |
-| [ADR-041: Task Workflow via /task Slash Command](ADR/041-task-workflow.md) | 041 | active | kind/adr |
+| [ADR-041: Task Workflow via /task Slash Command](ADR/041-task-workflow.md) | 041 | deprecated | kind/adr |
 | [ADR-042: Three-Tier Gate System (L1/L2/L3)](ADR/042-gate-tiers.md) | 042 | active | kind/adr |
 | [ADR-043: Docs Site Information Architecture](ADR/043-docs-site-ia.md) | 043 | active | kind/adr |
 | [ADR-044: Docs Site Versioning Strategy](ADR/044-docs-versioning.md) | 044 | active | kind/adr |
@@ -117,6 +117,7 @@
 | [Evidence Prune Script and Red-Team SSOT Alignment Vectors](ADR/085-evidence-prune-and-red-team-ssot-alignment-vectors.md) | 085 | active | kind/adr |
 | [Four-Pillar SSOT Infrastructure (AC#1 Deviation)](ADR/086-four-pillar-ssot-infrastructure.md) | 086 | active | kind/adr |
 | [Rust Context-Aware INV-04 Checkers and Rebased-Aware Docs-Check](ADR/087-rust-context-aware-inv04-checkers-and-rebased-docs-check.md) | 087 | active | kind/adr |
+| [ADR-088: /ship as the Single Orchestration Entrypoint](ADR/088-ship-as-orchestration-entrypoint.md) | 088 | active | kind/adr |
 | [ADR-NNN: Title](ADR/ADR-000_template.md) | — | draft | kind/adr |
 | [ADR-NNN: Title](ADR/ADR-TEMPLATE.md) | — | active | kind/adr |
 | [Architectural Decision Records](ADR/README.md) | — | active | kind/adr |
