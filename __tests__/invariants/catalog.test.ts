@@ -29,7 +29,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111 CLI ref parity, selfOnly governance)
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM/FEATURE_MATRIX required at L2+)
     // Updated #1206: +1 (INV-113 single authoritative task-phase document, selfOnly governance)
-    expect(INVARIANT_CATALOG).toHaveLength(111)
+    // Updated #1212: +1 (INV-114 fail-closed Stop gate, L2+ governance, target-facing)
+    expect(INVARIANT_CATALOG).toHaveLength(112)
   })
 
   it('all IDs are unique', () => {
@@ -37,7 +38,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(111)
+    expect(unique.size).toBe(112)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -120,7 +121,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(41)
+    expect(tier5).toHaveLength(42)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -372,7 +373,7 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(70)
+    expect(result).toHaveLength(71)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -393,7 +394,7 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(58)
+    expect(result.length).toBeLessThan(59)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -459,7 +460,7 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(65)
+    expect(result).toHaveLength(66)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -478,7 +479,7 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(66)
+    expect(result).toHaveLength(67)
   })
 
   it('essential preset at L1 returns minimal set', () => {

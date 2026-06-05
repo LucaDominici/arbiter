@@ -88,6 +88,18 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
     expect(out).not.toContain('guard-task-completion.mjs')
   })
 
+  it('includes the Stop event + stop-evidence-guard.mjs at L2 (#1212/INV-114)', () => {
+    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
+    expect(out).toContain("'Stop'")
+    expect(out).toContain('stop-evidence-guard.mjs')
+  })
+
+  it('does NOT include the Stop event at L1 (#1212)', () => {
+    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L1'))
+    expect(out).not.toContain('stop-evidence-guard.mjs')
+    expect(out).not.toContain("'Stop'")
+  })
+
   it('includes post-edit-dispatch.mjs at L2', () => {
     const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
     expect(out).toContain('post-edit-dispatch.mjs')

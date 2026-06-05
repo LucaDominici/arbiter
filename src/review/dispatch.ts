@@ -32,6 +32,7 @@ import { computeSsotDigest, escapeXml } from './ssot.js'
 import { TIER_PASS_COUNT, type ReviewTier } from './tier-constants.js'
 import { sanitizeTaskId } from '../utils/task-id.js'
 import { readTaskId } from '../commands/task-state.js'
+import { currentBranch, headSha } from '../evidence/git-checks.js'
 
 export type Verdict = 'PASS' | 'WARN' | 'FAIL'
 type RawVerdict = Verdict | 'ERROR'
@@ -261,6 +262,11 @@ export function dispatchPlanReview(opts: DispatchOptions): DispatchResult {
     ts: new Date().toISOString(),
     runDir,
     planDigest,
+    // #1212: branch+sha stamp so the fail-closed Stop hook can correlate this
+    // plan-review evidence to the current branch (and confirm the sha is an
+    // ancestor of HEAD) before allowing a completion claim.
+    branch: currentBranch(opts.dir),
+    sha: headSha(opts.dir),
     tier: opts.tier,
     totalInvocations,
     attempts,

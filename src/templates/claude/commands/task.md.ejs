@@ -259,6 +259,8 @@ Dispatch a single self-review agent covering:
 
 ```bash
 echo "1" > .agents-dispatched
+# #1212: branch+sha sidecar so the fail-closed Stop hook can correlate dispatch evidence
+mkdir -p .arbiter && printf '{"count":1,"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
 **HARD STOP** if the self-review agent was not actually dispatched.
@@ -285,6 +287,8 @@ Hunt specifically for: swallowed exceptions (`catch {}`), `??` defaults that mas
 After dispatching agents, record the count:
 ```bash
 echo "<%= _tiers.XS.reviewAgentCount %>" > .agents-dispatched   # XS; S: same; Standard: <%= _tiers.Standard.reviewAgentCount %>
+# #1212: branch+sha sidecar so the fail-closed Stop hook can correlate dispatch evidence
+mkdir -p .arbiter && printf '{"count":<%= _tiers.XS.reviewAgentCount %>,"branch":"%s","sha":"%s"}\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > .arbiter/agents-dispatched.json
 ```
 
 **HARD STOP** if agents were not actually dispatched. "I reviewed it" without agent tool calls does not satisfy this gate.

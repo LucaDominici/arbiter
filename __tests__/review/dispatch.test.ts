@@ -259,6 +259,9 @@ describe('dispatchPlanReview (#235, #695)', () => {
     expect(typeof latest.runDir).toBe('string')
     expect(typeof latest.planDigest).toBe('string')
     expect((latest.planDigest as string).length).toBe(64)
+    // #1212: branch+sha stamped for Stop-hook evidence correlation
+    expect(typeof latest.branch).toBe('string')
+    expect(typeof latest.sha).toBe('string')
   })
 
   it('latest.json.planDigest matches SHA-256 of planContent', () => {

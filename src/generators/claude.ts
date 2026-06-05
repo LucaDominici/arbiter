@@ -147,6 +147,17 @@ function generateClaudeSettings(
   results.push({ path: settingsPath, action: 'backed-up-and-replaced' })
 }
 
+// L2+ advanced hooks emitted for every target (guard-done-evidence is added
+// conditionally on enableEvidenceHarness). stop-evidence-guard is the #1212
+// fail-closed Stop completion backstop (INV-114).
+const L2_ADVANCED_HOOKS = [
+  'post-edit-dispatch.mjs',
+  'debug-state-on-failure.mjs',
+  'skill-forced-eval.mjs',
+  'guard-task-completion.mjs',
+  'stop-evidence-guard.mjs',
+] as const
+
 function generateClaudeHooks(
   base: string,
   data: object,
@@ -230,12 +241,7 @@ function generateClaudeHooks(
 
   // Advanced hooks — L2+ only
   if (config.governanceLevel !== 'L1') {
-    const advancedHooks = [
-      'post-edit-dispatch.mjs',
-      'debug-state-on-failure.mjs',
-      'skill-forced-eval.mjs',
-      'guard-task-completion.mjs',
-    ]
+    const advancedHooks: string[] = [...L2_ADVANCED_HOOKS]
     // Evidence guard only when evidence harness is enabled (mirrors CLI/config emission)
     if (config.enableEvidenceHarness !== false) {
       advancedHooks.push('guard-done-evidence.mjs')

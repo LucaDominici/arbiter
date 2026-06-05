@@ -618,3 +618,11 @@ Task lifecycle state is sourced from ONE authoritative document pair: `.claude/.
 **Enforcement:** scripts/check-phase-doc-consistency.mjs (L1): scans `src/**` for legacy `.task-*` dotfile-name literals (allowlisting the migration shim) and validates `.claude/.task/status.json` well-formedness when present. Wired into scripts/check-all.mjs L1.
 
 ---
+
+### INV-114: Fail-closed Stop gate — completion claims require correlated evidence
+
+On a `task/` or `ship/` branch whose phase is not yet `complete`, an agent may not end its turn claiming completion (task complete / ready to merge / pr merged …) unless three evidence artifacts exist AND correlate to the current branch and HEAD sha: (1) the plan-review `latest.json` with verdict PASS, recorded on this branch at a commit that is an ancestor of HEAD; (2) the agents-dispatched sidecar (`.arbiter/agents-dispatched.json`) on this branch at an ancestor commit; (3) the gate-pass marker (`.arbiter/gate-pass.json`) on this branch with `head_sha` STRICTLY equal to HEAD (the exact tree was verified). A claim with any missing or stale artifact is blocked. Every other path — no claim, unreadable transcript, non-task branch, phase complete, hook re-entry — stands down. This is the backstop the soft UserPromptSubmit completion guard cannot be: it observes the agent's own stop, not the next user prompt.
+
+**Enforcement:** `.claude/hooks/stop-evidence-guard.mjs` (Claude Code `Stop` event, exit 2 = block-the-stop and return stderr to the model). Generated for target projects at L2+ by `src/generators/claude.ts` and dogfooded in arbiter's own `.claude/` (CANON-01/14). Evidence writers (`src/review/dispatch.ts`, `scripts/check-all.mjs`, the /task dispatch sidecar) stamp branch+sha so correlation is possible. Empirical coverage: `__tests__/hooks/empirical/stop-evidence-guard.test.ts`.
+
+---
