@@ -222,7 +222,8 @@ const CI_COVERAGE = new Map([
   ['merge method ff-only (INV-101)', 'gate-full'],
   ['settings coverage (#1121)', 'gate-full'],
   ['feature matrix (INV-112)', 'gate-full'],
-  ['docs:build', 'gate-full'],
+  // 'docs:build' is invoked via the docsCheck() warn-helper (not run[Tool]Check),
+  // so the parity regex never extracts it — no CI_COVERAGE entry is required.
   ['duplication', 'gate-full'],
   ['dogfood', 'gate-full'],
   ['STRIDE/RACI traceability', 'gate-full'],
@@ -230,11 +231,14 @@ const CI_COVERAGE = new Map([
   ['evidence-bundle', 'gate-full'],
   ['fail-closed audit (INV-96)', 'gate-full'],
   ['script cohesion (INV-94)', 'gate-full'],
+  // actionlint runs INSIDE gate-full (the job installs it; check-all L2 runs it
+  // via runToolCheck, which FAILs-in-CI on a missing binary). So it has a real
+  // CI counterpart and belongs in CI_COVERAGE, not CI_SKIP_SET.
+  ['actionlint', 'gate-full'],
 ])
 
 // CI_SKIP_SET: checks intentionally excluded from CI parity enforcement.
 const CI_SKIP_SET = new Set([
-  'actionlint', // tool not installed locally OR in CI (runToolCheck → SKIP in both)
   'local-ci parity', // self-referential: cannot run inside gate-full
   'self-validation drill', // local-only toolchain health check
   'id stability', // binary-stability check, neutral-skips in CI (no origin/main at depth)

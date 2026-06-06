@@ -63,15 +63,15 @@ describe('check-local-ci-parity.mjs — check-level parity (#1225)', () => {
   })
 
   it('all checks in CI_SKIP_SET exits 0', () => {
-    // actionlint is in CI_SKIP_SET — should not fail parity
-    writeCheckAllStub(dir, ['actionlint'])
+    // 'self-validation drill' is in CI_SKIP_SET — should not fail parity
+    writeCheckAllStub(dir, ['self-validation drill'])
     const r = runCheckLevel(dir)
     expect(r.status).toBe(0)
   })
 
   it('all checks in CI_COVERAGE exits 0', () => {
-    // 'unit tests' maps to gate-full — covered
-    writeCheckAllStub(dir, ['unit tests', 'coverage', 'gitleaks'])
+    // 'unit tests', 'actionlint' map to gate-full — covered
+    writeCheckAllStub(dir, ['unit tests', 'coverage', 'gitleaks', 'actionlint'])
     const r = runCheckLevel(dir)
     expect(r.status).toBe(0)
   })
