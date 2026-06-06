@@ -82,4 +82,29 @@ describe('check-local-ci-parity.mjs — check-level parity (#1225)', () => {
     expect(r.status).toBe(0)
     expect(r.stdout + r.stderr).toMatch(/skip/i)
   })
+
+  // RT-06: check-level parity must run in the NORMAL path (no env flag), BEFORE
+  // the local-result.json guard — otherwise it is dead code in CI (clean checkout
+  // has no local-result.json). This drives an orphan check failure with NO
+  // PARITY_CHECK_LEVEL_ONLY set, proving the unconditional call exists.
+  it('runs in the normal path without PARITY_CHECK_LEVEL_ONLY (RT-06: not dead code)', () => {
+    writeCheckAllStub(dir, ['unit tests', 'orphan-rt06'])
+    // Provide a passing static scaffold so we get past the static check into
+    // the check-level branch (which precedes the local-result guard).
+    const phony = '.PHONY: check gate ci\ncheck:\n\techo check\n'
+    writeFileSync(join(dir, 'Makefile'), phony)
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    writeFileSync(
+      join(dir, '.github', 'workflows', 'ci.yml'),
+      'name: CI\non: [push]\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps: []\n  gate:\n    runs-on: ubuntu-latest\n    steps: []\n  ci:\n    runs-on: ubuntu-latest\n    steps: []\n',
+    )
+    // NO PARITY_CHECK_LEVEL_ONLY — full pipeline.
+    const result = spawnSync('node', [SCRIPT], {
+      cwd: dir,
+      encoding: 'utf-8',
+      env: { ...process.env, PARITY_CHECK_LEVEL_ONLY: '' },
+    })
+    expect(result.status).toBe(1)
+    expect((result.stderr ?? '') + (result.stdout ?? '')).toMatch(/orphan-rt06/)
+  })
 })

@@ -291,6 +291,14 @@ if (staticCode !== 0) {
   process.exit(staticCode)
 }
 
+// Run check-level parity BEFORE the local-result guard (RT-06: must not be dead
+// code in CI). In a clean CI checkout there is no local-result.json, so placing
+// this after the guard would skip it — defeating the purpose. It runs every time.
+const checkLevelCode = checkLevelParity(ROOT)
+if (checkLevelCode !== 0) {
+  process.exit(checkLevelCode)
+}
+
 const LOCAL_RESULT_PATH = join(ROOT, '.arbiter', 'gate', 'local-result.json')
 
 function skip(reason) {
