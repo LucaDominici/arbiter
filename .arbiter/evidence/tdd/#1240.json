@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1240",
+  "test_path": "__tests__/gates/docs-1240.test.ts",
+  "test_commit_sha": "d7aafe95814446d435c434cdd57d43a8f49a30e2",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1240-commit-prd-adr-docs-evolution\n\n ❯ __tests__/gates/docs-1240.test.ts (6 tests | 4 failed) 7ms\n     × ADR-089 has canonical_id = 089 3ms\n     × ADR-089 README.md entry exists 1ms\n     × PRD-DOCS-EVOLUTION.md exists 0ms\n     × PRD has required frontmatter keys 0ms\n\n Test Files  1 failed (1)\n      Tests  4 failed | 2 passed (6)\n   Start at  18:19:48\n   Duration  91ms\n\n FAIL  __tests__/gates/docs-1240.test.ts > ADR-089 presence and correctness (#1240) > ADR-089 has canonical_id = 089\nAssertionError: expected '' to be '089' // Object.is equality\n\n FAIL  __tests__/gates/docs-1240.test.ts > PRD-DOCS-EVOLUTION presence and correctness (#1240) > PRD-DOCS-EVOLUTION.md exists\nAssertionError: expected false to be true // Object.is equality\n",
+  "observed_failure": "FAIL  __tests__/gates/docs-1240.test.ts",
+  "recorded_at": "2026-06-06T16:19:48.525Z"
+}

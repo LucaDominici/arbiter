@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "RedTeamEvidenceV1",
+  "taskId": "#1240",
+  "tier": "S",
+  "agentsDispatched": 2,
+  "findings": [
+    {"id": "RT-01", "severity": "CRITICAL", "summary": "H1/frontmatter title mismatch: (DRAFT) in H1 must be stripped; frontmatter title must exactly match H1", "auditorHint": "check-doc-style.mjs", "resolved": true},
+    {"id": "RT-02", "severity": "CRITICAL", "summary": "CC metadata note in ADR body must be removed before commit", "auditorHint": "manual review", "resolved": true},
+    {"id": "RT-03", "severity": "HIGH", "summary": "extractSummary needs **Decision:** inline bold one-liner in ADR body", "auditorHint": "gen-adr-readme.mjs", "resolved": true},
+    {"id": "RT-04", "severity": "CRITICAL", "summary": "PRD file needs proper YAML frontmatter block (all 8 required keys)", "auditorHint": "check-doc-style.mjs", "resolved": true},
+    {"id": "RT-05", "severity": "HIGH", "summary": "ADR canonical_id must be '089' string matching filename", "auditorHint": "check-adr-index.mjs (INV-107)", "resolved": true},
+    {"id": "RT-06", "severity": "CRITICAL", "summary": "Tags must be properly quoted YAML array: ['...', 'kind/reference']", "auditorHint": "gen-ssot-core.mjs / check-ssot-core.mjs", "resolved": true},
+    {"id": "RT-07", "severity": "MEDIUM", "summary": "Character encoding: em-dash vs hyphen in H1 vs frontmatter title", "auditorHint": "check-doc-style.mjs", "resolved": true},
+    {"id": "RT-08", "severity": "MEDIUM", "summary": "last_review must be ISO YYYY-MM-DD; affects DECISIONS.md determinism", "auditorHint": "gen-adr-readme.mjs", "resolved": true}
+  ],
+  "verdict": "NO_CRITICAL_BLOCKERS",
+  "note": "All findings are implementation-level; no plan rework needed. Resolved by careful file creation."
+}
