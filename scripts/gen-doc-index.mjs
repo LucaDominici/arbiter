@@ -19,9 +19,20 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
 
 // Directories under docs/ whose contents are excluded from the inventory.
 const SKIP_SEGMENTS = new Set(['report'])
+
+/** Return the Set of git-tracked paths (relative to repo root) under docs/. */
+function gitTrackedDocPaths(repoRoot) {
+  try {
+    const out = execFileSync('git', ['ls-files', 'docs/'], { cwd: repoRoot, encoding: 'utf-8' })
+    return new Set(out.split('\n').filter(Boolean))
+  } catch {
+    return null // git not available — fall back to unfiltered walk
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -90,7 +101,14 @@ function tableRow(r) {
  *   tags     – full string[] of tags
  */
 export function collectDocs(docsDir, indexPath) {
+  const repoRoot = resolve(docsDir, '..')
+  const tracked = gitTrackedDocPaths(repoRoot)
   return walkMarkdown(docsDir, indexPath)
+    .filter((file) => {
+      if (tracked === null) return true
+      const rel = relative(repoRoot, file).split(sep).join('/')
+      return tracked.has(rel)
+    })
     .sort()
     .map((file) => {
       const content = readFileSync(file, 'utf-8')
