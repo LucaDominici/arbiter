@@ -1,0 +1,155 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: Compiles SSOT-core docs into wiki/ (Obsidian-compatible markdown + wikilinks + citations).
+// CATALOG: Rejected fold-in into gen-doc-index.mjs: wiki/ is multi-file vs single INDEX.md.
+// CATALOG: Rejected fold-in into gen-ssot-core.mjs: wiki is a reader-facing artifact, not SSOT inventory.
+//
+// Usage:
+//   node scripts/gen-wiki.mjs               # build wiki/ from docs/
+//   node scripts/gen-wiki.mjs --check       # fail if wiki/ is stale
+//   node scripts/gen-wiki.mjs --changed     # incremental: only regen changed pages
+//   node scripts/gen-wiki.mjs query <terms> # keyword TF search over wiki pages
+
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
+import { join, relative, resolve, sep } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const WIKI_DIR = join(ROOT, 'wiki');
+const DOCS_DIR = join(ROOT, 'docs');
+
+const args = process.argv.slice(2);
+const isCheck = args.includes('--check');
+const isChanged = args.includes('--changed');
+const isQuery = args[0] === 'query';
+const queryTerms = isQuery ? args.slice(1).join(' ') : '';
+
+function parseFrontmatter(text) {
+  if (!text.startsWith('---\n')) return {};
+  const end = text.indexOf('\n---', 4);
+  if (end === -1) return {};
+  const fm = {};
+  for (const line of text.slice(4, end).split('\n')) {
+    const colon = line.indexOf(':');
+    if (colon === -1) continue;
+    const key = line.slice(0, colon).trim();
+    let raw = line.slice(colon + 1).trim();
+    if (raw.startsWith('[')) {
+      fm[key] = [...raw.matchAll(/'([^']+)'|"([^"]+)"/g)].map((m) => m[1] ?? m[2]);
+    } else {
+      fm[key] = raw.replace(/^['"]|['"]$/g, '');
+    }
+  }
+  return fm;
+}
+
+function collectSourceDocs() {
+  try {
+    const output = execFileSync('git', ['ls-files', '--', 'docs/'], { encoding: 'utf-8', cwd: ROOT });
+    return output.trim().split('\n').filter((f) => f.endsWith('.md') && !f.includes('ADR/') && f !== 'docs/INDEX.md');
+  } catch {
+    const files = [];
+    function walk(dir) {
+      for (const f of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, f.name);
+        if (f.isDirectory()) { walk(full); }
+        else if (f.name.endsWith('.md') && !full.includes(`${sep}ADR${sep}`)) files.push(relative(ROOT, full));
+      }
+    }
+    walk(DOCS_DIR);
+    return files;
+  }
+}
+
+function pageSlug(sourcePath) {
+  return sourcePath.replace(/^docs\//, '').replace(/\.md$/, '').replace(/[/\\]/g, '-').replace(/_/g, '-').toLowerCase();
+}
+
+function gitHash(absPath) {
+  try {
+    return execFileSync('git', ['hash-object', absPath], { encoding: 'utf-8', cwd: ROOT }).trim();
+  } catch {
+    return '0000000000000000000000000000000000000000';
+  }
+}
+
+function generatePage(sourcePath, allSlugs) {
+  const absSource = join(ROOT, sourcePath);
+  if (!existsSync(absSource)) return null;
+  const text = readFileSync(absSource, 'utf-8');
+  const fm = parseFrontmatter(text);
+  const title = (fm['title'] ?? sourcePath.replace(/^docs\//, '').replace(/\.md$/, '')).replace(/^'|'$/g, '');
+  const sha = gitHash(absSource);
+  const today = new Date().toISOString().slice(0, 10);
+  const related = Array.isArray(fm['related']) ? fm['related'] : [];
+  const seeAlsoLines = [];
+  for (const r of related) {
+    const rSlug = r.toLowerCase().replace(/[/\\._]/g, '-').replace(/^docs-/, '');
+    const match = [...allSlugs].find((s) => s.includes(rSlug.split('-').slice(0, 2).join('-')));
+    if (match) seeAlsoLines.push(`- [[${match}]] — related`);
+  }
+  let content = text;
+  if (text.startsWith('---\n')) {
+    const end = text.indexOf('\n---', 4);
+    if (end !== -1) content = text.slice(end + 4).trimStart();
+  }
+  if (content.length > 8000) content = content.slice(0, 8000) + '\n\n*[content truncated — see source for full text]*\n';
+  const relSource = sourcePath.replace(/\\/g, '/');
+  return `---\ngenerated: true\nsource: '${relSource}'\nsource_sha: '${sha}'\nlast_updated: '${today}'\n---\n\n# ${title}\n\n> **Non-authoritative:** This page is compiled from source. On conflict, the SSOT source wins.\n> Source: [${relSource}](../${relSource})\n\n${content}\n${seeAlsoLines.length ? `## See Also\n\n${seeAlsoLines.join('\n')}\n` : ''}`.trimEnd() + '\n';
+}
+
+if (isCheck) {
+  if (!existsSync(WIKI_DIR)) { process.stdout.write('  gen-wiki: wiki/ not found\n'); process.exit(1); }
+  const sources = collectSourceDocs();
+  let stale = false;
+  for (const src of sources) {
+    const sl = pageSlug(src);
+    const wikiPage = join(WIKI_DIR, `${sl}.md`);
+    if (!existsSync(wikiPage)) { process.stdout.write(`  gen-wiki --check: wiki/${sl}.md missing\n`); stale = true; continue; }
+    const pageFm = parseFrontmatter(readFileSync(wikiPage, 'utf-8'));
+    if (pageFm['source_sha'] !== gitHash(join(ROOT, src))) { process.stdout.write(`  gen-wiki --check: wiki/${sl}.md is stale\n`); stale = true; }
+  }
+  if (stale) { process.stdout.write('  Run: node scripts/gen-wiki.mjs\n'); process.exit(1); }
+  process.stdout.write(`  gen-wiki: wiki/ is up to date\n`); process.exit(0);
+}
+
+if (isQuery) {
+  if (!queryTerms) { process.stderr.write('Usage: node scripts/gen-wiki.mjs query <terms>\n'); process.exit(1); }
+  if (!existsSync(WIKI_DIR)) { process.stderr.write('wiki/ not found. Run gen-wiki.mjs build first.\n'); process.exit(1); }
+  const terms = queryTerms.toLowerCase().split(/\s+/).filter(Boolean);
+  const results = [];
+  for (const file of readdirSync(WIKI_DIR).filter((f) => f.endsWith('.md'))) {
+    const text = readFileSync(join(WIKI_DIR, file), 'utf-8').toLowerCase();
+    const fm = parseFrontmatter(readFileSync(join(WIKI_DIR, file), 'utf-8'));
+    let score = 0;
+    for (const term of terms) score += [...text.matchAll(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))].length;
+    if (score > 0) results.push({ file, score, source: fm['source'] ?? '' });
+  }
+  results.sort((a, b) => b.score - a.score);
+  if (results.length === 0) { process.stdout.write(`No wiki pages match "${queryTerms}"\n`); }
+  else { process.stdout.write(`Top results for "${queryTerms}":\n`); for (const r of results.slice(0, 5)) process.stdout.write(`  ${r.file} (score: ${r.score}) — Source: ${r.source}\n`); }
+  process.exit(0);
+}
+
+mkdirSync(WIKI_DIR, { recursive: true });
+const sources = collectSourceDocs();
+const changedSources = isChanged ? new Set(execFileSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD', '--', 'docs/'], { encoding: 'utf-8', cwd: ROOT }).trim().split('\n').filter(Boolean)) : null;
+const allSlugs = new Set(sources.map(pageSlug));
+const log = { generated_at: new Date().toISOString(), pages: [] };
+let generated = 0;
+for (const src of sources) {
+  if (changedSources && !changedSources.has(src)) continue;
+  const sl = pageSlug(src);
+  const content = generatePage(src, allSlugs);
+  if (!content) continue;
+  writeFileSync(join(WIKI_DIR, `${sl}.md`), content, 'utf-8');
+  log.pages.push({ slug: sl, source: src });
+  generated++;
+}
+const indexLines = ['---', 'generated: true', `last_updated: '${new Date().toISOString().slice(0, 10)}'`, '---', '', '# Wiki Index', '', '> Auto-generated from SSOT-core documentation. Non-authoritative.', ''];
+for (const s of [...allSlugs].sort()) indexLines.push(`- [[${s}]]`);
+writeFileSync(join(WIKI_DIR, 'INDEX.md'), indexLines.join('\n') + '\n', 'utf-8');
+writeFileSync(join(WIKI_DIR, '.wiki-log.json'), JSON.stringify(log, null, 2) + '\n', 'utf-8');
+process.stdout.write(`  gen-wiki: ${generated > 0 ? generated : sources.length} page(s) written to wiki/\n`);
+process.exit(0);

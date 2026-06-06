@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "capturedAt": "2026-06-05T21:35:27.629Z",
-  "commit": "b36a1dba",
+  "capturedAt": "2026-06-06T19:37:24.872Z",
+  "commit": "39b22111",
   "archetype": "library",
   "metrics": {
     "coverageLine": {
@@ -30,12 +30,12 @@
       "direction": "lower-is-better"
     },
     "duplicationPercentage": {
-      "value": 1.39,
+      "value": 1.41,
       "unit": "percent",
       "direction": "lower-is-better"
     },
     "publicApiSurface": {
-      "value": 998,
+      "value": 1000,
       "unit": "count",
       "direction": "lower-is-better"
     },

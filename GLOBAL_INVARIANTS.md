@@ -634,3 +634,11 @@ Every hard prohibition declared in free-text governance (AGENTS.md, CANON.md, CL
 **Enforcement:** `scripts/check-constraint-scan.mjs` (L1 gate, wired in scripts/check-all.mjs): extracts directive prohibitions, classifies via `scripts/constraint-map.json` with enforcer-existence verification, hard-fails on a live un-covered derivable violation or a map-fiction entry. Emitted for target projects as `src/templates/scripts/check-constraint-scan.mjs.ejs` (warn-default, `--enforce` to promote) and dogfooded on arbiter's own governance (CANON-01/14). Empirical coverage: `__tests__/scripts/check-constraint-scan.test.ts`.
 
 ---
+
+### INV-116: wiki/ must be free of broken wikilinks, orphan pages, stale source hashes, and missing citations
+
+The generated LLM-wiki (wiki/) must pass four lint dimensions: broken-link (every [[WikiPage]] reference resolves to an existing wiki/{page}.md), orphan (every page reachable from INDEX.md via wikilinks; INDEX.md itself exempt as root), stale (page source_sha matches current git hash of its source file), and citation (every page has a non-empty source: frontmatter field pointing to a git-tracked path). Exit 0 on bootstrap (wiki/ absent or empty). Karpathy LLM-Wiki pattern: static compiler from existing docs, citations mandatory, non-authoritative (SSOT/invariants/ADR win on conflict). selfOnly: true because target projects may not generate wiki/ pages (#1241).
+
+**Enforcement:** `scripts/check-wiki-lint.mjs` (L2 gate, wired in scripts/check-all.mjs): validates all 4 lint dimensions; exits 0 on bootstrap. Emitted for target projects as `src/templates/scripts/check-wiki-lint.mjs.ejs` (CANON-01/14). Empirical coverage: `__tests__/gates/wiki-lint-fixture.test.ts` (planted-break per dimension).
+
+---
