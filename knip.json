@@ -5,7 +5,7 @@
       "project": ["src/**/*.ts", "!src/templates/**"]
     }
   },
-  "ignoreDependencies": ["@commitlint/cli", "jscpd", "prettier"],
+  "ignoreDependencies": ["@commitlint/cli", "jscpd", "prettier", "minimatch"],
   "ignoreFiles": ["src/test/example.behavioral.test.ts", "src/utils/plugin-worker.ts"],
   "ignoreBinaries": [
     "stryker",
