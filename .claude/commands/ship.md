@@ -97,6 +97,23 @@ The tier (XS / S / Standard) sets the number of review agents dispatched per rev
 
 ---
 
+## Gate economy (dev loop)
+
+During `green` / `refactor` iteration, do **not** re-run `node scripts/check-all.mjs` — that
+is the gate for the `verification` phase, and pre-commit / pre-push hooks already enforce it at
+the boundary. Re-running it per edit wastes wall-clock.
+
+Run only what covers the files you actually touched:
+- the granular check script(s) whose scope includes the changed file(s),
+- `npm run test run <path>` for added or changed tests,
+- a formatter `--check` on just the edited files.
+
+Resolve everything in one work session, then let the `verification` phase run the full gate
+once. This is a **speed** optimization, not a gate skip — the full gate still runs before
+commit (L1) and before push (L2).
+
+---
+
 ## Red-team review
 
 
