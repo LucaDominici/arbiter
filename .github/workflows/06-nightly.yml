@@ -154,6 +154,43 @@ jobs:
         with:
           args: detect --source . --log-opts="--all --full-history"
 
+
+  gate-full-nightly:
+    name: Full Gate nightly (L2+, INV-59)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - run: npm ci
+      - name: Install gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install actionlint
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: npm run build && node scripts/build-kit.mjs
+      - name: Run full L2 gate (== pre-push, nightly)
+        run: node scripts/check-all.mjs --level L2 --json gate-result-nightly.json
+      - name: Upload nightly gate-result artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607f72a  # v4.6.2
+        with:
+          name: gate-result-nightly
+          path: gate-result-nightly.json
+          retention-days: 30
+
+
   evidence-collect:
     name: Upload nightly evidence artifacts
     needs:
@@ -162,6 +199,9 @@ jobs:
       - fuzz
       - soak-e2e
       - gitleaks-history
+
+      - gate-full-nightly
+
 
       - bake-e2e-native
 

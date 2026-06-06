@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "RedTeamEvidenceV1",
+  "taskId": "#1225",
+  "findings": [
+    {"id": "RT-01", "severity": "HIGH", "summary": "gitleaks binary not installed in gate-full job — runCheck ENOENT → hard FAIL on every PR", "auditorHint": "security", "resolved": false},
+    {"id": "RT-02", "severity": "HIGH", "summary": "actionlint: IS_CI=true → runToolCheck FAILS (not SKIP). Must install actionlint OR add to parityContentHash PARITY_EXCLUDE so IS_CI divergence is acknowledged", "auditorHint": "silent-failures", "resolved": false},
+    {"id": "RT-03", "severity": "HIGH", "summary": "fetch-depth: 0 missing from gate-full checkout — commitlint, tdd-evidence, id-stability, gitleaks history all silently skip or fail", "auditorHint": "bugs", "resolved": false},
+    {"id": "RT-04", "severity": "HIGH", "summary": "ci-required must use needs.gate-full.result == 'failure' (not != 'success') to allow skip on docs_only PRs", "auditorHint": "domain", "resolved": false},
+    {"id": "RT-05", "severity": "HIGH", "summary": "EJS template 01-pr-fast.yml.ejs needs governance level guard (<% if (governanceLevel !== 'L1') { %>) around gate-full — L1 projects inherit L2 CI gate and break", "auditorHint": "domain", "resolved": false},
+    {"id": "RT-06", "severity": "MEDIUM", "summary": "Check-level parity branch 3 must run BEFORE local-result.json guard in check-local-ci-parity.mjs — otherwise dead code in CI", "auditorHint": "bugs", "resolved": false},
+    {"id": "RT-07", "severity": "MEDIUM", "summary": "L3 in nightly is synonymous with L2 in check-all.mjs — no additional coverage. Use 'full' subcommand or document L3==L2 explicitly", "auditorHint": "domain", "resolved": false},
+    {"id": "RT-08", "severity": "MEDIUM", "summary": "gate-full needs timeout-minutes: 60 to prevent 6-hour hang on stuck check", "auditorHint": "domain", "resolved": false},
+    {"id": "RT-09", "severity": "LOW", "summary": "parityContentHash covers only L1 gates — L2 parity rests on shared binary, not hash verification. Acceptable pre-existing design; document in PR", "auditorHint": "domain", "resolved": false}
+  ]
+}

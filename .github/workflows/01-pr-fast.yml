@@ -244,12 +244,50 @@ jobs:
 
 
 
+  gate-full:
+    name: Full Gate (L2, INV-59)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+
+    needs: [security-early-fail, classify-changes]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install actionlint
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: npm run build && node scripts/build-kit.mjs
+      - name: Run full L2 gate (== pre-push)
+        run: node scripts/check-all.mjs --level L2 --json gate-result.json
+      - name: Upload gate-result artifact (activates INV-59 runtime parity)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607f72a  # v4.6.2
+        with:
+          name: gate-result
+          path: gate-result.json
+          retention-days: 7
+
+
 
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 
-    needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, debt-gates, debt-ratchet, classify-changes]
+    needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]
     if: always()
     steps:
       - run: |
@@ -293,6 +331,10 @@ jobs:
           fi
           if [[ "${{ needs.debt-ratchet.result }}" != "success" ]]; then
             echo "debt-ratchet failed"
+            exit 1
+          fi
+          if [[ "${{ needs.gate-full.result }}" == "failure" ]]; then
+            echo "gate-full (L2) failed"
             exit 1
           fi
 

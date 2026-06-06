@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1225",
+  "test_path": "__tests__/scripts/check-local-ci-parity-level.test.ts",
+  "test_commit_sha": "102cb8a46ff7842812e5d93bc8244f122d637646",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1225-pre-push-ci-parity\n\n ❯ __tests__/scripts/check-local-ci-parity-level.test.ts (4 tests | 1 failed) 71ms\n     × orphan check (not in CI_COVERAGE or CI_SKIP_SET) exits 1 20ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 3 passed (4)\n   Start at  09:31:27\n   Duration  160ms (transform 15ms, setup 13ms, import 9ms, tests 71ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-local-ci-parity-level.test.ts > check-local-ci-parity.mjs — check-level parity (#1225) > orphan check (not in CI_COVERAGE or CI_SKIP_SET) exits 1\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n ❯ __tests__/scripts/check-local-ci-parity-level.test.ts:58:22\n     56|     writeCheckAllStub(dir, ['unit tests', 'orphan-check'])\n     57|     const r = runCheckLevel(dir)\n     58|     expect(r.status).toBe(1)\n       |                      ^\n     59|     expect(r.stderr + r.stdout).toMatch(/orphan-check/)\n     60|     expect(r.stderr + r.stdout).toMatch(/no CI counterpart/i)\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-local-ci-parity-level.test.ts",
+  "recorded_at": "2026-06-06T07:31:27.203Z"
+}
