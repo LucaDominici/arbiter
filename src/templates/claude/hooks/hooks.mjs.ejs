@@ -29,6 +29,9 @@ const HANDLERS = {
   ],
   'PostToolUse:Bash': [
     'post-commit-check.mjs',
+<%  if (governanceLevel !== 'L1') { -%>
+    'wiki-on-commit.mjs',
+<%  } -%>
   ],
   'PostToolUse:Edit|Write': [
     'check-no-orphan-todo.mjs',

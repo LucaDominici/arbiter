@@ -1884,4 +1884,25 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'and dogfooded on arbiter’s own governance (CANON-01/14). Empirical coverage: ' +
       '__tests__/scripts/check-constraint-scan.test.ts.',
   },
+  {
+    id: 'INV-116',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: true,
+    title:
+      'wiki/ must be free of broken wikilinks, orphan pages, stale source hashes, and missing citations',
+    description:
+      'The generated LLM-wiki (wiki/) must pass four lint dimensions: ' +
+      'broken-link (every [[WikiPage]] ref resolves to wiki/{page}.md), ' +
+      'orphan (every page reachable from INDEX.md; INDEX.md exempt), ' +
+      'stale (source_sha matches current git hash), ' +
+      'and citation (source: field present and git-tracked). ' +
+      'Exit 0 on bootstrap (wiki/ absent). Non-authoritative (SSOT wins on conflict). ' +
+      'selfOnly: true because target projects may not generate wiki/ (#1241).',
+    enforcement:
+      'scripts/check-wiki-lint.mjs (L2 gate, wired in check-all.mjs): validates ' +
+      'all 4 dimensions; exits 0 on bootstrap. Emitted for targets as ' +
+      'check-wiki-lint.mjs.ejs (CANON-01/14). Tests: tests/gates/wiki-lint-fixture.test.ts.',
+  },
 ]

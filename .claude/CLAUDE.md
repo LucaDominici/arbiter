@@ -52,6 +52,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `PreToolUse` → Edit\|Write  | `pre-edit-ssot-guard.mjs`     | Prevent unauthorized SSOT edits                                             |
 | `PreToolUse` → Edit\|Write  | `pre-edit-plan-anchor.mjs`    | Require plan anchor before editing (CANON-16)                               |
 | `PostToolUse` → Bash        | `post-commit-check.mjs`       | Verify commit format after git commits                                      |
+| `PostToolUse` → Bash        | `wiki-on-commit.mjs`          | Incremental wiki regeneration when docs/ files change (INV-116, #1241)      |
 | `PostToolUse` → Edit\|Write | `check-no-direct-spawn.mjs`   | Block direct child_process usage (INV-12)                                   |
 | `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs`    | Block orphan TODOs (INV-21)                                                 |
 | `PostToolUse` → Edit\|Write | `check-no-placeholders.mjs`   | Block placeholder patterns left in edited files                             |

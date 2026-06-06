@@ -41,6 +41,7 @@ Hooks wired in `.claude/settings.json`.
 | `pre-edit-ssot-guard.mjs`     | PreToolUse         | Edit\|Write | read, stdout-inject    | —                                       | SAFE              |
 | `pre-edit-plan-anchor.mjs`    | PreToolUse         | Edit\|Write | read, stdout-inject    | `.claude/.task-*`, `.claude/plans/`     | SAFE              |
 | `post-commit-check.mjs`       | PostToolUse        | Bash        | read (git log)         | —                                       | SAFE              |
+| `wiki-on-commit.mjs`          | PostToolUse        | Bash        | run (gen-wiki.mjs)     | Incremental wiki regen for changed docs | SAFE              |
 | `check-no-direct-spawn.mjs`   | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |
 | `check-no-orphan-todo.mjs`    | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |
 | `check-no-placeholders.mjs`   | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |

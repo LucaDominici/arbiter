@@ -96,3 +96,6 @@ test-results/
 .obsidian/attachments/
 .obsidian/plugins/
 .obsidian/themes/
+
+# LLM-Wiki generated log (timestamp churn prevention — wiki/*.md are committed, log is not)
+wiki/.wiki-log.json

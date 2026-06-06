@@ -250,6 +250,15 @@
       "rationale": "#248: Single dispatcher entrypoint \u2014 routes events to handler scripts via config table. EJS template renders with language/governance conditional entries. Delegates to individual HARD/ADVISORY handlers; exit code mirrors first non-zero handler."
     },
     {
+      "file": "wiki-on-commit.mjs.ejs",
+      "classification": "ADVISORY",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": true,
+      "rationale": "#1241: Incremental wiki regeneration hook \u2014 runs gen-wiki.mjs --changed after commits that touch docs/. Exit 0 if wiki/ not yet bootstrapped. Advisory: wiki drift is caught by the Lint gate at next check-all run."
+    },
+    {
       "file": "enforce-gate-before-pr.mjs",
       "classification": "HARD",
       "tools": [

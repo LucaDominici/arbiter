@@ -78,5 +78,17 @@
   {
     "path": "hooks/check-no-unused-exports.mjs",
     "reason": "Arbiter self-dogfood: materialized hook scopes the unused-export check to the single edited file for fast per-edit execution in arbiter's own repo; the shipped template runs the broader project-wide check. Divergence is by design. (Confirmed intentional 2026-05-30, #1118; restores the #1090 raw-hook allowlist entry dropped from the merged commit.)"
+  },
+  {
+    "path": "scripts/gen-wiki.mjs",
+    "reason": "Arbiter self-dogfood: the arbiter-self gen-wiki.mjs is hand-maintained for arbiter's own complex docs/ corpus; the template (src/templates/scripts/gen-wiki.mjs.ejs) generates an equivalent script for target projects. Both share the same algorithm but the self version was written first and the template derived from it. Divergence intentional (#1241, 2026-06-06)."
+  },
+  {
+    "path": "scripts/check-wiki-lint.mjs",
+    "reason": "Arbiter self-dogfood: the arbiter-self check-wiki-lint.mjs is hand-maintained; the template (src/templates/scripts/check-wiki-lint.mjs.ejs) generates an equivalent gate for target projects. Same four-dimension logic, minor stylistic differences. Divergence intentional (#1241, 2026-06-06)."
+  },
+  {
+    "path": "hooks/wiki-on-commit.mjs",
+    "reason": "Arbiter self-dogfood: the arbiter-self wiki-on-commit.mjs is a direct copy of the template (no EJS expressions). Divergence is zero but the dogfood check compares against the rendered template output which may differ in whitespace. Divergence intentional (#1241, 2026-06-06)."
   }
 ]

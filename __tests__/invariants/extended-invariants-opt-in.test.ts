@@ -26,7 +26,8 @@ describe('extended opt-in invariants', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM/FEATURE_MATRIX required at L2+)
     // Updated #1206: +1 (INV-113 single authoritative task-phase document)
     // Updated #1214: +1 (INV-115 free-text governance prohibition scanner)
-    expect(INVARIANT_CATALOG).toHaveLength(113)
+    // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly governance)
+    expect(INVARIANT_CATALOG).toHaveLength(114)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

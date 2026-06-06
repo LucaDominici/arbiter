@@ -31,7 +31,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1206: +1 (INV-113 single authoritative task-phase document, selfOnly governance)
     // Updated #1212: +1 (INV-114 fail-closed Stop gate, L2+ governance, target-facing)
     // Updated #1214: +1 (INV-115 free-text governance prohibition scanner, L1+ governance)
-    expect(INVARIANT_CATALOG).toHaveLength(113)
+    // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly governance, L2+)
+    expect(INVARIANT_CATALOG).toHaveLength(114)
   })
 
   it('all IDs are unique', () => {
@@ -39,7 +40,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(113)
+    expect(unique.size).toBe(114)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -122,8 +123,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     // Updated #1214: +1 (INV-115 constraint-scan)
+    // Updated #1241: +1 (INV-116 wiki-lint gate)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(43)
+    expect(tier5).toHaveLength(44)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -535,8 +537,9 @@ describe('getFilteredInvariants', () => {
   it('catalog has exactly 23 selfOnly invariants (#682, #862, #878, #879, #881, #883, #886, #1099, #1100, INV-110)', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated #1206: +1 (INV-113 single authoritative task-phase document)
+    // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(25)
+    expect(selfOnly).toHaveLength(26)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')
