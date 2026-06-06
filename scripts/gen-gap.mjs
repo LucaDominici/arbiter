@@ -17,10 +17,11 @@
 //
 // Fail-closed (INV-96): IO/parse errors return 1 rather than producing a partial file.
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { fmField, readdirSafe, prettify } from './lib/gen-doc-helpers.mjs'
 
 // ---------------------------------------------------------------------------
 // Types (JSDoc for editor support)
@@ -70,21 +71,6 @@ import { spawnSync } from 'node:child_process'
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Extract frontmatter field from markdown content. */
-function fmField(content, key) {
-  const m = content.match(new RegExp(`${key}:\\s*['"]?([^'"\\n]+)['"]?`))
-  return m ? m[1].trim() : null
-}
-
-/** Safe readdirSync wrapper — returns [] if directory is unreadable. */
-function readdirSafe(dir) {
-  try {
-    return readdirSync(dir)
-  } catch {
-    return []
-  }
-}
 
 /**
  * Parse `[UNENFORCEABLE] signal — doc:line` lines from constraint-scan stdout.
@@ -365,17 +351,6 @@ ${knownDebtRows}
 
 <!-- GAP_END -->
 `
-}
-
-/**
- * Format raw markdown via prettier with the project config (same as `npx prettier --write`).
- * resolveConfig(filepath) walks up from filepath to find .prettierrc — project config applied,
- * tmpdir tests get defaults (no .prettierrc found → null → empty config).
- */
-async function prettify(raw, filepath) {
-  const { format, resolveConfig } = await import('prettier')
-  const config = (await resolveConfig(filepath)) ?? {}
-  return format(raw, { ...config, parser: 'markdown' })
 }
 
 /**
