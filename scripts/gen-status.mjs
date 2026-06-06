@@ -16,9 +16,10 @@
 //
 // Fail-closed (INV-96): IO/parse errors return 1 rather than producing a partial file.
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { fmField, readdirSafe, prettify } from './lib/gen-doc-helpers.mjs'
 
 // ---------------------------------------------------------------------------
 // Types (JSDoc for editor support)
@@ -40,12 +41,6 @@ import { fileURLToPath } from 'node:url'
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Extract frontmatter field from markdown content. */
-function fmField(content, key) {
-  const m = content.match(new RegExp(`${key}:\\s*['"]?([^'"\\n]+)['"]?`))
-  return m ? m[1].trim() : null
-}
 
 /** First paragraph after `## Vision` heading. */
 function extractMission(content) {
@@ -133,15 +128,6 @@ export function collectData(root) {
   }
 }
 
-/** Safe readdirSync wrapper — returns [] if directory is unreadable. */
-function readdirSafe(dir) {
-  try {
-    return readdirSync(dir)
-  } catch {
-    return []
-  }
-}
-
 /**
  * Build the full STATUS.md content from collected data.
  * Content is deterministic: same input → same output (no Date(), no random).
@@ -213,17 +199,6 @@ ${partialLine}${missingLine}${milestoneSection}${roadmapSection}
 | [PRD.md](PRD.md) | Product requirements, personas, and governance levels |
 ${convergenceRow}<!-- STATUS_END -->
 `
-}
-
-/**
- * Format raw markdown via prettier with the project config (same as `npx prettier --write`).
- * resolveConfig(filepath) walks up from filepath to find .prettierrc — project config applied,
- * tmpdir tests get defaults (no .prettierrc found → null → empty config).
- */
-async function prettify(raw, filepath) {
-  const { format, resolveConfig } = await import('prettier')
-  const config = (await resolveConfig(filepath)) ?? {}
-  return format(raw, { ...config, parser: 'markdown' })
 }
 
 /**

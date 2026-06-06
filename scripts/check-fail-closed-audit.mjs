@@ -60,6 +60,7 @@ const SKIP_FILES = new Set([
   'scripts/lib/parse-check-args.mjs',
   'scripts/lib/suppressions-shared.mjs',
   'scripts/lib/workflow-scan.mjs',
+  'scripts/lib/gen-doc-helpers.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/
