@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/ci-tier-workflows.md'
-source_sha: 'bc847413b9cd0f761f447526e89bfe3d2f7f76cb'
+source_sha: '9dcc4aa3d5e7dc0ef8f35d86edceac6407be4c6c'
 last_updated: '2026-06-07'
 ---
 
@@ -51,22 +51,24 @@ arbiter-self (this repo) operates under `migrationStatus: 'transition'` during W
 
 In addition to the workflows, `generateCiTier` emits:
 
-| File                                         | Purpose                                                        |
-| -------------------------------------------- | -------------------------------------------------------------- |
-| `.github/labels.yml`                         | Canonical label list (size, AI governance, CI tier, lifecycle) |
-| `.github/actions/setup-node-pnpm/action.yml` | Composite action for Node + pnpm setup                         |
-| `_notify.yml`                                | (also listed above)                                            |
-| `_label-sync.yml`                            | (also listed above)                                            |
+| File                                          | Purpose                                                                                  |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `.github/labels.yml`                          | Canonical label list (size, AI governance, CI tier, lifecycle)                           |
+| `.github/actions/setup-node-pnpm/action.yml`  | Composite action for Node + pnpm setup                                                   |
+| `.github/actions/setup-java-maven/action.yml` | Composite action for Java + Maven setup with reactor restore (Java projects only, #1226) |
+| `_notify.yml`                                 | (also listed above)                                                                      |
+| `_label-sync.yml`                             | (also listed above)                                                                      |
 
 ## Jobs in 01-pr-fast.yml
 
-| Job                       | Depends on                        | Purpose                                                |
-| ------------------------- | --------------------------------- | ------------------------------------------------------ |
-| `gate`                    | —                                 | Checkout, setup, lint, format check, unit tests, audit |
-| `human-approval-required` | —                                 | Verify PR has `human-approved` label (INV-74)          |
-| `ci-required`             | `gate`, `human-approval-required` | Status check target for branch protection              |
+| Job                       | Depends on                                                 | Purpose                                                              |
+| ------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `build-reactor`           | —                                                          | Maven only: pre-fetch deps, tar `$HOME/.m2`, upload artifact (#1226) |
+| `gate`                    | `build-reactor` (maven), or — (others)                     | Checkout, setup, lint, format check, unit tests, audit               |
+| `human-approval-required` | —                                                          | Verify PR has `human-approved` label (INV-74)                        |
+| `ci-required`             | `gate`, `human-approval-required`, `build-reactor` (maven) | Status check target for branch protection                            |
 
-TypeScript/Java projects add parallel test category jobs (`unit-tests`, `contract-tests`, `integration-tests`, `behavioral-tests`) that fan out from `gate`.
+TypeScript/Java projects add parallel test category jobs (`unit-tests`, `contract-tests`, `integration-tests`, `behavioral-tests`) that fan out from `gate`. Java/Maven jobs download the reactor artifact and restore `$HOME/.m2/repository` via the `setup-java-maven` composite action.
 
 ## SHA Pinning (INV-76)
 

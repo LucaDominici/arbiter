@@ -331,6 +331,18 @@ describe('cross-product: ci.yml — Java Maven variant', () => {
       expect(content).not.toContain('gradlew')
       expect(content).not.toContain('setup-gradle')
     })
+
+    // #1226: CANON-18 actionlint coverage for build-reactor job block
+    it(`java-maven+${level}: build-reactor job present (CANON-18, #1226)`, () => {
+      const content = renderCiMaven(level)
+      expect(content).toContain('build-reactor:')
+    })
+
+    it(`java-maven+${level}: uses setup-java-maven composite, not inline setup-java SHA (#1226)`, () => {
+      const content = renderCiMaven(level)
+      expect(content).toContain('uses: ./.github/actions/setup-java-maven')
+      expect(content).not.toContain('actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9')
+    })
   }
 })
 

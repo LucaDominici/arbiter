@@ -37,10 +37,7 @@ jobs:
       - name: Package artifact
         run: zip -r release-artifact.zip dist/
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
-        with:
-          distribution: temurin
-          java-version: '21'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
       - run: ./gradlew build -x test
@@ -98,10 +95,7 @@ jobs:
       - name: Stryker mutation
         run: npx stryker run
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
-        with:
-          distribution: temurin
-          java-version: '21'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
       - name: PITest mutation
@@ -160,10 +154,7 @@ jobs:
       - name: Generate CycloneDX SBOM
         run: npm sbom --omit dev --package-lock-only --sbom-format cyclonedx > sbom.cdx.json
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
-        with:
-          distribution: temurin
-          java-version: '21'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
       - name: Generate CycloneDX SBOM
@@ -525,10 +516,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea  # v4
-        with:
-          distribution: temurin
-          java-version: '21'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4
       - name: Publish to Maven Central

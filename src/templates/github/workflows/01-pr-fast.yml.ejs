@@ -220,24 +220,52 @@ jobs:
 <% } %>
 <% } %><% if (language === 'java') { %>
 <% const _javaNeeds=[]; if(enableSecurityScanning) _javaNeeds.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _javaNeeds.push('classify-changes'); %>
-  gate:
-    name: Lint (Java)
+<% if (buildTool === 'maven') { %>  build-reactor:
+    name: Build Maven Reactor (#1226)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    permissions:
+      contents: read
 <% if(_javaNeeds.length){ %>    needs: [<%= _javaNeeds.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
+      - uses: ./.github/actions/setup-java-maven
+      - name: Pre-fetch plugins and dependencies (offline cache)
+        run: mvn dependency:go-offline --batch-mode -q
+      - name: Build reactor (skip tests)
+        run: mvn --batch-mode -DskipTests install
+      - name: Pack M2 repository
+        run: |
+          mkdir -p "${{ runner.temp }}/.m2-reactor"
+          tar -cf "${{ runner.temp }}/.m2-reactor/m2-reactor.tar" -C "$HOME/.m2" repository
+      - name: Upload reactor M2 artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor/m2-reactor.tar
+          retention-days: 7
+          overwrite: true
+
+<% } %>  gate:
+    name: Lint (Java)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+<% { const _gateNeeds=[..._javaNeeds]; if(buildTool === 'maven') _gateNeeds.push('build-reactor'); if(_gateNeeds.length){ %>    needs: [<%= _gateNeeds.join(', ') %>]
+<% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } } %>    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew checkstyleMain
 <% if (enableSecurityScanning) { %>
       - name: Dep audit OWASP DC (INV-13)
         run: ./gradlew dependencyCheckAnalyze
 <% } %>
-<% } else { %>      - run: mvn checkstyle:check
+<% } else { %>      - name: Download reactor M2 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor
+      - run: mvn checkstyle:check --offline
 <% if (enableSecurityScanning) { %>
       - name: Dep audit OWASP DC (INV-13)
         run: mvn org.owasp:dependency-check-maven:check
@@ -247,16 +275,14 @@ jobs:
   unit-tests:
     name: Unit Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
-    strategy:
+<% if(buildTool === 'maven'){ %>    needs: [build-reactor, gate]
+<% } else { %>    needs: [gate]
+<% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew test
 <% if (enableDebtGates) { %>
@@ -268,7 +294,12 @@ jobs:
           path: build/test-results/
           retention-days: 7
 <% } %>
-<% } else { %>      - run: mvn test -Punit
+<% } else { %>      - name: Download reactor M2 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor
+      - run: mvn test -Punit --offline
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
@@ -289,13 +320,15 @@ jobs:
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew contractTest
-<% } else { %>      - run: mvn test -Pcontract
+<% } else { %>      - name: Download reactor M2 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor
+      - run: mvn test -Pcontract --offline
 <% } %>
 
   integration-tests:
@@ -307,13 +340,15 @@ jobs:
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew integrationTest
-<% } else { %>      - run: mvn test -Pintegration
+<% } else { %>      - name: Download reactor M2 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor
+      - run: mvn test -Pintegration --offline
 <% } %>
 
   behavioral-tests:
@@ -325,13 +360,15 @@ jobs:
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew behavioralTest
-<% } else { %>      - run: mvn test -Pbehavioral
+<% } else { %>      - name: Download reactor M2 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor
+      - run: mvn test -Pbehavioral --offline
 <% } %>
 
 <% } %><% if (language === 'go') { %>
@@ -440,10 +477,7 @@ jobs:
       - run: cargo tarpaulin --fail-under <%= threshold %> --out Html --out Xml --out Lcov --output-dir coverage/
       - run: cargo clippy -- -W clippy::pedantic -D warnings
 <% } %><% if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew jacocoTestCoverageVerification
       - run: ./gradlew pmdMain
@@ -454,9 +488,14 @@ jobs:
           mkdir -p coverage
           cp -r build/coverage/html/. coverage/ 2>/dev/null || true
           cp build/coverage/coverage.xml coverage/coverage.xml 2>/dev/null || true
-<% } else { %>      - run: mvn verify -Pjacoco
-      - run: mvn pmd:check
-      - run: mvn spotbugs:check
+<% } else { %>      - name: Download reactor M2 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor
+      - run: mvn verify -Pjacoco --offline
+      - run: mvn pmd:check --offline
+      - run: mvn spotbugs:check --offline
       - name: Copy JaCoCo reports to coverage/
         if: always()
         run: |
@@ -508,10 +547,7 @@ jobs:
         with:
           fetch-depth: 0
 <% if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
 <% } %><% } else if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
@@ -543,10 +579,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
 <% } %><% if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
 <% } %><% } %><% if (language === 'go') { %>
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5
@@ -593,10 +626,7 @@ jobs:
           PACT_BROKER_TOKEN: ${{ secrets.PACT_BROKER_TOKEN }}
 <% } %>
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>      - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
 <% } %>
 <% if (contractType === 'rest-owned' || contractType === 'rest-public' || contractType === 'message-queue') { %>
@@ -702,6 +732,7 @@ jobs:
 <%
   const _ciNeeds = ['gate'];
   if (_humanApproval) _ciNeeds.push('human-approval-required');
+  if (language === 'java' && buildTool === 'maven') _ciNeeds.push('build-reactor');
   if (language === 'typescript' || language === 'java') {
     _ciNeeds.push('unit-tests', 'contract-tests', 'integration-tests', 'behavioral-tests');
   }
@@ -720,7 +751,12 @@ jobs:
             echo "gate failed"
             exit 1
           fi
-<% if (language === 'typescript' || language === 'java') { %>
+<% if (language === 'java' && buildTool === 'maven') { %>
+          if [[ "${{ needs.build-reactor.result }}" != "success" ]]; then
+            echo "build-reactor failed"
+            exit 1
+          fi
+<% } if (language === 'typescript' || language === 'java') { %>
           if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
             echo "unit-tests failed"
             exit 1

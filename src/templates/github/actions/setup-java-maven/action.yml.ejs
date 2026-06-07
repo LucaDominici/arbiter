@@ -1,0 +1,42 @@
+name: Setup Java + Maven cache
+description: >-
+  Sets up Java (Temurin) with configurable version and restores the Maven local
+  repository from a job-isolated runner.temp path. Used by every Java workflow
+  job so that setup-java is never inlined directly.
+
+inputs:
+  java-version:
+    description: Java version to install (default 21)
+    required: false
+    default: '21'
+
+outputs:
+  m2-repo-path:
+    description: Path to the restored Maven local repository
+    value: ${{ steps.m2-path.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Java (Temurin)
+      uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+    - name: Resolve M2 repo path
+      id: m2-path
+      shell: bash
+      run: |
+        M2_PATH="${{ runner.temp }}/.m2-reactor"
+        echo "path=${M2_PATH}" >> "$GITHUB_OUTPUT"
+    - name: Restore Maven local repository from reactor artifact
+      shell: bash
+      run: |
+        M2_REACTOR="${{ runner.temp }}/.m2-reactor"
+        if [[ -f "${M2_REACTOR}/m2-reactor.tar" ]]; then
+          mkdir -p "$HOME/.m2/repository"
+          tar -xf "${M2_REACTOR}/m2-reactor.tar" -C "$HOME/.m2/repository"
+          echo "M2 reactor restored from ${M2_REACTOR}"
+        else
+          echo "No reactor artifact found at ${M2_REACTOR} — fresh Maven cache will be used"
+        fi
