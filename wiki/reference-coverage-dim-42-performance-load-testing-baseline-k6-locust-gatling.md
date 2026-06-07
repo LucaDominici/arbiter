@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-42-performance-load-testing-baseline-k6-locust-gatling.md'
 source_sha: '77e4cb9202e9ecc5d0e80410c14f8d18dc7bc886'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N42: Performance / load testing baseline (k6 / Locust / Gatling)

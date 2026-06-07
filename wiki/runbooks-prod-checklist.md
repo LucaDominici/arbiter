@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/runbooks/prod-checklist.md'
 source_sha: '7e6dff4f6331dccb5f85c67634793c1628d4f6e5'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # PROD Environment Checklist — arbiter

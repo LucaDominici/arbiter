@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/TRACK_MODEL.md'
 source_sha: 'fd06f688436c8205a8cf678c030fb6f2ee3257a0'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Track Model — arbiter

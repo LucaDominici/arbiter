@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/arbiter-itself-canary.md'
 source_sha: 'acddbbcc952ec4133884c77c558d7fc0b82e5e14'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Nightly self-canary: arbiter regenerates its own config

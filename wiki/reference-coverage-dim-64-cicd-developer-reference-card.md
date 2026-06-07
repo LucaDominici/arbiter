@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-64-cicd-developer-reference-card.md'
 source_sha: '3755ae38df1739f9dbcec7b6c40025c60f0aed17'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N64: CI/CD developer reference card

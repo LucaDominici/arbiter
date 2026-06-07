@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-55-secret-scanning-gitleaks.md'
 source_sha: '3755bb652dd020e8f4278e01d47e1cbb35765368'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N55: Secret scanning (Gitleaks)

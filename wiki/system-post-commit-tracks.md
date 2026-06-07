@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/POST_COMMIT_TRACKS.md'
 source_sha: 'ee751514c17f2015c252288400ce8745b36ff3e2'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Post-Commit Track Taxonomy (#724)

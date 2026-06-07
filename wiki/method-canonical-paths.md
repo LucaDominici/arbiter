@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/CANONICAL_PATHS.md'
 source_sha: '80bbab14be168eacc42eb73fa5d17d4b083be485'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Canonical Paths — arbiter

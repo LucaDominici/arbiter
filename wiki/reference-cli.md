@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/CLI.md'
 source_sha: 'c10e528ad9e0b854e73f9d669f4aadc2b73f82c6'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # CLI Reference — Redirected

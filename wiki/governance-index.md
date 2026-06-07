@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GOVERNANCE/index.md'
 source_sha: '43b274790ac1b1b112cf51c8d4aba3a284727c01'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter Governance

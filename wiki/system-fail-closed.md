@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/FAIL_CLOSED.md'
 source_sha: '31a28b6ba19f796dfe4a6b57f6099e955fb53509'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter — Fail-Closed Doctrine

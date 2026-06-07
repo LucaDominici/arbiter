@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GOVERNANCE/GOOD-FIRST-ISSUE-CURATION.md'
 source_sha: 'f562e22e8e6604ada60f6067ce0d3d8cf2de434c'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Good First Issue Curation — Launch Batch

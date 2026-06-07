@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/SELF_VALIDATION_PROTOCOL.md'
 source_sha: 'a5620ac800296df9a7bf3acac2f3133f7ff91c48'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Self-Validation Protocol — A/B/C Drill

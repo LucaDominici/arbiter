@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GOVERNANCE/RACI.md'
 source_sha: 'ca9957596a5b53e88ecb2a9b43dbb91306916aae'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # RACI Matrix — arbiter

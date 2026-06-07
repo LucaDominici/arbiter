@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-51-debt-ratchet-tech-debt-score-gate.md'
 source_sha: '26bea5752e9500bdf4826f5558afeb2e994567ab'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N51: Debt ratchet (tech-debt score gate)

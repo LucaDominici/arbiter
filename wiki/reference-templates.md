@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/TEMPLATES.md'
 source_sha: 'f2f815a77381492019a39923ad8757f6f42b59bc'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Templates Reference — Redirected

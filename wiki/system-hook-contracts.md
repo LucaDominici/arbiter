@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/SYSTEM/HOOK-CONTRACTS.md'
-source_sha: 'f7398491aa0615f9698ff06ecfb8653e4b92d82b'
-last_updated: '2026-06-06'
+source_sha: 'd79985022e95fe5892401802bea7f167d1ea22b3'
+last_updated: '2026-06-07'
 ---
 
 # Hook Contracts — `.claude/hooks/*.mjs`
@@ -34,29 +34,30 @@ Generated from audit #615. Last updated: 2026-05-17.
 
 Hooks wired in `.claude/settings.json`.
 
-| Hook                          | Event              | Trigger     | I/O                    | Shared Paths                            | Concurrency Class |
-| ----------------------------- | ------------------ | ----------- | ---------------------- | --------------------------------------- | ----------------- |
-| `stop-dangerous.mjs`          | PreToolUse         | Bash        | read                   | —                                       | SAFE              |
-| `enforce-read-only.mjs`       | PreToolUse         | Edit\|Write | read                   | —                                       | SAFE              |
-| `pre-edit-load-memory.mjs`    | PreToolUse         | Edit\|Write | read, stdout-inject    | `.claude/memory-impl.md`                | SAFE              |
-| `pre-edit-ssot-guard.mjs`     | PreToolUse         | Edit\|Write | read, stdout-inject    | —                                       | SAFE              |
-| `pre-edit-plan-anchor.mjs`    | PreToolUse         | Edit\|Write | read, stdout-inject    | `.claude/.task-*`, `.claude/plans/`     | SAFE              |
-| `post-commit-check.mjs`       | PostToolUse        | Bash        | read (git log)         | —                                       | SAFE              |
-| `wiki-on-commit.mjs`          | PostToolUse        | Bash        | run (gen-wiki.mjs)     | Incremental wiki regen for changed docs | SAFE              |
-| `check-no-direct-spawn.mjs`   | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |
-| `check-no-orphan-todo.mjs`    | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |
-| `check-no-placeholders.mjs`   | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |
-| `check-no-pii.mjs`            | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |
-| `check-no-unused-exports.mjs` | PostToolUse        | Edit\|Write | read (knip)            | —                                       | SAFE              |
-| `check-no-any.mjs`            | PostToolUse        | Edit\|Write | read                   | —                                       | SAFE              |
-| `check-circular-deps.mjs`     | PostToolUse        | Edit\|Write | read (madge)           | —                                       | SAFE              |
-| `post-edit-dispatch.mjs`      | PostToolUse        | Edit\|Write | read, append-write     | `.claude/hooks/logs/hook-events.log`    | SAFE              |
-| `post-brainstorm-stop.mjs`    | UserPromptSubmit   | \*          | read, delete           | `.arbiter/brainstorm-active`            | SAFE              |
-| `skill-forced-eval.mjs`       | UserPromptSubmit   | \*          | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
-| `guard-task-completion.mjs`   | UserPromptSubmit   | \*          | read                   | `.claude/.task-*`                       | SAFE              |
-| `stop-evidence-guard.mjs`     | Stop               | \*          | read (transcript, git) | `.arbiter/evidence/*`, `.claude/.task/` | SAFE              |
-| `debug-state-on-failure.mjs`  | PostToolUseFailure | Bash        | create-or-append-write | `.evidence/<task>/DEBUG_STATE.md`       | SAFE              |
-| `pre-compact.mjs`             | PreCompact         | \*          | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
+| Hook                          | Event              | Trigger      | I/O                    | Shared Paths                            | Concurrency Class |
+| ----------------------------- | ------------------ | ------------ | ---------------------- | --------------------------------------- | ----------------- |
+| `stop-dangerous.mjs`          | PreToolUse         | Bash         | read                   | —                                       | SAFE              |
+| `enforce-read-only.mjs`       | PreToolUse         | Edit\|Write  | read                   | —                                       | SAFE              |
+| `pre-edit-load-memory.mjs`    | PreToolUse         | Edit\|Write  | read, stdout-inject    | `.claude/memory-impl.md`                | SAFE              |
+| `pre-edit-ssot-guard.mjs`     | PreToolUse         | Edit\|Write  | read, stdout-inject    | —                                       | SAFE              |
+| `pre-edit-plan-anchor.mjs`    | PreToolUse         | Edit\|Write  | read, stdout-inject    | `.claude/.task-*`, `.claude/plans/`     | SAFE              |
+| `post-commit-check.mjs`       | PostToolUse        | Bash         | read (git log)         | —                                       | SAFE              |
+| `wiki-on-commit.mjs`          | PostToolUse        | Bash         | run (gen-wiki.mjs)     | Incremental wiki regen for changed docs | SAFE              |
+| `check-no-direct-spawn.mjs`   | PostToolUse        | Edit\|Write  | read                   | —                                       | SAFE              |
+| `check-no-orphan-todo.mjs`    | PostToolUse        | Edit\|Write  | read                   | —                                       | SAFE              |
+| `check-no-placeholders.mjs`   | PostToolUse        | Edit\|Write  | read                   | —                                       | SAFE              |
+| `check-no-pii.mjs`            | PostToolUse        | Edit\|Write  | read                   | —                                       | SAFE              |
+| `check-no-unused-exports.mjs` | PostToolUse        | Edit\|Write  | read (knip)            | —                                       | SAFE              |
+| `check-no-any.mjs`            | PostToolUse        | Edit\|Write  | read                   | —                                       | SAFE              |
+| `check-circular-deps.mjs`     | PostToolUse        | Edit\|Write  | read (madge)           | —                                       | SAFE              |
+| `post-edit-dispatch.mjs`      | PostToolUse        | Edit\|Write  | read, append-write     | `.claude/hooks/logs/hook-events.log`    | SAFE              |
+| `post-brainstorm-stop.mjs`    | UserPromptSubmit   | \*           | read, delete           | `.arbiter/brainstorm-active`            | SAFE              |
+| `skill-forced-eval.mjs`       | UserPromptSubmit   | \*           | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
+| `guard-task-completion.mjs`   | UserPromptSubmit   | \*           | read                   | `.claude/.task-*`                       | SAFE              |
+| `stop-evidence-guard.mjs`     | Stop               | \*           | read (transcript, git) | `.arbiter/evidence/*`, `.claude/.task/` | SAFE              |
+| `debug-state-on-failure.mjs`  | PostToolUseFailure | Bash         | create-or-append-write | `.evidence/<task>/DEBUG_STATE.md`       | SAFE              |
+| `exitplanmode-banner.mjs`     | PostToolUse        | ExitPlanMode | read, stdout-inject    | `.claude/.task/status.json`             | SAFE              |
+| `pre-compact.mjs`             | PreCompact         | \*           | read, stdout-inject    | `.claude/.task-*`                       | SAFE              |
 
 ---
 
@@ -90,10 +91,6 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 1. **No SERIALIZE hooks.** If you find yourself writing a hook that reads then rewrites a file, use `openSync('wx')` for the first write and `appendFileSync` for subsequent writes instead.
 2. **Shared log writes are append-only.** `lib.mjs` `logInfo/logWarn/logError` use `appendFileSync` → POSIX atomic for entries < 4KB (PIPE_BUF).
 3. **debug-state-on-failure is SAFE.** Uses `openSync('wx')` (O_CREAT|O_EXCL) for header creation — concurrent first-creates fail silently on EEXIST and fall through to `appendFileSync`. Each attempt entry is a single `appendFileSync` call (< 4KB).
-4. **Hooks must not acquire file locks.** If a hook needs exclusive access, redesign using atomic primitives above. `src/utils/file-lock.ts` is for CLI commands, not hooks.
-
----
-
-## Shipped-hook dog
+4. \*\*Hooks must no
 
 _[content truncated — see source for full text]_

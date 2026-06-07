@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/QUICKSTART.md'
 source_sha: '91da366b8fd35aa78442ead0063e373c67c3aed2'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter — Quickstart

@@ -101,9 +101,9 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | **Rule:** A code-quality rule may be promoted to a \*\*HARD GA | docs/SYSTEM/CANON.md:314                                           | medium   |
 | \*\*Tier-2 (advisory only                                      | do NOT hard-gate alone):\*\* — docs/SYSTEM/CANON.md:326            | medium   |
 | - **DRY-as-dogma**                                             | duplication _count_ gates, but "never r — docs/SYSTEM/CANON.md:329 | medium   |
-| - Skip the gate before committing                              | .claude/CLAUDE.md:90                                               | medium   |
-| main                                                           | .claude/CLAUDE.md:91                                               | medium   |
-| - Leave orphan TODOs without task IDs                          | .claude/CLAUDE.md:93                                               | medium   |
+| - Skip the gate before committing                              | .claude/CLAUDE.md:91                                               | medium   |
+| main                                                           | .claude/CLAUDE.md:92                                               | medium   |
+| - Leave orphan TODOs without task IDs                          | .claude/CLAUDE.md:94                                               | medium   |
 
 ## Known Debt
 

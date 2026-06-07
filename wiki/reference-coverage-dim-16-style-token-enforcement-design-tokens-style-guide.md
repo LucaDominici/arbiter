@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-16-style-token-enforcement-design-tokens-style-guide.md'
 source_sha: '13375b6a87fc45ed642a150afdf2b71e7c1747e5'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N16: Style token enforcement (design tokens / style guide)

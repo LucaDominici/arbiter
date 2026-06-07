@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/MEASUREMENT-GUIDE.md'
 source_sha: '4e0502abe9f8fbf473bcfd3cd6dffec23e743bdd'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # How to Measure arbiter Value Yourself

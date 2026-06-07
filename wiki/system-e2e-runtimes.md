@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/E2E-RUNTIMES.md'
 source_sha: 'ed92b4f8c4a597fa1c7098405c9ee86dc6578e09'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # E2E Runtime Matrix

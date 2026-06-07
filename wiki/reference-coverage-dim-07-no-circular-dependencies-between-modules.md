@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-07-no-circular-dependencies-between-modules.md'
 source_sha: '5406c125147b4c95c85ff5a466addeb90d88d56d'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N07: No circular dependencies between modules

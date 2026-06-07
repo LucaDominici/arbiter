@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/external-kit-sources.md'
 source_sha: '5aebdcdc82ae9e700145a8a7bab9b784a9229f95'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # External KIT Sources

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-14-dead-code-detection.md'
 source_sha: 'd54cc69253e577d34002bd35e3fbbeaec44369a0'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N14: Dead code detection

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/runbooks/deployment.md'
 source_sha: '4bcb7093593e37fcf01ee69ef7b5b37ea055844d'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Deployment Runbook — arbiter

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-53-api-snapshot-test-no-unintended-public-surface-changes.md'
 source_sha: '0e4023e6a069005546b079cb6821b5aad53fc025'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N53: API snapshot test (no unintended public surface changes)

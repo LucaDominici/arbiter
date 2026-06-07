@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-22-test-naming-convention-enforced.md'
 source_sha: '1bb64072305373674023a527cdfdc4dce51f387d'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N22: Test naming convention enforced

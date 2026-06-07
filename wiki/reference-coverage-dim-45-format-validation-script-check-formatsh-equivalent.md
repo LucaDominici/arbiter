@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-45-format-validation-script-check-formatsh-equivalent.md'
 source_sha: '14da228625140954962bf1f6e30296b73e4b2d76'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N45: Format validation script (check-format.sh equivalent)

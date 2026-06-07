@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-54-circular-dependency-detection.md'
 source_sha: 'b976b60d0cf6f5b82c02f0b6dc0e0971253c0533'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N54: Circular dependency detection

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-30-architectural-tests-archunit-structure-rules.md'
 source_sha: '990a1fbb16e661b008fef6aea96e7e8f3143cf1b'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N30: Architectural tests (ArchUnit / structure rules)

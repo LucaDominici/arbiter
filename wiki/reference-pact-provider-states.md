@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/pact-provider-states.md'
 source_sha: '9eca1d288b044cc314efcbee993f8dacbd446438'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Pact Provider States — Convention Reference

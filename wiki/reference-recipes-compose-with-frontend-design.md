@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/compose-with-frontend-design.md'
 source_sha: 'eeb0cdfcb83edffdf9b2578b72b7f86169d08b29'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Recipe: Compose with Frontend Design Skill

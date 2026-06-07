@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/recover-from-update-failure.md'
 source_sha: '3845b893094fb13ac9226d8e5c14e79b023b5108'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Recipe: Recovering from an arbiter Update Failure

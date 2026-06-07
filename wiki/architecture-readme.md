@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/README.md'
 source_sha: '07b53e60e8201aa9fc63bd185c3c8800a559f65f'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter Architecture

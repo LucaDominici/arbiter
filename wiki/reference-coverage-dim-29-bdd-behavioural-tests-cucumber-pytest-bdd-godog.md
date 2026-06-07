@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-29-bdd-behavioural-tests-cucumber-pytest-bdd-godog.md'
 source_sha: '21c68c67201f3662ceb73940354b7c3401b27e32'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N29: BDD / behavioural tests (Cucumber / pytest-bdd / godog)

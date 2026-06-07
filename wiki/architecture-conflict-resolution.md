@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/CONFLICT-RESOLUTION.md'
 source_sha: '911a640a56a1b5f17bf7aeb0ac786742ebcf3a4d'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Arbiter — Conflict Resolution

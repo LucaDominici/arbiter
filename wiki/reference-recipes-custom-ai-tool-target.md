@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/custom-ai-tool-target.md'
 source_sha: 'da0999c295acc3d459a5a4880f95c05104237dd8'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Recipe: Adding a Custom AI Tool Target

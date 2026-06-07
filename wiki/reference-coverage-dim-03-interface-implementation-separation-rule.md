@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-03-interface-implementation-separation-rule.md'
 source_sha: 'dd7f84845d031dfdcc9ca1c79a92cf9e5d352719'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N03: Interface + implementation separation rule

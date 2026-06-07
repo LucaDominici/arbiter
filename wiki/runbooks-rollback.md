@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/runbooks/rollback.md'
 source_sha: '1ff9f1ace998f695fdf28e12e2651e6fe15116ec'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Rollback Runbook — arbiter

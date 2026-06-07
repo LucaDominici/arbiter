@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/install/windows.md'
 source_sha: '0c7f0eb311422d571b4a15c46854f1aba1e1ecc1'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Windows Setup (WSL2)

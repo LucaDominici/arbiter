@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/DEVELOPMENT/CONVENTIONS.md'
 source_sha: 'b144b32d4c4d3977754ecfcf81b33fd334c9d639'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Conventions

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-11-pmd-semgrep-rules-complexity-security-anti-patterns.md'
 source_sha: 'cc35096426b1a0ec6fc008e46bfd8162d013102d'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N11: PMD / Semgrep rules (complexity, security anti-patterns)

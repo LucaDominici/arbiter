@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SECURITY/RISK_ASSESSMENT.md'
 source_sha: '7160b1c553db45328c5c7d38b80d260b41721d27'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Risk Assessment

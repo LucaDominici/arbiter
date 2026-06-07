@@ -37,6 +37,7 @@ const HANDLERS = {
   ],
   'PostToolUseFailure:Bash': ['debug-state-on-failure.mjs'],
   PreCompact: ['pre-compact.mjs'],
+  'PostToolUse:ExitPlanMode': ['exitplanmode-banner.mjs'],
   UserPromptSubmit: ['skill-forced-eval.mjs', 'guard-task-completion.mjs'],
 }
 

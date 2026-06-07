@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/CANONICAL-SOURCE-MODEL.md'
 source_sha: '98e1f7aa775dc342569f0dfe297d5fb6a0e51540'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Canonical Source Model — Deep Dive

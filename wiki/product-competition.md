@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/COMPETITION.md'
 source_sha: 'ec3ba043aa3c7f73c44e43250628f8e6e2bd2149'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Arbiter — Competitive Landscape

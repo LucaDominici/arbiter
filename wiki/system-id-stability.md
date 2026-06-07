@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/ID-STABILITY.md'
 source_sha: '962556cbaccd546601e707d7569cf785338e7322'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Invariant ID Stability Policy

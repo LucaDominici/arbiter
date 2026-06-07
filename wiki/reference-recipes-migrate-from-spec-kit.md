@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/migrate-from-spec-kit.md'
 source_sha: 'eaab846f48dc04fb053ffd71f44852be1bc8845f'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Recipe: Migrating from Spec Kit to arbiter

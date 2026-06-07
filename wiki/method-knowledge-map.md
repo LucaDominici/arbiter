@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/KNOWLEDGE_MAP.md'
 source_sha: '472ae970cc1c9c26a0be2f215711fcd1b1007150'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Knowledge Map — arbiter

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/TESTING_POLICY.md'
 source_sha: '4c394bbb65b4a8b5892938abb7871a301114c3eb'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Testing Policy — arbiter

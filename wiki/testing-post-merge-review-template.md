@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/testing/POST_MERGE_REVIEW_TEMPLATE.md'
 source_sha: '1310c71a1a7990ae14c8e7fd3144a203247e1eca'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Post-Merge Review — YYYY-MM-DD

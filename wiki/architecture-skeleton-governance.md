@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/skeleton-governance.md'
 source_sha: '86ed0b22992c03ae035789962179ef9b5df0d2aa'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Skeleton Governance Architecture

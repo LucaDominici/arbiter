@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/MIGRATION/decomposition-backends.md'
 source_sha: '3a7af7ad1eac62b92d76401b9a69eabe7d53ff80'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Migration: decomposition backends (`useGitHub` → `decomposition.backend`)

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-27-integration-tests-spring-it-testcontainers-real-project-fixtures.md'
 source_sha: '07591d8891c64fad88fb928e80993e5375838b88'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N27: Integration tests (Spring IT / testcontainers / real-project fixtures)

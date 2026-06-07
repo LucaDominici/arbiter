@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-48-placeholder-check-no-template-placeholders-committed.md'
 source_sha: '4371e39433ec7edc3dad24d22bc5e4a881041e4b'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N48: Placeholder check (no template placeholders committed)

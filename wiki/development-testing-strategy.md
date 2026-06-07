@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/DEVELOPMENT/TESTING-STRATEGY.md'
 source_sha: '0263529acd1e710c518fdadd3722d11c39b63703'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Testing Strategy

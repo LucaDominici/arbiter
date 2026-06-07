@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-57-container-image-scan-trivy.md'
 source_sha: 'ce9d47b94075e706c7a9cf2410ac9566824c1a70'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N57: Container image scan (Trivy)

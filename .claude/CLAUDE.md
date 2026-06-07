@@ -43,30 +43,31 @@ Tradeoff: an expert-only tool.
 
 Configured in `.claude/settings.json`. Active hooks:
 
-| Event                       | Hook                          | Purpose                                                                     |
-| --------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
-| `PreToolUse` → Bash         | `stop-dangerous.mjs`          | Block dangerous commands (rm -rf, force push)                               |
-| `PreToolUse` → Bash         | `enforce-gate-before-pr.mjs`  | Block `gh pr create` without valid gate-pass.json                           |
-| `PreToolUse` → Edit\|Write  | `enforce-read-only.mjs`       | Guard read-only files                                                       |
-| `PreToolUse` → Edit\|Write  | `pre-edit-load-memory.mjs`    | Inject memory-impl.md gotchas when glob matches                             |
-| `PreToolUse` → Edit\|Write  | `pre-edit-ssot-guard.mjs`     | Prevent unauthorized SSOT edits                                             |
-| `PreToolUse` → Edit\|Write  | `pre-edit-plan-anchor.mjs`    | Require plan anchor before editing (CANON-16)                               |
-| `PostToolUse` → Bash        | `post-commit-check.mjs`       | Verify commit format after git commits                                      |
-| `PostToolUse` → Bash        | `wiki-on-commit.mjs`          | Incremental wiki regeneration when docs/ files change (INV-116, #1241)      |
-| `PostToolUse` → Edit\|Write | `check-no-direct-spawn.mjs`   | Block direct child_process usage (INV-12)                                   |
-| `PostToolUse` → Edit\|Write | `check-no-orphan-todo.mjs`    | Block orphan TODOs (INV-21)                                                 |
-| `PostToolUse` → Edit\|Write | `check-no-placeholders.mjs`   | Block placeholder patterns left in edited files                             |
-| `PostToolUse` → Edit\|Write | `check-no-pii.mjs`            | Block PII patterns in edited files (INV-12)                                 |
-| `PostToolUse` → Edit\|Write | `check-no-unused-exports.mjs` | Block unused TypeScript value exports after edits (type exports: see #1189) |
-| `PostToolUse` → Edit\|Write | `check-no-any.mjs`            | Block `any` types (INV-04)                                                  |
-| `PostToolUse` → Edit\|Write | `check-circular-deps.mjs`     | Detect circular dependencies after TS/JS edits                              |
-| `PostToolUse` → Edit\|Write | `post-edit-dispatch.mjs`      | Run format + lint after file edits                                          |
-| `PostToolUseFailure` → Bash | `debug-state-on-failure.mjs`  | Persist debug state when gate/test commands fail                            |
-| `UserPromptSubmit` → \*     | `post-brainstorm-stop.mjs`    | Block /task while brainstorm session active                                 |
-| `UserPromptSubmit` → \*     | `skill-forced-eval.mjs`       | Enforce skill invocation before responses                                   |
-| `UserPromptSubmit` → \*     | `guard-task-completion.mjs`   | Warn on premature task-completion claims                                    |
-| `Stop` → \*                 | `stop-evidence-guard.mjs`     | Block completion claims without correlated evidence (INV-114, #1212)        |
-| `PreCompact` → \*           | `pre-compact.mjs`             | Persist context before auto-compaction                                      |
+| Event                        | Hook                          | Purpose                                                                     |
+| ---------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
+| `PreToolUse` → Bash          | `stop-dangerous.mjs`          | Block dangerous commands (rm -rf, force push)                               |
+| `PreToolUse` → Bash          | `enforce-gate-before-pr.mjs`  | Block `gh pr create` without valid gate-pass.json                           |
+| `PreToolUse` → Edit\|Write   | `enforce-read-only.mjs`       | Guard read-only files                                                       |
+| `PreToolUse` → Edit\|Write   | `pre-edit-load-memory.mjs`    | Inject memory-impl.md gotchas when glob matches                             |
+| `PreToolUse` → Edit\|Write   | `pre-edit-ssot-guard.mjs`     | Prevent unauthorized SSOT edits                                             |
+| `PreToolUse` → Edit\|Write   | `pre-edit-plan-anchor.mjs`    | Require plan anchor before editing (CANON-16)                               |
+| `PostToolUse` → Bash         | `post-commit-check.mjs`       | Verify commit format after git commits                                      |
+| `PostToolUse` → Bash         | `wiki-on-commit.mjs`          | Incremental wiki regeneration when docs/ files change (INV-116, #1241)      |
+| `PostToolUse` → Edit\|Write  | `check-no-direct-spawn.mjs`   | Block direct child_process usage (INV-12)                                   |
+| `PostToolUse` → Edit\|Write  | `check-no-orphan-todo.mjs`    | Block orphan TODOs (INV-21)                                                 |
+| `PostToolUse` → Edit\|Write  | `check-no-placeholders.mjs`   | Block placeholder patterns left in edited files                             |
+| `PostToolUse` → Edit\|Write  | `check-no-pii.mjs`            | Block PII patterns in edited files (INV-12)                                 |
+| `PostToolUse` → Edit\|Write  | `check-no-unused-exports.mjs` | Block unused TypeScript value exports after edits (type exports: see #1189) |
+| `PostToolUse` → Edit\|Write  | `check-no-any.mjs`            | Block `any` types (INV-04)                                                  |
+| `PostToolUse` → Edit\|Write  | `check-circular-deps.mjs`     | Detect circular dependencies after TS/JS edits                              |
+| `PostToolUse` → Edit\|Write  | `post-edit-dispatch.mjs`      | Run format + lint after file edits                                          |
+| `PostToolUseFailure` → Bash  | `debug-state-on-failure.mjs`  | Persist debug state when gate/test commands fail                            |
+| `UserPromptSubmit` → \*      | `post-brainstorm-stop.mjs`    | Block /task while brainstorm session active                                 |
+| `UserPromptSubmit` → \*      | `skill-forced-eval.mjs`       | Enforce skill invocation before responses                                   |
+| `UserPromptSubmit` → \*      | `guard-task-completion.mjs`   | Warn on premature task-completion claims                                    |
+| `Stop` → \*                  | `stop-evidence-guard.mjs`     | Block completion claims without correlated evidence (INV-114, #1212)        |
+| `PostToolUse` → ExitPlanMode | `exitplanmode-banner.mjs`     | Print next-step banner after plan mode ends (#1210)                         |
+| `PreCompact` → \*            | `pre-compact.mjs`             | Persist context before auto-compaction                                      |
 
 ### Slash Commands
 

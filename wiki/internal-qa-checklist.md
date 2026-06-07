@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/internal/qa-checklist.md'
 source_sha: '1b62b9c3ef469490873b6235ba48d4bb45a8bab4'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Pre-Launch Manual QA Checklist

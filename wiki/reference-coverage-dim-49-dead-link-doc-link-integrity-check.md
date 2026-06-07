@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-49-dead-link-doc-link-integrity-check.md'
 source_sha: '5e9fd4a06a3727ec470e460fd0d4cad91e4564be'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N49: Dead link / doc link integrity check

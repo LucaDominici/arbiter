@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-41-e2e-api-tests-restassured-playwright-pytest-playwright.md'
 source_sha: '7c760b9dcc26559151dc80e6948bb15996f2f3e1'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N41: E2E API tests (RestAssured / Playwright / pytest-playwright)

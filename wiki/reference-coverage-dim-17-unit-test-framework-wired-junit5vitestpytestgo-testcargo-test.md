@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-17-unit-test-framework-wired-junit5vitestpytestgo-testcargo-test.md'
 source_sha: '193b4055bc80ef3bec89980ff62f8d794153275f'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N17: Unit test framework wired (JUnit5/Vitest/pytest/go test/cargo test)

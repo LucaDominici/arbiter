@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/MIGRATION/deploy-config-consolidation.md'
 source_sha: 'a1ed76baf70e3612ec4b9d4d9daa7a1ac2b9c635'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Migration: deploy config consolidation (deployTarget)

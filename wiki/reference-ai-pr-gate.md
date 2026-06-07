@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/ai-pr-gate.md'
 source_sha: '5c3ce4c59a749e02a031267affaa6877dc71902e'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # AI-PR Gate Reference (INV-91)

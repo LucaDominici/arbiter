@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-71-feature-flag-experiment-registry-no-undocumented-flags.md'
 source_sha: '1ff22321541ea0d3b5eb9510ae3065687c32b6a1'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N71: Feature flag / experiment registry (no undocumented flags)

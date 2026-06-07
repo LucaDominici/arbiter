@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/incidents/04-inv32-matrix-fixture-parity.md'
 source_sha: 'db4043867f36998a9eaedcf83fde1cfa50aa285c'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Incident: INV-32 (matrix fixture parity) blocking a `beta → proven` promotion
