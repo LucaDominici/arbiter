@@ -1,1 +1,8 @@
-{"passed":true,"level":"L2","timestamp":"2026-06-07T03:22:56Z","branch":"task/#1210-exitplanmode-banner-hook","sha":"c5758639e72bef29731fd2612d9afe7cdd1f3f93"}
+{
+  "head_sha": "c5758639e72bef29731fd2612d9afe7cdd1f3f93",
+  "branch": "task/#1210-exitplanmode-banner-hook",
+  "timestamp": "2026-06-07T03:24:35.742Z",
+  "level": "L1",
+  "node_version": "v22.21.1",
+  "git_user": "github-actions[bot]"
+}
