@@ -98,4 +98,25 @@ describe('01-pr-fast.yml.ejs — DAG parallelism (#1227, ADR-090)', () => {
     expect(needsGateMatches).not.toBeNull()
     expect((needsGateMatches ?? []).length).toBeGreaterThanOrEqual(3)
   })
+
+  // strategy.max-parallel: 2 — acceptance criterion from issue #1227 (evita saturare runner)
+  it('typescript L2: unit-tests job has strategy.max-parallel: 2', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(rendered).toMatch(/unit-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
+  })
+
+  it('typescript L2: integration-tests job has strategy.max-parallel: 2', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
+  })
+
+  it('typescript L2: behavioral-tests job has strategy.max-parallel: 2', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
+  })
+
+  it('java gradle L2: unit-tests job has strategy.max-parallel: 2', () => {
+    const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L2' })
+    expect(rendered).toMatch(/unit-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
+  })
 })
