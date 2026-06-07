@@ -36,9 +36,10 @@ function countDistinctAuthors(days) {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean)
     return new Set(emails).size
-  } catch {
+  } catch (err) {
     // git not available or not a git repository — fail closed
     console.error('check-solo-reactivation: git not available or not a git repo — failing closed')
+    console.error(err)
     process.exit(1)
   }
 }
