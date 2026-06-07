@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-06'
+last_review: '2026-06-07'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -108,3 +108,4 @@ related: []
 | 087 | [Rust Context-Aware INV-04 Checkers and Rebased-Aware Docs-Check](../ADR/087-rust-context-aware-inv04-checkers-and-rebased-docs-check.md) | Accepted | 2026-05-14 |
 | 088 | [/ship as the Single Orchestration Entrypoint](../ADR/088-ship-as-orchestration-entrypoint.md) | Accepted | 2026-06-05 |
 | 089 | [Collapse hand docs to SSOT-core + generated LLM-Wiki](../ADR/089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md) | Accepted | 2026-06-06 |
+| 090 | [Workflow Performance Budget](../ADR/090-workflow-performance-budget.md) | Accepted | 2026-06-07 |
