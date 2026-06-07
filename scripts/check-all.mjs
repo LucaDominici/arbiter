@@ -204,6 +204,9 @@ if (isMain) {
   runCheck('settings coverage (#1121)', 'node', ['scripts/check-settings-coverage.mjs'])
   runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs', '--check'])
   runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs'])
+  runCheck('workflow cache strategy (§17.5 rec 3)', 'node', [
+    'scripts/check-workflow-cache-strategy.mjs',
+  ])
 
   // Capture L1 boundary for parityContentHash computation (INV-59)
   const l1EndIdx = getResults().length
