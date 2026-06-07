@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-06'
+last_review: '2026-06-07'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 089)
+1. Create `NNN-short-title.md` in this directory (next free number after 090)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -117,3 +117,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 087 | [Rust Context-Aware INV-04 Checkers and Rebased-Aware Docs-Check](087-rust-context-aware-inv04-checkers-and-rebased-docs-check.md)                                    | Accepted   | 2026-05-14 |  |
 | 088 | [/ship as the Single Orchestration Entrypoint](088-ship-as-orchestration-entrypoint.md)                                                                               | Accepted   | 2026-06-05 |  |
 | 089 | [Collapse hand docs to SSOT-core + generated LLM-Wiki](089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md)                                                    | Accepted   | 2026-06-06 |  |
+| 090 | [Workflow Performance Budget](090-workflow-performance-budget.md)                                                                                                     | Accepted   | 2026-06-07 |  |
