@@ -72,59 +72,69 @@ function hasVerbatimBlock(childContent, parentContent) {
   return false;
 }
 
-const files = discover();
-if (files.length === 0) {
-  process.stdout.write('check-claude-md-lint: SKIP — no context files found (INV-89)\n');
-  process.exit(0);
-}
+function main() {
+  const files = discover();
+  if (files.length === 0) {
+    process.stdout.write('check-claude-md-lint: SKIP — no context files found (INV-89)\n');
+    return 0;
+  }
 
-const errors = [];
-const warnings = [];
-const layerPath = sharedLayerPath();
-const layerContent = layerPath ? readFileSync(layerPath, 'utf-8') : null;
+  const errors = [];
+  const warnings = [];
+  const layerPath = sharedLayerPath();
+  const layerContent = layerPath ? readFileSync(layerPath, 'utf-8') : null;
 
-for (const file of files) {
-  const rel = file.slice(CWD.length + 1);
-  const content = readFileSync(file, 'utf-8');
-  const lines = content.split('\n');
+  for (const file of files) {
+    const rel = file.slice(CWD.length + 1);
+    const content = readFileSync(file, 'utf-8');
+    const lines = content.split('\n');
 
-  lines.forEach((line, i) => {
-    if (ABS_POSIX.test(line) || ABS_WINDOWS.test(line)) {
-      errors.push(`${rel}:${i + 1}: hardcoded absolute path — context files must be portable`);
+    lines.forEach((line, i) => {
+      if (ABS_POSIX.test(line) || ABS_WINDOWS.test(line)) {
+        errors.push(`${rel}:${i + 1}: hardcoded absolute path — context files must be portable`);
+      }
+    });
+
+    if (isDelegating(file)) {
+      const hasImport = /^@[\w./-]+/m.test(content);
+      if (!hasImport) {
+        errors.push(`${rel}: delegating context file must @import its shared layer (e.g. @AGENTS.md)`);
+      } else if (layerContent && file !== layerPath && hasVerbatimBlock(content, layerContent)) {
+        errors.push(
+          `${rel}: duplicates a verbatim >=${DUP_BLOCK_LINES}-line block from the imported shared layer — delegate via @import instead of copying`,
+        );
+      }
     }
-  });
 
-  if (isDelegating(file)) {
-    const hasImport = /^@[\w./-]+/m.test(content);
-    if (!hasImport) {
-      errors.push(`${rel}: delegating context file must @import its shared layer (e.g. @AGENTS.md)`);
-    } else if (layerContent && file !== layerPath && hasVerbatimBlock(content, layerContent)) {
-      errors.push(
-        `${rel}: duplicates a verbatim >=${DUP_BLOCK_LINES}-line block from the imported shared layer — delegate via @import instead of copying`,
+    if (lines.length > LINE_BUDGET) {
+      warnings.push(`${rel}: ${lines.length} lines exceeds soft line budget (${LINE_BUDGET})`);
+    }
+  }
+
+  if (errors.length === 0) {
+    if (warnings.length > 0) {
+      process.stdout.write(
+        `check-claude-md-lint: ${files.length} file(s) OK; ${warnings.length} soft warning(s) (INV-89)\n`,
       );
+      for (const w of warnings) process.stdout.write(`    [warn] ${w}\n`);
+    } else {
+      process.stdout.write(`check-claude-md-lint: all ${files.length} context file(s) OK (INV-89)\n`);
     }
+    return 0;
   }
 
-  if (lines.length > LINE_BUDGET) {
-    warnings.push(`${rel}: ${lines.length} lines exceeds soft line budget (${LINE_BUDGET})`);
-  }
+  process.stdout.write(
+    `check-claude-md-lint: ${errors.length} hard error(s) across ${files.length} file(s) (INV-89)\n`,
+  );
+  for (const e of errors) process.stdout.write(`    ${e}\n`);
+  for (const w of warnings) process.stdout.write(`    [warn] ${w}\n`);
+  return 1;
 }
 
-if (errors.length === 0) {
-  if (warnings.length > 0) {
-    process.stdout.write(
-      `check-claude-md-lint: ${files.length} file(s) OK; ${warnings.length} soft warning(s) (INV-89)\n`,
-    );
-    for (const w of warnings) process.stdout.write(`    [warn] ${w}\n`);
-  } else {
-    process.stdout.write(`check-claude-md-lint: all ${files.length} context file(s) OK (INV-89)\n`);
-  }
-  process.exit(0);
+// Fail-closed (INV-96): any unexpected error exits 1 rather than passing silently.
+try {
+  process.exit(main());
+} catch (err) {
+  process.stderr.write(`check-claude-md-lint: unexpected error — ${err?.message ?? err} (INV-89)\n`);
+  process.exit(1);
 }
-
-process.stdout.write(
-  `check-claude-md-lint: ${errors.length} hard error(s) across ${files.length} file(s) (INV-89)\n`,
-);
-for (const e of errors) process.stdout.write(`    ${e}\n`);
-for (const w of warnings) process.stdout.write(`    [warn] ${w}\n`);
-process.exit(1);

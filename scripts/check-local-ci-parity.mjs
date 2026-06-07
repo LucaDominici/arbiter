@@ -185,6 +185,7 @@ const CI_COVERAGE = new Map([
   ['ssot core', 'gate-full'],
   ['doc links', 'gate-full'],
   ['doc style', 'gate-full'],
+  ['claude-md lint (#1266)', 'gate-full'],
   ['doc index (#1102)', 'gate-full'],
   ['status dashboard', 'gate-full'],
   ['gap register', 'gate-full'],
