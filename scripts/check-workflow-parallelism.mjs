@@ -265,51 +265,62 @@ function limitForFile(filename) {
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
-const workflowDir = join(CWD, '.github', 'workflows')
-const yamlFiles = collectYamlFiles(workflowDir)
+function main() {
+  const workflowDir = join(CWD, '.github', 'workflows')
+  const yamlFiles = collectYamlFiles(workflowDir)
 
-if (yamlFiles.length === 0) {
+  if (yamlFiles.length === 0) {
+    process.stdout.write(
+      `check-workflow-parallelism: OK — no workflow files found, nothing to check (INV-120)\n`,
+    )
+    process.exit(0)
+  }
+
+  /** @type {Array<{ file: string, chain: string[], length: number, limit: number }>} */
+  const violations = []
+
+  for (const file of yamlFiles) {
+    let content
+    try {
+      content = readFileSync(file, 'utf-8')
+    } catch {
+      continue
+    }
+
+    const jobs = parseWorkflowJobs(content)
+    if (jobs.size === 0) continue
+
+    const { length, chain } = longestChain(jobs)
+    const limit = limitForFile(file)
+
+    if (length > limit) {
+      violations.push({ file: basename(file), chain, length, limit })
+    }
+  }
+
+  if (violations.length > 0) {
+    process.stdout.write(
+      `check-workflow-parallelism: FAIL — ${violations.length} workflow(s) exceed needs-chain limit (INV-120)\n\n`,
+    )
+    for (const v of violations) {
+      process.stdout.write(`  ${v.file}: chain=${v.length} (limit=${v.limit})\n`)
+      process.stdout.write(`    ${v.chain.join(' → ')}\n`)
+    }
+    process.stdout.write('\n')
+    process.exit(1)
+  }
+
   process.stdout.write(
-    `check-workflow-parallelism: OK — no workflow files found, nothing to check (INV-120)\n`,
+    `check-workflow-parallelism: OK — all ${yamlFiles.length} workflow(s) within needs-chain limits (INV-120)\n`,
   )
   process.exit(0)
 }
 
-/** @type {Array<{ file: string, chain: string[], length: number, limit: number }>} */
-const violations = []
-
-for (const file of yamlFiles) {
-  let content
-  try {
-    content = readFileSync(file, 'utf-8')
-  } catch {
-    continue
-  }
-
-  const jobs = parseWorkflowJobs(content)
-  if (jobs.size === 0) continue
-
-  const { length, chain } = longestChain(jobs)
-  const limit = limitForFile(file)
-
-  if (length > limit) {
-    violations.push({ file: basename(file), chain, length, limit })
-  }
-}
-
-if (violations.length > 0) {
-  process.stdout.write(
-    `check-workflow-parallelism: FAIL — ${violations.length} workflow(s) exceed needs-chain limit (INV-120)\n\n`,
+try {
+  main()
+} catch (err) {
+  process.stderr.write(
+    `[check-workflow-parallelism] ERROR: ${err instanceof Error ? err.message : String(err)}\n`,
   )
-  for (const v of violations) {
-    process.stdout.write(`  ${v.file}: chain=${v.length} (limit=${v.limit})\n`)
-    process.stdout.write(`    ${v.chain.join(' → ')}\n`)
-  }
-  process.stdout.write('\n')
-  process.exit(1)
+  process.exit(2)
 }
-
-process.stdout.write(
-  `check-workflow-parallelism: OK — all ${yamlFiles.length} workflow(s) within needs-chain limits (INV-120)\n`,
-)
-process.exit(0)

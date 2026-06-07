@@ -211,6 +211,7 @@ const CI_COVERAGE = new Map([
   ['anti-drift: workflow runners', 'gate-full'],
   ['anti-drift: workflow docs sync', 'gate-full'],
   ['anti-drift: workflow integrity', 'gate-full'],
+  ['anti-drift: workflow parallelism (INV-120)', 'gate-full'],
   ['anti-drift: pr size gate', 'gate-full'],
   ['anti-drift: validator helptext', 'gate-full'],
   ['anti-drift: tier coverage', 'gate-full'],
