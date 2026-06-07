@@ -10,7 +10,7 @@
 // Usage: node scripts/check-anti-proforma.mjs [--dir=<path>] [--enforce] [--help]
 
 import { readdirSync, statSync, readFileSync } from 'node:fs'
-import { join, resolve, extname } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
