@@ -3,6 +3,7 @@ const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'tru
 const _runner = (_cm === 'gated-review' && (governanceLevel === 'L3' || governanceLevel === 'L4'))
   ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
   : "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}";
+const _isSoloL3Plus = _cm === 'trunk-solo' && (governanceLevel === 'L3' || governanceLevel === 'L4');
 %>name: Nightly Lite (T4-lite)
 
 on:
@@ -103,4 +104,18 @@ jobs:
         run: |
           cargo install cargo-audit --locked
           cargo audit
+<% } %>
+<% if (_isSoloL3Plus) { %>
+  solo-reactivation-check:
+    name: Solo reactivation check (§11.10(k))
+    runs-on: <%- _runner %>
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Check solo-dev reactivation trigger
+        run: node scripts/check-solo-reactivation.mjs
+        env:
+          EXTERNAL_AUDIT: ${{ vars.EXTERNAL_AUDIT || 'false' }}
 <% } %>

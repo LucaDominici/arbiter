@@ -219,6 +219,7 @@ last_updated: '2026-06-07'
 - [[reference-task-recovery]]
 - [[reference-templates]]
 - [[reference-use-case-matrix]]
+- [[reference-workflow-pr-fast]]
 - [[rfc-0000-template]]
 - [[rfc-0001-plugin-api-v2]]
 - [[rfc-readme]]

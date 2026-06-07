@@ -1,0 +1,270 @@
+---
+title: 'CI Pipeline Mental Model — <%= projectName %>'
+doc_version: '1.0.0'
+governance_level: '<%= governanceLevel %>'
+---
+
+# CI Pipeline Mental Model — <%= projectName %>
+
+> **Purpose:** This document explains what runs at each pipeline stage, how long it takes,
+> and where it blocks. Generated for governance level **<%= governanceLevel %>**.
+
+---
+
+## Pipeline Overview
+
+This project uses a five-stage pipeline (T0 → T4) aligned with the DORA/Farley model:
+
+| Stage | Name | Trigger | Wall-clock target | Gating |
+|-------|------|---------|-------------------|--------|
+| T0 | Local pre-push | Dev machine | < 30 s | Blocks push (hook) |
+| T1 | PR-fast | PR open/sync | < 5 min (ceil 10) | **Blocking** |
+| T2 | PR-extended | Path/size/label | < 20 min | **Blocking when triggered** |
+| T3 | Release | Merge to main / tag | < 40 min | **Blocking** |
+| T4 | Nightly | Cron 02:00–03:00 UTC | Up to 4 h | Informational + alert |
+<% if (collaborationMode === 'trunk-solo') { %>
+| T4+ | Solo reactivation | Nightly (T4 run) | < 1 min | **Blocking if triggered** |
+<% } %>
+
+---
+
+## T0 — Local Pre-Push
+
+**Trigger:** `git push` (pre-push hook)
+**Wall-clock:** < 30 seconds
+**Gating:** Blocks push; developer must fix before pushing
+
+<% if (governanceLevel === 'L1') { %>
+At **L1**, T0 runs:
+- Format check (`<%= formatCommand ?? 'npx prettier --check .' %>`)
+- Lint (`<%= lintCommand ?? 'npm run lint' %>`)
+<% } %>
+<% if (governanceLevel === 'L2') { %>
+At **L2**, T0 runs:
+- Format check
+- Lint
+- Unit tests (`<%= testCommand ?? 'npm test' %>`)
+- Build (`<%= buildCommand ?? 'npm run build' %>`)
+<% } %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+At **<%= governanceLevel %>**, T0 runs:
+- Format check
+- Lint
+- Unit tests + coverage check
+- Build
+- Type-check
+- Debt ratchet (duplication + complexity must not regress)
+<% } %>
+
+**Script:** `node scripts/check-all.mjs L1` (pre-commit) + `node scripts/check-all.mjs L2` (pre-push)
+
+---
+
+## T1 — PR-Fast
+
+<% if (collaborationMode === 'trunk-solo') { %>
+> **trunk-solo mode:** No PR is required by default. T1 gates run as part of the pre-push hook
+> (L2 gate). The developer merges directly to main after local L2 passes.
+<% } else { %>
+**Trigger:** PR open or sync
+**Wall-clock:** < 5 minutes (ceil 10)
+**Gating:** Required check — merge is blocked until green
+
+What runs:
+<% if (governanceLevel === 'L1') { %>
+- Build + lint + unit tests
+<% } %>
+<% if (governanceLevel === 'L2') { %>
+- Build + lint + unit tests
+- Integration tests (subset)
+- SCA (dependency vulnerability scan)
+<% } %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+- Build + lint + unit tests + coverage
+- Integration tests (subset)
+- SCA + SAST baseline
+- Contract tests (if enabled)
+<% } %>
+
+**Workflow:** `.github/workflows/01-pr-fast.yml`
+<% } %>
+
+---
+
+## T2 — PR-Extended
+
+<% if (collaborationMode === 'trunk-solo') { %>
+> **trunk-solo mode:** T2 is not triggered for solo pushes. Full integration and security
+> scans run at T4 (nightly) instead.
+<% } else { %>
+**Trigger:** Large changeset, path-based labels, or manual dispatch
+**Wall-clock:** < 20 minutes
+**Gating:** Blocking when triggered
+
+What runs:
+- Full integration test suite
+- DAST baseline (ZAP/OWASP)
+- SCA deep scan
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+- Architecture tests (ArchUnit / boundaries)
+- Mutation test sample
+<% } %>
+
+**Workflow:** `.github/workflows/02-pr-extended.yml`
+<% } %>
+
+---
+
+## T3 — Release
+
+**Trigger:** Merge to main (or tag push)
+**Wall-clock:** < 40 minutes
+**Gating:** Blocking
+
+What runs:
+- Full build + test suite
+<% if (governanceLevel === 'L2' || governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+- SLSA provenance generation
+- Artifact signing (cosign keyless)
+- SBOM generation (CycloneDX)
+<% } %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+- Release notes generation
+- Container image build + push + sign
+<% } %>
+<% if (governanceLevel === 'L4') { %>
+- SLSA L3 provenance (slsa-github-generator)
+- Binary attestation pinning
+<% } %>
+
+**Workflow:** `.github/workflows/05-release.yml`
+
+---
+
+## T4 — Nightly
+
+**Trigger:** Cron 02:00–03:00 UTC + manual dispatch
+**Wall-clock:** Up to 4 hours
+**Gating:** Informational + alert (does not block PRs)
+
+What runs:
+<% if (governanceLevel === 'L1') { %>
+- Not enabled at L1
+<% } %>
+<% if (governanceLevel === 'L2') { %>
+<% if (collaborationMode === 'trunk-solo') { %>
+- Integration tests (full)
+- Dependency CVE refresh
+<% if (collaborationMode === 'trunk-solo') { %>
+- **Solo reactivation check** (`.scripts/check-solo-reactivation.mjs`)
+<% } %>
+<% } else { %>
+- Full nightly suite (mutation + DAST + soak)
+- Dependency CVE refresh
+- Gitleaks history scan
+<% } %>
+<% } %>
+<% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
+<% if (collaborationMode === 'trunk-solo') { %>
+- Integration tests (full)
+- Dependency CVE refresh
+- **Solo reactivation check** — counts distinct active authors trailing 30 days;
+  triggers error if ≥3 authors or `EXTERNAL_AUDIT=true` (see `SOLO_DEV_EXCEPTION.md`)
+<% } else { %>
+- Full mutation test suite
+- Full DAST scan
+- Extended soak / load tests
+- Dependency CVE refresh (all severities)
+- Gitleaks history scan
+- License audit
+- Architecture drift detection
+<% } %>
+<% } %>
+
+<% if (collaborationMode === 'trunk-solo') { %>
+**Workflow:** `.github/workflows/06-nightly-lite.yml` (trunk-solo uses lightweight nightly)
+<% } else { %>
+**Workflow:** `.github/workflows/06-nightly.yml`
+<% } %>
+
+---
+
+<% if (collaborationMode === 'trunk-solo' && (governanceLevel === 'L3' || governanceLevel === 'L4')) { %>
+## Solo Reactivation Check (T4+)
+
+**When:** Runs inside the nightly workflow (T4)
+**Wall-clock:** < 1 minute
+**Gating:** Hard failure — blocks the nightly run and alerts via workflow failure
+
+The reactivation check (`scripts/check-solo-reactivation.mjs`) detects when the
+project's team composition has grown beyond the single-developer threshold:
+
+| Condition | Threshold | Action |
+|-----------|-----------|--------|
+| Distinct active authors (30d) | ≥ 3 | Exit 1, print remediation |
+| `EXTERNAL_AUDIT=true` env var | any value | Exit 1, print remediation |
+
+**Remediation when triggered:**
+
+1. Update `arbiter.json`: `collaborationMode` → `"peer-review"` or `"gated-review"`
+2. Add `CODEOWNERS` file with required reviewers
+3. Enable branch protection: `required_approving_review_count: 1`
+4. Re-run `node arbiter update` to regenerate CI with full review gates
+
+This check is the technical enforcement of the reactivation trigger declared in
+`docs/governance/SOLO_DEV_EXCEPTION.md`.
+
+<% } %>
+
+---
+
+## Where Failures Block
+
+| Failure type | Where it blocks |
+|-------------|-----------------|
+| Format / lint | T0 (pre-push) — blocks push |
+| Unit tests | T0 (pre-push) — blocks push |
+| Build | T0 (pre-push) — blocks push |
+<% if (collaborationMode !== 'trunk-solo') { %>
+| Coverage threshold | T1 (PR-fast) — blocks merge |
+| Integration tests | T1/T2 (PR) — blocks merge |
+| SAST | T1/T2 (PR) — blocks merge |
+<% } else { %>
+| Coverage threshold | T0 (L2 pre-push hook) — blocks push |
+| Integration tests | T4 (nightly) — alerts; does not block push |
+<% } %>
+| Release artifact signing | T3 (release) — blocks release |
+<% if (collaborationMode === 'trunk-solo' && (governanceLevel === 'L3' || governanceLevel === 'L4')) { %>
+| Reactivation trigger | T4 (nightly) — alerts; requires immediate remediation |
+<% } %>
+| Nightly CVE scan (high+) | T4 (nightly) — alerts via workflow failure |
+
+---
+
+## Governance Level: <%= governanceLevel %> Summary
+
+<% if (governanceLevel === 'L1') { %>
+**L1 — Starter:** Format + lint + unit tests locally. No nightly. No mutation. Minimal CI.
+Best for: prototypes, internal tools, early-stage projects.
+<% } %>
+<% if (governanceLevel === 'L2') { %>
+**L2 — Standard:** Full local gate + PR CI with integration tests + nightly CVE refresh.
+Coverage threshold: 80%. SLSA L2 on releases. Best for: production services, team projects.
+<% } %>
+<% if (governanceLevel === 'L3') { %>
+**L3 — Regulated:** L2 + mutation testing + SAST + architecture tests + coverage 85%.
+<% if (collaborationMode === 'trunk-solo') { %>
+With `trunk-solo`: nightly reactivation check instead of PR reviewer gates.
+<% } %>
+Best for: regulated contexts, financial, healthcare, compliance-audited systems.
+<% } %>
+<% if (governanceLevel === 'L4') { %>
+**L4 — Maximum:** L3 + SLSA L3 provenance + SBOM + cosign attestation + binary pinning.
+Full audit trail for every artifact. Requires peer-review or gated-review collaboration mode
+for sustained operation (trunk-solo at L4 is blocked by arbiter coherence check).
+Best for: publicly audited, open-source critical infrastructure, regulated release pipelines.
+<% } %>
+
+---
+
+_Generated by arbiter. Review and update when pipeline configuration changes._
