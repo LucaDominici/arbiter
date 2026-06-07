@@ -741,8 +741,8 @@ jobs:
             echo "debt-ratchet failed"
             exit 1
           fi<% } %><% if (governanceLevel !== 'L1') { %>
-          if [[ "${{ needs.gate-full.result }}" == "failure" ]]; then
-            echo "gate-full (L2) failed"
+          if [[ "${{ needs.gate-full.result }}" != "success" && "${{ needs.gate-full.result }}" != "skipped" ]]; then
+            echo "gate-full (L2) failed or was cancelled"
             exit 1
           fi<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>
           if [[ "${{ needs.contract-verify.result }}" != "success" ]]; then

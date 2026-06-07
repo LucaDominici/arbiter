@@ -103,3 +103,13 @@ describe('ci-tier render parity — label references', () => {
     expect(Array.isArray(orphans)).toBe(true)
   })
 })
+
+describe('ci-tier render parity — gate-full operator strictness', () => {
+  it('gate-full ci-required check uses strict != success operator (not lenient == failure)', () => {
+    const rendered = renderTemplate('github/workflows/01-pr-fast.yml.ejs', fixture)
+    // Must catch skipped/cancelled gate-full, not just failure
+    // Use single-quotes: ${{ }} in template literals triggers JS expression parsing
+    expect(rendered).toContain('"${{ needs.gate-full.result }}" != "success"')
+    expect(rendered).not.toContain('"${{ needs.gate-full.result }}" == "failure"')
+  })
+})
