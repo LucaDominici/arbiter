@@ -181,6 +181,8 @@ runCheck('suppression expiry (anti-drift)', 'node', ['scripts/check-suppression-
 <% } %>
 // ─── L1: Inline suppression directives (INV-31) ──────────────────────────────
 runCheck('inline suppressions', 'node', ['scripts/check-inline-suppressions.mjs']);
+// ─── L1: Context-file lint (anti-drift, INV-89, #1266) ───────────────────────
+runCheck('claude-md lint', 'node', ['scripts/check-claude-md-lint.mjs']);
 // ─── L1: Workflow runner label enforcement (#191, inlined) ───────────────────
 {
   const _wrStart = Date.now();

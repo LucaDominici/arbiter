@@ -26,6 +26,8 @@ function emitW6DualTrack(
     'check-workflow-docs-sync.mjs',
     'check-workflow-test-integrity.mjs',
     'check-pr-size-gate.mjs',
+    // #1266: thin context-file linter (CLAUDE.md/AGENTS.md) — dual-track (arbiter self-gate + target).
+    'check-claude-md-lint.mjs',
   ]
   return scripts.map((name) =>
     writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
@@ -80,9 +82,10 @@ function emitF4Validators(
 /**
  * W6+F4 Anti-Drift Validator Family (INV-89)
  *
- * Emits 18 check-*.mjs scripts for target projects (#1152):
- * - W6 batch (10 scripts):
- *   - 8 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan)
+ * Emits 19 check-*.mjs scripts for target projects (#1152, #1266):
+ * - W6 batch (11 scripts):
+ *   - 9 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan;
+ *     check-claude-md-lint added #1266 — thin CLAUDE.md/AGENTS.md context-file linter)
  *   - 2 Track-B-only scripts (not wired in arbiter's own gate)
  * - F4 batch (8 scripts): remaining agnostic anti-drift validators
  *   (check-tier-coverage excluded — arbiter-self meta-gate, not target-portable)

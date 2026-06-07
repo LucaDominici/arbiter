@@ -17,9 +17,9 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('emits 18 scripts total (10 W6 + 8 F4) — #1152 dropped check-pii-scan + check-tier-coverage', () => {
+  it('emits 19 scripts total (11 W6 + 8 F4) — #1266 added check-claude-md-lint', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
-    expect(result.files).toHaveLength(18)
+    expect(result.files).toHaveLength(19)
   })
 
   it('does NOT emit check-pii-scan (duplicate of native pii-scan) or check-tier-coverage (arbiter-self meta-gate) (#1152)', () => {
@@ -40,12 +40,24 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-docs-sync.mjs',
       'check-workflow-test-integrity.mjs',
       'check-pr-size-gate.mjs',
+      'check-claude-md-lint.mjs',
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
     ]
     for (const name of expected) {
       expect(paths.some((p) => p.endsWith(name))).toBe(true)
     }
+  })
+
+  it('emits check-claude-md-lint.mjs as a dual-track context-file linter (#1266)', () => {
+    const paths = generateAntiDriftValidators(makeConfig(dir)).files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('check-claude-md-lint.mjs'))).toBe(true)
+    const content = readFileSync(join(dir, 'scripts', 'check-claude-md-lint.mjs'), 'utf-8')
+    expect(content).toMatch(/^#!/)
+    expect(content).toContain('--help')
+    expect(content).toContain('INV-89')
+    expect(content).not.toContain('<%')
+    expect(content).not.toContain('%>')
   })
 
   it('emits all F4 script paths', () => {

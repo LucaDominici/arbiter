@@ -158,6 +158,7 @@ if (isMain) {
   runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])
   runCheck('doc links', 'node', ['scripts/check-doc-links.mjs'])
   runCheck('doc style', 'node', ['scripts/check-doc-style.mjs'])
+  runCheck('claude-md lint (#1266)', 'node', ['scripts/check-claude-md-lint.mjs'])
   runCheck('doc index (#1102)', 'node', ['scripts/gen-doc-index.mjs', '--check'])
   runCheck('status dashboard', 'node', ['scripts/gen-status.mjs', '--check'])
   runCheck('gap register', 'node', ['scripts/gen-gap.mjs', '--check'])
