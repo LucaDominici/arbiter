@@ -44,23 +44,23 @@ menu is always-on and spans every overlay; the mapping doc is overlay-specific.
 
 ### Axis 1 — Team (`collaborationMode`)
 
-| Mode           | Branching                  | Merge ceremony                         |
-| -------------- | -------------------------- | -------------------------------------- |
-| `trunk-solo`   | `trunk-direct`             | direct push or opt-in PR fast-forward  |
-| `peer-review`  | `github-flow`              | mandatory PR, ff-only merge            |
+| Mode           | Branching                  | Merge ceremony                               |
+| -------------- | -------------------------- | -------------------------------------------- |
+| `trunk-solo`   | `trunk-direct`             | direct push or opt-in PR fast-forward        |
+| `peer-review`  | `github-flow`              | mandatory PR, ff-only merge                  |
 | `gated-review` | `github-flow-with-develop` | required approvals, merge queue, attestation |
 
 ### Axis 2 — Compliance (`industryOverlay`)
 
-| Overlay    | Weight | Emits                                                               |
-| ---------- | ------ | ------------------------------------------------------------------- |
-| `none`     | —      | nothing                                                             |
-| `generic`  | light  | language-neutral audit-trail policy + gate rules                    |
-| `sox`      | medium | SOX audit-trail docs + gate rules                                   |
-| `gdpr`     | medium | GDPR controls→gates traceability                                   |
-| `iso9001`  | medium | quality-process RTM + doc-control + CAPA + gate                     |
-| `iso27001` | heavy  | ISO 27001:2022 Annex-A security controls→gates                     |
-| `pharma`   | heavy  | 21 CFR Part 11 audit-trail overlay                                  |
+| Overlay    | Weight | Emits                                            |
+| ---------- | ------ | ------------------------------------------------ |
+| `none`     | —      | nothing                                          |
+| `generic`  | light  | language-neutral audit-trail policy + gate rules |
+| `sox`      | medium | SOX audit-trail docs + gate rules                |
+| `gdpr`     | medium | GDPR controls→gates traceability                 |
+| `iso9001`  | medium | quality-process RTM + doc-control + CAPA + gate  |
+| `iso27001` | heavy  | ISO 27001:2022 Annex-A security controls→gates   |
+| `pharma`   | heavy  | 21 CFR Part 11 audit-trail overlay               |
 
 ## Coherence rules (`overlay × governanceLevel`)
 
@@ -69,11 +69,11 @@ Extends ADR-051's coherence machinery
 expect L3+ rigour; medium overlays expect L2+. The check returns `WARN` (advisory)
 or `OK`, never `CRITICAL`: an overlay never structurally breaks generation.
 
-| Overlay weight                       | L1   | L2   | L3 | L4 |
-| ------------------------------------ | ---- | ---- | -- | -- |
-| light (`generic`)                    | OK   | OK   | OK | OK |
-| medium (`sox`, `gdpr`, `iso9001`)    | WARN | OK   | OK | OK |
-| heavy (`iso27001`, `pharma`)         | WARN | WARN | OK | OK |
+| Overlay weight                    | L1   | L2   | L3  | L4  |
+| --------------------------------- | ---- | ---- | --- | --- |
+| light (`generic`)                 | OK   | OK   | OK  | OK  |
+| medium (`sox`, `gdpr`, `iso9001`) | WARN | OK   | OK  | OK  |
+| heavy (`iso27001`, `pharma`)      | WARN | WARN | OK  | OK  |
 
 `arbiter doctor` surfaces the `WARN` for the configured cell; the wizard surfaces it
 inline after the overlay prompt. Neither blocks — the user chooses to proceed or

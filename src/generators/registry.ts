@@ -51,6 +51,7 @@ import { generateFrontendGovernance } from './frontend-governance.js'
 import { generateFrontendQuality } from './frontend-quality.js'
 import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
+import { generateComplianceMenu } from './compliance-menu.js'
 import { generatePharma } from './pharma.js'
 import { generateIso27001 } from './iso27001.js'
 import { generateIso9001 } from './iso9001.js'
@@ -347,6 +348,13 @@ function buildGovernanceOverlaySpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'iso9001',
       enabled: config.industryOverlay === 'iso9001',
       run: (opts) => generateIso9001(config, opts).files,
+    },
+    {
+      // #1254: (team × compliance) menu doc. Always-on onboarding aid presenting
+      // every collaborationMode × industryOverlay cell + (overlay × level) coherence.
+      key: 'compliance-menu',
+      enabled: true,
+      run: (opts) => generateComplianceMenu(config, opts).files,
     },
     {
       // 'solo-exception' → §11.10(k) regulated single-dev pack: attestation doc,

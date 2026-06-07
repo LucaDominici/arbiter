@@ -48,6 +48,7 @@ export type GeneratorKey =
   | 'operations'
   | 'risk-register'
   | 'compliance'
+  | 'compliance-menu'
   | 'pharma'
   | 'iso27001-controls'
   | 'iso9001'
