@@ -113,7 +113,16 @@ function extractProhibitions(docPath, body) {
       }
       if (BULLET.test(line)) {
         blockHasBullet = true
-        const toks = tokensIn(line)
+        let toks = []
+        let markerFound = false
+        for (const marker of INLINE_MARKERS) {
+          if (marker.test(line)) {
+            toks = tokensAfter(line, marker)
+            markerFound = true
+            break
+          }
+        }
+        if (!markerFound) toks = tokensIn(line)
         if (toks.length === 0)
           out.push({ doc: docPath, line: i + 1, text: line.trim(), token: null })
         else
@@ -168,11 +177,14 @@ function tokenToRegExp(tok) {
 
 // ─── Enforcer existence verification (anti-fiction, CANON-23) ─────────────────
 const CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/
+let scanIncomplete = false
 function walk(dir, acc) {
   let entries
   try {
     entries = readdirSync(dir)
-  } catch {
+  } catch (err) {
+    process.stderr.write(`[SCAN-INCOMPLETE] cannot read dir ${dir}: ${err.message}\n`)
+    scanIncomplete = true
     return acc
   }
   for (const e of entries) {
@@ -181,7 +193,9 @@ function walk(dir, acc) {
     let st
     try {
       st = statSync(full)
-    } catch {
+    } catch (err) {
+      process.stderr.write(`[SCAN-INCOMPLETE] cannot stat ${full}: ${err.message}\n`)
+      scanIncomplete = true
       continue
     }
     if (st.isDirectory()) walk(full, acc)
@@ -278,7 +292,9 @@ function main() {
       let content
       try {
         content = readFileSync(f, 'utf8')
-      } catch {
+      } catch (err) {
+        process.stderr.write(`[SCAN-INCOMPLETE] cannot read ${f}: ${err.message}\n`)
+        scanIncomplete = true
         continue
       }
       if (re.test(content)) return f.startsWith(root) ? f.slice(root.length + 1) : f
@@ -336,6 +352,12 @@ function main() {
   if (violations > 0) {
     process.stdout.write(
       `[check-constraint-scan] FAIL: ${violations} unenforced prohibition violation(s)\n`,
+    )
+    process.exit(1)
+  }
+  if (scanIncomplete && args.enforce) {
+    process.stdout.write(
+      '[check-constraint-scan] FAIL: scan incomplete — some source files could not be read\n',
     )
     process.exit(1)
   }

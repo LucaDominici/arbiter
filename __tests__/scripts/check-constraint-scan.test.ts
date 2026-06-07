@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, chmodSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -232,6 +232,60 @@ describe('check-constraint-scan.mjs (INV-115) — derivation & classification', 
       const r = run([`--docs=${join(dir, 'absent.md')}`, `--src=${dir}`, `--map=${map}`])
       expect(r.status).toBe(1)
       expect(r.stderr).toContain('no governance docs found')
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+describe('check-constraint-scan.mjs (INV-115) — #1215 follow-ups', () => {
+  it('14. Never-block bullet: "use `x`, never `y`" — only `y` extracted (not `x`)', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Use `approvedHelper()`, never `forbiddenCall()`\n')
+      const src = writeSrc(dir, { 'good.ts': 'approvedHelper()\n' })
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${src}`, `--map=${map}`])
+      // approvedHelper is the approved token BEFORE the never marker — must NOT be extracted
+      expect(r.stdout).not.toContain('approvedHelper')
+      // forbiddenCall appears in source but is not in the output because there is no hit
+      // (the src only has approvedHelper). The test proves approvedHelper is not treated as prohibited.
+      expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('15. IO error: unreadable src dir + --enforce → exit 1 + [SCAN-INCOMPLETE] in stderr', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenIOToken()`\n')
+      const srcDir = join(dir, 'src')
+      mkdirSync(srcDir, { recursive: true })
+      // make the src dir unreadable so walk() readdirSync fails
+      chmodSync(srcDir, 0o000)
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${srcDir}`, `--map=${map}`, '--enforce'])
+      chmodSync(srcDir, 0o755) // restore for cleanup
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('[SCAN-INCOMPLETE]')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('16. IO error: unreadable source file + --enforce → exit 1 + [SCAN-INCOMPLETE] in stderr', () => {
+    const { dir, cleanup } = fixture()
+    try {
+      const doc = writeDoc(dir, '**Never:**\n\n- Call `unreadableHit()`\n')
+      const srcDir = writeSrc(dir, { 'secret.ts': 'unreadableHit()\n' })
+      // make the file unreadable so liveHit() readFileSync fails
+      chmodSync(join(srcDir, 'secret.ts'), 0o000)
+      const map = writeMap(dir, {})
+      const r = run([`--docs=${doc}`, `--src=${srcDir}`, `--map=${map}`, '--enforce'])
+      chmodSync(join(srcDir, 'secret.ts'), 0o644) // restore for cleanup
+      expect(r.status).toBe(1)
+      expect(r.stderr).toContain('[SCAN-INCOMPLETE]')
     } finally {
       cleanup()
     }
