@@ -2,8 +2,8 @@
   "$schemaVersion": 1,
   "task_id": "#1230",
   "test_path": "__tests__/scripts/check-workflow-cache-strategy.test.ts",
-  "test_commit_sha": "c2f85872080572db261eed19c41b38ba1c0af6a1",
-  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1230-workflow-cache-strategy\n\n Test Files  1 failed (1)\n      Tests  15 failed (15)\n   Start at  16:04:24\n   Duration  330ms (transform 22ms, setup 13ms, import 17ms, tests 233ms, environment 0ms)\n\n\nAll 15 tests fail when scripts/check-workflow-cache-strategy.mjs does not exist (MODULE_NOT_FOUND).\nEach test calls run(dir) which spawns 'node [SCRIPT]' — exits 1 (not the expected 0/1/2) when script missing.\n",
+  "test_commit_sha": "25f40cc96691b5d279dffc6648f26b2f53efe5b1",
+  "test_run_log": " FAIL  __tests__/scripts/check-workflow-cache-strategy.test.ts > check-workflow-cache-strategy.mjs — integration on real templates > exits 0 when run against the actual arbiter repo templates\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n ❯ __tests__/scripts/check-workflow-cache-strategy.test.ts:414:20\n\n Test Files  1 failed (1)\n      Tests  15 failed (15)\n   Start at  19:15:54\n   Duration  321ms\n\nAll 15 tests fail when scripts/check-workflow-cache-strategy.mjs does not exist (MODULE_NOT_FOUND) or returns wrong exit code.\n",
   "observed_failure": "FAIL  __tests__/scripts/check-workflow-cache-strategy.test.ts (15/15 tests)",
   "recorded_at": "2026-06-07T13:59:00.000Z"
 }
