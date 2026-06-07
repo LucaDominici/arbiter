@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/plans/planning-skeleton-migration-plan.md'
 source_sha: 'c1781b0bc45da36900a0fed661998c925b4cb391'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Planning Skeleton Migration Plan

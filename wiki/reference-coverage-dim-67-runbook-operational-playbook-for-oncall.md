@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-67-runbook-operational-playbook-for-oncall.md'
 source_sha: 'b8af4c374b41b96d394d17bff2cf17ea38d77308'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N67: Runbook (operational playbook for oncall)

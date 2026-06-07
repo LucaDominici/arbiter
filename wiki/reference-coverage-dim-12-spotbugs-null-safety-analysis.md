@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-12-spotbugs-null-safety-analysis.md'
 source_sha: 'b8cb5352acad663b042c5e583b580dd02d467d35'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N12: SpotBugs / null-safety analysis

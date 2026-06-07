@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-66-api-openapi-specification.md'
 source_sha: '33930400707dd71f4b67e4d89a9b4b525f5e155b'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N66: API / OpenAPI specification

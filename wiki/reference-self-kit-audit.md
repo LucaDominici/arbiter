@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/SELF-KIT-AUDIT.md'
 source_sha: '396195d74f87da8fb9c64c7611374ebeb0009b3b'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # REFERENCE/SELF-KIT-AUDIT

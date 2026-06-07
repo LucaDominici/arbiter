@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-59-commit-message-format-enforced-commitlint.md'
 source_sha: '4ab20800fab17decd0a791d6124b97320705244f'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N59: Commit message format enforced (commitlint)

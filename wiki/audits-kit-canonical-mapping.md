@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/kit-canonical-mapping.md'
 source_sha: '3bb150bc460bc9b73a3d732cd127e604ebb9d8ae'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # KIT Canonical Mapping

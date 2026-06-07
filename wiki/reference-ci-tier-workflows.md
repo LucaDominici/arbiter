@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/ci-tier-workflows.md'
 source_sha: 'bc847413b9cd0f761f447526e89bfe3d2f7f76cb'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # CI Tier Workflows — Reference

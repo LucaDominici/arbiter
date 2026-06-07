@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GOVERNANCE/GOOD-FIRST-ISSUE-POLICY.md'
 source_sha: 'a4383cb804b22296b07f9f64c6e805021ca91fb6'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Good First Issue Policy

@@ -42,7 +42,17 @@
             "timeout": 90
           }
         ]
-      }
+      }<% if (governanceLevel !== 'L1') { %>,
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/hooks.mjs PostToolUse:ExitPlanMode",
+            "timeout": 3
+          }
+        ]
+      }<% } %>
     ],
     "PostToolUseFailure": [
       {

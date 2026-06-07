@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/detector-error-policy.md'
 source_sha: '7e40c36eb8ff26adaaba9edcb88c09904a3047df'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Detector Error Policy

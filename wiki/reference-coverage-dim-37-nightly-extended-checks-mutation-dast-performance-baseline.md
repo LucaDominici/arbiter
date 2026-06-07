@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-37-nightly-extended-checks-mutation-dast-performance-baseline.md'
 source_sha: '0ee0ccce6d72d212c57f81d910ad845b60b117d7'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N37: Nightly extended checks (mutation, DAST, performance baseline)

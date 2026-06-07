@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/cross-repo-kit-coverage-2026-05-29.md'
 source_sha: 'f1bac4207453e1f6fb9de6b8eb58d620c763a7a3'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Cross-Repo Kit-Coverage Audit — 2026-05-29

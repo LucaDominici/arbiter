@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/CONTEXT_SLICE_SPEC.md'
 source_sha: '13c92ac3fd88b7a59cd67e710789d49f68e6d507'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # CONTEXT_SLICE Specification — arbiter

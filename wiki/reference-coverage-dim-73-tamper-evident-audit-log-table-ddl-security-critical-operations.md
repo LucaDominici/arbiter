@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-73-tamper-evident-audit-log-table-ddl-security-critical-operations.md'
 source_sha: 'd877f91057b3797a7349f9096e40b515bda60968'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N73: Tamper-evident audit log table DDL (security-critical operations)

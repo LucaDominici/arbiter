@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/TEST_TAXONOMY.md'
 source_sha: '5fa7979d614aaa1ab98b8fbf7c868daf4c60581e'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Test Taxonomy — arbiter

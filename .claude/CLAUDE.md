@@ -66,6 +66,7 @@ Configured in `.claude/settings.json`. Active hooks:
 | `UserPromptSubmit` → \*     | `skill-forced-eval.mjs`       | Enforce skill invocation before responses                                   |
 | `UserPromptSubmit` → \*     | `guard-task-completion.mjs`   | Warn on premature task-completion claims                                    |
 | `Stop` → \*                 | `stop-evidence-guard.mjs`     | Block completion claims without correlated evidence (INV-114, #1212)        |
+| `PostToolUse` → ExitPlanMode | `exitplanmode-banner.mjs`     | Print next-step banner after plan mode ends (#1210)                         |
 | `PreCompact` → \*           | `pre-compact.mjs`             | Persist context before auto-compaction                                      |
 
 ### Slash Commands

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-74-audit-trigger-presence-db-level-audit-trigger-enforced.md'
 source_sha: 'f9d0d453773407bd9782061c95b21a55bff15705'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N74: Audit trigger presence (DB-level audit trigger enforced)

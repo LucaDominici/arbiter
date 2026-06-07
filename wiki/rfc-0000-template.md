@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/rfc/0000-template.md'
 source_sha: '0a2f824f8bbb4fb83063c203c38d12bcbaf57119'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # RFC title

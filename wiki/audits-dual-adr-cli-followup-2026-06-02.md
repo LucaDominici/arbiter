@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/dual-adr-cli-followup-2026-06-02.md'
 source_sha: '60b62ba777fe119baed951a64c67439b875bbf48'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Follow-up — dual-ADR consolidation + CLI-ref gate (deferred from parity-gates wave)

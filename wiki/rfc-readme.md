@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/rfc/README.md'
 source_sha: '68ebd0f0b95c5a1fe89eab9690b29ca8646ee8fe'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # RFC Process

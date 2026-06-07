@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/TEMPLATE-SYSTEM.md'
 source_sha: '5b43f17bf2a8e135fe25702facc3f5ad78f45ff4'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Template System

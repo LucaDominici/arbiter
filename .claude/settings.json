@@ -102,6 +102,16 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/exitplanmode-banner.mjs",
+            "timeout": 3
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

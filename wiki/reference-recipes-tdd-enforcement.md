@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/tdd-enforcement.md'
 source_sha: '33d2b2baf89375af44e0d9b7dfb9ad99cbb67ac8'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Recipe: TDD Evidence Enforcement (INV-26)

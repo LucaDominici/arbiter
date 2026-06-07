@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/perf-debugging.md'
 source_sha: '7d3342f16e52cfa81a40705ae3a738c9bfa5c076'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Recipe — Profiling a slow arbiter command

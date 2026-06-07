@@ -60,6 +60,11 @@ const HANDLERS = {
     'pre-compact.mjs',
   ],
 <%  if (governanceLevel !== 'L1') { -%>
+  'PostToolUse:ExitPlanMode': [
+    'exitplanmode-banner.mjs',
+  ],
+<%  } -%>
+<%  if (governanceLevel !== 'L1') { -%>
   'UserPromptSubmit': [
     'skill-forced-eval.mjs',
     'guard-task-completion.mjs',

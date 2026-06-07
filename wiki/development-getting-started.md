@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/DEVELOPMENT/GETTING-STARTED.md'
 source_sha: 'd358881ca76f7e01ce400f18fdac56440be64aa0'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Getting Started — Development Guide

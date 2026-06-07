@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-60-branch-naming-convention-enforced.md'
 source_sha: '8756c01642c66753cf063e879948986d30c92304'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N60: Branch naming convention enforced

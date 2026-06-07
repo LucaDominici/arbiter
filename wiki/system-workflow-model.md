@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/WORKFLOW-MODEL.md'
 source_sha: 'ff72d51df98c6b9c08d0de1602c145dead5a72bd'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Arbiter Workflow Model

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-20-mutation-testing-piteststrykermutmutgo-mutestingcargo-mutants.md'
 source_sha: '3a635cacb50661bbd71c79862a44d1f70e33437f'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N20: Mutation testing (pitest/stryker/mutmut/go-mutesting/cargo-mutants)

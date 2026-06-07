@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/DOC_SEMVER.md'
 source_sha: 'b06df8152e723198591cdb36e3810fb18829388a'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Document Semver Policy (doc_version)

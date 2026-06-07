@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-62-issue-templates-bug-feature-tech-debt.md'
 source_sha: '67779771092bcf072876e89e446f1cb25a25b693'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N62: Issue templates (bug, feature, tech-debt)

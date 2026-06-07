@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-39-ci-runner-label-ssot-no-hardcoded-runner-strings.md'
 source_sha: '1f25a62a23573d4690e71d799d1a54f4d08354f3'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N39: CI runner label SSOT (no hardcoded runner strings)

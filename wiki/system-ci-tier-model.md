@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/CI-TIER-MODEL.md'
 source_sha: 'b82cf70d8c2829a7ee4d0347d917b24fe10c6bb5'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)

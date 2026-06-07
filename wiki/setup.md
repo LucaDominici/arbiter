@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SETUP.md'
 source_sha: '091ac6e861ec31a66d07d0ef70ceaf7115893f97'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Repository Setup (CANON-01)

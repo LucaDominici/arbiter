@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/CODING_STANDARDS.md'
 source_sha: '38fd0e4411d5de52fe55513523c638583f169254'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Coding Standards

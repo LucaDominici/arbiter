@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/api/README.md'
 source_sha: '3db3e14b183ed49b897355a7dbd81dc8e3b6ce7a'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter Public API

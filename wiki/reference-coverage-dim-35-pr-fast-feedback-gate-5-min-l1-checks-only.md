@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-35-pr-fast-feedback-gate-5-min-l1-checks-only.md'
 source_sha: 'e6e45f6404fceca405924f9516e8ec85845b7f94'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N35: PR fast-feedback gate (&lt;5 min, L1 checks only)

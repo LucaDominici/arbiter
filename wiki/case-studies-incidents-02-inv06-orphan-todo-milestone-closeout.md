@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/incidents/02-inv06-orphan-todo-milestone-closeout.md'
 source_sha: 'dde7d11841a42477509bb7c010436e69a9c78f9a'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Incident: INV-06 (orphan TODO) caught during milestone closeout

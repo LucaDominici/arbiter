@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/evidence-bundle.md'
 source_sha: 'e36341d0a9553787693e299f1eefdda214322901'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Architecture: Evidence Bundle Schema (INV-90)

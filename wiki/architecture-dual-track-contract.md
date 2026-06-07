@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/dual-track-contract.md'
 source_sha: '705f90ea4f6c73e0320977222f389ba40ef2cb2d'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Dual-Track Contract

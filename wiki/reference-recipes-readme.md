@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/README.md'
 source_sha: '51db2b501c629f3e3e50a335a7be7fb9c67f71f7'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter Recipes

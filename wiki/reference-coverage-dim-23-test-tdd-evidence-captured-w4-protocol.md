@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-23-test-tdd-evidence-captured-w4-protocol.md'
 source_sha: 'baa9eb43db855b0d91561210c4310156c052ea8f'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N23: Test TDD evidence captured (W4 protocol)

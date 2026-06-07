@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-65-architecture-decision-records-adrs.md'
 source_sha: '507bf606d8f98ab47b8d286b636dfc27f71ba930'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N65: Architecture decision records (ADRs)

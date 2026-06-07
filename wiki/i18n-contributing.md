@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/i18n/CONTRIBUTING.md'
 source_sha: '731753bad139ce85cd4dbae09fa91d48f85063a0'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # Contributing translations

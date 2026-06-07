@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/SSOT_CORE_SET.md'
 source_sha: '7207237690fbdc0073d9d825e712dadcc7a9cfa8'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # SSOT Core Set — arbiter

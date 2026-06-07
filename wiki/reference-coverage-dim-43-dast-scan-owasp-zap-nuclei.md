@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-43-dast-scan-owasp-zap-nuclei.md'
 source_sha: 'ca395b134d86d56f0e246074c42525b48f6f5b6e'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N43: DAST scan (OWASP ZAP / Nuclei)

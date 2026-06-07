@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/WHAT-ARBITER-IS-NOT.md'
 source_sha: 'a8dd15f2d8b5754d0861b5d410182735fbf656b5'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # What arbiter Is NOT

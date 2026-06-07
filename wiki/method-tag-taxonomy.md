@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/TAG_TAXONOMY.md'
 source_sha: 'fbe31ffa9cc04fe11523b41807d5469f1d0da381'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter Tag Taxonomy

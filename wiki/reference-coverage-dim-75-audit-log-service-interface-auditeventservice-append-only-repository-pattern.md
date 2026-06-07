@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-75-audit-log-service-interface-auditeventservice-append-only-repository-pattern.md'
 source_sha: '48c213f63d80f5e48b4c454858b411236d40b0ac'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N75: Audit log service interface (AuditEventService / append-only repository pattern)

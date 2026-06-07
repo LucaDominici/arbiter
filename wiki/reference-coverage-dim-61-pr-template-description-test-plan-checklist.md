@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-61-pr-template-description-test-plan-checklist.md'
 source_sha: 'f4b7bdfe19b0c11c6b7bd425e1f8c68664a609e2'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N61: PR template (description, test plan, checklist)

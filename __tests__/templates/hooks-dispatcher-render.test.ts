@@ -168,3 +168,20 @@ describe('hooks/hooks.mjs.ejs — dispatcher template (#248)', () => {
     expect(out).toContain('my-proj')
   })
 })
+
+describe('hooks/hooks.mjs.ejs — ExitPlanMode handler (#1210)', () => {
+  it('includes PostToolUse:ExitPlanMode key at L2', () => {
+    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
+    expect(out).toContain('PostToolUse:ExitPlanMode')
+  })
+
+  it('includes exitplanmode-banner.mjs in dispatcher at L2', () => {
+    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L2'))
+    expect(out).toContain('exitplanmode-banner.mjs')
+  })
+
+  it('does NOT include PostToolUse:ExitPlanMode at L1', () => {
+    const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L1'))
+    expect(out).not.toContain('PostToolUse:ExitPlanMode')
+  })
+})

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/COMMUNITY/DISCUSSIONS.md'
 source_sha: '3cf8e33a437fdc5cc83eee972192498e0ff7848a'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # arbiter GitHub Discussions

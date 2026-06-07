@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-50-bloat-ratchet-bundle-size-generated-artifact-size.md'
 source_sha: 'c3eff59af29f91c174cbc0f8cb78dc1b9bd75600'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N50: Bloat ratchet (bundle size / generated artifact size)

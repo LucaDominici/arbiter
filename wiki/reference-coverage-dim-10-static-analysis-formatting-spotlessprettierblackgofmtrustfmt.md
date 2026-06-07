@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-10-static-analysis-formatting-spotlessprettierblackgofmtrustfmt.md'
 source_sha: '3235d342aa2bfeef2d5e4fe25dbce6666c91ee34'
-last_updated: '2026-06-06'
+last_updated: '2026-06-07'
 ---
 
 # N10: Static analysis: formatting (spotless/prettier/black/gofmt/rustfmt)
