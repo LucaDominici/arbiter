@@ -42,6 +42,13 @@ describe('exitplanmode-banner hook (#1210)', () => {
     expect(stdout).toMatch(/Plan mode ended/)
   })
 
+  it('prints banner to stdout when phase is "red-team-review" on a task branch', () => {
+    writeTaskStateFile(dir, { taskId: '#1210', phase: 'red-team-review' })
+    const { stdout, status } = runHook(dir)
+    expect(status).toBe(0)
+    expect(stdout).toMatch(/Plan mode ended/)
+  })
+
   it('is silent when phase is "complete" on a task branch', () => {
     writeTaskStateFile(dir, { taskId: '#1210', phase: 'complete' })
     const { stdout, status } = runHook(dir)

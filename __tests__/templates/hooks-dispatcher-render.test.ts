@@ -183,5 +183,6 @@ describe('hooks/hooks.mjs.ejs — ExitPlanMode handler (#1210)', () => {
   it('does NOT include PostToolUse:ExitPlanMode at L1', () => {
     const out = renderTemplate('claude/hooks/hooks.mjs.ejs', configFor('typescript', 'L1'))
     expect(out).not.toContain('PostToolUse:ExitPlanMode')
+    expect(out).not.toContain('exitplanmode-banner.mjs')
   })
 })
