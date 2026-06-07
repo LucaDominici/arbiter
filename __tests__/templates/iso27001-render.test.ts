@@ -110,3 +110,38 @@ describe('ISO27001_ANNEX_A.md.ejs (#217)', () => {
     expect(rendered).toMatch(/[Gg]ap|❌/)
   })
 })
+
+// CANON-04: render tests for the ISO 27001 Annex-A controls→gate overlay template
+// (#1252). The #1252 lane shipped only a generator test under __tests__/generators/;
+// this block, added at M4-overlay integration (#1248), restores parity with the gdpr
+// (#1251) and iso9001 (#1253) render tests and keeps the template-tests ratchet honest.
+describe('audit/iso27001/iso27001-controls-gate-map.md.ejs (CANON-04, #1252)', () => {
+  function renderOverlay(): string {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      industryOverlay: 'iso27001',
+    } as Parameters<typeof makeConfig>[1]) as unknown as Record<string, unknown>
+    return renderTemplate('audit/iso27001/iso27001-controls-gate-map.md.ejs', data)
+  }
+
+  it('renders without unrendered EJS markers', () => {
+    const out = renderOverlay()
+    expect(out).not.toContain('<%')
+    expect(out).not.toContain('%>')
+  })
+
+  it('binds the enforceable Annex-A controls to fail-closed gates', () => {
+    const out = renderOverlay()
+    for (const control of ['A.8.25', 'A.8.26', 'A.8.28', 'A.8.29', 'A.8.32']) {
+      expect(out).toContain(control)
+    }
+    expect(out).toContain('INV-119')
+    expect(out).toContain('gitleaks')
+  })
+
+  it('interpolates project + overlay context without leaking undefined', () => {
+    const out = renderOverlay()
+    expect(out).not.toContain('undefined')
+    expect(out).toContain('industryOverlay: iso27001')
+  })
+})
