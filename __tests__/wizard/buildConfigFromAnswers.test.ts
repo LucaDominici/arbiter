@@ -113,6 +113,31 @@ describe('buildConfigFromAnswers — deployTarget derivation (#1005)', () => {
   })
 })
 
+describe('buildConfigFromAnswers — industryOverlay axis (#1254)', () => {
+  it('threads the chosen industryOverlay answer into the ProjectConfig', () => {
+    const config = buildConfigFromAnswers(
+      makeInput(),
+      makeAnswers({ industryOverlay: 'iso27001', governanceLevel: 'L3' }),
+    )
+    expect(config.industryOverlay).toBe('iso27001')
+  })
+
+  it('omits industryOverlay when the answer is absent (treated as none downstream)', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers())
+    expect(config.industryOverlay === undefined || config.industryOverlay === 'none').toBe(true)
+  })
+
+  it('end-to-end: a chosen overlay cell enables the matching registry spec', async () => {
+    const { buildRegistry } = await import('../../src/generators/registry.js')
+    const config = buildConfigFromAnswers(
+      makeInput(),
+      makeAnswers({ industryOverlay: 'iso9001', governanceLevel: 'L2' }),
+    )
+    const spec = buildRegistry(config).find((s) => s.key === 'iso9001')
+    expect(spec?.enabled).toBe(true)
+  })
+})
+
 describe('buildConfigFromAnswers — language override (#1036)', () => {
   it('uses answers.language, not input.language', () => {
     const input = { ...makeInput(), language: 'typescript' as const }

@@ -46,6 +46,12 @@ export interface WizardAnswers {
   pipelineStyle?: 'starter' | 'standard' | 'industrial'
   /** Brownfield class: how mature the target repo is. Auto-detected; user can override. */
   brownfieldClass?: 'gold' | 'light' | 'medium' | 'heavy'
+  /**
+   * #1254: industry compliance overlay axis surfaced in the wizard. Absent = 'none'.
+   * Drives the gdpr/iso27001/iso9001/pharma overlay generators and the
+   * (overlay × governanceLevel) coherence advisory.
+   */
+  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'none'
 }
 
 export interface MigrationPlan {

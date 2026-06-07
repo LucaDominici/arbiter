@@ -43,6 +43,7 @@ interface ClackAnswers {
   collaborationMode?: string
   pipelineStyle?: string
   brownfieldClass?: string
+  industryOverlay?: string
   /** Final "Proceed?" confirmation. Defaults to true. */
   proceed?: boolean
 }
@@ -73,6 +74,7 @@ function setupClack(answers: ClackAnswers): void {
     if (message.startsWith('Collaboration mode')) return answers.collaborationMode
     if (message.startsWith('Pipeline style')) return answers.pipelineStyle
     if (message.startsWith('Brownfield class')) return answers.brownfieldClass
+    if (message.startsWith('Industry compliance overlay')) return answers.industryOverlay
     return undefined
   })
 }
@@ -252,6 +254,54 @@ describe('runWizard greenfield flow', () => {
     expect(result).not.toBeNull()
     expect(result!.tools).toEqual(['claude'])
     expect(result!.governanceLevel).toBe('L2')
+  })
+
+  // #1254: overlay axis surfaced as a wizard prompt + resulting-cell advisory.
+  it('threads the selected industryOverlay into the resulting config', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L3',
+      industryOverlay: 'iso27001',
+      proceed: true,
+    })
+    const result = await runWizard(makeWizardInput())
+    expect(result!.industryOverlay).toBe('iso27001')
+  })
+
+  it('prints the resulting (team × compliance) cell summary after the overlay choice', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L3',
+      collaborationMode: 'gated-review',
+      industryOverlay: 'pharma',
+      proceed: true,
+    })
+    await runWizard(makeWizardInput())
+    const out = writeSpy.mock.calls.map((c) => String(c[0])).join('')
+    writeSpy.mockRestore()
+    // the advisory must name the chosen cell and what it produces
+    expect(out).toMatch(/pharma/)
+    expect(out).toMatch(/gated-review|branching|gates|overlay/i)
+  })
+
+  it('warns when a heavy overlay is chosen under lenient governance (pharma @ L1)', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L1',
+      industryOverlay: 'pharma',
+      proceed: true,
+    })
+    await runWizard(makeWizardInput())
+    const out = writeSpy.mock.calls.map((c) => String(c[0])).join('')
+    writeSpy.mockRestore()
+    expect(out).toMatch(/pharma/)
+    // the L1+heavy advisory should surface (WARN copy mentions governanceLevel)
+    expect(out).toMatch(/governanceLevel|heavy|coherent|⚠/i)
   })
 
   it('returns null when user cancels at confirmation', async () => {

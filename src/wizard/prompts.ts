@@ -29,8 +29,14 @@ import { ARCHETYPE_DB_SET } from '../detectors/axis.js'
 import { defaultContractType, shouldAskContractType } from './archetype-defaults.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
 import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
-import { collaborationModeFromAnswers } from '../config/collaboration-mode-defaults.js'
-import { validateCollaborationCoherence } from '../commands/wizard/coherence.js'
+import {
+  collaborationModeFromAnswers,
+  resolveDefaultBranchingStrategy,
+} from '../config/collaboration-mode-defaults.js'
+import {
+  validateCollaborationCoherence,
+  validateOverlayCoherence,
+} from '../commands/wizard/coherence.js'
 
 export interface WizardInput {
   targetDir: string
@@ -262,6 +268,30 @@ function coherenceBlocksInit(answers: WizardAnswers): boolean {
     process.stdout.write(`\n⚠ ${coherence.message}\n`)
   }
   return false
+}
+
+/**
+ * #1254: print the resulting (team × compliance) cell — the chosen
+ * collaborationMode and industryOverlay, what they produce (branching strategy,
+ * gate level, overlay artefacts), and any (overlay × governanceLevel) advisory.
+ * Always prints a one-line cell summary (even for coherent cells), then a WARN
+ * line when the compliance weight outpaces the governance level.
+ */
+function displayComplianceCell(answers: WizardAnswers): void {
+  const mode = collaborationModeFromAnswers(answers)
+  const branching = answers.branchingStrategy ?? resolveDefaultBranchingStrategy(mode)
+  const overlay = answers.industryOverlay ?? 'none'
+  const overlayLabel = overlay === 'none' ? 'no compliance overlay' : `${overlay} overlay`
+
+  process.stdout.write(
+    `\nResulting cell: team=${mode} × compliance=${overlayLabel} @ ${answers.governanceLevel}\n` +
+      `  branching: ${branching}  |  gates: ${answers.governanceLevel}  |  overlay: ${overlayLabel}\n`,
+  )
+
+  const coherence = validateOverlayCoherence(overlay, answers.governanceLevel)
+  if (coherence.severity === 'WARN') {
+    process.stdout.write(`⚠ ${coherence.message}\n`)
+  }
 }
 
 /** Print the brownfield migration plan, or the greenfield tools header. */
@@ -498,6 +528,15 @@ async function collectRawAnswers(wizardInput: WizardInput): Promise<RawAnswers> 
     }),
   )
 
+  // 16 — #1254: industry compliance overlay. Default 'none'.
+  raw.industryOverlay = await unwrap(
+    select({
+      message: INDUSTRY_OVERLAY_MESSAGE,
+      options: INDUSTRY_OVERLAY_OPTIONS,
+      initialValue: 'none',
+    }),
+  )
+
   return raw
 }
 
@@ -520,6 +559,9 @@ export async function runWizard(wizardInput: WizardInput): Promise<ProjectConfig
         : 'markdown')
 
     const config = buildConfigFromAnswers(wizardInput, answers)
+
+    // #1254: surface the resulting (team × compliance) cell + overlay advisory.
+    displayComplianceCell(answers)
 
     // ADR-051 (#1093): reject CRITICAL (collaborationMode × governanceLevel) cells
     // before writing the project; WARN cells print an advisory and proceed.
@@ -612,6 +654,12 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     pipelineStyle: answers.pipelineStyle ?? 'standard',
     brownfieldClass: answers.brownfieldClass ?? 'gold',
     kitEnabled: true,
+    // #1254: thread the compliance-overlay axis through to generation. Only set
+    // when a real overlay is chosen; 'none'/absent leaves the field off so the
+    // overlay generators stay disabled (they self-guard on a concrete value).
+    ...(answers.industryOverlay !== undefined && answers.industryOverlay !== 'none'
+      ? { industryOverlay: answers.industryOverlay }
+      : {}),
   }
 }
 
@@ -795,4 +843,31 @@ const BROWNFIELD_CLASS_OPTIONS: Opt<'gold' | 'light' | 'medium' | 'heavy'>[] = [
   { value: 'light', label: 'light  — light brownfield' },
   { value: 'medium', label: 'medium — medium brownfield' },
   { value: 'heavy', label: 'heavy  — heavy brownfield' },
+]
+
+const INDUSTRY_OVERLAY_MESSAGE = [
+  'Industry compliance overlay — emits domain-specific compliance scaffolding + gates:',
+  '',
+  '  none      — no overlay (default)',
+  '  generic   — language-neutral audit-trail policy + gate rules (light)',
+  '  sox        — SOX audit-trail docs + gate rules',
+  '  gdpr      — GDPR controls→gates traceability overlay',
+  '  iso9001   — quality-process overlay: requirement→test RTM + doc-control + CAPA + gate',
+  '  iso27001  — ISO 27001:2022 Annex-A security controls→gate traceability (heavy)',
+  '  pharma    — 21 CFR Part 11 audit-trail overlay (heavy; recommend L3+)',
+  '',
+  '  Heavy overlays (pharma, iso27001) assume L3+ governance rigour.',
+  '',
+].join('\n')
+
+type IndustryOverlayValue = 'none' | 'generic' | 'sox' | 'gdpr' | 'iso9001' | 'iso27001' | 'pharma'
+
+const INDUSTRY_OVERLAY_OPTIONS: Opt<IndustryOverlayValue>[] = [
+  { value: 'none', label: 'none      — no compliance overlay  [default]' },
+  { value: 'generic', label: 'generic   — language-neutral audit-trail policy (light)' },
+  { value: 'sox', label: 'sox       — SOX audit-trail docs + gate rules' },
+  { value: 'gdpr', label: 'gdpr      — GDPR controls→gates traceability' },
+  { value: 'iso9001', label: 'iso9001   — quality-process RTM + doc-control + CAPA' },
+  { value: 'iso27001', label: 'iso27001  — ISO 27001 Annex-A controls→gates (heavy)' },
+  { value: 'pharma', label: 'pharma    — 21 CFR Part 11 audit-trail (heavy, L3+)' },
 ]
