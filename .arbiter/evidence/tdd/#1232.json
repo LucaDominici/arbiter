@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1232",
+  "test_path": "__tests__/integration/workflow-perf.test.ts",
+  "test_commit_sha": "5c0312184d68cafbb7fa5172da4c7f732f1472db",
+  "test_run_log": " RUN  v4.1.8\n\n FAIL  __tests__/integration/workflow-perf.test.ts [ __tests__/integration/workflow-perf.test.ts ]\nError: Cannot find module '../utils/workflow-graph.js' imported from /home/luca/work/repos/arbiter.worktrees/1232-workflow-perf-test/__tests__/integration/workflow-perf.test.ts\n\n Test Files  1 failed (1)",
+  "observed_failure": "FAIL __tests__/integration/workflow-perf.test.ts — Cannot find module '../utils/workflow-graph.js' (helper moved aside to reproduce genuine RED before implementation)",
+  "recorded_at": "2026-06-07T18:26:00Z"
+}
