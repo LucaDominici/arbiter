@@ -1044,6 +1044,11 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     ...(config.thresholdProfile !== undefined ? { thresholdProfile: config.thresholdProfile } : {}),
     ...(config.strictnessTier !== undefined ? { strictnessTier: config.strictnessTier } : {}),
     contractType: config.contractType,
+    // #1254: persist the compliance overlay so doctor can flag the cell and
+    // `arbiter update` re-emits the overlay. Omitted when none/absent.
+    ...(config.industryOverlay !== undefined && config.industryOverlay !== 'none'
+      ? { industryOverlay: config.industryOverlay }
+      : {}),
     ...(config.basePackage !== undefined ? { basePackage: config.basePackage } : {}),
     ...(config.lanes.length > 0 ? { lanes: config.lanes } : {}),
     ...(config.taskTiers !== undefined ? { taskTiers: config.taskTiers } : {}),

@@ -54,6 +54,35 @@ function resolveExtendedInvariants(stored: ArbiterConfigV2): boolean {
 }
 
 /**
+ * Map the optional `stored`-only overrides into a Partial<ProjectConfig>, each
+ * spread in only when present. Extracted from v2ToProjectConfig to keep its
+ * cyclomatic complexity below the 15-branch ceiling (#1254).
+ */
+function storedOptionalFields(stored: ArbiterConfigV2): Partial<ProjectConfig> {
+  return {
+    // Map persisted overrides from arbiter.json into ProjectConfig so resolveCollaborationAxes
+    // can honour them when building the template render context.
+    ...(stored.solo !== undefined ? { solo: stored.solo } : {}),
+    ...(stored.branchingStrategy !== undefined
+      ? { branchingStrategy: stored.branchingStrategy }
+      : {}),
+    ...(stored.evidenceRetention !== undefined
+      ? { evidenceRetention: stored.evidenceRetention }
+      : {}),
+    ...(stored.thresholdProfile !== undefined ? { thresholdProfile: stored.thresholdProfile } : {}),
+    ...(stored.strictnessTier !== undefined ? { strictnessTier: stored.strictnessTier } : {}),
+    // #1254: read the persisted compliance overlay back so re-init/update and
+    // doctor see the same cell the wizard wrote. Omitted when none/absent.
+    ...(stored.industryOverlay !== undefined && stored.industryOverlay !== 'none'
+      ? { industryOverlay: stored.industryOverlay }
+      : {}),
+    ...(stored.basePackage !== undefined ? { basePackage: stored.basePackage } : {}),
+    ...(stored.taskTiers !== undefined ? { taskTiers: stored.taskTiers } : {}),
+    ...(stored.frontend !== undefined ? { frontend: stored.frontend } : {}),
+  }
+}
+
+/**
  * Combine stored arbiter.json (v2) with detector-derived fields into the
  * canonical ProjectConfig. This is the SINGLE builder used by both `init`/
  * `update` (real generation) and `diff` (registry-dryRun), so the registry sees
@@ -89,29 +118,12 @@ function v2ToProjectConfig(stored: ArbiterConfigV2, detectorFields: DetectorFiel
         ? { enableSoloDevMode: stored.features.soloDevMode }
         : {}),
     }),
-    // Map persisted overrides from arbiter.json into ProjectConfig so resolveCollaborationAxes
-    // can honour them when building the template render context.
-    ...(stored.solo !== undefined ? { solo: stored.solo } : {}),
-    ...(stored.branchingStrategy !== undefined
-      ? { branchingStrategy: stored.branchingStrategy }
-      : {}),
+    ...storedOptionalFields(stored),
     invariantTiers: stored.invariantTiers ?? presetToTiers(defaultPresetForLevel(level)),
     acceptBetaTools: stored.acceptBetaTools ?? false,
-    ...(stored.evidenceRetention !== undefined && {
-      evidenceRetention: stored.evidenceRetention,
-    }),
-    ...(stored.thresholdProfile !== undefined && {
-      thresholdProfile: stored.thresholdProfile,
-    }),
-    ...(stored.strictnessTier !== undefined && {
-      strictnessTier: stored.strictnessTier,
-    }),
     contractType: detectorFields.contractType,
-    ...(stored.basePackage !== undefined ? { basePackage: stored.basePackage } : {}),
     thresholds: stored.thresholds,
     lanes: detectorFields.lanes,
-    ...(stored.taskTiers !== undefined && { taskTiers: stored.taskTiers }),
-    ...(stored.frontend !== undefined ? { frontend: stored.frontend } : {}),
     includeExtendedInvariants: resolveExtendedInvariants(stored),
   }
 }

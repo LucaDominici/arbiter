@@ -136,6 +136,40 @@ describe('buildConfigFromAnswers — industryOverlay axis (#1254)', () => {
     const spec = buildRegistry(config).find((s) => s.key === 'iso9001')
     expect(spec?.enabled).toBe(true)
   })
+
+  it('persists industryOverlay into arbiter.json (buildArbiterConfig passthrough)', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const projectConfig = buildConfigFromAnswers(
+      makeInput(),
+      makeAnswers({ industryOverlay: 'pharma', governanceLevel: 'L3' }),
+    )
+    const arbiterJson = buildArbiterConfig(projectConfig)
+    expect((arbiterJson as { industryOverlay?: string }).industryOverlay).toBe('pharma')
+  })
+
+  it('omits industryOverlay from arbiter.json when none/absent', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const arbiterJson = buildArbiterConfig(buildConfigFromAnswers(makeInput(), makeAnswers()))
+    expect('industryOverlay' in arbiterJson).toBe(false)
+  })
+
+  it('round-trips: persisted overlay is read back into ProjectConfig + validates', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const { validateConfig } = await import('../../src/config/schema.js')
+    const { resolveProjectConfig } = await import('../../src/config/resolve-project-config.js')
+    const arbiterJson = buildArbiterConfig(
+      buildConfigFromAnswers(
+        makeInput(),
+        makeAnswers({ industryOverlay: 'iso27001', governanceLevel: 'L4' }),
+      ),
+    )
+    // round-trips through serialize → validate (bake asserts this) → resolve
+    const validated = validateConfig(JSON.parse(JSON.stringify(arbiterJson)))
+    expect(validated.ok).toBe(true)
+    if (!validated.ok) return
+    const { config } = resolveProjectConfig('/tmp/test-project', 'test-project', validated.config)
+    expect(config.industryOverlay).toBe('iso27001')
+  })
 })
 
 describe('buildConfigFromAnswers — language override (#1036)', () => {

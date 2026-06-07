@@ -106,6 +106,12 @@ export interface ArbiterConfigV2 {
   graceEndsAt?: string
   graceFromLevel?: GovernanceLevel
   contractType?: ContractType
+  /**
+   * #1254: industry compliance overlay axis. Persisted so `arbiter doctor`
+   * can flag incoherent (overlay × governanceLevel) cells and `arbiter update`
+   * re-emits the overlay artefacts. Absent = 'none'.
+   */
+  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'none'
   basePackage?: string
   invariantTiers?: InvariantTier[]
   worktree?: WorktreeConfig
@@ -192,6 +198,16 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
 }
 
 const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3', 'L4'])
+// #1254 — valid industryOverlay values (mirrors ProjectConfig.industryOverlay).
+const INDUSTRY_OVERLAYS: ReadonlySet<string> = new Set([
+  'pharma',
+  'sox',
+  'gdpr',
+  'generic',
+  'iso27001',
+  'iso9001',
+  'none',
+])
 export const VALID_COLLABORATION_MODES: ReadonlySet<string> = new Set([
   'trunk-solo',
   'peer-review',
@@ -314,6 +330,31 @@ function autoFillThresholds(raw: Record<string, unknown>, level: unknown): void 
   }
 }
 
+/**
+ * Validate the optional scalar fields (basePackage, industryOverlay). Extracted
+ * from validateConfig to keep its complexity below the 15-statement threshold.
+ */
+function validateOptionalScalars(raw: Record<string, unknown>, errors: string[]): void {
+  // #503 — basePackage is optional, but if present must be a string.
+  // Without this guard, non-string values (numbers, null) propagate to
+  // archunit/mutation EJS templates and produce invalid Java packages.
+  if ('basePackage' in raw && raw['basePackage'] !== undefined) {
+    if (typeof raw['basePackage'] !== 'string') {
+      errors.push('basePackage must be a string')
+    }
+  }
+
+  // #1254 — industryOverlay is optional, but if present must be a known value.
+  if ('industryOverlay' in raw && raw['industryOverlay'] !== undefined) {
+    const overlay = raw['industryOverlay']
+    if (typeof overlay !== 'string' || !INDUSTRY_OVERLAYS.has(overlay)) {
+      errors.push(
+        `industryOverlay must be one of ${[...INDUSTRY_OVERLAYS].join(', ')} — got ${typeof overlay === 'string' ? overlay : typeof overlay}`,
+      )
+    }
+  }
+}
+
 export function validateConfig(raw: unknown): ValidateResult {
   if (!isRecord(raw)) {
     return { ok: false, errors: ['config must be a non-null object'] }
@@ -325,14 +366,7 @@ export function validateConfig(raw: unknown): ValidateResult {
     errors.push('version must be a string')
   }
 
-  // #503 — basePackage is optional, but if present must be a string.
-  // Without this guard, non-string values (numbers, null) propagate to
-  // archunit/mutation EJS templates and produce invalid Java packages.
-  if ('basePackage' in raw && raw['basePackage'] !== undefined) {
-    if (typeof raw['basePackage'] !== 'string') {
-      errors.push('basePackage must be a string')
-    }
-  }
+  validateOptionalScalars(raw, errors)
 
   const rawLevel = raw['governanceLevel']
   const level = typeof rawLevel === 'string' ? rawLevel.toUpperCase() : rawLevel
