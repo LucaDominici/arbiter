@@ -270,6 +270,10 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/check-wiki-lint.mjs` (L2; validates 4 lint dimensions: broken-link, orphan, stale, citation-integrity; exits 0 on bootstrap; generated for targets + dogfooded per CANON-01/14)
 - **INV-117:** arbiter self-repo must not track binary build artifacts
   - _Enforcement:_ `scripts/check-no-tracked-artifacts.mjs` (L1; selfOnly — arbiter npm-pack hygiene only; exits 0=PASS, 1=FAIL, 2=ERROR per INV-53)
+- **INV-118:** Anti-proforma test gate — every test must carry a real assertion
+  - _Enforcement:_ `scripts/check-anti-proforma.mjs` (L1+, warn-default; --enforce promotes to hard-block; exit 0=PASS/WARN, 1=FAIL, 2=ERROR per INV-53). JVM hard-block via `src/templates/archunit/AntiProformaTest.java.ejs` (L2+, bytecode scan). Bypass: @AntiProformaExempt("rationale") (JVM) or // anti-proforma-exempt: rationale (other). Bypass ratio >5% triggers EXEMPT-THRESHOLD alarm (#1249).
+- **INV-119:** Commit-footer audit evidence required for suppression/override/bypass commits
+  - _Enforcement:_ `scripts/check-commit-footer-rationale.mjs` (L2+; scans origin/main..HEAD for commits touching trivyignore/owasp-suppressions/pitest-override/sigstore-bypass/suppressions/\*\*; requires recognized footer trailer: Suppression-Rationale:, Pitest-Override-Rationale:, Trivy-Expiry-Extension:, Sigstore-Bypass:; evidence artifact written to .arbiter/evidence/commit-footer-audit/; fails open when origin/main unavailable; exit 0=PASS, 1=FAIL, 2=ERROR per INV-53; #1249).
 
 - **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
   - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)

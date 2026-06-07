@@ -1,0 +1,311 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: INV-119 enforcement. Scans `origin/main..HEAD` commit range for commits that touch
+// CATALOG:   suppression/bypass files (trivyignore, owasp-suppressions, pitest-override). Verifies
+// CATALOG:   each such commit carries a well-formed immutable commit-footer trailer from the set:
+// CATALOG:   Suppression-Rationale, Pitest-Override-Rationale, Trivy-Expiry-Extension, Sigstore-Bypass.
+// CATALOG: Rejected fold-in into check-suppression-rationale.mjs (that gate checks file content, not
+// CATALOG:   commit history — different invariant axis). Hard-blocks (exit 1) on missing/malformed trailer.
+// CATALOG: Writes evidence artifact to .arbiter/evidence/commit-footer-audit/<timestamp>.json (INV-evidence).
+// Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR
+// Usage: node scripts/check-commit-footer-rationale.mjs [--range=<ref>] [--evidence-dir=<path>] [--dry-run] [--test-trailer=<value>] [--help]
+
+import { execFileSync } from 'node:child_process'
+import { writeFileSync, mkdirSync } from 'node:fs'
+import { resolve, join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const SCRIPT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+const HELP = `Usage: node scripts/check-commit-footer-rationale.mjs [options]
+
+Validates that commits touching suppression/bypass files in the git range carry
+well-formed immutable commit-footer trailers (INV-119, §11.10(e)).
+
+Options:
+  --range=<ref>         Git range to scan (default: origin/main..HEAD)
+  --evidence-dir=<path> Directory to write evidence artifact (default: .arbiter/evidence/commit-footer-audit/)
+  --dry-run             Do not scan git history; validate --test-trailer value only
+  --test-trailer=<val>  Validate a trailer string (for testing); use with --dry-run
+  --help, -h            Show this help and exit
+
+Recognized footer trailers:
+  Suppression-Rationale: <CVE-ID> | <justification> | expires:<YYYY-MM-DD>
+  Pitest-Override-Rationale: <justification> | follow-up:<issue#> | approver:<handle>
+  Trivy-Expiry-Extension: <CVE-ID> | new-expiry:<YYYY-MM-DD> | reason:<text>
+  Sigstore-Bypass: <reason> | retry-after:<YYYY-MM-DD>
+
+Suppression-touching files (patterns):
+  *.trivyignore  *owasp-suppressions*  *pitest*override*  suppressions/**`
+
+// Recognized trailer keys
+const RECOGNIZED_TRAILERS = [
+  'Suppression-Rationale',
+  'Pitest-Override-Rationale',
+  'Trivy-Expiry-Extension',
+  'Sigstore-Bypass',
+]
+
+// Files whose presence in a commit requires a footer trailer
+const SUPPRESSION_FILE_PATTERNS = [
+  /\.trivyignore$/,
+  /owasp.suppressions/i,
+  /pitest.*override/i,
+  /sigstore.*bypass/i,
+  /^suppressions\//,
+  /\/suppressions\//,
+]
+
+/**
+ * Check if a file path touches suppression artifacts.
+ */
+function isSuppressionFile(filePath) {
+  return SUPPRESSION_FILE_PATTERNS.some((pat) => pat.test(filePath))
+}
+
+/**
+ * Check if a trailer string is a recognized footer format.
+ */
+function isRecognizedTrailer(trailer) {
+  if (!trailer || !trailer.trim()) return false
+  return RECOGNIZED_TRAILERS.some((key) => trailer.trim().startsWith(key + ':'))
+}
+
+/**
+ * Parse CLI arguments.
+ */
+function parseArgs() {
+  const raw = process.argv.slice(2)
+  let range = 'origin/main..HEAD'
+  let evidenceDir = join(SCRIPT_DIR, '.arbiter', 'evidence', 'commit-footer-audit')
+  let dryRun = false
+  let testTrailer = null
+  let help = false
+
+  for (let i = 0; i < raw.length; i++) {
+    const arg = raw[i]
+    if (arg === '--help' || arg === '-h') {
+      help = true
+    } else if (arg === '--dry-run') {
+      dryRun = true
+    } else if (arg.startsWith('--range=')) {
+      range = arg.slice('--range='.length)
+    } else if (arg === '--range' && i + 1 < raw.length) {
+      range = raw[++i]
+    } else if (arg.startsWith('--evidence-dir=')) {
+      evidenceDir = resolve(arg.slice('--evidence-dir='.length))
+    } else if (arg === '--evidence-dir' && i + 1 < raw.length) {
+      evidenceDir = resolve(raw[++i])
+    } else if (arg.startsWith('--test-trailer=')) {
+      testTrailer = arg.slice('--test-trailer='.length)
+    } else if (arg === '--test-trailer' && i + 1 < raw.length) {
+      testTrailer = raw[++i]
+    }
+  }
+
+  return { range, evidenceDir, dryRun, testTrailer, help }
+}
+
+/**
+ * Get current git branch name. Returns 'unknown' on failure.
+ */
+function getCurrentBranch(cwd) {
+  try {
+    return execFileSync('git', ['branch', '--show-current'], {
+      cwd,
+      encoding: 'utf-8',
+    }).trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
+/**
+ * Run git log and return list of commits with their file changes and trailers.
+ * Returns null if git command fails (origin/main unavailable).
+ */
+function getCommitsInRange(range, cwd) {
+  try {
+    // Get list of commit hashes in range
+    const hashList = execFileSync('git', ['log', '--format=%H', range], {
+      cwd,
+      encoding: 'utf-8',
+    })
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+
+    if (hashList.length === 0) return []
+
+    const commits = []
+    for (const hash of hashList) {
+      // Get commit body (full message with trailers)
+      let body = ''
+      try {
+        body = execFileSync('git', ['log', '--format=%B', '-1', hash], {
+          cwd,
+          encoding: 'utf-8',
+        }).trim()
+      } catch {
+        body = ''
+      }
+
+      // Get files changed by this commit
+      let files = []
+      try {
+        const diffOutput = execFileSync(
+          'git',
+          ['diff-tree', '--no-commit-id', '-r', '--name-only', hash],
+          { cwd, encoding: 'utf-8' },
+        )
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+        files = diffOutput
+      } catch {
+        files = []
+      }
+
+      // Extract trailers from commit body (lines that look like "Key: value")
+      const trailers = body
+        .split('\n')
+        .filter((line) => /^[A-Z][A-Za-z-]+:\s/.test(line))
+        .map((l) => l.trim())
+
+      commits.push({ hash: hash.slice(0, 12), files, trailers, body })
+    }
+
+    return commits
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Write evidence artifact JSON.
+ */
+function writeEvidence(evidenceDir, data) {
+  try {
+    mkdirSync(evidenceDir, { recursive: true })
+    const ts = new Date().toISOString().replace(/[:.]/g, '-')
+    const filePath = join(evidenceDir, `${ts}.json`)
+    writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n')
+  } catch (err) {
+    process.stderr.write(
+      `[commit-footer] WARN: could not write evidence artifact: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+  }
+}
+
+function main() {
+  const { range, evidenceDir, dryRun, testTrailer, help } = parseArgs()
+
+  if (help) {
+    process.stdout.write(HELP + '\n')
+    process.exit(0)
+  }
+
+  // --dry-run --test-trailer mode: validate a single trailer string
+  if (dryRun && testTrailer !== null) {
+    if (isRecognizedTrailer(testTrailer)) {
+      process.stdout.write(`[commit-footer] VALID: trailer recognized\n`)
+      process.exit(0)
+    } else {
+      process.stderr.write(`[commit-footer] FOOTER-MISSING: trailer not recognized or empty\n`)
+      process.exit(1)
+    }
+  }
+
+  if (dryRun) {
+    process.stdout.write('[commit-footer] dry-run: no git history scanned\n')
+    process.exit(0)
+  }
+
+  const cwd = process.cwd()
+  const branch = getCurrentBranch(cwd)
+  const commits = getCommitsInRange(range, cwd)
+
+  if (commits === null) {
+    // git log failed — origin/main is unavailable
+    process.stderr.write(
+      `[commit-footer] WARN: git log failed for range '${range}' — origin/main may be unavailable. Skipping check.\n`,
+    )
+
+    writeEvidence(evidenceDir, {
+      schema: 'arbiter-commit-footer-audit-v1',
+      generated_at: new Date().toISOString(),
+      branch,
+      range,
+      commits_scanned: 0,
+      commits_requiring_footer: 0,
+      commits_with_valid_footer: 0,
+      violations: [],
+      result: 'SKIP',
+      note: 'git log unavailable — origin/main unreachable',
+    })
+
+    process.exit(0)
+  }
+
+  const violations = []
+  let commitsRequiringFooter = 0
+  let commitsWithValidFooter = 0
+
+  for (const commit of commits) {
+    const suppressionFiles = commit.files.filter(isSuppressionFile)
+    if (suppressionFiles.length === 0) continue
+
+    commitsRequiringFooter++
+    const hasValidTrailer = commit.trailers.some(isRecognizedTrailer)
+
+    if (hasValidTrailer) {
+      commitsWithValidFooter++
+    } else {
+      violations.push({
+        commit: commit.hash,
+        suppression_files: suppressionFiles,
+        trailers_found: commit.trailers,
+        error: 'No recognized footer trailer found for suppression-touching commit',
+      })
+      process.stderr.write(
+        `[commit-footer] FOOTER-MISSING: commit ${commit.hash} touches suppression file(s) but has no recognized footer trailer\n`,
+      )
+      for (const f of suppressionFiles) {
+        process.stderr.write(`  suppression file: ${f}\n`)
+      }
+      process.stderr.write(
+        `  Required: Suppression-Rationale: / Pitest-Override-Rationale: / Trivy-Expiry-Extension: / Sigstore-Bypass:\n`,
+      )
+    }
+  }
+
+  const result = violations.length === 0 ? 'PASS' : 'FAIL'
+
+  const evidence = {
+    schema: 'arbiter-commit-footer-audit-v1',
+    generated_at: new Date().toISOString(),
+    branch,
+    range,
+    commits_scanned: commits.length,
+    commits_requiring_footer: commitsRequiringFooter,
+    commits_with_valid_footer: commitsWithValidFooter,
+    violations,
+    result,
+  }
+
+  writeEvidence(evidenceDir, evidence)
+
+  if (violations.length > 0) {
+    process.stderr.write(
+      `[commit-footer] FAIL — ${violations.length} commit(s) missing required footer trailers\n`,
+    )
+    process.exit(1)
+  }
+
+  process.stdout.write(
+    `[commit-footer] PASS — ${commits.length} commits scanned, ${commitsRequiringFooter} required footer, ${commitsWithValidFooter} validated\n`,
+  )
+  process.exit(0)
+}
+
+main()

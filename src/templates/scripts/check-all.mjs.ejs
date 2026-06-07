@@ -321,6 +321,8 @@ runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wire
 runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs']);
 // ─── L1: wiki lint gate (INV-116, #1241) ─────────────────────────────────────
 runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
+// ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
+runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
 <% if (useGitHub) { %>
 // ─── L1: GitHub CI tier gates (INV-72, INV-75, INV-76) ───────────────────────
 runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);
@@ -730,6 +732,12 @@ if (level === 'L2') {
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)
 <% const ratchetFlag = (governanceLevel === 'L3' || governanceLevel === 'L4') ? '--require-improvement' : '--gate'; %>
   runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '<%= ratchetFlag %>'], { soft: graceActive });
+<% if (governanceLevel !== 'L1') { %>
+  // ─── L2+: Commit-footer audit evidence (INV-119, #1249) ──────────────────────
+  // Hard-blocks if suppression/override/bypass commits lack required footer trailers.
+  // Fails open (exit 0 with WARN) when origin/main is unavailable.
+  runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
+<% } %>
 <% } %>
 <% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────

@@ -28,7 +28,8 @@ describe('extended opt-in invariants', () => {
     // Updated #1214: +1 (INV-115 free-text governance prohibition scanner)
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly governance)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
-    expect(INVARIANT_CATALOG).toHaveLength(115)
+    // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
+    expect(INVARIANT_CATALOG).toHaveLength(117)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

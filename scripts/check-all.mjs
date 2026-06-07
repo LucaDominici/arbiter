@@ -200,6 +200,7 @@ if (isMain) {
   runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs'])
   runCheck('settings coverage (#1121)', 'node', ['scripts/check-settings-coverage.mjs'])
   runCheck('feature matrix (INV-112)', 'node', ['scripts/check-feature-matrix.mjs', '--check'])
+  runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs'])
 
   // Capture L1 boundary for parityContentHash computation (INV-59)
   const l1EndIdx = getResults().length
@@ -234,6 +235,9 @@ if (isMain) {
     runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
     runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
     runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
+    runCheck('commit-footer rationale (INV-119)', 'node', [
+      'scripts/check-commit-footer-rationale.mjs',
+    ])
     runCheck('fail-closed audit (INV-96)', 'node', ['scripts/check-fail-closed-audit.mjs'])
     runCheck('script cohesion (INV-94)', 'node', ['scripts/check-script-cohesion.mjs'])
     // INV-25 (#1039): full integration suite in L2 gate — 19 files, not just smoke

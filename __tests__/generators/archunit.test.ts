@@ -817,3 +817,47 @@ describe('generateArchUnit — HexagonalArchTest consolidated scaffold (#998)', 
     expect(file!.path).toContain('com/example/app/architecture')
   })
 })
+
+describe('generateArchUnit — anti-proforma suite (#1249, CANON-05)', () => {
+  it('emitHexagonalSuite includes AntiProformaTest.java and AntiProformaExempt.java for L2+', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      governanceLevel: 'L2',
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('AntiProformaTest.java'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('AntiProformaExempt.java'))).toBe(true)
+  })
+
+  it('skips AntiProformaTest.java and AntiProformaExempt.java for L1', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      governanceLevel: 'L1',
+    })
+    const result = generateArchUnit(config)
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('AntiProformaTest.java'))).toBe(false)
+    expect(paths.some((p) => p.endsWith('AntiProformaExempt.java'))).toBe(false)
+  })
+
+  it('AntiProformaTest.java is placed in src/test/java/<packagePath>/architecture', () => {
+    const config = makeConfig(dir, {
+      language: 'java',
+      buildTool: 'gradle',
+      architectureStyle: 'hexagonal',
+      basePackage: 'com.example.myapp',
+      governanceLevel: 'L2',
+    })
+    const result = generateArchUnit(config)
+    const file = result.files.find((f) => f.path.endsWith('AntiProformaTest.java'))
+    expect(file!.path).toContain('src/test/java')
+    expect(file!.path).toContain('com/example/myapp/architecture')
+  })
+})

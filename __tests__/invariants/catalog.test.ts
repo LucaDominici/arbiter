@@ -33,16 +33,18 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1214: +1 (INV-115 free-text governance prohibition scanner, L1+ governance)
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly governance, L2+)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
-    expect(INVARIANT_CATALOG).toHaveLength(115)
+    // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
+    expect(INVARIANT_CATALOG).toHaveLength(117)
   })
 
   it('all IDs are unique', () => {
     // Updated dual-ADR-cli-single-source: +1 (INV-111)
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     // Updated #1217: +1 (INV-117)
+    // Updated #1249: +2 (INV-118, INV-119)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(115)
+    expect(unique.size).toBe(117)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -127,8 +129,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1214: +1 (INV-115 constraint-scan)
     // Updated #1241: +1 (INV-116 wiki-lint gate)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
+    // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(45)
+    expect(tier5).toHaveLength(47)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -376,12 +379,13 @@ describe('getFilteredInvariants', () => {
     // Updated CANON-22: +1 (INV-109 duplication gate, typescript L2 operational)
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
+    // Updated #1249: +2 (INV-118 anti-proforma, INV-119 commit-footer; both L1+/L2+ all languages)
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(72)
+    expect(result).toHaveLength(74)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -398,12 +402,13 @@ describe('getFilteredInvariants', () => {
   it('returns fewer than 59 for unknown language (language-specific excluded)', () => {
     // +1 from INV-112 (no language restriction) — threshold updated from 57→58
     // +1 from INV-115 (no language restriction, governance L1+) — threshold 58→59
+    // +2 from INV-118 (L1+, all languages) + INV-119 (L2+, all languages) — threshold 59→61 → < 64
     const result = getFilteredInvariants({
       language: 'unknown',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(60)
+    expect(result.length).toBeLessThan(64)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -465,12 +470,13 @@ describe('getFilteredInvariants', () => {
   it('Java + L2 + all tiers returns 64 invariants (L3-gated INV-28 + L4-gated INV-27/33 + selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
+    // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(67)
+    expect(result).toHaveLength(69)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -485,12 +491,13 @@ describe('getFilteredInvariants', () => {
   it('Java + L3 + all tiers returns 65 invariants (INV-27/33 moved to L4, selfOnly excluded, INV-82 + INV-95/97/98/99 + INV-100 + INV-101 + INV-112 included)', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages, governance tier)
+    // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(68)
+    expect(result).toHaveLength(70)
   })
 
   it('essential preset at L1 returns minimal set', () => {

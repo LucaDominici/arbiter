@@ -223,6 +223,8 @@ const CI_COVERAGE = new Map([
   ['merge method ff-only (INV-101)', 'gate-full'],
   ['settings coverage (#1121)', 'gate-full'],
   ['feature matrix (INV-112)', 'gate-full'],
+  ['anti-proforma (INV-118)', 'gate-full'],
+  ['commit-footer rationale (INV-119)', 'gate-full'],
   // 'docs:build' is invoked via the docsCheck() warn-helper (not run[Tool]Check),
   // so the parity regex never extracts it — no CI_COVERAGE entry is required.
   ['duplication', 'gate-full'],

@@ -35,6 +35,20 @@ function emitHexagonalSuite(
     )
   }
 
+  // #1249: Anti-proforma suite (INV-118) — L2+ only (JVM hard-block via bytecode scan).
+  // L1 is warn-default via check-anti-proforma.mjs (non-JVM source-text scan).
+  if (config.governanceLevel !== 'L1') {
+    for (const name of ['AntiProformaTest.java', 'AntiProformaExempt.java'] as const) {
+      files.push(
+        writeFile(
+          resolvedPath(base, 'src', 'test', 'java', packagePath, name),
+          renderTemplate(`archunit/${name}.ejs`, data),
+          { skipIfExists: true, dryRun },
+        ),
+      )
+    }
+  }
+
   if (config.buildTool === 'gradle') {
     files.push(
       writeFile(

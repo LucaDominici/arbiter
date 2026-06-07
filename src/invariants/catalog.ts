@@ -1922,4 +1922,42 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-no-tracked-artifacts.mjs (L1, selfOnly — arbiter self-governance only). ' +
       'Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
   },
+  {
+    id: 'INV-118',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    alwaysActive: true,
+    title: 'Anti-proforma test gate — every test must carry a real assertion',
+    description:
+      'Test methods (it(), test(), @Test, @ParameterizedTest, @RepeatedTest) must contain ' +
+      'at least one recognized assertion. Proforma tests (no assertions) provide false ' +
+      'confidence — they always pass regardless of the code under test (§R-41). ' +
+      'JVM: enforced via ArchUnit bytecode scan (AntiProformaTest.java, L2+). ' +
+      'TypeScript/other: enforced via source-text regex scan (check-anti-proforma.mjs, L1+, warn-default). ' +
+      'Bypass: @AntiProformaExempt("rationale") (JVM) or // anti-proforma-exempt: rationale (other). ' +
+      'Bypass ratio > 5% triggers EXEMPT-THRESHOLD alarm (#1249).',
+    enforcement:
+      'scripts/check-anti-proforma.mjs (L1+, warn-default; --enforce promotes to hard-block). ' +
+      'JVM: src/templates/archunit/AntiProformaTest.java.ejs (L2+, hard-block via ArchUnit). ' +
+      'Exit codes per INV-53: 0=PASS/WARN, 1=FAIL (--enforce), 2=ERROR.',
+  },
+  {
+    id: 'INV-119',
+    tier: 'governance',
+    minGovernanceLevel: 'L2',
+    alwaysActive: true,
+    title: 'Commit-footer audit evidence required for suppression/override/bypass commits',
+    description:
+      'Commits that touch suppression/bypass files (*.trivyignore, owasp-suppressions.xml, ' +
+      'pitest-override configs, sigstore-bypass configs, suppressions/**) in the ' +
+      'origin/main..HEAD range must carry at least one recognized immutable commit-footer ' +
+      'trailer (§11.10(e)). Recognized trailers: Suppression-Rationale:, ' +
+      'Pitest-Override-Rationale:, Trivy-Expiry-Extension:, Sigstore-Bypass:. ' +
+      'Evidence artifact written to .arbiter/evidence/commit-footer-audit/<timestamp>.json. ' +
+      'Hard-blocks on missing trailer (exit 1). Git failure → exit 0 with WARN (fail-open ' +
+      'when origin/main unavailable) (#1249).',
+    enforcement:
+      'scripts/check-commit-footer-rationale.mjs (L2+, hard-block; exit 1 on violation). ' +
+      'Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
+  },
 ]

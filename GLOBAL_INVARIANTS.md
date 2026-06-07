@@ -650,3 +650,19 @@ The arbiter repository must not commit binary build artifacts. npm pack outputs 
 **Enforcement:** `scripts/check-no-tracked-artifacts.mjs` (L1 gate, selfOnly — arbiter self-governance only). Uses `git ls-files` to detect tracked .tgz and .tar.gz files. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR. Wired in `scripts/check-all.mjs`.
 
 ---
+
+### INV-118: Anti-proforma test gate — every test must carry a real assertion
+
+Test methods (it(), test(), @Test, @ParameterizedTest, @RepeatedTest) must contain at least one recognized assertion. Proforma tests (no assertions) provide false confidence — they always pass regardless of the code under test (§R-41). JVM: enforced via ArchUnit bytecode scan (AntiProformaTest.java, L2+). TypeScript/other: enforced via source-text regex scan (check-anti-proforma.mjs, L1+, warn-default). Bypass: @AntiProformaExempt("rationale") (JVM) or `// anti-proforma-exempt: rationale` (other stacks). Bypass ratio >5% triggers EXEMPT-THRESHOLD alarm (#1249).
+
+**Enforcement:** `scripts/check-anti-proforma.mjs` (L1+ gate, warn-default; `--enforce` promotes to hard-block). JVM: `src/templates/archunit/AntiProformaTest.java.ejs` (L2+, hard-block via ArchUnit bytecode scan). Exit codes per INV-53: 0=PASS/WARN, 1=FAIL (--enforce), 2=ERROR. Wired in `scripts/check-all.mjs`.
+
+---
+
+### INV-119: Commit-footer audit evidence required for suppression/override/bypass commits
+
+Commits that touch suppression/bypass files (\*.trivyignore, owasp-suppressions.xml, pitest-override configs, sigstore-bypass configs, suppressions/\*\*) in the origin/main..HEAD range must carry at least one recognized immutable commit-footer trailer (§11.10(e)). Recognized trailers: Suppression-Rationale:, Pitest-Override-Rationale:, Trivy-Expiry-Extension:, Sigstore-Bypass:. Evidence artifact written to .arbiter/evidence/commit-footer-audit/<timestamp>.json. Hard-blocks on missing trailer (exit 1). Git failure → exit 0 with WARN (fail-open when origin/main unavailable) (#1249).
+
+**Enforcement:** `scripts/check-commit-footer-rationale.mjs` (L2+ gate, hard-block). Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR. Wired in `scripts/check-all.mjs` (gate block, not check block).
+
+---
