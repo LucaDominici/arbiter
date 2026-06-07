@@ -7,6 +7,7 @@
 
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { generateGdprControls } from './gdpr.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -102,7 +103,8 @@ function generateGenericAudit(config: ProjectConfig, opts: { dryRun: boolean }):
 /**
  * Generate the audit-trail overlay. Dispatches on `industryOverlay`:
  *   - 'pharma'             → Java JPA/ArchUnit scaffolding (Java only)
- *   - 'sox' | 'gdpr' | 'generic' → language-neutral audit docs + gate rules (#1156)
+ *   - 'gdpr'               → generic audit docs + GDPR controls→gates (enforceable, #1251)
+ *   - 'sox' | 'generic'    → language-neutral audit docs + gate rules (#1156)
  *   - absent | 'none'      → nothing
  */
 export function generatePharma(
@@ -114,8 +116,16 @@ export function generatePharma(
     return { files: [] }
   }
 
-  const files =
-    overlay === 'pharma' ? generatePharmaJava(config, opts) : generateGenericAudit(config, opts)
+  let files: WriteResult[]
+  if (overlay === 'pharma') {
+    files = generatePharmaJava(config, opts)
+  } else if (overlay === 'gdpr') {
+    // #1251: compose the generic audit docs with the enforceable GDPR controls
+    // overlay (gate script + DPIA + data-flow map + controls→gate traceability).
+    files = [...generateGenericAudit(config, opts), ...generateGdprControls(config, opts)]
+  } else {
+    files = generateGenericAudit(config, opts)
+  }
 
   return { files }
 }

@@ -715,6 +715,13 @@ if (level === 'L2') {
     }
     pushResult('BDD @ignore check', _bddIgnoreStatus, Date.now() - _bddIgnoreStart);
   }
+  // ─── L2: GDPR controls gate (#1251) ──────────────────────────────────────────
+  // Enforceable controls→gates for the `industryOverlay: gdpr` overlay. existsSync-
+  // guarded so it only runs for projects where the gdpr generator emitted the gate;
+  // language-neutral (the controls are documentation artifacts, not stack-specific).
+  if (existsSync('scripts/check-gdpr-controls.mjs')) {
+    runCheck('gdpr controls (#1251)', 'node', ['scripts/check-gdpr-controls.mjs'], { soft: graceActive });
+  }
 <% if (language === 'typescript') { %>
   runCheck('bdd', 'npx', ['cucumber-js'], { soft: graceActive });
 <% } else if (language === 'python') { %>

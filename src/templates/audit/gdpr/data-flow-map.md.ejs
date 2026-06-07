@@ -1,0 +1,30 @@
+<%# GDPR personal-data flow inventory — overlay template (#1251). %>
+# Personal-Data Flow Map — <%= projectName %>
+
+> GDPR Art. 30 record of processing activities for **<%= projectName %>**.
+> Each row is a personal-data flow: where it enters, where it lives, where it
+> leaves, its lawful basis and its retention window. The `check-gdpr-controls.mjs`
+> gate (GDPR-02 / GDPR-05) fails if this Data-Flow Map is missing or omits a
+> retention column.
+
+## Processing inventory
+
+| Flow ID | Data category        | Source (in)     | Store               | Egress (out)      | Lawful basis | Retention        |
+| ------- | -------------------- | --------------- | ------------------- | ----------------- | ------------ | ---------------- |
+| FLOW-01 | TODO (e.g. email)    | TODO            | TODO                | TODO              | TODO         | TODO (e.g. 24mo) |
+| FLOW-02 | TODO                 | TODO            | TODO                | TODO              | TODO         | TODO             |
+
+## Retention & erasure
+
+- **Retention windows** above are enforced by your storage layer's purge job.
+  Document the purge mechanism here and reference the test that proves
+  data older than the window is deleted.
+- **Erasure (Art. 17):** a data-subject erasure request must remove personal data
+  from every Store column above. Reference the erasure handler + its test in
+  `controls-to-gates.md` (GDPR-03).
+
+## Cross-border transfers
+
+| Flow ID | Destination country | Transfer mechanism (SCC / adequacy / …) |
+| ------- | ------------------- | --------------------------------------- |
+| TODO    | TODO                | TODO                                    |

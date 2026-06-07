@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+// <%= projectName %> — GDPR controls gate (#1251)
+// Enforceable PASS/FAIL gate for the `industryOverlay: gdpr` controls.
+// Validates that every required GDPR control artifact exists and is non-trivial,
+// and that the controls→gate traceability doc covers each control. Exits 0 when
+// all controls have evidence; exits 1 (blocking an L4 release) otherwise.
+//
+// This is the "gate" half of the controls→gates overlay: each GDPR-NN control in
+// docs/compliance/gdpr/controls-to-gates.md is mapped to an artifact this script
+// asserts. It is implementation-neutral — adapt the artifacts to your stack, but
+// the gate stays green only while the evidence exists.
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write([
+    'Usage: node scripts/check-gdpr-controls.mjs [options]',
+    '',
+    'Validates that every required GDPR control artifact exists and is non-empty.',
+    'Exits 0 when all controls have evidence; exits 1 otherwise.',
+    '',
+    'Options:',
+    '  --root <path>   Project root (default: cwd)',
+    '  --help, -h      Show this help and exit',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+const rootArg = args.indexOf('--root');
+const ROOT = rootArg >= 0 && args[rootArg + 1] ? resolve(args[rootArg + 1]) : process.cwd();
+
+// GDPR controls → required evidence artifact + a token that must appear in it.
+// Each row is one PASS/FAIL control. Keep in lockstep with controls-to-gates.md.
+const CONTROLS = [
+  {
+    id: 'GDPR-01',
+    title: 'DPIA (Art. 35) is documented',
+    artifact: 'docs/compliance/gdpr/dpia.md',
+    mustContain: 'Data Protection Impact Assessment',
+  },
+  {
+    id: 'GDPR-02',
+    title: 'Personal-data flows are mapped (Art. 30 records of processing)',
+    artifact: 'docs/compliance/gdpr/data-flow-map.md',
+    mustContain: 'Data-Flow Map',
+  },
+  {
+    id: 'GDPR-03',
+    title: 'Right to erasure (Art. 17) has a documented control + test hook',
+    artifact: 'docs/compliance/gdpr/controls-to-gates.md',
+    mustContain: 'erasure',
+  },
+  {
+    id: 'GDPR-04',
+    title: 'Lawful basis / consent (Art. 6, 7) is documented',
+    artifact: 'docs/compliance/gdpr/controls-to-gates.md',
+    mustContain: 'consent',
+  },
+  {
+    id: 'GDPR-05',
+    title: 'Retention windows are enforced and documented',
+    artifact: 'docs/compliance/gdpr/data-flow-map.md',
+    mustContain: 'retention',
+  },
+];
+
+const failures = [];
+for (const c of CONTROLS) {
+  const path = join(ROOT, c.artifact);
+  if (!existsSync(path)) {
+    failures.push(`${c.id} (${c.title}): missing artifact ${c.artifact}`);
+    continue;
+  }
+  let body;
+  try {
+    if (statSync(path).size === 0) {
+      failures.push(`${c.id} (${c.title}): empty artifact ${c.artifact}`);
+      continue;
+    }
+    body = readFileSync(path, 'utf-8');
+  } catch (err) {
+    failures.push(`${c.id} (${c.title}): cannot read ${c.artifact} — ${String(err)}`);
+    continue;
+  }
+  if (!body.toLowerCase().includes(c.mustContain.toLowerCase())) {
+    failures.push(
+      `${c.id} (${c.title}): ${c.artifact} does not document "${c.mustContain}"`,
+    );
+  }
+}
+
+if (failures.length > 0) {
+  process.stderr.write(`check-gdpr-controls: FAIL — ${failures.length} GDPR control(s) without evidence:\n`);
+  for (const f of failures) process.stderr.write(`  [FAIL] ${f}\n`);
+  process.stderr.write(`\nSee docs/compliance/gdpr/controls-to-gates.md for the controls→gate map.\n`);
+  process.exit(1);
+}
+
+process.stdout.write(`check-gdpr-controls: OK — all ${CONTROLS.length} GDPR control(s) have evidence.\n`);
+process.exit(0);

@@ -13,7 +13,10 @@ afterEach(() => {
 })
 
 describe('generatePharma — generic audit overlay (#1156)', () => {
-  for (const overlay of ['generic', 'sox', 'gdpr'] as const) {
+  // #1251: 'gdpr' moved out of this docs-only iteration — it now composes the
+  // generic docs with an enforceable controls→gates overlay (covered by
+  // __tests__/generators/gdpr.test.ts), so its file count is no longer 2.
+  for (const overlay of ['generic', 'sox'] as const) {
     it(`emits language-neutral audit docs for industryOverlay=${overlay} (no Java entities)`, () => {
       dir = createTestProject('typescript')
       const config = makeConfig(dir, { language: 'typescript', industryOverlay: overlay })

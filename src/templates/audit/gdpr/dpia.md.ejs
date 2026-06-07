@@ -1,0 +1,45 @@
+<%# GDPR Data Protection Impact Assessment — overlay template (#1251). %>
+# Data Protection Impact Assessment (DPIA) — <%= projectName %>
+
+> GDPR Art. 35 DPIA for **<%= projectName %>** (governance **<%= governanceLevel %>**).
+> This is the screening + assessment record. Update it whenever a new processing
+> activity is introduced. The `check-gdpr-controls.mjs` gate (GDPR-01) fails if this
+> document is missing or empty.
+
+## 1. Screening — is a DPIA required?
+
+A DPIA is required when processing is likely to result in a high risk to data
+subjects (Art. 35(1)). Answer each trigger; if any is **Yes**, a full assessment
+below is mandatory.
+
+| Trigger                                                        | Yes / No |
+| ------------------------------------------------------------- | -------- |
+| Systematic and extensive profiling with significant effects   | TODO     |
+| Large-scale processing of special-category data (Art. 9)      | TODO     |
+| Systematic monitoring of a publicly accessible area           | TODO     |
+
+## 2. Description of processing
+
+- **Nature, scope, context, purposes:** TODO
+- **Categories of personal data:** TODO (cross-reference `data-flow-map.md`)
+- **Recipients / processors:** TODO
+- **Retention period:** TODO (must match `data-flow-map.md` retention column)
+
+## 3. Necessity & proportionality
+
+- **Lawful basis (Art. 6):** TODO (consent / contract / legal obligation / …)
+- **Data minimisation measures:** TODO
+- **Data-subject rights supported:** access, rectification, erasure, portability.
+
+## 4. Risk assessment & mitigations
+
+| Risk to data subjects | Likelihood | Severity | Mitigation |
+| --------------------- | ---------- | -------- | ---------- |
+| Unauthorised access   | TODO       | TODO     | TODO       |
+| Excessive retention   | TODO       | TODO     | TODO       |
+
+## 5. Sign-off
+
+- **DPO / responsible owner:** TODO
+- **Date:** TODO
+- **Outcome:** proceed / proceed-with-mitigations / consult-supervisory-authority

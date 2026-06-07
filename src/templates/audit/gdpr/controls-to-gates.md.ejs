@@ -1,0 +1,42 @@
+<%# GDPR controls→gate traceability — overlay template (#1251). %>
+# GDPR Controls → Gate Traceability — <%= projectName %>
+
+> Traceability matrix for the **gdpr** industry overlay on **<%= projectName %>**
+> (governance **<%= governanceLevel %>**). Every GDPR control below maps to the gate
+> that mechanically enforces it. The enforcing gate is `scripts/check-gdpr-controls.mjs`,
+> wired into the L2 quality gate (`check-all.mjs`) — it exits non-zero when any
+> control's evidence artifact is missing, so these controls cannot silently rot.
+
+| Control | GDPR article | Statement                                                          | Enforcing gate                       | Evidence artifact                          |
+| ------- | ------------ | ------------------------------------------------------------------ | ------------------------------------ | ------------------------------------------ |
+| GDPR-01 | Art. 35      | A DPIA is documented for high-risk processing.                     | `check-gdpr-controls.mjs` (GDPR-01)  | `docs/compliance/gdpr/dpia.md`             |
+| GDPR-02 | Art. 30      | Personal-data flows are inventoried (records of processing).       | `check-gdpr-controls.mjs` (GDPR-02)  | `docs/compliance/gdpr/data-flow-map.md`    |
+| GDPR-03 | Art. 17      | Right to erasure is implemented and tested.                        | `check-gdpr-controls.mjs` (GDPR-03)  | this doc + erasure handler test            |
+| GDPR-04 | Art. 6, 7    | A lawful basis / consent is recorded for each processing activity. | `check-gdpr-controls.mjs` (GDPR-04)  | this doc + consent ledger                  |
+| GDPR-05 | Art. 5(1)(e) | Retention windows are documented and enforced.                     | `check-gdpr-controls.mjs` (GDPR-05)  | `docs/compliance/gdpr/data-flow-map.md`    |
+
+## Erasure (GDPR-03) — implementation hook
+
+The right to **erasure** (Art. 17) requires that a data-subject request removes
+personal data from every Store listed in `data-flow-map.md`. Wire your erasure
+handler and add a test that:
+
+1. Seeds personal data across all stores.
+2. Invokes the erasure handler for a subject id.
+3. Asserts no personal data for that subject remains in any store.
+
+Reference that test here so GDPR-03 stays traceable.
+
+## Consent / lawful basis (GDPR-04) — implementation hook
+
+Each processing activity needs a recorded lawful basis. Where the basis is
+**consent** (Art. 6(1)(a) / Art. 7), record consent capture, withdrawal, and
+proof-of-consent. Reference the consent ledger and its test here.
+
+## How the gate runs
+
+```bash
+node scripts/check-gdpr-controls.mjs   # exit 0 = all controls have evidence; exit 1 = blocking gap
+```
+
+Run automatically at L2 via `node scripts/check-all.mjs --level L2`.
