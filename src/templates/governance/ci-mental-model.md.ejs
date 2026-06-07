@@ -155,9 +155,7 @@ What runs:
 <% if (collaborationMode === 'trunk-solo') { %>
 - Integration tests (full)
 - Dependency CVE refresh
-<% if (collaborationMode === 'trunk-solo') { %>
-- **Solo reactivation check** (`.scripts/check-solo-reactivation.mjs`)
-<% } %>
+- **Solo reactivation check** (`scripts/check-solo-reactivation.mjs`)
 <% } else { %>
 - Full nightly suite (mutation + DAST + soak)
 - Dependency CVE refresh

@@ -64,6 +64,7 @@ import { generateModulith } from './modulith.js'
 import { generateFeatureMatrix } from './feature-matrix.js'
 import { generateGap } from './gap.js'
 import { generateResilience } from './resilience.js'
+import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult, GeneratorRunOpts } from '../utils/fs.js'
@@ -305,6 +306,43 @@ function buildBoundarySpecs(config: ProjectConfig): GeneratorSpec[] {
   ]
 }
 
+function buildGovernanceOverlaySpecs(config: ProjectConfig): GeneratorSpec[] {
+  return [
+    {
+      key: 'risk-register',
+      enabled: config.enableRiskRegister === true,
+      run: (opts) => generateRiskRegister(config, opts).files,
+    },
+    {
+      key: 'compliance',
+      enabled:
+        config.enableIso27001Mapping === true ||
+        config.enableNis2Mapping === true ||
+        config.enableGdprMapping === true,
+      run: (opts) => generateCompliance(config, opts).files,
+    },
+    {
+      // F5 (#888) + #1156: audit-trail overlay — opt-in via industryOverlay.
+      // 'pharma' → Java JPA/ArchUnit scaffolding (the generator self-guards on Java);
+      // 'sox'|'gdpr'|'generic' → language-neutral audit docs + gate rules.
+      // Gated here (not dead): fires only when an overlay is selected.
+      key: 'pharma',
+      enabled: config.industryOverlay != null && config.industryOverlay !== 'none',
+      run: (opts) => generatePharma(config, opts).files,
+    },
+    {
+      // 'solo-exception' → §11.10(k) regulated single-dev pack: attestation doc,
+      // validation-evidence template, CI mental model, reactivation check script.
+      // Only fires for trunk-solo at L3/L4 (ADR-091).
+      key: 'solo-exception',
+      enabled:
+        config.collaborationMode === 'trunk-solo' &&
+        (config.governanceLevel === 'L3' || config.governanceLevel === 'L4'),
+      run: (opts) => generateSoloException(config, opts).files,
+    },
+  ]
+}
+
 function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     ...buildBoundarySpecs(config),
@@ -360,28 +398,7 @@ function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
       enabled: config.enableOperationsHandbook === true,
       run: (opts) => generateOperations(config, opts).files,
     },
-    {
-      key: 'risk-register',
-      enabled: config.enableRiskRegister === true,
-      run: (opts) => generateRiskRegister(config, opts).files,
-    },
-    {
-      key: 'compliance',
-      enabled:
-        config.enableIso27001Mapping === true ||
-        config.enableNis2Mapping === true ||
-        config.enableGdprMapping === true,
-      run: (opts) => generateCompliance(config, opts).files,
-    },
-    {
-      // F5 (#888) + #1156: audit-trail overlay — opt-in via industryOverlay.
-      // 'pharma' → Java JPA/ArchUnit scaffolding (the generator self-guards on Java);
-      // 'sox'|'gdpr'|'generic' → language-neutral audit docs + gate rules.
-      // Gated here (not dead): fires only when an overlay is selected.
-      key: 'pharma',
-      enabled: config.industryOverlay != null && config.industryOverlay !== 'none',
-      run: (opts) => generatePharma(config, opts).files,
-    },
+    ...buildGovernanceOverlaySpecs(config),
     {
       key: 'behavioral-tests',
       enabled: true,
