@@ -17,6 +17,20 @@ import type { CollaborationMode, GovernanceLevel } from '../../wizard/types.js'
 
 export type CoherenceSeverity = 'OK' | 'WARN' | 'CRITICAL'
 
+/**
+ * #1254: the industryOverlay axis. Mirrors `ProjectConfig.industryOverlay`,
+ * exported here so the coherence layer (and the doctor/wizard callers) share a
+ * single name for the compliance axis.
+ */
+export type IndustryOverlay =
+  | 'pharma'
+  | 'sox'
+  | 'gdpr'
+  | 'generic'
+  | 'iso27001'
+  | 'iso9001'
+  | 'none'
+
 export interface CoherenceResult {
   valid: boolean
   severity: CoherenceSeverity
@@ -94,4 +108,68 @@ export function validateCollaborationCoherence(
     message: entry.message,
     ...(entry.remediation !== undefined ? { remediation: entry.remediation } : {}),
   }
+}
+
+// ── #1254: overlay × governanceLevel coherence ───────────────────────────────
+//
+// Second coherence axis. The collaboration matrix above governs *who merges*;
+// this one governs *compliance weight vs. governance rigour*. A heavy regulated
+// overlay (pharma 21 CFR, ISO 27001 security controls) under L1 governance is a
+// mismatch worth surfacing — the overlay scaffolds audit/security artefacts the
+// L1 gate set never enforces. We FLAG (WARN), never block: an overlay never
+// structurally breaks generation, so the strongest severity here is WARN.
+
+/**
+ * Compliance weight tiers. Heavy overlays expect L3/L4 rigour; medium overlays
+ * expect at least L2 (debt + security gates). Light/none impose nothing.
+ */
+const HEAVY_OVERLAYS: ReadonlySet<IndustryOverlay> = new Set(['pharma', 'iso27001'])
+const MEDIUM_OVERLAYS: ReadonlySet<IndustryOverlay> = new Set(['sox', 'gdpr', 'iso9001'])
+
+/** Minimum governance level that makes a heavy overlay coherent. */
+const HEAVY_MIN_LEVEL: GovernanceLevel = 'L3'
+/** Minimum governance level that makes a medium overlay coherent. */
+const MEDIUM_MIN_LEVEL: GovernanceLevel = 'L2'
+
+const LEVEL_RANK: Record<GovernanceLevel, number> = { L1: 1, L2: 2, L3: 3, L4: 4 }
+
+function belowLevel(level: GovernanceLevel, min: GovernanceLevel): boolean {
+  return LEVEL_RANK[level] < LEVEL_RANK[min]
+}
+
+/**
+ * Validate an (industryOverlay × governanceLevel) cell. Returns WARN when a
+ * compliance overlay is selected under governance too lenient to enforce the
+ * controls it scaffolds; OK otherwise. Never CRITICAL.
+ *
+ * - heavy (pharma, iso27001): WARN below L3.
+ * - medium (sox, gdpr, iso9001): WARN below L2.
+ * - light (generic) / none: always OK.
+ */
+export function validateOverlayCoherence(
+  overlay: IndustryOverlay,
+  level: GovernanceLevel,
+): CoherenceResult {
+  if (HEAVY_OVERLAYS.has(overlay) && belowLevel(level, HEAVY_MIN_LEVEL)) {
+    return {
+      valid: true,
+      severity: 'WARN',
+      message:
+        `industryOverlay='${overlay}' is a heavy regulated overlay (audit-trail / security controls) ` +
+        `but governanceLevel=${level} does not activate the mutation, evidence-harness, or human-approval ` +
+        `gates these controls rely on. The overlay scaffolds the artefacts, but the gate set will not ` +
+        `enforce them. Recommended: raise governanceLevel to ${HEAVY_MIN_LEVEL}+ (or downgrade the overlay).`,
+    }
+  }
+  if (MEDIUM_OVERLAYS.has(overlay) && belowLevel(level, MEDIUM_MIN_LEVEL)) {
+    return {
+      valid: true,
+      severity: 'WARN',
+      message:
+        `industryOverlay='${overlay}' is a compliance overlay but governanceLevel=${level} does not ` +
+        `activate the debt + security-scan gates it complements. Recommended: raise governanceLevel ` +
+        `to ${MEDIUM_MIN_LEVEL}+ so the overlay's controls are backed by enforced gates.`,
+    }
+  }
+  return { valid: true, severity: 'OK', message: '' }
 }

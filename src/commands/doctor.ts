@@ -19,7 +19,8 @@ import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
 import { detectLanguage } from '../detectors/language.js'
 import { isValidPhase } from './task-state.js'
-import { validateCollaborationCoherence } from './wizard/coherence.js'
+import { validateCollaborationCoherence, validateOverlayCoherence } from './wizard/coherence.js'
+import type { IndustryOverlay } from './wizard/coherence.js'
 import type { CollaborationMode, GovernanceLevel } from '../wizard/types.js'
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
@@ -127,6 +128,7 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   out.push(checkLockfile(dir))
   out.push(checkStackAdapterHealth(dir))
   out.push(checkCollaborationCoherence(dir))
+  out.push(checkOverlayCoherence(dir))
 
   return out
 }
@@ -165,6 +167,50 @@ function checkCollaborationCoherence(dir: string): HealthCheck {
   check.status = r.severity === 'CRITICAL' ? 'FAIL' : 'WARN'
   check.detail = r.message
   if (r.remediation !== undefined) check.hint = r.remediation
+  return check
+}
+
+/**
+ * #1254: surface incoherent (industryOverlay × governanceLevel) cells. A heavy
+ * compliance overlay (pharma, iso27001) under lenient governance (L1) — or a
+ * medium overlay under L1 — becomes an advisory WARN. Never FAILs: an overlay
+ * never structurally breaks generation, so it cannot trip the gate's exit code.
+ * Absent or 'none' overlay is genuinely optional → PASS (no standing warning).
+ */
+function checkOverlayCoherence(dir: string): HealthCheck {
+  const check: HealthCheck = {
+    id: 'overlay-coherence',
+    label: 'industryOverlay × governanceLevel coherence',
+    status: 'PASS',
+    detail: 'coherent',
+  }
+  let cfg: { industryOverlay?: IndustryOverlay; governanceLevel?: GovernanceLevel }
+  try {
+    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
+  } catch {
+    check.status = 'WARN'
+    check.detail = 'could not read arbiter.json for overlay-coherence check'
+    return check
+  }
+  const overlay = cfg.industryOverlay ?? 'none'
+  if (overlay === 'none') {
+    check.detail = 'no industry overlay configured — nothing to check'
+    return check
+  }
+  if (cfg.governanceLevel === undefined) {
+    check.status = 'WARN'
+    check.detail = `industryOverlay='${overlay}' set but governanceLevel missing from arbiter.json`
+    check.hint = 'Run `arbiter update` to repair the governanceLevel field.'
+    return check
+  }
+  const r = validateOverlayCoherence(overlay, cfg.governanceLevel)
+  if (r.severity === 'OK') {
+    check.detail = `${overlay} @ ${cfg.governanceLevel} — coherent`
+    return check
+  }
+  check.status = 'WARN'
+  check.detail = r.message
+  check.hint = `Raise governanceLevel or change industryOverlay so the overlay's controls are gate-backed.`
   return check
 }
 

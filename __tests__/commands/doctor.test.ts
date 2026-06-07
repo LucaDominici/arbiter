@@ -91,6 +91,39 @@ describe('runDoctorHealth (#539)', () => {
     expect(c?.status).toBe('WARN')
   })
 
+  // #1254: industryOverlay × governanceLevel coherence surfaced by doctor.
+  it('overlay-coherence PASS for a coherent cell (pharma @ L3)', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ industryOverlay: 'pharma', governanceLevel: 'L3' }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'overlay-coherence')
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('overlay-coherence WARN for a heavy overlay under lenient governance (pharma @ L1)', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ industryOverlay: 'pharma', governanceLevel: 'L1' }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'overlay-coherence')
+    expect(c?.status).toBe('WARN')
+    expect(result.fail).toBe(0)
+  })
+
+  it('overlay-coherence PASS (not WARN) when no overlay is configured', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L1' }))
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'overlay-coherence')
+    expect(c?.status).toBe('PASS')
+    expect(result.fail).toBe(0)
+  })
+
   it('WARN when arbiter.json exists but AGENTS.md missing', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
