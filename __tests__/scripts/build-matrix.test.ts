@@ -160,6 +160,6 @@ describe('build-matrix.mjs', () => {
     expect(result.status).toBe(0)
     const line = result.stdout.split('\n').find((l) => l.startsWith('matrix='))
     const json = JSON.parse(line!.replace('matrix=', ''))
-    expect(json.include).toHaveLength(102)
+    expect(json.include).toHaveLength(106)
   })
 })

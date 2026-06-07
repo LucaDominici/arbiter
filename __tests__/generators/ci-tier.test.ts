@@ -98,3 +98,55 @@ describe('generateCiTier — enableCodeownersNotify opt-in', () => {
     expect(result.files).toHaveLength(4)
   })
 })
+
+// #1226: Java emits setup-java-maven composite; non-Java does not (Phase 0, CANON-05)
+describe('generateCiTier — Java setup-java-maven emission (#1226)', () => {
+  it('emits setup-java-maven/action.yml for Java projects', () => {
+    const result = generateCiTier(
+      makeConfig(dir, { useGitHub: true, language: 'java', buildTool: 'maven' }),
+    )
+    const paths = result.files.map((f) => f.path)
+    expect(
+      paths.some((p) => p.includes(join('.github', 'actions', 'setup-java-maven', 'action.yml'))),
+    ).toBe(true)
+  })
+
+  it('does NOT emit setup-java-maven/action.yml for TypeScript projects', () => {
+    const result = generateCiTier(makeConfig(dir, { useGitHub: true, language: 'typescript' }))
+    const paths = result.files.map((f) => f.path)
+    expect(
+      paths.some((p) => p.includes(join('.github', 'actions', 'setup-java-maven', 'action.yml'))),
+    ).toBe(false)
+  })
+
+  it('does NOT emit setup-java-maven/action.yml for Python projects', () => {
+    const result = generateCiTier(
+      makeConfig(dir, { useGitHub: true, language: 'python', buildTool: 'pip' }),
+    )
+    const paths = result.files.map((f) => f.path)
+    expect(
+      paths.some((p) => p.includes(join('.github', 'actions', 'setup-java-maven', 'action.yml'))),
+    ).toBe(false)
+  })
+
+  it('existing 4-artifact TypeScript contract is unchanged', () => {
+    const result = generateCiTier(makeConfig(dir, { useGitHub: true, language: 'typescript' }))
+    expect(result.files).toHaveLength(4)
+  })
+
+  // CANON-11: brownfield — re-init with Java must honour skipIfExists semantics
+  it('setup-java-maven/action.yml is skipIfExists — no overwrite on re-init (CANON-11)', () => {
+    const config = makeConfig(dir, { useGitHub: true, language: 'java', buildTool: 'maven' })
+    const result1 = generateCiTier(config)
+    const file1 = result1.files.find((f) =>
+      f.path.includes(join('.github', 'actions', 'setup-java-maven', 'action.yml')),
+    )
+    expect(file1?.action).toBe('created')
+
+    const result2 = generateCiTier(config)
+    const file2 = result2.files.find((f) =>
+      f.path.includes(join('.github', 'actions', 'setup-java-maven', 'action.yml')),
+    )
+    expect(file2?.action).toBe('skipped')
+  })
+})

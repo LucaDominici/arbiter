@@ -1,0 +1,12 @@
+{
+  "language": "java",
+  "archetype": "backend-web-db",
+  "buildTool": "maven",
+  "levels": ["L1", "L2", "L3", "L4"],
+  "tier": "bake",
+  "note": "Java Maven Spring Boot service — reactor handoff fixture (#1226); validates setup-java-maven composite emission and build-reactor job across all governance levels",
+  "enableSecurityScanning": true,
+  "architectureStyle": "layered",
+  "basePackage": "com.example",
+  "collaborationMode": "peer-review"
+}

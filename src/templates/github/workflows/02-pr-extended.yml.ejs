@@ -27,7 +27,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-trigger:
+<% if (language === 'java' && buildTool === 'maven') { %>  build-reactor:
+    name: Build Maven Reactor (#1226)
+    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: ./.github/actions/setup-java-maven
+      - name: Pre-fetch plugins and dependencies (offline cache)
+        run: mvn dependency:go-offline --batch-mode -q
+      - name: Build reactor (skip tests)
+        run: mvn --batch-mode -DskipTests install
+      - name: Pack M2 repository
+        run: |
+          mkdir -p "${{ runner.temp }}/.m2-reactor"
+          tar -cf "${{ runner.temp }}/.m2-reactor/m2-reactor.tar" -C "$HOME/.m2" repository
+      - name: Upload reactor M2 artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor/m2-reactor.tar
+          retention-days: 7
+          overwrite: true
+
+<% } %>  check-trigger:
     name: Check Extended Trigger
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     outputs:
@@ -86,10 +110,7 @@ jobs:
         run: npm run test:resilience
 <% } %>
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew integrationTest
@@ -98,7 +119,12 @@ jobs:
         run: ./gradlew test -Ptests=resilience
 <% } %>
 <% } else { %>
-      - run: mvn test -Pintegration
+      - name: Download reactor M2 artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: reactor-m2-${{ github.run_id }}
+          path: ${{ runner.temp }}/.m2-reactor
+      - run: mvn test -Pintegration --offline
 <% if (_isService) { %>
       - name: Toxiproxy resilience test
         run: mvn test -Presilience
@@ -158,10 +184,7 @@ jobs:
         run: npx buf breaking --against .git#branch=main
 <% } %>
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
 <% } %>
@@ -286,10 +309,7 @@ jobs:
       - name: License check
         run: npx license-checker --production --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;Python-2.0' --excludePackages 'buffers@0.1.1'
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - name: License report
@@ -334,10 +354,7 @@ jobs:
       - run: npm run build && node scripts/build-kit.mjs
       - run: npm run test:behavioral
 <% } else if (language === 'java') { %>
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
+      - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
       - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70  # v3
       - run: ./gradlew behavioralTest

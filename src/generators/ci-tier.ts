@@ -55,5 +55,17 @@ export function generateCiTier(
     )
   }
 
+  // #1226: Java projects emit the setup-java-maven composite action (both maven and gradle).
+  // skipIfExists preserves any user customisation on re-init (CANON-11).
+  if (config.language === 'java') {
+    files.push(
+      writeFile(
+        join(actionsDir, 'setup-java-maven', 'action.yml'),
+        renderTemplate('github/actions/setup-java-maven/action.yml.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
   return { files }
 }
