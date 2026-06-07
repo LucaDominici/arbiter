@@ -642,3 +642,11 @@ The generated LLM-wiki (wiki/) must pass four lint dimensions: broken-link (ever
 **Enforcement:** `scripts/check-wiki-lint.mjs` (L2 gate, wired in scripts/check-all.mjs): validates all 4 lint dimensions; exits 0 on bootstrap. Emitted for target projects as `src/templates/scripts/check-wiki-lint.mjs.ejs` (CANON-01/14). Empirical coverage: `__tests__/gates/wiki-lint-fixture.test.ts` (planted-break per dimension).
 
 ---
+
+### INV-117: arbiter self-repo must not track binary build artifacts
+
+The arbiter repository must not commit binary build artifacts. npm pack outputs (.tgz) bloat git history permanently and are unreproducible from source. selfOnly: true because consumer projects use diverse packaging (maven jars, python wheels, Go binaries, Docker images) — a blanket .tgz prohibition would incorrectly block legitimate non-JS packaging workflows (#1217).
+
+**Enforcement:** `scripts/check-no-tracked-artifacts.mjs` (L1 gate, selfOnly — arbiter self-governance only). Uses `git ls-files` to detect tracked .tgz and .tar.gz files. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR. Wired in `scripts/check-all.mjs`.
+
+---

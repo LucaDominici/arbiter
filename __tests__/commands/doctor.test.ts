@@ -8,6 +8,7 @@ import {
   runDoctorRepairState,
   runDoctorHealth,
   runDoctorRecoverLock,
+  runDoctorClean,
 } from '../../src/commands/doctor.js'
 import { saveConfig, saveConfigAndSnapshot } from '../../src/utils/config.js'
 import { defaultConfig } from '../helpers/default-config.js'
@@ -410,5 +411,45 @@ describe('runDoctorHealth — channel check (#662)', () => {
     expect(ch?.hint).toMatch(/arbiter init/i)
     // Other checks should still run (not crash)
     expect(result.checks.find((c) => c.id === 'node-version')?.status).toBe('PASS')
+  })
+})
+
+describe('runDoctorClean (#1217)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-doctor-clean-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('deletes *.arbiter-backup and .arbiter-generated.json.bak.* files', () => {
+    const backupFile = join(dir, 'settings.json.arbiter-backup')
+    const bakFile = join(dir, '.arbiter-generated.json.bak.2024-01-01T00-00-00-000Z')
+    writeFileSync(backupFile, 'backup content', 'utf-8')
+    writeFileSync(bakFile, 'bak content', 'utf-8')
+
+    const result = runDoctorClean({ dir, dryRun: false })
+
+    expect(result.deleted).toHaveLength(2)
+    expect(result.found).toHaveLength(2)
+    expect(existsSync(backupFile)).toBe(false)
+    expect(existsSync(bakFile)).toBe(false)
+  })
+
+  it('dry-run lists files without deleting them', () => {
+    const backupFile = join(dir, 'settings.json.arbiter-backup')
+    const bakFile = join(dir, '.arbiter-generated.json.bak.2024-01-01T00-00-00-000Z')
+    writeFileSync(backupFile, 'backup content', 'utf-8')
+    writeFileSync(bakFile, 'bak content', 'utf-8')
+
+    const result = runDoctorClean({ dir, dryRun: true })
+
+    expect(result.found).toHaveLength(2)
+    expect(result.deleted).toHaveLength(0)
+    expect(existsSync(backupFile)).toBe(true)
+    expect(existsSync(bakFile)).toBe(true)
   })
 })

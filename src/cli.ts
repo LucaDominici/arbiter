@@ -12,7 +12,12 @@ import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
-import { runDoctorRepairState, runDoctorHealth, runDoctorRecoverLock } from './commands/doctor.js'
+import {
+  runDoctorRepairState,
+  runDoctorHealth,
+  runDoctorRecoverLock,
+  runDoctorClean,
+} from './commands/doctor.js'
 import { runIntegrationsList } from './commands/integrations.js'
 import { runReviewCode, runReviewPlan } from './commands/review.js'
 import { jsonOutput } from './utils/json-output.js'
@@ -1088,6 +1093,26 @@ doctor
       process.stderr.write(`  Error: ${msg}\n`)
       process.exit(1)
     })
+  })
+
+doctor
+  .command('clean')
+  .description('Remove arbiter backup files (*.arbiter-backup, .arbiter-generated.json.bak.*)')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .option('--dry-run', 'List files without deleting', false)
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; dryRun: boolean; json: boolean }) => {
+    try {
+      runDoctorClean({
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        dryRun: opts.dryRun,
+        json: opts.json,
+      })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`  Error: ${msg}\n`)
+      process.exit(1)
+    }
   })
 
 const integrations = program

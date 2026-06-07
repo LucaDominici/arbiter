@@ -6,7 +6,7 @@
  * - `health`: Checks Node version, git, hooks path, and AGENTS.md presence.
  * - `recover-lock`: Force-releases a stale `.arbiter/.lock` file.
  */
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, unlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import os from 'node:os'
@@ -598,4 +598,72 @@ export async function runDoctorRecoverLock(
     process.stdout.write(`  Lock released.\n`)
   }
   return { found: true, released: true, info }
+}
+
+// ── doctor clean (#1217) ─────────────────────────────────────────────────────
+
+export interface DoctorCleanOptions {
+  dir?: string
+  dryRun?: boolean
+  json?: boolean
+}
+
+export interface DoctorCleanResult {
+  found: string[]
+  deleted: string[]
+}
+
+const CLEAN_SKIP_DIRS = new Set(['node_modules', '.git', 'dist'])
+
+function isBackupFile(name: string): boolean {
+  return name.endsWith('.arbiter-backup') || /^\.arbiter-generated\.json\.bak\./.test(name)
+}
+
+function collectBackups(dir: string, out: string[]): void {
+  let entries
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'EACCES') return
+    throw err
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (!CLEAN_SKIP_DIRS.has(entry.name)) collectBackups(join(dir, entry.name), out)
+    } else if (entry.isFile() && isBackupFile(entry.name)) {
+      out.push(join(dir, entry.name))
+    }
+  }
+}
+
+export function runDoctorClean(opts: DoctorCleanOptions = {}): DoctorCleanResult {
+  const rawDir = resolve(opts.dir ?? '.')
+  let targetDir: string
+  try {
+    targetDir = realpathSync(rawDir)
+  } catch {
+    targetDir = rawDir
+  }
+
+  const found: string[] = []
+  collectBackups(targetDir, found)
+
+  const deleted: string[] = []
+  if (!opts.dryRun) {
+    for (const f of found) {
+      try {
+        unlinkSync(f)
+        deleted.push(f)
+      } catch {
+        // skip files we can't delete
+      }
+    }
+  }
+
+  if (opts.json) {
+    jsonOutput('doctor clean', 'ok', { found, deleted })
+  }
+
+  return { found, deleted }
 }

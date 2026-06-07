@@ -100,6 +100,8 @@ describe('generateEvidenceRetention', () => {
     expect(content).toContain('.agents-dispatched')
     expect(content).toContain('.claude/.task-*')
     expect(content).toContain('.claude/plans/')
+    expect(content).toContain('*.arbiter-backup')
+    expect(content).toContain('.arbiter-generated.json.bak.*')
   })
 
   it('.gitignore skipIfExists — does not overwrite existing file', () => {

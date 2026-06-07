@@ -1905,4 +1905,21 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'all 4 dimensions; exits 0 on bootstrap. Emitted for targets as ' +
       'check-wiki-lint.mjs.ejs (CANON-01/14). Tests: tests/gates/wiki-lint-fixture.test.ts.',
   },
+  {
+    id: 'INV-117',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: true,
+    title: 'arbiter self-repo must not track binary build artifacts',
+    description:
+      'The arbiter repository must not commit binary build artifacts. ' +
+      'npm pack outputs (*.tgz) bloat git history permanently and are unreproducible ' +
+      'from source. selfOnly: true because consumer projects use diverse packaging ' +
+      '(maven jars, python wheels, Go binaries, Docker images) — a blanket *.tgz ' +
+      'prohibition would incorrectly block legitimate non-JS packaging workflows (#1217).',
+    enforcement:
+      'scripts/check-no-tracked-artifacts.mjs (L1, selfOnly — arbiter self-governance only). ' +
+      'Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
+  },
 ]

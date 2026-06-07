@@ -102,6 +102,7 @@ if (isMain) {
   runCheck('no redacted tokens', 'node', ['scripts/check-no-redacted-tokens.mjs'])
   runCheck('no work refs', 'node', ['scripts/check-no-work-refs.mjs', 'all'])
   runCheck('private paths ignored', 'node', ['scripts/check-private-paths-ignored.mjs'])
+  runCheck('no tracked artifacts (INV-117)', 'node', ['scripts/check-no-tracked-artifacts.mjs'])
   runCheck('typecheck', 'npx', ['tsc', '--noEmit'])
   runCheck('format', 'npx', ['prettier', '--check', '.'])
   runCheck('lint', 'npx', ['eslint', 'src', '__tests__'])

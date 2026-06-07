@@ -268,6 +268,8 @@ Applies when `useGitHub: true`. Generated gate scripts enforce these at L1/L2.
   - _Enforcement:_ `scripts/check-constraint-scan.mjs` (L1; extracts NEVER/MUST NOT/DO NOT prohibitions from AGENTS.md/CANON.md/CLAUDE.md, classifies via `scripts/constraint-map.json` with enforcer-existence verification, fails on a live un-covered violation or map-fiction; generated for targets + dogfooded per CANON-01/14)
 - **INV-116:** wiki/ must be free of broken wikilinks, orphan pages, stale source hashes, and missing citations
   - _Enforcement:_ `scripts/check-wiki-lint.mjs` (L2; validates 4 lint dimensions: broken-link, orphan, stale, citation-integrity; exits 0 on bootstrap; generated for targets + dogfooded per CANON-01/14)
+- **INV-117:** arbiter self-repo must not track binary build artifacts
+  - _Enforcement:_ `scripts/check-no-tracked-artifacts.mjs` (L1; selfOnly — arbiter npm-pack hygiene only; exits 0=PASS, 1=FAIL, 2=ERROR per INV-53)
 
 - **INV-105:** design token discipline — no raw colors or phantom tokens in UI components
   - _Enforcement:_ Generated `scripts/verify-tokens.mjs` (L2, frontend-spa and frontend-lane projects)

@@ -154,6 +154,7 @@ const CI_COVERAGE = new Map([
   ['no redacted tokens', 'gate-full'],
   ['no work refs', 'gate-full'],
   ['private paths ignored', 'gate-full'],
+  ['no tracked artifacts (INV-117)', 'gate-full'],
   ['greenfield smoke', 'gate-full'],
   ['placeholders', 'gate-full'],
   ['i18n raw strings', 'gate-full'],

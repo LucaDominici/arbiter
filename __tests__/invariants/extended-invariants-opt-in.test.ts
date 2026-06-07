@@ -27,7 +27,8 @@ describe('extended opt-in invariants', () => {
     // Updated #1206: +1 (INV-113 single authoritative task-phase document)
     // Updated #1214: +1 (INV-115 free-text governance prohibition scanner)
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly governance)
-    expect(INVARIANT_CATALOG).toHaveLength(114)
+    // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
+    expect(INVARIANT_CATALOG).toHaveLength(115)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

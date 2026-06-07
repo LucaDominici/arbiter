@@ -59,9 +59,8 @@ report/
 # Timestamped generated-file backups (anti-recurrence)
 *.bak.*
 
-# npm pack output: ignore stray packs, keep the vendored package consumed by sibling repos
+# npm pack output: ignore all packs (#1217 — tracked artifact removed)
 *.tgz
-!arbiter-cli-0.1.0.tgz
 
 # Stray target-project output regenerated into this TS repo root by `arbiter init/update`
 # (#1088). Root-anchored so only the alien Java/Gradle artifacts are ignored, never nested
