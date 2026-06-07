@@ -382,10 +382,15 @@ export interface ProjectConfig {
    * 'pharma'            → pharma audit-trail overlay (KIT dims 73-75, ArchUnit R-35..R-39). Java only.
    * 'sox'|'gdpr'|'generic' → language-neutral L4 audit-trail docs + gate rules,
    *                       decoupled from the pharma Java scaffolding (#1156).
+   * 'iso27001'          → ISO 27001:2022 Annex-A controls→gate traceability
+   *                       overlay (security mgmt). Language-neutral (#1252).
+   * 'iso9001'           → quality-process overlay (orthogonal to audit-trail):
+   *                       requirement→test RTM, document-control register, CAPA log
+   *                       + enforceable gate. Language-neutral (#1253).
    * 'none'              → no overlay (default).
    * Absent field is treated as 'none'.
    */
-  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'none'
+  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'none'
 
   /**
    * F6: Emit k6 performance testing ecosystem.

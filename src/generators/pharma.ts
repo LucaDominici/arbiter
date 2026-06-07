@@ -115,6 +115,11 @@ export function generatePharma(
   if (!overlay || overlay === 'none') {
     return { files: [] }
   }
+  // iso9001 is the quality-process overlay (generators/iso9001.ts), orthogonal to the
+  // audit-trail overlays handled here — it must not fall through to generic audit docs (#1253).
+  if (overlay === 'iso9001') {
+    return { files: [] }
+  }
 
   let files: WriteResult[]
   if (overlay === 'pharma') {

@@ -53,6 +53,7 @@ import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
 import { generatePharma } from './pharma.js'
 import { generateIso27001 } from './iso27001.js'
+import { generateIso9001 } from './iso9001.js'
 import { generateObservability } from './observability.js'
 import { generateAuth } from './auth.js'
 import { generateCiTier } from './ci-tier.js'
@@ -339,6 +340,13 @@ function buildGovernanceOverlaySpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'iso27001-controls',
       enabled: config.industryOverlay === 'iso27001',
       run: (opts) => generateIso27001(config, opts).files,
+    },
+    {
+      // #1253: ISO 9001 quality-process overlay (RTM + doc-control + CAPA + gate).
+      // Orthogonal to the audit-trail 'pharma' spec above; fires only for iso9001.
+      key: 'iso9001',
+      enabled: config.industryOverlay === 'iso9001',
+      run: (opts) => generateIso9001(config, opts).files,
     },
     {
       // 'solo-exception' → §11.10(k) regulated single-dev pack: attestation doc,

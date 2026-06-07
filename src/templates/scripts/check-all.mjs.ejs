@@ -323,6 +323,10 @@ runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mj
 runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
 // ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
+// ─── L1: ISO 9001 quality-process overlay gate (#1253) — present only when overlay selected
+if (existsSync('scripts/check-iso9001.mjs')) {
+  runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
+}
 <% if (useGitHub) { %>
 // ─── L1: GitHub CI tier gates (INV-72, INV-75, INV-76) ───────────────────────
 runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);
