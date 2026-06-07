@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 090)
+1. Create `NNN-short-title.md` in this directory (next free number after 091)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -118,3 +118,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 088 | [/ship as the Single Orchestration Entrypoint](088-ship-as-orchestration-entrypoint.md)                                                                               | Accepted   | 2026-06-05 |  |
 | 089 | [Collapse hand docs to SSOT-core + generated LLM-Wiki](089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md)                                                    | Accepted   | 2026-06-06 |  |
 | 090 | [Workflow Performance Budget](090-workflow-performance-budget.md)                                                                                                     | Accepted   | 2026-06-07 |  |
+| 091 | [Single-Developer Exception Attestation (§11.10(k))](091-single-dev-exception-attestation.md)                                                                         | Accepted   | 2026-06-07 |  |

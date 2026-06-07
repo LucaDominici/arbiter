@@ -38,7 +38,10 @@ const COHERENCE_MATRIX: Record<CollaborationMode, Record<GovernanceLevel, Matrix
       message:
         'trunk-solo at L3: no human-approval gate is active. ' +
         'Cosign signatures bind to the dev identity only — no reviewer attestation. ' +
-        'Acceptable for high-trust solo projects; note the gap in arbiter doctor.',
+        'Acceptable under the §11.10(k) single-developer exception (ADR-091): arbiter ' +
+        'generates the attestation doc, validation-evidence template, and reactivation ' +
+        'trigger check (≥3 authors or EXTERNAL_AUDIT=true → auto-switches to CODEOWNERS). ' +
+        'See docs/governance/SOLO_DEV_EXCEPTION.md after running arbiter update.',
     },
     L4: {
       severity: 'CRITICAL',

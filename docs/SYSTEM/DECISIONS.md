@@ -109,3 +109,4 @@ related: []
 | 088 | [/ship as the Single Orchestration Entrypoint](../ADR/088-ship-as-orchestration-entrypoint.md) | Accepted | 2026-06-05 |
 | 089 | [Collapse hand docs to SSOT-core + generated LLM-Wiki](../ADR/089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md) | Accepted | 2026-06-06 |
 | 090 | [Workflow Performance Budget](../ADR/090-workflow-performance-budget.md) | Accepted | 2026-06-07 |
+| 091 | [Single-Developer Exception Attestation (§11.10(k))](../ADR/091-single-dev-exception-attestation.md) | Accepted | 2026-06-07 |

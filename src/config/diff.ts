@@ -66,6 +66,7 @@ export type GeneratorKey =
   | 'resilience'
   | 'gap'
   | 'wiki'
+  | 'solo-exception'
 
 export interface ConfigDiff {
   paths: string[]
