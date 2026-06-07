@@ -14,6 +14,7 @@ const SKILL_NAMES = [
   'codebase-audit',
   'epic-decompose',
   'configure',
+  'brainstorming',
 ] as const
 
 const SUPERPOWERS_TDD: InstalledSkill = {
@@ -41,7 +42,7 @@ describe('generateSkills', () => {
     expect(result.files).toHaveLength(0)
   })
 
-  it('generates all 8 skill SKILL.md files for claude projects', () => {
+  it('generates all built-in skill SKILL.md files for claude projects', () => {
     const config = makeConfig(dir, { tools: ['claude'] })
     const result = generateSkills(config, [])
     expect(result.files).toHaveLength(SKILL_NAMES.length)

@@ -278,6 +278,16 @@
       ],
       "spawnable": false,
       "rationale": "Banner hook for ExitPlanMode \u2014 informs agent of next step after plan phase; non-blocking"
+    },
+    {
+      "file": "post-brainstorm-stop.mjs",
+      "classification": "HARD",
+      "tools": [
+        "claude"
+      ],
+      "spawnable": false,
+      "expectedExitCode": 2,
+      "rationale": "#1265: UserPromptSubmit hard block (exit 2) \u2014 while a brainstorm session is active (.arbiter/brainstorm-active marker), /task commands are rejected until the marker is cleared or auto-expires after 24h. Enforces the brainstorm terminal state (design doc + issue, never auto-implement). Not auto-spawnable: requires both a /task stdin prompt and a cwd marker; empirical exit-2 coverage in __tests__/skills/brainstorming.test.ts."
     }
   ]
 }

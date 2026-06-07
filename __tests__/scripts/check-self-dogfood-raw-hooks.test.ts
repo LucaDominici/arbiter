@@ -18,12 +18,13 @@ const repoRoot = join(__dirname, '..', '..')
 const modUrl = new URL('../../scripts/check-self-dogfood.mjs', import.meta.url).href
 
 describe('check-self-dogfood raw .mjs hook corpus (#1090)', () => {
-  it('REQUIRED_RAW_HOOKS lists the 8 hooks emitted verbatim by claude.ts', async () => {
+  it('REQUIRED_RAW_HOOKS lists the 9 hooks emitted verbatim by claude.ts', async () => {
     const mod = await import(modUrl)
     expect(mod.REQUIRED_RAW_HOOKS).toContain('stop-dangerous.mjs')
     expect(mod.REQUIRED_RAW_HOOKS).toContain('enforce-read-only.mjs')
     expect(mod.REQUIRED_RAW_HOOKS).toContain('check-no-orphan-todo.mjs')
-    expect(mod.REQUIRED_RAW_HOOKS.length).toBe(8)
+    expect(mod.REQUIRED_RAW_HOOKS).toContain('post-brainstorm-stop.mjs')
+    expect(mod.REQUIRED_RAW_HOOKS.length).toBe(9)
   })
 
   it('passes against the real repo (every raw hook matches or is allowlisted)', async () => {

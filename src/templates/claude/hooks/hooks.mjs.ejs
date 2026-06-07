@@ -66,6 +66,7 @@ const HANDLERS = {
 <%  } -%>
 <%  if (governanceLevel !== 'L1') { -%>
   'UserPromptSubmit': [
+    'post-brainstorm-stop.mjs',
     'skill-forced-eval.mjs',
     'guard-task-completion.mjs',
 <%    if (typeof enableEvidenceHarness === 'undefined' || enableEvidenceHarness !== false) { -%>

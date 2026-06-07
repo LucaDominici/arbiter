@@ -13,6 +13,7 @@ const VALID_SKILL_NAMES = new Set([
   'codebase-audit',
   'epic-decompose',
   'configure',
+  'brainstorming',
 ])
 
 const SkillEntrySchema = z.object({

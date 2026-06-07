@@ -20,6 +20,7 @@ export const SKILL_NAMES = [
   'codebase-audit',
   'epic-decompose',
   'configure',
+  'brainstorming',
 ] as const
 
 function findReplacingSkill(

@@ -31,6 +31,7 @@ export const REQUIRED_RAW_HOOKS = [
   'enforce-gate-before-pr.mjs',
   'check-no-unused-exports.mjs',
   'check-no-skipped-tests.mjs',
+  'post-brainstorm-stop.mjs',
 ]
 
 // ─── helpers ────────────────────────────────────────────────────────────────

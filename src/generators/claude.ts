@@ -158,6 +158,41 @@ const L2_ADVANCED_HOOKS = [
   'stop-evidence-guard.mjs',
 ] as const
 
+// L2+ advanced hooks (post-edit/debug/skill/completion/evidence guards) plus the
+// brainstorm terminal-state guardrail (#1265). Extracted from generateClaudeHooks
+// to keep that function under the max-lines ceiling.
+function generateL2AdvancedHooks(
+  hooksDir: string,
+  data: object,
+  config: ProjectConfig,
+  results: WriteResult[],
+  dryRun: boolean,
+): void {
+  const advancedHooks: string[] = [...L2_ADVANCED_HOOKS]
+  // Evidence guard only when evidence harness is enabled (mirrors CLI/config emission)
+  if (config.enableEvidenceHarness !== false) {
+    advancedHooks.push('guard-done-evidence.mjs')
+  }
+  for (const hookFile of advancedHooks) {
+    results.push(
+      writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
+        skipIfExists: true,
+        dryRun,
+      }),
+    )
+  }
+
+  // Brainstorm terminal-state guardrail (#1265) — raw .mjs copy, wired into the
+  // dispatcher's UserPromptSubmit chain (L2+). Self-contained, no lib.mjs import.
+  results.push(
+    writeFile(
+      join(hooksDir, 'post-brainstorm-stop.mjs'),
+      renderTemplate('claude/hooks/post-brainstorm-stop.mjs', data),
+      { skipIfExists: true, dryRun },
+    ),
+  )
+}
+
 function generateClaudeHooks(
   base: string,
   data: object,
@@ -241,19 +276,7 @@ function generateClaudeHooks(
 
   // Advanced hooks — L2+ only
   if (config.governanceLevel !== 'L1') {
-    const advancedHooks: string[] = [...L2_ADVANCED_HOOKS]
-    // Evidence guard only when evidence harness is enabled (mirrors CLI/config emission)
-    if (config.enableEvidenceHarness !== false) {
-      advancedHooks.push('guard-done-evidence.mjs')
-    }
-    for (const hookFile of advancedHooks) {
-      results.push(
-        writeFile(join(hooksDir, hookFile), renderTemplate(`claude/hooks/${hookFile}.ejs`, data), {
-          skipIfExists: true,
-          dryRun,
-        }),
-      )
-    }
+    generateL2AdvancedHooks(hooksDir, data, config, results, dryRun)
   }
 
   // TypeScript hooks — circular dep detection (INV-01)
@@ -292,6 +315,10 @@ function generateClaudeRules(
     {
       file: '50-batch-execution.md',
       template: 'claude/rules/50-batch-execution.md',
+    },
+    {
+      file: '55-brainstorm-terminal-state.md',
+      template: 'claude/rules/55-brainstorm-terminal-state.md',
     },
     {
       file: '90-exec-protocol.md',
