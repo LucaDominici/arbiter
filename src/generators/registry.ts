@@ -52,6 +52,7 @@ import { generateFrontendQuality } from './frontend-quality.js'
 import { generateRiskRegister } from './risk-register.js'
 import { generateCompliance } from './compliance.js'
 import { generatePharma } from './pharma.js'
+import { generateIso27001 } from './iso27001.js'
 import { generateObservability } from './observability.js'
 import { generateAuth } from './auth.js'
 import { generateCiTier } from './ci-tier.js'
@@ -329,6 +330,15 @@ function buildGovernanceOverlaySpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'pharma',
       enabled: config.industryOverlay != null && config.industryOverlay !== 'none',
       run: (opts) => generatePharma(config, opts).files,
+    },
+    {
+      // #1252: ISO 27001:2022 Annex-A controls→gate traceability overlay.
+      // Self-guards on industryOverlay === 'iso27001'; emits ONLY the
+      // ISO-specific traceability doc (the generic audit docs are emitted by the
+      // 'pharma' spec above, which fires for any non-none overlay).
+      key: 'iso27001-controls',
+      enabled: config.industryOverlay === 'iso27001',
+      run: (opts) => generateIso27001(config, opts).files,
     },
     {
       // 'solo-exception' → §11.10(k) regulated single-dev pack: attestation doc,

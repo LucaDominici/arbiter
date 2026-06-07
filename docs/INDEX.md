@@ -376,7 +376,7 @@
 | [Reference: Evidence Bundle Schema](REFERENCE/evidence-schema.md) | — | active | kind/reference |
 | [External KIT Sources](REFERENCE/external-kit-sources.md) | — | active | kind/reference |
 | [Generated File Format Stability Map](REFERENCE/file-stability.md) | — | active | kind/reference |
-| [GDPR Overlay — Reference](REFERENCE/gdpr-overlay.md) | — | active | kind/reference |
+| [ISO 27001 Overlay — Reference](REFERENCE/iso27001-overlay.md) | — | active | kind/reference |
 | [Java Stack Adapter Reference](REFERENCE/java-adapter.md) | — | active | kind/reference |
 | [Local-Wrapper Contract (INV-87, W3)](REFERENCE/local-wrapper-contract.md) | — | active | kind/reference |
 | [Nightly / Weekly / Heartbeat — Reference](REFERENCE/nightly-weekly-heartbeat.md) | — | active | kind/reference |

@@ -385,7 +385,7 @@ export interface ProjectConfig {
    * 'none'              → no overlay (default).
    * Absent field is treated as 'none'.
    */
-  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'none'
+  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'none'
 
   /**
    * F6: Emit k6 performance testing ecosystem.
