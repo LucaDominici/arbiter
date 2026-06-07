@@ -1,0 +1,22 @@
+{
+  "stepEstimates": {
+    "actions/checkout": 0.2,
+    "actions/setup-node": 0.5,
+    "actions/setup-java": 1.5,
+    "mvn test": 8,
+    "mvn install -DskipTests": 5,
+    "npm test": 3,
+    "npm run build": 2,
+    "actions/upload-artifact": 0.3,
+    "actions/download-artifact": 0.3,
+    "_default": 1
+  },
+  "workflowBudgets": {
+    "01-pr-fast": 15,
+    "02-pr-extended": 30,
+    "03-human-approval": 40,
+    "06-nightly": 120,
+    "07-weekly": 180,
+    "08-monthly": 240
+  }
+}
