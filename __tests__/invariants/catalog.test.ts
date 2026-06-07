@@ -34,7 +34,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly governance, L2+)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
     // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
-    expect(INVARIANT_CATALOG).toHaveLength(117)
+    // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
+    expect(INVARIANT_CATALOG).toHaveLength(118)
   })
 
   it('all IDs are unique', () => {
@@ -42,9 +43,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112)
     // Updated #1217: +1 (INV-117)
     // Updated #1249: +2 (INV-118, INV-119)
+    // Updated #1231: +1 (INV-120)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(117)
+    expect(unique.size).toBe(118)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -130,8 +132,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1241: +1 (INV-116 wiki-lint gate)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
     // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
+    // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(47)
+    expect(tier5).toHaveLength(48)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -549,8 +552,9 @@ describe('getFilteredInvariants', () => {
     // Updated #1206: +1 (INV-113 single authoritative task-phase document)
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly)
+    // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(27)
+    expect(selfOnly).toHaveLength(28)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')

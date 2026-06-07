@@ -666,3 +666,11 @@ Commits that touch suppression/bypass files (\*.trivyignore, owasp-suppressions.
 **Enforcement:** `scripts/check-commit-footer-rationale.mjs` (L2+ gate, hard-block). Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR. Wired in `scripts/check-all.mjs` (gate block, not check block).
 
 ---
+
+### INV-120: Workflow needs-chain depth must not exceed the configured limit (parallelism regression gate)
+
+CI workflow job dependency chains (critical path depth, measured as edge count in the needs: DAG) must not regress beyond per-workflow thresholds. Default limit: 3 edges. Per-file overrides: 01-pr-fast ≤3 (Java Maven path uses 3 edges), 05-release ≤4 (cosign/sbom-attest chain), nightly/weekly/monthly ≤5. Aggregator sinks (jobs with `if: always()`) are excluded — they are pure status barriers, not wall-clock critical-path contributors. selfOnly: prevents arbiter's own generated CI from undetected chain regression (#1231).
+
+**Enforcement:** `scripts/check-workflow-parallelism.mjs` (L1 gate, selfOnly). Configurable via `ARBITER_MAX_NEEDS_CHAIN` env. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR. Wired in `scripts/check-all.mjs` (check block, L1).
+
+---

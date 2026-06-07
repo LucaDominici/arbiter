@@ -1960,4 +1960,26 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-commit-footer-rationale.mjs (L2+, hard-block; exit 1 on violation). ' +
       'Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
   },
+  {
+    id: 'INV-120',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: true,
+    title:
+      'Workflow needs-chain depth must not exceed the configured limit (parallelism regression gate)',
+    description:
+      'CI workflow job dependency chains (critical path depth, measured as edge count in the ' +
+      'needs: DAG) must not regress beyond per-workflow thresholds. Default limit: 3 edges. ' +
+      'Per-file overrides: 01-pr-fast ≤3 (Java Maven path uses 3 edges), 05-release ≤4 ' +
+      '(cosign/sbom-attest chain), nightly/weekly/monthly ≤5. ' +
+      'Aggregator sinks (jobs with `if: always()`) are excluded — they are pure status ' +
+      'barriers, not wall-clock critical-path contributors. ' +
+      'selfOnly: true because consumer projects generate their own workflows from templates; ' +
+      "this gate protects arbiter's own generated CI from undetected chain regression (#1231).",
+    enforcement:
+      'scripts/check-workflow-parallelism.mjs (L1, selfOnly — arbiter self-governance only). ' +
+      'Configurable via ARBITER_MAX_NEEDS_CHAIN env. ' +
+      'Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
+  },
 ]

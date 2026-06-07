@@ -15,7 +15,7 @@
 //        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot,
 //        ci tiers (INV-73), action pin parity, action pin sha (INV-76),
 //        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
-//        workflow-runners, workflow-docs-sync, workflow-test-integrity, pr-size-gate,
+//        workflow-runners, workflow-docs-sync, workflow-test-integrity, workflow-parallelism, pr-size-gate,
 //        validator-helptext, tier-coverage, nightly freshness (INV-93),
 //        no passWithNoTests (INV-25, #1039), actionlint (59)
 // gate: check + coverage + docs:build + dead code + duplication + npm audit + gitleaks +
@@ -186,6 +186,9 @@ if (isMain) {
   runCheck('anti-drift: workflow runners', 'node', ['scripts/check-workflow-runners.mjs'])
   runCheck('anti-drift: workflow docs sync', 'node', ['scripts/check-workflow-docs-sync.mjs'])
   runCheck('anti-drift: workflow integrity', 'node', ['scripts/check-workflow-test-integrity.mjs'])
+  runCheck('anti-drift: workflow parallelism (INV-120)', 'node', [
+    'scripts/check-workflow-parallelism.mjs',
+  ])
   runCheck('anti-drift: pr size gate', 'node', ['scripts/check-pr-size-gate.mjs'])
   runCheck('anti-drift: validator helptext', 'node', ['scripts/check-validator-helptext.mjs'])
   runCheck('anti-drift: tier coverage', 'node', ['scripts/check-tier-coverage.mjs'])
