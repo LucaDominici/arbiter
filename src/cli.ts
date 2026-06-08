@@ -35,8 +35,9 @@ import {
   BudgetBreachError,
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
-import { isTddPhase } from './commands/task-state.js'
+import { isTddPhase, readUnifiedState } from './commands/task-state.js'
 import { runTaskShip } from './commands/task-ship.js'
+import { renderShipAffinityWithGh } from './affinity/gh-issues.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
@@ -1311,6 +1312,19 @@ program
     },
   )
 
+/**
+ * #1259 — affinity step-output lines for `arbiter ship`. Resolves the subject
+ * issue id (arg or persisted task state) and delegates to the `gh`-backed
+ * renderer; returns an advisory when no id is available. Always returns ≥1 line.
+ */
+function shipAffinityLines(id: string | undefined, dir: string | undefined): string[] {
+  const subject = id ?? readUnifiedState(dir ?? process.cwd())?.taskId
+  if (!subject || subject.length === 0) {
+    return ['Affinity: unavailable — no issue id to compute against.']
+  }
+  return renderShipAffinityWithGh(subject, dir !== undefined ? { dir } : {})
+}
+
 program
   .command('ship [id]')
   .description('Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)')
@@ -1361,6 +1375,9 @@ program
           ...(result.step.command ? [`Command: ${result.step.command}`] : []),
           ...(result.step.reviewAgents > 0 ? [`Review agents: ${result.step.reviewAgents}`] : []),
         ]
+        // #1259 — ALWAYS compute issue affinity (no flag); surface it + a
+        // low-affinity warning in the step output. Never blocks.
+        lines.push(...shipAffinityLines(id, opts.dir))
         process.stdout.write(lines.join('\n') + '\n')
       } catch (err) {
         if (err instanceof HandoffRequiredError) {
