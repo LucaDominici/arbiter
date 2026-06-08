@@ -39,6 +39,7 @@ import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
 import { shipAffinityLines } from './affinity/gh-issues.js'
 import { resolveShipTier } from './sizing/diff-signals.js'
+import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
@@ -1331,6 +1332,12 @@ program
       return n
     },
   )
+  .option(
+    '--batch <issues>',
+    'Overnight multi-issue mode (#1263): comma-separated issue numbers to ship ' +
+      'unattended, one fresh clean-context sub-agent per issue, with per-issue STOP ' +
+      'isolation; aggregates a batch-report-<date>.json',
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .action(
     (
@@ -1342,10 +1349,23 @@ program
         postClear: boolean
         skipBudget: boolean
         units?: number
+        batch?: string
         dir?: string
       },
     ) => {
       try {
+        // #1263 — overnight multi-issue mode. When --batch is present, ship every
+        // listed issue with per-issue STOP isolation (one issue's failure never
+        // aborts the batch) and write a date-stamped batch report. The single-id
+        // path below is left UNTOUCHED when --batch is absent (regression discipline).
+        if (opts.batch !== undefined) {
+          const issueIds = parseIssueList(opts.batch)
+          const { lines } = runShipBatch(issueIds, {
+            dir: opts.dir ?? process.cwd(),
+          })
+          process.stdout.write(lines.join('\n') + '\n')
+          return
+        }
         // #1260 — ALWAYS compute the ship SIZE (no flag). Size auto-selects the
         // review TIER (which drives the review-agent COUNT + the orthogonal VERTICAL
         // breadth) whenever `--tier` is absent; `--tier` stays a rare override.

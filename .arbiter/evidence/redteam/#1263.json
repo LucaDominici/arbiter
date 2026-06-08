@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "RedTeamEvidenceV1",
+  "taskId": "#1263",
+  "tier": "Standard",
+  "agentsDispatched": 3,
+  "perspectives": [
+    "edge-cases/correctness (per-issue STOP isolation: a mid-batch throw must not abort the batch; empty/duplicate issue sets; deterministic date injection)",
+    "security/supply-chain (issue-list parsing must reject non-numeric/negative input; report write path must be confined; no shell injection via issue ids)",
+    "domain/regression (existing single-id ship path untouched; INV-111 cli-ref parity; pure-core/adapter split matches affinity+sizing precedent; no live LLM required in tests)"
+  ],
+  "findings": [
+    {"id": "RT-01", "severity": "HIGH", "summary": "Per-issue STOP isolation is the crux. A throw or blocker on issue k of N MUST be caught, recorded as a `blocked` outcome with the message, and the loop MUST continue to issue k+1 — never abort the whole batch. This mirrors how affinity/sizing 'never throw, degrade'. The red test must include a runner that throws mid-batch (#A ok, #B throws, #C ok) and assert all three appear and the loop completed.", "auditorHint": "batch.test.ts", "resolved": true},
+    {"id": "RT-02", "severity": "MEDIUM", "summary": "Determinism: `new Date()` inside the pure loop makes tests flaky and the report non-reproducible. Inject the date into the pure core (`runBatch(ids, { runIssue, date })`); the adapter generates the date once and passes it in. Filename `batch-report-<date>.json` uses face-value ISO date (YYYY-MM-DD) per the schema; same-day re-run overwrites — acceptable for v1, documented.", "auditorHint": "batch.test.ts + batch-runner.test.ts", "resolved": true},
+    {"id": "RT-03", "severity": "MEDIUM", "summary": "Input validation: `--batch` issue list must reject empty entries, non-numeric and non-positive ids with a clear error (mirror the existing `--units` parser which throws on isNaN/<=0). Issue ids flow into `gh`/branch names downstream, so unvalidated free text is a shell-injection / malformed-branch risk (INV-12). Normalise to `#<n>` ids. Assert rejection of '0', '-1', 'abc', ''.", "auditorHint": "batch-runner.test.ts", "resolved": true},
+    {"id": "RT-04", "severity": "HIGH", "summary": "Regression: the existing single-id `arbiter ship <id>` path (size + affinity + step output) MUST be byte-untouched when `--batch` is absent. Only branch into the batch path when `opts.batch` is present. Do NOT relocate or alter runTaskShip/shipAffinityLines/resolveShipTier. (cf #1260 RT-05.)", "auditorHint": "existing ship CLI behaviour", "resolved": true},
+    {"id": "RT-05", "severity": "MEDIUM", "summary": "INV-111 cli-ref parity: `--batch` is a new flag on the `ship` command. The generated region in website/reference/cli.md MUST be regenerated (`node scripts/gen-cli-ref.mjs`) or L2 fails at verification. This makes the commit docs-touching → no [skip-docs]. Folded into the plan.", "auditorHint": "scripts/gen-cli-ref.mjs --check", "resolved": true},
+    {"id": "RT-06", "severity": "HIGH", "summary": "No live LLM in tests. The clean-context-per-issue sub-agent spawn is a DOCUMENTED integration seam, not something the test exercises. The pure core takes an injectable `runIssue` runner; tests stub it. arbiter OWNS the loop + report + isolation; the harness supplies the real spawn. The default `runIssue` in the adapter is the documented integration point with a #1258 autonomy-levels tie-in comment. Tests must never require `claude`/`gh` to be live.", "auditorHint": "batch.test.ts (stubbed runner)", "resolved": true},
+    {"id": "RT-07", "severity": "LOW", "summary": "Scope creep guard: do NOT pull affinity grouping/ordering into the batch loop (that is #1267 dispatch-matrix territory). The loop processes the GIVEN issue set in the GIVEN order. Affinity remains a per-ship advisory only.", "auditorHint": "manual", "resolved": true},
+    {"id": "RT-08", "severity": "LOW", "summary": "Report schema fidelity: per-issue record carries {issueId, outcome, branch?, sha?, blocker?}; top-level {date, total, succeeded, blocked, issues}. `outcome` is a closed union ('shipped' | 'blocked') — no free-text status. Counts must equal the partition of issues. Assert total === succeeded + blocked.", "auditorHint": "batch.test.ts", "resolved": true}
+  ],
+  "verdict": "NO_CRITICAL_BLOCKERS",
+  "note": "All findings folded into the plan as design guardrails (per-issue try/catch isolation that never aborts the batch, injected date for determinism, strict issue-list validation, single-id path untouched, cli-ref regen so no [skip-docs], stubbed-runner tests with no live LLM, given-order processing to avoid #1267 drift, closed-union outcome). No CRITICAL plan rework required."
+}
