@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
@@ -14,6 +15,7 @@ describe('check-all.mjs integration — summary table (#210, CANON-07)', () => {
     >
     const rendered = renderTemplate('scripts/check-all.mjs.ejs', cfg)
     expect(rendered).toContain('=== Summary ===')
+    expect(rendered).toContain('Failed checks:')
     expect(rendered).toContain('IS_CI')
     expect(rendered).toContain('Elapsed')
     expect(rendered).toContain('Total')
@@ -172,7 +174,11 @@ console.log(\`\${"Total".padEnd(nameWidth)}          \${totalElapsed}ms\`);
 console.log("");
 
 if (failed > 0) {
-  console.error(\`=== FAILED: \${failed} check(s) ===\\n\`);
+  const failedResults = results.filter((r) => r.status === "FAIL");
+  console.error(\`=== FAILED: \${failed} check(s) ===\`);
+  console.error("Failed checks:");
+  for (const r of failedResults) console.error(\`- \${r.name}\`);
+  console.error("");
   process.exit(1);
 }
 `
@@ -193,7 +199,46 @@ if (failed > 0) {
       const combined = result.stdout + result.stderr
       expect(combined).toContain('::error::failing step::exit 1')
       expect(combined).toContain('=== Summary ===')
+      expect(combined).toContain('Failed checks:')
+      expect(combined).toContain('- failing step')
       expect(combined).toContain('FAIL')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('real run helper emits CI failure annotation before verbose child output', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-run-helper-order-'))
+    try {
+      const helperUrl = pathToFileURL(resolve('scripts/lib/run-helpers.mjs')).href
+      const stubPath = join(dir, 'run-helper-order.mjs')
+      writeFileSync(
+        stubPath,
+        `
+import { runCheck } from ${JSON.stringify(helperUrl)};
+
+runCheck('verbose failing step', 'node', [
+  '-e',
+  "process.stdout.write('child-output-marker\\\\n'); process.exit(1)",
+]);
+`,
+        'utf-8',
+      )
+
+      const result = spawnSync('node', [stubPath], {
+        encoding: 'utf-8',
+        shell: false,
+        timeout: 10_000,
+        env: { ...process.env, GITHUB_ACTIONS: 'true', NO_COLOR: '1' },
+      })
+
+      expect(result.status).toBe(0)
+      const combined = result.stdout + result.stderr
+      const annotationIndex = combined.indexOf('::error::verbose failing step::exit 1')
+      const childOutputIndex = combined.indexOf('child-output-marker')
+      expect(annotationIndex).toBeGreaterThanOrEqual(0)
+      expect(childOutputIndex).toBeGreaterThanOrEqual(0)
+      expect(annotationIndex).toBeLessThan(childOutputIndex)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

@@ -371,7 +371,11 @@ if (isMain) {
   }
 
   if (failed > 0) {
-    console.error(`=== FAILED: ${failed} check(s) ===\n`)
+    const failedResults = results.filter((r) => r.status === 'FAIL')
+    console.error(`=== FAILED: ${failed} check(s) ===`)
+    console.error('Failed checks:')
+    for (const r of failedResults) console.error(`- ${r.name}`)
+    console.error('')
     process.exit(1)
   } else {
     process.stdout.write('=== ALL PASSED ===\n\n')

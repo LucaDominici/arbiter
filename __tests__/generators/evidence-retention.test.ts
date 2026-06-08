@@ -91,6 +91,7 @@ describe('generateEvidenceRetention', () => {
     expect(content).toContain('node_modules/')
     expect(content).toContain('dist/')
     expect(content).toContain('.env')
+    expect(content).toContain('website/.vitepress/.temp/')
   })
 
   it('.gitignore contains local Arbiter runtime state entries', () => {

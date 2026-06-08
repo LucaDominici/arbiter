@@ -1,31 +1,79 @@
 {
-  "run_id": "task-20260419-211800",
-  "task_id": "#81",
+  "run_id": "task-20260608-220705",
+  "task_id": "#1244",
   "scope": {
     "track": "B",
     "paths": [
-      "__tests__/scripts/real-project-matrix-workflow.test.ts",
-      "__tests__/scripts/real-project-fixtures.test.ts",
-      "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md"
+      "scripts/lib/run-helpers.mjs",
+      "src/templates/scripts/lib/run-helpers.mjs.ejs",
+      "scripts/check-all.mjs",
+      "src/templates/scripts/check-all.mjs.ejs",
+      "__tests__/integration/check-all-summary.test.ts",
+      "scripts/debt-lib.mjs",
+      "src/templates/scripts/debt-lib.mjs.ejs",
+      ".gitignore",
+      "src/templates/root/.gitignore.ejs",
+      "__tests__/templates/debt-baseline-render.test.ts",
+      "__tests__/generators/evidence-retention.test.ts"
     ]
   },
   "files": [
     {
-      "path": "__tests__/scripts/real-project-matrix-workflow.test.ts",
+      "path": "scripts/lib/run-helpers.mjs",
       "operation": "modify",
-      "reason": "Lock the self-hosted nightly workflow contract that fixed the PR #228 CI regressions."
+      "reason": "Make CI gate failures emit the actionable failure marker before verbose child output can hide it."
     },
     {
-      "path": "__tests__/scripts/real-project-fixtures.test.ts",
+      "path": "src/templates/scripts/lib/run-helpers.mjs.ejs",
       "operation": "modify",
-      "reason": "Lock the real-project fixture contents that the nightly matrix now depends on."
+      "reason": "Keep generated target projects aligned with the self-runner failure-reporting behavior."
     },
     {
-      "path": "docs/DEVELOPMENT/REAL-PROJECT-TESTING.md",
+      "path": "scripts/check-all.mjs",
       "operation": "modify",
-      "reason": "Document the new regression tests so the follow-up PR remains consistent with ADR-012 docs enforcement."
+      "reason": "List failed gate names in the final CI footer so failures remain actionable."
+    },
+    {
+      "path": "src/templates/scripts/check-all.mjs.ejs",
+      "operation": "modify",
+      "reason": "Emit the same actionable failure footer in generated target projects."
+    },
+    {
+      "path": "__tests__/integration/check-all-summary.test.ts",
+      "operation": "modify",
+      "reason": "Lock the CI annotation ordering so future verbose checks remain diagnosable."
+    },
+    {
+      "path": "scripts/debt-lib.mjs",
+      "operation": "modify",
+      "reason": "Exclude generated temp directories from TODO debt counts."
+    },
+    {
+      "path": "src/templates/scripts/debt-lib.mjs.ejs",
+      "operation": "modify",
+      "reason": "Keep generated debt ratchet TODO counting aligned with self."
+    },
+    {
+      "path": ".gitignore",
+      "operation": "modify",
+      "reason": "Keep docs build temp output out of the working tree."
+    },
+    {
+      "path": "src/templates/root/.gitignore.ejs",
+      "operation": "modify",
+      "reason": "Keep generated project Git ignores aligned with the docs build temp behavior."
+    },
+    {
+      "path": "__tests__/templates/debt-baseline-render.test.ts",
+      "operation": "modify",
+      "reason": "Lock debt TODO scanner generated-temp exclusion coverage."
+    },
+    {
+      "path": "__tests__/generators/evidence-retention.test.ts",
+      "operation": "modify",
+      "reason": "Lock generated .gitignore coverage for VitePress temp output."
     }
   ],
-  "invariants": ["INV-07", "INV-08", "INV-09", "INV-10"],
+  "invariants": ["INV-25", "INV-27", "INV-45", "INV-53", "INV-59"],
   "gate": "node scripts/check-all.mjs L2"
 }

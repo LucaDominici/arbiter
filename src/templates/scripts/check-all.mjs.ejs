@@ -849,7 +849,11 @@ if (_failedCount === 0) {
 }
 
 if (_failedCount > 0) {
-  console.error(`=== FAILED: ${_failedCount} check(s) ===\n`);
+  const _failedResults = _allResults.filter((r) => r.status === 'FAIL');
+  console.error(`=== FAILED: ${_failedCount} check(s) ===`);
+  console.error('Failed checks:');
+  for (const r of _failedResults) console.error(`- ${r.name}`);
+  console.error('');
   process.exit(1);
 } else {
   console.log('=== ALL PASSED ===\n');

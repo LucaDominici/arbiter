@@ -40,7 +40,7 @@ export function countTodos(cwd) {
     '--exclude-dir=node_modules', '--exclude-dir=dist',
     '--exclude-dir=build', '--exclude-dir=target',
     '--exclude-dir=.git', '--exclude-dir=coverage',
-    '--exclude-dir=.arbiter',
+    '--exclude-dir=.arbiter', '--exclude-dir=.temp',
     '-l', 'TODO', '.'], { cwd });
   if (r.status !== 0) return 0;
   const files = (r.stdout ?? '').trim().split('\n').filter(Boolean);
