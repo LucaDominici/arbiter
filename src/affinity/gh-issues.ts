@@ -84,7 +84,7 @@ export function fetchAffinityContext(
  */
 export function renderShipAffinityWithGh(subjectId: string, opts: { dir?: string } = {}): string[] {
   return renderShipAffinity(subjectId, {
-    fetch: (id) => fetchAffinityContext(id, opts.dir !== undefined ? { dir: opts.dir } : {}),
+    loadIssues: (id) => fetchAffinityContext(id, opts.dir !== undefined ? { dir: opts.dir } : {}),
   })
 }
 

@@ -27,29 +27,29 @@ const failingFetcher: AffinityFetcher = () => {
 
 describe('renderShipAffinity — always-on, non-blocking', () => {
   it('always returns at least one Affinity line (unconditional)', () => {
-    const lines = renderShipAffinity('#1259', { fetch: correlatedFetcher })
+    const lines = renderShipAffinity('#1259', { loadIssues: correlatedFetcher })
     expect(lines.some((l) => /Affinity/i.test(l))).toBe(true)
   })
 
   it('emits a WARNING when the computed affinity is below threshold', () => {
-    const lines = renderShipAffinity('#1259', { fetch: lowFetcher })
+    const lines = renderShipAffinity('#1259', { loadIssues: lowFetcher })
     expect(lines.some((l) => /WARN/i.test(l) && /affinity/i.test(l))).toBe(true)
   })
 
   it('does NOT warn when correlated', () => {
-    const lines = renderShipAffinity('#1259', { fetch: correlatedFetcher })
+    const lines = renderShipAffinity('#1259', { loadIssues: correlatedFetcher })
     expect(lines.some((l) => /WARN/i.test(l))).toBe(false)
   })
 
   it('a solo issue (no siblings) is reported and does not crash', () => {
-    const lines = renderShipAffinity('#1259', { fetch: soloFetcher })
+    const lines = renderShipAffinity('#1259', { loadIssues: soloFetcher })
     expect(lines.some((l) => /Affinity/i.test(l))).toBe(true)
     expect(lines.some((l) => /solo|no .*sibling|no correlated/i.test(l))).toBe(true)
   })
 
   it('degrades to an advisory (never throws) when the fetch fails', () => {
-    expect(() => renderShipAffinity('#1259', { fetch: failingFetcher })).not.toThrow()
-    const lines = renderShipAffinity('#1259', { fetch: failingFetcher })
+    expect(() => renderShipAffinity('#1259', { loadIssues: failingFetcher })).not.toThrow()
+    const lines = renderShipAffinity('#1259', { loadIssues: failingFetcher })
     expect(lines.some((l) => /unavailable|could not/i.test(l))).toBe(true)
   })
 })

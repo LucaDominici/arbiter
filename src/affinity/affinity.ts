@@ -143,19 +143,19 @@ export type AffinityFetcher = (subjectId: string) => {
 }
 
 export interface RenderShipAffinityOpts {
-  /** The fetcher to use (tests inject a fake; the CLI injects the `gh` adapter). */
-  fetch: AffinityFetcher
+  /** The issue-set loader (tests inject a fake; the CLI injects the `gh` adapter). */
+  loadIssues: AffinityFetcher
   threshold?: number
 }
 
 /**
  * Compute + render the affinity lines for a ship invocation. ALWAYS returns at
- * least the Affinity header; NEVER throws — a failed fetch degrades to an
+ * least the Affinity header; NEVER throws — a failed load degrades to an
  * "unavailable" advisory so it can never block the ship.
  */
 export function renderShipAffinity(subjectId: string, opts: RenderShipAffinityOpts): string[] {
   try {
-    const { subject, candidates } = opts.fetch(subjectId)
+    const { subject, candidates } = opts.loadIssues(subjectId)
     return formatAffinityLines(computeAffinityReport(subject, candidates, opts.threshold))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
