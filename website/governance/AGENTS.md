@@ -119,6 +119,7 @@ Violation protocol: **STOP → REFUSE → cite INV-XX**.
 - **INV-53:** Exit-code universal contract — every Arbiter-emitted script exits 0=PASS / 1=FAIL / 2=ERROR
 - **INV-54:** SSOT core set integrity — all listed files must exist
 - **INV-55:** Doc-links integrity — all markdown links must resolve
+- **INV-56:** Knowledge-map freshness — line counts must not drift beyond tolerance
 - **INV-57:** Canonical-paths integrity — all redirect targets must exist
 - **INV-58:** Node version SSOT — .nvmrc is canonical; all CI jobs use node-version-file
 - **INV-59:** Gate result parity — local L1 static gates must produce the same pass/fail pattern as CI

@@ -491,6 +491,14 @@ Every local markdown link in docs/ must resolve to an existing file. Before fail
 
 ---
 
+### INV-56: Knowledge-map freshness — line counts must not drift beyond tolerance
+
+RETIRED (#1244): the bespoke knowledge-map (its index doc, updater, and freshness gate) was removed; Obsidian now reads the generated wiki. No line-count tolerance is enforced any longer. The ID is preserved as a tombstone per ID-STABILITY (never deleted or reused).
+
+**Enforcement:** none — retired invariant; no successor.
+
+---
+
 ### INV-57: Canonical-paths integrity — all redirect targets must exist
 
 Every redirect target in docs/METHOD/CANONICAL_PATHS.md must exist on disk. A dangling alias (target missing) causes the gate to exit 1. Bootstrap mode: if CANONICAL_PATHS.md is absent, the gate exits 0.

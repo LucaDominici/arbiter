@@ -81,21 +81,22 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-44:** SpotBugs security-category bugs MUST NEVER be    | AGENTS.md:92                                                       | medium   |
 | - **INV-28:** SSOT documents must not contradict               | run drift — AGENTS.md:103                                          | medium   |
 | - **INV-48:** EJS template render-test coverage must not reg   | AGENTS.md:114                                                      | medium   |
-| - **INV-85:** No kit source leakage                            | committed kit files mu — AGENTS.md:162                             | medium   |
-| - The nightly CI stamp artifact (`.arbiter/nightly/last-run.   | AGENTS.md:199                                                      | medium   |
-| - Every gate, hook, check, and generator emitted by arbiter    | AGENTS.md:211                                                      | medium   |
-| push.branches                                                  | AGENTS.md:231                                                      | medium   |
-| cosign copy                                                    | AGENTS.md:231                                                      | medium   |
-| scripts/constraint-map.json                                    | AGENTS.md:267                                                      | medium   |
-| - **INV-117:** arbiter self-repo must not track binary build   | AGENTS.md:270                                                      | medium   |
-| - **INV-120:** Workflow needs-chain depth must not exceed th   | AGENTS.md:276                                                      | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:285                                                      | medium   |
-| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:289                                                      | medium   |
-| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:293                                                      | medium   |
-| unknown                                                        | AGENTS.md:302                                                      | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:405                                             | medium   |
-| debt-baseline.json                                             | AGENTS.md:411                                                      | medium   |
-| --update                                                       | AGENTS.md:411                                                      | medium   |
+| - **INV-56:** Knowledge-map freshness                          | line counts must not — AGENTS.md:122                               | medium   |
+| - **INV-85:** No kit source leakage                            | committed kit files mu — AGENTS.md:163                             | medium   |
+| - The nightly CI stamp artifact (`.arbiter/nightly/last-run.   | AGENTS.md:200                                                      | medium   |
+| - Every gate, hook, check, and generator emitted by arbiter    | AGENTS.md:212                                                      | medium   |
+| push.branches                                                  | AGENTS.md:232                                                      | medium   |
+| cosign copy                                                    | AGENTS.md:232                                                      | medium   |
+| scripts/constraint-map.json                                    | AGENTS.md:268                                                      | medium   |
+| - **INV-117:** arbiter self-repo must not track binary build   | AGENTS.md:271                                                      | medium   |
+| - **INV-120:** Workflow needs-chain depth must not exceed th   | AGENTS.md:277                                                      | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:286                                                      | medium   |
+| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:290                                                      | medium   |
+| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:294                                                      | medium   |
+| unknown                                                        | AGENTS.md:303                                                      | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:406                                             | medium   |
+| debt-baseline.json                                             | AGENTS.md:412                                                      | medium   |
+| --update                                                       | AGENTS.md:412                                                      | medium   |
 | scripts/check-constraint-scan.mjs                              | docs/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must   | docs/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a \*\*HARD GA | docs/SYSTEM/CANON.md:314                                           | medium   |

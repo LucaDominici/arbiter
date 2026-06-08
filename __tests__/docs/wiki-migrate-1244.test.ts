@@ -7,7 +7,8 @@
 // Asserts (TDD red → green):
 //   1. bespoke knowledge-map machinery retired (doc + 2 scripts + 2 orphan tests gone)
 //   2. 'knowledge map' check unregistered from check-all.mjs + check-local-ci-parity.mjs + harness.mjs
-//   3. INV-56 hard-deleted from the catalog (its protected doc + enforcer are gone → obsolete)
+//   3. INV-56 retired as a tombstone (status:'retired') per ID-STABILITY — its protected
+//      doc + enforcer are gone, but the ID is preserved (never deleted/reused)
 //   4. every §WIKI DELETE-list hand doc is gone
 //   5. wiki-before-delete: each deleted doc has a wiki/ counterpart (no content loss)
 //   6. over-delete guard: FLAG-set + KEEP-GENERATED contracts still exist
@@ -142,8 +143,16 @@ describe('#1244 — bespoke knowledge-map retired', () => {
     )
     expect(readFileSync(r('scripts/harness.mjs'), 'utf-8')).not.toContain('check-knowledge-map')
   })
-  it('INV-56 is removed from the invariant catalog (enforcer + protected doc both gone)', () => {
-    expect(readFileSync(r('src/invariants/catalog.ts'), 'utf-8')).not.toContain("id: 'INV-56'")
+  it('INV-56 is retired as a tombstone (status:retired) per ID-STABILITY, not deleted', () => {
+    const catalog = readFileSync(r('src/invariants/catalog.ts'), 'utf-8')
+    // ID preserved (write-once: check-id-stability forbids deletion without a retire marker)
+    expect(catalog).toContain("id: 'INV-56'")
+    // …but retired, with no scripts/*.mjs enforcer cited (the gate it ran was deleted)
+    const inv56Block = catalog.slice(catalog.indexOf("id: 'INV-56'"))
+    const nextEntry = inv56Block.indexOf("id: 'INV-57'")
+    const block = inv56Block.slice(0, nextEntry)
+    expect(block).toContain("status: 'retired'")
+    expect(block).not.toMatch(/scripts\/check-knowledge-map\.mjs/)
   })
 })
 

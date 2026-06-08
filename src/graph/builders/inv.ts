@@ -20,6 +20,10 @@ import { GraphStore } from '../store.js'
  * An invariant with empty/missing `enforcement` produces an INV node
  * with NO outgoing edges — that is the orphan-invariant failure class
  * that `verify graph` detects.
+ *
+ * Retired invariants (`status: 'retired'`, #1244) are tombstones kept only for
+ * ID-STABILITY; they enforce nothing, so they are excluded from the graph
+ * entirely rather than emitted as permanent orphans.
  */
 
 export interface BuildInvOptions {
@@ -36,7 +40,12 @@ export function buildInvNodes(
 ): GraphStore {
   const source = opts.source ?? DEFAULT_SOURCE
 
-  for (const inv of invariants) {
+  // Retired invariants (#1244) are ID-STABILITY tombstones — they enforce
+  // nothing, so exclude them up front rather than emit permanent orphan INV
+  // nodes. Filtering here keeps the per-entry loop's complexity flat.
+  const active = invariants.filter((inv) => inv.status !== 'retired')
+
+  for (const inv of active) {
     const invNode: GraphNode = {
       id: inv.id,
       kind: 'INV',
