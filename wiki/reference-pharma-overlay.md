@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/pharma-overlay.md'
 source_sha: '6b3ffb398cf03362fcea97258dea23c6966b1b4c'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Pharma Overlay — Reference

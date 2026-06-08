@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/POSITIONING.md'
 source_sha: '94ae0217a1c4735471cdc8e114ba36b06ae4bd44'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # arbiter Positioning

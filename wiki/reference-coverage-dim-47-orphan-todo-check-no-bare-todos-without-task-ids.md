@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-47-orphan-todo-check-no-bare-todos-without-task-ids.md'
 source_sha: '3b456388fa45ec2b5227598d74858942b0508c28'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N47: Orphan TODO check (no bare TODOs without task IDs)

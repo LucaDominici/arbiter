@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-33-snapshot-golden-file-tests.md'
 source_sha: 'a18ed7bf735460b9c229783bfec1c6016effb1ed'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N33: Snapshot / golden-file tests

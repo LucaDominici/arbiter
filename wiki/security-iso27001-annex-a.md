@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SECURITY/ISO27001_ANNEX_A.md'
 source_sha: '97d5a67d68aab3f7795d4931afdeff8df79a35e4'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # ISO 27001:2022 Annex A Control Matrix

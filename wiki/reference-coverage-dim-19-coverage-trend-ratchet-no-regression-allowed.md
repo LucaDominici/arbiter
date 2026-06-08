@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-19-coverage-trend-ratchet-no-regression-allowed.md'
 source_sha: 'f965102eb44baa8490f0f85bd9fccc8c017e9944'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N19: Coverage trend ratchet (no regression allowed)

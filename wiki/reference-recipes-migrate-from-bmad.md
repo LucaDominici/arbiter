@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/migrate-from-bmad.md'
 source_sha: '00b36f40b52ede707c0afa7196a0be039db4445f'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Recipe: Mapping BMAD-METHOD to arbiter

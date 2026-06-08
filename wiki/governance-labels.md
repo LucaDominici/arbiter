@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GOVERNANCE/LABELS.md'
 source_sha: '3388833dfc804bba742e0462022d0e143d1149fb'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # arbiter Label Catalogue

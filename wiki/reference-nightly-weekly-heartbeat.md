@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/nightly-weekly-heartbeat.md'
 source_sha: '62ab5683cf392b3d5bf0a8f3a69b26e1751da104'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Nightly / Weekly / Heartbeat — Reference

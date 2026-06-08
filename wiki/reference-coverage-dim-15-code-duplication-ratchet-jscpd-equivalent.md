@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-15-code-duplication-ratchet-jscpd-equivalent.md'
 source_sha: '6fe36fea7060378e2796536d188ae968cb7278d5'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N15: Code duplication ratchet (jscpd / equivalent)

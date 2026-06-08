@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-04-no-spring-annotations-in-domain-layer.md'
 source_sha: 'cd6afa3eeed1a8e373834baaf21c43005c14c050'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N04: No Spring annotations in domain layer

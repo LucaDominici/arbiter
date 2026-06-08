@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/GLOBAL_KIT.md'
 source_sha: '59291fbd4c3c672403219333945db22f3842fcc0'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # KIT Canonical Dimensions Reference

@@ -19,7 +19,7 @@ related: []
 ## AGENTS.md
 
 **Location:** `AGENTS.md`
-**Lines:** 430
+**Lines:** 485
 **Purpose:** Canonical agent governance — invariants, coding standards, commit convention, gate commands.
 
 | Section           | Description                                                  |
@@ -34,7 +34,7 @@ related: []
 ## docs/METHOD/SSOT_CORE_SET.md
 
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
-**Lines:** 117
+**Lines:** 95
 **Purpose:** Authoritative inventory of all SSOT documents. Start here to discover what documentation exists.
 
 | Section    | Description                       |
@@ -48,7 +48,7 @@ related: []
 ## docs/METHOD/CANONICAL_PATHS.md
 
 **Location:** `docs/METHOD/CANONICAL_PATHS.md`
-**Lines:** 38
+**Lines:** 72
 **Purpose:** Aliasing registry for moved/renamed documents. Check before reporting a broken link.
 
 | Section | Description                                    |
@@ -61,7 +61,7 @@ related: []
 ## docs/METHOD/ENGINEERING_DEFAULTS.md
 
 **Location:** `docs/METHOD/ENGINEERING_DEFAULTS.md`
-**Lines:** 99
+**Lines:** 317
 **Purpose:** SOLID principles, coding standards, complexity limits. Read before designing new modules or reviewing code.
 
 | Section            | Description                                                      |

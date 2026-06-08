@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-69-runtime-version-ssot-node-version-pinned-nvmrc-aligned.md'
 source_sha: '32fc327452ef21367ab8676e53e141c39f9d8410'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N69: Runtime version SSOT (node version pinned, .nvmrc aligned)

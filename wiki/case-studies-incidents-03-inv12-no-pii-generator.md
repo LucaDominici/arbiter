@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/incidents/03-inv12-no-pii-generator.md'
 source_sha: '652dff469e7cc20ad7e7aca6ab0c7ffee416f011'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Incident: INV-12 (no PII / no direct spawn) caught in a generator

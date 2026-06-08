@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/PRESETS.md'
 source_sha: '40250af9deaa4368b15eed83d466c1bbcbfb16cb'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Arbiter Project Presets

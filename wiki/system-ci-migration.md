@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/CI-MIGRATION.md'
 source_sha: '28ec226ef288b4d2fae214be05b6ede6be3efe30'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # CI Migration Guide

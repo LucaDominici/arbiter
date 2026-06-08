@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-32-property-based-testing-quickcheck-hypothesis-proptest.md'
 source_sha: 'a34fc6d8de57b66b24827287f723db101792a3a1'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N32: Property-based testing (QuickCheck / Hypothesis / proptest)

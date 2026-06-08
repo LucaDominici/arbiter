@@ -1,16 +1,22 @@
 ---
 generated: true
-source: 'docs/METHOD/TRACK_MODEL.md'
-source_sha: 'fd06f688436c8205a8cf678c030fb6f2ee3257a0'
-last_updated: '2026-06-07'
+source: 'docs/METHOD/PROCESS.md'
+source_sha: '804a2cc3f4ad5af7e9b6e711abe8a6f4284580a7'
+last_updated: '2026-06-08'
 ---
 
-# Track Model — arbiter
+# Process — arbiter
 
 > **Non-authoritative:** This page is compiled from source. On conflict, the SSOT source wins.
-> Source: [docs/METHOD/TRACK_MODEL.md](../docs/METHOD/TRACK_MODEL.md)
+> Source: [docs/METHOD/PROCESS.md](../docs/METHOD/PROCESS.md)
 
-# Track Model — arbiter
+# Process — arbiter
+
+Consolidated process reference: the work-scope track model, post-commit track classification, doc-version semver policy, and the RFC process. Sections below were previously separate files.
+
+---
+
+## Track Model — arbiter
 
 **Purpose:** Define the work-scope taxonomy used to delimit a task. Each
 arbiter task belongs to exactly one _track_. A track scopes:
@@ -151,3 +157,49 @@ CODEOWNERS coverage per track (real teams, e.g. `@arbiter-core`) is
 declared aspirationally above and will be wired up in a follow-up once
 the corresponding GitHub teams exist. Until then the `CODEOWNERS` file
 uses repo-wide ownership.
+
+---
+
+## Post-Commit Track Taxonomy (#724)
+
+Arbiter's `post-commit-check.mjs` hook classifies changed files into tracks and prints stack-specific verification reminders. This document defines the taxonomy, per-stack checklists, and extension guide.
+
+## Tracks
+
+| Track        | Triggered by                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| **frontend** | Extensions: `.tsx?`, `.jsx?`, `.vue`, `.svelte`, `.css`, `.scss` — or path prefix `web/`, `frontend/`  |
+| **backend**  | Extensions: `.go`, `.py`, `.java`, `.rs`, `.rb` — or path prefix `api/`, `backend/`, `server/`, `cmd/` |
+| **docs**     | Extension: `.md` — or path prefix `docs/`                                                              |
+
+A commit can trigger multiple tracks simultaneously. Output order is always `frontend → backend → docs`.
+
+### Canonical Regex (single source of truth)
+
+`scripts/detect-track.mjs` exports `TRACK_PATTERNS`:
+
+```js
+FE_RE: /\.(tsx?|jsx?|vue|svelte|css|scss)$|^(web|frontend)\//
+BE_RE: /\.(go|py|java|rs|rb)$|^(api|backend|server|cmd)\//
+DOCS_RE: /\.md$|^docs\//
+```
+
+The self-config hook (`.claude/hooks/post-commit-check.mjs`) imports these via dynamic `await import()`.  
+Generated target hooks have equivalent regexes baked in at `arbiter init` render time.
+
+> **Divergence note**: `pre-task-track-detect.mjs.ejs` intentionally extends `FE_RE` (adds `.html`) and `BE_RE` (adds `.php`) because it also matches prompt-text keywords. These are NOT the canonical regexes and are maintained separately.
+
+### Ambiguity: Path Prefix vs Extension
+
+When a file matches both a FE path prefix and a BE extension (e.g., `frontend/server.go`), **both** tracks are emitted. Extension and path-prefix checks are independent. Tests in `__tests__/unit/detect-track.test.ts` pin this behavior.
+
+### CRLF Handling
+
+`git diff --name-only` emits CRLF on Windows. `detectTracks()` strips `\r` before matching to prevent silent detection failure.
+
+## Per-Stack Checklists
+
+Checklists are baked into the generated hook at `arbiter init` time from EJS partials:  
+`src/templates/claude/hooks/post-commit-checklists/<stack>/<track>.ejs`
+
+_[content truncated — see source for full text]_

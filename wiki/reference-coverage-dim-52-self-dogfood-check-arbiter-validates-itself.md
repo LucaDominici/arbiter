@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-52-self-dogfood-check-arbiter-validates-itself.md'
 source_sha: 'fc942f1759dd81d51f24f785b68230443294b842'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N52: Self-dogfood check (arbiter validates itself)

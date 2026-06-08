@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/incidents/01-inv04-any-ban-unsafe-cast.md'
 source_sha: '0d290f830acd79dffc1175c5365bf4c17603eb31'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Incident: INV-04 (`any` ban) catching an unsafe cast in the detector

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-02-package-dependency-rules-no-domaininfra-leakage.md'
 source_sha: '5c10c48228a35521c38d0ddb7f3288d327844683'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N02: Package dependency rules (no domain→infra leakage)

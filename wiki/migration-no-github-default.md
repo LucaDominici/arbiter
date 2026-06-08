@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/MIGRATION/no-github-default.md'
 source_sha: '0893553bd9e1d9c0612b08a56afc78cc6cdd76c5'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Migration: `useGitHub` → `permitGitHub` and `--github` opt-in

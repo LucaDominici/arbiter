@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-72-multi-environment-config-devstagingprod-parity.md'
 source_sha: 'e4fc12f2267a862b1b519fd734f13934da684748'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N72: Multi-environment config (dev/staging/prod parity)

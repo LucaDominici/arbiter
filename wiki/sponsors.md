@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/sponsors.md'
 source_sha: 'c7d1cb4900bd9fa7d3b7979034b28da4c8b2bdc3'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Sponsors & Funding

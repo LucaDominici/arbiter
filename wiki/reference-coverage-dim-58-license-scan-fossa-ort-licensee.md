@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-58-license-scan-fossa-ort-licensee.md'
 source_sha: '92359fbbec1bb437ae9103fe2d23a0784bae3c71'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N58: License scan (FOSSA / ORT / licensee)

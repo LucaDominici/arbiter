@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/FEATURE_COMPARISON.md'
 source_sha: 'ec71616f5957488c2d7328f1bd292dc06fdb89e7'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Arbiter — Feature Comparison Matrix

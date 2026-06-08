@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/planning-orphan-debt.md'
 source_sha: '2bb2e0ac034e10e68cb421a4959764c62b45ee8e'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Planning Orphan and Debt Audit

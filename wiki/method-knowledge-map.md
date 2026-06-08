@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/METHOD/KNOWLEDGE_MAP.md'
-source_sha: '472ae970cc1c9c26a0be2f215711fcd1b1007150'
-last_updated: '2026-06-07'
+source_sha: 'd5b5ff4fafba7ebafa78ec79b354b1957a8c886a'
+last_updated: '2026-06-08'
 ---
 
 # Knowledge Map — arbiter
@@ -20,7 +20,7 @@ last_updated: '2026-06-07'
 ## AGENTS.md
 
 **Location:** `AGENTS.md`
-**Lines:** 430
+**Lines:** 485
 **Purpose:** Canonical agent governance — invariants, coding standards, commit convention, gate commands.
 
 | Section           | Description                                                  |
@@ -35,7 +35,7 @@ last_updated: '2026-06-07'
 ## docs/METHOD/SSOT_CORE_SET.md
 
 **Location:** `docs/METHOD/SSOT_CORE_SET.md`
-**Lines:** 117
+**Lines:** 95
 **Purpose:** Authoritative inventory of all SSOT documents. Start here to discover what documentation exists.
 
 | Section    | Description                       |
@@ -49,7 +49,7 @@ last_updated: '2026-06-07'
 ## docs/METHOD/CANONICAL_PATHS.md
 
 **Location:** `docs/METHOD/CANONICAL_PATHS.md`
-**Lines:** 38
+**Lines:** 72
 **Purpose:** Aliasing registry for moved/renamed documents. Check before reporting a broken link.
 
 | Section | Description                                    |
@@ -62,7 +62,7 @@ last_updated: '2026-06-07'
 ## docs/METHOD/ENGINEERING_DEFAULTS.md
 
 **Location:** `docs/METHOD/ENGINEERING_DEFAULTS.md`
-**Lines:** 99
+**Lines:** 317
 **Purpose:** SOLID principles, coding standards, complexity limits. Read before designing new modules or reviewing code.
 
 | Section            | Description                                                      |

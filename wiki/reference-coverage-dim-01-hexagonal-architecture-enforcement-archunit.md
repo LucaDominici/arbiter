@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-01-hexagonal-architecture-enforcement-archunit.md'
 source_sha: '1598101c6230d382f51a6ec09850297538ac7f4f'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N01: Hexagonal architecture enforcement (ArchUnit)

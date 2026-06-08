@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md'
 source_sha: '72d51f9716a62f78d77fbeb7f15b23165096bd5f'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Good First Issue Template

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/unwired-exports-2026-06-01.md'
 source_sha: '79272a3fa91f519356459f70fa32311d194c1624'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Audit — Tested-but-unwired exports (anti-bloat burn-down)

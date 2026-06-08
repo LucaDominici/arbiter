@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-26-nightlyweekly-test-profile-l3-full-suite-mutation-security.md'
 source_sha: 'ffa9e77a7cf909ff1944255017c85dc35ae9c321'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N26: Nightly/weekly test profile (L3: full suite + mutation + security)

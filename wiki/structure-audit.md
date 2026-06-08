@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/STRUCTURE-AUDIT.md'
 source_sha: 'd87e0266f5d4b71f0d3ac27b40250ab784d5fcf1'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Docs Structure Audit

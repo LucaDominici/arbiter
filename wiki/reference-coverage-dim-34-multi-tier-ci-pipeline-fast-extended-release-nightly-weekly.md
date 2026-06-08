@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-34-multi-tier-ci-pipeline-fast-extended-release-nightly-weekly.md'
 source_sha: 'c099343762cf01a09c38a37bf4181ad98aeb2901'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N34: Multi-tier CI pipeline (fast → extended → release → nightly → weekly)

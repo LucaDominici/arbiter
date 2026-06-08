@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-63-agentsmd-claudemd-governance-document.md'
 source_sha: 'bb52968ed9e77ec578fd5124581bc0b959a796f9'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N63: AGENTS.md / CLAUDE.md governance document

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/internal/mobile-responsiveness-checklist.md'
 source_sha: '89ec1f38d0575e2ed3d4730faac0e939b6c81fd4'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Docs Site: A11y + Mobile Responsiveness Checklist

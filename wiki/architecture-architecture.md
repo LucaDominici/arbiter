@@ -1,15 +1,61 @@
 ---
-title: 'Arbiter — Architecture Overview'
-doc_version: '1.0.0'
-status: active
-last_review: '2026-05-20'
-owner: ''
-canonical_id: ''
-tags: ['audience/dev', 'kind/method']
-related: []
+generated: true
+source: 'docs/architecture/ARCHITECTURE.md'
+source_sha: 'a2443a8eb2b427c3c8b11bd8f9f9f7453acd93ac'
+last_updated: '2026-06-08'
 ---
 
-# Arbiter — Architecture Overview
+# arbiter Architecture
+
+> **Non-authoritative:** This page is compiled from source. On conflict, the SSOT source wins.
+> Source: [docs/architecture/ARCHITECTURE.md](../docs/architecture/ARCHITECTURE.md)
+
+# arbiter Architecture
+
+Consolidated architecture reference for arbiter: the system map, the canonical source model, the template pipeline, conflict resolution, the dual-track contract, the evidence-bundle schema, and skeleton governance. Sections below were previously separate files under `docs/architecture/`.
+
+---
+
+## arbiter Architecture
+
+Spine for `docs/architecture/`. Read these in order to understand how arbiter
+generates governance scaffolding.
+
+## Reading order
+
+1. [`OVERVIEW.md`](#architecture-overview) — system map: CLI → generators → templates → target project
+2. [`CANONICAL-SOURCE-MODEL.md`](#canonical-source-model--deep-dive) — SSOT layering and authority chain
+3. [`TEMPLATE-SYSTEM.md`](#template-system) — EJS template pipeline; how `src/templates/*.ejs` becomes target-project artifacts
+4. [`CONFLICT-RESOLUTION.md`](#arbiter--conflict-resolution) — merge strategy when re-running `arbiter init` over an existing project
+5. [`dual-track-contract.md`](#dual-track-contract) — CANON-16 dual-track rule: changes to self-config must ship with matching template change
+6. [`evidence-bundle.md`](#architecture-evidence-bundle-schema-inv-90) — schema for `.arbiter/evidence/*` artifacts
+7. [`skeleton-governance.md`](#skeleton-governance-architecture) — what the planning skeleton enforces
+
+## Cross-cutting concepts
+
+| Concept               | Source                                                     |
+| --------------------- | ---------------------------------------------------------- |
+| Invariants (INV-NN)   | `../../GLOBAL_INVARIANTS.md` + `../../AGENTS.md`           |
+| Process rules (CANON) | `../SYSTEM/CANON.md`                                       |
+| Decision log (ADR)    | `../ADR/`                                                  |
+| Patterns catalog      | `../METHOD/PATTERNS_CATALOG.md` (planned; not yet present) |
+| Test taxonomy         | `../TEST_TAXONOMY.md`                                      |
+| CI tier model         | `../SYSTEM/CI-TIER-MODEL.md`                               |
+
+## When to file an ADR
+
+A change qualifies as architectural (and needs an ADR under `../ADR/`) when it:
+
+- Adds, removes, or changes a public API surface
+- Changes the dual-track contract (CANON-16)
+- Changes a governance level threshold (L1/L2/L3)
+- Touches the SSOT layering (CANONICAL_PATHS, SSOT_CORE_SET)
+- Introduces a new external dependency or runtime requirement
+- Reverses or supersedes a previous ADR
+
+---
+
+## Arbiter — Architecture Overview
 
 Arbiter generates a multi-layer governance stack for AI-assisted development. The architecture has one invariant: **a single canonical source of truth**, with all tool-specific configs as thin overlays.
 
@@ -132,53 +178,7 @@ Three-level gate system:
 
 ```bash
 node scripts/check-all.mjs L1   # fast local check
-node scripts/check-all.mjs L2   # full gate (default)
-node scripts/check-all.mjs       # defaults to L2
+node scripts/check-all.mjs L2   # full g
+
+*[content truncated — see source for full text]*
 ```
-
-### Labels
-
-14 standard labels provisioned via `gh label create/edit`:
-
-- **Type:** `bug`, `feature`, `task`, `docs`, `refactor`, `test`, `ci`, `deps`
-- **Task size:** `size:XS`, `size:S`, `size:Standard` (colon convention — #237)
-- **Priority:** `priority/P0`, `priority/P1`, `priority/P2`
-
-### Branch Protection
-
-Applied to `main` via `gh api`:
-
-- Required status check: `CI Required`
-- Required review: 1 approving reviewer
-- Dismiss stale reviews on push
-- No force-push, no deletions
-
----
-
-## Extensibility
-
-### Phases 3-4: Update + Diff & Additional Targets (DONE)
-
-Phases 3 and 4 are complete and shipped:
-
-- **Phase 3** — `arbiter update` and `arbiter diff` commands with `arbiter.json` config persistence
-- **Phase 4** — Additional tool targets (Cursor `.cursorrules`, Copilot `.github/copilot-instructions.md`)
-
-See [CLI Reference](../REFERENCE/CLI.md) for command documentation.
-
-### Additional Tool Targets
-
-| Tool       | File                              | Status              |
-| ---------- | --------------------------------- | ------------------- |
-| Cursor     | `.cursorrules`                    | Shipped             |
-| Copilot    | `.github/copilot-instructions.md` | Shipped             |
-| Gemini CLI | `GEMINI.md`                       | Planned (Phase 6-8) |
-| Windsurf   | `.windsurfrules`                  | Planned (Phase 6-8) |
-
-All targets follow the same thin-pointer pattern: point to `AGENTS.md`, add only tool-specific configuration.
-
-### Phases 6-8: Future Work
-
-- Gemini CLI and Windsurf overlay generation
-- Plugin / extension API for community-contributed tool targets
-- Template customization and inheritance

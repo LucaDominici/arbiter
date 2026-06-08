@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/planning-skeleton-audit.md'
 source_sha: '9e71e56fdf097f02a2af53cc492ddca808952218'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Planning Skeleton Audit

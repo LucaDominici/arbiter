@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/brownfield-existing-ci.md'
 source_sha: '89a816a50179803616296ff11ea0f8870983ca55'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Recipe: Brownfield Onboarding with Existing CI/CD

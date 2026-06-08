@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-36-release-pipeline-tag-triggered-artifact-signing.md'
 source_sha: 'aaf49494621a36115a9c1fbd238ae487b0f85c8c'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N36: Release pipeline (tag-triggered, artifact signing)

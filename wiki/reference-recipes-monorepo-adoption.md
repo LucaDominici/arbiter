@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/monorepo-adoption.md'
 source_sha: '6a13b0c02489cc65e41fdc42335258063272cc89'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Recipe: Adopting arbiter in a Monorepo

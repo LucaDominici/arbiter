@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/EXTRACTION_PLAYBOOK.md'
 source_sha: 'dfc9206efac48edd8e15f536956cecbdb42fb78d'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Extraction Playbook — PHOENIX framework-extraction pattern (M-06 port)

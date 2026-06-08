@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/runbooks/troubleshooting.md'
 source_sha: '7c3af15b629ce7090add5fd102be04b48a3e6518'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Troubleshooting Runbook — arbiter

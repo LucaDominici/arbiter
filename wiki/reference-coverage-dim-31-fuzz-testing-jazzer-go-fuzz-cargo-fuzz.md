@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-31-fuzz-testing-jazzer-go-fuzz-cargo-fuzz.md'
 source_sha: '47f811cec4a19cb714581a79945b282b9c8e5909'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N31: Fuzz testing (Jazzer / go-fuzz / cargo-fuzz)

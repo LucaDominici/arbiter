@@ -10,7 +10,8 @@ const SCRIPT = resolve(__dirname, '..', '..', 'scripts', 'check-stride-traceabil
 function setup(): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'stride-traceability-'))
   mkdirSync(join(dir, 'docs', 'SECURITY'), { recursive: true })
-  mkdirSync(join(dir, 'docs', 'GOVERNANCE'), { recursive: true })
+  // #1242: RACI register folded into the consolidated docs/GOVERNANCE.md.
+  mkdirSync(join(dir, 'docs'), { recursive: true })
   mkdirSync(join(dir, 'src'), { recursive: true })
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
@@ -37,7 +38,7 @@ describe('check-stride-traceability — empty-register guard (#631)', () => {
     const { dir, cleanup } = setup()
     try {
       writeFileSync(join(dir, 'docs/SECURITY/STRIDE.md'), EMPTY_STRIDE)
-      writeFileSync(join(dir, 'docs/GOVERNANCE/RACI.md'), EMPTY_RACI)
+      writeFileSync(join(dir, 'docs/GOVERNANCE.md'), EMPTY_RACI)
       const r = runScript(dir)
       expect(r.status).toBe(1)
       expect(r.out).toMatch(/empty|no HIGH\/CRITICAL/i)
@@ -57,7 +58,7 @@ describe('check-stride-traceability — empty-register guard (#631)', () => {
 | S001 | test threat | Spoofing | HIGH | mitigate | OPEN |
 `,
       )
-      writeFileSync(join(dir, 'docs/GOVERNANCE/RACI.md'), EMPTY_RACI)
+      writeFileSync(join(dir, 'docs/GOVERNANCE.md'), EMPTY_RACI)
       writeFileSync(join(dir, 'src/seed.ts'), '// @Security:S001\nexport const x = 1\n')
       const r = runScript(dir)
       expect(r.status).toBe(0)
@@ -77,7 +78,7 @@ describe('check-stride-traceability — empty-register guard (#631)', () => {
 | S999 | unverified | Tampering | CRITICAL | none | OPEN |
 `,
       )
-      writeFileSync(join(dir, 'docs/GOVERNANCE/RACI.md'), EMPTY_RACI)
+      writeFileSync(join(dir, 'docs/GOVERNANCE.md'), EMPTY_RACI)
       const r = runScript(dir)
       expect(r.status).toBe(1)
       expect(r.out).toMatch(/S999/)

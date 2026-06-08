@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/rfc/0001-plugin-api-v2.md'
 source_sha: '2df1c1ffd2ff9514633e0e108200c13c0ec4c8a0'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Plugin API v2 surface

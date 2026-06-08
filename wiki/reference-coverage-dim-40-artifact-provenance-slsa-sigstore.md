@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-40-artifact-provenance-slsa-sigstore.md'
 source_sha: '64716f0b61f6a7cb546b4473d9afed419e23bf89'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N40: Artifact provenance (SLSA / sigstore)

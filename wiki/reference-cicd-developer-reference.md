@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/cicd-developer-reference.md'
 source_sha: '1db0d6ed64b04a2599829be07618972050c623d6'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # CI/CD Developer Reference

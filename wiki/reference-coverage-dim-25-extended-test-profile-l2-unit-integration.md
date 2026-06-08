@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-25-extended-test-profile-l2-unit-integration.md'
 source_sha: 'bf84b85f13c80d79f8c11788340e381fb1c12175'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N25: Extended test profile (L2: unit + integration)

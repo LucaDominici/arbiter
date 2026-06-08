@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GOVERNANCE/coc-enforcement-runbook.md'
 source_sha: '5850f17a2980cc53d62c1d055b87b06c2a411be5'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Code of Conduct — Enforcement Runbook

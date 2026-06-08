@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-46-spdx-license-header-check.md'
 source_sha: 'eea2a632fe5ce2a67b3e142f446972562b7f6ad7'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N46: SPDX license header check

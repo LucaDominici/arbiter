@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/MIGRATION/config-versioning.md'
 source_sha: '897dbe0e13d57cc3028788dd0c7fe5e929701169'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Migration: config versioning (`v0` / `v0.1` → `v0.2`)

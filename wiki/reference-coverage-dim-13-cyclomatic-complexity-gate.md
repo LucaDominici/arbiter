@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-13-cyclomatic-complexity-gate.md'
 source_sha: '9254bd01a4825daba6b85953ecc82a36b5edaa1a'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N13: Cyclomatic complexity gate

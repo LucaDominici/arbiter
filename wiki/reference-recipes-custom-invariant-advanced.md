@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/custom-invariant-advanced.md'
 source_sha: '3f8811104c85e624fe5d59dbf7932b855536c359'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Recipe: Custom Invariant — Advanced Patterns

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-77-spring-modulith-structural-verification-applicationmodulesverify.md'
 source_sha: 'dd48d072f4077a921dc6e886e944b18ff7c0b773'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N77: Spring Modulith structural verification (ApplicationModules.verify())

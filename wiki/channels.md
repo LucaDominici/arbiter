@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/CHANNELS.md'
 source_sha: 'adf513b05c1d5fb48928ab5ec7314612c4bde3af'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Release Channels

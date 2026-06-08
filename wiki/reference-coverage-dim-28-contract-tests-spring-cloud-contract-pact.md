@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-28-contract-tests-spring-cloud-contract-pact.md'
 source_sha: '3adb1a7379e56daf478a091ad43749f51a577d36'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N28: Contract tests (Spring Cloud Contract / Pact)

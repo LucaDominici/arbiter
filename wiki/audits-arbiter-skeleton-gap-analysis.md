@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/arbiter-skeleton-gap-analysis.md'
 source_sha: 'df630b5c026dac262fab4dd4588f9464e8b2fed7'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Arbiter Skeleton Gap Analysis

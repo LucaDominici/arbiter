@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-24-fast-test-profile-l1-unit-only-2-min.md'
 source_sha: 'aeb9c49839735f95e9cb7b191504bfb83e4db5da'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N24: Fast test profile (L1 unit only, &lt;2 min)

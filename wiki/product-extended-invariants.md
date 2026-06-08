@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/EXTENDED-INVARIANTS.md'
 source_sha: 'b05d55a8042521d5ccb5be8c07e3705f5d64b5f4'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Extended Invariants — Rationale and Usage

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-38-weekly-audit-pipeline-dependency-audit-license-scan-sbom-refresh.md'
 source_sha: '3f6dbca0111e002ca7e7778d7d7fde2e167fb926'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N38: Weekly audit pipeline (dependency audit, license scan, SBOM refresh)

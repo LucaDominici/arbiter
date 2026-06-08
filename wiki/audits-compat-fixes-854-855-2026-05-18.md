@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/audits/compat-fixes-854-855-2026-05-18.md'
 source_sha: 'daa7ea8d04881f61c56350d04dcff2e5e6ea36e7'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Compatibility-Layer Fixes — #854 + #855

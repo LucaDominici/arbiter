@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-56-dependency-audit-npm-audit-owasp-dependency-check-cargo-audit.md'
 source_sha: 'a43965e596501735eb0a4307fa695111040b5b33'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N56: Dependency audit (npm audit / OWASP dependency-check / cargo audit)

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-08-tamper-evident-audit-log-insert-only-rule-r-audit-insert-only.md'
 source_sha: 'c591f3b8e778a4d86a251af2011cf3b9c53b0ed0'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N08: Tamper-evident audit log insert-only rule (R-audit-insert-only)

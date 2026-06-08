@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/ENFORCEMENT-PHILOSOPHY.md'
 source_sha: 'cc8eb9b95658cea4484ae53f9bdf4d413449c0dc'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Arbiter — Enforcement Philosophy

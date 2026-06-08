@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/CONTEXT_PACK_SPEC.md'
 source_sha: '6e02e16318e4cb31e5b10b4b19406f3bd82c4ccd'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # CONTEXT_PACK Specification — arbiter

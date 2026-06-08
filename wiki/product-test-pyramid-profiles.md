@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/TEST-PYRAMID-PROFILES.md'
 source_sha: 'fecd12c4a5326e41c15c86e91dc96c7416aff44e'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Test Pyramid Profiles

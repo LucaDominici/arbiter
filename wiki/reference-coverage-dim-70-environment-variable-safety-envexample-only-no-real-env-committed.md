@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-70-environment-variable-safety-envexample-only-no-real-env-committed.md'
 source_sha: '7c6ce942d177672ff56f86acee7f320dc83bd01d'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N70: Environment variable safety (.env.example only, no real .env committed)

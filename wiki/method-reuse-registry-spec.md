@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/REUSE_REGISTRY_SPEC.md'
 source_sha: 'cd29d14bd98c90f113ead16da5de94a79ede07f2'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # REUSE_REGISTRY Specification — arbiter

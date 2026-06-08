@@ -28,65 +28,41 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `AGENTS.md` — arbiter — AGENTS.md
 - `CODE_OF_CONDUCT.md` — Contributor Covenant Code of Conduct
 - `CONTRIBUTING.md` — Contributing to arbiter
+- `docs/GOVERNANCE.md` — Governance — arbiter
 - `docs/GOVERNANCE/coc-enforcement-runbook.md` — Code of Conduct — Enforcement Runbook
 - `docs/GOVERNANCE/GOOD-FIRST-ISSUE-CURATION.md` — Good First Issue Curation — Launch Batch
-- `docs/GOVERNANCE/GOOD-FIRST-ISSUE-POLICY.md` — Good First Issue Policy
 - `docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md` — Good First Issue Template
-- `docs/GOVERNANCE/index.md` — arbiter Governance
 - `docs/GOVERNANCE/LABELS.md` — arbiter Label Catalogue
-- `docs/GOVERNANCE/RACI.md` — RACI Matrix — arbiter
 - `docs/GOVERNANCE/README.md` — arbiter Governance
 - `docs/PRODUCT/CONVERGENCE-2026-06.md` — Convergence Report — Batch C (2026-06)
 
 ### Method
 
-- `docs/architecture/CANONICAL-SOURCE-MODEL.md` — Canonical Source Model — Deep Dive
-- `docs/architecture/CONFLICT-RESOLUTION.md` — Arbiter — Conflict Resolution
-- `docs/architecture/dual-track-contract.md` — Dual-Track Contract
-- `docs/architecture/evidence-bundle.md` — Architecture: Evidence Bundle Schema (INV-90)
-- `docs/architecture/OVERVIEW.md` — Arbiter — Architecture Overview
-- `docs/architecture/skeleton-governance.md` — Skeleton Governance Architecture
-- `docs/architecture/TEMPLATE-SYSTEM.md` — Template System
-- `docs/CODING_STANDARDS.md` — Coding Standards
-- `docs/DEVELOPMENT/CONVENTIONS.md` — Conventions
-- `docs/DEVELOPMENT/GETTING-STARTED.md` — Getting Started — Development Guide
 - `docs/DEVELOPMENT/REAL-PROJECT-TESTING.md` — Real-Project Testing
 - `docs/DEVELOPMENT/TESTING-STRATEGY.md` — Testing Strategy
-- `docs/MASTER_TEST_PLAN.md` — Master Test Plan
 - `docs/METHOD/CONTEXT_PACK_SPEC.md` — CONTEXT_PACK Specification — arbiter
 - `docs/METHOD/CONTEXT_SLICE_SPEC.md` — CONTEXT_SLICE Specification — arbiter
-- `docs/METHOD/DOC_SEMVER.md` — Document Semver Policy (doc_version)
 - `docs/METHOD/ENGINEERING_DEFAULTS.md` — Engineering Defaults — arbiter
 - `docs/METHOD/EXTRACTION_PLAYBOOK.md` — Extraction Playbook — PHOENIX framework-extraction pattern (M-06 port)
 - `docs/METHOD/PATTERNS_CATALOG.md` — arbiter Patterns Catalog
+- `docs/METHOD/PROCESS.md` — Process — arbiter
 - `docs/METHOD/REUSE_REGISTRY_SPEC.md` — REUSE_REGISTRY Specification — arbiter
 - `docs/METHOD/REUSE_REGISTRY.md` — arbiter Reuse Registry
-- `docs/METHOD/SELF_VALIDATION_PROTOCOL.md` — Self-Validation Protocol — A/B/C Drill
-- `docs/METHOD/TAG_TAXONOMY.md` — arbiter Tag Taxonomy
-- `docs/METHOD/TRACK_MODEL.md` — Track Model — arbiter
+- `docs/METHOD/TESTING.md` — Testing — arbiter
 - `docs/rfc/0001-plugin-api-v2.md` — Plugin API v2 surface
-- `docs/rfc/README.md` — RFC Process
 - `docs/SYSTEM/CI-MIGRATION.md` — CI Migration Guide
 - `docs/SYSTEM/CI-TIER-MODEL.md` — Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)
-- `docs/SYSTEM/detector-error-policy.md` — Detector Error Policy
-- `docs/SYSTEM/E2E-RUNTIMES.md` — E2E Runtime Matrix
 - `docs/SYSTEM/HOOK-CONTRACTS.md` — Hook Contracts — `.claude/hooks/*.mjs`
-- `docs/SYSTEM/ID-STABILITY.md` — Invariant ID Stability Policy
-- `docs/SYSTEM/POST_COMMIT_TRACKS.md` — Post-Commit Track Taxonomy (#724)
-- `docs/TEST_TAXONOMY.md` — Test Taxonomy — arbiter
-- `docs/TESTING_POLICY.md` — Testing Policy — arbiter
 - `docs/testing/POST_MERGE_REVIEW_TEMPLATE.md` — Post-Merge Review — YYYY-MM-DD
 
 ### Entrypoints
 
-- `docs/install/windows.md` — Windows Setup (WSL2)
-- `docs/QUICKSTART.md` — arbiter — Quickstart
-- `docs/SETUP.md` — Repository Setup (CANON-01)
+- `docs/CONTRIBUTING.md` — Contributing to arbiter
 - `OBSIDIAN.md` — Open arbiter as an Obsidian Vault
 
 ### Spines
 
-- `docs/architecture/README.md` — arbiter Architecture
+- `docs/architecture/ARCHITECTURE.md` — arbiter Architecture
 - `README.md` — Arbiter — AI governance that installs itself.
 
 ### SSOT

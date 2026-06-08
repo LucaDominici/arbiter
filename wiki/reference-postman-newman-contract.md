@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/postman-newman-contract.md'
 source_sha: '4cd4354a167a3c08226fe5c31e3313a4f402ccbd'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Postman/Newman Contract Tests — Reference

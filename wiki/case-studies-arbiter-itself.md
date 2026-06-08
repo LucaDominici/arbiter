@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/arbiter-itself.md'
 source_sha: 'fe3d40d975538e64aebf05df1e4de73cde329841'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Case study: arbiter governs arbiter

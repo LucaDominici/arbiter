@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/cost-optimized-phase-handoff.md'
 source_sha: 'cd06042d7e5a0b562145cd5f2eb5c577f6ef8e92'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Cost-Optimized Phase Handoff (Phase 3.5)

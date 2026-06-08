@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/CROSS-LANGUAGE-MATRIX.md'
 source_sha: '8af08f7f44dc822fc2d355c88a0496a86378fd80'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Arbiter — Cross-Language Enforcement Matrix

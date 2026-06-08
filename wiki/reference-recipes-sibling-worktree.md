@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/sibling-worktree.md'
 source_sha: '6e460ba4cc542c01948392be46cadf7a7bc76653'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Recipe: Sibling Worktree Pattern (`--sibling`)

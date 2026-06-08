@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/workflow-pr-fast.md'
 source_sha: '7b46e8f2662d845a8fc1ae987ff350d3cb80c052'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Reference Implementation: PR Fast (T1) Workflow

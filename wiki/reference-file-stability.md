@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/file-stability.md'
 source_sha: '1afd7f99a30699f7b722264ec487a9466d25a1c9'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Generated File Format Stability Map

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-21-test-isolation-no-shared-mutable-state-between-tests.md'
 source_sha: 'cefd43a555037a198fb95fa0a5bf66ff3a20537b'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N21: Test isolation — no shared mutable state between tests

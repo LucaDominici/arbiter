@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/customize-wizard.md'
 source_sha: 'bf710ca82cc6360e1eb1ad2ffbc2326c4a310e67'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Recipe: Customizing the Wizard

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-05-async-annotation-only-in-service-layer.md'
 source_sha: '04e958a93c4c67e13734cada6cca012459db2e0e'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N05: @Async annotation only in service layer

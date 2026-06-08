@@ -5,7 +5,9 @@ import { resolve } from 'node:path'
 const REPO_ROOT = resolve('.')
 
 function readTrackModel(): string {
-  return readFileSync(resolve(REPO_ROOT, 'docs/METHOD/TRACK_MODEL.md'), 'utf-8')
+  // #1242: TRACK_MODEL folded into the consolidated docs/METHOD/PROCESS.md.
+  // The `## Tracks` / `### \`name\`` substructure is preserved verbatim there.
+  return readFileSync(resolve(REPO_ROOT, 'docs/METHOD/PROCESS.md'), 'utf-8')
 }
 
 function readLabelsYaml(): string {

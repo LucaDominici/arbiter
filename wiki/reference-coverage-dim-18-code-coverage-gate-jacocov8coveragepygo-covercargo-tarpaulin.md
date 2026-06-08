@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-18-code-coverage-gate-jacocov8coveragepygo-covercargo-tarpaulin.md'
 source_sha: '96c789f246d959b8c89d945c3a9afaa9282ed7fc'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N18: Code coverage gate (JaCoCo/V8/coverage.py/go cover/cargo-tarpaulin)

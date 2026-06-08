@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/FAQ.md'
 source_sha: '3914aee57e75186d21d2b84d79a79efc2b63eef9'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Frequently Asked Questions

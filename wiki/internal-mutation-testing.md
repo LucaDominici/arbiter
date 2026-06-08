@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/internal/mutation-testing.md'
 source_sha: 'e9d6ad296080c0dc4f32315e639da67379670d5d'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Mutation Testing

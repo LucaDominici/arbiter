@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/incidents/05-canon16-refactor-first-saving-file.md'
 source_sha: 'e06784c3cfc23dc00a3bcb013f280f8797064b55'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Incident: CANON-16 (refactor-first) saving an avoidable file creation

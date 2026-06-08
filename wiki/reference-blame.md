@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/BLAME.md'
 source_sha: '9053344928ea2f657dd8d58a62e371c16c6891a9'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # arbiter blame — Time-Travel Governance

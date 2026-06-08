@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-09-static-analysis-linting-checkstyleeslintruffgolangci-lintclippy.md'
 source_sha: '989aeacc9be0960582ffc00f1b5aac206b079fbe'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N09: Static analysis: linting (checkstyle/eslint/ruff/golangci-lint/clippy)

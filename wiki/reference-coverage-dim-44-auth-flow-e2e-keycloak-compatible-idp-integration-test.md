@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-44-auth-flow-e2e-keycloak-compatible-idp-integration-test.md'
 source_sha: 'f9ebedac6d155026f5b17aa984345871f41b8953'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N44: Auth flow E2E (Keycloak-compatible IdP integration test)

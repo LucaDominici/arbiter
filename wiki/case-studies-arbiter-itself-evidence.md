@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/case-studies/arbiter-itself-evidence.md'
 source_sha: 'a0b6f233ac6f78c708000dacb3f2d418f22d2d47'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Evidence trail: arbiter's own knowledge map snapshot

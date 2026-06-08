@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/recipes/B10-debug-mode.md'
 source_sha: 'b226909296dd9af8a60001cef6875b30bba4dcb0'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Recipe B10 — Debugging an arbiter command

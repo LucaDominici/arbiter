@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SEMVER.md'
 source_sha: 'ea580caa84efedd009e36a37b34c0a62735de91e'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # Semver Policy

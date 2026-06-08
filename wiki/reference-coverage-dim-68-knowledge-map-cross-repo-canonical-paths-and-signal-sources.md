@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-68-knowledge-map-cross-repo-canonical-paths-and-signal-sources.md'
 source_sha: 'acc18201f47e602652974d7ada486330246d0900'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N68: Knowledge map (cross-repo canonical paths and signal sources)

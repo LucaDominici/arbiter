@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-06-bean-validation-constraints-in-domain-entities-only.md'
 source_sha: '4cf7afe295f88fcb4d381523da2db3ab09043fb7'
-last_updated: '2026-06-07'
+last_updated: '2026-06-08'
 ---
 
 # N06: Bean Validation constraints in domain entities only
