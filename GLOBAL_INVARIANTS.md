@@ -491,14 +491,6 @@ Every local markdown link in docs/ must resolve to an existing file. Before fail
 
 ---
 
-### INV-56: Knowledge-map freshness — line counts must not drift beyond tolerance
-
-Every **Lines:** entry in docs/METHOD/KNOWLEDGE_MAP.md must match the actual line count of the referenced document within ±30% tolerance. Lines: 0 entries are skipped (not yet populated). Missing referenced files are skipped. Run knowledge-map-update.mjs to refresh counts.
-
-**Enforcement:** scripts/check-knowledge-map.mjs (L1 gate, #255)
-
----
-
 ### INV-57: Canonical-paths integrity — all redirect targets must exist
 
 Every redirect target in docs/METHOD/CANONICAL_PATHS.md must exist on disk. A dangling alias (target missing) causes the gate to exit 1. Bootstrap mode: if CANONICAL_PATHS.md is absent, the gate exits 0.

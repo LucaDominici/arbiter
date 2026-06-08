@@ -45,7 +45,3 @@ When a new language is promoted from `beta` → `proven` in the matrix:
 3. Add the row to this table with the correct test path.
 
 See `docs/DEVELOPMENT/TESTING-STRATEGY.md` §Matrix Testing for cross-product test conventions.
-
-## See Also
-
-- [[development-testing-strategy]] — related

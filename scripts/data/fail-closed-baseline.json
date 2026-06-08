@@ -1,6 +1,6 @@
 {
   "schema": "arbiter-fail-closed-baseline-v1",
-  "generated_at": "2026-05-27T02:31:49.949Z",
+  "generated_at": "2026-06-08T05:55:34.599Z",
   "files": [
     ".claude/hooks/check-circular-deps.mjs",
     ".claude/hooks/check-no-any.mjs",
@@ -48,7 +48,6 @@
     "scripts/check-id-stability.mjs",
     "scripts/check-inline-suppressions.mjs",
     "scripts/check-inv-enforcement-wired.mjs",
-    "scripts/check-knowledge-map.mjs",
     "scripts/check-no-orphan-todo.mjs",
     "scripts/check-no-placeholders.mjs",
     "scripts/check-no-raw-strings.mjs",
@@ -58,7 +57,6 @@
     "scripts/check-plugin-api-stability.mjs",
     "scripts/check-secret-scan.mjs",
     "scripts/check-spdx-headers.mjs",
-    "scripts/check-ssot-core.mjs",
     "scripts/check-stride-traceability.mjs",
     "scripts/check-suppression-expiry.mjs",
     "scripts/check-tdd-evidence.mjs",
@@ -83,7 +81,6 @@
     "scripts/evidence-prune.mjs",
     "scripts/evidence-rotate.mjs",
     "scripts/harness.mjs",
-    "scripts/knowledge-map-update.mjs",
     "scripts/lib/check-registry.mjs",
     "scripts/lib/full-gate-blacklist.mjs",
     "scripts/lib/log-bypass.mjs",

@@ -4,23 +4,23 @@
   "tracks": {
     "frontend": {
       "signal_paths": ["src/", "web/", "frontend/", "*.tsx", "*.jsx", "*.vue", "*.svelte", "*.css", "*.scss"],
-      "required_docs": ["docs/METHOD/KNOWLEDGE_MAP.md"],
+      "required_docs": ["docs/INDEX.md"],
       "optional_docs": ["docs/METHOD/FRONTEND_CONTEXT.md"]
     },
     "backend": {
       "signal_paths": ["src/", "api/", "backend/", "server/", "cmd/", "*.go", "*.py", "*.java", "*.rs", "*.rb"],
-      "required_docs": ["docs/METHOD/KNOWLEDGE_MAP.md"],
+      "required_docs": ["docs/INDEX.md"],
       "optional_docs": ["docs/METHOD/BACKEND_CONTEXT.md"]
     },
     "docs": {
       "signal_paths": ["docs/", "*.md"],
-      "required_docs": ["docs/METHOD/KNOWLEDGE_MAP.md"],
+      "required_docs": ["docs/INDEX.md"],
       "optional_docs": []
     }
   },
   "minimum_startup_set": [
     "AGENTS.md",
-    "docs/METHOD/KNOWLEDGE_MAP.md",
+    "docs/INDEX.md",
     ".claude/knowledge-map.json"
   ]
 }

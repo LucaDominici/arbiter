@@ -871,19 +871,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement: 'scripts/check-doc-links.mjs (L1 gate, #255)',
   },
 
-  {
-    id: 'INV-56',
-    tier: 'governance',
-    title: 'Knowledge-map freshness — line counts must not drift beyond tolerance',
-    description:
-      'Every **Lines:** entry in docs/METHOD/KNOWLEDGE_MAP.md must match the actual ' +
-      'line count of the referenced document within ±30% tolerance. ' +
-      'Lines: 0 entries are skipped (not yet populated). ' +
-      'Missing referenced files are skipped. ' +
-      'Run knowledge-map-update.mjs to refresh counts.',
-    alwaysActive: true,
-    enforcement: 'scripts/check-knowledge-map.mjs (L1 gate, #255)',
-  },
+  // INV-56 retired (#1244): bespoke knowledge-map machinery (KNOWLEDGE_MAP.md +
+  // check-knowledge-map.mjs + knowledge-map-update.mjs) deleted — Obsidian now reads
+  // the generated wiki/. The freshness invariant protected a doc that no longer exists,
+  // so it is genuinely obsolete. ID left as a gap (ID-STABILITY: never renumber).
 
   {
     id: 'INV-57',

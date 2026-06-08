@@ -29,27 +29,16 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `CODE_OF_CONDUCT.md` — Contributor Covenant Code of Conduct
 - `CONTRIBUTING.md` — Contributing to arbiter
 - `docs/GOVERNANCE.md` — Governance — arbiter
-- `docs/GOVERNANCE/coc-enforcement-runbook.md` — Code of Conduct — Enforcement Runbook
-- `docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md` — Good First Issue Template
-- `docs/GOVERNANCE/LABELS.md` — arbiter Label Catalogue
 
 ### Method
 
 - `docs/DEVELOPMENT/REAL-PROJECT-TESTING.md` — Real-Project Testing
-- `docs/DEVELOPMENT/TESTING-STRATEGY.md` — Testing Strategy
-- `docs/METHOD/CONTEXT_PACK_SPEC.md` — CONTEXT_PACK Specification — arbiter
-- `docs/METHOD/CONTEXT_SLICE_SPEC.md` — CONTEXT_SLICE Specification — arbiter
 - `docs/METHOD/ENGINEERING_DEFAULTS.md` — Engineering Defaults — arbiter
-- `docs/METHOD/EXTRACTION_PLAYBOOK.md` — Extraction Playbook — PHOENIX framework-extraction pattern (M-06 port)
 - `docs/METHOD/PATTERNS_CATALOG.md` — arbiter Patterns Catalog
 - `docs/METHOD/PROCESS.md` — Process — arbiter
-- `docs/METHOD/REUSE_REGISTRY_SPEC.md` — REUSE_REGISTRY Specification — arbiter
 - `docs/METHOD/REUSE_REGISTRY.md` — arbiter Reuse Registry
 - `docs/METHOD/TESTING.md` — Testing — arbiter
-- `docs/rfc/0001-plugin-api-v2.md` — Plugin API v2 surface
-- `docs/SYSTEM/CI-TIER-MODEL.md` — Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)
 - `docs/SYSTEM/HOOK-CONTRACTS.md` — Hook Contracts — `.claude/hooks/*.mjs`
-- `docs/testing/POST_MERGE_REVIEW_TEMPLATE.md` — Post-Merge Review — YYYY-MM-DD
 
 ### Entrypoints
 
@@ -64,7 +53,6 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 ### SSOT
 
 - `docs/METHOD/CANONICAL_PATHS.md` — Canonical Paths — arbiter
-- `docs/METHOD/KNOWLEDGE_MAP.md` — Knowledge Map — arbiter
 - `docs/METHOD/SSOT_CORE_SET.md` — SSOT Core Set — arbiter
 
 ### Canon

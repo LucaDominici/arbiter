@@ -35,7 +35,7 @@ Doing this by hand across stacks and tools is copy-paste work that rots the mome
 
 **No telemetry.** Arbiter collects zero usage data and makes zero unsolicited network calls. See [PRIVACY.md](PRIVACY.md).
 
-**Honest framing.** Arbiter is a governance installer, not an AI workflow or persona framework. See [docs/POSITIONING.md](docs/POSITIONING.md) for what arbiter is, what it is not, and how it relates to other tools.
+**Honest framing.** Arbiter is a governance installer, not an AI workflow or persona framework. See [`docs/PRODUCT/PRD.md`](docs/PRODUCT/PRD.md) for what arbiter is, what it is not, and how it relates to other tools.
 
 ---
 
@@ -174,10 +174,8 @@ Running `arbiter init` twice on the same repo is safe. All generated files use d
 
 ## Product Documentation
 
-- [`docs/FAQ.md`](docs/FAQ.md) — Frequently Asked Questions
 - [`docs/PRODUCT/PRD.md`](docs/PRODUCT/PRD.md) — Vision, problem, users, features by phase, success metrics
 - [`docs/PRODUCT/MILESTONES.md`](docs/PRODUCT/MILESTONES.md) — Phased delivery with exit criteria
-- [`docs/PRODUCT/COMPETITION.md`](docs/PRODUCT/COMPETITION.md) — ai-rulez, ruler, manual setup — where Arbiter fits
 
 ---
 
@@ -231,7 +229,7 @@ See [`examples/`](examples/) for plugin SDK examples and the arbiter-starter fix
 
 - **Discussions** — [github.com/LucaDominici/arbiter/discussions](https://github.com/LucaDominici/arbiter/discussions): Q&A, ideas, show-and-tell, announcements.
 - **Good first issues** — see issues labelled [`good first issue`](https://github.com/LucaDominici/arbiter/issues?q=label%3A%22good+first+issue%22+is%3Aopen).
-- **RFC process** — see [`docs/rfc/`](docs/rfc/) for how to propose major changes.
+- **RFC process** — see [`docs/METHOD/PROCESS.md`](docs/METHOD/PROCESS.md) for how to propose major changes.
 
 ---
 

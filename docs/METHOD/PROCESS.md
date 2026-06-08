@@ -371,10 +371,5 @@ Implementation PRs link back to the accepted RFC with `Implements RFC NNNN`.
 
 ## RFC numbering
 
-RFCs are numbered sequentially. The first accepted RFC is `0001`. Leave `0000` as the permanent template.
-
-## Index
-
-| #                                    | Title                 | Status   |
-| ------------------------------------ | --------------------- | -------- |
-| [0001](../rfc/0001-plugin-api-v2.md) | Plugin API v2 surface | accepted |
+RFCs are numbered sequentially. The first accepted RFC is `0001`. The accepted-RFC
+index and the RFC template are compiled into the generated wiki (Obsidian viewer).

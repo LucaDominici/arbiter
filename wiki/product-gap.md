@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/PRODUCT/GAP.md'
-source_sha: '56256f0be4cc746d0f461690acfee3c330fc60a7'
+source_sha: '360e52d5f966dc226ab9146ca8d81ed13ac20190'
 last_updated: '2026-06-08'
 ---
 
@@ -46,5 +46,5 @@ _[content truncated — see source for full text]_
 
 ## See Also
 
-- [[product-feature-comparison]] — related
+- [[product-feature-matrix]] — related
 - [[product-status]] — related

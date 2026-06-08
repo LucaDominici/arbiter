@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/iso9001-overlay.md'
-source_sha: 'a567f5720722f3ec11173d005745fa6c7375beb1'
+source_sha: '593f471b79e89195718dd9d634f79f1a298ea63f'
 last_updated: '2026-06-08'
 ---
 
@@ -17,8 +17,7 @@ last_updated: '2026-06-08'
 ## Overview
 
 The ISO 9001 overlay emits **quality-management-system** scaffolding. It is **orthogonal**
-to the audit-trail overlays (`pharma` / `sox` / `gdpr` / `generic`, see
-[pharma-overlay.md](./pharma-overlay.md)): those concern the audit trail, this concerns the
+to the audit-trail overlays (`pharma` / `sox` / `gdpr` / `generic`): those concern the audit trail, this concerns the
 quality process. The overlay covers three ISO 9001 controls and ships a fail-closed gate that
 enforces them — so the requirement→test chain is gate-checkable, not just prose.
 

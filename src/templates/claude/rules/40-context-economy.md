@@ -9,7 +9,7 @@ Read the minimum context needed for the current task. Every unnecessary file rea
 Every task reads, regardless of track:
 
 - `AGENTS.md` (invariants + governance)
-- `docs/METHOD/KNOWLEDGE_MAP.md` (doc index)
+- `docs/INDEX.md` (generated doc index)
 - `.claude/knowledge-map.json` (machine-readable track routing)
 - The specific file(s) the task touches
 
@@ -22,7 +22,7 @@ Full routing table is in `.claude/knowledge-map.json`.
 | -------- | ------------------------------------ | ------------------------------------------- |
 | frontend | `*.tsx`, `*.vue`, `*.svelte`, `web/` | `docs/METHOD/FRONTEND_CONTEXT.md` if exists |
 | backend  | `*.go`, `*.py`, `*.java`, `api/`     | `docs/METHOD/BACKEND_CONTEXT.md` if exists  |
-| docs     | `docs/`, `*.md`                      | `docs/METHOD/KNOWLEDGE_MAP.md` only         |
+| docs     | `docs/`, `*.md`                      | `docs/INDEX.md` only                        |
 
 ## Rules
 
