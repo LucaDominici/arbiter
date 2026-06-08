@@ -1,0 +1,59 @@
+{
+  "issue": "#1264",
+  "phase": "red-team-review",
+  "reviewer": "inline (no spawn tool available; conducted by lane worker)",
+  "date": "2026-06-08",
+  "plan": ".claude/plans/1264-skill-eval.md",
+  "findings": [
+    {
+      "id": "RT-01",
+      "severity": "blocking",
+      "angle": "test determinism / build coupling",
+      "issue": "If the gate test invokes the real `node dist/cli.js`, tests break when dist is stale and become slow/flaky.",
+      "resolution": "Unit-test fixtures point at `process.execPath` running a trivial inline `-e` script (deterministic exit code + stdout), NOT the arbiter CLI. Shipped fixtures under __tests__/fixtures resolve the CLI path via opts.cliPath so they are not exercised by the fast unit gate.",
+      "status": "addressed-in-plan"
+    },
+    {
+      "id": "RT-02",
+      "severity": "major",
+      "angle": "variance coherence",
+      "issue": "Pass-rate variance for a deterministic CLI is almost always 0% or 100%, so 'variance analysis' could be vacuous.",
+      "resolution": "Two complementary signals: (a) outcome-stability flag (did every iteration agree?) catches genuine flakiness/regression; (b) timing percentiles (p50/p95/p99 via perf.measure) carry the continuous variance. Documented as the coherent meaning of variance for command execution.",
+      "status": "addressed-in-plan"
+    },
+    {
+      "id": "RT-03",
+      "severity": "major",
+      "angle": "fail-closed on malformed fixtures",
+      "issue": "A malformed scenario JSON could crash the whole run, masking other scenarios.",
+      "resolution": "loadScenarios narrows parsed JSON (no any), skips + records malformed fixtures as a structured error rather than throwing; mirrors loadBaseline's defensive parse in benchmark.ts.",
+      "status": "addressed-in-plan"
+    },
+    {
+      "id": "RT-04",
+      "severity": "minor",
+      "angle": "scope creep / LLM judge",
+      "issue": "Issue mentions skill BEHAVIOR; true LLM-prompt eval needs a judge model, not runnable in gated CI.",
+      "resolution": "Fixture schema carries a `backend` seam (cli|llm); only `cli` wired. `llm` deferred and documented. No judge model in the gate.",
+      "status": "addressed-in-plan"
+    },
+    {
+      "id": "RT-05",
+      "severity": "minor",
+      "angle": "INV-04 no-any",
+      "issue": "JSON.parse returns any/unknown; risk of implicit any in assertion evaluation.",
+      "resolution": "All parsed JSON is `unknown`, narrowed via type guards. Assertion shapes are explicit interfaces.",
+      "status": "addressed-in-plan"
+    },
+    {
+      "id": "RT-06",
+      "severity": "minor",
+      "angle": "CANON-01/14 dual-sided gate",
+      "issue": "Adding a gate to check-all.mjs would require dual-sided template + dogfood.",
+      "resolution": "This is a dev-only self-command, NOT wired into check-all.mjs and NOT generated into target projects. Stated explicitly in plan scope section. No dual-sided burden.",
+      "status": "addressed-in-plan"
+    }
+  ],
+  "verdict": "approved-with-amendments",
+  "amendments_merged_into_plan": ["RT-01", "RT-02", "RT-03", "RT-04", "RT-05", "RT-06"]
+}

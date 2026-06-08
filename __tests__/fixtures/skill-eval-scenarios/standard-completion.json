@@ -1,0 +1,13 @@
+{
+  "name": "standard-completion",
+  "skill": "explain",
+  "backend": "cli",
+  "description": "A well-formed request completes successfully: `arbiter explain INV-04` resolves a known invariant, prints its explanation, and exits 0. Regression guard for the happy-path completion behavior.",
+  "command": "node",
+  "args": ["dist/cli.js", "explain", "INV-04"],
+  "timeoutMs": 20000,
+  "expect": {
+    "exitCode": 0,
+    "stdoutMatches": "INV-04"
+  }
+}

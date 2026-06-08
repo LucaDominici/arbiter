@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getLogger } from './logger.js'
 
@@ -36,6 +36,39 @@ export function readPackageJsonSafe(dir: string): Record<string, unknown> {
     )
     return {}
   }
+}
+
+/**
+ * Read a benchmark/eval baseline JSON file, returning a plain object or `null`.
+ * Shared by `benchmark` and `skill-eval` so regression detection degrades the
+ * same way everywhere (#1264):
+ * - Missing file → `null` silently (no baseline yet is a normal first run).
+ * - Invalid JSON or a non-object top level → warn to stderr and return `null`
+ *   so regression detection is disabled rather than crashing the run.
+ *
+ * Callers narrow the returned values to their own baseline value type.
+ */
+export function readBaselineFileSafe(baselineFile: string): Record<string, unknown> | null {
+  if (!existsSync(baselineFile)) return null
+  let raw: unknown
+  try {
+    raw = JSON.parse(readFileSync(baselineFile, 'utf-8'))
+  } catch (err) {
+    process.stderr.write(
+      `Warning: baseline file exists but contains invalid JSON (${baselineFile}): ${String(err)}\n` +
+        `Regression detection disabled. Delete or regenerate the baseline.\n`,
+    )
+    return null
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    process.stderr.write(
+      `Warning: baseline file has unexpected structure (${baselineFile}). ` +
+        `Expected object, got ${Array.isArray(raw) ? 'array' : typeof raw}.\n` +
+        `Regression detection disabled. Delete or regenerate the baseline.\n`,
+    )
+    return null
+  }
+  return raw as Record<string, unknown>
 }
 
 function isEnoent(err: unknown): boolean {

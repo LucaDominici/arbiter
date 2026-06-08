@@ -529,6 +529,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter review`         | Review artefacts (plans, code) against governance invariants                    |
 | `arbiter settings`       | List every settable arbiter.json path with its current value (#1121)            |
 | `arbiter ship`           | —                                                                               |
+| `arbiter skill-eval`     | Regression-eval harness for arbiter's own skills/commands (#1264)               |
 | `arbiter task`           | Manage task lifecycle state                                                     |
 | `arbiter trace`          | —                                                                               |
 | `arbiter tui`            | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)  |
@@ -603,6 +604,7 @@ Diagnose and repair arbiter state.
 
 - `arbiter doctor repair-state`
 - `arbiter doctor recover-lock`
+- `arbiter doctor clean`
 
 **Options:**
 
@@ -756,6 +758,14 @@ List every settable arbiter.json path with its current value (#1121).
 - `--json` — Emit machine-readable JSON output
 
 ## arbiter ship
+
+## arbiter skill-eval
+
+Regression-eval harness for arbiter's own skills/commands (#1264).
+
+**Subcommands:**
+
+- `arbiter skill-eval run`
 
 ## arbiter task
 

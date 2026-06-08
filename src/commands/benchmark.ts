@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { readdirSync, existsSync, readFileSync } from 'node:fs'
+import { readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { measure } from '../utils/perf.js'
 import { jsonOutput } from '../utils/json-output.js'
 import { runCli } from '../utils/run-cli.js'
+import { readBaselineFileSafe } from '../utils/safe-read.js'
 
 export interface BenchmarkHooksOptions {
   dir?: string
@@ -40,29 +41,6 @@ function runHookOnce(hookPath: string): void {
   } catch {
     // hook exit code is irrelevant — we measure wall time only
   }
-}
-
-function loadBaseline(baselineFile: string): Record<string, unknown> | null {
-  if (!existsSync(baselineFile)) return null
-  let raw: unknown
-  try {
-    raw = JSON.parse(readFileSync(baselineFile, 'utf-8'))
-  } catch (err) {
-    process.stderr.write(
-      `Warning: baseline file exists but contains invalid JSON (${baselineFile}): ${String(err)}\n` +
-        `Regression detection disabled. Delete or regenerate the baseline.\n`,
-    )
-    return null
-  }
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    process.stderr.write(
-      `Warning: baseline file has unexpected structure (${baselineFile}). ` +
-        `Expected object, got ${Array.isArray(raw) ? 'array' : typeof raw}.\n` +
-        `Regression detection disabled. Delete or regenerate the baseline.\n`,
-    )
-    return null
-  }
-  return raw as Record<string, unknown>
 }
 
 function printHumanResults(
@@ -124,7 +102,7 @@ export function runBenchmarkHooks(opts: BenchmarkHooksOptions = {}): BenchmarkRe
     .filter((f) => f.endsWith('.mjs') && !f.startsWith('lib'))
     .sort()
 
-  const baseline = loadBaseline(baselineFile)
+  const baseline = readBaselineFileSafe(baselineFile)
   const hookResults: HookTiming[] = []
   const regressions: string[] = []
 

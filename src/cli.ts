@@ -77,6 +77,7 @@ import { SnapshotChecksumError } from './state/envelope.js'
 import { registerCleanupHandlers } from './utils/fs.js'
 import { runExplain } from './commands/explain.js'
 import { runBenchmarkHooks } from './commands/benchmark.js'
+import { runSkillEval } from './commands/skill-eval.js'
 import { getRunId, formatRunIdFooter } from './utils/run-id.js'
 import { parseExperimentalArgv, listExperiments, isEnabled } from './experimental/index.js'
 import { t } from './i18n/index.js'
@@ -1944,6 +1945,42 @@ benchmark
     const result = runBenchmarkHooks(benchOpts)
     if (result.regressions.length > 0 && !opts.json) process.exit(1)
   })
+
+// ── skill-eval — regression-eval harness for arbiter's skills/commands (#1264) ─
+
+const skillEval = program
+  .command('skill-eval')
+  .description("Regression-eval harness for arbiter's own skills/commands (#1264)")
+
+skillEval
+  .command('run')
+  .description('Run scenario fixtures, score pass/fail with variance, emit a report')
+  .option('--dir <dir>', 'Project root (default: current directory)')
+  .option('--scenarios <dir>', 'Directory of scenario *.json fixtures')
+  .option('--iterations <n>', 'Iterations per scenario (default: 5)', '5')
+  .option('--baseline <file>', 'Baseline JSON file (scenario name → pass rate)')
+  .option('--html <file>', 'Write an HTML report to this path')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(
+    (opts: {
+      dir?: string
+      scenarios?: string
+      iterations?: string
+      baseline?: string
+      html?: string
+      json?: boolean
+    }) => {
+      const evalOpts: import('./commands/skill-eval.js').SkillEvalOptions = {}
+      if (opts.dir !== undefined) evalOpts.dir = opts.dir
+      if (opts.scenarios !== undefined) evalOpts.scenariosDir = opts.scenarios
+      if (opts.iterations !== undefined) evalOpts.iterations = parseInt(opts.iterations, 10)
+      if (opts.baseline !== undefined) evalOpts.baselineFile = opts.baseline
+      if (opts.html !== undefined) evalOpts.htmlFile = opts.html
+      if (opts.json !== undefined) evalOpts.json = opts.json
+      const result = runSkillEval(evalOpts)
+      if (!result.passed || result.regressions.length > 0) process.exit(1)
+    },
+  )
 
 // ── experiments — list and inspect registered experiments (#601) ─────────────
 

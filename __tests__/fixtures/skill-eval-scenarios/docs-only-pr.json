@@ -1,0 +1,17 @@
+{
+  "name": "docs-only-pr",
+  "skill": "integrations",
+  "backend": "cli",
+  "description": "A read-only inspection completes with a stable machine-readable envelope: `arbiter integrations list --json` enumerates detected skills/plugins and emits the standard JSON envelope (status=ok). Models a docs-only / no-mutation flow whose JSON contract must not regress.",
+  "command": "node",
+  "args": ["dist/cli.js", "integrations", "list", "--json"],
+  "timeoutMs": 20000,
+  "expect": {
+    "exitCode": 0,
+    "jsonEnvelope": {
+      "command": "integrations-list",
+      "version": "1",
+      "status": "ok"
+    }
+  }
+}
