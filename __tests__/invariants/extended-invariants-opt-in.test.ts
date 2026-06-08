@@ -30,6 +30,7 @@ describe('extended opt-in invariants', () => {
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
     // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
+    // Note #1244: INV-56 retired via tombstone (status:'retired') — still counted.
     expect(INVARIANT_CATALOG).toHaveLength(118)
   })
 

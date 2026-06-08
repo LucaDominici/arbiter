@@ -119,12 +119,12 @@ export function runCheck(name, cmd, args, opts = {}) {
     return
   }
   if (opts.soft) {
-    emitOutput(r)
     recordWarn(name, elapsed, `grace period, exit ${r.status}`)
+    emitOutput(r)
     return
   }
-  emitOutput(r)
   recordFail(name, elapsed, `exit ${r.status}`)
+  emitOutput(r)
 }
 
 /**
@@ -145,8 +145,8 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
     recordPass(name, elapsed)
     return
   }
-  emitOutput(r)
   recordWarn(name, elapsed, `exit ${r.status}`)
+  emitOutput(r)
 }
 
 /**
@@ -171,8 +171,8 @@ export function runToolCheck(name, cmd, args, opts = {}) {
     recordPass(name, elapsed)
     return
   }
-  emitOutput(r)
   recordFail(name, elapsed, `exit ${r.status}`)
+  emitOutput(r)
 }
 
 /**

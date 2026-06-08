@@ -90,6 +90,9 @@ src/kit/derived.json
 # CI test artifact output directory (created by --outputFile=test-results/junit.xml)
 test-results/
 
+# VitePress build temp output; docs:build regenerates this before L2 dead-code gates.
+website/.vitepress/.temp/
+
 # Obsidian vault — per-user UI state (P7)
 .obsidian/workspace*.json
 .obsidian/attachments/

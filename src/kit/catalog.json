@@ -699,7 +699,7 @@
     "categoryRef": "documentation",
     "archetypeGating": { "applies": [], "excludes": [] },
     "status": "covered",
-    "note": "check-knowledge-map.mjs enforces canonical signal sources at L1; arbiter self-documents paths"
+    "note": "Canonical signal sources self-documented via .claude/knowledge-map.json track routing + the generated wiki/ (Obsidian viewer); bespoke knowledge-map gate retired in #1244"
   },
   {
     "id": "N69",

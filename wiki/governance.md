@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/GOVERNANCE.md'
-source_sha: '10084aee35e30070a054691088512ee50a911b98'
+source_sha: '14a9710ab5c98e5e4fdc6b219ae469f4af3f4952'
 last_updated: '2026-06-08'
 ---
 
@@ -26,12 +26,11 @@ are applied and enforced.
 
 ## Canonical governance documents
 
-| Document                                            | Purpose                                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| [`AGENTS.md`](../AGENTS.md)                         | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
-| [`docs/SYSTEM/CANON.md`](SYSTEM/CANON.md)           | 15 process-level rules derived from audit waves #151–#186                             |
-| [`docs/GOVERNANCE/RACI.md`](#raci)                  | Responsibility matrix for governance decisions                                        |
-| [`docs/GOVERNANCE/LABELS.md`](GOVERNANCE/LABELS.md) | Label catalogue — every label's consumer (no-consumer labels are removed)             |
+| Document                                  | Purpose                                                                               |
+| ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`AGENTS.md`](../AGENTS.md)               | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
+| [`docs/SYSTEM/CANON.md`](SYSTEM/CANON.md) | 15 process-level rules derived from audit waves #151–#186                             |
+| [`docs/GOVERNANCE/RACI.md`](#raci)        | Responsibility matrix for governance decisions                                        |
 
 ## Architecture Decision Records
 
@@ -44,10 +43,8 @@ are applied and enforced.
 
 ## Self-governance case studies
 
-- [arbiter governs arbiter](case-studies/arbiter-itself.md) — the recursive case
-- [Evidence trail](case-studies/arbiter-itself-evidence.md) — public knowledge map snapshot
-- [Nightly canary](case-studies/arbiter-itself-canary.md) — drift detection
-- [Incident case studies](case-studies/incidents/) — invariants catching real issues
+Self-governance narratives (arbiter-governs-arbiter, evidence trail, nightly canary,
+incident case studies) are compiled into the generated wiki (Obsidian viewer).
 
 ## How decisions are made
 
@@ -187,9 +184,13 @@ Until then, every `tags:` field reads `[]`.
 
 ### Lifecycle
 
-| Tag | Meaning |
-| --- | ------- |
+| Tag                    | Meaning                                        |
+| ---------------------- | ---------------------------------------------- |
+| `lifecycle/draft`      | Work in progress; do not depend on contents    |
+| `lifecycle/active`     | Current; safe to reference                     |
+| `lifecycle/deprecated` | Superseded; pending removal                    |
+| `lifecycle/archived`   | Kept for history only; no longer authoritative |
 
-| `li
+(Mirrors the frontmatter `status:` field; the tag exists so the
 
 _[content truncated — see source for full text]_

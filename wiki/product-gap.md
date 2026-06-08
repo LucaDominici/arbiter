@@ -46,5 +46,5 @@ _[content truncated — see source for full text]_
 
 ## See Also
 
-- [[product-feature-comparison]] — related
+- [[product-feature-matrix]] — related
 - [[product-status]] — related

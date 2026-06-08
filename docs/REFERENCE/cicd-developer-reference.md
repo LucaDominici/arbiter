@@ -17,7 +17,7 @@ This document covers the W4 CI tier baseline: what was built, how it works, and 
 
 W4 is the fourth wave of arbiter's Planning Skeleton Migration. It relights arbiter's own self-CI (nuked to zero in #862) with a minimal 5-workflow baseline that also ships as a generated framework feature for target projects.
 
-**Self-CI baseline (arbiter-self):** 4 canonical + 2 helper workflows under `.github/workflows/` — this is `migrationStatus: 'transition'` per INV-73. W10 completes the remaining 4 canonical workflows.
+**Self-CI baseline (arbiter-self):** 4 canonical + 2 helper workflows under `.github/workflows/` — this is `migrationStatus: 'transition'` per INV-73. W10 completes the remaining 4 canonical workflows. The `kit-self-canary.yml` workflow files a `kit-drift` label on KIT catalog drift.
 
 **Target project baseline:** `ciTierMode: 'baseline'` emits 6 workflow files (01, 02, 03, 09, \_notify, \_label-sync). `ciTierMode: 'full'` emits all 10 (8 numbered + 2 helpers).
 

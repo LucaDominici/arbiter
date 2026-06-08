@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // arbiter — SSOT harness
-// Runs the four SSOT gates: ssot-core, doc-links, knowledge-map, canonical-paths.
+// Runs the SSOT gates: ssot-core, doc-links, canonical-paths.
 // Usage: node scripts/harness.mjs [--fast]
 // --fast: stop at first gate failure (default: run all and report)
 import { spawnSync } from 'node:child_process'
@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = join(__dirname, '..')
 const fast = process.argv.includes('--fast')
 
-const GATES = ['check-ssot-core', 'check-doc-links', 'check-knowledge-map', 'check-canonical-paths']
+const GATES = ['check-ssot-core', 'check-doc-links', 'check-canonical-paths']
 
 let failed = 0
 

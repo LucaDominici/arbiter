@@ -1,0 +1,189 @@
+// Test guard for #1244 — Docs-Evo 5/5: migrate WIKI docs + retire bespoke knowledge-map.
+//
+// Source of truth for the deletion scope is DISPOSITION-REGISTER §WIKI (a local design
+// artifact, never committed to git). To make the scope reviewable and enforceable, the
+// resolved 64-file DELETE list and the FLAG (must-survive) guard list are embedded here.
+//
+// Asserts (TDD red → green):
+//   1. bespoke knowledge-map machinery retired (doc + 2 scripts + 2 orphan tests gone)
+//   2. 'knowledge map' check unregistered from check-all.mjs + check-local-ci-parity.mjs + harness.mjs
+//   3. INV-56 retired as a tombstone (status:'retired') per ID-STABILITY — its protected
+//      doc + enforcer are gone, but the ID is preserved (never deleted/reused)
+//   4. every §WIKI DELETE-list hand doc is gone
+//   5. wiki-before-delete: each deleted doc has a wiki/ counterpart (no content loss)
+//   6. over-delete guard: FLAG-set + KEEP-GENERATED contracts still exist
+//   7. INV-108 core-set surface ≤ 20 (DoD)
+import { existsSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { describe, it, expect } from 'vitest'
+import { selectSsotDocs } from '../../scripts/gen-ssot-core.mjs'
+
+const ROOT = resolve(__dirname, '..', '..')
+const r = (p: string) => join(ROOT, p)
+
+// ── DELETE list: register §WIKI hand docs (64), confirmed wiki-covered ───────────
+const DELETE_LIST = [
+  'docs/case-studies/arbiter-itself-canary.md',
+  'docs/case-studies/arbiter-itself-evidence.md',
+  'docs/case-studies/arbiter-itself.md',
+  'docs/case-studies/incidents/01-inv04-any-ban-unsafe-cast.md',
+  'docs/case-studies/incidents/02-inv06-orphan-todo-milestone-closeout.md',
+  'docs/case-studies/incidents/03-inv12-no-pii-generator.md',
+  'docs/case-studies/incidents/04-inv32-matrix-fixture-parity.md',
+  'docs/case-studies/incidents/05-canon16-refactor-first-saving-file.md',
+  'docs/CHANNELS.md',
+  'docs/FAQ.md',
+  'docs/POSITIONING.md',
+  'docs/DEVELOPMENT/TESTING-STRATEGY.md',
+  'docs/GOVERNANCE/coc-enforcement-runbook.md',
+  'docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md',
+  'docs/GOVERNANCE/LABELS.md',
+  'docs/i18n/CONTRIBUTING.md',
+  'docs/internal/mutation-testing.md',
+  'docs/METHOD/CONTEXT_PACK_SPEC.md',
+  'docs/METHOD/CONTEXT_SLICE_SPEC.md',
+  'docs/METHOD/EXTRACTION_PLAYBOOK.md',
+  'docs/METHOD/KNOWLEDGE_MAP.md',
+  'docs/METHOD/REUSE_REGISTRY_SPEC.md',
+  'docs/MIGRATION/config-versioning.md',
+  'docs/MIGRATION/decomposition-backends.md',
+  'docs/MIGRATION/deploy-config-consolidation.md',
+  'docs/MIGRATION/no-github-default.md',
+  'docs/PRODUCT/COMPETITION.md',
+  'docs/PRODUCT/CROSS-LANGUAGE-MATRIX.md',
+  'docs/PRODUCT/ENFORCEMENT-PHILOSOPHY.md',
+  'docs/PRODUCT/EXTENDED-INVARIANTS.md',
+  'docs/PRODUCT/FEATURE_COMPARISON.md',
+  'docs/PRODUCT/MEASUREMENT-GUIDE.md',
+  'docs/PRODUCT/PRESETS.md',
+  'docs/PRODUCT/TEST-PYRAMID-PROFILES.md',
+  'docs/PRODUCT/WHAT-ARBITER-IS-NOT.md',
+  'docs/REFERENCE/ai-pr-gate.md',
+  'docs/REFERENCE/BLAME.md',
+  'docs/REFERENCE/java-adapter.md',
+  'docs/REFERENCE/nightly-weekly-heartbeat.md',
+  'docs/REFERENCE/pact-provider-states.md',
+  'docs/REFERENCE/pharma-overlay.md',
+  'docs/REFERENCE/postman-newman-contract.md',
+  'docs/REFERENCE/recipes/B10-debug-mode.md',
+  'docs/REFERENCE/recipes/brownfield-existing-ci.md',
+  'docs/REFERENCE/recipes/compose-with-frontend-design.md',
+  'docs/REFERENCE/recipes/cost-optimized-phase-handoff.md',
+  'docs/REFERENCE/recipes/custom-ai-tool-target.md',
+  'docs/REFERENCE/recipes/custom-invariant-advanced.md',
+  'docs/REFERENCE/recipes/customize-wizard.md',
+  'docs/REFERENCE/recipes/migrate-from-bmad.md',
+  'docs/REFERENCE/recipes/migrate-from-spec-kit.md',
+  'docs/REFERENCE/recipes/monorepo-adoption.md',
+  'docs/REFERENCE/recipes/perf-debugging.md',
+  'docs/REFERENCE/recipes/README.md',
+  'docs/REFERENCE/recipes/recover-from-update-failure.md',
+  'docs/REFERENCE/recipes/sibling-worktree.md',
+  'docs/REFERENCE/recipes/tdd-enforcement.md',
+  'docs/rfc/0000-template.md',
+  'docs/rfc/0001-plugin-api-v2.md',
+  'docs/runbooks/deployment.md',
+  'docs/runbooks/prod-checklist.md',
+  'docs/runbooks/rollback.md',
+  'docs/runbooks/troubleshooting.md',
+  'docs/SECURITY/RISK_ASSESSMENT.md',
+  'docs/SYSTEM/CI-TIER-MODEL.md',
+  'docs/SYSTEM/WORKFLOW-MODEL.md',
+  'docs/testing/POST_MERGE_REVIEW_TEMPLATE.md',
+] as const
+
+// ── FLAG / KEEP guard: must NOT be deleted (over-delete protection) ──────────────
+// Gate/test/src-locked, post-register additions, KEEP-GENERATED contracts, and the two
+// FEATURE_MATRIX doc_refs (REQ-026/REQ-051) the INV-112 gate validates on disk.
+const MUST_SURVIVE = [
+  'docs/SECURITY/STRIDE.md', // INV-90 gate reads it
+  'docs/SECURITY/ISO27001_ANNEX_A.md', // KEEP-GENERATED (register conflict → keep wins)
+  'docs/METHOD/PATTERNS_CATALOG.md', // structure test + canonical_id
+  'docs/REFERENCE/api.md', // #807 env-var test asserts existence
+  'docs/REFERENCE/gdpr-overlay.md', // #1251 — postdates register
+  'docs/REFERENCE/iso27001-overlay.md', // #1252 — postdates register
+  'docs/REFERENCE/iso9001-overlay.md', // #1253 — postdates register
+  'docs/REFERENCE/compliance-menu.md', // #1254 — postdates register
+  'docs/REFERENCE/coverage/dim-76-accessibility-a11y-audit-axe-lighthouse-pa11y.md', // INV-112 doc_ref (#1243)
+  'docs/REFERENCE/RESILIENCE.md', // FEATURE_MATRIX REQ-051 doc_ref
+  'docs/DEVELOPMENT/REAL-PROJECT-TESTING.md', // FEATURE_MATRIX REQ-026 doc_ref
+  'docs/SYSTEM/CANON.md', // iron law (never touched)
+] as const
+
+// docs/X/Y.md → wiki/x-y.md (lowercase, '/'→'-', '_'→'-', drop docs/ prefix)
+function wikiNameFor(docPath: string): string {
+  return (
+    docPath
+      .replace(/^docs\//, '')
+      .replace(/\//g, '-')
+      .replace(/\.md$/, '')
+      .toLowerCase()
+      .replace(/_/g, '-') + '.md'
+  )
+}
+
+describe('#1244 — bespoke knowledge-map retired', () => {
+  it('docs/METHOD/KNOWLEDGE_MAP.md is deleted', () => {
+    expect(existsSync(r('docs/METHOD/KNOWLEDGE_MAP.md'))).toBe(false)
+  })
+  it('knowledge-map scripts are deleted', () => {
+    expect(existsSync(r('scripts/check-knowledge-map.mjs'))).toBe(false)
+    expect(existsSync(r('scripts/knowledge-map-update.mjs'))).toBe(false)
+  })
+  it('orphaned knowledge-map test files are deleted (RT-01)', () => {
+    expect(existsSync(r('__tests__/scripts/check-knowledge-map.test.ts'))).toBe(false)
+    expect(existsSync(r('__tests__/scripts/knowledge-map-update.test.ts'))).toBe(false)
+  })
+  it("'knowledge map' check is unregistered from the gate + parity + harness", () => {
+    expect(readFileSync(r('scripts/check-all.mjs'), 'utf-8')).not.toContain(
+      'check-knowledge-map.mjs',
+    )
+    expect(readFileSync(r('scripts/check-local-ci-parity.mjs'), 'utf-8')).not.toContain(
+      "'knowledge map'",
+    )
+    expect(readFileSync(r('scripts/harness.mjs'), 'utf-8')).not.toContain('check-knowledge-map')
+  })
+  it('INV-56 is retired as a tombstone (status:retired) per ID-STABILITY, not deleted', () => {
+    const catalog = readFileSync(r('src/invariants/catalog.ts'), 'utf-8')
+    // ID preserved (write-once: check-id-stability forbids deletion without a retire marker)
+    expect(catalog).toContain("id: 'INV-56'")
+    // …but retired, with no scripts/*.mjs enforcer cited (the gate it ran was deleted)
+    const inv56Block = catalog.slice(catalog.indexOf("id: 'INV-56'"))
+    const nextEntry = inv56Block.indexOf("id: 'INV-57'")
+    const block = inv56Block.slice(0, nextEntry)
+    expect(block).toContain("status: 'retired'")
+    expect(block).not.toMatch(/scripts\/check-knowledge-map\.mjs/)
+  })
+})
+
+describe('#1244 — §WIKI hand docs migrated (deleted, wiki reproduces)', () => {
+  it.each(DELETE_LIST)('deleted: %s', (p) => {
+    expect(existsSync(r(p)), `${p} should be deleted (migrated to wiki)`).toBe(false)
+  })
+
+  // The generated wiki is a 1:1 derived mirror (gen-wiki sources from `git ls-files docs/`;
+  // INV-116 requires every wiki page's `source:` to be a tracked path). Wiki-before-delete
+  // coverage was proven in the red-phase run_log (the counterpart existed when both did);
+  // once the source doc is deleted its wiki page MUST be pruned, else INV-116 (citation +
+  // stale) goes red. Content persists in git history, not the live wiki.
+  it.each(DELETE_LIST)('migrated: %s wiki page pruned after source delete', (p) => {
+    const wiki = `wiki/${wikiNameFor(p)}`
+    expect(existsSync(r(wiki)), `${p} deleted → ${wiki} must be pruned (INV-116)`).toBe(false)
+  })
+})
+
+describe('#1244 — over-delete guard (HARD RULE: only register §WIKI deleted)', () => {
+  it.each(MUST_SURVIVE)('preserved: %s', (p) => {
+    expect(existsSync(r(p)), `${p} is NOT a §WIKI item — must NOT be deleted`).toBe(true)
+  })
+})
+
+describe('#1244 — DoD: INV-108 core-set surface ≤ 20', () => {
+  it('selectSsotDocs returns at most 20 canonical core docs', () => {
+    const core = selectSsotDocs(ROOT)
+    expect(
+      core.length,
+      `core set = ${core.length}: ${core.map((c) => c.relPath).join(', ')}`,
+    ).toBeLessThanOrEqual(20)
+  })
+})

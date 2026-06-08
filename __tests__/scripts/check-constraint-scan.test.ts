@@ -262,6 +262,8 @@ describe('check-constraint-scan.mjs (INV-115) — #1215 follow-ups', () => {
       const doc = writeDoc(dir, '**Never:**\n\n- Call `forbiddenIOToken()`\n')
       const srcDir = join(dir, 'src')
       mkdirSync(srcDir, { recursive: true })
+      // Skip on CI where processes may run as root (root ignores chmod)
+      if (process.getuid?.() === 0) return
       // make the src dir unreadable so walk() readdirSync fails
       chmodSync(srcDir, 0o000)
       const map = writeMap(dir, {})
@@ -279,6 +281,8 @@ describe('check-constraint-scan.mjs (INV-115) — #1215 follow-ups', () => {
     try {
       const doc = writeDoc(dir, '**Never:**\n\n- Call `unreadableHit()`\n')
       const srcDir = writeSrc(dir, { 'secret.ts': 'unreadableHit()\n' })
+      // Skip on CI where processes may run as root (root ignores chmod)
+      if (process.getuid?.() === 0) return
       // make the file unreadable so liveHit() readFileSync fails
       chmodSync(join(srcDir, 'secret.ts'), 0o000)
       const map = writeMap(dir, {})

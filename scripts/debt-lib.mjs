@@ -51,6 +51,7 @@ export function countTodos(cwd) {
       '--exclude-dir=.git',
       '--exclude-dir=coverage',
       '--exclude-dir=.arbiter',
+      '--exclude-dir=.temp',
       '-l',
       'TODO',
       '.',

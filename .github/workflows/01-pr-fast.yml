@@ -97,7 +97,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'
@@ -119,7 +119,7 @@ jobs:
   contract-tests:
     name: Contract Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'
@@ -132,7 +132,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'
@@ -145,7 +145,7 @@ jobs:
   behavioral-tests:
     name: Behavioral Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'

@@ -493,9 +493,9 @@ Every local markdown link in docs/ must resolve to an existing file. Before fail
 
 ### INV-56: Knowledge-map freshness — line counts must not drift beyond tolerance
 
-Every **Lines:** entry in docs/METHOD/KNOWLEDGE_MAP.md must match the actual line count of the referenced document within ±30% tolerance. Lines: 0 entries are skipped (not yet populated). Missing referenced files are skipped. Run knowledge-map-update.mjs to refresh counts.
+RETIRED (#1244): the bespoke knowledge-map (its index doc, updater, and freshness gate) was removed; Obsidian now reads the generated wiki. No line-count tolerance is enforced any longer. The ID is preserved as a tombstone per ID-STABILITY (never deleted or reused).
 
-**Enforcement:** scripts/check-knowledge-map.mjs (L1 gate, #255)
+**Enforcement:** none — retired invariant; no successor.
 
 ---
 

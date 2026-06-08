@@ -194,7 +194,6 @@ const CI_COVERAGE = new Map([
   ['adr digest (INV-107)', 'gate-full'],
   ['cli ref parity (INV-111)', 'gate-full'],
   ['phase doc consistency (INV-113)', 'gate-full'],
-  ['knowledge map', 'gate-full'],
   ['canonical paths', 'gate-full'],
   ['canon references', 'gate-full'],
   ['plugin api stability', 'gate-full'],

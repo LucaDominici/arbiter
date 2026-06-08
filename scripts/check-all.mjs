@@ -11,7 +11,7 @@
 //        spdx headers, orphan TODOs, no direct-fs in generators, commitlint, test naming, hardness inventory, docs,
 //        matrix fixtures, matrix proven cells, template tests, generator tests, command tests,
 //        catalog parity, enforcement wired, workflow runners, ci alignment, node version ssot,
-//        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links, knowledge map,
+//        bloat ratchet, exit code contract, pipe/tee hazard, ssot core, doc links,
 //        canonical paths, plugin api stability, deprecations, hook contracts, api snapshot,
 //        ci tiers (INV-73), action pin parity, action pin sha (INV-76),
 //        anti-drift: suppression-rationale, suppression-expiry, pii-scan, secret-scan, drift,
@@ -167,7 +167,6 @@ if (isMain) {
   runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])
   runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
   runCheck('phase doc consistency (INV-113)', 'node', ['scripts/check-phase-doc-consistency.mjs'])
-  runCheck('knowledge map', 'node', ['scripts/check-knowledge-map.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])
   runCheck('canon references', 'node', ['scripts/check-canon-references.mjs'])
   runCheck('plugin api stability', 'node', ['scripts/check-plugin-api-stability.mjs'])
@@ -372,7 +371,11 @@ if (isMain) {
   }
 
   if (failed > 0) {
-    console.error(`=== FAILED: ${failed} check(s) ===\n`)
+    const failedResults = results.filter((r) => r.status === 'FAIL')
+    console.error(`=== FAILED: ${failed} check(s) ===`)
+    console.error('Failed checks:')
+    for (const r of failedResults) console.error(`- ${r.name}`)
+    console.error('')
     process.exit(1)
   } else {
     process.stdout.write('=== ALL PASSED ===\n\n')

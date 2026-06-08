@@ -60,5 +60,5 @@ M23 — Mutation Testing as Hard Gate
 
 ## See Also
 
-- [[product-feature-comparison]] — related
+- [[product-feature-matrix]] — related
 - [[product-prd-docs-evolution]] — related

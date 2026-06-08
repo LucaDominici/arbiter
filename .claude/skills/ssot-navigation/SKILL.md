@@ -32,7 +32,7 @@ When documents conflict, higher level wins.
 | Governance contract  | `AGENTS.md`                    | Invariants, authority hierarchy, tool config | Every task, first                        |
 | Process rules        | `docs/SYSTEM/CANON.md`         | 15 CANON-NN constraints from audit waves     | Before adding hook/gate/template/command |
 | Decision records     | `docs/ADR/`                    | Architectural decisions with rationale       | Before changing existing abstractions    |
-| Knowledge map        | `docs/METHOD/KNOWLEDGE_MAP.md` | Line-range pointers into key files           | When orientation is slow                 |
+| Doc index            | `docs/INDEX.md`                | Generated index of all docs + the wiki       | When orientation is slow                 |
 | SSOT core set        | `docs/METHOD/SSOT_CORE_SET.md` | Minimal reading list per task type           | When uncertain which docs apply          |
 | Invariant catalog    | `src/invariants/catalog.ts`    | Machine-readable INV-NN entries              | Before adding a new invariant            |
 | Generated invariants | `GLOBAL_INVARIANTS.md`         | Rendered output for target projects          | To verify filter/render pipeline         |

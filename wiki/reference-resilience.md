@@ -60,4 +60,4 @@ For a first-class KIT dimension covering this capability, see the follow-up issu
 
 ## See Also
 
-- [[product-feature-comparison]] — related
+- [[product-feature-matrix]] — related

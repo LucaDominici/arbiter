@@ -872,17 +872,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
   },
 
   {
+    // Retired (#1244) per ID-STABILITY: the ID is preserved as a tombstone (never
+    // deleted/reused) because the bespoke knowledge-map it governed — KNOWLEDGE_MAP.md
+    // plus its updater and freshness gate — was removed; Obsidian now reads the
+    // generated wiki/. No replacement invariant.
     id: 'INV-56',
     tier: 'governance',
     title: 'Knowledge-map freshness — line counts must not drift beyond tolerance',
     description:
-      'Every **Lines:** entry in docs/METHOD/KNOWLEDGE_MAP.md must match the actual ' +
-      'line count of the referenced document within ±30% tolerance. ' +
-      'Lines: 0 entries are skipped (not yet populated). ' +
-      'Missing referenced files are skipped. ' +
-      'Run knowledge-map-update.mjs to refresh counts.',
+      'RETIRED (#1244): the bespoke knowledge-map (its index doc, updater, and freshness ' +
+      'gate) was removed; Obsidian now reads the generated wiki. No line-count tolerance ' +
+      'is enforced any longer.',
     alwaysActive: true,
-    enforcement: 'scripts/check-knowledge-map.mjs (L1 gate, #255)',
+    status: 'retired',
+    retiredReason:
+      'Bespoke knowledge-map deleted in #1244 (index doc + updater + freshness gate); ' +
+      'the generated wiki replaces it. No successor invariant.',
   },
 
   {

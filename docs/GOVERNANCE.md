@@ -25,12 +25,11 @@ are applied and enforced.
 
 ## Canonical governance documents
 
-| Document                                            | Purpose                                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| [`AGENTS.md`](../AGENTS.md)                         | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
-| [`docs/SYSTEM/CANON.md`](SYSTEM/CANON.md)           | 15 process-level rules derived from audit waves #151–#186                             |
-| [`docs/GOVERNANCE/RACI.md`](#raci)                  | Responsibility matrix for governance decisions                                        |
-| [`docs/GOVERNANCE/LABELS.md`](GOVERNANCE/LABELS.md) | Label catalogue — every label's consumer (no-consumer labels are removed)             |
+| Document                                  | Purpose                                                                               |
+| ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`AGENTS.md`](../AGENTS.md)               | Machine-readable invariant catalog — consumed by Claude Code hooks and the L1/L2 gate |
+| [`docs/SYSTEM/CANON.md`](SYSTEM/CANON.md) | 15 process-level rules derived from audit waves #151–#186                             |
+| [`docs/GOVERNANCE/RACI.md`](#raci)        | Responsibility matrix for governance decisions                                        |
 
 ## Architecture Decision Records
 
@@ -43,10 +42,8 @@ are applied and enforced.
 
 ## Self-governance case studies
 
-- [arbiter governs arbiter](case-studies/arbiter-itself.md) — the recursive case
-- [Evidence trail](case-studies/arbiter-itself-evidence.md) — public knowledge map snapshot
-- [Nightly canary](case-studies/arbiter-itself-canary.md) — drift detection
-- [Incident case studies](case-studies/incidents/) — invariants catching real issues
+Self-governance narratives (arbiter-governs-arbiter, evidence trail, nightly canary,
+incident case studies) are compiled into the generated wiki (Obsidian viewer).
 
 ## How decisions are made
 
