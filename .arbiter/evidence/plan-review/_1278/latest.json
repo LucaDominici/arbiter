@@ -1,0 +1,13 @@
+{
+  "verdict": "PASS",
+  "ts": "2026-06-08T04:15:00.000Z",
+  "runDir": "/home/luca/work/repos/arbiter.worktrees/1278-maven-budget/.arbiter/evidence/plan-review/_1278/run-inline-1278",
+  "planDigest": "75ce6f4bf7fb6063496abfb8981c7e93fc6b82e52dd7e6c4ac6deb051f1fc5f5",
+  "branch": "task/#1278-maven-budget",
+  "sha": "53fd89b9f32fac649fb3cd767fb28670344ee292",
+  "tier": "S",
+  "totalInvocations": 1,
+  "attempts": 1,
+  "reviewMode": "inline",
+  "reason": "Subagent dispatcher (claude -p) unavailable in lane worker (timeout / totalInvocations 0). Plan reviewed inline by reviewer model per orchestrator instruction. PASS: edits existing template (CANON-16 survey present, no new src/ file), dual-sided (template + setup-java-maven composite + asserting workflow-perf test + fixture stepEstimates key), honest-estimate rule respected (workflowBudgets untouched; new mvn surefire:test step-estimate key=6 justified by compile moved upstream), scope frozen to java/maven, no new GitHub actions (INV-76 N/A). Coherent and invariant-compliant. sha set to the red-test commit (ancestor of HEAD)."
+}

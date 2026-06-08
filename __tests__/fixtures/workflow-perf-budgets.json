@@ -4,6 +4,7 @@
     "actions/setup-node": 0.5,
     "actions/setup-java": 1.5,
     "mvn test": 8,
+    "mvn surefire:test": 6,
     "mvn install -DskipTests": 5,
     "npm test": 3,
     "npm run build": 2,

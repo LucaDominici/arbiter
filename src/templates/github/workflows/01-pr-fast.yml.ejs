@@ -220,29 +220,39 @@ jobs:
 <% } %>
 <% } %><% if (language === 'java') { %>
 <% const _javaNeeds=[]; if(enableSecurityScanning) _javaNeeds.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _javaNeeds.push('classify-changes'); %>
+<% /* #1278: build-reactor runs in PARALLEL with security-early-fail (not after it) to keep the maven critical path under the 15m T1 budget. security still HARD-blocks merge via ci-required, and `gate` (lint) still gates on it, preserving the early-fail signal on the lint lane. Tradeoff: wasted compile compute on a security-failing PR — not lost coverage or developer feedback. */ const _reactorNeeds=[]; if(governanceLevel !== 'L1' || _multiLane) _reactorNeeds.push('classify-changes'); %>
 <% if (buildTool === 'maven') { %>  build-reactor:
     name: Build Maven Reactor (#1226)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:
       contents: read
-<% if(_javaNeeds.length){ %>    needs: [<%= _javaNeeds.join(', ') %>]
+<% if(_reactorNeeds.length){ %>    needs: [<%= _reactorNeeds.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-java-maven
       - name: Pre-fetch plugins and dependencies (offline cache)
         run: mvn dependency:go-offline --batch-mode -q
-      - name: Build reactor (skip tests)
+      - name: Build reactor (compile main + test classes, skip test execution)
+        # -DskipTests runs the test-compile phase but skips execution, so
+        # target/classes and target/test-classes are produced once here and
+        # reused by every test job below — no per-job recompile (#1278).
         run: mvn --batch-mode -DskipTests install
-      - name: Pack M2 repository
+      - name: Pack M2 repository + compiled target/ trees
+        # m2-reactor.tar stays byte-identical to its prior form (rooted at $HOME/.m2).
+        # target-reactor.tar is additive (#1278): every module's compiled target/
+        # (main + test classes) in its own tar rooted at the workspace, so downstream
+        # run-only test goals (surefire:test) never recompile.
         run: |
           mkdir -p "${{ runner.temp }}/.m2-reactor"
           tar -cf "${{ runner.temp }}/.m2-reactor/m2-reactor.tar" -C "$HOME/.m2" repository
-      - name: Upload reactor M2 artifact
+          find . -type d -name target -prune -print0 \
+            | tar -cf "${{ runner.temp }}/.m2-reactor/target-reactor.tar" --null -T -
+      - name: Upload reactor M2 + target artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: reactor-m2-${{ github.run_id }}
-          path: ${{ runner.temp }}/.m2-reactor/m2-reactor.tar
+          path: ${{ runner.temp }}/.m2-reactor/*.tar
           retention-days: 7
           overwrite: true
 
@@ -275,7 +285,7 @@ jobs:
   unit-tests:
     name: Unit Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-<% if(buildTool === 'maven'){ %>    needs: [build-reactor, gate]
+<% if(buildTool === 'maven'){ /* tests need compiled classes from build-reactor, not lint; off the gate hop (#1278) */ %>    needs: [build-reactor]
 <% } else { %>    needs: [gate]
 <% } %>    strategy:
       max-parallel: 2
@@ -299,7 +309,7 @@ jobs:
         with:
           name: reactor-m2-${{ github.run_id }}
           path: ${{ runner.temp }}/.m2-reactor
-      - run: mvn test -Punit --offline
+      - run: mvn surefire:test -Punit --offline
 <% if (enableDebtGates) { %>
       - name: Upload test results
         if: always()
@@ -314,8 +324,9 @@ jobs:
   contract-tests:
     name: Contract Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
-    strategy:
+<% if(buildTool === 'maven'){ %>    needs: [build-reactor]
+<% } else { %>    needs: [gate]
+<% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
@@ -328,14 +339,15 @@ jobs:
         with:
           name: reactor-m2-${{ github.run_id }}
           path: ${{ runner.temp }}/.m2-reactor
-      - run: mvn test -Pcontract --offline
+      - run: mvn surefire:test -Pcontract --offline
 <% } %>
 
   integration-tests:
     name: Integration Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
-    strategy:
+<% if(buildTool === 'maven'){ %>    needs: [build-reactor]
+<% } else { %>    needs: [gate]
+<% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
@@ -348,14 +360,15 @@ jobs:
         with:
           name: reactor-m2-${{ github.run_id }}
           path: ${{ runner.temp }}/.m2-reactor
-      - run: mvn test -Pintegration --offline
+      - run: mvn surefire:test -Pintegration --offline
 <% } %>
 
   behavioral-tests:
     name: Behavioral Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
-    strategy:
+<% if(buildTool === 'maven'){ %>    needs: [build-reactor]
+<% } else { %>    needs: [gate]
+<% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
@@ -368,7 +381,7 @@ jobs:
         with:
           name: reactor-m2-${{ github.run_id }}
           path: ${{ runner.temp }}/.m2-reactor
-      - run: mvn test -Pbehavioral --offline
+      - run: mvn surefire:test -Pbehavioral --offline
 <% } %>
 
 <% } %><% if (language === 'go') { %>

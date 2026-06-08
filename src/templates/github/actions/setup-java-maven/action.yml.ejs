@@ -40,3 +40,14 @@ runs:
         else
           echo "No reactor artifact found at ${M2_REACTOR} — fresh Maven cache will be used"
         fi
+    - name: Restore compiled target/ trees from reactor artifact
+      shell: bash
+      run: |
+        M2_REACTOR="${{ runner.temp }}/.m2-reactor"
+        if [[ -f "${M2_REACTOR}/target-reactor.tar" ]]; then
+          # Additive (#1278): restore every module's compiled target/ (main + test
+          # classes) into the workspace so run-only test goals (surefire:test)
+          # skip recompilation. No-op for jobs that did not download the artifact.
+          tar -xf "${M2_REACTOR}/target-reactor.tar" -C "${{ github.workspace }}"
+          echo "Compiled target/ trees restored from ${M2_REACTOR}"
+        fi
