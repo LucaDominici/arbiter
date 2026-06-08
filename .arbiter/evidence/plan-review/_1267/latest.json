@@ -1,0 +1,12 @@
+{
+  "verdict": "FAIL",
+  "ts": "2026-06-08T05:41:23.024Z",
+  "runDir": "/home/luca/work/repos/arbiter.worktrees/1267-dispatch-matrix/.arbiter/evidence/plan-review/_1267/run-2026-06-08T05-11-50-045Z",
+  "planDigest": "4970d7e2ed65463f735922c9df9c49db24cb0ec48a68b033d2e12ec3ee106483",
+  "branch": "task/#1267-dispatch-matrix",
+  "sha": "22a9303bca6f0030941621cff2dab18726fdd1bc",
+  "tier": "Standard",
+  "totalInvocations": 15,
+  "attempts": 3,
+  "reason": "max revisions exceeded"
+}

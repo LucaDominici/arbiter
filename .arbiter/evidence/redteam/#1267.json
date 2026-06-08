@@ -1,0 +1,42 @@
+{
+  "schema": "RedTeamEvidenceV1",
+  "taskId": "#1267",
+  "branch": "task/#1267-dispatch-matrix",
+  "sha": "22a9303bca6f0030941621cff2dab18726fdd1bc",
+  "ts": "2026-06-08T05:20:16.000Z",
+  "tier": "Standard",
+  "mode": "inline",
+  "reason": "Sub-agent spawn unavailable in lane worker; red-team conducted INLINE per lane contract (3 angles for Standard tier).",
+  "agents": [
+    { "angle": "data-integrity", "summary": "Matrix-JSON-SSOT vs sizing.ts pure mirror can silently diverge." },
+    { "angle": "regression", "summary": "Deleting SIZE_FLOOR_VERTICALS + reading JSON could change route-auditors --size-floor behavior, breaking existing tests." },
+    { "angle": "error-handling", "summary": "Missing/corrupt matrix JSON must fail loud (exit 2) and resolver must fail-safe (widest), never under-select silently." }
+  ],
+  "findings": [
+    {
+      "id": "RT-01",
+      "severity": "HIGH",
+      "auditorHint": "data-integrity",
+      "summary": "If route-auditors reads matrix tier->verticals while sizing.ts::sizeVerticals stays a separate pure mirror, the two can drift apart silently (under/over review).",
+      "mitigation": "check-agent-dispatch.mjs asserts matrixVerticalsForTier(tier) === sizeVerticals(tier) for every tier; planted-mismatch test (RED-2) proves the gate catches drift.",
+      "resolved": true
+    },
+    {
+      "id": "RT-02",
+      "severity": "HIGH",
+      "auditorHint": "domain",
+      "summary": "Existing route-auditors.test.ts asserts concrete --size-floor behavior (Standard adds security; XS adds nothing beyond always_on triad; unknown floor -> exit 2). The refactor must preserve these byte-for-byte.",
+      "mitigation": "Matrix tier->verticals values kept IDENTICAL to current SIZE_FLOOR_VERTICALS (XS=[bugs,type-safety,domain]; S=+test-quality; Standard=+security,data-integrity,silent-failures). Unknown-floor exit-2 path retained. Existing tests re-run unchanged in green phase.",
+      "resolved": true
+    },
+    {
+      "id": "RT-03",
+      "severity": "MEDIUM",
+      "auditorHint": "silent-failures",
+      "summary": "A missing/corrupt agent-dispatch-matrix.json could crash route-auditors or cause silent under-selection.",
+      "mitigation": "Matrix read in route-auditors mirrors the existing auditor-routing.json loader: existsSync + JSON.parse guarded, exit 2 with stderr on absence/parse error (fail-loud). The pure resolver in dispatch-matrix.ts is additive-only and never narrows below the tier floor (fail-safe).",
+      "resolved": true
+    }
+  ],
+  "criticalCount": 0
+}
