@@ -17,6 +17,11 @@ import { minimatch } from 'minimatch'
 
 const REPO_ROOT = resolve(process.cwd())
 const ROUTING_PATH = join(REPO_ROOT, '.claude/auditor-routing.json')
+// #1267 — the dispatch matrix is the SSOT for the tier→vertical FLOOR. This script
+// reads its `tier_verticals` projection instead of an inlined duplicate (the old
+// SIZE_FLOOR_VERTICALS, flagged by #1260 as the consolidation target). The matrix and
+// src/sizing/sizing.ts::sizeVerticals are asserted equal by scripts/check-agent-dispatch.mjs.
+const DISPATCH_MATRIX_PATH = join(REPO_ROOT, '.claude/agent-dispatch-matrix.json')
 
 // --- CLI arg parsing ---
 const args = process.argv.slice(2)
@@ -40,29 +45,46 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === '--size-floor' && args[i + 1]) sizeFloor = args[++i]
 }
 
-// #1260 — size→vertical FLOOR. `arbiter ship` computes the issue SIZE (tier) and may
+// #1260/#1267 — size→vertical FLOOR. `arbiter ship` computes the issue SIZE (tier) and may
 // pass `--size-floor <tier>` so larger size WIDENS the breadth of active auditors beyond
 // what file-path matching alone selects. The floor is UNION-ONLY (it only ever ADDS
-// auditors; it never removes a file-path-selected or critical-path one). The vocabulary
-// is the auditor-routing.json auditor names, kept in lockstep with src/sizing/sizing.ts.
-// This is the consumption point #1267's dispatch matrix builds on.
-const SIZE_FLOOR_VERTICALS = {
-  XS: ['bugs', 'type-safety', 'domain'],
-  S: ['bugs', 'type-safety', 'domain', 'test-quality'],
-  Standard: [
-    'bugs',
-    'type-safety',
-    'domain',
-    'test-quality',
-    'security',
-    'data-integrity',
-    'silent-failures',
-  ],
+// auditors; it never removes a file-path-selected or critical-path one). The vocabulary is
+// the auditor-routing.json auditor names. The floor table is no longer inlined here — it is
+// read from the dispatch matrix's `tier_verticals` projection (the SSOT, #1267), kept in
+// lockstep with src/sizing/sizing.ts by scripts/check-agent-dispatch.mjs.
+function loadSizeFloorVerticals() {
+  if (!existsSync(DISPATCH_MATRIX_PATH)) {
+    process.stderr.write(
+      `[route-auditors] ERROR: ${DISPATCH_MATRIX_PATH} not found (needed for --size-floor)\n`,
+    )
+    process.exit(2)
+  }
+  let matrix
+  try {
+    matrix = JSON.parse(readFileSync(DISPATCH_MATRIX_PATH, 'utf-8'))
+  } catch (e) {
+    process.stderr.write(
+      `[route-auditors] ERROR: invalid JSON in agent-dispatch-matrix.json: ${e.message}\n`,
+    )
+    process.exit(2)
+  }
+  if (matrix.tier_verticals === undefined || typeof matrix.tier_verticals !== 'object') {
+    process.stderr.write(
+      `[route-auditors] ERROR: agent-dispatch-matrix.json missing "tier_verticals"\n`,
+    )
+    process.exit(2)
+  }
+  return matrix.tier_verticals
 }
+
+// Only load the matrix when a size-floor is actually requested (keeps the common path lean).
+const SIZE_FLOOR_VERTICALS = sizeFloor !== null ? loadSizeFloorVerticals() : {}
 
 if (sizeFloor !== null && !Object.prototype.hasOwnProperty.call(SIZE_FLOOR_VERTICALS, sizeFloor)) {
   process.stderr.write(
-    `[route-auditors] ERROR: invalid --size-floor "${sizeFloor}". Valid: XS, S, Standard.\n`,
+    `[route-auditors] ERROR: invalid --size-floor "${sizeFloor}". Valid: ${Object.keys(
+      SIZE_FLOOR_VERTICALS,
+    ).join(', ')}.\n`,
   )
   process.exit(2)
 }

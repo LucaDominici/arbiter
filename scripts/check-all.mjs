@@ -150,6 +150,7 @@ if (isMain) {
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
   runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs'])
+  runCheck('agent-dispatch matrix (#1267)', 'node', ['scripts/check-agent-dispatch.mjs'])
   runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs'])
   runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
   runCheck('bloat ratchet', 'node', ['scripts/check-bloat-ratchet.mjs'])

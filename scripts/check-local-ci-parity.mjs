@@ -178,6 +178,7 @@ const CI_COVERAGE = new Map([
   ['kit catalog parity', 'gate-full'],
   ['enforcement wired', 'gate-full'],
   ['constraint scan (INV-115)', 'gate-full'],
+  ['agent-dispatch matrix (#1267)', 'gate-full'],
   ['node version ssot', 'gate-full'],
   ['bloat ratchet', 'gate-full'],
   ['exit code contract', 'gate-full'],

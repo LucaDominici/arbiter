@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "agent-dispatch-matrix.schema.json",
+  "title": "Agent Dispatch Matrix (#1267)",
+  "description": "Deterministic agent-dispatch oracle: (tier x track x review_mode x pr_type) -> required agents/verticals.",
+  "type": "object",
+  "required": [
+    "axes",
+    "tier_verticals",
+    "review_pass_count",
+    "track_modifiers",
+    "pr_type_modifiers"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "_doc": { "type": "string" },
+    "axes": {
+      "type": "object",
+      "required": ["tier", "track", "review_mode", "pr_type"],
+      "properties": {
+        "tier": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "track": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "review_mode": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "pr_type": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      },
+      "additionalProperties": false
+    },
+    "tier_verticals": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "review_pass_count": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "track_modifiers": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "pr_type_modifiers": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+  "additionalProperties": false
+}
