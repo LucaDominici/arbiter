@@ -71,6 +71,24 @@ function renderWorkflow(name: string, archetype: Archetype): string {
   )
 }
 
+// Stack axis for stacks whose critical path differs structurally from the
+// TypeScript baseline. java/maven adds a serial build-reactor → test chain that
+// historically breached the 01-pr-fast budget (#1278); it is gated here so the
+// breach can never silently regress. Rendered at L2 (the level the issue used).
+const STACKS = [{ language: 'java', buildTool: 'maven' }] as const
+
+function renderStackWorkflow(name: string, stack: { language: string; buildTool: string }): string {
+  return renderTemplate(
+    `github/workflows/${name}.yml.ejs`,
+    makeConfig('/tmp/workflow-perf', {
+      language: stack.language as never,
+      buildTool: stack.buildTool,
+      archetype: 'backend-web-db',
+      governanceLevel: 'L2',
+    }),
+  )
+}
+
 function criticalPathMinutes(yaml: string): ReturnType<typeof longestWeightedPath> {
   const jobs = parseWorkflowJobs(yaml)
   return longestWeightedPath(jobs, (job) => estimateJobMinutes(job.steps, FIXTURE.stepEstimates))
@@ -92,6 +110,21 @@ describe('workflow-perf — critical-path time budget (#1232, §17.5 rec 5)', ()
       const yaml = renderWorkflow(wf, arch)
       const cp = criticalPathMinutes(yaml)
       // On breach, surface the full chain so the failure is actionable.
+      expect(cp.minutes, formatCriticalPath(cp, budget)).toBeLessThanOrEqual(budget)
+    },
+  )
+
+  // #1278: java/maven 01-pr-fast critical path must stay within the T1 budget.
+  // The serial build-reactor → maven-test chain breached 15m at 22.7m before the
+  // template was restructured (reparent test jobs off `gate`; run-only surefire
+  // goals over restored compiled classes instead of recompiling per job).
+  const stackCases = STACKS.map((stack) => ({ stack, wf: '01-pr-fast' as const }))
+  it.each(stackCases)(
+    '$wf @ $stack.language/$stack.buildTool: critical path within the time budget (#1278)',
+    ({ wf, stack }) => {
+      const budget = FIXTURE.workflowBudgets[wf]
+      const yaml = renderStackWorkflow(wf, stack)
+      const cp = criticalPathMinutes(yaml)
       expect(cp.minutes, formatCriticalPath(cp, budget)).toBeLessThanOrEqual(budget)
     },
   )
