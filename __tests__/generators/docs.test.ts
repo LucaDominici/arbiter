@@ -218,6 +218,75 @@ describe('generateDocs — docs/security/ scaffold (#897)', () => {
   })
 })
 
+describe('generateDocs — steering docs scaffold (#1268)', () => {
+  for (const f of ['structure', 'tech', 'product']) {
+    it(`emits docs/steering/${f}.md at L2`, () => {
+      generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+      expect(existsSync(join(dir, 'docs', 'steering', `${f}.md`))).toBe(true)
+    })
+    it(`emits docs/steering/${f}.md at L3`, () => {
+      generateDocs(makeConfig(dir, { governanceLevel: 'L3' }))
+      expect(existsSync(join(dir, 'docs', 'steering', `${f}.md`))).toBe(true)
+    })
+    it(`does not emit docs/steering/${f}.md at L1`, () => {
+      generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+      expect(existsSync(join(dir, 'docs', 'steering', `${f}.md`))).toBe(false)
+    })
+  }
+
+  it('skipIfExists on docs/steering/structure.md (#1268, CANON-11)', () => {
+    const steeringDir = join(dir, 'docs', 'steering')
+    mkdirSync(steeringDir, { recursive: true })
+    const target = join(steeringDir, 'structure.md')
+    writeFileSync(target, 'PREEXISTING')
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+})
+
+describe('generateDocs — atomic-task-list scaffold (#1268)', () => {
+  it('emits docs/specs/atomic-task-list.md at L2', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(existsSync(join(dir, 'docs', 'specs', 'atomic-task-list.md'))).toBe(true)
+  })
+
+  it('does not emit docs/specs/atomic-task-list.md at L1', () => {
+    generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+    expect(existsSync(join(dir, 'docs', 'specs', 'atomic-task-list.md'))).toBe(false)
+  })
+
+  it('skipIfExists on docs/specs/atomic-task-list.md (#1268, CANON-11)', () => {
+    const specsDir = join(dir, 'docs', 'specs')
+    mkdirSync(specsDir, { recursive: true })
+    const target = join(specsDir, 'atomic-task-list.md')
+    writeFileSync(target, 'PREEXISTING')
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+})
+
+describe('generateDocs — bug triage/verification scaffold (#1268)', () => {
+  for (const f of ['bug-analysis', 'bug-report', 'bug-verification']) {
+    it(`emits docs/bugs/${f}.md at L2`, () => {
+      generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+      expect(existsSync(join(dir, 'docs', 'bugs', `${f}.md`))).toBe(true)
+    })
+    it(`does not emit docs/bugs/${f}.md at L1`, () => {
+      generateDocs(makeConfig(dir, { governanceLevel: 'L1' }))
+      expect(existsSync(join(dir, 'docs', 'bugs', `${f}.md`))).toBe(false)
+    })
+  }
+
+  it('skipIfExists on docs/bugs/bug-analysis.md (#1268, CANON-11)', () => {
+    const bugsDir = join(dir, 'docs', 'bugs')
+    mkdirSync(bugsDir, { recursive: true })
+    const target = join(bugsDir, 'bug-analysis.md')
+    writeFileSync(target, 'PREEXISTING')
+    generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
+    expect(readFileSync(target, 'utf8')).toBe('PREEXISTING')
+  })
+})
+
 describe('generateDocs — COMMANDS.md CLI catalog (#728)', () => {
   it('emits docs/COMMANDS.md at L2', () => {
     generateDocs(makeConfig(dir, { governanceLevel: 'L2' }))
