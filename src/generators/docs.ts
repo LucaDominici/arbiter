@@ -9,6 +9,48 @@ export interface DocsGeneratorResult {
   files: WriteResult[]
 }
 
+/**
+ * #1268: spec-kit template families (re-derived). Steering docs (durable project
+ * context an agent reads before working), atomic-task-list (feature decomposition),
+ * and bug triage/verification (companions to the auto-generated DEBUG_STATE.md).
+ * Extracted from {@link generateDocs} to keep that function within the
+ * method-length ceiling (CANON-22 root-cause discipline).
+ */
+function emitSpecKitFamilies(config: ProjectConfig, opts: { dryRun: boolean }): WriteResult[] {
+  const base = config.targetDir
+  const out: WriteResult[] = []
+
+  for (const steering of ['structure', 'tech', 'product']) {
+    out.push(
+      writeFile(
+        resolvedPath(base, 'docs', 'steering', `${steering}.md`),
+        renderTemplate(`docs/steering/${steering}.md.ejs`, config),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
+  out.push(
+    writeFile(
+      resolvedPath(base, 'docs', 'specs', 'atomic-task-list.md'),
+      renderTemplate('docs/specs/atomic-task-list.md.ejs', config),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+  )
+
+  for (const bug of ['bug-report', 'bug-analysis', 'bug-verification']) {
+    out.push(
+      writeFile(
+        resolvedPath(base, 'docs', 'bugs', `${bug}.md`),
+        renderTemplate(`docs/bugs/${bug}.md.ejs`, config),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
+  return out
+}
+
 export function generateDocs(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -111,6 +153,9 @@ export function generateDocs(
       ),
     )
   }
+
+  // #1268: spec-kit template families (steering / atomic-task-list / bug triage).
+  results.push(...emitSpecKitFamilies(config, opts))
 
   return { files: results }
 }
