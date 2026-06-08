@@ -62,6 +62,36 @@ describe('ship sequencing — pure plan', () => {
     expect(shipStepFor('refactor', 'Standard').reviewAgents).toBe(4)
   })
 
+  // #1260 — size (via tier) drives BOTH the review-agent COUNT and the orthogonal
+  // VERTICAL breadth. This is the "drive, not print" proof: both fields move together.
+  it('refactor step surfaces a vertical floor that WIDENS with tier (count + breadth)', () => {
+    const xs = shipStepFor('refactor', 'XS')
+    const s = shipStepFor('refactor', 'S')
+    const std = shipStepFor('refactor', 'Standard')
+
+    // breadth widens with size
+    expect(s.verticals.length).toBeGreaterThan(xs.verticals.length)
+    expect(std.verticals.length).toBeGreaterThan(s.verticals.length)
+    expect(s.verticals).toEqual(expect.arrayContaining(xs.verticals))
+    expect(std.verticals).toEqual(expect.arrayContaining(s.verticals))
+
+    // count widens too (Standard refactor > XS refactor)
+    expect(std.reviewAgents).toBeGreaterThan(xs.reviewAgents)
+
+    // verticals are real auditor-routing names (not free text)
+    expect(std.verticals).toContain('security')
+    expect(std.verticals).toContain('data-integrity')
+  })
+
+  it('red-team-review step also carries the size-derived vertical floor', () => {
+    expect(shipStepFor('red-team-review', 'Standard').verticals).toContain('security')
+    expect(shipStepFor('red-team-review', 'XS').verticals).toEqual([
+      'bugs',
+      'type-safety',
+      'domain',
+    ])
+  })
+
   it('nextPhase walks forward and stops at complete', () => {
     expect(nextPhase('plan')).toBe('red-team-review')
     expect(nextPhase('red-team-review')).toBe('red')

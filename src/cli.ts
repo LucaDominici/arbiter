@@ -36,8 +36,9 @@ import {
 } from './commands/task.js'
 import type { TaskPhase } from './commands/task.js'
 import { isTddPhase } from './commands/task-state.js'
-import { runTaskShip } from './commands/task-ship.js'
+import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
 import { shipAffinityLines } from './affinity/gh-issues.js'
+import { resolveShipTier } from './sizing/diff-signals.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
@@ -1345,9 +1346,20 @@ program
       },
     ) => {
       try {
+        // #1260 — ALWAYS compute the ship SIZE (no flag). Size auto-selects the
+        // review TIER (which drives the review-agent COUNT + the orthogonal VERTICAL
+        // breadth) whenever `--tier` is absent; `--tier` stays a rare override.
+        // Resolution is fail-safe (explicit > diff > units > widest-default) and
+        // never throws, so it can never block the ship.
+        const size = resolveShipTier({
+          ...(opts.tier !== undefined ? { explicitTier: opts.tier } : {}),
+          ...(opts.units !== undefined ? { units: opts.units } : {}),
+          ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        })
+        const effectiveTier = opts.tier ?? size.tier
         const result = runTaskShip({
           ...(id !== undefined ? { taskId: id } : {}),
-          ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
+          tier: effectiveTier,
           advance: opts.advance,
           advanceOpts: {
             skipPlanReview: opts.skipPlanReview,
@@ -1357,12 +1369,7 @@ program
           },
           ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
         })
-        const lines = [
-          `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
-          `Action: ${result.step.action}`,
-          ...(result.step.command ? [`Command: ${result.step.command}`] : []),
-          ...(result.step.reviewAgents > 0 ? [`Review agents: ${result.step.reviewAgents}`] : []),
-        ]
+        const lines = buildShipStepLines(result, size)
         // #1259 — ALWAYS compute issue affinity (no flag); surface it + a
         // low-affinity warning in the step output. Never blocks.
         lines.push(...shipAffinityLines(id, opts.dir))

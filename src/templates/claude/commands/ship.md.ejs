@@ -85,6 +85,8 @@ arbiter task advance --to plan
 
 <% if (governanceLevel !== 'L1') { %>
 The tier (XS / S / Standard) sets the number of review agents dispatched per review phase.
+
+`arbiter ship` **always auto-computes the issue size** (no flag) and selects this tier from it: the change diff (files + LOC), falling back to the plan unit estimate, then to the widest tier as a fail-safe. `--tier` stays a rare manual override. Size drives BOTH the review-agent **count** (above) AND the **orthogonal vertical breadth** — larger size widens the set of review verticals (`bugs`, `type-safety`, `domain` → `+test-quality` → `+security`, `+data-integrity`, `+silent-failures`). Pass that floor to the auditor scorer via `node scripts/route-auditors.mjs --size-floor <tier>` so the active auditor set widens with size, not just the count.
 <% } %>
 
 | Phase | What `/ship` does | Review agents |

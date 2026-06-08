@@ -27,6 +27,7 @@ let explainPath = null
 let scoreMode = false
 let resultsArg = null
 let capsArg = null
+let sizeFloor = null
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--base' && args[i + 1]) base = args[++i]
@@ -36,6 +37,34 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === '--score') scoreMode = true
   else if (args[i] === '--results' && args[i + 1]) resultsArg = args[++i]
   else if (args[i] === '--caps' && args[i + 1]) capsArg = args[++i]
+  else if (args[i] === '--size-floor' && args[i + 1]) sizeFloor = args[++i]
+}
+
+// #1260 — size→vertical FLOOR. `arbiter ship` computes the issue SIZE (tier) and may
+// pass `--size-floor <tier>` so larger size WIDENS the breadth of active auditors beyond
+// what file-path matching alone selects. The floor is UNION-ONLY (it only ever ADDS
+// auditors; it never removes a file-path-selected or critical-path one). The vocabulary
+// is the auditor-routing.json auditor names, kept in lockstep with src/sizing/sizing.ts.
+// This is the consumption point #1267's dispatch matrix builds on.
+const SIZE_FLOOR_VERTICALS = {
+  XS: ['bugs', 'type-safety', 'domain'],
+  S: ['bugs', 'type-safety', 'domain', 'test-quality'],
+  Standard: [
+    'bugs',
+    'type-safety',
+    'domain',
+    'test-quality',
+    'security',
+    'data-integrity',
+    'silent-failures',
+  ],
+}
+
+if (sizeFloor !== null && !Object.prototype.hasOwnProperty.call(SIZE_FLOOR_VERTICALS, sizeFloor)) {
+  process.stderr.write(
+    `[route-auditors] ERROR: invalid --size-floor "${sizeFloor}". Valid: XS, S, Standard.\n`,
+  )
+  process.exit(2)
 }
 
 // --- Load + validate routing config ---
@@ -277,7 +306,19 @@ if (files.length === 0) {
   process.exit(1)
 }
 
-const { active, criticalFired } = computeActive(config, files)
+const { active: pathActive, criticalFired } = computeActive(config, files)
+
+// #1260 — union the size-floor verticals into the file-path-selected set (ADD-only).
+// Only auditors that actually exist in the registry are kept (same filter as computeActive).
+const auditorRegistry = Object.keys(config.auditors)
+const active = (() => {
+  if (sizeFloor === null) return pathActive
+  const merged = new Set(pathActive)
+  for (const v of SIZE_FLOOR_VERTICALS[sizeFloor]) {
+    if (auditorRegistry.includes(v)) merged.add(v)
+  }
+  return [...merged]
+})()
 
 if (active.length === 0) {
   process.stderr.write('[route-auditors] no auditors selected — refusing to score\n')

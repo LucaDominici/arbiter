@@ -97,6 +97,44 @@ describe('route-auditors — docs-only diff → minimal auditors', () => {
   })
 })
 
+describe('route-auditors — --size-floor widens breadth (#1260 / #1267 seam)', () => {
+  it('Standard size-floor unions the full vertical breadth into a docs-only diff', () => {
+    // Docs-only normally yields a minimal active set; a Standard size-floor must
+    // ADD the wider verticals (size widens breadth beyond file-path matching).
+    const base = JSON.parse(runScriptWithDiff(['docs/README.md']).stdout)
+    expect(base.active).not.toContain('security')
+
+    const r = runScriptWithDiff(['docs/README.md'], ['--size-floor', 'Standard'])
+    expect(r.status).toBe(0)
+    const out = JSON.parse(r.stdout)
+    expect(out.active).toContain('security')
+    expect(out.active).toContain('data-integrity')
+    expect(out.active).toContain('silent-failures')
+  })
+
+  it('size-floor is UNION-ONLY: never removes a file-path-selected auditor', () => {
+    const base = JSON.parse(runScriptWithDiff(['migrations/0001.sql']).stdout)
+    const floored = JSON.parse(
+      runScriptWithDiff(['migrations/0001.sql'], ['--size-floor', 'XS']).stdout,
+    )
+    // Every base auditor still present after applying an XS floor
+    for (const a of base.active) expect(floored.active).toContain(a)
+  })
+
+  it('an XS size-floor adds nothing beyond the always_on triad', () => {
+    const r = runScriptWithDiff(['docs/README.md'], ['--size-floor', 'XS'])
+    expect(r.status).toBe(0)
+    const out = JSON.parse(r.stdout)
+    expect(out.active).not.toContain('security')
+  })
+
+  it('rejects an unknown --size-floor value (exit 2, no silent drop)', () => {
+    const r = runScriptWithDiff(['docs/README.md'], ['--size-floor', 'Huge'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toMatch(/size-floor/i)
+  })
+})
+
 describe('route-auditors — backend TS diff → multiple auditors', () => {
   it('src/commands/ diff activates 3+ auditors', () => {
     const r = runScriptWithDiff([

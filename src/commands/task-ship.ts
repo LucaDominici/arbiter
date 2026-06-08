@@ -16,6 +16,8 @@ import {
   appendLog,
 } from './task-state.js'
 import { runTaskAdvance } from './task.js'
+import { sizeVerticals } from '../sizing/sizing.js'
+import { formatSizeLines, type ResolvedSize } from '../sizing/diff-signals.js'
 
 export type ShipTier = 'XS' | 'S' | 'Standard'
 
@@ -37,11 +39,25 @@ export interface ShipStep {
   command?: string
   /** Number of review subagents the agent must dispatch in this phase (0 = none). */
   reviewAgents: number
+  /**
+   * #1260 — the orthogonal VERTICAL floor for this ship's size (tier), as real
+   * auditor-routing.json names. Larger size widens this breadth. The review phases
+   * dispatch across these verticals; #1267's dispatch matrix consumes the same set
+   * (it equals `sizeVerticals(tier)`). Present on every step so it travels end-to-end.
+   */
+  verticals: string[]
 }
 
-/** The concrete step for a given phase + tier. */
+/** The concrete step for a given phase + tier. Size (tier) drives BOTH `reviewAgents` and `verticals`. */
 export function shipStepFor(phase: TaskPhase, tier: string | undefined): ShipStep {
   const t = normTier(tier)
+  const verticals = sizeVerticals(t)
+  const withVerticals = (step: Omit<ShipStep, 'verticals'>): ShipStep => ({ ...step, verticals })
+  return withVerticals(shipStepBody(phase, t))
+}
+
+/** The phase body (count + action), before the size-derived vertical floor is attached. */
+function shipStepBody(phase: TaskPhase, t: ShipTier): Omit<ShipStep, 'verticals'> {
   switch (phase) {
     case 'preflight':
       return {
@@ -145,6 +161,22 @@ export interface ShipResult {
   step: ShipStep
   advanced: boolean
   done: boolean
+}
+
+/**
+ * Build the human-readable step-output lines for a ship invocation, including the
+ * #1260 size summary (tier + source + vertical breadth). Kept here (not inline in the
+ * CLI action) so the action stays simple and the formatting is unit-testable.
+ */
+export function buildShipStepLines(result: ShipResult, size: ResolvedSize): string[] {
+  const lines = [
+    `Phase: ${result.phase}${result.done ? ' (done)' : ''}`,
+    `Action: ${result.step.action}`,
+  ]
+  if (result.step.command) lines.push(`Command: ${result.step.command}`)
+  if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
+  lines.push(...formatSizeLines(size))
+  return lines
 }
 
 /**
