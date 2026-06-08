@@ -1,0 +1,66 @@
+{
+  "schema": "RedTeamEvidenceV1",
+  "taskId": "#1243",
+  "tier": "XS",
+  "agents": 1,
+  "mode": "inline (no Task spawn tool in sub-agent context)",
+  "angles": ["data-integrity", "regression", "edge-cases"],
+  "findings": [
+    {
+      "id": "RT-01",
+      "severity": "CRITICAL",
+      "summary": "kit-canonical-mapping.json is the live INV-86 parity-gate input (check-kit-catalog-parity.mjs, wired L1 at check-all.mjs:150; INV-86 catalog.ts:1309 + AGENTS.md:164). Register §DELETE lists it but caveat-line-59 omits it = misclassification. Deleting it = retiring a live invariant, out of #1243 scope.",
+      "auditorHint": "invariant-coverage",
+      "resolution": "EXCLUDE from deletion; keep in place; flag in NOTES + issue comment. .md twin has no gate consumer -> safe to delete.",
+      "resolved": true
+    },
+    {
+      "id": "RT-02",
+      "severity": "HIGH",
+      "summary": "__tests__/docs/structure-audit.test.ts (#1218) asserts docs/STRUCTURE-AUDIT.md exists with specific content. Deleting the doc without the test fails the gate.",
+      "auditorHint": "test-integrity",
+      "resolution": "Delete the guard test alongside its doc (Law 10 same-PR gate/test update).",
+      "resolved": true
+    },
+    {
+      "id": "RT-03",
+      "severity": "MEDIUM",
+      "summary": "All test/src consumers of kit-canonical-mapping reference the .json (kept), not the .md twin. global-kit-render.test.ts tests the template render (tmp dirs), gen-ssot-core.test.ts uses tmp fixtures - none read the real deletees.",
+      "auditorHint": "test-integrity",
+      "resolution": "No action; .md twin safe to delete; coverage/GLOBAL_KIT tests unaffected.",
+      "resolved": true
+    },
+    {
+      "id": "RT-04",
+      "severity": "MEDIUM",
+      "summary": "Surviving docs (GOVERNANCE, ARCHITECTURE, MILESTONES, FEATURE_MATRIX, CANONICAL_PATHS, FAQ, ...) may link into deletees -> dangling doc-links after deletion.",
+      "auditorHint": "doc-links",
+      "resolution": "Ran check-doc-links.mjs after deletion: 7 dangling links found and fixed in the SURVIVING docs (CONTRIBUTING->GOVERNANCE.md, FAQ/ARCHITECTURE/README->website/reference/*, java-adapter->website/reference/stacks, STATUS dropped CONVERGENCE row, README sponsors->FUNDING.yml). check-doc-links now green (276 files). CANON.md verified to have NO link to any in-scope deletee (its only audits/ ref is to already-absent fs-callers-2026-05-17.md) -> CANON.md stays untouched. FEATURE_MATRIX (generated) had no link to any deletee.",
+      "resolved": true
+    },
+    {
+      "id": "RT-05",
+      "severity": "SUGGESTION",
+      "summary": "docs/sponsors.md -> FUNDING.yml: .github/FUNDING.yml confirmed present, so deleting sponsors.md loses no funding config.",
+      "auditorHint": "data-integrity",
+      "resolution": "No action; safe.",
+      "resolved": true
+    },
+    {
+      "id": "RT-06",
+      "severity": "HIGH",
+      "summary": "gen-wiki.mjs writes but never prunes: deleting a source doc leaves an orphan wiki page. After the 104 deletions, 102 orphan wiki pages remained (one per deleted .md source; the 2 deleted JSONs have no wiki page). check-wiki-lint (INV-116, check-all.mjs:153) flagged 205 'source not tracked by git' violations -> RED.",
+      "auditorHint": "doc-integrity",
+      "resolution": "git rm the orphan wiki pages identified by the lint's 'not tracked by git' violations (each cross-verified to map to a deletee; kit-canonical-mapping.json kept -> only its deleted .md twin's wiki page removed). Regenerated wiki + prettier 2x. check-wiki-lint now green.",
+      "resolved": true
+    },
+    {
+      "id": "RT-07",
+      "severity": "HIGH",
+      "summary": "docs/REFERENCE/coverage/dim-76-accessibility-a11y-audit-axe-lighthouse-pa11y.md is the doc_ref for REQ-015 (a11y, status Done) in the hand-maintained docs/PRODUCT/FEATURE_MATRIX.md, enforced by check-feature-matrix.mjs (INV-112, L1). Deleting it broke the gate (REQ-015 doc_ref File not found). Register §DELETE said delete all 77 coverage stubs but missed this live INV-112 dependency. No surviving KEEP-CORE doc substantively documents a11y; the only a11y-mentioning docs are WIKI-disposition (deleted in #1244), so repointing there would just defer the break.",
+      "auditorHint": "invariant-coverage",
+      "resolution": "KEEP dim-76 (the single surviving coverage stub), parallel to the kit-canonical-mapping.json / INV-86 carve-out. The other 76 dim-NN stubs are deleted. Flagged for a separate retirement/relocation issue (REQ-015 doc_ref needs a durable a11y home). check-feature-matrix now green (54 rows).",
+      "resolved": true
+    }
+  ]
+}

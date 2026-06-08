@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/java-adapter.md'
-source_sha: '81781a6202f62279866927623a68aebfecd4cef5'
+source_sha: '8a6e3f01061a4e488cb00507459d00f739173e4d'
 last_updated: '2026-06-08'
 ---
 
@@ -83,5 +83,5 @@ These will be added in a follow-up when a generator consumes them during `arbite
 ## Related Docs
 
 - [Stack Adapter Contract](stack-adapter-contract.md) — interface definition and protocol
-- [Stack Support Matrix](STACK-SUPPORT.md) — all language support levels
+- [Stack Support Matrix](../../website/reference/stacks.md) — all language support levels
 - [INV-88](../ADR/046-stack-adapter.md) — Stack Adapter Model ADR

@@ -52,8 +52,14 @@ const STRAY = ['docs/SYSTEM/branch-protection-snapshot-pre-tier.json']
 const GUARD_TEST = ['__tests__/docs/structure-audit.test.ts']
 
 describe('docs-evo #1243 — disposable tier deleted (no content loss)', () => {
-  it('removes all docs/REFERENCE/coverage/ dim-NN stubs', () => {
-    expect(has('docs/REFERENCE/coverage')).toBe(false)
+  it('removes the docs/REFERENCE/coverage/ stubs except the live INV-112 doc_ref (dim-76)', () => {
+    // dim-76 is the REQ-015 (a11y) doc_ref the FEATURE_MATRIX (INV-112) gate requires; §DELETE
+    // misclassified it (no surviving a11y doc to repoint to) so it is kept, parallel to the
+    // kit-canonical-mapping.json / INV-86 carve-out. The other 76 dim-NN stubs are deleted.
+    const survivors = has('docs/REFERENCE/coverage')
+      ? readdirSync(resolve(ROOT, 'docs/REFERENCE/coverage')).sort()
+      : []
+    expect(survivors).toEqual(['dim-76-accessibility-a11y-audit-axe-lighthouse-pa11y.md'])
   })
 
   it.each([...POINT_IN_TIME, ...DUPS, ...REFERENCE, ...AUDITS, ...STRAY, ...GUARD_TEST])(
@@ -85,7 +91,9 @@ describe('docs-evo #1243 — same-PR gate updates (no dangling reference)', () =
 
   it('regenerates docs/INDEX.md without any deleted path', () => {
     const index = read('docs/INDEX.md')
-    expect(index).not.toContain('REFERENCE/coverage/')
+    // 76 of 77 coverage stubs are gone; dim-76 (INV-112 doc_ref) is kept.
+    expect(index).not.toContain('coverage/dim-01-')
+    expect(index).not.toContain('coverage/dim-50-')
     expect(index).not.toContain('GLOBAL_KIT')
     expect(index).not.toContain('SELF-KIT-AUDIT')
     expect(index).not.toContain('STRUCTURE-AUDIT')

@@ -49,11 +49,10 @@ M23 — Mutation Testing as Hard Gate
 
 ## Navigation
 
-| Document                                         | Purpose                                                |
-| ------------------------------------------------ | ------------------------------------------------------ |
-| [FEATURE_MATRIX.md](FEATURE_MATRIX.md)           | Product truth RTM — 54 requirements with evidence      |
-| [INDEX.md](../INDEX.md)                          | Every governance doc in one inventory                  |
-| [PRD.md](PRD.md)                                 | Product requirements, personas, and governance levels  |
-| [CONVERGENCE-2026-06.md](CONVERGENCE-2026-06.md) | Latest convergence audit — gate matrix, parity verdict |
+| Document                               | Purpose                                               |
+| -------------------------------------- | ----------------------------------------------------- |
+| [FEATURE_MATRIX.md](FEATURE_MATRIX.md) | Product truth RTM — 54 requirements with evidence     |
+| [INDEX.md](../INDEX.md)                | Every governance doc in one inventory                 |
+| [PRD.md](PRD.md)                       | Product requirements, personas, and governance levels |
 
 <!-- STATUS_END -->

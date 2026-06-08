@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/CONTRIBUTING.md'
-source_sha: '72d6f9f44972ae78dc21bfe6502d410c119e9b0f'
+source_sha: '847f79f4467437b83606aa234a1e0f59cb794860'
 last_updated: '2026-06-08'
 ---
 
@@ -82,7 +82,7 @@ for low-level engine control or recovery (`arbiter task advance`, `record-red`, 
 
 - [`README.md`](../README.md) — feature overview
 - [`SETUP.md`](./SETUP.md) — extended install + per-stack notes
-- [`GOVERNANCE/README.md`](./GOVERNANCE/README.md) — invariants + ADRs
+- [`GOVERNANCE.md`](./GOVERNANCE.md) — invariants + ADRs
 - [`architecture/README.md`](./architecture/README.md) — system internals
 - [`api/README.md`](./api/README.md) — public API surface
 - [`OBSIDIAN.md`](../OBSIDIAN.md) — open this repo as an Obsidian vault
@@ -303,7 +303,7 @@ npm ci
 ## Running Tests
 
 ```bash
-npm
+npm test
 
 *[content truncated — see source for full text]*
 ```

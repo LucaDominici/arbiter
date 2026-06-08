@@ -11,7 +11,7 @@
 //   status: active
 //   AND (first kind/* tag is a backbone kind OR canonical_id is non-empty)
 //   AND kind is not 'adr'            (ADRs are owned by INV-107 / docs/ADR/)
-//   AND it is not a generated dim-NN coverage stub (owned by GLOBAL_KIT.md)
+//   AND it is not a generated dim-NN coverage stub (regenerated from src/kit/catalog on demand)
 // Distinct from docs/INDEX.md (#1102), which is the FULL map of every doc; this
 // is the curated canonical spine.
 //
@@ -117,7 +117,7 @@ export function selectSsotDocs(repoRoot) {
   const records = []
   for (const file of files) {
     const relPath = relative(repoRoot, file).split(sep).join('/')
-    // Generated dim-NN coverage stubs are owned by GLOBAL_KIT.md, not the SSOT set.
+    // Generated dim-NN coverage stubs (regenerated from src/kit/catalog) never join the SSOT set.
     if (relPath.startsWith('docs/REFERENCE/coverage/')) continue
     const content = readFileSync(file, 'utf-8')
     const fm = parseFrontmatter(content)

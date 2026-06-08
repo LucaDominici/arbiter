@@ -81,7 +81,7 @@ ESLint and Biome enforce code style and static analysis. arbiter enforces govern
 ---
 
 **What is a hook in arbiter?**  
-A hook is a script that Claude Code (or another supported agent) runs automatically in response to events: before editing a file, after a commit, on tool failure. arbiter generates and wires these hooks. See [docs/REFERENCE/HOOKS.md](REFERENCE/HOOKS.md).
+A hook is a script that Claude Code (or another supported agent) runs automatically in response to events: before editing a file, after a commit, on tool failure. arbiter generates and wires these hooks. See the [Hooks Reference](../website/reference/hooks.md).
 
 ---
 

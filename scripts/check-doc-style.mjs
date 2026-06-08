@@ -44,7 +44,6 @@ const SKIP_PATH_SEGMENTS = [
 ]
 // Auto-generated files that bypass frontmatter requirements
 const SKIP_FILENAMES = new Set([
-  'SELF-KIT-AUDIT.md',
   'INDEX.md',
   'DECISIONS.md', // generated digest (gen-adr-readme.mjs) — uses status: generated
 ])

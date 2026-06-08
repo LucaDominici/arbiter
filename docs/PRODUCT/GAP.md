@@ -108,20 +108,13 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 
 ## Known Debt
 
-| issue | title                                                                                 | status                    | severity |
-| ----- | ------------------------------------------------------------------------------------- | ------------------------- | -------- |
-| #1177 | Kotlin support is placeholder — sonar/detekt/kover templates missing, smoke test only | Open (existing)           | low      |
-| #1187 | Epic: CI pipeline performance & drift fix (wave0.6)                                   | Parked post-v1 (existing) | low      |
-| #1188 | Stale `ci.yml` references in 3 example docs                                           | Open (new)                | low      |
-| #1189 | knip excludes type-exports — hook overstates coverage                                 | Open (new)                | low      |
-| #1190 | `semantic-review.yml.ejs` orphan template                                             | Open (new)                | low      |
-| #1191 | Resilience capability has no kit dimension (N77 max)                                  | Open (new)                | low      |
-| #1192 | FEATURE_MATRIX — 40/46 Partial rows lack tracked follow-up                            | Open (new)                | low      |
-| #1193 | Trivia cleanup bundle                                                                 | Open (new)                | low      |
-| #1160 | Tech debt #1160                                                                       | Open                      | low      |
-| #1161 | Tech debt #1161                                                                       | Open                      | low      |
-| #1208 | Tech debt #1208                                                                       | Open                      | low      |
-| #1215 | Tech debt #1215                                                                       | Open                      | low      |
-| #1222 | Tech debt #1222                                                                       | Open                      | low      |
+| issue | title           | status | severity |
+| ----- | --------------- | ------ | -------- |
+| #1160 | Tech debt #1160 | Open   | low      |
+| #1161 | Tech debt #1161 | Open   | low      |
+| #1177 | Tech debt #1177 | Open   | low      |
+| #1208 | Tech debt #1208 | Open   | low      |
+| #1215 | Tech debt #1215 | Open   | low      |
+| #1222 | Tech debt #1222 | Open   | low      |
 
 <!-- GAP_END -->

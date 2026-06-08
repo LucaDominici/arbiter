@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/METHOD/SSOT_CORE_SET.md'
-source_sha: '164d93a8f0a1a99c558ac35cf463fb148dbde027'
+source_sha: 'bff54123838cdbcab9dcc507f98f632a8aa2015e'
 last_updated: '2026-06-08'
 ---
 
@@ -31,11 +31,8 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `CONTRIBUTING.md` — Contributing to arbiter
 - `docs/GOVERNANCE.md` — Governance — arbiter
 - `docs/GOVERNANCE/coc-enforcement-runbook.md` — Code of Conduct — Enforcement Runbook
-- `docs/GOVERNANCE/GOOD-FIRST-ISSUE-CURATION.md` — Good First Issue Curation — Launch Batch
 - `docs/GOVERNANCE/GOOD-FIRST-ISSUE-TEMPLATE.md` — Good First Issue Template
 - `docs/GOVERNANCE/LABELS.md` — arbiter Label Catalogue
-- `docs/GOVERNANCE/README.md` — arbiter Governance
-- `docs/PRODUCT/CONVERGENCE-2026-06.md` — Convergence Report — Batch C (2026-06)
 
 ### Method
 
@@ -51,7 +48,6 @@ The inventory below is **generated** from doc frontmatter by `scripts/gen-ssot-c
 - `docs/METHOD/REUSE_REGISTRY.md` — arbiter Reuse Registry
 - `docs/METHOD/TESTING.md` — Testing — arbiter
 - `docs/rfc/0001-plugin-api-v2.md` — Plugin API v2 surface
-- `docs/SYSTEM/CI-MIGRATION.md` — CI Migration Guide
 - `docs/SYSTEM/CI-TIER-MODEL.md` — Perfect Tiered CI/CD — Design Spec for arbiter (all stacks, GitHub Actions)
 - `docs/SYSTEM/HOOK-CONTRACTS.md` — Hook Contracts — `.claude/hooks/*.mjs`
 - `docs/testing/POST_MERGE_REVIEW_TEMPLATE.md` — Post-Merge Review — YYYY-MM-DD

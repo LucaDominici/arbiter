@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/FAQ.md'
-source_sha: '3914aee57e75186d21d2b84d79a79efc2b63eef9'
+source_sha: '3ea0d28a2dd826d9a0e0b2e9ffc074c554cab7f0'
 last_updated: '2026-06-08'
 ---
 
@@ -82,7 +82,7 @@ ESLint and Biome enforce code style and static analysis. arbiter enforces govern
 ---
 
 **What is a hook in arbiter?**  
-A hook is a script that Claude Code (or another supported agent) runs automatically in response to events: before editing a file, after a commit, on tool failure. arbiter generates and wires these hooks. See [docs/REFERENCE/HOOKS.md](REFERENCE/HOOKS.md).
+A hook is a script that Claude Code (or another supported agent) runs automatically in response to events: before editing a file, after a commit, on tool failure. arbiter generates and wires these hooks. See the [Hooks Reference](../website/reference/hooks.md).
 
 ---
 
@@ -156,6 +156,6 @@ Run `arbiter --profile <your-command>`. A `.cpuprofile` is written to `~/.arbite
 ---
 
 **Does `arbiter diff` show exactly what `arbiter update` will do?**  
-Yes. `diff` is `update` with the writes elided: it builds the same project config and runs the same generator registry in dry-run mode, so it enumerates **every** file `update` manages — not a subset — and can never under- or over-report relative to `update`. It is strictly read-only (it never writes, backs up, or calls `gh`). Run `
+Yes. `diff` is `update` with the writes elided: it builds the same project config and runs the same generator registry in dry-run mode, so it enumerates **every** file `update` manages — not a subset — and can never under- or over-report relative to `update`. It is strictly read-only (it never writes, backs up, or calls `gh`)
 
 _[content truncated — see source for full text]_

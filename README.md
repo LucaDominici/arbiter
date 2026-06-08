@@ -103,7 +103,7 @@ Options:
   -h, --help             Show help
 ```
 
-See [`docs/REFERENCE/CLI.md`](docs/REFERENCE/CLI.md) for full option documentation and examples.
+See the [CLI Reference](website/reference/cli.md) for full option documentation and examples.
 
 ---
 
@@ -247,4 +247,4 @@ To report a security vulnerability, see [SECURITY.md](SECURITY.md).
 
 arbiter is maintained by volunteers. If you find it useful, consider [sponsoring via GitHub Sponsors](https://github.com/sponsors/LucaDominici).
 
-See [`docs/sponsors.md`](docs/sponsors.md) for the full funding policy (what sponsorship funds and what it does NOT confer).
+See [`.github/FUNDING.yml`](.github/FUNDING.yml) for the funding configuration.
