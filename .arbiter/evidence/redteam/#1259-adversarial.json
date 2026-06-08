@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "RedTeamEvidenceV1",
+  "taskId": "#1259",
+  "tier": "S",
+  "phase": "refactor",
+  "role": "adversarial-verifier",
+  "agentsDispatched": 1,
+  "checks": [
+    {"id": "AV-01", "claim": "Affinity is computed on EVERY ship invocation with no flag gating it", "method": "Traced declared->computed->printed: no --affinity option exists; shipAffinityLines() is called unconditionally in the ship .action() body and pushed to the printed lines. Confirmed empirically: `node dist/cli.js ship 1259 --tier S` prints 'Affinity: 1 (best match #1268) ... below-threshold' + a WARN line with NO flag passed.", "verdict": "PASS"},
+    {"id": "AV-02", "claim": "Low-affinity emits a WARNING and never blocks", "method": "renderShipAffinity wraps the fetch+score in try/catch and only returns string lines; the warning is text appended to step output. No throw, no non-zero exit, no gate. gh failure degrades to 'Affinity: unavailable' advisory (unit-tested).", "verdict": "PASS"},
+    {"id": "AV-03", "claim": "No dead code / orphan exports", "method": "knip clean: cli.ts consumes renderShipAffinityWithGh; affinity scorer fns + renderShipAffinity consumed by __tests__/affinity/{affinity,ship-affinity-wiring}.test.ts; fetchAffinityContext (the #1263 swap point) consumed by gh-issues.test.ts. No unused exports reported.", "verdict": "PASS"},
+    {"id": "AV-04", "claim": "End-to-end wiring is real (not a stub printing constants)", "method": "Empirical run scored real M5 milestone siblings from `gh` (#1268,#1267,#1264,#1263,#1262 each =1 same-milestone). Scores reflect the rubric, not a hardcoded value.", "verdict": "PASS"},
+    {"id": "AV-05", "claim": "No circular dependency introduced", "method": "madge --circular over src/ reports no affinity cycle; affinity.ts is I/O-free and does not import gh-issues.ts (default gh fetcher lives in gh-issues.ts via renderShipAffinityWithGh).", "verdict": "PASS"},
+    {"id": "AV-06", "claim": "runTaskShip stays pure/synchronous (minimal merge-conflict surface for sibling lanes)", "method": "task-ship.ts is unchanged; all affinity I/O + rendering lives in the cli.ts action wrapper.", "verdict": "PASS"},
+    {"id": "AV-07", "claim": "Scope frozen to #1259 — no batch/#1263, size→count/#1260, or matrix/#1267 logic added", "method": "Diff adds only the scorer, gh adapter, ship-action affinity print, and a doc line. No orchestration, no per-issue sub-agents, no batch-report, no dispatch matrix, no auto-size derivation.", "verdict": "PASS"}
+  ],
+  "verdict": "PASS",
+  "note": "All adversarial checks pass. Affinity is unconditional, non-blocking, end-to-end wired, dead-code-free, cycle-free, and scope-faithful."
+}

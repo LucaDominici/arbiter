@@ -5,6 +5,7 @@
 // scorer stays I/O-free and #1263 (batch) can supply its own issue set instead.
 // All shell-outs go through the shared runCli helper (INV-12).
 import { runCliJson } from '../utils/run-cli.js'
+import { readUnifiedState } from '../commands/task-state.js'
 import { renderShipAffinity, type AffinityIssue } from './affinity.js'
 
 /** Raw `gh issue` shape (only the fields the rubric scores over). */
@@ -85,4 +86,23 @@ export function renderShipAffinityWithGh(subjectId: string, opts: { dir?: string
   return renderShipAffinity(subjectId, {
     fetch: (id) => fetchAffinityContext(id, opts.dir !== undefined ? { dir: opts.dir } : {}),
   })
+}
+
+/**
+ * #1259 — resolve the ship subject issue id (CLI arg or persisted task state) and
+ * render its affinity step-output lines. Returns an advisory when no id is
+ * available; always returns ≥1 line and never throws.
+ *
+ * `render` is injectable so the id-resolution glue is unit-testable without `gh`.
+ */
+export function shipAffinityLines(
+  id: string | undefined,
+  dir: string | undefined,
+  render: (subject: string, opts: { dir?: string }) => string[] = renderShipAffinityWithGh,
+): string[] {
+  const subject = id ?? readUnifiedState(dir ?? process.cwd())?.taskId
+  if (subject === undefined || subject.length === 0) {
+    return ['Affinity: unavailable — no issue id to compute against.']
+  }
+  return render(subject, dir !== undefined ? { dir } : {})
 }
