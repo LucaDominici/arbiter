@@ -66,7 +66,7 @@ describe('01-pr-fast.yml.ejs — DAG parallelism (#1227, ADR-090)', () => {
     // Must NOT have needs: [unit-tests] for integration-tests job
     expect(rendered).not.toMatch(/integration-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
     // Must have needs: [gate] instead
-    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?needs:\s*\[gate\]/)
+    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
   })
 
   it('typescript L2: behavioral-tests depends on gate, not unit-tests', () => {
@@ -74,27 +74,27 @@ describe('01-pr-fast.yml.ejs — DAG parallelism (#1227, ADR-090)', () => {
     // Must NOT have needs: [unit-tests] for behavioral-tests job
     expect(rendered).not.toMatch(/behavioral-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
     // Must have needs: [gate] instead
-    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?needs:\s*\[gate\]/)
+    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
   })
 
   // Java path: same serial chain fix required
   it('java gradle L2: integration-tests depends on gate, not unit-tests', () => {
     const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L2' })
     expect(rendered).not.toMatch(/integration-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
-    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?needs:\s*\[gate\]/)
+    expect(rendered).toMatch(/integration-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
   })
 
   it('java gradle L2: behavioral-tests depends on gate, not unit-tests', () => {
     const rendered = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L2' })
     expect(rendered).not.toMatch(/behavioral-tests:[\s\S]*?needs:\s*\[unit-tests\]/)
-    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?needs:\s*\[gate\]/)
+    expect(rendered).toMatch(/behavioral-tests:[\s\S]{0,200}?needs:\s*\[gate, classify-changes\]/)
   })
 
   // Parallel jobs count: after the fix, gate has ≥3 direct dependents (unit, integration, behavioral)
   it('typescript L2: gate has at least 3 parallel direct dependents', () => {
     const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
-    // Count job blocks that have needs: [gate]
-    const needsGateMatches = rendered.match(/needs:\s*\[gate\]/g)
+    // Count job blocks that depend directly on gate (gate as first need; some also add classify-changes)
+    const needsGateMatches = rendered.match(/needs:\s*\[gate[,\]]/g)
     expect(needsGateMatches).not.toBeNull()
     expect((needsGateMatches ?? []).length).toBeGreaterThanOrEqual(3)
   })

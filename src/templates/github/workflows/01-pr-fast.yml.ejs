@@ -139,7 +139,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -161,7 +161,7 @@ jobs:
   contract-tests:
     name: Contract Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -174,7 +174,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -187,7 +187,7 @@ jobs:
   behavioral-tests:
     name: Behavioral Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-    needs: [gate]
+    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -285,8 +285,8 @@ jobs:
   unit-tests:
     name: Unit Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-<% if(buildTool === 'maven'){ /* tests need compiled classes from build-reactor, not lint; off the gate hop (#1278) */ %>    needs: [build-reactor]
-<% } else { %>    needs: [gate]
+<% if(buildTool === 'maven'){ /* tests need compiled classes from build-reactor, not lint; off the gate hop (#1278) */ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -324,8 +324,8 @@ jobs:
   contract-tests:
     name: Contract Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-<% if(buildTool === 'maven'){ %>    needs: [build-reactor]
-<% } else { %>    needs: [gate]
+<% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -345,8 +345,8 @@ jobs:
   integration-tests:
     name: Integration Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-<% if(buildTool === 'maven'){ %>    needs: [build-reactor]
-<% } else { %>    needs: [gate]
+<% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -366,8 +366,8 @@ jobs:
   behavioral-tests:
     name: Behavioral Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-<% if(buildTool === 'maven'){ %>    needs: [build-reactor]
-<% } else { %>    needs: [gate]
+<% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
