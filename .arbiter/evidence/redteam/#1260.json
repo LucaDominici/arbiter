@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "RedTeamEvidenceV1",
+  "taskId": "#1260",
+  "tier": "Standard",
+  "agentsDispatched": 3,
+  "perspectives": [
+    "edge-cases/correctness (lazy size timing + empty-diff degradation direction)",
+    "security/supply-chain (route-auditors --size-floor arg validation + union-only semantics)",
+    "domain/regression (existing --tier override, count assertions, vertical-name fidelity)"
+  ],
+  "findings": [
+    {"id": "RT-01", "severity": "MEDIUM", "summary": "Size is computed lazily from `git diff origin/main...HEAD`. At early phases (red-team-review) the diff holds only the not-yet-written tests, so a diff-only signal would under-size. Resolution: fallback chain is explicit `--tier` > diff(files+LOC) > units(plan estimate) > default; units is the authoritative pre-impl signal, and the review COUNT/verticals are consumed at refactor/verification when the full change diff exists. Document the evaluation timing.", "auditorHint": "sizing.test.ts + diff-signals.test.ts", "resolved": true},
+    {"id": "RT-02", "severity": "HIGH", "summary": "Fail-safe DIRECTION: when no signal is available (empty diff, git error, no units) the default MUST be the WIDEST tier (Standard → most agents + full vertical breadth), never XS. A failed/absent signal must degrade toward MORE review, not less — under-reviewing on signal loss is the dangerous failure. Encode default=Standard and assert it.", "auditorHint": "sizing.test.ts (degrade case)", "resolved": true},
+    {"id": "RT-03", "severity": "LOW", "summary": "`route-auditors.mjs --size-floor <tier>` must validate the tier value; an unknown/empty value must not crash and must not silently drop a floor that was intended. Reject unknown values with a clear error (exit 2), mirroring existing arg-validation style.", "auditorHint": "route-auditors.test.ts", "resolved": true},
+    {"id": "RT-04", "severity": "MEDIUM", "summary": "size-floor must only ADD auditors (set union into the active set), never remove a file-path-selected auditor and never narrow critical_paths' force-full-set. Size widens breadth; it can never shrink it. Assert union semantics + that critical-path full-set is preserved.", "auditorHint": "route-auditors.test.ts", "resolved": true},
+    {"id": "RT-05", "severity": "HIGH", "summary": "Regression: existing `--tier` override and existing task-ship count assertions (red-team XS=1/S=2/Standard=3; refactor XS=3/Standard=4) must be untouched. Auto-select tier ONLY when `--tier` is absent. Do NOT relocate or redefine the count literals (parity/dogfood risk). Keep `runTaskShip` pure — size I/O lives in the cli.ts action wrapper (per #1259 RT-06), passing the resolved tier in; `shipStepFor` derives verticals purely from tier.", "auditorHint": "task-ship.test.ts", "resolved": true},
+    {"id": "RT-06", "severity": "HIGH", "summary": "Vertical names MUST exactly match auditor-routing.json auditor keys (bugs, type-safety, domain, test-quality, security, data-integrity, silent-failures). A free-text viafera taxonomy (migration/concurrency/...) would be dead config that route-auditors.mjs and #1267 cannot consume. Assert the floor is a subset of the real auditor vocabulary so it plugs into the scorer.", "auditorHint": "sizing.test.ts + route-auditors.test.ts", "resolved": true},
+    {"id": "RT-07", "severity": "LOW", "summary": "Re-derivation vs verbatim: viafera's /task size + plan-review-verticals.sh are external prose/shell; arbiter port is original TS with re-derived buckets and arbiter's own auditor vocabulary. No verbatim copy.", "auditorHint": "manual", "resolved": true}
+  ],
+  "verdict": "NO_CRITICAL_BLOCKERS",
+  "note": "All findings folded into the plan as design guardrails (default=Standard fail-safe, union-only floor, real auditor-name verticals, pure runTaskShip with I/O in cli wrapper, no count-literal relocation). No CRITICAL plan rework required."
+}
