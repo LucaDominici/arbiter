@@ -240,6 +240,8 @@ const CI_COVERAGE = new Map([
   // via runToolCheck, which FAILs-in-CI on a missing binary). So it has a real
   // CI counterpart and belongs in CI_COVERAGE, not CI_SKIP_SET.
   ['actionlint', 'gate-full'],
+  ['ci tool parity', 'gate-full'],
+  ['perm-test guards', 'gate-full'],
 ])
 
 // CI_SKIP_SET: checks intentionally excluded from CI parity enforcement.

@@ -1,0 +1,19 @@
+{
+  "_comment": "SSOT for external (non-npm) binaries the gate uses. CI installs these (see .github/workflows/01-pr-fast.yml); scripts/install-ci-tools.mjs installs the identical pinned versions to ~/.local/bin so a local gate runs the SAME tools as CI. scripts/check-ci-tool-parity.mjs enforces manifest <-> CI <-> gate alignment. These are curl-installed, NOT GitHub Action `uses:` pins, so sync-action-pins.mjs (INV-76) does not cover them — this manifest is their only version pin.",
+  "tools": [
+    {
+      "name": "gitleaks",
+      "binary": "gitleaks",
+      "version": "8.27.2",
+      "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz",
+      "member": "gitleaks"
+    },
+    {
+      "name": "actionlint",
+      "binary": "actionlint",
+      "version": "1.7.3",
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz",
+      "member": "actionlint"
+    }
+  ]
+}
