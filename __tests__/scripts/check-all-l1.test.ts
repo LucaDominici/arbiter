@@ -19,4 +19,12 @@ describe('check-all.mjs L1 wiring', () => {
     const surrounding = content.slice(Math.max(0, idx - 100), idx)
     expect(surrounding).toMatch(/['"]node['"]/)
   })
+
+  it('runs the self L2 integration suite with bounded Vitest output', () => {
+    const idx = content.indexOf("'integration suite (INV-25)'")
+    expect(idx).toBeGreaterThan(-1)
+    const surrounding = content.slice(idx, idx + 220)
+    expect(surrounding).toContain("'vitest.integration.config.ts'")
+    expect(surrounding).toContain("'--silent'")
+  })
 })

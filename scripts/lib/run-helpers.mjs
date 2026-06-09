@@ -26,6 +26,12 @@
 import { spawnSync } from 'node:child_process'
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
+// Explicit spawnSync output ceiling. Node's default is 1 MB; verbose checks
+// (the integration suite's render/init tree dumps) exceed it, and an overflow
+// silently kills the child (status=null) — surfacing as the misleading
+// "exit null". A generous explicit ceiling + ENOBUFS-as-FAIL makes the gate
+// behave identically locally and in CI. 50 MB matches scripts/dogfood-local.mjs.
+const DEFAULT_MAX_BUFFER_BYTES = 50 * 1024 * 1024
 
 const IS_CI = () => process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
 const NO_COLOR = () => IS_CI() || process.env.NO_COLOR === '1'
@@ -62,6 +68,7 @@ function spawn(name, cmd, args, opts) {
     encoding: 'utf-8',
     shell: false,
     timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    maxBuffer: opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES,
     ...(opts.cwd ? { cwd: opts.cwd } : {}),
     ...(opts.env ? { env: { ...process.env, ...opts.env } } : {}),
   })
@@ -114,6 +121,11 @@ export function runCheck(name, cmd, args, opts = {}) {
     recordFail(name, elapsed, `timeout after ${elapsed}ms`)
     return
   }
+  if (r.error && r.error.code === 'ENOBUFS') {
+    const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
+    recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`)
+    return
+  }
   if (r.status === 0) {
     recordPass(name, elapsed)
     return
@@ -141,6 +153,11 @@ export function runWarnCheck(name, cmd, args, opts = {}) {
     recordWarn(name, elapsed, `timeout after ${elapsed}ms`)
     return
   }
+  if (r.error && r.error.code === 'ENOBUFS') {
+    const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
+    recordWarn(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`)
+    return
+  }
   if (r.status === 0) {
     recordPass(name, elapsed)
     return
@@ -165,6 +182,11 @@ export function runToolCheck(name, cmd, args, opts = {}) {
   }
   if (r.error && r.error.code === 'ETIMEDOUT') {
     recordFail(name, elapsed, `timeout after ${elapsed}ms`)
+    return
+  }
+  if (r.error && r.error.code === 'ENOBUFS') {
+    const limit = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES
+    recordFail(name, elapsed, `output exceeded buffer (limit ${limit} bytes)`)
     return
   }
   if (r.status === 0) {
