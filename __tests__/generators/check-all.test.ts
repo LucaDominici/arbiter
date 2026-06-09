@@ -66,6 +66,17 @@ describe('generateCheckAll', () => {
     expect(content).toContain('export function pushResult')
   })
 
+  it('emits run-helpers.mjs with an explicit spawn maxBuffer + ENOBUFS-as-FAIL (buffer parity)', () => {
+    generateCheckAll(makeConfig(dir))
+    const content = readFileSync(join(dir, 'scripts', 'lib', 'run-helpers.mjs'), 'utf-8')
+    // Generated projects inherit the same buffer guarantee as arbiter's own gate:
+    // an explicit maxBuffer (not Node's 1 MB default) and ENOBUFS surfaced as an
+    // actionable FAIL rather than a silent "exit null".
+    expect(content).toContain('maxBuffer')
+    expect(content).toContain("r.error.code === 'ENOBUFS'")
+    expect(content).toContain('output exceeded buffer')
+  })
+
   it('check-all.mjs contains inlined workflow-runners and ci-alignment logic', () => {
     generateCheckAll(makeConfig(dir))
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')

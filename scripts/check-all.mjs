@@ -250,7 +250,7 @@ if (isMain) {
     runCheck(
       'integration suite (INV-25)',
       'npx',
-      ['vitest', 'run', '--config', 'vitest.integration.config.ts'],
+      ['vitest', 'run', '--config', 'vitest.integration.config.ts', '--silent'],
       vitestEnv ? { env: vitestEnv } : {},
     )
     // INV-25 (#1040): BDD layer

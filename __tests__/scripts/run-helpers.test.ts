@@ -53,6 +53,20 @@ describe('run-helpers — runCheck (HARD)', () => {
     expect(payload.results[0]).toMatchObject({ name: 'absent', status: 'FAIL' })
   })
 
+  it('records FAIL with an actionable buffer message when command output exceeds maxBuffer', () => {
+    const r = runHarness(`
+      import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
+      runCheck('chatty', process.execPath, ['-e', "process.stdout.write('x'.repeat(1024))"], { maxBufferBytes: 8 });
+      console.log(JSON.stringify({ failed: getFailed(), results: getResults() }));
+    `)
+    expect(r.stdout).toContain('output exceeded buffer')
+    expect(r.stdout).not.toContain('exit null')
+    const last = r.stdout.trim().split('\n').pop()!
+    const payload = JSON.parse(last)
+    expect(payload.failed).toBe(1)
+    expect(payload.results[0]).toMatchObject({ name: 'chatty', status: 'FAIL' })
+  })
+
   it('soft option: failing command becomes WARN, failed not incremented', () => {
     const r = runHarness(`
       import { runCheck, getFailed, getResults } from ${JSON.stringify(HELPERS)};
