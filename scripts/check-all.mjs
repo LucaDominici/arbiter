@@ -177,6 +177,11 @@ if (isMain) {
   runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
   runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
   runToolCheck('actionlint', 'actionlint', [])
+  // Local↔CI parity guards (#1244 follow-up): keep the gate's external tools pinned
+  // and installable locally, and keep permission tests root-guarded — the two
+  // classes (besides the spawn buffer) that let local-green hide CI-red.
+  runCheck('ci tool parity', 'node', ['scripts/check-ci-tool-parity.mjs'])
+  runCheck('perm-test guards', 'node', ['scripts/check-perm-test-guards.mjs'])
   // ─── L1: Anti-drift validator family (INV-89, W6) ────────────────────────────
   runCheck('anti-drift: suppression rationale', 'node', ['scripts/check-suppression-rationale.mjs'])
   runCheck('anti-drift: suppression expiry', 'node', ['scripts/check-suppression-expiry.mjs'])
