@@ -659,3 +659,8 @@ re-formatted to match the target project's `.prettierrc` after being written. Us
 `src/utils/prettier-format.ts` (`prettierFormat(filePath, targetDir)`) for this — it is
 CANON-12 compliant (uses `runCli`), best-effort (warns on failure, never throws), and skips
 silently when prettier is not available in the target environment (#933 F13).
+
+Resolution order: arbiter's own bundled prettier (via `createRequire` — deterministic, since a
+fresh target scaffold has no `node_modules` yet and `npx` resolution from the target dir depends
+on the npx cache matching the registry's latest release), then the target's own prettier via
+`npx --no-install`, then silent skip.
