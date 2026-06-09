@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SECURE_CODING_CHECKLIST.md'
 source_sha: '5807161bca9f43dd7fb9a389181a0017cb78d4ca'
-last_updated: '2026-06-08'
+last_updated: '2026-06-09'
 ---
 
 # Secure Coding Checklist

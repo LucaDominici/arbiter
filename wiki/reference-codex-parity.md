@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/CODEX-PARITY.md'
 source_sha: '6535940a7a85a6c4854f2136b33f353bd8c9083b'
-last_updated: '2026-06-08'
+last_updated: '2026-06-09'
 ---
 
 # Codex Governance Parity Reference

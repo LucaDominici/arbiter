@@ -17,6 +17,9 @@ on:
     paths:
       - '.github/workflows/**'
 
+permissions:
+  contents: read
+
 jobs:
   sync-action-pins:
     name: Sync EJS Action Pins

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/supply-chain.md'
 source_sha: '574f702edecc18e08abf429d472f98cb0c2a130c'
-last_updated: '2026-06-08'
+last_updated: '2026-06-09'
 ---
 
 # Supply Chain Security Reference

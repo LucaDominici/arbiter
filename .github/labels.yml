@@ -38,7 +38,7 @@ labels:
   # Regression issues filed by scheduled workflows
   - name: kit-drift
     color: "0075ca"
-    description: "KIT catalog self-audit drift detected by kit-self-canary"
+    description: "KIT self-canary failure detected"
   - name: nightly-regression
     color: "b60205"
     description: "Nightly (T4) workflow detected a regression"

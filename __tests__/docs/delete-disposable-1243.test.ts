@@ -89,6 +89,15 @@ describe('docs-evo #1243 — same-PR gate updates (no dangling reference)', () =
     expect(read('scripts/check-doc-style.mjs')).not.toContain('SELF-KIT-AUDIT.md')
   })
 
+  it('keeps kit-self-canary independent from the deleted SELF-KIT-AUDIT baseline (#1281)', () => {
+    const workflow = read('.github/workflows/kit-self-canary.yml')
+    expect(workflow).not.toContain('SELF-KIT-AUDIT.md')
+    expect(workflow).toContain(
+      'node dist/cli.js kit install --experimental.kit --dry-run --report-path /tmp/canary-audit.md',
+    )
+    expect(workflow).toContain('# SELF-KIT Audit Report')
+  })
+
   it('regenerates docs/INDEX.md without any deleted path', () => {
     const index = read('docs/INDEX.md')
     // 76 of 77 coverage stubs are gone; dim-76 (INV-112 doc_ref) is kept.

@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   kit-drift-check:
-    name: KIT self-canary drift check
+    name: KIT self-canary dry-run validation
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
@@ -31,27 +31,33 @@ jobs:
       - run: npm run build
 
       - name: Run kit dry-run audit
+        id: run_audit
         run: node dist/cli.js kit install --experimental.kit --dry-run --report-path /tmp/canary-audit.md
 
-      - name: Diff against committed audit
-        id: diff-check
+      - name: Validate dry-run audit report
+        id: validate_report
         run: |
-          if ! diff -u docs/REFERENCE/SELF-KIT-AUDIT.md /tmp/canary-audit.md; then
-            echo "::error::SELF-KIT-AUDIT.md has drifted from the committed baseline."
+          if [ ! -s /tmp/canary-audit.md ]; then
+            echo "::error::KIT dry-run audit report was not created or is empty."
+            exit 1
+          fi
+          if ! grep -qxF '# SELF-KIT Audit Report' /tmp/canary-audit.md; then
+            echo "::error::KIT dry-run audit report is missing the expected heading."
+            sed -n '1,40p' /tmp/canary-audit.md
             exit 1
           fi
 
-      - name: File issue on drift
-        if: failure() && steps.diff-check.outcome == 'failure'
+      - name: File issue on canary failure
+        if: failure() && (steps.run_audit.outcome == 'failure' || steps.validate_report.outcome == 'failure')
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          DIFF_OUTPUT=$(diff docs/REFERENCE/SELF-KIT-AUDIT.md /tmp/canary-audit.md 2>&1 || echo "(diff unavailable)")
+          REPORT_HEAD=$(sed -n '1,80p' /tmp/canary-audit.md 2>/dev/null || echo "(report unavailable)")
           # FAIL-OPEN-INTENT: label may already exist; creation failure is harmless
-          gh label create kit-drift --color 0075ca --description "KIT catalog self-audit drift" 2>/dev/null || true
+          gh label create kit-drift --color 0075ca --description "KIT self-canary failure" 2>/dev/null || true
           EXISTING=$(gh issue list \
             --label kit-drift \
             --state open \
@@ -61,18 +67,18 @@ jobs:
             --jq '.[0].number // empty')
           if [ -z "$EXISTING" ]; then
             printf '%s\n' \
-              "KIT self-canary detected drift in \`docs/REFERENCE/SELF-KIT-AUDIT.md\`." \
+              "KIT self-canary failed to generate or validate the ephemeral dry-run audit." \
               "" \
               "Run: ${RUN_URL}" \
               "" \
-              '```diff' \
-              "${DIFF_OUTPUT}" \
+              '```text' \
+              "${REPORT_HEAD}" \
               '```' \
               "" \
-              "Regenerate with: \`node dist/cli.js kit install --experimental.kit --dry-run --report-path docs/REFERENCE/SELF-KIT-AUDIT.md\`" \
+              "Reproduce with: \`node dist/cli.js kit install --experimental.kit --dry-run --report-path /tmp/canary-audit.md\`" \
               > /tmp/issue-body.txt
             gh issue create \
-              --title "[kit-canary] SELF-KIT-AUDIT.md drift (run ${RUN_ID})" \
+              --title "[kit-canary] dry-run audit validation failed (run ${RUN_ID})" \
               --body-file /tmp/issue-body.txt \
               --label kit-drift \
               --repo "$GH_REPO"

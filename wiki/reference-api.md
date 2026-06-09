@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/api.md'
 source_sha: '9ee0a181bfdc490c8ff53ed42da6a4f6d2cc60ba'
-last_updated: '2026-06-08'
+last_updated: '2026-06-09'
 ---
 
 # Public API Reference

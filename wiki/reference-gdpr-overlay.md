@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/gdpr-overlay.md'
 source_sha: 'd00766686500103fb72923266eb740c1e4b159eb'
-last_updated: '2026-06-08'
+last_updated: '2026-06-09'
 ---
 
 # GDPR Overlay — Reference

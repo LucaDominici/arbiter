@@ -1,79 +1,49 @@
 {
-  "run_id": "task-20260608-220705",
-  "task_id": "#1244",
+  "run_id": "task-20260609-1281",
+  "task_id": "#1281",
   "scope": {
-    "track": "B",
+    "track": "C",
     "paths": [
-      "scripts/lib/run-helpers.mjs",
-      "src/templates/scripts/lib/run-helpers.mjs.ejs",
-      "scripts/check-all.mjs",
-      "src/templates/scripts/check-all.mjs.ejs",
-      "__tests__/integration/check-all-summary.test.ts",
-      "scripts/debt-lib.mjs",
-      "src/templates/scripts/debt-lib.mjs.ejs",
-      ".gitignore",
-      "src/templates/root/.gitignore.ejs",
-      "__tests__/templates/debt-baseline-render.test.ts",
-      "__tests__/generators/evidence-retention.test.ts"
+      ".github/workflows/kit-self-canary.yml",
+      ".github/workflows/dependabot-actions-sync.yml",
+      ".github/labels.yml",
+      "src/templates/github/labels.yml.ejs",
+      "docs/REFERENCE/cicd-developer-reference.md",
+      "__tests__/docs/delete-disposable-1243.test.ts"
     ]
   },
   "files": [
     {
-      "path": "scripts/lib/run-helpers.mjs",
+      "path": "__tests__/docs/delete-disposable-1243.test.ts",
       "operation": "modify",
-      "reason": "Make CI gate failures emit the actionable failure marker before verbose child output can hide it."
+      "reason": "Add a regression assertion that SELF-KIT-AUDIT.md stays deleted and the KIT self-canary no longer references it."
     },
     {
-      "path": "src/templates/scripts/lib/run-helpers.mjs.ejs",
+      "path": ".github/workflows/kit-self-canary.yml",
       "operation": "modify",
-      "reason": "Keep generated target projects aligned with the self-runner failure-reporting behavior."
+      "reason": "Change the canary from deleted baseline diffing to ephemeral dry-run report validation."
     },
     {
-      "path": "scripts/check-all.mjs",
+      "path": ".github/workflows/dependabot-actions-sync.yml",
       "operation": "modify",
-      "reason": "List failed gate names in the final CI footer so failures remain actionable."
+      "reason": "Add explicit top-level workflow permissions to satisfy INV-77 without changing the job-level write permission."
     },
     {
-      "path": "src/templates/scripts/check-all.mjs.ejs",
+      "path": ".github/labels.yml",
       "operation": "modify",
-      "reason": "Emit the same actionable failure footer in generated target projects."
+      "reason": "Broaden the kit-drift label description to match the self-canary failure contract."
     },
     {
-      "path": "__tests__/integration/check-all-summary.test.ts",
+      "path": "src/templates/github/labels.yml.ejs",
       "operation": "modify",
-      "reason": "Lock the CI annotation ordering so future verbose checks remain diagnosable."
+      "reason": "Keep generated label taxonomy aligned with the self-side label wording."
     },
     {
-      "path": "scripts/debt-lib.mjs",
+      "path": "docs/REFERENCE/cicd-developer-reference.md",
       "operation": "modify",
-      "reason": "Exclude generated temp directories from TODO debt counts."
-    },
-    {
-      "path": "src/templates/scripts/debt-lib.mjs.ejs",
-      "operation": "modify",
-      "reason": "Keep generated debt ratchet TODO counting aligned with self."
-    },
-    {
-      "path": ".gitignore",
-      "operation": "modify",
-      "reason": "Keep docs build temp output out of the working tree."
-    },
-    {
-      "path": "src/templates/root/.gitignore.ejs",
-      "operation": "modify",
-      "reason": "Keep generated project Git ignores aligned with the docs build temp behavior."
-    },
-    {
-      "path": "__tests__/templates/debt-baseline-render.test.ts",
-      "operation": "modify",
-      "reason": "Lock debt TODO scanner generated-temp exclusion coverage."
-    },
-    {
-      "path": "__tests__/generators/evidence-retention.test.ts",
-      "operation": "modify",
-      "reason": "Lock generated .gitignore coverage for VitePress temp output."
+      "reason": "Document the KIT self-canary as an ephemeral dry-run validation workflow, not a committed audit drift detector."
     }
   ],
-  "invariants": ["INV-25", "INV-27", "INV-45", "INV-53", "INV-59"],
-  "gate": "node scripts/check-all.mjs L2"
+  "invariants": ["INV-23", "INV-24", "INV-26", "INV-27", "INV-77", "INV-89", "INV-96", "CANON-09"],
+  "gate": "node scripts/check-all.mjs L1"
 }
