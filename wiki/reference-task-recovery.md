@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/task-recovery.md'
-source_sha: '7e5bdfd7d91f87e93ae7957be86aee1ab2d63b0a'
+source_sha: '6a1e05f91cb1751459fe1871c4457ce24e997394'
 last_updated: '2026-06-09'
 ---
 
@@ -63,6 +63,10 @@ it drives an issue to a reviewed, merged PR by auto-sequencing
 (worktree → plan → red-team → TDD impl → review → gate → merge → cleanup).
 Use `/task` subcommands (`arbiter task advance`, `record-red`, etc.) only for recovery or manual
 phase control; the `/ship` loop auto-advances phases when their gates are green.
+
+The positional `<id>` accepts both `1280` and `#1280`: it is normalized to the canonical `#NNN`
+form once at parse (#1280), so the persisted task id always matches the TDD-evidence schema
+(`^#\d+$`) and its identity check. Non-numeric ids are rejected with an error.
 
 ---
 
@@ -167,7 +171,6 @@ the legacy files migrates it transparently (seed + delete) on first access.
 | -------- | -------------------------------------------------------------------------- |
 | `taskId` | Active task id (was `.task-id`)                                            |
 | `phase`  | Current lifecycle phase — authoritative, single writer (was `.task-phase`) |
-| `tier`   | Task tier XS/S/Standard (was `.task-tier`)                                 |
-| `plan`   | Repo-relative path to the plan file (was `.task-plan`)                     |
+| `tier`   | Task                                                                       |
 
 _[content truncated — see source for full text]_

@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1280",
+  "test_path": "__tests__/commands/task-ship.test.ts",
+  "test_commit_sha": "3863c27efc3e31e6570ccd623628a9553bf39817",
+  "test_run_log": "\n RUN  v4.1.7\n\n FAIL  __tests__/commands/task-ship.test.ts > ship id normalization (#1280) > normalizes a bare positional id to #NNN at parse\nAssertionError: expected '1280' to be '#1280' // Object.is equality\n FAIL  __tests__/commands/task-ship.test.ts > ship id normalization (#1280) > rejects a non-numeric id loudly instead of silently coercing\nAssertionError: expected [Function] to throw an error\n FAIL  __tests__/commands/task-ship.test.ts > ship id normalization (#1280) > TDD-evidence gate is satisfiable end-to-end when seeded with a bare id\nError: TDD evidence gate: TDD evidence not found at <tmp>/.arbiter/evidence/tdd/1280.json.\n      Tests  3 failed | 10 passed (13)\n",
+  "observed_failure": "FAIL __tests__/commands/task-ship.test.ts — runTaskShip persists the bare positional id ('1280' not '#1280'), so the TDD-evidence gate looks up 1280.json and the identity check can never match the schema-required '#NNN' form",
+  "recorded_at": "2026-06-09T21:24:30.000Z"
+}

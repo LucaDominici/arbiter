@@ -1,8 +1,8 @@
 ---
 title: 'Task Recovery Reference'
-doc_version: '2.0.0'
+doc_version: '2.1.0'
 status: active
-last_review: '2026-06-04'
+last_review: '2026-06-09'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/reference']
@@ -62,6 +62,10 @@ it drives an issue to a reviewed, merged PR by auto-sequencing
 (worktree → plan → red-team → TDD impl → review → gate → merge → cleanup).
 Use `/task` subcommands (`arbiter task advance`, `record-red`, etc.) only for recovery or manual
 phase control; the `/ship` loop auto-advances phases when their gates are green.
+
+The positional `<id>` accepts both `1280` and `#1280`: it is normalized to the canonical `#NNN`
+form once at parse (#1280), so the persisted task id always matches the TDD-evidence schema
+(`^#\d+$`) and its identity check. Non-numeric ids are rejected with an error.
 
 ---
 

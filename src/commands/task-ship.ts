@@ -18,6 +18,26 @@ import {
 import { runTaskAdvance } from './task.js'
 import { sizeVerticals } from '../sizing/sizing.js'
 import { formatSizeLines, type ResolvedSize } from '../sizing/diff-signals.js'
+import { sanitizeTaskId } from '../worktree/paths.js'
+
+/**
+ * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
+ * The TDD-evidence schema requires `^#\d+$` and the gate's identity check compares
+ * against the taskId persisted here, so a bare id (`ship 1280 ...`) written verbatim
+ * makes the gate unsatisfiable. Non-numeric ids fail loud rather than being coerced
+ * into an id no gate can ever match. (NB: `worktree/paths.js::sanitizeTaskId` is the
+ * `#NNN` normalizer; the same-named `utils/task-id.js` helper is a filesystem-segment
+ * sanitizer that strips `#` — the wrong tool here.)
+ */
+function normalizeShipTaskId(raw: string): string {
+  const id = sanitizeTaskId(raw)
+  if (!/^#\d+$/.test(id)) {
+    throw new Error(
+      `Invalid ship task id "${raw}" — expected a GitHub issue number like "1280" or "#1280".`,
+    )
+  }
+  return id
+}
 
 export type ShipTier = 'XS' | 'S' | 'Standard'
 
@@ -180,21 +200,34 @@ export function buildShipStepLines(result: ShipResult, size: ResolvedSize): stri
 }
 
 /**
+ * Seed state on first invocation so the orchestrator has an id/tier to work from.
+ * #1280 — the positional id is normalized to canonical `#NNN` BEFORE the very first
+ * write; everything downstream (evidence path lookup, task_id identity check) relies
+ * on this form.
+ */
+function seedShipState(
+  root: string,
+  rawTaskId: string | undefined,
+  tier: string | undefined,
+): void {
+  const taskId = rawTaskId !== undefined ? normalizeShipTaskId(rawTaskId) : undefined
+  const existing = readUnifiedState(root)
+  if (existing === null || taskId !== undefined || tier !== undefined) {
+    writeUnifiedState(root, {
+      ...(taskId !== undefined ? { taskId } : {}),
+      ...(tier !== undefined ? { tier } : {}),
+    })
+  }
+}
+
+/**
  * Compute (and optionally advance to) the current ship step. Returns the step descriptor the agent
  * loop should execute next. With `advance`, advances one phase via runTaskAdvance — gate-green is
  * enforced by the underlying gates (a red gate throws and is surfaced to the caller).
  */
 export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   const root = opts.dir ?? process.cwd()
-
-  // Seed state on first invocation so the orchestrator has an id/tier to work from.
-  const existing = readUnifiedState(root)
-  if (existing === null || opts.taskId !== undefined || opts.tier !== undefined) {
-    writeUnifiedState(root, {
-      ...(opts.taskId !== undefined ? { taskId: opts.taskId } : {}),
-      ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
-    })
-  }
+  seedShipState(root, opts.taskId, opts.tier)
 
   const state = readUnifiedState(root)
   let phase: TaskPhase = state?.phase ?? 'preflight'

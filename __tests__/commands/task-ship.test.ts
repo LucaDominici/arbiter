@@ -99,6 +99,45 @@ describe('ship sequencing — pure plan', () => {
   })
 })
 
+// #1280 — the bare positional id (`ship 1280 ...`) must be normalized to the canonical
+// `#NNN` form ONCE at parse: the TDD-evidence schema requires `^#\d+$` and the gate's
+// identity check compares against the persisted taskId, so an un-sanitized bare id makes
+// the gate unsatisfiable via `ship --advance`.
+describe('ship id normalization (#1280)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = createTestProject()
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+  })
+  afterEach(() => cleanupTestProject(dir))
+
+  it('normalizes a bare positional id to #NNN at parse', () => {
+    runTaskShip({ dir, taskId: '1280', tier: 'XS' })
+    expect(readUnifiedState(dir)?.taskId).toBe('#1280')
+  })
+
+  it('keeps an already-canonical #NNN id unchanged', () => {
+    runTaskShip({ dir, taskId: '#1280', tier: 'XS' })
+    expect(readUnifiedState(dir)?.taskId).toBe('#1280')
+  })
+
+  it('rejects a non-numeric id loudly instead of silently coercing', () => {
+    expect(() => runTaskShip({ dir, taskId: 'abc' })).toThrow(/[Ii]nvalid.*task id/)
+  })
+
+  it('TDD-evidence gate is satisfiable end-to-end when seeded with a bare id', () => {
+    // Seed with the BARE id — exactly what `ship 1280 ...` passes through the CLI.
+    runTaskShip({ dir, taskId: '1280', tier: 'XS' })
+    // Evidence on disk uses the canonical schema form (`^#\d+$`), as the schema requires.
+    writeTddEvidence(dir, '#1280')
+    writeUnifiedState(dir, { phase: 'red' })
+    // red → green runs checkTddEvidenceGate: path lookup + identity check both need '#1280'.
+    const r = runTaskShip({ dir, advance: true })
+    expect(r.phase).toBe('green')
+    expect(r.advanced).toBe(true)
+  })
+})
+
 describe('ship orchestrator — drives a fixture end-to-end', () => {
   let dir: string
   beforeEach(() => {
