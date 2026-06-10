@@ -5,12 +5,12 @@
       "project": ["src/**/*.ts", "!src/templates/**"]
     }
   },
-  "ignoreDependencies": ["@commitlint/cli", "jscpd", "prettier", "minimatch"],
+  "ignoreDependencies": ["@commitlint/cli", "jscpd", "minimatch"],
   "ignoreFiles": ["src/test/example.behavioral.test.ts", "src/utils/plugin-worker.ts"],
   "ignoreBinaries": [
     "stryker",
-    "vitepress",
-    "sonar-scanner",
+    "which",
+    "java",
     "license-checker",
     "Apache-2.0",
     "BSD-2-Clause",
