@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/coverage/dim-76-accessibility-a11y-audit-axe-lighthouse-pa11y.md'
 source_sha: '5817b94c3c32c91690a3a0bd7f8249ba78cd3704'
-last_updated: '2026-06-09'
+last_updated: '2026-06-10'
 ---
 
 # N76: Accessibility (a11y) audit (Axe / Lighthouse / pa11y)

@@ -737,7 +737,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     enforcement:
       '.claude/hooks/pre-edit-plan-anchor.mjs (CANON-16 Survey gate, exit 2) + ' +
       'scripts/check-bloat-ratchet.mjs (L1 ratchet) + ' +
-      'npx jscpd (L2 duplication, see .jscpd.json) + ' +
+      'scripts/check-duplication.mjs (L2 duplication, fail-closed jscpd v5 wrapper, see .jscpd.json) + ' +
       'scripts/debt-report.mjs duplicationPercentage ratchet (CANON-22, see INV-109)',
   },
 
@@ -1746,9 +1746,10 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'duplicated-token percentage (Lehman entropy). CANON-22 Tier-1 — Juergens et al. ICSE 2009: ' +
       'inconsistent (diverged) clones are latent bugs. Dual-sided (CANON-01): arbiter dogfoods the ' +
       'gate at scripts/check-all.mjs and emits the same gate to TypeScript targets via ' +
-      'src/generators/duplication.ts (.jscpd.json + jscpd devDep + the check-all jscpd step).',
+      'src/generators/duplication.ts (.jscpd.json + jscpd devDep + scripts/check-duplication.mjs).',
     enforcement:
-      'npx jscpd (L2 gate, see .jscpd.json) + scripts/debt-report.mjs --gate ' +
+      'scripts/check-duplication.mjs (L2 gate, fail-closed jscpd v5 wrapper, see .jscpd.json) + ' +
+      'scripts/debt-report.mjs --gate ' +
       '(duplicationPercentage metric collected in scripts/debt-lib.mjs); generated for target ' +
       'projects by src/generators/duplication.ts.',
   },

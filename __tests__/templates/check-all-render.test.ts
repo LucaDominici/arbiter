@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+import { computeMetricsProfile } from '../../src/generators/debt-ratchet.js'
 
 describe('check-all.mjs.ejs rendering — Java wiring (#404)', () => {
   it('renders inline suppressions check when enableSuppressions=true (#367)', () => {
@@ -642,7 +643,7 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
 })
 
 describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
-  it('renders valid JSON with the governance-scaled threshold + src pattern (catches EJS drift)', () => {
+  it('renders valid JSON with the governance-scaled threshold + v5 path/format fileset (catches EJS drift)', () => {
     const base = makeConfig('/tmp/test', {
       language: 'typescript',
       governanceLevel: 'L2',
@@ -654,8 +655,75 @@ describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
     const parsed = JSON.parse(content) as Record<string, unknown>
     expect(parsed.threshold).toBe(5)
     expect(parsed.minTokens).toBe(50)
-    expect(String(parsed.pattern)).toContain('src/')
+    // jscpd v5 ignores `pattern` (silent 0-file scan) — config must carry
+    // `path` (positional-arg SSOT for the generated scripts) + `format` (#1286)
+    expect(parsed.pattern).toBeUndefined()
+    expect(parsed.path).toEqual(['src'])
+    expect(parsed.format).toContain('typescript')
     expect(Array.isArray(parsed.ignore)).toBe(true)
+  })
+
+  it('generated check-all routes duplication through the fail-closed gate script (#1286)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableDebtGates: true,
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    // bare `npx jscpd --silent` exits 0 on a 0-file scan under v5 — vacuous gate
+    expect(content).not.toContain("['jscpd', '--silent']")
+    expect(content).toContain('check-duplication.mjs')
+  })
+
+  it('generated debt-lib uses jscpdScan (positional paths, --no-install, fail-closed) (#1286)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>
+    const cfg = makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true })
+    const content = renderTemplate('scripts/debt-lib.mjs.ejs', {
+      ...data,
+      metricsProfile: computeMetricsProfile(cfg),
+    })
+    expect(content).toContain('jscpdScan')
+    expect(content).toContain('--no-install')
+    // v4-era false premise must be gone: v5 always writes the json report
+    expect(content).not.toContain('ONLY when clones are found')
+  })
+
+  it('generated check-duplication.mjs is a fail-closed gate (config error / 0 sources → exit 1) (#1286)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-duplication.mjs.ejs', data)
+    expect(content).toContain('jscpdScan')
+    expect(content).toContain('process.exit(1)')
+  })
+
+  it('generated debt-report hard-fails the gate on collection errors (#1286)', () => {
+    const cfg = makeConfig('/tmp/test', { language: 'typescript', enableDebtGates: true })
+    const data = {
+      ...cfg,
+      metricsProfile: computeMetricsProfile(cfg),
+    } as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/debt-report.mjs.ejs', data)
+    expect(content).toContain('collectMetrics(cwd, collectionErrors)')
+    expect(content).toContain('collection FAILURE')
+    expect(content).toContain('process.exit(1)')
+  })
+
+  it('generated capture-debt-baseline refuses to drop previously-present metric keys (#1286)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      enableDebtGates: true,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/capture-debt-baseline.mjs.ejs', data)
+    expect(content).toContain('assertKeyParity')
   })
 
   it('interpolates a stricter threshold at higher governance', () => {

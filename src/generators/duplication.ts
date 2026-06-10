@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-// CANON-22: duplication (DRY) gate generator. Emits a jscpd config + injects the
-// jscpd devDep so the `npx jscpd` gate wired into the generated check-all is not
+// CANON-22: duplication (DRY) gate generator. Emits a jscpd config + the
+// fail-closed check-duplication.mjs gate script + injects the jscpd devDep so
+// the duplication gate wired into the generated check-all is not
 // dead-on-arrival (CANON-01: arbiter dogfoods the same gate at scripts/check-all.mjs).
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
@@ -44,9 +45,20 @@ export function generateDuplication(
       renderTemplate('static-analysis/jscpd.json.ejs', data),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
+    // Fail-closed gate wrapper: jscpd v5 exits 0 on a 0-file scan, so the
+    // generated check-all routes duplication through this script instead of a
+    // bare `npx jscpd` (#1286). Force-regenerated — arbiter-owned script.
+    writeFile(
+      resolvedPath(config.targetDir, 'scripts/check-duplication.mjs'),
+      renderTemplate('scripts/check-duplication.mjs.ejs', data),
+      { skipIfExists: false, dryRun: opts.dryRun },
+    ),
   ]
 
-  injectDevDependency(config.targetDir, 'jscpd', '^4.2.4', opts.dryRun)
+  // Exact pin: v5 is a Rust-binary rewrite shipped via platform
+  // optionalDependencies; a floating range would let unreviewed behavior
+  // drift into the governed project's gate (#1286).
+  injectDevDependency(config.targetDir, 'jscpd', '5.0.6', opts.dryRun)
 
   return { files }
 }

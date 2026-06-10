@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SECURITY/STRIDE.md'
 source_sha: '714dc1e21bd0c40fd5d9a54bfba555390f14823e'
-last_updated: '2026-06-09'
+last_updated: '2026-06-10'
 ---
 
 # STRIDE Threat Model — arbiter

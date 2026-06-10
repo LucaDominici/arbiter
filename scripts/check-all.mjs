@@ -225,7 +225,9 @@ if (isMain) {
     const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck
     docsCheck('docs:build', 'npm', ['run', 'docs:build'])
     runCheck('dead code', 'npx', ['knip'])
-    runCheck('duplication', 'npx', ['jscpd', '--silent'])
+    // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan
+    // under v5, making the gate vacuous on fileset drift (#1286).
+    runCheck('duplication', 'node', ['scripts/check-duplication.mjs'])
     runCheck('audit', 'npm', ['audit', '--audit-level=high'])
     runCheck('gitleaks', 'gitleaks', [
       'detect',

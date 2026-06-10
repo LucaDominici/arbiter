@@ -5,14 +5,18 @@
 // --update: one-way ratchet — only tighten metrics, never loosen.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { collectMetrics, countTodos, getCommit } from './debt-lib.mjs';
+import { collectMetrics, countTodos, getCommit, assertKeyParity } from './debt-lib.mjs';
 
 const updateMode = process.argv.includes('--update');
 const cwd = process.cwd();
 const BASELINE_FILE = resolve(cwd, 'scripts/debt-baseline.json');
 
 // ─── Collect current metrics ──────────────────────────────────────────────────
-const collected = collectMetrics(cwd);
+// Capture is an explicit human-invoked operation: a collector that RAN but
+// failed must abort the capture, or the baseline is born without that ratchet
+// metric (greenfield) — fail-closed.
+const collectionErrors = [];
+const collected = collectMetrics(cwd, collectionErrors);
 collected.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' };
 
 // ─── Load prior baseline (if --update mode) ───────────────────────────────────
@@ -58,6 +62,31 @@ for (const [key, current] of Object.entries(collected)) {
   } else {
     // Unknown direction — overwrite (no ratchet applicable).
     baseline.metrics[key] = current;
+  }
+}
+
+// ─── Collection-error guard ──────────────────────────────────────────────────
+if (collectionErrors.length > 0) {
+  for (const e of collectionErrors) {
+    process.stderr.write(`[arbiter] collection FAILURE for ${e.metric}: ${e.reason}\n`);
+  }
+  process.stderr.write('[arbiter] refusing to write baseline with failed collectors (fail-closed)\n');
+  process.exit(1);
+}
+
+// ─── Key-drop guard ──────────────────────────────────────────────────────────
+// A recapture (any mode) must never silently delete a metric the prior
+// baseline tracked — e.g. a jscpd hiccup would otherwise remove
+// duplicationPercentage and permanently disable the duplication ratchet.
+if (existsSync(BASELINE_FILE)) {
+  try {
+    const prior = JSON.parse(readFileSync(BASELINE_FILE, 'utf-8'));
+    assertKeyParity(prior.metrics ?? {}, baseline.metrics);
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      throw new Error(`Malformed baseline at ${BASELINE_FILE}: ${err.message}`);
+    }
+    throw err;
   }
 }
 

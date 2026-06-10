@@ -27,6 +27,10 @@ function writeFakeDebtLib(dir: string, collected: Record<string, unknown>) {
   const src = `export function collectMetrics(_cwd) { return ${JSON.stringify(collected)}; }
 export function countTodos(_cwd) { return 0; }
 export function getCommit(_cwd) { return 'testcommit'; }
+export function assertKeyParity(priorMetrics, nextMetrics) {
+  const dropped = Object.keys(priorMetrics ?? {}).filter((k) => !(k in (nextMetrics ?? {})));
+  if (dropped.length > 0) throw new Error('baseline recapture would drop metric(s): ' + dropped.join(', '));
+}
 `
   writeFileSync(join(dir, 'scripts', 'debt-lib.mjs'), src, 'utf-8')
 }

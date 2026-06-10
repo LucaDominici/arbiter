@@ -3,12 +3,17 @@
     enforces monotonic non-increase (Lehman's law of rising entropy). Juergens'09:
     INCONSISTENT clones — a fragment duplicated then edited in one copy but not the
     other — are the dangerous ones (latent bugs), so minTokens is kept low to surface
-    near-duplicates rather than only exact copies. Threshold scales with governance. -%>
+    near-duplicates rather than only exact copies. Threshold scales with governance.
+    jscpd v5 ignores the v4 `pattern` key (silent 0-file scan): the fileset lives in
+    `path` (read by the generated scripts and passed as positional CLI args — jscpd
+    itself disregards the key) plus the `format` filter. -%>
 {
   "threshold": <%= duplicationThreshold %>,
   "minTokens": 50,
   "reporters": ["json", "consoleFull"],
   "absolute": true,
+  "path": ["src"],
+  "format": ["typescript", "tsx", "javascript", "jsx"],
   "ignore": [
     "**/node_modules/**",
     "dist/**",
@@ -16,6 +21,5 @@
     "coverage/**",
     "**/__tests__/fixtures/**",
     "**/*.min.js"
-  ],
-  "pattern": "src/**/*.{ts,tsx,js,jsx,mjs}"
+  ]
 }

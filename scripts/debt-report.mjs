@@ -35,8 +35,23 @@ if (rawBaseline.version !== 2) {
 const baseline = rawBaseline
 
 // ─── Collect current metrics ──────────────────────────────────────────────────
-const current = collectMetrics(cwd)
+// collectionErrors receives tool-RAN-but-collection-failed events (distinct
+// from tool-not-installed soft-skips). In --gate mode these are hard failures:
+// treating them as "missing tool" would let fileset/config drift silently
+// disable a ratchet metric (#1286, fail-closed CANON-22).
+const collectionErrors = []
+const current = collectMetrics(cwd, collectionErrors)
 current.todoCount = { value: countTodos(cwd), unit: 'count', direction: 'lower-is-better' }
+
+if (collectionErrors.length > 0) {
+  for (const e of collectionErrors) {
+    process.stdout.write(`[arbiter] collection FAILURE for ${e.metric}: ${e.reason}\n`)
+  }
+  if (gateMode) {
+    process.stdout.write('[arbiter] ❌ debt gate FAILED: metric collection error (fail-closed)\n')
+    process.exit(1)
+  }
+}
 
 // ─── Compare ──────────────────────────────────────────────────────────────────
 const rows = []

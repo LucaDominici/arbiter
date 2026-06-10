@@ -499,7 +499,9 @@ if (level === 'L2') {
   runCheck('coverage threshold', 'npx', ['vitest', 'run', '--coverage', '--coverage.thresholds.lines=<%= coverageThreshold %>'], { soft: graceActive });
 <% } %>
   runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
-  runCheck('duplication', 'npx', ['jscpd', '--silent'], { soft: graceActive });
+  // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan
+  // under jscpd v5, making the gate vacuous on fileset drift.
+  runCheck('duplication', 'node', ['scripts/check-duplication.mjs'], { soft: graceActive });
   runCheck('circular deps', 'npx', ['madge', '--circular', '--extensions', 'ts,tsx,js,jsx', 'src'], { soft: graceActive });
   runCheck('arch boundaries', 'npm', ['run', 'check:arch'], { soft: graceActive });
 <% } %><% if (language === 'rust') { %>

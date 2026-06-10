@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/CONTRIBUTING.md'
 source_sha: '50c57fa6a7973fe512b2aac0679b7caa4575676b'
-last_updated: '2026-06-09'
+last_updated: '2026-06-10'
 ---
 
 # Contributing to arbiter

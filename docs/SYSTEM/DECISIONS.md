@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-07'
+last_review: '2026-06-10'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -110,3 +110,4 @@ related: []
 | 089 | [Collapse hand docs to SSOT-core + generated LLM-Wiki](../ADR/089-collapse-hand-docs-to-ssot-core-plus-generated-wiki.md) | Accepted | 2026-06-06 |
 | 090 | [Workflow Performance Budget](../ADR/090-workflow-performance-budget.md) | Accepted | 2026-06-07 |
 | 091 | [Single-Developer Exception Attestation (§11.10(k))](../ADR/091-single-dev-exception-attestation.md) | Accepted | 2026-06-07 |
+| 092 | [jscpd v5 Migration — Fail-Closed Duplication Gate](../ADR/092-jscpd-v5-fail-closed-duplication-gate.md) | Accepted | 2026-06-10 |

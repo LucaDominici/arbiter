@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/GAP.md'
 source_sha: '56256f0be4cc746d0f461690acfee3c330fc60a7'
-last_updated: '2026-06-09'
+last_updated: '2026-06-10'
 ---
 
 # GAP — arbiter gap register

@@ -2,7 +2,7 @@
 // Shared metric collection helpers used by capture-debt-baseline.mjs and debt-report.mjs.
 // Re-generate with: arbiter update
 import { spawnSync } from 'node:child_process'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 function run(cmd, args, opts) {
@@ -26,6 +26,113 @@ export function spawnOrSkip(name, tool, cmd, args, opts) {
     return null
   }
   return r
+}
+
+/**
+ * Fail-closed jscpd v5 scan (#1286). jscpd v5 silently ignores the config
+ * `pattern`/`path` keys and exits 0 on a 0-file scan, writing a 0% report —
+ * so the fileset MUST be passed as positional CLI args. `.jscpd.json#path`
+ * is the script-private SSOT for that fileset (jscpd itself disregards the
+ * key; this helper and check-duplication.mjs read it).
+ * A scan that ran but covered 0 sources is an ERROR, never a recorded 0%.
+ * @param {string} cwd
+ * @param {{spawn?: (cwd: string, args: string[]) => {status: number|null, stdout: string, stderr: string}}} [opts]
+ *   spawn is injectable for tests; production default shells `npx --no-install jscpd`.
+ * @returns {{error?: string, skipped?: boolean, legacyNoReport?: boolean, status?: number, sources?: number, percentage?: number}}
+ */
+export function jscpdScan(cwd, opts = {}) {
+  const configPath = resolve(cwd, '.jscpd.json')
+  let cfg
+  try {
+    cfg = JSON.parse(readFileSync(configPath, 'utf-8'))
+  } catch (err) {
+    return { error: `.jscpd.json unreadable at ${configPath}: ${err.message}` }
+  }
+  const paths = Array.isArray(cfg.path) ? cfg.path.filter((p) => typeof p === 'string' && p) : []
+  if (paths.length === 0) {
+    return {
+      error: cfg.pattern
+        ? 'legacy v4 .jscpd.json: `pattern` is silently ignored by jscpd v5 — ' +
+          'replace it with a "path" array (the scan fileset, passed as positional args). See #1286.'
+        : '.jscpd.json has no "path" array — required as the jscpd v5 fileset SSOT (#1286).',
+    }
+  }
+  // Without the json reporter, v5 exits 0 writing no report — indistinguishable
+  // from the v4 zero-clones case, so exit-0-plus-no-report could no longer be
+  // trusted as a v4 signal. Reject the config up front (fail-closed, #1286).
+  if (!Array.isArray(cfg.reporters) || !cfg.reporters.includes('json')) {
+    return {
+      error:
+        '.jscpd.json "reporters" must include "json" — the scan is parsed from report/jscpd-report.json (#1286).',
+    }
+  }
+  // Honor a custom `output` dir; default matches jscpd's `report/`.
+  const reportPath = resolve(
+    cwd,
+    typeof cfg.output === 'string' ? cfg.output : 'report',
+    'jscpd-report.json',
+  )
+  // Stale-report poisoning guard: a leftover report from a previous run must
+  // never be parsed as if it were produced by this invocation.
+  rmSync(reportPath, { force: true })
+  const spawn =
+    opts.spawn ??
+    ((dir, args) => {
+      const r = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', args, { cwd: dir })
+      return r === null ? null : r
+    })
+  const r = spawn(cwd, ['--no-install', 'jscpd', ...paths, '--silent'])
+  if (r === null) return { skipped: true }
+  if (!existsSync(reportPath)) {
+    if ((r.status ?? 0) === 0) {
+      // jscpd v4 writes the json report only when clones exist; v5 always
+      // writes it. Exit 0 + no report can only be a v4 binary (brownfield
+      // project not yet bumped) with zero clones.
+      return { legacyNoReport: true, status: 0 }
+    }
+    return { error: `jscpd failed (exit ${r.status}) and wrote no report — fail-closed (#1286)` }
+  }
+  let dup
+  try {
+    dup = JSON.parse(readFileSync(reportPath, 'utf-8'))
+  } catch (err) {
+    return { error: `jscpd report unreadable: ${err.message}` }
+  }
+  const total = dup.statistics?.total ?? {}
+  const sources = total.sources ?? 0
+  if (sources === 0) {
+    return {
+      error:
+        'jscpd scanned 0 source files — fileset/config drift; refusing to record 0% ' +
+        '(fail-closed, CANON-22 / #1286). Check .jscpd.json "path" entries exist.',
+      status: r.status ?? 0,
+    }
+  }
+  if (typeof total.percentage !== 'number') {
+    return {
+      error:
+        'jscpd report has no numeric statistics.total.percentage — schema drift; refusing to record 0% (#1286).',
+    }
+  }
+  return { status: r.status ?? 0, sources, percentage: total.percentage }
+}
+
+/**
+ * Baseline key-drop guard (#1286): a recapture must never silently delete a
+ * metric that the prior baseline tracked (e.g. a jscpd hiccup during capture
+ * would otherwise remove duplicationPercentage and disable the ratchet).
+ * New keys are always allowed.
+ * @param {Record<string, unknown>} priorMetrics
+ * @param {Record<string, unknown>} nextMetrics
+ */
+export function assertKeyParity(priorMetrics, nextMetrics) {
+  const dropped = Object.keys(priorMetrics ?? {}).filter((k) => !(k in (nextMetrics ?? {})))
+  if (dropped.length > 0) {
+    throw new Error(
+      `baseline recapture would drop metric(s): ${dropped.join(', ')} — ` +
+        'refusing to write (fail-closed). Fix the collector or remove the key deliberately.',
+    )
+  }
 }
 
 /**
@@ -89,9 +196,13 @@ export function getCommit(cwd) {
 /**
  * Collect TypeScript/JavaScript debt metrics.
  * @param {string} cwd
+ * @param {Array<{metric: string, reason: string}>} [collectionErrors]
+ *   Sink for tool-ran-but-collection-failed events (distinct from
+ *   tool-not-installed, which soft-skips). debt-report --gate hard-fails on
+ *   any entry (#1286, fail-closed).
  * @returns {Record<string, {value: number, unit: string, direction: string}>}
  */
-export function collectMetrics(cwd) {
+export function collectMetrics(cwd, collectionErrors = []) {
   const metrics = {}
 
   // ── Coverage (vitest json reporter) ───────────────────────────────────────
@@ -194,37 +305,26 @@ export function collectMetrics(cwd) {
   }
 
   // ── Duplication (jscpd) — CANON-22 DRY ratchet (Lehman entropy) ────────────
-  // jscpd writes report/jscpd-report.json (reporters configured in .jscpd.json);
-  // statistics.total.percentage is the duplicated-token ratio. The ratchet blocks
-  // any patch that raises it.
-  const jscpdRaw = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', ['jscpd', '--silent'], {
-    cwd,
-  })
-  if (jscpdRaw !== null) {
-    // jscpd writes report/jscpd-report.json ONLY when clones are found. So:
-    // report present → real value; exit 0 + no report → genuinely 0%; ran but
-    // failed with no report → OMIT the metric (ratchet skips) rather than record a
-    // false 0 that would mask duplication (fail-closed, CANON-22).
-    const reportPath = resolve(cwd, 'report', 'jscpd-report.json')
-    if (existsSync(reportPath)) {
-      try {
-        const dup = JSON.parse(readFileSync(reportPath, 'utf-8'))
-        metrics.duplicationPercentage = {
-          value: dup.statistics?.total?.percentage ?? 0,
-          unit: 'percent',
-          direction: 'lower-is-better',
-        }
-      } catch {
-        process.stderr.write(
-          '[baseline] warn: jscpd report unreadable — skipping duplicationPercentage\n',
-        )
-      }
-    } else if ((jscpdRaw.status ?? 0) === 0) {
+  // jscpdScan handles the v5 fileset contract (positional paths from
+  // .jscpd.json#path, stale-report cleanup, 0-source rejection). A scan that
+  // ran but failed is surfaced via collectionErrors so debt-report --gate can
+  // hard-fail instead of soft-skipping as "missing tool" (#1286, fail-closed).
+  {
+    const scan = jscpdScan(cwd)
+    if (scan.skipped) {
+      // npx/tooling absent on this machine — genuine soft-skip (ENOENT path).
+    } else if (scan.error) {
+      collectionErrors.push({ metric: 'duplicationPercentage', reason: scan.error })
+      process.stderr.write(`[baseline] ERROR: ${scan.error}\n`)
+    } else if (scan.legacyNoReport) {
+      // v4 binary, zero clones (v5 always writes the report) — genuinely 0%.
       metrics.duplicationPercentage = { value: 0, unit: 'percent', direction: 'lower-is-better' }
     } else {
-      process.stderr.write(
-        '[baseline] warn: jscpd failed with no report — skipping duplicationPercentage\n',
-      )
+      metrics.duplicationPercentage = {
+        value: scan.percentage,
+        unit: 'percent',
+        direction: 'lower-is-better',
+      }
     }
   }
 

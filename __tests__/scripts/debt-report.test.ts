@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -62,4 +62,409 @@ describe('debt-report.mjs (gate: debt ratchet enforcement)', () => {
   // runner) and environment-dependent. Both cases above early-return before
   // collectMetrics, giving fast, deterministic coverage of the script's own
   // guard logic; the metric-comparison path is exercised by the real gate run.
+})
+
+// ─── jscpdScan (#1286 — jscpd v5 fail-closed fileset contract) ────────────────
+// jscpd v5 silently ignores config `pattern`/`path` and exits 0 on a 0-file
+// scan, writing a 0% report. jscpdScan is the single fail-closed entrypoint:
+// fileset comes from `.jscpd.json#path` (script-private SSOT) passed as
+// positional args; a scan that ran but covered 0 sources is an ERROR, never a
+// recorded 0%. Spawn is injectable so these tests never shell to real jscpd.
+describe('jscpdScan (jscpd v5 fail-closed scan helper)', () => {
+  async function load() {
+    return await import('../../scripts/debt-lib.mjs')
+  }
+
+  function writeConfig(dir: string, cfg: Record<string, unknown>) {
+    writeFileSync(join(dir, '.jscpd.json'), JSON.stringify(cfg))
+  }
+
+  const okSpawn = (report: Record<string, unknown>, status = 0) => {
+    return (cwd: string) => {
+      mkdirSync(join(cwd, 'report'), { recursive: true })
+      writeFileSync(join(cwd, 'report', 'jscpd-report.json'), JSON.stringify(report))
+      return { status, stdout: '', stderr: '' }
+    }
+  }
+
+  it('errors when .jscpd.json is missing (fail-closed, no spawn)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      const res = jscpdScan(dir, {
+        spawn: () => {
+          throw new Error('must not spawn')
+        },
+      })
+      expect(res.error).toBeTruthy()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('errors with a migration message on legacy v4 config (`pattern`, no `path`)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { pattern: 'src/**/*.ts', reporters: ['json'] })
+      const res = jscpdScan(dir, {
+        spawn: () => {
+          throw new Error('must not spawn')
+        },
+      })
+      expect(res.error).toMatch(/path/)
+      expect(res.error).toMatch(/pattern/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes config paths as positional args with --no-install', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src', 'scripts'], reporters: ['json'] })
+      let seenArgs: string[] = []
+      jscpdScan(dir, {
+        spawn: (_cwd: string, args: string[]) => {
+          seenArgs = args
+          return okSpawn({ statistics: { total: { sources: 10, percentage: 1.0 } } })(dir)
+        },
+      })
+      expect(seenArgs).toContain('--no-install')
+      expect(seenArgs).toContain('src')
+      expect(seenArgs).toContain('scripts')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('removes a stale report before spawning (no stale-report poisoning)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'] })
+      mkdirSync(join(dir, 'report'), { recursive: true })
+      writeFileSync(
+        join(dir, 'report', 'jscpd-report.json'),
+        JSON.stringify({ statistics: { total: { sources: 999, percentage: 9.9 } } }),
+      )
+      // spawn fails AND writes no report — the stale 999-source report must not be parsed
+      const res = jscpdScan(dir, {
+        spawn: () => ({ status: 2, stdout: '', stderr: 'boom' }),
+      })
+      expect(res.error).toBeTruthy()
+      expect(res.sources).toBeUndefined()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('treats a 0-source scan as an ERROR, never a 0% value (fail-closed, CANON-22)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'] })
+      const res = jscpdScan(dir, {
+        spawn: okSpawn({ statistics: { total: { sources: 0, percentage: 0 } } }),
+      })
+      expect(res.error).toBeTruthy()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('returns sources + percentage on a healthy scan', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'] })
+      const res = jscpdScan(dir, {
+        spawn: okSpawn({ statistics: { total: { sources: 458, percentage: 1.39 } } }),
+      })
+      expect(res.error).toBeUndefined()
+      expect(res.sources).toBe(458)
+      expect(res.percentage).toBeCloseTo(1.39)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('passes a threshold breach through (exit 1 + valid report ≠ error)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'] })
+      const res = jscpdScan(dir, {
+        spawn: okSpawn({ statistics: { total: { sources: 100, percentage: 7.2 } } }, 1),
+      })
+      expect(res.error).toBeUndefined()
+      expect(res.status).toBe(1)
+      expect(res.sources).toBe(100)
+      expect(res.percentage).toBeCloseTo(7.2)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('errors when reporters lack "json" (exit-0-no-report would be unclassifiable)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['consoleFull'] })
+      const res = jscpdScan(dir, {
+        spawn: () => {
+          throw new Error('must not spawn')
+        },
+      })
+      expect(res.error).toMatch(/json/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('honors a custom `output` dir for the report (no false legacyNoReport)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'], output: 'custom-out' })
+      const res = jscpdScan(dir, {
+        spawn: (cwd: string) => {
+          mkdirSync(join(cwd, 'custom-out'), { recursive: true })
+          writeFileSync(
+            join(cwd, 'custom-out', 'jscpd-report.json'),
+            JSON.stringify({ statistics: { total: { sources: 42, percentage: 2.5 } } }),
+          )
+          return { status: 0, stdout: '', stderr: '' }
+        },
+      })
+      expect(res.error).toBeUndefined()
+      expect(res.sources).toBe(42)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('errors on report-schema drift (sources > 0 but no numeric percentage)', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'] })
+      const res = jscpdScan(dir, {
+        spawn: okSpawn({ statistics: { total: { sources: 100 } } }),
+      })
+      expect(res.error).toMatch(/percentage/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('flags v4-binary semantics (exit 0, no report) as legacyNoReport', async () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'] })
+      const res = jscpdScan(dir, {
+        spawn: () => ({ status: 0, stdout: '', stderr: '' }),
+      })
+      expect(res.legacyNoReport).toBe(true)
+      expect(res.error).toBeUndefined()
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// ─── assertKeyParity (#1286 — baseline recapture must never drop metrics) ────
+describe('assertKeyParity (baseline key-drop guard)', () => {
+  it('throws when a previously-present metric key would be dropped', async () => {
+    const { assertKeyParity } = await import('../../scripts/debt-lib.mjs')
+    expect(() =>
+      assertKeyParity(
+        { duplicationPercentage: { value: 1.36 }, deadCode: { value: 0 } },
+        { deadCode: { value: 0 } },
+      ),
+    ).toThrow(/duplicationPercentage/)
+  })
+
+  it('passes when key sets are preserved (new keys allowed)', async () => {
+    const { assertKeyParity } = await import('../../scripts/debt-lib.mjs')
+    expect(() =>
+      assertKeyParity(
+        { deadCode: { value: 0 } },
+        { deadCode: { value: 0 }, duplicationPercentage: { value: 1.39 } },
+      ),
+    ).not.toThrow()
+  })
+})
+
+// ─── self .jscpd.json fileset (#1286) ─────────────────────────────────────────
+describe('self .jscpd.json (jscpd v5 fileset SSOT)', () => {
+  it('carries the v5 path/format fileset and no v4 pattern', () => {
+    const cfg = JSON.parse(readFileSync(resolve('.jscpd.json'), 'utf-8'))
+    expect(cfg.pattern).toBeUndefined()
+    expect(cfg.path).toEqual(['src', 'scripts', '.claude/hooks'])
+    expect(cfg.format).toContain('typescript')
+    expect(cfg.format).toContain('javascript')
+    expect(cfg.ignore).toContain('__tests__/fixtures/**')
+    expect(cfg.ignore).toContain('src/templates/**')
+  })
+})
+
+// ─── check-duplication.mjs (#1286 — hard fail-closed duplication gate) ───────
+describe('check-duplication.mjs (fail-closed duplication gate)', () => {
+  const GATE = resolve('scripts/check-duplication.mjs')
+
+  function runGate(cwd: string) {
+    const r = spawnSync('node', [GATE], { encoding: 'utf-8', cwd })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+  }
+
+  it('exits 1 when .jscpd.json is missing (fail-closed)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const result = runGate(dir)
+      expect(result.status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 with a migration hint on a legacy v4 config (pattern, no path)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeFileSync(join(dir, '.jscpd.json'), JSON.stringify({ pattern: 'src/**/*.ts' }))
+      const result = runGate(dir)
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).toMatch(/path/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // Fake-npx shim: writes a crafted report and exits with the given status,
+  // letting us exercise the post-spawn gate branches without live jscpd.
+  function installNpxShim(dir: string, report: Record<string, unknown>, exitCode: number) {
+    const binDir = join(dir, 'fake-bin')
+    mkdirSync(binDir, { recursive: true })
+    const shim = join(binDir, 'npx')
+    writeFileSync(
+      shim,
+      `#!/bin/sh\nmkdir -p report\ncat > report/jscpd-report.json <<'JSON'\n${JSON.stringify(report)}\nJSON\nexit ${exitCode}\n`,
+    )
+    spawnSync('chmod', ['+x', shim])
+    return binDir
+  }
+
+  function runGateWithShim(cwd: string, binDir: string) {
+    const r = spawnSync('node', [GATE], {
+      encoding: 'utf-8',
+      cwd,
+      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}` },
+    })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+  }
+
+  it('exits 1 on threshold breach (jscpd exit 1 with a valid report)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeFileSync(
+        join(dir, '.jscpd.json'),
+        JSON.stringify({ path: ['src'], reporters: ['json'] }),
+      )
+      const binDir = installNpxShim(
+        dir,
+        { statistics: { total: { sources: 100, percentage: 7.2 } } },
+        1,
+      )
+      const result = runGateWithShim(dir, binDir)
+      expect(result.status).toBe(1)
+      expect(result.stdout).toMatch(/over threshold/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 with an OK line on a healthy under-threshold scan', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeFileSync(
+        join(dir, '.jscpd.json'),
+        JSON.stringify({ path: ['src'], reporters: ['json'] }),
+      )
+      const binDir = installNpxShim(
+        dir,
+        { statistics: { total: { sources: 459, percentage: 1.39 } } },
+        0,
+      )
+      const result = runGateWithShim(dir, binDir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toMatch(/\[duplication\] OK/)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
+// ─── debt-report --gate hard-fail on collection errors (#1286) ───────────────
+describe('debt-report.mjs --gate (fail-closed on collection errors)', () => {
+  function setupTempProject(dir: string) {
+    const scriptsDir = join(dir, 'scripts')
+    mkdirSync(scriptsDir, { recursive: true })
+    writeFileSync(
+      join(scriptsDir, 'debt-baseline.json'),
+      JSON.stringify({
+        version: 2,
+        capturedAt: '2026-01-01T00:00:00Z',
+        commit: 'abc1234',
+        archetype: 'library',
+        metrics: {
+          duplicationPercentage: { value: 1.36, unit: 'percent', direction: 'lower-is-better' },
+        },
+      }),
+    )
+    // Legacy v4 jscpd config: jscpdScan errors BEFORE any spawn → deterministic
+    // collection failure without live tools.
+    writeFileSync(join(dir, '.jscpd.json'), JSON.stringify({ pattern: 'src/**/*.ts' }))
+    // Fast no-op npx shim so the other collectMetrics tools (vitest/eslint/
+    // tsc/knip) fail instantly instead of fetching/running for real.
+    const binDir = join(dir, 'fake-bin')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(binDir, 'npx'), '#!/bin/sh\nexit 1\n')
+    spawnSync('chmod', ['+x', join(binDir, 'npx')])
+    return binDir
+  }
+
+  function runReport(cwd: string, binDir: string, args: string[]) {
+    const r = spawnSync('node', [SCRIPT, ...args], {
+      encoding: 'utf-8',
+      cwd,
+      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}` },
+    })
+    return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
+  }
+
+  it('exits 1 in --gate mode when jscpd ran but collection failed (config drift)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = setupTempProject(dir)
+      const result = runReport(dir, binDir, ['--gate'])
+      expect(result.status).toBe(1)
+      expect(result.stdout).toMatch(/collection FAILURE for duplicationPercentage/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 without --gate (report-only mode warns, never fails)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      const binDir = setupTempProject(dir)
+      const result = runReport(dir, binDir, [])
+      expect(result.status).toBe(0)
+      expect(result.stdout).toMatch(/collection FAILURE/)
+    } finally {
+      cleanup()
+    }
+  })
 })
