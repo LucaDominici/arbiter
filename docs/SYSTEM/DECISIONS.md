@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-10'
+last_review: '2026-06-11'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -111,3 +111,4 @@ related: []
 | 090 | [Workflow Performance Budget](../ADR/090-workflow-performance-budget.md) | Accepted | 2026-06-07 |
 | 091 | [Single-Developer Exception Attestation (§11.10(k))](../ADR/091-single-dev-exception-attestation.md) | Accepted | 2026-06-07 |
 | 092 | [jscpd v5 Migration — Fail-Closed Duplication Gate](../ADR/092-jscpd-v5-fail-closed-duplication-gate.md) | Accepted | 2026-06-10 |
+| 093 | [Dual-Side the /ship Orchestrator](../ADR/093-dual-side-ship-orchestrator.md) | proposed | 2026-06-11 |
