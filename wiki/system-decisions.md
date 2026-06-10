@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/SYSTEM/DECISIONS.md'
-source_sha: '51d8b949542a6f773ef1c9c37e394ec3181900bd'
+source_sha: 'e5302e5e7ea5dc0709a27fff179b00cac0bc29c2'
 last_updated: '2026-06-10'
 ---
 
