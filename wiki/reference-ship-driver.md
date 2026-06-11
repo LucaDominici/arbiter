@@ -1,13 +1,14 @@
 ---
-title: 'Reference: Ship Driver (generated)'
-doc_version: '1.0.0'
-status: active
-last_review: '2026-06-11'
-owner: ''
-canonical_id: ''
-tags: ['audience/dev', 'kind/reference']
-related: ['088-ship-as-orchestration-entrypoint']
+generated: true
+source: 'docs/REFERENCE/ship-driver.md'
+source_sha: 'ad1644a5e94c4c94f78d3cb601bb5e5516b5e4ed'
+last_updated: '2026-06-11'
 ---
+
+# Reference: Ship Driver (generated)
+
+> **Non-authoritative:** This page is compiled from source. On conflict, the SSOT source wins.
+> Source: [docs/REFERENCE/ship-driver.md](../docs/REFERENCE/ship-driver.md)
 
 # Reference: Ship Driver (generated)
 

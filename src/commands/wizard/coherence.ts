@@ -14,6 +14,8 @@
  * OK       → no message.
  */
 import type { CollaborationMode, GovernanceLevel } from '../../wizard/types.js'
+import { AUTONOMY_LEVELS } from '../../config/schema.js'
+import type { AutonomyLevel } from '../../config/schema.js'
 
 export type CoherenceSeverity = 'OK' | 'WARN' | 'CRITICAL'
 
@@ -169,6 +171,68 @@ export function validateOverlayCoherence(
         `industryOverlay='${overlay}' is a compliance overlay but governanceLevel=${level} does not ` +
         `activate the debt + security-scan gates it complements. Recommended: raise governanceLevel ` +
         `to ${MEDIUM_MIN_LEVEL}+ so the overlay's controls are backed by enforced gates.`,
+    }
+  }
+  return { valid: true, severity: 'OK', message: '' }
+}
+
+// ── #1292: automation.autonomy × governanceLevel × CI coherence (ADR-093 §4) ─
+//
+// Third coherence axis. L3 (full-auto wave + fix-on-red autopush) is only
+// coherent when (a) CI exists — without a red signal the wave cannot verify its
+// own pushes — and (b) governance stays below L4, whose human-approval mandate
+// (ADR-050) the autonomous autopush would bypass. The matrix stays EXACTLY at
+// the ADR boundary: L4 governance + L2 autonomy is the intended regulated
+// workflow, not a warning.
+
+/**
+ * Validate an (automation.autonomy × governanceLevel × hasCi) cell.
+ *
+ * `autonomy` is accepted as a raw string because the doctor path reads
+ * arbiter.json with a plain JSON.parse (no validateConfig): an unrecognized
+ * literal is config drift surfaced as WARN, never a crash. Membership is
+ * checked against `AUTONOMY_LEVELS` from the config schema — single source.
+ *
+ * - L3 + no CI            → CRITICAL (wave cannot verify; ADR-093 §4).
+ * - governance L4 + L3    → CRITICAL (human-in-loop control violated).
+ * - unrecognized literal  → WARN (run `arbiter update`).
+ * - everything else       → OK.
+ */
+export function validateAutonomyCoherence(
+  autonomy: string,
+  level: GovernanceLevel,
+  hasCi: boolean,
+): CoherenceResult {
+  if (!(AUTONOMY_LEVELS as readonly string[]).includes(autonomy)) {
+    return {
+      valid: true,
+      severity: 'WARN',
+      message:
+        `automation.autonomy='${autonomy}' is not a recognized autonomy level ` +
+        `(${AUTONOMY_LEVELS.join('|')}) — run \`arbiter update\` to repair the automation block.`,
+    }
+  }
+  const a = autonomy as AutonomyLevel
+  if (a === 'L3' && !hasCi) {
+    return {
+      valid: false,
+      severity: 'CRITICAL',
+      message:
+        'automation.autonomy=L3 (full-auto wave) requires CI: without a red signal ' +
+        'the wave cannot verify its own pushes (ADR-093 §4).',
+      remediation:
+        'Set automation.autonomy to L2 or lower, or enable CI ' +
+        '(add a workflow file under .github/workflows/).',
+    }
+  }
+  if (level === 'L4' && a === 'L3') {
+    return {
+      valid: false,
+      severity: 'CRITICAL',
+      message:
+        'governanceLevel=L4 mandates human approval (ADR-050); automation.autonomy=L3 ' +
+        'autonomous fix-on-red autopush violates the human-in-loop control.',
+      remediation: 'Set automation.autonomy to L2 or lower, or downgrade governanceLevel.',
     }
   }
   return { valid: true, severity: 'OK', message: '' }

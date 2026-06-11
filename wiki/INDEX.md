@@ -48,6 +48,7 @@ last_updated: '2026-06-11'
 - [[reference-local-wrapper-contract]]
 - [[reference-plan-template]]
 - [[reference-resilience]]
+- [[reference-ship-driver]]
 - [[reference-stack-adapter-contract]]
 - [[reference-state-file]]
 - [[reference-supply-chain]]

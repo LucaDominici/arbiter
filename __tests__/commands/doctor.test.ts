@@ -124,6 +124,117 @@ describe('runDoctorHealth (#539)', () => {
     expect(result.fail).toBe(0)
   })
 
+  // #1292 (ADR-093 §4): automation.autonomy × governanceLevel × CI coherence.
+  function writeWorkflow(root: string): void {
+    mkdirSync(join(root, '.github', 'workflows'), { recursive: true })
+    writeFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'name: ci\n')
+  }
+
+  it('autonomy-coherence FAIL + exit 1 for L3 autonomy without CI, message names the fix', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ governanceLevel: 'L2', automation: { autonomy: 'L3' } }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('FAIL')
+    expect(c?.detail).toMatch(/CI/)
+    expect(c?.hint).toMatch(/L2|CI/)
+    expect(result.exitCode).toBe(1)
+  })
+
+  it('autonomy-coherence FAIL + exit 1 for governance L4 + autonomy L3 even with CI', async () => {
+    mockGitOk()
+    writeWorkflow(dir)
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ governanceLevel: 'L4', automation: { autonomy: 'L3' } }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('FAIL')
+    expect(result.exitCode).toBe(1)
+  })
+
+  it('autonomy-coherence PASS for governance L4 + autonomy L2 (exactly the ADR boundary)', async () => {
+    mockGitOk()
+    writeWorkflow(dir)
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ governanceLevel: 'L4', automation: { autonomy: 'L2' } }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('autonomy-coherence PASS for L3 with workflow files on disk even when useGitHub is false', async () => {
+    mockGitOk()
+    writeWorkflow(dir)
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ governanceLevel: 'L2', useGitHub: false, automation: { autonomy: 'L3' } }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('autonomy-coherence FAIL for L3 + useGitHub:true + EMPTY workflows dir (flag never rescues)', async () => {
+    mockGitOk()
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ governanceLevel: 'L2', useGitHub: true, automation: { autonomy: 'L3' } }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('FAIL')
+    expect(result.exitCode).toBe(1)
+  })
+
+  it('autonomy-coherence WARN for autonomy <= L2 + useGitHub:true + empty workflows dir (drift)', async () => {
+    mockGitOk()
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ governanceLevel: 'L2', useGitHub: true, automation: { autonomy: 'L2' } }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('WARN')
+    expect(result.fail).toBe(0)
+  })
+
+  it('autonomy-coherence PASS when the automation block is absent (defaults to L0)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('autonomy-coherence WARN for an unrecognized autonomy literal ("l3")', async () => {
+    mockGitOk()
+    writeWorkflow(dir)
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ governanceLevel: 'L2', automation: { autonomy: 'l3' } }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('WARN')
+  })
+
+  it('autonomy-coherence WARN (never PASS) when arbiter.json is unreadable', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), '{not json', 'utf-8')
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'autonomy-coherence')
+    expect(c?.status).toBe('WARN')
+  })
+
   it('WARN when arbiter.json exists but AGENTS.md missing', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')
