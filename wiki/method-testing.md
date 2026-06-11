@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/TESTING.md'
 source_sha: 'de7f025c9b8ea3df82bc36595839df6312ceeeb0'
-last_updated: '2026-06-10'
+last_updated: '2026-06-11'
 ---
 
 # Testing — arbiter

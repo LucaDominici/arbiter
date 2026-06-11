@@ -380,3 +380,61 @@ describe('readBoundedLog — RT-06b/11', () => {
     expect(out).toContain('tail-wins')
   })
 })
+
+// ─── #1291 — autonomy gating on the fix decision ──────────────────────────────
+
+describe('evaluateRed autonomy gating (#1291)', () => {
+  const base = { taskId: '#1291', checkName: 'unit-test', log: 'TypeError: x\n', now: NOW }
+
+  it('L3 authorizes autopush and keeps the reproduce floor text', () => {
+    const d = evaluateRed({ ...base, repoDir: dir, autonomy: 'L3' })
+    expect(d.kind).toBe('fix')
+    if (d.kind === 'fix') {
+      expect(d.autopush).toBe(true)
+      expect(d.nextAction.toLowerCase()).toContain('reproduce')
+    }
+  })
+
+  it.each(['L0', 'L1', 'L2'] as const)('%s refuses autopush (hand to human)', (autonomy) => {
+    const d = evaluateRed({ ...base, repoDir: dir, autonomy })
+    expect(d.kind).toBe('fix')
+    if (d.kind === 'fix') {
+      expect(d.autopush).toBe(false)
+      expect(d.nextAction.toLowerCase()).toContain('hand the fix to the human')
+    }
+  })
+
+  it.each(['L0', 'L1'] as const)(
+    '%s prefixes ASK-the-human before applying (RT-H1)',
+    (autonomy) => {
+      const d = evaluateRed({ ...base, repoDir: dir, autonomy })
+      if (d.kind === 'fix') expect(d.nextAction).toMatch(/^ASK the human before applying this fix/)
+    },
+  )
+
+  it('L2 does not carry the ASK prefix (autonomous attempt)', () => {
+    const d = evaluateRed({ ...base, repoDir: dir, autonomy: 'L2' })
+    if (d.kind === 'fix') expect(d.nextAction).not.toMatch(/^ASK the human/)
+  })
+
+  it('default (no autonomy passed) behaves as L0', () => {
+    const d = evaluateRed({ ...base, repoDir: dir })
+    if (d.kind === 'fix') {
+      expect(d.autopush).toBe(false)
+      expect(d.nextAction).toMatch(/^ASK the human/)
+    }
+  })
+
+  it('floor invariance: escalation decisions are identical across all levels', () => {
+    const results = (['L0', 'L1', 'L2', 'L3'] as const).map((autonomy) => {
+      const sub = join(dir, `esc-${autonomy}`)
+      mkdirSync(sub, { recursive: true })
+      const opts = { ...base, repoDir: sub, autonomy }
+      evaluateRed(opts) // strike 1
+      return evaluateRed(opts) // strike 2 → escalate
+    })
+    for (const r of results) expect(r.kind).toBe('escalate')
+    const texts = new Set(results.map((r) => r.nextAction))
+    expect(texts.size).toBe(1)
+  })
+})

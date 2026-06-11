@@ -20,6 +20,7 @@ import { sizeVerticals } from '../sizing/sizing.js'
 import { formatSizeLines, type ResolvedSize } from '../sizing/diff-signals.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
 import {
+  autonomyAllows,
   type ShipProfile,
   CONSUMER_DEFAULT_PROFILE,
   SELF_ONLY_GATES,
@@ -231,6 +232,8 @@ export interface TaskShipOptions {
   dir?: string
   taskId?: string
   tier?: string
+  /** #1291 — per-run --autonomy override (flag > arbiter.json automation.autonomy > L0). */
+  autonomy?: string
   /** Advance to the next phase first (runs that phase's gate; throws if the gate is red). */
   advance?: boolean
   /** Bubble handoff/budget control-flow to the caller instead of being swallowed. */
@@ -267,6 +270,14 @@ export function buildShipStepLines(result: ShipResult, size: ResolvedSize): stri
   // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
   // consumer of the field, so the read is honest and not dead config).
   lines.push(`Governance: ${result.profile.governanceLevel}`)
+  // #1291 — the resolved autonomy level travels with every step so the driver
+  // (and a human reading the banner) sees which behaviors are authorized.
+  lines.push(`Autonomy: ${result.profile.autonomy}`)
+  if (result.phase === 'complete' && !autonomyAllows(result.profile.autonomy, 'auto-merge')) {
+    lines.push(
+      'Autonomy gate: STOP — merging requires a human at L0 (set automation.autonomy or pass --autonomy).',
+    )
+  }
   // Self-only authoring gates only — printed iff non-empty so a consumer repo NEVER shows a
   // header for gates it does not run (RT-06: skipped, not faked).
   const selfOnly = result.step.selfOnlyChecks ?? []
@@ -310,7 +321,10 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
-  const profile = resolveShipProfile(root)
+  const profile = resolveShipProfile(
+    root,
+    opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {},
+  )
 
   let advanced = false
   if (opts.advance) {

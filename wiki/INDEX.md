@@ -1,6 +1,6 @@
 ---
 generated: true
-last_updated: '2026-06-10'
+last_updated: '2026-06-11'
 ---
 
 # Wiki Index
@@ -41,6 +41,7 @@ last_updated: '2026-06-10'
 - [[reference-evidence-schema]]
 - [[reference-external-kit-sources]]
 - [[reference-file-stability]]
+- [[reference-fix-on-red]]
 - [[reference-gdpr-overlay]]
 - [[reference-iso27001-overlay]]
 - [[reference-iso9001-overlay]]

@@ -232,6 +232,8 @@ export interface FixDecision {
   signature: string
   attempt: number
   nextAction: string
+  /** #1291 — true ONLY at autonomy L3: the driver may push the fix without a human. */
+  autopush: boolean
 }
 export interface EscalateDecision {
   kind: 'escalate'
@@ -282,9 +284,13 @@ export function recordFailure(
           signature,
           attempt: count,
           nextAction: `${REPRODUCE_ACTION} of ${signature}.`,
+          autopush: false,
         }
   return { state: nextState, decision }
 }
+
+/** Autonomy levels the fix decision is gated on (#1291, ADR-093 §4). */
+export type FixAutonomy = 'L0' | 'L1' | 'L2' | 'L3'
 
 export interface EvaluateRedOptions {
   taskId: string
@@ -292,6 +298,12 @@ export interface EvaluateRedOptions {
   log: string
   repoDir: string
   now?: string
+  /**
+   * #1291 — resolved autonomy level; default L0 (ask each step). Gates ONLY the
+   * fix decision (ASK-prefix below L2, autopush at L3). Escalation paths never
+   * consult it — the 2-strike floor cannot be granted away.
+   */
+  autonomy?: FixAutonomy
 }
 
 /**
@@ -313,7 +325,29 @@ export function evaluateRed(opts: EvaluateRedOptions): Decision {
   } catch (err) {
     return uncertain(`could not persist attempt: ${errText(err)}`, parsed.signature)
   }
-  return decision
+  return applyAutonomy(decision, opts.autonomy ?? 'L0')
+}
+
+/**
+ * #1291 — gate the FIX decision on the autonomy level. The reproduce-before-push
+ * floor text is always present; below L3 the push is handed to a human; below L2
+ * even APPLYING the fix needs a human go (ask-on-risky, ADR-093 L1). Escalation
+ * decisions pass through untouched at every level.
+ */
+function applyAutonomy(decision: Decision, autonomy: FixAutonomy): Decision {
+  if (decision.kind !== 'fix') return decision
+  if (autonomy === 'L3') {
+    return { ...decision, autopush: true }
+  }
+  const handOff = `${decision.nextAction} Do not push autonomously — hand the fix to the human for push approval.`
+  if (autonomy === 'L2') {
+    return { ...decision, autopush: false, nextAction: handOff }
+  }
+  return {
+    ...decision,
+    autopush: false,
+    nextAction: `ASK the human before applying this fix — ${handOff}`,
+  }
 }
 
 /** Fail-closed escalation when the signature, the stored count, or the persist is uncertain. */

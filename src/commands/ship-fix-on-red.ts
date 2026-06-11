@@ -8,6 +8,7 @@
 import { evaluateRed, readBoundedLog, type Decision } from '../ship/fix-on-red.js'
 import { readTaskId } from './task-state.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
+import { resolveShipProfile } from './ship-profile.js'
 
 export interface ShipFixOnRedOptions {
   /** The gate/check that went red (e.g. `lint`, `unit-test`, `jscpd`). */
@@ -16,6 +17,8 @@ export interface ShipFixOnRedOptions {
   logFile: string
   /** Task id override; falls back to the active task state. */
   id?: string
+  /** #1291 — per-run autonomy override; resolution: flag > arbiter.json > L0. */
+  autonomy?: string
   dir?: string
 }
 
@@ -45,6 +48,12 @@ export function formatDecisionLines(decision: Decision): string[] {
     `Attempt: ${attempt}`,
     `Next: ${decision.nextAction}`,
   ]
+  // #1291 — the driver obeys PRINTED text; the autopush authorization must be visible.
+  if (decision.kind === 'fix') {
+    lines.push(
+      `Autopush: ${decision.autopush ? 'authorized (autonomy L3)' : 'refused — hand the push to a human'}`,
+    )
+  }
   if (decision.kind === 'escalate-uncertain') lines.push(`Reason: ${decision.reason}`)
   return lines
 }
@@ -74,6 +83,17 @@ export function runShipFixOnRed(
       reason: `cannot read --log-file ${opts.logFile}: ${err instanceof Error ? err.message : String(err)}`,
     }
   }
-  const decision = evaluateRed({ taskId, checkName: opts.check, log, repoDir: dir })
+  // #1291 — resolve the autonomy level from the target repo (flag > config > L0).
+  const profile = resolveShipProfile(
+    dir,
+    opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {},
+  )
+  const decision = evaluateRed({
+    taskId,
+    checkName: opts.check,
+    log,
+    repoDir: dir,
+    autonomy: profile.autonomy,
+  })
   return { ok: true, decision, lines: formatDecisionLines(decision) }
 }

@@ -38,5 +38,8 @@
   "$schemaVersion": 4,
   "kit": {
     "measure": {}
+  },
+  "automation": {
+    "autonomy": "L3"
   }
 }
