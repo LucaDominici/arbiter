@@ -529,6 +529,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter review`         | Review artefacts (plans, code) against governance invariants                    |
 | `arbiter settings`       | List every settable arbiter.json path with its current value (#1121)            |
 | `arbiter ship`           | —                                                                               |
+| `arbiter ship-on-red`    | —                                                                               |
 | `arbiter skill-eval`     | Regression-eval harness for arbiter's own skills/commands (#1264)               |
 | `arbiter task`           | Manage task lifecycle state                                                     |
 | `arbiter trace`          | —                                                                               |
@@ -758,6 +759,13 @@ List every settable arbiter.json path with its current value (#1121).
 - `--json` — Emit machine-readable JSON output
 
 ## arbiter ship
+
+## arbiter ship-on-red
+
+**Options:**
+
+- `--id <id>` — Task id (e.g. #1289); defaults to the active task
+- `--dir <dir>` — Target directory (default: current directory)
 
 ## arbiter skill-eval
 

@@ -38,6 +38,7 @@ import type { TaskPhase } from './commands/task.js'
 import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
 import { shipAffinityLines } from './affinity/gh-issues.js'
+import { runShipFixOnRed } from './commands/ship-fix-on-red.js'
 import { resolveShipTier } from './sizing/diff-signals.js'
 import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -1407,6 +1408,31 @@ program
       }
     },
   )
+
+program
+  .command('ship-on-red')
+  .description(
+    'Fix-on-red engine surface (#1289): compute the next action for a red gate — ' +
+      'fix (with reproduce-before-push) on the first strike, escalate to needs-human on the second',
+  )
+  .requiredOption('--check <name>', 'The gate/check that went red (slug, e.g. unit-test)')
+  .requiredOption('--log-file <path>', 'Path to the captured failed-gate log')
+  .option('--id <id>', 'Task id (e.g. #1289); defaults to the active task')
+  .option('--dir <dir>', 'Target directory (default: current directory)')
+  .action((opts: { check: string; logFile: string; id?: string; dir?: string }) => {
+    const result = runShipFixOnRed({
+      check: opts.check,
+      logFile: opts.logFile,
+      ...(opts.id !== undefined ? { id: opts.id } : {}),
+      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    })
+    if (result.ok) {
+      process.stdout.write(result.lines.join('\n') + '\n')
+    } else {
+      process.stderr.write(`ship-on-red: FAIL — ${result.reason}\n`)
+      process.exit(1)
+    }
+  })
 
 const plugin = program
   .command('plugin')
