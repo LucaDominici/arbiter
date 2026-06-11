@@ -112,3 +112,4 @@ related: []
 | 091 | [Single-Developer Exception Attestation (§11.10(k))](../ADR/091-single-dev-exception-attestation.md) | Accepted | 2026-06-07 |
 | 092 | [jscpd v5 Migration — Fail-Closed Duplication Gate](../ADR/092-jscpd-v5-fail-closed-duplication-gate.md) | Accepted | 2026-06-10 |
 | 093 | [Dual-Side the /ship Orchestrator](../ADR/093-dual-side-ship-orchestrator.md) | proposed | 2026-06-11 |
+| 094 | [Project Profile Resolver — one catalog + one precedence layer](../ADR/094-project-profile-resolver.md) | proposed | 2026-06-11 |
