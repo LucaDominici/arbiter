@@ -19,6 +19,12 @@ import { runTaskAdvance } from './task.js'
 import { sizeVerticals } from '../sizing/sizing.js'
 import { formatSizeLines, type ResolvedSize } from '../sizing/diff-signals.js'
 import { sanitizeTaskId } from '../worktree/paths.js'
+import {
+  type ShipProfile,
+  CONSUMER_DEFAULT_PROFILE,
+  SELF_ONLY_GATES,
+  resolveShipProfile,
+} from './ship-profile.js'
 
 /**
  * #1280 — normalize the positional ship id to the canonical `#NNN` form ONCE at parse.
@@ -66,18 +72,55 @@ export interface ShipStep {
    * (it equals `sizeVerticals(tier)`). Present on every step so it travels end-to-end.
    */
   verticals: string[]
+  /**
+   * #1288 — arbiter authoring-side gates that run in this phase and are self-only-forever
+   * (ADR-093 §5: template-authoring / selfOnly invariants / matrix-fixtures). Populated ONLY
+   * for the arbiter repo itself; OMITTED (empty) for a consumer repo, where those concerns do
+   * not exist — skipped, not faked (INV-115). Only the `verification` phase carries any.
+   */
+  selfOnlyChecks?: string[]
 }
 
-/** The concrete step for a given phase + tier. Size (tier) drives BOTH `reviewAgents` and `verticals`. */
-export function shipStepFor(phase: TaskPhase, tier: string | undefined): ShipStep {
+/**
+ * The concrete step for a given phase + tier + ship profile. Size (tier) drives BOTH
+ * `reviewAgents` and `verticals`; the #1288 profile drives the config-aware `complete` merge
+ * action and the self-only authoring gates on `verification`. The profile defaults to the
+ * consumer-safe profile so a profile-blind caller never leaks a self-only gate (RT-07).
+ */
+export function shipStepFor(
+  phase: TaskPhase,
+  tier: string | undefined,
+  profile: ShipProfile = CONSUMER_DEFAULT_PROFILE,
+): ShipStep {
   const t = normTier(tier)
   const verticals = sizeVerticals(t)
   const withVerticals = (step: Omit<ShipStep, 'verticals'>): ShipStep => ({ ...step, verticals })
-  return withVerticals(shipStepBody(phase, t))
+  return withVerticals(shipStepBody(phase, t, profile))
+}
+
+/**
+ * The (collaborationMode × mergeMode) merge next-action (#1288 RT-02). A review mode
+ * (peer-review / gated-review) ALWAYS requires a PR + human review — even if the user
+ * persisted `solo.mergeMode:'direct'`, which would otherwise silently bypass the very review
+ * the mode mandates. Only trunk-solo keys on mergeMode. Strings are strictly advisory and route
+ * through the project gate — the engine never performs the merge itself.
+ */
+function completeAction(profile: ShipProfile): string {
+  if (profile.collaborationMode !== 'trunk-solo') {
+    return 'Commit, push, open a PR; await required review + checks, then merge. Close the issue, clean up the worktree.'
+  }
+  if (profile.mergeMode === 'direct') {
+    return "Commit and push to the project's default branch through its gate (no PR). Close the issue, clean up the worktree."
+  }
+  return 'Commit, push, open a PR, fast-forward merge once checks pass. Close the issue, clean up the worktree.'
 }
 
 /** The phase body (count + action), before the size-derived vertical floor is attached. */
-function shipStepBody(phase: TaskPhase, t: ShipTier): Omit<ShipStep, 'verticals'> {
+function shipStepBody(
+  phase: TaskPhase,
+  t: ShipTier,
+  profile: ShipProfile,
+): Omit<ShipStep, 'verticals'> {
   switch (phase) {
     case 'preflight':
       return {
@@ -130,11 +173,14 @@ function shipStepBody(phase: TaskPhase, t: ShipTier): Omit<ShipStep, 'verticals'
         action: 'Run the gate; fix any failures.',
         command: 'node scripts/check-all.mjs check',
         reviewAgents: 0,
+        // Self-only authoring gates run here for arbiter-self only; a consumer repo has no
+        // such concern, so the list is empty (skipped, not faked — ADR-093 §5 / INV-115).
+        selfOnlyChecks: profile.isArbiterSelf ? [...SELF_ONLY_GATES] : [],
       }
     case 'complete':
       return {
         phase,
-        action: 'Commit, push, open/merge the PR, close the issue, clean up the worktree.',
+        action: completeAction(profile),
         reviewAgents: 0,
       }
   }
@@ -147,9 +193,16 @@ export function nextPhase(current: TaskPhase): TaskPhase | null {
   return PHASE_ORDER[idx + 1] ?? null
 }
 
-/** The full ordered ship plan for a tier. */
-export function shipSequence(tier: string | undefined): ShipStep[] {
-  return PHASE_ORDER.map((p) => shipStepFor(p, tier))
+/**
+ * The full ordered ship plan for a tier. The profile threads through so the preview stays
+ * coherent with the live `runTaskShip` output; when omitted it defaults to the consumer-safe
+ * profile (no self-only gate leaks in the generic preview — #1288 RT-07).
+ */
+export function shipSequence(
+  tier: string | undefined,
+  profile: ShipProfile = CONSUMER_DEFAULT_PROFILE,
+): ShipStep[] {
+  return PHASE_ORDER.map((p) => shipStepFor(p, tier, profile))
 }
 
 /**
@@ -181,6 +234,8 @@ export interface ShipResult {
   step: ShipStep
   advanced: boolean
   done: boolean
+  /** #1288 — the ship profile resolved from the target repo's arbiter.json. */
+  profile: ShipProfile
 }
 
 /**
@@ -196,6 +251,13 @@ export function buildShipStepLines(result: ShipResult, size: ResolvedSize): stri
   if (result.step.command) lines.push(`Command: ${result.step.command}`)
   if (result.step.reviewAgents > 0) lines.push(`Review agents: ${result.step.reviewAgents}`)
   lines.push(...formatSizeLines(size))
+  // #1288 — the governance level the profile resolved from the target repo (RT-08: a real
+  // consumer of the field, so the read is honest and not dead config).
+  lines.push(`Governance: ${result.profile.governanceLevel}`)
+  // Self-only authoring gates only — printed iff non-empty so a consumer repo NEVER shows a
+  // header for gates it does not run (RT-06: skipped, not faked).
+  const selfOnly = result.step.selfOnlyChecks ?? []
+  if (selfOnly.length > 0) lines.push(`Self-only checks: ${selfOnly.join(', ')}`)
   return lines
 }
 
@@ -233,6 +295,10 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
   let phase: TaskPhase = state?.phase ?? 'preflight'
   const tier = opts.tier ?? state?.tier
 
+  // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
+  // and self-only authoring gates are skipped in a consumer repo.
+  const profile = resolveShipProfile(root)
+
   let advanced = false
   if (opts.advance) {
     const target = advanceTargetFor(phase)
@@ -246,8 +312,9 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   return {
     phase,
-    step: shipStepFor(phase, tier),
+    step: shipStepFor(phase, tier, profile),
     advanced,
     done: phase === 'complete',
+    profile,
   }
 }

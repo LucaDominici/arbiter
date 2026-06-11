@@ -5,9 +5,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
-import { runTaskShip, shipSequence, shipStepFor, nextPhase } from '../../src/commands/task-ship.js'
+import {
+  runTaskShip,
+  shipSequence,
+  shipStepFor,
+  nextPhase,
+  buildShipStepLines,
+  type ShipResult,
+} from '../../src/commands/task-ship.js'
 import { readUnifiedState, writeUnifiedState } from '../../src/commands/task-state.js'
 import type { TaskPhase } from '../../src/commands/task-state.js'
+import type { ShipProfile } from '../../src/commands/ship-profile.js'
+import type { ResolvedSize } from '../../src/sizing/diff-signals.js'
 
 // Gates that would otherwise require a real repo / model switch
 vi.mock('../../src/capabilities/host-probe.js', () => ({
@@ -187,5 +196,121 @@ describe('ship orchestrator — drives a fixture end-to-end', () => {
       'complete',
     ])
     expect(readUnifiedState(dir)?.phase).toBe('complete')
+  })
+})
+
+// #1288 — de-self-only: steps are config-aware (target repo arbiter.json), and self-only
+// authoring gates are SKIPPED (not faked) for consumer repos (INV-115 / ADR-093 §5).
+const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
+  isArbiterSelf: false,
+  collaborationMode: 'peer-review',
+  mergeMode: 'pr-ff',
+  governanceLevel: 'L2',
+  ...over,
+})
+const SELF_ONLY_GATES = ['template-authoring', 'selfOnly-invariants', 'matrix-fixtures']
+
+describe('ship complete-action — (collaborationMode × mergeMode) matrix (#1288 RT-02)', () => {
+  it('trunk-solo + direct → push to default branch, NO PR', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({
+        collaborationMode: 'trunk-solo',
+        mergeMode: 'direct',
+      }),
+    ).action
+    expect(a).toMatch(/no PR/i)
+    expect(a).not.toMatch(/await|review/i)
+  })
+
+  it('trunk-solo + pr-ff → open PR + fast-forward', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({
+        collaborationMode: 'trunk-solo',
+        mergeMode: 'pr-ff',
+      }),
+    ).action
+    expect(a).toMatch(/PR/)
+    expect(a).toMatch(/fast-forward/i)
+    expect(a).not.toMatch(/await required review/i)
+  })
+
+  it('peer-review → open PR, await required review + checks', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({ collaborationMode: 'peer-review' }),
+    ).action
+    expect(a).toMatch(/PR/)
+    expect(a).toMatch(/await required review/i)
+  })
+
+  it('gated-review + solo.mergeMode:direct → STILL PR + review (override forced safe, RT-02)', () => {
+    const a = shipStepFor(
+      'complete',
+      'Standard',
+      profile({
+        collaborationMode: 'gated-review',
+        mergeMode: 'direct',
+      }),
+    ).action
+    expect(a).toMatch(/PR/)
+    expect(a).toMatch(/await required review/i)
+    expect(a).not.toMatch(/no PR/i)
+  })
+})
+
+describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)', () => {
+  it('arbiter-self → verification carries the 3 self-only authoring gates', () => {
+    const step = shipStepFor('verification', 'Standard', profile({ isArbiterSelf: true }))
+    expect(step.selfOnlyChecks).toEqual(SELF_ONLY_GATES)
+  })
+
+  it('consumer → verification selfOnlyChecks is empty (skipped, not faked)', () => {
+    const step = shipStepFor('verification', 'Standard', profile({ isArbiterSelf: false }))
+    expect(step.selfOnlyChecks ?? []).toEqual([])
+  })
+
+  it('omitted profile defaults consumer-safe: no self-only gates leak in the generic preview (RT-07)', () => {
+    const seq = shipSequence('Standard') // no profile
+    const verification = seq.find((s) => s.phase === 'verification')
+    expect(verification?.selfOnlyChecks ?? []).toEqual([])
+  })
+})
+
+describe('buildShipStepLines — honest self-only + governance render (#1288 RT-06/08)', () => {
+  const size: ResolvedSize = {
+    tier: 'Standard',
+    verticals: ['bugs', 'type-safety', 'domain'],
+    source: 'default',
+  }
+  const resultFor = (p: ShipProfile): ShipResult => ({
+    phase: 'verification',
+    step: shipStepFor('verification', 'Standard', p),
+    advanced: false,
+    done: false,
+    profile: p,
+  })
+
+  it('self → prints a Self-only checks line naming the gates', () => {
+    const lines = buildShipStepLines(resultFor(profile({ isArbiterSelf: true })), size)
+    const joined = lines.join('\n')
+    expect(joined).toMatch(/Self-only checks:/)
+    for (const g of SELF_ONLY_GATES) expect(joined).toContain(g)
+  })
+
+  it('consumer → NO Self-only checks line and NONE of the gate names leak (INV-115)', () => {
+    const lines = buildShipStepLines(resultFor(profile({ isArbiterSelf: false })), size)
+    const joined = lines.join('\n')
+    expect(joined).not.toMatch(/Self-only checks:/)
+    for (const g of SELF_ONLY_GATES) expect(joined).not.toContain(g)
+  })
+
+  it('always prints a Governance line (governanceLevel is consumed, not dead — RT-08)', () => {
+    const lines = buildShipStepLines(resultFor(profile({ governanceLevel: 'L3' })), size)
+    expect(lines.join('\n')).toMatch(/Governance:\s*L3/)
   })
 })
