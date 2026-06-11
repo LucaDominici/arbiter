@@ -19,7 +19,11 @@ import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
 import { detectLanguage } from '../detectors/language.js'
 import { isValidPhase } from './task-state.js'
-import { validateCollaborationCoherence, validateOverlayCoherence } from './wizard/coherence.js'
+import {
+  validateCollaborationCoherence,
+  validateOverlayCoherence,
+  validateAutonomyCoherence,
+} from './wizard/coherence.js'
 import type { IndustryOverlay } from './wizard/coherence.js'
 import type { CollaborationMode, GovernanceLevel } from '../wizard/types.js'
 
@@ -129,6 +133,7 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   out.push(checkStackAdapterHealth(dir))
   out.push(checkCollaborationCoherence(dir))
   out.push(checkOverlayCoherence(dir))
+  out.push(checkAutonomyCoherence(dir))
 
   return out
 }
@@ -211,6 +216,81 @@ function checkOverlayCoherence(dir: string): HealthCheck {
   check.status = 'WARN'
   check.detail = r.message
   check.hint = `Raise governanceLevel or change industryOverlay so the overlay's controls are gate-backed.`
+  return check
+}
+
+/**
+ * #1292 (ADR-093 §4): CI presence signal for the autonomy-coherence check.
+ * Fail-closed: the ONLY OK-signal is ≥1 workflow file on disk under
+ * `.github/workflows/` — a missing or empty dir (ENOENT included) means no CI.
+ * Config flags never substitute for the filesystem evidence.
+ */
+function hasWorkflowFiles(dir: string): boolean {
+  try {
+    return readdirSync(join(dir, '.github', 'workflows')).some(
+      (f) => f.endsWith('.yml') || f.endsWith('.yaml'),
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * #1292 (ADR-093 §4): surface incoherent (automation.autonomy × governanceLevel
+ * × CI) cells. CRITICAL cells (L3 without CI; governance L4 + autonomy L3) FAIL
+ * the doctor exit code; advisory cells WARN. `useGitHub: true` with an empty
+ * workflows dir is itself drift: WARN at autonomy ≤ L2, already FAIL at L3
+ * (the flag never rescues — fs is the only CI signal).
+ */
+function checkAutonomyCoherence(dir: string): HealthCheck {
+  const check: HealthCheck = {
+    id: 'autonomy-coherence',
+    label: 'automation.autonomy × governanceLevel × CI coherence',
+    status: 'PASS',
+    detail: 'coherent',
+  }
+  let cfg: {
+    automation?: { autonomy?: string }
+    governanceLevel?: GovernanceLevel
+    useGitHub?: boolean
+  }
+  try {
+    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
+  } catch {
+    check.status = 'WARN'
+    check.detail = 'could not read arbiter.json for autonomy-coherence check'
+    return check
+  }
+  const autonomy = cfg.automation?.autonomy
+  if (autonomy === undefined) {
+    check.detail = 'no automation block configured — autonomy defaults to L0 (ask-each-step)'
+    return check
+  }
+  const hasCi = hasWorkflowFiles(dir)
+  if (cfg.governanceLevel === undefined) {
+    check.status = 'WARN'
+    check.detail =
+      'automation.autonomy set but governanceLevel missing from arbiter.json — ' +
+      'cannot check autonomy coherence'
+    check.hint = 'Run `arbiter update` to repair the governanceLevel field.'
+    return check
+  }
+  const r = validateAutonomyCoherence(autonomy, cfg.governanceLevel, hasCi)
+  if (r.severity !== 'OK') {
+    check.status = r.severity === 'CRITICAL' ? 'FAIL' : 'WARN'
+    check.detail = r.message
+    if (r.remediation !== undefined) check.hint = r.remediation
+    return check
+  }
+  if (!hasCi && cfg.useGitHub === true) {
+    check.status = 'WARN'
+    check.detail =
+      'useGitHub is true but .github/workflows/ contains no workflow files — ' +
+      'CI config drift (the autonomy check trusts the filesystem, not the flag)'
+    check.hint = 'Add a workflow under .github/workflows/ or set useGitHub to false.'
+    return check
+  }
+  check.detail = `autonomy ${autonomy} @ ${cfg.governanceLevel} (CI: ${hasCi ? 'yes' : 'no'}) — coherent`
   return check
 }
 

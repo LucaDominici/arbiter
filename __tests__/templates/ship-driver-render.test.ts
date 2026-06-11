@@ -127,3 +127,58 @@ describe('cross-stack render (DoD: stacks × governance)', () => {
     }
   })
 })
+
+// ── #1292 (ADR-093 §5): self-only boundary — locked forever ──────────────────
+//
+// Template-authoring rules (CANON-04/05/13/14/18), matrix promotion
+// (CANON-02/03, INV-32), selfOnly invariants (INV-107/108/111/117/120) and
+// kit-leakage guards (INV-85, kit-source) are arbiter-self concerns. They must
+// NEVER be emitted into a consumer driver (INV-115 map-fiction). Table-driven:
+// every rendered driver artifact × every banned marker.
+
+describe('self-only boundary (#1292, ADR-093 §5)', () => {
+  function renderShipCommand(): string {
+    return renderTemplate('claude/commands/ship.md.ejs', baseData({}))
+  }
+
+  const artifacts: ReadonlyArray<readonly [string, () => string]> = [
+    ['supervisor.sh', () => renderSupervisor()],
+    ['TICK_PROMPT.md', () => renderTickPrompt()],
+    ['claude command ship.md', renderShipCommand],
+  ]
+
+  // Exact tokens (anchored so the dual-sided INV-114 in ship.md never false-positives).
+  const selfOnlyTokens = [
+    'INV-107',
+    'INV-108',
+    'INV-111',
+    'INV-117',
+    'INV-120',
+    'INV-85',
+    'INV-32',
+  ] as const
+
+  for (const [name, render] of artifacts) {
+    it(`${name} contains no CANON-NN references (consumers have no CANON.md)`, () => {
+      expect(render()).not.toMatch(/CANON-\d+/)
+    })
+
+    for (const token of selfOnlyTokens) {
+      it(`${name} does not leak self-only token ${token}`, () => {
+        expect(render()).not.toMatch(new RegExp(`\\b${token}(?!\\d)`))
+      })
+    }
+
+    it(`${name} contains no cross-language-matrix references (matrix promotion is self-only)`, () => {
+      expect(render()).not.toContain('cross-language-matrix')
+    })
+
+    it(`${name} contains no src/templates paths (template authoring is self-only)`, () => {
+      expect(render()).not.toContain('src/templates')
+    })
+
+    it(`${name} contains no kit-source references (kit leakage, INV-85)`, () => {
+      expect(render()).not.toMatch(/\bkit-source\b/)
+    })
+  }
+})

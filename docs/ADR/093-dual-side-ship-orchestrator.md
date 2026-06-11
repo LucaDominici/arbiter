@@ -80,6 +80,11 @@ dual-side boundary.
   tested feature.
 - Sequencing stays in the tested engine (CANON-06); only the irreducibly-model step lives
   in a prompt — minimal drift surface.
+- The §5 self-only boundary is locked by a rendered-output regression test
+  (`__tests__/templates/ship-driver-render.test.ts`, "self-only boundary" describe, #1292):
+  every consumer-rendered driver artifact (supervisor, tick prompt, claude ship command) is
+  asserted free of CANON-NN references, selfOnly invariant IDs, matrix-promotion and
+  kit-source markers, and `src/templates` paths — the boundary cannot silently erode.
 
 ### Negative
 
