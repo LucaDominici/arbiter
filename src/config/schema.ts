@@ -65,6 +65,15 @@ export interface ContextPackAdrMapping {
  * Configuration for the CONTEXT_PACK generator (#254).
  * Stored under `contextPack` in `arbiter.json`.
  */
+// #1291 (ADR-093 §4) — minimal automation block; the Project-Profile work (#1258/#1261)
+// extends it. L0 ask-each-step · L1 ask-on-risky-only · L2 autonomous-stop-on-red ·
+// L3 full-auto wave + fix-on-red autopush + sub-agent auto-spawn.
+export type AutonomyLevel = 'L0' | 'L1' | 'L2' | 'L3'
+export const AUTONOMY_LEVELS: readonly AutonomyLevel[] = ['L0', 'L1', 'L2', 'L3']
+export interface AutomationConfig {
+  autonomy: AutonomyLevel
+}
+
 export interface ContextPackConfig {
   /** File-pattern to ADR mappings. Used by `arbiter context-pack` to annotate @source: citations. */
   adrMappings?: ContextPackAdrMapping[]
@@ -120,6 +129,8 @@ export interface ArbiterConfigV2 {
   taskTiers?: TaskTiers
   /** CONTEXT_PACK generator configuration (#254). */
   contextPack?: ContextPackConfig
+  /** #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0 (ask each step). */
+  automation?: AutomationConfig
   /** Observability provider configuration. Absent = no observability files generated. */
   observability?: ObservabilityConfig
   /** Auth provider configuration. Absent = no auth setup files generated. */
@@ -400,6 +411,7 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateLanes(raw['lanes'], errors)
   validateTaskTiers(raw['taskTiers'], errors)
   validateContextPack(raw['contextPack'], errors)
+  validateAutomation(raw['automation'], errors)
   validateChannel(raw['channel'], errors)
   validateGovernance(raw['governance'], errors)
   validateKit(raw['kit'], errors)
@@ -452,6 +464,18 @@ function validateLanes(raw: unknown, errors: string[]): void {
     if (!VALID_LANES.has(v as string)) {
       errors.push(`lanes contains invalid value: ${String(v)}`)
     }
+  }
+}
+
+function validateAutomation(raw: unknown, errors: string[]): void {
+  if (raw === undefined || raw === null) return
+  if (!isRecord(raw)) {
+    errors.push('automation must be an object')
+    return
+  }
+  const level = raw['autonomy']
+  if (!AUTONOMY_LEVELS.includes(level as AutonomyLevel)) {
+    errors.push(`automation.autonomy must be one of ${AUTONOMY_LEVELS.join('|')}`)
   }
 }
 

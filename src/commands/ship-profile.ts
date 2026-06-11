@@ -25,6 +25,7 @@ import {
   resolveDefaultMergeMode,
 } from '../config/collaboration-mode-defaults.js'
 import type { CollaborationMode, SoloMergeMode, GovernanceLevel } from '../wizard/types.js'
+import { AUTONOMY_LEVELS, type AutonomyLevel } from '../config/schema.js'
 
 /** The unique npm package name of arbiter-self — the authoritative self-detection signal. */
 const ARBITER_SELF_PACKAGE = '@arbiter/cli'
@@ -43,6 +44,54 @@ export interface ShipProfile {
   collaborationMode: CollaborationMode
   mergeMode: SoloMergeMode
   governanceLevel: GovernanceLevel
+  /** #1291 — resolved ship autonomy (flag > arbiter.json automation.autonomy > L0). */
+  autonomy: AutonomyLevel
+}
+
+/** Ship behaviors gated by the autonomy level (ADR-093 §4). */
+export type ShipBehavior =
+  | 'auto-advance'
+  | 'auto-merge'
+  | 'fix-on-red-attempt'
+  | 'wave-batch'
+  | 'fix-on-red-autopush'
+  | 'subagent-auto-spawn'
+
+/**
+ * #1291 — exact grant set per level. Every adjacent pair differs mechanically
+ * (no map-fiction, INV-115): L0 asks at each step; L1 auto-advances and
+ * auto-merges on green but STOPS at the fix decision (ask-on-risky); L2 also
+ * attempts the fix autonomously (stop-on-red = decide+fix, push needs a human);
+ * L3 adds wave/batch, autonomous fix push, and per-issue sub-agent auto-spawn.
+ * Floor invariants (2-strike, reproduce-before-push, no --no-verify, no
+ * commit-to-main) are NOT behaviors — no grant can disable them.
+ */
+const AUTONOMY_GRANTS: Record<AutonomyLevel, ReadonlySet<ShipBehavior>> = {
+  L0: new Set<ShipBehavior>(),
+  L1: new Set<ShipBehavior>(['auto-advance', 'auto-merge']),
+  L2: new Set<ShipBehavior>(['auto-advance', 'auto-merge', 'fix-on-red-attempt']),
+  L3: new Set<ShipBehavior>([
+    'auto-advance',
+    'auto-merge',
+    'fix-on-red-attempt',
+    'wave-batch',
+    'fix-on-red-autopush',
+    'subagent-auto-spawn',
+  ]),
+}
+
+/** True when `level` authorizes `behavior` (ADR-093 §4 table). */
+export function autonomyAllows(level: AutonomyLevel, behavior: ShipBehavior): boolean {
+  return AUTONOMY_GRANTS[level].has(behavior)
+}
+
+export interface ResolveShipProfileOptions {
+  /** Per-run --autonomy override; invalid values are warn-ignored (fail-closed). */
+  autonomyOverride?: string
+}
+
+function isAutonomyLevel(v: unknown): v is AutonomyLevel {
+  return AUTONOMY_LEVELS.includes(v as AutonomyLevel)
 }
 
 /**
@@ -56,6 +105,7 @@ export const CONSUMER_DEFAULT_PROFILE: ShipProfile = {
   collaborationMode: 'peer-review',
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
+  autonomy: 'L0',
 }
 
 /**
@@ -87,7 +137,11 @@ export function isArbiterSelf(root: string): boolean {
  * so by the time the engine sees the config, the canonical `collaborationMode` field is the
  * single authoritative source. Bridging the dropped alias here would be dead code.
  */
-export function resolveShipProfile(root: string): ShipProfile {
+export function resolveShipProfile(
+  root: string,
+  opts: ResolveShipProfileOptions = {},
+): ShipProfile {
+  const override = resolveAutonomyOverride(opts.autonomyOverride, root)
   const self = isArbiterSelf(root)
   let config: ReturnType<typeof loadConfig>
   try {
@@ -105,7 +159,11 @@ export function resolveShipProfile(root: string): ShipProfile {
     config = null
   }
   if (config === null) {
-    return { ...CONSUMER_DEFAULT_PROFILE, isArbiterSelf: self }
+    return {
+      ...CONSUMER_DEFAULT_PROFILE,
+      isArbiterSelf: self,
+      ...(override !== undefined ? { autonomy: override } : {}),
+    }
   }
   const collaborationMode = resolveCollaborationMode(
     config.collaborationMode !== undefined ? { collaborationMode: config.collaborationMode } : {},
@@ -116,5 +174,18 @@ export function resolveShipProfile(root: string): ShipProfile {
     collaborationMode,
     mergeMode,
     governanceLevel: config.governanceLevel,
+    autonomy: override ?? config.automation?.autonomy ?? 'L0',
   }
+}
+
+/** Validate the per-run override; an invalid value warns and is ignored (fail-closed). */
+function resolveAutonomyOverride(raw: string | undefined, root: string): AutonomyLevel | undefined {
+  if (raw === undefined) return undefined
+  if (isAutonomyLevel(raw)) return raw
+  getLogger().warn(
+    'ship.autonomy_override_invalid',
+    { root, raw },
+    `invalid --autonomy "${raw}" — ignoring; falling back to config/default (L0)`,
+  )
+  return undefined
 }

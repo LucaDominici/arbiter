@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/USE-CASE-MATRIX.md'
 source_sha: '0ce278959385aa2d0a68ed8e4e7aac6d6979759d'
-last_updated: '2026-06-10'
+last_updated: '2026-06-11'
 ---
 
 # Use-Case Matrix

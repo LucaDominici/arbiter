@@ -1,13 +1,14 @@
 ---
-title: 'Reference: Fix-on-Red Engine'
-doc_version: '1.0.0'
-status: active
-last_review: '2026-06-11'
-owner: ''
-canonical_id: ''
-tags: ['audience/dev', 'kind/reference']
-related: ['088-ship-as-orchestration-entrypoint']
+generated: true
+source: 'docs/REFERENCE/fix-on-red.md'
+source_sha: '283a7aefc12b6e656536cee2e32c05ebb882fec1'
+last_updated: '2026-06-11'
 ---
+
+# Reference: Fix-on-Red Engine
+
+> **Non-authoritative:** This page is compiled from source. On conflict, the SSOT source wins.
+> Source: [docs/REFERENCE/fix-on-red.md](../docs/REFERENCE/fix-on-red.md)
 
 # Reference: Fix-on-Red Engine
 

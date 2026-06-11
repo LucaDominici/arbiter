@@ -39,6 +39,7 @@ import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
 import { shipAffinityLines } from './affinity/gh-issues.js'
 import { runShipFixOnRed } from './commands/ship-fix-on-red.js'
+import { resolveShipProfile, autonomyAllows } from './commands/ship-profile.js'
 import { resolveShipTier } from './sizing/diff-signals.js'
 import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -1316,10 +1317,45 @@ program
     },
   )
 
+/**
+ * #1263/#1291 — overnight multi-issue mode with the wave/batch autonomy gate:
+ * wave-batch is an L3 behavior (ADR-093 §4), refused below it.
+ */
+function runShipBatchCommand(
+  batch: string,
+  dir: string | undefined,
+  autonomy: string | undefined,
+): void {
+  const root = dir ?? process.cwd()
+  const profile = resolveShipProfile(
+    root,
+    autonomy !== undefined ? { autonomyOverride: autonomy } : {},
+  )
+  if (!autonomyAllows(profile.autonomy, 'wave-batch')) {
+    process.stderr.write(
+      `ship --batch refused: wave/batch requires automation.autonomy L3 (or --autonomy L3); resolved ${profile.autonomy}\n`,
+    )
+    process.exit(1)
+  }
+  const issueIds = parseIssueList(batch)
+  const { lines } = runShipBatch(issueIds, { dir: root })
+  process.stdout.write(lines.join('\n') + '\n')
+}
+
 program
   .command('ship [id]')
   .description('Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)')
   .option('--tier <tier>', 'Task tier (XS|S|Standard)')
+  .option(
+    '--autonomy <level>',
+    'Per-run autonomy override (L0|L1|L2|L3) — beats arbiter.json automation.autonomy (#1291)',
+    (v: string) => {
+      if (!['L0', 'L1', 'L2', 'L3'].includes(v)) {
+        throw new Error('--autonomy must be one of L0|L1|L2|L3')
+      }
+      return v
+    },
+  )
   .option('--advance', 'Advance to the next phase (runs that phase gate; fails if red)', false)
   .option('--skip-plan-review', 'Bypass the plan-review gate on advance', false)
   .option('--post-clear', 'Signal post-/clear re-entry on advance', false)
@@ -1345,6 +1381,7 @@ program
       id: string | undefined,
       opts: {
         tier?: string
+        autonomy?: string
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
@@ -1360,11 +1397,7 @@ program
         // aborts the batch) and write a date-stamped batch report. The single-id
         // path below is left UNTOUCHED when --batch is absent (regression discipline).
         if (opts.batch !== undefined) {
-          const issueIds = parseIssueList(opts.batch)
-          const { lines } = runShipBatch(issueIds, {
-            dir: opts.dir ?? process.cwd(),
-          })
-          process.stdout.write(lines.join('\n') + '\n')
+          runShipBatchCommand(opts.batch, opts.dir, opts.autonomy)
           return
         }
         // #1260 — ALWAYS compute the ship SIZE (no flag). Size auto-selects the
@@ -1379,6 +1412,7 @@ program
         })
         const effectiveTier = opts.tier ?? size.tier
         const result = runTaskShip({
+          ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
           ...(id !== undefined ? { taskId: id } : {}),
           tier: effectiveTier,
           advance: opts.advance,
@@ -1418,21 +1452,34 @@ program
   .requiredOption('--check <name>', 'The gate/check that went red (slug, e.g. unit-test)')
   .requiredOption('--log-file <path>', 'Path to the captured failed-gate log')
   .option('--id <id>', 'Task id (e.g. #1289); defaults to the active task')
+  .option(
+    '--autonomy <level>',
+    'Per-run autonomy override (L0|L1|L2|L3) — gates the fix decision (#1291)',
+    (v: string) => {
+      if (!['L0', 'L1', 'L2', 'L3'].includes(v)) {
+        throw new Error('--autonomy must be one of L0|L1|L2|L3')
+      }
+      return v
+    },
+  )
   .option('--dir <dir>', 'Target directory (default: current directory)')
-  .action((opts: { check: string; logFile: string; id?: string; dir?: string }) => {
-    const result = runShipFixOnRed({
-      check: opts.check,
-      logFile: opts.logFile,
-      ...(opts.id !== undefined ? { id: opts.id } : {}),
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-    })
-    if (result.ok) {
-      process.stdout.write(result.lines.join('\n') + '\n')
-    } else {
-      process.stderr.write(`ship-on-red: FAIL — ${result.reason}\n`)
-      process.exit(1)
-    }
-  })
+  .action(
+    (opts: { check: string; logFile: string; id?: string; autonomy?: string; dir?: string }) => {
+      const result = runShipFixOnRed({
+        check: opts.check,
+        logFile: opts.logFile,
+        ...(opts.id !== undefined ? { id: opts.id } : {}),
+        ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+      })
+      if (result.ok) {
+        process.stdout.write(result.lines.join('\n') + '\n')
+      } else {
+        process.stderr.write(`ship-on-red: FAIL — ${result.reason}\n`)
+        process.exit(1)
+      }
+    },
+  )
 
 const plugin = program
   .command('plugin')

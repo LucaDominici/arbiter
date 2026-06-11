@@ -8,6 +8,7 @@ import {
   loadConfig,
   loadSnapshot,
 } from '../../src/utils/config.js'
+import { validateConfig } from '../../src/config/schema.js'
 import { defaultConfig } from '../helpers/default-config.js'
 
 function tmpDir(): string {
@@ -319,5 +320,52 @@ describe('saveConfigAndSnapshot (#772)', () => {
     saveConfigAndSnapshot(dir, defaultConfig())
     const files = readdirSync(dir)
     expect(files.some((f) => f.startsWith('.arbiter-generated.json.bak.'))).toBe(true)
+  })
+})
+
+describe('arbiter config — automation block (#1291, ADR-093 §4)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-automation-'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('round-trips automation.autonomy through save/load', async () => {
+    await saveConfig(dir, {
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      automation: { autonomy: 'L3' },
+    })
+    expect(loadConfig(dir)?.automation?.autonomy).toBe('L3')
+  })
+
+  it('loadConfig tolerates arbiter.json without the block (backward compat → resolves L0 downstream)', async () => {
+    await saveConfig(dir, {
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+    })
+    const loaded = loadConfig(dir)
+    expect(loaded).not.toBeNull()
+    expect(loaded?.automation).toBeUndefined()
+  })
+
+  it('validateConfig rejects an unknown autonomy level (fail-closed)', () => {
+    const result = validateConfig({
+      version: '0.1',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      useGitHub: false,
+      features: {},
+      thresholds: {},
+      automation: { autonomy: 'L9' },
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.errors.join(' ')).toContain('automation.autonomy')
   })
 })

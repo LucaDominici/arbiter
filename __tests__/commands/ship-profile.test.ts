@@ -10,6 +10,7 @@ import { join } from 'node:path'
 import {
   resolveShipProfile,
   isArbiterSelf,
+  autonomyAllows,
   CONSUMER_DEFAULT_PROFILE,
 } from '../../src/commands/ship-profile.js'
 
@@ -53,6 +54,7 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       collaborationMode: 'peer-review',
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
+      autonomy: 'L0',
     })
   })
 
@@ -108,6 +110,7 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       collaborationMode: 'trunk-solo',
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
+      autonomy: 'L0',
     })
   })
 })
@@ -140,5 +143,92 @@ describe('isArbiterSelf — package-name signal, rooted, crash-safe (#1288 RT-04
     const consumer = tmpRepo({ 'package.json': pkg('other') })
     expect(isArbiterSelf(dir)).toBe(true)
     expect(isArbiterSelf(consumer)).toBe(false)
+  })
+})
+
+// ─── #1291 — autonomy resolution + grants ─────────────────────────────────────
+
+describe('autonomy resolution (#1291): flag > config > L0 default', () => {
+  it('defaults to L0 with no config and no override', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme') })
+    expect(resolveShipProfile(dir).autonomy).toBe('L0')
+    expect(CONSUMER_DEFAULT_PROFILE.autonomy).toBe('L0')
+  })
+
+  it('reads automation.autonomy from arbiter.json', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ automation: { autonomy: 'L2' } }),
+    })
+    expect(resolveShipProfile(dir).autonomy).toBe('L2')
+  })
+
+  it('a valid override beats the config', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ automation: { autonomy: 'L1' } }),
+    })
+    expect(resolveShipProfile(dir, { autonomyOverride: 'L3' }).autonomy).toBe('L3')
+  })
+
+  it('an invalid override is warn-ignored, falling back to config (fail-closed)', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ automation: { autonomy: 'L1' } }),
+    })
+    expect(resolveShipProfile(dir, { autonomyOverride: 'turbo' }).autonomy).toBe('L1')
+  })
+
+  it('an invalid level in arbiter.json degrades the whole profile to consumer defaults (RT-L1)', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ automation: { autonomy: 'L9' } }),
+    })
+    const p = resolveShipProfile(dir)
+    expect(p.autonomy).toBe('L0')
+    expect(p.collaborationMode).toBe(CONSUMER_DEFAULT_PROFILE.collaborationMode)
+  })
+})
+
+describe('autonomyAllows grants (#1291): adjacent levels differ mechanically', () => {
+  const TABLE = [
+    ['L0', []],
+    ['L1', ['auto-advance', 'auto-merge']],
+    ['L2', ['auto-advance', 'auto-merge', 'fix-on-red-attempt']],
+    [
+      'L3',
+      [
+        'auto-advance',
+        'auto-merge',
+        'fix-on-red-attempt',
+        'wave-batch',
+        'fix-on-red-autopush',
+        'subagent-auto-spawn',
+      ],
+    ],
+  ] as const
+  const ALL = [
+    'auto-advance',
+    'auto-merge',
+    'fix-on-red-attempt',
+    'wave-batch',
+    'fix-on-red-autopush',
+    'subagent-auto-spawn',
+  ] as const
+
+  it.each(TABLE)('%s unlocks exactly its documented set', (level, granted) => {
+    for (const b of ALL) {
+      expect(autonomyAllows(level, b), `${level}:${b}`).toBe(
+        (granted as readonly string[]).includes(b),
+      )
+    }
+  })
+
+  it('every adjacent pair differs (no map-fiction, RT-H1)', () => {
+    for (let i = 1; i < TABLE.length; i++) {
+      const prev = new Set(TABLE[i - 1][1])
+      const next = new Set(TABLE[i][1])
+      expect(next.size).toBeGreaterThan(prev.size)
+    }
   })
 })
