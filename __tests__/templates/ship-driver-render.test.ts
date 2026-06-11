@@ -104,3 +104,26 @@ describe('TICK_PROMPT.md.ejs render', () => {
     expect(md.toLowerCase()).not.toContain('haben')
   })
 })
+
+describe('cross-stack render (DoD: stacks × governance)', () => {
+  const stacks = ['typescript', 'java', 'rust', 'go', 'python'] as const
+  const levels = ['L1', 'L2', 'L3', 'L4'] as const
+
+  it('renders both templates without error for every stack × level', () => {
+    for (const language of stacks) {
+      for (const governanceLevel of levels) {
+        const sh = renderSupervisor({ language, governanceLevel })
+        const md = renderTickPrompt({ language, governanceLevel })
+        expect(sh).toContain('set -euo pipefail')
+        expect(md).toContain('arbiter ship-on-red')
+      }
+    }
+  })
+
+  it('output is stack-invariant (no language conditionals in the driver)', () => {
+    const base = renderSupervisor({ language: 'typescript' })
+    for (const language of stacks) {
+      expect(renderSupervisor({ language })).toBe(base)
+    }
+  })
+})

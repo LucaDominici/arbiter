@@ -180,14 +180,15 @@ export function isConfigGated(templatePath, ctx) {
  */
 export async function normalizeLines(content, filePath) {
   let formatted = content
-  // Shell scripts: compare raw — prettier has no shell parser and the markdown
-  // fallback would corrupt or throw on script content (#1290).
+  // Shell scripts: compare raw and UNFILTERED — prettier has no shell parser, and
+  // the absolute-path allowlist must not hide drift in an executable artifact
+  // (an injected `exec /usr/bin/x` line would otherwise be invisible). The ship
+  // templates contain no machine-specific absolute paths, so raw is safe (#1290).
   if (filePath.endsWith('.sh')) {
     return content
       .split('\n')
       .map((l) => l.trimEnd())
       .filter((l) => l.length > 0)
-      .filter((l) => !isAllowlisted(l))
   }
   try {
     const prettier = await import('prettier')
@@ -269,7 +270,9 @@ function loadDivergences() {
   if (!existsSync(manifestPath)) return new Set()
   const entries = JSON.parse(readFileSync(manifestPath, 'utf-8'))
   // Convert relative paths like "hooks/lib.mjs" to absolute .claude/ paths
-  return new Set(entries.map((e) => join(repoRoot, '.claude', e.path)))
+  // Entries may carry an explicit `dest` root for non-claude template families
+  // (e.g. '.arbiter/ship'); default stays '.claude' for backward compatibility (#1290).
+  return new Set(entries.map((e) => join(repoRoot, e.dest ?? '.claude', e.path)))
 }
 
 // ─── raw .mjs hook corpus (#1090) ─────────────────────────────────────────────

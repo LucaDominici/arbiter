@@ -126,6 +126,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
     'skills',
     'agents-claude',
     'githooks',
+    'ship-driver',
   ],
   useGitHub: ['github', 'root', 'check-all'],
   permitGitHub: ['github', 'root', 'check-all', 'ci-tier', 'github-setup'],

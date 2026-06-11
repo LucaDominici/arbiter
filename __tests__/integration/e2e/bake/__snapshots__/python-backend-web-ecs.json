@@ -2,6 +2,8 @@
   "fixture": "python-backend-web-ecs",
   "level": "L1",
   "generated": [
+    ".arbiter/ship/TICK_PROMPT.md",
+    ".arbiter/ship/supervisor.sh",
     ".claude/CLAUDE.md",
     ".claude/agents/bridge-reviewer.md",
     ".claude/agents/codebase-scanner.md",

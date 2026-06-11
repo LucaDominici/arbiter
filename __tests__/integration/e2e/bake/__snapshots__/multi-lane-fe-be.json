@@ -2,6 +2,8 @@
   "fixture": "multi-lane-fe-be",
   "level": "L1",
   "generated": [
+    ".arbiter/ship/TICK_PROMPT.md",
+    ".arbiter/ship/supervisor.sh",
     ".claude/CLAUDE.md",
     ".claude/agents/bridge-reviewer.md",
     ".claude/agents/codebase-scanner.md",

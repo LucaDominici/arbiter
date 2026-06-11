@@ -41,7 +41,7 @@ export function generateShipDriver(
     throw new Error(`ship-driver: invalid harnessCmd "${harnessCmd}" — allowed: [A-Za-z0-9._/-]`)
   }
 
-  const data = { ...config, shipLabel, harnessCmd } as unknown as Record<string, unknown>
+  const data = { ...config, shipLabel, harnessCmd }
   const base = config.targetDir
   const files: WriteResult[] = []
 
