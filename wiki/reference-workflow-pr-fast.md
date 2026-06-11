@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/workflow-pr-fast.md'
-source_sha: '7b46e8f2662d845a8fc1ae987ff350d3cb80c052'
+source_sha: '40a151dce21444f27e5fa1b816164d20c4e8925e'
 last_updated: '2026-06-11'
 ---
 
@@ -199,9 +199,19 @@ integration-tests:
 
 ---
 
+## Aggregator semantics — docs-only PRs
+
+The `ci-required` aggregator accepts a `skipped` result for the code jobs (gate,
+test suites, debt gates) **only** when `classify-changes` succeeded and reported
+`docs_only=true` — the classification that skipped those jobs in the first place.
+Any other skip, a cancelled job, or a failed/errored classification fails the
+aggregator (fail-closed). The classify script's error path reports
+`docs_only=false` so a broken classification always runs everything.
+
 ## Related
 
 - [ADR-090: Workflow Performance Budget](../ADR/090-workflow-performance-budget.md)
 - `scripts/check-workflow-parallelism.mjs` — enforces max chain depth
-- `scripts/check-workflow-cache-strategy.mjs` — enforces cache/reactor patterns
-- `__tests__/integration/workflow-perf.test.ts` — integration test
+- `scripts/check-workflow-cache-strategy.mjs` — enforces c
+
+_[content truncated — see source for full text]_
