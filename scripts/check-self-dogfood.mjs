@@ -98,6 +98,9 @@ export function buildRenderContext(cfg = {}) {
     // blocks in templates render correctly during dogfood parity checks. (#1216)
     collaborationMode: cfg.collaborationMode ?? 'peer-review',
     mergeMode: cfg.mergeMode ?? 'pr-ff',
+    // #1290 — ship-driver template vars (src/templates/ship/): generator defaults.
+    shipLabel: cfg.shipLabel ?? 'ship',
+    harnessCmd: cfg.harnessCmd ?? 'claude',
     existing: cfg.existing ?? {
       agentsMd: true,
       claudeDir: true,
@@ -113,20 +116,34 @@ export function buildRenderContext(cfg = {}) {
 }
 
 /**
+ * Template-family roots: SSOT for BOTH path dispatch (templateToMaterialized)
+ * AND the corpus walk in main(). Adding a family here both maps and ENUMERATES
+ * it — a map-only or walk-only addition cannot leave a family unchecked (#1290).
+ * Iterated in insertion order (deterministic).
+ */
+export const TEMPLATE_ROOTS = {
+  'src/templates/claude/': '.claude',
+  'src/templates/ship/': '.arbiter/ship',
+}
+
+/**
  * Convert a template path like /repo/src/templates/claude/hooks/lib.mjs.ejs
- * to the materialized path /repo/.claude/hooks/lib.mjs
+ * to its materialized path (e.g. /repo/.claude/hooks/lib.mjs), resolved via
+ * TEMPLATE_ROOTS. Unknown template families throw (fail-closed).
  */
 export function templateToMaterialized(templatePath) {
-  const marker = 'src/templates/claude/'
-  const idx = templatePath.indexOf(marker)
-  if (idx === -1) {
-    throw new Error(`Template path does not contain '${marker}': ${templatePath}`)
+  for (const [marker, dest] of Object.entries(TEMPLATE_ROOTS)) {
+    const idx = templatePath.indexOf(marker)
+    if (idx === -1) continue
+    const rel = templatePath.slice(idx + marker.length)
+    const withoutEjs = rel.endsWith('.ejs') ? rel.slice(0, -4) : rel
+    // Reconstruct using repoRoot derived from template path
+    const repoRootFromTemplate = templatePath.slice(0, idx)
+    return join(repoRootFromTemplate, dest, withoutEjs)
   }
-  const rel = templatePath.slice(idx + marker.length)
-  const withoutEjs = rel.endsWith('.ejs') ? rel.slice(0, -4) : rel
-  // Reconstruct using repoRoot derived from template path
-  const repoRootFromTemplate = templatePath.slice(0, idx)
-  return join(repoRootFromTemplate, '.claude', withoutEjs)
+  throw new Error(
+    `Template path matches no TEMPLATE_ROOTS marker (${Object.keys(TEMPLATE_ROOTS).join(', ')}): ${templatePath}`,
+  )
 }
 
 /**
@@ -163,6 +180,15 @@ export function isConfigGated(templatePath, ctx) {
  */
 export async function normalizeLines(content, filePath) {
   let formatted = content
+  // Shell scripts: compare raw — prettier has no shell parser and the markdown
+  // fallback would corrupt or throw on script content (#1290).
+  if (filePath.endsWith('.sh')) {
+    return content
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l.length > 0)
+      .filter((l) => !isAllowlisted(l))
+  }
   try {
     const prettier = await import('prettier')
     const parser = filePath.endsWith('.json')
@@ -299,8 +325,6 @@ async function main() {
   // Lazy-load ejs so the exported helpers work without it
   const ejs = (await import('ejs')).default
 
-  const templatesDir = join(repoRoot, 'src/templates/claude')
-
   function findEjs(dir) {
     const results = []
     for (const entry of readdirSync(dir)) {
@@ -313,7 +337,12 @@ async function main() {
     }
     return results
   }
-  const templates = findEjs(templatesDir).sort()
+  // Corpus derives from TEMPLATE_ROOTS — the same SSOT that maps paths — so a new
+  // family can never be mapped-but-unwalked (vacuous gate, #1290). A missing root
+  // directory is a hard error, not a skip (fail-closed).
+  const templates = Object.keys(TEMPLATE_ROOTS)
+    .flatMap((marker) => findEjs(join(repoRoot, marker)))
+    .sort()
 
   // Load arbiter's own config
   const arbiterConfig = JSON.parse(readFileSync(join(repoRoot, 'arbiter.json'), 'utf-8'))
