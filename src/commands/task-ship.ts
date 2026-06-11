@@ -197,6 +197,10 @@ export function nextPhase(current: TaskPhase): TaskPhase | null {
  * The full ordered ship plan for a tier. The profile threads through so the preview stays
  * coherent with the live `runTaskShip` output; when omitted it defaults to the consumer-safe
  * profile (no self-only gate leaks in the generic preview — #1288 RT-07).
+ *
+ * Forward phases only (`PHASE_ORDER`): the lateral `red-team-rework` is reached at runtime via
+ * `runTaskShip --advance` / `advanceTargetFor`, not through this preview, so it is intentionally
+ * absent here even though `shipStepBody` has a branch for it.
  */
 export function shipSequence(
   tier: string | undefined,

@@ -19,6 +19,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadConfig } from '../utils/config.js'
+import { getLogger } from '../utils/logger.js'
 import {
   resolveCollaborationMode,
   resolveDefaultMergeMode,
@@ -91,7 +92,16 @@ export function resolveShipProfile(root: string): ShipProfile {
   let config: ReturnType<typeof loadConfig>
   try {
     config = loadConfig(root)
-  } catch {
+  } catch (err) {
+    // A malformed/invalid arbiter.json THROWS (only an absent file returns null). Degrade to the
+    // consumer-safe profile — which always requires a PR + review, the cautious direction — but
+    // WARN rather than silently honor wrong merge semantics: a silent default could auto-merge
+    // where the user intended review. Never crash the ship over a config typo (RT-01).
+    getLogger().warn(
+      'ship.config_unreadable',
+      { root },
+      `could not read arbiter.json (${err instanceof Error ? err.message : String(err)}); using consumer-safe ship defaults`,
+    )
     config = null
   }
   if (config === null) {
