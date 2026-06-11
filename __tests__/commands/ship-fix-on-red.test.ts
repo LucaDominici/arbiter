@@ -69,6 +69,16 @@ describe('runShipFixOnRed', () => {
     expect(r.ok).toBe(false)
   })
 
+  it('an id that the sanitizer rejects returns ok:false, never throws', () => {
+    const r = runShipFixOnRed({
+      check: 'unit-test',
+      logFile: redLog('TypeError: x\n'),
+      id: 'a/b',
+      dir,
+    })
+    expect(r.ok).toBe(false)
+  })
+
   it('accepts a bare numeric id and normalizes it', () => {
     const r = runShipFixOnRed({
       check: 'unit-test',

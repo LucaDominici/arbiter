@@ -53,7 +53,15 @@ export function runShipFixOnRed(
   opts: ShipFixOnRedOptions,
 ): ShipFixOnRedSuccess | ShipFixOnRedFailure {
   const dir = opts.dir ?? process.cwd()
-  const taskId = opts.id !== undefined ? sanitizeTaskId(opts.id) : readTaskId(dir)
+  let taskId: string | undefined
+  try {
+    taskId = opts.id !== undefined ? sanitizeTaskId(opts.id) : readTaskId(dir)
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `invalid task id: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
   if (taskId === undefined || !/^#\d+$/.test(taskId)) {
     return { ok: false, reason: 'no valid task id — pass --id #NNN or run inside an active task' }
   }

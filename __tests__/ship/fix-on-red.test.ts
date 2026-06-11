@@ -67,6 +67,36 @@ describe('parseFailureSignature — <check-name>:<error-class>', () => {
     expect(ra.ok && rb.ok && ra.signature === rb.signature).toBe(true)
   })
 
+  // GAP-1 — the shape fallback itself must be noise-stable (no named-Error token,
+  // so firstClassToken cannot short-circuit; only normalizeNoise keeps these equal).
+  it('shape fallback is stable across bare integers and paths (no named error)', () => {
+    const a = 'not ok 13 - foo /tmp/work-1234/a.ts:12:3\n'
+    const b = 'not ok 7 - foo /tmp/work-9876/a.ts:99:1\n'
+    const ra = parseFailureSignature('unit-test', a)
+    const rb = parseFailureSignature('unit-test', b)
+    expect(ra.ok && rb.ok && ra.signature === rb.signature).toBe(true)
+  })
+
+  it('shape fallback masks quoted strings and uuids (no named error)', () => {
+    const a = 'expected "alpha" for run 0d9c41aa-1111-4abc-8def-aaaaaaaaaaaa\n'
+    const b = 'expected "omega" for run 1e8d52bb-2222-4abc-8def-bbbbbbbbbbbb\n'
+    const ra = parseFailureSignature('unit-test', a)
+    const rb = parseFailureSignature('unit-test', b)
+    expect(ra.ok && rb.ok && ra.signature === rb.signature).toBe(true)
+  })
+
+  it('does not classify a two-segment path at end of line as an eslint rule', () => {
+    // No severity word → must fall through to the shape fallback, not a bogus rule id.
+    const r = parseFailureSignature('lint', 'expected output written to src/cli\n')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.errorClass).not.toBe('src-cli')
+  })
+
+  it('classifies a real eslint stylish line as the rule id', () => {
+    const r = parseFailureSignature('lint', '  12:3  error  Unexpected var  no-var/no-var\n')
+    expect(r.ok).toBe(true)
+  })
+
   // RT-10 / RT-12 — check-name validated, never silently rewritten
   it('fail-closed on an invalid check-name (not slugged)', () => {
     expect(parseFailureSignature('Unit Test', 'TypeError: x').ok).toBe(false)
@@ -175,6 +205,22 @@ describe('attempts.json — schema + atomic IO (RT-06/09)', () => {
       'utf-8',
     )
     expect(loadAttempts('#1290', dir).ok).toBe(false)
+  })
+
+  it('a stored count of 0 loads as failure (anomalous state, fail-closed)', () => {
+    const p = attemptsPath('#1289', dir)
+    mkdirSync(join(p, '..'), { recursive: true })
+    writeFileSync(
+      p,
+      JSON.stringify({
+        $schemaVersion: 1,
+        task_id: '#1289',
+        attempts: [{ signature: 'unit-test:typeerror', count: 0, first_seen: NOW, last_seen: NOW }],
+        updated_at: NOW,
+      }),
+      'utf-8',
+    )
+    expect(loadAttempts('#1289', dir).ok).toBe(false)
   })
 
   it('unknown $schemaVersion loads as failure (RT-09)', () => {
@@ -303,6 +349,26 @@ describe('readBoundedLog — RT-06b/11', () => {
     const f = join(dir, 'bin.log')
     writeFileSync(f, Buffer.from([0x54, 0x00, 0x59]))
     expect(() => readBoundedLog(f)).toThrow()
+  })
+
+  it('rejects a non-positive byte budget', () => {
+    const f = join(dir, 'red.log')
+    writeFileSync(f, 'TypeError: x\n', 'utf-8')
+    expect(() => readBoundedLog(f, 0)).toThrow(RangeError)
+  })
+
+  it('an empty log file reads as empty (parse then escalates, never fixes)', () => {
+    const f = join(dir, 'empty.log')
+    writeFileSync(f, '', 'utf-8')
+    expect(readBoundedLog(f)).toBe('')
+    const d = evaluateRed({
+      taskId: '#1289',
+      checkName: 'unit-test',
+      log: '',
+      repoDir: dir,
+      now: NOW,
+    })
+    expect(d.kind).toBe('escalate-uncertain')
   })
 
   it('keeps the tail of an oversize log within the byte budget', () => {
