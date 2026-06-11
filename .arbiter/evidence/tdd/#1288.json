@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1288",
+  "test_path": "__tests__/commands/ship-profile.test.ts",
+  "test_commit_sha": "421bd10cd5978bb9ce9365b0e43de92ede417ea9",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1288-de-self-only-ship\n\n ❯ __tests__/commands/ship-profile.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  02:32:39\n   Duration  86ms (transform 16ms, setup 12ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/ship-profile.test.ts [ __tests__/commands/ship-profile.test.ts ]\nError: Cannot find module '../../src/commands/ship-profile.js' imported from /home/luca/work/repos/arbiter.worktrees/1288-de-self-only-ship/__tests__/commands/ship-profile.test.ts\n ❯ __tests__/commands/ship-profile.test.ts:10:1\n      8| import { tmpdir } from 'node:os'\n      9| import { join } from 'node:path'\n     10| import {\n       | ^\n     11|   resolveShipProfile,\n     12|   isArbiterSelf,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/commands/ship-profile.test.ts",
+  "recorded_at": "2026-06-11T00:32:39.276Z"
+}
