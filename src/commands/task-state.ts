@@ -112,6 +112,13 @@ export interface UnifiedTaskState {
   gateDecisions: string[]
   /** Red-team findings forward-linked into code-review (#1212, INV-114 sibling). */
   redTeamFindings?: RedTeamFinding[]
+  /**
+   * #1305 (ADR-094 §Decision.3) — per-run setting overrides persisted into the session
+   * layer so a `--set`/`--autonomy` value survives a mid-wave `/clear` (matches the `tier`
+   * precedent). A config-path → raw-string map; values are validated by the resolver, not
+   * here, so a stale/invalid entry can never harden into the resolved setting (fail-closed).
+   */
+  overrides?: Record<string, string>
 }
 
 /** A partial update applied to the unified document; `cursor` may itself be partial. */
@@ -236,6 +243,30 @@ export function writeUnifiedState(root: string, patch: TaskStatePatch): UnifiedT
   if (!merged.runId) merged.runId = `${process.pid}-${Date.now()}`
   writeFile(statusPath(root), JSON.stringify(merged, null, 2) + '\n')
   return merged
+}
+
+// ─── Session-layer per-run overrides (#1305) ─────────────────────────────────────────────────
+
+/**
+ * #1305 (ADR-094 §Decision.3) — read a per-run override persisted in the session layer, or
+ * undefined if none. This is the SESSION tier of the precedence resolver; it returns the raw
+ * string verbatim (validation is the resolver's job, fail-closed) so a stale/invalid value can
+ * never throw here. Path-gating is enforced at the write boundary, not on read.
+ */
+export function readOverride(root: string, path: string): string | undefined {
+  return readUnifiedState(root)?.overrides?.[path]
+}
+
+/**
+ * #1305 — persist a per-run override into the session layer so a `--set`/`--autonomy` value
+ * survives a mid-wave `/clear` (matches the `tier` precedent). Merges over any existing overrides
+ * map; the single-writer `writeUnifiedState` keeps it atomic. Callers MUST gate `path` through
+ * `assertOverridablePath` first (RT-01) — this low-level writer stays free of the configure
+ * catalog's heavy deps to avoid a module cycle.
+ */
+export function writeOverride(root: string, path: string, value: string): void {
+  const prev = readUnifiedState(root)?.overrides ?? {}
+  writeUnifiedState(root, { overrides: { ...prev, [path]: value } })
 }
 
 /** Append a single timestamped line to the human-readable digest log. */

@@ -234,6 +234,11 @@ export interface TaskShipOptions {
   tier?: string
   /** #1291 — per-run --autonomy override (flag > arbiter.json automation.autonomy > L0). */
   autonomy?: string
+  /**
+   * #1305 (ADR-094 §Decision.2) — generic per-run `--set <path>=<value>` overrides for this ship
+   * invocation, gated by OVERRIDABLE_PATHS at the CLI boundary. Forwarded to resolveShipProfile.
+   */
+  overrides?: Record<string, string>
   /** Advance to the next phase first (runs that phase's gate; throws if the gate is red). */
   advance?: boolean
   /** Bubble handoff/budget control-flow to the caller instead of being swallowed. */
@@ -321,10 +326,10 @@ export function runTaskShip(opts: TaskShipOptions = {}): ShipResult {
 
   // #1288 — resolve the profile from the TARGET repo's arbiter.json so steps are config-aware
   // and self-only authoring gates are skipped in a consumer repo.
-  const profile = resolveShipProfile(
-    root,
-    opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {},
-  )
+  const profile = resolveShipProfile(root, {
+    ...(opts.autonomy !== undefined ? { autonomyOverride: opts.autonomy } : {}),
+    ...(opts.overrides !== undefined ? { overrides: opts.overrides } : {}),
+  })
 
   let advanced = false
   if (opts.advance) {
