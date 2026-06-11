@@ -44,8 +44,9 @@ universal).
 
 `TICK_PROMPT.md` is trusted input executed by an autonomous agent every tick — treat
 edits to it as security-sensitive. The generator validates `shipLabel`
-(`[A-Za-z0-9._-]`) and `harnessCmd` (`[A-Za-z0-9._/-]`) and the template single-quotes
-substitutions, so config values cannot inject shell.
+(`[A-Za-z0-9._-]`) and `harnessCmd` (`[A-Za-z0-9._/-]`) against strict allow-lists
+before emission; `shipLabel` is additionally single-quoted in the template. No config
+value can inject shell.
 
 ## State separation
 

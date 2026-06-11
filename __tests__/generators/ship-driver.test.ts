@@ -132,3 +132,44 @@ describe('generated supervisor.sh — executable semantics (CANON-07)', () => {
     expect(r.stdout).toContain('HALT')
   })
 })
+
+describe('generated supervisor.sh — exit conditions', () => {
+  function setupStubs(name: string, ghBody: string): string {
+    const stubDir = join(dir, name)
+    mkdirSync(stubDir, { recursive: true })
+    writeFileSync(join(stubDir, 'claude'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 })
+    writeFileSync(join(stubDir, 'gh'), `#!/usr/bin/env bash\n${ghBody}\n`, { mode: 0o755 })
+    return stubDir
+  }
+
+  function runSupervisor(stubDir: string, maxTicks: string) {
+    gen()
+    return spawnSync('bash', [join(dir, '.arbiter/ship/supervisor.sh'), dir], {
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PATH: `${stubDir}:${process.env.PATH}`,
+        MAX_TICKS: maxTicks,
+        SHIP_TICK_SLEEP: '0',
+      },
+      timeout: 30_000,
+    })
+  }
+
+  it('breaks with "Backlog drained" when gh reports zero open issues', () => {
+    const stubDir = setupStubs('stubs-drained', 'echo 0')
+    const r = runSupervisor(stubDir, '5')
+    expect(r.status).toBe(0)
+    expect(r.stdout).toContain('Backlog drained')
+    expect(r.stdout).not.toContain('tick 2/')
+  })
+
+  it('does not break the loop when gh returns a non-numeric count', () => {
+    const stubDir = setupStubs('stubs-garbage', 'echo " 0 maybe"')
+    const r = runSupervisor(stubDir, '2')
+    expect(r.status).toBe(0)
+    expect(r.stdout).toContain('backlog count unreadable')
+    expect(r.stdout).toContain('tick 2/')
+    expect(r.stdout).not.toContain('Backlog drained')
+  })
+})
