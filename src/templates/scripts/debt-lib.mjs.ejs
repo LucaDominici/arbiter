@@ -131,6 +131,13 @@ export function jscpdScan(cwd, opts = {}) {
     ((dir, args) => spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', args, { cwd: dir }));
   const r = spawn(cwd, ['--no-install', 'jscpd', ...paths, '--silent']);
   if (r === null) return { skipped: true };
+  // `npx --no-install` exits 1 (not ENOENT) when the package is absent — that is
+  // the tool-not-installed case (target without jscpd), same contract as
+  // spawnOrSkip: skip the collector, never a failed-scan error.
+  if ((r.status ?? 0) !== 0 && /npx canceled due to missing packages/.test(r.stderr ?? '')) {
+    process.stderr.write('[baseline] skip duplicationPercentage — jscpd not installed\n');
+    return { skipped: true };
+  }
   if (!existsSync(reportPath)) {
     if ((r.status ?? 0) === 0) {
       // jscpd v4 writes the json report only when clones exist; v5 always
