@@ -1,0 +1,19 @@
+{
+  "taskId": "#1304",
+  "findings": [
+    {
+      "id": "RT-01",
+      "severity": "HIGH",
+      "summary": "Dependency-resolution angle: resolveJscpdSpawn must NOT throw an uncaught error when jscpd is genuinely absent (greenfield/baseline target without the devDependency). If require.resolve('jscpd/package.json') throws and is not caught, the whole gate crashes instead of degrading to the documented skip (tool-not-installed) contract — a fail-OPEN-then-crash regression worse than the current bug.",
+      "auditorHint": "Confirm resolveJscpdSpawn wraps resolution in try/catch and, on failure, returns the legacy npx --no-install jscpd spawn so jscpdScan yields {skipped:true} via the existing 'npx canceled due to missing packages' / ENOENT contract. Add a unit test that simulates resolution failure and asserts {skipped:true}, no throw.",
+      "resolved": true
+    },
+    {
+      "id": "RT-02",
+      "severity": "HIGH",
+      "summary": "Error-handling angle: a missing/empty report must still fail CLOSED only when jscpd is genuinely unrunnable. Switching the default spawn to a direct binary must not weaken jscpdScan's existing fail-closed branches (0-source error, schema-drift error, exit-N+no-report error). The direct binary must produce report/jscpd-report.json identically to the npx path so a resolvable jscpd resolves the SAME way local does (percentage parsed, threshold passthrough intact).",
+      "auditorHint": "Confirm only the spawn-construction changed; all post-spawn branches (stale-report rmSync, existsSync(reportPath), sources===0, percentage typeof) are untouched. Verify via the full L2 duplication gate staying green at ~1.36% AND an end-to-end jscpdScan test using the real default spawn (no injected spawn) that asserts a numeric percentage is produced without npx.",
+      "resolved": true
+    }
+  ]
+}

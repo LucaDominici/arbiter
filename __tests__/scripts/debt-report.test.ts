@@ -299,6 +299,104 @@ describe('jscpdScan (jscpd v5 fail-closed scan helper)', () => {
   })
 })
 
+// ─── resolveJscpdSpawn (#1304 — glibc-resilient default spawn) ───────────────
+// jscpd v5 runs a prebuilt native `cpd` binary chosen per platform. On the
+// docker-ci-build runner the glibc `cpd-linux-x64-gnu` binary is built against
+// GLIBC ≥ 2.34 but the image's glibc is < 2.32, so the loader rejects it: exit 1,
+// no report, fail-closed — even though jscpd "is installed". resolveJscpdSpawn
+// runs the resolved binary directly and, on that glibc-too-old failure, retries
+// once with the static (musl, libc-independent) `cpd` so the scan actually runs.
+describe('resolveJscpdSpawn (#1304 glibc-resilient spawn)', () => {
+  async function load() {
+    return await import('../../scripts/debt-lib.mjs')
+  }
+
+  it('is exported and returns a spawn function', async () => {
+    const { resolveJscpdSpawn } = await load()
+    expect(typeof resolveJscpdSpawn).toBe('function')
+    const spawn = resolveJscpdSpawn(resolve('.'))
+    expect(typeof spawn).toBe('function')
+  })
+
+  it('detects the glibc-too-old failure signature', async () => {
+    const { isGlibcIncompatible } = await load()
+    expect(
+      isGlibcIncompatible({
+        status: 1,
+        stderr: "cpd: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found",
+      }),
+    ).toBe(true)
+    // A clean run, a threshold breach, and an unrelated error are NOT glibc.
+    expect(isGlibcIncompatible({ status: 0, stderr: '' })).toBe(false)
+    expect(isGlibcIncompatible({ status: 1, stderr: 'Found 3 clones' })).toBe(false)
+  })
+
+  it('retries the static cpd binary when the native binary is glibc-incompatible', async () => {
+    const { resolveJscpdSpawn } = await load()
+    const calls: string[] = []
+    const spawn = resolveJscpdSpawn(resolve('.'), {
+      // Skip real jscpd resolution; the static path is what we exercise.
+      resolveBin: () => '/fake/node_modules/jscpd/run-jscpd.js',
+      resolveStatic: () => '/fake/.cache/jscpd-static/5.0.6/cpd',
+    })
+    const r = spawn(resolve('.'), ['--no-install', 'jscpd', 'src', '--silent'], {
+      spawnFn: (cmd: string) => {
+        calls.push(cmd)
+        // First call (the native launcher via node) reports the glibc failure;
+        // the retried static binary succeeds.
+        return cmd.endsWith('/cpd')
+          ? { status: 0, stdout: 'ok', stderr: '' }
+          : { status: 1, stdout: '', stderr: "version `GLIBC_2.34' not found" }
+      },
+    })
+    expect(r.status).toBe(0)
+    expect(calls.length).toBe(2)
+    expect(calls[1]).toBe('/fake/.cache/jscpd-static/5.0.6/cpd')
+  })
+
+  it('keeps the original failure (fail-closed) when no static binary is available', async () => {
+    const { resolveJscpdSpawn } = await load()
+    const spawn = resolveJscpdSpawn(resolve('.'), {
+      resolveBin: () => '/fake/node_modules/jscpd/run-jscpd.js',
+      resolveStatic: () => null,
+    })
+    const r = spawn(resolve('.'), ['--no-install', 'jscpd', 'src', '--silent'], {
+      spawnFn: () => ({ status: 1, stdout: '', stderr: "version `GLIBC_2.34' not found" }),
+    })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/GLIBC/)
+  })
+
+  it('falls back to a skip-spawn when jscpd cannot be resolved (greenfield)', async () => {
+    // Resolution from a cwd with no jscpd reachable must NOT throw — it must
+    // return the npx --no-install fallback whose null/missing-packages result
+    // makes jscpdScan return {skipped:true} (tool-not-installed contract).
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { resolveJscpdSpawn } = await load()
+      const spawn = resolveJscpdSpawn(dir, {
+        resolveBin: () => {
+          throw new Error('Cannot find module jscpd')
+        },
+      })
+      expect(typeof spawn).toBe('function')
+      // The fallback npx spawn is injected with a stub that mimics the
+      // missing-packages exit so we never shell to a real npx.
+      const r = spawn(dir, ['--no-install', 'jscpd', 'src', '--silent'], {
+        spawnFn: () => ({
+          status: 1,
+          stdout: '',
+          stderr: 'npm error npx canceled due to missing packages and no YES option',
+        }),
+      })
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/missing packages/)
+    } finally {
+      cleanup()
+    }
+  })
+})
+
 // ─── assertKeyParity (#1286 — baseline recapture must never drop metrics) ────
 describe('assertKeyParity (baseline key-drop guard)', () => {
   it('throws when a previously-present metric key would be dropped', async () => {
@@ -366,26 +464,31 @@ describe('check-duplication.mjs (fail-closed duplication gate)', () => {
     }
   })
 
-  // Fake-npx shim: writes a crafted report and exits with the given status,
-  // letting us exercise the post-spawn gate branches without live jscpd.
-  function installNpxShim(dir: string, report: Record<string, unknown>, exitCode: number) {
-    const binDir = join(dir, 'fake-bin')
-    mkdirSync(binDir, { recursive: true })
-    const shim = join(binDir, 'npx')
+  // Fake-jscpd shim (#1304): the gate now resolves the locally-installed jscpd
+  // binary directly (no npx). We plant a fake `node_modules/jscpd` package in the
+  // temp cwd — resolveJscpdSpawn finds it first — whose bin writes a crafted
+  // report and exits with the given status, exercising the post-spawn gate
+  // branches without live jscpd.
+  function installJscpdShim(dir: string, report: Record<string, unknown>, exitCode: number) {
+    const pkgDir = join(dir, 'node_modules', 'jscpd')
+    mkdirSync(pkgDir, { recursive: true })
     writeFileSync(
-      shim,
-      `#!/bin/sh\nmkdir -p report\ncat > report/jscpd-report.json <<'JSON'\n${JSON.stringify(report)}\nJSON\nexit ${exitCode}\n`,
+      join(pkgDir, 'package.json'),
+      JSON.stringify({ name: 'jscpd', version: '5.0.6', bin: { jscpd: './run.js' } }),
     )
-    spawnSync('chmod', ['+x', shim])
-    return binDir
+    writeFileSync(
+      join(pkgDir, 'run.js'),
+      [
+        `const { mkdirSync, writeFileSync } = require('fs')`,
+        `mkdirSync('report', { recursive: true })`,
+        `writeFileSync('report/jscpd-report.json', ${JSON.stringify(JSON.stringify(report))})`,
+        `process.exit(${exitCode})`,
+      ].join('\n'),
+    )
   }
 
-  function runGateWithShim(cwd: string, binDir: string) {
-    const r = spawnSync('node', [GATE], {
-      encoding: 'utf-8',
-      cwd,
-      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}` },
-    })
+  function runGateInDir(cwd: string) {
+    const r = spawnSync('node', [GATE], { encoding: 'utf-8', cwd })
     return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
   }
 
@@ -396,12 +499,8 @@ describe('check-duplication.mjs (fail-closed duplication gate)', () => {
         join(dir, '.jscpd.json'),
         JSON.stringify({ path: ['src'], reporters: ['json'] }),
       )
-      const binDir = installNpxShim(
-        dir,
-        { statistics: { total: { sources: 100, percentage: 7.2 } } },
-        1,
-      )
-      const result = runGateWithShim(dir, binDir)
+      installJscpdShim(dir, { statistics: { total: { sources: 100, percentage: 7.2 } } }, 1)
+      const result = runGateInDir(dir)
       expect(result.status).toBe(1)
       expect(result.stdout).toMatch(/over threshold/)
     } finally {
@@ -416,12 +515,8 @@ describe('check-duplication.mjs (fail-closed duplication gate)', () => {
         join(dir, '.jscpd.json'),
         JSON.stringify({ path: ['src'], reporters: ['json'] }),
       )
-      const binDir = installNpxShim(
-        dir,
-        { statistics: { total: { sources: 459, percentage: 1.39 } } },
-        0,
-      )
-      const result = runGateWithShim(dir, binDir)
+      installJscpdShim(dir, { statistics: { total: { sources: 459, percentage: 1.39 } } }, 0)
+      const result = runGateInDir(dir)
       expect(result.status).toBe(0)
       expect(result.stdout).toMatch(/\[duplication\] OK/)
     } finally {

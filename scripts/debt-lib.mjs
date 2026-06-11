@@ -2,11 +2,160 @@
 // Shared metric collection helpers used by capture-debt-baseline.mjs and debt-report.mjs.
 // Re-generate with: arbiter update
 import { spawnSync } from 'node:child_process'
-import { readFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
-import { resolve } from 'node:path'
+import {
+  readFileSync,
+  existsSync,
+  readdirSync,
+  rmSync,
+  mkdirSync,
+  chmodSync,
+  renameSync,
+} from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
 
 function run(cmd, args, opts) {
   return spawnSync(cmd, args, { encoding: 'utf-8', shell: false, ...opts })
+}
+
+// jscpd v5 ships its scanner as a prebuilt native `cpd` binary selected per
+// platform by `jscpd/run-jscpd.js` (#1304). On glibc Linux it installs the
+// `cpd-linux-x64-gnu` package, but that binary is built against GLIBC ≥ 2.34;
+// on an older CI image (glibc < 2.32) the loader rejects it — exit 1, no report
+// — so the duplication scan failed closed even though jscpd "is installed". The
+// `cpd-linux-x64-musl` variant is a *static-pie* ELF with no libc dependency, so
+// it runs on any Linux regardless of glibc age. npm refuses to install a
+// `libc:["musl"]` optional dep on a glibc host, so we materialise it on demand
+// from the version-pinned registry into a local cache and run it directly.
+const JSCPD_STATIC_PKG = 'cpd-linux-x64-musl'
+
+/**
+ * Materialise jscpd's static (musl, libc-independent) `cpd` binary into a local
+ * cache and return its path, or null if unavailable (no network / not Linux-x64
+ * / npm absent). Idempotent: a cached binary is reused. The version is pinned to
+ * the installed jscpd so the static binary always matches the gnu one (#1304).
+ * @param {string} jscpdPkgDir - dir of the resolved jscpd package (has version)
+ * @returns {string | null}
+ */
+function resolveStaticCpd(jscpdPkgDir) {
+  if (process.platform !== 'linux' || process.arch !== 'x64') return null
+  let version
+  try {
+    version = JSON.parse(readFileSync(join(jscpdPkgDir, 'package.json'), 'utf-8')).version
+  } catch {
+    return null
+  }
+  const cacheRoot = resolve(jscpdPkgDir, '..', '.cache', 'jscpd-static', version)
+  const cpdPath = join(cacheRoot, 'cpd')
+  if (existsSync(cpdPath)) return cpdPath
+  // Fetch the version-pinned static package tarball and extract its binary.
+  let tmp
+  try {
+    mkdirSync(cacheRoot, { recursive: true })
+    tmp = join(cacheRoot, '.pack')
+    mkdirSync(tmp, { recursive: true })
+    const pack = run('npm', ['pack', `${JSCPD_STATIC_PKG}@${version}`, '--silent'], { cwd: tmp })
+    if ((pack.status ?? 1) !== 0) return null
+    const tgz = readdirSync(tmp).find((f) => f.endsWith('.tgz'))
+    if (!tgz) return null
+    const untar = run('tar', ['xzf', tgz, '-C', tmp], { cwd: tmp })
+    if ((untar.status ?? 1) !== 0) return null
+    const extracted = join(tmp, 'package', 'cpd-bin', 'cpd')
+    if (!existsSync(extracted)) return null
+    renameSync(extracted, cpdPath)
+    chmodSync(cpdPath, 0o755)
+    rmSync(tmp, { recursive: true, force: true })
+    return cpdPath
+  } catch {
+    if (tmp) rmSync(tmp, { recursive: true, force: true })
+    return null
+  }
+}
+
+/**
+ * True when a jscpd spawn result is the glibc-too-old failure: the native gnu
+ * `cpd` binary loaded but the dynamic linker could not satisfy its GLIBC version
+ * requirement (exit 1, empty report, `GLIBC_x.yy not found` on stderr) (#1304).
+ * @param {{status: number|null, stderr?: string}} r
+ * @returns {boolean}
+ */
+export function isGlibcIncompatible(r) {
+  return (r?.status ?? 0) !== 0 && /GLIBC_[\d.]+'? not found/.test(r?.stderr ?? '')
+}
+
+/**
+ * Resolve the default jscpd spawn (#1304). jscpd v5 runs a prebuilt native `cpd`
+ * binary chosen per platform by `jscpd/run-jscpd.js`. This resolves the installed
+ * jscpd launcher and runs it directly with the current node. On the docker-ci-build
+ * runner the glibc `cpd-linux-x64-gnu` binary is built against GLIBC ≥ 2.34 but the
+ * image's glibc is < 2.32, so the loader rejects it (exit 1, no report) and the scan
+ * failed closed even though jscpd is installed. On that glibc-too-old failure the
+ * spawn retries once with the static (musl, libc-independent) `cpd` — materialised
+ * on demand by resolveStaticCpd — so the scan actually runs and writes a report.
+ * If jscpd cannot be resolved at all (greenfield/baseline target without the
+ * devDependency) it falls back to the `npx --no-install jscpd` skip-spawn, whose
+ * missing-packages result drives the tool-not-installed (`{skipped:true}`) contract.
+ *
+ * The returned spawn accepts the SAME argv the caller built for the npx path
+ * (`['--no-install','jscpd',...paths,'--silent']`); the direct-binary path strips
+ * the npx-only `--no-install`/`jscpd` prefix tokens, the fallback passes them
+ * through. `resolveBin`, `resolveStatic`, and the per-call `spawnFn` are injectable
+ * so tests never shell to a real npx or native binary.
+ * @param {string} cwd
+ * @param {{resolveBin?: (cwd: string) => string, resolveStatic?: () => string | null}} [opts]
+ * @returns {(dir: string, args: string[], callOpts?: {spawnFn?: (cmd: string, args: string[], o: object) => {status: number|null, stdout: string, stderr: string}}) => ({status: number|null, stdout: string, stderr: string} | null)}
+ */
+export function resolveJscpdSpawn(cwd, opts = {}) {
+  const resolveBin =
+    opts.resolveBin ??
+    ((dir) => {
+      // Resolve from the scanned project first (its node_modules), then fall
+      // back to this module's own require context — the self repo installs jscpd
+      // as a devDependency reachable from here even when the scan dir has no
+      // local node_modules (e.g. a temp fixture or a nested workspace).
+      let pkgPath
+      try {
+        pkgPath = createRequire(join(resolve(dir), 'package.json')).resolve('jscpd/package.json')
+      } catch {
+        pkgPath = createRequire(import.meta.url).resolve('jscpd/package.json')
+      }
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+      const binEntry = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.jscpd
+      if (!binEntry) throw new Error('jscpd package.json has no bin.jscpd entry')
+      return join(dirname(pkgPath), binEntry)
+    })
+
+  let binPath
+  try {
+    binPath = resolveBin(cwd)
+  } catch {
+    // jscpd not installed/resolvable — fall back to npx --no-install jscpd, whose
+    // ENOENT/"missing packages" result drives jscpdScan's skip contract.
+    return (dir, args, callOpts = {}) => {
+      const spawnFn = callOpts.spawnFn
+      if (spawnFn) return spawnFn('npx', args, { cwd: dir })
+      const r = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', args, { cwd: dir })
+      return r === null ? null : r
+    }
+  }
+
+  const jscpdPkgDir = dirname(binPath)
+  const resolveStatic = opts.resolveStatic ?? (() => resolveStaticCpd(jscpdPkgDir))
+  // Direct binary: drop the npx-only prefix tokens so jscpd sees only its own
+  // positional args (paths + flags). The launcher (run-jscpd.js) selects the
+  // platform-native `cpd`; if that binary is glibc-incompatible on this runner
+  // (#1304) retry once with the static (musl, libc-independent) `cpd` so the
+  // scan ACTUALLY runs and writes a report — fail-closed stays intact when even
+  // the static binary is unavailable (the error path is unchanged).
+  return (dir, args, callOpts = {}) => {
+    const jscpdArgs = args.filter((a) => a !== '--no-install' && a !== 'jscpd')
+    const spawnFn = callOpts.spawnFn ?? ((cmd, a, o) => run(cmd, a, o))
+    const r = spawnFn(process.execPath, [binPath, ...jscpdArgs], { cwd: dir })
+    if (!isGlibcIncompatible(r)) return r
+    const staticCpd = resolveStatic()
+    if (!staticCpd) return r
+    return spawnFn(staticCpd, jscpdArgs, { cwd: dir })
+  }
 }
 
 /**
@@ -75,12 +224,7 @@ export function jscpdScan(cwd, opts = {}) {
   // Stale-report poisoning guard: a leftover report from a previous run must
   // never be parsed as if it were produced by this invocation.
   rmSync(reportPath, { force: true })
-  const spawn =
-    opts.spawn ??
-    ((dir, args) => {
-      const r = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', args, { cwd: dir })
-      return r === null ? null : r
-    })
+  const spawn = opts.spawn ?? resolveJscpdSpawn(cwd)
   const r = spawn(cwd, ['--no-install', 'jscpd', ...paths, '--silent'])
   if (r === null) return { skipped: true }
   // `npx --no-install` exits 1 (not ENOENT) when the package is absent — that is
@@ -97,7 +241,14 @@ export function jscpdScan(cwd, opts = {}) {
       // project not yet bumped) with zero clones.
       return { legacyNoReport: true, status: 0 }
     }
-    return { error: `jscpd failed (exit ${r.status}) and wrote no report — fail-closed (#1286)` }
+    // Surface jscpd's own stderr so the cause is visible in the gate output
+    // (e.g. a glibc-too-old runner image, #1304) instead of an opaque exit code.
+    const why = (r.stderr ?? '').trim().split('\n').slice(0, 3).join(' | ')
+    return {
+      error:
+        `jscpd failed (exit ${r.status}) and wrote no report — fail-closed (#1286)` +
+        (why ? `: ${why}` : ''),
+    }
   }
   let dup
   try {
