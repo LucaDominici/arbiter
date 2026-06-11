@@ -43,7 +43,16 @@ export const RecipeSchema = z.object({
   enableNoSkippedTests: z.boolean().optional(),
   // #1261: ship-autonomy axis (ADR-093 §4) — the non-interactive override for
   // `automation.autonomy` (init --yes/--json never prompts; default is L0).
-  automation: z.object({ autonomy: z.enum(['L0', 'L1', 'L2', 'L3']) }).optional(),
+  // #1306 (ADR-094 §Decision.4): the three orchestration prefs are recipe-settable
+  // too (optional — absent ⇒ derived per collaboration mode / governance level).
+  automation: z
+    .object({
+      autonomy: z.enum(['L0', 'L1', 'L2', 'L3']),
+      maxParallelWorktrees: z.number().int().positive().optional(),
+      defaultGateLevel: z.enum(['L1', 'L2']).optional(),
+      affinityBatching: z.boolean().optional(),
+    })
+    .optional(),
 })
 
 export type Recipe = z.infer<typeof RecipeSchema>

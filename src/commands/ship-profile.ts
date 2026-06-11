@@ -28,10 +28,19 @@ import { resolveSetting } from '../config/override-resolver.js'
 import { assertOverridablePath, parseValue } from './configure.js'
 import { writeOverride } from './task-state.js'
 import type { CollaborationMode, SoloMergeMode, GovernanceLevel } from '../wizard/types.js'
-import { AUTONOMY_LEVELS, type AutonomyLevel } from '../config/schema.js'
+import {
+  AUTONOMY_LEVELS,
+  VALID_GATE_LEVELS,
+  type AutonomyLevel,
+  type GateLevel,
+} from '../config/schema.js'
 
 /** #1305 — the unified config path for the ship autonomy knob (`--autonomy` desugars here). */
 const AUTONOMY_PATH = 'automation.autonomy'
+/** #1306 — the unified config paths for the three Project-Profile orchestration prefs. */
+const MAX_PARALLEL_WORKTREES_PATH = 'automation.maxParallelWorktrees'
+const DEFAULT_GATE_LEVEL_PATH = 'automation.defaultGateLevel'
+const AFFINITY_BATCHING_PATH = 'automation.affinityBatching'
 
 export interface BuildShipOverridesInput {
   /** Raw `--set path=value` assignments (repeatable). */
@@ -100,6 +109,16 @@ export interface ShipProfile {
   governanceLevel: GovernanceLevel
   /** #1291 — resolved ship autonomy (flag > arbiter.json automation.autonomy > L0). */
   autonomy: AutonomyLevel
+  /**
+   * #1306 (ADR-094 §Decision.4) — the three Project-Profile orchestration prefs,
+   * each resolved through the SAME unified precedence resolver as autonomy
+   * (override → session → profile → derived floor). The wave reads
+   * maxParallelWorktrees, verification reads defaultGateLevel, ship reads
+   * affinityBatching — all from this one resolved profile, never a bespoke chain.
+   */
+  maxParallelWorktrees: number
+  defaultGateLevel: GateLevel
+  affinityBatching: boolean
 }
 
 /** Ship behaviors gated by the autonomy level (ADR-093 §4). */
@@ -169,6 +188,10 @@ export const CONSUMER_DEFAULT_PROFILE: ShipProfile = {
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
   autonomy: 'L0',
+  // #1306 — conservative floors matching the resolver's DERIVED_DEFAULTS table.
+  maxParallelWorktrees: 1,
+  defaultGateLevel: 'L1',
+  affinityBatching: false,
 }
 
 /**
@@ -227,23 +250,70 @@ export function resolveShipProfile(
   // value and autonomy falls to override/session/default — consistent with the
   // whole-profile degrade above (RT-03).
   const autonomy = resolveAutonomy(root, overrides, config?.automation?.autonomy)
+  // #1306 — resolve the three orchestration prefs through the SAME unified resolver,
+  // each layered (override → session → profile → derived floor). The profile-layer
+  // raw is the value we already read here (config?.automation?.*), so a malformed
+  // config (config === null) contributes no profile value and each falls to
+  // override/session/floor — consistent with the whole-profile degrade above (RT-03).
+  const prefs = resolveProfilePrefs(root, overrides, config?.automation)
   if (config === null) {
-    return {
-      ...CONSUMER_DEFAULT_PROFILE,
-      isArbiterSelf: self,
-      autonomy,
-    }
+    return { ...CONSUMER_DEFAULT_PROFILE, isArbiterSelf: self, autonomy, ...prefs }
   }
+  return { ...collaborationProfile(config), isArbiterSelf: self, autonomy, ...prefs }
+}
+
+/**
+ * Build the (collaborationMode, mergeMode, governanceLevel) slice of a ShipProfile
+ * from a loaded config. Extracted from resolveShipProfile to keep it under the
+ * complexity ceiling; collaborationMode is read via the canonical ADR-051 resolver.
+ */
+function collaborationProfile(
+  config: NonNullable<ReturnType<typeof loadConfig>>,
+): Pick<ShipProfile, 'collaborationMode' | 'mergeMode' | 'governanceLevel'> {
   const collaborationMode = resolveCollaborationMode(
     config.collaborationMode !== undefined ? { collaborationMode: config.collaborationMode } : {},
   )
-  const mergeMode = config.solo?.mergeMode ?? resolveDefaultMergeMode(collaborationMode)
   return {
-    isArbiterSelf: self,
     collaborationMode,
-    mergeMode,
+    mergeMode: config.solo?.mergeMode ?? resolveDefaultMergeMode(collaborationMode),
     governanceLevel: config.governanceLevel,
-    autonomy,
+  }
+}
+
+/**
+ * #1306 — resolve the three Project-Profile orchestration prefs through the unified
+ * resolver and narrow each to its domain type. `resolveSetting` only ever returns a
+ * parseValue-valid value (positive int / 'L1'|'L2' / 'true'|'false') or the registered
+ * floor, so each narrow is total; the guards are fail-closed belt-and-braces (RT-1306-05).
+ */
+function resolveProfilePrefs(
+  root: string,
+  overrides: Record<string, string> | undefined,
+  profile:
+    | { maxParallelWorktrees?: number; defaultGateLevel?: string; affinityBatching?: boolean }
+    | undefined,
+): Pick<ShipProfile, 'maxParallelWorktrees' | 'defaultGateLevel' | 'affinityBatching'> {
+  const ctx = (profileValue: string | undefined): Parameters<typeof resolveSetting>[1] => ({
+    root,
+    ...(overrides !== undefined ? { overrides } : {}),
+    ...(profileValue !== undefined ? { profileValue } : {}),
+  })
+  const mpwRaw = resolveSetting(
+    MAX_PARALLEL_WORKTREES_PATH,
+    ctx(profile?.maxParallelWorktrees?.toString()),
+  )
+  const gateRaw = resolveSetting(DEFAULT_GATE_LEVEL_PATH, ctx(profile?.defaultGateLevel))
+  const affinityRaw = resolveSetting(
+    AFFINITY_BATCHING_PATH,
+    ctx(profile?.affinityBatching?.toString()),
+  )
+  const mpw = Number(mpwRaw)
+  return {
+    maxParallelWorktrees: Number.isInteger(mpw) && mpw >= 1 ? mpw : 1,
+    defaultGateLevel: (VALID_GATE_LEVELS as readonly string[]).includes(gateRaw)
+      ? (gateRaw as GateLevel)
+      : 'L1',
+    affinityBatching: affinityRaw === 'true',
   }
 }
 

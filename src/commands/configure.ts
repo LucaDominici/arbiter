@@ -8,6 +8,7 @@ import {
   VALID_SOLO_MERGE_MODES,
   VALID_BRANCHING_STRATEGIES,
   AUTONOMY_LEVELS,
+  VALID_GATE_LEVELS,
 } from '../config/schema.js'
 import { acquireLock } from '../utils/file-lock.js'
 import { jsonOutput } from '../utils/json-output.js'
@@ -52,6 +53,10 @@ export const ALLOWED_PATHS = new Set([
   'hasPublicApi',
   'contractType',
   'automation.autonomy',
+  // #1306 (ADR-094 §Decision.4) — Project-Profile orchestration prefs.
+  'automation.maxParallelWorktrees',
+  'automation.defaultGateLevel',
+  'automation.affinityBatching',
 ])
 
 /**
@@ -63,7 +68,14 @@ export const ALLOWED_PATHS = new Set([
  * with maxParallelWorktrees / defaultGateLevel / affinityBatching. Every entry MUST
  * also be in ALLOWED_PATHS (asserted in tests) so the same parseValue validators apply.
  */
-export const OVERRIDABLE_PATHS = new Set(['automation.autonomy'])
+export const OVERRIDABLE_PATHS = new Set([
+  'automation.autonomy',
+  // #1306 — the three orchestration prefs are per-run overridable (like autonomy):
+  // a single ship/wave/verify run may dial concurrency, gate level, or batching.
+  'automation.maxParallelWorktrees',
+  'automation.defaultGateLevel',
+  'automation.affinityBatching',
+])
 
 /**
  * #1305 (RT-01): reject any path that is not a curated per-run override target
@@ -232,15 +244,57 @@ export function parseValue(path: string, raw: string): unknown {
     return toolList
   }
   if (AXIS_PATHS.has(path)) return parseAxisValue(path, raw)
-  // ADR-051 (#1119) / #1261: enum-validate enum-shaped settable paths.
+  // #1306 — the two scalar automation prefs (int / bool) are validated in a helper
+  // so parseValue stays within the complexity-15 limit. Returns undefined when the
+  // path is not one of them (so the enum + raw fall-through below still apply).
+  if (AUTOMATION_SCALAR_PATHS.has(path)) return parseAutomationScalar(path, raw)
+  // ADR-051 (#1119) / #1261 / #1306: enum-validate enum-shaped settable paths.
   const ENUM_PATHS = new Set([
     'collaborationMode',
     'solo.mergeMode',
     'branchingStrategy',
     'automation.autonomy',
+    'automation.defaultGateLevel',
   ])
   if (ENUM_PATHS.has(path)) return parseEnumPathValue(path, raw)
   return raw
+}
+
+/** #1306 — the non-enum automation scalar prefs (positive-int / boolean). */
+const AUTOMATION_SCALAR_PATHS = new Set([
+  'automation.maxParallelWorktrees',
+  'automation.affinityBatching',
+])
+
+/**
+ * #1306 — validate the two scalar automation prefs. maxParallelWorktrees is a
+ * positive integer (rejects 0/negatives/floats); affinityBatching is a strict
+ * boolean. Extracted from parseValue to keep it under the complexity ceiling.
+ */
+function parseAutomationScalar(path: string, raw: string): number | boolean {
+  if (path === 'automation.maxParallelWorktrees') {
+    const n = Number(raw)
+    if (!Number.isInteger(n) || n < 1) {
+      throw ArbiterError.fromKey(
+        'E_INVALID_NUMBER',
+        'errors.E_INVALID_NUMBER',
+        { path, value: raw },
+        {
+          hint: 'Provide a positive integer (≥1). Example: `--set automation.maxParallelWorktrees=3`.',
+        },
+      )
+    }
+    return n
+  }
+  // automation.affinityBatching
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+  throw ArbiterError.fromKey(
+    'E_INVALID_BOOL',
+    'errors.E_INVALID_BOOL',
+    { path, value: raw },
+    { hint: 'Use `true` or `false` (lowercase).' },
+  )
 }
 
 /**
@@ -265,6 +319,11 @@ function parseEnumPathValue(path: string, raw: string): string {
     'automation.autonomy': {
       valid: new Set(AUTONOMY_LEVELS),
       hint: 'Valid values: L0, L1, L2, L3. L0 = ask each ship step (default). Per-run override: `arbiter ship --autonomy Lx`.',
+    },
+    // #1306 — defaultGateLevel is L1/L2 ONLY (the runnable gate levels), never L3/L4.
+    'automation.defaultGateLevel': {
+      valid: new Set(VALID_GATE_LEVELS),
+      hint: 'Valid values: L1, L2. The gate level `arbiter verify` runs by default. Per-run override: `arbiter ship --set automation.defaultGateLevel=L2`.',
     },
   }
   const spec = SPECS[path]

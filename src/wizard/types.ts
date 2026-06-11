@@ -275,8 +275,18 @@ export interface ProjectConfig {
    * Only meaningful when collaborationMode = 'trunk-solo'.
    */
   solo?: { mergeMode: SoloMergeMode }
-  /** #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0. */
-  automation?: { autonomy: AutonomyLevel }
+  /**
+   * #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0.
+   * #1306 (ADR-094 §Decision.4) — extended with three optional orchestration prefs;
+   * all derived per collaboration mode / governance level when the wizard builds the
+   * profile (see buildProfileAxes). Absent fields fall to their derived defaults.
+   */
+  automation?: {
+    autonomy: AutonomyLevel
+    maxParallelWorktrees?: number
+    defaultGateLevel?: 'L1' | 'L2'
+    affinityBatching?: boolean
+  }
   /**
    * Whether to enable solo-dev mode: skip PR CI ceremony, nightly drift shadow. Default false.
    * @deprecated Use collaborationMode: 'trunk-solo' instead. Kept as alias for one minor version.

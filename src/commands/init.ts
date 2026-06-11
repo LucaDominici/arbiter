@@ -25,6 +25,7 @@ import { type GhErrorKind } from '../github/classify-gh-error.js'
 import { saveConfig, loadConfig } from '../utils/config.js'
 import type { ArbiterConfig } from '../utils/config.js'
 import { DEFAULT_THRESHOLDS } from '../config/schema.js'
+import type { AutomationConfig } from '../config/schema.js'
 import {
   buildRegistry,
   runGeneratorsFromRegistry,
@@ -977,7 +978,25 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
   if (recipe.enableNoSkippedTests !== undefined)
     config.enableNoSkippedTests = recipe.enableNoSkippedTests
   // #1261: recipes are the supported non-interactive knob for ship autonomy.
-  if (recipe.automation !== undefined) config.automation = recipe.automation
+  // #1306: the automation block (incl. the three orchestration prefs) is merged
+  // by a helper to keep applyRecipeOverrides within the complexity-15 limit.
+  if (recipe.automation !== undefined) config.automation = recipeAutomation(recipe.automation)
+}
+
+/**
+ * #1306 — build a persisted AutomationConfig from a recipe's automation block,
+ * including ONLY the orchestration prefs that are present (exactOptionalPropertyTypes:
+ * an absent recipe field must NOT land as an explicit `undefined` on the config).
+ */
+function recipeAutomation(a: NonNullable<Recipe['automation']>): AutomationConfig {
+  return {
+    autonomy: a.autonomy,
+    ...(a.maxParallelWorktrees !== undefined
+      ? { maxParallelWorktrees: a.maxParallelWorktrees }
+      : {}),
+    ...(a.defaultGateLevel !== undefined ? { defaultGateLevel: a.defaultGateLevel } : {}),
+    ...(a.affinityBatching !== undefined ? { affinityBatching: a.affinityBatching } : {}),
+  }
 }
 
 /**
@@ -1007,7 +1026,10 @@ function buildCollaborationOverrides(config: ProjectConfig): {
   collaborationMode: CollaborationMode
   solo?: { mergeMode: import('../wizard/types.js').SoloMergeMode }
   branchingStrategy?: import('../wizard/types.js').BranchingStrategy
-  automation: { autonomy: import('../wizard/types.js').AutonomyLevel }
+  // #1306 — pass the full AutomationConfig through so the three Project-Profile
+  // orchestration prefs inherit into the generated config (ADR-094 §Decision.6,
+  // within the ADR-093 §5 self-only boundary).
+  automation: AutomationConfig
 } {
   return {
     collaborationMode: resolveCollaborationMode(config),

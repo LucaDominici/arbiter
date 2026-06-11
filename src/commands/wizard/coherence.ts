@@ -237,3 +237,61 @@ export function validateAutonomyCoherence(
   }
   return { valid: true, severity: 'OK', message: '' }
 }
+
+// ── #1306: Project-Profile orchestration prefs coherence (ADR-094 §Decision.5) ─
+//
+// Fourth coherence axis. Two independent checks on the #1306 fields:
+//
+// - maxParallelWorktrees > 1 under collaborationMode='trunk-solo' is INCOHERENT:
+//   trunk-solo never uses worktrees (worktree auto-mode is 'optional' and a solo
+//   dev ships on the trunk), so a >1 concurrency would never take effect — the
+//   config promises parallelism the workflow cannot deliver. CRITICAL (the wizard
+//   derives 1 for trunk-solo, so a >1 value here is a hand-edit mistake).
+// - defaultGateLevel='L1' under L3/L4 governance is INCOHERENT-ish: the rigour tier
+//   expects the heavier L2 gate by default; running L1 silently skips coverage /
+//   mutation / evidence gates the tier relies on. WARN (it is a default, overridable
+//   per-run, so advisory not blocking).
+//
+// The values are accepted defensively (raw, possibly undefined) because the doctor
+// path reads arbiter.json with a plain JSON.parse — drift surfaces as a coherent
+// floor, never a crash (RT-1306-08).
+
+/**
+ * Validate the (#1306) Project-Profile orchestration prefs against the collaboration
+ * mode + governance level. An absent/non-numeric maxParallelWorktrees is treated as
+ * the coherent floor (1); an absent defaultGateLevel never warns.
+ *
+ * - maxParallelWorktrees > 1 + trunk-solo → CRITICAL (worktree: never).
+ * - defaultGateLevel L1 + governance L3/L4 → WARN (gate too lenient for the tier).
+ * - everything else → OK.
+ */
+export function validateProfileCoherence(
+  maxParallelWorktrees: number | undefined,
+  defaultGateLevel: string | undefined,
+  mode: CollaborationMode,
+  level: GovernanceLevel,
+): CoherenceResult {
+  const mpw = typeof maxParallelWorktrees === 'number' ? maxParallelWorktrees : 1
+  if (mpw > 1 && mode === 'trunk-solo') {
+    return {
+      valid: false,
+      severity: 'CRITICAL',
+      message:
+        `automation.maxParallelWorktrees=${mpw} is incoherent with collaborationMode='trunk-solo': ` +
+        'a solo-trunk workflow never uses worktrees, so the parallelism can never take effect.',
+      remediation:
+        'Set automation.maxParallelWorktrees to 1, or switch collaborationMode to peer-review/gated-review.',
+    }
+  }
+  if (defaultGateLevel === 'L1' && (level === 'L3' || level === 'L4')) {
+    return {
+      valid: true,
+      severity: 'WARN',
+      message:
+        `automation.defaultGateLevel='L1' under governanceLevel=${level}: the L1 gate skips the ` +
+        'coverage, mutation, and evidence gates the rigour tier relies on. Default verification ' +
+        'runs leaner than the governance level implies.',
+    }
+  }
+  return { valid: true, severity: 'OK', message: '' }
+}

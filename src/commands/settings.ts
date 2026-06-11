@@ -73,6 +73,11 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
       // legacy configs without the block stay valid. No `arbiter init` flag by
       // design — set here, via a recipe, or per-run with `arbiter ship --autonomy`.
       { path: 'automation.autonomy', label: 'Ship autonomy level (absent = L0)' },
+      // #1306 (ADR-094 §Decision.4): orchestration prefs derived per collaboration
+      // mode / governance level at init; absent ⇒ resolver floor at every read site.
+      { path: 'automation.maxParallelWorktrees', label: 'Max parallel wave worktrees' },
+      { path: 'automation.defaultGateLevel', label: 'Default gate level (L1|L2)' },
+      { path: 'automation.affinityBatching', label: 'Affinity batching (group related issues)' },
     ],
   },
   {

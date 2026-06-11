@@ -106,6 +106,24 @@ export function shipStepFor(
  * the mode mandates. Only trunk-solo keys on mergeMode. Strings are strictly advisory and route
  * through the project gate — the engine never performs the merge itself.
  */
+/**
+ * #1306 — the plan next-action, shaped by the wave-orchestration prefs. When
+ * affinityBatching is on AND the profile permits >1 concurrent worktree, the plan
+ * step advises grouping affinity-related issues into a parallel wave (bounded by
+ * maxParallelWorktrees); otherwise it stays a single-issue plan. The engine never
+ * spawns worktrees itself — the string is advisory and routes through the wave loop.
+ */
+function planAction(profile: ShipProfile): string {
+  if (profile.affinityBatching && profile.maxParallelWorktrees > 1) {
+    return (
+      `Write the plan, then pass the plan-review gate. Affinity batching is on: ` +
+      `group affinity-related issues into a wave of up to ${profile.maxParallelWorktrees} ` +
+      `parallel worktrees.`
+    )
+  }
+  return 'Write the plan, then pass the plan-review gate.'
+}
+
 function completeAction(profile: ShipProfile): string {
   if (profile.collaborationMode !== 'trunk-solo') {
     return 'Commit, push, open a PR; await required review + checks, then merge. Close the issue, clean up the worktree.'
@@ -142,7 +160,10 @@ function shipStepBody(
     case 'plan':
       return {
         phase,
-        action: 'Write the plan, then pass the plan-review gate.',
+        // #1306 — the plan step consumes profile.affinityBatching + maxParallelWorktrees
+        // (resolved through the unified resolver): they tell the wave orchestrator whether
+        // to group affinity-related issues and how many worktrees may run concurrently.
+        action: planAction(profile),
         command: 'arbiter review plan <plan-file>',
         reviewAgents: 0,
       }
@@ -180,8 +201,11 @@ function shipStepBody(
     case 'verification':
       return {
         phase,
-        action: 'Run the gate; fix any failures.',
-        command: 'node scripts/check-all.mjs check',
+        // #1306 — verification consumes profile.defaultGateLevel (resolved through the
+        // unified resolver): the default gate run is the profile's level (L1/L2), not a
+        // hard-coded one. A per-run `--set automation.defaultGateLevel=L2` raises it.
+        action: `Run the ${profile.defaultGateLevel} gate; fix any failures.`,
+        command: `node scripts/check-all.mjs ${profile.defaultGateLevel}`,
         reviewAgents: 0,
         // Self-only authoring gates run here for arbiter-self only; a consumer repo has no
         // such concern, so the list is empty (skipped, not faked — ADR-093 §5 / INV-115).

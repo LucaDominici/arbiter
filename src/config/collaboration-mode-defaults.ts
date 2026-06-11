@@ -78,6 +78,50 @@ const MERGE_MODE_DEFAULTS: Record<CollaborationMode, SoloMergeMode> = {
 // literal is the canonical value and is type-checked at the resolver boundary.
 export const DEFAULT_AUTONOMY = 'L0'
 
+// ── #1306: Project-Profile orchestration prefs (ADR-094 §Decision.4) ──────────
+// Derived per collaboration mode / governance level so the init wizard need not
+// ask (convention over configuration). These are the per-axis derivations the
+// wizard persists; the absolute resolver floors live in override-resolver.ts
+// DERIVED_DEFAULTS (used only for a profile-blind read with no persisted value).
+
+/**
+ * Max concurrent wave worktrees for a collaboration mode. trunk-solo never uses
+ * worktrees (WORKTREE_MODE_DEFAULTS = 'optional', worktree: never in practice) →
+ * 1; peer/gated review parallelize wave issues → 3. The (>1 × trunk-solo)
+ * combination is what doctor flags as incoherent.
+ */
+const MAX_PARALLEL_WORKTREES_DEFAULTS: Record<CollaborationMode, number> = {
+  'trunk-solo': 1,
+  'peer-review': 3,
+  'gated-review': 3,
+}
+
+/** Whether ship batches affinity-related issues for a collaboration mode. Solo ships one at a time. */
+const AFFINITY_BATCHING_DEFAULTS: Record<CollaborationMode, boolean> = {
+  'trunk-solo': false,
+  'peer-review': true,
+  'gated-review': true,
+}
+
+/** Returns the default max-parallel-worktrees for a collaboration mode. */
+export function resolveDefaultMaxParallelWorktrees(mode: CollaborationMode): number {
+  return MAX_PARALLEL_WORKTREES_DEFAULTS[mode]
+}
+
+/** Returns the default affinity-batching toggle for a collaboration mode. */
+export function resolveDefaultAffinityBatching(mode: CollaborationMode): boolean {
+  return AFFINITY_BATCHING_DEFAULTS[mode]
+}
+
+/**
+ * Returns the default gate level for a governance level: L1/L2 governance runs
+ * the L1 gate by default (fast); L3/L4 rigour defaults to the L2 gate. A
+ * defaultGateLevel of L1 under L3/L4 governance is what doctor flags (WARN).
+ */
+export function resolveDefaultGateLevel(level: GovernanceLevel): 'L1' | 'L2' {
+  return level === 'L3' || level === 'L4' ? 'L2' : 'L1'
+}
+
 // ── Public resolver API ───────────────────────────────────────────────────────
 
 /** Resolves pipelineStyle from the collaboration mode + governance level table. */
