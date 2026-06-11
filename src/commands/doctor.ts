@@ -23,7 +23,9 @@ import {
   validateCollaborationCoherence,
   validateOverlayCoherence,
   validateAutonomyCoherence,
+  validateProfileCoherence,
 } from './wizard/coherence.js'
+import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import type { IndustryOverlay } from './wizard/coherence.js'
 import type { CollaborationMode, GovernanceLevel } from '../wizard/types.js'
 
@@ -134,8 +136,60 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   out.push(checkCollaborationCoherence(dir))
   out.push(checkOverlayCoherence(dir))
   out.push(checkAutonomyCoherence(dir))
+  out.push(checkProfileCoherence(dir))
 
   return out
+}
+
+/**
+ * #1306 (ADR-094 §Decision.5): surface incoherent Project-Profile orchestration
+ * prefs. maxParallelWorktrees > 1 under trunk-solo is CRITICAL (worktree: never);
+ * defaultGateLevel L1 under L3/L4 governance is WARN (gate too lenient). Crash-safe:
+ * an unreadable arbiter.json WARNs rather than throwing (RT-1306-08). collaborationMode
+ * is read via the canonical resolver so the trunk-solo rule fires for soloDevMode
+ * aliases too.
+ */
+function checkProfileCoherence(dir: string): HealthCheck {
+  const check: HealthCheck = {
+    id: 'profile-coherence',
+    label: 'automation profile (worktrees / gate-level) coherence',
+    status: 'PASS',
+    detail: 'coherent',
+  }
+  let cfg: {
+    automation?: { maxParallelWorktrees?: number; defaultGateLevel?: string }
+    collaborationMode?: CollaborationMode
+    enableSoloDevMode?: boolean
+    governanceLevel?: GovernanceLevel
+  }
+  try {
+    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
+  } catch {
+    check.status = 'WARN'
+    check.detail = 'could not read arbiter.json for profile-coherence check'
+    return check
+  }
+  if (cfg.governanceLevel === undefined) {
+    check.status = 'WARN'
+    check.detail = 'governanceLevel missing from arbiter.json — cannot check profile coherence'
+    check.hint = 'Run `arbiter update` to repair the governanceLevel field.'
+    return check
+  }
+  const mode = resolveCollaborationMode(cfg)
+  const r = validateProfileCoherence(
+    cfg.automation?.maxParallelWorktrees,
+    cfg.automation?.defaultGateLevel,
+    mode,
+    cfg.governanceLevel,
+  )
+  if (r.severity === 'OK') {
+    check.detail = `${mode} @ ${cfg.governanceLevel} — profile prefs coherent`
+    return check
+  }
+  check.status = r.severity === 'CRITICAL' ? 'FAIL' : 'WARN'
+  check.detail = r.message
+  if (r.remediation !== undefined) check.hint = r.remediation
+  return check
 }
 
 /**

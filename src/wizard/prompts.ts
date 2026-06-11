@@ -33,6 +33,9 @@ import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
 import {
   collaborationModeFromAnswers,
   resolveDefaultBranchingStrategy,
+  resolveDefaultMaxParallelWorktrees,
+  resolveDefaultAffinityBatching,
+  resolveDefaultGateLevel,
 } from '../config/collaboration-mode-defaults.js'
 import {
   validateCollaborationCoherence,
@@ -623,11 +626,21 @@ function deriveDeployTarget(answers: WizardAnswers): DeployTarget {
 function buildProfileAxes(
   answers: WizardAnswers,
 ): Pick<ProjectConfig, 'industryOverlay' | 'automation'> {
+  // #1306 (ADR-094 §Decision.4): derive the three orchestration prefs from the
+  // collaboration mode + governance level (convention over configuration — the
+  // wizard does NOT ask for them). Persisted explicitly so `arbiter settings`
+  // shows a fully-populated profile and `arbiter doctor` has values to check.
+  const mode = collaborationModeFromAnswers(answers)
   return {
     ...(answers.industryOverlay !== undefined && answers.industryOverlay !== 'none'
       ? { industryOverlay: answers.industryOverlay }
       : {}),
-    automation: { autonomy: answers.autonomy ?? 'L0' },
+    automation: {
+      autonomy: answers.autonomy ?? 'L0',
+      maxParallelWorktrees: resolveDefaultMaxParallelWorktrees(mode),
+      defaultGateLevel: resolveDefaultGateLevel(answers.governanceLevel),
+      affinityBatching: resolveDefaultAffinityBatching(mode),
+    },
   }
 }
 

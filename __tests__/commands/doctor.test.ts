@@ -235,6 +235,60 @@ describe('runDoctorHealth (#539)', () => {
     expect(c?.status).toBe('WARN')
   })
 
+  // #1306: profile-coherence (maxParallelWorktrees / defaultGateLevel) surfaced by doctor.
+  it('profile-coherence FAIL: maxParallelWorktrees > 1 under trunk-solo', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        collaborationMode: 'trunk-solo',
+        governanceLevel: 'L2',
+        automation: { autonomy: 'L0', maxParallelWorktrees: 3 },
+      }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'profile-coherence')
+    expect(c?.status).toBe('FAIL')
+  })
+
+  it('profile-coherence WARN: defaultGateLevel L1 under L3 governance', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        collaborationMode: 'peer-review',
+        governanceLevel: 'L3',
+        automation: { autonomy: 'L0', defaultGateLevel: 'L1' },
+      }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'profile-coherence')
+    expect(c?.status).toBe('WARN')
+  })
+
+  it('profile-coherence PASS for a coherent profile', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        collaborationMode: 'peer-review',
+        governanceLevel: 'L2',
+        automation: { autonomy: 'L0', maxParallelWorktrees: 3, defaultGateLevel: 'L1' },
+      }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'profile-coherence')
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('profile-coherence WARN when arbiter.json is unreadable (crash-safe, RT-1306-08)', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), '{not json', 'utf-8')
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'profile-coherence')
+    expect(c?.status).toBe('WARN')
+  })
+
   it('WARN when arbiter.json exists but AGENTS.md missing', async () => {
     mockGitOk()
     writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ tools: ['claude'] }), 'utf-8')

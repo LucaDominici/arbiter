@@ -175,12 +175,12 @@ describe('buildConfigFromAnswers — industryOverlay axis (#1254)', () => {
 describe('buildConfigFromAnswers — automation.autonomy (#1261)', () => {
   it('threads the chosen autonomy answer into ProjectConfig.automation', () => {
     const config = buildConfigFromAnswers(makeInput(), makeAnswers({ autonomy: 'L2' }))
-    expect(config.automation).toEqual({ autonomy: 'L2' })
+    expect(config.automation?.autonomy).toBe('L2')
   })
 
   it('defaults automation.autonomy to L0 when the answer is absent', () => {
     const config = buildConfigFromAnswers(makeInput(), makeAnswers())
-    expect(config.automation).toEqual({ autonomy: 'L0' })
+    expect(config.automation?.autonomy).toBe('L0')
   })
 
   it('persists automation into arbiter.json (buildArbiterConfig passthrough)', async () => {
@@ -188,7 +188,58 @@ describe('buildConfigFromAnswers — automation.autonomy (#1261)', () => {
     const arbiterJson = buildArbiterConfig(
       buildConfigFromAnswers(makeInput(), makeAnswers({ autonomy: 'L3' })),
     )
-    expect(arbiterJson.automation).toEqual({ autonomy: 'L3' })
+    expect(arbiterJson.automation?.autonomy).toBe('L3')
+  })
+})
+
+// #1306 (ADR-094 §Decision.4 + §Decision.6): the three orchestration prefs are
+// DERIVED by the wizard (not asked) and INHERIT into the generated arbiter.json.
+describe('buildConfigFromAnswers — automation prefs derivation + inheritance (#1306)', () => {
+  it('derives the prefs for peer-review @ L2 (default answers)', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers())
+    // peer-review → 3 worktrees + affinity batching; L2 governance → L1 gate.
+    expect(config.automation).toEqual({
+      autonomy: 'L0',
+      maxParallelWorktrees: 3,
+      defaultGateLevel: 'L1',
+      affinityBatching: true,
+    })
+  })
+
+  it('derives trunk-solo prefs (1 worktree, no batching) and L2 gate at L3', () => {
+    const config = buildConfigFromAnswers(
+      makeInput(),
+      makeAnswers({ collaborationMode: 'trunk-solo', governanceLevel: 'L3' }),
+    )
+    expect(config.automation).toEqual({
+      autonomy: 'L0',
+      maxParallelWorktrees: 1,
+      defaultGateLevel: 'L2',
+      affinityBatching: false,
+    })
+  })
+
+  it('inherits the derived prefs into the generated arbiter.json (dual-sided, ADR-093 §5)', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const arbiterJson = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ collaborationMode: 'peer-review' })),
+    )
+    expect(arbiterJson.automation).toEqual({
+      autonomy: 'L0',
+      maxParallelWorktrees: 3,
+      defaultGateLevel: 'L1',
+      affinityBatching: true,
+    })
+  })
+
+  it('round-trips: generated prefs read back validate ok', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const { validateConfig } = await import('../../src/config/schema.js')
+    const arbiterJson = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ governanceLevel: 'L4' })),
+    )
+    const validated = validateConfig(JSON.parse(JSON.stringify(arbiterJson)))
+    expect(validated.ok).toBe(true)
   })
 })
 

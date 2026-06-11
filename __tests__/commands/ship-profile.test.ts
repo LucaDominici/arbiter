@@ -57,6 +57,10 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
       autonomy: 'L0',
+      // #1306 — no automation block ⇒ resolver derived floors.
+      maxParallelWorktrees: 1,
+      defaultGateLevel: 'L1',
+      affinityBatching: false,
     })
   })
 
@@ -113,7 +117,75 @@ describe('resolveShipProfile — reads the TARGET repo arbiter.json (#1288)', ()
       mergeMode: 'pr-ff',
       governanceLevel: 'L2',
       autonomy: 'L0',
+      // #1306 — no automation block ⇒ resolver derived floors.
+      maxParallelWorktrees: 1,
+      defaultGateLevel: 'L1',
+      affinityBatching: false,
     })
+  })
+})
+
+// #1306 (ADR-094 §Decision.4) — the three orchestration prefs resolve through the
+// SAME unified resolver as autonomy: wave reads maxParallelWorktrees, verification
+// reads defaultGateLevel, ship reads affinityBatching, all from one ShipProfile.
+describe('resolveShipProfile — Project-Profile orchestration prefs (#1306)', () => {
+  it('surfaces persisted automation prefs from arbiter.json', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({
+        collaborationMode: 'peer-review',
+        automation: {
+          autonomy: 'L1',
+          maxParallelWorktrees: 3,
+          defaultGateLevel: 'L2',
+          affinityBatching: true,
+        },
+      }),
+    })
+    const p = resolveShipProfile(dir)
+    expect(p.maxParallelWorktrees).toBe(3)
+    expect(p.defaultGateLevel).toBe('L2')
+    expect(p.affinityBatching).toBe(true)
+  })
+
+  it('per-run --set overrides the persisted prefs (override layer wins)', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({
+        collaborationMode: 'peer-review',
+        automation: {
+          autonomy: 'L0',
+          maxParallelWorktrees: 3,
+          defaultGateLevel: 'L2',
+          affinityBatching: true,
+        },
+      }),
+    })
+    const overrides = buildShipOverrides(dir, {
+      sets: [
+        'automation.maxParallelWorktrees=1',
+        'automation.defaultGateLevel=L1',
+        'automation.affinityBatching=false',
+      ],
+    })
+    const p = resolveShipProfile(dir, { overrides })
+    expect(p.maxParallelWorktrees).toBe(1)
+    expect(p.defaultGateLevel).toBe('L1')
+    expect(p.affinityBatching).toBe(false)
+  })
+
+  it('absent automation block ⇒ derived floors, never throws (RT-1306-04)', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme-app'),
+      'arbiter.json': cfg({ collaborationMode: 'peer-review' }),
+    })
+    let p!: ReturnType<typeof resolveShipProfile>
+    expect(() => {
+      p = resolveShipProfile(dir)
+    }).not.toThrow()
+    expect(p.maxParallelWorktrees).toBe(1)
+    expect(p.defaultGateLevel).toBe('L1')
+    expect(p.affinityBatching).toBe(false)
   })
 })
 
