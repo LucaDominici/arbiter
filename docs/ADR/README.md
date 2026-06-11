@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 093)
+1. Create `NNN-short-title.md` in this directory (next free number after 094)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -121,3 +121,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 091 | [Single-Developer Exception Attestation (§11.10(k))](091-single-dev-exception-attestation.md)                                                                         | Accepted   | 2026-06-07 |  |
 | 092 | [jscpd v5 Migration — Fail-Closed Duplication Gate](092-jscpd-v5-fail-closed-duplication-gate.md)                                                                     | Accepted   | 2026-06-10 |  |
 | 093 | [Dual-Side the /ship Orchestrator](093-dual-side-ship-orchestrator.md)                                                                                                | proposed   | 2026-06-11 |  |
+| 094 | [Project Profile Resolver — one catalog + one precedence layer](094-project-profile-resolver.md)                                                                      | proposed   | 2026-06-11 |  |
