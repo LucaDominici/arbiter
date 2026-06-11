@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runUpdate } from '../../src/commands/update.js'
+import { saveConfigAndSnapshot } from '../../src/utils/config.js'
 
 vi.mock('../../src/utils/config.js', () => ({
   loadConfig: vi.fn(),
@@ -186,5 +187,32 @@ describe('update --json', () => {
     expect((parsed.errors as string[]).length).toBeGreaterThan(0)
     expect(Array.isArray(parsed.warnings)).toBe(true)
     expect((parsed.warnings as string[]).length).toBeGreaterThan(0)
+  })
+})
+
+// #1291 — runUpdate must preserve an existing automation block (spread, no field drop).
+describe('runUpdate preserves automation.autonomy (#1291)', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-update-automation-'))
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('threads the block through to the saved nextConfig', async () => {
+    mockLoadConfig.mockReturnValue({ ...BASE_CONFIG, automation: { autonomy: 'L2' } })
+    mockValidateConfig.mockImplementation((raw: unknown) => ({ ok: true, config: raw }))
+    // prior tests in this file queue failing implementations on the module mocks — reset
+    mockRunGeneratorsFromRegistry.mockImplementation(() => [])
+    mockRunGithubSetup.mockReturnValue({ warnings: [] })
+    await runUpdate({ dir, github: false })
+    const saved = vi.mocked(saveConfigAndSnapshot).mock.calls.at(-1)
+    expect(saved).toBeDefined()
+    const nextConfig = saved?.[1] as { automation?: { autonomy: string } }
+    expect(nextConfig.automation).toEqual({ autonomy: 'L2' })
   })
 })
