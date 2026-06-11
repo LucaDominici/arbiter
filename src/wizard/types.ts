@@ -11,6 +11,15 @@ export type ProjectPreset = 'none' | 'industrial-grade'
 
 export type WizardFlow = 'greenfield' | 'brownfield'
 
+/**
+ * #1291/#1261 (ADR-093 §4) — ship autonomy level, the Project Profile automation
+ * axis. L0 ask-each-step · L1 auto-advance/auto-merge · L2 + fix-on-red attempt ·
+ * L3 full-auto wave + autonomous fix push + sub-agent spawn.
+ * Lives here (not config/schema.ts) so WizardAnswers can use it without an
+ * import cycle; config/schema.ts re-exports it for its existing consumers.
+ */
+export type AutonomyLevel = 'L0' | 'L1' | 'L2' | 'L3'
+
 export interface WizardAnswers {
   description: string
   tools: AiTool[]
@@ -52,6 +61,11 @@ export interface WizardAnswers {
    * (overlay × governanceLevel) coherence advisory.
    */
   industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'none'
+  /**
+   * #1261: ship autonomy level chosen in the wizard. Absent = 'L0'
+   * (ask at each ship step — the safe default).
+   */
+  autonomy?: AutonomyLevel
 }
 
 export interface MigrationPlan {
@@ -262,7 +276,7 @@ export interface ProjectConfig {
    */
   solo?: { mergeMode: SoloMergeMode }
   /** #1291 — ship autonomy gating (ADR-093 §4). Absent ⇒ L0. */
-  automation?: { autonomy: 'L0' | 'L1' | 'L2' | 'L3' }
+  automation?: { autonomy: AutonomyLevel }
   /**
    * Whether to enable solo-dev mode: skip PR CI ceremony, nightly drift shadow. Default false.
    * @deprecated Use collaborationMode: 'trunk-solo' instead. Kept as alias for one minor version.

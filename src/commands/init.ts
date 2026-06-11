@@ -919,6 +919,9 @@ function buildDefaultConfig(opts: {
     // ADR-051 (#1119): --solo flag sets collaborationMode='trunk-solo' at init time.
     // Default (non-interactive): 'peer-review'. Wizard overrides this with user choice.
     collaborationMode: opts.solo === true ? 'trunk-solo' : 'peer-review',
+    // #1261: non-interactive init defaults the ship-autonomy axis to the safe L0
+    // (ask each step). Recipes may override via applyRecipeOverrides.
+    automation: { autonomy: 'L0' },
     invariantTiers: presetToTiers(defaultPresetForLevel(opts.governanceLevel)),
     acceptBetaTools: opts.acceptBetaTools ?? false,
     contractType: defaultContractType(archetype, hasPublicApi),
@@ -973,6 +976,8 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
   if (recipe.enableMcpFallback !== undefined) config.enableMcpFallback = recipe.enableMcpFallback
   if (recipe.enableNoSkippedTests !== undefined)
     config.enableNoSkippedTests = recipe.enableNoSkippedTests
+  // #1261: recipes are the supported non-interactive knob for ship autonomy.
+  if (recipe.automation !== undefined) config.automation = recipe.automation
 }
 
 /**
@@ -990,15 +995,19 @@ function buildProviderFields(
 }
 
 /**
- * ADR-051 (#1119): build the collaboration-mode portion of the stored config.
+ * ADR-051 (#1119): build the collaboration-mode + automation portion of the stored config.
  * Extracted from buildArbiterConfig to keep its complexity within the 15-statement limit.
  * Only collaborationMode + explicit user overrides (solo.mergeMode, branchingStrategy) are
  * persisted; derived values are re-computed at render time by resolveCollaborationAxes.
+ * #1261: the automation block is always persisted explicitly — the Project Profile is a
+ * discovery surface (`arbiter settings`); absent stays valid for legacy repos
+ * (absent ⇒ L0 at every read site), but fresh inits spell it out.
  */
 function buildCollaborationOverrides(config: ProjectConfig): {
   collaborationMode: CollaborationMode
   solo?: { mergeMode: import('../wizard/types.js').SoloMergeMode }
   branchingStrategy?: import('../wizard/types.js').BranchingStrategy
+  automation: { autonomy: import('../wizard/types.js').AutonomyLevel }
 } {
   return {
     collaborationMode: resolveCollaborationMode(config),
@@ -1006,6 +1015,7 @@ function buildCollaborationOverrides(config: ProjectConfig): {
     ...(config.branchingStrategy !== undefined
       ? { branchingStrategy: config.branchingStrategy }
       : {}),
+    automation: config.automation ?? { autonomy: 'L0' },
   }
 }
 

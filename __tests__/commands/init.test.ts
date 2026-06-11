@@ -845,3 +845,29 @@ describe('preamble detection source (#1036)', () => {
     expect(output).not.toContain('no markers found')
   })
 })
+
+// #1261: buildArbiterConfig must always persist the automation block so the
+// Project Profile is an explicit, discoverable surface in fresh repos.
+describe('buildArbiterConfig — automation persistence (#1261)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+  })
+
+  afterEach(() => {
+    cleanupTestProject(dir)
+  })
+
+  it('emits automation.autonomy=L0 when ProjectConfig.automation is absent', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const arbiterJson = buildArbiterConfig(makeConfig(dir))
+    expect(arbiterJson.automation).toEqual({ autonomy: 'L0' })
+  })
+
+  it('preserves an explicit ProjectConfig.automation value', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const arbiterJson = buildArbiterConfig(makeConfig(dir, { automation: { autonomy: 'L2' } }))
+    expect(arbiterJson.automation).toEqual({ autonomy: 'L2' })
+  })
+})

@@ -147,6 +147,30 @@ describe('greenfield smoke test — runInit produces valid arbiter.json (#1038)'
     // Non-solo default resolves to peer-review (mirrors the branch-protection default).
     expect(raw.collaborationMode).toBe('peer-review')
   })
+
+  // #1261: fresh `arbiter init --yes` must persist the Project Profile autonomy
+  // axis explicitly (safe default L0) and the result must still validate.
+  it('writes automation.autonomy=L0 into generated arbiter.json (#1261)', async () => {
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    const raw = readArbiterJson(dir) as { automation?: unknown }
+    expect(
+      raw.automation,
+      'fresh init must persist the automation block, not leave the profile implicit',
+    ).toEqual({ autonomy: 'L0' })
+    const result = validateConfig(raw)
+    expect(
+      result.ok,
+      result.ok ? '' : `errors: ${(result as { errors: string[] }).errors.join(', ')}`,
+    ).toBe(true)
+  })
 })
 
 // ── Wizard→validator contract matrix ────────────────────────────────────────

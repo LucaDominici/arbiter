@@ -7,6 +7,7 @@ import {
   VALID_COLLABORATION_MODES,
   VALID_SOLO_MERGE_MODES,
   VALID_BRANCHING_STRATEGIES,
+  AUTONOMY_LEVELS,
 } from '../config/schema.js'
 import { acquireLock } from '../utils/file-lock.js'
 import { jsonOutput } from '../utils/json-output.js'
@@ -50,6 +51,7 @@ export const ALLOWED_PATHS = new Set([
   'hasDatabase',
   'hasPublicApi',
   'contractType',
+  'automation.autonomy',
 ])
 
 const VALID_TOOLS = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
@@ -195,17 +197,23 @@ function parseValue(path: string, raw: string): unknown {
     return toolList
   }
   if (AXIS_PATHS.has(path)) return parseAxisValue(path, raw)
-  // ADR-051 (#1119): enum-validate collaboration-mode axis paths.
-  const COLLAB_PATHS = new Set(['collaborationMode', 'solo.mergeMode', 'branchingStrategy'])
-  if (COLLAB_PATHS.has(path)) return parseCollaborationAxisValue(path, raw)
+  // ADR-051 (#1119) / #1261: enum-validate enum-shaped settable paths.
+  const ENUM_PATHS = new Set([
+    'collaborationMode',
+    'solo.mergeMode',
+    'branchingStrategy',
+    'automation.autonomy',
+  ])
+  if (ENUM_PATHS.has(path)) return parseEnumPathValue(path, raw)
   return raw
 }
 
 /**
- * ADR-051 (#1119): enum-validate collaboration-mode settable paths.
- * Extracted from parseValue to keep it below the 100-line / complexity-15 limits.
+ * ADR-051 (#1119) / #1261: enum-validate enum-shaped settable paths
+ * (collaboration axes + ship autonomy). Extracted from parseValue to keep it
+ * below the 100-line / complexity-15 limits.
  */
-function parseCollaborationAxisValue(path: string, raw: string): string {
+function parseEnumPathValue(path: string, raw: string): string {
   const SPECS: Record<string, { valid: ReadonlySet<string>; hint: string }> = {
     collaborationMode: {
       valid: VALID_COLLABORATION_MODES,
@@ -218,6 +226,10 @@ function parseCollaborationAxisValue(path: string, raw: string): string {
     branchingStrategy: {
       valid: VALID_BRANCHING_STRATEGIES,
       hint: 'Valid values: trunk-direct, github-flow, github-flow-with-develop.',
+    },
+    'automation.autonomy': {
+      valid: new Set(AUTONOMY_LEVELS),
+      hint: 'Valid values: L0, L1, L2, L3. L0 = ask each ship step (default). Per-run override: `arbiter ship --autonomy Lx`.',
     },
   }
   const spec = SPECS[path]

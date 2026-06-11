@@ -44,6 +44,7 @@ interface ClackAnswers {
   pipelineStyle?: string
   brownfieldClass?: string
   industryOverlay?: string
+  autonomy?: string
   /** Final "Proceed?" confirmation. Defaults to true. */
   proceed?: boolean
 }
@@ -75,6 +76,7 @@ function setupClack(answers: ClackAnswers): void {
     if (message.startsWith('Pipeline style')) return answers.pipelineStyle
     if (message.startsWith('Brownfield class')) return answers.brownfieldClass
     if (message.startsWith('Industry compliance overlay')) return answers.industryOverlay
+    if (message.startsWith('Ship autonomy level')) return answers.autonomy
     return undefined
   })
 }
@@ -361,6 +363,89 @@ describe('runWizard greenfield flow', () => {
     })
 
     await expect(runWizard(makeWizardInput())).rejects.toThrow('unexpected failure')
+  })
+})
+
+// #1261: ship-autonomy prompt — the wizard writes the Project Profile autonomy axis.
+describe('runWizard autonomy prompt (#1261)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.exitCode = 0
+  })
+
+  afterEach(() => {
+    process.exitCode = 0
+  })
+
+  it('asks the autonomy select with safe default L0 (initialValue)', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
+
+    await runWizard(makeWizardInput())
+    const autonomyCall = vi
+      .mocked(clack.select)
+      .mock.calls.find((c) =>
+        (c[0] as { message: string }).message.startsWith('Ship autonomy level'),
+      )
+    expect(autonomyCall).toBeDefined()
+    expect((autonomyCall![0] as { initialValue?: string }).initialValue).toBe('L0')
+  })
+
+  it('threads the selected autonomy into config.automation', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      autonomy: 'L2',
+      proceed: true,
+    })
+
+    const result = await runWizard(makeWizardInput())
+    expect(result!.automation).toEqual({ autonomy: 'L2' })
+  })
+
+  it('defaults config.automation to L0 when the prompt is left at its default', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      proceed: true,
+    })
+
+    const result = await runWizard(makeWizardInput())
+    expect(result!.automation).toEqual({ autonomy: 'L0' })
+  })
+
+  it('cancel at the autonomy prompt aborts the wizard with exitCode 130', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+    })
+    cancelSelectWhen((m) => m.startsWith('Ship autonomy level'))
+
+    const result = await runWizard(makeWizardInput())
+    expect(result).toBeNull()
+    expect(process.exitCode).toBe(130)
+  })
+
+  it('echoes the chosen autonomy in the resulting-cell summary', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      autonomy: 'L1',
+      proceed: true,
+    })
+    await runWizard(makeWizardInput())
+    const out = writeSpy.mock.calls.map((c) => String(c[0])).join('')
+    writeSpy.mockRestore()
+    expect(out).toMatch(/autonomy: L1/)
   })
 })
 

@@ -212,6 +212,35 @@ describe('runInteractiveConfigure', () => {
     expect(vi.mocked(saveConfig)).not.toHaveBeenCalled()
   })
 
+  // #1261: the automation group edits the Project Profile autonomy axis.
+  it('automation group: changed autonomy → saveConfig called with automation.autonomy=L1 (#1261)', async () => {
+    writeConfig(dir, { automation: { autonomy: 'L0' } })
+    mockAllGroupsNoChange(DEFAULT_THRESHOLDS.L2)
+    // Group 6: automation — changed L0 → L1
+    vi.mocked(clack.select).mockResolvedValueOnce('L1')
+    // Final save confirm
+    vi.mocked(clack.confirm).mockResolvedValueOnce(true)
+
+    await runInteractiveConfigure(dir)
+
+    expect(vi.mocked(saveConfig)).toHaveBeenCalledOnce()
+    const saved = vi.mocked(saveConfig).mock.calls[0][1] as Record<string, unknown>
+    expect(saved['automation']).toEqual({ autonomy: 'L1' })
+  })
+
+  it('automation group: unchanged autonomy → no diff emitted, saveConfig not called (#1261)', async () => {
+    writeConfig(dir, { automation: { autonomy: 'L1' } })
+    mockAllGroupsNoChange(DEFAULT_THRESHOLDS.L2)
+    // Group 6: automation — same value
+    vi.mocked(clack.select).mockResolvedValueOnce('L1')
+    vi.mocked(clack.confirm).mockResolvedValueOnce(true) // final save confirm
+
+    await runInteractiveConfigure(dir)
+
+    expect(vi.mocked(saveConfig)).not.toHaveBeenCalled()
+    expect(vi.mocked(clack.outro)).toHaveBeenCalledWith(expect.any(String))
+  })
+
   it('no-op (all prompts return same values) → outro(no_changes), saveConfig not called', async () => {
     writeConfig(dir)
     mockAllGroupsNoChange(DEFAULT_THRESHOLDS.L2)

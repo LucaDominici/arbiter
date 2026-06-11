@@ -146,7 +146,8 @@
         "features_header": "Feature flags",
         "thresholds_header": "Quality thresholds",
         "collaboration_header": "Collaboration mode",
-        "access_header": "AI tools & GitHub access"
+        "access_header": "AI tools & GitHub access",
+        "automation_header": "Ship automation"
       }
     },
     "work": {

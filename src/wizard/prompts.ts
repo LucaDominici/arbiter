@@ -14,6 +14,7 @@ import type {
   GovernanceLevel,
   InvariantPreset,
   ArchitectureStyle,
+  AutonomyLevel,
   ContractType,
   CollaborationMode,
 } from './types.js'
@@ -285,7 +286,8 @@ function displayComplianceCell(answers: WizardAnswers): void {
 
   process.stdout.write(
     `\nResulting cell: team=${mode} × compliance=${overlayLabel} @ ${answers.governanceLevel}\n` +
-      `  branching: ${branching}  |  gates: ${answers.governanceLevel}  |  overlay: ${overlayLabel}\n`,
+      `  branching: ${branching}  |  gates: ${answers.governanceLevel}  |  overlay: ${overlayLabel}` +
+      `  |  autonomy: ${answers.autonomy ?? 'L0'}\n`,
   )
 
   const coherence = validateOverlayCoherence(overlay, answers.governanceLevel)
@@ -537,6 +539,15 @@ async function collectRawAnswers(wizardInput: WizardInput): Promise<RawAnswers> 
     }),
   )
 
+  // 17 — #1261: ship autonomy level (Project Profile automation axis). Default 'L0'.
+  raw.autonomy = await unwrap(
+    select({
+      message: AUTONOMY_MESSAGE,
+      options: AUTONOMY_OPTIONS,
+      initialValue: 'L0',
+    }),
+  )
+
   return raw
 }
 
@@ -602,6 +613,24 @@ function deriveDeployTarget(answers: WizardAnswers): DeployTarget {
   return answers.deployTarget ?? 'ghcr'
 }
 
+/**
+ * #1254/#1261: the Project-Profile axes persisted from wizard answers.
+ * industryOverlay is only set for a real overlay ('none'/absent leaves the field
+ * off so overlay generators stay disabled); automation is always explicit
+ * (absent answer = safe L0) so `arbiter settings` shows a configured profile.
+ * Extracted from buildConfigFromAnswers to keep it within the complexity-15 limit.
+ */
+function buildProfileAxes(
+  answers: WizardAnswers,
+): Pick<ProjectConfig, 'industryOverlay' | 'automation'> {
+  return {
+    ...(answers.industryOverlay !== undefined && answers.industryOverlay !== 'none'
+      ? { industryOverlay: answers.industryOverlay }
+      : {}),
+    automation: { autonomy: answers.autonomy ?? 'L0' },
+  }
+}
+
 export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswers): ProjectConfig {
   const tools = answers.tools.length > 0 ? answers.tools : (['claude', 'codex'] as AiTool[])
   const deployTarget = deriveDeployTarget(answers)
@@ -654,12 +683,8 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
     pipelineStyle: answers.pipelineStyle ?? 'standard',
     brownfieldClass: answers.brownfieldClass ?? 'gold',
     kitEnabled: true,
-    // #1254: thread the compliance-overlay axis through to generation. Only set
-    // when a real overlay is chosen; 'none'/absent leaves the field off so the
-    // overlay generators stay disabled (they self-guard on a concrete value).
-    ...(answers.industryOverlay !== undefined && answers.industryOverlay !== 'none'
-      ? { industryOverlay: answers.industryOverlay }
-      : {}),
+    // #1254/#1261: compliance-overlay + ship-autonomy Project-Profile axes.
+    ...buildProfileAxes(answers),
   }
 }
 
@@ -870,4 +895,25 @@ const INDUSTRY_OVERLAY_OPTIONS: Opt<IndustryOverlayValue>[] = [
   { value: 'iso9001', label: 'iso9001   — quality-process RTM + doc-control + CAPA' },
   { value: 'iso27001', label: 'iso27001  — ISO 27001 Annex-A controls→gates (heavy)' },
   { value: 'pharma', label: 'pharma    — 21 CFR Part 11 audit-trail (heavy, L3+)' },
+]
+
+// #1261: ship autonomy level (ADR-093 §4) — how much of `arbiter ship` runs
+// without asking. Labels mirror the AUTONOMY_GRANTS table in ship-profile.ts.
+const AUTONOMY_MESSAGE = [
+  'Ship autonomy level — how much of `arbiter ship` runs without asking:',
+  '',
+  '  L0 — ask at each ship step (default)',
+  '  L1 — auto-advance + auto-merge on green; stops at any fix decision',
+  '  L2 — also attempts fix-on-red autonomously; push needs a human',
+  '  L3 — full auto: wave/batch, autonomous fix push, sub-agent spawn',
+  '',
+  '  Per-run override: arbiter ship --autonomy Lx',
+  '',
+].join('\n')
+
+const AUTONOMY_OPTIONS: Opt<AutonomyLevel>[] = [
+  { value: 'L0', label: 'L0 — ask at each ship step  [default]' },
+  { value: 'L1', label: 'L1 — auto-advance + auto-merge on green' },
+  { value: 'L2', label: 'L2 — + autonomous fix-on-red attempt' },
+  { value: 'L3', label: 'L3 — full auto: wave/batch + fix push + sub-agents' },
 ]

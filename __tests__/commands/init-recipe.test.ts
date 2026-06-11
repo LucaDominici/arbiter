@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -138,6 +138,73 @@ describe('runInit with --recipe (#546)', () => {
         dryRun: false,
         noVerify: true,
         recipe: bad,
+      }),
+    ).rejects.toThrow()
+
+    expect(mockBuild).not.toHaveBeenCalled()
+  })
+
+  // #1261: recipes are the supported non-interactive knob for autonomy — a
+  // CI-provisioned repo must be able to land at L1+ without a manual post-step.
+  it('recipe automation.autonomy=L3 lands in the generated arbiter.json (#1261)', async () => {
+    const recipePath = join(dir, 'autonomy-recipe.json')
+    writeFileSync(
+      recipePath,
+      JSON.stringify({
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        language: 'typescript',
+        archetype: 'library',
+        useGitHub: false,
+        automation: { autonomy: 'L3' },
+      }),
+    )
+
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      dir,
+      dryRun: false,
+      noVerify: true,
+      recipe: recipePath,
+    })
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      automation?: unknown
+    }
+    expect(raw.automation).toEqual({ autonomy: 'L3' })
+  })
+
+  it('recipe without automation defaults arbiter.json to autonomy L0 (#1261)', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      dir,
+      dryRun: false,
+      noVerify: true,
+      recipe: FIXTURE_PATH,
+    })
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      automation?: unknown
+    }
+    expect(raw.automation).toEqual({ autonomy: 'L0' })
+  })
+
+  it('rejects a recipe with an invalid autonomy level before running generators (#1261)', async () => {
+    const recipePath = join(dir, 'bad-autonomy-recipe.json')
+    writeFileSync(recipePath, JSON.stringify({ tools: ['claude'], automation: { autonomy: 'L9' } }))
+    const { buildRegistry } = await import('../../src/generators/registry.js')
+    const mockBuild = vi.mocked(buildRegistry)
+
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        dir,
+        dryRun: false,
+        noVerify: true,
+        recipe: recipePath,
       }),
     ).rejects.toThrow()
 
