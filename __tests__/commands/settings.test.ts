@@ -51,6 +51,15 @@ describe('settings catalog (#1121)', () => {
     const all = SETTINGS_CATALOG.flatMap((g) => g.fields.map((f) => f.path))
     expect(all.length).toBe(new Set(all).size)
   })
+
+  // #1261: the Project Profile autonomy axis must be a discoverable setting.
+  it('surfaces automation.autonomy in an Automation group (#1261)', () => {
+    expect(SETTINGS_PATHS.has('automation.autonomy')).toBe(true)
+    const group = SETTINGS_CATALOG.find((g) =>
+      g.fields.some((f) => f.path === 'automation.autonomy'),
+    )
+    expect(group?.group).toBe('Automation')
+  })
 })
 
 describe('resolveSettingValue', () => {
@@ -85,6 +94,24 @@ describe('runSettings', () => {
     runSettings({ dir: projectWith({ hasDatabase: true }), json: true })
     const parsed = JSON.parse(out.join('')) as Array<{ group: string }>
     expect(parsed.map((g) => g.group)).toContain('Project shape')
+  })
+
+  // #1261: absent automation block renders (unset) — the label documents absent=L0.
+  it('renders automation.autonomy as (unset) when absent and the level when set (#1261)', () => {
+    const out: string[] = []
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => {
+      out.push(String(s))
+      return true
+    })
+    runSettings({ dir: projectWith({}) })
+    const absentText = out.join('')
+    expect(absentText).toMatch(/automation\.autonomy\s+\(unset\)/)
+
+    out.length = 0
+    rmSync(dir, { recursive: true, force: true })
+    runSettings({ dir: projectWith({ automation: { autonomy: 'L2' } }) })
+    const setText = out.join('')
+    expect(setText).toMatch(/automation\.autonomy\s+L2/)
   })
 
   it('exits nonzero when no arbiter.json exists', () => {

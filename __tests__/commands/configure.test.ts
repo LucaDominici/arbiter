@@ -321,6 +321,50 @@ describe('runConfigure — axis fields (#324)', () => {
   })
 })
 
+describe('runConfigure — automation.autonomy (#1261)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('sets automation.autonomy=L2 on a config without an automation block and persists', async () => {
+    writeV2Config(dir) // no automation block stored — applySet must create the parent
+
+    await runConfigure({ dir, sets: ['automation.autonomy=L2'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['automation']).toEqual({ autonomy: 'L2' })
+  })
+
+  it('round-trips automation.autonomy back to L0', async () => {
+    writeV2Config(dir, { automation: { autonomy: 'L3' } })
+
+    await runConfigure({ dir, sets: ['automation.autonomy=L0'] })
+
+    const raw = readArbiterJson(dir)
+    expect(raw['automation']).toEqual({ autonomy: 'L0' })
+  })
+
+  it('rejects an invalid autonomy level with the enum hint and does not write', async () => {
+    writeV2Config(dir)
+    const before = readArbiterJson(dir)
+
+    await expect(runConfigure({ dir, sets: ['automation.autonomy=L9'] })).rejects.toThrow(
+      /L0, L1, L2, L3/,
+    )
+
+    expect(readArbiterJson(dir)).toEqual(before)
+  })
+})
+
 describe('runConfigure — archetype cascade (#504)', () => {
   let dir: string
 

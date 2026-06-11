@@ -249,6 +249,25 @@ async function promptAccessGroup(config: ArbiterConfigV2): Promise<string[] | nu
   ]
 }
 
+// #1261: ship-autonomy axis (ADR-093 §4) — single select, safe default L0.
+async function promptAutomationGroup(config: ArbiterConfigV2): Promise<string[] | null> {
+  note(t('cli.configure.interactive.automation_header'))
+
+  const autonomy = await select({
+    message: 'Ship autonomy level',
+    options: [
+      { value: 'L0', label: 'L0', hint: 'ask at each ship step (default)' },
+      { value: 'L1', label: 'L1', hint: 'auto-advance + auto-merge on green' },
+      { value: 'L2', label: 'L2', hint: '+ autonomous fix-on-red attempt' },
+      { value: 'L3', label: 'L3', hint: 'full auto: wave/batch + fix push + sub-agents' },
+    ],
+    initialValue: config.automation?.autonomy ?? 'L0',
+  })
+  if (isCancel(autonomy)) return null
+
+  return diffStr('automation.autonomy', config.automation?.autonomy, autonomy)
+}
+
 export async function runInteractiveConfigure(dir?: string): Promise<void> {
   const targetDir = resolve(dir ?? process.cwd())
   const stored = loadConfig(targetDir)
@@ -266,6 +285,7 @@ export async function runInteractiveConfigure(dir?: string): Promise<void> {
     (c) => promptThresholdsGroup(c),
     (c) => promptCollaborationGroup(c),
     (c) => promptAccessGroup(c),
+    (c) => promptAutomationGroup(c),
   ]
 
   const allAssignments: string[] = []

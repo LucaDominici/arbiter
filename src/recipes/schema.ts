@@ -41,6 +41,9 @@ export const RecipeSchema = z.object({
   enableSoloDevMode: z.boolean().optional(),
   enableMcpFallback: z.boolean().optional(),
   enableNoSkippedTests: z.boolean().optional(),
+  // #1261: ship-autonomy axis (ADR-093 §4) — the non-interactive override for
+  // `automation.autonomy` (init --yes/--json never prompts; default is L0).
+  automation: z.object({ autonomy: z.enum(['L0', 'L1', 'L2', 'L3']) }).optional(),
 })
 
 export type Recipe = z.infer<typeof RecipeSchema>

@@ -67,6 +67,15 @@ export const SETTINGS_CATALOG: SettingGroup[] = [
     ],
   },
   {
+    group: 'Automation',
+    fields: [
+      // #1261: ship-autonomy axis (ADR-093 §4). Absent = L0 (ask each ship step);
+      // legacy configs without the block stay valid. No `arbiter init` flag by
+      // design — set here, via a recipe, or per-run with `arbiter ship --autonomy`.
+      { path: 'automation.autonomy', label: 'Ship autonomy level (absent = L0)' },
+    ],
+  },
+  {
     group: 'Thresholds',
     fields: [
       { path: 'thresholds.lineCoverage', label: 'Line coverage %' },

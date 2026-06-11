@@ -4,6 +4,7 @@ import type {
   Archetype,
   ArchitectureStyle,
   AuthConfig,
+  AutonomyLevel,
   BranchingStrategy,
   CollaborationMode,
   ContractType,
@@ -65,10 +66,10 @@ export interface ContextPackAdrMapping {
  * Configuration for the CONTEXT_PACK generator (#254).
  * Stored under `contextPack` in `arbiter.json`.
  */
-// #1291 (ADR-093 §4) — minimal automation block; the Project-Profile work (#1258/#1261)
-// extends it. L0 ask-each-step · L1 ask-on-risky-only · L2 autonomous-stop-on-red ·
-// L3 full-auto wave + fix-on-red autopush + sub-agent auto-spawn.
-export type AutonomyLevel = 'L0' | 'L1' | 'L2' | 'L3'
+// #1291 (ADR-093 §4) — minimal automation block; #1261 wires it end-to-end
+// (wizard → persist → settings → configure). The AutonomyLevel union lives in
+// wizard/types.ts (cycle-safe home); re-exported here for existing consumers.
+export type { AutonomyLevel }
 export const AUTONOMY_LEVELS: readonly AutonomyLevel[] = ['L0', 'L1', 'L2', 'L3']
 export interface AutomationConfig {
   autonomy: AutonomyLevel

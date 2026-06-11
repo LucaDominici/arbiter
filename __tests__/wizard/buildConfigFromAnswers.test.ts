@@ -172,6 +172,26 @@ describe('buildConfigFromAnswers — industryOverlay axis (#1254)', () => {
   })
 })
 
+describe('buildConfigFromAnswers — automation.autonomy (#1261)', () => {
+  it('threads the chosen autonomy answer into ProjectConfig.automation', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers({ autonomy: 'L2' }))
+    expect(config.automation).toEqual({ autonomy: 'L2' })
+  })
+
+  it('defaults automation.autonomy to L0 when the answer is absent', () => {
+    const config = buildConfigFromAnswers(makeInput(), makeAnswers())
+    expect(config.automation).toEqual({ autonomy: 'L0' })
+  })
+
+  it('persists automation into arbiter.json (buildArbiterConfig passthrough)', async () => {
+    const { buildArbiterConfig } = await import('../../src/commands/init.js')
+    const arbiterJson = buildArbiterConfig(
+      buildConfigFromAnswers(makeInput(), makeAnswers({ autonomy: 'L3' })),
+    )
+    expect(arbiterJson.automation).toEqual({ autonomy: 'L3' })
+  })
+})
+
 describe('buildConfigFromAnswers — language override (#1036)', () => {
   it('uses answers.language, not input.language', () => {
     const input = { ...makeInput(), language: 'typescript' as const }

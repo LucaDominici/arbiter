@@ -188,6 +188,20 @@ describe('autonomy resolution (#1291): flag > config > L0 default', () => {
     expect(p.autonomy).toBe('L0')
     expect(p.collaborationMode).toBe(CONSUMER_DEFAULT_PROFILE.collaborationMode)
   })
+
+  // #1261 (D6): migration semantics — pre-existing repos whose arbiter.json
+  // predates the profile block (no `automation` key) MUST resolve to L0.
+  // No $schemaVersion bump; absent ⇒ L0 is the permanent contract.
+  it('a config WITHOUT an automation block resolves autonomy L0 (#1261 migration pin)', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ collaborationMode: 'gated-review' }),
+    })
+    const p = resolveShipProfile(dir)
+    expect(p.autonomy).toBe('L0')
+    // the rest of the profile still resolves from the config, not defaults
+    expect(p.collaborationMode).toBe('gated-review')
+  })
 })
 
 describe('autonomyAllows grants (#1291): adjacent levels differ mechanically', () => {
