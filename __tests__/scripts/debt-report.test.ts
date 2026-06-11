@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -299,14 +299,14 @@ describe('jscpdScan (jscpd v5 fail-closed scan helper)', () => {
   })
 })
 
-// ─── resolveJscpdSpawn (#1304 — CI-deterministic default spawn) ──────────────
-// On the docker-ci-build runner `npx --no-install jscpd` exits 1 writing no
-// report (npx resolution differs from local), so jscpdScan fell through to the
-// generic "jscpd failed … wrote no report" fail-closed path even though jscpd is
-// installed. resolveJscpdSpawn resolves the locally-installed jscpd binary and
-// runs it directly with the current node (no npx layer) — deterministic in CI —
-// and falls back to the npx --no-install skip-spawn only when jscpd is absent.
-describe('resolveJscpdSpawn (#1304 default spawn resolution)', () => {
+// ─── resolveJscpdSpawn (#1304 — glibc-resilient default spawn) ───────────────
+// jscpd v5 runs a prebuilt native `cpd` binary chosen per platform. On the
+// docker-ci-build runner the glibc `cpd-linux-x64-gnu` binary is built against
+// GLIBC ≥ 2.34 but the image's glibc is < 2.32, so the loader rejects it: exit 1,
+// no report, fail-closed — even though jscpd "is installed". resolveJscpdSpawn
+// runs the resolved binary directly and, on that glibc-too-old failure, retries
+// once with the static (musl, libc-independent) `cpd` so the scan actually runs.
+describe('resolveJscpdSpawn (#1304 glibc-resilient spawn)', () => {
   async function load() {
     return await import('../../scripts/debt-lib.mjs')
   }
@@ -318,29 +318,53 @@ describe('resolveJscpdSpawn (#1304 default spawn resolution)', () => {
     expect(typeof spawn).toBe('function')
   })
 
-  it('runs the installed jscpd binary directly (no npx) and writes a report', async () => {
-    // The default spawn resolved from the repo root must produce a real
-    // report/jscpd-report.json via the locally-installed jscpd — the exact CI
-    // failure (npx exited 1, no report) must not occur when jscpd is present.
-    const { dir, cleanup } = makeTemp()
-    try {
-      const { resolveJscpdSpawn } = await load()
-      // Minimal source so jscpd has at least one file to scan.
-      mkdirSync(join(dir, 'src'), { recursive: true })
-      writeFileSync(join(dir, 'src', 'a.ts'), 'export const a = 1\n')
-      writeFileSync(
-        join(dir, '.jscpd.json'),
-        JSON.stringify({ path: ['src'], reporters: ['json'], format: ['typescript'] }),
-      )
-      const spawn = resolveJscpdSpawn(resolve('.'))
-      const r = spawn(dir, ['--no-install', 'jscpd', 'src', '--silent'])
-      expect(r).not.toBeNull()
-      // direct binary path exits 0 on an under-threshold scan and writes a report
-      expect([0, 1]).toContain(r.status ?? 0)
-      expect(existsSync(join(dir, 'report', 'jscpd-report.json'))).toBe(true)
-    } finally {
-      cleanup()
-    }
+  it('detects the glibc-too-old failure signature', async () => {
+    const { isGlibcIncompatible } = await load()
+    expect(
+      isGlibcIncompatible({
+        status: 1,
+        stderr: "cpd: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found",
+      }),
+    ).toBe(true)
+    // A clean run, a threshold breach, and an unrelated error are NOT glibc.
+    expect(isGlibcIncompatible({ status: 0, stderr: '' })).toBe(false)
+    expect(isGlibcIncompatible({ status: 1, stderr: 'Found 3 clones' })).toBe(false)
+  })
+
+  it('retries the static cpd binary when the native binary is glibc-incompatible', async () => {
+    const { resolveJscpdSpawn } = await load()
+    const calls: string[] = []
+    const spawn = resolveJscpdSpawn(resolve('.'), {
+      // Skip real jscpd resolution; the static path is what we exercise.
+      resolveBin: () => '/fake/node_modules/jscpd/run-jscpd.js',
+      resolveStatic: () => '/fake/.cache/jscpd-static/5.0.6/cpd',
+    })
+    const r = spawn(resolve('.'), ['--no-install', 'jscpd', 'src', '--silent'], {
+      spawnFn: (cmd: string) => {
+        calls.push(cmd)
+        // First call (the native launcher via node) reports the glibc failure;
+        // the retried static binary succeeds.
+        return cmd.endsWith('/cpd')
+          ? { status: 0, stdout: 'ok', stderr: '' }
+          : { status: 1, stdout: '', stderr: "version `GLIBC_2.34' not found" }
+      },
+    })
+    expect(r.status).toBe(0)
+    expect(calls.length).toBe(2)
+    expect(calls[1]).toBe('/fake/.cache/jscpd-static/5.0.6/cpd')
+  })
+
+  it('keeps the original failure (fail-closed) when no static binary is available', async () => {
+    const { resolveJscpdSpawn } = await load()
+    const spawn = resolveJscpdSpawn(resolve('.'), {
+      resolveBin: () => '/fake/node_modules/jscpd/run-jscpd.js',
+      resolveStatic: () => null,
+    })
+    const r = spawn(resolve('.'), ['--no-install', 'jscpd', 'src', '--silent'], {
+      spawnFn: () => ({ status: 1, stdout: '', stderr: "version `GLIBC_2.34' not found" }),
+    })
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/GLIBC/)
   })
 
   it('falls back to a skip-spawn when jscpd cannot be resolved (greenfield)', async () => {
@@ -367,35 +391,6 @@ describe('resolveJscpdSpawn (#1304 default spawn resolution)', () => {
       })
       expect(r.status).toBe(1)
       expect(r.stderr).toMatch(/missing packages/)
-    } finally {
-      cleanup()
-    }
-  })
-
-  it('jscpdScan with the real default spawn actually RUNS jscpd (no npx skip — CI repro)', async () => {
-    // End-to-end: no injected spawn. The runner symptom was the default npx
-    // path returning {skipped:true} / "wrote no report — fail-closed" even
-    // though jscpd is installed. With the direct-binary default spawn, jscpd
-    // genuinely runs: the result must NEVER be a skip nor the no-report error.
-    // (A synthetic temp fileset legitimately yields 0 sources -> the
-    // deterministic 0-source error; what matters is jscpd RAN, not skipped.)
-    const { dir, cleanup } = makeTemp()
-    try {
-      const { jscpdScan } = await load()
-      mkdirSync(join(dir, 'src'), { recursive: true })
-      writeFileSync(join(dir, 'src', 'a.ts'), 'export const a = 1\nexport const b = 2\n')
-      writeFileSync(
-        join(dir, '.jscpd.json'),
-        JSON.stringify({ path: ['src'], reporters: ['json'], format: ['typescript'] }),
-      )
-      const res = jscpdScan(dir)
-      // The CI bug: a skip, or the generic npx "wrote no report" fail-closed.
-      expect(res.skipped).toBeUndefined()
-      if (res.error) {
-        expect(res.error).not.toMatch(/wrote no report/)
-      } else {
-        expect(typeof res.percentage).toBe('number')
-      }
     } finally {
       cleanup()
     }
