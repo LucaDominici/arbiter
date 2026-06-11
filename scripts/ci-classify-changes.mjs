@@ -63,13 +63,22 @@ function resolveChangedPaths() {
   return git('diff', '--name-only', mergeBase, headSha).split('\n').filter(Boolean)
 }
 
+// A path counts as "docs" ONLY if it lives in a dedicated documentation tree
+// (docs/, website/, wiki/) or is a root-level *.md other than AGENTS.md.
+// Governance files (AGENTS.md, .claude/rules/*.md, src/templates/**/*.md) are
+// markdown but drive enforcement behavior: since docs-only PRs are mergeable
+// on green (#1296), classifying them as docs would skip the very tests that
+// validate them — so they are explicitly NOT docs (#1299).
+function isDocsPath(f) {
+  if (f.startsWith('docs/') || f.startsWith('website/') || f.startsWith('wiki/')) return true
+  return !f.includes('/') && f.endsWith('.md') && f !== 'AGENTS.md'
+}
+
 let succeeded = false
 try {
   const changed = resolveChangedPaths()
 
-  const docsOnly =
-    changed.length > 0 &&
-    changed.every((f) => f.startsWith('docs/') || f.endsWith('.md') || f.startsWith('website/'))
+  const docsOnly = changed.length > 0 && changed.every(isDocsPath)
 
   const backendChanged = changed.some(
     (f) =>

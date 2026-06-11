@@ -28,7 +28,17 @@ const base = process.env.BASE_SHA ?? 'origin/main';
 const head = process.env.HEAD_SHA ?? 'HEAD';
 const useStdin = process.argv.includes('--stdin');
 
-const DOCS_PATTERNS = [/^docs\//, /^README/i, /\.md$/i];
+// A path counts as "docs" ONLY if it lives in a dedicated documentation tree
+// (docs/, website/, wiki/) or is a root-level *.md other than AGENTS.md.
+// Governance files (AGENTS.md, .claude/rules/*.md, src/templates/**/*.md) are
+// markdown but drive enforcement behavior: since docs-only PRs are mergeable
+// on green (#1296), classifying them as docs would skip the very tests that
+// validate them — so they are explicitly NOT docs (#1299).
+function isDocsPath(f) {
+  if (f.startsWith('docs/') || f.startsWith('website/') || f.startsWith('wiki/')) return true;
+  return !f.includes('/') && f.endsWith('.md') && f !== 'AGENTS.md';
+}
+
 const FRONTEND_PATTERNS = [/^src\/(?:ui|frontend|components|pages|views)\//, /\.(tsx?|css|scss|html)$/];
 const INFRA_PATTERNS = [/^\.github\//, /^(Dockerfile|docker-compose|terraform|\.tf$)/i, /^k8s\//, /^helm\//];
 const HIGH_RISK_PATTERNS = [
@@ -85,7 +95,7 @@ try {
   const changed = resolveChangedPaths();
   const match = (patterns) => changed.some((f) => patterns.some((p) => p.test(f)));
 
-  const docs_only = changed.length > 0 && changed.every((f) => DOCS_PATTERNS.some((p) => p.test(f)));
+  const docs_only = changed.length > 0 && changed.every(isDocsPath);
   const backend_changed = match(BACKEND_PATTERNS);
   const frontend_changed = match(FRONTEND_PATTERNS);
   const infra_changed = match(INFRA_PATTERNS);
