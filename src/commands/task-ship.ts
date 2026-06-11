@@ -115,6 +115,15 @@ function completeAction(profile: ShipProfile): string {
   return 'Commit, push, open a PR, fast-forward merge once checks pass. Close the issue, clean up the worktree.'
 }
 
+/**
+ * The self-only authoring gates that run in the `verification` phase — the 3 ADR-093 §5 gates
+ * for arbiter-self, empty for a consumer repo (skipped, not faked). Extracted so the decision
+ * stays out of `shipStepBody`'s switch (keeps it under the complexity ceiling).
+ */
+function verificationSelfOnlyChecks(profile: ShipProfile): string[] {
+  return profile.isArbiterSelf ? [...SELF_ONLY_GATES] : []
+}
+
 /** The phase body (count + action), before the size-derived vertical floor is attached. */
 function shipStepBody(
   phase: TaskPhase,
@@ -175,7 +184,7 @@ function shipStepBody(
         reviewAgents: 0,
         // Self-only authoring gates run here for arbiter-self only; a consumer repo has no
         // such concern, so the list is empty (skipped, not faked — ADR-093 §5 / INV-115).
-        selfOnlyChecks: profile.isArbiterSelf ? [...SELF_ONLY_GATES] : [],
+        selfOnlyChecks: verificationSelfOnlyChecks(profile),
       }
     case 'complete':
       return {
