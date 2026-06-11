@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1289",
+  "test_path": "__tests__/ship/fix-on-red.test.ts",
+  "test_commit_sha": "e5fb93990aeb458ad0f8b4809d349a3ef160d14a",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1289-fix-on-red\n\n ❯ __tests__/ship/fix-on-red.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  08:28:40\n   Duration  93ms (transform 19ms, setup 12ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/ship/fix-on-red.test.ts [ __tests__/ship/fix-on-red.test.ts ]\nError: Cannot find module '../../src/ship/fix-on-red.js' imported from /home/luca/work/repos/arbiter.worktrees/1289-fix-on-red/__tests__/ship/fix-on-red.test.ts\n ❯ __tests__/ship/fix-on-red.test.ts:6:1\n      4| import { tmpdir } from 'node:os'\n      5| import { join } from 'node:path'\n      6| import {\n       | ^\n      7|   parseFailureSignature,\n      8|   recordFailure,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/ship/fix-on-red.test.ts",
+  "recorded_at": "2026-06-11T06:28:40.985Z"
+}
