@@ -160,6 +160,30 @@ describe('jscpdScan (jscpd v5 fail-closed scan helper)', () => {
     }
   })
 
+  it('skips (like a missing tool) when npx cancels because jscpd is not installed', async () => {
+    // Greenfield targets legitimately lack jscpd: `npx --no-install jscpd` exits 1
+    // with "npx canceled due to missing packages" instead of ENOENT. That is the
+    // tool-not-installed case (spawnOrSkip contract), not a failed scan — init must
+    // skip the collector, not fail closed (#1286 regression).
+    const { dir, cleanup } = makeTemp()
+    try {
+      const { jscpdScan } = await load()
+      writeConfig(dir, { path: ['src'], reporters: ['json'] })
+      const res = jscpdScan(dir, {
+        spawn: () => ({
+          status: 1,
+          stdout: '',
+          stderr:
+            'npm error npx canceled due to missing packages and no YES option: ["jscpd@5.0.7"]',
+        }),
+      })
+      expect(res.skipped).toBe(true)
+      expect(res.error).toBeUndefined()
+    } finally {
+      cleanup()
+    }
+  })
+
   it('treats a 0-source scan as an ERROR, never a 0% value (fail-closed, CANON-22)', async () => {
     const { dir, cleanup } = makeTemp()
     try {
