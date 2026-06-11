@@ -198,6 +198,15 @@ integration-tests:
 
 ---
 
+## Aggregator semantics — docs-only PRs
+
+The `ci-required` aggregator accepts a `skipped` result for the code jobs (gate,
+test suites, debt gates) **only** when `classify-changes` succeeded and reported
+`docs_only=true` — the classification that skipped those jobs in the first place.
+Any other skip, a cancelled job, or a failed/errored classification fails the
+aggregator (fail-closed). The classify script's error path reports
+`docs_only=false` so a broken classification always runs everything.
+
 ## Related
 
 - [ADR-090: Workflow Performance Budget](../ADR/090-workflow-performance-budget.md)

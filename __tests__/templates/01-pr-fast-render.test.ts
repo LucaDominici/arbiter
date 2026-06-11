@@ -120,3 +120,32 @@ describe('01-pr-fast.yml.ejs — DAG parallelism (#1227, ADR-090)', () => {
     expect(rendered).toMatch(/unit-tests:[\s\S]{0,200}?strategy:\s*\n\s+max-parallel:\s*2/)
   })
 })
+
+// #1296 — CI Required on docs-only PRs: skipped code jobs are accepted ONLY when
+// the docs_only classification skipped them; classify-changes itself must succeed.
+describe('ci-required — docs-only skip acceptance (#1296)', () => {
+  it('L3: accepts skipped via the DOCS_ONLY guard and requires classify success', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L3' })
+    expect(rendered).toContain('DOCS_ONLY:')
+    expect(rendered).toMatch(/ok\(\)\s*\{/)
+    // strict classify check — an errored classification fails the aggregator
+    expect(rendered).toMatch(/needs\.classify-changes\.result }}" != "success"/)
+    // no remaining bare strict check for the docs-gated jobs
+    expect(rendered).not.toMatch(/needs\.unit-tests\.result }}" != "success" \]\]/)
+  })
+
+  it('L1 single-lane (no classify job): stays strict, no dangling classify refs', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L1' })
+    if (!rendered.includes('classify-changes:')) {
+      expect(rendered).not.toContain('DOCS_ONLY:')
+      expect(rendered).not.toContain('needs.classify-changes.result')
+    }
+  })
+
+  it('java+maven: build-reactor check also accepts docs-only skips', () => {
+    const rendered = render({ language: 'java', buildTool: 'maven', governanceLevel: 'L3' })
+    if (rendered.includes('build-reactor')) {
+      expect(rendered).not.toMatch(/needs\.build-reactor\.result }}" != "success" \]\]/)
+    }
+  })
+})
