@@ -760,33 +760,49 @@ jobs:
   if (governanceLevel !== 'L1' || _multiLane) _ciNeeds.push('classify-changes');
   if (_multiLane) _ciNeeds.push('cross-stack-guard');
 %>
-    needs: [<%= _ciNeeds.join(', ') %>]
+<%
+  // #1296 — docs-only PRs SKIP the code jobs (classify-changes gating); the
+  // aggregator accepts `skipped` for those jobs ONLY under docs_only=true, and
+  // requires the classification itself to have succeeded (fail-closed).
+  const _hasClassify = (governanceLevel !== 'L1' || _multiLane);
+%>    needs: [<%= _ciNeeds.join(', ') %>]
     if: always()
     steps:
-      - run: |
-          if [[ "${{ needs.gate.result }}" != "success" ]]; then
+<% if (_hasClassify) { %>      - env:
+          DOCS_ONLY: ${{ needs.classify-changes.outputs.docs_only }}
+        run: |
+<% } else { %>      - run: |
+<% } %>
+<% if (_hasClassify) { %>          if [[ "${{ needs.classify-changes.result }}" != "success" ]]; then
+            echo "classify-changes failed — cannot trust docs_only, failing closed"
+            exit 1
+          fi
+          # success, or skipped ONLY when the docs-only classification skipped the job
+          ok() { [[ "$1" == "success" || ( "$DOCS_ONLY" == "true" && "$1" == "skipped" ) ]]; }
+<% } else { %>          ok() { [[ "$1" == "success" ]]; }
+<% } %>          if ! ok "${{ needs.gate.result }}"; then
             echo "gate failed"
             exit 1
           fi
 <% if (language === 'java' && buildTool === 'maven') { %>
-          if [[ "${{ needs.build-reactor.result }}" != "success" ]]; then
+          if ! ok "${{ needs.build-reactor.result }}"; then
             echo "build-reactor failed"
             exit 1
           fi
 <% } if (language === 'typescript' || language === 'java') { %>
-          if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.unit-tests.result }}"; then
             echo "unit-tests failed"
             exit 1
           fi
-          if [[ "${{ needs.contract-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.contract-tests.result }}"; then
             echo "contract-tests failed"
             exit 1
           fi
-          if [[ "${{ needs.integration-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.integration-tests.result }}"; then
             echo "integration-tests failed"
             exit 1
           fi
-          if [[ "${{ needs.behavioral-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.behavioral-tests.result }}"; then
             echo "behavioral-tests failed"
             exit 1
           fi
@@ -803,11 +819,11 @@ jobs:
             echo "sonar-scan failed"
             exit 1
           fi<% } %><% if (enableDebtGates) { %>
-          if [[ "${{ needs.debt-gates.result }}" != "success" ]]; then
+          if ! ok "${{ needs.debt-gates.result }}"; then
             echo "debt-gates failed"
             exit 1
           fi
-          if [[ "${{ needs.debt-ratchet.result }}" != "success" ]]; then
+          if ! ok "${{ needs.debt-ratchet.result }}"; then
             echo "debt-ratchet failed"
             exit 1
           fi<% } %><% if (governanceLevel !== 'L1') { %>
@@ -815,7 +831,7 @@ jobs:
             echo "gate-full (L2) failed or was cancelled"
             exit 1
           fi<% } %><% if (contractType && contractType !== 'none' && governanceLevel !== 'L1') { %>
-          if [[ "${{ needs.contract-verify.result }}" != "success" ]]; then
+          if ! ok "${{ needs.contract-verify.result }}"; then
             echo "contract-verify failed"
             exit 1
           fi<% } %><% if (_multiLane) { %>

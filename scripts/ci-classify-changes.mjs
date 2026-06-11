@@ -39,7 +39,9 @@ function setOutput(key, value) {
 }
 
 function emitAllTrue() {
-  for (const key of CATEGORY_KEYS) setOutput(key, 'true')
+  // Run-everything semantics per flag: docs_only=true would SKIP the code jobs,
+  // so on an error it must be FALSE — every other category=true runs everything.
+  for (const key of CATEGORY_KEYS) setOutput(key, key === 'docs_only' ? 'false' : 'true')
 }
 
 function readStdinPaths() {

@@ -126,10 +126,11 @@ describe('ci-classify-changes.mjs (#969)', () => {
     expect(flags.docs_only).toBe('false')
   })
 
-  it('fail-closed: bogus BASE_SHA ⇒ all categories=true, exit 0', () => {
+  it('fail-closed: bogus BASE_SHA ⇒ run-everything categories=true, exit 0', () => {
     const { status, flags } = runGitFailure()
     expect(status).toBe(0)
-    expect(flags.docs_only).toBe('true')
+    // docs_only is asserted false by the #1296 error-path suite below — for this
+    // flag "run everything" means false (true would SKIP the code jobs).
     expect(flags.backend_changed).toBe('true')
     expect(flags.frontend_changed).toBe('true')
     expect(flags.infra_changed).toBe('true')
@@ -148,5 +149,18 @@ describe('template twin parity (#1296, #1299)', () => {
       expect(source).toContain("f !== 'AGENTS.md'")
       expect(source).toContain('#1299')
     }
+  })
+})
+
+// #1296 — the error path must NOT claim docs-only: docs_only=true SKIPS the code
+// jobs, so for this one flag "run everything" means FALSE. A classification error
+// emitting docs_only=true would let ci-required pass a code PR with zero checks.
+describe('error path is run-everything, never docs-only (#1296)', () => {
+  it('git failure ⇒ docs_only=false while other categories stay true', () => {
+    const { flags, status } = runGitFailure()
+    expect(status).toBe(0)
+    expect(flags.docs_only).toBe('false')
+    expect(flags.backend_changed).toBe('true')
+    expect(flags.high_risk).toBe('true')
   })
 })

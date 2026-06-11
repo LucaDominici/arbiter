@@ -299,25 +299,34 @@ jobs:
     needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]
     if: always()
     steps:
-      - run: |
-          if [[ "${{ needs.gate.result }}" != "success" ]]; then
+      - env:
+          DOCS_ONLY: ${{ needs.classify-changes.outputs.docs_only }}
+        run: |
+
+          if [[ "${{ needs.classify-changes.result }}" != "success" ]]; then
+            echo "classify-changes failed — cannot trust docs_only, failing closed"
+            exit 1
+          fi
+          # success, or skipped ONLY when the docs-only classification skipped the job
+          ok() { [[ "$1" == "success" || ( "$DOCS_ONLY" == "true" && "$1" == "skipped" ) ]]; }
+          if ! ok "${{ needs.gate.result }}"; then
             echo "gate failed"
             exit 1
           fi
 
-          if [[ "${{ needs.unit-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.unit-tests.result }}"; then
             echo "unit-tests failed"
             exit 1
           fi
-          if [[ "${{ needs.contract-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.contract-tests.result }}"; then
             echo "contract-tests failed"
             exit 1
           fi
-          if [[ "${{ needs.integration-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.integration-tests.result }}"; then
             echo "integration-tests failed"
             exit 1
           fi
-          if [[ "${{ needs.behavioral-tests.result }}" != "success" ]]; then
+          if ! ok "${{ needs.behavioral-tests.result }}"; then
             echo "behavioral-tests failed"
             exit 1
           fi
@@ -334,11 +343,11 @@ jobs:
             echo "sonar-scan failed"
             exit 1
           fi
-          if [[ "${{ needs.debt-gates.result }}" != "success" ]]; then
+          if ! ok "${{ needs.debt-gates.result }}"; then
             echo "debt-gates failed"
             exit 1
           fi
-          if [[ "${{ needs.debt-ratchet.result }}" != "success" ]]; then
+          if ! ok "${{ needs.debt-ratchet.result }}"; then
             echo "debt-ratchet failed"
             exit 1
           fi
