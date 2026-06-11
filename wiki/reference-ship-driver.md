@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/ship-driver.md'
-source_sha: '2a408a27d69fe01b5199c2575d8952880030aaf3'
+source_sha: 'ad1644a5e94c4c94f78d3cb601bb5e5516b5e4ed'
 last_updated: '2026-06-11'
 ---
 
@@ -54,3 +54,22 @@ value can inject shell.
 The driver owns `supervisor.sh`, `TICK_PROMPT.md`, and `HALT`. The engine owns
 `.arbiter/ship/<task-id>/attempts.json` (gitignored runtime state) — the driver never
 reads or writes it.
+
+## Self-only boundary
+
+ADR-093 §5 locks a set of arbiter-self concerns out of every consumer-rendered driver
+artifact, forever:
+
+- **Template authoring** (CANON-04/05/13/14/18) — consumers have no `CANON.md` and no
+  `src/templates/`; emitting authoring rules would be map-fiction (INV-115).
+- **Matrix promotion** (CANON-02/03, INV-32, `cross-language-matrix`) — proven-cell
+  promotion is an arbiter-repo workflow.
+- **selfOnly invariants** (INV-107/108/111/117/120) — they govern arbiter's own SSOT,
+  CLI-reference, and template-test surfaces.
+- **Kit leakage** (INV-85, `kit-source`) — kit provenance never crosses into consumers.
+
+The boundary is regression-locked by the "self-only boundary" describe in
+`__tests__/templates/ship-driver-render.test.ts` (#1292): the rendered `supervisor.sh`,
+`TICK_PROMPT.md`, and claude `ship.md` command are asserted free of every marker above
+under a consumer render context. The dual-sided INV-114 (Stop-hook evidence) remains
+allowed — only self-only markers are banned.
