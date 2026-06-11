@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1292",
+  "test_path": "__tests__/commands/coherence.test.ts",
+  "test_commit_sha": "32b1a12c8ff32a28ce8cbedaa3039d1b20a518bf",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1292-doctor-coherence\n\n ❯ __tests__/commands/coherence.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  15:13:57\n   Duration  92ms (transform 17ms, setup 12ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/commands/coherence.test.ts [ __tests__/commands/coherence.test.ts ]\nError: Cannot find module '../../src/commands/wizard/coherence.js' imported from /home/luca/work/repos/arbiter.worktrees/1292-doctor-coherence/__tests__/commands/coherence.test.ts\n ❯ __tests__/commands/coherence.test.ts:9:1\n      7| import { describe, it, expect } from 'vitest'\n      8| import type { CollaborationMode, GovernanceLevel } from '../../src/wiz…\n      9| import {\n       | ^\n     10|   validateCollaborationCoherence,\n     11|   validateAutonomyCoherence,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/commands/coherence.test.ts",
+  "recorded_at": "2026-06-11T13:13:57.860Z"
+}
