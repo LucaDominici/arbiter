@@ -3,10 +3,74 @@
 // Re-generate with: arbiter update
 import { spawnSync } from 'node:child_process'
 import { readFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
 
 function run(cmd, args, opts) {
   return spawnSync(cmd, args, { encoding: 'utf-8', shell: false, ...opts })
+}
+
+/**
+ * Resolve the default jscpd spawn (#1304). On the self-hosted docker-ci-build
+ * runner `npx --no-install jscpd` exits 1 writing no report (npx resolution on
+ * the runner image differs from local), so jscpdScan fell through to the generic
+ * "jscpd failed … wrote no report" fail-closed path even though jscpd is
+ * installed. This resolves the locally-installed jscpd binary and runs it
+ * directly with the current node — deterministic in CI and local — and falls
+ * back to the legacy `npx --no-install jscpd` skip-spawn only when jscpd cannot
+ * be resolved (greenfield/baseline target without the devDependency), preserving
+ * the tool-not-installed (`{skipped:true}`) contract exactly.
+ *
+ * The returned spawn accepts the SAME argv the caller built for the npx path
+ * (`['--no-install','jscpd',...paths,'--silent']`); the direct-binary path
+ * strips the npx-only `--no-install`/`jscpd` prefix tokens, the fallback passes
+ * them through. Both `resolveBin` and the per-call `spawnFn` are injectable so
+ * tests never shell to a real npx.
+ * @param {string} cwd
+ * @param {{resolveBin?: (cwd: string) => string}} [opts]
+ * @returns {(dir: string, args: string[], callOpts?: {spawnFn?: (cmd: string, args: string[], o: object) => {status: number|null, stdout: string, stderr: string}}) => ({status: number|null, stdout: string, stderr: string} | null)}
+ */
+export function resolveJscpdSpawn(cwd, opts = {}) {
+  const resolveBin =
+    opts.resolveBin ??
+    ((dir) => {
+      // Resolve from the scanned project first (its node_modules), then fall
+      // back to this module's own require context — the self repo installs jscpd
+      // as a devDependency reachable from here even when the scan dir has no
+      // local node_modules (e.g. a temp fixture or a nested workspace).
+      let pkgPath
+      try {
+        pkgPath = createRequire(join(resolve(dir), 'package.json')).resolve('jscpd/package.json')
+      } catch {
+        pkgPath = createRequire(import.meta.url).resolve('jscpd/package.json')
+      }
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+      const binEntry = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.jscpd
+      if (!binEntry) throw new Error('jscpd package.json has no bin.jscpd entry')
+      return join(dirname(pkgPath), binEntry)
+    })
+
+  let binPath
+  try {
+    binPath = resolveBin(cwd)
+  } catch {
+    // jscpd not installed/resolvable — fall back to npx --no-install jscpd, whose
+    // ENOENT/"missing packages" result drives jscpdScan's skip contract.
+    return (dir, args, callOpts = {}) => {
+      const spawnFn = callOpts.spawnFn
+      if (spawnFn) return spawnFn('npx', args, { cwd: dir })
+      const r = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', args, { cwd: dir })
+      return r === null ? null : r
+    }
+  }
+
+  // Direct binary: drop the npx-only prefix tokens so jscpd sees only its own
+  // positional args (paths + flags).
+  return (dir, args, callOpts = {}) => {
+    const jscpdArgs = args.filter((a) => a !== '--no-install' && a !== 'jscpd')
+    const spawnFn = callOpts.spawnFn ?? ((cmd, a, o) => run(cmd, a, o))
+    return spawnFn(process.execPath, [binPath, ...jscpdArgs], { cwd: dir })
+  }
 }
 
 /**
@@ -75,12 +139,7 @@ export function jscpdScan(cwd, opts = {}) {
   // Stale-report poisoning guard: a leftover report from a previous run must
   // never be parsed as if it were produced by this invocation.
   rmSync(reportPath, { force: true })
-  const spawn =
-    opts.spawn ??
-    ((dir, args) => {
-      const r = spawnOrSkip('duplicationPercentage', 'jscpd', 'npx', args, { cwd: dir })
-      return r === null ? null : r
-    })
+  const spawn = opts.spawn ?? resolveJscpdSpawn(cwd)
   const r = spawn(cwd, ['--no-install', 'jscpd', ...paths, '--silent'])
   if (r === null) return { skipped: true }
   // `npx --no-install` exits 1 (not ENOENT) when the package is absent — that is

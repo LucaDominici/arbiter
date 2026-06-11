@@ -20,4 +20,8 @@ docs/SYSTEM/DECISIONS.md
 # #1100: generated inventory region — gen-ssot-core.mjs owns formatting; keep
 # prettier from fighting the generator over markdown in doc titles (*, _, |, etc.)
 docs/METHOD/SSOT_CORE_SET.md
+# Generated LLM wiki (gen-wiki.mjs, INV-116) — the generator owns markdown
+# formatting; check-wiki-lint.mjs verifies it. Keep prettier from fighting the
+# generated tables/titles (pre-existing format-gate red on main, surfaced by #1304).
+wiki/
 .github/
