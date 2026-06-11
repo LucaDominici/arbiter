@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import {
   buildRenderContext,
   templateToMaterialized,
+  TEMPLATE_ROOTS,
   isAllowlisted,
   isConfigGated,
   normalizeLines,
@@ -80,6 +82,20 @@ describe('templateToMaterialized', () => {
   it('handles root-level templates', () => {
     const result = templateToMaterialized('/repo/src/templates/claude/CLAUDE.md.ejs')
     expect(result).toMatch(/\.claude\/CLAUDE\.md$/)
+  })
+
+  // #1290 — ship-driver family routes to .arbiter/ship/
+  it('maps the ship family to .arbiter/ship/', () => {
+    const result = templateToMaterialized('/repo/src/templates/ship/supervisor.sh.ejs')
+    expect(result).toMatch(/\.arbiter\/ship\/supervisor\.sh$/)
+  })
+
+  it('throws on a template path outside every TEMPLATE_ROOTS family (fail-closed)', () => {
+    expect(() => templateToMaterialized('/repo/src/templates/unknown/x.md.ejs')).toThrow()
+  })
+
+  it('TEMPLATE_ROOTS is the corpus SSOT and includes both families', () => {
+    expect(Object.keys(TEMPLATE_ROOTS)).toEqual(['src/templates/claude/', 'src/templates/ship/'])
   })
 })
 
@@ -249,5 +265,30 @@ describe('.dogfood-divergences.json — anchored rationales (#1092)', () => {
   it('every divergence reason carries a traceability anchor (#NNN, INV/CANON/ADR-NN, date, or RT-XX)', () => {
     const unanchored = entries.filter((e) => !ANCHOR.test(e.reason)).map((e) => e.path)
     expect(unanchored, `unanchored divergence rationale(s): ${unanchored.join(', ')}`).toEqual([])
+  })
+})
+
+// ─── non-vacuity proof for the ship family (#1290) ────────────────────────────
+// The dogfood gate must actually WALK src/templates/ship/ — a mapped-but-unwalked
+// family passes vacuously. We mutate the materialized supervisor, run the real
+// checker, and require it to go red; finally restores the original bytes.
+
+describe('ship-family drift detection is non-vacuous (#1290)', () => {
+  it('a mutated .arbiter/ship/supervisor.sh turns the gate red', () => {
+    const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
+    const target = `${repoRoot}.arbiter/ship/supervisor.sh`
+    const original = readFileSync(target, 'utf-8')
+    try {
+      writeFileSync(target, original + 'echo drift-sentinel\n', 'utf-8')
+      const r = spawnSync('node', ['scripts/check-self-dogfood.mjs'], {
+        cwd: repoRoot,
+        encoding: 'utf-8',
+        timeout: 120_000,
+      })
+      expect(r.status).not.toBe(0)
+      expect(r.stdout + r.stderr).toContain('supervisor.sh')
+    } finally {
+      writeFileSync(target, original, 'utf-8')
+    }
   })
 })

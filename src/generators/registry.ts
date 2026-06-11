@@ -40,6 +40,7 @@ import { generateBehavioralTests } from './behavioral-tests.js'
 import { generatePlaywrightPython } from './playwright-python.js'
 import { generatePlaywrightTs } from './playwright-ts.js'
 import { generateGithooks } from './githooks.js'
+import { generateShipDriver } from './ship-driver.js'
 import { generateGithubSetup } from './github-setup.js'
 import { generateDocs } from './docs.js'
 import { generateApiMiddleware } from './api-middleware.js'
@@ -221,6 +222,13 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'githooks',
       enabled: true,
       run: (opts) => generateGithooks(config, opts).files,
+    },
+    {
+      // #1290 — thin consumer ship driver (ADR-093). Claude-harness tick prompt for
+      // now; the artifact is inert until run (autonomy gating is #1291).
+      key: 'ship-driver',
+      enabled: config.tools.includes('claude'),
+      run: (opts) => generateShipDriver(config, opts).files,
     },
     {
       key: 'github-setup',

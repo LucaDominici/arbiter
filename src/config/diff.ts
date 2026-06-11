@@ -39,6 +39,7 @@ export type GeneratorKey =
   | 'playwright-ts'
   | 'ssot'
   | 'githooks'
+  | 'ship-driver'
   | 'github-setup'
   | 'docs'
   | 'api-middleware'

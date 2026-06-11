@@ -189,6 +189,7 @@
 | [ISO 9001 Overlay — Reference](REFERENCE/iso9001-overlay.md) | — | active | kind/reference |
 | [Local-Wrapper Contract (INV-87, W3)](REFERENCE/local-wrapper-contract.md) | — | active | kind/reference |
 | [Plan Template — Context Block](REFERENCE/plan-template.md) | — | active | kind/reference |
+| [Reference: Ship Driver (generated)](REFERENCE/ship-driver.md) | — | active | kind/reference |
 | [Stack Adapter Contract](REFERENCE/stack-adapter-contract.md) | — | active | kind/reference |
 | [`.arbiter-generated.json` State File](REFERENCE/state-file.md) | — | active | kind/reference |
 | [Supply Chain Security Reference](REFERENCE/supply-chain.md) | — | active | kind/reference |
