@@ -9,12 +9,14 @@
  */
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const SCRIPT = resolve(__dirname, '../../scripts/ci-classify-changes.mjs')
+const TEMPLATE_TWIN = resolve(__dirname, '../../src/templates/scripts/ci-classify-changes.mjs.ejs')
 
 interface Flags {
   docs_only?: string
@@ -88,6 +90,42 @@ describe('ci-classify-changes.mjs (#969)', () => {
     expect(flags.e2e_specs).toBe('true')
   })
 
+  it('--stdin: AGENTS.md alone ⇒ docs_only=false (governance file, #1299)', () => {
+    const { status, flags } = runStdin(['AGENTS.md'])
+    expect(status).toBe(0)
+    expect(flags.docs_only).toBe('false')
+  })
+
+  it('--stdin: .claude/rules/x.md alone ⇒ docs_only=false (#1299)', () => {
+    const { status, flags } = runStdin(['.claude/rules/x.md'])
+    expect(status).toBe(0)
+    expect(flags.docs_only).toBe('false')
+  })
+
+  it('--stdin: src/templates/a/b.md alone ⇒ docs_only=false (#1299)', () => {
+    const { status, flags } = runStdin(['src/templates/a/b.md'])
+    expect(status).toBe(0)
+    expect(flags.docs_only).toBe('false')
+  })
+
+  it('--stdin: docs/a.md + wiki/b.md ⇒ docs_only=true (#1299)', () => {
+    const { status, flags } = runStdin(['docs/a.md', 'wiki/b.md'])
+    expect(status).toBe(0)
+    expect(flags.docs_only).toBe('true')
+  })
+
+  it('--stdin: README.md alone ⇒ docs_only=true (root-level non-governance md, #1299)', () => {
+    const { status, flags } = runStdin(['README.md'])
+    expect(status).toBe(0)
+    expect(flags.docs_only).toBe('true')
+  })
+
+  it('--stdin: docs/a.md + AGENTS.md ⇒ docs_only=false (#1299)', () => {
+    const { status, flags } = runStdin(['docs/a.md', 'AGENTS.md'])
+    expect(status).toBe(0)
+    expect(flags.docs_only).toBe('false')
+  })
+
   it('fail-closed: bogus BASE_SHA ⇒ all categories=true, exit 0', () => {
     const { status, flags } = runGitFailure()
     expect(status).toBe(0)
@@ -98,5 +136,17 @@ describe('ci-classify-changes.mjs (#969)', () => {
     expect(flags.high_risk).toBe('true')
     expect(flags.e2e_specs).toBe('true')
     expect(flags.ssot).toBe('true')
+  })
+})
+
+describe('template twin parity (#1296, #1299)', () => {
+  it('the .ejs twin contains the same isDocsPath predicate marker', () => {
+    const script = readFileSync(SCRIPT, 'utf-8')
+    const twin = readFileSync(TEMPLATE_TWIN, 'utf-8')
+    for (const source of [script, twin]) {
+      expect(source).toContain('function isDocsPath(')
+      expect(source).toContain("f !== 'AGENTS.md'")
+      expect(source).toContain('#1299')
+    }
   })
 })
