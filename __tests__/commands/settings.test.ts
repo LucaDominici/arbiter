@@ -60,6 +60,15 @@ describe('settings catalog (#1121)', () => {
     )
     expect(group?.group).toBe('Automation')
   })
+
+  // #1306: the three orchestration prefs must be discoverable in `arbiter settings`.
+  it('surfaces all three #1306 orchestration prefs in the Automation group', () => {
+    const automation = SETTINGS_CATALOG.find((g) => g.group === 'Automation')
+    const paths = automation?.fields.map((f) => f.path) ?? []
+    expect(paths).toContain('automation.maxParallelWorktrees')
+    expect(paths).toContain('automation.defaultGateLevel')
+    expect(paths).toContain('automation.affinityBatching')
+  })
 })
 
 describe('resolveSettingValue', () => {

@@ -71,8 +71,27 @@ export interface ContextPackAdrMapping {
 // wizard/types.ts (cycle-safe home); re-exported here for existing consumers.
 export type { AutonomyLevel }
 export const AUTONOMY_LEVELS: readonly AutonomyLevel[] = ['L0', 'L1', 'L2', 'L3']
+
+/**
+ * #1306 (ADR-094 §Decision.4) — the gate level `arbiter verify` runs by default.
+ * Deliberately ONLY L1/L2 (the runnable gate levels): a defaultGateLevel is a
+ * per-run gate selector, not a governance tier, so L3/L4 are not valid values.
+ */
+export type GateLevel = 'L1' | 'L2'
+export const VALID_GATE_LEVELS: readonly GateLevel[] = ['L1', 'L2']
+
 export interface AutomationConfig {
   autonomy: AutonomyLevel
+  /**
+   * #1306 (ADR-094 §Decision.4) — max wave worktrees that may run concurrently.
+   * Positive integer. Absent ⇒ derived per collaboration mode (1 for trunk-solo,
+   * which never uses worktrees; >1 for peer/gated). trunk-solo + >1 is incoherent.
+   */
+  maxParallelWorktrees?: number
+  /** #1306 (ADR-094 §Decision.4) — default gate level for verification. Absent ⇒ derived from governance level. */
+  defaultGateLevel?: GateLevel
+  /** #1306 (ADR-094 §Decision.4) — whether ship groups affinity-related issues into one batch. Absent ⇒ derived per collaboration mode. */
+  affinityBatching?: boolean
 }
 
 export interface ContextPackConfig {
@@ -477,6 +496,28 @@ function validateAutomation(raw: unknown, errors: string[]): void {
   const level = raw['autonomy']
   if (!AUTONOMY_LEVELS.includes(level as AutonomyLevel)) {
     errors.push(`automation.autonomy must be one of ${AUTONOMY_LEVELS.join('|')}`)
+  }
+  validateAutomationPrefs(raw, errors)
+}
+
+/**
+ * #1306 — validate the three optional Project-Profile orchestration prefs. They are
+ * additive (no $schemaVersion bump): validated only when present, so a legacy config
+ * (autonomy alone, or no automation block) stays valid. Extracted from
+ * validateAutomation to keep it under the complexity ceiling.
+ */
+function validateAutomationPrefs(raw: Record<string, unknown>, errors: string[]): void {
+  const mpw = raw['maxParallelWorktrees']
+  if (mpw !== undefined && (typeof mpw !== 'number' || !Number.isInteger(mpw) || mpw < 1)) {
+    errors.push('automation.maxParallelWorktrees must be a positive integer')
+  }
+  const gate = raw['defaultGateLevel']
+  if (gate !== undefined && !VALID_GATE_LEVELS.includes(gate as GateLevel)) {
+    errors.push(`automation.defaultGateLevel must be one of ${VALID_GATE_LEVELS.join('|')}`)
+  }
+  const affinity = raw['affinityBatching']
+  if (affinity !== undefined && typeof affinity !== 'boolean') {
+    errors.push('automation.affinityBatching must be a boolean')
   }
 }
 

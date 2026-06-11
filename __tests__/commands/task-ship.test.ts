@@ -206,6 +206,11 @@ const profile = (over: Partial<ShipProfile> = {}): ShipProfile => ({
   collaborationMode: 'peer-review',
   mergeMode: 'pr-ff',
   governanceLevel: 'L2',
+  autonomy: 'L0',
+  // #1306 — orchestration prefs (default to the resolver floors).
+  maxParallelWorktrees: 1,
+  defaultGateLevel: 'L1',
+  affinityBatching: false,
   ...over,
 })
 const SELF_ONLY_GATES = ['template-authoring', 'selfOnly-invariants', 'matrix-fixtures']
@@ -278,6 +283,46 @@ describe('ship verification — self-only gates skipped, not faked (#1288 RT-06)
     const seq = shipSequence('Standard') // no profile
     const verification = seq.find((s) => s.phase === 'verification')
     expect(verification?.selfOnlyChecks ?? []).toEqual([])
+  })
+})
+
+// #1306 — the three orchestration prefs are CONSUMED in the ship step plan (not dead):
+// verification reads defaultGateLevel; plan reads affinityBatching + maxParallelWorktrees.
+describe('ship steps consume the #1306 profile prefs (RT-1306-05 — not dead code)', () => {
+  it('verification gate command + action reflect defaultGateLevel', () => {
+    const l2 = shipStepFor('verification', 'Standard', profile({ defaultGateLevel: 'L2' }))
+    expect(l2.command).toContain('L2')
+    expect(l2.action).toContain('L2')
+    const l1 = shipStepFor('verification', 'Standard', profile({ defaultGateLevel: 'L1' }))
+    expect(l1.command).toContain('L1')
+  })
+
+  it('plan action advises a parallel wave when affinityBatching is on AND >1 worktrees', () => {
+    const step = shipStepFor(
+      'plan',
+      'Standard',
+      profile({ affinityBatching: true, maxParallelWorktrees: 4 }),
+    )
+    expect(step.action).toContain('4')
+    expect(step.action).toMatch(/parallel|wave/i)
+  })
+
+  it('plan action stays single-issue when affinityBatching is off', () => {
+    const step = shipStepFor(
+      'plan',
+      'Standard',
+      profile({ affinityBatching: false, maxParallelWorktrees: 3 }),
+    )
+    expect(step.action).not.toMatch(/parallel worktrees/i)
+  })
+
+  it('plan action stays single-issue when batching is on but only 1 worktree allowed (trunk-solo)', () => {
+    const step = shipStepFor(
+      'plan',
+      'Standard',
+      profile({ affinityBatching: true, maxParallelWorktrees: 1, collaborationMode: 'trunk-solo' }),
+    )
+    expect(step.action).not.toMatch(/parallel worktrees/i)
   })
 })
 

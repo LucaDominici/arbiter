@@ -405,7 +405,8 @@ describe('runWizard autonomy prompt (#1261)', () => {
     })
 
     const result = await runWizard(makeWizardInput())
-    expect(result!.automation).toEqual({ autonomy: 'L2' })
+    // #1306 — autonomy is the asked axis; the three orchestration prefs are derived.
+    expect(result!.automation?.autonomy).toBe('L2')
   })
 
   it('defaults config.automation to L0 when the prompt is left at its default', async () => {
@@ -417,7 +418,9 @@ describe('runWizard autonomy prompt (#1261)', () => {
     })
 
     const result = await runWizard(makeWizardInput())
-    expect(result!.automation).toEqual({ autonomy: 'L0' })
+    // #1306 — autonomy defaults to L0; the prefs are derived per collaboration mode + level.
+    expect(result!.automation?.autonomy).toBe('L0')
+    expect(result!.automation?.defaultGateLevel).toBe('L1')
   })
 
   it('cancel at the autonomy prompt aborts the wizard with exitCode 130', async () => {
