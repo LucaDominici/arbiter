@@ -20,6 +20,7 @@ import {
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { z } from 'zod'
+import { autonomyAllows } from '../commands/ship-profile.js'
 
 /** Same signature seen this many times → escalate to a human; never a further retry. */
 export const STRIKE_LIMIT = 2
@@ -329,18 +330,21 @@ export function evaluateRed(opts: EvaluateRedOptions): Decision {
 }
 
 /**
- * #1291 — gate the FIX decision on the autonomy level. The reproduce-before-push
- * floor text is always present; below L3 the push is handed to a human; below L2
- * even APPLYING the fix needs a human go (ask-on-risky, ADR-093 L1). Escalation
- * decisions pass through untouched at every level.
+ * #1291 — gate the FIX decision on the autonomy level via the AUTONOMY_GRANTS
+ * table (single source of truth — no hardcoded level comparisons, so a grant
+ * change cannot silently diverge from this gate). The reproduce-before-push
+ * floor text is always present; without `fix-on-red-autopush` the push is
+ * handed to a human; without `fix-on-red-attempt` even APPLYING the fix needs
+ * a human go (ask-on-risky, ADR-093 L1). Escalation decisions pass through
+ * untouched at every level.
  */
 function applyAutonomy(decision: Decision, autonomy: FixAutonomy): Decision {
   if (decision.kind !== 'fix') return decision
-  if (autonomy === 'L3') {
+  if (autonomyAllows(autonomy, 'fix-on-red-autopush')) {
     return { ...decision, autopush: true }
   }
   const handOff = `${decision.nextAction} Do not push autonomously — hand the fix to the human for push approval.`
-  if (autonomy === 'L2') {
+  if (autonomyAllows(autonomy, 'fix-on-red-attempt')) {
     return { ...decision, autopush: false, nextAction: handOff }
   }
   return {
