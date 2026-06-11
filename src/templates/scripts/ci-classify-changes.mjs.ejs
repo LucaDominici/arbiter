@@ -87,7 +87,9 @@ function emitFlag(key, value) {
 }
 
 function emitAllTrue() {
-  for (const key of CATEGORY_KEYS) emitFlag(key, true);
+  // Run-everything semantics per flag: docs_only=true would SKIP the code jobs,
+  // so on an error it must be FALSE — every other category=true runs everything.
+  for (const key of CATEGORY_KEYS) emitFlag(key, key !== 'docs_only');
 }
 
 let succeeded = false;
@@ -110,7 +112,7 @@ try {
   succeeded = true;
 } finally {
   if (!succeeded) {
-    process.stderr.write('[ci-classify] ERROR resolving changed set — fail-closed, emitting all categories=true\n');
+    process.stderr.write('[ci-classify] ERROR resolving changed set — fail-closed, running everything (docs_only=false)\n');
     emitAllTrue();
   }
   process.exit(0);

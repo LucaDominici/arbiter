@@ -164,3 +164,18 @@ describe('error path is run-everything, never docs-only (#1296)', () => {
     expect(flags.high_risk).toBe('true')
   })
 })
+
+// #1296 dual-track — the TEMPLATE twin must carry the same error-path semantics,
+// or generated projects ship the CI-bypass variant next to the lenient aggregator.
+describe('template twin parity (#1296)', () => {
+  it('ci-classify-changes.mjs.ejs error path emits docs_only=false', () => {
+    const tpl = readFileSync(
+      fileURLToPath(
+        new URL('../../src/templates/scripts/ci-classify-changes.mjs.ejs', import.meta.url),
+      ),
+      'utf-8',
+    )
+    expect(tpl).toContain("key !== 'docs_only'")
+    expect(tpl).not.toMatch(/for \(const key of CATEGORY_KEYS\) emitFlag\(key, true\);/)
+  })
+})
