@@ -148,6 +148,49 @@ export function assertKeyParity(priorMetrics, nextMetrics) {
 
 <% if (language === 'typescript') { %>
 /**
+ * DIAGNOSTIC (#1304) — capture why jscpd exits 1 with no report on a CI runner.
+ * Re-runs jscpd WITHOUT `--silent` (the scan suppresses its output) and dumps
+ * argv, cwd, exit code, full stdout+stderr, version, node version, and a listing
+ * of the output dir / scanned paths to stderr.
+ * @param {string} cwd
+ * @param {{output?: string}} cfg
+ * @param {string[]} paths
+ * @param {string} reportPath
+ * @param {{status: number|null, stdout?: string, stderr?: string, error?: {code?: string, message?: string}}} r
+ */
+function diagnoseJscpdFailure(cwd, cfg, paths, reportPath, r) {
+  const outDir = resolve(cwd, typeof cfg.output === 'string' ? cfg.output : 'report');
+  const listDir = (d) => {
+    try { return readdirSync(d).join(', '); }
+    catch (e) { return `(readdir failed: ${e.code ?? e.message})`; }
+  };
+  let verLine = '(not run)';
+  try {
+    const spawn = resolveJscpdSpawn(cwd);
+    const verbose = spawn(cwd, ['--no-install', 'jscpd', ...paths]);
+    const ver = spawn(cwd, ['--no-install', 'jscpd', '--version']);
+    verLine =
+      `verbose-exit=${verbose?.status} verbose-stdout>>>${(verbose?.stdout ?? '').trim()}<<< ` +
+      `verbose-stderr>>>${(verbose?.stderr ?? '').trim()}<<< ` +
+      `version=${(ver?.stdout ?? '').trim()}`;
+  } catch (e) {
+    verLine = `(diag re-run failed: ${e.message})`;
+  }
+  process.stderr.write(
+    '[#1304-DIAG] jscpd exit-1-no-report on this runner\n' +
+      `[#1304-DIAG]   node=${process.version} cwd=${cwd}\n` +
+      `[#1304-DIAG]   argv-paths=${JSON.stringify(paths)} silent-exit=${r.status}\n` +
+      `[#1304-DIAG]   reportPath=${reportPath} exists=${existsSync(reportPath)}\n` +
+      `[#1304-DIAG]   outDir(${outDir}) listing: ${listDir(outDir)}\n` +
+      `[#1304-DIAG]   cwd listing: ${listDir(cwd)}\n` +
+      `[#1304-DIAG]   silent STDOUT >>>${r.stdout ?? '(none)'}<<<\n` +
+      `[#1304-DIAG]   silent STDERR >>>${r.stderr ?? '(none)'}<<<\n` +
+      `[#1304-DIAG]   silent spawnErr=${r.error ? `${r.error.code ?? ''} ${r.error.message ?? ''}` : 'none'}\n` +
+      `[#1304-DIAG]   ${verLine}\n`,
+  );
+}
+
+/**
  * Fail-closed jscpd v5 scan. jscpd v5 silently ignores the config
  * `pattern`/`path` keys and exits 0 on a 0-file scan, writing a 0% report —
  * so the fileset MUST be passed as positional CLI args. `.jscpd.json#path`
@@ -204,6 +247,7 @@ export function jscpdScan(cwd, opts = {}) {
       // yet bumped to v5) with zero clones.
       return { legacyNoReport: true, status: 0 };
     }
+    diagnoseJscpdFailure(cwd, cfg, paths, reportPath, r);
     return { error: `jscpd failed (exit ${r.status}) and wrote no report — fail-closed` };
   }
   let dup;
