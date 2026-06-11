@@ -69,6 +69,15 @@ const MERGE_MODE_DEFAULTS: Record<CollaborationMode, SoloMergeMode> = {
   'gated-review': 'pr-ff',
 }
 
+// ── Ship-autonomy derived default ─────────────────────────────────────────────
+// ADR-094 §Decision.3 names this module the single derived-default site for the
+// unified override resolver. A repo with no `automation` block (and no override)
+// lands here. ADR-093 §4 / #1261 pin the safe default at L0 (ask each ship step);
+// keeping it a named constant prevents a second `'L0'` literal leaking into the
+// resolver. AutonomyLevel is unimported here to avoid a config→config cycle; the
+// literal is the canonical value and is type-checked at the resolver boundary.
+export const DEFAULT_AUTONOMY = 'L0'
+
 // ── Public resolver API ───────────────────────────────────────────────────────
 
 /** Resolves pipelineStyle from the collaboration mode + governance level table. */

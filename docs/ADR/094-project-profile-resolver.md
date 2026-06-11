@@ -124,6 +124,24 @@ the general mechanism, not a special case.
   allow-list must be curated conservatively to prevent unsafe per-run flips.
 - Two implementation steps (resolver first, then fields) must land in order.
 
+## Implementation status
+
+- **Decision 2–3 — SHIPPED (#1305).** The unified override grammar and precedence resolver are live:
+  - `OVERRIDABLE_PATHS` (`src/commands/configure.ts`) — the curated `automation.*` subset of
+    `ALLOWED_PATHS`; `assertOverridablePath` refuses any non-overridable path (e.g.
+    `--set governanceLevel=L1`), reusing the catalog's `parseValue` / `parseEnumPathValue` validators.
+  - `--set <path>=<value>` (repeatable) on `arbiter ship`, gated by `OVERRIDABLE_PATHS`.
+  - `resolveSetting(path, ctx)` (`src/config/override-resolver.ts`) — the ONE precedence resolver:
+    per-run override (`--set`/alias) → session (`.claude/.task/status.json`) → env + `arbiter.json`
+    profile (`loadConfig` folds `applyEnvOverrides`) → derived default (`DEFAULT_AUTONOMY` in
+    `collaboration-mode-defaults.ts`, the ADR-051 single derivation site). Each layer candidate is
+    re-validated; an invalid value is warn-skipped (fail-closed) and the next layer applies.
+  - `resolveShipProfile` now calls `resolveSetting`; the bespoke `resolveAutonomyOverride` is retired.
+  - `--autonomy <level>` is ergonomic sugar desugaring to `--set automation.autonomy=<level>` (same
+    validator, same resolver) and is now **session-sticky**: it survives a mid-wave `/clear`, matching
+    the `tier` precedent in `review.ts`.
+- **Decision 4–5 — pending #1306** (profile fields + doctor coherence; depends on #1305).
+
 ## Links
 
 - Related ADRs: ADR-093 (dual-side ship, minimal `automation` block), ADR-051 (collaboration-mode
