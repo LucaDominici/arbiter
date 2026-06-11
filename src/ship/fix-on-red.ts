@@ -71,7 +71,9 @@ function scanLines(log: string): string[] {
 
 const ERROR_CTOR_RE = /\b([A-Z][A-Za-z0-9]*(?:Error|Exception))\b/
 const TS_CODE_RE = /\bTS\d{3,5}\b/
-const ESLINT_RULE_RE = /\s([a-z@][\w-]{1,40}\/[\w-]{1,40})\s*$/
+// Anchored on the severity word eslint actually prints, so a line that merely
+// ends in `word/word` (a two-segment path) can never be classified as a rule id.
+const ESLINT_RULE_RE = /\b(?:error|warning)\s+.*?\s([a-z@][\w-]{1,40}\/[\w-]{1,40})\s*$/
 /** Exact tool failure markers (not the ambiguous bare "FAILED" substring — RT-13). */
 const TOOL_MARKERS: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bBUILD FAILED\b/, 'build-failed'],
@@ -154,9 +156,11 @@ function slug(token: string): string {
 
 // ───────────────────────────── attempts memory ─────────────────────────────
 
-export const ShipAttemptEntryV1 = z.object({
+const ShipAttemptEntryV1 = z.object({
   signature: z.string().min(1),
-  count: z.number().int().nonnegative(),
+  // recordFailure never persists 0 — a stored count:0 is anomalous state and
+  // must be rejected (fail-closed), not silently trusted as a free first strike.
+  count: z.number().int().positive(),
   first_seen: z.iso.datetime(),
   last_seen: z.iso.datetime(),
 })
@@ -329,6 +333,9 @@ function uncertain(reason: string, signature?: string): EscalateUncertainDecisio
  * input (a NUL byte) so a wrong decision can never be computed from non-text (RT-06b/11).
  */
 export function readBoundedLog(filePath: string, maxBytes: number = DEFAULT_LOG_BUDGET): string {
+  if (maxBytes <= 0) {
+    throw new RangeError(`maxBytes must be > 0, got ${maxBytes}`)
+  }
   const fd = openSync(filePath, 'r')
   try {
     const size = fstatSync(fd).size
