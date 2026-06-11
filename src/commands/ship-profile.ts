@@ -24,8 +24,62 @@ import {
   resolveCollaborationMode,
   resolveDefaultMergeMode,
 } from '../config/collaboration-mode-defaults.js'
+import { resolveSetting } from '../config/override-resolver.js'
+import { assertOverridablePath, parseValue } from './configure.js'
+import { writeOverride } from './task-state.js'
 import type { CollaborationMode, SoloMergeMode, GovernanceLevel } from '../wizard/types.js'
 import { AUTONOMY_LEVELS, type AutonomyLevel } from '../config/schema.js'
+
+/** #1305 — the unified config path for the ship autonomy knob (`--autonomy` desugars here). */
+const AUTONOMY_PATH = 'automation.autonomy'
+
+export interface BuildShipOverridesInput {
+  /** Raw `--set path=value` assignments (repeatable). */
+  sets?: string[]
+  /** `--autonomy <level>` ergonomic sugar — desugars to `--set automation.autonomy=<level>`. */
+  autonomy?: string
+}
+
+/**
+ * #1305 (ADR-094 §Decision.2) — turn `--set`/`--autonomy` into a validated per-run overrides map
+ * AND persist it to the session layer so the override survives a mid-wave `/clear` (the `tier`
+ * precedent). Each path is gated by `assertOverridablePath` (RT-01: a non-overridable path like
+ * `governanceLevel` is refused) and value-checked by the catalog's `parseValue` (same validator as
+ * `arbiter configure`). `--autonomy` is pure sugar; an explicit `--set automation.autonomy=…` wins
+ * if both are given. Throws on an invalid path/value so the CLI surfaces a clear error pre-ship.
+ */
+export function buildShipOverrides(
+  root: string,
+  input: BuildShipOverridesInput,
+): Record<string, string> {
+  const overrides: Record<string, string> = {}
+  if (input.autonomy !== undefined) overrides[AUTONOMY_PATH] = input.autonomy
+  for (const assignment of input.sets ?? []) {
+    const eqIdx = assignment.indexOf('=')
+    if (eqIdx < 0) {
+      throw new Error(`Invalid --set "${assignment}" — expected <path>=<value>.`)
+    }
+    const path = assignment.slice(0, eqIdx)
+    const rawValue = assignment.slice(eqIdx + 1)
+    assertOverridablePath(path)
+    parseValue(path, rawValue) // throws on an invalid value (reused catalog validator)
+    overrides[path] = rawValue
+  }
+  for (const [path, value] of Object.entries(overrides)) {
+    assertOverridablePath(path) // belt-and-braces before persisting (RT-01)
+    writeOverride(root, path, value)
+  }
+  return overrides
+}
+
+/** #1305 — fold the legacy `autonomyOverride` sugar into the generic `overrides` map. */
+function buildOverrides(opts: ResolveShipProfileOptions): Record<string, string> | undefined {
+  const merged: Record<string, string> = { ...(opts.overrides ?? {}) }
+  if (opts.autonomyOverride !== undefined && merged[AUTONOMY_PATH] === undefined) {
+    merged[AUTONOMY_PATH] = opts.autonomyOverride
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined
+}
 
 /** The unique npm package name of arbiter-self — the authoritative self-detection signal. */
 const ARBITER_SELF_PACKAGE = '@arbiter/cli'
@@ -86,8 +140,17 @@ export function autonomyAllows(level: AutonomyLevel, behavior: ShipBehavior): bo
 }
 
 export interface ResolveShipProfileOptions {
-  /** Per-run --autonomy override; invalid values are warn-ignored (fail-closed). */
+  /**
+   * #1291 — per-run `--autonomy` override (ergonomic sugar). Desugars to
+   * `overrides['automation.autonomy']`; invalid values are warn-ignored (fail-closed).
+   * Retained for source-compatibility; the engine speaks the generic `overrides` map.
+   */
   autonomyOverride?: string
+  /**
+   * #1305 (ADR-094 §Decision.2) — generic per-run `--set <path>=<value>` overrides, gated by
+   * OVERRIDABLE_PATHS at the CLI boundary. Resolved through the unified precedence resolver.
+   */
+  overrides?: Record<string, string>
 }
 
 function isAutonomyLevel(v: unknown): v is AutonomyLevel {
@@ -141,7 +204,7 @@ export function resolveShipProfile(
   root: string,
   opts: ResolveShipProfileOptions = {},
 ): ShipProfile {
-  const override = resolveAutonomyOverride(opts.autonomyOverride, root)
+  const overrides = buildOverrides(opts)
   const self = isArbiterSelf(root)
   let config: ReturnType<typeof loadConfig>
   try {
@@ -158,11 +221,17 @@ export function resolveShipProfile(
     )
     config = null
   }
+  // #1305 — autonomy now resolves through the ONE unified precedence resolver
+  // (override → session → profile → default). The profile-layer value is the one we
+  // already read here, so a malformed config (config === null) contributes no profile
+  // value and autonomy falls to override/session/default — consistent with the
+  // whole-profile degrade above (RT-03).
+  const autonomy = resolveAutonomy(root, overrides, config?.automation?.autonomy)
   if (config === null) {
     return {
       ...CONSUMER_DEFAULT_PROFILE,
       isArbiterSelf: self,
-      ...(override !== undefined ? { autonomy: override } : {}),
+      autonomy,
     }
   }
   const collaborationMode = resolveCollaborationMode(
@@ -174,18 +243,24 @@ export function resolveShipProfile(
     collaborationMode,
     mergeMode,
     governanceLevel: config.governanceLevel,
-    autonomy: override ?? config.automation?.autonomy ?? 'L0',
+    autonomy,
   }
 }
 
-/** Validate the per-run override; an invalid value warns and is ignored (fail-closed). */
-function resolveAutonomyOverride(raw: string | undefined, root: string): AutonomyLevel | undefined {
-  if (raw === undefined) return undefined
-  if (isAutonomyLevel(raw)) return raw
-  getLogger().warn(
-    'ship.autonomy_override_invalid',
-    { root, raw },
-    `invalid --autonomy "${raw}" — ignoring; falling back to config/default (L0)`,
-  )
-  return undefined
+/**
+ * #1305 — resolve the ship autonomy level through the unified resolver and narrow it to an
+ * AutonomyLevel. `resolveSetting` only ever returns a value that passed parseValue (enum-checked)
+ * or the L0 default, so the narrow is total; the guard is a fail-closed belt-and-braces (RT-02).
+ */
+function resolveAutonomy(
+  root: string,
+  overrides: Record<string, string> | undefined,
+  profileValue: string | undefined,
+): AutonomyLevel {
+  const resolved = resolveSetting(AUTONOMY_PATH, {
+    root,
+    ...(overrides !== undefined ? { overrides } : {}),
+    ...(profileValue !== undefined ? { profileValue } : {}),
+  })
+  return isAutonomyLevel(resolved) ? resolved : 'L0'
 }

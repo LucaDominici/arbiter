@@ -11,8 +11,10 @@ import {
   resolveShipProfile,
   isArbiterSelf,
   autonomyAllows,
+  buildShipOverrides,
   CONSUMER_DEFAULT_PROFILE,
 } from '../../src/commands/ship-profile.js'
+import { writeOverride, readOverride } from '../../src/commands/task-state.js'
 
 const dirs: string[] = []
 function tmpRepo(files: Record<string, string>): string {
@@ -201,6 +203,82 @@ describe('autonomy resolution (#1291): flag > config > L0 default', () => {
     expect(p.autonomy).toBe('L0')
     // the rest of the profile still resolves from the config, not defaults
     expect(p.collaborationMode).toBe('gated-review')
+  })
+})
+
+// ─── #1305 — desugar + session-stickiness through the unified resolver ─────────
+
+describe('autonomy via unified resolver (#1305, ADR-094)', () => {
+  it('--set automation.autonomy=L3 desugars to the same profile as --autonomy L3', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ automation: { autonomy: 'L0' } }),
+    })
+    const viaAutonomy = resolveShipProfile(dir, { autonomyOverride: 'L3' })
+    const viaSet = resolveShipProfile(dir, { overrides: { 'automation.autonomy': 'L3' } })
+    expect(viaSet.autonomy).toBe('L3')
+    expect(viaSet).toEqual(viaAutonomy)
+  })
+
+  it('autonomy is session-sticky: a persisted session value survives with no per-run override (RT — /clear)', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ automation: { autonomy: 'L1' } }),
+    })
+    writeOverride(dir, 'automation.autonomy', 'L2')
+    // No override passed: emulates a post-/clear ship re-entry.
+    expect(resolveShipProfile(dir).autonomy).toBe('L2')
+  })
+
+  it('a per-run override still beats a sticky session value', () => {
+    const dir = tmpRepo({
+      'package.json': pkg('acme'),
+      'arbiter.json': cfg({ automation: { autonomy: 'L1' } }),
+    })
+    writeOverride(dir, 'automation.autonomy', 'L2')
+    expect(resolveShipProfile(dir, { autonomyOverride: 'L3' }).autonomy).toBe('L3')
+  })
+})
+
+describe('buildShipOverrides — --set grammar + desugar (#1305, ADR-094)', () => {
+  it('parses --set and persists it to the session layer (survives /clear)', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme') })
+    const overrides = buildShipOverrides(dir, { sets: ['automation.autonomy=L2'] })
+    expect(overrides).toEqual({ 'automation.autonomy': 'L2' })
+    expect(readOverride(dir, 'automation.autonomy')).toBe('L2')
+  })
+
+  it('--autonomy desugars to --set automation.autonomy=<level>', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme') })
+    const overrides = buildShipOverrides(dir, { autonomy: 'L3' })
+    expect(overrides).toEqual({ 'automation.autonomy': 'L3' })
+    expect(readOverride(dir, 'automation.autonomy')).toBe('L3')
+  })
+
+  it('refuses a non-overridable path (RT-01: governanceLevel not per-run-flippable)', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme') })
+    expect(() => buildShipOverrides(dir, { sets: ['governanceLevel=L1'] })).toThrow()
+    // and nothing was persisted
+    expect(readOverride(dir, 'governanceLevel')).toBeUndefined()
+  })
+
+  it('refuses a malformed value via the catalog validator (parseValue reuse)', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme') })
+    expect(() => buildShipOverrides(dir, { sets: ['automation.autonomy=turbo'] })).toThrow()
+  })
+
+  it('rejects a --set with no = separator', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme') })
+    expect(() => buildShipOverrides(dir, { sets: ['automation.autonomy'] })).toThrow()
+  })
+
+  it('an explicit --set automation.autonomy wins over --autonomy sugar', () => {
+    const dir = tmpRepo({ 'package.json': pkg('acme') })
+    const overrides = buildShipOverrides(dir, {
+      autonomy: 'L1',
+      sets: ['automation.autonomy=L3'],
+    })
+    expect(overrides['automation.autonomy']).toBe('L3')
   })
 })
 

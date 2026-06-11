@@ -54,6 +54,36 @@ export const ALLOWED_PATHS = new Set([
   'automation.autonomy',
 ])
 
+/**
+ * #1305 (ADR-094 §Decision.2): the curated subset of ALLOWED_PATHS that a SINGLE
+ * `arbiter ship` run may override via `--set <path>=<value>` (or an ergonomic alias
+ * such as `--autonomy`). Deliberately NOT all of ALLOWED_PATHS — persistent project
+ * identity (governanceLevel, archetype, collaborationMode, …) must NOT be per-run
+ * flippable. Today exactly the `automation.*` orchestration knobs; #1306 extends it
+ * with maxParallelWorktrees / defaultGateLevel / affinityBatching. Every entry MUST
+ * also be in ALLOWED_PATHS (asserted in tests) so the same parseValue validators apply.
+ */
+export const OVERRIDABLE_PATHS = new Set(['automation.autonomy'])
+
+/**
+ * #1305 (RT-01): reject any path that is not a curated per-run override target
+ * BEFORE it can be validated, persisted to the session layer, or resolved. This is
+ * the single guard that keeps `--set` from flipping non-overridable settings (e.g.
+ * `--set governanceLevel=L1`). Unknown paths fail the same way as non-overridable ones.
+ */
+export function assertOverridablePath(path: string): void {
+  if (!OVERRIDABLE_PATHS.has(path)) {
+    throw ArbiterError.fromKey(
+      'E_UNKNOWN_PATH',
+      'errors.E_UNKNOWN_PATH',
+      { path },
+      {
+        hint: `Per-run --set is limited to: ${[...OVERRIDABLE_PATHS].join(', ')}. Persistent settings change via \`arbiter configure\`.`,
+      },
+    )
+  }
+}
+
 const VALID_TOOLS = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
 
 const VALID_ARCHETYPES = new Set([
@@ -141,7 +171,12 @@ const AXIS_PATHS = new Set([
   'contractType',
 ])
 
-function parseValue(path: string, raw: string): unknown {
+/**
+ * Validate + coerce a raw `path=value` string for a settable path. Exported (#1305)
+ * so the unified override resolver and the `--set` grammar reuse the SAME validators
+ * as `arbiter configure` — one validation surface, no parallel re-implementation.
+ */
+export function parseValue(path: string, raw: string): unknown {
   if (path.startsWith('features.')) {
     if (raw === 'true') return true
     if (raw === 'false') return false

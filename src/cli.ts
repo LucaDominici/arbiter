@@ -39,7 +39,7 @@ import { isTddPhase } from './commands/task-state.js'
 import { runTaskShip, buildShipStepLines } from './commands/task-ship.js'
 import { shipAffinityLines } from './affinity/gh-issues.js'
 import { runShipFixOnRed } from './commands/ship-fix-on-red.js'
-import { resolveShipProfile, autonomyAllows } from './commands/ship-profile.js'
+import { resolveShipProfile, autonomyAllows, buildShipOverrides } from './commands/ship-profile.js'
 import { resolveShipTier } from './sizing/diff-signals.js'
 import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
@@ -1324,13 +1324,10 @@ program
 function runShipBatchCommand(
   batch: string,
   dir: string | undefined,
-  autonomy: string | undefined,
+  overrides: Record<string, string>,
 ): void {
   const root = dir ?? process.cwd()
-  const profile = resolveShipProfile(
-    root,
-    autonomy !== undefined ? { autonomyOverride: autonomy } : {},
-  )
+  const profile = resolveShipProfile(root, Object.keys(overrides).length > 0 ? { overrides } : {})
   if (!autonomyAllows(profile.autonomy, 'wave-batch')) {
     process.stderr.write(
       `ship --batch refused: wave/batch requires automation.autonomy L3 (or --autonomy L3); resolved ${profile.autonomy}\n`,
@@ -1355,6 +1352,14 @@ program
       }
       return v
     },
+  )
+  .option(
+    '--set <path=value>',
+    'Per-run override of an overridable config path (repeatable, ADR-094). ' +
+      'Gated by OVERRIDABLE_PATHS; persists to the session layer so it survives /clear. ' +
+      'e.g. --set automation.autonomy=L3',
+    (v, acc: string[]) => [...acc, v],
+    [] as string[],
   )
   .option('--advance', 'Advance to the next phase (runs that phase gate; fails if red)', false)
   .option('--skip-plan-review', 'Bypass the plan-review gate on advance', false)
@@ -1382,6 +1387,7 @@ program
       opts: {
         tier?: string
         autonomy?: string
+        set: string[]
         advance: boolean
         skipPlanReview: boolean
         postClear: boolean
@@ -1392,12 +1398,18 @@ program
       },
     ) => {
       try {
+        // #1305 — desugar `--autonomy` + parse `--set` into ONE validated per-run overrides map,
+        // gated by OVERRIDABLE_PATHS and persisted to the session layer (survives /clear).
+        const overrides = buildShipOverrides(opts.dir ?? process.cwd(), {
+          sets: opts.set,
+          ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
+        })
         // #1263 — overnight multi-issue mode. When --batch is present, ship every
         // listed issue with per-issue STOP isolation (one issue's failure never
         // aborts the batch) and write a date-stamped batch report. The single-id
         // path below is left UNTOUCHED when --batch is absent (regression discipline).
         if (opts.batch !== undefined) {
-          runShipBatchCommand(opts.batch, opts.dir, opts.autonomy)
+          runShipBatchCommand(opts.batch, opts.dir, overrides)
           return
         }
         // #1260 — ALWAYS compute the ship SIZE (no flag). Size auto-selects the
@@ -1412,7 +1424,7 @@ program
         })
         const effectiveTier = opts.tier ?? size.tier
         const result = runTaskShip({
-          ...(opts.autonomy !== undefined ? { autonomy: opts.autonomy } : {}),
+          ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
           ...(id !== undefined ? { taskId: id } : {}),
           tier: effectiveTier,
           advance: opts.advance,
