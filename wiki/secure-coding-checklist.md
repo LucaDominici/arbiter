@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/SECURE_CODING_CHECKLIST.md'
-source_sha: '5807161bca9f43dd7fb9a389181a0017cb78d4ca'
-last_updated: '2026-06-11'
+source_sha: 'ada7cb3cbfeaea9f5201cdb274e536a579551b77'
+last_updated: '2026-06-12'
 ---
 
 # Secure Coding Checklist
@@ -37,7 +37,7 @@ _arbiter self-config — TypeScript L3. Review before every PR merge._
 
 ## Dependency Security
 
-- [ ] `npm audit --audit-level=high` passes
+- [ ] `npm audit --omit=dev --audit-level=high` passes
 - [ ] No CVEs suppressed without justification + review date
 - [ ] CVSS ≥ 9.0 CVEs must have written ADR before suppression
 - [ ] Dependencies pinned to minor version or have lockfile

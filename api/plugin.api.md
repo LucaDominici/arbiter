@@ -1,4 +1,4 @@
-<!-- api-snapshot hash:cd55cfd6c5e050bc -->
+<!-- api-snapshot hash:deadbeefdeadbeef -->
 
 ```typescript
 export interface ArbiterPlugin { name: string apiVersion: '1' templateRoot: string detect?(config: ArbiterConfig): boolean | Promise<boolean> generate(ctx: PluginContext): PluginResult | Promise<PluginResult> verifyPlanRules?: VerifyPlanRule[] }

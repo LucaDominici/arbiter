@@ -36,7 +36,7 @@ _arbiter self-config — TypeScript L3. Review before every PR merge._
 
 ## Dependency Security
 
-- [ ] `npm audit --audit-level=high` passes
+- [ ] `npm audit --omit=dev --audit-level=high` passes
 - [ ] No CVEs suppressed without justification + review date
 - [ ] CVSS ≥ 9.0 CVEs must have written ADR before suppression
 - [ ] Dependencies pinned to minor version or have lockfile

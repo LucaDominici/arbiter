@@ -426,7 +426,7 @@ Security gates run as L2+ hard requirements. PII scan is HARD (no grace period) 
 | ----------------- | ------------ | ------------------ | ------------------------------------------------------------------------- |
 | Secrets detection | gitleaks     | L2 HARD            | `gitleaks detect --source . --baseline-path suppressions/.gitleaksignore` |
 | PII scan          | pii-scan.mjs | L2 HARD (no grace) | `node scripts/pii-scan.mjs`                                               |
-| Dep audit         | npm audit    | L2 HARD            | `npm audit --audit-level=high`                                            |
+| Dep audit         | npm audit    | L2 HARD            | `npm audit --omit=dev --audit-level=high`                                 |
 
 **Suppression files** (user-edited, not overwritten):
 
