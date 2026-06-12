@@ -9,6 +9,13 @@ export interface RootGeneratorResult {
   files: WriteResult[]
 }
 
+/** Post-emit format guard — only format a file that was actually written. */
+function formatIfWritten(result: WriteResult, filePath: string, targetDir: string): void {
+  if (result.action !== 'skipped' && result.action !== 'dry-run') {
+    prettierFormat(filePath, targetDir)
+  }
+}
+
 export function generateRoot(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -90,10 +97,8 @@ export function generateRoot(
   // but the target project's own prettier config may differ (e.g. a pre-existing
   // .prettierrc with singleQuote:false wins by precedence) — re-format the emitted
   // file to the project's effective config so the generated `format` gate stays
-  // green out of the box. Only when newly written; best-effort (never throws).
-  if (commitlintResult.action !== 'skipped' && commitlintResult.action !== 'dry-run') {
-    prettierFormat(commitlintPath, base)
-  }
+  // green out of the box. Best-effort, only when newly written.
+  formatIfWritten(commitlintResult, commitlintPath, base)
 
   return { files: results }
 }
