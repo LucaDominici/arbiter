@@ -200,6 +200,28 @@ describe('runInit with --recipe (#546)', () => {
     expect(raw.hasDatabase).toBe(true)
   })
 
+  it('recipe language persists to arbiter.json so verify/diff have a source (#1316)', async () => {
+    const recipePath = join(dir, 'lang-recipe.json')
+    writeFileSync(
+      recipePath,
+      JSON.stringify({
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        language: 'go',
+        archetype: 'cli',
+        useGitHub: false,
+      }),
+    )
+
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: recipePath })
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      language?: unknown
+    }
+    expect(raw.language).toBe('go')
+  })
+
   it('recipe databaseEngine=none persists and sets hasDatabase false (#1317)', async () => {
     const recipePath = join(dir, 'engine-none-recipe.json')
     writeFileSync(

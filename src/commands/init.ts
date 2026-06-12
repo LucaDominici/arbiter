@@ -1022,6 +1022,16 @@ function recipeAutomation(a: NonNullable<Recipe['automation']>): AutomationConfi
 }
 
 /**
+ * #1316 — persist the detected/recipe language so `arbiter update`/diff can detect
+ * a language migration (diff.ts AXIS_FIELDS) and the evidence collector has a stable
+ * source. Omitted for 'unknown' (no useful signal). Extracted to keep
+ * buildArbiterConfig within the complexity-15 ceiling.
+ */
+function buildLanguageField(config: ProjectConfig): Pick<ArbiterConfig, 'language'> {
+  return config.language !== 'unknown' ? { language: config.language } : {}
+}
+
+/**
  * #1317 — persist the database axis. `hasDatabase` is always written (legacy
  * back-compat); `databaseEngine` is written only when defined (exactOptional-safe)
  * so `arbiter update` can detect engine migrations and re-run integration-testing.
@@ -1087,6 +1097,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     governanceLevel: level,
     permitGitHub: config.useGitHub,
     decomposition: { backend },
+    ...buildLanguageField(config),
     features: {
       debtGates: config.enableDebtGates,
       suppressions: config.enableSuppressions,

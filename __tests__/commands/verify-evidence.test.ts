@@ -132,6 +132,22 @@ describe('runVerifyEvidence (#238)', () => {
     expect(result.status).toBe('error')
   })
 
+  // ── G1b unit 7 (#1316): persisted stack is honored over on-disk detection ────
+  // The temp dir has NO go.mod, so detectLanguage(dir) returns 'unknown' and a
+  // .go file would classify as R-unknown. With stack:'go' persisted in SUMMARY.json
+  // the .go file must classify as R2 — proving resolveStack used the persisted
+  // stack, not a re-detect that would skip the matrix. (Read path NOT re-edited.)
+  it('honors persisted stack:go for classification even when the dir has no go.mod', () => {
+    const { serialised } = makeSummary({
+      stack: 'go',
+      files: ['internal/handler/users.go'],
+    })
+    writeFileSync(join(dir, '.evidence', 'SUMMARY.json'), serialised)
+    const result = runVerifyEvidence({ dir })
+    expect(result.riskLevel).toBe('R2')
+    expect(result.riskLevel).not.toBe('R-unknown')
+  })
+
   it('respects E2E_RISK_SKIP env with valid <cat>:#<issue> reason', () => {
     const { serialised } = makeSummary()
     writeFileSync(join(dir, '.evidence', 'SUMMARY.json'), serialised)
