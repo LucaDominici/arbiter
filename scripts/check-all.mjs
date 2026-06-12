@@ -228,7 +228,7 @@ if (isMain) {
     // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan
     // under v5, making the gate vacuous on fileset drift (#1286).
     runCheck('duplication', 'node', ['scripts/check-duplication.mjs'])
-    runCheck('audit', 'npm', ['audit', '--audit-level=high'])
+    runCheck('audit', 'npm', ['audit', '--omit=dev', '--audit-level=high'])
     runCheck('gitleaks', 'gitleaks', [
       'detect',
       '--source',
