@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Command, Option } from 'commander'
 import { runInit } from './commands/init.js'
+import { resolvePresetOption } from './wizard/presets.js'
 import { runUpdate } from './commands/update.js'
 import { runDiff } from './commands/diff.js'
 import { runConfigure } from './commands/configure.js'
@@ -414,7 +415,7 @@ program
   .option('--force', 'Override adverse git state check (detached HEAD, rebase, etc.)', false)
   .option(
     '--preset <preset>',
-    'Apply a meta-preset: industrial-grade (governance + compliance + observability + auth bundle)',
+    'Apply a meta-preset: industrial-grade (governance + compliance + observability + auth bundle) | solo-homelab (compliance off, governance ≤ L2, mutation off, no prod runbooks)',
   )
   .option('--auth-provider <provider>', 'Override auth provider (used with --preset or standalone)')
   .option(
@@ -455,6 +456,7 @@ program
     }) => {
       const backend =
         opts.backend === 'github' || opts.backend === 'markdown' ? opts.backend : undefined
+      const preset = resolvePresetOption(opts.preset)
       await runInit({
         yes: opts.yes,
         tools: opts.tools,
@@ -470,7 +472,7 @@ program
         json: opts.json,
         quiet: opts.quiet,
         force: opts.force,
-        ...(opts.preset === 'industrial-grade' ? { preset: 'industrial-grade' } : {}),
+        ...(preset !== undefined ? { preset } : {}),
         ...(opts.authProvider !== undefined
           ? { authProvider: opts.authProvider as import('./wizard/types.js').AuthProvider }
           : {}),

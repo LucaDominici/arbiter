@@ -7,7 +7,7 @@ export type InvariantPreset = 'essential' | 'standard' | 'full'
  * Meta-preset that bundles governance, compliance, observability, and auth config
  * into a single opt-in. Providers remain 'none' — user fills them in separately.
  */
-export type ProjectPreset = 'none' | 'industrial-grade'
+export type ProjectPreset = 'none' | 'industrial-grade' | 'solo-homelab'
 
 export type WizardFlow = 'greenfield' | 'brownfield'
 
