@@ -73,6 +73,13 @@ jobs:
     needs: [build-superset]
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
+      # #1311: self-hosted persistent workspaces can keep a stale
+      # .git/refs/**/*.lock from an interrupted run, which makes the
+      # deep checkout below fail with "cannot lock ref". No-op on
+      # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
+      # the checkout step's name:/SHA pin below, not this guard.
+      - name: Clean stale git ref locks (self-hosted)
+        run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
         with:
           fetch-depth: 0
