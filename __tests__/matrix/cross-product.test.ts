@@ -1564,3 +1564,88 @@ describe('cross-product: ship.md — orchestrator content across all stacks × l
     expect(out).toMatch(/preflight|plan.*phase|phase.*plan/i)
   })
 })
+
+// ─── self-hosted git ref-lock cleanup (#1311) ──────────────────────────────────
+//
+// On a persistent self-hosted runner workspace, an interrupted run can leave a
+// stale `.git/refs/**/*.lock`. The next `actions/checkout` then fails with
+// "cannot lock ref … unable to create '<ref>.lock': File exists". The fix
+// (Option a, dual-sided per CANON-18) inserts a guarded cleanup step
+// IMMEDIATELY BEFORE every full-history (`fetch-depth: 0`) checkout. The step is
+// a no-op on ephemeral runners (find matches nothing). This block asserts the
+// step renders into every affected template across stacks × levels — not a
+// single render — and that it is correctly positioned before each deep checkout.
+
+describe('cross-product: workflows — self-hosted git ref-lock cleanup before deep checkout (#1311)', () => {
+  // The 8 templates carrying `fetch-depth: 0` (full-history clones) that must
+  // gain the pre-checkout lock-cleanup guard. Kept in sync with the self
+  // workflows under .github/workflows/ via the self-dogfood render parity test.
+  const TEMPLATES_WITH_DEEP_CHECKOUT = [
+    'github/workflows/01-pr-fast.yml.ejs',
+    'github/workflows/02-pr-extended.yml.ejs',
+    'github/workflows/05-release.yml.ejs',
+    'github/workflows/06-nightly.yml.ejs',
+    'github/workflows/06-nightly-lite.yml.ejs',
+    'github/workflows/08-monthly.yml.ejs',
+    'github/workflows/15-codeql.yml.ejs',
+    'github/workflows/_post-merge-notify.yml.ejs',
+  ] as const
+
+  // The exact, stable cleanup command (no-op safe; only meaningful on a
+  // persistent self-hosted workspace). Wave-2 #1319 edits the checkout step's
+  // `name:`/SHA pin below this line — keep these as separate hunks.
+  const CLEANUP_RUN = `find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true`
+
+  function renderWorkflow(template: string, lang: Language, level: GovernanceLevel): string {
+    return renderTemplate(template, {
+      ...configFor(lang, level),
+      useGitHub: true,
+    })
+  }
+
+  for (const template of TEMPLATES_WITH_DEEP_CHECKOUT) {
+    for (const lang of LANGUAGES) {
+      for (const level of LEVELS) {
+        it(`${template} (${lang}+${level}): cleanup step present for every deep checkout`, () => {
+          const content = renderWorkflow(template, lang, level)
+          const lines = content.split('\n')
+
+          // Indices of every full-history checkout marker.
+          const deepCheckoutLineIdxs = lines
+            .map((line, idx) => (line.includes('fetch-depth: 0') ? idx : -1))
+            .filter((idx) => idx >= 0)
+
+          // Only templates that actually render a deep checkout are in scope;
+          // every template in this list must render at least one under some
+          // config, but a given lang/level may gate some jobs out — so we only
+          // assert the invariant where a deep checkout exists in THIS render.
+          if (deepCheckoutLineIdxs.length === 0) return
+
+          // The cleanup command must be present at least once.
+          expect(content).toContain(CLEANUP_RUN)
+
+          const cleanupLineIdxs = lines
+            .map((line, idx) => (line.includes(CLEANUP_RUN) ? idx : -1))
+            .filter((idx) => idx >= 0)
+
+          // One cleanup guard per deep checkout.
+          expect(cleanupLineIdxs.length).toBeGreaterThanOrEqual(deepCheckoutLineIdxs.length)
+
+          // Each deep checkout must be immediately preceded by a cleanup guard:
+          // there is a cleanup line whose index is within a small window above
+          // the `fetch-depth: 0` line (the cleanup `run:` plus the checkout
+          // `uses:`/`with:` lines sit close together).
+          for (const checkoutIdx of deepCheckoutLineIdxs) {
+            const hasPrecedingCleanup = cleanupLineIdxs.some(
+              (cleanupIdx) => cleanupIdx < checkoutIdx && checkoutIdx - cleanupIdx <= 6,
+            )
+            expect(
+              hasPrecedingCleanup,
+              `expected lock-cleanup guard immediately before deep checkout at line ${checkoutIdx + 1} in ${template} (${lang}+${level})`,
+            ).toBe(true)
+          }
+        })
+      }
+    }
+  }
+})
