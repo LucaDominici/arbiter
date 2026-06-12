@@ -56,6 +56,10 @@ function writeWorkflows(dir: string, files: string[]): void {
   }
 }
 
+function writeArbiterJson(dir: string, config: Record<string, unknown>): void {
+  writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ version: '0.2', ...config }, null, 2))
+}
+
 describe('check-ci-tiers.mjs (#903, INV-73 minPresent)', () => {
   it('exits 0 when enough workflows are present (minPresent=4, 4 present)', () => {
     const { dir, cleanup } = makeDir()
@@ -151,5 +155,89 @@ describe('check-ci-tiers.mjs (#903, INV-73 minPresent)', () => {
     } finally {
       cleanup()
     }
+  })
+})
+
+// ─── #1319.2: collaboration-mode / level-aware required-set layer (INV-72) ────
+// When arbiter.json is present, the self checker ALSO verifies the collab-aware
+// required tier set (the inverse of the github.ts generation predicates) — on top
+// of the INV-73 minPresent floor. Trunk-solo's nightly slot is satisfied by either
+// 06-nightly-lite.yml OR the full 06-nightly.yml (arbiter dogfoods the full suite).
+describe('check-ci-tiers.mjs — collab/level-aware required set (#1319.2, INV-72)', () => {
+  it('trunk-solo L3 FAILS when 09-heartbeat is missing', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeCatalogWithMinPresent(dir, 1)
+      writeArbiterJson(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L3' })
+      writeWorkflows(dir, [
+        '01-pr-fast.yml',
+        '02-pr-extended.yml',
+        '03-human-approval.yml',
+        '06-nightly-lite.yml',
+        // 09-heartbeat.yml absent → collab-aware layer must FAIL
+      ])
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('INV-72')
+      expect(result.stderr).toContain('09-heartbeat.yml')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('trunk-solo L2 FAILS when neither 06-nightly nor 06-nightly-lite present', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeCatalogWithMinPresent(dir, 1)
+      writeArbiterJson(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L2' })
+      writeWorkflows(dir, ['01-pr-fast.yml', '02-pr-extended.yml', '03-human-approval.yml'])
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('INV-72')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('trunk-solo L2 PASSES when the full 06-nightly.yml satisfies the nightly slot', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeCatalogWithMinPresent(dir, 1)
+      writeArbiterJson(dir, { collaborationMode: 'trunk-solo', governanceLevel: 'L2' })
+      writeWorkflows(dir, [
+        '01-pr-fast.yml',
+        '02-pr-extended.yml',
+        '03-human-approval.yml',
+        '06-nightly.yml',
+      ])
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('peer-review L2 (standard) does NOT require 06/07/08 (no false-fail)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeCatalogWithMinPresent(dir, 1)
+      writeArbiterJson(dir, { collaborationMode: 'peer-review', governanceLevel: 'L2' })
+      writeWorkflows(dir, [
+        '01-pr-fast.yml',
+        '02-pr-extended.yml',
+        '03-human-approval.yml',
+        '05-release.yml',
+      ])
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('regression guard: arbiter own .github/workflows exits 0 (RT TDD unit 5)', () => {
+    // Run against the real repo root — arbiter.json (trunk-solo L2) + real workflows.
+    const result = run(resolve('.'))
+    expect(result.status).toBe(0)
   })
 })

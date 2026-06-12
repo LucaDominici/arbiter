@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   notify:
+    name: Post or update issue comment
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     steps:
       - name: Post or update issue comment
