@@ -17,7 +17,6 @@ func TestNoBreakingProtobufChanges(t *testing.T) {
 	cmd := exec.Command("buf", "breaking", "--against", ".git#branch=main")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Breaking Protobuf changes detected:
-%s", out)
+		t.Fatalf("Breaking Protobuf changes detected:\n%s", out)
 	}
 }

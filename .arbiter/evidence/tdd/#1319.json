@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1319",
+  "test_path": "__tests__/generators/contract-testing-render.test.ts",
+  "test_commit_sha": "69083b38cdb570ed5ca06039acc5faaee92b620d",
+  "test_run_log": "RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1319-go-toolchain\n\n FAIL  __tests__/generators/contract-testing-render.test.ts > contract-testing Go templates are gofmt-clean (#1319.4) > contract-testing/graphql/graphql_schema_test.go.ejs: no literal newline inside a Go string literal\n FAIL  __tests__/generators/contract-testing-render.test.ts > contract-testing Go templates are gofmt-clean (#1319.4) > contract-testing/rest-public/openapi_diff_test.go.ejs: no literal newline inside a Go string literal\n FAIL  __tests__/generators/contract-testing-render.test.ts > contract-testing Go templates are gofmt-clean (#1319.4) > contract-testing/grpc/grpc_contract_test.go.ejs: no literal newline inside a Go string literal\n FAIL  __tests__/templates/debt-gates-render.test.ts > debt-gates config templates — rendering > .golangci.yml.ejs declares version \"2\" and uses v2 linters.settings schema (#1319.7)\n\n Test Files  2 failed (2)\n      Tests  4 failed | 101 passed (105)\n",
+  "observed_failure": "FAIL  __tests__/generators/contract-testing-render.test.ts",
+  "recorded_at": "2026-06-12T04:30:00.000Z"
+}
