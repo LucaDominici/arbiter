@@ -117,6 +117,7 @@ jobs:
       # ephemeral runners. Keep as a separate hunk: Wave-2 #1319 edits
       # the checkout step's name:/SHA pin below, not this guard.
       - name: Clean stale git ref locks (self-hosted)
+        # FAIL-OPEN-INTENT: best-effort stale ref-lock sweep; a real failure still surfaces at checkout
         run: find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

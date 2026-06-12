@@ -106,3 +106,6 @@ website/.vitepress/.temp/
 
 # LLM-Wiki generated log (timestamp churn prevention — wiki/*.md are committed, log is not)
 wiki/.wiki-log.json
+
+# Graphify AST cache (regenerable)
+graphify-out/
