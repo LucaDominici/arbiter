@@ -110,4 +110,15 @@ describe('generateRoot', () => {
     expect(content).toContain('[*.go]')
     expect(content).toContain('indent_style = tab')
   })
+
+  it('formats commitlint.config.js to the target project prettier config (#1325)', () => {
+    // A pre-existing project .prettierrc with singleQuote:false wins by precedence;
+    // the house-style template (single quotes) would otherwise fail the generated
+    // `format` gate. generateRoot must prettierFormat the emitted file to it.
+    writeFileSync(join(dir, '.prettierrc'), JSON.stringify({ singleQuote: false }))
+    generateRoot(makeConfig(dir, { language: 'typescript' }))
+    const commitlint = readFileSync(join(dir, 'commitlint.config.js'), 'utf-8')
+    expect(commitlint).toContain('"@commitlint/config-conventional"')
+    expect(commitlint).not.toContain("'@commitlint/config-conventional'")
+  })
 })

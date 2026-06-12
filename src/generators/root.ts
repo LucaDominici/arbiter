@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
+import { prettierFormat } from '../utils/prettier-format.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -78,13 +79,21 @@ export function generateRoot(
   }
 
   // commitlint.config.js — conventional commit config for all projects
-  results.push(
-    writeFile(
-      resolvedPath(base, 'commitlint.config.js'),
-      renderTemplate('root/commitlint.config.js.ejs', data),
-      { skipIfExists: true, dryRun: opts.dryRun },
-    ),
+  const commitlintPath = resolvedPath(base, 'commitlint.config.js')
+  const commitlintResult = writeFile(
+    commitlintPath,
+    renderTemplate('root/commitlint.config.js.ejs', data),
+    { skipIfExists: true, dryRun: opts.dryRun },
   )
+  results.push(commitlintResult)
+  // Post-emit format (#1325): the template is house-style (single-quote, no semi),
+  // but the target project's own prettier config may differ (e.g. a pre-existing
+  // .prettierrc with singleQuote:false wins by precedence) — re-format the emitted
+  // file to the project's effective config so the generated `format` gate stays
+  // green out of the box. Only when newly written; best-effort (never throws).
+  if (commitlintResult.action !== 'skipped' && commitlintResult.action !== 'dry-run') {
+    prettierFormat(commitlintPath, base)
+  }
 
   return { files: results }
 }
