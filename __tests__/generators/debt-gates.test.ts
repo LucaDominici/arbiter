@@ -523,10 +523,21 @@ describe('generateDebtGates', () => {
       string,
       Record<string, string>
     >
-    expect(pkg.scripts?.['test:unit']).toContain('vitest')
-    expect(pkg.scripts?.['test:contract']).toContain('vitest')
-    expect(pkg.scripts?.['test:integration']).toContain('vitest')
-    expect(pkg.scripts?.['test:behavioral']).toContain('vitest')
+    // #1324: framework-aligned (mirror arbiter's own scripts) — path-based, never
+    // `vitest --project <tier>` (the generated vitest.config.ts defines no projects,
+    // so --project crashes the gate). test:unit runs all tests; optional tiers add
+    // --passWithNoTests so a greenfield project without those tiers stays green.
+    expect(pkg.scripts?.['test:unit']).toBe('vitest run')
+    expect(pkg.scripts?.['test:contract']).toBe('vitest run --passWithNoTests __tests__/contract')
+    expect(pkg.scripts?.['test:integration']).toBe(
+      'vitest run --passWithNoTests __tests__/integrations',
+    )
+    expect(pkg.scripts?.['test:behavioral']).toBe(
+      'vitest run --passWithNoTests __tests__/behavioral',
+    )
+    for (const tier of ['test:unit', 'test:contract', 'test:integration', 'test:behavioral']) {
+      expect(pkg.scripts?.[tier]).not.toContain('--project')
+    }
   })
 
   it('injects test scripts even when enableDebtGates is false (#219)', () => {

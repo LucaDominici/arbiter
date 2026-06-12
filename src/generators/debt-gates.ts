@@ -26,11 +26,16 @@ function injectTestScripts(targetDir: string, dryRun: boolean): void {
     return
   }
   const scripts = (pkg.scripts ?? {}) as Record<string, string>
+  // Mirror arbiter's own dogfooded test-tier convention (path-based, not vitest
+  // `--project`): the generated vitest.config.ts defines no `projects`, so
+  // `vitest run --project <tier>` crashed every generated TS project's gate
+  // (#1324). The optional tiers add --passWithNoTests so a greenfield project
+  // that has not yet added contract/integration/behavioral tests stays green.
   const testScripts: Record<string, string> = {
-    'test:unit': 'vitest run --project unit',
-    'test:contract': 'vitest run --project contract',
-    'test:integration': 'vitest run --project integration',
-    'test:behavioral': 'vitest run --project behavioral',
+    'test:unit': 'vitest run',
+    'test:contract': 'vitest run --passWithNoTests __tests__/contract',
+    'test:integration': 'vitest run --passWithNoTests __tests__/integrations',
+    'test:behavioral': 'vitest run --passWithNoTests __tests__/behavioral',
   }
   let changed = false
   for (const [key, value] of Object.entries(testScripts)) {

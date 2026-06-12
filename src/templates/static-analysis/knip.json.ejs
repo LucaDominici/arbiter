@@ -1,5 +1,19 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": ["src/index.ts!", "src/cli.ts!"],
-  "project": ["src/**/*.ts!"]
+  "entry": [<%- archetype === 'cli' ? '"src/cli.ts!"' : '"src/index.ts!"' %>],
+  "project": ["src/**/*.ts!"],
+  "ignoreDependencies": ["jscpd"],
+  "ignoreBinaries": [
+    "knip",
+    "madge",
+    "license-checker",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "CC0-1.0",
+    "0BSD",
+    "Unlicense",
+    "Python-2.0"
+  ]
 }
