@@ -21,6 +21,32 @@ export interface CheckAllGeneratorResult {
   files: WriteResult[]
 }
 
+/**
+ * #1319.8 (CANON-01, INV-30): emit the greenfield-aware coverage gate predicate
+ * for TypeScript projects with coverage enabled. check-all.mjs imports
+ * evaluateCoverageGate from ./lib/coverage-gate.mjs to decide PASS (greenfield,
+ * zero executable statements) vs threshold-enforcement vs FAIL (no/malformed
+ * summary). Only TS uses vitest+coverage-summary.json; other languages enforce
+ * coverage via their native toolchain (tarpaulin/jacoco/coverage.py). Extracted
+ * to keep generateCheckAll under the complexity/line ceiling (CANON-22).
+ */
+function emitCoverageGate(
+  base: string,
+  data: { language: string; enableDebtGates: boolean; coverageEnabled: boolean },
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  if (!(data.language === 'typescript' && data.enableDebtGates && data.coverageEnabled)) {
+    return []
+  }
+  const coverageGatePath = resolvedPath(base, 'scripts', 'lib', 'coverage-gate.mjs')
+  return [
+    writeFile(coverageGatePath, renderTemplate('scripts/lib/coverage-gate.mjs.ejs', data), {
+      skipIfExists: true,
+      dryRun: opts.dryRun,
+    }),
+  ]
+}
+
 export function generateCheckAll(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -67,6 +93,9 @@ export function generateCheckAll(
       dryRun: opts.dryRun,
     }),
   )
+
+  // #1319.8 — greenfield-aware coverage gate predicate (TS + coverage only).
+  results.push(...emitCoverageGate(base, data, opts))
 
   // #1093 (CANON-01, INV-100): emit the collaborationMode-wired check alongside
   // check-all.mjs. Run at L1, it asserts the generated arbiter.json declares a

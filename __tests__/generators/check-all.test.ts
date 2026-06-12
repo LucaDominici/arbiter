@@ -280,8 +280,9 @@ describe('generateCheckAll', () => {
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
     // The previously-substituted default (80) must NOT appear from a fallback.
     // Either the explicit 0 propagates, or the threshold is absent — but the
-    // computed default of 80 must not be silently injected.
-    expect(content).not.toContain('coverage.thresholds.lines=80')
+    // computed default of 80 must not be silently injected. The #1319.8 gate
+    // embeds the threshold as `const _covThreshold = N;`.
+    expect(content).not.toContain('_covThreshold = 80')
   })
 
   it('explicit zero mutationScore is honored as-is, not substituted by computed default (#484)', () => {
@@ -322,7 +323,8 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).toContain('coverage.thresholds.lines=75')
+    // #1319.8 gate embeds the threshold as `const _covThreshold = N;`.
+    expect(content).toContain('_covThreshold = 75')
   })
 
   it('scaled profile + LoC<1000 omits coverage gate from generated script', () => {
@@ -336,7 +338,9 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).not.toContain('coverage.thresholds.lines')
+    // coverageEnabled=false at this LoC ⇒ the #1319.8 coverage gate is omitted.
+    expect(content).not.toContain('coverage threshold (greenfield-aware')
+    expect(content).not.toContain('_covThreshold')
   })
 
   it('scaled profile + LoC>=1000 includes coverage gate with ramped threshold', () => {
@@ -350,9 +354,9 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).toContain('coverage.thresholds.lines')
+    expect(content).toContain('_covThreshold')
     // Threshold between 60% and 85% for 5k LoC
-    expect(content).toMatch(/coverage\.thresholds\.lines=\d{2}/)
+    expect(content).toMatch(/_covThreshold = \d{2}/)
   })
 
   it('scaled profile + LoC>=10000 uses 85% coverage threshold', () => {
@@ -366,7 +370,7 @@ describe('generateCheckAll', () => {
       }),
     )
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).toContain('coverage.thresholds.lines=85')
+    expect(content).toContain('_covThreshold = 85')
   })
 
   // ─── MK: grace period guard ─────────────────────────────────────────────────

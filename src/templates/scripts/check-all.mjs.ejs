@@ -18,6 +18,11 @@ import {
   getResults,
   getFailed,
 } from './lib/run-helpers.mjs';
+<% if (language === 'typescript' && enableDebtGates && coverageEnabled) { %>
+// #1319.8 — greenfield-aware coverage decision (PASS on 0 executable statements;
+// enforce threshold otherwise; FAIL on missing/malformed summary).
+import { evaluateCoverageGate } from './lib/coverage-gate.mjs';
+<% } %>
 
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
@@ -496,7 +501,44 @@ if (level === 'L2') {
   // ─── L2: Tech Debt Gates ────────────────────────────────────────────────────
 <% if (language === 'typescript') { %>
 <% if (coverageEnabled) { %>
-  runCheck('coverage threshold', 'npx', ['vitest', 'run', '--coverage', '--coverage.thresholds.lines=<%= coverageThreshold %>'], { soft: graceActive });
+  // ─── L2: coverage threshold (greenfield-aware, #1319.8) ─────────────────────
+  // Run vitest with the json-summary reporter so we can inspect the real coverage
+  // totals at runtime. A virgin project has zero executable statements ⇒ the
+  // greenfield guard PASSES instead of false-failing the line threshold. A coverage
+  // run that crashed (no summary) FAILS — never silently skipped.
+  {
+    const _covStart = Date.now();
+    process.stdout.write('[CHECK] coverage threshold ... ');
+    const _covThreshold = <%= coverageThreshold %>;
+    const _cov = spawnSync(
+      'npx',
+      ['vitest', 'run', '--coverage', '--coverage.reporter=json-summary'],
+      { encoding: 'utf-8', shell: false },
+    );
+    let _covStatus = 'PASS';
+    let _covReason = '';
+    let _covSummary = null;
+    const _covSummaryPath = resolve(process.cwd(), 'coverage', 'coverage-summary.json');
+    if (existsSync(_covSummaryPath)) {
+      try {
+        _covSummary = JSON.parse(readFileSync(_covSummaryPath, 'utf-8'));
+      } catch {
+        _covSummary = null; // malformed JSON ⇒ evaluateCoverageGate fails closed
+      }
+    }
+    const _covResult = evaluateCoverageGate(_covSummary, _covThreshold);
+    _covStatus = _covResult.status;
+    _covReason = _covResult.reason;
+    if (_covStatus === 'FAIL' && graceActive) {
+      console.log(`WARN (grace period — ${_covReason})`);
+      _covStatus = 'PASS';
+    } else if (_covStatus === 'FAIL') {
+      console.log(`FAIL (${_covReason})`);
+    } else {
+      console.log(`PASS (${_covReason})`);
+    }
+    pushResult('coverage threshold', _covStatus, Date.now() - _covStart);
+  }
 <% } %>
   runCheck('dead code', 'npx', ['knip'], { soft: graceActive });
   // Fail-closed wrapper: bare `npx jscpd --silent` exits 0 on a 0-file scan

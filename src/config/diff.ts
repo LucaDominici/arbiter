@@ -71,6 +71,8 @@ export type GeneratorKey =
   | 'gap'
   | 'wiki'
   | 'solo-exception'
+  | 'anti-proforma'
+  | 'commit-footer-rationale'
 
 export interface ConfigDiff {
   paths: string[]

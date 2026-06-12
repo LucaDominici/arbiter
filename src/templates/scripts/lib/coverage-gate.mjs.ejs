@@ -1,0 +1,54 @@
+// <%= projectName %> — coverage gate predicate (#1319.8, INV-30)
+// Greenfield-aware coverage decision. A virgin project has zero executable
+// statements; enforcing a line threshold against an empty src tree would
+// false-fail the self-gate. The contract:
+//   - total.statements.total === 0           → PASS  (greenfield, nothing to cover)
+//   - total.statements.total  >  0           → enforce the threshold (line %)
+//   - summary missing / malformed / null     → FAIL  (a crashed coverage run must
+//                                                      NEVER false-green)
+// Pure + side-effect free so the gate logic is unit-testable in isolation.
+
+/**
+ * @param {unknown} summary  Parsed coverage/coverage-summary.json (v8/istanbul shape).
+ * @param {number}  threshold  Line-coverage floor (percent, 0..100).
+ * @returns {{ status: 'PASS' | 'FAIL', reason: string }}
+ */
+export function evaluateCoverageGate(summary, threshold) {
+  // No summary at all ⇒ the coverage run errored or produced no artifact. Fail
+  // closed — skipping here would mask a misconfigured/crashed coverage run.
+  if (summary == null || typeof summary !== 'object') {
+    return { status: 'FAIL', reason: 'no coverage summary (run errored or produced no artifact)' };
+  }
+  const total = summary.total;
+  const statements = total && total.statements;
+  if (
+    statements == null ||
+    typeof statements !== 'object' ||
+    typeof statements.total !== 'number'
+  ) {
+    return {
+      status: 'FAIL',
+      reason: 'malformed coverage summary (missing total.statements.total)',
+    };
+  }
+
+  // Greenfield: zero executable statements ⇒ no coverage to enforce.
+  if (statements.total === 0) {
+    return { status: 'PASS', reason: 'no executable statements (greenfield)' };
+  }
+
+  // Executable code exists ⇒ enforce the line-coverage floor.
+  const lines = (total && total.lines) || statements;
+  const pct = typeof lines.pct === 'number'
+    ? lines.pct
+    : lines.total > 0
+      ? (lines.covered / lines.total) * 100
+      : 0;
+  if (pct + 1e-9 < threshold) {
+    return {
+      status: 'FAIL',
+      reason: `line coverage ${pct.toFixed(2)}% < threshold ${threshold}%`,
+    };
+  }
+  return { status: 'PASS', reason: `line coverage ${pct.toFixed(2)}% >= threshold ${threshold}%` };
+}

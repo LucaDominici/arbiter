@@ -110,6 +110,32 @@ elif [ -d "$ARBITER_PREPUSH_EVIDENCE_DIR" ]; then
   fi
 fi
 # ─── end evidence-freshness gate ─────────────────────────────────────────────
+<% if (enableSecurityScanning) { %>
+# ─── pre-push secret scan (gitleaks, push-range scoped, #1319.9) ──────────────
+# Scope gitleaks to the commits actually being pushed (origin/<base>..HEAD or the
+# tracked upstream @{u}..HEAD) via --log-opts, NOT a full-tree `detect --source .`
+# scan. pre-commit already vetted staged content full-tree; the push gate only
+# needs to vet the new history. Skips with a warning when gitleaks is absent.
+if command -v gitleaks >/dev/null 2>&1; then
+  PUSH_RANGE=""
+  if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+    PUSH_RANGE="@{u}..HEAD"
+  elif git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+    PUSH_RANGE="origin/main..HEAD"
+  fi
+  if [ -n "$PUSH_RANGE" ]; then
+    gitleaks detect --log-opts "$PUSH_RANGE" \
+      --config .gitleaks.toml \
+      --gitleaks-ignore-path suppressions/.gitleaksignore \
+      --no-banner --exit-code 1 \
+      || { echo "gitleaks: secrets detected in push range ${PUSH_RANGE} — push blocked"; exit 1; }
+  else
+    echo "gitleaks: no upstream/origin base to diff against — skipping push-range scan (pre-commit covers staged content)"
+  fi
+else
+  echo "WARNING: gitleaks not installed — skipping push-range secret scan (CI enforces it)"
+fi
+<% } %>
 <% if (language === 'typescript') { %>
 
 # Vite/vitest (v5+) cannot handle '#' in the project root path.

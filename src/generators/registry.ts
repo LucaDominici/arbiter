@@ -8,6 +8,8 @@ import { generateCodex } from './codex.js'
 import { generateGithub } from './github.js'
 import { generateRoot } from './root.js'
 import { generateCheckAll } from './check-all.js'
+import { generateAntiProforma } from './anti-proforma.js'
+import { generateCommitFooter } from './commit-footer.js'
 import { generateCursor } from './cursor.js'
 import { generateCopilot } from './copilot.js'
 import { generateCoverage } from './coverage.js'
@@ -160,6 +162,37 @@ function buildAiToolSpecs(
   ]
 }
 
+/**
+ * #1319.1 — gate-script generators that emit checkers invoked by check-all.mjs.
+ * The registry never emitted these, so a virgin-init self-gate failed with a
+ * missing-module error. Activation EXACTLY mirrors the corresponding runCheck
+ * gating in check-all.mjs.ejs. Extracted from buildInfraSpecs to keep that
+ * function under the line ceiling (CANON-22).
+ */
+function buildGateScriptSpecs(config: ProjectConfig): GeneratorSpec[] {
+  return [
+    {
+      // check-all.mjs.ejs invokes scripts/check-anti-proforma.mjs UNCONDITIONALLY
+      // (outside any governanceLevel guard), so the script must be emitted at every
+      // level or the L1 gate false-fails with a missing-module error. The script is
+      // warn-default ⇒ greenfield-safe (exits 0 with 0 tests).
+      key: 'anti-proforma',
+      enabled: true,
+      run: (opts) => generateAntiProforma(config, opts).files,
+    },
+    {
+      // check-all.mjs.ejs runs scripts/check-commit-footer-rationale.mjs only inside
+      // `<% if (governanceLevel !== 'L1') %>`. Mirror that gating EXACTLY so the
+      // script is present whenever it is invoked (L2+) and never dead-emitted at L1.
+      // The emitted script fails-OPEN (exit 0 + SKIP) when origin/main is unreachable,
+      // so a virgin repo with no upstream does not false-fail (INV-119).
+      key: 'commit-footer-rationale',
+      enabled: config.governanceLevel !== 'L1',
+      run: (opts) => generateCommitFooter(config, opts).files,
+    },
+  ]
+}
+
 function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     {
@@ -177,6 +210,7 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       enabled: true,
       run: (opts) => generateCheckAll(config, opts).files,
     },
+    ...buildGateScriptSpecs(config),
     {
       key: 'debt-gates',
       // Always run for typescript/multi so injectTestScripts fires regardless of
@@ -259,11 +293,6 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'infra',
       enabled: config.deployTarget === 'azure-container-app',
       run: (opts) => generateInfra(config, opts).files,
-    },
-    {
-      key: 'audit-toolchain',
-      enabled: true,
-      run: (opts) => generateAuditToolchain(config, opts).files,
     },
   ]
 }
@@ -380,6 +409,14 @@ function buildGovernanceOverlaySpecs(config: ProjectConfig): GeneratorSpec[] {
 function buildAnalysisSpecs(config: ProjectConfig): GeneratorSpec[] {
   return [
     ...buildBoundarySpecs(config),
+    {
+      // Audit toolchain (audit.json + helper scripts). Always-on quality scaffolding;
+      // relocated here from buildInfraSpecs (#1319.1) to keep that function under the
+      // line ceiling after wiring the anti-proforma/commit-footer gate scripts.
+      key: 'audit-toolchain',
+      enabled: true,
+      run: (opts) => generateAuditToolchain(config, opts).files,
+    },
     {
       key: 'mutation',
       enabled: config.enableMutationTesting !== false,
