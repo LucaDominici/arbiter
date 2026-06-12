@@ -1,0 +1,13 @@
+{
+  "wave": "wave-1",
+  "branch": "wave-1-integration",
+  "issues": ["#1311", "#1313", "#1315", "#1316", "#1317", "#1318"],
+  "reviewers": [
+    {"lens": "data-flow/coherence", "verdict": "REJECT", "blocker": "update.ts dropped derived databaseEngine (MAJOR #1/#2)", "resolved": true, "fixCommit": "82167518->f0e5c608"},
+    {"lens": "SSOT/parity/security", "verdict": "PASS", "minors": ["find -delete silent EACCES", "explain --help prose lag"]}
+  ],
+  "routeAuditors": {"filesChanged": 46, "dimensions": ["bugs","type-safety","domain","test-quality","security","data-integrity","silent-failures"], "criticalPath": "governance-core", "coverage": "full"},
+  "fix": {"commit": "f0e5c608", "items": ["update persists databaseEngine + diff regen test", "generator engine-coherence guard", "honest non-sqlite JSDoc", "go template os.Exit defer leak"], "typefix": "runUpdate github:false"},
+  "residualNeedsHuman": ["#1318.2 double-write (no live double-invocation; haben artifact, CANON-22 no symptom patch)"],
+  "verdict": "PASS-after-fix"
+}
