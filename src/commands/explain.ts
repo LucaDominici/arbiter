@@ -13,6 +13,52 @@ export interface ExplainOptions {
   list?: boolean
 }
 
+/**
+ * #1315 — wizard flag codes. `arbiter explain <flag>` tells a solo operator what
+ * machinery a Yes answer to that wizard prompt actually generates, so they can
+ * weigh the cost. Mirrors the per-flag cost lines in src/wizard/prompts.ts.
+ */
+interface FlagEntry {
+  summary: string
+  detail: string
+}
+
+const FLAG_CATALOG: ReadonlyMap<string, FlagEntry> = new Map([
+  [
+    'hasPublicApi',
+    {
+      summary: 'Project exposes a public API (REST / GraphQL / gRPC).',
+      detail:
+        'Generates: OWASP ZAP DAST scan, an OpenAPI/contract test suite, and an API deprecation policy with a breaking-change gate. Also unlocks the contractType prompt.',
+    },
+  ],
+  [
+    'isMultiTenant',
+    {
+      summary: 'Project serves multiple tenants from one deployment.',
+      detail:
+        'Generates: tenant-isolation invariants, per-tenant data-scoping checks, and tenancy auth machinery (tenant context propagation + isolation tests).',
+    },
+  ],
+  [
+    'contractType',
+    {
+      summary: 'Contract-testing strategy for the public API.',
+      detail:
+        'Generates: a consumer/provider contract-test suite — Pact (rest-owned), OpenAPI-diff (rest-public), graphql-inspector (graphql), buf breaking (grpc), or schema-registry (message-queue) — wired into CI.',
+    },
+  ],
+])
+
+/** Resolve a flag code case-insensitively to its canonical camelCase key. */
+function resolveFlagCode(code: string): string | undefined {
+  const lower = code.toLowerCase()
+  for (const key of FLAG_CATALOG.keys()) {
+    if (key.toLowerCase() === lower) return key
+  }
+  return undefined
+}
+
 export interface ExplainResult {
   exitCode: number
   output: string
@@ -29,6 +75,9 @@ export function runExplain(code: string, opts: ExplainOptions): ExplainResult {
       error: 'Usage: arbiter explain <code> [--format json] | --list\n',
     }
   }
+
+  const flagKey = resolveFlagCode(code)
+  if (flagKey) return explainFlag(flagKey, opts.format)
 
   const normalized = code.toUpperCase()
 
@@ -151,6 +200,34 @@ function explainError(code: string, format: string | undefined): ExplainResult {
   return { exitCode: 0, output: lines.join('\n'), error: '' }
 }
 
+function explainFlag(key: string, format: string | undefined): ExplainResult {
+  const entry = FLAG_CATALOG.get(key)
+  if (!entry) {
+    return { exitCode: 1, output: '', error: `Unknown flag: ${key}\n` }
+  }
+
+  if (format === 'json') {
+    const payload = {
+      code: key,
+      category: 'FLAG',
+      summary: entry.summary,
+      detail: entry.detail,
+    }
+    return { exitCode: 0, output: JSON.stringify(payload, null, 2), error: '' }
+  }
+
+  const lines: string[] = [
+    '',
+    `${key} — ${entry.summary}`,
+    '',
+    `  ${entry.detail}`,
+    '',
+    `  Run \`arbiter explain --list\` to see all codes.`,
+    '',
+  ]
+  return { exitCode: 0, output: lines.join('\n'), error: '' }
+}
+
 function listAll(format: string | undefined): ExplainResult {
   const errorCodes = Array.from(ERROR_CATALOG.keys())
   const invCodes = INVARIANT_CATALOG.map((i) => i.id)
@@ -165,10 +242,16 @@ function listAll(format: string | undefined): ExplainResult {
       }),
       ...INVARIANT_CATALOG.map((i) => ({ code: i.id, category: 'INV', summary: i.title })),
       ...canonEntries.map((c) => ({ code: c.id, category: 'CANON', summary: c.title })),
+      ...Array.from(FLAG_CATALOG.entries()).map(([code, e]) => ({
+        code,
+        category: 'FLAG',
+        summary: e.summary,
+      })),
     ]
     return { exitCode: 0, output: JSON.stringify(items, null, 2), error: '' }
   }
 
+  const flagCodes = Array.from(FLAG_CATALOG.keys())
   const lines: string[] = [
     '',
     'ERROR codes:',
@@ -179,6 +262,9 @@ function listAll(format: string | undefined): ExplainResult {
     '',
     'CANON rules:',
     ...canonCodes.map((c) => `  ${c}`),
+    '',
+    'FLAG codes (wizard answers):',
+    ...flagCodes.map((c) => `  ${c}`),
     '',
     'Run `arbiter explain <code>` for details on any entry.',
     '',

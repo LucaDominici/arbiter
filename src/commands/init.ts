@@ -83,7 +83,7 @@ export interface InitOptions {
   quiet?: boolean
   /** Override adverse git state check (detached HEAD, rebase, merge, etc.). Emits warning then continues. */
   force?: boolean
-  /** Apply a meta-preset (industrial-grade) after config is resolved. Default: 'none'. */
+  /** Apply a meta-preset (industrial-grade | solo-homelab) after config is resolved. Default: 'none'. */
   preset?: ProjectPreset
   /** Override auth provider after preset is applied. */
   authProvider?: AuthProvider

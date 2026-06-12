@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import { applyPreset } from '../../src/wizard/presets.js'
+import { applyPreset, resolvePresetOption } from '../../src/wizard/presets.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
 
 function baseConfig(): ProjectConfig {
@@ -135,6 +135,99 @@ describe('applyPreset', () => {
       const config = baseConfig()
       applyPreset('industrial-grade', config)
       expect(config.preset).toBe('industrial-grade')
+    })
+  })
+
+  describe('solo-homelab', () => {
+    it('stores preset name on config', () => {
+      const config = baseConfig()
+      applyPreset('solo-homelab', config)
+      expect(config.preset).toBe('solo-homelab')
+    })
+
+    it('turns the compliance pack OFF (iso27001/gdpr/nis2/risk register)', () => {
+      const config = baseConfig()
+      config.enableIso27001Mapping = true
+      config.enableGdprMapping = true
+      config.enableNis2Mapping = true
+      config.enableRiskRegister = true
+      applyPreset('solo-homelab', config)
+      expect(config.enableIso27001Mapping).toBe(false)
+      expect(config.enableGdprMapping).toBe(false)
+      expect(config.enableNis2Mapping).toBe(false)
+      expect(config.enableRiskRegister).toBe(false)
+    })
+
+    it('disables the industry overlay (sox/pharma/gdpr STRIDE/RACI)', () => {
+      const config = baseConfig()
+      config.industryOverlay = 'iso27001'
+      applyPreset('solo-homelab', config)
+      expect(config.industryOverlay).toBe('none')
+    })
+
+    it('disables mutation testing', () => {
+      const config = baseConfig()
+      config.enableMutationTesting = true
+      applyPreset('solo-homelab', config)
+      expect(config.enableMutationTesting).toBe(false)
+    })
+
+    it('disables the operations handbook (no prod runbooks)', () => {
+      const config = baseConfig()
+      config.enableOperationsHandbook = true
+      applyPreset('solo-homelab', config)
+      expect(config.enableOperationsHandbook).toBe(false)
+    })
+
+    it('disables the evidence harness', () => {
+      const config = baseConfig()
+      config.enableEvidenceHarness = true
+      applyPreset('solo-homelab', config)
+      expect(config.enableEvidenceHarness).toBe(false)
+    })
+
+    it('clamps governance above L2 down to L2', () => {
+      const config = baseConfig()
+      config.governanceLevel = 'L4'
+      applyPreset('solo-homelab', config)
+      expect(config.governanceLevel).toBe('L2')
+    })
+
+    it('leaves governance at or below L2 unchanged', () => {
+      const config = baseConfig()
+      config.governanceLevel = 'L1'
+      applyPreset('solo-homelab', config)
+      expect(config.governanceLevel).toBe('L1')
+    })
+
+    it('is selectable non-interactively via --preset solo-homelab (full flag flow)', () => {
+      // The CLI accepts the raw --preset string; resolvePresetOption is the
+      // validation gate that lets `solo-homelab` reach runInit → applyPreset.
+      expect(resolvePresetOption('solo-homelab')).toBe('solo-homelab')
+      const config = baseConfig()
+      config.governanceLevel = 'L4'
+      applyPreset(resolvePresetOption('solo-homelab') ?? 'none', config)
+      expect(config.preset).toBe('solo-homelab')
+      expect(config.governanceLevel).toBe('L2')
+      expect(config.enableMutationTesting).toBe(false)
+    })
+  })
+
+  describe('resolvePresetOption', () => {
+    it('accepts industrial-grade', () => {
+      expect(resolvePresetOption('industrial-grade')).toBe('industrial-grade')
+    })
+
+    it('accepts solo-homelab', () => {
+      expect(resolvePresetOption('solo-homelab')).toBe('solo-homelab')
+    })
+
+    it('returns undefined for an unknown preset string', () => {
+      expect(resolvePresetOption('bogus')).toBeUndefined()
+    })
+
+    it('returns undefined for undefined input', () => {
+      expect(resolvePresetOption(undefined)).toBeUndefined()
     })
   })
 })

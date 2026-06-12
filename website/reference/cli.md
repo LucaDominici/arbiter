@@ -319,21 +319,28 @@ Writes only `.arbiter-generated.json` — `arbiter.json` is never modified.
 
 ## `arbiter explain`
 
-Show a detailed explanation for an error code, invariant, or CANON rule.
+Show a detailed explanation for an error code, invariant, CANON rule, or wizard flag.
 
 ```
-arbiter explain <code>           # INV-NN, CANON-NN, or E_CODE
+arbiter explain <code>           # INV-NN, CANON-NN, E_CODE, or a wizard flag
+arbiter explain hasPublicApi     # what answering "yes" to a wizard prompt generates
 arbiter explain --list           # list all known codes grouped by category
 arbiter explain --format json <code>
 ```
 
 Codes:
 
-| Prefix     | Source                                          |
-| ---------- | ----------------------------------------------- |
-| `INV-NN`   | Invariant catalog (`src/invariants/catalog.ts`) |
-| `CANON-NN` | Process rules (`docs/SYSTEM/CANON.md`)          |
-| `E_*`      | Error catalog (`src/utils/error-catalog.ts`)    |
+| Prefix / code              | Source                                           |
+| -------------------------- | ------------------------------------------------ |
+| `INV-NN`                   | Invariant catalog (`src/invariants/catalog.ts`)  |
+| `CANON-NN`                 | Process rules (`docs/SYSTEM/CANON.md`)           |
+| `E_*`                      | Error catalog (`src/utils/error-catalog.ts`)     |
+| `hasPublicApi` etc. (FLAG) | Wizard flag cost map (`src/commands/explain.ts`) |
+
+Wizard flag codes (`hasPublicApi`, `isMultiTenant`, `contractType`) describe the
+machinery a "yes" answer generates (ZAP scan, contract suite, deprecation policy,
+tenancy isolation), so a solo operator can weigh the cost before opting in. An
+unknown code or flag exits with status `1`.
 
 **`--help` output:**
 
