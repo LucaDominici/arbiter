@@ -52,7 +52,19 @@ function emitW6TrackBOnly(
   )
 }
 
-/** Emit F4 batch — 9 remaining agnostic anti-drift validators (INV-89). */
+/**
+ * #1318.2 — the github-setup generator owns these three scripts, but only emits
+ * them when its registry spec is enabled:
+ *   (config.permitGitHub ?? config.useGitHub) && config.governanceLevel !== 'L1'
+ * At L1 OR github-off, github-setup is disabled and anti-drift is the SOLE
+ * emitter. This mirrors that exact predicate so anti-drift emits the trio ONLY
+ * as a fallback — preventing the double-write noise when github-setup also runs.
+ */
+function githubSetupEnabled(config: ProjectConfig): boolean {
+  return (config.permitGitHub ?? config.useGitHub) && config.governanceLevel !== 'L1'
+}
+
+/** Emit F4 batch — agnostic anti-drift validators not owned by any other generator (INV-89). */
 function emitF4Validators(
   base: string,
   config: ProjectConfig,
@@ -61,16 +73,25 @@ function emitF4Validators(
   // #1152: check-tier-coverage.mjs intentionally NOT emitted — it is an
   // arbiter-self meta-gate that asserts arbiter's own check-all tier names; it
   // fails in a target whose gate has a different tier set.
-  const scripts = [
-    'check-validator-helptext.mjs',
-    'check-inline-suppressions.mjs',
-    'check-suppressions.mjs',
-    'check-action-pins.mjs',
-    'check-workflow-perms.mjs',
-    'check-exit-code-contract.mjs',
-    'check-ssot-core.mjs',
-    'check-ci-tiers.mjs',
-  ]
+  //
+  // #1318.2: anti-drift no longer double-emits scripts whose dedicated owner
+  // ALWAYS runs — check-ssot-core (ssot generator, enabled:true),
+  // check-exit-code-contract (self-validation generator), and
+  // check-suppressions + check-inline-suppressions (suppressions generator).
+  // Those owners emit unconditionally, so a second anti-drift write only produced
+  // the cosmetic "N file(s) already exist" init noise (a benign skipIfExists
+  // skip). check-validator-helptext has NO other owner, so anti-drift keeps it.
+  const scripts = ['check-validator-helptext.mjs']
+
+  // #1318.2: the github-owned trio is a conditional FALLBACK — emit only when
+  // github-setup is disabled (else github-setup is the owner and a second write
+  // here re-introduces the double-write). At L1 or github-off, anti-drift is the
+  // sole emitter, so removing them unconditionally would regress to a missing
+  // module in check-all (RT-CRITICAL — must not drop).
+  if (!githubSetupEnabled(config)) {
+    scripts.push('check-action-pins.mjs', 'check-workflow-perms.mjs', 'check-ci-tiers.mjs')
+  }
+
   return scripts.map((name) =>
     writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
       skipIfExists: true,
@@ -82,13 +103,18 @@ function emitF4Validators(
 /**
  * W6+F4 Anti-Drift Validator Family (INV-89)
  *
- * Emits 19 check-*.mjs scripts for target projects (#1152, #1266):
+ * Emits check-*.mjs scripts for target projects (#1152, #1266, #1318.2):
  * - W6 batch (11 scripts):
  *   - 9 dual-track scripts (check-pii-scan excluded — duplicates native pii-scan;
  *     check-claude-md-lint added #1266 — thin CLAUDE.md/AGENTS.md context-file linter)
  *   - 2 Track-B-only scripts (not wired in arbiter's own gate)
- * - F4 batch (8 scripts): remaining agnostic anti-drift validators
- *   (check-tier-coverage excluded — arbiter-self meta-gate, not target-portable)
+ * - F4 batch: check-validator-helptext (anti-drift is sole owner) + the
+ *   github-owned trio (check-action-pins/check-workflow-perms/check-ci-tiers) as
+ *   a CONDITIONAL FALLBACK — emitted only when github-setup is disabled (L1 or
+ *   github-off). #1318.2 dropped the 4 always-on-owned scripts (check-ssot-core,
+ *   check-exit-code-contract, check-suppressions, check-inline-suppressions) to
+ *   stop the double-write "already exists" init noise — their owners always run.
+ *   (check-tier-coverage excluded — arbiter-self meta-gate, not target-portable.)
  *
  * Every emitted script is wired into the generated target's check-all.mjs (under
  * the appropriate conditional) — enforced by the anti-drift emission↔wiring test.

@@ -781,3 +781,27 @@ describe('static-analysis/stylelintrc.json.ejs (#352 design-token config)', () =
     expect(content).not.toContain('"extends"')
   })
 })
+
+describe('check-all.mjs.ejs rendering — wiki-lint L1 gating (#1318/#1321)', () => {
+  // The wiki generator is enabled only at L2+ (registry.ts), so a virgin L1
+  // project never emits scripts/check-wiki-lint.mjs. The runCheck reference must
+  // be gated to match, or `check-all L1` RED with MODULE_NOT_FOUND.
+  it('L1: does NOT reference check-wiki-lint.mjs (script not emitted at L1)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-wiki-lint.mjs')
+  })
+
+  it('L2: DOES reference check-wiki-lint.mjs (wiki generator emits it at L2+)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('check-wiki-lint.mjs')
+  })
+})

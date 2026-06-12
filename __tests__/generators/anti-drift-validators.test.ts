@@ -4,6 +4,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { generateAntiDriftValidators } from '../../src/generators/anti-drift-validators.js'
+import { runGenerators } from '../../src/commands/init.js'
+import type { ProjectConfig } from '../../src/wizard/types.js'
 import { makeConfig } from '../helpers.js'
 
 describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
@@ -17,9 +19,29 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('emits 19 scripts total (11 W6 + 8 F4) — #1266 added check-claude-md-lint', () => {
+  // #1318.2: anti-drift no longer double-emits the 4 always-on-owned scripts
+  // (check-ssot-core/check-exit-code-contract/check-suppressions/
+  // check-inline-suppressions). The github-owned 3 are now conditional-fallback
+  // (emitted only when github-setup is disabled). makeConfig default is L2 +
+  // useGitHub:false ⇒ github-setup disabled ⇒ anti-drift emits the github-3.
+  // Total: 11 W6 + 4 F4 (validator-helptext + the 3 github fallbacks) = 15.
+  it('emits 15 scripts total at L2/github-off (11 W6 + 4 F4) — #1318.2 dropped 4 double-emits', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
-    expect(result.files).toHaveLength(19)
+    expect(result.files).toHaveLength(15)
+  })
+
+  // #1318.2: the 4 always-on-owned scripts are NEVER emitted by anti-drift —
+  // their dedicated owners (ssot/self-validation/suppressions) always run.
+  it('does NOT emit the 4 always-on-owned scripts (#1318.2 double-write fix)', () => {
+    const paths = generateAntiDriftValidators(makeConfig(dir)).files.map((f) => f.path)
+    for (const dropped of [
+      'check-ssot-core.mjs',
+      'check-exit-code-contract.mjs',
+      'check-suppressions.mjs',
+      'check-inline-suppressions.mjs',
+    ]) {
+      expect(paths.some((p) => p.endsWith(dropped))).toBe(false)
+    }
   })
 
   it('does NOT emit check-pii-scan (duplicate of native pii-scan) or check-tier-coverage (arbiter-self meta-gate) (#1152)', () => {
@@ -60,17 +82,16 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
     expect(content).not.toContain('%>')
   })
 
-  it('emits all F4 script paths', () => {
+  // #1318.2: at L2/github-off (makeConfig default), github-setup is disabled, so
+  // anti-drift emits the 3 github-owned fallbacks + the always-anti-drift-owned
+  // validator-helptext. The 4 always-on-owned scripts are no longer emitted here.
+  it('emits the surviving F4 script paths at L2/github-off (fallback github-3 + helptext)', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
     const paths = result.files.map((f) => f.path)
     const f4Expected = [
       'check-validator-helptext.mjs',
-      'check-inline-suppressions.mjs',
-      'check-suppressions.mjs',
       'check-action-pins.mjs',
       'check-workflow-perms.mjs',
-      'check-exit-code-contract.mjs',
-      'check-ssot-core.mjs',
       'check-ci-tiers.mjs',
     ]
     for (const name of f4Expected) {
@@ -115,12 +136,8 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
       'check-validator-helptext.mjs',
-      'check-inline-suppressions.mjs',
-      'check-suppressions.mjs',
       'check-action-pins.mjs',
       'check-workflow-perms.mjs',
-      'check-exit-code-contract.mjs',
-      'check-ssot-core.mjs',
       'check-ci-tiers.mjs',
     ]) {
       const content = readFileSync(join(dir, 'scripts', name), 'utf-8')
@@ -202,12 +219,8 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
       'check-validator-helptext.mjs',
-      'check-inline-suppressions.mjs',
-      'check-suppressions.mjs',
       'check-action-pins.mjs',
       'check-workflow-perms.mjs',
-      'check-exit-code-contract.mjs',
-      'check-ssot-core.mjs',
       'check-ci-tiers.mjs',
     ]) {
       const content = readFileSync(join(dir, 'scripts', name), 'utf-8')
@@ -215,4 +228,67 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       expect(content).not.toContain('%>')
     }
   })
+})
+
+// ─── #1318.2: cross-generator exactly-once emission ──────────────────────────
+// The double-write "N file(s) already exist" noise on virgin multi-lane init
+// came from anti-drift AND the dedicated owner BOTH writing the same path. The
+// root-cause fix makes anti-drift drop the 4 always-on-owned scripts entirely
+// and emit the 3 github-owned scripts only as a fallback (when github-setup is
+// disabled). This block proves exactly-once emission across the governance ×
+// github matrix via the FULL registry (runGenerators), which is the only place
+// the cross-generator collision is observable.
+describe('anti-drift × owner exactly-once emission (#1318.2)', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arbiter-adv-xgen-'))
+  })
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  // The 7 scripts that anti-drift used to double-emit with another generator.
+  const GITHUB_OWNED = ['check-ci-tiers', 'check-action-pins', 'check-workflow-perms'] as const
+  const ALWAYS_OWNED = [
+    'check-ssot-core',
+    'check-exit-code-contract',
+    'check-suppressions',
+    'check-inline-suppressions',
+  ] as const
+  const SHARED_SEVEN = [...GITHUB_OWNED, ...ALWAYS_OWNED] as const
+
+  function emissionCount(config: ProjectConfig, script: string): number {
+    return runGenerators(config).filter((f) => f.path.endsWith(`/${script}.mjs`)).length
+  }
+
+  // github-setup spec is enabled ⇔ (permitGitHub ?? useGitHub) && level !== 'L1'.
+  // So github-3 has a dedicated owner exactly in {L2,L3} × github-on.
+  const matrix: Array<{ level: 'L1' | 'L2' | 'L3'; github: boolean }> = [
+    { level: 'L1', github: true },
+    { level: 'L1', github: false },
+    { level: 'L2', github: true },
+    { level: 'L2', github: false },
+    { level: 'L3', github: true },
+    { level: 'L3', github: false },
+  ]
+
+  for (const cell of matrix) {
+    it(`emits each of the 7 shared scripts exactly once — L=${cell.level} github=${cell.github}`, () => {
+      const config = makeConfig(dir, {
+        governanceLevel: cell.level,
+        useGitHub: cell.github,
+        permitGitHub: cell.github,
+        githubOwner: cell.github ? 'acme' : null,
+        githubRepo: cell.github ? 'demo' : null,
+      })
+      for (const script of SHARED_SEVEN) {
+        expect(
+          emissionCount(config, script),
+          `${script} must be emitted exactly once at L=${cell.level} github=${cell.github}`,
+        ).toBe(1)
+      }
+    })
+  }
 })

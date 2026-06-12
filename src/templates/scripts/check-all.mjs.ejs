@@ -327,7 +327,12 @@ runCheck('collab mode wired (INV-100)', 'node', ['scripts/check-collab-mode-wire
 // ─── L1: governance constraint scan (INV-115, #1214) ─────────────────────────
 runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs']);
 // ─── L1: wiki lint gate (INV-116, #1241) ─────────────────────────────────────
+<% if (governanceLevel !== 'L1') { %>
+// #1318/#1321: the wiki generator is enabled only at L2+ (registry.ts), so a
+// virgin L1 project never emits scripts/check-wiki-lint.mjs. Gating this runCheck
+// to match the generator predicate prevents a MODULE_NOT_FOUND RED on `check-all L1`.
 runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
+<% } %>
 // ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
 <% if (language) { %>
