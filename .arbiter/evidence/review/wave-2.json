@@ -1,0 +1,10 @@
+{
+  "wave": "wave-2", "branch": "wave-2-integration", "issues": ["#1319"],
+  "reviewers": [
+    {"lens": "gate-predicates/coherence", "verdict": "PASS", "minor": "golangci .pb.go exclusion-list coupling (future maintenance)"},
+    {"lens": "dual-track/render/deadcode", "verdict": "REJECT", "blocker": "new test imports undeclared 'yaml' → knip dead-code gate fails L2", "resolved": true, "fix": "yaml@^2.9.0 added to devDependencies"}
+  ],
+  "routeAuditors": {"filesChanged": 40, "dimensions": ["bugs","type-safety","domain","test-quality","security","silent-failures"]},
+  "verifiedSound": ["greenfield coverage predicate statements.total===0", "INV-72 set = exact inverse of github.ts", "INV-80 step-scoped allowlist", "commit-footer fail-open virgin repo", "job-name dual-sided self green", "golangci v2 gofmt→formatters", "go string-literal compile fix"],
+  "verdict": "PASS-after-fix"
+}
