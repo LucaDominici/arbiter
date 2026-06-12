@@ -369,7 +369,7 @@ async function collectAxisAnswers(raw: RawAnswers): Promise<void> {
   // 9 — hasPublicApi (default from deploy archetypes).
   raw.hasPublicApi = await unwrap(
     select({
-      message: 'Does the project expose a public API?',
+      message: `Does the project expose a public API?\n${PUBLIC_API_COST}`,
       options: YES_NO_OPTIONS,
       initialValue: DEPLOY_ARCHETYPES.includes(raw.archetype),
     }),
@@ -378,7 +378,7 @@ async function collectAxisAnswers(raw: RawAnswers): Promise<void> {
   // 10 — multi-tenant.
   raw.isMultiTenant = await unwrap(
     select({
-      message: 'Is the project multi-tenant?',
+      message: `Is the project multi-tenant?\n${MULTI_TENANT_COST}`,
       options: YES_NO_OPTIONS,
       initialValue: false,
     }),
@@ -388,7 +388,7 @@ async function collectAxisAnswers(raw: RawAnswers): Promise<void> {
   if (shouldAskContractType({ hasPublicApi: raw.hasPublicApi })) {
     raw.contractType = await unwrap(
       select({
-        message: 'Contract testing style:',
+        message: `Contract testing style:\n${CONTRACT_TYPE_COST}`,
         options: CONTRACT_TYPE_OPTIONS,
         initialValue: defaultContractType(raw.archetype, raw.hasPublicApi),
       }),
@@ -734,6 +734,18 @@ const YES_NO_OPTIONS: Opt<boolean>[] = [
   { value: true, label: 'Yes' },
   { value: false, label: 'No' },
 ]
+
+/**
+ * #1315 — per-flag cost lines. Each prefixes "what answering Yes generates" so a
+ * solo operator can weigh the machinery before opting in. Kept terse (one line)
+ * to stay readable inside a clack select header.
+ */
+const PUBLIC_API_COST =
+  '  Generates: OWASP ZAP DAST scan, OpenAPI/contract test suite, API deprecation policy + breaking-change gate.'
+const MULTI_TENANT_COST =
+  '  Generates: tenant-isolation invariants, per-tenant data-scoping checks, and tenancy auth machinery.'
+const CONTRACT_TYPE_COST =
+  '  Generates: a consumer/provider contract-test suite (Pact / OpenAPI-diff / buf / schema-registry) wired into CI.'
 
 const GOVERNANCE_MESSAGE = [
   'Governance level:',

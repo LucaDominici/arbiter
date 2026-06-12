@@ -119,6 +119,50 @@ describe('runExplain', () => {
     })
   })
 
+  describe('wizard flag codes (#1315)', () => {
+    it('explains hasPublicApi: lists the machinery it generates, exit 0', () => {
+      const result = runExplain('hasPublicApi', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('hasPublicApi')
+      expect(result.output).toMatch(/ZAP/)
+      expect(result.output).toMatch(/contract/i)
+      expect(result.output).toMatch(/deprecation/i)
+    })
+
+    it('explains isMultiTenant, exit 0', () => {
+      const result = runExplain('isMultiTenant', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toMatch(/tenant/i)
+    })
+
+    it('explains contractType, exit 0', () => {
+      const result = runExplain('contractType', {})
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toMatch(/contract/i)
+    })
+
+    it('returns JSON for a flag code when --format json', () => {
+      const result = runExplain('hasPublicApi', { format: 'json' })
+      expect(result.exitCode).toBe(0)
+      const parsed = JSON.parse(result.output) as Record<string, unknown>
+      expect(parsed.code).toBe('hasPublicApi')
+      expect(parsed.category).toBe('FLAG')
+      expect(typeof parsed.summary).toBe('string')
+    })
+
+    it('unknown flag (camelCase, no known prefix) exits 1', () => {
+      const result = runExplain('notARealFlag', {})
+      expect(result.exitCode).toBe(1)
+      expect(result.error).toContain('--list')
+    })
+
+    it('flag codes appear in --list output', () => {
+      const result = runExplain('', { list: true })
+      expect(result.exitCode).toBe(0)
+      expect(result.output).toContain('hasPublicApi')
+    })
+  })
+
   describe('E_GH_RECOVERABLE (RT11)', () => {
     it('exits 0 and renders summary for E_GH_RECOVERABLE', () => {
       const result = runExplain('E_GH_RECOVERABLE', {})

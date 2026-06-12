@@ -639,6 +639,80 @@ describe('runWizard ML — contractType', () => {
   })
 })
 
+describe('runWizard #1315 — per-flag cost lines', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  function messageFor(prefix: string): string {
+    const call = vi
+      .mocked(clack.select)
+      .mock.calls.find((c) => (c[0] as { message: string }).message.startsWith(prefix))
+    return call ? (call[0] as { message: string }).message : ''
+  }
+
+  it('hasPublicApi prompt explains what it generates (ZAP, contract suite, deprecation)', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'backend-web-db',
+      architectureStyle: 'none',
+      hasDatabase: true,
+      hasPublicApi: true,
+      isMultiTenant: false,
+      contractType: 'none',
+      proceed: true,
+    })
+
+    await runWizard(makeWizardInput())
+    const msg = messageFor('Does the project expose a public API')
+    expect(msg).toMatch(/Generates:/)
+    expect(msg).toMatch(/ZAP/)
+    expect(msg).toMatch(/contract/i)
+    expect(msg).toMatch(/deprecation/i)
+  })
+
+  it('isMultiTenant prompt explains the tenancy machinery it generates', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'backend-web-db',
+      architectureStyle: 'none',
+      hasDatabase: true,
+      hasPublicApi: false,
+      isMultiTenant: true,
+      proceed: true,
+    })
+
+    await runWizard(makeWizardInput())
+    const msg = messageFor('Is the project multi-tenant')
+    expect(msg).toMatch(/Generates:/)
+    expect(msg).toMatch(/tenant/i)
+  })
+
+  it('contractType prompt explains the contract-test suite it generates', async () => {
+    setupClack({
+      description: 'my project',
+      tools: ['claude'],
+      governanceLevel: 'L2',
+      archetype: 'backend-web-db',
+      architectureStyle: 'none',
+      hasDatabase: true,
+      hasPublicApi: true,
+      isMultiTenant: false,
+      contractType: 'graphql',
+      proceed: true,
+    })
+
+    await runWizard(makeWizardInput())
+    const msg = messageFor('Contract testing style')
+    expect(msg).toMatch(/Generates:/)
+    expect(msg).toMatch(/contract/i)
+  })
+})
+
 describe('decompositionBackend selection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
