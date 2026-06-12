@@ -27,6 +27,7 @@ permissions:
 
 jobs:
   notify-codeowners:
+    name: Notify CODEOWNERS on merge
     if: github.event.pull_request.merged == true && github.run_attempt == 1
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
 

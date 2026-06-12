@@ -139,6 +139,70 @@ jobs:
     }
   })
 
+  // ─── #1319.3: drift-shadow step-scoped allowlist (INV-80) ──────────────────
+  // drift-shadow.yml is NOT a file-wide informational workflow. Its single
+  // intended continue-on-error belongs to the `parity` step (id: parity). Any
+  // OTHER continue-on-error step in drift-shadow.yml must still FAIL.
+
+  it('exits 0 when drift-shadow parity step has continue-on-error (intended)', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'drift-shadow.yml'),
+        `on:
+  schedule:
+    - cron: '0 3 * * *'
+jobs:
+  drift-check:
+    name: Gate Result Drift Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare local vs CI parity hash
+        id: parity
+        run: node scripts/check-local-ci-parity.mjs
+        continue-on-error: true
+`,
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 1 when drift-shadow has continue-on-error on a NON-parity step', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+      writeFileSync(
+        join(dir, '.github', 'workflows', 'drift-shadow.yml'),
+        `on:
+  schedule:
+    - cron: '0 3 * * *'
+jobs:
+  drift-check:
+    name: Gate Result Drift Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare local vs CI parity hash
+        id: parity
+        run: node scripts/check-local-ci-parity.mjs
+        continue-on-error: true
+      - name: Emit local L1 gate result
+        id: emit-gate
+        run: node scripts/check-all.mjs L1
+        continue-on-error: true
+`,
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('step-level continue-on-error: true found (INV-80)')
+    } finally {
+      cleanup()
+    }
+  })
+
   it('reports all violations, not just the first', () => {
     const { dir, cleanup } = makeTemp()
     try {

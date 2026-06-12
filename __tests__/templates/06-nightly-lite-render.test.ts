@@ -67,6 +67,21 @@ describe('06-nightly-lite.yml.ejs — structural invariants (CANON-18)', () => {
   })
 })
 
+// ─── Action pinning (#1319.5) ─────────────────────────────────────────────────
+// NO existing gate covers TEMPLATE action pins (check-workflow-sha-pinning /
+// check-action-pins / sync-action-pins only scan self .github/). This render-assert
+// is the SOLE enforcement that 06-nightly-lite's govulncheck is SHA-pinned, not @v1.
+
+describe('06-nightly-lite.yml.ejs — action pinning (#1319.5)', () => {
+  it('go: govulncheck-action is SHA-pinned (not @v1)', () => {
+    const rendered = renderNightlyLite({ language: 'go', buildTool: 'go' })
+    expect(rendered).toContain('golang/govulncheck-action@')
+    // Must be pinned to a full 40-char commit SHA, never a floating @v1 tag.
+    expect(rendered).not.toMatch(/golang\/govulncheck-action@v\d/)
+    expect(rendered).toMatch(/golang\/govulncheck-action@[0-9a-f]{40}\b/)
+  })
+})
+
 // ─── Schedule and triggers ────────────────────────────────────────────────────
 
 describe('06-nightly-lite.yml.ejs — schedule', () => {

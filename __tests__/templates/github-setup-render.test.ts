@@ -114,20 +114,25 @@ describe('check-ci-tiers.mjs.ejs rendering (CANON-04)', () => {
     )
   }
 
-  it('lists all 8 required tier filenames', () => {
+  // #1319.2 (INV-72): the required tier set is the collab-mode/level-aware inverse
+  // of the github.ts generation predicates — NOT a fixed 8-file list. The default
+  // makeConfig is peer-review (no collaborationMode set) + L2 → style 'standard'
+  // → required = [01, 02, 03, 05-release].
+  it('lists the collab-aware required tier filenames (peer-review L2 default)', () => {
     const content = renderTiers({})
     expect(content).toContain('01-pr-fast.yml')
     expect(content).toContain('02-pr-extended.yml')
     expect(content).toContain('03-human-approval.yml')
     expect(content).toContain('05-release.yml')
-    expect(content).toContain('06-nightly.yml')
-    expect(content).toContain('07-weekly.yml')
-    expect(content).toContain('08-monthly.yml')
-    expect(content).toContain('09-heartbeat.yml')
+    // L2 non-trunk-solo: nightly/weekly/monthly/heartbeat are NOT required.
+    expect(content).not.toContain('06-nightly.yml')
+    expect(content).not.toContain('07-weekly.yml')
+    expect(content).not.toContain('08-monthly.yml')
+    expect(content).not.toContain('09-heartbeat.yml')
   })
 
-  it('tier filenames appear in canonical order with no duplicates or extras', () => {
-    const content = renderTiers({})
+  it('gated-review L3 lists the full nightly suite + heartbeat in canonical order', () => {
+    const content = renderTiers({ collaborationMode: 'gated-review', governanceLevel: 'L3' })
     const matches = content.match(/'\d\d-[a-z-]+\.yml'/g) ?? []
     expect(matches).toEqual([
       "'01-pr-fast.yml'",

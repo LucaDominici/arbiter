@@ -89,7 +89,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: govulncheck
-        uses: golang/govulncheck-action@v1
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee  # v1
 <% } else if (language === 'python') { %>
       - uses: actions/setup-python@a26af69b4fde46a5e1776bf3f1b1e6dd8f0dd5ca # v5
         with:

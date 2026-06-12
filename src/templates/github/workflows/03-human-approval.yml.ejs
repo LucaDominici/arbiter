@@ -13,6 +13,7 @@ jobs:
   # Apply approved-by-human label when a human approves the PR.
   # Triple-check guards: actor != author, actor is not a bot, state is approved.
   apply-approval-label:
+    name: Apply approved-by-human label
     if: >-
       github.event_name == 'pull_request_review' &&
       github.event.review.state == 'approved' &&
@@ -46,6 +47,7 @@ jobs:
   # Remove approved-by-human label when new commits are pushed.
   # Prevents stale approval from bypassing the gate after a rewrite.
   revoke-approval-label:
+    name: Revoke approved-by-human label on new commits
     if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
     permissions:

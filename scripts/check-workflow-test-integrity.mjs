@@ -33,6 +33,29 @@ const WORKFLOWS_DIR = join(CWD, '.github', 'workflows')
 // `notify` covers _notify.yml (issue comments) and _post-merge-notify.yml (CODEOWNERS email)
 const INFORMATIONAL_PATTERNS = ['heartbeat', 'nightly', 'weekly', 'monthly', 'notify']
 
+// #1319.3 (INV-80): STEP-SCOPED allowlist. drift-shadow.yml is NOT a file-wide
+// informational workflow — only its specific `parity` step is permitted a
+// continue-on-error (the local/CI parity comparison must not fail the nightly run;
+// a mismatch instead opens a drift issue). Any OTHER continue-on-error step in
+// drift-shadow.yml still FAILS.
+const STEP_SCOPED_ALLOWLIST = {
+  'drift-shadow.yml': new Set(['parity']),
+}
+
+// Resolve the id: of the step enclosing line index `i`. A step begins at a
+// `- ` list item (8-space indent) and runs until the next one. Returns the
+// step's `id:` value, or null when the step has no id.
+function enclosingStepId(lines, i) {
+  let stepId = null
+  for (let j = i; j >= 0; j--) {
+    const line = lines[j]
+    const idMatch = /^\s{8,}id:\s*(\S+)/.exec(line)
+    if (idMatch && stepId === null) stepId = idMatch[1]
+    if (/^\s{6}-\s/.test(line)) return stepId // step boundary reached
+  }
+  return stepId
+}
+
 const yamlFiles = collectYamlFiles(WORKFLOWS_DIR)
 let violations = 0
 
@@ -61,10 +84,13 @@ for (const file of yamlFiles) {
 
   // Check: continue-on-error on step level in non-informational workflows (INV-80)
   if (!isInformational) {
+    const allowedSteps = STEP_SCOPED_ALLOWLIST[fileName]
     const lines = content.split('\n')
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
       if (/^\s{6,}continue-on-error:\s*true/.test(line)) {
+        // Step-scoped allowlist: permit only the named step(s) for this file.
+        if (allowedSteps && allowedSteps.has(enclosingStepId(lines, i))) continue
         process.stderr.write(
           `[FAIL] ${file}:${i + 1}: step-level continue-on-error: true found (INV-80)\n`,
         )

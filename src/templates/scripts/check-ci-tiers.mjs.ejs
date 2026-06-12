@@ -1,7 +1,54 @@
+<%
+// #1319.2 — INV-72: the required CI-tier set is the EXACT inverse of the
+// generation predicates in src/generators/github.ts. The config is known at
+// generation time, so we resolve the set HERE (render-time EJS) instead of
+// guessing at runtime via existsSync heuristics.
+//
+//   required = [01, 02, 03]                                  (always)
+//   + 05-release                if style !== 'starter'
+//   + 06-nightly,07-weekly,08-monthly
+//                               if style !== 'starter' && L3+ && cm !== 'trunk-solo'
+//   + 06-nightly-lite           if cm === 'trunk-solo' && L2+
+//   + 09-heartbeat              if L3+
+//
+// style === 'starter' iff resolvePipelineStyle(cm, level) === 'starter'
+// (or ciTierMode === 'baseline'); cm is resolved with the enableSoloDevMode alias.
+const _level = governanceLevel;
+const _isL2Plus = _level === 'L2' || _level === 'L3' || _level === 'L4';
+const _isL3Plus = _level === 'L3' || _level === 'L4';
+const _cm =
+  typeof collaborationMode !== 'undefined' && collaborationMode
+    ? collaborationMode
+    : (typeof enableSoloDevMode !== 'undefined' && enableSoloDevMode) ? 'trunk-solo' : 'peer-review';
+// PIPELINE_STYLE_TABLE (src/config/collaboration-mode-defaults.ts) — only the
+// 'starter' verdict matters here.
+const _styleTable = {
+  'trunk-solo': { L1: 'starter', L2: 'starter', L3: 'standard', L4: 'standard' },
+  'peer-review': { L1: 'starter', L2: 'standard', L3: 'standard', L4: 'standard' },
+  'gated-review': { L1: 'standard', L2: 'standard', L3: 'industrial', L4: 'industrial' },
+};
+let _style;
+if (typeof pipelineStyle !== 'undefined' && pipelineStyle) {
+  _style = pipelineStyle;
+} else if (typeof ciTierMode !== 'undefined' && ciTierMode === 'baseline') {
+  _style = 'starter';
+} else {
+  _style = (_styleTable[_cm] && _styleTable[_cm][_level]) || 'standard';
+}
+const _required = ['01-pr-fast.yml', '02-pr-extended.yml', '03-human-approval.yml'];
+if (_style !== 'starter') _required.push('05-release.yml');
+if (_style !== 'starter' && _isL3Plus && _cm !== 'trunk-solo') {
+  _required.push('06-nightly.yml', '07-weekly.yml', '08-monthly.yml');
+}
+if (_cm === 'trunk-solo' && _isL2Plus) _required.push('06-nightly-lite.yml');
+if (_isL3Plus) _required.push('09-heartbeat.yml');
+-%>
 #!/usr/bin/env node
 // <%= projectName %> — CI tier presence gate (INV-72)
-// Gate: verify all 8 required CI workflow files exist in .github/workflows/.
-// Exits 0: all present.
+// Gate: verify the required CI workflow files exist in .github/workflows/.
+// The required set is fixed at generation time as the inverse of the workflow
+// generation predicates (collaboration mode <%= _cm %> × governance <%= _level %>).
+// Exits 0: all required present.
 // Exits 1: one or more missing.
 // Part of the anti-drift validator family (W6).
 // Usage: node scripts/check-ci-tiers.mjs [--help]
@@ -16,21 +63,18 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 const CWD = process.cwd();
 const WORKFLOWS_DIR = join(CWD, '.github', 'workflows');
 
+// Required CI-tier files for this project (collaboration mode + governance level
+// resolved at generation time — INV-72).
 const REQUIRED_TIERS = [
-  '01-pr-fast.yml',
-  '02-pr-extended.yml',
-  '03-human-approval.yml',
-  '05-release.yml',
-  '06-nightly.yml',
-  '07-weekly.yml',
-  '08-monthly.yml',
-  '09-heartbeat.yml',
+<% _required.forEach((f) => { -%>
+  '<%= f %>',
+<% }); -%>
 ];
 
 const missing = REQUIRED_TIERS.filter((f) => !existsSync(join(WORKFLOWS_DIR, f)));
 
 if (missing.length === 0) {
-  console.log('  check-ci-tiers: all 8 CI tier workflows present');
+  console.log(`  check-ci-tiers: all ${REQUIRED_TIERS.length} required CI tier workflow(s) present`);
   process.exit(0);
 }
 
