@@ -620,6 +620,30 @@ describe('cross-product: AGENTS.md — Debt Ratchet section at L2+, absent at L1
 
 // ─── Advanced Hooks (M17) ─────────────────────────────────────────────────────
 
+// ─── #1318.3: `bun run arbiter` permission gated on buildTool === 'bun' ────────
+describe('cross-product: settings.json — bun-only "bun run arbiter" permission (#1318.3)', () => {
+  // npm/cargo/maven/pip/go and any non-bun buildTool must NOT emit the
+  // `Bash(bun run arbiter *)` allow entry; only an actual bun project keeps it.
+  // The generic `Bash(arbiter *)` entry always covers the non-bun case.
+  for (const lang of LANGUAGES) {
+    it(`${lang}: omits "bun run arbiter" allow entry`, () => {
+      const rendered = renderTemplate('claude/settings.json.ejs', configFor(lang, 'L2'))
+      const json = JSON.parse(rendered) as { permissions: { allow: string[] } }
+      expect(json.permissions.allow).not.toContain('Bash(bun run arbiter *)')
+      // generic arbiter entry still present for every stack
+      expect(json.permissions.allow).toContain('Bash(arbiter *)')
+    })
+  }
+
+  it('bun project keeps the "bun run arbiter" allow entry', () => {
+    const ctx = { ...configFor('typescript', 'L2'), buildTool: 'bun' }
+    const rendered = renderTemplate('claude/settings.json.ejs', ctx)
+    const json = JSON.parse(rendered) as { permissions: { allow: string[] } }
+    expect(json.permissions.allow).toContain('Bash(bun run arbiter *)')
+    expect(json.permissions.allow).toContain('Bash(arbiter *)')
+  })
+})
+
 describe('cross-product: settings.json — advanced hooks governance gating', () => {
   function renderSettings(lang: Language, level: GovernanceLevel): Record<string, unknown> {
     const rendered = renderTemplate('claude/settings.json.ejs', configFor(lang, level))

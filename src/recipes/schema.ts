@@ -18,6 +18,23 @@ const ArchetypeSchema = z.enum([
 
 const ArchitectureStyleSchema = z.enum(['hexagonal', 'layered', 'modular-monolith', 'none'])
 
+// #1317: database engine axis. Mirrors ProjectConfig.databaseEngine (wizard/types.ts)
+// EXTENDED with 'none' (no database). Canonical spelling 'postgresql' (NOT 'postgres').
+const DatabaseEngineSchema = z.enum(['postgresql', 'mysql', 'mongodb', 'sqlite', 'other', 'none'])
+
+const ContractTypeSchema = z.enum([
+  'rest-owned',
+  'rest-public',
+  'graphql',
+  'grpc',
+  'message-queue',
+  'none',
+])
+
+const LaneSchema = z.enum(['frontend', 'backend', 'docs'])
+
+const DecompositionBackendSchema = z.enum(['github', 'markdown'])
+
 /**
  * Partial subset of ProjectConfig fields that a recipe may pre-configure.
  * Missing fields cause the wizard to prompt.
@@ -33,6 +50,14 @@ export const RecipeSchema = z.object({
   isMultiTenant: z.boolean().optional(),
   hasDatabase: z.boolean().optional(),
   hasPublicApi: z.boolean().optional(),
+  // #1317: database engine — extended with 'none'. hasDatabase stays derivable
+  // (hasDatabase = databaseEngine != null && databaseEngine !== 'none').
+  databaseEngine: DatabaseEngineSchema.optional(),
+  // #1318.4: axis fields a recipe may pre-configure (otherwise the wizard prompts).
+  contractType: ContractTypeSchema.optional(),
+  lanes: z.array(LaneSchema).optional(),
+  evidenceHarness: z.boolean().optional(),
+  decomposition: z.object({ backend: DecompositionBackendSchema }).optional(),
   enableDebtGates: z.boolean().optional(),
   enableSuppressions: z.boolean().optional(),
   enableSecurityScanning: z.boolean().optional(),

@@ -238,7 +238,7 @@ export interface ProjectConfig {
    * implemented (tracked by #1058); until then this is set manually or left unset
    * (requiresDbEngine dims fail-closed to NA). #1157.
    */
-  databaseEngine?: 'postgresql' | 'mysql' | 'mongodb' | 'sqlite' | 'other'
+  databaseEngine?: 'postgresql' | 'mysql' | 'mongodb' | 'sqlite' | 'other' | 'none'
   /** Whether to generate security scanning gates (PII scan, gitleaks, dep audit). Defaults to true for L2+. */
   enableSecurityScanning: boolean
   /** Which invariant tiers to include in generated AGENTS.md. Derived from InvariantPreset. */

@@ -981,6 +981,28 @@ function applyRecipeOverrides(config: ProjectConfig, recipe: Recipe): void {
   // #1306: the automation block (incl. the three orchestration prefs) is merged
   // by a helper to keep applyRecipeOverrides within the complexity-15 limit.
   if (recipe.automation !== undefined) config.automation = recipeAutomation(recipe.automation)
+  // #1317/#1318.4: the database engine + axis fields are merged by a helper to
+  // keep applyRecipeOverrides within the complexity-15 limit.
+  applyRecipeAxisOverrides(config, recipe)
+}
+
+/**
+ * #1317/#1318.4 — apply the database engine + axis fields a recipe may declare.
+ * `databaseEngine` is authoritative: when present it also re-derives `hasDatabase`
+ * (engine !== 'none') so the two never diverge (mirrors detectors/axis.ts).
+ * Extracted to keep applyRecipeOverrides under the complexity-15 ceiling.
+ */
+function applyRecipeAxisOverrides(config: ProjectConfig, recipe: Recipe): void {
+  if (recipe.databaseEngine !== undefined) {
+    config.databaseEngine = recipe.databaseEngine
+    config.hasDatabase = recipe.databaseEngine !== 'none'
+  }
+  if (recipe.contractType !== undefined) config.contractType = recipe.contractType
+  if (recipe.lanes !== undefined) config.lanes = recipe.lanes
+  if (recipe.evidenceHarness !== undefined) config.enableEvidenceHarness = recipe.evidenceHarness
+  if (recipe.decomposition !== undefined) {
+    config.decompositionBackend = recipe.decomposition.backend
+  }
 }
 
 /**
@@ -996,6 +1018,31 @@ function recipeAutomation(a: NonNullable<Recipe['automation']>): AutomationConfi
       : {}),
     ...(a.defaultGateLevel !== undefined ? { defaultGateLevel: a.defaultGateLevel } : {}),
     ...(a.affinityBatching !== undefined ? { affinityBatching: a.affinityBatching } : {}),
+  }
+}
+
+/**
+ * #1316 — persist the detected/recipe language so `arbiter update`/diff can detect
+ * a language migration (diff.ts AXIS_FIELDS) and the evidence collector has a stable
+ * source. Omitted for 'unknown' (no useful signal). Extracted to keep
+ * buildArbiterConfig within the complexity-15 ceiling.
+ */
+function buildLanguageField(config: ProjectConfig): Pick<ArbiterConfig, 'language'> {
+  return config.language !== 'unknown' ? { language: config.language } : {}
+}
+
+/**
+ * #1317 — persist the database axis. `hasDatabase` is always written (legacy
+ * back-compat); `databaseEngine` is written only when defined (exactOptional-safe)
+ * so `arbiter update` can detect engine migrations and re-run integration-testing.
+ * Extracted to keep buildArbiterConfig within the complexity-15 ceiling.
+ */
+function buildDatabaseFields(
+  config: ProjectConfig,
+): Pick<ArbiterConfig, 'hasDatabase' | 'databaseEngine'> {
+  return {
+    hasDatabase: config.hasDatabase,
+    ...(config.databaseEngine !== undefined ? { databaseEngine: config.databaseEngine } : {}),
   }
 }
 
@@ -1050,6 +1097,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     governanceLevel: level,
     permitGitHub: config.useGitHub,
     decomposition: { backend },
+    ...buildLanguageField(config),
     features: {
       debtGates: config.enableDebtGates,
       suppressions: config.enableSuppressions,
@@ -1067,7 +1115,7 @@ export function buildArbiterConfig(config: ProjectConfig): ArbiterConfig {
     archetype: config.archetype,
     architectureStyle: config.architectureStyle,
     isMultiTenant: config.isMultiTenant,
-    hasDatabase: config.hasDatabase,
+    ...buildDatabaseFields(config),
     hasPublicApi: config.hasPublicApi,
     ...(config.acceptBetaTools === true ? { acceptBetaTools: true } : {}),
     ...(config.evidenceRetention !== undefined

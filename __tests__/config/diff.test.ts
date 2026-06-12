@@ -96,6 +96,26 @@ describe('impactedGenerators — full regen triggers', () => {
     expect(impactedGenerators(diff).has('*')).toBe(true)
   })
 
+  // #1317 / RT G1a unit 6: a databaseEngine change (none→postgresql) must re-run
+  // the integration-testing generator. databaseEngine is an axis field ⇒ '*'
+  // (full regen), which necessarily includes integration-testing.
+  it('databaseEngine change none→postgresql → * (integration-testing re-run)', () => {
+    const diff = diffConfig(
+      baseV2({ databaseEngine: 'none' }),
+      baseV2({ databaseEngine: 'postgresql' }),
+    )
+    expect(diff.paths).toContain('databaseEngine')
+    const impacted = impactedGenerators(diff)
+    expect(impacted.has('*')).toBe(true)
+  })
+
+  it('databaseEngine undefined (legacy) does not diff against explicit "none"', () => {
+    // FIELD_DEFAULTS normalizes an absent engine to 'none' so a stored legacy
+    // config (no engine) doesn't spuriously diff against a none-engine config.
+    const diff = diffConfig(baseV2(), baseV2({ databaseEngine: 'none' }))
+    expect(diff.paths).not.toContain('databaseEngine')
+  })
+
   it('contractType change → *', () => {
     const diff = diffConfig(baseV2({ contractType: 'none' }), baseV2({ contractType: 'grpc' }))
     expect(impactedGenerators(diff).has('*')).toBe(true)

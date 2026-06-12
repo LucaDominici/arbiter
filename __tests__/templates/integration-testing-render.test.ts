@@ -36,3 +36,37 @@ describe('db_fixture.rs.ejs — F10 testcontainers-rs scaffold (#369)', () => {
     expect(render()).not.toContain('panic!("DATABASE_URL"')
   })
 })
+
+describe('main_test_sqlite.go.ejs — containerless Go TestMain (#1317)', () => {
+  function render() {
+    const data = makeConfig('/tmp/test', {
+      language: 'go',
+      buildTool: 'go',
+      hasDatabase: true,
+      databaseEngine: 'sqlite',
+      governanceLevel: 'L2',
+    }) as unknown as Record<string, unknown>
+    return renderTemplate('integration-testing/main_test_sqlite.go.ejs', data)
+  }
+
+  it('emits a TestMain with no Docker container import', () => {
+    const content = render()
+    expect(content).toContain('func TestMain')
+    expect(content).not.toContain('testcontainers')
+  })
+
+  it('uses an in-process SQLite temp file (no postgres image)', () => {
+    const content = render()
+    expect(content).toContain('MkdirTemp')
+    expect(content).not.toContain('postgres:16-alpine')
+  })
+
+  it('is gofmt-structural clean (tab indent, no trailing space, trailing newline)', () => {
+    const content = render()
+    for (const line of content.split('\n')) {
+      expect(line).not.toMatch(/ +$/)
+      expect(line).not.toMatch(/^ +\S/)
+    }
+    expect(content.endsWith('\n')).toBe(true)
+  })
+})

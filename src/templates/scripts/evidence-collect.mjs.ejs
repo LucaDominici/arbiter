@@ -198,6 +198,10 @@ const securityOk = security.critical === 0;
 const obs_gate = (coverageOk && mutationOk && testsOk && securityOk) ? 'PASS' : 'FAIL';
 
 const summaryBody = {
+  // #1316: persist the resolved stack so `arbiter verify` classifies against the
+  // signed language instead of re-detecting on disk (which can yield 'unknown'
+  // and silently skip the risk matrix). Part of the SHA-signed body.
+  stack: '<%= language %>',
   head_sha,
   head_sha_short,
   obs_gate,

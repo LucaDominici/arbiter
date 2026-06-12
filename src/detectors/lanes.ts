@@ -54,6 +54,11 @@ function hasFrontendLane(dir: string): boolean {
 }
 
 function hasBackendLane(dir: string): boolean {
+  // #1318.1: the root module is the canonical backend lane. A root-level compiled-
+  // language manifest (go.mod, Cargo.toml, pom.xml, …) IS the backend — `backend/`
+  // is the optional monorepo split variant. (Root `package.json` is deliberately
+  // excluded here: it's ambiguous FE-tooling and handled by the frontend lane.)
+  if (BE_MANIFEST_FILES.some((f) => existsSync(join(dir, f)))) return true
   const beDir = join(dir, 'backend')
   if (!existsSync(beDir)) return false
   if (BE_MANIFEST_FILES.some((f) => existsSync(join(beDir, f)))) return true

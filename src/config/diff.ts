@@ -82,6 +82,10 @@ const AXIS_FIELDS = new Set([
   'architectureStyle',
   'isMultiTenant',
   'hasDatabase',
+  // #1317: a database engine migration (none→postgresql, postgresql→sqlite, …) changes
+  // the integration-testing scaffolding (containerless vs testcontainers vs no DB test).
+  // Treat as an axis field ⇒ full regen, which includes integration-testing.
+  'databaseEngine',
   'hasPublicApi',
   'contractType',
   // language is an axis field: a language migration (TS→Python, Python→Java, etc.) affects
@@ -99,6 +103,9 @@ const FIELD_DEFAULTS: Record<string, unknown> = {
   archetype: 'library',
   isMultiTenant: false,
   hasDatabase: false,
+  // #1317: legacy/absent engine normalizes to 'none' so a stored config without
+  // the field doesn't spuriously diff against an explicit none-engine config.
+  databaseEngine: 'none',
   hasPublicApi: false,
 }
 

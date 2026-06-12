@@ -11,11 +11,15 @@ export const ARCHETYPE_DB_SET: ReadonlySet<Archetype> = new Set<Archetype>([
   'data-pipeline',
 ])
 
+/** #1317: database engine union (shared by ProjectConfig + recipe schema). */
+export type DatabaseEngine = 'postgresql' | 'mysql' | 'mongodb' | 'sqlite' | 'other' | 'none'
+
 export interface AxisFields {
   archetype: Archetype
   architectureStyle: ArchitectureStyle
   isMultiTenant: boolean
   hasDatabase: boolean
+  databaseEngine: DatabaseEngine
   hasPublicApi: boolean
   contractType: ContractType
   lanes: Lane[]
@@ -44,15 +48,40 @@ function pickHasPublicApi(
   return stored?.hasPublicApi ?? archetype === 'backend-web-db'
 }
 
+/**
+ * #1317: derive the (databaseEngine, hasDatabase) pair so the two never diverge.
+ * Precedence:
+ *  1. explicit `databaseEngine` wins (engine is the source of truth).
+ *  2. else legacy `hasDatabase:true` ⇒ 'postgresql'; `hasDatabase:false` ⇒ 'none'.
+ *  3. else fall back to the archetype DB-set ('postgresql' / 'none').
+ * `hasDatabase` is then derived as `engine !== 'none'`, guaranteeing coherence.
+ */
+function deriveDatabase(
+  stored: AxisStoredLike | null | undefined,
+  archetype: Archetype,
+): { databaseEngine: DatabaseEngine; hasDatabase: boolean } {
+  let engine: DatabaseEngine
+  if (stored?.databaseEngine != null) {
+    engine = stored.databaseEngine
+  } else if (stored?.hasDatabase != null) {
+    engine = stored.hasDatabase ? 'postgresql' : 'none'
+  } else {
+    engine = ARCHETYPE_DB_SET.has(archetype) ? 'postgresql' : 'none'
+  }
+  return { databaseEngine: engine, hasDatabase: engine !== 'none' }
+}
+
 export function deriveAxisDefaults(
   stored: AxisStoredLike | null | undefined,
   archetype: Archetype,
 ): AxisDefaults {
   const hasPublicApi = pickHasPublicApi(stored, archetype)
+  const { databaseEngine, hasDatabase } = deriveDatabase(stored, archetype)
   return {
     architectureStyle: stored?.architectureStyle ?? 'none',
     isMultiTenant: stored?.isMultiTenant ?? false,
-    hasDatabase: stored?.hasDatabase ?? ARCHETYPE_DB_SET.has(archetype),
+    hasDatabase,
+    databaseEngine,
     hasPublicApi,
     contractType: stored?.contractType ?? defaultContractType(archetype, hasPublicApi),
   }
@@ -77,6 +106,7 @@ export function resolveAxisFields(
     architectureStyle: defaults.architectureStyle,
     isMultiTenant: defaults.isMultiTenant,
     hasDatabase: defaults.hasDatabase,
+    databaseEngine: defaults.databaseEngine,
     hasPublicApi: defaults.hasPublicApi,
     contractType: defaults.contractType,
     lanes,
