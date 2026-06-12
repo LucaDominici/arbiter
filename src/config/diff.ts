@@ -73,6 +73,7 @@ export type GeneratorKey =
   | 'solo-exception'
   | 'anti-proforma'
   | 'commit-footer-rationale'
+  | 'stack-conformity'
 
 export interface ConfigDiff {
   paths: string[]

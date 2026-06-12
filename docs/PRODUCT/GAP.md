@@ -90,13 +90,15 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | scripts/constraint-map.json                                    | AGENTS.md:268                                                      | medium   |
 | - **INV-117:** arbiter self-repo must not track binary build   | AGENTS.md:271                                                      | medium   |
 | - **INV-120:** Workflow needs-chain depth must not exceed th   | AGENTS.md:277                                                      | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:286                                                      | medium   |
-| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:290                                                      | medium   |
-| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:294                                                      | medium   |
-| unknown                                                        | AGENTS.md:303                                                      | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:406                                             | medium   |
-| debt-baseline.json                                             | AGENTS.md:412                                                      | medium   |
-| --update                                                       | AGENTS.md:412                                                      | medium   |
+| - **INV-121:** Stack conformity                                | the repo-root manifest mus — AGENTS.md:279                         | medium   |
+| - _Enforcement:_ `scripts/check-stack-conformity.mjs` (L1, g   | AGENTS.md:280                                                      | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:288                                                      | medium   |
+| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:292                                                      | medium   |
+| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:296                                                      | medium   |
+| unknown                                                        | AGENTS.md:305                                                      | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:408                                             | medium   |
+| debt-baseline.json                                             | AGENTS.md:414                                                      | medium   |
+| --update                                                       | AGENTS.md:414                                                      | medium   |
 | scripts/check-constraint-scan.mjs                              | docs/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must   | docs/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a \*\*HARD GA | docs/SYSTEM/CANON.md:314                                           | medium   |

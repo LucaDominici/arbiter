@@ -1988,4 +1988,27 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Configurable via ARBITER_MAX_NEEDS_CHAIN env. ' +
       'Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
   },
+  {
+    id: 'INV-121',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'Stack conformity — the repo-root manifest must not contradict declared axes',
+    description:
+      'A governed project must not declare a language/databaseEngine in arbiter.json that the ' +
+      'repo-ROOT manifest contradicts. Declared language="go" with a root package.json and no ' +
+      'go.mod (a Node project masquerading), or declared databaseEngine="sqlite" while the root ' +
+      'manifest pulls a postgres/mysql/mongo driver, is configuration drift that silently ' +
+      'mis-governs the project. Fail-closed self-safety is RUNTIME-resident in the emitted gate ' +
+      '(not render-time EJS, which check-self-dogfood defaults to typescript): the script re-reads ' +
+      'the TARGET arbiter.json — absent language ⇒ exit 0 (undeclared never fails); absent/none ' +
+      'databaseEngine ⇒ DB conformity skipped. Root-scope ONLY (./go.mod, ./package.json, ./*.lock) ' +
+      '— never recurses, so monorepo subdir manifests and fixtures do not false-fail (#1312).',
+    enforcement:
+      'scripts/check-stack-conformity.mjs (L1 gate, wired in check-all.mjs when a language is ' +
+      'declared). Emitted for target projects by src/generators/check-stack-conformity.ts and ' +
+      'rendered from src/templates/scripts/check-stack-conformity.mjs.ejs (CANON-01). ' +
+      'Exit codes per INV-53: 0=PASS/SKIP, 1=FAIL (contradiction), 2=ERROR.',
+  },
 ]

@@ -28,6 +28,7 @@ const TRACK_B_EXEMPT = new Set([
   'debt-lib.mjs', // INV-109: shared library helper, not a standalone gate step
   'done-evidence.mjs', // INV-38: generated evidence-capture CLI for target projects (.ejs)
   'evidence-collect.mjs', // INV-33: generated nightly-pipeline harness for target projects
+  'check-stack-conformity.mjs', // INV-121: emitted by check-stack-conformity.ts for target projects (#1312)
 ])
 
 // Match scripts/<name>.mjs — broadened to all prefix patterns and digits.

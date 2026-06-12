@@ -642,6 +642,33 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
   })
 })
 
+// ─── #1312: stack-conformity gate wiring (INV-121, CANON-01) ─────────────────
+
+describe('check-all.mjs.ejs — stack-conformity gate wiring (#1312, INV-121)', () => {
+  it('renders the conformity runCheck when language is set', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'go',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain(
+      "runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs'])",
+    )
+  })
+
+  it('does NOT render the conformity runCheck when language is absent', () => {
+    const base = makeConfig('/tmp/test', { governanceLevel: 'L1' }) as unknown as Record<
+      string,
+      unknown
+    >
+    // render-assertion (not dogfood byte-parity): an undeclared-language target must
+    // not wire a runCheck for a script the registry won't emit (INV-121 #1312).
+    const data = { ...base, language: '' }
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('scripts/check-stack-conformity.mjs')
+  })
+})
+
 describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
   it('renders valid JSON with the governance-scaled threshold + v5 path/format fileset (catches EJS drift)', () => {
     const base = makeConfig('/tmp/test', {
@@ -752,5 +779,29 @@ describe('static-analysis/stylelintrc.json.ejs (#352 design-token config)', () =
     expect(cfg.rules['custom-property-no-missing-var-function']).toBe(true)
     // no `extends`/plugins — design-token enforcement only, brownfield-safe
     expect(content).not.toContain('"extends"')
+  })
+})
+
+describe('check-all.mjs.ejs rendering — wiki-lint L1 gating (#1318/#1321)', () => {
+  // The wiki generator is enabled only at L2+ (registry.ts), so a virgin L1
+  // project never emits scripts/check-wiki-lint.mjs. The runCheck reference must
+  // be gated to match, or `check-all L1` RED with MODULE_NOT_FOUND.
+  it('L1: does NOT reference check-wiki-lint.mjs (script not emitted at L1)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('check-wiki-lint.mjs')
+  })
+
+  it('L2: DOES reference check-wiki-lint.mjs (wiki generator emits it at L2+)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'typescript',
+      governanceLevel: 'L2',
+      coverageEnabled: false,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain('check-wiki-lint.mjs')
   })
 })

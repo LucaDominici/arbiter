@@ -10,6 +10,7 @@ import { generateRoot } from './root.js'
 import { generateCheckAll } from './check-all.js'
 import { generateAntiProforma } from './anti-proforma.js'
 import { generateCommitFooter } from './commit-footer.js'
+import { generateStackConformity } from './check-stack-conformity.js'
 import { generateCursor } from './cursor.js'
 import { generateCopilot } from './copilot.js'
 import { generateCoverage } from './coverage.js'
@@ -189,6 +190,18 @@ function buildGateScriptSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'commit-footer-rationale',
       enabled: config.governanceLevel !== 'L1',
       run: (opts) => generateCommitFooter(config, opts).files,
+    },
+    {
+      // #1312 (CANON-01, INV-121): stack-conformity gate. check-all.mjs.ejs invokes
+      // scripts/check-stack-conformity.mjs inside `<% if (language) %>` (truthy gate),
+      // so the registry mirrors it with the same truthy check — emit exactly when the
+      // config carries a (non-empty) language. ProjectConfig.language is type-required,
+      // but Boolean() keeps the gate textually paired with the template's `if (language)`
+      // and tolerant of an empty-string sentinel. Self-safety (absent language in the
+      // TARGET arbiter.json ⇒ exit 0) is RUNTIME-resident in the emitted .mjs, not here.
+      key: 'stack-conformity',
+      enabled: Boolean(config.language),
+      run: (opts) => generateStackConformity(config, opts).files,
     },
   ]
 }
