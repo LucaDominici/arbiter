@@ -2,8 +2,8 @@
   "$schemaVersion": 1,
   "task_id": "#551",
   "test_path": "__tests__/integration/gate/tdd-evidence-l2.test.ts",
-  "test_commit_sha": "a906feb4a385c5e6fb3d8d1ba16c85e2cceb79d8",
-  "test_run_log": "FAIL __tests__/integration/gate/tdd-evidence-l2.test.ts\nAssertionError: expected 'FAIL' to be 'PASS' // Object.is equality\n  Expected: \"PASS\"\n  Received: \"FAIL\"\n ❯ __tests__/integration/gate/tdd-evidence-l2.test.ts:14:27\n 1 test failed — no TDD evidence file at .arbiter/evidence/tdd/#551.json",
+  "test_commit_sha": "d666b7d0765b05abda66f50c004536a764d04f5b",
+  "test_run_log": "FAIL __tests__/integration/gate/tdd-evidence-l2.test.ts\nAssertionError: expected 'FAIL' to be 'PASS' // Object.is equality\n  Expected: \"PASS\"\n  Received: \"FAIL\"\n \u276f __tests__/integration/gate/tdd-evidence-l2.test.ts:14:27\n 1 test failed \u2014 no TDD evidence file at .arbiter/evidence/tdd/#551.json",
   "observed_failure": "FAIL __tests__/integration/gate/tdd-evidence-l2.test.ts",
   "recorded_at": "2026-05-16T19:10:00.000Z"
 }
