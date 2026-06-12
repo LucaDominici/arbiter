@@ -57,6 +57,20 @@ describe('generateIntegrationTesting — databaseEngine branching (#1317)', () =
     expect(content).toContain('testcontainers')
   })
 
+  it('contradictory hasDatabase:true + databaseEngine:"none" ⇒ no DB test (0 files)', () => {
+    // Hand-edit reachable incoherence: engine is the source of truth, so an
+    // explicit 'none' must win and emit nothing regardless of the stale boolean —
+    // otherwise the generator falls through to the POSTGRES template (#1317 RT).
+    const config = makeConfig(goDir, {
+      hasDatabase: true,
+      databaseEngine: 'none',
+      governanceLevel: 'L2',
+      language: 'go',
+      buildTool: 'go',
+    })
+    expect(generateIntegrationTesting(config).files).toHaveLength(0)
+  })
+
   it('legacy hasDatabase:true with engine unset ⇒ testcontainers (postgresql default)', () => {
     const config = makeConfig(goDir, {
       hasDatabase: true,

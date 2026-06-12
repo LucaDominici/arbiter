@@ -61,6 +61,16 @@ describe('main_test_sqlite.go.ejs — containerless Go TestMain (#1317)', () => 
     expect(content).not.toContain('postgres:16-alpine')
   })
 
+  it('cleans up the temp dir even under os.Exit (no defer-skipped leak, #1317)', () => {
+    const content = render()
+    // os.Exit skips deferred calls; the run code must be captured and RemoveAll
+    // invoked explicitly before exit so the temp dir does not leak.
+    expect(content).toContain('code := m.Run()')
+    expect(content).toContain('os.RemoveAll(dir)')
+    expect(content).toContain('os.Exit(code)')
+    expect(content).not.toContain('os.Exit(m.Run())')
+  })
+
   it('is gofmt-structural clean (tab indent, no trailing space, trailing newline)', () => {
     const content = render()
     for (const line of content.split('\n')) {

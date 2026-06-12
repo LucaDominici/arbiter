@@ -254,6 +254,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       architectureStyle,
       isMultiTenant,
       hasDatabase,
+      databaseEngine,
       hasPublicApi,
       contractType,
       lanes,
@@ -274,6 +275,12 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       architectureStyle,
       isMultiTenant,
       hasDatabase,
+      // #1317: thread the DERIVED databaseEngine into the persisted config.
+      // axis.ts deriveDatabase resolves a legacy `hasDatabase:true` (engine unset)
+      // to 'postgresql'; without writing it back here, saveConfigAndSnapshot would
+      // drop the derived value every update and the diff engine-change detection
+      // would stay inert (snapshot + nextConfig both carrying the stale `...stored`).
+      databaseEngine,
       hasPublicApi,
       contractType,
       language,

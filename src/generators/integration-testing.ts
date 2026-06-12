@@ -29,9 +29,10 @@ export interface IntegrationTestingGeneratorResult {
  * Database integration-testing scaffolding (#487 scope clarification).
  *
  * Generates Testcontainers + PostgreSQL setup for projects with a database.
- * Every template under `src/templates/integration-testing/` hardcodes
- * PostgreSQLContainer / @Testcontainers; the generator is intentionally
- * DB-only, not "any integration".
+ * Most templates under `src/templates/integration-testing/` hardcode
+ * PostgreSQLContainer / @Testcontainers; the Go `sqlite` variant is the one
+ * containerless exception. The generator is intentionally DB-only, not
+ * "any integration".
  *
  * **API-only projects** (REST contract testing without a database) are NOT
  * served by this generator — broadening the gate to `hasDatabase || hasPublicApi`
@@ -39,15 +40,29 @@ export interface IntegrationTestingGeneratorResult {
  * is strictly worse than under-generating. Those projects are covered by the
  * separate `contract-testing` generator (Pact) gated on `config.contractType`.
  *
- * Gate: emits when `hasDatabase === true` AND `governanceLevel !== 'L1'`.
+ * Gate: emits when the project has a database AND `governanceLevel !== 'L1'`.
+ * `databaseEngine` is the source of truth: when it is explicitly `'none'` the
+ * gate emits nothing even if a stale `hasDatabase:true` was hand-edited in
+ * (incoherent input ⇒ engine wins). When the engine is unset we fall back to
+ * the legacy `hasDatabase` boolean.
+ *
+ * Engine ⇒ template mapping (#1317):
+ *  - `sqlite`     ⇒ containerless Go TestMain (no Docker / testcontainers).
+ *  - `postgresql` ⇒ Postgres testcontainers scaffolding.
+ *  - `mysql` / `mongodb` / `other` / legacy-unset ⇒ currently fall back to the
+ *    Postgres testcontainers scaffolding (dedicated templates tracked under #1317).
  */
 export function generateIntegrationTesting(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): IntegrationTestingGeneratorResult {
-  // Gate: only generate when hasDatabase is true AND governance level is not L1.
-  // See JSDoc for #487 rationale — this generator is intentionally DB-scoped.
-  if (!config.hasDatabase || config.governanceLevel === 'L1') {
+  // Gate: skip at L1, and skip when there is no database. The engine is the
+  // source of truth — an explicit 'none' suppresses generation regardless of a
+  // (possibly stale, hand-edited) hasDatabase:true. Engine unset ⇒ legacy
+  // hasDatabase boolean. See JSDoc for #487 / #1317 rationale.
+  const hasDatabase =
+    config.databaseEngine != null ? config.databaseEngine !== 'none' : config.hasDatabase
+  if (!hasDatabase || config.governanceLevel === 'L1') {
     return { files: [] }
   }
 
@@ -108,8 +123,10 @@ export function generateIntegrationTesting(
     )
     appendCargoDevDep(base, 'testcontainers', '0.23', opts.dryRun)
   } else if (config.language === 'go') {
-    // #1317: sqlite ⇒ containerless TestMain (no testcontainers/Docker import);
-    // postgresql/mysql (and legacy hasDatabase:true with engine unset) ⇒ testcontainers.
+    // #1317: sqlite ⇒ containerless TestMain (no testcontainers/Docker import).
+    // postgresql ⇒ Postgres testcontainers. mysql/mongodb/other and legacy
+    // hasDatabase:true with engine unset currently fall back to the Postgres
+    // testcontainers template (dedicated per-engine templates tracked under #1317).
     const goTemplate =
       config.databaseEngine === 'sqlite'
         ? 'integration-testing/main_test_sqlite.go.ejs'
