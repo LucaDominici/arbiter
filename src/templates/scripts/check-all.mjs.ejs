@@ -330,6 +330,12 @@ runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mj
 runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
 // ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
+<% if (language) { %>
+// ─── L1: stack-conformity gate (INV-121, #1312) ──────────────────────────────
+// Fails when the repo-root manifest contradicts the declared language/databaseEngine
+// axes. Self-safety is RUNTIME-resident in the emitted .mjs (absent language ⇒ exit 0).
+runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs']);
+<% } %>
 // ─── L1: ISO 9001 quality-process overlay gate (#1253) — present only when overlay selected
 if (existsSync('scripts/check-iso9001.mjs')) {
   runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);

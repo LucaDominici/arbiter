@@ -81,6 +81,7 @@
     "scripts/check-pr-size-gate.mjs",
     "scripts/check-secret-scan.mjs",
     "scripts/check-ssot-core.mjs",
+    "scripts/check-stack-conformity.mjs",
     "scripts/check-suppression-expiry.mjs",
     "scripts/check-suppression-rationale.mjs",
     "scripts/check-suppressions.mjs",

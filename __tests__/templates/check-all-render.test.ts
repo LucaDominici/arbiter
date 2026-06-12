@@ -642,6 +642,33 @@ describe('check-all.mjs.ejs — stylelint gate wiring (#352, CANON-02/15)', () =
   })
 })
 
+// ─── #1312: stack-conformity gate wiring (INV-121, CANON-01) ─────────────────
+
+describe('check-all.mjs.ejs — stack-conformity gate wiring (#1312, INV-121)', () => {
+  it('renders the conformity runCheck when language is set', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'go',
+      governanceLevel: 'L1',
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).toContain(
+      "runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.mjs'])",
+    )
+  })
+
+  it('does NOT render the conformity runCheck when language is absent', () => {
+    const base = makeConfig('/tmp/test', { governanceLevel: 'L1' }) as unknown as Record<
+      string,
+      unknown
+    >
+    // render-assertion (not dogfood byte-parity): an undeclared-language target must
+    // not wire a runCheck for a script the registry won't emit (INV-121 #1312).
+    const data = { ...base, language: '' }
+    const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+    expect(content).not.toContain('scripts/check-stack-conformity.mjs')
+  })
+})
+
 describe('static-analysis/jscpd.json.ejs (CANON-22 duplication config)', () => {
   it('renders valid JSON with the governance-scaled threshold + v5 path/format fileset (catches EJS drift)', () => {
     const base = makeConfig('/tmp/test', {

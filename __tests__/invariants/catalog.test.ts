@@ -36,7 +36,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
     // Note #1244: INV-56 retired via tombstone (status:'retired') per ID-STABILITY — still counted.
-    expect(INVARIANT_CATALOG).toHaveLength(118)
+    // Updated #1312: +1 (INV-121 stack-conformity gate, operational/Tier-4, language-gated)
+    expect(INVARIANT_CATALOG).toHaveLength(119)
   })
 
   it('all IDs are unique', () => {
@@ -45,9 +46,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1217: +1 (INV-117)
     // Updated #1249: +2 (INV-118, INV-119)
     // Updated #1231: +1 (INV-120)
+    // Updated #1312: +1 (INV-121)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(118)
+    expect(unique.size).toBe(119)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -120,8 +122,9 @@ describe('INVARIANT_CATALOG', () => {
   it('has exactly 33 Tier 4 invariants', () => {
     // Updated in #1127: +4 (INV-102/103/104/105 — FE governance, tier=operational)
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, operational)
+    // Updated #1312: +1 (INV-121 stack-conformity gate, operational)
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(34)
+    expect(tier4).toHaveLength(35)
   })
 
   it('has exactly 37 Tier 5 invariants', () => {
@@ -384,12 +387,13 @@ describe('getFilteredInvariants', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
     // Updated #1249: +2 (INV-118 anti-proforma, INV-119 commit-footer; both L1+/L2+ all languages)
+    // Updated #1312: +1 (INV-121 stack-conformity, L1+, all languages, operational)
     const result = getFilteredInvariants({
       language: 'typescript',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(74)
+    expect(result).toHaveLength(75)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -475,12 +479,13 @@ describe('getFilteredInvariants', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages)
     // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
+    // Updated #1312: +1 (INV-121 stack-conformity, L1+, all languages, operational)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L2',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(69)
+    expect(result).toHaveLength(70)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -496,12 +501,13 @@ describe('getFilteredInvariants', () => {
     // Updated feat-feature-matrix-rtm: +1 (INV-112 RTM, L2+, all languages)
     // Updated #1214: +1 (INV-115 constraint-scan, L1+, all languages, governance tier)
     // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
+    // Updated #1312: +1 (INV-121 stack-conformity, L1+, all languages, operational)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(70)
+    expect(result).toHaveLength(71)
   })
 
   it('essential preset at L1 returns minimal set', () => {
