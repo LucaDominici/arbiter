@@ -4,7 +4,11 @@ export default defineConfig({
   test: {
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
+      // json-summary writes coverage/coverage-summary.json, which the gate's
+      // greenfield-aware coverage check (scripts/lib/coverage-gate.mjs, #1319.8)
+      // parses at runtime to distinguish "no executable statements" from a real
+      // threshold miss.
+      reporter: ['text', 'html', 'lcov', 'json-summary'],
       reportsDirectory: './coverage',
       include: ['src/**'],
       // Curated exclude list (#353, Phase 7A — haben parity).
