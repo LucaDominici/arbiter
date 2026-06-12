@@ -143,7 +143,12 @@ describe('diff --json', () => {
 
   it('emits ok status when files are unchanged', () => {
     mockLoadConfig.mockReturnValue({ ...BASE_CONFIG })
-    mockExistsSync.mockReturnValue(true)
+    // Everything exists EXCEPT the generated-manifest (#1328): an absent manifest
+    // is a legitimate first run → loadGeneratedManifest returns {} (no pristine
+    // propagation), keeping this "unchanged" scenario about content-equality only.
+    mockExistsSync.mockImplementation(
+      (p: unknown) => !String(p).endsWith('.arbiter-generated-manifest.json'),
+    )
     // renderTemplate returns "content"; readFileSync also returns "content" → unchanged
     mockReadFileSync.mockReturnValue('content')
 

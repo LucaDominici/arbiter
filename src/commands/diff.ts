@@ -13,7 +13,8 @@ import { detectInstalledSkills } from '../integrations/skill-detector.js'
 import { buildRegistry, runGeneratorsFromRegistry } from '../generators/registry.js'
 import { jsonOutput, statusToExitCode } from '../utils/json-output.js'
 import { t } from '../i18n/index.js'
-import type { WriteResult } from '../utils/fs.js'
+import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
+import { loadGeneratedManifest } from '../state/generated-manifest.js'
 
 export interface DiffOptions {
   dir: string | undefined
@@ -121,7 +122,18 @@ export function runDiff(options: DiffOptions): void {
   const claudeHome = process.env['HOME'] ? `${process.env['HOME']}/.claude` : ''
   const installedSkills = detectInstalledSkills({ targetDir, claudeHome })
   const specs = buildRegistry(config, installedSkills)
-  const results = runGeneratorsFromRegistry(specs, [], { dryRun: true })
+  // #1328: load the same manifest `update` consults so the dryRun resolves the
+  // SAME action `update` would (a pristine-stale skipIfExists file → 'changed',
+  // no longer reported as a lying '(unchanged)'). diff is read-only: it never
+  // persists the session.
+  const prevManifest = loadGeneratedManifest(targetDir)
+  beginGenerationSession({ targetDir, prevHashes: prevManifest })
+  let results: WriteResult[]
+  try {
+    results = runGeneratorsFromRegistry(specs, [], { dryRun: true })
+  } finally {
+    endGenerationSession()
+  }
 
   const files = buildDiffFiles(results, targetDir)
   const remoteSideEffect = buildRemoteSideEffects(

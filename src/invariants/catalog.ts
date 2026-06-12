@@ -2011,4 +2011,27 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'rendered from src/templates/scripts/check-stack-conformity.mjs.ejs (CANON-01). ' +
       'Exit codes per INV-53: 0=PASS/SKIP, 1=FAIL (contradiction), 2=ERROR.',
   },
+  {
+    id: 'INV-122',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title:
+      'Update propagates template fixes to pristine generated files; user-modified files are preserved',
+    description:
+      '`arbiter update` must rewrite a skipIfExists-emitted file whose on-disk content is byte-' +
+      "identical to arbiter's last recorded render (pristine, unmodified since generation) so upstream " +
+      'template fixes reach the governed fleet; it must preserve a user-modified file (on-disk hash ≠ ' +
+      'recorded baseline) and warn that the fix was withheld; and `arbiter diff` must report a pristine-' +
+      'stale file as changed, never as a lying "unchanged". Provenance is a committed per-file content-' +
+      'hash manifest (.arbiter-generated-manifest.json at the repo root, sibling of .arbiter-generated.' +
+      'json), not config alone. A corrupt manifest fails closed (exit 2); a missing one is a legitimate ' +
+      'first run that conservatively skips (#1328).',
+    enforcement:
+      'Integration tests (__tests__/integration/update-propagates-fixes.test.ts) + unit tests for the ' +
+      'generation session and manifest (fs-generation-session, generated-manifest). Runtime-resident in ' +
+      'the arbiter CLI engine (init/update/diff) and inherited by the fleet via the CLI — not a render-' +
+      'time gate. Exit codes per INV-53: corrupt manifest ⇒ 2=ERROR.',
+  },
 ]

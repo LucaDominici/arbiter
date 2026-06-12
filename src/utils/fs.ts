@@ -9,10 +9,11 @@ import {
   readFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, createHash } from 'node:crypto'
 import { ArbiterError } from './errors.js'
 import { getLogger } from './logger.js'
 import { t } from '../i18n/index.js'
+import { manifestKey } from '../state/generated-manifest.js'
 
 // ── Atomic write + signal cleanup ────────────────────────────────────────────
 
@@ -120,54 +121,161 @@ export interface WriteResult {
 
 export type GeneratorRunOpts = { dryRun: boolean }
 
+// ── Generation session (#1328) ───────────────────────────────────────────────
+//
+// A module-level "generation session" (same pattern as `inFlightTmpPaths`) lets
+// `writeFile` make `skipIfExists` hash-aware WITHOUT threading a manifest param
+// through the dozens of generator call-sites. The orchestrators (`init`,
+// `update`, `diff`) bracket the registry run with begin/end; `writeFile` consults
+// `prevHashes` to tell a pristine (unmodified-since-generation) file — safe to
+// rewrite to propagate a fix — from a user-modified one, and records the new
+// render hash into `newHashes` for the caller to persist to the manifest.
+
+interface GenerationSession {
+  targetDir: string
+  prevHashes: Map<string, string>
+  newHashes: Map<string, string>
+  /** Test/observability seam: invoked when a fix is withheld from a file. */
+  onWithheld?: (key: string) => void
+}
+
+let generationSession: GenerationSession | null = null
+
+function sha256(content: string): string {
+  return createHash('sha256').update(content).digest('hex')
+}
+
 /**
- * Read existing file bytes for a content-equality check. Treats any read
- * failure (permission, race, directory-at-path) as "not equal" so the caller
- * converges toward writing — the safe direction for an idempotent generator and
- * the over-reporting (never under-reporting) direction for `diff` (INV-96).
+ * Begin a generation session. Defensively OVERWRITES any pre-existing session
+ * (A3): a leaked session from a prior command (e.g. a throw that bypassed `end`)
+ * must never affect the next command in the same process (tests, batch mode).
  */
-function contentEquals(filePath: string, content: string): boolean {
-  try {
-    return readFileSync(filePath, 'utf-8') === content
-  } catch {
-    return false
+export function beginGenerationSession(opts: {
+  targetDir: string
+  prevHashes: Record<string, string>
+  onWithheld?: (key: string) => void
+}): void {
+  generationSession = {
+    targetDir: opts.targetDir,
+    prevHashes: new Map(Object.entries(opts.prevHashes)),
+    newHashes: new Map(),
+    ...(opts.onWithheld ? { onWithheld: opts.onWithheld } : {}),
   }
 }
 
 /**
- * Compute the action `writeFile` would take, given the on-disk state. Single
- * source of truth shared by the real and dryRun paths so they can never
- * diverge. Precedence (order matters):
- *   1. missing                         → created
- *   2. exists + skipIfExists           → skipped
- *   3. exists + byte-identical content → skipped   (#1077 F6 idempotence)
- *   4. exists + backup                 → backed-up-and-replaced
- *   5. exists                          → replaced
- *
- * Content-equality is checked BEFORE the backup branch: an unchanged backup
- * file (AGENTS.md, CLAUDE.md, GLOBAL_INVARIANTS.md) must NOT be churned/backed
- * up on every run, or `update` is non-idempotent and `diff` over-reports.
+ * End the active session and return the recorded render hashes (targetDir-
+ * relative, posix keys) for the caller to merge + persist. Always clears the
+ * session (idempotent: returns `{}` when none is active).
+ */
+export function endGenerationSession(): Record<string, string> {
+  const session = generationSession
+  generationSession = null
+  return session ? Object.fromEntries(session.newHashes) : {}
+}
+
+/**
+ * Record arbiter's canonical render hash as the new baseline for a file — but
+ * ONLY when the on-disk content now equals `content` (the caller passes
+ * `baselineMatches`). The manifest invariant is: `manifest[key]` is the hash of
+ * the bytes arbiter most recently WROTE (or confirmed byte-identical on disk),
+ * so `sha256(disk) === manifest[key]` ⇔ pristine. Recording on a *withheld* skip
+ * (disk ≠ content, file NOT written) would poison the baseline to a render that
+ * is not on disk, permanently marking the file user-modified — so those callers
+ * pass `baselineMatches=false`. Called AFTER a successful side effect (A2) so a
+ * throwing `atomicWrite` never leaves a phantom hash. Non-relative/escaping keys
+ * are skipped + warned (A7).
+ */
+function recordGeneratedHash(filePath: string, content: string): void {
+  const session = generationSession
+  if (!session) return
+  const key = manifestKey(session.targetDir, filePath)
+  if (key === null) {
+    getLogger().warn(
+      'fs.manifest_key_skipped',
+      { path: filePath },
+      `generated-manifest: skipping non-relative path (cannot key portably): ${filePath}`,
+    )
+    return
+  }
+  session.newHashes.set(key, sha256(content))
+}
+
+interface ResolvedWrite {
+  action: WriteResult['action']
+  /** True when the on-disk bytes will equal `content` after this op (record-eligible). */
+  baselineMatches: boolean
+}
+
+/**
+ * Compute the action `writeFile` would take, given on-disk state. Single source
+ * of truth shared by real + dryRun paths so they can never diverge. The on-disk
+ * bytes are read ONCE (A8) and reused for both the byte-identical check and the
+ * pristine-hash check. Precedence:
+ *   1. missing                                  → created (baselineMatches)
+ *   2. exists + byte-identical content          → skipped (baselineMatches; idempotent)
+ *   3. exists + skipIfExists + session + pristine (sha256(disk)==prevHash) + differs
+ *                                               → replaced (propagate fix, #1328; baselineMatches)
+ *   4. exists + skipIfExists (no session | unknown | user-modified)
+ *                                               → skipped, NOT baselineMatches (+ withheld warn
+ *                                                  when a session knows)
+ *   5. exists + backup                          → backed-up-and-replaced (baselineMatches)
+ *   6. exists                                   → replaced (baselineMatches)
  */
 function resolveWriteAction(
   filePath: string,
   content: string,
   skipIfExists: boolean,
   backup: boolean,
-): WriteResult['action'] {
-  if (!existsSync(filePath)) return 'created'
-  if (skipIfExists) return 'skipped'
-  if (contentEquals(filePath, content)) return 'skipped'
-  return backup ? 'backed-up-and-replaced' : 'replaced'
+): ResolvedWrite {
+  if (!existsSync(filePath)) return { action: 'created', baselineMatches: true }
+  // Single read: null = unreadable (treat as exists-but-unknown → legacy-safe).
+  let disk: string | null
+  try {
+    disk = readFileSync(filePath, 'utf-8')
+  } catch {
+    disk = null
+  }
+  if (disk !== null && disk === content) return { action: 'skipped', baselineMatches: true }
+
+  if (skipIfExists) {
+    const session = generationSession
+    if (session && disk !== null) {
+      const key = manifestKey(session.targetDir, filePath)
+      const prev = key === null ? undefined : session.prevHashes.get(key)
+      if (prev !== undefined && sha256(disk) === prev) {
+        // Pristine: unmodified since arbiter generated it → safe to rewrite.
+        return { action: backup ? 'backed-up-and-replaced' : 'replaced', baselineMatches: true }
+      }
+      // User-modified or unknown provenance → preserve + surface the withheld fix.
+      const withheldKey = key ?? filePath
+      ;(session.onWithheld ?? defaultWithheldWarn)(withheldKey)
+    }
+    return { action: 'skipped', baselineMatches: false }
+  }
+
+  return { action: backup ? 'backed-up-and-replaced' : 'replaced', baselineMatches: true }
+}
+
+function defaultWithheldWarn(key: string): void {
+  getLogger().warn(
+    'fs.fix_withheld',
+    { path: key },
+    `user-modified, template fix NOT applied: ${key} (delete it to let \`arbiter update\` re-apply the current template)`,
+  )
 }
 
 /**
  * Write a file atomically (temp-file + rename), creating parent directories as needed.
- * If the file already exists and skipIfExists=true, skip it.
+ * If the file already exists and skipIfExists=true, skip it — UNLESS a generation
+ * session knows the on-disk content is pristine (matches the recorded render hash),
+ * in which case it is rewritten to propagate a template fix (#1328).
  * If the file already exists and its content is byte-identical, skip it (idempotent).
  * If backup=true and file exists with differing content, copy it to
  * <path>.arbiter-backup before writing.
  * In dryRun mode the prospective action is computed and returned WITHOUT any
- * filesystem mutation.
+ * filesystem mutation. The render hash is recorded into the active generation
+ * session AFTER a successful side effect, for every action.
  * On ENOSPC the temp file is cleaned up and a UserFacingError is thrown.
  */
 export function writeFile(
@@ -176,23 +284,23 @@ export function writeFile(
   opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
   const { skipIfExists = false, backup = false, dryRun = false } = opts
-  const action = resolveWriteAction(filePath, content, skipIfExists, backup)
+  const { action, baselineMatches } = resolveWriteAction(filePath, content, skipIfExists, backup)
 
-  if (dryRun || action === 'created') {
-    if (!dryRun) {
-      mkdirSync(dirname(filePath), { recursive: true })
-      atomicWrite(filePath, content)
+  // Side effects (may throw → recordGeneratedHash below is never reached, so no
+  // phantom hash is recorded for content that did not land — A2).
+  if (!dryRun && action !== 'skipped') {
+    if (action === 'backed-up-and-replaced') {
+      copyFileSync(filePath, `${filePath}.arbiter-backup`)
     }
-    return { path: filePath, action }
+    mkdirSync(dirname(filePath), { recursive: true })
+    atomicWrite(filePath, content)
   }
 
-  if (action === 'skipped') return { path: filePath, action }
-
-  if (action === 'backed-up-and-replaced') {
-    copyFileSync(filePath, `${filePath}.arbiter-backup`)
-  }
-  mkdirSync(dirname(filePath), { recursive: true })
-  atomicWrite(filePath, content)
+  // Record the baseline ONLY when disk == content (created/replaced/byte-identical)
+  // and the side effect actually ran (never on dryRun — diff must not record a hash
+  // for content that did not land — and never on a withheld skip, which would poison
+  // the baseline; see recordGeneratedHash).
+  if (!dryRun && baselineMatches) recordGeneratedHash(filePath, content)
   return { path: filePath, action }
 }
 

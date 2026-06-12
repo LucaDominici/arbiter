@@ -32,7 +32,8 @@ describe('extended opt-in invariants', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
     // Note #1244: INV-56 retired via tombstone (status:'retired') — still counted.
     // Updated #1312: +1 (INV-121 stack-conformity gate, operational/Tier-4)
-    expect(INVARIANT_CATALOG).toHaveLength(119)
+    // Updated #1328: +1 (INV-122 update-propagates-fixes, operational/Tier-4)
+    expect(INVARIANT_CATALOG).toHaveLength(120)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

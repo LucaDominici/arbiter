@@ -453,4 +453,21 @@ describe('generateEvidenceRetention — policy doc (#718)', () => {
     const content = readFileSync(join(dir, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md'), 'utf-8')
     expect(content).toContain('local-last-N')
   })
+
+  // #1328 unit 7 (Track-B): the emitted .gitignore must NOT ignore the committed
+  // generated-manifest, or the governed fleet silently loses provenance and
+  // `update` propagates nothing (the very property INV-122 asserts).
+  it('emitted .gitignore does NOT ignore .arbiter-generated-manifest.json (fleet provenance must be committed)', () => {
+    generateEvidenceRetention(makeConfig(dir))
+    const isIgnored = (rel: string): boolean => {
+      writeFileSync(join(dir, rel), 'x')
+      return spawnSync('git', ['check-ignore', '-q', rel], { cwd: dir }).status === 0
+    }
+    // The manifest and the snapshot envelope (both committed) must NOT be ignored.
+    expect(isIgnored('.arbiter-generated-manifest.json')).toBe(false)
+    expect(isIgnored('.arbiter-generated.json')).toBe(false)
+    // Sanity: the template still ignores the runtime .arbiter/ dir (intent preserved).
+    mkdirSync(join(dir, '.arbiter'), { recursive: true })
+    expect(isIgnored('.arbiter/scratch.tmp')).toBe(true)
+  })
 })

@@ -94,6 +94,68 @@ Every file arbiter generates has a declared stability status. This determines th
 
 ---
 
+## Generated-content manifest & fix propagation (#1328, INV-122)
+
+**Issue:** #1328
+
+Many files are emitted with `skipIfExists` — once present, a plain re-run leaves them alone so user
+edits survive. Historically that meant `arbiter update` could **never** deliver an upstream template fix
+to such a file (a validator script, `check-all.mjs`, `.githooks/pre-push`): the stale copy lived forever,
+and `arbiter diff` reported it as `(unchanged)` without comparing content — a parity report that lied.
+
+Arbiter now records a per-file content-hash **manifest** so it can tell the two cases apart:
+
+| File         | Value                                                                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Default path | `.arbiter-generated-manifest.json` (project **root**, sibling of `.arbiter-generated.json`)                                              |
+| Status       | **evolving**                                                                                                                             |
+| Committed?   | **Yes — commit it.** It must travel with the repo or the governed fleet cannot inherit fixes. It is intentionally NOT under `.arbiter/`. |
+| Shape        | `{ "$schemaVersion": 1, "files": { "<posix-relpath>": "<sha256-of-arbiter's-last-render>" } }`                                           |
+
+### Update / diff semantics for `skipIfExists` files
+
+On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` file that already exists:
+
+- **on-disk content == current render** → `skipped` (already up to date).
+- **on-disk hash == the recorded manifest hash** (pristine — unmodified since arbiter generated it) and
+  the template changed → **rewritten** to the new render. The fix propagates. `diff` reports `changed`.
+- **on-disk hash ≠ the recorded manifest hash** (you edited it) → **preserved**, with a warning:
+  `user-modified, template fix NOT applied: <path>`. Delete the file and re-run `arbiter update` to take
+  the current template.
+
+`update` persists the manifest before writing `arbiter.json`/`.arbiter-generated.json`, so those two are
+never recorded as manifest entries. Plugin- and `doctor`-written files keep the legacy skip-always
+behavior (out of scope for the manifest).
+
+> **Selective vs full update.** When a config change maps to a _subset_ of generators, `arbiter update`
+> runs only that subset, so a pristine-stale file owned by a non-impacted generator is not rewritten that
+> run (its baseline is preserved, not poisoned). A no-config-change `update` — the common path after an
+> arbiter version bump — runs the full registry and re-evaluates every `skipIfExists` file, propagating
+> all pending fixes. So if a fix does not land after a config-only update, re-run `arbiter update`.
+
+### First run, corruption, and `doctor repair-state`
+
+- **No manifest yet** (a project initialised by an older arbiter, or before this feature) → every
+  `skipIfExists` file is treated as user-modified and conservatively skipped on the first run. Run one
+  `arbiter update` to establish baselines; subsequent template fixes then propagate. To force-adopt a
+  stale file immediately, delete it and re-run `arbiter update`.
+- **Corrupt/unparseable manifest** → `arbiter update` fails closed (exit 2). It is never silently treated
+  as empty (that would withhold fixes fleet-wide while exiting 0).
+- `arbiter doctor repair-state` re-derives `.arbiter-generated.json` from `arbiter.json` but **cannot**
+  re-derive the manifest (hashes are not a function of config). It warns accordingly; re-run
+  `arbiter update` if you suspect drift.
+
+### Threat model
+
+The manifest is trusted **because it is committed** — integrity is the repo's git history, not an in-file
+checksum (so there is none, by design). Tampering is bounded and recoverable in both directions: a forged
+hash can only (a) make a pristine file look modified → a fix is withheld (`diff` still tells the truth by
+comparing content), or (b) make a modified file look pristine → it is overwritten with arbiter's own
+canonical template render, and the prior bytes are recoverable from git. No code execution, secrets, or
+privilege are involved — only which of two known, safe renders lands.
+
+---
+
 ## CI Gate
 
 Adding or removing a field in a `stable` file's generated schema without a corresponding MAJOR semver bump fails the gate. See [docs/SEMVER.md](../SEMVER.md).

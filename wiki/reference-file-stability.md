@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/file-stability.md'
-source_sha: '1afd7f99a30699f7b722264ec487a9466d25a1c9'
-last_updated: '2026-06-11'
+source_sha: '3105629b14f38fc0b7c8bc6bebc12d950d65454c'
+last_updated: '2026-06-12'
 ---
 
 # Generated File Format Stability Map
@@ -95,6 +95,32 @@ Every file arbiter generates has a declared stability status. This determines th
 
 ---
 
-## CI Gate
+## Generated-content manifest & fix propagation (#1328, INV-122)
 
-Adding or removing a field in a `stable` file's generated schema without a corresponding MAJOR semver bump fails the gate. See [docs/SEMVER.md](../SEMVER.md).
+**Issue:** #1328
+
+Many files are emitted with `skipIfExists` — once present, a plain re-run leaves them alone so user
+edits survive. Historically that meant `arbiter update` could **never** deliver an upstream template fix
+to such a file (a validator script, `check-all.mjs`, `.githooks/pre-push`): the stale copy lived forever,
+and `arbiter diff` reported it as `(unchanged)` without comparing content — a parity report that lied.
+
+Arbiter now records a per-file content-hash **manifest** so it can tell the two cases apart:
+
+| File         | Value                                                                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Default path | `.arbiter-generated-manifest.json` (project **root**, sibling of `.arbiter-generated.json`)                                              |
+| Status       | **evolving**                                                                                                                             |
+| Committed?   | **Yes — commit it.** It must travel with the repo or the governed fleet cannot inherit fixes. It is intentionally NOT under `.arbiter/`. |
+| Shape        | `{ "$schemaVersion": 1, "files": { "<posix-relpath>": "<sha256-of-arbiter's-last-render>" } }`                                           |
+
+### Update / diff semantics for `skipIfExists` files
+
+On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` file that already exists:
+
+- **on-disk content == current render** → `skipped` (already up to date).
+- **on-disk hash == the recorded manifest hash** (pristine — unmodified since arbiter generated it) and
+  the template changed → **rewritten** to the new render. The fix propagates. `diff` reports `changed`.
+- **on-disk hash ≠ the recorded manifest hash** (you edited it) → **preserved**, with a warning:
+  `user-modified, template fix NOT applied: <path>
+
+*[content truncated — see source for full text]*

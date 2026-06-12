@@ -2,6 +2,7 @@
   "fixture": "python-data-pipeline",
   "level": "L1",
   "generated": [
+    ".arbiter-generated-manifest.json",
     ".arbiter/ship/TICK_PROMPT.md",
     ".arbiter/ship/supervisor.sh",
     ".claude/CLAUDE.md",
