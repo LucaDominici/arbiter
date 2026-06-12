@@ -66,6 +66,7 @@
     "scripts/audit-toolchain.mjs",
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
+    "scripts/check-anti-proforma.mjs",
     "scripts/check-canonical-paths.mjs",
     "scripts/check-ci-tiers.mjs",
     "scripts/check-claude-md-lint.mjs",
