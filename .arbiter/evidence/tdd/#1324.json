@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1324",
+  "test_path": "__tests__/generators/debt-gates.test.ts",
+  "test_commit_sha": "3447ce66df91b417ea65f43245ec3e67323bca1e",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter-wave4\n\n ❯ __tests__/generators/debt-gates.test.ts (41 tests | 1 failed) 259ms\n     × injects test:unit/contract/integration/behavioral scripts into package.json (#219) 9ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 40 passed (41)\n   Start at  12:13:03\n   Duration  408ms (transform 70ms, setup 12ms, import 75ms, tests 259ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/generators/debt-gates.test.ts > generateDebtGates > injects test:unit/contract/integration/behavioral scripts into package.json (#219)\nAssertionError: expected 'vitest run --project unit' to be 'vitest run' // Object.is equality\n\nExpected: \"vitest run\"\nReceived: \"vitest run --project unit\"\n\n ❯ __tests__/generators/debt-gates.test.ts:530:40\n    528|     // so --project crashes the gate). test:unit runs all tests; optio…\n    529|     // --passWithNoTests so a greenfield project without those tiers s…\n    530|     expect(pkg.scripts?.['test:unit']).toBe('vitest run')\n       |                                        ^\n    531|     expect(pkg.scripts?.['test:contract']).toBe('vitest run --passWith…\n    532|     expect(pkg.scripts?.['test:integration']).toBe(\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/generators/debt-gates.test.ts",
+  "recorded_at": "2026-06-12T10:13:03.555Z"
+}

@@ -16,6 +16,43 @@ describe('debt-gates config templates — rendering', () => {
     expect(parsed).toHaveProperty('project')
   })
 
+  it('knip.json.ejs entry is archetype-aware: library → src/index.ts, cli → src/cli.ts (#1324)', () => {
+    const render = (archetype: 'library' | 'cli') =>
+      JSON.parse(
+        renderTemplate(
+          'static-analysis/knip.json.ejs',
+          makeConfig('/tmp/test', {
+            language: 'typescript',
+            archetype,
+            enableDebtGates: true,
+          }) as unknown as Record<string, unknown>,
+        ),
+      ) as { entry: string[] }
+    expect(render('library').entry).toEqual(['src/index.ts!'])
+    expect(render('library').entry).not.toContain('src/cli.ts!')
+    expect(render('cli').entry).toEqual(['src/cli.ts!'])
+  })
+
+  it('knip.json.ejs ignores framework-injected toolchain (jscpd + license-name binaries) (#1324)', () => {
+    const parsed = JSON.parse(
+      renderTemplate(
+        'static-analysis/knip.json.ejs',
+        makeConfig('/tmp/test', {
+          language: 'typescript',
+          archetype: 'library',
+          enableDebtGates: true,
+        }) as unknown as Record<string, unknown>,
+      ),
+    ) as { ignoreDependencies: string[]; ignoreBinaries: string[] }
+    // jscpd is injected by the duplication gate and invoked via npx — knip cannot
+    // trace it, so it must be ignored or it fails `dead code` out of the box.
+    expect(parsed.ignoreDependencies).toContain('jscpd')
+    // license-checker's allow-list (Apache-2.0, BSD-*, …) is misparsed by knip as
+    // unlisted binaries from the generated workflow — mirror arbiter's own ignores.
+    expect(parsed.ignoreBinaries).toContain('license-checker')
+    expect(parsed.ignoreBinaries).toContain('Apache-2.0')
+  })
+
   it('.golangci.yml.ejs renders valid YAML enabling gocyclo with max-complexity 15', () => {
     const data = makeConfig('/tmp/test', {
       language: 'go',

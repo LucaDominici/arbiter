@@ -95,10 +95,12 @@ interface SmokeCell {
 // greenfield project" shape (an empty dir has no package.json/go.mod to gate).
 const SMOKE_CELLS: SmokeCell[] = [
   // FINDING #1321-TS: a minimal TS library + L2 governance overlay does NOT pass
-  // its own gate out of the box — the generated vitest `--project unit/contract/
-  // integration/behavioral` scripts have no matching projects/tests and knip flags
-  // the fixture's src/cli.ts entry. These are greenfield-scaffolding gaps in
-  // arbiter's generators, out of G1's scope (harness + double-write + wiki-lint).
+  // its own gate fully out of the box. #1324 FIXED the two original causes — the
+  // generated vitest `--project <tier>` crash (now path-based, mirroring arbiter)
+  // and knip (archetype-aware entry + framework-toolchain ignores). The remaining
+  // non-green cause is the `format` check: the generated project ships two
+  // conflicting prettier configs (.prettierrc vs .prettierrc.json) and `report/`
+  // is not in .prettierignore — a separate prettier-config greenfield bug (#1325).
   { fixture: 'ts-library', language: 'typescript', level: 'L2', gateGreenOutOfBox: false },
   // Go's empty-package gate (`go vet/test ./...`) + coverage exemption IS green.
   { fixture: 'go-library', language: 'go', level: 'L2', gateGreenOutOfBox: true },
@@ -151,6 +153,13 @@ describe.skipIf(!L2)('virgin-init harness — generated gate runs green (#1321)'
             127,
           )
           expect(result.output).not.toMatch(/Cannot find module/)
+          if (cell.language === 'typescript') {
+            // #1324: the two original TS greenfield gaps must be gone — vitest no
+            // longer crashes on an undefined `--project`, and knip no longer fails
+            // on a phantom entry / unlisted framework binaries.
+            expect(result.output).not.toMatch(/No projects matched the filter/)
+            expect(result.output).not.toMatch(/Unlisted binaries|Unused devDependencies/)
+          }
           if (cell.gateGreenOutOfBox) {
             expect(
               result.status,
@@ -303,13 +312,17 @@ describe('virgin multi-lane init — zero double-write noise (#1318.2)', () => {
 })
 
 // ─── #1321 FINDINGS (recorded honestly — harness ships, gaps reported) ───────
-// 1. TS greenfield L2 gate is NOT green out-of-the-box (gateGreenOutOfBox:false):
-//    - `npm run test:unit/contract/integration/behavioral` reference vitest
-//      `--project <name>` projects the generated vitest.config.ts does not define
-//      for a minimal library ⇒ those checks FAIL.
-//    - knip flags the fixture's src/cli.ts entry (no matching entry pattern).
-//    These are arbiter init-quality scaffolding gaps (separate from G1's scope:
-//    harness + #1318.2 double-write + wiki-lint L1). The harness records them via
+// 1. TS greenfield L2 gate is not YET fully green out-of-the-box:
+//    - FIXED (#1324): the generated `test:*` scripts are now path-based (mirror
+//      arbiter's own), not `vitest --project <tier>` (which crashed — the
+//      generated vitest.config.ts defines no projects); knip is archetype-aware
+//      (library ⇒ src/index.ts, no phantom src/cli.ts) and ignores the
+//      framework-injected toolchain (jscpd + license-name binaries).
+//    - REMAINING (#1325): the `format` check still fails — the generated project
+//      ships two conflicting prettier configs (.prettierrc vs .prettierrc.json)
+//      and `report/` (jscpd runtime output) is not in .prettierignore. Separate
+//      prettier-config greenfield bug; gateGreenOutOfBox stays false until fixed.
+//    The harness asserts the #1324 causes are gone and records the residual via
 //    an executes-but-non-green assertion rather than a faked green.
 // 2. A virgin EMPTY-dir TS init does not produce a buildable project (no
 //    package.json/tsconfig/src) — init is designed to overlay governance onto an
