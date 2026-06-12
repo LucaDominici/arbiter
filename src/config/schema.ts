@@ -126,7 +126,18 @@ export interface ArbiterConfigV2 {
   archetype?: Archetype
   architectureStyle?: ArchitectureStyle
   isMultiTenant?: boolean
+  /**
+   * #1317: legacy/derived database flag. Kept for back-compat — derived from
+   * {@link databaseEngine} (`hasDatabase = databaseEngine != null && databaseEngine !== 'none'`).
+   * Persisting both is fine; the axis derivation in detectors/axis.ts keeps them in sync.
+   */
   hasDatabase?: boolean
+  /**
+   * #1317: database engine axis. Source of truth for integration-testing scaffolding
+   * (sqlite ⇒ containerless TestMain; none ⇒ no DB test; postgresql/mysql ⇒ testcontainers).
+   * Absent ⇒ derived from {@link hasDatabase} (legacy `hasDatabase:true` ⇒ 'postgresql').
+   */
+  databaseEngine?: 'postgresql' | 'mysql' | 'mongodb' | 'sqlite' | 'other' | 'none'
   hasPublicApi?: boolean
   acceptBetaTools?: boolean
   evidenceRetention?: EvidenceRetentionConfig

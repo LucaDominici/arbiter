@@ -118,8 +118,8 @@
       "Bash(pytest *)",
       "Bash(ruff *)",
       "Bash(uv *)"<% } %>,
-      "Bash(gh *)",
-      "Bash(bun run arbiter *)",
+      "Bash(gh *)",<% if (buildTool === 'bun') { %>
+      "Bash(bun run arbiter *)",<% } %>
       "Bash(arbiter *)"
     ],
     "deny": [

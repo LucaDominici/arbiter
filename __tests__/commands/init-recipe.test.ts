@@ -175,6 +175,56 @@ describe('runInit with --recipe (#546)', () => {
     expect(raw.automation).toEqual({ autonomy: 'L3' })
   })
 
+  it('recipe databaseEngine=sqlite persists to arbiter.json and derives hasDatabase (#1317)', async () => {
+    const recipePath = join(dir, 'engine-recipe.json')
+    writeFileSync(
+      recipePath,
+      JSON.stringify({
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        language: 'go',
+        archetype: 'backend-web-db',
+        useGitHub: false,
+        databaseEngine: 'sqlite',
+      }),
+    )
+
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: recipePath })
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      databaseEngine?: unknown
+      hasDatabase?: unknown
+    }
+    expect(raw.databaseEngine).toBe('sqlite')
+    expect(raw.hasDatabase).toBe(true)
+  })
+
+  it('recipe databaseEngine=none persists and sets hasDatabase false (#1317)', async () => {
+    const recipePath = join(dir, 'engine-none-recipe.json')
+    writeFileSync(
+      recipePath,
+      JSON.stringify({
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        language: 'go',
+        archetype: 'backend-web-db',
+        useGitHub: false,
+        databaseEngine: 'none',
+      }),
+    )
+
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({ yes: true, dir, dryRun: false, noVerify: true, recipe: recipePath })
+
+    const raw = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf-8')) as {
+      databaseEngine?: unknown
+      hasDatabase?: unknown
+    }
+    expect(raw.databaseEngine).toBe('none')
+    expect(raw.hasDatabase).toBe(false)
+  })
+
   it('recipe without automation defaults arbiter.json to autonomy L0 (#1261)', async () => {
     const { runInit } = await import('../../src/commands/init.js')
     await runInit({

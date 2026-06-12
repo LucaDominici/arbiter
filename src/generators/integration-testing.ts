@@ -108,12 +108,17 @@ export function generateIntegrationTesting(
     )
     appendCargoDevDep(base, 'testcontainers', '0.23', opts.dryRun)
   } else if (config.language === 'go') {
+    // #1317: sqlite ⇒ containerless TestMain (no testcontainers/Docker import);
+    // postgresql/mysql (and legacy hasDatabase:true with engine unset) ⇒ testcontainers.
+    const goTemplate =
+      config.databaseEngine === 'sqlite'
+        ? 'integration-testing/main_test_sqlite.go.ejs'
+        : 'integration-testing/main_test.go.ejs'
     results.push(
-      writeFile(
-        resolvedPath(base, 'tests', 'main_test.go'),
-        renderTemplate('integration-testing/main_test.go.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
+      writeFile(resolvedPath(base, 'tests', 'main_test.go'), renderTemplate(goTemplate, data), {
+        skipIfExists: true,
+        dryRun: opts.dryRun,
+      }),
     )
   } else if (config.language === 'python') {
     results.push(

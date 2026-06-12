@@ -180,7 +180,6 @@
       "Bash(npx *)",
       "Bash(node *)",
       "Bash(gh *)",
-      "Bash(bun run arbiter *)",
       "Bash(arbiter *)"
     ],
     "deny": ["Bash(rm -rf /*)", "Bash(sudo:*)", "Bash(git push --force)"]

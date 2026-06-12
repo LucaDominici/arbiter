@@ -18,6 +18,7 @@ import { detectGitInfo } from '../detectors/git.js'
 import { detectExisting } from '../detectors/existing.js'
 import { getLanguageHooks } from '../detectors/language-hooks.js'
 import { resolveAxisFields } from '../detectors/axis.js'
+import type { DatabaseEngine } from '../detectors/axis.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { resolveCollaborationMode } from './collaboration-mode-defaults.js'
 import type { ProjectConfig, Lane } from '../wizard/types.js'
@@ -44,6 +45,8 @@ export interface DetectorFields {
   architectureStyle: ProjectConfig['architectureStyle']
   isMultiTenant: boolean
   hasDatabase: boolean
+  /** #1317: always defined here (axis derives 'none' when no DB). */
+  databaseEngine: DatabaseEngine
   hasPublicApi: boolean
   contractType: ProjectConfig['contractType']
   lanes: Lane[]
@@ -157,6 +160,7 @@ export function resolveProjectConfig(
     architectureStyle,
     isMultiTenant,
     hasDatabase,
+    databaseEngine,
     hasPublicApi,
     contractType,
     lanes,
@@ -182,6 +186,7 @@ export function resolveProjectConfig(
     architectureStyle,
     isMultiTenant,
     hasDatabase,
+    databaseEngine,
     hasPublicApi,
     contractType,
     lanes,
