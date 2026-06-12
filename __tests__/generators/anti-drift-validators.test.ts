@@ -265,28 +265,41 @@ describe('anti-drift × owner exactly-once emission (#1318.2)', () => {
 
   // github-setup spec is enabled ⇔ (permitGitHub ?? useGitHub) && level !== 'L1'.
   // So github-3 has a dedicated owner exactly in {L2,L3} × github-on.
-  const matrix: Array<{ level: 'L1' | 'L2' | 'L3'; github: boolean }> = [
-    { level: 'L1', github: true },
-    { level: 'L1', github: false },
-    { level: 'L2', github: true },
-    { level: 'L2', github: false },
-    { level: 'L3', github: true },
-    { level: 'L3', github: false },
+  // self-validation spec is enabled ⇔ enableSelfValidationHarness !== false
+  // (registry.ts). So check-exit-code-contract has a dedicated owner only when
+  // selfVal !== false; when selfVal === false anti-drift MUST be the fallback
+  // emitter (else check-all.mjs:137 calls a missing module ⇒ MODULE_NOT_FOUND).
+  const matrix: Array<{ level: 'L1' | 'L2' | 'L3'; github: boolean; selfVal: boolean }> = [
+    { level: 'L1', github: true, selfVal: true },
+    { level: 'L1', github: false, selfVal: true },
+    { level: 'L2', github: true, selfVal: true },
+    { level: 'L2', github: false, selfVal: true },
+    { level: 'L3', github: true, selfVal: true },
+    { level: 'L3', github: false, selfVal: true },
+    // #1318: selfVal=false ⇒ self-validation disabled ⇒ anti-drift is the SOLE
+    // emitter of check-exit-code-contract (fallback). Without the fix these RED.
+    { level: 'L1', github: true, selfVal: false },
+    { level: 'L1', github: false, selfVal: false },
+    { level: 'L2', github: true, selfVal: false },
+    { level: 'L2', github: false, selfVal: false },
+    { level: 'L3', github: true, selfVal: false },
+    { level: 'L3', github: false, selfVal: false },
   ]
 
   for (const cell of matrix) {
-    it(`emits each of the 7 shared scripts exactly once — L=${cell.level} github=${cell.github}`, () => {
+    it(`emits each of the 7 shared scripts exactly once — L=${cell.level} github=${cell.github} selfVal=${cell.selfVal}`, () => {
       const config = makeConfig(dir, {
         governanceLevel: cell.level,
         useGitHub: cell.github,
         permitGitHub: cell.github,
         githubOwner: cell.github ? 'acme' : null,
         githubRepo: cell.github ? 'demo' : null,
+        enableSelfValidationHarness: cell.selfVal,
       })
       for (const script of SHARED_SEVEN) {
         expect(
           emissionCount(config, script),
-          `${script} must be emitted exactly once at L=${cell.level} github=${cell.github}`,
+          `${script} must be emitted exactly once at L=${cell.level} github=${cell.github} selfVal=${cell.selfVal}`,
         ).toBe(1)
       }
     })

@@ -64,6 +64,18 @@ function githubSetupEnabled(config: ProjectConfig): boolean {
   return (config.permitGitHub ?? config.useGitHub) && config.governanceLevel !== 'L1'
 }
 
+/**
+ * #1318 — the self-validation generator owns check-exit-code-contract.mjs, but
+ * its registry spec is gated `enabled: config.enableSelfValidationHarness !== false`
+ * (registry.ts). When a target sets enableSelfValidationHarness:false the owner
+ * is disabled, yet check-all.mjs unconditionally calls the script — so anti-drift
+ * must be the SOLE fallback emitter (mirrors githubSetupEnabled). This predicate
+ * matches the registry gate exactly.
+ */
+function selfValidationEnabled(config: ProjectConfig): boolean {
+  return config.enableSelfValidationHarness !== false
+}
+
 /** Emit F4 batch — agnostic anti-drift validators not owned by any other generator (INV-89). */
 function emitF4Validators(
   base: string,
@@ -75,12 +87,16 @@ function emitF4Validators(
   // fails in a target whose gate has a different tier set.
   //
   // #1318.2: anti-drift no longer double-emits scripts whose dedicated owner
-  // ALWAYS runs — check-ssot-core (ssot generator, enabled:true),
-  // check-exit-code-contract (self-validation generator), and
-  // check-suppressions + check-inline-suppressions (suppressions generator).
-  // Those owners emit unconditionally, so a second anti-drift write only produced
-  // the cosmetic "N file(s) already exist" init noise (a benign skipIfExists
-  // skip). check-validator-helptext has NO other owner, so anti-drift keeps it.
+  // ALWAYS runs — check-ssot-core (ssot generator, enabled:true) and
+  // check-suppressions + check-inline-suppressions (suppressions generator,
+  // enabled:true). Those owners emit unconditionally, so a second anti-drift
+  // write only produced the cosmetic "N file(s) already exist" init noise (a
+  // benign skipIfExists skip). check-validator-helptext has NO other owner, so
+  // anti-drift keeps it.
+  //
+  // #1318: check-exit-code-contract is NOT always-on — its owner
+  // (self-validation generator) is gated `enableSelfValidationHarness !== false`
+  // (registry.ts). It is a conditional FALLBACK below, like the github trio.
   const scripts = ['check-validator-helptext.mjs']
 
   // #1318.2: the github-owned trio is a conditional FALLBACK — emit only when
@@ -90,6 +106,16 @@ function emitF4Validators(
   // module in check-all (RT-CRITICAL — must not drop).
   if (!githubSetupEnabled(config)) {
     scripts.push('check-action-pins.mjs', 'check-workflow-perms.mjs', 'check-ci-tiers.mjs')
+  }
+
+  // #1318: check-exit-code-contract is a conditional FALLBACK — emit only when
+  // self-validation is disabled (enableSelfValidationHarness:false). When
+  // self-validation IS enabled it owns the script and anti-drift stays out (no
+  // double-write); when disabled, check-all.mjs:137 still calls the script
+  // unconditionally, so anti-drift must be the sole emitter or the generated
+  // gate fails with MODULE_NOT_FOUND (RT-CRITICAL — must not drop).
+  if (!selfValidationEnabled(config)) {
+    scripts.push('check-exit-code-contract.mjs')
   }
 
   return scripts.map((name) =>
