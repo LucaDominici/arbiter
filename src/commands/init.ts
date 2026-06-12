@@ -35,7 +35,8 @@ import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.
 import { loadPlugin } from '../utils/plugin-loader.js'
 import { renderFromAbsPath } from '../utils/render.js'
 import { isWindows, isWSL2 } from '../utils/platform.js'
-import { writeFile } from '../utils/fs.js'
+import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
+import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
 import { runCli } from '../utils/run-cli.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
@@ -281,7 +282,14 @@ async function generateAndFinalize(
 
   try {
     const installedSkills = detectAndAuditSkills(targetDir)
+    // #1328: bracket the registry run with a generation session so each emitted
+    // file's render hash is recorded into the manifest (first-run baseline). The
+    // session ends + the manifest persists BEFORE saveConfig/runPlugins (A1/A6).
+    const prevManifest = loadGeneratedManifest(targetDir)
+    beginGenerationSession({ targetDir, prevHashes: prevManifest })
     const { results, errors: generatorErrors } = runGeneratorsWithErrors(config, installedSkills)
+    const generatedHashes = endGenerationSession()
+    saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })
     committed.push(...results)
 
     const newConfig = buildArbiterConfig(config)
@@ -332,6 +340,9 @@ async function generateAndFinalize(
     rollbackGeneration(committed)
     process.stderr.write('  Rollback complete. Review arbiter.json if it was partially written.\n')
     throw err
+  } finally {
+    // A3 leak-guard: clear any session a throw left active. Idempotent.
+    endGenerationSession()
   }
 }
 

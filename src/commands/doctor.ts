@@ -722,10 +722,20 @@ export async function runDoctorRepairState(
     await lock.release()
   }
 
+  // A9 (#1328): repair-state re-derives the snapshot from arbiter.json but CANNOT
+  // re-derive the per-file content-hash manifest (.arbiter-generated-manifest.json),
+  // whose hashes are not a function of config. Warn so the operator knows the
+  // manifest may be stale relative to the freshly-repaired snapshot.
+  const manifestWarning =
+    'generated-manifest (.arbiter-generated-manifest.json) is NOT re-derivable from config; ' +
+    'if you suspect template-fix drift, re-run `arbiter update` to refresh it.'
   if (opts.json) {
-    jsonOutput(REPAIR_STATE_CMD, 'ok', { snapshotPath, repaired: true })
+    jsonOutput(REPAIR_STATE_CMD, 'ok', { snapshotPath, repaired: true }, undefined, {
+      warnings: [manifestWarning],
+    })
   } else {
     process.stdout.write(`doctor: snapshot re-derived from arbiter.json → ${snapshotPath}\n`)
+    process.stderr.write(`doctor: warning — ${manifestWarning}\n`)
   }
   return { exitCode: 0, repaired: true, snapshotPath }
 }

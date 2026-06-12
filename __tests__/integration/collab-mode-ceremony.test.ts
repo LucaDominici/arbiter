@@ -33,12 +33,25 @@ function initGit(dir: string): void {
 }
 
 /**
- * Infrastructure files that are intentionally different between init and update:
+ * Infrastructure / machine-derived state files that are intentionally different
+ * between init and the FIRST update (but stable update→update — verified):
  * - arbiter.json: init uses buildArbiterConfig shape; update re-normalizes via {…stored,…}.
  * - .arbiter-generated.json: snapshot created by saveConfigAndSnapshot (update only, not init).
+ * - .arbiter-generated-manifest.json (#1328): per-file render-hash manifest — derived state that
+ *   changes whenever any tracked file's hash changes (e.g. knowledge-map below).
+ * - .claude/knowledge-map.json: records detected_lanes, which are derived from the on-disk tree.
+ *   init runs lane detection BEFORE docs/ is generated (no 'docs' lane); the first update sees the
+ *   generated docs/ and refreshes it. #1328 makes update rewrite this pristine skipIfExists file to
+ *   propagate that correction (previously it stayed frozen at the stale init-time value). update→update
+ *   is idempotent (verified) — only the one-time init→update refresh differs.
  * These are excluded from the idempotence comparison; only GOVERNANCE files are checked.
  */
-const INFRA_FILES = new Set(['arbiter.json', '.arbiter-generated.json'])
+const INFRA_FILES = new Set([
+  'arbiter.json',
+  '.arbiter-generated.json',
+  '.arbiter-generated-manifest.json',
+  '.claude/knowledge-map.json',
+])
 
 /** Recursively list generated GOVERNANCE files (excluding git/node_modules/infra). */
 function listGovernanceFiles(dir: string): string[] {

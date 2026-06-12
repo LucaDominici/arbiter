@@ -3,7 +3,8 @@ import { mkdirSync } from 'node:fs'
 import { resolve, basename, join } from 'node:path'
 import { acquireLock } from '../utils/file-lock.js'
 import { UserFacingError, FatalError } from '../utils/errors.js'
-import type { WriteResult } from '../utils/fs.js'
+import { beginGenerationSession, endGenerationSession, type WriteResult } from '../utils/fs.js'
+import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
 import { t } from '../i18n/index.js'
 import { jsonOutput, statusToExitCode, type JsonOutputOpts } from '../utils/json-output.js'
 import { getLogger } from '../utils/logger.js'
@@ -86,6 +87,65 @@ function selectAndRun(
     results: runGeneratorsSelective(specs, keys, errors, { dryRun: false }),
     keysRun: keys,
     errors,
+  }
+}
+
+/**
+ * Run the generator registry bracketed by a #1328 generation session: load the
+ * prev manifest, make `writeFile` hash-aware (pristine skipIfExists files are
+ * rewritten to propagate template fixes; user-modified ones are preserved +
+ * warned), then persist the merged manifest. Persistence happens HERE — before
+ * `saveConfigAndSnapshot`/`runPlugins` — so `arbiter.json`/`.arbiter-generated.json`
+ * and plugin-written files never become manifest keys (A1/A6).
+ */
+function selectAndRunWithManifest(
+  specs: ReturnType<typeof buildRegistry>,
+  snapshot: ArbiterConfigV2 | null,
+  stored: ArbiterConfigV2,
+  targetDir: string,
+): ReturnType<typeof selectAndRun> {
+  const prevManifest = loadGeneratedManifest(targetDir)
+  beginGenerationSession({ targetDir, prevHashes: prevManifest })
+  const out = selectAndRun(specs, snapshot, stored)
+  const generatedHashes = endGenerationSession()
+  saveGeneratedManifest(targetDir, { ...prevManifest, ...generatedHashes })
+  return out
+}
+
+/**
+ * Build the to-be-persisted config from the stored config + freshly resolved axis
+ * fields. #1317: the DERIVED databaseEngine is threaded in so saveConfigAndSnapshot
+ * does not drop it every update (which would leave the diff engine-change detection
+ * inert with snapshot + nextConfig both carrying the stale `...stored`).
+ */
+function buildNextConfig(
+  stored: ArbiterConfigV2,
+  axisFields: ReturnType<typeof resolveAxisFields>,
+  language: ProjectConfig['language'],
+  needsMigration: boolean,
+): ArbiterConfigV2 {
+  const {
+    archetype,
+    architectureStyle,
+    isMultiTenant,
+    hasDatabase,
+    databaseEngine,
+    hasPublicApi,
+    contractType,
+    lanes,
+  } = axisFields
+  return {
+    ...stored,
+    archetype,
+    architectureStyle,
+    isMultiTenant,
+    hasDatabase,
+    databaseEngine,
+    hasPublicApi,
+    contractType,
+    language,
+    ...(lanes.length > 0 && { lanes }),
+    ...(needsMigration && { collaborationMode: 'trunk-solo' }),
   }
 }
 
@@ -249,17 +309,6 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       options,
       log,
     )
-    const {
-      archetype,
-      architectureStyle,
-      isMultiTenant,
-      hasDatabase,
-      databaseEngine,
-      hasPublicApi,
-      contractType,
-      lanes,
-    } = axisFields
-    const { language } = config
 
     const snapshot = loadSnapshot(targetDir)
     log('\n  Updating...')
@@ -269,26 +318,15 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
     if (needsMigration) {
       log("  Migrating soloDevMode=true → collaborationMode='trunk-solo' (ADR-051)")
     }
-    const nextConfig: ArbiterConfigV2 = {
-      ...stored,
-      archetype,
-      architectureStyle,
-      isMultiTenant,
-      hasDatabase,
-      // #1317: thread the DERIVED databaseEngine into the persisted config.
-      // axis.ts deriveDatabase resolves a legacy `hasDatabase:true` (engine unset)
-      // to 'postgresql'; without writing it back here, saveConfigAndSnapshot would
-      // drop the derived value every update and the diff engine-change detection
-      // would stay inert (snapshot + nextConfig both carrying the stale `...stored`).
-      databaseEngine,
-      hasPublicApi,
-      contractType,
-      language,
-      ...(lanes.length > 0 && { lanes }),
-      ...(needsMigration && { collaborationMode: 'trunk-solo' }),
-    }
+    const nextConfig = buildNextConfig(stored, axisFields, config.language, needsMigration)
 
-    const { results, keysRun, errors: generatorErrors } = selectAndRun(specs, snapshot, nextConfig)
+    // #1328: registry run bracketed by a generation session (manifest persisted
+    // BEFORE saveConfigAndSnapshot/runPlugins — A1/A6). See selectAndRunWithManifest.
+    const {
+      results,
+      keysRun,
+      errors: generatorErrors,
+    } = selectAndRunWithManifest(specs, snapshot, nextConfig, targetDir)
     const pluginResults = await runPlugins(
       targetDir,
       Array.isArray(stored.plugins) ? stored.plugins : [],
@@ -328,6 +366,9 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
     return { keysRun }
   } finally {
+    // A3 leak-guard: clear any session left active by a throw/early-exit so it can
+    // never corrupt the next in-process command (tests, batch mode). Idempotent.
+    endGenerationSession()
     await lock.release()
   }
 }
