@@ -1,6 +1,20 @@
 import { describe, it, expect } from 'vitest'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+
+/** Resolve gofmt on PATH; returns null when the toolchain is absent. */
+function gofmtAvailable(): boolean {
+  try {
+    execFileSync('gofmt', ['-h'], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * CANON-04 compliance: every .ejs template in src/templates/contract-testing/
@@ -530,6 +544,85 @@ describe('contract-testing template fixes (F17)', () => {
         contractType: tmpl.split('/')[1],
       })
       expect(content.trimStart()).toMatch(/^\/\/go:build contract/)
+    })
+  }
+})
+
+// #1319.4 — gofmt-clean Go contract-test templates.
+// The t.Fatalf(...) calls previously embedded a literal newline inside the Go
+// string literal, which gofmt rejects (Go string literals must be single-line
+// with \n escapes). gofmt is not guaranteed on the local runner, so we assert a
+// structural surrogate (tab indent, no trailing whitespace, no raw newline inside
+// a double-quoted string, trailing newline) and, when gofmt IS present, run the
+// real `gofmt -l` and assert it reports no diff — same approach as Wave-1 #1317.
+describe('contract-testing Go templates are gofmt-clean (#1319.4)', () => {
+  const goContractTemplates = [
+    'contract-testing/graphql/graphql_schema_test.go.ejs',
+    'contract-testing/rest-public/openapi_diff_test.go.ejs',
+    'contract-testing/grpc/grpc_contract_test.go.ejs',
+  ]
+
+  /** Detect a literal newline embedded inside a "..." string literal on a line. */
+  function hasUnterminatedDoubleQuote(line: string): boolean {
+    let inString = false
+    let escaped = false
+    for (const ch of line) {
+      if (escaped) {
+        escaped = false
+        continue
+      }
+      if (ch === '\\') {
+        escaped = true
+        continue
+      }
+      if (ch === '"') inString = !inString
+    }
+    // A double-quoted Go string literal must open and close on the same physical
+    // line. If we end the line still inside one, the literal spans a raw newline.
+    return inString
+  }
+
+  for (const tmpl of goContractTemplates) {
+    it(`${tmpl}: no literal newline inside a Go string literal`, () => {
+      const content = renderTemplate(tmpl, {
+        ...baseData,
+        contractType: tmpl.split('/')[1],
+      })
+      for (const line of content.split('\n')) {
+        // A line that leaves a "..." literal open means the next physical line is
+        // inside the string — exactly the gofmt violation we are fixing.
+        expect(hasUnterminatedDoubleQuote(line)).toBe(false)
+      }
+    })
+
+    it(`${tmpl}: gofmt-structural clean (tab indent, no trailing space, trailing newline)`, () => {
+      const content = renderTemplate(tmpl, {
+        ...baseData,
+        contractType: tmpl.split('/')[1],
+      })
+      for (const line of content.split('\n')) {
+        expect(line).not.toMatch(/ +$/) // no trailing spaces
+        expect(line).not.toMatch(/^ +\S/) // no space-based indentation (tabs only)
+      }
+      expect(content.endsWith('\n')).toBe(true)
+    })
+
+    it(`${tmpl}: real \`gofmt -l\` reports no diff (when gofmt is installed)`, () => {
+      if (!gofmtAvailable()) return // structural surrogate above is authoritative locally
+      const content = renderTemplate(tmpl, {
+        ...baseData,
+        contractType: tmpl.split('/')[1],
+      })
+      const dir = mkdtempSync(join(tmpdir(), 'gofmt-1319-'))
+      try {
+        const file = join(dir, 'contract_test.go')
+        writeFileSync(file, content, 'utf-8')
+        // gofmt -l prints the file path when it is NOT already formatted.
+        const out = execFileSync('gofmt', ['-l', file], { encoding: 'utf-8' })
+        expect(out.trim()).toBe('')
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
     })
   }
 })

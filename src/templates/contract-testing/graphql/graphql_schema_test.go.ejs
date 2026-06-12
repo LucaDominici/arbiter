@@ -22,7 +22,6 @@ func TestNoBreakingGraphQLChanges(t *testing.T) {
 		"contracts/schema-current.graphql")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Breaking GraphQL schema changes:
-%s", out)
+		t.Fatalf("Breaking GraphQL schema changes:\n%s", out)
 	}
 }

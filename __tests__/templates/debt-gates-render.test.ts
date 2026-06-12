@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { parse as parseYaml } from 'yaml'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig, DEFAULT_THRESHOLDS } from '../helpers.js'
 
@@ -38,6 +39,41 @@ describe('debt-gates config templates — rendering', () => {
     expect(content).toContain('errcheck')
     expect(content).toContain('staticcheck')
     expect(content).toContain('goconst')
+  })
+
+  // #1319.7 — golangci-lint v2 config schema. golangci-lint >= 2.0 requires a
+  // top-level `version: "2"` and nests linter settings under `linters.settings`
+  // (the v1 top-level `linters-settings:` key was removed). Reference the
+  // v2-correct boundaries config at src/templates/boundaries/golangci-boundaries.yml.ejs.
+  it('.golangci.yml.ejs declares version "2" and uses v2 linters.settings schema (#1319.7)', () => {
+    const data = makeConfig('/tmp/test', {
+      language: 'go',
+      buildTool: 'go',
+      governanceLevel: 'L2',
+      enableDebtGates: true,
+      thresholds: DEFAULT_THRESHOLDS.L2,
+    }) as unknown as Record<string, unknown>
+    const content = renderTemplate('static-analysis/.golangci.yml.ejs', data)
+
+    // No raw v1 top-level key.
+    expect(content).not.toMatch(/^linters-settings:/m)
+
+    const parsed = parseYaml(content) as {
+      version?: unknown
+      linters?: { settings?: Record<string, unknown> }
+      'linters-settings'?: unknown
+    }
+    // v2 demands version "2" (string, not number).
+    expect(parsed.version).toBe('2')
+    // No top-level linters-settings mapping survives.
+    expect(parsed['linters-settings']).toBeUndefined()
+    // Settings are nested under linters.settings, with the gocyclo threshold intact.
+    expect(parsed.linters?.settings).toBeDefined()
+    const settings = parsed.linters?.settings as
+      | { gocyclo?: { 'min-complexity'?: unknown }; funlen?: { lines?: unknown } }
+      | undefined
+    expect(settings?.gocyclo?.['min-complexity']).toBe(DEFAULT_THRESHOLDS.L2.cyclomaticComplexity)
+    expect(settings?.funlen?.lines).toBe(DEFAULT_THRESHOLDS.L2.methodLength)
   })
 
   it('pmd-ruleset.xml.ejs renders valid XML with CyclomaticComplexity', () => {
