@@ -2,7 +2,7 @@
 // Wave C (#1041): shared helpers for the fixture bake-and-run E2E harness.
 // Pattern reference: Nx (create-nx-workspace), Cookiecutter (pytest-cookies),
 // Spring Initializr (initializr-generator-test).
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { cpSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
@@ -98,4 +98,25 @@ export function listProjectFiles(dir: string): string[] {
 export function computeFileDelta(before: string[], after: string[]): string[] {
   const beforeSet = new Set(before)
   return after.filter((p) => !beforeSet.has(p))
+}
+
+// ─── Per-binary toolchain guard (#1321) ──────────────────────────────────────
+// The functional harness has a whole-cell `toolchainPresent` keyed by language.
+// The virgin-init harness needs finer granularity: a single cell exercises the
+// generated L1/L2 gate which shells out to specific binaries (gofmt, golangci-lint,
+// gitleaks, go, …). When ANY required binary is absent locally we SKIP the cell
+// WITH A REASON so an absent toolchain is never a false RED. (In CI the binaries
+// are present, so the cell runs for real.)
+
+export function hasBinary(bin: string): boolean {
+  const r = spawnSync('which', [bin], { encoding: 'utf-8' })
+  return r.status === 0 && r.stdout.trim().length > 0
+}
+
+/**
+ * Return the subset of `bins` that are NOT on PATH. Empty array ⇒ all present.
+ * Callers SKIP the cell with `missingBinaries(...).join(', ')` as the reason.
+ */
+export function missingBinaries(bins: readonly string[]): string[] {
+  return bins.filter((b) => !hasBinary(b))
 }
