@@ -10,6 +10,7 @@
     "npm run build": 2,
     "actions/upload-artifact": 0.3,
     "actions/download-artifact": 0.3,
+    ".git/refs": 0,
     "_default": 1
   },
   "workflowBudgets": {
