@@ -55,6 +55,27 @@ describe('loadPlugin', () => {
     expect(result.files[0].path).toContain('mock-output.txt')
   })
 
+  it('worker renderTemplate tolerates absent basePackage (#1348)', async () => {
+    installFixture(dir, 'render-basepackage-plugin', 'render-basepackage')
+    const plugin = await loadPlugin('render-basepackage-plugin', dir)
+    const result = await plugin.generate({
+      config: {
+        version: '0.1',
+        projectName: 'demo',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        useGitHub: false,
+      },
+      targetDir: dir,
+      renderTemplate: () => '',
+    })
+    expect(result.files).toHaveLength(1)
+    // The worker's own renderTemplate normalized the absent basePackage key,
+    // so the template's `|| 'com.example'` fallback ran instead of throwing.
+    expect(result.files[0].content).toContain('package com.example.sample;')
+    expect(result.files[0].content).toContain('// demo')
+  })
+
   it('rejects a plugin that exports null (not an object)', async () => {
     installFixture(dir, 'null-export-plugin', 'null-export')
     await expect(loadPlugin('null-export-plugin', dir)).rejects.toThrow(/export a default object/)

@@ -62,12 +62,12 @@ Markers:
 
 ### `PluginContext`
 
-| Field            | Type                                                         | Stability    | Notes                                                                      |
-| ---------------- | ------------------------------------------------------------ | ------------ | -------------------------------------------------------------------------- |
-| `config`         | `ArbiterConfig`                                              | stable       | Resolved + migrated project config.                                        |
-| `targetDir`      | `string`                                                     | stable       | Absolute path to the project root being generated into.                    |
-| `renderTemplate` | `(relPath: string, data: Record<string, unknown>) => string` | stable       | Render an EJS template under `templateRoot` with the supplied data.        |
-| `memory`         | `ArbiterMemoryPlugin?`                                       | experimental | Optional memory backend; injected by the host when a memory plugin loaded. |
+| Field            | Type                                                         | Stability    | Notes                                                                                                                                                                                                                                       |
+| ---------------- | ------------------------------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config`         | `ArbiterConfig`                                              | stable       | Resolved + migrated project config.                                                                                                                                                                                                         |
+| `targetDir`      | `string`                                                     | stable       | Absolute path to the project root being generated into.                                                                                                                                                                                     |
+| `renderTemplate` | `(relPath: string, data: Record<string, unknown>) => string` | stable       | Render an EJS template under `templateRoot` with the supplied data. `basePackage` is always made a defined key (value `undefined` when unset) so templates may reference it bare without an `EJS basePackage is not defined` crash (#1348). |
+| `memory`         | `ArbiterMemoryPlugin?`                                       | experimental | Optional memory backend; injected by the host when a memory plugin loaded.                                                                                                                                                                  |
 
 ### `PluginFile`
 

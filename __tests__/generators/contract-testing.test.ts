@@ -1116,4 +1116,31 @@ describe('generateContractTesting', () => {
     expect(existsSync(join(dir, 'proto', 'buf.yaml'))).toBe(false)
     expect(existsSync(join(dir, 'proto', 'buf-breaking.yml'))).toBe(false)
   })
+
+  // ─── #1348: --language multi without basePackage must not crash ────────────
+
+  it('does not throw for language=multi when basePackage key is absent', () => {
+    const multiDir = createTestProject('typescript')
+    initGit(multiDir)
+    try {
+      const config = makeConfig(multiDir, {
+        contractType: 'rest-owned',
+        governanceLevel: 'L2',
+        language: 'multi',
+        hasPublicApi: true,
+      }) as Record<string, unknown>
+      // Match the real init path which omits the key entirely when unset.
+      delete config['basePackage']
+      let files: { path: string }[] = []
+      expect(() => {
+        files = generateContractTesting(config as never).files
+      }).not.toThrow()
+      // Java contract test is emitted for multi with its com.example fallback.
+      const javaFile = files.find((f) => f.path.endsWith('PactVerificationIT.java'))
+      expect(javaFile).toBeDefined()
+      expect(readFileSync(javaFile!.path, 'utf-8')).toContain('package com.example.contracts;')
+    } finally {
+      cleanupTestProject(multiDir)
+    }
+  })
 })
