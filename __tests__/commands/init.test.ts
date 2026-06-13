@@ -357,6 +357,62 @@ describe('runInit', () => {
     expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
   })
 
+  // ── #1347: pre-init coherence gate (collaborationMode × governanceLevel) ────
+
+  it('coherence gate ABORTS L4 + --solo (trunk-solo) before any file is written', async () => {
+    exitSpy.mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`)
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L4',
+        solo: true,
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow('process.exit(1)')
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+  })
+
+  it('coherence gate allows a coherent cell (L2 + --solo) and proceeds to generation', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      solo: true,
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+  })
+
+  it('coherence gate does NOT abort on --dry-run of an incoherent cell (preview only)', async () => {
+    exitSpy.mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`)
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L4',
+      solo: true,
+      dir,
+      dryRun: true,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+
   it('prints created/skipped file counts after generation', async () => {
     mockRunGeneratorsFromRegistry.mockReturnValue([
       { path: '/tmp/AGENTS.md', action: 'created' },

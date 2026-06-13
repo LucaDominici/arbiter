@@ -24,10 +24,11 @@ import {
   validateOverlayCoherence,
   validateAutonomyCoherence,
   validateProfileCoherence,
+  validateLanguageArchetypeCoherence,
 } from './wizard/coherence.js'
 import { resolveCollaborationMode } from '../config/collaboration-mode-defaults.js'
 import type { IndustryOverlay } from './wizard/coherence.js'
-import type { CollaborationMode, GovernanceLevel } from '../wizard/types.js'
+import type { Archetype, CollaborationMode, GovernanceLevel, Language } from '../wizard/types.js'
 
 // ── doctor health (#539) ─────────────────────────────────────────────────────
 
@@ -134,6 +135,7 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   out.push(checkLockfile(dir))
   out.push(checkStackAdapterHealth(dir))
   out.push(checkCollaborationCoherence(dir))
+  out.push(checkLanguageArchetypeCoherence(dir))
   out.push(checkOverlayCoherence(dir))
   out.push(checkAutonomyCoherence(dir))
   out.push(checkProfileCoherence(dir))
@@ -226,6 +228,42 @@ function checkCollaborationCoherence(dir: string): HealthCheck {
   check.status = r.severity === 'CRITICAL' ? 'FAIL' : 'WARN'
   check.detail = r.message
   if (r.remediation !== undefined) check.hint = r.remediation
+  return check
+}
+
+/**
+ * #1347: surface incoherent (language × archetype) cells. Reuses the same
+ * coherence SSOT the pre-init gate uses, so init and doctor read one policy.
+ * WARN only — this axis never FAILs (advisory, never trips the gate exit code).
+ * Absent language/archetype → PASS (nothing asserted to contradict).
+ */
+function checkLanguageArchetypeCoherence(dir: string): HealthCheck {
+  const check: HealthCheck = {
+    id: 'language-archetype-coherence',
+    label: 'language × archetype coherence',
+    status: 'PASS',
+    detail: 'coherent',
+  }
+  let cfg: { language?: Language; archetype?: Archetype }
+  try {
+    cfg = JSON.parse(readFileSync(join(dir, 'arbiter.json'), 'utf8')) as typeof cfg
+  } catch {
+    check.status = 'WARN'
+    check.detail = 'could not read arbiter.json for language-archetype check'
+    return check
+  }
+  if (cfg.language === undefined || cfg.archetype === undefined) {
+    check.detail = 'language or archetype absent — nothing to check'
+    return check
+  }
+  const r = validateLanguageArchetypeCoherence(cfg.language, cfg.archetype)
+  if (r.severity === 'OK') {
+    check.detail = `${cfg.language} × ${cfg.archetype} — coherent`
+    return check
+  }
+  check.status = 'WARN'
+  check.detail = r.message
+  check.hint = 'Pick an archetype that matches the language, or switch language.'
   return check
 }
 

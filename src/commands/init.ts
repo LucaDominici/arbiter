@@ -38,6 +38,10 @@ import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
+import {
+  validateCollaborationCoherence,
+  validateLanguageArchetypeCoherence,
+} from './wizard/coherence.js'
 import { runCli } from '../utils/run-cli.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { applyPreset } from '../wizard/presets.js'
@@ -216,6 +220,7 @@ export async function runInit(options: InitOptions): Promise<void> {
       return
     }
 
+    checkCoherenceGates(config)
     checkL3MaturityGates(config)
     await generateAndFinalize(config, targetDir, options, log)
   } finally {
@@ -1199,6 +1204,39 @@ function parseLanguage(language: Language | undefined): Language | undefined {
   const VALID = new Set<Language>(['typescript', 'java', 'kotlin', 'rust', 'python', 'go', 'multi'])
   if (VALID.has(language)) return language
   throw ArbiterError.fromKey('E_INVALID_LANGUAGE', 'errors.E_INVALID_LANGUAGE', { language })
+}
+
+/**
+ * #1347: unified pre-init coherence gate. Runs at the SAME point as the L3
+ * maturity gate (before any file is written), so every init path — interactive
+ * AND non-interactive (--yes / --solo / preset / --json) — is guarded, not just
+ * the wizard. Reuses the coherence SSOT (src/commands/wizard/coherence.ts) that
+ * `arbiter doctor` also reads, so the two guardrail paths share one policy.
+ *
+ * - collaborationMode × governanceLevel CRITICAL (e.g. trunk-solo @ L4) → ABORT
+ *   (rc=1) with the matrix message + remediation. This is the bug fix: previously
+ *   only `doctor` flagged it, after the incoherent project was already on disk.
+ * - language × archetype WARN (e.g. go × frontend-spa) → advisory to stdout,
+ *   proceed (never blocks — advisory axis, see coherence.ts).
+ */
+function checkCoherenceGates(config: ProjectConfig): void {
+  const langArch = validateLanguageArchetypeCoherence(config.language, config.archetype)
+  if (langArch.severity === 'WARN') {
+    process.stdout.write(`\n  ⚠ ${langArch.message}\n`)
+  }
+
+  const collab = validateCollaborationCoherence(
+    resolveCollaborationMode(config),
+    config.governanceLevel,
+  )
+  if (collab.severity === 'CRITICAL') {
+    process.stderr.write(`${t('cli.init.coherence_gate_failed')}\n`)
+    process.stderr.write(`  • ${collab.message}\n`)
+    if (collab.remediation !== undefined) {
+      process.stderr.write(`  → ${collab.remediation}\n`)
+    }
+    process.exit(1)
+  }
 }
 
 /**

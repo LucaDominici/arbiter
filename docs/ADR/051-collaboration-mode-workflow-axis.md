@@ -69,6 +69,21 @@ The wizard still asks team size as a friendly UX prompt and maps answers to
 The wizard rejects the `L4 + trunk-solo` cell with a remediation prompt. WARN cells
 emit a runtime advisory in `arbiter doctor`.
 
+#### Enforcement point (#1347 — unified pre-init gate)
+
+The coherence check fires at a single pre-init gate (`checkCoherenceGates` in
+`src/commands/init.ts`, alongside the L3 maturity gate) on **every** init path —
+interactive AND non-interactive (`--yes` / `--solo` / preset / `--json`). A `CRITICAL`
+cell aborts init (rc=1) before any file is written, with the matrix message +
+remediation. Previously the check lived only inside the interactive wizard, so
+non-interactive `init --level L4 --solo` wrote an incoherent project that was only
+flagged afterwards by `doctor`. Both the init gate and `doctor` now read one
+coherence SSOT (`src/commands/wizard/coherence.ts`) — no duplicated policy.
+
+A second, advisory axis, `language × archetype` (`validateLanguageArchetypeCoherence`),
+surfaces a WARN at the same gate (and in `doctor`) for pairs arbiter cannot scaffold
+(e.g. `go × frontend-spa`, `python × embedded`); it never blocks generation.
+
 ### Branching Strategy
 
 `branchingStrategy` is a derived field (not set in wizard; resolved by `resolveBranchingStrategy()`):
