@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/plan-template.md'
-source_sha: '8073e9c7c3238f561fa53616936661475b19aa36'
-last_updated: '2026-06-11'
+source_sha: '9cee7a771e5512dd3b1a239ddcb5476de0c97b91'
+last_updated: '2026-06-13'
 ---
 
 # Plan Template — Context Block
@@ -152,3 +152,30 @@ When `claude` is not on `PATH`, each pass returns `verdict: ERROR` and the final
 is FAIL with reason `claude CLI required for plan-review`. Set
 `ARBITER_PLAN_REVIEW_OPTIONAL=1` to convert ERROR → PASS (SKIPPED) for unattended
 environments where plan-review is not feasible.
+
+### Agent-agnostic review (hosted agent / Codex / any model) (#1329)
+
+When the orchestrating agent is itself a capable model but is **not** Claude Code (a hosted
+agent session, Codex, etc.), it can serve as the reviewer directly — no `claude` CLI, no
+SKIPPED degrade. The flow is a two-step emit/submit handshake that writes the **same**
+evidence the dispatch path does, so the gate finalises unchanged:
+
+```bash
+# 1. Emit the per-pass reviewer prompts (one per TIER_PASS_COUNT pass) and exit.
+arbiter review plan .claude/plans/<slug>.md --emit-prompts .arbiter/review-prompts \
+  --tier S
+# → writes pass-1.txt … pass-N.txt + manifest.json; NO latest.json yet.
+
+# 2. The agent reviews each emitted prompt itself, then records its verdicts.
+arbiter review submit .claude/plans/<slug>.md --tier S --reviewer agent-harness \
+  --pass 1:PASS --pass 2:PASS --pass 3:PASS \
+  --manifest .arbiter/review-prompts/manifest.json
+# → folds verdicts (all PASS → PASS, any FAIL → FAIL) and writes latest.json
+#   with source:"submit" + reviewer provenance. The gate then unblocks exactly
+#   as for the claude path.
+```
+
+The `--manifest` cross-check rejects a submit whose plan SHA-256 differs from the emitted
+prompts (a plan edited after emit must be re-emitted). Provenance (`reviewer`, `source`) is
+recorded in `latest.json` and each `pass-<N>.json`, keeping the trail auditable — this is a
+tool-agnostic _path_, not a bypass.
