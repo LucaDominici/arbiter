@@ -50,7 +50,7 @@ jobs:
           languages: <%- _codeqlLang %>
 
 <% if (language === 'java') { %>
-      - uses: actions/setup-java@c1e32368a7ca79e19b34aa7e28d3de3a8b47c8ea # v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
@@ -63,7 +63,7 @@ jobs:
         run: mvn compile test-compile -DskipTests
 <% } %>
 <% } else if (language === 'go') { %>
-      - uses: actions/setup-go@40f1582dade4d2f1c86a3da5e27c02b98fee3ec0 # v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
       - name: Build
