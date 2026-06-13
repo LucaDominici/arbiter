@@ -627,7 +627,7 @@ Inspect registered experimental features.
 
 **Subcommands:**
 
-- `arbiter experiments list` — List open task worktrees
+- `arbiter experiments list` — List detected integrations and recommend missing ones (doctor advisory target)
 
 ## arbiter explain
 
@@ -686,7 +686,7 @@ Inspect agent-tool integrations (skills, plugins) detected for this project.
 
 **Subcommands:**
 
-- `arbiter integrations list` — List open task worktrees
+- `arbiter integrations list` — List detected integrations and recommend missing ones (doctor advisory target)
 
 ## arbiter kit
 
@@ -694,7 +694,7 @@ Cross-stack governance kit commands (requires --experimental.kit).
 
 **Subcommands:**
 
-- `arbiter kit list` — List open task worktrees
+- `arbiter kit list` — List detected integrations and recommend missing ones (doctor advisory target)
 - `arbiter kit validate` — Validate kit catalog: schema, parity, and redaction (requires --experimental.kit)
 - `arbiter kit generate` — Generate per-dimension reference docs (requires --experimental.kit)
 - `arbiter kit install`
@@ -735,7 +735,7 @@ Notary system — track semantic doc changes.
 
 **Subcommands:**
 
-- `arbiter plugin list` — List open task worktrees
+- `arbiter plugin list` — List detected integrations and recommend missing ones (doctor advisory target)
 
 ## arbiter report
 
@@ -772,6 +772,7 @@ List every settable arbiter.json path with its current value (#1121).
 **Options:**
 
 - `--id <id>` — Task id (e.g. #1289); defaults to the active task
+- `--autonomy <level>` — Per-run autonomy override (L0|L1|L2|L3) — gates the fix decision (#1291)
 - `--dir <dir>` — Target directory (default: current directory)
 
 ## arbiter skill-eval
@@ -857,7 +858,7 @@ Manage work units via decomposition backend.
 
 **Subcommands:**
 
-- `arbiter work list` — List open task worktrees
+- `arbiter work list` — List detected integrations and recommend missing ones (doctor advisory target)
 - `arbiter work create`
 
 ## arbiter worktree
@@ -866,5 +867,5 @@ Manage git worktrees for parallel task development.
 
 **Subcommands:**
 
-- `arbiter worktree list` — List open task worktrees
+- `arbiter worktree list` — List detected integrations and recommend missing ones (doctor advisory target)
 <!-- END GENERATED:cli -->
