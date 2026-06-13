@@ -101,3 +101,13 @@ A PR is done only when it is **merged green**, not when it is opened. Follow eve
 open through CI and fix each red by root cause (read the failing job's log, fix the
 underlying cause, push, re-verify) — repeated until all checks pass and it merges. Handing
 back or abandoning a red PR is a process violation.
+
+## Iron Law — every problem gets fixed, including pre-existing ones
+
+A failure is never dismissed because "it was already broken" or "it's not from my change."
+Pre-existing red, flaky infra, a stale pin, a lapsed suppression, a nightly that's been
+failing for days — all of it gets **fixed at the root cause**, or, when out of the current
+scope, **filed as a tracked issue** that will itself be driven to a fix. "Pre-existing" is an
+explanation of origin, never a reason to leave it broken. When you discover a problem you are
+not fixing this instant, open an issue for it before moving on; the backlog is the queue, not
+the graveyard.
