@@ -17,10 +17,15 @@ import { join, resolve } from 'node:path'
 import {
   dispatchClaudeAgent,
   dispatchPlanReview,
+  emitPlanReviewPrompts,
   makeCodeReviewEvidenceDir,
   sanitizeTaskId,
+  submitPlanReview,
+  SubmitValidationError,
   type DispatchResult,
   type SubagentDispatcher,
+  type SubmittedPass,
+  type Verdict,
 } from '../review/dispatch.js'
 import {
   aggregateFindings,
@@ -40,6 +45,12 @@ export interface ReviewPlanOptions {
   dir?: string
   tier?: ReviewTier
   json?: boolean
+  /**
+   * #1329: when set, write the per-pass reviewer prompts to this directory and
+   * exit WITHOUT dispatching `claude`. The orchestrating agent reviews the
+   * prompts itself, then records verdicts via `arbiter review submit`.
+   */
+  emitPrompts?: string
   /** Test hook: inject a fake subagent to avoid spawning `claude`. */
   dispatcher?: SubagentDispatcher
 }
@@ -71,10 +82,42 @@ function readTaskIdFile(dir: string): string | undefined {
   return readTaskId(dir)
 }
 
-export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {
+interface PlanContext {
+  dir: string
+  planPath: string
+  planContent: string
+  tier: ReviewTier
+  taskId: string
+}
+
+/**
+ * Shared preamble for the plan-file review commands (`review plan` and
+ * `review submit`, #1329): resolve dir + plan path, load content, resolve tier
+ * and task id. Returns `null` when the plan file is missing so each command can
+ * format its own not-found envelope. CANON-22: one site, no clone.
+ */
+function resolvePlanContext(opts: {
+  dir?: string
+  file: string
+  tier?: ReviewTier
+}): PlanContext | null {
   const dir = resolve(opts.dir ?? '.')
   const planPath = resolve(opts.file)
-  if (!existsSync(planPath)) {
+  if (!existsSync(planPath)) return null
+  const planContent = readFileSync(planPath, 'utf-8')
+  const tier: ReviewTier = opts.tier ?? readTierFile(dir) ?? 'XS'
+  if (!VALID_TIERS.includes(tier)) {
+    throw new Error(`Invalid tier "${tier}". Valid values: ${VALID_TIERS.join(', ')}.`)
+  }
+  const taskIdRaw = readTaskIdFile(dir)
+  const taskId = taskIdRaw !== undefined ? sanitizeTaskId(taskIdRaw) : 'unknown'
+  return { dir, planPath, planContent, tier, taskId }
+}
+
+export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {
+  const ctx = resolvePlanContext(opts)
+  if (ctx === null) {
+    const planPath = resolve(opts.file)
     if (opts.json) {
       jsonOutput('review plan', 'error', { file: planPath }, [`plan file not found: ${planPath}`])
     } else {
@@ -86,14 +129,34 @@ export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {
       reason: 'plan file not found',
     }
   }
+  const { dir, planContent, tier, taskId } = ctx
 
-  const planContent = readFileSync(planPath, 'utf-8')
-  const tier: ReviewTier = opts.tier ?? readTierFile(dir) ?? 'XS'
-  if (!VALID_TIERS.includes(tier)) {
-    throw new Error(`Invalid tier "${tier}". Valid values: ${VALID_TIERS.join(', ')}.`)
+  if (opts.emitPrompts !== undefined) {
+    const emit = emitPlanReviewPrompts({
+      planContent,
+      dir,
+      tier,
+      emitDir: resolve(opts.emitPrompts),
+      taskId,
+    })
+    if (opts.json) {
+      jsonOutput('review plan', 'ok', {
+        emitted: true,
+        emitDir: emit.emitDir,
+        passCount: emit.passCount,
+        promptPaths: emit.promptPaths,
+        manifestPath: emit.manifestPath,
+        tier,
+        taskId,
+      })
+    } else {
+      process.stdout.write(
+        `review plan: emitted ${emit.passCount} prompt(s) to ${emit.emitDir} (tier=${tier}). ` +
+          `Review each, then run \`arbiter review submit\`.\n`,
+      )
+    }
+    return { exitCode: 0, verdict: 'PASS' }
   }
-  const taskIdRaw = readTaskIdFile(dir)
-  const taskId = taskIdRaw !== undefined ? sanitizeTaskId(taskIdRaw) : 'unknown'
 
   const dispatched = dispatchPlanReview({
     planContent,
@@ -121,6 +184,97 @@ export function runReviewPlan(opts: ReviewPlanOptions): ReviewPlanResult {
   return {
     exitCode: dispatched.exitCode,
     verdict: dispatched.verdict,
+  }
+}
+
+/* ───────────────────  review submit (#1329)  ─────────────────── */
+
+export interface ReviewSubmitOptions {
+  /** Plan file the verdicts pertain to (recomputes planDigest for the gate). */
+  file: string
+  dir?: string
+  tier?: ReviewTier
+  json?: boolean
+  /** Agent/human identity recorded as provenance. */
+  reviewer: string
+  passes: readonly SubmittedPass[]
+  manifestPath?: string
+}
+
+export interface ReviewSubmitResult {
+  exitCode: 0 | 1 | 2
+  verdict: Verdict | 'ERROR'
+  reason?: string
+}
+
+function reportSubmitError(
+  json: boolean | undefined,
+  ctx: Record<string, unknown>,
+  reason: string,
+): void {
+  if (json) {
+    jsonOutput('review submit', 'error', ctx, [reason])
+  } else {
+    process.stderr.write(`Error: review submit — ${reason}\n`)
+  }
+}
+
+function reportSubmitSuccess(
+  opts: ReviewSubmitOptions,
+  tier: ReviewTier,
+  taskId: string,
+  result: ReturnType<typeof submitPlanReview>,
+): void {
+  if (opts.json) {
+    jsonOutput('review submit', verdictToJsonStatus(result.verdict), {
+      verdict: result.verdict,
+      tier,
+      taskId,
+      reviewer: opts.reviewer,
+      latestPath: result.latestPath,
+      ...(result.reason !== undefined ? { reason: result.reason } : {}),
+    })
+    return
+  }
+  const tail = result.reason !== undefined ? ` — ${result.reason}` : ''
+  process.stdout.write(
+    `review submit: ${result.verdict} (tier=${tier}, reviewer=${opts.reviewer})${tail}\n`,
+  )
+}
+
+export function runReviewSubmit(opts: ReviewSubmitOptions): ReviewSubmitResult {
+  const ctx = resolvePlanContext(opts)
+  if (ctx === null) {
+    const reason = `plan file not found: ${resolve(opts.file)}`
+    reportSubmitError(opts.json, { file: resolve(opts.file) }, reason)
+    return { exitCode: 2, verdict: 'ERROR', reason }
+  }
+  const { dir, planContent, tier, taskId } = ctx
+
+  let result: ReturnType<typeof submitPlanReview>
+  try {
+    result = submitPlanReview({
+      dir,
+      tier,
+      planContent,
+      passes: opts.passes,
+      reviewer: opts.reviewer,
+      taskId,
+      ...(opts.manifestPath !== undefined ? { manifestPath: resolve(opts.manifestPath) } : {}),
+    })
+  } catch (err) {
+    if (err instanceof SubmitValidationError) {
+      reportSubmitError(opts.json, { tier, taskId }, err.message)
+      return { exitCode: 2, verdict: 'ERROR', reason: err.message }
+    }
+    throw err
+  }
+
+  reportSubmitSuccess(opts, tier, taskId, result)
+  return {
+    exitCode: result.exitCode,
+    verdict: result.verdict,
+    ...(result.reason !== undefined ? { reason: result.reason } : {}),
   }
 }
 

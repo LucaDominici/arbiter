@@ -20,7 +20,8 @@ import {
   runDoctorClean,
 } from './commands/doctor.js'
 import { runIntegrationsList } from './commands/integrations.js'
-import { runReviewCode, runReviewPlan } from './commands/review.js'
+import { runReviewCode, runReviewPlan, runReviewSubmit } from './commands/review.js'
+import type { SubmittedPass } from './review/dispatch.js'
 import { jsonOutput } from './utils/json-output.js'
 import type { ReviewTier } from './review/tier-constants.js'
 import { runUpgradeLevel } from './commands/upgrade-level.js'
@@ -664,6 +665,27 @@ worktree
     runWorktreeList({ json: opts.json })
   })
 
+/**
+ * Parse repeated `--pass N:VERDICT` specs into structured pass verdicts (#1329).
+ * Returns null on any malformed spec so the caller can exit 2.
+ */
+function parsePassSpecs(specs: readonly string[]): SubmittedPass[] | null {
+  const out: SubmittedPass[] = []
+  for (const spec of specs) {
+    const idx = spec.indexOf(':')
+    if (idx <= 0) return null
+    const head = spec.slice(0, idx)
+    const v = spec.slice(idx + 1).toUpperCase()
+    // Strict decimal index — reject `1e2`, `0x1f`, surrounding whitespace, etc.
+    if (!/^\d+$/.test(head)) return null
+    const n = Number(head)
+    if (n < 1) return null
+    if (v !== 'PASS' && v !== 'WARN' && v !== 'FAIL') return null
+    out.push({ pass: n, verdict: v })
+  }
+  return out
+}
+
 const review = program
   .command('review')
   .description('Review artefacts (plans, code) against governance invariants')
@@ -673,23 +695,83 @@ review
   .description('Review a plan markdown file via a Claude subagent (#235)')
   .option('--dir <dir>', 'Project root (default: current directory)')
   .option('--tier <tier>', 'Review tier: XS, S, or Standard (default: S)')
+  .option(
+    '--emit-prompts <dir>',
+    'Write per-pass reviewer prompts to <dir> and exit (agent-agnostic; no claude). Review them, then `arbiter review submit` (#1329).',
+  )
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((file: string, opts: { dir?: string; tier?: string; json: boolean }) => {
-    const tier: ReviewTier | undefined =
-      opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
-    if (opts.tier !== undefined && tier === undefined) {
-      printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
-      getLogger().error('invalid_tier', { value: opts.tier ?? null })
-      process.exit(1)
-    }
-    const result = runReviewPlan({
-      file,
-      ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
-      ...(tier !== undefined ? { tier } : {}),
-      json: opts.json,
-    })
-    process.exit(result.exitCode)
-  })
+  .action(
+    (file: string, opts: { dir?: string; tier?: string; emitPrompts?: string; json: boolean }) => {
+      const tier: ReviewTier | undefined =
+        opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
+      if (opts.tier !== undefined && tier === undefined) {
+        printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+        getLogger().error('invalid_tier', { value: opts.tier ?? null })
+        process.exit(1)
+      }
+      const result = runReviewPlan({
+        file,
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(tier !== undefined ? { tier } : {}),
+        ...(opts.emitPrompts !== undefined ? { emitPrompts: opts.emitPrompts } : {}),
+        json: opts.json,
+      })
+      process.exit(result.exitCode)
+    },
+  )
+
+review
+  .command('submit <file>')
+  .description(
+    'Record agent-produced plan-review verdicts into the gate evidence (agent-agnostic; pairs with `review plan --emit-prompts`) (#1329)',
+  )
+  .option('--dir <dir>', 'Project root (default: current directory)')
+  .option('--tier <tier>', 'Review tier: XS, S, or Standard (default: from task state)')
+  .requiredOption('--reviewer <id>', 'Identity of the agent/human that performed the review')
+  .option(
+    '--pass <N:VERDICT...>',
+    'Per-pass verdict, e.g. --pass 1:PASS --pass 2:WARN (repeatable). VERDICT ∈ PASS|WARN|FAIL.',
+    (val: string, acc: string[]) => [...acc, val],
+    [] as string[],
+  )
+  .option('--manifest <path>', 'Emit manifest.json to cross-check the plan is unchanged')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(
+    (
+      file: string,
+      opts: {
+        dir?: string
+        tier?: string
+        reviewer: string
+        pass: string[]
+        manifest?: string
+        json: boolean
+      },
+    ) => {
+      const tier: ReviewTier | undefined =
+        opts.tier === 'XS' || opts.tier === 'S' || opts.tier === 'Standard' ? opts.tier : undefined
+      if (opts.tier !== undefined && tier === undefined) {
+        printCliError(`invalid --tier "${opts.tier}". Valid: XS, S, Standard.`)
+        getLogger().error('invalid_tier', { value: opts.tier ?? null })
+        process.exit(1)
+      }
+      const passes = parsePassSpecs(opts.pass)
+      if (passes === null) {
+        printCliError('invalid --pass spec. Use N:VERDICT, e.g. 1:PASS (VERDICT ∈ PASS|WARN|FAIL).')
+        process.exit(2)
+      }
+      const result = runReviewSubmit({
+        file,
+        reviewer: opts.reviewer,
+        passes,
+        ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+        ...(tier !== undefined ? { tier } : {}),
+        ...(opts.manifest !== undefined ? { manifestPath: opts.manifest } : {}),
+        json: opts.json,
+      })
+      process.exit(result.exitCode)
+    },
+  )
 
 review
   .command('code')
