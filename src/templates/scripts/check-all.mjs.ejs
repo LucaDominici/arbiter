@@ -141,6 +141,21 @@ runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs']);
 runCheck('config drift', 'node', ['scripts/check-drift.mjs']);
 runCheck('validator help text', 'node', ['scripts/check-validator-helptext.mjs']);
 <%
+// #1330: subtree frontend lane — a `frontend` lane on a non-frontend-spa archetype
+// (the FE app lives in `frontend/` beside a non-FE primary language). Wired here,
+// OUTSIDE the language guards, because the primary-language branch never gates the FE
+// lane. Gate-on-present (the script SKIPs when the subtree/deps are absent), so it is
+// inert for projects without an actual frontend/ subtree.
+const _isSubtreeFE = typeof archetype !== 'undefined' && archetype !== 'frontend-spa'
+  && Array.isArray(lanes) && lanes.includes('frontend')
+%>
+<% if (_isSubtreeFE) { %>
+// ─── L1: Frontend lane gate (#1330) ──────────────────────────────────────────
+// Runs the frontend/ subtree's own typecheck + unit tests (and build at L2 via
+// the dedicated 18-frontend-lane.yml workflow). Lanes-axis driven, not archetype.
+runCheck('frontend lane', 'node', ['scripts/check-frontend-lane.mjs']);
+<% } %>
+<%
 // #1127: FE-signal matches the generator predicate (archetype OR lane), not just archetype.
 // This ensures multi-lane projects (backend-web-db + frontend lane) also get FE gate steps.
 const _isFE = archetype === 'frontend-spa' || (Array.isArray(lanes) && lanes.includes('frontend'))

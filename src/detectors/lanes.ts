@@ -110,3 +110,26 @@ export function detectLanes(dir: string): LanesResult {
   if (hasDocsLane(dir)) lanes.push('docs')
   return { lanes }
 }
+
+/**
+ * #1330 — true when the project declares a `frontend` SUBTREE lane: a `frontend`
+ * lane on a *defined, non-`frontend-spa`* archetype. This is the polyglot case
+ * where the FE app lives in a `frontend/` subtree beside a primary backend language
+ * (Go/Python/Java/Rust/…) and therefore needs its own per-lane gate + CI workflow.
+ *
+ * The `frontend-spa` archetype is excluded because there the FE app IS the project
+ * (root-level wiring already exists). An `undefined` archetype is excluded to mirror
+ * the `needsFrontendQuality` (github.ts) convention — a project not yet classified
+ * by the wizard does not emit the subtree gate. Used by the check-all and github
+ * generators so the emit/wire/workflow guards stay in lockstep (single source).
+ */
+export function isSubtreeFrontendLane(config: {
+  archetype?: string
+  lanes: readonly string[]
+}): boolean {
+  return (
+    config.archetype !== undefined &&
+    config.archetype !== 'frontend-spa' &&
+    config.lanes.includes('frontend')
+  )
+}
