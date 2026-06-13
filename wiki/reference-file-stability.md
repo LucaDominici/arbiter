@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/file-stability.md'
-source_sha: '3105629b14f38fc0b7c8bc6bebc12d950d65454c'
-last_updated: '2026-06-12'
+source_sha: '0d2bf32fa803c61430d48847116082357cb68490'
+last_updated: '2026-06-13'
 ---
 
 # Generated File Format Stability Map
@@ -75,52 +75,21 @@ Every file arbiter generates has a declared stability status. This determines th
 | User-editable  | Yes — this is the primary user configuration file.                                           |
 | Merge strategy | User edits are never overwritten. New fields may be added by `arbiter update` with defaults. |
 
+### package.json — injected dev-dependencies (#1314)
+
+| Property       | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Default path   | `package.json` (`devDependencies` only)                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Status         | **stable**                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| User-editable  | Yes — arbiter only **adds** a missing tool devDependency, never overwrites an existing one.                                                                                                                                                                                                                                                                                                                                                                       |
+| Merge strategy | Tool gates (jscpd, pact, …) inject a **registry-pinned** version via `injectDevDependency`. arbiter itself is **not** injected — governed projects invoke it via `npx` (option C). Volatile install channels (`file:`/`link:`/`portal:`/local `.tgz`) are **rejected at the choke-point** so a machine-specific reference can never be emitted (the haben AF-003 rot). A registry/pinned-tag arbiter dependency is the future A-flip, deferred to public release. |
+
 ### Hook scripts (.claude/hooks/\*.mjs)
 
 | Property       | Value                                                                                               |
 | -------------- | --------------------------------------------------------------------------------------------------- |
 | Default paths  | `.claude/hooks/*.mjs`                                                                               |
 | Status         | **evolving**                                                                                        |
-| User-editable  | No — arbiter-managed. Customizations should use the extension points in each hook's config section. |
-| Merge strategy | Regenerated on `arbiter update`. Local modifications are overwritten unless versioned via plugin.   |
-
-### CONTRIBUTING.md (arbiter-generated section)
-
-| Property       | Value                                                        |
-| -------------- | ------------------------------------------------------------ |
-| Default path   | `CONTRIBUTING.md`                                            |
-| Status         | **evolving**                                                 |
-| User-editable  | Outside the generated section, yes.                          |
-| Merge strategy | arbiter-managed section regenerated; user section preserved. |
-
----
-
-## Generated-content manifest & fix propagation (#1328, INV-122)
-
-**Issue:** #1328
-
-Many files are emitted with `skipIfExists` — once present, a plain re-run leaves them alone so user
-edits survive. Historically that meant `arbiter update` could **never** deliver an upstream template fix
-to such a file (a validator script, `check-all.mjs`, `.githooks/pre-push`): the stale copy lived forever,
-and `arbiter diff` reported it as `(unchanged)` without comparing content — a parity report that lied.
-
-Arbiter now records a per-file content-hash **manifest** so it can tell the two cases apart:
-
-| File         | Value                                                                                                                                    |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Default path | `.arbiter-generated-manifest.json` (project **root**, sibling of `.arbiter-generated.json`)                                              |
-| Status       | **evolving**                                                                                                                             |
-| Committed?   | **Yes — commit it.** It must travel with the repo or the governed fleet cannot inherit fixes. It is intentionally NOT under `.arbiter/`. |
-| Shape        | `{ "$schemaVersion": 1, "files": { "<posix-relpath>": "<sha256-of-arbiter's-last-render>" } }`                                           |
-
-### Update / diff semantics for `skipIfExists` files
-
-On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` file that already exists:
-
-- **on-disk content == current render** → `skipped` (already up to date).
-- **on-disk hash == the recorded manifest hash** (pristine — unmodified since arbiter generated it) and
-  the template changed → **rewritten** to the new render. The fix propagates. `diff` reports `changed`.
-- **on-disk hash ≠ the recorded manifest hash** (you edited it) → **preserved**, with a warning:
-  `user-modified, template fix NOT applied: <path>
+| User-editable  | No — arbit
 
 *[content truncated — see source for full text]*
