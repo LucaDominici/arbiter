@@ -12,9 +12,10 @@
 // CATALOG: those lint .github/workflows in the repo; this lints a generated tmpdir
 // CATALOG: and additionally resolves scripts/hooks/githooks/settings references.
 //
-// Static lint of an arbiter-generated tree: every script / hook / workflow
-// reference in the emission must resolve to a file that actually exists. Catches
-// "referenced but never emitted" ghosts (the class behind #1318/#1319) in
+// Static lint of an arbiter-generated tree: every script / hook / workflow /
+// command-doc reference in the emission must resolve to a file that actually exists.
+// Catches "referenced but never emitted" ghosts (the class behind #1318/#1319, and
+// the dangling .claude/commands/*.md playbook instruction behind #1346) in
 // milliseconds, no toolchains — affordable across the FULL (language × level ×
 // mode) matrix on every PR (the matrix runner is the integration test).
 //
@@ -188,6 +189,32 @@ function checkWorkflows(dir, problems) {
   }
 }
 
+// #1346 — command-doc playbooks (.claude/commands/*.md) instruct agents to run
+// `node scripts/X.mjs`. An unemitted script there is a DANGLING INSTRUCTION that no
+// other check covered (the class behind ship.md's route-auditors.mjs ghost and the
+// L4-only done-evidence.mjs). Markdown can't existsSync-guard, so a missing ref is a
+// HARD ref — optional-manifest-eligible only (a genuinely config-gated script, e.g.
+// L4-only done-evidence.mjs, must be declared in optional-emissions.json with a
+// rationale). Same `read`/existsSync/manifest plumbing as the other checks.
+function checkCommandDocs(dir, optional, problems) {
+  const cmdDir = join(dir, '.claude/commands')
+  if (!existsSync(cmdDir)) return
+  for (const f of readdirSync(cmdDir)) {
+    if (!f.endsWith('.md')) continue
+    const c = read(dir, `.claude/commands/${f}`)
+    if (c === null) continue
+    const seen = new Set()
+    for (const m of c.matchAll(/node\s+(scripts\/[\w./-]+\.mjs)/g)) {
+      const ref = m[1]
+      if (seen.has(ref)) continue
+      seen.add(ref)
+      if (existsSync(join(dir, ref))) continue
+      if (optional.has(ref)) continue
+      problems.push(`.claude/commands/${f} references missing ${ref}`)
+    }
+  }
+}
+
 function checkSettings(dir, problems) {
   const settings = read(dir, '.claude/settings.json')
   if (settings === null) return
@@ -215,6 +242,7 @@ export function checkEmissionCoherence(dir) {
   checkGithooks(dir, optional, problems)
   checkWorkflows(dir, problems)
   checkSettings(dir, problems)
+  checkCommandDocs(dir, optional, problems)
   return { problems: [...new Set(problems)].sort() }
 }
 

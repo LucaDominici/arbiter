@@ -172,9 +172,19 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).toMatch(/PASS.*FAIL.*NOT.?TESTED|acceptance.?criteri/i)
   })
 
-  it('complete section runs done-evidence.mjs', () => {
-    const content = renderShip()
-    expect(content).toContain('done-evidence.mjs')
+  it('complete section runs done-evidence.mjs ONLY at L4 (#1346: script is L4-only emission)', () => {
+    // L2 (default): the script is not emitted, so the instruction must be absent
+    // (a dangling-instruction class — emission-coherence gate enforces this).
+    expect(renderShip('typescript', 'L2')).not.toContain('done-evidence.mjs')
+    expect(renderShip('typescript', 'L3')).not.toContain('done-evidence.mjs')
+    // L4: evidence-retention.ts emits the script, so the instruction appears.
+    expect(renderShip('typescript', 'L4')).toContain('node scripts/done-evidence.mjs')
+  })
+
+  it('phase-map no longer instructs the self-only route-auditors.mjs (#1346)', () => {
+    for (const level of ['L1', 'L2', 'L3', 'L4'] as GovernanceLevel[]) {
+      expect(renderShip('typescript', level)).not.toContain('route-auditors.mjs')
+    }
   })
 
   it('complete section closes the issue (gh issue close or arbiter work close)', () => {

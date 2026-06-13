@@ -231,4 +231,51 @@ describe('checkEmissionCoherence (#1331)', () => {
       cleanup()
     }
   })
+
+  // #1346 — command-doc playbooks (.claude/commands/*.md) also instruct agents to run
+  // node scripts/*.mjs; an unemitted script there is a dangling instruction fleet-wide
+  // (the class behind ship.md's route-auditors.mjs / L4-only done-evidence.mjs ghosts).
+  it('FAILs on a .claude/commands/*.md that instructs a missing node scripts/*.mjs (#1346)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      '.claude/commands/ship.md':
+        '## Phase\n\n```bash\nnode scripts/route-auditors.mjs --size-floor S\n```\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('route-auditors.mjs'))).toBe(true)
+      expect(problems.some((p) => p.includes('ship.md'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSes a .claude/commands/*.md whose node scripts/*.mjs ref IS emitted (#1346)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      '.claude/commands/task.md': '## Gate\n\n```bash\nnode scripts/check-all.mjs L1\n```\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('a command-doc node scripts ref declared optional in the manifest PASSes (#1346)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'scripts/optional-emissions.json': JSON.stringify({
+        optional: [{ path: 'scripts/done-evidence.mjs', rationale: 'L4-only emission' }],
+      }),
+      '.claude/commands/ship.md': '## Complete\n\n```bash\nnode scripts/done-evidence.mjs\n```\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
 })

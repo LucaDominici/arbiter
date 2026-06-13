@@ -129,9 +129,9 @@ describe('claude commands — ship.md governance level L2', () => {
     expect(content).toMatch(/wt-open/)
   })
 
-  it('includes done-evidence cleanup', () => {
+  it('does NOT instruct done-evidence cleanup (#1346: L4-only emission)', () => {
     const content = renderShipForLevel('L2')
-    expect(content).toContain('done-evidence.mjs')
+    expect(content).not.toContain('done-evidence.mjs')
   })
 
   it('does NOT contain verification criteria (L3 only)', () => {
@@ -156,5 +156,15 @@ describe('claude commands — ship.md governance level L3', () => {
     expect(content).toMatch(/agents-dispatched/)
     expect(content).toMatch(/wt-open/)
     expect(content).toContain('arbiter task init')
+  })
+
+  it('does NOT instruct done-evidence cleanup (#1346: L4-only emission)', () => {
+    expect(renderShipForLevel('L3')).not.toContain('done-evidence.mjs')
+  })
+})
+
+describe('claude commands — ship.md governance level L4', () => {
+  it('instructs done-evidence cleanup (#1346: script emitted at L4)', () => {
+    expect(renderShipForLevel('L4')).toContain('node scripts/done-evidence.mjs')
   })
 })
