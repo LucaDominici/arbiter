@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1346",
+  "test_path": "__tests__/scripts/check-emission-coherence.test.ts",
+  "test_commit_sha": "cbb940f93bcbb866a2d3ad06170116edda25491f",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1346-w\n\n ❯ __tests__/scripts/check-emission-coherence.test.ts (18 tests | 1 failed) 21ms\n     × FAILs on a .claude/commands/*.md that instructs a missing node scripts/*.mjs (#1346) 4ms\n\n Test Files  1 failed (1)\n      Tests  1 failed | 17 passed (18)\n   Start at  15:30:15\n   Duration  188ms (transform 38ms, setup 16ms, import 35ms, tests 21ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/scripts/check-emission-coherence.test.ts > checkEmissionCoherence (#1331) > FAILs on a .claude/commands/*.md that instructs a missing node scripts/*.mjs (#1346)\nAssertionError: expected false to be true // Object.is equality\n\n- Expected\n+ Received\n\n- true\n+ false\n\n ❯ __tests__/scripts/check-emission-coherence.test.ts:245:70\n    243|     try {\n    244|       const { problems } = checkEmissionCoherence(dir)\n    245|       expect(problems.some((p) => p.includes('route-auditors.mjs'))).t…\n       |                                                                      ^\n    246|       expect(problems.some((p) => p.includes('ship.md'))).toBe(true)\n    247|     } finally {\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-emission-coherence.test.ts",
+  "recorded_at": "2026-06-13T13:30:15.297Z"
+}
