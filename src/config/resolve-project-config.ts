@@ -11,7 +11,7 @@
 //   - Decision: EXTRACT the canonical (update) builder here and have BOTH `diff`
 //     and `update` consume it, so they construct field-identical configs by
 //     construction. This is a move/refactor, not green-field.
-import { detectLanguage } from '../detectors/language.js'
+import { resolveLanguage } from '../detectors/language.js'
 import { detectBuildCommands } from '../detectors/build.js'
 import { detectFramework } from '../detectors/framework.js'
 import { detectGitInfo } from '../detectors/git.js'
@@ -28,7 +28,7 @@ import type { ArbiterConfigV2 } from '../utils/config.js'
 export interface DetectorFields {
   targetDir: string
   projectName: string
-  language: ReturnType<typeof detectLanguage>
+  language: ReturnType<typeof resolveLanguage>
   framework: string | null
   buildTool: string
   buildCommand: string
@@ -149,7 +149,10 @@ export function resolveProjectConfig(
   stored: ArbiterConfigV2,
   useGitHubBackend = false,
 ): { config: ProjectConfig; detectorFields: DetectorFields } {
-  const language = detectLanguage(targetDir)
+  // #1343: prefer the stored arbiter.json `language` (while still corroborated on
+  // disk) over raw filesystem detection, so a Go-primary repo with a frontend-lane
+  // package.json resolves `go`, not the package.json-shadowed `typescript`.
+  const language = resolveLanguage(targetDir, stored)
   const framework = detectFramework(targetDir, language)
   const buildCmds = detectBuildCommands(targetDir, language)
   const gitInfo = detectGitInfo(targetDir)
