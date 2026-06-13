@@ -201,6 +201,15 @@ Because the manifest is committed and its entries are `path → sha256` content 
 generated `.gitleaks.toml` therefore path-allowlists `.arbiter-generated-manifest.json` (the values
 are hashes, never secrets). Do not git-ignore the manifest — it is fleet provenance and must be committed.
 
+### Format-before-write (#1349)
+
+For the few files arbiter formats to the target's prettier style (`.codex/codex-adapter.mjs`, the
+TypeScript BDD files), the generator formats the content **in-memory before** `writeFile` records the
+render hash (`formatContent` via `prettier --stdin-filepath`), rather than rewriting the file on disk
+afterwards. This keeps `manifest[key] === sha256(disk)` by construction — a post-write reformat would
+otherwise desync the baseline and surface the file as a false-positive withheld fix, making `update`
+non-idempotent.
+
 ---
 
 ## CI Gate

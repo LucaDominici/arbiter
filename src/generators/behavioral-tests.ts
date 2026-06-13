@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
-import { prettierFormat } from '../utils/prettier-format.js'
+import { formatContent } from '../utils/prettier-format.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -41,15 +41,28 @@ function emitJavaBdd(
 }
 
 function emitTypeScriptBdd(base: string, data: object, dryRun: boolean): WriteResult[] {
+  // Format TS content to the target's prettier style BEFORE writing (#933 F13) so
+  // the recorded render hash matches the on-disk bytes (#1349 — no post-write
+  // reformat that would desync the generated-manifest). The .feature file is not TS.
+  const behPath = resolvedPath(base, 'src', 'test', 'example.behavioral.test.ts')
+  const stepsPath = resolvedPath(base, 'features', 'step_definitions', 'example.steps.ts')
   return [
     writeFile(
-      resolvedPath(base, 'src', 'test', 'example.behavioral.test.ts'),
-      renderTemplate('behavioral-tests/example.behavioral.test.ts.ejs', data),
+      behPath,
+      formatContent(
+        renderTemplate('behavioral-tests/example.behavioral.test.ts.ejs', data),
+        behPath,
+        base,
+      ),
       { skipIfExists: true, dryRun },
     ),
     writeFile(
-      resolvedPath(base, 'features', 'step_definitions', 'example.steps.ts'),
-      renderTemplate('behavioral-tests/bdd/example.steps.ts.ejs', data),
+      stepsPath,
+      formatContent(
+        renderTemplate('behavioral-tests/bdd/example.steps.ts.ejs', data),
+        stepsPath,
+        base,
+      ),
       { skipIfExists: true, dryRun },
     ),
     writeFile(
@@ -120,16 +133,6 @@ function emitPythonBdd(base: string, data: object, dryRun: boolean): WriteResult
   ]
 }
 
-// Post-emit format: apply target's prettier config so generated TS/JS files
-// conform to the target project's style, not arbiter's internal style (#933 F13).
-function formatWrittenTsFiles(results: WriteResult[], base: string): void {
-  for (const r of results) {
-    if (r.action !== 'skipped' && r.action !== 'dry-run' && /\.(ts|js|mjs)$/.test(r.path)) {
-      prettierFormat(r.path, base)
-    }
-  }
-}
-
 export function generateBehavioralTests(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -141,9 +144,7 @@ export function generateBehavioralTests(
   if (config.language === 'java' || config.language === 'multi')
     results.push(...emitJavaBdd(base, data, config, opts.dryRun))
   if (config.language === 'typescript' || config.language === 'multi') {
-    const tsResults = emitTypeScriptBdd(base, data, opts.dryRun)
-    results.push(...tsResults)
-    formatWrittenTsFiles(tsResults, base)
+    results.push(...emitTypeScriptBdd(base, data, opts.dryRun))
   }
   if (config.language === 'rust') results.push(...emitRustBdd(base, data, opts.dryRun))
   if (config.language === 'go') results.push(...emitGoBdd(base, data, opts.dryRun))

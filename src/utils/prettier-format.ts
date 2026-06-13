@@ -23,20 +23,14 @@ function resolveOwnPrettierBin(): string | null {
   }
 }
 
-/**
- * Run `prettier --write` on `filePath` using the target project's `.prettierrc`
- * (or `.prettierrc.json`) config. Best-effort: warns on failure but never throws.
- *
- * Prefers arbiter's own bundled prettier (deterministic — a fresh target scaffold
- * has no node_modules yet, and `npx` resolution from the target dir silently depends
- * on the npx cache matching the registry's latest version). Falls back to the
- * target's own prettier via `npx --no-install`, and skips silently when neither
- * is available.
- *
- * Called after emitting static template files that use arbiter's internal code style
- * (single-quotes, no-semicolons) when the target project may have different style settings.
- */
-export function prettierFormat(filePath: string, targetDir: string): void {
+// Resolve the prettier invocation (binary + base args + config args) for targetDir.
+// Prefers arbiter's own bundled prettier (deterministic — a fresh target scaffold has
+// no node_modules yet); falls back to the target's prettier via `npx --no-install`.
+function resolvePrettierInvocation(targetDir: string): {
+  cmd: string
+  baseArgs: string[]
+  configArgs: string[]
+} {
   const prettierRc = join(targetDir, '.prettierrc')
   const prettierRcJson = join(targetDir, '.prettierrc.json')
   const configFile = existsSync(prettierRc)
@@ -49,18 +43,37 @@ export function prettierFormat(filePath: string, targetDir: string): void {
   const [cmd, baseArgs]: [string, string[]] = ownBin
     ? ['node', [ownBin]]
     : ['npx', ['--no-install', 'prettier']]
+  return { cmd, baseArgs, configArgs }
+}
+
+/**
+ * Format `content` IN-MEMORY (via `prettier --stdin-filepath`) and return the
+ * formatted string. Unlike a post-write `prettier --write` (which rewrites the file
+ * on disk AFTER its render hash was recorded — desyncing the generated-manifest,
+ * #1349), this lets a generator format BEFORE `writeFile`, so the recorded hash
+ * matches the bytes that land on disk by construction.
+ *
+ * Best-effort: returns the original `content` unchanged when prettier is absent or
+ * the format fails (e.g. a non-prettier file type), so callers never break.
+ */
+export function formatContent(content: string, filePath: string, targetDir: string): string {
+  const { cmd, baseArgs, configArgs } = resolvePrettierInvocation(targetDir)
   try {
-    runCli(cmd, [...baseArgs, '--write', ...configArgs, filePath], {
+    const { stdout } = runCli(cmd, [...baseArgs, '--stdin-filepath', filePath, ...configArgs], {
       cwd: targetDir,
       timeoutMs: 30_000,
+      input: content,
     })
+    return stdout
   } catch (err) {
     const notFound = err instanceof CliError && err.notFound
-    if (notFound) return // prettier not installed in target — silently skip
-    getLogger().warn(
-      'prettier_format.failed',
-      { filePath, err: String(err) },
-      'prettierFormat: prettier --write failed (best-effort, continuing)',
-    )
+    if (!notFound) {
+      getLogger().warn(
+        'prettier_format.failed',
+        { filePath, err: String(err) },
+        'formatContent: prettier --stdin-filepath failed (best-effort, returning unformatted)',
+      )
+    }
+    return content
   }
 }

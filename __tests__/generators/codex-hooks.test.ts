@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse as parseToml } from 'smol-toml'
 import { generateCodexHooks } from '../../src/generators/codex-hooks.js'
+import { formatContent } from '../../src/utils/prettier-format.js'
 import { makeConfig } from '../helpers.js'
 
 describe('generateCodexHooks', () => {
@@ -22,6 +23,16 @@ describe('generateCodexHooks', () => {
     const paths = result.files.map((f) => f.path)
     expect(paths.some((p) => p.endsWith('config.toml'))).toBe(true)
     expect(paths.some((p) => p.endsWith('codex-adapter.mjs'))).toBe(true)
+  })
+
+  it('codex-adapter.mjs is written pre-formatted so manifest matches disk (#1349)', () => {
+    generateCodexHooks(makeConfig(dir))
+    const path = join(dir, '.codex', 'codex-adapter.mjs')
+    const written = readFileSync(path, 'utf-8')
+    // Re-formatting the written bytes is a no-op ⇒ the file was formatted BEFORE
+    // writeFile recorded its render hash, so there is no post-write reformat to
+    // desync the generated-manifest (no false-positive "withheld" on next diff).
+    expect(formatContent(written, path, dir)).toBe(written)
   })
 
   it('config.toml is syntactically valid TOML', () => {
