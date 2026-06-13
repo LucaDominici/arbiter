@@ -11,6 +11,7 @@ import {
   resolveDefaultBranchingStrategy,
 } from '../config/collaboration-mode-defaults.js'
 import type { BranchingStrategy } from '../wizard/types.js'
+import { isSubtreeFrontendLane } from '../detectors/lanes.js'
 
 export interface GithubGeneratorResult {
   files: WriteResult[]
@@ -67,13 +68,26 @@ import type { Archetype } from '../wizard/types.js'
 
 const WEB_ARCHETYPES = new Set<Archetype>(['frontend-spa'])
 
+// #1330 — collaboration-mode literals, hoisted to constants to keep the gating
+// predicates duplication-free (sonarjs no-duplicate-string).
+const PEER_REVIEW = 'peer-review'
+const GATED_REVIEW = 'gated-review'
+
 // CodeQL: peer-review L2+ or gated-review (any level); Rust excluded (no native CodeQL support)
 function needsCodeql(
   cm: string | undefined,
   isL2Plus: boolean,
   language: string | undefined,
 ): boolean {
-  return ((cm === 'peer-review' && isL2Plus) || cm === 'gated-review') && language !== 'rust'
+  return ((cm === PEER_REVIEW && isL2Plus) || cm === GATED_REVIEW) && language !== 'rust'
+}
+
+// #1330 — review-based collaboration modes that receive path-scoped FE CI workflows
+// (peer-review / gated-review; trunk-solo gates the FE lane via check-all instead).
+// Extracted as a single predicate so the FE-quality and FE-lane gating share one
+// source for the review-mode condition (CANON-22, sonarjs no-duplicate-string).
+function isReviewMode(cm: string | undefined): boolean {
+  return cm === PEER_REVIEW || cm === GATED_REVIEW
 }
 
 // Frontend quality: review modes (peer/gated), web archetype, L2+
@@ -82,12 +96,21 @@ function needsFrontendQuality(
   isL2Plus: boolean,
   archetype: Archetype | undefined,
 ): boolean {
-  return (
-    (cm === 'peer-review' || cm === 'gated-review') &&
-    isL2Plus &&
-    archetype !== undefined &&
-    WEB_ARCHETYPES.has(archetype)
-  )
+  return isReviewMode(cm) && isL2Plus && archetype !== undefined && WEB_ARCHETYPES.has(archetype)
+}
+
+// #1330 — per-lane frontend gate workflow: review modes (peer/gated), L2+, and a
+// SUBTREE frontend lane (a `frontend` lane on a non-frontend-spa archetype — the FE
+// app lives in `frontend/` beside the primary language). Distinct from
+// needsFrontendQuality, which targets the root-level frontend-spa app. Trunk-solo
+// repos still gate the FE lane via check-all.mjs (gate-full CI job) — this dedicated
+// path-scoped workflow is the peer/gated-review complement.
+function needsFrontendLane(
+  config: ProjectConfig,
+  cm: string | undefined,
+  isL2Plus: boolean,
+): boolean {
+  return isReviewMode(cm) && isL2Plus && isSubtreeFrontendLane(config)
 }
 
 function generateCiGapWorkflows(
@@ -131,8 +154,18 @@ function generateCiGapWorkflows(
       ),
     )
 
+  // #1330 — per-lane frontend gate for a `frontend/` subtree lane (non-frontend-spa).
+  if (needsFrontendLane(config, cm, isL2Plus))
+    files.push(
+      writeFile(
+        join(workflowsDir, '18-frontend-lane.yml'),
+        renderTemplate('github/workflows/18-frontend-lane.yml.ejs', config),
+        { dryRun },
+      ),
+    )
+
   // OSSF Scorecard: gated-review L3+
-  if (cm === 'gated-review' && isL3Plus)
+  if (cm === GATED_REVIEW && isL3Plus)
     files.push(
       writeFile(
         join(workflowsDir, '17-ossf-scorecard.yml'),

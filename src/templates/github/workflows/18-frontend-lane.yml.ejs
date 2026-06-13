@@ -1,0 +1,49 @@
+<%
+const _cm = (typeof collaborationMode !== 'undefined' ? collaborationMode : 'peer-review');
+const _runner = (_cm === 'gated-review' && (governanceLevel === 'L3' || governanceLevel === 'L4'))
+  ? "${{ vars.CI_BUILD_RUNNER_LABEL || 'docker-ci-build' }}"
+  : "${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}";
+%>name: Frontend Lane Gate (T1)
+
+# #1330 — per-lane frontend gate for a `frontend/` SUBTREE in a polyglot repo.
+# Runs the FE lane's own typecheck/test/build (the primary-language CI gate covers
+# only the backend). Path-scoped so it fires only on frontend/ subtree changes.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'scripts/check-frontend-lane.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'scripts/check-frontend-lane.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-lane-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-lane:
+    name: Frontend lane gate (typecheck, test, build)
+    runs-on: <%- _runner %>
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend subtree deps
+        run: npm ci --prefix frontend
+
+      - name: Run frontend lane gate (full)
+        run: node scripts/check-frontend-lane.mjs full

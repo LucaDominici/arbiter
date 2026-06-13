@@ -86,3 +86,15 @@ Requires `pull-requests: write` permission (declared at job level, not workflow 
 - `--stdin` flag: read newline-delimited paths instead of `git diff`, for unit testing.
 
 Downstream consumer (`01-pr-fast.yml`) still references only the original 5 outputs. Wiring `e2e_specs`/`ssot` into job conditions is intentionally deferred to a follow-up.
+
+## Follow-up — 2026-06 (#1330): per-lane frontend gate
+
+Lanes were detected and stored but the generated gate (`check-all.mjs`) and CI workflows gated only the **primary language**. A `frontend` lane on a non-frontend-spa archetype (the FE app living in a `frontend/` subtree beside a Go/Python/Java/Rust backend) received **zero** FE gating — its typecheck/test/build never ran in any generated gate. (Dogfooding found this in a Go-primary repo that had to hand-write a `check-frontend.mjs` + a frontend CI workflow outside the generated tree to avoid `arbiter update` drift.)
+
+Closure:
+
+- New emitted gate **`scripts/check-frontend-lane.mjs`** (template `scripts/check-frontend-lane.mjs.ejs`): runs the `frontend/` subtree's own `tsc --noEmit` + `vitest run` (and `npm run build` in `full` mode), each step **gate-on-present** — a missing `frontend/package.json` or un-installed `frontend/node_modules` SKIPs cleanly (exit 0) rather than false-failing a partial setup; a present step that genuinely fails is a HARD failure.
+- Wired into `check-all.mjs` at L1 **outside** the primary-language branch (the bug was that the FE blocks were nested inside `language === 'typescript'`), gated on the subtree predicate.
+- New emitted CI workflow **`18-frontend-lane.yml`** (template `18-frontend-lane.yml.ejs`): path-scoped to `frontend/**`, installs subtree deps (`npm ci --prefix frontend`), runs the lane gate in `full` mode. Emitted for peer/gated-review at L2+.
+- Single predicate **`isSubtreeFrontendLane(config)`** (`src/detectors/lanes.ts`): `archetype` defined AND `!== 'frontend-spa'` AND `lanes` includes `frontend`. Used by both the `check-all` and `github` generators so emit/wire/workflow guards stay in lockstep. The `archetype !== undefined` guard mirrors `needsFrontendQuality`. The `frontend-spa` archetype keeps its existing root-level wiring (`16-frontend-quality.yml`, root `_isFE` blocks) — this gate is the polyglot **subtree** complement, lanes-axis driven not archetype-driven.
+- Trunk-solo repos gate the FE lane via the `check-all.mjs` `gate-full` CI job (the dedicated path-scoped workflow is the peer/gated-review complement), so the FE lane is gated in both collaboration modes.

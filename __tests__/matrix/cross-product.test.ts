@@ -1433,6 +1433,13 @@ describe('cross-product: workflow templates — SHA-pinned action refs (INV-76, 
       lang: 'java',
       expectRefs: true,
     },
+    // #1330 — per-lane frontend gate workflow (subtree frontend lane).
+    {
+      tpl: 'github/workflows/18-frontend-lane.yml.ejs',
+      level: 'L2',
+      lang: 'go',
+      expectRefs: true,
+    },
   ]
 
   for (const { tpl, level, lang = 'typescript', expectRefs = false } of TEMPLATES_REQUIRING_SHA) {
@@ -1451,7 +1458,7 @@ describe('cross-product: workflow templates — SHA-pinned action refs (INV-76, 
 // ── #1076 Sub-2: Top-level permissions block (INV-77) ────────────────────────
 
 describe('cross-product: workflow templates — top-level permissions block (INV-77, #1076)', () => {
-  // All 26 *.yml.ejs templates must render with a top-level permissions: block.
+  // These 26 enumerated *.yml.ejs templates must render with a top-level permissions: block.
   // This ratchet prevents future template edits from accidentally removing permissions.
   const ALL_WORKFLOW_TEMPLATES: Array<{ tpl: string; level: GovernanceLevel; lang?: string }> = [
     { tpl: 'github/workflows/01-pr-fast.yml.ejs', level: 'L2' },
@@ -1479,6 +1486,8 @@ describe('cross-product: workflow templates — top-level permissions block (INV
     { tpl: 'github/workflows/_post-merge-notify.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/_pr-staleness.yml.ejs', level: 'L2' },
     { tpl: 'github/workflows/_sigstore-retry-sign.yml.ejs', level: 'L2' },
+    // #1330 — per-lane frontend gate workflow (subtree frontend lane).
+    { tpl: 'github/workflows/18-frontend-lane.yml.ejs', level: 'L2', lang: 'go' },
   ]
 
   for (const { tpl, level, lang = 'typescript' } of ALL_WORKFLOW_TEMPLATES) {

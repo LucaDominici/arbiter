@@ -2,6 +2,7 @@
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { computeThresholds } from '../config/thresholds.js'
+import { isSubtreeFrontendLane } from '../detectors/lanes.js'
 import type { Archetype, ProjectConfig } from '../wizard/types.js'
 import type { WriteResult } from '../utils/fs.js'
 
@@ -170,13 +171,35 @@ export function generateCheckAll(
     )
   }
 
-  // #1127 (INV-102/103/104, CANON-01, CANON-09): FE boundary purity gate.
-  // Emitted for frontend-spa archetype or projects with a 'frontend' lane.
-  // Checks: API-layer isolation (INV-102), headless domain (INV-103),
-  // state-mgmt discipline (INV-104). L2+ only (matches governance level).
+  // #1127 / #1330: frontend gate scripts (boundary purity + per-lane subtree gate).
+  results.push(...emitFrontendChecks(base, config, data, opts))
+
+  return { files: results }
+}
+
+/**
+ * #1127 + #1330 — frontend gate-script emissions, extracted to keep generateCheckAll
+ * under the complexity/line ceiling (CANON-22).
+ *
+ *  - #1127 (INV-102/103/104, CANON-09): FE boundary purity gate
+ *    (`check-fe-boundaries.mjs`). Emitted for the frontend-spa archetype OR any
+ *    project with a 'frontend' lane, L2+ only.
+ *  - #1330 (CANON-11): per-lane frontend SUBTREE gate (`check-frontend-lane.mjs`).
+ *    A `frontend` lane on a *non-frontend-spa* archetype means the FE app lives in a
+ *    `frontend/` subtree beside the primary language; the primary-language gate never
+ *    runs the FE lane's typecheck/test/build, so emit a dedicated gate-on-present
+ *    runner. The frontend-spa archetype keeps its root-level wiring (no subtree emit).
+ */
+function emitFrontendChecks(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  const out: WriteResult[] = []
   const isFrontend = config.archetype === 'frontend-spa' || config.lanes.includes('frontend')
   if (isFrontend && config.governanceLevel !== 'L1') {
-    results.push(
+    out.push(
       writeFile(
         resolvedPath(base, 'scripts', 'check-fe-boundaries.mjs'),
         renderTemplate('scripts/check-fe-boundaries.mjs.ejs', data),
@@ -184,6 +207,14 @@ export function generateCheckAll(
       ),
     )
   }
-
-  return { files: results }
+  if (isSubtreeFrontendLane(config)) {
+    out.push(
+      writeFile(
+        resolvedPath(base, 'scripts', 'check-frontend-lane.mjs'),
+        renderTemplate('scripts/check-frontend-lane.mjs.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+  return out
 }
