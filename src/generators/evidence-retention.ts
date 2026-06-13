@@ -48,8 +48,15 @@ export function generateEvidenceRetention(
     ),
   ]
 
-  // L4 only: emit done-evidence CLI + per-archetype pin config (ADR-037)
-  if (config.governanceLevel === 'L4') {
+  // #1345: emit done-evidence CLI + per-archetype pin config whenever the evidence
+  // harness is enabled — NOT L4-only. ADR-037 specifies these artifacts "at L2+"; the
+  // harness flag (enableEvidenceHarness) is the single source of truth the whole system
+  // keys on (registry.ts gate, guard-done-evidence hook, Makefile evidence: target, ship
+  // complete phase). The old `governanceLevel === 'L4'` gate left the producer missing at
+  // L1/L2/L3 while every consumer referenced it unconditionally → dangling reference.
+  // The registry already gates this generator on the same flag (registry.ts:467); this
+  // internal guard is defense-in-depth for direct (non-registry) callers.
+  if (config.enableEvidenceHarness !== false) {
     files.push(
       writeFile(
         resolvedPath(base, 'scripts', 'done-evidence.mjs'),

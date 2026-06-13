@@ -45,6 +45,23 @@ describe('generateLocalWrapper (#879, W3)', () => {
     expect(content).toMatch(/^ci:\s*gate/m)
   })
 
+  // #1345: the evidence: target invokes scripts/done-evidence.mjs, which is only emitted
+  // when enableEvidenceHarness !== false. The target must be suppressed when the harness
+  // is off, or the Makefile carries a dangling reference (emission-coherence FAIL).
+  it('emits evidence: target when evidence harness is enabled (default)', () => {
+    generateLocalWrapper(makeConfig(dir))
+    const content = readFileSync(join(dir, 'Makefile'), 'utf-8')
+    expect(content).toMatch(/^evidence:/m)
+    expect(content).toContain('node scripts/done-evidence.mjs')
+  })
+
+  it('suppresses evidence: target (no done-evidence ref) when harness disabled (#1345)', () => {
+    generateLocalWrapper(makeConfig(dir, { enableEvidenceHarness: false }))
+    const content = readFileSync(join(dir, 'Makefile'), 'utf-8')
+    expect(content).not.toContain('node scripts/done-evidence.mjs')
+    expect(content).not.toMatch(/^evidence:/m)
+  })
+
   it('emits run.sh', () => {
     generateLocalWrapper(makeConfig(dir))
     expect(existsSync(join(dir, 'run.sh'))).toBe(true)

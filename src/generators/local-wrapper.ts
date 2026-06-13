@@ -15,7 +15,14 @@ export function generateLocalWrapper(
 ): LocalWrapperGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = { projectName: config.projectName }
+  // #1345: thread enableEvidenceHarness so Makefile.ejs can conditionally emit the
+  // `evidence:` target (which invokes scripts/done-evidence.mjs, itself only emitted when
+  // the harness is on). Resolved to a boolean here so the template guard actually
+  // suppresses (rather than being always-true on an absent local).
+  const data = {
+    projectName: config.projectName,
+    enableEvidenceHarness: config.enableEvidenceHarness !== false,
+  }
 
   const makefilePath = resolvedPath(base, 'Makefile')
   results.push(

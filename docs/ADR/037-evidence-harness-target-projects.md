@@ -105,9 +105,24 @@ single-responsibility and allows independent empirical testing (INV-36 + INV-38)
 
 ---
 
+## Amendment (#1345)
+
+The three artifacts are keyed on the **`enableEvidenceHarness` flag** (the single gate the
+generator, the `guard-done-evidence` hook, the `Makefile evidence:` target, and the ship
+`complete` phase all share) rather than on a raw `governanceLevel === 'L4'` literal. The
+earlier L4-only emission of `done-evidence.mjs` (in `evidence-retention.ts`) left the
+producer missing at L1/L2/L3 while its consumers referenced it unconditionally — a dangling
+reference that broke `make evidence` and ship `complete` on every non-L4 project. The
+Makefile `evidence:` target and the ship.md `done-evidence.mjs` reference are now guarded on
+the same flag, so the producer exists **iff** a consumer references it. The
+emission-coherence gate (INV-123) was extended to scan `Makefile` recipes and
+`.claude/commands/*.md` invocations — the blind spot that let this ghost (and a sibling
+`route-auditors.mjs` ghost in the generated `ship.md`) escape #1331.
+
 ## Related
 
 - ADR-034: Phase-lifecycle hard enforcement (#406)
 - ADR-032: Hook hardness manifest (#410)
 - INV-38: Phase-tracked lifecycle enforcement (extended by this ADR)
+- INV-123: Emission coherence — extended to Makefile + commands (#1345)
 - #407: Implementation issue

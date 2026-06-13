@@ -2044,14 +2044,17 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
     description:
       'A generated tree must contain every file it references. Every scripts/*.mjs invoked by ' +
       'check-all.mjs, every handler registered in .claude/hooks/hooks.mjs, every node script run by ' +
-      'a .githook or a workflow, and every command in .claude/settings.json must resolve to an emitted ' +
-      'file. An UNGUARDED-missing reference is a crash-class ghost and ALWAYS fails. A GUARDED-missing ' +
+      'a .githook or a workflow, every command in .claude/settings.json, every Makefile recipe ' +
+      'invocation (node scripts/*.mjs), and every .claude/commands/*.md invocation (#1345) must ' +
+      'resolve to an emitted file. An UNGUARDED-missing reference is a crash-class ghost and ALWAYS ' +
+      'fails. A GUARDED-missing ' +
       'reference (behind an existsSync()/shell [ -f ] guard — a legitimately-optional industry or ' +
       'frontend overlay script) fails UNLESS it is declared in scripts/optional-emissions.json with a ' +
       'non-empty rationale; the manifest can never silence an unguarded reference (strictly weaker than ' +
       'a suppression). Workflows must additionally SHA-pin every uses: ref (local ./ and docker:// ' +
       'excepted) and name every top-level job. Caught the fleet-wide ci-classify-changes / ' +
-      'exitplanmode-banner / build-kit ghosts (#1331).',
+      'exitplanmode-banner / build-kit ghosts (#1331) and the done-evidence.mjs / route-auditors.mjs ' +
+      'Makefile+command ghosts (#1345).',
     enforcement:
       'scripts/check-emission-coherence.mjs (pure checkEmissionCoherence(dir)) — wired into arbiter’s ' +
       'own check-all.mjs self-gate against the repo tree, and run across the FULL (language × level × ' +

@@ -3,7 +3,8 @@
 // arbiter — emission-coherence gate (INV-123, #1331)
 //
 // CATALOG: cross-reference coherence of an arbitrary GENERATED tree — every
-// CATALOG: script/hook/workflow/settings reference must resolve to an emitted file.
+// CATALOG: script/hook/workflow/settings/Makefile/command reference must resolve to an
+// CATALOG: emitted file (Makefile recipes + .claude/commands/*.md added in #1345).
 // CATALOG: rejected fold-in into check-self-dogfood.mjs — that checks template-vs-
 // CATALOG: materialized BYTE-DRIFT of arbiter's OWN checked-in tree; this checks
 // CATALOG: reference EXISTENCE across the full matrix in a tmpdir (different input
@@ -188,6 +189,48 @@ function checkWorkflows(dir, problems) {
   }
 }
 
+// #1345: Makefile recipe invocations of `node scripts/X.mjs`. A Makefile recipe has no
+// existsSync mechanism; a POSIX file/exec test (`[ -f X ]` / `[ -x X ]`) in the same recipe
+// counts as a shell guard (manifest-eligible, like a githook). Any other missing ref is
+// unguarded → ALWAYS FAIL (the done-evidence.mjs ghost class behind this issue).
+function checkMakefile(dir, optional, problems) {
+  const c = read(dir, 'Makefile')
+  if (c === null) return
+  for (const m of c.matchAll(/node\s+(scripts\/[\w./-]+\.mjs)/g)) {
+    const ref = m[1]
+    if (existsSync(join(dir, ref))) continue
+    if (isShellGuarded(c, ref)) {
+      if (!optional.has(ref)) {
+        problems.push(
+          `Makefile guards missing ${ref} but it is not declared in optional-emissions.json`,
+        )
+      }
+      continue
+    }
+    problems.push(`Makefile invokes missing ${ref}`)
+  }
+}
+
+// #1345: .claude/commands/*.md invocations of `node scripts/X.mjs` (fenced or inline).
+// Markdown has no guard mechanism, so any missing reference is unguarded → ALWAYS FAIL.
+function checkCommands(dir, problems) {
+  const cmdDir = join(dir, '.claude/commands')
+  if (!existsSync(cmdDir)) return
+  for (const f of readdirSync(cmdDir)) {
+    if (!f.endsWith('.md')) continue
+    const c = read(dir, `.claude/commands/${f}`)
+    if (c === null) continue
+    const seen = new Set()
+    for (const m of c.matchAll(/node\s+(scripts\/[\w./-]+\.mjs)/g)) {
+      const ref = m[1]
+      if (seen.has(ref)) continue
+      seen.add(ref)
+      if (existsSync(join(dir, ref))) continue
+      problems.push(`.claude/commands/${f} invokes missing ${ref}`)
+    }
+  }
+}
+
 function checkSettings(dir, problems) {
   const settings = read(dir, '.claude/settings.json')
   if (settings === null) return
@@ -215,6 +258,8 @@ export function checkEmissionCoherence(dir) {
   checkGithooks(dir, optional, problems)
   checkWorkflows(dir, problems)
   checkSettings(dir, problems)
+  checkMakefile(dir, optional, problems)
+  checkCommands(dir, problems)
   return { problems: [...new Set(problems)].sort() }
 }
 

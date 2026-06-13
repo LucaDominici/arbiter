@@ -231,4 +231,76 @@ describe('checkEmissionCoherence (#1331)', () => {
       cleanup()
     }
   })
+
+  // ─── #1345: Makefile + .claude/commands/*.md surfaces ──────────────────────
+  // The blind spot behind #1345: check-emission-coherence scanned check-all /
+  // hooks / githooks / workflows / settings — but NOT Makefile recipes nor
+  // .claude/commands/*.md. The done-evidence.mjs ghost lived exactly there.
+
+  it('FAILs on a Makefile recipe invoking a missing scripts/*.mjs (#1345)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      Makefile: `evidence:\n\tnode scripts/done-evidence.mjs\n`,
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('done-evidence.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('FAILs on a .claude/commands/*.md invoking a missing scripts/*.mjs (#1345)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      '.claude/commands/ship.md': '## Complete\n\n```bash\nnode scripts/done-evidence.mjs\n```\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('done-evidence.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSes when Makefile + commands reference an EMITTED script (#1345)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'scripts/done-evidence.mjs': '// emitted',
+      Makefile: `evidence:\n\tnode scripts/done-evidence.mjs\n`,
+      '.claude/commands/ship.md': '```bash\nnode scripts/done-evidence.mjs\n```\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSes for the harness-off shape: no evidence: target, no done-evidence ref (#1345)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      Makefile: `check:\n\tnode scripts/check-all.mjs check\nclean:\n\trm -f x\n`,
+      '.claude/commands/ship.md': '## Complete\n\nClose the issue.\n',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('does not crash when .claude/commands dir is absent (#1345)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      Makefile: `check:\n\tnode scripts/check-all.mjs check\n`,
+    })
+    try {
+      expect(() => checkEmissionCoherence(dir)).not.toThrow()
+    } finally {
+      cleanup()
+    }
+  })
 })
