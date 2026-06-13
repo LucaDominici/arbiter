@@ -69,6 +69,13 @@ The wizard still asks team size as a friendly UX prompt and maps answers to
 The wizard rejects the `L4 + trunk-solo` cell with a remediation prompt. WARN cells
 emit a runtime advisory in `arbiter doctor`.
 
+**Init-time enforcement (#1347).** The CRITICAL cell is also gated at the `arbiter init`
+pre-generation step — the same point the L3 maturity gate aborts — so a non-interactive
+`init --level L4 --solo` (trunk-solo) is **refused before any files are written**, rather
+than scaffolding a full project and only surfacing the incoherence later via `arbiter doctor`.
+The gate reuses the same shared checker (`validateCollaborationCoherence`) doctor uses, so the
+rule has a single source of truth; init and doctor cannot diverge.
+
 ### Branching Strategy
 
 `branchingStrategy` is a derived field (not set in wizard; resolved by `resolveBranchingStrategy()`):

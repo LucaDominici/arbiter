@@ -42,6 +42,7 @@ import { runCli } from '../utils/run-cli.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { applyPreset } from '../wizard/presets.js'
 import { defaultContractType } from '../wizard/archetype-defaults.js'
+import { validateCollaborationCoherence } from './wizard/coherence.js'
 import type {
   ProjectConfig,
   AiTool,
@@ -217,6 +218,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     }
 
     checkL3MaturityGates(config)
+    checkCollaborationCoherenceGate(config)
     await generateAndFinalize(config, targetDir, options, log)
   } finally {
     await lock.release()
@@ -1227,6 +1229,26 @@ function checkL3MaturityGates(config: ProjectConfig): void {
     process.stderr.write(`${t('cli.init.accept_beta_hint')}\n`)
     process.exit(1)
   }
+}
+
+/**
+ * #1347: Gate (collaborationMode × governanceLevel) coherence at the init
+ * pre-generation point — the same place checkL3MaturityGates aborts — so a
+ * CRITICAL cell (e.g. L4 × trunk-solo, ADR-050/ADR-051) is refused BEFORE any
+ * files are written, instead of being surfaced only later by `arbiter doctor`.
+ * Reuses the SAME shared matrix doctor uses (validateCollaborationCoherence);
+ * the rule lives in one place to avoid divergence.
+ */
+function checkCollaborationCoherenceGate(config: ProjectConfig): void {
+  if (config.collaborationMode === undefined) return
+  const result = validateCollaborationCoherence(config.collaborationMode, config.governanceLevel)
+  if (result.severity !== 'CRITICAL') return
+  process.stderr.write(`${t('cli.init.coherence_gate_failed')}\n`)
+  process.stderr.write(`  • ${result.message}\n`)
+  if (result.remediation !== undefined) {
+    process.stderr.write(`  ${result.remediation}\n`)
+  }
+  process.exit(1)
 }
 
 function runToolchainVerify(targetDir: string): void {

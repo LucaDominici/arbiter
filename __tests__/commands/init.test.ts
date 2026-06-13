@@ -357,6 +357,44 @@ describe('runInit', () => {
     expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
   })
 
+  // #1347: (collaborationMode × governanceLevel) coherence is enforced at the
+  // pre-generation init gate — the same point as the L3 maturity gate — so a
+  // CRITICAL cell is refused before any files are written (previously it slipped
+  // through init and was only surfaced later by `arbiter doctor`).
+  it('coherence gate blocks L4 × trunk-solo before generation (#1347)', async () => {
+    exitSpy.mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`)
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude',
+        level: 'L4',
+        solo: true,
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toThrow('process.exit(1)')
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+  })
+
+  it('coherence gate allows L4 team (peer-review) generation (#1347)', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L4',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+  })
+
   it('prints created/skipped file counts after generation', async () => {
     mockRunGeneratorsFromRegistry.mockReturnValue([
       { path: '/tmp/AGENTS.md', action: 'created' },

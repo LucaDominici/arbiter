@@ -124,6 +124,7 @@
       "dry_run_skip_file": "  = {entry}",
       "dry_run_run_hint": "\n  Run without --dry-run to apply.\n",
       "gate_failed": "\n  arbiter init aborted: L3 maturity gate failed.\n",
+      "coherence_gate_failed": "\n  arbiter init aborted: collaborationMode × governanceLevel coherence gate failed.\n",
       "accept_beta_hint": "\n  Use --accept-beta-tools to allow beta tools, or reduce governance to L2.\n",
       "verifying_toolchain": "\n  Verifying toolchain compatibility...",
       "gh_access_note": "  Note: {message}",
