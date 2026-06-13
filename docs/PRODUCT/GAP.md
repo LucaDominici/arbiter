@@ -93,13 +93,17 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - **INV-121:** Stack conformity                                | the repo-root manifest mus — AGENTS.md:279                         | medium   |
 | - _Enforcement:_ `scripts/check-stack-conformity.mjs` (L1, g   | AGENTS.md:280                                                      | medium   |
 | - _Enforcement:_ Integration + unit tests (`**tests**/integr   | AGENTS.md:283                                                      | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:291                                                      | medium   |
-| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:295                                                      | medium   |
-| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:299                                                      | medium   |
-| unknown                                                        | AGENTS.md:308                                                      | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:411                                             | medium   |
-| debt-baseline.json                                             | AGENTS.md:417                                                      | medium   |
-| --update                                                       | AGENTS.md:417                                                      | medium   |
+| uses:                                                          | AGENTS.md:286                                                      | medium   |
+| ./                                                             | AGENTS.md:286                                                      | medium   |
+| docker://                                                      | AGENTS.md:286                                                      | medium   |
+| src/templates/scripts/optional-emissions.json.ejs              | AGENTS.md:286                                                      | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:294                                                      | medium   |
+| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:298                                                      | medium   |
+| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:302                                                      | medium   |
+| unknown                                                        | AGENTS.md:311                                                      | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:414                                             | medium   |
+| debt-baseline.json                                             | AGENTS.md:420                                                      | medium   |
+| --update                                                       | AGENTS.md:420                                                      | medium   |
 | scripts/check-constraint-scan.mjs                              | docs/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must   | docs/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a \*\*HARD GA | docs/SYSTEM/CANON.md:314                                           | medium   |

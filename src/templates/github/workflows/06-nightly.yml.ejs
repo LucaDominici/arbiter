@@ -409,7 +409,7 @@ jobs:
           curl -sSfL https://github.com/rhysd/actionlint/releases/download/v1.7.3/actionlint_1.7.3_linux_amd64.tar.gz | tar -xz -C "$RUNNER_TEMP/bin" actionlint
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: Build
-        run: npm run build && node scripts/build-kit.mjs
+        run: npm run build<% if (locals.ciPreTestBuild) { %> && node scripts/build-kit.mjs<% } %>
       - name: Run full L2 gate (== pre-push, nightly)
         run: node scripts/check-all.mjs --level L2 --json gate-result-nightly.json
       - name: Upload nightly gate-result artifact

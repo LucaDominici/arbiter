@@ -156,6 +156,9 @@ const L2_ADVANCED_HOOKS = [
   'skill-forced-eval.mjs',
   'guard-task-completion.mjs',
   'stop-evidence-guard.mjs',
+  // #1331: registered in hooks.mjs HANDLERS at L2+ (ExitPlanMode banner, #1210)
+  // but historically never emitted — dead config (same ghost class as #1318.5).
+  'exitplanmode-banner.mjs',
 ] as const
 
 // L2+ advanced hooks (post-edit/debug/skill/completion/evidence guards) plus the

@@ -241,6 +241,7 @@ if (isMain) {
       '1',
     ])
     runCheck('dogfood', 'node', ['scripts/check-self-dogfood.mjs'])
+    runCheck('emission coherence (INV-123)', 'node', ['scripts/check-emission-coherence.mjs', '.'])
     runCheck('debt ratchet', 'node', ['scripts/debt-report.mjs', '--gate'])
     runCheck('STRIDE/RACI traceability', 'node', ['scripts/check-stride-traceability.mjs'])
     runCheck('self-validation drill', 'node', ['scripts/self-validation.mjs'])

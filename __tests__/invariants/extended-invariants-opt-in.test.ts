@@ -33,7 +33,8 @@ describe('extended opt-in invariants', () => {
     // Note #1244: INV-56 retired via tombstone (status:'retired') — still counted.
     // Updated #1312: +1 (INV-121 stack-conformity gate, operational/Tier-4)
     // Updated #1328: +1 (INV-122 update-propagates-fixes, operational/Tier-4)
-    expect(INVARIANT_CATALOG).toHaveLength(120)
+    // Updated #1331: +1 (INV-123 emission-coherence gate, operational/Tier-4)
+    expect(INVARIANT_CATALOG).toHaveLength(121)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

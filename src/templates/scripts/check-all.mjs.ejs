@@ -357,8 +357,13 @@ runCheck('workflow test integrity', 'node', ['scripts/check-workflow-test-integr
 runCheck('workflow sha pinning', 'node', ['scripts/check-workflow-sha-pinning.mjs']);
 runCheck('workflow job naming', 'node', ['scripts/check-workflow-job-naming.mjs']);
 runCheck('pr size gate', 'node', ['scripts/check-pr-size-gate.mjs']);
-// ─── L1: ff-only merge method enforcement (INV-101) ──────────────────────────
+// ─── ff-only merge method enforcement (INV-101) ──────────────────────────────
+// #1331: check-merge-method.mjs is emitted by the github-setup generator, which
+// only runs at L2+. Reference it only where it is emitted so an L1+GitHub project
+// is not left with a ghost reference to a never-emitted script.
+<% if (governanceLevel !== 'L1') { %>
 runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs']);
+<% } %>
 <% } %>
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {

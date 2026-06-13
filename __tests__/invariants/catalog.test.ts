@@ -38,7 +38,8 @@ describe('INVARIANT_CATALOG', () => {
     // Note #1244: INV-56 retired via tombstone (status:'retired') per ID-STABILITY — still counted.
     // Updated #1312: +1 (INV-121 stack-conformity gate, operational/Tier-4, language-gated)
     // Updated #1328: +1 (INV-122 update-propagates-fixes, operational/Tier-4, all-languages)
-    expect(INVARIANT_CATALOG).toHaveLength(120)
+    // Updated #1331: +1 (INV-123 emission-coherence gate, operational/Tier-4, all-languages)
+    expect(INVARIANT_CATALOG).toHaveLength(121)
   })
 
   it('all IDs are unique', () => {
@@ -49,9 +50,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1231: +1 (INV-120)
     // Updated #1312: +1 (INV-121)
     // Updated #1328: +1 (INV-122)
+    // Updated #1331: +1 (INV-123)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(120)
+    expect(unique.size).toBe(121)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -126,8 +128,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated CANON-22: +1 (INV-109 duplication gate + ratchet, operational)
     // Updated #1312: +1 (INV-121 stack-conformity gate, operational)
     // Updated #1328: +1 (INV-122 update-propagates-fixes, operational)
+    // Updated #1331: +1 (INV-123 emission-coherence gate, operational)
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(36)
+    expect(tier4).toHaveLength(37)
   })
 
   it('has exactly 37 Tier 5 invariants', () => {
@@ -397,7 +400,8 @@ describe('getFilteredInvariants', () => {
       invariantTiers: ALL_TIERS,
     })
     // Updated #1328: +1 (INV-122 update-propagates-fixes, L1+, all languages)
-    expect(result).toHaveLength(76)
+    // Updated #1331: +1 (INV-123 emission-coherence gate, L1+, all languages)
+    expect(result).toHaveLength(77)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -415,12 +419,13 @@ describe('getFilteredInvariants', () => {
     // +1 from INV-112 (no language restriction) — threshold updated from 57→58
     // +1 from INV-115 (no language restriction, governance L1+) — threshold 58→59
     // +2 from INV-118 (L1+, all languages) + INV-119 (L2+, all languages) — threshold 59→61 → < 64
+    // +1 from INV-123 (L1+, all languages, emission-coherence) — threshold < 64 → < 65
     const result = getFilteredInvariants({
       language: 'unknown',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(64)
+    expect(result.length).toBeLessThan(65)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -490,7 +495,8 @@ describe('getFilteredInvariants', () => {
       invariantTiers: ALL_TIERS,
     })
     // Updated #1328: +1 (INV-122 update-propagates-fixes, L1+, all languages)
-    expect(result).toHaveLength(71)
+    // Updated #1331: +1 (INV-123 emission-coherence, L1+, all languages)
+    expect(result).toHaveLength(72)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -508,12 +514,13 @@ describe('getFilteredInvariants', () => {
     // Updated #1249: +2 (INV-118 anti-proforma L1+, INV-119 commit-footer L2+)
     // Updated #1312: +1 (INV-121 stack-conformity, L1+, all languages, operational)
     // Updated #1328: +1 (INV-122 update-propagates-fixes, L1+, all languages, operational)
+    // Updated #1331: +1 (INV-123 emission-coherence, L1+, all languages, operational)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(72)
+    expect(result).toHaveLength(73)
   })
 
   it('essential preset at L1 returns minimal set', () => {

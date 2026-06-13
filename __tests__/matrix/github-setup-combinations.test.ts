@@ -52,7 +52,8 @@ describe('generateGithubSetup combinations (Task 19 — INV-32 / CANON-04)', () 
         })
         const result = generateGithubSetup(config)
 
-        const expectedCount = level === 'L1' ? 5 : 6
+        // #1331: +ci-classify-changes.mjs in every cell (L1: 6, L2/L3: 7).
+        const expectedCount = level === 'L1' ? 6 : 7
         expect(
           result.files,
           `${language}-${archetype}-${level}: expected ${expectedCount} files`,
@@ -83,6 +84,7 @@ describe('generateGithubSetup combinations (Task 19 — INV-32 / CANON-04)', () 
           'check-action-pins.mjs',
           'check-workflow-perms.mjs',
           'check-merge-method.mjs',
+          'ci-classify-changes.mjs',
         ]) {
           expect(
             result.files.some((f) => f.path.endsWith(name)),
