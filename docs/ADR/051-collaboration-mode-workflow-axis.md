@@ -76,6 +76,12 @@ than scaffolding a full project and only surfacing the incoherence later via `ar
 The gate reuses the same shared checker (`validateCollaborationCoherence`) doctor uses, so the
 rule has a single source of truth; init and doctor cannot diverge.
 
+A second, advisory axis, `language × archetype` (`validateLanguageArchetypeCoherence`), is
+surfaced at the same init gate (and in `doctor`) for pairs arbiter cannot scaffold (e.g.
+`go × frontend-spa`, `python × embedded`). It emits a WARN and **never blocks** generation —
+"absurd pairing" is a judgement call with no blocking policy behind it, so a hard abort would
+need product sign-off.
+
 ### Branching Strategy
 
 `branchingStrategy` is a derived field (not set in wizard; resolved by `resolveBranchingStrategy()`):
