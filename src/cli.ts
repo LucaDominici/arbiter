@@ -381,10 +381,7 @@ program
   .command('init')
   .description('Initialize AI governance in a project')
   .option('-y, --yes', 'Skip wizard — use auto-detected defaults', false)
-  .option(
-    '--tools <tools>',
-    'Comma-separated list of AI tools (claude,codex,cursor,copilot,gemini,windsurf,aider)',
-  )
+  .option('--tools <tools>', 'Comma-separated list of AI tools (claude,codex)')
   .option('--level <level>', 'Governance level: L1, L2, L3, or L4', 'L2')
   .option(
     '--language <lang>',
@@ -1911,7 +1908,7 @@ const agentRules = program
 agentRules
   .command('export')
   .description('Export governance rules to a target AI agent format')
-  .option('--target <target>', 'Target: claude | cursor | copilot | aider | windsurf', 'claude')
+  .option('--target <target>', 'Target agent format: claude (others experimental)', 'claude')
   .option('--all', 'Emit all targets to their standard paths', false)
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
@@ -1948,7 +1945,7 @@ agentRules
 agentRules
   .command('verify')
   .description('Verify that agent rule files match the current graph (drift detection)')
-  .option('--target <target>', 'Target: claude | cursor | copilot | aider | windsurf', 'claude')
+  .option('--target <target>', 'Target agent format: claude (others experimental)', 'claude')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
   .action(async (opts: { target: string; dir?: string; json: boolean }) => {

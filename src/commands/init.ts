@@ -38,7 +38,7 @@ import { isWindows, isWSL2 } from '../utils/platform.js'
 import { writeFile, beginGenerationSession, endGenerationSession } from '../utils/fs.js'
 import { loadGeneratedManifest, saveGeneratedManifest } from '../state/generated-manifest.js'
 import { isL3Allowed } from '../utils/maturity-check.js'
-import { runCli } from '../utils/run-cli.js'
+import { runCli, CliError } from '../utils/run-cli.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { applyPreset } from '../wizard/presets.js'
 import { defaultContractType } from '../wizard/archetype-defaults.js'
@@ -333,6 +333,8 @@ async function generateAndFinalize(
     log(`\n  Done! ${created} files created, ${skipped} skipped.`)
 
     maybeCaptureBaseline(config, targetDir, options.brownfield)
+
+    activateGitHooks(targetDir, log)
 
     if (!options.noVerify) {
       runToolchainVerify(targetDir)
@@ -1176,7 +1178,11 @@ function detectedBasePackage(
 
 function parseTools(tools: string | undefined): AiTool[] {
   if (!tools) return ['claude', 'codex']
-  const VALID = new Set(['claude', 'codex', 'cursor', 'copilot', 'gemini', 'windsurf', 'aider'])
+  // Customer-facing supported tools only. The experimental tools (cursor,
+  // copilot, gemini, windsurf, aider) keep their generators but are NOT
+  // advertised or accepted here — see the AiTool support policy in
+  // wizard/types.ts. The E_INVALID_TOOL message lists this set verbatim.
+  const VALID = new Set(['claude', 'codex'])
   const parsed = tools.split(',').map((s) => s.trim())
   const invalid = parsed.filter((s) => !VALID.has(s))
   if (invalid.length > 0) {
@@ -1261,6 +1267,49 @@ function checkCollaborationCoherenceGate(config: ProjectConfig): void {
     process.stderr.write(`  ${result.remediation}\n`)
   }
   process.exit(1)
+}
+
+/**
+ * Activate arbiter's git hooks immediately so the guardrails are LIVE right after
+ * init — without waiting for `npm install` (Node `prepare`) or a manual run of
+ * scripts/setup-hooks.sh (non-Node stacks like Go/Rust/Python). The whole value
+ * proposition is the gate guarding every commit/push; leaving it off by default is
+ * a silent footgun. Sets `core.hooksPath` ONLY when it is currently unset, so an
+ * existing hook manager (husky, a pre-existing core.hooksPath) is never clobbered.
+ */
+function activateGitHooks(targetDir: string, log: (msg: string) => void): void {
+  if (!existsSync(join(targetDir, '.githooks', 'pre-commit'))) return
+  let current = ''
+  try {
+    current = runCli('git', ['config', '--get', 'core.hooksPath'], { cwd: targetDir }).stdout.trim()
+  } catch (err) {
+    // `git config --get` exits 1 when the key is UNSET — that is the common path,
+    // so `current` stays '' (its initial value) and we proceed to set it. Only
+    // bail if git itself is absent.
+    if (err instanceof CliError && err.notFound) return
+  }
+  if (current === '.githooks') return // already active
+  if (current !== '') {
+    getLogger().warn(
+      'init.hookspath_external',
+      { current },
+      `core.hooksPath is set to '${current}'; arbiter's hooks (.githooks) are NOT active. ` +
+        `To use the gate guards, run: git config core.hooksPath .githooks`,
+    )
+    return
+  }
+  try {
+    runCli('git', ['config', 'core.hooksPath', '.githooks'], { cwd: targetDir })
+    log(
+      '  ✓ Git hooks activated (core.hooksPath → .githooks) — the gate now guards every commit and push.',
+    )
+  } catch {
+    getLogger().warn(
+      'init.hookspath_set_failed',
+      {},
+      'Could not set core.hooksPath automatically. Activate manually: git config core.hooksPath .githooks',
+    )
+  }
 }
 
 function runToolchainVerify(targetDir: string): void {

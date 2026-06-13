@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-11'
+last_review: '2026-06-13'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 094)
+1. Create `NNN-short-title.md` in this directory (next free number after 095)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -122,3 +122,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 092 | [jscpd v5 Migration — Fail-Closed Duplication Gate](092-jscpd-v5-fail-closed-duplication-gate.md)                                                                     | Accepted   | 2026-06-10 |  |
 | 093 | [Dual-Side the /ship Orchestrator](093-dual-side-ship-orchestrator.md)                                                                                                | proposed   | 2026-06-11 |  |
 | 094 | [Project Profile Resolver — one catalog + one precedence layer](094-project-profile-resolver.md)                                                                      | proposed   | 2026-06-11 |  |
+| 095 | [Supported AI tools — claude + codex; rest experimental](095-supported-ai-tools-claude-codex.md)                                                                      | accepted   | 2026-06-13 |  |

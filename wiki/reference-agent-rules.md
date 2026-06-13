@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/AGENT_RULES.md'
-source_sha: 'fbc857c6c58f8e82a3a27f263bc0d271581953d0'
-last_updated: '2026-06-11'
+source_sha: '4cd3107a454411ddfde93e636e16476c8e78e15d'
+last_updated: '2026-06-13'
 ---
 
 # Agent Rules Export Reference
@@ -13,7 +13,13 @@ last_updated: '2026-06-11'
 # Agent Rules Export Reference
 
 `arbiter agent-rules` derives governance rules from the provenance graph
-and exports them to the native format of each supported AI coding agent.
+and exports them to the native format of an AI coding agent.
+
+> **Support policy.** `claude` is the only customer-facing target. The other
+> targets (`cursor`, `copilot`, `aider`, `windsurf`) still emit a static rules
+> file and are retained and tested, but are **experimental** — not validated
+> against the live tool. Only `claude` and `codex` are supported end-to-end
+> across arbiter (`codex` is wired via `init --tools`, not this exporter).
 
 ---
 
@@ -30,22 +36,22 @@ arbiter agent-rules export --all
 
 **Options:**
 
-| Option              | Default  | Description                                                      |
-| ------------------- | -------- | ---------------------------------------------------------------- |
-| `--target <target>` | `claude` | Target agent: `claude`, `cursor`, `copilot`, `aider`, `windsurf` |
-| `--all`             | false    | Emit all targets to their standard paths                         |
-| `--dir <dir>`       | `.`      | Project root directory                                           |
-| `--json`            | false    | Machine-readable JSON output                                     |
+| Option              | Default  | Description                                                                                 |
+| ------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `--target <target>` | `claude` | Target agent: `claude` (supported); `cursor`, `copilot`, `aider`, `windsurf` (experimental) |
+| `--all`             | false    | Emit all targets to their standard paths                                                    |
+| `--dir <dir>`       | `.`      | Project root directory                                                                      |
+| `--json`            | false    | Machine-readable JSON output                                                                |
 
 **Target outputs:**
 
-| Target     | File written                      | Format                  |
-| ---------- | --------------------------------- | ----------------------- |
-| `claude`   | `.claude/AGENT_RULES.md`          | Markdown with INV table |
-| `cursor`   | `.cursorrules`                    | Cursor rules format     |
-| `copilot`  | `.github/copilot-instructions.md` | Markdown                |
-| `aider`    | `CONVENTIONS.md`                  | Markdown                |
-| `windsurf` | `.windsurfrules`                  | Text rules              |
+| Target     | File written                      | Format                  | Support      |
+| ---------- | --------------------------------- | ----------------------- | ------------ |
+| `claude`   | `.claude/AGENT_RULES.md`          | Markdown with INV table | supported    |
+| `cursor`   | `.cursorrules`                    | Cursor rules format     | experimental |
+| `copilot`  | `.github/copilot-instructions.md` | Markdown                | experimental |
+| `aider`    | `CONVENTIONS.md`                  | Markdown                | experimental |
+| `windsurf` | `.windsurfrules`                  | Text rules              | experimental |
 
 ### `arbiter agent-rules verify`
 

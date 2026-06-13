@@ -96,7 +96,7 @@ arbiter init [options]
 
 Options:
   -y, --yes              Skip wizard — use auto-detected defaults
-  --tools <list>         AI tools: claude,codex,cursor,copilot  (default: claude,codex)
+  --tools <list>         AI tools: claude,codex                    (default: claude,codex)
   --level <level>        Governance level: L1, L2, L3, L4        (default: L2)
   --dir <path>           Target directory                         (default: cwd)
   --quiet                Suppress informational banners

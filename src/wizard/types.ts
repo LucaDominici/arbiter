@@ -85,6 +85,21 @@ export type Language =
   | 'multi'
   | 'unknown'
 export type GovernanceLevel = 'L1' | 'L2' | 'L3' | 'L4'
+// AI coding tools arbiter can target. Canonical support policy (read before
+// widening any user-facing surface):
+//
+//   SUPPORTED (customer-facing): 'claude' and 'codex' ONLY. These two are
+//   dogfooded end-to-end — Claude Code daily; Codex via a runnable adapter with
+//   empirical tests — so they are the surface advertised by `init --tools`,
+//   offered in the wizard, and documented.
+//
+//   EXPERIMENTAL (NOT customer-facing): 'cursor' | 'copilot' | 'gemini' |
+//   'windsurf' | 'aider'. Their generators/emitters produce config but are NOT
+//   validated against the live tool; advertising them would be an overclaim.
+//   The code is RETAINED and unit-tested for internal/experimental use, but
+//   these values are rejected by `parseTools`, hidden from the wizard, and
+//   absent from user-facing docs and `--help`. Do not re-expose without
+//   end-to-end verification of the named tool.
 export type AiTool = 'claude' | 'codex' | 'cursor' | 'copilot' | 'gemini' | 'windsurf' | 'aider'
 
 export type Archetype =

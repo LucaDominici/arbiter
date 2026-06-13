@@ -720,14 +720,12 @@ function buildLanguageOptions(): Opt<Language>[] {
   ]
 }
 
+// Customer-facing supported tools only (see AiTool support policy in types.ts).
+// Experimental tools (cursor/copilot/gemini/windsurf/aider) are intentionally
+// not offered in the wizard — their generators are retained but unadvertised.
 const TOOL_OPTIONS: Opt<AiTool>[] = [
   { value: 'claude', label: 'Claude Code (Anthropic)' },
   { value: 'codex', label: 'Codex (OpenAI)' },
-  { value: 'cursor', label: 'Cursor' },
-  { value: 'copilot', label: 'Copilot' },
-  { value: 'gemini', label: 'Gemini CLI (Google)' },
-  { value: 'windsurf', label: 'Windsurf (Codeium)' },
-  { value: 'aider', label: 'Aider (terminal pair)' },
 ]
 
 const YES_NO_OPTIONS: Opt<boolean>[] = [

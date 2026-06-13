@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js'
 
 // Module-level mocks must be at top level (hoisted by vitest)
@@ -134,6 +135,7 @@ import { applyBranchProtection } from '../../src/github/branch-protection.js'
 import { createProjectBoard } from '../../src/github/project-board.js'
 import { loadPlugin } from '../../src/utils/plugin-loader.js'
 import { loadConfig } from '../../src/utils/config.js'
+import { runCli } from '../../src/utils/run-cli.js'
 import { validateConfig } from '../../src/config/schema.js'
 
 const mockRunWizard = vi.mocked(runWizard)
@@ -146,6 +148,7 @@ const mockApplyBranchProtection = vi.mocked(applyBranchProtection)
 const mockCreateProjectBoard = vi.mocked(createProjectBoard)
 const mockLoadPlugin = vi.mocked(loadPlugin)
 const mockLoadConfig = vi.mocked(loadConfig)
+const mockRunCli = vi.mocked(runCli)
 const mockDetectLanguageWithSource = vi.mocked(detectLanguageWithSource)
 
 describe('runInit', () => {
@@ -828,6 +831,24 @@ describe('parseTools / parseLevel — input validation (#325)', () => {
     ).rejects.toMatchObject({ code: 'E_INVALID_TOOL' })
   })
 
+  it('rejects experimental tools — cursor is not customer-facing (ADR-095, #1362)', async () => {
+    // Only claude+codex are supported via --tools; the experimental tools
+    // (cursor/copilot/gemini/windsurf/aider) keep their generators but must be
+    // rejected at the CLI input boundary so the advertised surface stays honest.
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'claude,cursor',
+        level: undefined,
+        dir,
+        dryRun: false,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toMatchObject({ code: 'E_INVALID_TOOL' })
+  })
+
   it('throws on invalid level in --level (#325)', async () => {
     const { runInit } = await import('../../src/commands/init.js')
     await expect(
@@ -944,5 +965,86 @@ describe('buildArbiterConfig — automation persistence (#1261)', () => {
     const { buildArbiterConfig } = await import('../../src/commands/init.js')
     const arbiterJson = buildArbiterConfig(makeConfig(dir, { automation: { autonomy: 'L2' } }))
     expect(arbiterJson.automation).toEqual({ autonomy: 'L2' })
+  })
+})
+
+// Auto-activate git hooks on init: a fresh `arbiter init` must wire
+// core.hooksPath → .githooks so the gate guards every commit WITHOUT manual
+// setup — but it must never clobber a hooksPath the user already configured.
+describe('runInit — git hooks auto-activation', () => {
+  let dir: string
+
+  const SET_HOOKSPATH = ['config', 'core.hooksPath', '.githooks']
+  const setCalled = (): boolean =>
+    mockRunCli.mock.calls.some(
+      (c) =>
+        c[0] === 'git' &&
+        Array.isArray(c[1]) &&
+        c[1].length === 3 &&
+        c[1][0] === SET_HOOKSPATH[0] &&
+        c[1][1] === SET_HOOKSPATH[1] &&
+        c[1][2] === SET_HOOKSPATH[2],
+    )
+
+  beforeEach(() => {
+    dir = createTestProject('typescript')
+    // The generated tree the activation looks for.
+    mkdirSync(join(dir, '.githooks'), { recursive: true })
+    writeFileSync(join(dir, '.githooks', 'pre-commit'), '#!/bin/sh\n')
+    vi.clearAllMocks()
+    mockRunGeneratorsFromRegistry.mockReturnValue([])
+    mockRunProbes.mockReturnValue({
+      dir: '/tmp',
+      stack: 'typescript',
+      probes: [],
+      hasFailures: false,
+      hasWarnings: false,
+    })
+    mockIsL3Allowed.mockReturnValue({ allowed: true, errorMessage: null })
+    mockRunCli.mockReturnValue({ stdout: '', stderr: '', exitCode: 0, durationMs: 1 })
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    cleanupTestProject(dir)
+  })
+
+  it('sets core.hooksPath=.githooks when unset', async () => {
+    // `git config --get core.hooksPath` (unset) → empty stdout (default mock).
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(setCalled()).toBe(true)
+  })
+
+  it('does NOT clobber an existing external core.hooksPath', async () => {
+    mockRunCli.mockImplementation((_bin, args) => {
+      const a = args as string[]
+      if (a.includes('--get')) {
+        return { stdout: '.husky\n', stderr: '', exitCode: 0, durationMs: 1 }
+      }
+      return { stdout: '', stderr: '', exitCode: 0, durationMs: 1 }
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(setCalled()).toBe(false)
   })
 })

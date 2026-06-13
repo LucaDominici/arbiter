@@ -4,6 +4,11 @@
  *
  * Maps target names to their emitters and standard output paths.
  * Adding a new target requires adding an entry here.
+ *
+ * Support policy: only `claude` is customer-facing here (see the AiTool policy
+ * in ../wizard/types.ts). The other targets emit a static rules file and remain
+ * functional + tested, but are EXPERIMENTAL — not advertised in `--help` and not
+ * validated against the live tool. Keep them; do not promote without verification.
  */
 
 import type { AgentRulesIntermediate } from './intermediate.js'
