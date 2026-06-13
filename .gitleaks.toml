@@ -12,6 +12,11 @@ paths = [
   '''\.gitleaks\.toml''',
   # Test fixture: deliberately planted fake tokens to verify the evidence scrubber runs
   '''__tests__/fixtures/evidence-pii-canary\.txt''',
+  # Scanner-test fixtures: deliberately embed the canonical AWS example key
+  # (AKIAIOSFODNN7EXAMPLE) to assert the secret-scan family detects it. Allowlisted
+  # by path so the project-wide history scan does not re-flag the test's own bait.
+  '''__tests__/scripts/gate-fail-closed\.scan-family\.test\.ts''',
+  '''__tests__/scripts/publish-evidence-snapshot\.test\.ts''',
 ]
 
 # Paths that gitleaks scans are controlled via .gitleaksignore
