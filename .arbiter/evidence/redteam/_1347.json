@@ -1,0 +1,56 @@
+{
+  "taskId": "#1347",
+  "branch": "task/#1347-w",
+  "ts": "2026-06-13T13:10:00.000Z",
+  "agents": 3,
+  "findings": [
+    {
+      "id": "RT-01",
+      "severity": "HIGH",
+      "angle": "regression",
+      "summary": "WARN language\u00d7archetype advisory must NOT change exit code (rc stays 0).",
+      "auditorHint": "silent-failures",
+      "resolved": true
+    },
+    {
+      "id": "RT-02",
+      "severity": "HIGH",
+      "angle": "data-integrity",
+      "summary": "Coherence gate must run BEFORE generateAndFinalize so nothing is written to disk on CRITICAL abort.",
+      "auditorHint": "data-integrity",
+      "resolved": true
+    },
+    {
+      "id": "RT-03",
+      "severity": "MEDIUM",
+      "angle": "edge-cases",
+      "summary": "--dry-run returns before the gate (init.ts:214); a dry-run of an incoherent cell must preview without abort, matching L3-gate ordering.",
+      "auditorHint": "bugs",
+      "resolved": true
+    },
+    {
+      "id": "RT-04",
+      "severity": "MEDIUM",
+      "angle": "edge-cases",
+      "summary": "language 'unknown'/'multi' and undefined archetype must be treated as OK (no false WARN).",
+      "auditorHint": "bugs",
+      "resolved": true
+    },
+    {
+      "id": "RT-05",
+      "severity": "MEDIUM",
+      "angle": "error-handling",
+      "summary": "doctor must surface language\u00d7archetype as WARN only, never FAIL (must not trip gate exit code).",
+      "auditorHint": "silent-failures",
+      "resolved": true
+    },
+    {
+      "id": "RT-06",
+      "severity": "SUGGESTION",
+      "angle": "regression",
+      "summary": "collaborationMode optional on ProjectConfig \u2014 resolve via resolveCollaborationMode before validateCollaborationCoherence.",
+      "auditorHint": "type-safety",
+      "resolved": true
+    }
+  ]
+}
