@@ -10,6 +10,10 @@ description = "Project-level allowlist (see suppressions/.gitleaksignore)"
 paths = [
   '''suppressions/\.gitleaksignore''',
   '''\.gitleaks\.toml''',
+  # Arbiter render-hash baseline (fleet provenance — committed by design). Its
+  # path->sha256 entries are content hashes, not secrets; allowlist the path so
+  # gitleaks' generic-api-key rule does not flag them and block the push.
+  '''\.arbiter-generated-manifest\.json''',
 ]
 
 # Paths that gitleaks scans are controlled via .gitleaksignore

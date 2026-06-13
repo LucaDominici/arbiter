@@ -194,6 +194,13 @@ comparing content), or (b) make a modified file look pristine → it is overwrit
 canonical template render, and the prior bytes are recoverable from git. No code execution, secrets, or
 privilege are involved — only which of two known, safe renders lands.
 
+### Secret-scanning interaction (#1358)
+
+Because the manifest is committed and its entries are `path → sha256` content hashes, gitleaks'
+`generic-api-key` rule would otherwise flag the 64-hex values as secrets and block the push. The
+generated `.gitleaks.toml` therefore path-allowlists `.arbiter-generated-manifest.json` (the values
+are hashes, never secrets). Do not git-ignore the manifest — it is fleet provenance and must be committed.
+
 ---
 
 ## CI Gate

@@ -115,6 +115,16 @@ describe('generateSecurity', () => {
     expect(content).toContain('.gitleaksignore')
   })
 
+  it('.gitleaks.toml allowlists the arbiter-generated-manifest (committed, hash-only)', () => {
+    // #1358: the render-hash baseline is committed by design (fleet provenance);
+    // its path->sha256 entries must be path-allowlisted so gitleaks' generic-api-key
+    // rule does not flag them and block the client's push.
+    const config = makeConfig(dir, { enableSecurityScanning: true })
+    generateSecurity(config)
+    const content = readFileSync(join(dir, '.gitleaks.toml'), 'utf-8')
+    expect(content).toContain('arbiter-generated-manifest')
+  })
+
   it('pii-scan.mjs validates allowlist is array (not bare catch)', () => {
     const config = makeConfig(dir, { enableSecurityScanning: true })
     generateSecurity(config)
