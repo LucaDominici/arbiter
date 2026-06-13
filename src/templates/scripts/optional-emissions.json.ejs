@@ -1,0 +1,41 @@
+{
+  "$comment": "INV-123 (#1331): manifest of intentionally-optional gate scripts. check-all.mjs references each behind an existsSync() guard; they are emitted only for the overlay/archetype noted in the rationale. The emission-coherence gate (scripts/check-emission-coherence.mjs) treats a GUARDED-missing reference as a FAIL UNLESS it is listed here with a non-empty rationale. An UNGUARDED-missing reference can NEVER be silenced by this manifest.",
+  "optional": [
+    {
+      "path": "scripts/ci-classify-changes.mjs",
+      "rationale": "Emitted by the github-setup generator (L2+ only); referenced by .githooks/pre-push behind a shell `[ -f ]` guard. Absent on L1 projects, where the pre-push guard skips it gracefully."
+    },
+    {
+      "path": "scripts/check-iso9001.mjs",
+      "rationale": "Emitted only for the iso9001 industry-compliance overlay (QMS RTM + doc-control + CAPA). Absent on projects without that overlay."
+    },
+    {
+      "path": "scripts/check-gdpr-controls.mjs",
+      "rationale": "Emitted only for the gdpr industry-compliance overlay (enforceable controls -> gates). Absent on projects without that overlay."
+    },
+    {
+      "path": "scripts/check-fe-boundaries.mjs",
+      "rationale": "Emitted only for frontend-spa archetype or a 'frontend' lane at L2+ (INV-102/103/104). Absent on backend/library projects."
+    },
+    {
+      "path": "scripts/verify-tokens.mjs",
+      "rationale": "Emitted only when the design-token overlay is enabled (frontend). Absent on projects without design tokens."
+    },
+    {
+      "path": "scripts/i18n-literal-scanner.mjs",
+      "rationale": "Emitted only for the i18n frontend overlay (raw-literal scan). Absent on projects without i18n."
+    },
+    {
+      "path": "scripts/verify-i18n-parity.mjs",
+      "rationale": "Emitted only for the i18n frontend overlay (catalog parity). Absent on projects without i18n."
+    },
+    {
+      "path": "scripts/verify-fe-coverage.mjs",
+      "rationale": "Emitted only when the frontend coverage overlay + fe-coverage-baseline.json are present. Absent otherwise."
+    },
+    {
+      "path": "scripts/check-bundle-size.mjs",
+      "rationale": "Emitted only when the frontend bundle-budget overlay + bundle-budget.json are present. Absent otherwise."
+    }
+  ]
+}

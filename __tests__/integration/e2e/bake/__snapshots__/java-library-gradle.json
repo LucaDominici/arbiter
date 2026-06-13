@@ -97,6 +97,7 @@
     "scripts/harness.mjs",
     "scripts/knowledge-map-update.mjs",
     "scripts/lib/run-helpers.mjs",
+    "scripts/optional-emissions.json",
     "scripts/self-validation.mjs",
     "scripts/setup-hooks.sh",
     "src/test/java/com/example/architecture/NoMockMvcTest.java",

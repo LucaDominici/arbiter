@@ -15,16 +15,18 @@ describe('generateGithubSetup', () => {
     cleanupTestProject(dir)
   })
 
-  it('writes setup-repo.sh + apply-branch-protection.mjs + 4 gate scripts when useGitHub=true and L2', () => {
+  it('writes setup-repo.sh + apply-branch-protection.mjs + 5 gate scripts when useGitHub=true and L2', () => {
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' })
     const result = generateGithubSetup(config)
-    expect(result.files).toHaveLength(6)
+    // #1331: +ci-classify-changes.mjs (CI-tier change classifier) → 7 files total
+    expect(result.files).toHaveLength(7)
     expect(result.files.some((f) => f.path.endsWith('setup-repo.sh'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('apply-branch-protection.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-ci-tiers.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-action-pins.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-workflow-perms.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-merge-method.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('ci-classify-changes.mjs'))).toBe(true)
     expect(existsSync(join(dir, 'scripts', 'setup-repo.sh'))).toBe(true)
     expect(existsSync(join(dir, 'scripts', 'apply-branch-protection.mjs'))).toBe(true)
     expect(existsSync(join(dir, 'scripts', 'check-ci-tiers.mjs'))).toBe(true)
@@ -39,15 +41,18 @@ describe('generateGithubSetup', () => {
     expect(result.files).toHaveLength(0)
   })
 
-  it('L1: emits apply-branch-protection.mjs + 4 gate scripts but not setup-repo.sh', () => {
+  it('L1: emits apply-branch-protection.mjs + 5 gate scripts but not setup-repo.sh', () => {
     const config = makeConfig(dir, { useGitHub: true, governanceLevel: 'L1' })
     const result = generateGithubSetup(config)
-    expect(result.files).toHaveLength(5)
+    // #1331: +ci-classify-changes.mjs → 6 files total (the generator itself is not
+    // L1-gated; the registry decides whether to RUN it — see registry github-setup).
+    expect(result.files).toHaveLength(6)
     expect(result.files.some((f) => f.path.endsWith('apply-branch-protection.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-ci-tiers.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-action-pins.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-workflow-perms.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('check-merge-method.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('ci-classify-changes.mjs'))).toBe(true)
     expect(existsSync(join(dir, 'scripts', 'setup-repo.sh'))).toBe(false)
     expect(existsSync(join(dir, 'scripts', 'apply-branch-protection.mjs'))).toBe(true)
   })

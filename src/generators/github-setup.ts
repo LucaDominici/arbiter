@@ -51,6 +51,10 @@ export function generateGithubSetup(
     'check-action-pins.mjs',
     'check-workflow-perms.mjs',
     'check-merge-method.mjs',
+    // #1331: the CI-tier change classifier referenced by .githooks/pre-push and
+    // 01-pr-fast.yml. The template existed but no generator wired it — a
+    // fleet-wide ghost (same class as #1319.1). Emitted whenever GitHub is on.
+    'ci-classify-changes.mjs',
   ] as const) {
     const scriptPath = resolvedPath(base, 'scripts', name)
     const result = writeFile(scriptPath, renderTemplate(`scripts/${name}.ejs`, data), {

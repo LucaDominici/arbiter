@@ -111,6 +111,7 @@
     "scripts/i18n-literal-scanner.mjs",
     "scripts/knowledge-map-update.mjs",
     "scripts/lib/run-helpers.mjs",
+    "scripts/optional-emissions.json",
     "scripts/self-validation.mjs",
     "scripts/verify-fe-coverage.mjs",
     "scripts/verify-i18n-parity.mjs",

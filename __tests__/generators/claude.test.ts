@@ -121,6 +121,9 @@ describe('generateClaude', () => {
     expect(existsSync(join(hooksDir, 'skill-forced-eval.mjs'))).toBe(true)
     expect(existsSync(join(hooksDir, 'guard-task-completion.mjs'))).toBe(true)
     expect(existsSync(join(hooksDir, 'stop-evidence-guard.mjs'))).toBe(true)
+    // #1331: exitplanmode-banner.mjs is registered in hooks.mjs HANDLERS at L2+;
+    // it must now actually be emitted (was dead config — registered, never written).
+    expect(existsSync(join(hooksDir, 'exitplanmode-banner.mjs'))).toBe(true)
   })
 
   it('does NOT generate L2-only advanced hooks at L1', () => {
@@ -132,6 +135,8 @@ describe('generateClaude', () => {
     expect(existsSync(join(hooksDir, 'skill-forced-eval.mjs'))).toBe(false)
     expect(existsSync(join(hooksDir, 'guard-task-completion.mjs'))).toBe(false)
     expect(existsSync(join(hooksDir, 'stop-evidence-guard.mjs'))).toBe(false)
+    // #1331: exitplanmode-banner.mjs is an L2+ advanced hook — absent at L1.
+    expect(existsSync(join(hooksDir, 'exitplanmode-banner.mjs'))).toBe(false)
   })
 
   it('generates wt-list.md with git worktree list reference', () => {

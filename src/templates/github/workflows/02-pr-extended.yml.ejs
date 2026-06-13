@@ -374,7 +374,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build && node scripts/build-kit.mjs
+      - run: npm run build<% if (locals.ciPreTestBuild) { %> && node scripts/build-kit.mjs<% } %>
       - run: npm run test:behavioral
 <% } else if (language === 'java') { %>
       - uses: ./.github/actions/setup-java-maven
@@ -411,7 +411,7 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build && node scripts/build-kit.mjs
+      - run: npm run build<% if (locals.ciPreTestBuild) { %> && node scripts/build-kit.mjs<% } %>
       - run: npm run test:e2e:bake
 <% } %>
 

@@ -98,6 +98,7 @@
     "scripts/harness.mjs",
     "scripts/knowledge-map-update.mjs",
     "scripts/lib/run-helpers.mjs",
+    "scripts/optional-emissions.json",
     "scripts/self-validation.mjs",
     "src/test/example.behavioral.test.ts",
     "suppressions/.gitleaksignore",

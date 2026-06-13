@@ -2034,4 +2034,30 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'the arbiter CLI engine (init/update/diff) and inherited by the fleet via the CLI — not a render-' +
       'time gate. Exit codes per INV-53: corrupt manifest ⇒ 2=ERROR.',
   },
+  {
+    id: 'INV-123',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'Emission coherence — every referenced emission must exist or be a declared optional',
+    description:
+      'A generated tree must contain every file it references. Every scripts/*.mjs invoked by ' +
+      'check-all.mjs, every handler registered in .claude/hooks/hooks.mjs, every node script run by ' +
+      'a .githook or a workflow, and every command in .claude/settings.json must resolve to an emitted ' +
+      'file. An UNGUARDED-missing reference is a crash-class ghost and ALWAYS fails. A GUARDED-missing ' +
+      'reference (behind an existsSync()/shell [ -f ] guard — a legitimately-optional industry or ' +
+      'frontend overlay script) fails UNLESS it is declared in scripts/optional-emissions.json with a ' +
+      'non-empty rationale; the manifest can never silence an unguarded reference (strictly weaker than ' +
+      'a suppression). Workflows must additionally SHA-pin every uses: ref (local ./ and docker:// ' +
+      'excepted) and name every top-level job. Caught the fleet-wide ci-classify-changes / ' +
+      'exitplanmode-banner / build-kit ghosts (#1331).',
+    enforcement:
+      'scripts/check-emission-coherence.mjs (pure checkEmissionCoherence(dir)) — wired into arbiter’s ' +
+      'own check-all.mjs self-gate against the repo tree, and run across the FULL (language × level × ' +
+      'mode) matrix by __tests__/integration/e2e/emission-coherence-matrix.test.ts (static, in-process, ' +
+      'no toolchains, affordable per-PR). The optional manifest is emitted for target projects by ' +
+      'src/generators/check-all.ts from src/templates/scripts/optional-emissions.json.ejs (CANON-01). ' +
+      'Exit codes per INV-53: 0=PASS, 1=FAIL (ghost), 2=ERROR (no dir arg).',
+  },
 ]

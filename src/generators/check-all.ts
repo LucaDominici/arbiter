@@ -47,6 +47,52 @@ function emitCoverageGate(
   ]
 }
 
+/**
+ * #1331 (INV-123): emit a single skipIfExists template file under the project
+ * root and return its WriteResult. Keeps generateCheckAll under the line ceiling
+ * (CANON-22) while sharing the resolvedPath/renderTemplate/writeFile boilerplate.
+ */
+function emitTemplateFile(
+  base: string,
+  relPath: readonly string[],
+  template: string,
+  data: object,
+  opts: { dryRun: boolean },
+): WriteResult {
+  return writeFile(resolvedPath(base, ...relPath), renderTemplate(template, data), {
+    skipIfExists: true,
+    dryRun: opts.dryRun,
+  })
+}
+
+/**
+ * #1331 (CANON-22): the unconditional emissions every governed project gets
+ * alongside check-all.mjs, written via one shared loop so the boilerplate (and
+ * its cyclomatic weight) lives outside generateCheckAll:
+ *   check-all.mjs               — the gate script itself
+ *   optional-emissions.json     — #1331/INV-123 manifest of intentionally-optional
+ *                                 (existsSync-guarded) gate scripts so the
+ *                                 emission-coherence lint tells a declared optional
+ *                                 from a real ghost
+ *   lib/run-helpers.mjs         — #351/CANON-01 runCheck/runToolCheck trinity
+ *   check-collab-mode-wired.mjs — #1093/INV-100 collaborationMode L1 assertion
+ *   check-constraint-scan.mjs   — #1214/INV-115 governance constraint scanner
+ */
+const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: string }> = [
+  { rel: ['scripts', 'check-all.mjs'], tpl: 'scripts/check-all.mjs.ejs' },
+  { rel: ['scripts', 'optional-emissions.json'], tpl: 'scripts/optional-emissions.json.ejs' },
+  { rel: ['scripts', 'lib', 'run-helpers.mjs'], tpl: 'scripts/lib/run-helpers.mjs.ejs' },
+  {
+    rel: ['scripts', 'check-collab-mode-wired.mjs'],
+    tpl: 'scripts/check-collab-mode-wired.mjs.ejs',
+  },
+  { rel: ['scripts', 'check-constraint-scan.mjs'], tpl: 'scripts/check-constraint-scan.mjs.ejs' },
+]
+
+function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {
+  return UNCONDITIONAL_EMISSIONS.map(({ rel, tpl }) => emitTemplateFile(base, rel, tpl, data, opts))
+}
+
 export function generateCheckAll(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
@@ -75,53 +121,10 @@ export function generateCheckAll(
     binarySizeBytes: binarySizeBudget(config.archetype),
   }
 
-  const scriptPath = resolvedPath(base, 'scripts', 'check-all.mjs')
-  results.push(
-    writeFile(scriptPath, renderTemplate('scripts/check-all.mjs.ejs', data), {
-      skipIfExists: true,
-      dryRun: opts.dryRun,
-    }),
-  )
-
-  // #351 (CANON-01): emit shared helper trinity alongside the gate script.
-  // check-all.mjs imports runCheck/runWarnCheck/runToolCheck/pushResult from
-  // ./lib/run-helpers.mjs; the file must always be present when check-all.mjs is.
-  const helpersPath = resolvedPath(base, 'scripts', 'lib', 'run-helpers.mjs')
-  results.push(
-    writeFile(helpersPath, renderTemplate('scripts/lib/run-helpers.mjs.ejs', data), {
-      skipIfExists: true,
-      dryRun: opts.dryRun,
-    }),
-  )
+  results.push(...emitUnconditional(base, data, opts))
 
   // #1319.8 — greenfield-aware coverage gate predicate (TS + coverage only).
   results.push(...emitCoverageGate(base, data, opts))
-
-  // #1093 (CANON-01, INV-100): emit the collaborationMode-wired check alongside
-  // check-all.mjs. Run at L1, it asserts the generated arbiter.json declares a
-  // valid collaborationMode — the primary workflow axis (ADR-051). Unconditional
-  // because every arbiter.json carries the field after init.
-  const collabCheckPath = resolvedPath(base, 'scripts', 'check-collab-mode-wired.mjs')
-  results.push(
-    writeFile(collabCheckPath, renderTemplate('scripts/check-collab-mode-wired.mjs.ejs', data), {
-      skipIfExists: true,
-      dryRun: opts.dryRun,
-    }),
-  )
-
-  // #1214 (CANON-01, INV-115): emit the governance constraint scanner. It extracts
-  // free-text hard prohibitions (NEVER / MUST NOT / DO NOT / 🛑) from the project's
-  // governance docs and classifies each as COVERED / ENFORCED-BY-SCAN / UNENFORCEABLE.
-  // Warn-default on targets (ENFORCE_DEFAULT=false) so a fresh init can never hard-fail
-  // on an un-curated token; projects curate scripts/constraint-map.json and flip
-  // --enforce=true to promote. Unconditional — every governed project ships governance docs.
-  const constraintScanPath = resolvedPath(base, 'scripts', 'check-constraint-scan.mjs')
-  results.push(
-    writeFile(constraintScanPath, renderTemplate('scripts/check-constraint-scan.mjs.ejs', data), {
-      skipIfExists: true,
-      dryRun: opts.dryRun,
-    }),
-  )
 
   // #358 (CANON-02, CANON-15, Phase 7F): emit ephemeral-server runner used by
   // integration/e2e gate steps (Playwright TS, pytest-playwright Python) to
