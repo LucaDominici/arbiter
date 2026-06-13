@@ -1,0 +1,11 @@
+{
+  "verdict": "PASS",
+  "ts": "2026-06-13T00:46:52.601Z",
+  "runDir": "/home/luca/work/repos/arbiter.worktrees/1330-wave/.arbiter/evidence/plan-review/_1330/run-2026-06-13T00-40-21-127Z",
+  "planDigest": "304e21e93b08a3cba170072208075d2d5929580d73327a2b21358842026317e1",
+  "branch": "task/#1330-wave",
+  "sha": "4e3c165243c6e8f8375d329e3b5dd9e0097b6dc3",
+  "tier": "Standard",
+  "totalInvocations": 5,
+  "attempts": 1
+}

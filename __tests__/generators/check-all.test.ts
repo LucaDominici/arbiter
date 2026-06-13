@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { generateCheckAll } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
+import type { ProjectConfig } from '../../src/wizard/types.js'
 
 describe('generateCheckAll', () => {
   let dir: string
@@ -862,6 +863,85 @@ describe('generateCheckAll', () => {
       )
       const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
       expect(content).not.toContain("'tests/integration/'")
+    })
+  })
+
+  // ── #1330: per-lane frontend gate (subtree lane, non-frontend-spa archetype) ──
+  // The dead-FE-gate bug only manifests when the primary language is NOT typescript:
+  // the L1/L2 _isFE blocks are TS-gated, so a Go-primary repo with a `frontend` lane
+  // gets ZERO FE gating. These tests pin a Go-primary config to reproduce-red.
+  describe('frontend lane gate (#1330)', () => {
+    it('emits scripts/check-frontend-lane.mjs for a Go-primary subtree frontend lane', () => {
+      const result = generateCheckAll(
+        makeConfig(dir, { language: 'go', archetype: 'library', lanes: ['frontend'] }),
+      )
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-frontend-lane.mjs'))).toBe(true)
+    })
+
+    it('wires runCheck for the frontend lane into check-all.mjs (Go-primary subtree)', () => {
+      generateCheckAll(
+        makeConfig(dir, { language: 'go', archetype: 'library', lanes: ['frontend'] }),
+      )
+      const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+      expect(checkAll).toContain('check-frontend-lane.mjs')
+    })
+
+    it('does NOT emit check-frontend-lane.mjs for the frontend-spa archetype (root-level wiring already exists)', () => {
+      const result = generateCheckAll(
+        makeConfig(dir, {
+          language: 'typescript',
+          archetype: 'frontend-spa',
+          lanes: ['frontend'],
+        }),
+      )
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-frontend-lane.mjs'))).toBe(false)
+    })
+
+    it('does NOT emit check-frontend-lane.mjs when no frontend lane is declared', () => {
+      const result = generateCheckAll(
+        makeConfig(dir, { language: 'go', archetype: 'library', lanes: ['docs'] }),
+      )
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-frontend-lane.mjs'))).toBe(false)
+    })
+
+    it('does NOT emit check-frontend-lane.mjs when archetype is undefined (matches needsFrontendQuality convention)', () => {
+      // Model a pre-classification config: archetype present-but-undefined (the key
+      // stays on the object so template rendering sees it; the predicate must treat
+      // an undefined archetype as "no subtree lane", mirroring needsFrontendQuality).
+      const cfg: ProjectConfig = {
+        ...makeConfig(dir, { language: 'go', lanes: ['frontend'] }),
+        archetype: undefined as unknown as ProjectConfig['archetype'],
+      }
+      const result = generateCheckAll(cfg)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-frontend-lane.mjs'))).toBe(false)
+    })
+
+    it('re-run over an existing file is a brownfield skip, not an overwrite (CANON-11, skipIfExists)', () => {
+      const cfg = makeConfig(dir, {
+        language: 'go',
+        archetype: 'library',
+        lanes: ['frontend'],
+      })
+      generateCheckAll(cfg)
+      const second = generateCheckAll(cfg)
+      const laneFile = second.files.find((f) => f.path.endsWith('scripts/check-frontend-lane.mjs'))
+      expect(laneFile?.action).toBe('skipped')
+    })
+
+    it('emitted check-frontend-lane.mjs runs tsc/vitest in cwd:frontend and is gate-on-present', () => {
+      generateCheckAll(
+        makeConfig(dir, { language: 'go', archetype: 'library', lanes: ['frontend'] }),
+      )
+      const script = readFileSync(join(dir, 'scripts', 'check-frontend-lane.mjs'), 'utf-8')
+      // gate-on-present: skip cleanly when the subtree or its deps are absent
+      expect(script).toContain("existsSync('frontend/package.json')")
+      expect(script).toContain("cwd: 'frontend'")
+      // build runs only in full mode
+      expect(script).toContain("mode === 'full'")
     })
   })
 })

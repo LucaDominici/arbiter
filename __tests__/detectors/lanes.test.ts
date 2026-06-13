@@ -3,12 +3,35 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { detectLanes } from '../../src/detectors/lanes.js'
+import { detectLanes, isSubtreeFrontendLane } from '../../src/detectors/lanes.js'
 import { cleanupTestProject } from '../helpers.js'
 
 function makeTmp(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-lanes-'))
 }
+
+// #1330 — the subtree-frontend-lane predicate shared by the check-all and github generators.
+describe('isSubtreeFrontendLane (#1330)', () => {
+  it('is true for a frontend lane on a non-frontend-spa, defined archetype', () => {
+    expect(isSubtreeFrontendLane({ archetype: 'library', lanes: ['frontend'] })).toBe(true)
+    expect(
+      isSubtreeFrontendLane({ archetype: 'backend-web-db', lanes: ['frontend', 'docs'] }),
+    ).toBe(true)
+  })
+
+  it('is false for the frontend-spa archetype (root-level wiring already exists)', () => {
+    expect(isSubtreeFrontendLane({ archetype: 'frontend-spa', lanes: ['frontend'] })).toBe(false)
+  })
+
+  it('is false when no frontend lane is declared', () => {
+    expect(isSubtreeFrontendLane({ archetype: 'library', lanes: ['docs', 'backend'] })).toBe(false)
+    expect(isSubtreeFrontendLane({ archetype: 'library', lanes: [] })).toBe(false)
+  })
+
+  it('is false when archetype is undefined (mirrors needsFrontendQuality convention)', () => {
+    expect(isSubtreeFrontendLane({ archetype: undefined, lanes: ['frontend'] })).toBe(false)
+  })
+})
 
 describe('detectLanes', () => {
   let dir: string
