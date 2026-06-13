@@ -43,7 +43,10 @@ function printStats(results: WriteResult[]): void {
   const created = results.filter((r) => r.action === 'created').length
   const replaced = results.filter((r) => r.action === 'backed-up-and-replaced').length
   const skipped = results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length
-  process.stdout.write(`${t('cli.update.done', { created, replaced, skipped })}\n`)
+  // #1344: withheld files ARE skipped (preserved), but surface them separately so
+  // the operator sees template fixes that did not land, not just a "skipped" lump.
+  const withheld = results.filter((r) => r.withheld === true).length
+  process.stdout.write(`${t('cli.update.done', { created, replaced, skipped, withheld })}\n`)
 }
 
 function selectAndRun(
@@ -198,6 +201,8 @@ interface UpdateSummary extends Record<string, unknown> {
   created: number
   updated: number
   skipped: number
+  /** #1344: skipIfExists files whose template fix was withheld (user-modified). */
+  withheld: number
 }
 
 /**
@@ -361,6 +366,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       created: results.filter((r) => r.action === 'created').length,
       updated: results.filter((r) => r.action === 'backed-up-and-replaced').length,
       skipped: results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length,
+      withheld: results.filter((r) => r.withheld === true).length,
     }
     emitUpdateOutcome(options, summary, generatorErrors, backendResult.warnings)
 
