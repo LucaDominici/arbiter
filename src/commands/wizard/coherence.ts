@@ -13,7 +13,7 @@
  * WARN     → wizard emits advisory; arbiter doctor surfaces it.
  * OK       → no message.
  */
-import type { CollaborationMode, GovernanceLevel } from '../../wizard/types.js'
+import type { Archetype, CollaborationMode, GovernanceLevel, Language } from '../../wizard/types.js'
 import { AUTONOMY_LEVELS } from '../../config/schema.js'
 import type { AutonomyLevel } from '../../config/schema.js'
 
@@ -291,6 +291,56 @@ export function validateProfileCoherence(
         `automation.defaultGateLevel='L1' under governanceLevel=${level}: the L1 gate skips the ` +
         'coverage, mutation, and evidence gates the rigour tier relies on. Default verification ' +
         'runs leaner than the governance level implies.',
+    }
+  }
+  return { valid: true, severity: 'OK', message: '' }
+}
+
+// ── #1347: language × archetype coherence (WARN | OK) ────────────────────────
+//
+// Fifth coherence axis. A handful of (language, archetype) pairs are ones arbiter
+// cannot meaningfully scaffold — e.g. a `frontend-spa` for a server-only language
+// like Go/Java (no SPA toolchain is emitted), or an `embedded` archetype for an
+// interpreted/GC language like Python (no embedded toolchain). These pass init
+// silently today, then surprise the user. We surface them as an advisory WARN at
+// the same pre-init gate as the collaboration check (and reuse the same SSOT in
+// doctor) — never CRITICAL: "absurd" is a judgement call with no blocking policy
+// behind it, so a hard abort would need product sign-off. The set is deliberately
+// small and conservative; unknown/multi language and an absent archetype are OK.
+
+/** Incompatible (language → archetypes) pairs. Conservative, additive WARN set. */
+const INCOMPATIBLE_LANGUAGE_ARCHETYPES: ReadonlyMap<Language, ReadonlySet<Archetype>> = new Map([
+  // Server-only languages have no SPA front-end toolchain to scaffold.
+  ['go', new Set<Archetype>(['frontend-spa'])],
+  ['java', new Set<Archetype>(['frontend-spa'])],
+  ['kotlin', new Set<Archetype>(['frontend-spa'])],
+  // Interpreted/GC languages are not used for the embedded archetype.
+  ['python', new Set<Archetype>(['embedded'])],
+])
+
+/**
+ * Validate a (language × archetype) cell. Returns WARN for a pair arbiter cannot
+ * meaningfully scaffold (e.g. go × frontend-spa, python × embedded); OK otherwise.
+ * Never CRITICAL — this axis is advisory, never a hard block.
+ *
+ * `unknown`/`multi` language and an absent archetype are always OK (no false WARN):
+ * detection fell back, so there is no asserted intent to contradict.
+ */
+export function validateLanguageArchetypeCoherence(
+  language: Language,
+  archetype: Archetype | undefined,
+): CoherenceResult {
+  if (archetype === undefined) return { valid: true, severity: 'OK', message: '' }
+  const incompatible = INCOMPATIBLE_LANGUAGE_ARCHETYPES.get(language)
+  if (incompatible?.has(archetype) === true) {
+    return {
+      valid: true,
+      severity: 'WARN',
+      message:
+        `language='${language}' with archetype='${archetype}' is an unusual pairing: arbiter does ` +
+        `not scaffold a meaningful ${archetype} toolchain for ${language}. The project will be ` +
+        `generated, but the archetype-specific gates and structure will be absent. Recommended: ` +
+        `pick an archetype that matches ${language}, or switch language.`,
     }
   }
   return { valid: true, severity: 'OK', message: '' }
