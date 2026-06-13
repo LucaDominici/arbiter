@@ -2,7 +2,7 @@
 # Part of INV-87 (#879, W3). Targets mirror CI workflow jobs.
 # POSIX make only — no GNU extensions.
 
-.PHONY: help check gate full ci simulate-nightly simulate-weekly evidence clean
+.PHONY: help check gate full ci simulate-nightly simulate-weekly clean
 
 help:
 	@echo "Targets:"
@@ -12,7 +12,6 @@ help:
 	@echo "  full             Run all checks including coverage"
 	@echo "  simulate-nightly Simulate nightly CI run (W10 — not yet implemented)"
 	@echo "  simulate-weekly  Simulate weekly CI run (W10 — not yet implemented)"
-	@echo "  evidence         Finalize evidence artifacts"
 	@echo "  clean            Remove transient gate artifacts"
 
 check:
@@ -31,9 +30,6 @@ simulate-nightly:
 
 simulate-weekly:
 	node scripts/check-all.mjs simulate-weekly
-
-evidence:
-	node scripts/done-evidence.mjs
 
 clean:
 	rm -f .arbiter/gate-pass.json

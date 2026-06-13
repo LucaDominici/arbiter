@@ -24,6 +24,11 @@ interface Cell {
   archetype: 'library' | 'cli' | 'backend-web-db' | 'frontend-spa'
   level: 'L1' | 'L2' | 'L3'
   mode: Mode
+  // #1345: when the evidence harness is off, scripts/done-evidence.mjs is NOT
+  // emitted; ship.md's Complete section and the Makefile evidence: target must
+  // drop their references in lockstep, or the widened scanner (Makefile +
+  // commands) flags an unguarded ghost.
+  evidenceHarness?: boolean
 }
 
 // PoC's 5 languages × {L1,L2,L3} × {trunk-solo, peer-review}, plus a frontend-spa
@@ -43,9 +48,19 @@ for (const language of LANGUAGES) {
 // FE-overlay cell: frontend-spa emits the FE guarded-optional scripts behind
 // existsSync; its presence proves the manifest covers the FE optionals at L2.
 CELLS.push({ language: 'typescript', archetype: 'frontend-spa', level: 'L2', mode: 'trunk-solo' })
+// Evidence-harness-off cell (#1345): the real init default at L1/L2/L3. Proves
+// ship.md + Makefile drop the done-evidence reference when the script is absent.
+CELLS.push({
+  language: 'typescript',
+  archetype: 'library',
+  level: 'L2',
+  mode: 'trunk-solo',
+  evidenceHarness: false,
+})
 
 function cellName(c: Cell): string {
-  return `${c.language}/${c.archetype}/${c.level}/${c.mode}`
+  const ev = c.evidenceHarness === false ? '/evidence-off' : ''
+  return `${c.language}/${c.archetype}/${c.level}/${c.mode}${ev}`
 }
 
 describe('emission-coherence matrix — generated tree is reference-coherent (#1331)', () => {
@@ -67,6 +82,9 @@ describe('emission-coherence matrix — generated tree is reference-coherent (#1
           archetype: cell.archetype,
           governanceLevel: cell.level,
           collaborationMode: cell.mode,
+          ...(cell.evidenceHarness === undefined
+            ? {}
+            : { enableEvidenceHarness: cell.evidenceHarness }),
           useGitHub: true,
           permitGitHub: true,
           githubOwner: 'acme',

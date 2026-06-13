@@ -48,14 +48,27 @@ export function generateEvidenceRetention(
     ),
   ]
 
-  // L4 only: emit done-evidence CLI + per-archetype pin config (ADR-037)
-  if (config.governanceLevel === 'L4') {
+  // done-evidence CLI is emitted whenever the evidence harness is on — the SAME
+  // condition under which its guard hook (guard-done-evidence.mjs) is emitted
+  // (src/generators/claude.ts → generateL2AdvancedHooks). Emitting the guard
+  // without the script it tells the user to run is a deadlock (#1345): the hook
+  // hard-blocks completion until .claude/.last-done-evidence.json exists, but the
+  // script that produces it was never shipped. The script's loadConfig() defaults
+  // safely when evidence-files.json is absent, so it runs without it.
+  if (config.enableEvidenceHarness !== false) {
     files.push(
       writeFile(
         resolvedPath(base, 'scripts', 'done-evidence.mjs'),
         renderTemplate('scripts/done-evidence.mjs.ejs', data),
         { skipIfExists: false, backup: true, dryRun: opts.dryRun },
       ),
+    )
+  }
+
+  // L4 only: per-archetype pin config (ADR-037). Optional input to done-evidence;
+  // the script defaults safely without it, so it stays L4-gated.
+  if (config.governanceLevel === 'L4') {
+    files.push(
       writeFile(
         resolvedPath(base, 'evidence-files.json'),
         renderTemplate('evidence-files.json.ejs', data),

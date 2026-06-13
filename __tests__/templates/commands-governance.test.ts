@@ -129,8 +129,16 @@ describe('claude commands — ship.md governance level L2', () => {
     expect(content).toMatch(/wt-open/)
   })
 
-  it('includes done-evidence cleanup', () => {
-    const content = renderShipForLevel('L2')
+  it('includes done-evidence cleanup when the evidence harness is on (#1345)', () => {
+    const config = makeConfig('/tmp/test', {
+      governanceLevel: 'L2',
+      collaborationMode: 'peer-review',
+      enableEvidenceHarness: true,
+    })
+    const content = renderTemplate('claude/commands/ship.md.ejs', {
+      ...(config as unknown as Record<string, unknown>),
+      mergeMode: 'pr-ff',
+    })
     expect(content).toContain('done-evidence.mjs')
   })
 

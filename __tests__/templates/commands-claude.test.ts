@@ -172,9 +172,25 @@ describe('claude commands: ship.md — orchestration entrypoint (#1216)', () => 
     expect(content).toMatch(/PASS.*FAIL.*NOT.?TESTED|acceptance.?criteri/i)
   })
 
-  it('complete section runs done-evidence.mjs', () => {
-    const content = renderShip()
+  // #1345: the Complete-section done-evidence invocation is gated on the evidence
+  // harness — the SAME condition under which scripts/done-evidence.mjs is emitted,
+  // so the playbook never instructs running a script that was not shipped.
+  it('complete section runs done-evidence.mjs when the evidence harness is on', () => {
+    const config = makeConfig('/tmp/test', { governanceLevel: 'L2', enableEvidenceHarness: true })
+    const content = renderTemplate(
+      'claude/commands/ship.md.ejs',
+      config as unknown as Record<string, unknown>,
+    )
     expect(content).toContain('done-evidence.mjs')
+  })
+
+  it('complete section omits done-evidence.mjs when the evidence harness is off (#1345)', () => {
+    const config = makeConfig('/tmp/test', { governanceLevel: 'L2', enableEvidenceHarness: false })
+    const content = renderTemplate(
+      'claude/commands/ship.md.ejs',
+      config as unknown as Record<string, unknown>,
+    )
+    expect(content).not.toContain('done-evidence.mjs')
   })
 
   it('complete section closes the issue (gh issue close or arbiter work close)', () => {

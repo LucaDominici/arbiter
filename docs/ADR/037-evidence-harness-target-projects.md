@@ -105,6 +105,31 @@ single-responsibility and allows independent empirical testing (INV-36 + INV-38)
 
 ---
 
+## Amendment (2026-06-13, #1345) — emission condition realigned to the harness flag
+
+The original Decision states the three artifacts are generated "at **L2+**". The
+implementation had drifted: `done-evidence.mjs` and `evidence-files.json` were emitted
+**L4-only** (`generateEvidenceRetention`), while the `guard-done-evidence.mjs` hook is
+emitted whenever the evidence harness is enabled (`enableEvidenceHarness !== false`).
+Because `runInit` defaults `enableEvidenceHarness` to `governanceLevel === 'L4'`, the
+three artifacts only co-appeared at L4 — but any project that explicitly enables the
+harness below L4 (e.g. haben at L2) got the **guard hook without the script it tells the
+user to run**: a completion **deadlock** (the hook hard-blocks and instructs
+`node scripts/done-evidence.mjs`, which was never emitted).
+
+Resolution:
+
+- `done-evidence.mjs` is now emitted under the **same** condition as its guard hook
+  (`enableEvidenceHarness !== false`), so script and guard always travel together.
+- `evidence-files.json` remains gated at L4 as the **optional** per-archetype pin config;
+  `done-evidence.mjs`'s `loadConfig()` returns a safe default when it is absent, so the
+  script is fully functional without it below L4.
+- The `Makefile` `evidence:` target and the ship `Complete`-phase `done-evidence` step are
+  now gated on the same flag, so neither references a script that was not emitted.
+- The emission-coherence gate (INV-123) was widened to scan `Makefile` and
+  `.claude/commands/*.md`, the two source kinds that previously hid this dangling
+  reference.
+
 ## Related
 
 - ADR-034: Phase-lifecycle hard enforcement (#406)

@@ -1,5 +1,5 @@
 {
-  "$comment": "INV-123 (#1331): manifest of intentionally-optional gate scripts. check-all.mjs references each behind an existsSync() guard; they are emitted only for the overlay/archetype noted in the rationale. The emission-coherence gate (scripts/check-emission-coherence.mjs) treats a GUARDED-missing reference as a FAIL UNLESS it is listed here with a non-empty rationale. An UNGUARDED-missing reference can NEVER be silenced by this manifest.",
+  "$comment": "INV-123 (#1331, #1345): manifest of intentionally-optional gate scripts. check-all.mjs references each behind an existsSync() guard; they are emitted only for the overlay/archetype noted in the rationale. The emission-coherence gate (scripts/check-emission-coherence.mjs) scans check-all.mjs, .claude/hooks/hooks.mjs, .githooks/*, .github/workflows/*, .claude/settings.json, the Makefile, and .claude/commands/*.md, and treats a GUARDED-missing reference as a FAIL UNLESS it is listed here with a non-empty rationale. An UNGUARDED-missing reference (including any Makefile-recipe or command-playbook reference, which are unguarded by construction) can NEVER be silenced by this manifest.",
   "optional": [
     {
       "path": "scripts/ci-classify-changes.mjs",

@@ -15,7 +15,13 @@ export function generateLocalWrapper(
 ): LocalWrapperGeneratorResult {
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = { projectName: config.projectName }
+  const data = {
+    projectName: config.projectName,
+    // The evidence: target invokes scripts/done-evidence.mjs, which is only
+    // emitted when the evidence harness is on (#1345). Gate the target on the
+    // same flag so the Makefile never references a script that was not shipped.
+    enableEvidenceHarness: config.enableEvidenceHarness,
+  }
 
   const makefilePath = resolvedPath(base, 'Makefile')
   results.push(

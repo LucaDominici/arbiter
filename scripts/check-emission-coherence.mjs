@@ -13,10 +13,14 @@
 // CATALOG: and additionally resolves scripts/hooks/githooks/settings references.
 //
 // Static lint of an arbiter-generated tree: every script / hook / workflow
-// reference in the emission must resolve to a file that actually exists. Catches
-// "referenced but never emitted" ghosts (the class behind #1318/#1319) in
-// milliseconds, no toolchains — affordable across the FULL (language × level ×
-// mode) matrix on every PR (the matrix runner is the integration test).
+// reference in the emission must resolve to a file that actually exists. Scans
+// check-all.mjs, .claude/hooks/hooks.mjs, .githooks/*, .github/workflows/*,
+// .claude/settings.json, the Makefile, and every .claude/commands/*.md playbook
+// (#1345 — the Makefile/command blind spot that hid the done-evidence &
+// route-auditors ghosts). Catches "referenced but never emitted" ghosts (the
+// class behind #1318/#1319/#1345) in milliseconds, no toolchains — affordable
+// across the FULL (language × level × mode) matrix on every PR (the matrix runner
+// is the integration test).
 //
 // Semantics (#1331 AC2, red-team RT-02):
 //   - UNGUARDED missing reference  → ALWAYS FAIL (crash class).
@@ -188,6 +192,40 @@ function checkWorkflows(dir, problems) {
   }
 }
 
+// Scan a free-form text source (Makefile recipe, command playbook) for references
+// of the form `scripts/<name>.(mjs|sh|cjs|js)` and `.claude/hooks/<name>.mjs`. These
+// references are UNGUARDED by construction — a Makefile recipe line or a command-doc
+// instruction carries no existsSync()/[ -f ] guard — so per INV-123 an unguarded
+// missing reference can NEVER be silenced by the manifest and ALWAYS fails.
+function checkPlainTextRefs(dir, rel, content, label, problems) {
+  const seen = new Set()
+  const refRe = /(?:\.claude\/hooks\/[\w./-]+\.mjs|scripts\/[\w./-]+\.(?:mjs|sh|cjs|js))/g
+  for (const m of content.matchAll(refRe)) {
+    const ref = m[0]
+    if (seen.has(ref)) continue
+    seen.add(ref)
+    if (existsSync(join(dir, ref))) continue
+    problems.push(`${label} references missing ${ref} (unguarded)`)
+  }
+}
+
+function checkMakefile(dir, problems) {
+  const c = read(dir, 'Makefile')
+  if (c === null) return
+  checkPlainTextRefs(dir, 'Makefile', c, 'Makefile', problems)
+}
+
+function checkCommands(dir, problems) {
+  const cmdDir = join(dir, '.claude/commands')
+  if (!existsSync(cmdDir)) return
+  for (const f of readdirSync(cmdDir)) {
+    if (!f.endsWith('.md')) continue
+    const c = read(dir, `.claude/commands/${f}`)
+    if (c === null) continue
+    checkPlainTextRefs(dir, `.claude/commands/${f}`, c, `.claude/commands/${f}`, problems)
+  }
+}
+
 function checkSettings(dir, problems) {
   const settings = read(dir, '.claude/settings.json')
   if (settings === null) return
@@ -215,6 +253,8 @@ export function checkEmissionCoherence(dir) {
   checkGithooks(dir, optional, problems)
   checkWorkflows(dir, problems)
   checkSettings(dir, problems)
+  checkMakefile(dir, problems)
+  checkCommands(dir, problems)
   return { problems: [...new Set(problems)].sort() }
 }
 

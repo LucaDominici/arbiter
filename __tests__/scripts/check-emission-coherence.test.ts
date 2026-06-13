@@ -217,6 +217,93 @@ describe('checkEmissionCoherence (#1331)', () => {
     }
   })
 
+  // #1345 — Makefile recipe references are scanned; they are unguarded by
+  // construction (a recipe line carries no existsSync/[ -f ] guard).
+  it('FAILs on a Makefile recipe invoking a missing scripts/*.mjs (ghost)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      Makefile: `evidence:\n\tnode scripts/done-evidence.mjs\n`,
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('done-evidence.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSes a Makefile recipe whose referenced scripts/*.mjs is emitted', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'scripts/done-evidence.mjs': '// ok',
+      Makefile: `evidence:\n\tnode scripts/done-evidence.mjs\n`,
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('a Makefile reference can NEVER be silenced by the manifest (unguarded by construction)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'scripts/optional-emissions.json': JSON.stringify({
+        optional: [{ path: 'scripts/done-evidence.mjs', rationale: 'sneaky' }],
+      }),
+      Makefile: `evidence:\n\tnode scripts/done-evidence.mjs\n`,
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('done-evidence.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // #1345 — .claude/commands/*.md playbooks are scanned; command-doc references
+  // are unguarded by construction.
+  it('FAILs on a .claude/commands/*.md playbook referencing a missing scripts/*.mjs (ghost)', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      '.claude/commands/ship.md': 'Run `node scripts/route-auditors.mjs --size-floor Standard`.',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('route-auditors.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSes a command playbook whose referenced scripts/*.mjs is emitted', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      'scripts/done-evidence.mjs': '// ok',
+      '.claude/commands/ship.md': 'Complete: `node scripts/done-evidence.mjs`.',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems).toEqual([])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('FAILs on a command playbook referencing a missing .claude/hooks/*.mjs', () => {
+    const { dir, cleanup } = makeTree({
+      'scripts/check-all.mjs': '// none',
+      '.claude/commands/ship.md': 'See `.claude/hooks/ghost-hook.mjs` for details.',
+    })
+    try {
+      const { problems } = checkEmissionCoherence(dir)
+      expect(problems.some((p) => p.includes('ghost-hook.mjs'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('FAILs on a .claude/settings.json hook command pointing at a missing file', () => {
     const { dir, cleanup } = makeTree({
       'scripts/check-all.mjs': '// none',

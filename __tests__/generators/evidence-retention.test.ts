@@ -19,9 +19,13 @@ describe('generateEvidenceRetention', () => {
     cleanupTestProject(dir)
   })
 
-  it('generates 4 files at L1 (rotate + prune + gitignore + policy doc)', () => {
+  // #1345: done-evidence.mjs is emitted whenever the evidence harness is on (the
+  // SAME condition as its guard hook), NOT L4-only. evidence-files.json stays
+  // L4-only. The harness defaults ON (enableEvidenceHarness !== false), so the
+  // baseline emission at every level includes done-evidence.mjs.
+  it('generates 5 files when harness on (rotate + prune + gitignore + policy doc + done-evidence) at L1', () => {
     const config = makeConfig(dir, { governanceLevel: 'L1' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+    expect(generateEvidenceRetention(config).files).toHaveLength(5)
   })
 
   it('generates 6 files at L4 (rotate + prune + gitignore + policy doc + done-evidence + evidence-files)', () => {
@@ -29,13 +33,18 @@ describe('generateEvidenceRetention', () => {
     expect(generateEvidenceRetention(config).files).toHaveLength(6)
   })
 
-  it('generates 4 files at L2 (rotate + prune + gitignore + policy doc — no done-evidence)', () => {
+  it('generates 5 files at L2 (rotate + prune + gitignore + policy doc + done-evidence)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L2' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+    expect(generateEvidenceRetention(config).files).toHaveLength(5)
   })
 
-  it('generates 4 files at L3 (rotate + prune + gitignore + policy doc — no done-evidence)', () => {
+  it('generates 5 files at L3 (rotate + prune + gitignore + policy doc + done-evidence)', () => {
     const config = makeConfig(dir, { governanceLevel: 'L3' })
+    expect(generateEvidenceRetention(config).files).toHaveLength(5)
+  })
+
+  it('generates 4 files when harness off (no done-evidence) at L2', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2', enableEvidenceHarness: false })
     expect(generateEvidenceRetention(config).files).toHaveLength(4)
   })
 
@@ -44,18 +53,20 @@ describe('generateEvidenceRetention', () => {
     expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(true)
   })
 
-  it('does not generate scripts/done-evidence.mjs at L1', () => {
-    generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L1' }))
-    expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(false)
-  })
-
-  it('does not generate scripts/done-evidence.mjs at L2', () => {
+  it('generates scripts/done-evidence.mjs at L2 when harness on (#1345 — guard/script parity)', () => {
     generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L2' }))
-    expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(false)
+    expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(true)
   })
 
-  it('does not generate scripts/done-evidence.mjs at L3', () => {
+  it('generates scripts/done-evidence.mjs at L3 when harness on', () => {
     generateEvidenceRetention(makeConfig(dir, { governanceLevel: 'L3' }))
+    expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(true)
+  })
+
+  it('does not generate scripts/done-evidence.mjs when harness off', () => {
+    generateEvidenceRetention(
+      makeConfig(dir, { governanceLevel: 'L2', enableEvidenceHarness: false }),
+    )
     expect(existsSync(join(dir, 'scripts', 'done-evidence.mjs'))).toBe(false)
   })
 
