@@ -112,6 +112,8 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | - Skip the gate before committing                              | .claude/CLAUDE.md:91                                               | medium   |
 | main                                                           | .claude/CLAUDE.md:92                                               | medium   |
 | - Leave orphan TODOs without task IDs                          | .claude/CLAUDE.md:94                                               | medium   |
+| A failure is never dismissed because "it was already broken"   | .claude/CLAUDE.md:107                                              | medium   |
+| explanation of origin, never a reason to leave it broken. Wh   | .claude/CLAUDE.md:111                                              | medium   |
 
 ## Known Debt
 

@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/PRODUCT/GAP.md'
-source_sha: 'd49fbb188285ad8921ab54659c884cba4ec5648d'
+source_sha: 'acf8fcd97d300e516f3ad81b42b7d9c4878a74b2'
 last_updated: '2026-06-13'
 ---
 
