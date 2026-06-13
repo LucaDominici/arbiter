@@ -33,7 +33,15 @@ async function run(): Promise<void> {
       renderTemplate(relPath: string, data: Record<string, unknown>): string {
         const absPath = join(templateRoot, relPath)
         const src = readFileSync(absPath, 'utf-8')
-        return ejs.render(src, data)
+        // #1348: ensure `basePackage` is an own key so bare references in Java
+        // templates resolve their own fallback instead of throwing under EJS
+        // `with(locals)`. Mirrors withBasePackageDefault in ./render.ts; kept
+        // inline because tsx cannot resolve a cross-module value import in the
+        // spawned worker thread (.js→.ts rewrite fails for worker entries).
+        const safe = Object.prototype.hasOwnProperty.call(data, 'basePackage')
+          ? data
+          : { ...data, basePackage: undefined }
+        return ejs.render(src, safe)
       },
     }
     const generateFn = plugin['generate'] as (

@@ -8,6 +8,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const TEMPLATES_DIR = join(__dirname, '..', 'templates')
 
 /**
+ * Guarantee `basePackage` is an own key of the render data (value `undefined`
+ * when unset). EJS renders with `with(locals)`, so a bare `basePackage`
+ * reference throws `ReferenceError` when the key is absent — but resolves to
+ * `undefined` (letting each template's own `||`/`?:` fallback run) when the key
+ * is present with value `undefined`. Many Java templates reference bare
+ * `basePackage`; normalizing here at the single render boundary keeps them all
+ * crash-safe without editing template bodies (#1348).
+ *
+ * Returns the input unchanged when the key is already present (no-op for the
+ * common case); otherwise a shallow copy with the key added (never mutates the
+ * caller's object).
+ */
+export function withBasePackageDefault(data: object): object {
+  if (Object.prototype.hasOwnProperty.call(data, 'basePackage')) return data
+  return { ...data, basePackage: undefined }
+}
+
+/**
  * Render an EJS template file relative to the templates/ directory.
  *
  * `data` is typed as `object` so call sites can pass typed domain objects
@@ -18,7 +36,7 @@ const TEMPLATES_DIR = join(__dirname, '..', 'templates')
 export function renderTemplate(templatePath: string, data: object): string {
   const fullPath = join(TEMPLATES_DIR, templatePath)
   const source = readFileSync(fullPath, 'utf-8')
-  return ejs.render(source, data, { filename: fullPath })
+  return ejs.render(source, withBasePackageDefault(data), { filename: fullPath })
 }
 
 /**
@@ -27,5 +45,5 @@ export function renderTemplate(templatePath: string, data: object): string {
  */
 export function renderFromAbsPath(absPath: string, data: object): string {
   const source = readFileSync(absPath, 'utf-8')
-  return ejs.render(source, data, { filename: absPath })
+  return ejs.render(source, withBasePackageDefault(data), { filename: absPath })
 }
