@@ -121,6 +121,7 @@ describe('#1344 withheld template-fix visibility', () => {
   function runDiffJson(opts: { withheld?: boolean }): {
     files?: { path: string; status: string }[]
     withheldCount?: number
+    hasChanges?: boolean
   } {
     const writes: string[] = []
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
@@ -136,7 +137,11 @@ describe('#1344 withheld template-fix visibility', () => {
     }
     const payload = writes.find((w) => w.includes('"files"')) ?? '{}'
     const json = JSON.parse(payload) as {
-      data?: { files?: { path: string; status: string }[]; withheldCount?: number }
+      data?: {
+        files?: { path: string; status: string }[]
+        withheldCount?: number
+        hasChanges?: boolean
+      }
     }
     return json.data ?? {}
   }
@@ -179,6 +184,18 @@ describe('#1344 withheld template-fix visibility', () => {
     const data = runDiffJson({})
     expect(data.withheldCount ?? 0).toBe(0)
     expect(data.files?.some((f) => f.status === 'withheld')).toBe(false)
+  })
+
+  it('a withheld fix is reported via withheldCount, surfacing the visible drift', () => {
+    // The write-only `hasChanges`/idempotence contract (a withheld file is
+    // preserved, not written, so it must not flip hasChanges) is locked
+    // deterministically in the diff unit test; here we assert end-to-end that the
+    // withheld file is counted as drift even though it is preserved on disk.
+    makeWithheld()
+    const data = runDiffJson({})
+    const entry = data.files?.find((f) => f.path === USERMOD)
+    expect(entry?.status).toBe('withheld')
+    expect(data.withheldCount).toBeGreaterThanOrEqual(1)
   })
 
   it('AC4: update summary counts withheld files', async () => {

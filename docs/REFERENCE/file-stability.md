@@ -149,6 +149,17 @@ withheld set is now a first-class, reviewable signal:
 - `arbiter update` reports the withheld tally in its summary so an operator running `update` sees the
   drift directly, not just a buried per-file warning.
 
+A withheld fix does **not** count as a pending write: `hasChanges` (the run-update hint and the
+idempotence contract) stays write-only, so `update` → `diff` remains idempotent. Withheld drift is
+reported through the dedicated section + `withheldCount`, and the JSON status is `warning` (exit 1) when
+any withheld fix exists, so CI can flag it without claiming `update` would rewrite the file.
+
+> **Known limitation (#1349).** A generated file that arbiter post-formats with prettier (e.g.
+> `.codex/codex-adapter.mjs`) can appear as `withheld` even when untouched: `writeFile` records the
+> pre-format render hash while prettier rewrites the on-disk bytes, so the baseline and disk no longer
+> match. This is arbiter's own formatting, not a user edit — tracked for a root fix (in-memory format
+> before hashing).
+
 > Future work (tracked separately): 3-way merge assist for withheld files, and elevating
 > gate/security-critical fixes to an explicit "force-review" action keyed off this `withheld` status.
 

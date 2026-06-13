@@ -126,9 +126,13 @@ function printHuman(
     }
   }
   printWithheldSection(withheld)
-  process.stdout.write(
-    hasChanges ? `${t('cli.diff.run_update')}\n` : `${t('cli.diff.up_to_date')}\n`,
-  )
+  // Footer: only claim "all up to date" when there is genuinely nothing to act on
+  // — neither pending writes nor withheld fixes (the latter print their own hint).
+  if (hasChanges) {
+    process.stdout.write(`${t('cli.diff.run_update')}\n`)
+  } else if (withheld.length === 0) {
+    process.stdout.write(`${t('cli.diff.up_to_date')}\n`)
+  }
 }
 
 export function runDiff(options: DiffOptions): void {
@@ -182,11 +186,17 @@ export function runDiff(options: DiffOptions): void {
     config.githubOwner,
     config.githubRepo,
   )
-  // A withheld fix is actionable drift → counts as a change (warning/exit 1).
-  const hasChanges = allFiles.some((f) => f.status !== 'unchanged')
+  // `hasChanges` means "`arbiter update` would WRITE something" (drives the
+  // run-update hint + exit code). A withheld fix is explicitly NOT written — it is
+  // preserved — so it does not count here (and update→diff stays idempotent: F7).
+  // Withheld drift is surfaced separately via the dedicated section + withheldCount.
+  const hasChanges = allFiles.some((f) => f.status !== 'unchanged' && f.status !== 'withheld')
 
   if (options.json) {
-    const status = hasChanges ? 'warning' : 'ok'
+    // Pending writes OR withheld drift → `warning` (exit 1) so CI can flag both;
+    // `hasChanges` stays write-only (idempotence contract) — withheld is reported
+    // via `withheldCount`, not by claiming update would write the file.
+    const status = hasChanges || withheldCount > 0 ? 'warning' : 'ok'
     jsonOutput('diff', status, { hasChanges, files, remoteSideEffect, withheldCount })
     const code = statusToExitCode(status)
     if (code !== 0) process.exit(code)

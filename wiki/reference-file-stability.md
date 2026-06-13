@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/file-stability.md'
-source_sha: '040397399e5c46d229d8fb91643a35da1094ca58'
+source_sha: 'ff181e1963eaf72e3553a723094be20ede93b1af'
 last_updated: '2026-06-13'
 ---
 
