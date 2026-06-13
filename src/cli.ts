@@ -581,8 +581,9 @@ program
   .description('Show what arbiter update would change (dry run)')
   .option('--dir <dir>', 'Target directory (default: current directory)')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; json: boolean }) => {
-    runDiff({ dir: opts.dir, json: opts.json })
+  .option('--withheld', 'Show only template fixes withheld from user-modified files (#1344)', false)
+  .action((opts: { dir?: string; json: boolean; withheld: boolean }) => {
+    runDiff({ dir: opts.dir, json: opts.json, withheld: opts.withheld })
   })
 
 const worktree = program

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { writeFileSync, mkdirSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { createHash } from 'node:crypto'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
+import { saveGeneratedManifest } from '../../src/state/generated-manifest.js'
 
 vi.mock('../../src/utils/config.js', () => ({
   loadConfig: vi.fn(),
@@ -245,6 +247,41 @@ describe('runDiff', () => {
     expect(globalInvLines.every((c) => c.includes('(unchanged)'))).toBe(true)
     expect(globalInvLines.some((c) => c.includes('(new file)'))).toBe(false)
     expect(globalInvLines.some((c) => c.includes('(would update)'))).toBe(false)
+  })
+
+  it('#1344: prints a withheld section for a user-modified skipIfExists file', async () => {
+    mockLoadConfig.mockReturnValue(makeStoredConfig())
+    // .claude/agents/red-team.md is emitted with skipIfExists; the mock render is
+    // 'rendered-content'. Put DIFFERENT bytes on disk + a manifest baseline that
+    // does NOT match → user-modified → the fix is withheld.
+    const key = '.claude/agents/red-team.md'
+    mkdirSync(join(dir, dirname(key)), { recursive: true })
+    writeFileSync(join(dir, key), 'user-edited agent prompt')
+    saveGeneratedManifest(dir, {
+      [key]: createHash('sha256').update('arbiter original render').digest('hex'),
+    })
+    const { runDiff } = await import('../../src/commands/diff.js')
+    runDiff({ dir })
+    const calls = logSpy.mock.calls.map((c) => String(c[0]))
+    expect(calls.some((c) => c.includes('Withheld template fixes'))).toBe(true)
+    expect(calls.some((c) => c.includes('WITHHELD') && c.includes(key))).toBe(true)
+  })
+
+  it('#1344: --withheld prints only the withheld section, no normal file lines', async () => {
+    mockLoadConfig.mockReturnValue(makeStoredConfig())
+    const key = '.claude/agents/red-team.md'
+    mkdirSync(join(dir, dirname(key)), { recursive: true })
+    writeFileSync(join(dir, key), 'user-edited agent prompt')
+    saveGeneratedManifest(dir, {
+      [key]: createHash('sha256').update('arbiter original render').digest('hex'),
+    })
+    const { runDiff } = await import('../../src/commands/diff.js')
+    runDiff({ dir, withheld: true })
+    const calls = logSpy.mock.calls.map((c) => String(c[0]))
+    expect(calls.some((c) => c.includes('Withheld template fixes'))).toBe(true)
+    // Focused view: no "(new file)" / "(would update)" / "(unchanged)" lines.
+    expect(calls.some((c) => c.includes('(new file)'))).toBe(false)
+    expect(calls.some((c) => c.includes('(unchanged)'))).toBe(false)
   })
 
   it('uses cwd when no dir option provided', async () => {

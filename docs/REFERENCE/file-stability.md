@@ -128,9 +128,29 @@ On `arbiter update` (and the read-only `arbiter diff`), for each `skipIfExists` 
 - **on-disk content == current render** → `skipped` (already up to date).
 - **on-disk hash == the recorded manifest hash** (pristine — unmodified since arbiter generated it) and
   the template changed → **rewritten** to the new render. The fix propagates. `diff` reports `changed`.
-- **on-disk hash ≠ the recorded manifest hash** (you edited it) → **preserved**, with a warning:
-  `user-modified, template fix NOT applied: <path>`. Delete the file and re-run `arbiter update` to take
-  the current template.
+- **on-disk hash ≠ the recorded manifest hash** (you edited it) → **preserved**, and the withheld fix is
+  surfaced (#1344): `diff` reports the file with status `withheld` (no longer a lying `unchanged`), and
+  `update`'s summary counts it (`… N withheld`). Delete the file and re-run `arbiter update` to take the
+  current template, or merge the upstream change manually.
+
+### Visibility of withheld fixes (`diff --withheld`)
+
+**Issue:** #1344
+
+Anti-clobber (#1328) is correct, but a withheld fix that never lands is silent, cumulative drift — the
+more a client personalises, the more upstream gate/security fixes stay out without anyone noticing. So the
+withheld set is now a first-class, reviewable signal:
+
+- `arbiter diff` lists withheld files under a dedicated **"Withheld template fixes"** section (status
+  `withheld`), distinct from `unchanged`. JSON output carries `files[].status === "withheld"` plus a
+  `withheldCount`. A withheld fix counts as a change (exit 1 / `warning`), so CI can flag drift.
+- `arbiter diff --withheld` filters the report to **only** the withheld entries — a focused reconciliation
+  list for deciding which upstream changes to merge into your customised files.
+- `arbiter update` reports the withheld tally in its summary so an operator running `update` sees the
+  drift directly, not just a buried per-file warning.
+
+> Future work (tracked separately): 3-way merge assist for withheld files, and elevating
+> gate/security-critical fixes to an explicit "force-review" action keyed off this `withheld` status.
 
 `update` persists the manifest before writing `arbiter.json`/`.arbiter-generated.json`, so those two are
 never recorded as manifest entries. Plugin- and `doctor`-written files keep the legacy skip-always

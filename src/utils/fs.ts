@@ -117,6 +117,15 @@ export function _translateFsError(code: string, path: string): string | null {
 export interface WriteResult {
   path: string
   action: 'created' | 'skipped' | 'replaced' | 'backed-up-and-replaced' | 'dry-run'
+  /**
+   * #1344: true when this was a `skipIfExists` file preserved because it is
+   * user-modified / unknown-provenance AND the new template render differs — i.e.
+   * the template fix was WITHHELD. The action stays `'skipped'` (the file is not
+   * written), so existing `action !== 'skipped'` side-effect gates are unaffected;
+   * this orthogonal flag is the visibility channel `diff`/`update` surface so a
+   * withheld gate/security fix is no longer reported as a silent "unchanged".
+   */
+  withheld?: boolean
 }
 
 export type GeneratorRunOpts = { dryRun: boolean }
@@ -205,6 +214,8 @@ interface ResolvedWrite {
   action: WriteResult['action']
   /** True when the on-disk bytes will equal `content` after this op (record-eligible). */
   baselineMatches: boolean
+  /** #1344: true when a skipIfExists template fix is withheld from a user-modified file. */
+  withheld: boolean
 }
 
 /**
@@ -228,7 +239,7 @@ function resolveWriteAction(
   skipIfExists: boolean,
   backup: boolean,
 ): ResolvedWrite {
-  if (!existsSync(filePath)) return { action: 'created', baselineMatches: true }
+  if (!existsSync(filePath)) return { action: 'created', baselineMatches: true, withheld: false }
   // Single read: null = unreadable (treat as exists-but-unknown → legacy-safe).
   let disk: string | null
   try {
@@ -236,25 +247,36 @@ function resolveWriteAction(
   } catch {
     disk = null
   }
-  if (disk !== null && disk === content) return { action: 'skipped', baselineMatches: true }
+  if (disk !== null && disk === content)
+    return { action: 'skipped', baselineMatches: true, withheld: false }
 
   if (skipIfExists) {
+    let withheld = false
     const session = generationSession
     if (session && disk !== null) {
       const key = manifestKey(session.targetDir, filePath)
       const prev = key === null ? undefined : session.prevHashes.get(key)
       if (prev !== undefined && sha256(disk) === prev) {
         // Pristine: unmodified since arbiter generated it → safe to rewrite.
-        return { action: backup ? 'backed-up-and-replaced' : 'replaced', baselineMatches: true }
+        return {
+          action: backup ? 'backed-up-and-replaced' : 'replaced',
+          baselineMatches: true,
+          withheld: false,
+        }
       }
       // User-modified or unknown provenance → preserve + surface the withheld fix.
+      withheld = true
       const withheldKey = key ?? filePath
       ;(session.onWithheld ?? defaultWithheldWarn)(withheldKey)
     }
-    return { action: 'skipped', baselineMatches: false }
+    return { action: 'skipped', baselineMatches: false, withheld }
   }
 
-  return { action: backup ? 'backed-up-and-replaced' : 'replaced', baselineMatches: true }
+  return {
+    action: backup ? 'backed-up-and-replaced' : 'replaced',
+    baselineMatches: true,
+    withheld: false,
+  }
 }
 
 function defaultWithheldWarn(key: string): void {
@@ -284,7 +306,12 @@ export function writeFile(
   opts: { skipIfExists?: boolean; backup?: boolean; dryRun?: boolean } = {},
 ): WriteResult {
   const { skipIfExists = false, backup = false, dryRun = false } = opts
-  const { action, baselineMatches } = resolveWriteAction(filePath, content, skipIfExists, backup)
+  const { action, baselineMatches, withheld } = resolveWriteAction(
+    filePath,
+    content,
+    skipIfExists,
+    backup,
+  )
 
   // Side effects (may throw → recordGeneratedHash below is never reached, so no
   // phantom hash is recorded for content that did not land — A2).
@@ -301,7 +328,9 @@ export function writeFile(
   // for content that did not land — and never on a withheld skip, which would poison
   // the baseline; see recordGeneratedHash).
   if (!dryRun && baselineMatches) recordGeneratedHash(filePath, content)
-  return { path: filePath, action }
+  // Only attach the flag when true so non-withheld results keep their stable
+  // `{ path, action }` shape (snapshot/JSON parity for the common case).
+  return withheld ? { path: filePath, action, withheld: true } : { path: filePath, action }
 }
 
 /**

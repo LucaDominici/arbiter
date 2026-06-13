@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import {
   writeFile,
   resolvedPath,
   mergeSettingsJson,
   registerCleanupHandlers,
   cleanupInFlightTmpFiles,
+  beginGenerationSession,
+  endGenerationSession,
   _registerTmpPath,
   _translateFsError,
 } from '../../src/utils/fs.js'
@@ -182,6 +185,86 @@ describe('writeFile — dryRun action parity (#1077 F1/F7)', () => {
     writeFile(path, 'after', { dryRun: true })
     const orphans = readdirSync(dir).filter((e) => e.includes('.arbiter-tmp-'))
     expect(orphans).toHaveLength(0)
+  })
+})
+
+describe('writeFile — withheld flag (#1344)', () => {
+  let dir: string
+  const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex')
+
+  beforeEach(() => {
+    dir = createTestProject()
+  })
+  afterEach(() => {
+    endGenerationSession()
+    cleanupTestProject(dir)
+  })
+
+  it('sets withheld=true when a user-modified skipIfExists file would receive a differing template fix', () => {
+    const path = join(dir, 'gate.mjs')
+    writeFileSync(path, 'user-edited content')
+    // Manifest records arbiter's ORIGINAL render hash; the on-disk bytes differ
+    // from it (user-modified) AND from the new render → fix withheld.
+    beginGenerationSession({
+      targetDir: dir,
+      prevHashes: { 'gate.mjs': sha256('arbiter original render') },
+    })
+    const result = writeFile(path, 'new template fix', { skipIfExists: true, dryRun: true })
+    endGenerationSession()
+    expect(result.action).toBe('skipped')
+    expect(result.withheld).toBe(true)
+    // diff must not mutate disk.
+    expect(readFileSync(path, 'utf-8')).toBe('user-edited content')
+  })
+
+  it('does NOT set withheld for a pristine skipIfExists file (it is rewritten, #1328 preserved)', () => {
+    const path = join(dir, 'pristine.mjs')
+    writeFileSync(path, 'arbiter original render')
+    beginGenerationSession({
+      targetDir: dir,
+      prevHashes: { 'pristine.mjs': sha256('arbiter original render') },
+    })
+    const result = writeFile(path, 'new template fix', { skipIfExists: true, dryRun: true })
+    endGenerationSession()
+    expect(result.action).toBe('replaced')
+    expect(result.withheld).toBeFalsy()
+  })
+
+  it('does NOT set withheld for a byte-identical skipIfExists file', () => {
+    const path = join(dir, 'identical.mjs')
+    writeFileSync(path, 'same bytes')
+    beginGenerationSession({
+      targetDir: dir,
+      prevHashes: { 'identical.mjs': sha256('whatever') },
+    })
+    const result = writeFile(path, 'same bytes', { skipIfExists: true, dryRun: true })
+    endGenerationSession()
+    expect(result.action).toBe('skipped')
+    expect(result.withheld).toBeFalsy()
+  })
+
+  it('does NOT set withheld for a created (missing) file', () => {
+    const path = join(dir, 'created.mjs')
+    beginGenerationSession({ targetDir: dir, prevHashes: {} })
+    const result = writeFile(path, 'content', { skipIfExists: true, dryRun: true })
+    endGenerationSession()
+    expect(result.action).toBe('created')
+    expect(result.withheld).toBeFalsy()
+  })
+
+  it('routes the withheld signal through onWithheld AND the returned flag', () => {
+    const path = join(dir, 'both.mjs')
+    writeFileSync(path, 'user-edited')
+    const seen: string[] = []
+    beginGenerationSession({
+      targetDir: dir,
+      prevHashes: { 'both.mjs': sha256('orig') },
+      onWithheld: (key) => seen.push(key),
+    })
+    const result = writeFile(path, 'fix', { skipIfExists: true, dryRun: true })
+    endGenerationSession()
+    expect(result.withheld).toBe(true)
+    expect(seen).toContain('both.mjs')
   })
 })
 

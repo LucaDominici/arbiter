@@ -111,3 +111,89 @@ describe('#1328 update propagates template fixes', () => {
     expect(entry?.status).toBe('changed')
   })
 })
+
+// #1344: the visibility path. A user-modified skipIfExists file whose template
+// render changed is a WITHHELD fix — diff/update must surface it distinctly, not
+// silently collapse it into "unchanged".
+describe('#1344 withheld template-fix visibility', () => {
+  let dir: string
+
+  function runDiffJson(opts: { withheld?: boolean }): {
+    files?: { path: string; status: string }[]
+    withheldCount?: number
+  } {
+    const writes: string[] = []
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
+    const outSpy = vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => {
+      writes.push(String(s))
+      return true
+    })
+    try {
+      runDiff({ dir, json: true, ...(opts.withheld ? { withheld: true } : {}) })
+    } finally {
+      outSpy.mockRestore()
+      exitSpy.mockRestore()
+    }
+    const payload = writes.find((w) => w.includes('"files"')) ?? '{}'
+    const json = JSON.parse(payload) as {
+      data?: { files?: { path: string; status: string }[]; withheldCount?: number }
+    }
+    return json.data ?? {}
+  }
+
+  function makeWithheld(): void {
+    // USERMOD is on disk with a baseline; user edits it so disk ≠ baseline AND
+    // disk ≠ current render → the fix is withheld.
+    const manifest = loadGeneratedManifest(dir)
+    expect(manifest[USERMOD]).toBeDefined()
+    writeFileSync(join(dir, USERMOD), '// USER EDIT — withholds the template fix\n')
+    saveGeneratedManifest(dir, manifest)
+  }
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'arb-1344-'))
+    initGit(dir)
+    await runInit({ yes: true, tools: 'claude', level: 'L2', dir, noVerify: true })
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('AC1+AC2: diff reports a user-modified skipIfExists file as withheld (not unchanged)', () => {
+    makeWithheld()
+    const data = runDiffJson({})
+    const entry = data.files?.find((f) => f.path === USERMOD)
+    expect(entry?.status).toBe('withheld')
+    expect(data.withheldCount).toBeGreaterThanOrEqual(1)
+  })
+
+  it('AC3: diff --withheld filters output to only withheld entries', () => {
+    makeWithheld()
+    const data = runDiffJson({ withheld: true })
+    expect(data.files?.length).toBeGreaterThanOrEqual(1)
+    expect(data.files?.every((f) => f.status === 'withheld')).toBe(true)
+    expect(data.files?.some((f) => f.path === USERMOD)).toBe(true)
+  })
+
+  it('AC5: a pristine (unmodified) project reports zero withheld files (no false positive)', () => {
+    const data = runDiffJson({})
+    expect(data.withheldCount ?? 0).toBe(0)
+    expect(data.files?.some((f) => f.status === 'withheld')).toBe(false)
+  })
+
+  it('AC4: update summary counts withheld files', async () => {
+    makeWithheld()
+    const writes: string[] = []
+    const outSpy = vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => {
+      writes.push(String(s))
+      return true
+    })
+    try {
+      await runUpdate({ dir, github: false })
+    } finally {
+      outSpy.mockRestore()
+    }
+    const done = writes.find((w) => w.includes('withheld')) ?? ''
+    expect(done).toMatch(/[1-9]\d* withheld/)
+  })
+})

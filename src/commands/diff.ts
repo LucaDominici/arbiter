@@ -19,9 +19,11 @@ import { loadGeneratedManifest } from '../state/generated-manifest.js'
 export interface DiffOptions {
   dir: string | undefined
   json?: boolean | undefined
+  /** #1344: filter the report to only withheld template fixes (focused reconciliation view). */
+  withheld?: boolean | undefined
 }
 
-type DiffStatus = 'new' | 'changed' | 'unchanged'
+type DiffStatus = 'new' | 'changed' | 'unchanged' | 'withheld'
 
 interface DiffFile {
   key: string
@@ -66,31 +68,64 @@ function buildRemoteSideEffects(
 function buildDiffFiles(results: WriteResult[], targetDir: string): DiffFile[] {
   return results.map((r) => {
     const rel = relative(targetDir, r.path)
+    // #1344: a withheld fix is a `skipped` action that would otherwise read as
+    // `unchanged` — surface it as its own status so the drift is visible.
+    const status: DiffStatus = r.withheld ? 'withheld' : actionToStatus(r.action)
     return {
       key: rel,
-      status: actionToStatus(r.action),
+      status,
       action: r.action,
       path: rel,
     }
   })
 }
 
-function printHuman(files: DiffFile[], remote: RemoteSideEffect[], hasChanges: boolean): void {
-  for (const f of files) {
-    if (f.status === 'new') {
-      process.stdout.write(`${t('cli.diff.new_file', { key: f.key })}\n`)
-    } else if (f.status === 'changed') {
-      process.stdout.write(`${t('cli.diff.changed_file', { key: f.key })}\n`)
-    } else {
-      process.stdout.write(`${t('cli.diff.unchanged_file', { key: f.key })}\n`)
-    }
+function printFileLine(f: DiffFile): void {
+  if (f.status === 'new') {
+    process.stdout.write(`${t('cli.diff.new_file', { key: f.key })}\n`)
+  } else if (f.status === 'changed') {
+    process.stdout.write(`${t('cli.diff.changed_file', { key: f.key })}\n`)
+  } else if (f.status === 'withheld') {
+    process.stdout.write(`${t('cli.diff.withheld_file', { key: f.key })}\n`)
+  } else {
+    process.stdout.write(`${t('cli.diff.unchanged_file', { key: f.key })}\n`)
   }
+}
+
+/**
+ * #1344: a dedicated trailing section for withheld template fixes so a
+ * gate/security fix preserved on a user-modified file is reviewable, not buried
+ * among "unchanged" lines.
+ */
+function printWithheldSection(withheld: DiffFile[]): void {
+  if (withheld.length === 0) return
+  process.stdout.write(`${t('cli.diff.withheld_header', { count: withheld.length })}\n`)
+  for (const f of withheld) {
+    process.stdout.write(`${t('cli.diff.withheld_file', { key: f.key })}\n`)
+  }
+  process.stdout.write(`${t('cli.diff.withheld_hint')}\n`)
+}
+
+function printHuman(
+  files: DiffFile[],
+  remote: RemoteSideEffect[],
+  hasChanges: boolean,
+  withheldOnly: boolean,
+): void {
+  const withheld = files.filter((f) => f.status === 'withheld')
+  // --withheld: focused view — only the withheld section, nothing else.
+  if (withheldOnly) {
+    printWithheldSection(withheld)
+    return
+  }
+  for (const f of files) printFileLine(f)
   if (remote.length > 0) {
     process.stdout.write(`${t('cli.diff.remote_header')}\n`)
     for (const r of remote) {
       process.stdout.write(`${t('cli.diff.remote_effect', { op: r.op, target: r.target })}\n`)
     }
   }
+  printWithheldSection(withheld)
   process.stdout.write(
     hasChanges ? `${t('cli.diff.run_update')}\n` : `${t('cli.diff.up_to_date')}\n`,
   )
@@ -127,7 +162,10 @@ export function runDiff(options: DiffOptions): void {
   // no longer reported as a lying '(unchanged)'). diff is read-only: it never
   // persists the session.
   const prevManifest = loadGeneratedManifest(targetDir)
-  beginGenerationSession({ targetDir, prevHashes: prevManifest })
+  // #1344: pass a no-op onWithheld — diff lists withheld files explicitly via the
+  // returned `withheld` flag + dedicated section, so the default per-file
+  // logger.warn would only double-emit noise here.
+  beginGenerationSession({ targetDir, prevHashes: prevManifest, onWithheld: () => {} })
   let results: WriteResult[]
   try {
     results = runGeneratorsFromRegistry(specs, [], { dryRun: true })
@@ -135,21 +173,25 @@ export function runDiff(options: DiffOptions): void {
     endGenerationSession()
   }
 
-  const files = buildDiffFiles(results, targetDir)
+  const allFiles = buildDiffFiles(results, targetDir)
+  const withheldCount = allFiles.filter((f) => f.status === 'withheld').length
+  // --withheld: focused reconciliation view — report only withheld entries.
+  const files = options.withheld ? allFiles.filter((f) => f.status === 'withheld') : allFiles
   const remoteSideEffect = buildRemoteSideEffects(
     gitHubPermitted(stored),
     config.githubOwner,
     config.githubRepo,
   )
-  const hasChanges = files.some((f) => f.status !== 'unchanged')
+  // A withheld fix is actionable drift → counts as a change (warning/exit 1).
+  const hasChanges = allFiles.some((f) => f.status !== 'unchanged')
 
   if (options.json) {
     const status = hasChanges ? 'warning' : 'ok'
-    jsonOutput('diff', status, { hasChanges, files, remoteSideEffect })
+    jsonOutput('diff', status, { hasChanges, files, remoteSideEffect, withheldCount })
     const code = statusToExitCode(status)
     if (code !== 0) process.exit(code)
     return
   }
 
-  printHuman(files, remoteSideEffect, hasChanges)
+  printHuman(files, remoteSideEffect, hasChanges, options.withheld === true)
 }
