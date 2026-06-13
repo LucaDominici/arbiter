@@ -3,6 +3,8 @@ import { runInit } from '../../src/commands/init.js'
 
 vi.mock('../../src/detectors/language.js', () => ({
   detectLanguage: vi.fn().mockReturnValue('typescript'),
+  resolveLanguage: vi.fn().mockReturnValue('typescript'),
+  languageSignalPresent: vi.fn().mockReturnValue(true),
   detectLanguageWithSource: vi
     .fn()
     .mockReturnValue({ language: 'typescript', source: 'package.json' }),

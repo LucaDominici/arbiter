@@ -103,3 +103,9 @@ node scripts/check-adapter-coverage.mjs
 ```
 
 The gate is also reported in `arbiter doctor health` via the `stack-adapter` health check ID.
+
+INV-88 is `selfOnly` — `src/adapters/<lang>.ts` files are an arbiter-internal artifact. The
+`stack-adapter` doctor check therefore only enforces adapter coverage when run against arbiter
+itself (detected by the unique package name `@arbiter/cli`). On a **client** repo the check is a
+PASS advisory (skipped), so a Go-primary project with a frontend-lane `package.json` no longer
+FAILs with a misleading hint pointing at an arbiter-internal path (#1343).

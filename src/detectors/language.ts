@@ -61,3 +61,70 @@ export function detectLanguageWithSource(dir: string): {
 export function detectLanguage(dir: string): Language {
   return detectLanguageWithSource(dir).language
 }
+
+/**
+ * #1343: is the filesystem build-file signal for `lang` still present in `dir`?
+ *
+ * Used to decide whether a *stored* `arbiter.json` language is still corroborated by
+ * the project on disk. The per-language signals mirror the SAME predicates
+ * `detectLanguageWithSource` uses (single SSOT): `typescript`→package.json,
+ * `rust`→Cargo.toml, `java`→a JVM build file (root or `backend/`), `kotlin`→a JVM
+ * build file plus `.kt` sources, `go`→go.mod, `python`→pyproject.toml|setup.py|
+ * requirements.txt, `multi`→package.json AND a JVM build file. `unknown` has no
+ * signal and is never corroborated.
+ */
+export function languageSignalPresent(dir: string, lang: Language): boolean {
+  const hasTs = existsSync(join(dir, 'package.json'))
+  const jvmFile = findJvmBuildFile(dir) ?? findJvmBuildFile(join(dir, 'backend'))
+  switch (lang) {
+    case 'typescript':
+      return hasTs
+    case 'rust':
+      return existsSync(join(dir, 'Cargo.toml'))
+    case 'java':
+      return jvmFile !== null
+    case 'kotlin':
+      return jvmFile !== null && hasKotlinSources(dir)
+    case 'go':
+      return existsSync(join(dir, 'go.mod'))
+    case 'python':
+      return (
+        existsSync(join(dir, 'pyproject.toml')) ||
+        existsSync(join(dir, 'setup.py')) ||
+        existsSync(join(dir, 'requirements.txt'))
+      )
+    case 'multi':
+      return hasTs && jvmFile !== null
+    case 'unknown':
+      return false
+  }
+}
+
+/**
+ * #1343: resolve the authoritative project language. A *stored* `arbiter.json`
+ * `language` (persisted by init/wizard) wins over filesystem detection AS LONG AS it
+ * is still corroborated on disk (its build-file signal is present). This stops a
+ * secondary-lane `package.json` from shadowing a Go-primary project's stored `go`
+ * (issue #1343: haben has both `go.mod` and a frontend-lane `package.json`).
+ *
+ * Corroboration — rather than blind "stored wins" — preserves `update`'s documented
+ * language-migration detection (schema.ts): if the stored language's signal is GONE
+ * (a genuine on-disk migration, e.g. package.json removed and go.mod added), the
+ * stored value is no longer trusted and `detectLanguage` re-detects, so the migration
+ * still propagates. Crash-safe: a missing/undefined `stored.language` simply falls
+ * through to filesystem detection.
+ */
+export function resolveLanguage(
+  dir: string,
+  stored: { language?: Language } | undefined,
+): Language {
+  const storedLang = stored?.language
+  if (
+    storedLang !== undefined &&
+    storedLang !== 'unknown' &&
+    languageSignalPresent(dir, storedLang)
+  ) {
+    return storedLang
+  }
+  return detectLanguage(dir)
+}

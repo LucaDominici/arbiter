@@ -82,4 +82,12 @@ describe('resolveProjectConfig — canonical builder field mapping (#1077)', () 
     const { config } = resolveProjectConfig(dir, 'x', makeStored(), true)
     expect(config.useGitHub).toBe(true)
   })
+
+  // #1343 R7: a Go-primary polyglot repo (go.mod + a frontend-lane package.json) with
+  // stored `language: go` must resolve `go`, not the package.json-shadowed `typescript`.
+  it('honors stored language go over package.json-shadowed detection (#1343)', () => {
+    writeFileSync(join(dir, 'go.mod'), 'module example.com/x\n\ngo 1.22\n')
+    const { config } = resolveProjectConfig(dir, 'x', makeStored({ language: 'go' }))
+    expect(config.language).toBe('go')
+  })
 })

@@ -8,6 +8,8 @@ vi.mock('../../src/utils/config.js', () => ({
 }))
 vi.mock('../../src/detectors/language.js', () => ({
   detectLanguage: vi.fn().mockReturnValue('typescript'),
+  resolveLanguage: vi.fn().mockReturnValue('typescript'),
+  languageSignalPresent: vi.fn().mockReturnValue(true),
 }))
 vi.mock('../../src/detectors/build.js', () => ({
   detectBuildCommands: vi.fn().mockReturnValue({
