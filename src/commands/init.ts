@@ -42,7 +42,10 @@ import { runCli } from '../utils/run-cli.js'
 import { presetToTiers, defaultPresetForLevel } from '../invariants/filter.js'
 import { applyPreset } from '../wizard/presets.js'
 import { defaultContractType } from '../wizard/archetype-defaults.js'
-import { validateCollaborationCoherence } from './wizard/coherence.js'
+import {
+  validateCollaborationCoherence,
+  validateLanguageArchetypeCoherence,
+} from './wizard/coherence.js'
 import type {
   ProjectConfig,
   AiTool,
@@ -1240,6 +1243,15 @@ function checkL3MaturityGates(config: ProjectConfig): void {
  * the rule lives in one place to avoid divergence.
  */
 function checkCollaborationCoherenceGate(config: ProjectConfig): void {
+  // #1347: advisory language × archetype axis — WARN only, never blocks. Surfaced
+  // at the same pre-init gate (and in `arbiter doctor`) so the two guardrail paths
+  // read one coherence SSOT. Printed before the collaboration check so the user
+  // sees it even when the collaboration cell aborts.
+  const langArch = validateLanguageArchetypeCoherence(config.language, config.archetype)
+  if (langArch.severity === 'WARN') {
+    process.stdout.write(`\n  ⚠ ${langArch.message}\n`)
+  }
+
   if (config.collaborationMode === undefined) return
   const result = validateCollaborationCoherence(config.collaborationMode, config.governanceLevel)
   if (result.severity !== 'CRITICAL') return

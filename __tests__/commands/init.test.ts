@@ -397,6 +397,41 @@ describe('runInit', () => {
     expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
   })
 
+  it('coherence gate does NOT abort on --dry-run of an incoherent cell (#1347)', async () => {
+    exitSpy.mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`)
+    })
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L4',
+      solo: true,
+      dir,
+      dryRun: true,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(mockRunGeneratorsFromRegistry).not.toHaveBeenCalled()
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+
+  it('language × archetype WARN does not block generation (#1347)', async () => {
+    const { runInit } = await import('../../src/commands/init.js')
+    await runInit({
+      yes: true,
+      tools: 'claude',
+      level: 'L2',
+      language: 'go',
+      archetype: 'frontend-spa',
+      dir,
+      dryRun: false,
+      brownfield: false,
+      noVerify: true,
+    })
+    expect(mockRunGeneratorsFromRegistry).toHaveBeenCalled()
+  })
+
   it('prints created/skipped file counts after generation', async () => {
     mockRunGeneratorsFromRegistry.mockReturnValue([
       { path: '/tmp/AGENTS.md', action: 'created' },

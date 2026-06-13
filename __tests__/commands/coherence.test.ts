@@ -5,10 +5,16 @@
  * Non-regression guard for #1080.
  */
 import { describe, it, expect } from 'vitest'
-import type { CollaborationMode, GovernanceLevel } from '../../src/wizard/types.js'
+import type {
+  Archetype,
+  CollaborationMode,
+  GovernanceLevel,
+  Language,
+} from '../../src/wizard/types.js'
 import {
   validateCollaborationCoherence,
   validateAutonomyCoherence,
+  validateLanguageArchetypeCoherence,
   type CoherenceResult,
 } from '../../src/commands/wizard/coherence.js'
 
@@ -218,4 +224,54 @@ describe('validateAutonomyCoherence — unrecognized literal (WARN)', () => {
     const result = validateAutonomyCoherence('L9', 'L2', true)
     expect(result.severity).toBe('WARN')
   })
+})
+
+// ── #1347: language × archetype coherence (WARN | OK) ────────────────────────
+//
+// Conservative advisory axis: a handful of language×archetype pairs the framework
+// cannot meaningfully scaffold (e.g. go + frontend-spa, python + embedded) surface
+// a WARN. Never CRITICAL (no hard block without product sign-off). unknown/multi
+// language and undefined archetype are always OK (no false WARN).
+
+describe('validateLanguageArchetypeCoherence — incompatible pairs (WARN)', () => {
+  const incompatible: Array<[Language, Archetype]> = [
+    ['go', 'frontend-spa'],
+    ['python', 'embedded'],
+    ['java', 'frontend-spa'],
+  ]
+  for (const [language, archetype] of incompatible) {
+    it(`${language} + ${archetype} → valid but WARN`, () => {
+      const r = validateLanguageArchetypeCoherence(language, archetype)
+      expect(r.valid, `${language}+${archetype}`).toBe(true)
+      expect(r.severity, `${language}+${archetype}`).toBe('WARN')
+      expect(r.message).toMatch(new RegExp(language))
+      expect(r.message).toMatch(new RegExp(archetype))
+    })
+  }
+
+  it('never returns CRITICAL (no hard block on this axis)', () => {
+    for (const [language, archetype] of incompatible) {
+      const r = validateLanguageArchetypeCoherence(language, archetype)
+      expect(r.severity, `${language}+${archetype}`).not.toBe('CRITICAL')
+    }
+  })
+})
+
+describe('validateLanguageArchetypeCoherence — compatible / unknown (OK)', () => {
+  const ok: Array<[Language, Archetype | undefined]> = [
+    ['typescript', 'frontend-spa'],
+    ['go', 'backend-web-db'],
+    ['python', 'data-pipeline'],
+    ['rust', 'embedded'],
+    ['unknown', 'frontend-spa'],
+    ['multi', 'embedded'],
+    ['go', undefined],
+  ]
+  for (const [language, archetype] of ok) {
+    it(`${language} + ${String(archetype)} → OK`, () => {
+      const r = validateLanguageArchetypeCoherence(language, archetype)
+      expect(r.valid, `${language}+${String(archetype)}`).toBe(true)
+      expect(r.severity, `${language}+${String(archetype)}`).toBe('OK')
+    })
+  }
 })

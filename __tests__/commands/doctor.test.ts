@@ -91,6 +91,30 @@ describe('runDoctorHealth (#539)', () => {
     expect(c?.status).toBe('WARN')
   })
 
+  // #1347: language × archetype coherence surfaced by doctor (WARN only, never FAIL).
+  it('language-archetype WARN for an incompatible pair (go + frontend-spa)', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ language: 'go', archetype: 'frontend-spa', governanceLevel: 'L2' }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'language-archetype-coherence')
+    expect(c?.status).toBe('WARN')
+    expect(result.fail).toBe(0)
+  })
+
+  it('language-archetype PASS for a compatible pair (typescript + frontend-spa)', async () => {
+    mockGitOk()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ language: 'typescript', archetype: 'frontend-spa', governanceLevel: 'L2' }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'language-archetype-coherence')
+    expect(c?.status).toBe('PASS')
+  })
+
   // #1254: industryOverlay × governanceLevel coherence surfaced by doctor.
   it('overlay-coherence PASS for a coherent cell (pharma @ L3)', async () => {
     mockGitOk()
