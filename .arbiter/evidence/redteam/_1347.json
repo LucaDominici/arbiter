@@ -1,0 +1,48 @@
+{
+  "taskId": "#1347",
+  "branch": "task/#1347-w",
+  "ts": "2026-06-13T17:00:00.000Z",
+  "agents": 3,
+  "findings": [
+    {
+      "id": "RT-01",
+      "severity": "HIGH",
+      "angle": "regression",
+      "summary": "WARN language x archetype advisory must not change exit code (rc stays 0).",
+      "auditorHint": "silent-failures",
+      "resolved": true
+    },
+    {
+      "id": "RT-02",
+      "severity": "HIGH",
+      "angle": "data-integrity",
+      "summary": "Coherence gate runs before generateAndFinalize so nothing is written on CRITICAL abort.",
+      "auditorHint": "data-integrity",
+      "resolved": true
+    },
+    {
+      "id": "RT-03",
+      "severity": "MEDIUM",
+      "angle": "edge-cases",
+      "summary": "--dry-run previews an incoherent cell without abort, matching L3-gate ordering.",
+      "auditorHint": "bugs",
+      "resolved": true
+    },
+    {
+      "id": "RT-04",
+      "severity": "MEDIUM",
+      "angle": "edge-cases",
+      "summary": "language unknown/multi and undefined archetype treated as OK (no false WARN).",
+      "auditorHint": "bugs",
+      "resolved": true
+    },
+    {
+      "id": "RT-05",
+      "severity": "MEDIUM",
+      "angle": "error-handling",
+      "summary": "doctor surfaces language x archetype as WARN only, never FAIL.",
+      "auditorHint": "silent-failures",
+      "resolved": true
+    }
+  ]
+}
