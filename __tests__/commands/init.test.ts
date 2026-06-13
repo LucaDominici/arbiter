@@ -4,6 +4,8 @@ import { createTestProject, cleanupTestProject, makeConfig } from '../helpers.js
 // Module-level mocks must be at top level (hoisted by vitest)
 vi.mock('../../src/detectors/language.js', () => ({
   detectLanguage: vi.fn().mockReturnValue('typescript'),
+  resolveLanguage: vi.fn().mockReturnValue('typescript'),
+  languageSignalPresent: vi.fn().mockReturnValue(true),
   detectLanguageWithSource: vi
     .fn()
     .mockReturnValue({ language: 'typescript', source: 'package.json' }),

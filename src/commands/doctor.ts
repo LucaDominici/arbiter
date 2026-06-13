@@ -18,6 +18,7 @@ import type { LockInfo } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
 import { detectLanguage } from '../detectors/language.js'
+import { isArbiterSelf } from './ship-profile.js'
 import { isValidPhase } from './task-state.js'
 import {
   validateCollaborationCoherence,
@@ -354,8 +355,22 @@ const ADAPTER_EXEMPT_LANGUAGES = ['kotlin', 'multi', 'unknown'] as const
  * INV-88: Checks that a StackAdapter file exists for the detected language.
  * Exempt languages: kotlin (JVM), multi, unknown.
  * Exported for unit testing.
+ *
+ * #1343: INV-88 is `selfOnly` — `src/adapters/<lang>.ts` is an arbiter-INTERNAL
+ * artifact. Running this check against a CLIENT repo (e.g. a Go-primary project with a
+ * frontend-lane package.json) produced a misleading FAIL with a hint pointing at an
+ * arbiter-internal path. When `dir` is not arbiter-self, the check is a PASS advisory.
  */
 export function checkStackAdapterHealth(dir: string): HealthCheck {
+  if (!isArbiterSelf(dir)) {
+    return {
+      id: 'stack-adapter',
+      label: 'Stack adapter registered',
+      status: 'PASS',
+      detail: 'not arbiter-self — INV-88 adapter coverage is an arbiter-internal check (skipped)',
+    }
+  }
+
   const lang = detectLanguage(dir)
 
   if ((ADAPTER_EXEMPT_LANGUAGES as readonly string[]).includes(lang)) {

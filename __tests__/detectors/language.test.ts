@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { detectLanguage, detectLanguageWithSource } from '../../src/detectors/language.js'
+import {
+  detectLanguage,
+  detectLanguageWithSource,
+  resolveLanguage,
+  languageSignalPresent,
+} from '../../src/detectors/language.js'
 
 function tmpDir(): string {
   return mkdtempSync(join(tmpdir(), 'arbiter-test-'))
@@ -203,5 +208,98 @@ describe('detectLanguageWithSource', () => {
     const result = detectLanguageWithSource(dir)
     expect(result.language).toBe('java')
     expect(result.source).toBe('pom.xml')
+  })
+})
+
+// #1343: stored arbiter.json `language` must win over filesystem detection while
+// it is still corroborated on disk (a Go-primary repo with a frontend lane has
+// both go.mod and package.json — package.json must not shadow the stored `go`).
+describe('languageSignalPresent', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = tmpDir()
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('go signal present when go.mod exists', () => {
+    writeFileSync(join(dir, 'go.mod'), 'module x\n')
+    expect(languageSignalPresent(dir, 'go')).toBe(true)
+  })
+
+  it('go signal absent when go.mod missing', () => {
+    expect(languageSignalPresent(dir, 'go')).toBe(false)
+  })
+
+  it('typescript signal present when package.json exists', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    expect(languageSignalPresent(dir, 'typescript')).toBe(true)
+  })
+
+  it('rust signal present when Cargo.toml exists', () => {
+    writeFileSync(join(dir, 'Cargo.toml'), '[package]')
+    expect(languageSignalPresent(dir, 'rust')).toBe(true)
+  })
+
+  it('python signal present for any of pyproject/setup.py/requirements', () => {
+    writeFileSync(join(dir, 'requirements.txt'), 'flask\n')
+    expect(languageSignalPresent(dir, 'python')).toBe(true)
+  })
+
+  it('java signal present when pom.xml exists', () => {
+    writeFileSync(join(dir, 'pom.xml'), '')
+    expect(languageSignalPresent(dir, 'java')).toBe(true)
+  })
+
+  it('multi signal present only when both package.json and a JVM build file exist', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    expect(languageSignalPresent(dir, 'multi')).toBe(false)
+    writeFileSync(join(dir, 'pom.xml'), '')
+    expect(languageSignalPresent(dir, 'multi')).toBe(true)
+  })
+
+  it('unknown is never corroborated', () => {
+    writeFileSync(join(dir, 'go.mod'), 'module x\n')
+    expect(languageSignalPresent(dir, 'unknown')).toBe(false)
+  })
+})
+
+describe('resolveLanguage', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = tmpDir()
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('R1: returns stored go when go.mod present even though package.json would detect typescript', () => {
+    writeFileSync(join(dir, 'go.mod'), 'module x\n')
+    writeFileSync(join(dir, 'package.json'), '{}')
+    // sanity: filesystem detection alone is wrong here
+    expect(detectLanguage(dir)).toBe('typescript')
+    expect(resolveLanguage(dir, { language: 'go' })).toBe('go')
+  })
+
+  it('R2: falls back to detectLanguage when stored language is undefined', () => {
+    writeFileSync(join(dir, 'go.mod'), 'module x\n')
+    expect(resolveLanguage(dir, {})).toBe('go')
+  })
+
+  it('R3: falls back to detectLanguage when stored language is unknown', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    expect(resolveLanguage(dir, { language: 'unknown' })).toBe('typescript')
+  })
+
+  it('R3b: migration — stored typescript but package.json gone and go.mod present re-detects go', () => {
+    writeFileSync(join(dir, 'go.mod'), 'module x\n')
+    // no package.json on disk: the stored typescript is no longer corroborated
+    expect(resolveLanguage(dir, { language: 'typescript' })).toBe('go')
+  })
+
+  it('crash-safe: undefined stored does not throw', () => {
+    writeFileSync(join(dir, 'package.json'), '{}')
+    expect(resolveLanguage(dir, undefined)).toBe('typescript')
   })
 })

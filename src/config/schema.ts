@@ -121,7 +121,13 @@ export interface ArbiterConfigV2 {
   decomposition?: DecompositionConfig
   features: FeatureFlags
   thresholds: ThresholdsV2
-  /** Detected project language. Persisted so `arbiter update` can detect language migrations and re-run language-gated generators. */
+  /**
+   * Project language. Persisted so it is authoritative over raw filesystem detection
+   * (#1343 `resolveLanguage`): a Go-primary repo with a frontend-lane package.json keeps
+   * `go`. It is re-detected only on a genuine on-disk migration — when this stored
+   * language's build-file signal is gone — so `arbiter update` still picks up language
+   * migrations and re-runs language-gated generators.
+   */
   language?: Language
   archetype?: Archetype
   architectureStyle?: ArchitectureStyle
