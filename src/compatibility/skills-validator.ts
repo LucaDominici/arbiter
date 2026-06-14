@@ -14,6 +14,7 @@ const VALID_SKILL_NAMES = new Set([
   'epic-decompose',
   'configure',
   'brainstorming',
+  'wave-drain',
 ])
 
 const SkillEntrySchema = z.object({

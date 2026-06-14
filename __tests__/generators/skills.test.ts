@@ -15,6 +15,7 @@ const SKILL_NAMES = [
   'epic-decompose',
   'configure',
   'brainstorming',
+  'wave-drain',
 ] as const
 
 const SUPERPOWERS_TDD: InstalledSkill = {

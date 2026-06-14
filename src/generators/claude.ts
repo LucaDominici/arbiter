@@ -357,6 +357,7 @@ function generateClaudeCommands(
   const commands = [
     'task.md',
     'ship.md',
+    'drain.md',
     'wt-open.md',
     'wt-close.md',
     'wt-list.md',
