@@ -428,6 +428,16 @@ describe('05-release.yml.ejs — lib archetype per-language publish', () => {
     expect(rendered).toContain('npm publish --provenance')
   })
 
+  it('TypeScript: publish-package job has id-token: write for OIDC provenance', () => {
+    const rendered = renderRelease({
+      archetype: 'library',
+      language: 'typescript',
+      buildTool: 'npm',
+    })
+    const publishSection = rendered.split('publish-package:')[1] ?? ''
+    expect(publishSection).toContain('id-token: write')
+  })
+
   it('Java Gradle: ./gradlew publish', () => {
     const rendered = renderRelease({ archetype: 'library', language: 'java', buildTool: 'gradle' })
     const publishSection = rendered.split('publish-package:')[1] ?? ''
