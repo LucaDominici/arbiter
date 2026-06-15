@@ -108,6 +108,8 @@ import type { Stack } from './kit/schema.js'
 import { runKitInstall } from './commands/kit-install.js'
 import type { BrownfieldClass } from './kit/thresholds.js'
 import { runFeatureMatrixExport } from './commands/feature-matrix.js'
+import { runConformance } from './commands/conformance.js'
+import { renderText as renderConformanceText, computeSummary } from './conformance/render.js'
 
 registerCleanupHandlers()
 
@@ -2358,6 +2360,30 @@ featureMatrix
       ...(opts.matrix !== undefined ? { matrixPath: opts.matrix } : {}),
     })
     process.stdout.write(`  feature-matrix: exported to ${opts.out}\n`)
+  })
+
+// ── conformance — gold-pattern adherence scorecard ────────────────────────────
+program
+  .command('conformance')
+  .description('Score a project against the arbiter gold standard (#1369)')
+  .option('--dir <dir>', 'Project root to evaluate (default: current directory)')
+  .option('--fail-on <level>', 'Exit 1 on: fail (default) or partial (stricter)', 'fail')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((opts: { dir?: string; failOn?: string; json?: boolean }) => {
+    const failOn = opts.failOn === 'partial' ? 'partial' : 'fail'
+    const conformOpts =
+      failOn === 'partial'
+        ? { ...(opts.dir !== undefined ? { dir: opts.dir } : {}), failOn: 'partial' as const }
+        : { ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }
+    const result = runConformance(conformOpts)
+
+    if (opts.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + '\n')
+    } else {
+      const summary = computeSummary(result.dimensions)
+      process.stdout.write(renderConformanceText(result.dimensions, summary) + '\n')
+    }
+    process.exit(result.exitCode)
   })
 
 function _writeArbiterError(err: ArbiterError, prefix = 'Error'): void {
