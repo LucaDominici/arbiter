@@ -2108,7 +2108,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'Gate fails when any persisted:true field has both flags false. Manifest absent => SKIP.',
     enforcement:
       'scripts/check-domain-api-surface.mjs (L1) — wired in check-all.mjs; ' +
-      'generated for hasPublicApi:true targets via emitDomainApiSurface() (skipIfExists:true). ' +
+      'generated for targets where config.hasPublicApi is true via emitDomainApiSurface helper (skipIfExists:true). ' +
       'Exit codes per INV-53: 0=PASS/SKIP, 1=surface gap, 2=schema/parse error.',
   },
 ]
