@@ -5,8 +5,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
 import { makeConfig, writeTaskStateFile } from '../../helpers.js'
+import type { Archetype } from '../../../src/wizard/types.js'
 
-function configFor() {
+interface RealityContactBlock {
+  archetype: string
+  required: boolean
+  suite: string
+  recorded_at: string
+  passed: boolean
+}
+
+function configFor(archetype: Archetype = 'library') {
   return makeConfig('/tmp/test', {
     language: 'typescript',
     governanceLevel: 'L2',
@@ -14,6 +23,7 @@ function configFor() {
     testCommand: 'npm test',
     lintCommand: 'npm run lint',
     formatCommand: 'npx prettier --write',
+    archetype,
   })
 }
 
@@ -24,17 +34,23 @@ function sha256(content: string): string {
 const DONE_CLAIM_PROMPT = 'task complete, ready to merge'
 const BENIGN_PROMPT = 'can you explain this function?'
 
-function setup() {
+function setup(archetype: Archetype = 'library') {
   const dir = mkdtempSync(join(tmpdir(), 'arbiter-done-evidence-'))
   execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
 
   const hooksDir = join(dir, '.claude', 'hooks')
   mkdirSync(hooksDir, { recursive: true })
 
-  writeFileSync(join(hooksDir, 'lib.mjs'), renderTemplate('claude/hooks/lib.mjs.ejs', configFor()))
+  writeFileSync(
+    join(hooksDir, 'lib.mjs'),
+    renderTemplate('claude/hooks/lib.mjs.ejs', configFor(archetype)),
+  )
 
   const hookPath = join(hooksDir, 'guard-done-evidence.mjs')
-  writeFileSync(hookPath, renderTemplate('claude/hooks/guard-done-evidence.mjs.ejs', configFor()))
+  writeFileSync(
+    hookPath,
+    renderTemplate('claude/hooks/guard-done-evidence.mjs.ejs', configFor(archetype)),
+  )
 
   writeTaskStateFile(dir, { phase: 'verification', tier: 'Standard', taskId: '#407' })
 
@@ -54,6 +70,8 @@ function writeEvidence(
     pinnedContent?: string
     pinnedPath?: string
     includePinnedFiles?: boolean
+    reality_contact?: RealityContactBlock | null
+    includeRealityContact?: boolean
   } = {},
 ) {
   const {
@@ -61,15 +79,21 @@ function writeEvidence(
     pinnedContent = 'export const answer = 42;\n',
     pinnedPath = 'src/main.ts',
     includePinnedFiles = true,
+    reality_contact,
+    includeRealityContact = false,
   } = opts
 
-  const evidence = {
+  const evidence: Record<string, unknown> = {
     version: 1,
     captured_at: new Date().toISOString(),
     task_id: '#407',
     all_green,
     gate_level: 'L2',
     pinned_files: includePinnedFiles ? [{ path: pinnedPath, sha256: sha256(pinnedContent) }] : [],
+  }
+
+  if (includeRealityContact) {
+    evidence.reality_contact = reality_contact ?? null
   }
 
   writeFileSync(join(dir, '.claude', '.last-done-evidence.json'), JSON.stringify(evidence, null, 2))
@@ -184,6 +208,178 @@ describe('guard-done-evidence — empirical spawn', () => {
       // Overwrite phase to a non-verification phase — hook should stand down
       writeTaskStateFile(dir, { phase: 'green', tier: 'Standard', taskId: '#407' })
       // No evidence file — but hook should exit 0 because phase guard fires first
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('guard-done-evidence — reality-contact (backend-web-db)', () => {
+  it('exits 2 when reality_contact block is missing for backend-web-db', () => {
+    const { dir, hookPath, pinnedContent } = setup('backend-web-db')
+    try {
+      writeEvidence(dir, { all_green: true, pinnedContent })
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+      expect(result.stderr).toMatch(/reality.contact/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 2 when reality_contact.suite is wrong for backend-web-db', () => {
+    const { dir, hookPath, pinnedContent } = setup('backend-web-db')
+    try {
+      writeEvidence(dir, {
+        all_green: true,
+        pinnedContent,
+        includeRealityContact: true,
+        reality_contact: {
+          archetype: 'backend-web-db',
+          required: true,
+          suite: 'render-smoke',
+          recorded_at: new Date().toISOString(),
+          passed: true,
+        },
+      })
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+      expect(result.stderr).toMatch(/live-api-e2e/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 2 when reality_contact.passed is false for backend-web-db', () => {
+    const { dir, hookPath, pinnedContent } = setup('backend-web-db')
+    try {
+      writeEvidence(dir, {
+        all_green: true,
+        pinnedContent,
+        includeRealityContact: true,
+        reality_contact: {
+          archetype: 'backend-web-db',
+          required: true,
+          suite: 'live-api-e2e',
+          recorded_at: new Date().toISOString(),
+          passed: false,
+        },
+      })
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+      expect(result.stderr).toMatch(/passed.*false|false.*passed/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 0 with valid reality_contact for backend-web-db', () => {
+    const { dir, hookPath, pinnedContent } = setup('backend-web-db')
+    try {
+      writeEvidence(dir, {
+        all_green: true,
+        pinnedContent,
+        includeRealityContact: true,
+        reality_contact: {
+          archetype: 'backend-web-db',
+          required: true,
+          suite: 'live-api-e2e',
+          recorded_at: new Date().toISOString(),
+          passed: true,
+        },
+      })
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('guard-done-evidence — reality-contact (frontend-spa)', () => {
+  it('exits 2 when reality_contact block is missing for frontend-spa', () => {
+    const { dir, hookPath, pinnedContent } = setup('frontend-spa')
+    try {
+      writeEvidence(dir, { all_green: true, pinnedContent })
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+      expect(result.stderr).toMatch(/reality.contact/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 2 when reality_contact.suite is wrong for frontend-spa', () => {
+    const { dir, hookPath, pinnedContent } = setup('frontend-spa')
+    try {
+      writeEvidence(dir, {
+        all_green: true,
+        pinnedContent,
+        includeRealityContact: true,
+        reality_contact: {
+          archetype: 'frontend-spa',
+          required: true,
+          suite: 'live-api-e2e',
+          recorded_at: new Date().toISOString(),
+          passed: true,
+        },
+      })
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+      expect(result.stderr).toMatch(/render-smoke|visual-regression/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 2 when reality_contact.passed is false for frontend-spa', () => {
+    const { dir, hookPath, pinnedContent } = setup('frontend-spa')
+    try {
+      writeEvidence(dir, {
+        all_green: true,
+        pinnedContent,
+        includeRealityContact: true,
+        reality_contact: {
+          archetype: 'frontend-spa',
+          required: true,
+          suite: 'render-smoke',
+          recorded_at: new Date().toISOString(),
+          passed: false,
+        },
+      })
+      const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toMatch(/DONE EVIDENCE/i)
+      expect(result.stderr).toMatch(/passed.*false|false.*passed/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 0 with valid reality_contact for frontend-spa', () => {
+    const { dir, hookPath, pinnedContent } = setup('frontend-spa')
+    try {
+      writeEvidence(dir, {
+        all_green: true,
+        pinnedContent,
+        includeRealityContact: true,
+        reality_contact: {
+          archetype: 'frontend-spa',
+          required: true,
+          suite: 'render-smoke',
+          recorded_at: new Date().toISOString(),
+          passed: true,
+        },
+      })
       const result = runHook(hookPath, dir, DONE_CLAIM_PROMPT)
       expect(result.status).toBe(0)
       expect(result.stderr).toBe('')
