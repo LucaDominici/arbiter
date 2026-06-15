@@ -21,6 +21,7 @@ export const SKILL_NAMES = [
   'epic-decompose',
   'configure',
   'brainstorming',
+  'wave-drain',
 ] as const
 
 function findReplacingSkill(
