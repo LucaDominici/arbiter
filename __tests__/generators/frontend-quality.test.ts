@@ -157,17 +157,17 @@ describe('generateFrontendQuality (#1127)', () => {
     expect(result.files).toHaveLength(12)
   })
 
-  // ── #1366 (INV-126): render-smoke behavioural spec ───────────────────────────
+  // ── #1366 (INV-127): render-smoke behavioural spec ───────────────────────────
 
   it('scaffolds tests/e2e/render-smoke.spec.ts for a TS frontend-spa', () => {
     generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
     const spec = join(dir, 'tests', 'e2e', 'render-smoke.spec.ts')
     expect(existsSync(spec)).toBe(true)
     const body = readFileSync(spec, 'utf-8')
-    // Boots the SPA, asserts the mount + zero console errors (INV-126).
+    // Boots the SPA, asserts the mount + zero console errors (INV-127).
     expect(body).toMatch(/E2E_BASE_URL/)
     expect(body).toMatch(/console/)
-    expect(body).toMatch(/INV-126/)
+    expect(body).toMatch(/INV-127/)
   })
 
   it('scaffolds the render-smoke spec when lanes includes frontend (TS, non-spa)', () => {

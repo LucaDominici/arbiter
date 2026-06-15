@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// CANON-04 render tests for the #1366 render-smoke templates (INV-126).
+// CANON-04 render tests for the #1366 render-smoke templates (INV-127).
 import { describe, it, expect } from 'vitest'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
@@ -12,7 +12,7 @@ const cfg = (over: Record<string, unknown> = {}) =>
     ...over,
   })
 
-describe('render-smoke.spec.ts.ejs (#1366, INV-126)', () => {
+describe('render-smoke.spec.ts.ejs (#1366, INV-127)', () => {
   it('renders without EJS leaks', () => {
     const out = renderTemplate('e2e/playwright-ts/render-smoke.spec.ts.ejs', cfg())
     expect(out).not.toMatch(/<%/)
@@ -24,7 +24,7 @@ describe('render-smoke.spec.ts.ejs (#1366, INV-126)', () => {
     expect(out).toMatch(/E2E_BASE_URL/)
     expect(out).toMatch(/pageerror/)
     expect(out).toMatch(/consoleErrors/)
-    expect(out).toMatch(/INV-126/)
+    expect(out).toMatch(/INV-127/)
   })
 
   it('is framework-aware: react → #root, vue → #app, angular → app-root', () => {
@@ -43,11 +43,11 @@ describe('render-smoke.spec.ts.ejs (#1366, INV-126)', () => {
   })
 })
 
-describe('check-render-smoke.mjs.ejs (#1366, INV-126)', () => {
+describe('check-render-smoke.mjs.ejs (#1366, INV-127)', () => {
   it('renders without EJS leaks and carries the CATALOG block', () => {
     const out = renderTemplate('scripts/check-render-smoke.mjs.ejs', cfg())
     expect(out).not.toMatch(/<%/)
-    expect(out).toMatch(/CATALOG: INV-126/)
+    expect(out).toMatch(/CATALOG: INV-127/)
     expect(out).toMatch(/glob-walk\.mjs/)
   })
 })
@@ -71,6 +71,6 @@ describe('check-all.mjs.ejs wires the render-smoke gate (#1366)', () => {
     }) as unknown as Record<string, unknown>
     const out = renderTemplate('scripts/check-all.mjs.ejs', data)
     expect(out).toMatch(/check-render-smoke\.mjs/)
-    expect(out).toMatch(/INV-126/)
+    expect(out).toMatch(/INV-127/)
   })
 })

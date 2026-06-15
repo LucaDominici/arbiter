@@ -10,7 +10,7 @@ const _mountSelector = _fw === 'vue' || _fw === 'svelte'
   ? 'app-root'
   : '#root';
 -%>
-// render-smoke.spec.ts — INV-126 (#1366).
+// render-smoke.spec.ts — INV-127 (#1366).
 //
 // The MINIMUM behavioural gate for a frontend: a headless browser boots the
 // BUILT SPA (served at E2E_BASE_URL — the same ephemeral-server convention as
@@ -40,7 +40,7 @@ const screens: ReadonlyArray<{ label: string; path: string; anchor?: string }> =
 ]
 
 for (const screen of screens) {
-  test(`render smoke — ${screen.label} mounts without console errors (INV-126)`, async ({
+  test(`render smoke — ${screen.label} mounts without console errors (INV-127)`, async ({
     page,
   }) => {
     const consoleErrors: string[] = []

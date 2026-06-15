@@ -81,7 +81,7 @@ jobs:
           E2E_BASE_URL: "http://localhost:${{ vars.E2E_PORT || '4173' }}"
 
   render-smoke:
-    name: render smoke (behavioural gate, INV-126)
+    name: render smoke (behavioural gate, INV-127)
     runs-on: <%- _runner %>
     timeout-minutes: 20
     steps:
@@ -96,7 +96,7 @@ jobs:
 
       # Presence gate first: a frontend project with no render-smoke spec FAILs
       # here (fail-closed) before we build — catches the haben failure mode.
-      - name: render-smoke presence (INV-126)
+      - name: render-smoke presence (INV-127)
         run: node scripts/check-render-smoke.mjs
 
       - name: Install Playwright browsers
@@ -107,7 +107,7 @@ jobs:
 
       - name: render smoke (Playwright E2E — app shell mounts, no console errors)
         # Boots the BUILT SPA via ephemeral-server, runs the render-smoke spec.
-        # Hard gate: a broken-layout / console-error render blocks the PR (INV-126).
+        # Hard gate: a broken-layout / console-error render blocks the PR (INV-127).
         run: |
           node scripts/lib/ephemeral-server.mjs \
             --start "${E2E_START_CMD:-npm run start:test}" \

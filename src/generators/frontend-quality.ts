@@ -2,7 +2,7 @@
 // CATALOG: Frontend quality enforcement generator — emits mechanical gate scripts
 // CATALOG: (tokens, i18n, coverage, VRT, perf, render-smoke) for frontend-spa and
 // CATALOG: frontend-lane projects. Companion to frontend-governance.ts (docs). (#1127)
-// CATALOG: #1366: also scaffolds the render-smoke behavioural spec (INV-126) for TS frontends.
+// CATALOG: #1366: also scaffolds the render-smoke behavioural spec (INV-127) for TS frontends.
 import { renderTemplate } from '../utils/render.js'
 import { writeFile, resolvedPath } from '../utils/fs.js'
 import { injectDevDependency } from '../utils/pkg.js'
@@ -36,7 +36,7 @@ export function generateFrontendQuality(
   const bundleBudget = renderTemplate('perf/bundle-budget.json.ejs', templateData)
   const checkBundleSize = renderTemplate('scripts/check-bundle-size.mjs.ejs', templateData)
   const stylelintRc = renderTemplate('static-analysis/stylelintrc.json.ejs', templateData)
-  // #1366 (INV-126): render-smoke behavioural spec — a Playwright(TS) headless-browser
+  // #1366 (INV-127): render-smoke behavioural spec — a Playwright(TS) headless-browser
   // boot of the built SPA that asserts the app shell mounts without console errors.
   // The spec is TypeScript/Playwright-based, so it is emitted only for TS frontends;
   // the presence gate (check-render-smoke.mjs) is language-agnostic and emitted
@@ -103,7 +103,7 @@ export function generateFrontendQuality(
         skipIfExists: true,
         dryRun: opts.dryRun,
       }),
-      // #1366 (INV-126): render-smoke behavioural spec (TS frontends only).
+      // #1366 (INV-127): render-smoke behavioural spec (TS frontends only).
       ...(renderSmokeSpec !== null
         ? [
             writeFile(resolvedPath(base, 'tests', 'e2e', 'render-smoke.spec.ts'), renderSmokeSpec, {
