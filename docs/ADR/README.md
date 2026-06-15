@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-06-13'
+last_review: '2026-06-15'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -18,7 +18,7 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 
 ## Process
 
-1. Create `NNN-short-title.md` in this directory (next free number after 095)
+1. Create `NNN-short-title.md` in this directory (next free number after 096)
 2. Copy from `ADR-000_template.md`
 3. Set `canonical_id` to the 3-digit number
 4. Run `node scripts/gen-adr-readme.mjs` to refresh this index and DECISIONS.md digest
@@ -123,3 +123,4 @@ This directory contains the Architectural Decision Records (ADRs) for the Arbite
 | 093 | [Dual-Side the /ship Orchestrator](093-dual-side-ship-orchestrator.md)                                                                                                | proposed   | 2026-06-11 |  |
 | 094 | [Project Profile Resolver — one catalog + one precedence layer](094-project-profile-resolver.md)                                                                      | proposed   | 2026-06-11 |  |
 | 095 | [Supported AI tools — claude + codex; rest experimental](095-supported-ai-tools-claude-codex.md)                                                                      | accepted   | 2026-06-13 |  |
+| 096 | [Probe — always-on incidental-discovery loop](096-probe-incidental-discovery-loop.md)                                                                                 | accepted   | 2026-06-15 |  |
