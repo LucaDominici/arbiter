@@ -39,16 +39,19 @@ export function detectLanguageWithSource(dir: string): {
   const jvmAtRoot = findJvmBuildFile(dir)
   const jvmInBackend = findJvmBuildFile(join(dir, 'backend'))
 
-  const jvmMultiFile = jvmAtRoot ?? jvmInBackend
-  if (hasTs && jvmMultiFile !== null) {
-    return { language: 'multi', source: `package.json + ${jvmMultiFile}` }
+  // #1378: pom.xml (or any JVM build file) at the root takes precedence over package.json.
+  // A Java/Kotlin project with npm tooling has both files at root but is NOT a monorepo.
+  // Only a backend/ subfolder JVM build file paired with a root package.json signals a true
+  // multi-language monorepo (pom.xml > package.json precedence, see #1378).
+  if (hasTs && jvmInBackend !== null) {
+    return { language: 'multi', source: `package.json + ${jvmInBackend}` }
   }
-  if (hasTs) return { language: 'typescript', source: 'package.json' }
-  if (existsSync(join(dir, 'Cargo.toml'))) return { language: 'rust', source: 'Cargo.toml' }
   if (jvmAtRoot !== null) {
     if (hasKotlinSources(dir)) return { language: 'kotlin', source: jvmAtRoot }
     return { language: 'java', source: jvmAtRoot }
   }
+  if (hasTs) return { language: 'typescript', source: 'package.json' }
+  if (existsSync(join(dir, 'Cargo.toml'))) return { language: 'rust', source: 'Cargo.toml' }
   if (existsSync(join(dir, 'go.mod'))) return { language: 'go', source: 'go.mod' }
   if (existsSync(join(dir, 'pyproject.toml')))
     return { language: 'python', source: 'pyproject.toml' }

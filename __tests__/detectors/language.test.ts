@@ -79,10 +79,11 @@ describe('detectLanguage', () => {
       expect(detectLanguage(dir)).toBe('multi')
     })
 
-    it('returns multi when package.json and root pom.xml both exist', () => {
+    // #1378: pom.xml at root wins over package.json — Java project with npm tooling
+    it('returns java when package.json and root pom.xml both exist (pom.xml precedence)', () => {
       writeFileSync(join(dir, 'package.json'), '{}')
       writeFileSync(join(dir, 'pom.xml'), '')
-      expect(detectLanguage(dir)).toBe('multi')
+      expect(detectLanguage(dir)).toBe('java')
     })
 
     it('returns multi when package.json and backend/pom.xml both exist', () => {
@@ -97,6 +98,22 @@ describe('detectLanguage', () => {
       mkdirSync(join(dir, 'backend'))
       writeFileSync(join(dir, 'backend', 'build.gradle.kts'), '')
       expect(detectLanguage(dir)).toBe('multi')
+    })
+
+    // #1378: build.gradle at root wins over package.json — Java project with npm tooling
+    it('returns java when package.json and root build.gradle both exist (jvm-root precedence)', () => {
+      writeFileSync(join(dir, 'package.json'), '{}')
+      writeFileSync(join(dir, 'build.gradle'), '')
+      expect(detectLanguage(dir)).toBe('java')
+    })
+
+    // #1378: pom.xml at root + .kt sources + package.json — kotlin wins
+    it('returns kotlin when package.json, root pom.xml, and .kt sources exist (kotlin-root precedence)', () => {
+      writeFileSync(join(dir, 'package.json'), '{}')
+      writeFileSync(join(dir, 'pom.xml'), '')
+      mkdirSync(join(dir, 'src/main/kotlin'), { recursive: true })
+      writeFileSync(join(dir, 'src/main/kotlin/Main.kt'), '')
+      expect(detectLanguage(dir)).toBe('kotlin')
     })
   })
 })
@@ -173,12 +190,13 @@ describe('detectLanguageWithSource', () => {
     expect(detectLanguageWithSource(dir)).toEqual({ language: 'unknown', source: null })
   })
 
-  it('returns multi + compound source for package.json + root pom.xml', () => {
+  // #1378: pom.xml at root wins over package.json — java not multi
+  it('returns java + pom.xml source for package.json + root pom.xml (pom.xml precedence)', () => {
     writeFileSync(join(dir, 'package.json'), '{}')
     writeFileSync(join(dir, 'pom.xml'), '')
     expect(detectLanguageWithSource(dir)).toEqual({
-      language: 'multi',
-      source: 'package.json + pom.xml',
+      language: 'java',
+      source: 'pom.xml',
     })
   })
 
