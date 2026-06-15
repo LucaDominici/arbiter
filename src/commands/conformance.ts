@@ -83,10 +83,14 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceResult
     ].map((id) => ({
       id,
       title: id,
-      verdict: 'skip' as const,
+      family: 'reality-contact' as const,
+      tier: 1 as const,
+      weight: 0,
+      required_at: 'L1',
+      verdict: 'NA' as const,
       evidence: 'arbiter.json absent — project is not governed',
     }))
-    return { status: 'skip', score: 100, dimensions: skipDimensions, exitCode: 0 }
+    return { status: 'skip', score: 0, dimensions: skipDimensions, exitCode: 0 }
   }
 
   const archetype =
@@ -103,8 +107,8 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceResult
 
   const summary = computeSummary(dimensions)
 
-  const hasFail = summary.fail > 0
-  const hasPartial = summary.partial > 0
+  const hasFail = summary.n > 0
+  const hasPartial = summary.p > 0
   const shouldFail = hasFail || (failOn === 'partial' && hasPartial)
 
   return {

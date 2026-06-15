@@ -7,21 +7,39 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve, isAbsolute, relative } from 'node:path'
+import type { Verdict, Evidence } from './engine.js'
 
-export type DimensionVerdict = 'pass' | 'partial' | 'fail' | 'skip'
+export type DimensionVerdict = Verdict
+export type { Verdict, Evidence }
 
 export interface DimensionEntry {
   id: string
   title: string
+  /** Quality family for two-tier scoring. */
+  family: 'discipline' | 'reality-contact' | 'docs-convention' | 'code-quality-gold'
+  /** 1 = must-pass gate; 2 = weighted contributor. */
+  tier: 1 | 2
+  /** Tier-2 weight within its family (0 for tier-1 gates). */
+  weight: number
+  /** Minimum governance level at which this dimension is required. */
+  required_at: string
   verdict: DimensionVerdict
-  /** Human-readable evidence reference (file path, count, detail). */
-  evidence: string
+  evidence: string | Evidence
   detail?: string
 }
 
-/** Safely resolve a path inside root, rejecting traversal. Returns null on invalid path. */
-function safeResolve(root: string, ...parts: string[]): string | null {
-  const abs = resolve(root, ...parts)
+/** Shared field values for all reality-contact tier-1 dimensions. */
+const RC_T1: Pick<DimensionEntry, 'family' | 'tier' | 'weight' | 'required_at'> = {
+  family: 'reality-contact',
+  tier: 1,
+  weight: 0,
+  required_at: 'L1',
+}
+
+/** Safely resolve a path inside root, rejecting traversal and null bytes. Returns null on invalid path. */
+function safeResolve(root: string, p: string): string | null {
+  if (p.includes('\0')) return null
+  const abs = resolve(root, p)
   const rel = relative(root, abs)
   if (rel.startsWith('..') || isAbsolute(rel)) return null
   return abs
@@ -131,7 +149,8 @@ export function probeDTestLevels(root: string): DimensionEntry {
     return {
       id: D_TEST_LEVELS_ID,
       title: D_TEST_LEVELS_TITLE,
-      verdict: 'fail',
+      ...RC_T1,
+      verdict: 'N',
       evidence: 'test-pyramid.json missing — no test pyramid declared',
     }
   }
@@ -141,7 +160,8 @@ export function probeDTestLevels(root: string): DimensionEntry {
     return {
       id: D_TEST_LEVELS_ID,
       title: D_TEST_LEVELS_TITLE,
-      verdict: 'fail',
+      ...RC_T1,
+      verdict: 'N',
       evidence: 'test-pyramid.json: parse error',
     }
   }
@@ -153,7 +173,8 @@ export function probeDTestLevels(root: string): DimensionEntry {
     return {
       id: D_TEST_LEVELS_ID,
       title: D_TEST_LEVELS_TITLE,
-      verdict: 'fail',
+      ...RC_T1,
+      verdict: 'N',
       evidence: 'test-pyramid.json: no levels declared',
     }
   }
@@ -167,7 +188,8 @@ export function probeDTestLevels(root: string): DimensionEntry {
     return {
       id: D_TEST_LEVELS_ID,
       title: D_TEST_LEVELS_TITLE,
-      verdict: 'fail',
+      ...RC_T1,
+      verdict: 'N',
       evidence: `test-pyramid.json: empty required levels: ${failures.join(', ')}`,
     }
   }
@@ -175,7 +197,8 @@ export function probeDTestLevels(root: string): DimensionEntry {
   return {
     id: D_TEST_LEVELS_ID,
     title: D_TEST_LEVELS_TITLE,
-    verdict: 'pass',
+    ...RC_T1,
+    verdict: 'Y',
     evidence: 'test-pyramid.json: all required levels populated',
   }
 }
@@ -197,7 +220,8 @@ export function probeDLiveE2e(root: string): DimensionEntry {
     return {
       id: 'D-LIVE-E2E',
       title: 'Non-mocked live API e2e layer exists and runs',
-      verdict: 'pass',
+      ...RC_T1,
+      verdict: 'Y',
       evidence: `${found.length} e2e file(s) found: ${found[0]}${found.length > 1 ? ` (+${found.length - 1} more)` : ''}`,
     }
   }
@@ -205,12 +229,16 @@ export function probeDLiveE2e(root: string): DimensionEntry {
   return {
     id: 'D-LIVE-E2E',
     title: 'Non-mocked live API e2e layer exists and runs',
-    verdict: 'fail',
+    ...RC_T1,
+    verdict: 'N',
     evidence: 'no e2e test files found (patterns: *.e2e.ts, e2e/**/*.ts)',
   }
 }
 
 // ─── D-FE-RENDER-GATE ─────────────────────────────────────────────────────────
+
+const D_FE_RENDER_GATE_ID = 'D-FE-RENDER-GATE'
+const D_FE_RENDER_GATE_TITLE = 'FE archetypes have behavioural/visual gate'
 
 const FE_ARCHETYPES = new Set([
   'frontend',
@@ -231,7 +259,7 @@ const FE_RENDER_EVIDENCE_FILES = [
 
 /**
  * D-FE-RENDER-GATE: FE archetypes have a behavioural/visual gate.
- * Skip when archetype is not a frontend type.
+ * NA when archetype is not a frontend type.
  */
 export function probeDFeRenderGate(root: string, archetype: string | null): DimensionEntry {
   const isFe =
@@ -240,9 +268,10 @@ export function probeDFeRenderGate(root: string, archetype: string | null): Dime
 
   if (!isFe) {
     return {
-      id: 'D-FE-RENDER-GATE',
-      title: 'FE archetypes have behavioural/visual gate',
-      verdict: 'skip',
+      id: D_FE_RENDER_GATE_ID,
+      title: D_FE_RENDER_GATE_TITLE,
+      ...RC_T1,
+      verdict: 'NA',
       evidence: `archetype "${archetype ?? 'unset'}" is not a frontend type — not applicable`,
     }
   }
@@ -251,18 +280,20 @@ export function probeDFeRenderGate(root: string, archetype: string | null): Dime
     const abs = safeResolve(root, file)
     if (abs !== null && existsSync(abs)) {
       return {
-        id: 'D-FE-RENDER-GATE',
-        title: 'FE archetypes have behavioural/visual gate',
-        verdict: 'pass',
+        id: D_FE_RENDER_GATE_ID,
+        title: D_FE_RENDER_GATE_TITLE,
+        ...RC_T1,
+        verdict: 'Y',
         evidence: file,
       }
     }
   }
 
   return {
-    id: 'D-FE-RENDER-GATE',
-    title: 'FE archetypes have behavioural/visual gate',
-    verdict: 'fail',
+    id: D_FE_RENDER_GATE_ID,
+    title: D_FE_RENDER_GATE_TITLE,
+    ...RC_T1,
+    verdict: 'N',
     evidence: 'no playwright/vitest-browser/chromatic config found for frontend archetype',
   }
 }
@@ -292,7 +323,8 @@ export function probeDDomainApi(root: string): DimensionEntry {
       return {
         id: 'D-DOMAIN-API',
         title: 'Domain↔API surface completeness checked',
-        verdict: 'pass',
+        ...RC_T1,
+        verdict: 'Y',
         evidence: file,
       }
     }
@@ -301,24 +333,29 @@ export function probeDDomainApi(root: string): DimensionEntry {
   return {
     id: 'D-DOMAIN-API',
     title: 'Domain↔API surface completeness checked',
-    verdict: 'fail',
+    ...RC_T1,
+    verdict: 'N',
     evidence: 'no openapi spec or pact config found (check openapi.yaml, pact.config.ts, .pact)',
   }
 }
 
 // ─── D-DONE-EVIDENCE ─────────────────────────────────────────────────────────
 
+const D_DONE_EVIDENCE_ID = 'D-DONE-EVIDENCE'
+const D_DONE_EVIDENCE_TITLE = 'Done-evidence requires reality-contact'
+
 /**
  * D-DONE-EVIDENCE: done-evidence requires reality-contact.
  * Evidence: .arbiter/evidence/ directory exists and contains evidence files.
  */
 export function probeDDoneEvidence(root: string): DimensionEntry {
-  const evidenceDir = safeResolve(root, '.arbiter', 'evidence')
+  const evidenceDir = safeResolve(root, '.arbiter/evidence')
   if (evidenceDir === null || !existsSync(evidenceDir)) {
     return {
-      id: 'D-DONE-EVIDENCE',
-      title: 'Done-evidence requires reality-contact',
-      verdict: 'fail',
+      id: D_DONE_EVIDENCE_ID,
+      title: D_DONE_EVIDENCE_TITLE,
+      ...RC_T1,
+      verdict: 'N',
       evidence: '.arbiter/evidence/ absent — no evidence harness active',
     }
   }
@@ -329,9 +366,10 @@ export function probeDDoneEvidence(root: string): DimensionEntry {
 
   if (evidenceFiles.length === 0) {
     return {
-      id: 'D-DONE-EVIDENCE',
-      title: 'Done-evidence requires reality-contact',
-      verdict: 'partial',
+      id: D_DONE_EVIDENCE_ID,
+      title: D_DONE_EVIDENCE_TITLE,
+      ...RC_T1,
+      verdict: 'P',
       evidence: '.arbiter/evidence/ exists but is empty — no evidence files recorded',
     }
   }
@@ -339,7 +377,8 @@ export function probeDDoneEvidence(root: string): DimensionEntry {
   return {
     id: 'D-DONE-EVIDENCE',
     title: 'Done-evidence requires reality-contact',
-    verdict: 'pass',
+    ...RC_T1,
+    verdict: 'Y',
     evidence: `.arbiter/evidence/: ${evidenceFiles.length} evidence file(s) found`,
   }
 }
