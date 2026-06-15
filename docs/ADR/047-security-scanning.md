@@ -65,6 +65,20 @@ Trivy is a container/filesystem scanner appropriate for nightly pipelines (M25),
 
 With INV-11/12/13 as `alwaysActive: true`, they appear in AGENTS.md and GLOBAL_INVARIANTS.md for all presets at L2+ — even if "security" tier is not explicitly selected. This is intentional: security scanning is not opt-in at L2+.
 
+### 9. Three-way scan split — secrets vs PII-in-text vs data/state files (#1407/#1408, INV-129)
+
+Repository content hygiene is enforced by three **non-overlapping** scanners, each owning a distinct failure class. The split exists because no single scanner catches all three, and the gaps between them are exactly where real leaks hide:
+
+| Scanner                          | Targets                                                                   | Skips                                                  | INV     |
+| -------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- | ------- |
+| **gitleaks**                     | SECRET PATTERNS in tracked text (API keys, tokens, private-key headers)   | files with no secret-shaped match; binary content     | INV-11  |
+| **pii-scan.mjs**                 | TEXT PII (emails, names, phone numbers) in source/tests/logs              | **binaries by extension** (`.png`, `.jpg`, … skipped) | INV-12  |
+| **check-no-tracked-artifacts.mjs** | DATA/STATE files (`*.sqlite`/`*.db*`) + build artifacts (`*.tgz`) + compiled binaries (magic-byte ELF/Mach-O/PE) | allowlisted fixtures + font/image/`.wasm`/`.pdf` | INV-117/129 |
+
+**Why a committed `finance.sqlite` trips none of the first two:** it carries no secret-shaped token (gitleaks: clean), and it is a binary so the PII scan skips it by extension (PII-scan: not even read). A SQLite database can hold thousands of PII rows — names, emails, financial records — and pass both secret and PII gates silently. INV-129's `check-no-tracked-artifacts.mjs` is the **only** gate that catches it, by presence (`git ls-files` glob) and by magic-byte binary sniff. This is the load-bearing retroactive fix: it catches files already in the index, where the stack-aware `.gitignore` (greenfield-prevention only, `skipIfExists:true`) cannot help.
+
+INV-117 stays the selfOnly `*.tgz` build-artifact rule (arbiter's own npm-pack hygiene). INV-129 is the broader DATA/STATE axis, `selfOnly:false`, so governed targets inherit the same guard via the generated `check-no-tracked-artifacts.mjs`. Binary detection is magic-byte-PRIMARY so a renamed Go/Rust binary cannot evade it; go.mod / cargo names are a secondary hint only.
+
 ---
 
 ## Consequences

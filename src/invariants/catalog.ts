@@ -2197,4 +2197,31 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(runWarnCheck) in generated scripts/check-all.mjs L2 behind existsSync guard ' +
       '(#1398/C6). Exit codes per INV-53: 0=PASS, 1=FAIL (below threshold), 2=ERROR.',
   },
+  {
+    id: 'INV-129',
+    tier: 'governance',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: true,
+    title: 'No tracked data/state files or compiled binaries in the index',
+    description:
+      'Neither the arbiter repo NOR any governed target project may track data/state ' +
+      'files (*.sqlite, *.sqlite3, *.db, *.db-shm, *.db-wal) or compiled binaries ' +
+      '(ELF / Mach-O / PE, detected by MAGIC BYTES) in the git index. This is distinct ' +
+      'from INV-117 (selfOnly *.tgz build-artifact hygiene, kept unchanged): INV-129 is ' +
+      'the DATA/STATE axis and applies downstream too. The three-way security split makes ' +
+      'this gate load-bearing — a committed finance.sqlite trips NEITHER gitleaks (no ' +
+      'secret pattern) NOR pii-scan (which skips binaries by extension), so without this ' +
+      'gate a database full of records sits in history undetected. Binary detection is ' +
+      'magic-byte-primary (a renamed Go/Rust binary cannot evade it); go.mod / cargo names ' +
+      'are a secondary hint only. Allowlist for intentional binaries: __tests__/fixtures/** ' +
+      'path prefixes + font/image/.wasm/.pdf extensions. Fail-closed: a non-git tree is an ' +
+      'ERROR (exit 2), never a silent NO-DATA pass.',
+    enforcement:
+      'scripts/check-no-tracked-artifacts.mjs (L1, self — extended for data/state globs + ' +
+      'magic-byte binary detection). Downstream: emitted for governed targets via ' +
+      'src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-no-tracked-artifacts.mjs.ejs (CANON-01/04/11), wired at ' +
+      'L1 in generated scripts/check-all.mjs. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
+  },
 ]

@@ -674,3 +674,11 @@ CI workflow job dependency chains (critical path depth, measured as edge count i
 **Enforcement:** `scripts/check-workflow-parallelism.mjs` (L1 gate, selfOnly). Configurable via `ARBITER_MAX_NEEDS_CHAIN` env. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR. Wired in `scripts/check-all.mjs` (check block, L1).
 
 ---
+
+### INV-129: No tracked data/state files or compiled binaries in the index
+
+Neither the arbiter repo nor any governed target project may track data/state files (`*.sqlite`, `*.sqlite3`, `*.db`, `*.db-shm`, `*.db-wal`) or compiled binaries (ELF / Mach-O / PE, detected by MAGIC BYTES) in the git index. Distinct from INV-117 (which is the selfOnly `*.tgz` build-artifact axis, kept unchanged): INV-129 is the DATA/STATE axis and applies downstream too. It is load-bearing because of the three-way security split — a committed `finance.sqlite` trips **neither** gitleaks (no secret pattern) **nor** the PII scan (which skips binaries by extension), so without this gate a database of records sits in history undetected. Binary detection is magic-byte-primary (a renamed Go/Rust binary cannot evade it); go.mod / cargo names are a secondary hint only. Allowlist for intentional binaries: `__tests__/fixtures/**` path prefixes plus font/image/`.wasm`/`.pdf` extensions. Fail-closed: a non-git tree is an ERROR (exit 2), never a silent NO-DATA pass (#1407/#1408).
+
+**Enforcement:** `scripts/check-no-tracked-artifacts.mjs` (L1 gate, self — extended for data/state globs + magic-byte binary detection). Downstream: emitted for governed targets via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS from `src/templates/scripts/check-no-tracked-artifacts.mjs.ejs` (CANON-01/04/11), wired at L1 in the generated `scripts/check-all.mjs`. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.
+
+---
