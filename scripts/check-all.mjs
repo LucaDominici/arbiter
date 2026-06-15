@@ -271,6 +271,11 @@ if (isMain) {
     )
     // INV-25 (#1040): BDD layer
     runCheck('BDD suite (INV-25)', 'npm', ['run', 'test:bdd'])
+
+    // Advisory (#1397/C5): conformance scorecard ratchet — informational, never blocks gate.
+    if (existsSync('scripts/conformance.mjs')) {
+      runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
+    }
   }
 
   // ─── Summary ─────────────────────────────────────────────────────────────────
