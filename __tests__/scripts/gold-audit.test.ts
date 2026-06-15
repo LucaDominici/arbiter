@@ -76,6 +76,26 @@ describe('gold-audit (#1373)', () => {
     }
   })
 
+  it('resolves an absolute --registry and writes --json to an absolute path (regression: join→resolve)', () => {
+    const { dir, cleanup } = makeRepo()
+    const ext = mkdtempSync(join(tmpdir(), 'gold-audit-ext-'))
+    try {
+      writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+      const regAbs = join(ext, 'my-registry.yml')
+      writeFileSync(regAbs, REGISTRY)
+      const outAbs = join(ext, 'out.json')
+      const r = run(dir, ['--registry', regAbs, '--json', outAbs])
+      expect(r.status).toBe(0)
+      expect(r.stdout).not.toMatch(/SKIP/) // absolute registry must be found, not concatenated onto CWD
+      expect(existsSync(outAbs)).toBe(true) // absolute --json must write to that exact path
+      const j = JSON.parse(readFileSync(outAbs, 'utf-8'))
+      expect(typeof j.score).toBe('number')
+    } finally {
+      cleanup()
+      rmSync(ext, { recursive: true, force: true })
+    }
+  })
+
   it('--json emits a scored payload with score, yCount, riskyCount, dimensions, checks', () => {
     const { dir, cleanup } = makeRepo()
     try {

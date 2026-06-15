@@ -24,7 +24,7 @@
 //     --profile    overlay profile path (default standards/doc-profile)
 
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
 const args = process.argv.slice(2)
@@ -62,7 +62,7 @@ const isGlob = (p) => /[*?\[\]]/.test(p)
 function globMatches(pattern) {
   const dir = dirname(pattern)
   const base = pattern.slice(dir.length + 1)
-  const dirAbs = join(CWD, dir)
+  const dirAbs = resolve(CWD, dir)
   if (!existsSync(dirAbs)) return false
   const re = new RegExp(
     '^' +
@@ -83,7 +83,7 @@ function globMatches(pattern) {
 
 /** A single candidate path exists (glob-aware; matches files OR directories). */
 function candidateExists(candidate) {
-  return isGlob(candidate) ? globMatches(candidate) : existsSync(join(CWD, candidate))
+  return isGlob(candidate) ? globMatches(candidate) : existsSync(resolve(CWD, candidate))
 }
 
 /** Resolve presence for a check: any of accept_any / glob / path. */
@@ -94,9 +94,9 @@ function isPresent(check) {
 }
 
 function loadOverlays() {
-  if (!existsSync(join(CWD, PROFILE))) return { overlays: new Set(), allow: [] }
+  if (!existsSync(resolve(CWD, PROFILE))) return { overlays: new Set(), allow: [] }
   try {
-    const p = parseYaml(readFileSync(join(CWD, PROFILE), 'utf-8')) || {}
+    const p = parseYaml(readFileSync(resolve(CWD, PROFILE), 'utf-8')) || {}
     return { overlays: new Set(p.overlays || []), allow: p.allow || [] }
   } catch {
     return { overlays: new Set(), allow: [] }
@@ -132,11 +132,11 @@ function stubFor(check) {
 }
 
 function main() {
-  if (!existsSync(join(CWD, MANIFEST))) {
+  if (!existsSync(resolve(CWD, MANIFEST))) {
     process.stdout.write(`check-doc-set: SKIP — no manifest at ${MANIFEST}\n`)
     return 0
   }
-  const manifest = parseYaml(readFileSync(join(CWD, MANIFEST), 'utf-8'))
+  const manifest = parseYaml(readFileSync(resolve(CWD, MANIFEST), 'utf-8'))
   const { overlays } = loadOverlays()
 
   const present = []
@@ -159,7 +159,7 @@ function main() {
     else missingRecommended.push(check)
 
     if (flag('--generate') && check.path.endsWith('.md')) {
-      const abs = join(CWD, check.path)
+      const abs = resolve(CWD, check.path)
       mkdirSync(dirname(abs), { recursive: true })
       if (!existsSync(abs)) {
         writeFileSync(abs, stubFor(check))

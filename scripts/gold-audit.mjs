@@ -27,7 +27,7 @@
 //     --help, -h         show this help
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { evaluate, checkNoRegress, ratchet, baselineOf } from './lib/gold-audit-lib.mjs'
 
@@ -65,7 +65,7 @@ const PROFILE = opt('--profile', 'standards/gold-profile')
 const BASELINE = opt('--baseline', '.gold-audit-baseline.json')
 
 function loadOverlays() {
-  const abs = join(CWD, PROFILE)
+  const abs = resolve(CWD, PROFILE)
   if (!existsSync(abs)) return new Set()
   try {
     const doc = parseYaml(readFileSync(abs, 'utf-8')) || {}
@@ -76,7 +76,7 @@ function loadOverlays() {
 }
 
 function readBaseline() {
-  const abs = join(CWD, BASELINE)
+  const abs = resolve(CWD, BASELINE)
   if (!existsSync(abs)) return null
   try {
     return JSON.parse(readFileSync(abs, 'utf-8'))
@@ -87,13 +87,13 @@ function readBaseline() {
 }
 
 function writeBaseline(payload) {
-  const abs = join(CWD, BASELINE)
+  const abs = resolve(CWD, BASELINE)
   mkdirSync(dirname(abs), { recursive: true })
   writeFileSync(abs, JSON.stringify(payload, null, 2) + '\n', 'utf-8')
 }
 
 function main() {
-  const regAbs = join(CWD, REGISTRY)
+  const regAbs = resolve(CWD, REGISTRY)
   if (!existsSync(regAbs)) {
     process.stdout.write(`gold-audit: SKIP — no registry at ${REGISTRY}\n`)
     return 0
@@ -159,8 +159,8 @@ function main() {
     const out = opt('--json', null)
     const text = JSON.stringify(result, null, 2) + '\n'
     if (out) {
-      mkdirSync(dirname(join(CWD, out)), { recursive: true })
-      writeFileSync(join(CWD, out), text, 'utf-8')
+      mkdirSync(dirname(resolve(CWD, out)), { recursive: true })
+      writeFileSync(resolve(CWD, out), text, 'utf-8')
       process.stdout.write(`gold-audit: wrote ${out}\n`)
     } else {
       process.stdout.write(text)
