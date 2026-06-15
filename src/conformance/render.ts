@@ -1,43 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0
 // conformance/render.ts — terminal + JSON rendering for `arbiter conformance` (#1369).
 
-import type { DimensionEntry } from './dimensions.js'
+import type { DimensionEntry, Evidence } from './dimensions.js'
 
 export interface ConformanceSummary {
   score: number
-  pass: number
-  partial: number
-  fail: number
-  skip: number
+  y: number
+  p: number
+  n: number
+  na: number
+  nv: number
   total: number
 }
 
 /** Compute aggregate score from dimension entries. */
 export function computeSummary(dimensions: DimensionEntry[]): ConformanceSummary {
-  const pass = dimensions.filter((d) => d.verdict === 'pass').length
-  const partial = dimensions.filter((d) => d.verdict === 'partial').length
-  const fail = dimensions.filter((d) => d.verdict === 'fail').length
-  const skip = dimensions.filter((d) => d.verdict === 'skip').length
+  const y = dimensions.filter((d) => d.verdict === 'Y').length
+  const p = dimensions.filter((d) => d.verdict === 'P').length
+  const n = dimensions.filter((d) => d.verdict === 'N').length
+  const na = dimensions.filter((d) => d.verdict === 'NA').length
+  const nv = dimensions.filter((d) => d.verdict === 'NV').length
   const total = dimensions.length
 
-  // Score: only over applicable (non-skip) dimensions; pass=1, partial=0.5, fail=0
-  const applicable = pass + partial + fail
-  const earned = pass + partial * 0.5
-  const score = applicable > 0 ? Math.round((earned / applicable) * 1000) / 10 : 100
+  // NA and NV excluded from denominator; Y=1, P=0.5, N=0
+  const applicable = y + p + n
+  const earned = y + p * 0.5
+  const score = applicable > 0 ? Math.round((earned / applicable) * 1000) / 10 : 0
 
-  return { score, pass, partial, fail, skip, total }
+  return { score, y, p, n, na, nv, total }
 }
 
 const VERDICT_SYMBOLS: Record<string, string> = {
-  pass: 'PASS',
-  partial: 'PARTIAL',
-  fail: 'FAIL',
-  skip: 'SKIP',
+  Y: 'Y',
+  P: 'P',
+  N: 'N',
+  NA: 'NA',
+  NV: 'NV',
 }
 
 /** Pad a string to width. */
 function pad(s: string, width: number): string {
   return s.length >= width ? s : s + ' '.repeat(width - s.length)
+}
+
+/** Render evidence (string or Evidence object) to a display string. */
+function renderEvidence(evidence: string | Evidence): string {
+  if (typeof evidence === 'string') return evidence
+  const loc = evidence.line !== undefined ? `:${evidence.line}` : ''
+  const detail = evidence.detail !== undefined ? ` — ${evidence.detail}` : ''
+  return `${evidence.file}${loc}${detail}`
 }
 
 /** Render a text table of the dimension matrix. */
@@ -48,9 +59,9 @@ export function renderText(dimensions: DimensionEntry[], summary: ConformanceSum
   const header = `${pad('Dimension', COL_ID)} ${pad('Verdict', COL_VERDICT)} Evidence`
   const sep = '-'.repeat(COL_ID + 1 + COL_VERDICT + 1 + COL_EV)
   const rows = dimensions.map((d) => {
-    const verdict = VERDICT_SYMBOLS[d.verdict] ?? d.verdict.toUpperCase()
-    return `${pad(d.id, COL_ID)} ${pad(verdict, COL_VERDICT)} ${d.evidence}`
+    const verdict = VERDICT_SYMBOLS[d.verdict] ?? d.verdict
+    return `${pad(d.id, COL_ID)} ${pad(verdict, COL_VERDICT)} ${renderEvidence(d.evidence)}`
   })
-  const scoreLabel = `Score: ${summary.score}% — PASS ${summary.pass} · PARTIAL ${summary.partial} · FAIL ${summary.fail} · SKIP ${summary.skip}`
+  const scoreLabel = `Score: ${summary.score}% — Y ${summary.y} · P ${summary.p} · N ${summary.n} · NA ${summary.na} · NV ${summary.nv}`
   return [header, sep, ...rows, sep, scoreLabel].join('\n')
 }

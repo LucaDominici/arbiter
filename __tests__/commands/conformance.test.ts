@@ -72,7 +72,7 @@ describe('conformance (#1369)', () => {
     for (const dim of result.dimensions) {
       expect(dim).toHaveProperty('id')
       expect(dim).toHaveProperty('verdict')
-      expect(['pass', 'partial', 'fail', 'skip']).toContain(dim.verdict)
+      expect(['Y', 'P', 'N', 'NA', 'NV']).toContain(dim.verdict)
       expect(dim).toHaveProperty('evidence')
     }
   })
@@ -106,7 +106,7 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-TEST-LEVELS')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('pass')
+    expect(dim!.verdict).toBe('Y')
   })
 
   // ── AC-5: D-TEST-LEVELS fail when test-pyramid.json is absent ───────────
@@ -118,7 +118,7 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-TEST-LEVELS')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('fail')
+    expect(dim!.verdict).toBe('N')
   })
 
   // ── AC-6: D-DONE-EVIDENCE pass when evidence dir has files ──────────────
@@ -134,7 +134,7 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-DONE-EVIDENCE')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('pass')
+    expect(dim!.verdict).toBe('Y')
   })
 
   // ── AC-7: D-DONE-EVIDENCE fail when evidence dir is absent ─────────────
@@ -146,7 +146,7 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-DONE-EVIDENCE')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('fail')
+    expect(dim!.verdict).toBe('N')
   })
 
   // ── AC-8: exit code 1 when any dimension fails ──────────────────────────
@@ -189,7 +189,7 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-FE-RENDER-GATE')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('skip')
+    expect(dim!.verdict).toBe('NA')
   })
 
   // ── AC-12: D-DOMAIN-API pass when pact or openapi setup found ──────────
@@ -201,7 +201,7 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-DOMAIN-API')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('pass')
+    expect(dim!.verdict).toBe('Y')
   })
 
   // ── AC-13: DimensionVerdict type check ─────────────────────────────────
@@ -210,7 +210,7 @@ describe('conformance (#1369)', () => {
     writeArbiter(dir)
 
     const result = runConformance({ dir })
-    const validVerdicts: DimensionVerdict[] = ['pass', 'partial', 'fail', 'skip']
+    const validVerdicts: DimensionVerdict[] = ['Y', 'P', 'N', 'NA', 'NV']
     for (const dim of result.dimensions) {
       expect(validVerdicts).toContain(dim.verdict)
     }
@@ -237,6 +237,42 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-LIVE-E2E')
     expect(dim).toBeDefined()
-    expect(dim!.verdict).toBe('pass')
+    expect(dim!.verdict).toBe('Y')
+  })
+
+  // ── TDD Unit 7: DimensionEntry new columns present ────────────────────
+  it('AC-N1: each dimension entry has family, tier, weight, required_at fields', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    for (const dim of result.dimensions) {
+      expect(dim).toHaveProperty('family')
+      expect(['discipline', 'reality-contact', 'docs-convention', 'code-quality-gold']).toContain(
+        (dim as unknown as Record<string, unknown>)['family'],
+      )
+      expect(dim).toHaveProperty('tier')
+      expect(dim).toHaveProperty('weight')
+      expect(dim).toHaveProperty('required_at')
+    }
+  })
+
+  it('AC-N2: verdict values use Y/P/N/NA/NV scale (not pass/fail/skip)', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    const newScale: DimensionVerdict[] = ['Y', 'P', 'N', 'NA', 'NV']
+    for (const dim of result.dimensions) {
+      expect(newScale).toContain(dim.verdict)
+    }
+  })
+
+  it('AC-N3: ungoverned project returns score 0 (all NA, applicable=0)', () => {
+    const dir = tmpRepo()
+
+    const result = runConformance({ dir })
+    expect(result.status).toBe('skip')
+    expect(result.score).toBe(0)
   })
 })
