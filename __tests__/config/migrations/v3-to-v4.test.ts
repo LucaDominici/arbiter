@@ -32,8 +32,8 @@ const MINIMAL_V3: ArbiterConfigV2 = {
 // ─── CURRENT_CONFIG_SCHEMA_VERSION ────────────────────────────────────────────
 
 describe('schema version', () => {
-  it('CURRENT_CONFIG_SCHEMA_VERSION is 4', () => {
-    expect(CURRENT_CONFIG_SCHEMA_VERSION).toBe(4)
+  it('CURRENT_CONFIG_SCHEMA_VERSION is 5', () => {
+    expect(CURRENT_CONFIG_SCHEMA_VERSION).toBe(5)
   })
 })
 

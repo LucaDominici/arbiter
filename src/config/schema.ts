@@ -7,6 +7,7 @@ import type {
   AutonomyLevel,
   BranchingStrategy,
   CollaborationMode,
+  ConformanceThresholds,
   ContractType,
   EvidenceRetentionConfig,
   FrontendConfig,
@@ -25,6 +26,7 @@ import type {
   ThresholdsV2,
   WorktreeConfig,
 } from '../wizard/types.js'
+import type { BrownfieldClass } from '../kit/thresholds.js'
 
 export type { ThresholdsV2, TaskTiers, TaskTierConfig, PlanDepth }
 
@@ -109,7 +111,7 @@ export interface ContextPackConfig {
  * Loading a config with `$schemaVersion > CURRENT_CONFIG_SCHEMA_VERSION`
  * is a hard error (do not silently load); see `loadConfig`.
  */
-export const CURRENT_CONFIG_SCHEMA_VERSION = 4
+export const CURRENT_CONFIG_SCHEMA_VERSION = 5
 
 export interface ArbiterConfigV2 {
   version: string
@@ -243,6 +245,89 @@ export const DEFAULT_THRESHOLDS: Record<GovernanceLevel, ThresholdsV2> = {
     methodLength: 40,
     maxParams: 5,
   },
+}
+
+// ── Conformance thresholds SSOT (#1394/C2) ───────────────────────────────────
+
+const TIER1_MEMBERS_DEFAULT = [
+  'D-TEST-LEVELS',
+  'D-GATE-GREEN',
+  'D-DONE-EVIDENCE',
+  'D-NO-OVERCLAIM',
+  'D-LIVE-E2E',
+  'D-FE-RENDER-GATE',
+  'D-DOMAIN-API',
+]
+
+const DEFAULT_FAMILY_WEIGHTS: ConformanceThresholds['familyWeights'] = {
+  discipline: 0.15,
+  'reality-contact': 0.35,
+  'docs-convention': 0.2,
+  'code-quality-gold': 0.3,
+}
+
+export const DEFAULT_CONFORMANCE_THRESHOLDS: Record<GovernanceLevel, ConformanceThresholds> = {
+  L1: {
+    tier1Members: TIER1_MEMBERS_DEFAULT,
+    familyWeights: DEFAULT_FAMILY_WEIGHTS,
+    goldTier2Gate: 0.85,
+  },
+  L2: {
+    tier1Members: TIER1_MEMBERS_DEFAULT,
+    familyWeights: DEFAULT_FAMILY_WEIGHTS,
+    goldTier2Gate: 0.88,
+  },
+  L3: {
+    tier1Members: TIER1_MEMBERS_DEFAULT,
+    familyWeights: DEFAULT_FAMILY_WEIGHTS,
+    goldTier2Gate: 0.9,
+  },
+  L4: {
+    tier1Members: TIER1_MEMBERS_DEFAULT,
+    familyWeights: DEFAULT_FAMILY_WEIGHTS,
+    goldTier2Gate: 0.92,
+  },
+}
+
+export const BROWNFIELD_CONFORMANCE_OVERLAYS: Record<
+  BrownfieldClass,
+  Partial<ConformanceThresholds>
+> = {
+  gold: { goldTier2Gate: 0.9 },
+  light: { goldTier2Gate: 0.8 },
+  medium: { goldTier2Gate: 0.75 },
+  heavy: { goldTier2Gate: 0.7 },
+}
+
+export function validateConformanceThresholds(raw: unknown): string[] {
+  const errors: string[] = []
+  if (typeof raw !== 'object' || raw === null) {
+    errors.push('conformanceThresholds must be an object')
+    return errors
+  }
+  const t = raw as Record<string, unknown>
+  if (!Array.isArray(t['tier1Members'])) {
+    errors.push('conformanceThresholds.tier1Members must be an array')
+  }
+  if (typeof t['familyWeights'] !== 'object' || t['familyWeights'] === null) {
+    errors.push('conformanceThresholds.familyWeights must be an object')
+  }
+  if (typeof t['goldTier2Gate'] !== 'number') {
+    errors.push('conformanceThresholds.goldTier2Gate must be a number')
+  }
+  return errors
+}
+
+export function autoFillConformanceThresholds(
+  level: GovernanceLevel,
+  cls?: BrownfieldClass,
+): ConformanceThresholds {
+  const base = { ...DEFAULT_CONFORMANCE_THRESHOLDS[level] }
+  if (cls !== undefined) {
+    const overlay = BROWNFIELD_CONFORMANCE_OVERLAYS[cls]
+    return { ...base, ...overlay }
+  }
+  return base
 }
 
 const GOVERNANCE_LEVELS: ReadonlySet<string> = new Set(['L1', 'L2', 'L3', 'L4'])
@@ -452,6 +537,12 @@ export function validateConfig(raw: unknown): ValidateResult {
   validateChannel(raw['channel'], errors)
   validateGovernance(raw['governance'], errors)
   validateKit(raw['kit'], errors)
+
+  // #1394 — validate conformanceThresholds when present in config
+  if (raw['conformanceThresholds'] !== undefined) {
+    const ctErrors = validateConformanceThresholds(raw['conformanceThresholds'])
+    errors.push(...ctErrors)
+  }
 
   if (errors.length > 0) {
     return { ok: false, errors }
