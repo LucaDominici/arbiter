@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// CATALOG: INV-126
+// CATALOG: INV-127
 // CATALOG: gate: scripts/check-render-smoke.mjs (L1)
 // CATALOG: Red phase: all tests must FAIL until scripts/check-render-smoke.mjs is implemented.
 //

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
-// CATALOG: INV-126 enforcement. Frontend archetypes (or a `frontend` lane) MUST carry a
+// CATALOG: INV-127 enforcement. Frontend archetypes (or a `frontend` lane) MUST carry a
 // CATALOG:   render-smoke behavioural test: a headless-browser spec that boots the built
 // CATALOG:   SPA and asserts the app shell mounts without console errors. Fails-closed when
 // CATALOG:   a frontend project has zero render-smoke specs — catches the haben failure mode
@@ -27,7 +27,7 @@ const RENDER_SMOKE_GLOBS = [
 
 const HELP = `Usage: node scripts/check-render-smoke.mjs [--help]
 
-Enforces that frontend archetypes carry a render-smoke behavioural test (INV-126).
+Enforces that frontend archetypes carry a render-smoke behavioural test (INV-127).
 
 A render-smoke spec boots the built SPA in a headless browser and asserts the app
 shell + key screens mount without console errors. It catches the failure mode where

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: Shared glob + tree-walk helpers for presence-gate scripts (#1366).
-// CATALOG:   Used by check-render-smoke.mjs (INV-126). A minimal, dependency-free
+// CATALOG:   Used by check-render-smoke.mjs (INV-127). A minimal, dependency-free
 // CATALOG:   matcher: `**` crosses directories, `*` stays within one path component.
 // CATALOG:   walkRepo returns repo-relative POSIX paths; SKIP_DIRS prunes vendor trees.
 // Pure module — no process exit, no I/O side effects beyond readdir/stat.
