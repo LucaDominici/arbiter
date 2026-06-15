@@ -1,0 +1,13 @@
+{
+  "schema": "arbiter-tdd-evidence-v1",
+  "taskId": "#1367",
+  "reproduced_red": {
+    "command": "npx vitest run __tests__/scripts/check-domain-api-surface.test.ts",
+    "exit": 1,
+    "failCount": 10,
+    "sha": "076a149cf7e8bf902572f48af765ad853f4fef2a"
+  },
+  "green": {
+    "sha": "PENDING"
+  }
+}

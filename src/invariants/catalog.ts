@@ -2093,4 +2093,22 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(skipIfExists:true; archetype-mismatch guard at gate time). Exit codes per INV-53: ' +
       '0=PASS/SKIP, 1=policy violation, 2=schema/path-traversal error.',
   },
+  // Domain<->API Surface Completeness (#1367)
+  {
+    id: 'INV-125',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'Persisted domain fields must be reachable through the public HTTP API',
+    description:
+      'A persisted domain field absent from both request and response schemas is inaccessible. ' +
+      'The manifest domain-api-surface.json (schema: arbiter-domain-api-surface-v1) declares ' +
+      'resources with per-field inRequestSchema/inResponseSchema flags. ' +
+      'Gate fails when any persisted:true field has both flags false. Manifest absent => SKIP.',
+    enforcement:
+      'scripts/check-domain-api-surface.mjs (L1) — wired in check-all.mjs; ' +
+      'generated for hasPublicApi:true targets via emitDomainApiSurface() (skipIfExists:true). ' +
+      'Exit codes per INV-53: 0=PASS/SKIP, 1=surface gap, 2=schema/parse error.',
+  },
 ]

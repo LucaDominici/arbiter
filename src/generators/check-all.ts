@@ -178,10 +178,38 @@ export function generateCheckAll(
     )
   }
 
+  // #1367 (INV-125): domain<->API surface-completeness gate.
+  results.push(...emitDomainApiSurface(base, config, data, opts))
+
   // #1127 / #1330: frontend gate scripts (boundary purity + per-lane subtree gate).
   results.push(...emitFrontendChecks(base, config, data, opts))
 
   return { files: results }
+}
+
+/**
+ * #1367 (INV-125) — domain<->API surface-completeness gate emission.
+ * Only emitted when config.hasPublicApi is true (skip brownfield / library targets).
+ */
+function emitDomainApiSurface(
+  base: string,
+  config: ProjectConfig,
+  data: object,
+  opts: { dryRun: boolean },
+): WriteResult[] {
+  if (!config.hasPublicApi) return []
+  return [
+    writeFile(
+      resolvedPath(base, 'scripts', 'check-domain-api-surface.mjs'),
+      renderTemplate('scripts/check-domain-api-surface.mjs.ejs', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+    writeFile(
+      resolvedPath(base, 'domain-api-surface.json'),
+      renderTemplate('scripts/domain-api-surface.json.ejs', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
+  ]
 }
 
 /**

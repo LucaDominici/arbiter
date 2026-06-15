@@ -944,4 +944,20 @@ describe('generateCheckAll', () => {
       expect(script).toContain("mode === 'full'")
     })
   })
+
+  describe('domain-api surface gate (#1367, INV-125)', () => {
+    it('emits scripts/check-domain-api-surface.mjs and domain-api-surface.json when hasPublicApi=true', () => {
+      const result = generateCheckAll(makeConfig(dir, { hasPublicApi: true }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-domain-api-surface.mjs'))).toBe(true)
+      expect(paths.some((p) => p.endsWith('domain-api-surface.json'))).toBe(true)
+    })
+
+    it('does NOT emit domain-api surface files when hasPublicApi is false', () => {
+      const result = generateCheckAll(makeConfig(dir, { hasPublicApi: false }))
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('scripts/check-domain-api-surface.mjs'))).toBe(false)
+      expect(paths.some((p) => p.endsWith('domain-api-surface.json'))).toBe(false)
+    })
+  })
 })
