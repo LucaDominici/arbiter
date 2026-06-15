@@ -121,14 +121,27 @@ describe('conformance (#1369)', () => {
     expect(dim!.verdict).toBe('N')
   })
 
-  // ── AC-6: D-DONE-EVIDENCE pass when evidence dir has files ──────────────
-  it('AC-6: D-DONE-EVIDENCE is pass when .arbiter/evidence/ has evidence files', () => {
+  // ── AC-6: D-DONE-EVIDENCE fail when .claude/.last-done-evidence.json is absent ──────────────
+  // Breaking: replaced .arbiter/evidence/ directory-count probe with canonical manifest reader (C3 #1395)
+  it('AC-6: D-DONE-EVIDENCE is fail when .claude/.last-done-evidence.json is absent', () => {
     const dir = tmpRepo()
     writeArbiter(dir)
-    mkdirSync(join(dir, '.arbiter', 'evidence'), { recursive: true })
+    // No .claude/.last-done-evidence.json
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-DONE-EVIDENCE')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('N')
+  })
+
+  // ── AC-7: D-DONE-EVIDENCE pass when .claude/.last-done-evidence.json has reality_contact.passed=true
+  it('AC-7: D-DONE-EVIDENCE is pass when .last-done-evidence.json has reality_contact.passed=true', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    mkdirSync(join(dir, '.claude'), { recursive: true })
     writeFileSync(
-      join(dir, '.arbiter', 'evidence', 'done.json'),
-      JSON.stringify({ obs_gate: 'PASS' }),
+      join(dir, '.claude', '.last-done-evidence.json'),
+      JSON.stringify({ reality_contact: { passed: true } }),
     )
 
     const result = runConformance({ dir })
@@ -137,11 +150,15 @@ describe('conformance (#1369)', () => {
     expect(dim!.verdict).toBe('Y')
   })
 
-  // ── AC-7: D-DONE-EVIDENCE fail when evidence dir is absent ─────────────
-  it('AC-7: D-DONE-EVIDENCE is fail when .arbiter/evidence/ is absent', () => {
+  // ── AC-8-new: D-DONE-EVIDENCE fail when reality_contact.passed=false ─────────────
+  it('AC-8-new: D-DONE-EVIDENCE is fail when .last-done-evidence.json has reality_contact.passed=false', () => {
     const dir = tmpRepo()
     writeArbiter(dir)
-    // No .arbiter/evidence/
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+    writeFileSync(
+      join(dir, '.claude', '.last-done-evidence.json'),
+      JSON.stringify({ reality_contact: { passed: false } }),
+    )
 
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-DONE-EVIDENCE')
@@ -192,11 +209,16 @@ describe('conformance (#1369)', () => {
     expect(dim!.verdict).toBe('NA')
   })
 
-  // ── AC-12: D-DOMAIN-API pass when pact or openapi setup found ──────────
-  it('AC-12: D-DOMAIN-API is pass when openapi spec file exists', () => {
+  // ── AC-12: D-DOMAIN-API pass when domain-api-surface.json has checks ──────────
+  it('AC-12: D-DOMAIN-API is pass when domain-api-surface.json has non-empty checks', () => {
     const dir = tmpRepo()
     writeArbiter(dir)
-    writeFileSync(join(dir, 'openapi.yaml'), 'openapi: "3.0.0"')
+    writeFileSync(
+      join(dir, 'domain-api-surface.json'),
+      JSON.stringify({
+        checks: [{ id: 'CHK-01', type: 'file_exists', args: { path: 'README.md' } }],
+      }),
+    )
 
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-DOMAIN-API')
@@ -227,17 +249,27 @@ describe('conformance (#1369)', () => {
     expect(result.exitCode).toBe(0)
   })
 
-  // ── AC-15: D-LIVE-E2E pass when e2e test files exist ──────────────────
-  it('AC-15: D-LIVE-E2E is pass when e2e test files exist in the project', () => {
+  // ── AC-15: D-LIVE-E2E pass when api-e2e.json shows suiteCount > 0 ──────────────────
+  it('AC-15: D-LIVE-E2E is pass when api-e2e.json has suiteCount > 0 and service archetype', () => {
     const dir = tmpRepo()
-    writeArbiter(dir)
-    mkdirSync(join(dir, '__tests__', 'e2e'), { recursive: true })
-    writeFileSync(join(dir, '__tests__', 'e2e', 'api.e2e.ts'), 'test("e2e", () => {})')
+    writeArbiter(dir, { archetype: 'backend-web-db' })
+    writeFileSync(join(dir, 'api-e2e.json'), JSON.stringify({ exists: true, suiteCount: 3 }))
 
     const result = runConformance({ dir })
     const dim = result.dimensions.find((d) => d.id === 'D-LIVE-E2E')
     expect(dim).toBeDefined()
     expect(dim!.verdict).toBe('Y')
+  })
+
+  // ── AC-15b: D-LIVE-E2E NA when archetype is not service ──────────────────
+  it('AC-15b: D-LIVE-E2E is NA when archetype is not backend-web-db', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir, { archetype: 'frontend' })
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-LIVE-E2E')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('NA')
   })
 
   // ── TDD Unit 7: DimensionEntry new columns present ────────────────────
@@ -274,5 +306,123 @@ describe('conformance (#1369)', () => {
     const result = runConformance({ dir })
     expect(result.status).toBe('skip')
     expect(result.score).toBe(0)
+  })
+
+  // ── Evidence object type assertions (C3 #1395) ─────────────────────────
+  it('AC-EV1: evidence fields in governed project are Evidence objects with file property', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    for (const dim of result.dimensions) {
+      if (dim.evidence !== null && dim.evidence !== undefined) {
+        expect(typeof dim.evidence).toBe('object')
+        expect(dim.evidence).toHaveProperty('file')
+        expect(typeof (dim.evidence as { file: string }).file).toBe('string')
+      }
+    }
+  })
+
+  // ── Discipline probe tests (C3 #1395) ──────────────────────────────────
+  it('AC-D1: dimensions include discipline probes (gate-green, coverage, invariants, no-overclaim, commit-hygiene)', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    const ids = result.dimensions.map((d) => d.id)
+
+    expect(ids).toContain('D-GATE-GREEN')
+    expect(ids).toContain('D-COVERAGE-THRESHOLDS')
+    expect(ids).toContain('D-INVARIANTS-ENFORCED')
+    expect(ids).toContain('D-NO-OVERCLAIM')
+    expect(ids).toContain('D-COMMIT-HYGIENE')
+  })
+
+  it('AC-D2: D-GATE-GREEN is Y when .arbiter/gate/local-result.json has overall=pass', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    mkdirSync(join(dir, '.arbiter', 'gate'), { recursive: true })
+    writeFileSync(
+      join(dir, '.arbiter', 'gate', 'local-result.json'),
+      JSON.stringify({ overall: 'pass' }),
+    )
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-GATE-GREEN')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('Y')
+  })
+
+  it('AC-D3: D-GATE-GREEN is N when local-result.json is absent', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-GATE-GREEN')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('N')
+  })
+
+  it('AC-D4: D-COVERAGE-THRESHOLDS is Y when coverage-summary.json has all pct >= 80', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    mkdirSync(join(dir, 'coverage'), { recursive: true })
+    writeFileSync(
+      join(dir, 'coverage', 'coverage-summary.json'),
+      JSON.stringify({
+        total: {
+          lines: { pct: 90 },
+          branches: { pct: 85 },
+          functions: { pct: 92 },
+          statements: { pct: 90 },
+        },
+      }),
+    )
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-COVERAGE-THRESHOLDS')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('Y')
+  })
+
+  it('AC-D5: D-COVERAGE-THRESHOLDS is NV when coverage-summary.json is absent', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-COVERAGE-THRESHOLDS')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('NV')
+  })
+
+  it('AC-D6: D-NO-OVERCLAIM is Y when .last-done-evidence.json has no_overclaim=true', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    mkdirSync(join(dir, '.claude'), { recursive: true })
+    writeFileSync(
+      join(dir, '.claude', '.last-done-evidence.json'),
+      JSON.stringify({ no_overclaim: true }),
+    )
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-NO-OVERCLAIM')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('Y')
+  })
+
+  it('AC-D7: D-COMMIT-HYGIENE is Y when .husky/ and commitlint config exist', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+    mkdirSync(join(dir, '.husky'), { recursive: true })
+    writeFileSync(join(dir, '.husky', 'commit-msg'), '#!/bin/sh')
+    writeFileSync(
+      join(dir, '.commitlintrc.json'),
+      JSON.stringify({ extends: ['@commitlint/config-conventional'] }),
+    )
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'D-COMMIT-HYGIENE')
+    expect(dim).toBeDefined()
+    expect(dim!.verdict).toBe('Y')
   })
 })

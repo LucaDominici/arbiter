@@ -8,7 +8,7 @@ import type { DimensionEntry } from '../../src/conformance/dimensions.js'
 function makeDim(
   id: string,
   verdict: string,
-  evidence: string | { file: string; line?: number },
+  evidence: { file: string; line?: number; detail?: string },
 ): DimensionEntry {
   return {
     id,
@@ -24,7 +24,7 @@ function makeDim(
 
 describe('computeSummary — Y/P/N/NA/NV scale (#1393 unit 8)', () => {
   it('returns y, p, n, na, nv fields (not pass, partial, fail, skip)', () => {
-    const dims: DimensionEntry[] = [makeDim('D-1', 'Y', 'ok')]
+    const dims: DimensionEntry[] = [makeDim('D-1', 'Y', { file: 'ok.json' })]
     const summary = computeSummary(dims)
 
     expect(summary).toHaveProperty('y')
@@ -40,11 +40,11 @@ describe('computeSummary — Y/P/N/NA/NV scale (#1393 unit 8)', () => {
 
   it('counts Y/P/N/NA/NV correctly', () => {
     const dims: DimensionEntry[] = [
-      makeDim('D-1', 'Y', 'ok'),
-      makeDim('D-2', 'P', 'partial'),
-      makeDim('D-3', 'N', 'fail'),
-      makeDim('D-4', 'NA', 'n/a'),
-      makeDim('D-5', 'NV', 'not verified'),
+      makeDim('D-1', 'Y', { file: 'ok.json' }),
+      makeDim('D-2', 'P', { file: 'partial.json' }),
+      makeDim('D-3', 'N', { file: 'fail.json' }),
+      makeDim('D-4', 'NA', { file: 'na.json' }),
+      makeDim('D-5', 'NV', { file: 'nv.json' }),
     ]
     const summary = computeSummary(dims)
 
@@ -58,9 +58,9 @@ describe('computeSummary — Y/P/N/NA/NV scale (#1393 unit 8)', () => {
 
   it('excludes NA and NV from score denominator', () => {
     const dims: DimensionEntry[] = [
-      makeDim('D-1', 'Y', 'ok'),
-      makeDim('D-2', 'NA', 'n/a'),
-      makeDim('D-3', 'NV', 'not verified'),
+      makeDim('D-1', 'Y', { file: 'ok.json' }),
+      makeDim('D-2', 'NA', { file: 'na.json' }),
+      makeDim('D-3', 'NV', { file: 'nv.json' }),
     ]
     const summary = computeSummary(dims)
 
@@ -69,7 +69,10 @@ describe('computeSummary — Y/P/N/NA/NV scale (#1393 unit 8)', () => {
   })
 
   it('returns score 0 when all dimensions are NA (no applicable checks)', () => {
-    const dims: DimensionEntry[] = [makeDim('D-1', 'NA', 'n/a'), makeDim('D-2', 'NA', 'n/a')]
+    const dims: DimensionEntry[] = [
+      makeDim('D-1', 'NA', { file: 'na.json' }),
+      makeDim('D-2', 'NA', { file: 'na.json' }),
+    ]
     const summary = computeSummary(dims)
 
     // applicable = 0 → score = 0 (not 100, per engine.ts contract)
@@ -77,7 +80,10 @@ describe('computeSummary — Y/P/N/NA/NV scale (#1393 unit 8)', () => {
   })
 
   it('score = 50 when one Y and one N with no NA/NV', () => {
-    const dims: DimensionEntry[] = [makeDim('D-1', 'Y', 'ok'), makeDim('D-2', 'N', 'fail')]
+    const dims: DimensionEntry[] = [
+      makeDim('D-1', 'Y', { file: 'ok.json' }),
+      makeDim('D-2', 'N', { file: 'fail.json' }),
+    ]
     const summary = computeSummary(dims)
 
     expect(summary.score).toBe(50)
@@ -86,9 +92,9 @@ describe('computeSummary — Y/P/N/NA/NV scale (#1393 unit 8)', () => {
   it('score formula: Math.round((earned / applicable) * 1000) / 10', () => {
     // 2Y + 1N → earned=2, applicable=3 → 2/3 * 100 = 66.666... → 66.7
     const dims: DimensionEntry[] = [
-      makeDim('D-1', 'Y', 'ok'),
-      makeDim('D-2', 'Y', 'ok'),
-      makeDim('D-3', 'N', 'fail'),
+      makeDim('D-1', 'Y', { file: 'ok.json' }),
+      makeDim('D-2', 'Y', { file: 'ok.json' }),
+      makeDim('D-3', 'N', { file: 'fail.json' }),
     ]
     const summary = computeSummary(dims)
 
@@ -97,12 +103,13 @@ describe('computeSummary — Y/P/N/NA/NV scale (#1393 unit 8)', () => {
 })
 
 describe('renderText — evidence rendering (#1393 unit 9)', () => {
-  it('renders string evidence as-is', () => {
-    const dims: DimensionEntry[] = [makeDim('D-1', 'Y', 'README.md present')]
+  it('renders Evidence object with detail as "file — detail" (not [object Object])', () => {
+    const dims: DimensionEntry[] = [makeDim('D-1', 'Y', { file: 'README.md', detail: 'present' })]
     const summary = computeSummary(dims)
     const text = renderText(dims, summary)
 
-    expect(text).toContain('README.md present')
+    expect(text).toContain('README.md')
+    expect(text).toContain('present')
     expect(text).not.toContain('[object Object]')
   })
 
@@ -126,9 +133,9 @@ describe('renderText — evidence rendering (#1393 unit 9)', () => {
 
   it('score label uses y/p/n/na/nv fields (not pass/fail)', () => {
     const dims: DimensionEntry[] = [
-      makeDim('D-1', 'Y', 'ok'),
-      makeDim('D-2', 'N', 'fail'),
-      makeDim('D-3', 'NA', 'n/a'),
+      makeDim('D-1', 'Y', { file: 'ok.json' }),
+      makeDim('D-2', 'N', { file: 'fail.json' }),
+      makeDim('D-3', 'NA', { file: 'na.json' }),
     ]
     const summary = computeSummary(dims)
     const text = renderText(dims, summary)
