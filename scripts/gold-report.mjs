@@ -57,6 +57,38 @@ function goldAudit() {
   }
 }
 
+/** Conformance scorecard output (#1397/C5) — null if the CLI is not built. */
+function conformanceReport() {
+  try {
+    const raw = execFileSync('node', ['dist/cli.js', 'conformance', '--json'], { cwd: CWD })
+    return JSON.parse(raw.toString().trim())
+  } catch {
+    return null
+  }
+}
+
+/** Render conformance section for the gold report. */
+function renderConformance(c) {
+  if (!c) {
+    return [
+      '## Conformance scorecard',
+      '',
+      '_Conformance CLI not built — run `npm run build` to include the scorecard._',
+      '',
+      '_See CONFORMANCE.md for the full scorecard._',
+      '',
+    ].join('\n')
+  }
+  return [
+    '## Conformance scorecard',
+    '',
+    `**Verdict: ${c.verdict}** — Score: ${c.score}%`,
+    '',
+    `_See CONFORMANCE.md for the full dimension matrix._`,
+    '',
+  ].join('\n')
+}
+
 /**
  * Render a GitHub-Flavored-Markdown table with prettier-compatible column padding (so the
  * generated GOLD-REPORT.md passes `prettier --check` without a post-format step). Each column
@@ -143,6 +175,7 @@ function render(a) {
     'Refresh / scaffold missing docs: `node scripts/check-doc-set.mjs --generate`.',
     '',
     renderCodeQuality(goldAudit()),
+    renderConformance(conformanceReport()),
   ].join('\n')
 }
 

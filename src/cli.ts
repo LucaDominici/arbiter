@@ -109,7 +109,11 @@ import { runKitInstall } from './commands/kit-install.js'
 import type { BrownfieldClass } from './kit/thresholds.js'
 import { runFeatureMatrixExport } from './commands/feature-matrix.js'
 import { runConformance } from './commands/conformance.js'
-import { renderText as renderConformanceText, computeSummary } from './conformance/render.js'
+import {
+  renderText as renderConformanceText,
+  renderConformanceMd,
+  computeSummary,
+} from './conformance/render.js'
 
 registerCleanupHandlers()
 
@@ -2363,28 +2367,64 @@ featureMatrix
   })
 
 // ── conformance — gold-pattern adherence scorecard ────────────────────────────
-program
+/** Shared action for both `conformance` and its alias `adherence`. */
+function conformanceAction(opts: {
+  dir?: string
+  failOn?: string
+  json?: boolean
+  strict?: boolean
+  check?: boolean
+  updateBaseline?: boolean
+  markdown?: boolean
+}): void {
+  const failOn = opts.failOn === 'partial' ? 'partial' : 'fail'
+  const result = runConformance({
+    ...(opts.dir !== undefined ? { dir: opts.dir } : {}),
+    failOn,
+    strict: opts.strict ?? false,
+    check: opts.check ?? false,
+    updateBaseline: opts.updateBaseline ?? false,
+  })
+
+  if (opts.json) {
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n')
+  } else if (opts.markdown) {
+    process.stdout.write(renderConformanceMd(result, result.dimensions) + '\n')
+  } else {
+    const summary = computeSummary(result.dimensions)
+    process.stdout.write(renderConformanceText(result.dimensions, summary) + '\n')
+  }
+  process.stdout.write('See CONFORMANCE.md for full scorecard\n')
+  process.exit(result.exitCode)
+}
+
+const conformanceCmd = program
   .command('conformance')
   .description('Score a project against the arbiter gold standard (#1369)')
   .option('--dir <dir>', 'Project root to evaluate (default: current directory)')
   .option('--fail-on <level>', 'Exit 1 on: fail (default) or partial (stricter)', 'fail')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((opts: { dir?: string; failOn?: string; json?: boolean }) => {
-    const failOn = opts.failOn === 'partial' ? 'partial' : 'fail'
-    const conformOpts =
-      failOn === 'partial'
-        ? { ...(opts.dir !== undefined ? { dir: opts.dir } : {}), failOn: 'partial' as const }
-        : { ...(opts.dir !== undefined ? { dir: opts.dir } : {}) }
-    const result = runConformance(conformOpts)
+  .option('--strict', 'Exit 1 if any NV (not-verified) dimensions exist', false)
+  .option('--check', 'Ratchet check: exit 1 if score dropped vs baseline', false)
+  .option('--update-baseline', 'Update baseline when score rises; no-op when equal', false)
+  .option('--markdown', 'Emit GFM markdown table output', false)
+  .action(conformanceAction)
 
-    if (opts.json) {
-      process.stdout.write(JSON.stringify(result, null, 2) + '\n')
-    } else {
-      const summary = computeSummary(result.dimensions)
-      process.stdout.write(renderConformanceText(result.dimensions, summary) + '\n')
-    }
-    process.exit(result.exitCode)
-  })
+// `adherence` is an alias for `conformance`
+program
+  .command('adherence')
+  .description('Alias for `conformance` — gold-pattern adherence scorecard (#1397)')
+  .option('--dir <dir>', 'Project root to evaluate (default: current directory)')
+  .option('--fail-on <level>', 'Exit 1 on: fail (default) or partial (stricter)', 'fail')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .option('--strict', 'Exit 1 if any NV (not-verified) dimensions exist', false)
+  .option('--check', 'Ratchet check: exit 1 if score dropped vs baseline', false)
+  .option('--update-baseline', 'Update baseline when score rises; no-op when equal', false)
+  .option('--markdown', 'Emit GFM markdown table output', false)
+  .action(conformanceAction)
+
+// Suppress unused variable lint warning (conformanceCmd is registered via side effects)
+void conformanceCmd
 
 function _writeArbiterError(err: ArbiterError, prefix = 'Error'): void {
   process.stderr.write(`\n${prefix} [${err.code}]: ${err.message}\n`)

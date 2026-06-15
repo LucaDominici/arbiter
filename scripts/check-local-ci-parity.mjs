@@ -259,6 +259,7 @@ const CI_SKIP_SET = new Set([
   'id stability', // binary-stability check, neutral-skips in CI (no origin/main at depth)
   'anti-telemetry', // local env variable audit — CI env differs intentionally
   'wiki lint (INV-116)', // wiki/ is generated and committed; bootstrap mode exits 0 in CI
+  'conformance', // advisory (#1397/C5): guarded by existsSync('scripts/conformance.mjs') — skipped when absent
 ])
 
 function checkLevelParity(root) {

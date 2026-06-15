@@ -511,6 +511,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 
 | Command                  | Description                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------- |
+| `arbiter adherence`      | —                                                                               |
 | `arbiter agent-rules`    | Export or verify AI agent governance rules (#265)                               |
 | `arbiter benchmark`      | Performance benchmarks for arbiter                                              |
 | `arbiter blame`          | —                                                                               |
@@ -547,6 +548,8 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter verify`         | Probe toolchain compatibility for the detected stack                            |
 | `arbiter work`           | Manage work units via decomposition backend                                     |
 | `arbiter worktree`       | Manage git worktrees for parallel task development                              |
+
+## arbiter adherence
 
 ## arbiter agent-rules
 
@@ -605,6 +608,10 @@ Score a project against the arbiter gold standard (#1369).
 - `--dir <dir>` — Project root to evaluate (default: current directory)
 - `--fail-on <level>` — Exit 1 on: fail (default) or partial (stricter)
 - `--json` — Emit machine-readable JSON output
+- `--strict` — Exit 1 if any NV (not-verified) dimensions exist
+- `--check` — Ratchet check: exit 1 if score dropped vs baseline
+- `--update-baseline` — Update baseline when score rises; no-op when equal
+- `--markdown` — Emit GFM markdown table output
 
 ## arbiter diff
 
