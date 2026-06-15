@@ -1,0 +1,7 @@
+# Overlays enabled for THIS repo (arbiter is a CLI/tooling project that exposes a plugin API
+# and ships generated API docs). Conditional checks only apply when their overlay is listed.
+overlays:
+  - has-plugin-api
+  - has-api
+# allow: extra doc paths intentionally present that the audit should NOT flag (derogations).
+allow: []

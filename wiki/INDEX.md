@@ -1,6 +1,6 @@
 ---
 generated: true
-last_updated: '2026-06-14'
+last_updated: '2026-06-15'
 ---
 
 # Wiki Index
@@ -12,6 +12,7 @@ last_updated: '2026-06-14'
 - [[contributing]]
 - [[deprecations]]
 - [[development-real-project-testing]]
+- [[glossary]]
 - [[governance]]
 - [[integrations]]
 - [[internal-release-playbook]]
@@ -43,6 +44,8 @@ last_updated: '2026-06-14'
 - [[reference-file-stability]]
 - [[reference-fix-on-red]]
 - [[reference-gdpr-overlay]]
+- [[reference-gold-doc-set]]
+- [[reference-impact]]
 - [[reference-iso27001-overlay]]
 - [[reference-iso9001-overlay]]
 - [[reference-local-wrapper-contract]]
@@ -54,6 +57,7 @@ last_updated: '2026-06-14'
 - [[reference-supply-chain]]
 - [[reference-task-recovery]]
 - [[reference-use-case-matrix]]
+- [[reference-wave-drain]]
 - [[reference-workflow-pr-fast]]
 - [[runbooks-dependabot-handling]]
 - [[secure-coding-checklist]]

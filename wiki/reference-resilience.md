@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/RESILIENCE.md'
 source_sha: '40ec57cb8f19e165814d82ded272958477c8b1d2'
-last_updated: '2026-06-14'
+last_updated: '2026-06-15'
 ---
 
 # Resilience Patterns Generator

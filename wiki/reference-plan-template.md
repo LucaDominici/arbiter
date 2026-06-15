@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/plan-template.md'
 source_sha: '9cee7a771e5512dd3b1a239ddcb5476de0c97b91'
-last_updated: '2026-06-14'
+last_updated: '2026-06-15'
 ---
 
 # Plan Template — Context Block
