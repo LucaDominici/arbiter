@@ -4,6 +4,8 @@ dist/
 *.log
 !.kit-removals.log
 .env
+.env.github
+save-npm-token.sh
 coverage/
 !src/templates/coverage/
 # #1100: docs/REFERENCE/coverage/ holds the generated dim-NN reference stubs —
