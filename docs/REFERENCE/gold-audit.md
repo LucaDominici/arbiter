@@ -46,6 +46,11 @@ cannot verify.
 `args.path` is resolved **inside** the repo root; traversal (`..`) and absolute paths are
 rejected and scored `N`.
 
+The **CLI path flags** (`--registry`, `--profile`, `--baseline`, `--json`), by contrast, accept
+both relative (resolved against CWD) and **absolute** paths — so arbiter can audit a governed
+project by pointing at an external kit (`cd project && gold-audit --registry /abs/kit.yml`)
+without copying the kit in-repo.
+
 ## Dimensions
 
 `D-DOCS`, `D-EFFECTIVENESS` (anti-ceremony: prove tools are wired, not just present),

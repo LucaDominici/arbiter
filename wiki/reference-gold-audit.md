@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/gold-audit.md'
-source_sha: '65aaa0224fc0c4c8ac03899dc437a63a8bc74764'
+source_sha: '715e50031f8d3d09d785cb2cd0a959d23eec9a84'
 last_updated: '2026-06-15'
 ---
 
@@ -46,6 +46,11 @@ cannot verify.
 `file_exists`, `file_contains`, `count_matches`, `value`, `manual`. Each non-manual check's
 `args.path` is resolved **inside** the repo root; traversal (`..`) and absolute paths are
 rejected and scored `N`.
+
+The **CLI path flags** (`--registry`, `--profile`, `--baseline`, `--json`), by contrast, accept
+both relative (resolved against CWD) and **absolute** paths — so arbiter can audit a governed
+project by pointing at an external kit (`cd project && gold-audit --registry /abs/kit.yml`)
+without copying the kit in-repo.
 
 ## Dimensions
 
