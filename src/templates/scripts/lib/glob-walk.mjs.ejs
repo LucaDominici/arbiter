@@ -1,25 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // CATALOG: Shared glob + tree-walk helpers for presence-gate scripts (#1366).
 // CATALOG:   Used by check-render-smoke.mjs (INV-126). A minimal, dependency-free
-// CATALOG:   matcher: `**` crosses directories, `*` stays within a path segment.
+// CATALOG:   matcher: `**` crosses directories, `*` stays within one path component.
 // CATALOG:   walkRepo returns repo-relative POSIX paths; SKIP_DIRS prunes vendor trees.
 // Pure module — no process exit, no I/O side effects beyond readdir/stat.
 import { readdirSync, statSync } from 'node:fs'
 import { join, isAbsolute } from 'node:path'
 
-export const SKIP_DIRS = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  'coverage',
-  '.coverage',
-])
+export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
 /**
  * Translate a restricted glob (`**`, `*`) into a RegExp and test a POSIX path.
  * `**\/` crosses directory boundaries; `**` (not followed by /) matches any run;
- * `*` matches within a single path segment.
+ * `*` matches within a single path component.
  */
 export function globMatch(pattern, filepath) {
   let reStr = '^'
