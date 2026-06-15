@@ -44,6 +44,7 @@ last_updated: '2026-06-15'
 - [[reference-file-stability]]
 - [[reference-fix-on-red]]
 - [[reference-gdpr-overlay]]
+- [[reference-gold-audit]]
 - [[reference-gold-doc-set]]
 - [[reference-impact]]
 - [[reference-iso27001-overlay]]

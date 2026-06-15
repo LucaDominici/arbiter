@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/gold-doc-set.md'
-source_sha: '27b2dc797d19281c598926b242c1b54543e72ce7'
+source_sha: 'dde28651ba1ca3ae1358f0cf9d213a94de42447b'
 last_updated: '2026-06-15'
 ---
 
@@ -56,5 +56,6 @@ npm aliases: `npm run check:doc-set`, `npm run gold:report`.
 - **generate-missing + advisory**: the audit is advisory today; missing docs can be scaffolded
   with `--generate`. It is promoted to a blocking gate once a repo reaches zero mandatory gaps.
 - The code-quality **gold engine** (registry→Y/P/N, effectiveness overlay, E1–E7, false-gap
-  meta-gate, no-regress ratchet) is tracked separately in #1373; once landed its score joins the
-  report. Downstream `.ejs` propagation of this kit is tracked in #1374.
+  meta-gate, no-regress ratchet) landed in #1373 — see
+  [Reference: Gold-Audit Engine](./gold-audit.md). Its score and dimension table now render into
+  the report. Downstream `.ejs` propagation of this kit is tracked in #1374.

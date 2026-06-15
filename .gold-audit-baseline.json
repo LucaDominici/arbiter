@@ -1,0 +1,26 @@
+{
+  "score": 100,
+  "yCount": 13,
+  "dimensions": {
+    "D-DOCS": {
+      "score": 100,
+      "y": 4
+    },
+    "D-EFFECTIVENESS": {
+      "score": 100,
+      "y": 3
+    },
+    "D-ENFORCEMENT": {
+      "score": 100,
+      "y": 3
+    },
+    "D-META-TEST": {
+      "score": 100,
+      "y": 2
+    },
+    "D-SUPPLY-CHAIN": {
+      "score": 100,
+      "y": 1
+    }
+  }
+}

@@ -1,0 +1,147 @@
+# Gold-Audit registry (arbiter) — the deterministic, code-computed gold engine (#1373).
+#
+# scripts/gold-audit.mjs grades a repo against this registry → per-check verdict Y/P/N/NA/NV
+# with evidence (file [+ line]). The verdict is computed by code, never by an AI: same repo +
+# same registry ⇒ byte-identical output. This is the native-TS reimplementation of an upstream
+# reference gold-audit engine — zero Python dependency for consumer projects.
+#
+# Per check:
+#   id          stable identifier (sort key — drives determinism)
+#   dimension   grouping (see `dimensions` below)
+#   title       human-readable description
+#   type        file_exists | file_contains | count_matches | value | manual
+#   args        { path, pattern?, equals?, min? } — path is resolved INSIDE the repo root
+#   weight      relative contribution to the score (default 1)
+#   risk        SAFE | RISKY — a RISKY check fails the false-gap meta-gate (--strict). Every
+#               check here is SAFE: anchored, deterministic, inventory-grounded.
+#   anchor      optional INV-NN id the check enforces (evidence hint, not an import)
+#   applies_if  overlay name (else NA); absent ⇒ always applies
+#
+# Verdicts: Y verified-true · P partial · N verified-false · NA not-applicable · NV manual.
+# Scoring excludes NA + NV from the denominator (you are not graded on what code can't verify).
+version: '1.0.0'
+profile: tooling
+
+dimensions:
+  - id: D-DOCS
+    title: Documentation governance
+  - id: D-EFFECTIVENESS
+    title: Gold-L2 effectiveness overlay (anti-ceremony — tools wired, not just present)
+  - id: D-ENFORCEMENT
+    title: Enforcement dimensions E1–E7
+  - id: D-SUPPLY-CHAIN
+    title: Supply-chain (keyless signing + SBOM attestation)
+  - id: D-META-TEST
+    title: Meta-test discipline (RED-on-bug + GREEN-on-clean per static rule)
+
+checks:
+  # ---- D-DOCS: canonical doc-set presence (anchors the doc-set gate, #1374) ----
+  - id: GA-DOC-01
+    dimension: D-DOCS
+    title: README present
+    type: file_exists
+    args: { path: README.md }
+    weight: 1
+    risk: SAFE
+  - id: GA-DOC-02
+    dimension: D-DOCS
+    title: Governance SSOT present (AGENTS.md)
+    type: file_exists
+    args: { path: AGENTS.md }
+    weight: 1
+    risk: SAFE
+  - id: GA-DOC-03
+    dimension: D-DOCS
+    title: Security policy present
+    type: file_exists
+    args: { path: SECURITY.md }
+    weight: 1
+    risk: SAFE
+  - id: GA-DOC-04
+    dimension: D-DOCS
+    title: Change history present
+    type: file_exists
+    args: { path: CHANGELOG.md }
+    weight: 1
+    risk: SAFE
+
+  # ---- D-EFFECTIVENESS: prove tools are WIRED, not just present (anti-ceremony) ----
+  - id: GA-EFF-01
+    dimension: D-EFFECTIVENESS
+    title: Quality gate entrypoint is wired
+    type: file_exists
+    args: { path: scripts/check-all.mjs }
+    weight: 1
+    risk: SAFE
+  - id: GA-EFF-02
+    dimension: D-EFFECTIVENESS
+    title: Test suite invocation declared (not aspirational)
+    type: file_contains
+    args: { path: package.json, pattern: '"test"' }
+    weight: 1
+    risk: SAFE
+    anchor: INV-25
+  - id: GA-EFF-03
+    dimension: D-EFFECTIVENESS
+    title: Integration test level actually runs (declared script)
+    type: file_contains
+    args: { path: package.json, pattern: '"test:integration"' }
+    weight: 1
+    risk: SAFE
+    anchor: INV-124
+
+  # ---- D-ENFORCEMENT: behavioral-endpoint coverage + gate-critical guards (E1–E7) ----
+  - id: GA-ENF-01
+    dimension: D-ENFORCEMENT
+    title: Invariant catalog present (enforcement base)
+    type: file_exists
+    args: { path: src/invariants/catalog.ts }
+    weight: 1
+    risk: SAFE
+  - id: GA-ENF-02
+    dimension: D-ENFORCEMENT
+    title: Local↔CI parity gate present (no gate-critical exclusion drift)
+    type: file_exists
+    args: { path: scripts/check-local-ci-parity.mjs }
+    weight: 1
+    risk: SAFE
+    anchor: INV-59
+  - id: GA-ENF-03
+    dimension: D-ENFORCEMENT
+    title: Exit-code contract enforced across scripts
+    type: file_exists
+    args: { path: scripts/check-exit-code-contract.mjs }
+    weight: 1
+    risk: SAFE
+
+  # ---- D-SUPPLY-CHAIN: keyless signing + SBOM attestation on release ----
+  - id: GA-SUP-01
+    dimension: D-SUPPLY-CHAIN
+    title: Keyless signing action present (Sigstore/cosign)
+    type: file_exists
+    args: { path: .github/actions/sign-and-attest/action.yml }
+    weight: 1
+    risk: SAFE
+    anchor: INV-95
+  - id: GA-SUP-02
+    dimension: D-SUPPLY-CHAIN
+    title: Supply-chain attestation is human-verified on each release
+    type: manual
+    weight: 1
+    risk: SAFE
+
+  # ---- D-META-TEST: every static rule needs a RED-on-bug + GREEN-on-clean fixture ----
+  - id: GA-META-01
+    dimension: D-META-TEST
+    title: Self-validation drill present (RED/GREEN meta-test harness)
+    type: file_exists
+    args: { path: scripts/self-validation.mjs }
+    weight: 1
+    risk: SAFE
+  - id: GA-META-02
+    dimension: D-META-TEST
+    title: TDD-evidence gate present
+    type: file_contains
+    args: { path: scripts/check-all.mjs, pattern: 'tdd-evidence' }
+    weight: 1
+    risk: SAFE
