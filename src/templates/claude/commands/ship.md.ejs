@@ -209,9 +209,24 @@ git push origin HEAD:main   # ff-only
 **peer-review / gated-review (or pr-ff):** open a PR and merge once checks pass:
 
 ```bash
-gh pr create --title "type(#NNN): summary" --body "Fixes #NNN"
+gh pr create --title "type(#NNN): summary" --body "$(cat <<'PRBODY'
+## Summary
+<1-3 bullet points of what changed and why>
+
+## Changes
+- `file/path.ts`: <what changed>
+- `__tests__/...`: <tests added/updated>
+
+## Test plan
+- [ ] New tests pass (`npm run test run <path>`)
+- [ ] Gate green (`node scripts/check-all.mjs L1`)
+- [ ] Acceptance criteria verified (list each criterion: PASS/FAIL)
+
+Closes #NNN
+PRBODY
+)"
 gh pr checks --watch
-gh pr merge --merge
+gh pr merge --rebase --admin
 ```
 <% } %>
 
