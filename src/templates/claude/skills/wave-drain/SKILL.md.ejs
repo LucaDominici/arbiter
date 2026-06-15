@@ -54,6 +54,36 @@ skipping phases.
 A group is the unit of parallelism. Keep groups module-coherent so two agents never edit the
 same file concurrently (see `.claude/rules/50-batch-execution.md`).
 
+### Transactional claim (#1378)
+
+**Check-ALL-then-claim-ALL** to avoid race conditions when multiple drain runs overlap:
+
+```bash
+# 1. Verify ALL selected issues are still open and unassigned
+for issue in $WAVE_ISSUES; do
+  state=$(gh issue view "$issue" --json state,assignees --jq '{state:.state,assignees:(.assignees|length)}')
+  echo "$state" | jq -e '.state == "OPEN" and .assignees == 0' > /dev/null || { echo "Issue #$issue not claimable"; exit 1; }
+done
+
+# 2. Claim ALL atomically
+claimed=()
+for issue in $WAVE_ISSUES; do
+  if gh issue edit "$issue" --assignees @me; then
+    claimed+=("$issue")
+  else
+    for c in "${claimed[@]}"; do gh issue edit "$c" --remove-assignee @me; done
+    echo "Claim failed for #$issue — rolled back all assignments"; exit 1
+  fi
+done
+```
+
+**Rules:**
+
+- Never claim before verifying. A closed or already-assigned issue must be excluded.
+- Never swallow `gh issue edit` errors — propagate them and trigger rollback.
+- On partial failure, release all already-claimed issues before aborting.
+- If rollback itself fails, log the orphaned claims explicitly for manual cleanup.
+
 ---
 
 ## Phase 1 — One cumulative plan (Opus)
