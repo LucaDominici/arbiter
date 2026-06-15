@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/AGENT_RULES.md'
 source_sha: '4cd3107a454411ddfde93e636e16476c8e78e15d'
-last_updated: '2026-06-13'
+last_updated: '2026-06-15'
 ---
 
 # Agent Rules Export Reference

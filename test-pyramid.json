@@ -1,0 +1,17 @@
+{
+  "archetype": "library",
+  "levels": [
+    {
+      "id": "L1",
+      "name": "L1 Unit",
+      "globs": ["__tests__/**/*.test.ts"],
+      "status": "required"
+    },
+    {
+      "id": "L2",
+      "name": "L2 Property-Based",
+      "globs": ["__tests__/property/**/*.property.test.ts"],
+      "status": "required"
+    }
+  ]
+}

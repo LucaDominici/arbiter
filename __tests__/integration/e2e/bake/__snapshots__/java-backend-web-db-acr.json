@@ -10,6 +10,8 @@
     ".claude/agents/codebase-scanner.md",
     ".claude/agents/context-checker.md",
     ".claude/agents/red-team.md",
+    ".claude/commands/drain.md",
+    ".claude/commands/impact.md",
     ".claude/commands/review-code.md",
     ".claude/commands/review-plan.md",
     ".claude/commands/ship.md",
@@ -47,9 +49,11 @@
     ".claude/skills/codebase-audit/SKILL.md",
     ".claude/skills/configure/SKILL.md",
     ".claude/skills/epic-decompose/SKILL.md",
+    ".claude/skills/impact/SKILL.md",
     ".claude/skills/tdd/SKILL.md",
     ".claude/skills/understand-code/SKILL.md",
     ".claude/skills/verification/SKILL.md",
+    ".claude/skills/wave-drain/SKILL.md",
     ".env.example",
     ".githooks/commit-msg",
     ".githooks/pre-commit",
@@ -87,6 +91,7 @@
     "scripts/check-suppression-rationale.mjs",
     "scripts/check-suppressions.mjs",
     "scripts/check-test-naming.mjs",
+    "scripts/check-test-pyramid.mjs",
     "scripts/check-validator-helptext.mjs",
     "scripts/check-workflow-docs-sync.mjs",
     "scripts/check-workflow-job-naming.mjs",
@@ -107,6 +112,7 @@
     "suppressions/archunit-baseline.json",
     "suppressions/dependency-check-suppressions.xml",
     "suppressions/pii-allowlist.json",
-    "suppressions/suppressions-schema.json"
+    "suppressions/suppressions-schema.json",
+    "test-pyramid.json"
   ]
 }

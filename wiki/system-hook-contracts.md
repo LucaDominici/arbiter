@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/HOOK-CONTRACTS.md'
 source_sha: 'd79985022e95fe5892401802bea7f167d1ea22b3'
-last_updated: '2026-06-11'
+last_updated: '2026-06-15'
 ---
 
 # Hook Contracts — `.claude/hooks/*.mjs`
@@ -91,6 +91,6 @@ Present in `.claude/hooks/` but not wired in `settings.json`. Document reason fo
 1. **No SERIALIZE hooks.** If you find yourself writing a hook that reads then rewrites a file, use `openSync('wx')` for the first write and `appendFileSync` for subsequent writes instead.
 2. **Shared log writes are append-only.** `lib.mjs` `logInfo/logWarn/logError` use `appendFileSync` → POSIX atomic for entries < 4KB (PIPE_BUF).
 3. **debug-state-on-failure is SAFE.** Uses `openSync('wx')` (O_CREAT|O_EXCL) for header creation — concurrent first-creates fail silently on EEXIST and fall through to `appendFileSync`. Each attempt entry is a single `appendFileSync` call (< 4KB).
-4. \*\*Hooks must no
+4. **Hooks must no
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

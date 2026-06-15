@@ -1852,12 +1852,12 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'this branch with head_sha STRICTLY equal to HEAD (the exact tree was verified). A claim ' +
       'with any missing or stale artifact is blocked. Every other path — no claim, unreadable ' +
       'transcript, non-task branch, phase complete, hook re-entry — stands down. This is the ' +
-      'backstop the soft UserPromptSubmit completion guard cannot be: it observes the agent’s own ' +
+      "backstop the soft UserPromptSubmit completion guard cannot be: it observes the agent's own " +
       'stop, not the next user prompt.',
     enforcement:
       '.claude/hooks/stop-evidence-guard.mjs (Claude Code Stop event, exit 2 = block-the-stop ' +
       'and return stderr to the model). Generated for target projects at L2+ by ' +
-      'src/generators/claude.ts and dogfooded in arbiter’s own .claude/ (CANON-01/14). Evidence ' +
+      "src/generators/claude.ts and dogfooded in arbiter's own .claude/ (CANON-01/14). Evidence " +
       'writers (src/review/dispatch.ts, scripts/check-all.mjs, the /task dispatch sidecar) stamp ' +
       'branch+sha so correlation is possible. Empirical coverage: ' +
       '__tests__/hooks/empirical/stop-evidence-guard.test.ts.',
@@ -1887,7 +1887,7 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'directive prohibitions, classifies via scripts/constraint-map.json, hard-fails on a live ' +
       'un-covered derivable violation or a map-fiction entry. Emitted for target projects as ' +
       'src/templates/scripts/check-constraint-scan.mjs.ejs (warn-default, --enforce to promote) ' +
-      'and dogfooded on arbiter’s own governance (CANON-01/14). Empirical coverage: ' +
+      "and dogfooded on arbiter's own governance (CANON-01/14). Empirical coverage: " +
       '__tests__/scripts/check-constraint-scan.test.ts.',
   },
   {
@@ -2056,11 +2056,41 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'exitplanmode-banner / build-kit ghosts (#1331) and the done-evidence / route-auditors ' +
       'Makefile/command-doc ghosts (#1345).',
     enforcement:
-      'scripts/check-emission-coherence.mjs (pure checkEmissionCoherence(dir)) — wired into arbiter’s ' +
+      "scripts/check-emission-coherence.mjs (pure checkEmissionCoherence(dir)) — wired into arbiter's " +
       'own check-all.mjs self-gate against the repo tree, and run across the FULL (language × level × ' +
       'mode) matrix by __tests__/integration/e2e/emission-coherence-matrix.test.ts (static, in-process, ' +
       'no toolchains, affordable per-PR). The optional manifest is emitted for target projects by ' +
       'src/generators/check-all.ts from src/templates/scripts/optional-emissions.json.ejs (CANON-01). ' +
       'Exit codes per INV-53: 0=PASS, 1=FAIL (ghost), 2=ERROR (no dir arg).',
+  },
+
+  // ─── Testing: Non-Empty Pyramid Levels ──────────────────────────────────────
+
+  {
+    id: 'INV-124',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'Declared test levels must be non-empty — no aspirational pyramid',
+    description:
+      'A project that declares a test level in test-pyramid.json (machine-readable manifest at ' +
+      "repo root) must have ≥1 real test file matching that level's globs. OR semantics: a " +
+      'required level passes if ANY of its declared globs matches ≥1 file. A level legitimately ' +
+      'not needed must be explicitly marked status:"n/a" with a rationale ≥20 chars (auditable, ' +
+      'mirrors the suppression-rationale gate). A fully-skipped pyramid (all levels n/a) is itself ' +
+      'a hard fail — it defeats the gate. Manifest absent → gate SKIPS (exit 0), so ungoverned ' +
+      'repos never false-fail; fail-closed is provided by generator emission (Track B) and the ' +
+      'SSOT completeness test (Track A). Path-traversal globs and non-array levels.fields → exit 2 ' +
+      '(schema error). Boundary: file PRESENCE only — assertion quality is INV-118 (anti-proforma). ' +
+      'Rust L1 Unit is auto-emitted as n/a (inline #[test] annotations are undetectable by glob). ' +
+      'Introduced in #1364 as child of epic #1363 ("proof must touch reality").',
+    enforcement:
+      'scripts/check-test-pyramid.mjs (L1) — self-gate wired in scripts/check-all.mjs; generated ' +
+      'for targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-test-pyramid.mjs.ejs (CANON-01/04/11). Manifest ' +
+      'test-pyramid.json emitted for targets by src/generators/test-pyramid-manifest.ts ' +
+      '(skipIfExists:true; archetype-mismatch guard at gate time). Exit codes per INV-53: ' +
+      '0=PASS/SKIP, 1=policy violation, 2=schema/path-traversal error.',
   },
 ]

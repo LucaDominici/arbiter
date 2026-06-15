@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/CONTRIBUTING.md'
 source_sha: '50c57fa6a7973fe512b2aac0679b7caa4575676b'
-last_updated: '2026-06-11'
+last_updated: '2026-06-15'
 ---
 
 # Contributing to arbiter
@@ -303,7 +303,6 @@ npm ci
 ## Running Tests
 
 ```bash
-npm test
+npm test         
 
 *[content truncated — see source for full text]*
-```

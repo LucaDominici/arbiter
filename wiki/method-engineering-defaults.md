@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/ENGINEERING_DEFAULTS.md'
 source_sha: 'cea593fadf81cee4112598fde75a623c817c8871'
-last_updated: '2026-06-11'
+last_updated: '2026-06-15'
 ---
 
 # Engineering Defaults — arbiter
@@ -225,4 +225,3 @@ rm -rf .tmp/scratch || true
 // WRONG — error is silently dropp
 
 *[content truncated — see source for full text]*
-```

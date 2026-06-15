@@ -4,9 +4,10 @@
 //
 // CATALOG: P8 context-file lint gate (anti-drift, INV-89). Lints AI context files
 // CATALOG: (CLAUDE.md/AGENTS.md, incl. nested .claude/CLAUDE.md) for hardcoded paths,
-// CATALOG: required @import of the shared layer, line budget, and verbatim duplication
-// CATALOG: of imported content. Distinct from check-doc-style.mjs (frontmatter/H1 on
-// CATALOG: all .md) — this targets ONLY context files and their import/portability rules.
+// CATALOG: required @import of the shared layer, line budget, verbatim duplication
+// CATALOG: of imported content, and volatile facts (versions/counts) that belong in SSOT.
+// CATALOG: Distinct from check-doc-style.mjs (frontmatter/H1 on all .md) — this targets
+// CATALOG: ONLY context files and their import/portability rules.
 //
 // Rules:
 //   - HARD: no hardcoded absolute machine paths (/home/, /Users/, /root/, drive-letter X:\)
@@ -14,6 +15,10 @@
 //   - HARD: a delegating file that @imports a layer must not copy a verbatim >=N-line block
 //           from that layer (defeats the import)
 //   - SOFT (warn-only): per-file line budget
+//   - SOFT (warn-only): no volatile facts — literal semver (X.Y.Z) or hardcoded counts
+//           ("N invariants/hooks/...") in body prose. These drift; keep them in SSOT
+//           (config/code) and point at it. Frontmatter, fenced code, and lines that already
+//           reference an SSOT file are exempt. (ported from the internal-ref context linter)
 //
 // Exits 0 when no hard violations (warnings don't fail); exits 1 on any hard violation.
 //
@@ -29,8 +34,8 @@ if (args.includes('--help') || args.includes('-h')) {
       'Usage: node scripts/check-claude-md-lint.mjs [options]',
       '',
       'Lints AI context files (CLAUDE.md / AGENTS.md) for hardcoded paths, a required',
-      '@import of the shared layer in delegating files, a line budget (soft), and',
-      'verbatim duplication of imported shared-layer content.',
+      '@import of the shared layer in delegating files, a line budget (soft), verbatim',
+      'duplication of imported shared-layer content, and volatile facts (soft).',
       'Exits 0 when no hard violations; exits 1 otherwise. (INV-89)',
       '',
       'Options:',
@@ -52,6 +57,15 @@ const DUP_BLOCK_LINES = 12 // consecutive non-trivial lines copied verbatim ⇒ 
 // non-path char and start at a filesystem root segment.
 const ABS_POSIX = /(^|[\s"'`(=])(\/(home|Users|root|etc|var|opt|tmp|usr\/local)\/)/
 const ABS_WINDOWS = /(^|[\s"'`(=])([A-Za-z]:[\\/])/
+
+// Volatile facts (SOFT). A three-part version literal, or a count bound to a governance noun.
+// `v?` allows an optional leading v; trailing pre-release/build is ignored on purpose.
+const VOLATILE_SEMVER = /\bv?\d+\.\d+\.\d+\b/
+const VOLATILE_COUNT =
+  /\b\d+\s+(invariants?|hooks?|rules?|skills?|commands?|checks?|gates?|dimensions?|agents?|templates?|adapters?)\b/i
+// A line that already names an SSOT source file is a pointer, not a hardcoded fact — exempt.
+const SSOT_POINTER =
+  /(\.(ts|tsx|js|mjs|cjs|json|ya?ml|toml)\b|pom\.xml|package\.json|Cargo\.toml|go\.mod|build\.gradle|catalog\b)/i
 
 /** Discover in-scope context files (repo-relative only; never the user's global ~/.claude). */
 function discover() {
@@ -102,6 +116,43 @@ function hasVerbatimBlock(childContent, parentContent) {
   return false
 }
 
+/**
+ * Warn-only: volatile facts in body prose. Skips the YAML frontmatter block and any fenced
+ * code; exempts lines that already point at an SSOT file. Returns `${rel}:${line}: ...` strings.
+ */
+function volatileFactWarnings(content, rel) {
+  const out = []
+  const lines = content.split('\n')
+  let inFrontmatter = lines[0]?.trim() === '---'
+  let inFence = false
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+    // Frontmatter: from the leading `---` to its closing `---` (exempt — doc_version lives here).
+    if (inFrontmatter) {
+      if (i > 0 && trimmed === '---') inFrontmatter = false
+      continue
+    }
+    // Fenced code blocks (``` or ~~~) — exempt.
+    if (/^(```|~~~)/.test(trimmed)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    if (SSOT_POINTER.test(line)) continue // a pointer to where the fact lives — allowed
+    if (VOLATILE_SEMVER.test(line)) {
+      out.push(
+        `${rel}:${i + 1}: volatile fact — version literal "${line.match(VOLATILE_SEMVER)[0]}" belongs in SSOT (config/code), point at it instead`,
+      )
+    } else if (VOLATILE_COUNT.test(line)) {
+      out.push(
+        `${rel}:${i + 1}: volatile fact — hardcoded count "${line.match(VOLATILE_COUNT)[0].trim()}" drifts; derive it from SSOT instead`,
+      )
+    }
+  }
+  return out
+}
+
 function main() {
   const files = discover()
   if (files.length === 0) {
@@ -144,6 +195,9 @@ function main() {
     if (lines.length > LINE_BUDGET) {
       warnings.push(`${rel}: ${lines.length} lines exceeds soft line budget (${LINE_BUDGET})`)
     }
+
+    // SOFT: volatile facts (versions/counts) belong in SSOT, not in context prose.
+    for (const w of volatileFactWarnings(content, rel)) warnings.push(w)
   }
 
   if (errors.length === 0) {

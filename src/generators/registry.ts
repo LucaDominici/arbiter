@@ -71,6 +71,7 @@ import { generateModulith } from './modulith.js'
 import { generateFeatureMatrix } from './feature-matrix.js'
 import { generateGap } from './gap.js'
 import { generateResilience } from './resilience.js'
+import { generateTestPyramidManifest } from './test-pyramid-manifest.js'
 import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -202,6 +203,14 @@ function buildGateScriptSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'stack-conformity',
       enabled: Boolean(config.language),
       run: (opts) => generateStackConformity(config, opts).files,
+    },
+    {
+      // check-all.mjs.ejs invokes scripts/check-test-pyramid.mjs UNCONDITIONALLY
+      // (every archetype has ≥1 declared level; manifest absent → SKIP). The gate
+      // runs L1 pre-commit so empty-level violations surface immediately.
+      key: 'test-pyramid',
+      enabled: true,
+      run: (opts) => generateTestPyramidManifest(config, opts).files,
     },
   ]
 }

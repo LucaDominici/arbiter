@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/TESTING.md'
 source_sha: 'de7f025c9b8ea3df82bc36595839df6312ceeeb0'
-last_updated: '2026-06-11'
+last_updated: '2026-06-15'
 ---
 
 # Testing — arbiter
@@ -188,10 +188,10 @@ Primary codes indicate which test type most naturally covers each dimension.
 
 ### Core (1–17)
 
-| #   | Dimension                                                         | Primary Code | INV Reference |
-| --- | ----------------------------------------------------------------- | ------------ | ------------- |
-| 1   | Owner isolation — tenant/user data cannot bleed across boundaries | IT / AU      | INV-19        |
-| 2   | RBAC — role permissions enforced at every endpoint and query      | AU / IT      | INV-19        |
-| 3   | Input validation — all public inputs validated; i                 |
+| #   | Dimension                                                                           | Primary Code | INV Reference |
+| --- | ----------------------------------------------------------------------------------- | ------------ | ------------- |
+| 1   | Owner isolation — tenant/user data cannot bleed across boundaries                   | IT / AU      | INV-19        |
+| 2   | RBAC — role permissions enforced at every endpoint and query                        | AU / IT      | INV-19        |
+| 3   | Input validation — all public inputs validated; i
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

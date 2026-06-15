@@ -99,6 +99,19 @@ by the F2 stack adapter.
 
 ---
 
+## Related: context-file linter (`check-claude-md-lint.mjs`, #1266)
+
+Adjacent to the family above (also citing INV-89), the context-file linter targets only
+`CLAUDE.md` / `AGENTS.md` (incl. nested `.claude/CLAUDE.md`). Beyond the hard portability and
+`@import` rules, it carries a **warn-only volatile-facts rule** (ported from the `internal-ref`
+context linter): a literal version (`X.Y.Z`) or a hardcoded count of governance items
+(`N invariants/hooks/rules/...`) in body prose is flagged, because such facts drift and belong
+in SSOT (config/code). Frontmatter (`doc_version`), fenced code, and lines that already point at
+an SSOT file are exempt. It is advisory first (never fails the gate); it can be promoted to a
+hard rule once the context files are clean.
+
+---
+
 ## References
 
 - `src/invariants/catalog.ts` — INV-89 definition

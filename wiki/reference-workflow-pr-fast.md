@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/workflow-pr-fast.md'
 source_sha: '40a151dce21444f27e5fa1b816164d20c4e8925e'
-last_updated: '2026-06-11'
+last_updated: '2026-06-15'
 ---
 
 # Reference Implementation: PR Fast (T1) Workflow
@@ -214,4 +214,4 @@ aggregator (fail-closed). The classify script's error path reports
 - `scripts/check-workflow-parallelism.mjs` — enforces max chain depth
 - `scripts/check-workflow-cache-strategy.mjs` — enforces c
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/REUSE_REGISTRY.md'
 source_sha: 'e46d1f1e8435df36f12188137a5696ac8137e3fb'
-last_updated: '2026-06-11'
+last_updated: '2026-06-15'
 ---
 
 # arbiter Reuse Registry
@@ -215,7 +215,7 @@ TypeScript utilities used across generators, commands, and the CLI core.
 - when_to_use: the CLI entry point to show the privacy notice exactly once.
 - when_to_avoid: any contex
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*
 
 ## See Also
 

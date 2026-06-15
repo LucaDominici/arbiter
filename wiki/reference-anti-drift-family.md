@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/anti-drift-family.md'
-source_sha: '03edff67f03fb2e5e7d0a5072506a09ae4f492a8'
-last_updated: '2026-06-11'
+source_sha: '7e128e1c12309360b8b5b5b4e00dc7b070e17929'
+last_updated: '2026-06-15'
 ---
 
 # Anti-Drift Validator Family Reference
@@ -93,6 +93,19 @@ This family ports the agnostic anti-drift validators from `internal-ref`:
 
 Java-specific validators (PITest override, Jasypt, SpotBugs, schema isolation, etc.) are covered
 by the F2 stack adapter.
+
+---
+
+## Related: context-file linter (`check-claude-md-lint.mjs`, #1266)
+
+Adjacent to the family above (also citing INV-89), the context-file linter targets only
+`CLAUDE.md` / `AGENTS.md` (incl. nested `.claude/CLAUDE.md`). Beyond the hard portability and
+`@import` rules, it carries a **warn-only volatile-facts rule** (ported from the `internal-ref`
+context linter): a literal version (`X.Y.Z`) or a hardcoded count of governance items
+(`N invariants/hooks/rules/...`) in body prose is flagged, because such facts drift and belong
+in SSOT (config/code). Frontmatter (`doc_version`), fenced code, and lines that already point at
+an SSOT file are exempt. It is advisory first (never fails the gate); it can be promoted to a
+hard rule once the context files are clean.
 
 ---
 

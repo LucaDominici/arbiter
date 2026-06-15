@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SECURITY/ISO27001_ANNEX_A.md'
 source_sha: '97d5a67d68aab3f7795d4931afdeff8df79a35e4'
-last_updated: '2026-06-11'
+last_updated: '2026-06-15'
 ---
 
 # ISO 27001:2022 Annex A Control Matrix
@@ -92,8 +92,8 @@ Controls marked ✅ are satisfied by arbiter-generated artifacts. Controls marke
 
 ## A.7 — Physical Controls
 
-| Control | Title                        | Status | Evidence           |
-| ------- | ---------------------------- | ------ | ------------------ |
-| A.7.1   | Physical security perimeters | ❌ Gap | Manual: facilities |
+| Control | Title                                                 | Status | Evidence           |
+| ------- | ----------------------------------------------------- | ------ | ------------------ |
+| A.7.1   | Physical security perimeters                          | ❌ Gap | Manual: facilities 
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*
