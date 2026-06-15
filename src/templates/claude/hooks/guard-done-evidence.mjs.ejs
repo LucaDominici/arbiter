@@ -95,5 +95,59 @@ for (const entry of pinnedFiles) {
   }
 }
 
+
+// --- Reality-contact check (archetype-aware, #1368) -----------------------------------------------
+// For archetypes that produce a running artifact, a done claim must include
+// proof that the live artifact was exercised -- not just that unit tests passed.
+// The archetype is baked in at generation time (EJS).
+<% if (archetype === 'backend-web-db') { %>
+// backend-web-db: require live API e2e evidence
+const rc = evidence.reality_contact;
+if (!rc || typeof rc !== 'object') {
+  fail(
+    'reality-contact evidence missing \u2014 backend-web-db archetype requires live API e2e proof.\n' +
+    '  Add to .claude/.last-done-evidence.json:\n' +
+    '    "reality_contact": { "archetype": "backend-web-db", "required": true,\n' +
+    '      "suite": "live-api-e2e", "recorded_at": "<ISO>", "passed": true }',
+  );
+}
+if (rc.suite !== 'live-api-e2e') {
+  fail(
+    `reality-contact suite must be "live-api-e2e" for backend-web-db \u2014 got "${rc.suite}".\n` +
+    '  Run your Newman/httpx/REST e2e suite against the live binary and record the result.',
+  );
+}
+if (rc.passed !== true) {
+  fail(
+    `reality-contact passed is ${JSON.stringify(rc.passed)} \u2014 live API e2e suite must have passed.\n` +
+    '  Fix the failing e2e tests before claiming done.',
+  );
+}
+<% } else if (archetype === 'frontend-spa') { %>
+// frontend-spa: require render-smoke or visual-regression evidence
+const rcFe = evidence.reality_contact;
+const FE_SUITES = ['render-smoke', 'visual-regression'];
+if (!rcFe || typeof rcFe !== 'object') {
+  fail(
+    'reality-contact evidence missing \u2014 frontend-spa archetype requires render/visual suite proof.\n' +
+    '  Add to .claude/.last-done-evidence.json:\n' +
+    '    "reality_contact": { "archetype": "frontend-spa", "required": true,\n' +
+    '      "suite": "render-smoke", "recorded_at": "<ISO>", "passed": true }',
+  );
+}
+if (!FE_SUITES.includes(rcFe.suite)) {
+  fail(
+    `reality-contact suite must be one of [${FE_SUITES.join(', ')}] for frontend-spa \u2014 got "${rcFe.suite}".\n` +
+    '  Run your render-smoke or visual-regression suite and record the result.',
+  );
+}
+if (rcFe.passed !== true) {
+  fail(
+    `reality-contact passed is ${JSON.stringify(rcFe.passed)} \u2014 render/visual suite must have passed.\n` +
+    '  Fix the failing render/visual tests before claiming done.',
+  );
+}
+<% } %>
+
 // All checks passed — allow completion claim through
 process.exit(0);

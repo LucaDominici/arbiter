@@ -592,11 +592,15 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'preflight/plan phases, and arbiter task advance validates forward-only transitions with audit log. ' +
       'Evidence guard (guard-done-evidence.mjs.ejs) additionally blocks done claims until SHA-pinned ' +
       'evidence (.claude/.last-done-evidence.json) is present, all_green, and SHAs match current tree. ' +
-      'Evidence is captured by running node scripts/done-evidence.mjs (runs L2 gate + pins source SHAs).',
+      'Evidence is captured by running node scripts/done-evidence.mjs (runs L2 gate + pins source SHAs). ' +
+      'For archetypes that produce a running artifact (#1368): backend-web-db requires a reality_contact block ' +
+      'with suite="live-api-e2e" and passed=true; frontend-spa requires suite in [render-smoke, visual-regression] ' +
+      'with passed=true. A done/release claim without this archetype-appropriate reality-contact proof is blocked ' +
+      '(exit 2) -- green unit tests alone are insufficient proof of working software for these archetypes.',
     alwaysActive: true,
     enforcement:
       'src/templates/claude/hooks/guard-task-completion.mjs.ejs (exit 2) + ' +
-      'src/templates/claude/hooks/guard-done-evidence.mjs.ejs (exit 2, SHA-pin validation) + ' +
+      'src/templates/claude/hooks/guard-done-evidence.mjs.ejs (exit 2, SHA-pin + reality-contact validation) + ' +
       'src/templates/scripts/done-evidence.mjs.ejs (evidence capture CLI) + ' +
       'src/templates/githooks/pre-commit.ejs (phase guard) + ' +
       'src/commands/task.ts (advance validator)',
