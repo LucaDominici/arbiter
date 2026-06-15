@@ -352,6 +352,10 @@ runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
 // ─── L1: test pyramid non-empty gate (INV-124, #1364) ────────────────────────
 runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs']);
+// ─── L1: live-API e2e suite gate (INV-126, #1365) ────────────────────────────
+// Service archetypes (api-e2e.json required:true) must ship a non-mocked suite that
+// boots the real binary; required:false / absent manifest ⇒ runtime SKIP.
+runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs']);
 <% if (language) { %>
 // ─── L1: stack-conformity gate (INV-121, #1312) ──────────────────────────────
 // Fails when the repo-root manifest contradicts the declared language/databaseEngine

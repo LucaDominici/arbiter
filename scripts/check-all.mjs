@@ -212,6 +212,7 @@ if (isMain) {
   runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs'])
   runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs'])
   runCheck('domain-api surface (INV-125)', 'node', ['scripts/check-domain-api-surface.mjs'])
+  runCheck('api e2e (INV-126)', 'node', ['scripts/check-api-e2e.mjs'])
   runCheck('workflow cache strategy (§17.5 rec 3)', 'node', [
     'scripts/check-workflow-cache-strategy.mjs',
   ])

@@ -1,0 +1,30 @@
+{
+  "info": {
+    "name": "<%- projectName || 'service' %> live API e2e (INV-126)",
+    "description": "Non-mocked Newman/Postman suite — runs against the REAL booted binary. Boot it via tests/api/run.sh; set baseUrl to the running address.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET /health (live binary)",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('health returns 200 from the running binary', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [{ "key": "baseUrl", "value": "http://127.0.0.1:8080" }]
+}

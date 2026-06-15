@@ -1,0 +1,33 @@
+# Live API e2e (`tests/api/`)
+
+Non-mocked end-to-end tests that run against the **real booted binary** over real HTTP.
+Required for service archetypes by **INV-126** (`api-e2e.json` `required:true`).
+
+## Why this layer exists
+
+Unit and integration tests can be fully green while the running product is broken: a
+field present in the domain/DB but never wired into the HTTP input struct returns `400`,
+and nothing in the mocked test pyramid catches it. This suite closes that gap by asserting
+on responses from the actual server.
+
+## Running
+
+```bash
+./tests/api/run.sh
+```
+
+`run.sh` builds the binary, boots it (use a throwaway DB and a harness auth-bypass — never
+production credentials), waits for `/health`, runs the suite against `API_BASE_URL`, and
+tears the server down on exit.
+
+## The gate
+
+`scripts/check-api-e2e.mjs` (INV-126) fails the gate if this suite is **absent or empty**
+for a service archetype. It checks presence + non-emptiness only; the live run happens in
+CI/L2 via `run.sh`. Assertion quality is covered separately by the anti-proforma gate
+(INV-118).
+
+## Customising
+
+Adapt the boot command in `run.sh` and add real request/response assertions to the starter
+suite file. Keep at least one assertion against a live HTTP response so the gate stays green.

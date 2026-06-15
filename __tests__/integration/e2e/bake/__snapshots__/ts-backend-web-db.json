@@ -62,6 +62,7 @@
     "AGENTS.md",
     "Makefile",
     "__tests__/contract/error-shape.contract.test.ts",
+    "api-e2e.json",
     "arbiter.json",
     "docs/COMPLIANCE_MENU.md",
     "docs/METHOD/CANONICAL_PATHS.md",
@@ -77,6 +78,7 @@
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
     "scripts/check-anti-proforma.mjs",
+    "scripts/check-api-e2e.mjs",
     "scripts/check-canonical-paths.mjs",
     "scripts/check-ci-tiers.mjs",
     "scripts/check-claude-md-lint.mjs",
@@ -121,6 +123,9 @@
     "suppressions/pii-allowlist.json",
     "suppressions/suppressions-schema.json",
     "test-pyramid.json",
+    "tests/api/README.md",
+    "tests/api/api.e2e.test.ts",
+    "tests/api/run.sh",
     "tests/e2e/a11y.spec.ts",
     "tests/e2e/a11y/run-axe.ts"
   ]

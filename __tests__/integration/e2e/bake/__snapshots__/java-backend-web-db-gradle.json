@@ -60,6 +60,7 @@
     ".githooks/pre-push",
     "AGENTS.md",
     "Makefile",
+    "api-e2e.json",
     "arbiter.json",
     "docs/COMPLIANCE_MENU.md",
     "docs/METHOD/CANONICAL_PATHS.md",
@@ -73,6 +74,7 @@
     "scripts/check-action-pins.mjs",
     "scripts/check-all.mjs",
     "scripts/check-anti-proforma.mjs",
+    "scripts/check-api-e2e.mjs",
     "scripts/check-canonical-paths.mjs",
     "scripts/check-ci-tiers.mjs",
     "scripts/check-claude-md-lint.mjs",
@@ -120,6 +122,9 @@
     "suppressions/dependency-check-suppressions.xml",
     "suppressions/pii-allowlist.json",
     "suppressions/suppressions-schema.json",
-    "test-pyramid.json"
+    "test-pyramid.json",
+    "tests/api/ApiE2ETest.java",
+    "tests/api/README.md",
+    "tests/api/run.sh"
   ]
 }

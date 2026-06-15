@@ -72,6 +72,7 @@ import { generateFeatureMatrix } from './feature-matrix.js'
 import { generateGap } from './gap.js'
 import { generateResilience } from './resilience.js'
 import { generateTestPyramidManifest } from './test-pyramid-manifest.js'
+import { generateApiE2e } from './api-e2e.js'
 import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
 import type { ProjectConfig } from '../wizard/types.js'
@@ -211,6 +212,14 @@ function buildGateScriptSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'test-pyramid',
       enabled: true,
       run: (opts) => generateTestPyramidManifest(config, opts).files,
+    },
+    {
+      // #1365/INV-126: live-API e2e layer. Always emits api-e2e.json (required flag is
+      // archetype-driven); scaffolds the suite + runner only for service archetypes.
+      // The check-api-e2e.mjs gate runtime-SKIPs on required:false / absent manifest.
+      key: 'api-e2e',
+      enabled: true,
+      run: (opts) => generateApiE2e(config, opts).files,
     },
   ]
 }

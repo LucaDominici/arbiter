@@ -2115,4 +2115,31 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'generated for targets where config.hasPublicApi is true via emitDomainApiSurface helper (skipIfExists:true). ' +
       'Exit codes per INV-53: 0=PASS/SKIP, 1=surface gap, 2=schema/parse error.',
   },
+  {
+    id: 'INV-126',
+    tier: 'operational',
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'Service archetypes must ship a non-mocked live-API e2e suite',
+    description:
+      'A service archetype (backend-web-db) must exercise the RUNNING binary over real HTTP, ' +
+      'not just mocked unit/integration tests. The manifest api-e2e.json declares ' +
+      '{ archetype, required, suiteDir, framework, glob }; required:true (service) means the ' +
+      'glob must match >=1 non-empty suite file under tests/api/ that boots the real binary and ' +
+      'asserts on live responses. This is the INVERTED absent-semantics vs INV-124: a declared ' +
+      'service with an absent or empty suite is a hard fail (exit 1), closing the "domain green, ' +
+      'HTTP wiring broken" gap (a field in domain/DB never wired into the HTTP input => 400). ' +
+      'required:false (non-service) or absent manifest => SKIP (exit 0). Boundary: file presence + ' +
+      'non-emptiness only — the live run is CI/L2 via tests/api/run.sh; assertion quality is ' +
+      'INV-118 (anti-proforma). Introduced in #1365 as a child of epic #1363 ("proof must touch ' +
+      'reality").',
+    enforcement:
+      'scripts/check-api-e2e.mjs (L1) — self-gate wired in scripts/check-all.mjs; generated for ' +
+      'targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-api-e2e.mjs.ejs (CANON-01/04/11). Manifest api-e2e.json and the ' +
+      'starter suite + tests/api/run.sh (chmod 0o755) emitted by src/generators/api-e2e.ts ' +
+      '(skipIfExists:true; suite scaffolded only for service archetypes). Exit codes per INV-53: ' +
+      '0=PASS/SKIP, 1=absent/empty suite, 2=schema/path-traversal error.',
+  },
 ]

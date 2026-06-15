@@ -228,6 +228,7 @@ const CI_COVERAGE = new Map([
   ['anti-proforma (INV-118)', 'gate-full'],
   ['test pyramid (INV-124)', 'gate-full'],
   ['domain-api surface (INV-125)', 'gate-full'],
+  ['api e2e (INV-126)', 'gate-full'],
   ['workflow cache strategy (§17.5 rec 3)', 'gate-full'],
   ['commit-footer rationale (INV-119)', 'gate-full'],
   // 'docs:build' is invoked via the docsCheck() warn-helper (not run[Tool]Check),

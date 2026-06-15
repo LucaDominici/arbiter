@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Live-API e2e runner (INV-126): builds + boots the REAL binary, runs the non-mocked
+# suite against it over real HTTP, then tears down. No mocks, no stubs.
+#
+# Contract:
+#   - Use a throwaway DB + harness auth-bypass (NEVER production credentials).
+#   - Wait for readiness before running the suite.
+#   - Always tear the server down (trap), even on failure.
+set -euo pipefail
+
+API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:8080}"
+HEALTH_URL="${HEALTH_URL:-${API_BASE_URL}/health}"
+SERVER_PID=""
+
+cleanup() {
+  if [[ -n "${SERVER_PID}" ]] && kill -0 "${SERVER_PID}" 2>/dev/null; then
+    kill "${SERVER_PID}" 2>/dev/null || true
+    wait "${SERVER_PID}" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+echo "[api-e2e] building + booting the real binary..."
+<% if (language === 'go') { -%>
+go build -o /tmp/api-e2e-bin ./... && /tmp/api-e2e-bin &
+<% } else if (language === 'java' || language === 'kotlin') { -%>
+# Adjust the boot command to your build tool (gradle bootRun / java -jar build/libs/*.jar).
+./gradlew bootRun &
+<% } else if (language === 'python') { -%>
+# Adjust module:app to your ASGI/WSGI entrypoint.
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8080 &
+<% } else { -%>
+# Adjust to your start command (e.g. node dist/server.js).
+npm run start &
+<% } -%>
+SERVER_PID=$!
+
+echo "[api-e2e] waiting for readiness at ${HEALTH_URL} ..."
+for _ in $(seq 1 60); do
+  if curl -fsS "${HEALTH_URL}" >/dev/null 2>&1; then
+    echo "[api-e2e] server is ready"
+    break
+  fi
+  sleep 1
+done
+
+echo "[api-e2e] running the live suite..."
+<% if (language === 'go') { -%>
+API_BASE_URL="${API_BASE_URL}" go test ./tests/api/...
+<% } else if (language === 'java' || language === 'kotlin') { -%>
+API_BASE_URL="${API_BASE_URL}" ./gradlew test --tests '*ApiE2ETest'
+<% } else if (language === 'python') { -%>
+API_BASE_URL="${API_BASE_URL}" python -m pytest tests/api/
+<% } else { -%>
+# Default: vitest supertest suite. For a Postman collection use:
+#   newman run tests/api/postman.collection.json --env-var baseUrl="${API_BASE_URL}"
+API_BASE_URL="${API_BASE_URL}" npx vitest run tests/api/
+<% } -%>
