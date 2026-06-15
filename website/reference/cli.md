@@ -517,6 +517,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter ci`             | Governance-aware CI planning (#261)                                             |
 | `arbiter compare`        | —                                                                               |
 | `arbiter configure`      | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
+| `arbiter conformance`    | Score a project against the arbiter gold standard (#1369)                       |
 | `arbiter diff`           | Show what arbiter update would change (dry run)                                 |
 | `arbiter doctor`         | Diagnose and repair arbiter state                                               |
 | `arbiter experiments`    | Inspect registered experimental features                                        |
@@ -595,6 +596,16 @@ Modify arbiter.json configuration (interactive on TTY, or use --set).
 - `--set <path=value>` — Set a config path to a value (repeatable)
 - `--json` — Emit machine-readable JSON output
 
+## arbiter conformance
+
+Score a project against the arbiter gold standard (#1369).
+
+**Options:**
+
+- `--dir <dir>` — Project root to evaluate (default: current directory)
+- `--fail-on <level>` — Exit 1 on: fail (default) or partial (stricter)
+- `--json` — Emit machine-readable JSON output
+
 ## arbiter diff
 
 Show what arbiter update would change (dry run).
@@ -603,6 +614,7 @@ Show what arbiter update would change (dry run).
 
 - `--dir <dir>` — Target directory (default: current directory)
 - `--json` — Emit machine-readable JSON output
+- `--withheld` — Show only template fixes withheld from user-modified files (#1344)
 
 ## arbiter doctor
 
