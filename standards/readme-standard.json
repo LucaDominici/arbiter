@@ -1,0 +1,29 @@
+{
+  "version": "1.0.0",
+  "id": "readme-standard",
+  "title": "README Quality Standard",
+  "description": "Minimum quality bar for project README files in arbiter-governed projects.",
+  "rules": [
+    {
+      "id": "README-01",
+      "description": "README must be present (README.md, README.rst, or README.txt)",
+      "required": true
+    },
+    {
+      "id": "README-02",
+      "description": "README must have at least 50 characters of content",
+      "required": true,
+      "threshold": { "minLength": 50 }
+    },
+    {
+      "id": "README-03",
+      "description": "README should have an Installation or Getting Started section",
+      "required": false
+    },
+    {
+      "id": "README-04",
+      "description": "README should have a Usage section",
+      "required": false
+    }
+  ]
+}
