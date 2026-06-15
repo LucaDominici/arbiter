@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: Shared glob + tree-walk helpers for presence-gate scripts (#1366).
+// CATALOG:   Used by check-render-smoke.mjs (INV-126). A minimal, dependency-free
+// CATALOG:   matcher: `**` crosses directories, `*` stays within a path segment.
+// CATALOG:   walkRepo returns repo-relative POSIX paths; SKIP_DIRS prunes vendor trees.
+// Pure module — no process exit, no I/O side effects beyond readdir/stat.
+import { readdirSync, statSync } from 'node:fs'
+import { join, isAbsolute } from 'node:path'
+
+export const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
+
+/**
+ * Translate a restricted glob (`**`, `*`) into a RegExp and test a POSIX path.
+ * `**\/` crosses directory boundaries; `**` (not followed by /) matches any run;
+ * `*` matches within a single path segment.
+ */
+export function globMatch(pattern, filepath) {
+  let reStr = '^'
+  let i = 0
+  while (i < pattern.length) {
+    const ch = pattern[i]
+    if (ch === '*' && pattern[i + 1] === '*') {
+      if (pattern[i + 2] === '/') {
+        reStr += '(?:[^/]*/)*'
+        i += 3
+      } else {
+        reStr += '[\\s\\S]*'
+        i += 2
+      }
+    } else if (ch === '*') {
+      reStr += '[^/]*'
+      i++
+    } else if ('\\.+?^${}()|[]'.includes(ch)) {
+      reStr += '\\' + ch
+      i++
+    } else {
+      reStr += ch
+      i++
+    }
+  }
+  reStr += '$'
+  return new RegExp(reStr).test(filepath)
+}
+
+/** Reject absolute or `..`-traversal globs (path-traversal guard). */
+export function validateGlob(pattern) {
+  if (isAbsolute(pattern)) return false
+  return !pattern.split('/').includes('..')
+}
+
+/**
+ * Walk `root` collecting repo-relative POSIX file paths, pruning SKIP_DIRS.
+ * Unreadable dirs/entries are skipped silently (never throws).
+ */
+export function walkRepo(root) {
+  const files = []
+  const visit = (dir) => {
+    let entries
+    try {
+      entries = readdirSync(dir)
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry)) continue
+      const full = join(dir, entry)
+      let stat
+      try {
+        stat = statSync(full)
+      } catch {
+        continue
+      }
+      if (stat.isDirectory()) {
+        visit(full)
+      } else {
+        files.push(full.slice(root.length + 1).replace(/\\/g, '/'))
+      }
+    }
+  }
+  visit(root)
+  return files
+}
