@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/ARCHITECTURE.md'
 source_sha: 'a80009cc809344baaba2a53a61b45c3952c3d915'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # arbiter Architecture
@@ -181,4 +181,3 @@ node scripts/check-all.mjs L1   # fast local check
 node scripts/check-all.mjs L2   # full g
 
 *[content truncated — see source for full text]*
-```

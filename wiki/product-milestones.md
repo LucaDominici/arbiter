@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/MILESTONES.md'
 source_sha: '96037e195f6163300ffa556d91b834b5120add64'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # Arbiter — Milestones
@@ -226,4 +226,4 @@ Each milestone has a scope, exit criteria, and dependency chain. Milestones are 
 **Issues:** #28, #34, #40
 **Scope:** Generate a single `/task` slash command for
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

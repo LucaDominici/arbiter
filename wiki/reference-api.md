@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/api.md'
 source_sha: '9ee0a181bfdc490c8ff53ed42da6a4f6d2cc60ba'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # Public API Reference
@@ -124,6 +124,6 @@ ARBITER_LOG_FORMAT=json ARBITER_LOG_LEVEL=debug arbiter task advance --to green
 | `ARBITER_SKIP_PLAN_REVIEW`     | `1`    | —       | Bypass the plan-review gate and write an audit bypass record. **Refused under CI** (`CI=true`). Use `--skip-plan-review` flag instead when possible.                    | `src/commands/task.ts`                   |
 | `ARBITER_PLAN_REVIEW_OPTIONAL` | `1`    | —       | Treat a missing `claude` CLI binary as a PASS verdict instead of FAIL. Useful in environments where the review tool is not installed.                                   | `src/review/dispatch.ts`                 |
 | `ARBITER_PLAN_BYPASS`          | `1`    | —       | Bypass the pre-edit plan-anchor hook (CANON-14). Allows edits in implementation phases without a valid `.task-plan` pointer. For emergency use only — bypass is logged. | `.claude/hooks/pre-edit-plan-anchor.mjs` |
-| `ARBITER_COST_BUDGET_SKIP`     | `1`    | —       | Skip the first-phase token budget assertion. Use when context is known-clean post-`/clear`.                                                                             | `src/commands/task.ts`                   |
+| `ARBITER_COST_BUDGET_SKIP`     | `1`    | —       | Skip the first-phase token budget assertion. Use when context is known-clean post-`/clear`.                                                                             | `src/commands/task.ts`               
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

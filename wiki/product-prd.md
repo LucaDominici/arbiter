@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/PRD.md'
 source_sha: 'e60f571d88f9652cf338c5829a69e58e97754124'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # Arbiter — Product Requirements Document
@@ -148,4 +148,4 @@ M22 (architecture verification suite) shipped. M23-M24 (mutation, security) and 
 
 - Architec
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

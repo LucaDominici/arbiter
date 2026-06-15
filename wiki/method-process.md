@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/PROCESS.md'
 source_sha: 'eed6563c68ea33cdb8a0c12ab371d877e120ffbb'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # Process — arbiter
@@ -202,4 +202,4 @@ When a file matches both a FE path prefix and a BE extension (e.g., `frontend/se
 Checklists are baked into the generated hook at `arbiter init` time from EJS partials:  
 `src/templates/claude/hooks/post-commit-checklists/<stack>/<track>.ejs`
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

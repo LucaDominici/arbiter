@@ -100,6 +100,7 @@
     "scripts/check-suppression-rationale.mjs",
     "scripts/check-suppressions.mjs",
     "scripts/check-test-naming.mjs",
+    "scripts/check-test-pyramid.mjs",
     "scripts/check-validator-helptext.mjs",
     "scripts/check-workflow-docs-sync.mjs",
     "scripts/check-workflow-job-naming.mjs",
@@ -121,6 +122,7 @@
     "suppressions/dependency-check-suppressions.xml",
     "suppressions/pii-allowlist.json",
     "suppressions/suppressions-schema.json",
+    "test-pyramid.json",
     "tests/e2e/a11y.spec.ts",
     "tests/e2e/a11y/run-axe.ts",
     "vitest.browser.config.ts"

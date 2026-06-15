@@ -25,14 +25,14 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 5 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan)', () => {
+  it('emits exactly 6 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
-    // + optional-emissions.json (INV-123, #1331) — all unconditional.
+    // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(5)
+    expect(result.files).toHaveLength(6)
     expect(result.files.some((f) => f.path.endsWith('scripts/optional-emissions.json'))).toBe(true)
   })
 

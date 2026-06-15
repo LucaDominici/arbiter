@@ -86,6 +86,7 @@
     "scripts/check-suppression-rationale.mjs",
     "scripts/check-suppressions.mjs",
     "scripts/check-test-naming.mjs",
+    "scripts/check-test-pyramid.mjs",
     "scripts/check-validator-helptext.mjs",
     "scripts/check-workflow-docs-sync.mjs",
     "scripts/check-workflow-job-naming.mjs",
@@ -103,6 +104,7 @@
     "suppressions/dependency-check-suppressions.xml",
     "suppressions/pii-allowlist.json",
     "suppressions/suppressions-schema.json",
+    "test-pyramid.json",
     "tests/test_example_behavioral.py"
   ]
 }

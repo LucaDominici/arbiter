@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/PATTERNS_CATALOG.md'
 source_sha: '0d04e2bac910b2db2f2a6493fde7528afae4811f'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # arbiter Patterns Catalog
@@ -154,4 +154,4 @@ Read this before opening a new file under `src/` (CANON-16: refactor-first / exi
   emitted tests are still in sync with the spec.
 - **Avoid when:** the test is
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

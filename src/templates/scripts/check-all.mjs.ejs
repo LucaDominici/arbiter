@@ -350,6 +350,8 @@ runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs']);
 <% } %>
 // ─── L1: anti-proforma test gate (INV-118, #1249) ────────────────────────────
 runCheck('anti-proforma (INV-118)', 'node', ['scripts/check-anti-proforma.mjs']);
+// ─── L1: test pyramid non-empty gate (INV-124, #1364) ────────────────────────
+runCheck('test pyramid (INV-124)', 'node', ['scripts/check-test-pyramid.mjs']);
 <% if (language) { %>
 // ─── L1: stack-conformity gate (INV-121, #1312) ──────────────────────────────
 // Fails when the repo-root manifest contradicts the declared language/databaseEngine
