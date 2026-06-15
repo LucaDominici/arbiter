@@ -76,6 +76,7 @@ export type GeneratorKey =
   | 'stack-conformity'
   | 'test-pyramid'
   | 'api-e2e'
+  | 'conformance'
 
 export interface ConfigDiff {
   paths: string[]

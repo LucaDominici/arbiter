@@ -110,6 +110,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'lib', 'glob-walk.mjs'],
     tpl: 'scripts/lib/glob-walk.mjs.ejs',
   },
+  // #1398 (INV-128): conformance scorecard runner. Emitted unconditionally so every
+  // governed project can run `node scripts/conformance.mjs --check`; wired as an
+  // advisory (runWarnCheck) in check-all.mjs L2 so it never hard-fails the gate.
+  {
+    rel: ['scripts', 'conformance.mjs'],
+    tpl: 'scripts/conformance.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

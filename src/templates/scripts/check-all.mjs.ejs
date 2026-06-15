@@ -836,6 +836,10 @@ if (level === 'L2') {
   // Fails open (exit 0 with WARN) when origin/main is unavailable.
   runCheck('commit-footer rationale (INV-119)', 'node', ['scripts/check-commit-footer-rationale.mjs'], { soft: graceActive });
 <% } %>
+  // Advisory (#1398/C6, INV-128): conformance scorecard ratchet — informational, never blocks gate.
+  if (existsSync('scripts/conformance.mjs')) {
+    runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
+  }
 <% } %>
 <% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────

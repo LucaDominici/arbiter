@@ -75,6 +75,7 @@ import { generateTestPyramidManifest } from './test-pyramid-manifest.js'
 import { generateApiE2e } from './api-e2e.js'
 import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
+import { generateConformanceScript } from './conformance.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult, GeneratorRunOpts } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -592,6 +593,13 @@ export function buildRegistry(
       key: 'wiki',
       enabled: config.governanceLevel !== 'L1',
       run: (opts) => generateWiki(config, opts).files,
+    },
+    {
+      // #1398 (INV-128): conformance scorecard runner — always-on; the script delegates
+      // to `arbiter conformance --check` via npx (no local install required).
+      key: 'conformance',
+      enabled: true,
+      run: (opts) => generateConformanceScript(config, opts).files,
     },
   ]
 }

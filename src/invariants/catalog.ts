@@ -2174,4 +2174,27 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(skipIfExists:true). Exit codes per INV-53: 0=PASS/SKIP, 1=missing render-smoke spec, ' +
       '2=schema/parse error.',
   },
+
+  // ─── Conformance Scorecard Script (#1398) ────────────────────────────────────
+
+  {
+    id: 'INV-128',
+    tier: 'operational',
+    title: 'Conformance script generated',
+    description:
+      'Every arbiter-governed project must ship a conformance scorecard script ' +
+      '(`scripts/conformance.mjs`). The script delegates to `arbiter conformance --check` ' +
+      'via npx so target projects need no local arbiter install. Enforced by the conformance ' +
+      'generator (UNCONDITIONAL_EMISSIONS entry in check-all.ts); wired as an advisory ' +
+      '(runWarnCheck) in check-all.mjs L2 — informational, never hard-fails the gate.',
+    selfOnly: false,
+    alwaysActive: false,
+    minGovernanceLevel: 'L1',
+    enforcement:
+      'scripts/conformance.mjs — emitted unconditionally for all governed targets via ' +
+      'src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/conformance.mjs.ejs (CANON-01/04/11). Invoked as advisory ' +
+      '(runWarnCheck) in generated scripts/check-all.mjs L2 behind existsSync guard ' +
+      '(#1398/C6). Exit codes per INV-53: 0=PASS, 1=FAIL (below threshold), 2=ERROR.',
+  },
 ]

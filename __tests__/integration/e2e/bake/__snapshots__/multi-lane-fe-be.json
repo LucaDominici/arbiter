@@ -115,6 +115,7 @@
     "scripts/check-workflow-runners.mjs",
     "scripts/check-workflow-sha-pinning.mjs",
     "scripts/check-workflow-test-integrity.mjs",
+    "scripts/conformance.mjs",
     "scripts/harness.mjs",
     "scripts/i18n-literal-scanner.mjs",
     "scripts/knowledge-map-update.mjs",
