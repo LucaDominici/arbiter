@@ -97,18 +97,18 @@ related: ['PRODUCT/FEATURE_MATRIX.md', 'PRODUCT/STATUS.md', 'INDEX.md']
 | ./                                                             | AGENTS.md:286                                                      | medium   |
 | docker://                                                      | AGENTS.md:286                                                      | medium   |
 | src/templates/scripts/optional-emissions.json.ejs              | AGENTS.md:286                                                      | medium   |
-| required                                                       | AGENTS.md:289                                                      | medium   |
-| n/a                                                            | AGENTS.md:289                                                      | medium   |
-| src/generators/check-all.ts                                    | AGENTS.md:289                                                      | medium   |
-| src/templates/scripts/check-test-pyramid.mjs.ejs               | AGENTS.md:289                                                      | medium   |
-| src/generators/test-pyramid-manifest.ts                        | AGENTS.md:289                                                      | medium   |
-| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:297                                                      | medium   |
-| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:301                                                      | medium   |
-| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:305                                                      | medium   |
-| unknown                                                        | AGENTS.md:314                                                      | medium   |
-| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:417                                             | medium   |
-| debt-baseline.json                                             | AGENTS.md:423                                                      | medium   |
-| --update                                                       | AGENTS.md:423                                                      | medium   |
+| required                                                       | AGENTS.md:292                                                      | medium   |
+| n/a                                                            | AGENTS.md:292                                                      | medium   |
+| src/generators/check-all.ts                                    | AGENTS.md:292                                                      | medium   |
+| src/templates/scripts/check-test-pyramid.mjs.ejs               | AGENTS.md:292                                                      | medium   |
+| src/generators/test-pyramid-manifest.ts                        | AGENTS.md:292                                                      | medium   |
+| - In FE projects (archetype frontend-spa or lanes:[frontend]   | AGENTS.md:300                                                      | medium   |
+| - In FE projects, domain and store files MUST NOT import or    | AGENTS.md:304                                                      | medium   |
+| - In FE projects, state store files MUST NOT contain async f   | AGENTS.md:308                                                      | medium   |
+| unknown                                                        | AGENTS.md:317                                                      | medium   |
+| - `node scripts/capture-debt-baseline.mjs --update`            | Tighte — AGENTS.md:420                                             | medium   |
+| debt-baseline.json                                             | AGENTS.md:426                                                      | medium   |
+| --update                                                       | AGENTS.md:426                                                      | medium   |
 | scripts/check-constraint-scan.mjs                              | docs/SYSTEM/CANON.md:160                                           | medium   |
 | **Rule:** Every direct `fs.*` failure handler in `src/` must   | docs/SYSTEM/CANON.md:252                                           | medium   |
 | **Rule:** A code-quality rule may be promoted to a \*\*HARD GA | docs/SYSTEM/CANON.md:314                                           | medium   |
