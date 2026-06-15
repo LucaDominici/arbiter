@@ -5,11 +5,16 @@
 // per-dimension matrix (pass / partial / fail / skip + evidence ref).
 //
 // Dimensions:
-//   D-TEST-LEVELS      — Declared test levels populated (test-pyramid.json)
-//   D-LIVE-E2E         — Non-mocked live API e2e layer exists and runs
-//   D-FE-RENDER-GATE   — FE archetypes have a behavioural/visual gate
-//   D-DOMAIN-API       — Domain↔API surface completeness checked
-//   D-DONE-EVIDENCE    — Done-evidence requires reality-contact
+//   D-TEST-LEVELS            — Declared test levels populated (test-pyramid.json)
+//   D-LIVE-E2E               — Non-mocked live API e2e layer exists and runs
+//   D-FE-RENDER-GATE         — FE archetypes have a behavioural/visual gate
+//   D-DOMAIN-API             — Domain-API surface completeness checked
+//   D-DONE-EVIDENCE          — Done-evidence requires reality-contact
+//   D-GATE-GREEN             — Local gate most recently ran green
+//   D-COVERAGE-THRESHOLDS    — All coverage metrics >= 80%
+//   D-INVARIANTS-ENFORCED    — Invariants catalog is machine-readable
+//   D-NO-OVERCLAIM           — Done-evidence asserts no overclaim
+//   D-COMMIT-HYGIENE         — Commit hygiene enforced via Husky+commitlint
 //
 // Design: deterministic, code-computed, never AI-scored. Pure functions in
 // src/conformance/dimensions.ts keep probe logic testable without CLI wiring.
@@ -22,6 +27,11 @@ import {
   probeDFeRenderGate,
   probeDDomainApi,
   probeDDoneEvidence,
+  probeGateGreen,
+  probeCoverageThresholds,
+  probeInvariantsEnforced,
+  probeNoOverclaim,
+  probeCommitHygiene,
 } from '../conformance/dimensions.js'
 import type { DimensionEntry } from '../conformance/dimensions.js'
 import { computeSummary } from '../conformance/render.js'
@@ -80,6 +90,11 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceResult
       'D-FE-RENDER-GATE',
       'D-DOMAIN-API',
       'D-DONE-EVIDENCE',
+      'D-GATE-GREEN',
+      'D-COVERAGE-THRESHOLDS',
+      'D-INVARIANTS-ENFORCED',
+      'D-NO-OVERCLAIM',
+      'D-COMMIT-HYGIENE',
     ].map((id) => ({
       id,
       title: id,
@@ -88,7 +103,7 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceResult
       weight: 0,
       required_at: 'L1',
       verdict: 'NA' as const,
-      evidence: 'arbiter.json absent — project is not governed',
+      evidence: { file: 'arbiter.json', detail: 'absent — project is not governed' },
     }))
     return { status: 'skip', score: 0, dimensions: skipDimensions, exitCode: 0 }
   }
@@ -99,10 +114,15 @@ export function runConformance(opts: ConformanceOptions = {}): ConformanceResult
   // Run all dimension probes
   const dimensions: DimensionEntry[] = [
     probeDTestLevels(root),
-    probeDLiveE2e(root),
+    probeDLiveE2e(root, archetype),
     probeDFeRenderGate(root, archetype),
     probeDDomainApi(root),
     probeDDoneEvidence(root),
+    probeGateGreen(root),
+    probeCoverageThresholds(root),
+    probeInvariantsEnforced(root),
+    probeNoOverclaim(root),
+    probeCommitHygiene(root),
   ]
 
   const summary = computeSummary(dimensions)

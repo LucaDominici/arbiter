@@ -43,9 +43,8 @@ function pad(s: string, width: number): string {
   return s.length >= width ? s : s + ' '.repeat(width - s.length)
 }
 
-/** Render evidence (string or Evidence object) to a display string. */
-function renderEvidence(evidence: string | Evidence): string {
-  if (typeof evidence === 'string') return evidence
+/** Render an Evidence object to a display string. */
+function renderEvidence(evidence: Evidence): string {
   const loc = evidence.line !== undefined ? `:${evidence.line}` : ''
   const detail = evidence.detail !== undefined ? ` — ${evidence.detail}` : ''
   return `${evidence.file}${loc}${detail}`

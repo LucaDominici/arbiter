@@ -4,6 +4,8 @@
 // Each probe function receives the resolved project root and returns a DimensionEntry.
 // Pure functions: no process.exit, no console. All IO is wrapped in try/catch for
 // fail-safe operation (RT-02: IO errors must not crash the command).
+//
+// C3 (#1395): probes rewritten to read canonical manifests; evidence narrowed to Evidence.
 
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -25,13 +27,20 @@ export interface DimensionEntry {
   /** Minimum governance level at which this dimension is required. */
   required_at: string
   verdict: DimensionVerdict
-  evidence: string | Evidence
-  detail?: string
+  evidence: Evidence
 }
 
 /** Shared field values for all reality-contact tier-1 dimensions. */
 const RC_T1: Pick<DimensionEntry, 'family' | 'tier' | 'weight' | 'required_at'> = {
   family: 'reality-contact',
+  tier: 1,
+  weight: 0,
+  required_at: 'L1',
+}
+
+/** Shared field values for all discipline tier-1 dimensions. */
+const DISC_T1: Pick<DimensionEntry, 'family' | 'tier' | 'weight' | 'required_at'> = {
+  family: 'discipline',
   tier: 1,
   weight: 0,
   required_at: 'L1',
@@ -94,7 +103,7 @@ function globMatch(pattern: string, filepath: string): boolean {
   return new RegExp(reStr).test(filepath)
 }
 
-// ─── D-TEST-LEVELS ────────────────────────────────────────────────────────────
+// --- D-TEST-LEVELS ---
 
 const D_TEST_LEVELS_ID = 'D-TEST-LEVELS'
 const D_TEST_LEVELS_TITLE = 'Declared test levels populated'
@@ -113,7 +122,8 @@ function checkRequiredLevel(lvl: unknown, allFiles: string[]): string | null {
 
 /**
  * D-TEST-LEVELS: Declared test levels are populated (test-pyramid.json present +
- * all required levels have ≥1 matching test file).
+ * all required levels have at least 1 matching test file).
+ * Reads test-pyramid.json as the canonical manifest.
  */
 export function probeDTestLevels(root: string): DimensionEntry {
   const pyramidPath = safeResolve(root, 'test-pyramid.json')
@@ -123,7 +133,7 @@ export function probeDTestLevels(root: string): DimensionEntry {
       title: D_TEST_LEVELS_TITLE,
       ...RC_T1,
       verdict: 'N',
-      evidence: 'test-pyramid.json missing — no test pyramid declared',
+      evidence: { file: 'test-pyramid.json', detail: 'missing — no test pyramid declared' },
     }
   }
 
@@ -134,7 +144,7 @@ export function probeDTestLevels(root: string): DimensionEntry {
       title: D_TEST_LEVELS_TITLE,
       ...RC_T1,
       verdict: 'N',
-      evidence: 'test-pyramid.json: parse error',
+      evidence: { file: 'test-pyramid.json', detail: 'parse error' },
     }
   }
 
@@ -147,7 +157,7 @@ export function probeDTestLevels(root: string): DimensionEntry {
       title: D_TEST_LEVELS_TITLE,
       ...RC_T1,
       verdict: 'N',
-      evidence: 'test-pyramid.json: no levels declared',
+      evidence: { file: 'test-pyramid.json', detail: 'no levels declared' },
     }
   }
 
@@ -162,7 +172,10 @@ export function probeDTestLevels(root: string): DimensionEntry {
       title: D_TEST_LEVELS_TITLE,
       ...RC_T1,
       verdict: 'N',
-      evidence: `test-pyramid.json: empty required levels: ${failures.join(', ')}`,
+      evidence: {
+        file: 'test-pyramid.json',
+        detail: `empty required levels: ${failures.join(', ')}`,
+      },
     }
   }
 
@@ -171,30 +184,79 @@ export function probeDTestLevels(root: string): DimensionEntry {
     title: D_TEST_LEVELS_TITLE,
     ...RC_T1,
     verdict: 'Y',
-    evidence: 'test-pyramid.json: all required levels populated',
+    evidence: { file: 'test-pyramid.json', detail: 'all required levels populated' },
   }
 }
 
-// ─── D-LIVE-E2E ───────────────────────────────────────────────────────────────
+// --- D-LIVE-E2E ---
 
-/** Patterns considered e2e test files. */
-const E2E_PATTERNS = ['**/*.e2e.ts', '**/*.e2e.js', '**/e2e/**/*.ts', '**/e2e/**/*.js']
+/** Archetypes that are considered service/backend types requiring e2e. */
+const SERVICE_ARCHETYPES = new Set([
+  'backend',
+  'backend-web-db',
+  'backend-api',
+  'backend-service',
+  'service',
+  'fullstack',
+  'fullstack-web',
+])
 
 /**
  * D-LIVE-E2E: A non-mocked live API e2e layer exists and runs.
- * Evidence: e2e test files present in the repo tree.
+ * Reads api-e2e.json as the canonical manifest. NA for non-service archetypes.
  */
-export function probeDLiveE2e(root: string): DimensionEntry {
-  const allFiles = walkFiles(root, root, SKIP_DIRS)
-  const found = allFiles.filter((f) => E2E_PATTERNS.some((p) => globMatch(p, f)))
+export function probeDLiveE2e(root: string, archetype: string | null): DimensionEntry {
+  const isService =
+    archetype !== null &&
+    (SERVICE_ARCHETYPES.has(archetype) ||
+      archetype.startsWith('backend') ||
+      archetype === 'fullstack')
 
-  if (found.length > 0) {
+  if (!isService) {
+    return {
+      id: 'D-LIVE-E2E',
+      title: 'Non-mocked live API e2e layer exists and runs',
+      ...RC_T1,
+      verdict: 'NA',
+      evidence: {
+        file: 'arbiter.json',
+        detail: `archetype "${archetype ?? 'unset'}" is not a service type — not applicable`,
+      },
+    }
+  }
+
+  const manifestPath = safeResolve(root, 'api-e2e.json')
+  if (manifestPath === null || !fileExists(manifestPath)) {
+    return {
+      id: 'D-LIVE-E2E',
+      title: 'Non-mocked live API e2e layer exists and runs',
+      ...RC_T1,
+      verdict: 'N',
+      evidence: { file: 'api-e2e.json', detail: 'missing — no e2e manifest declared' },
+    }
+  }
+
+  const manifest = readJson(manifestPath)
+  if (manifest === null || typeof manifest !== 'object') {
+    return {
+      id: 'D-LIVE-E2E',
+      title: 'Non-mocked live API e2e layer exists and runs',
+      ...RC_T1,
+      verdict: 'N',
+      evidence: { file: 'api-e2e.json', detail: 'parse error' },
+    }
+  }
+
+  const m = manifest as Record<string, unknown>
+  const suiteCount = typeof m['suiteCount'] === 'number' ? m['suiteCount'] : 0
+
+  if (suiteCount > 0) {
     return {
       id: 'D-LIVE-E2E',
       title: 'Non-mocked live API e2e layer exists and runs',
       ...RC_T1,
       verdict: 'Y',
-      evidence: `${found.length} e2e file(s) found: ${found[0]}${found.length > 1 ? ` (+${found.length - 1} more)` : ''}`,
+      evidence: { file: 'api-e2e.json', detail: `suiteCount=${suiteCount}` },
     }
   }
 
@@ -203,11 +265,11 @@ export function probeDLiveE2e(root: string): DimensionEntry {
     title: 'Non-mocked live API e2e layer exists and runs',
     ...RC_T1,
     verdict: 'N',
-    evidence: 'no e2e test files found (patterns: *.e2e.ts, e2e/**/*.ts)',
+    evidence: { file: 'api-e2e.json', detail: 'suiteCount=0 — no e2e suites registered' },
   }
 }
 
-// ─── D-FE-RENDER-GATE ─────────────────────────────────────────────────────────
+// --- D-FE-RENDER-GATE ---
 
 const D_FE_RENDER_GATE_ID = 'D-FE-RENDER-GATE'
 const D_FE_RENDER_GATE_TITLE = 'FE archetypes have behavioural/visual gate'
@@ -232,6 +294,7 @@ const FE_RENDER_EVIDENCE_FILES = [
 /**
  * D-FE-RENDER-GATE: FE archetypes have a behavioural/visual gate.
  * NA when archetype is not a frontend type.
+ * Reads render-smoke spec config files as evidence.
  */
 export function probeDFeRenderGate(root: string, archetype: string | null): DimensionEntry {
   const isFe =
@@ -244,7 +307,10 @@ export function probeDFeRenderGate(root: string, archetype: string | null): Dime
       title: D_FE_RENDER_GATE_TITLE,
       ...RC_T1,
       verdict: 'NA',
-      evidence: `archetype "${archetype ?? 'unset'}" is not a frontend type — not applicable`,
+      evidence: {
+        file: 'arbiter.json',
+        detail: `archetype "${archetype ?? 'unset'}" is not a frontend type — not applicable`,
+      },
     }
   }
 
@@ -256,7 +322,7 @@ export function probeDFeRenderGate(root: string, archetype: string | null): Dime
         title: D_FE_RENDER_GATE_TITLE,
         ...RC_T1,
         verdict: 'Y',
-        evidence: file,
+        evidence: { file },
       }
     }
   }
@@ -266,91 +332,397 @@ export function probeDFeRenderGate(root: string, archetype: string | null): Dime
     title: D_FE_RENDER_GATE_TITLE,
     ...RC_T1,
     verdict: 'N',
-    evidence: 'no playwright/vitest-browser/chromatic config found for frontend archetype',
+    evidence: {
+      file: 'arbiter.json',
+      detail: 'no playwright/vitest-browser/chromatic config found for frontend archetype',
+    },
   }
 }
 
-// ─── D-DOMAIN-API ─────────────────────────────────────────────────────────────
-
-const DOMAIN_API_EVIDENCE_FILES = [
-  'openapi.yaml',
-  'openapi.yml',
-  'openapi.json',
-  'api/openapi.yaml',
-  'api/openapi.yml',
-  'api/openapi.json',
-  'pact.config.ts',
-  'pact.config.js',
-  '.pact',
-]
+// --- D-DOMAIN-API ---
 
 /**
- * D-DOMAIN-API: domain↔API surface completeness is checked.
- * Evidence: OpenAPI spec file or Pact config found in the project.
+ * D-DOMAIN-API: domain-API surface completeness is checked.
+ * Reads domain-api-surface.json as the canonical manifest (checks array non-empty = Y).
+ * Falls back to openapi.yaml / pact.config presence if manifest is absent.
  */
 export function probeDDomainApi(root: string): DimensionEntry {
-  for (const file of DOMAIN_API_EVIDENCE_FILES) {
+  const manifestPath = safeResolve(root, 'domain-api-surface.json')
+  if (manifestPath !== null && fileExists(manifestPath)) {
+    const manifest = readJson(manifestPath)
+    if (manifest !== null && typeof manifest === 'object') {
+      const m = manifest as Record<string, unknown>
+      const checks = Array.isArray(m['checks']) ? m['checks'] : []
+      if (checks.length > 0) {
+        return {
+          id: 'D-DOMAIN-API',
+          title: 'Domain-API surface completeness checked',
+          ...RC_T1,
+          verdict: 'Y',
+          evidence: {
+            file: 'domain-api-surface.json',
+            detail: `${checks.length} check(s) defined`,
+          },
+        }
+      }
+      return {
+        id: 'D-DOMAIN-API',
+        title: 'Domain-API surface completeness checked',
+        ...RC_T1,
+        verdict: 'N',
+        evidence: { file: 'domain-api-surface.json', detail: 'checks array is empty' },
+      }
+    }
+  }
+
+  // Fallback: legacy openapi/pact presence
+  const legacyFiles = [
+    'openapi.yaml',
+    'openapi.yml',
+    'openapi.json',
+    'api/openapi.yaml',
+    'api/openapi.yml',
+    'api/openapi.json',
+    'pact.config.ts',
+    'pact.config.js',
+    '.pact',
+  ]
+  for (const file of legacyFiles) {
     const abs = safeResolve(root, file)
     if (abs !== null && fileExists(abs)) {
       return {
         id: 'D-DOMAIN-API',
-        title: 'Domain↔API surface completeness checked',
+        title: 'Domain-API surface completeness checked',
         ...RC_T1,
         verdict: 'Y',
-        evidence: file,
+        evidence: { file },
       }
     }
   }
 
   return {
     id: 'D-DOMAIN-API',
-    title: 'Domain↔API surface completeness checked',
+    title: 'Domain-API surface completeness checked',
     ...RC_T1,
     verdict: 'N',
-    evidence: 'no openapi spec or pact config found (check openapi.yaml, pact.config.ts, .pact)',
+    evidence: {
+      file: 'domain-api-surface.json',
+      detail: 'missing — no domain-api-surface.json or openapi/pact config found',
+    },
   }
 }
 
-// ─── D-DONE-EVIDENCE ─────────────────────────────────────────────────────────
+// --- D-DONE-EVIDENCE ---
 
 const D_DONE_EVIDENCE_ID = 'D-DONE-EVIDENCE'
 const D_DONE_EVIDENCE_TITLE = 'Done-evidence requires reality-contact'
+const LAST_DONE_EVIDENCE_PATH = '.claude/.last-done-evidence.json'
 
 /**
  * D-DONE-EVIDENCE: done-evidence requires reality-contact.
- * Evidence: .arbiter/evidence/ directory exists and contains evidence files.
+ * Reads .claude/.last-done-evidence.json; Y if reality_contact.passed=true.
  */
 export function probeDDoneEvidence(root: string): DimensionEntry {
-  const evidenceDir = safeResolve(root, '.arbiter/evidence')
-  if (evidenceDir === null || !fileExists(evidenceDir)) {
+  const evidencePath = safeResolve(root, LAST_DONE_EVIDENCE_PATH)
+  if (evidencePath === null || !fileExists(evidencePath)) {
     return {
       id: D_DONE_EVIDENCE_ID,
       title: D_DONE_EVIDENCE_TITLE,
       ...RC_T1,
       verdict: 'N',
-      evidence: '.arbiter/evidence/ absent — no evidence harness active',
+      evidence: {
+        file: LAST_DONE_EVIDENCE_PATH,
+        detail: 'absent — no done-evidence recorded',
+      },
     }
   }
 
-  // Count evidence files (json files recursively)
-  const allFiles = walkFiles(evidenceDir, root, new Set(['.git']))
-  const evidenceFiles = allFiles.filter((f) => f.endsWith('.json'))
-
-  if (evidenceFiles.length === 0) {
+  const manifest = readJson(evidencePath)
+  if (manifest === null || typeof manifest !== 'object') {
     return {
       id: D_DONE_EVIDENCE_ID,
       title: D_DONE_EVIDENCE_TITLE,
       ...RC_T1,
-      verdict: 'P',
-      evidence: '.arbiter/evidence/ exists but is empty — no evidence files recorded',
+      verdict: 'N',
+      evidence: { file: LAST_DONE_EVIDENCE_PATH, detail: 'parse error' },
+    }
+  }
+
+  const m = manifest as Record<string, unknown>
+  const rc = m['reality_contact']
+  if (typeof rc === 'object' && rc !== null && (rc as Record<string, unknown>)['passed'] === true) {
+    return {
+      id: D_DONE_EVIDENCE_ID,
+      title: D_DONE_EVIDENCE_TITLE,
+      ...RC_T1,
+      verdict: 'Y',
+      evidence: { file: LAST_DONE_EVIDENCE_PATH, detail: 'reality_contact.passed=true' },
     }
   }
 
   return {
-    id: 'D-DONE-EVIDENCE',
-    title: 'Done-evidence requires reality-contact',
+    id: D_DONE_EVIDENCE_ID,
+    title: D_DONE_EVIDENCE_TITLE,
     ...RC_T1,
+    verdict: 'N',
+    evidence: {
+      file: LAST_DONE_EVIDENCE_PATH,
+      detail: 'reality_contact.passed is not true',
+    },
+  }
+}
+
+// --- D-GATE-GREEN ---
+
+const GATE_RESULT_PATH = '.arbiter/gate/local-result.json'
+
+/**
+ * D-GATE-GREEN: local gate most recently ran green.
+ * Reads .arbiter/gate/local-result.json; Y if overall=pass.
+ */
+export function probeGateGreen(root: string): DimensionEntry {
+  const resultPath = safeResolve(root, GATE_RESULT_PATH)
+  if (resultPath === null || !fileExists(resultPath)) {
+    return {
+      id: 'D-GATE-GREEN',
+      title: 'Local gate most recently ran green',
+      ...DISC_T1,
+      verdict: 'N',
+      evidence: { file: GATE_RESULT_PATH, detail: 'absent — gate has not been run' },
+    }
+  }
+
+  const manifest = readJson(resultPath)
+  if (manifest !== null && typeof manifest === 'object') {
+    const m = manifest as Record<string, unknown>
+    if (m['overall'] === 'pass') {
+      return {
+        id: 'D-GATE-GREEN',
+        title: 'Local gate most recently ran green',
+        ...DISC_T1,
+        verdict: 'Y',
+        evidence: { file: GATE_RESULT_PATH, detail: 'overall=pass' },
+      }
+    }
+  }
+
+  return {
+    id: 'D-GATE-GREEN',
+    title: 'Local gate most recently ran green',
+    ...DISC_T1,
+    verdict: 'N',
+    evidence: { file: GATE_RESULT_PATH, detail: 'overall is not pass' },
+  }
+}
+
+// --- D-COVERAGE-THRESHOLDS ---
+
+const COVERAGE_SUMMARY_PATH = 'coverage/coverage-summary.json'
+const COVERAGE_THRESHOLD = 80
+
+/**
+ * D-COVERAGE-THRESHOLDS: all coverage metrics meet the 80% threshold.
+ * Reads coverage/coverage-summary.json; NV if absent (not yet run).
+ */
+export function probeCoverageThresholds(root: string): DimensionEntry {
+  const summaryPath = safeResolve(root, COVERAGE_SUMMARY_PATH)
+  if (summaryPath === null || !fileExists(summaryPath)) {
+    return {
+      id: 'D-COVERAGE-THRESHOLDS',
+      title: `All coverage metrics >= ${COVERAGE_THRESHOLD}%`,
+      ...DISC_T1,
+      verdict: 'NV',
+      evidence: {
+        file: COVERAGE_SUMMARY_PATH,
+        detail: 'absent — coverage has not been collected',
+      },
+    }
+  }
+
+  const manifest = readJson(summaryPath)
+  if (manifest === null || typeof manifest !== 'object') {
+    return {
+      id: 'D-COVERAGE-THRESHOLDS',
+      title: `All coverage metrics >= ${COVERAGE_THRESHOLD}%`,
+      ...DISC_T1,
+      verdict: 'NV',
+      evidence: { file: COVERAGE_SUMMARY_PATH, detail: 'parse error' },
+    }
+  }
+
+  const m = manifest as Record<string, unknown>
+  const total = m['total']
+  if (typeof total !== 'object' || total === null) {
+    return {
+      id: 'D-COVERAGE-THRESHOLDS',
+      title: `All coverage metrics >= ${COVERAGE_THRESHOLD}%`,
+      ...DISC_T1,
+      verdict: 'NV',
+      evidence: { file: COVERAGE_SUMMARY_PATH, detail: 'total field missing' },
+    }
+  }
+
+  const t = total as Record<string, unknown>
+  const metrics = ['lines', 'branches', 'functions', 'statements'] as const
+  const below: string[] = []
+  for (const metric of metrics) {
+    const entry = t[metric]
+    if (typeof entry === 'object' && entry !== null) {
+      const pct = (entry as Record<string, unknown>)['pct']
+      if (typeof pct === 'number' && pct < COVERAGE_THRESHOLD) {
+        below.push(`${metric}=${pct}%`)
+      }
+    }
+  }
+
+  if (below.length > 0) {
+    return {
+      id: 'D-COVERAGE-THRESHOLDS',
+      title: `All coverage metrics >= ${COVERAGE_THRESHOLD}%`,
+      ...DISC_T1,
+      verdict: 'N',
+      evidence: {
+        file: COVERAGE_SUMMARY_PATH,
+        detail: `below ${COVERAGE_THRESHOLD}%: ${below.join(', ')}`,
+      },
+    }
+  }
+
+  return {
+    id: 'D-COVERAGE-THRESHOLDS',
+    title: `All coverage metrics >= ${COVERAGE_THRESHOLD}%`,
+    ...DISC_T1,
     verdict: 'Y',
-    evidence: `.arbiter/evidence/: ${evidenceFiles.length} evidence file(s) found`,
+    evidence: { file: COVERAGE_SUMMARY_PATH, detail: `all metrics >= ${COVERAGE_THRESHOLD}%` },
+  }
+}
+
+// --- D-INVARIANTS-ENFORCED ---
+
+const INVARIANTS_CATALOG_PATH = 'src/invariants/catalog.ts'
+
+/**
+ * D-INVARIANTS-ENFORCED: project has a machine-readable invariants catalog.
+ * Evidence: src/invariants/catalog.ts exists (arbiter self-reference).
+ * For generated projects: checks for .arbiter/invariants.json.
+ */
+export function probeInvariantsEnforced(root: string): DimensionEntry {
+  const catalogPath = safeResolve(root, INVARIANTS_CATALOG_PATH)
+  if (catalogPath !== null && fileExists(catalogPath)) {
+    return {
+      id: 'D-INVARIANTS-ENFORCED',
+      title: 'Invariants catalog is machine-readable and enforced',
+      ...DISC_T1,
+      verdict: 'Y',
+      evidence: { file: INVARIANTS_CATALOG_PATH },
+    }
+  }
+
+  const arbiterInvPath = safeResolve(root, '.arbiter/invariants.json')
+  if (arbiterInvPath !== null && fileExists(arbiterInvPath)) {
+    return {
+      id: 'D-INVARIANTS-ENFORCED',
+      title: 'Invariants catalog is machine-readable and enforced',
+      ...DISC_T1,
+      verdict: 'Y',
+      evidence: { file: '.arbiter/invariants.json' },
+    }
+  }
+
+  return {
+    id: 'D-INVARIANTS-ENFORCED',
+    title: 'Invariants catalog is machine-readable and enforced',
+    ...DISC_T1,
+    verdict: 'NV',
+    evidence: {
+      file: INVARIANTS_CATALOG_PATH,
+      detail: 'no invariants catalog found',
+    },
+  }
+}
+
+// --- D-NO-OVERCLAIM ---
+
+/**
+ * D-NO-OVERCLAIM: done-evidence explicitly asserts no overclaim.
+ * Reads .claude/.last-done-evidence.json; Y if no_overclaim=true.
+ */
+export function probeNoOverclaim(root: string): DimensionEntry {
+  const evidencePath = safeResolve(root, LAST_DONE_EVIDENCE_PATH)
+  if (evidencePath === null || !fileExists(evidencePath)) {
+    return {
+      id: 'D-NO-OVERCLAIM',
+      title: 'Done-evidence explicitly asserts no overclaim',
+      ...DISC_T1,
+      verdict: 'NV',
+      evidence: {
+        file: LAST_DONE_EVIDENCE_PATH,
+        detail: 'absent — no done-evidence recorded',
+      },
+    }
+  }
+
+  const manifest = readJson(evidencePath)
+  if (manifest !== null && typeof manifest === 'object') {
+    const m = manifest as Record<string, unknown>
+    if (m['no_overclaim'] === true) {
+      return {
+        id: 'D-NO-OVERCLAIM',
+        title: 'Done-evidence explicitly asserts no overclaim',
+        ...DISC_T1,
+        verdict: 'Y',
+        evidence: { file: LAST_DONE_EVIDENCE_PATH, detail: 'no_overclaim=true' },
+      }
+    }
+  }
+
+  return {
+    id: 'D-NO-OVERCLAIM',
+    title: 'Done-evidence explicitly asserts no overclaim',
+    ...DISC_T1,
+    verdict: 'N',
+    evidence: {
+      file: LAST_DONE_EVIDENCE_PATH,
+      detail: 'no_overclaim is not true',
+    },
+  }
+}
+
+// --- D-COMMIT-HYGIENE ---
+
+/**
+ * D-COMMIT-HYGIENE: commit message hygiene enforced via Husky + commitlint.
+ * Evidence: .husky/ directory and .commitlintrc.json both present.
+ */
+export function probeCommitHygiene(root: string): DimensionEntry {
+  const huskyPath = safeResolve(root, '.husky')
+  const commitlintPath = safeResolve(root, '.commitlintrc.json')
+
+  const huskyExists = huskyPath !== null && fileExists(huskyPath)
+  const commitlintExists = commitlintPath !== null && fileExists(commitlintPath)
+
+  if (huskyExists && commitlintExists) {
+    return {
+      id: 'D-COMMIT-HYGIENE',
+      title: 'Commit message hygiene enforced',
+      ...DISC_T1,
+      verdict: 'Y',
+      evidence: { file: '.commitlintrc.json', detail: '.husky/ and .commitlintrc.json present' },
+    }
+  }
+
+  const missing: string[] = []
+  if (!huskyExists) missing.push('.husky/')
+  if (!commitlintExists) missing.push('.commitlintrc.json')
+
+  return {
+    id: 'D-COMMIT-HYGIENE',
+    title: 'Commit message hygiene enforced',
+    ...DISC_T1,
+    verdict: 'N',
+    evidence: {
+      file: '.commitlintrc.json',
+      detail: `missing: ${missing.join(', ')}`,
+    },
   }
 }
