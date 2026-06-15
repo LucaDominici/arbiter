@@ -11,6 +11,7 @@ last_updated: '2026-06-15'
 - [[architecture-architecture]]
 - [[contributing]]
 - [[deprecations]]
+- [[development-conformance]]
 - [[development-real-project-testing]]
 - [[glossary]]
 - [[governance]]
