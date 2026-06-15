@@ -193,6 +193,18 @@ export interface WorktreeConfig {
   closeHook: string | null
 }
 
+/** Two-tier conformance scoring thresholds. Part of persisted arbiter.json config. */
+export interface ConformanceThresholds {
+  tier1Members: string[]
+  familyWeights: {
+    discipline: number
+    'reality-contact': number
+    'docs-convention': number
+    'code-quality-gold': number
+  }
+  goldTier2Gate: number
+}
+
 export interface ProjectConfig {
   /** Directory being initialized */
   targetDir: string
