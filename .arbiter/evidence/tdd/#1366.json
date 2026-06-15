@@ -2,7 +2,7 @@
   "$schemaVersion": 1,
   "task_id": "#1366",
   "test_path": "__tests__/scripts/check-render-smoke.test.ts",
-  "test_commit_sha": "993c0e208eeb69f836f8f5314d989b0f035b1e77",
+  "test_commit_sha": "0592aea1f434df601e9fccb6d1c26d28e2f31ab4",
   "test_run_log": " RUN  v4.1.8 /home/luca/work/repos/arbiter-wt-1366\n\n FAIL  __tests__/scripts/check-render-smoke.test.ts > R1: frontend archetype without a render-smoke spec > exits 1 and reports the missing behavioural test (the haben failure mode)\n FAIL  __tests__/scripts/check-render-smoke.test.ts > R2: frontend archetype with a render-smoke spec > exits 0 when tests/e2e/render-smoke.spec.ts exists\n FAIL  __tests__/scripts/check-render-smoke.test.ts > R4: non-frontend archetype > exits 0 (SKIP) for a library archetype with no frontend lane\n FAIL  __tests__/scripts/check-render-smoke.test.ts > --help flag > exits 0 and mentions render-smoke\n\n Test Files  1 failed (1)\n      Tests  8 failed | 2 passed (10)\n",
   "observed_failure": "FAIL __tests__/scripts/check-render-smoke.test.ts — scripts/check-render-smoke.mjs did not exist (ENOENT → exit 1); pre-implementation red phase for INV-126",
   "recorded_at": "2026-06-15T14:30:00.000Z"
