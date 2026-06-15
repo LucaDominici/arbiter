@@ -36,7 +36,8 @@ describe('extended opt-in invariants', () => {
     // Updated #1331: +1 (INV-123 emission-coherence gate, operational/Tier-4)
     // Updated #1364: +1 (INV-124 test pyramid non-empty gate, operational/Tier-4)
     // Updated #1365: +1 (INV-126 live-API e2e gate, operational/Tier-4, L2+)
-    expect(INVARIANT_CATALOG).toHaveLength(124)
+    // Updated #1366: +1 (INV-127 frontend render-smoke gate, operational/Tier-4)
+    expect(INVARIANT_CATALOG).toHaveLength(125)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

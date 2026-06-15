@@ -25,16 +25,19 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 7 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e)', () => {
+  it('emits exactly 9 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
     // + check-api-e2e.mjs (INV-126, #1365)
+    // + check-render-smoke.mjs + lib/glob-walk.mjs (INV-127, #1366)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(7)
+    expect(result.files).toHaveLength(9)
     expect(result.files.some((f) => f.path.endsWith('scripts/optional-emissions.json'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-render-smoke.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/lib/glob-walk.mjs'))).toBe(true)
   })
 
   it('emits scripts/check-api-e2e.mjs and wires it into check-all.mjs (#1365, INV-126)', () => {

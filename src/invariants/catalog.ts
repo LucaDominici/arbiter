@@ -2142,4 +2142,36 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(skipIfExists:true; suite scaffolded only for service archetypes). Exit codes per INV-53: ' +
       '0=PASS/SKIP, 1=absent/empty suite, 2=schema/path-traversal error.',
   },
+
+  // ─── Frontend Behavioural/Visual Gate — Render Smoke (#1366) ─────────────────
+
+  {
+    id: 'INV-127',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'Frontend archetypes must carry a render-smoke behavioural test',
+    description:
+      'A token-purity pass (no raw hex/px) does not prove the screen renders — haben shipped ' +
+      'green while its UI was broken empty boxes. Any project whose archetype is frontend-spa, ' +
+      'OR that declares a "frontend" lane, MUST carry a render-smoke behavioural test: a ' +
+      'headless-browser (Playwright) spec that boots the built SPA and asserts the app shell + ' +
+      'key screens mount with real content and ZERO console errors / uncaught page errors. The ' +
+      'gate is PRESENCE-based (≥1 spec matching the render-smoke globs: tests/e2e/render-smoke.spec.ts, ' +
+      '**/*.render-smoke.{spec,test}.ts, frontend/tests/e2e/render-smoke.spec.ts) — assertion quality ' +
+      "is the spec author's job, executed by the CI render-smoke lane (16-frontend-quality.yml). " +
+      'Non-frontend archetypes and ungoverned repos (no arbiter.json) SKIP, so they never false-fail. ' +
+      'arbiter init scaffolds a starter spec for TS frontends; VRT against a committed baseline ' +
+      'remains the stronger optional bar (VRT_SETUP.md). Introduced in #1366 as child of epic #1363 ' +
+      '("proof must touch reality").',
+    enforcement:
+      'scripts/check-render-smoke.mjs (L1) — self-gate wired in scripts/check-all.mjs; generated ' +
+      'for targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-render-smoke.mjs.ejs (imports the shared scripts/lib/glob-walk.mjs ' +
+      'helper, also unconditionally emitted). The starter spec is scaffolded for TS frontends by ' +
+      'src/generators/frontend-quality.ts from src/templates/e2e/playwright-ts/render-smoke.spec.ts.ejs ' +
+      '(skipIfExists:true). Exit codes per INV-53: 0=PASS/SKIP, 1=missing render-smoke spec, ' +
+      '2=schema/parse error.',
+  },
 ]

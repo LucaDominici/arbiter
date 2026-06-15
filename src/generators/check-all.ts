@@ -99,6 +99,17 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-api-e2e.mjs'],
     tpl: 'scripts/check-api-e2e.mjs.ejs',
   },
+  // #1366 (INV-127): frontend render-smoke presence gate. Emitted unconditionally
+  // (self-SKIPs for non-frontend / ungoverned repos) so the gate is always wired;
+  // imports the shared glob-walk helper, also emitted unconditionally below.
+  {
+    rel: ['scripts', 'check-render-smoke.mjs'],
+    tpl: 'scripts/check-render-smoke.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'lib', 'glob-walk.mjs'],
+    tpl: 'scripts/lib/glob-walk.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {
@@ -185,7 +196,7 @@ export function generateCheckAll(
     )
   }
 
-  // #1367 (INV-125): domain<->API surface-completeness gate.
+  // #1367 (INV-126): domain<->API surface-completeness gate.
   results.push(...emitDomainApiSurface(base, config, data, opts))
 
   // #1127 / #1330: frontend gate scripts (boundary purity + per-lane subtree gate).
@@ -195,7 +206,7 @@ export function generateCheckAll(
 }
 
 /**
- * #1367 (INV-125) — domain<->API surface-completeness gate emission.
+ * #1367 (INV-126) — domain<->API surface-completeness gate emission.
  * Only emitted when config.hasPublicApi is true (skip brownfield / library targets).
  */
 function emitDomainApiSurface(

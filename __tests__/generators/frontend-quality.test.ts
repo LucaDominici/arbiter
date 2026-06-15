@@ -149,11 +149,54 @@ describe('generateFrontendQuality (#1127)', () => {
     expect(existsSync(join(dir, 'scripts', 'check-bundle-size.mjs'))).toBe(true)
   })
 
-  it('emits total of 11 files for frontend-spa L2', () => {
+  it('emits total of 12 files for frontend-spa L2 (TS)', () => {
+    // 11 quality artifacts + the #1366 render-smoke spec (TS frontends only).
     const result = generateFrontendQuality(
       makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }),
     )
-    expect(result.files).toHaveLength(11)
+    expect(result.files).toHaveLength(12)
+  })
+
+  // ── #1366 (INV-126): render-smoke behavioural spec ───────────────────────────
+
+  it('scaffolds tests/e2e/render-smoke.spec.ts for a TS frontend-spa', () => {
+    generateFrontendQuality(makeConfig(dir, { archetype: 'frontend-spa', governanceLevel: 'L2' }))
+    const spec = join(dir, 'tests', 'e2e', 'render-smoke.spec.ts')
+    expect(existsSync(spec)).toBe(true)
+    const body = readFileSync(spec, 'utf-8')
+    // Boots the SPA, asserts the mount + zero console errors (INV-126).
+    expect(body).toMatch(/E2E_BASE_URL/)
+    expect(body).toMatch(/console/)
+    expect(body).toMatch(/INV-126/)
+  })
+
+  it('scaffolds the render-smoke spec when lanes includes frontend (TS, non-spa)', () => {
+    generateFrontendQuality(
+      makeConfig(dir, {
+        archetype: 'backend-web-db',
+        lanes: ['frontend', 'backend'],
+        governanceLevel: 'L2',
+      }),
+    )
+    expect(existsSync(join(dir, 'tests', 'e2e', 'render-smoke.spec.ts'))).toBe(true)
+  })
+
+  it('does NOT scaffold the render-smoke spec for a non-TS frontend', () => {
+    const pyDir = createTestProject('python')
+    try {
+      const result = generateFrontendQuality(
+        makeConfig(pyDir, {
+          archetype: 'frontend-spa',
+          language: 'python',
+          governanceLevel: 'L2',
+        }),
+      )
+      expect(existsSync(join(pyDir, 'tests', 'e2e', 'render-smoke.spec.ts'))).toBe(false)
+      // Python frontend still gets the other 11 quality artifacts.
+      expect(result.files).toHaveLength(11)
+    } finally {
+      cleanupTestProject(pyDir)
+    }
   })
 
   // ── #352: stylelint design-token config ──────────────────────────────────────

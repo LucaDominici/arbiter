@@ -1,0 +1,90 @@
+<%
+const _fw = (typeof frontend !== 'undefined' && frontend && frontend.framework)
+  ? frontend.framework : 'react';
+// Framework-aware mount root. The smoke test asserts this node mounted with
+// real content — not a blank/error page. Extend the selector list if your
+// app uses a custom root id.
+const _mountSelector = _fw === 'vue' || _fw === 'svelte'
+  ? '#app'
+  : _fw === 'angular'
+  ? 'app-root'
+  : '#root';
+-%>
+// render-smoke.spec.ts — INV-126 (#1366).
+//
+// The MINIMUM behavioural gate for a frontend: a headless browser boots the
+// BUILT SPA (served at E2E_BASE_URL — the same ephemeral-server convention as
+// the a11y lane) and proves, for each key screen, that:
+//   1. the app shell mounted with real content (not a blank/error page), and
+//   2. ZERO console errors / uncaught page errors fired during mount.
+//
+// This catches the failure mode a token-purity gate cannot: the screen renders
+// as broken empty boxes while every lint/token check stays green. A render-smoke
+// failure is a HARD gate — do not merge a frontend that does not mount.
+//
+// Extend `screens` as new top-level routes ship. Keep each screen's anchor a
+// stable, content-bearing selector (a [data-testid], heading, or landmark).
+
+import { test, expect } from '@playwright/test'
+
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:4173'
+
+// Mount root for <%= _fw %>. The shell screen asserts this node has rendered children.
+const MOUNT_SELECTOR = '<%- _mountSelector %>'
+
+const screens: ReadonlyArray<{ label: string; path: string; anchor?: string }> = [
+  // The app shell itself — the first screen that must mount.
+  { label: 'app shell', path: '/' },
+  // Add key screens here, e.g.:
+  // { label: 'dashboard', path: '/dashboard', anchor: '[data-testid="dashboard-root"]' },
+]
+
+for (const screen of screens) {
+  test(`render smoke — ${screen.label} mounts without console errors (INV-126)`, async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = []
+    const pageErrors: string[] = []
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text())
+    })
+    page.on('pageerror', (err) => {
+      pageErrors.push(err.message)
+    })
+
+    const response = await page.goto(`${BASE_URL}${screen.path}`, {
+      waitUntil: 'networkidle',
+    })
+
+    // The document must have been served (not a 4xx/5xx error page).
+    expect(
+      response?.ok(),
+      `expected a 2xx/3xx response for ${screen.path}, got ${response?.status()}`,
+    ).toBeTruthy()
+
+    // The app shell must have mounted with real content — not a blank page.
+    const root = page.locator(screen.anchor ?? MOUNT_SELECTOR)
+    await expect(
+      root,
+      `expected mount node "${screen.anchor ?? MOUNT_SELECTOR}" to be visible on ${screen.path}`,
+    ).toBeVisible()
+
+    const childCount = await root.evaluate((el) => el.childElementCount)
+    expect(
+      childCount,
+      `expected mount node to contain rendered children on ${screen.path} (got an empty shell)`,
+    ).toBeGreaterThan(0)
+
+    // Zero console errors / uncaught exceptions during mount — broken layout
+    // and runtime crashes both surface here.
+    expect(
+      consoleErrors,
+      `console errors on ${screen.path}:\n${consoleErrors.join('\n')}`,
+    ).toEqual([])
+    expect(
+      pageErrors,
+      `uncaught page errors on ${screen.path}:\n${pageErrors.join('\n')}`,
+    ).toEqual([])
+  })
+}
