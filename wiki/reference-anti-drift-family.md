@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/anti-drift-family.md'
 source_sha: '03edff67f03fb2e5e7d0a5072506a09ae4f492a8'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # Anti-Drift Validator Family Reference

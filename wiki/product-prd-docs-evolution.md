@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PRODUCT/PRD-DOCS-EVOLUTION.md'
 source_sha: 'a8737c27280f84b049806db7c8a0b653ffee1f2c'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # PRD — Documentation Evolution: SSOT-core + Generated LLM-Wiki

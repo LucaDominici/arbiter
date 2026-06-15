@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/task-recovery.md'
 source_sha: '6a1e05f91cb1751459fe1871c4457ce24e997394'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # Task Recovery Reference
@@ -167,10 +167,10 @@ the legacy files migrates it transparently (seed + delete) on first access.
 }
 ```
 
-| Field    | Description                                                                |
-| -------- | -------------------------------------------------------------------------- |
-| `taskId` | Active task id (was `.task-id`)                                            |
-| `phase`  | Current lifecycle phase — authoritative, single writer (was `.task-phase`) |
-| `tier`   | Task                                                                       |
+| Field                   | Description                                                                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `taskId`                | Active task id (was `.task-id`)                                                                                                                     |
+| `phase`                 | Current lifecycle phase — authoritative, single writer (was `.task-phase`)                                                                          |
+| `tier`                  | Task 
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

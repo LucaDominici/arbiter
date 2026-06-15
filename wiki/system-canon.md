@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/CANON.md'
 source_sha: 'c7cfcc78b447b12df6d24301eec0f3624e5f7d29'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # arbiter Canon — Lessons Learned
@@ -188,6 +188,6 @@ When an entry graduates to a machine check it is promoted into `src/invariants/c
 
 ## CANON-12 — INV-12 applies to arbiter's own source
 
-\*_Rule:_
+**Rule:*
 
-_[content truncated — see source for full text]_
+*[content truncated — see source for full text]*

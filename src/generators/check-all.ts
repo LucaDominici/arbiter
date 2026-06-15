@@ -88,6 +88,10 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     tpl: 'scripts/check-collab-mode-wired.mjs.ejs',
   },
   { rel: ['scripts', 'check-constraint-scan.mjs'], tpl: 'scripts/check-constraint-scan.mjs.ejs' },
+  {
+    rel: ['scripts', 'check-test-pyramid.mjs'],
+    tpl: 'scripts/check-test-pyramid.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

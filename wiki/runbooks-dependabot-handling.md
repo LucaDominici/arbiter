@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/runbooks/dependabot-handling.md'
 source_sha: 'c9dda3453d7222cab976b52cd6fe0131a363ee0d'
-last_updated: '2026-06-11'
+last_updated: '2026-06-14'
 ---
 
 # Runbook — Dependabot PR Triage
