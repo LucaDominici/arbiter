@@ -64,6 +64,7 @@
     "docs:build": "node scripts/sync-public-governance.mjs && npm run build -w @arbiter/website",
     "docs:preview": "npm run preview -w @arbiter/website",
     "check:doc-set": "node scripts/check-doc-set.mjs",
+    "gold:audit": "node scripts/gold-audit.mjs",
     "gold:report": "node scripts/gold-report.mjs"
   },
   "dependencies": {

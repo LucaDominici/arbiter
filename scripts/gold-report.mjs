@@ -44,6 +44,70 @@ function audit() {
   return JSON.parse(raw.toString())
 }
 
+/** Code-computed gold-audit engine output (#1373) — null if the engine/registry is absent. */
+function goldAudit() {
+  try {
+    const raw = execFileSync('node', ['scripts/gold-audit.mjs', '--json'], { cwd: CWD })
+    const text = raw.toString().trim()
+    // The engine emits clean JSON to stdout; a SKIP line (no registry) is not JSON.
+    if (!text.startsWith('{')) return null
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Render a GitHub-Flavored-Markdown table with prettier-compatible column padding (so the
+ * generated GOLD-REPORT.md passes `prettier --check` without a post-format step). Each column
+ * is padded to its widest cell; the separator row uses `-` repeated to the same width.
+ */
+function gfmTable(headers, rows) {
+  const widths = headers.map((h, i) =>
+    Math.max(h.length, ...rows.map((r) => String(r[i]).length), 3),
+  )
+  const fmt = (cells) => `| ${cells.map((c, i) => String(c).padEnd(widths[i])).join(' | ')} |`
+  const sep = `| ${widths.map((w) => '-'.repeat(w)).join(' | ')} |`
+  return [fmt(headers), sep, ...rows.map(fmt)].join('\n')
+}
+
+/** Render the code-quality gold-engine section from the deterministic gold-audit payload. */
+function renderCodeQuality(g) {
+  if (!g) {
+    return [
+      '## Code-quality gold engine',
+      '',
+      '_Registry absent — add `standards/gold-registry.yml` and run `node scripts/gold-audit.mjs`._',
+      '',
+    ].join('\n')
+  }
+  const dimEntries = Object.entries(g.dimensions)
+  const dimTable = dimEntries.length
+    ? gfmTable(
+        ['Dimension', 'Score', 'Y-checks'],
+        dimEntries.map(([id, d]) => [id, `${d.score}%`, String(d.y)]),
+      )
+    : '_No dimensions scored._'
+  const riskyNote =
+    g.riskyCount > 0
+      ? `**False-gap meta-gate: ${g.riskyCount} RISKY check(s) — scoring is suppressed until resolved.**`
+      : 'False-gap meta-gate: clean (0 RISKY checks).'
+  return [
+    '## Code-quality gold engine',
+    '',
+    `**Score: ${g.score}% · Y ${g.yCount}/${g.totals.checks} checks** ` +
+      `(N ${g.totals.n} · P ${g.totals.p} · NA ${g.totals.na} · NV ${g.totals.nv}).`,
+    '',
+    riskyNote,
+    '',
+    dimTable,
+    '',
+    'Engine: `node scripts/gold-audit.mjs` (registry-driven, code-computed, deterministic — no AI). ' +
+      'No-regress gate: `node scripts/gold-audit.mjs --check`.',
+    '',
+  ].join('\n')
+}
+
 function gitHead() {
   try {
     return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: CWD }).toString().trim()
@@ -78,12 +142,7 @@ function render(a) {
     '',
     'Refresh / scaffold missing docs: `node scripts/check-doc-set.mjs --generate`.',
     '',
-    '## Code-quality gold engine',
-    '',
-    '_Pending — the deterministic registry→Y/P/N engine (effectiveness overlay, E1–E7,',
-    'false-gap meta-gate, no-regress ratchet) is tracked in #1373. Once landed, its score and',
-    'dimension table render here._',
-    '',
+    renderCodeQuality(goldAudit()),
   ].join('\n')
 }
 

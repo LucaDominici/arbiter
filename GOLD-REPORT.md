@@ -1,6 +1,6 @@
 # Gold Report — arbiter
 
-<!-- generated: 2026-06-15T07:06:11.104Z @ 94dbdcb5 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
+<!-- generated: 2026-06-15T12:43:40.345Z @ 1496426c — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
 
 ## Documentation (gold doc-set)
 
@@ -14,6 +14,16 @@ Refresh / scaffold missing docs: `node scripts/check-doc-set.mjs --generate`.
 
 ## Code-quality gold engine
 
-_Pending — the deterministic registry→Y/P/N engine (effectiveness overlay, E1–E7,
-false-gap meta-gate, no-regress ratchet) is tracked in #1373. Once landed, its score and
-dimension table render here._
+**Score: 100% · Y 13/14 checks** (N 0 · P 0 · NA 0 · NV 1).
+
+False-gap meta-gate: clean (0 RISKY checks).
+
+| Dimension       | Score | Y-checks |
+| --------------- | ----- | -------- |
+| D-DOCS          | 100%  | 4        |
+| D-EFFECTIVENESS | 100%  | 3        |
+| D-ENFORCEMENT   | 100%  | 3        |
+| D-META-TEST     | 100%  | 2        |
+| D-SUPPLY-CHAIN  | 100%  | 1        |
+
+Engine: `node scripts/gold-audit.mjs` (registry-driven, code-computed, deterministic — no AI). No-regress gate: `node scripts/gold-audit.mjs --check`.
