@@ -5,9 +5,10 @@
 // Pure functions: no process.exit, no console. All IO is wrapped in try/catch for
 // fail-safe operation (RT-02: IO errors must not crash the command).
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve, isAbsolute, relative } from 'node:path'
+import { readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import type { Verdict, Evidence } from './engine.js'
+import { safeResolve, readJson, fileExists } from './shared.js'
 
 export type DimensionVerdict = Verdict
 export type { Verdict, Evidence }
@@ -34,35 +35,6 @@ const RC_T1: Pick<DimensionEntry, 'family' | 'tier' | 'weight' | 'required_at'> 
   tier: 1,
   weight: 0,
   required_at: 'L1',
-}
-
-/** Safely resolve a path inside root, rejecting traversal and null bytes. Returns null on invalid path. */
-function safeResolve(root: string, p: string): string | null {
-  if (p.includes('\0')) return null
-  const abs = resolve(root, p)
-  const rel = relative(root, abs)
-  if (rel.startsWith('..') || isAbsolute(rel)) return null
-  return abs
-}
-
-/** Read file text, returning null on any IO error. */
-function readText(abs: string): string | null {
-  try {
-    return readFileSync(abs, 'utf-8')
-  } catch {
-    return null
-  }
-}
-
-/** Parse JSON, returning null on any parse or IO error. */
-function readJson(abs: string): unknown {
-  const text = readText(abs)
-  if (text === null) return null
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
 }
 
 /** Walk directory recursively, returning all file paths (relative to root). */
@@ -145,7 +117,7 @@ function checkRequiredLevel(lvl: unknown, allFiles: string[]): string | null {
  */
 export function probeDTestLevels(root: string): DimensionEntry {
   const pyramidPath = safeResolve(root, 'test-pyramid.json')
-  if (pyramidPath === null || !existsSync(pyramidPath)) {
+  if (pyramidPath === null || !fileExists(pyramidPath)) {
     return {
       id: D_TEST_LEVELS_ID,
       title: D_TEST_LEVELS_TITLE,
@@ -278,7 +250,7 @@ export function probeDFeRenderGate(root: string, archetype: string | null): Dime
 
   for (const file of FE_RENDER_EVIDENCE_FILES) {
     const abs = safeResolve(root, file)
-    if (abs !== null && existsSync(abs)) {
+    if (abs !== null && fileExists(abs)) {
       return {
         id: D_FE_RENDER_GATE_ID,
         title: D_FE_RENDER_GATE_TITLE,
@@ -319,7 +291,7 @@ const DOMAIN_API_EVIDENCE_FILES = [
 export function probeDDomainApi(root: string): DimensionEntry {
   for (const file of DOMAIN_API_EVIDENCE_FILES) {
     const abs = safeResolve(root, file)
-    if (abs !== null && existsSync(abs)) {
+    if (abs !== null && fileExists(abs)) {
       return {
         id: 'D-DOMAIN-API',
         title: 'Domain↔API surface completeness checked',
@@ -350,7 +322,7 @@ const D_DONE_EVIDENCE_TITLE = 'Done-evidence requires reality-contact'
  */
 export function probeDDoneEvidence(root: string): DimensionEntry {
   const evidenceDir = safeResolve(root, '.arbiter/evidence')
-  if (evidenceDir === null || !existsSync(evidenceDir)) {
+  if (evidenceDir === null || !fileExists(evidenceDir)) {
     return {
       id: D_DONE_EVIDENCE_ID,
       title: D_DONE_EVIDENCE_TITLE,

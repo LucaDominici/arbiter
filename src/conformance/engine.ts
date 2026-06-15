@@ -5,8 +5,8 @@
 // Checks are evaluated in stable id order; no wall-clock value enters the scored payload.
 // Parity gate: engine-parity.test.ts asserts deep-equal verdicts/score/yCount vs the .mjs.
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { existsSync, statSync } from 'node:fs'
+import { safeResolve, readText } from './shared.js'
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -74,26 +74,6 @@ export interface Baseline {
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 type EvalCheckResult = { verdict: Verdict; evidence: Evidence | null }
-
-/** Resolve a registry-declared path inside root; reject null bytes, traversal, and absolute escapes. */
-function safeResolve(root: string, p: string): string | null {
-  if (p.includes('\0')) return null
-  if (p.length === 0) return null
-  if (isAbsolute(p) || p.includes('..')) return null
-  const abs = resolve(root, p)
-  const rel = relative(root, abs)
-  if (rel.startsWith('..') || isAbsolute(rel)) return null
-  return abs
-}
-
-/** Read a file's text, or null if missing/unreadable. */
-function readText(abs: string): string | null {
-  try {
-    return readFileSync(abs, 'utf-8')
-  } catch {
-    return null
-  }
-}
 
 /** 1-based line number of the first occurrence of `needle` in `text`, or null. */
 function lineOf(text: string, needle: string): number | null {
