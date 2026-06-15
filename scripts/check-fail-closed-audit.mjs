@@ -61,6 +61,9 @@ const SKIP_FILES = new Set([
   'scripts/lib/suppressions-shared.mjs',
   'scripts/lib/workflow-scan.mjs',
   'scripts/lib/gen-doc-helpers.mjs',
+  // Pure deterministic evaluator (#1373) — exports semantics, no entry point; its
+  // missing-file catches return null by design (scored N, never a silent pass).
+  'scripts/lib/gold-audit-lib.mjs',
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/

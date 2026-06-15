@@ -178,6 +178,7 @@ function main() {
 try {
   process.exit(main())
 } catch (err) {
+  // Fail-closed: an unexpected crash is a hard gate failure, never a silent pass.
   process.stderr.write(`gold-audit: unexpected error — ${err?.message ?? err}\n`)
-  process.exit(2)
+  process.exit(1)
 }
