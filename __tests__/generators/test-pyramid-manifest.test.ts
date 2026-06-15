@@ -132,13 +132,24 @@ const RENDERED = renderTemplate('scripts/check-test-pyramid.mjs.ejs', {
   ...makeConfig('/tmp/render-pyramid-rt', { language: 'typescript' }),
 } as unknown as Record<string, unknown>)
 
+// #1366: the gate now imports the shared scripts/lib/glob-walk.mjs helper, so the
+// generated tree must include it (both are UNCONDITIONAL_EMISSIONS in real init).
+const RENDERED_GLOB_WALK = renderTemplate('scripts/lib/glob-walk.mjs.ejs', {
+  ...makeConfig('/tmp/render-pyramid-rt', { language: 'typescript' }),
+} as unknown as Record<string, unknown>)
+
+function writeGateScripts(d: string): void {
+  mkdirSync(join(d, 'scripts', 'lib'), { recursive: true })
+  writeFileSync(join(d, 'scripts', 'check-test-pyramid.mjs'), RENDERED)
+  writeFileSync(join(d, 'scripts', 'lib', 'glob-walk.mjs'), RENDERED_GLOB_WALK)
+}
+
 function stageTarget(
   manifest: unknown,
   extraFiles: Record<string, string> = {},
 ): { dir: string; cleanup: () => void } {
   const d = mkdtempSync(join(tmpdir(), 'tp-gen-'))
-  mkdirSync(join(d, 'scripts'), { recursive: true })
-  writeFileSync(join(d, 'scripts', 'check-test-pyramid.mjs'), RENDERED)
+  writeGateScripts(d)
   writeFileSync(join(d, 'test-pyramid.json'), JSON.stringify(manifest, null, 2))
   for (const [rel, body] of Object.entries(extraFiles)) {
     const abs = join(d, rel)
@@ -198,8 +209,7 @@ describe('generated check-test-pyramid.mjs runtime behaviour (R10, CANON-07)', (
 
   it('exits 0 for absent manifest (SKIP)', () => {
     const d = mkdtempSync(join(tmpdir(), 'tp-gen-absent-'))
-    mkdirSync(join(d, 'scripts'), { recursive: true })
-    writeFileSync(join(d, 'scripts', 'check-test-pyramid.mjs'), RENDERED)
+    writeGateScripts(d)
     try {
       expect(runGenerated(d).status).toBe(0)
     } finally {

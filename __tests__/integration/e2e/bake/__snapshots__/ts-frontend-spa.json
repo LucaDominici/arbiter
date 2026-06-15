@@ -99,6 +99,7 @@
     "scripts/check-knowledge-map.mjs",
     "scripts/check-pipe-tee-hazard.mjs",
     "scripts/check-pr-size-gate.mjs",
+    "scripts/check-render-smoke.mjs",
     "scripts/check-secret-scan.mjs",
     "scripts/check-ssot-core.mjs",
     "scripts/check-stack-conformity.mjs",
@@ -117,6 +118,7 @@
     "scripts/harness.mjs",
     "scripts/i18n-literal-scanner.mjs",
     "scripts/knowledge-map-update.mjs",
+    "scripts/lib/glob-walk.mjs",
     "scripts/lib/run-helpers.mjs",
     "scripts/optional-emissions.json",
     "scripts/self-validation.mjs",
@@ -131,6 +133,7 @@
     "test-pyramid.json",
     "tests/e2e/a11y.spec.ts",
     "tests/e2e/a11y/run-axe.ts",
+    "tests/e2e/render-smoke.spec.ts",
     "vitest.browser.config.ts"
   ]
 }

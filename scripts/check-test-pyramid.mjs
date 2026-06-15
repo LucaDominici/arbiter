@@ -8,42 +8,14 @@
 // CATALOG:   Rejected fold-in into check-anti-proforma.mjs (different axis: level coverage vs quality).
 // Exit codes: 0=PASS/SKIP, 1=policy violation, 2=schema/walk/path-traversal error
 // Usage: node scripts/check-test-pyramid.mjs [--help]
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve, isAbsolute } from 'node:path'
-
-function globMatch(pattern, filepath) {
-  let reStr = '^'
-  let i = 0
-  while (i < pattern.length) {
-    const ch = pattern[i]
-    if (ch === '*' && pattern[i + 1] === '*') {
-      if (pattern[i + 2] === '/') {
-        reStr += '(?:[^/]*/)*'
-        i += 3
-      } else {
-        reStr += '[\\s\\S]*'
-        i += 2
-      }
-    } else if (ch === '*') {
-      reStr += '[^/]*'
-      i++
-    } else if ('\\.+?^${}()|[]'.includes(ch)) {
-      reStr += '\\' + ch
-      i++
-    } else {
-      reStr += ch
-      i++
-    }
-  }
-  reStr += '$'
-  return new RegExp(reStr).test(filepath)
-}
+import { readFileSync, existsSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { globMatch, validateGlob, walkRepo } from './lib/glob-walk.mjs'
 
 const ROOT = resolve(process.cwd())
 const MANIFEST_PATH = join(ROOT, 'test-pyramid.json')
 const ARBITER_PATH = join(ROOT, 'arbiter.json')
 const REASON_MIN_LEN = 20
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
 
 const HELP = `Usage: node scripts/check-test-pyramid.mjs [--help]
 
@@ -70,41 +42,8 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.exit(0)
 }
 
-function walkDir(dir, files) {
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    if (SKIP_DIRS.has(entry)) continue
-    const full = join(dir, entry)
-    let stat
-    try {
-      stat = statSync(full)
-    } catch {
-      continue
-    }
-    if (stat.isDirectory()) {
-      walkDir(full, files)
-    } else {
-      files.push(full.slice(ROOT.length + 1).replace(/\\/g, '/'))
-    }
-  }
-}
-
 function globCount(pattern, allFiles) {
   return allFiles.filter((f) => globMatch(pattern, f)).length
-}
-
-function validateGlob(pattern) {
-  if (isAbsolute(pattern)) return false
-  const parts = pattern.split('/')
-  for (const part of parts) {
-    if (part === '..') return false
-  }
-  return true
 }
 
 async function main() {
@@ -145,8 +84,7 @@ async function main() {
   }
 
   // Collect all repo files once
-  const allFiles = []
-  walkDir(ROOT, allFiles)
+  const allFiles = walkRepo(ROOT)
 
   let violations = 0
   let naCount = 0
