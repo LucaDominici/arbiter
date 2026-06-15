@@ -324,6 +324,10 @@ function generateClaudeRules(
       template: 'claude/rules/55-brainstorm-terminal-state.md',
     },
     {
+      file: '60-incidental-capture.md',
+      template: 'claude/rules/60-incidental-capture.md',
+    },
+    {
       file: '90-exec-protocol.md',
       template: 'claude/rules/90-exec-protocol.md.ejs',
     },
