@@ -64,6 +64,8 @@ const SKIP_FILES = new Set([
   // Pure deterministic evaluator (#1373) — exports semantics, no entry point; its
   // missing-file catches return null by design (scored N, never a silent pass).
   'scripts/lib/gold-audit-lib.mjs',
+  'scripts/lib/anti-fake-green-core.mjs', // #1412 pure verdict logic; consumers own the exit contract
+  'scripts/lib/gh-audit-io.mjs', // #1412 gh I/O helpers; NO-DATA returns {ok:false}, callers own exits
   'scripts/lib/glob-walk.mjs', // #1366: pure glob/tree-walk helper; consumers own the exit contract
 ])
 
@@ -77,7 +79,7 @@ const FAIL_OPEN_MARK_JS = /\/\/\s*FAIL-OPEN-INTENT\s*:/i
 const SWALLOWED_CATCH = /catch\s*(?:\([^)]*\))?\s*\{\s*\}/
 const HELPER_IMPORT = /from\s+['"][^'"]*scripts\/lib\/run-helpers(?:\.mjs)?['"]/
 const HELPER_USE = /\brun(Check|WarnCheck|ToolCheck)\s*\(/
-const TRY_CATCH_EXIT = /process\.exit\(\s*1\s*\)|throw\b/
+const TRY_CATCH_EXIT = /process\.exit\(\s*[12]\s*\)|throw\b/
 
 function listFiles(absDir, recurse) {
   const out = []
