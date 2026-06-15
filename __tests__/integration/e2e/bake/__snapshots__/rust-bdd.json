@@ -103,6 +103,7 @@
     "scripts/check-workflow-test-integrity.mjs",
     "scripts/checks/check-rust-no-unsafe.mjs",
     "scripts/checks/check-rust-no-unwrap.mjs",
+    "scripts/conformance.mjs",
     "scripts/harness.mjs",
     "scripts/knowledge-map-update.mjs",
     "scripts/lib/glob-walk.mjs",

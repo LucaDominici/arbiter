@@ -104,6 +104,7 @@
     "scripts/check-workflow-runners.mjs",
     "scripts/check-workflow-sha-pinning.mjs",
     "scripts/check-workflow-test-integrity.mjs",
+    "scripts/conformance.mjs",
     "scripts/harness.mjs",
     "scripts/knowledge-map-update.mjs",
     "scripts/lib/glob-walk.mjs",
