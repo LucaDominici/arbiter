@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// Live-API e2e (INV-126): runs against the REAL booted server, no mocks.
+// Set API_BASE_URL to the booted binary's address (tests/api/run.sh does this).
+import { describe, it, expect } from 'vitest'
+import request from 'supertest'
+
+const BASE_URL = process.env.API_BASE_URL ?? 'http://127.0.0.1:8080'
+
+describe('live API e2e (non-mocked)', () => {
+  it('GET /health returns 200 from the running binary', async () => {
+    const res = await request(BASE_URL).get('/health')
+    expect(res.status).toBe(200)
+  })
+
+  // Add real request/response assertions that exercise the live HTTP surface.
+  // This is the layer that catches "domain green, HTTP wiring broken" bugs:
+  // e.g. a field present in the domain/DB but never wired into the input struct.
+})

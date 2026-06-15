@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0
+// Live-API e2e (INV-126): runs against the REAL booted server, no mocks.
+// API_BASE_URL points at the running binary (tests/api/run.sh boots it).
+package api_test
+
+import (
+	"net/http"
+	"os"
+	"testing"
+	"time"
+)
+
+func baseURL() string {
+	if v := os.Getenv("API_BASE_URL"); v != "" {
+		return v
+	}
+	return "http://127.0.0.1:8080"
+}
+
+// TestLiveHealth hits the running binary over real HTTP.
+func TestLiveHealth(t *testing.T) {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(baseURL() + "/health")
+	if err != nil {
+		t.Fatalf("live request failed (is the binary running?): %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /health: want 200, got %d", resp.StatusCode)
+	}
+
+	// Add real request/response assertions exercising the live HTTP surface here —
+	// this layer catches "domain green, HTTP wiring broken" bugs (e.g. a field in
+	// the domain/DB never wired into the request input struct).
+}

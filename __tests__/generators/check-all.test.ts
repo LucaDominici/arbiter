@@ -25,15 +25,26 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 6 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid)', () => {
+  it('emits exactly 7 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
+    // + check-api-e2e.mjs (INV-126, #1365)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(6)
+    expect(result.files).toHaveLength(7)
     expect(result.files.some((f) => f.path.endsWith('scripts/optional-emissions.json'))).toBe(true)
+  })
+
+  it('emits scripts/check-api-e2e.mjs and wires it into check-all.mjs (#1365, INV-126)', () => {
+    const result = generateCheckAll(makeConfig(dir, { language: 'typescript' }))
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('scripts/check-api-e2e.mjs'))).toBe(true)
+    const script = readFileSync(join(dir, 'scripts', 'check-api-e2e.mjs'), 'utf-8')
+    expect(script).toContain('INV-126')
+    const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(checkAll).toContain('check-api-e2e.mjs')
   })
 
   it('emits scripts/check-constraint-scan.mjs and wires it into check-all.mjs (#1214, INV-115)', () => {

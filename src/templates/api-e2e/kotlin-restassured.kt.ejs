@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0
+// Live-API e2e (INV-126): runs against the REAL booted server, no mocks.
+// API_BASE_URL points at the running binary (tests/api/run.sh boots it).
+package <%- basePackage || 'com.example' %>.api
+
+import io.restassured.RestAssured
+import io.restassured.RestAssured.given
+import org.hamcrest.Matchers.notNullValue
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
+
+class ApiE2ETest {
+
+  companion object {
+    @JvmStatic
+    @BeforeAll
+    fun configureBaseUri() {
+      val base = System.getenv("API_BASE_URL")
+      RestAssured.baseURI = if (!base.isNullOrEmpty()) base else "http://127.0.0.1:8080"
+    }
+  }
+
+  @Test
+  fun healthEndpointReturns200FromRunningBinary() {
+    given().`when`().get("/health").then().statusCode(200).body(notNullValue())
+
+    // Add real request/response assertions exercising the live HTTP surface here —
+    // this layer catches "domain green, HTTP wiring broken" bugs.
+  }
+}

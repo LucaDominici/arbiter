@@ -92,6 +92,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-test-pyramid.mjs'],
     tpl: 'scripts/check-test-pyramid.mjs.ejs',
   },
+  {
+    // #1365/INV-126: live-API e2e gate. Emitted unconditionally (manifest absent or
+    // required:false ⇒ runtime SKIP); the suite itself is scaffolded by the api-e2e
+    // generator only for service archetypes.
+    rel: ['scripts', 'check-api-e2e.mjs'],
+    tpl: 'scripts/check-api-e2e.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

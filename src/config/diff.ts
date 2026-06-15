@@ -75,6 +75,7 @@ export type GeneratorKey =
   | 'commit-footer-rationale'
   | 'stack-conformity'
   | 'test-pyramid'
+  | 'api-e2e'
 
 export interface ConfigDiff {
   paths: string[]
