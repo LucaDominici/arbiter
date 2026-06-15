@@ -1,0 +1,23 @@
+{
+  "schema": "arbiter-domain-api-surface-v1",
+  "resources": [
+    {
+      "resource": "Example",
+      "domainFields": [
+        {
+          "name": "id",
+          "persisted": true,
+          "inRequestSchema": false,
+          "inResponseSchema": true,
+          "note": "Server-assigned; never in create/update request body"
+        },
+        {
+          "name": "name",
+          "persisted": true,
+          "inRequestSchema": true,
+          "inResponseSchema": true
+        }
+      ]
+    }
+  ]
+}
