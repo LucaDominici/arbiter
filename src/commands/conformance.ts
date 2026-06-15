@@ -46,7 +46,7 @@ export interface ConformanceOptions {
   failOn?: 'fail' | 'partial'
 }
 
-export interface ConformanceResult {
+export interface ConformanceScanResult {
   /** 'ok' when all applicable dimensions pass, 'fail' when ≥1 fails, 'skip' when not governed. */
   status: 'ok' | 'fail' | 'skip'
   /** Aggregate score 0–100 (pass=1, partial=0.5, fail=0; skip excluded from denominator). */
@@ -77,7 +77,7 @@ function loadArbiterJson(root: string): Record<string, unknown> | null {
  * Deterministic: identical repo state ⇒ identical result.
  * Fail-safe: IO errors in any probe are caught; the probe returns 'fail' with an error detail.
  */
-export function runConformance(opts: ConformanceOptions = {}): ConformanceResult {
+export function runConformance(opts: ConformanceOptions = {}): ConformanceScanResult {
   const root = resolve(opts.dir ?? process.cwd())
   const failOn = opts.failOn ?? 'fail'
 
