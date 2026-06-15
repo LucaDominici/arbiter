@@ -74,6 +74,7 @@ export type GeneratorKey =
   | 'anti-proforma'
   | 'commit-footer-rationale'
   | 'stack-conformity'
+  | 'test-pyramid'
 
 export interface ConfigDiff {
   paths: string[]
