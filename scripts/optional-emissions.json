@@ -1,0 +1,8 @@
+{
+  "optional": [
+    {
+      "path": "scripts/conformance.mjs",
+      "rationale": "Generated only in target projects via arbiter init/update (UNCONDITIONAL_EMISSIONS, #1398, INV-128). The arbiter self-repo references this script behind existsSync() in its check-all.mjs advisory but does not emit the file itself — arbiter is the generator, not a recipient."
+    }
+  ]
+}

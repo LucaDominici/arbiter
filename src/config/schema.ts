@@ -266,7 +266,7 @@ const DEFAULT_FAMILY_WEIGHTS: ConformanceThresholds['familyWeights'] = {
   'code-quality-gold': 0.3,
 }
 
-export const DEFAULT_CONFORMANCE_THRESHOLDS: Record<GovernanceLevel, ConformanceThresholds> = {
+const DEFAULT_CONFORMANCE_THRESHOLDS: Record<GovernanceLevel, ConformanceThresholds> = {
   L1: {
     tier1Members: TIER1_MEMBERS_DEFAULT,
     familyWeights: DEFAULT_FAMILY_WEIGHTS,
@@ -289,10 +289,7 @@ export const DEFAULT_CONFORMANCE_THRESHOLDS: Record<GovernanceLevel, Conformance
   },
 }
 
-export const BROWNFIELD_CONFORMANCE_OVERLAYS: Record<
-  BrownfieldClass,
-  Partial<ConformanceThresholds>
-> = {
+const BROWNFIELD_CONFORMANCE_OVERLAYS: Record<BrownfieldClass, Partial<ConformanceThresholds>> = {
   gold: { goldTier2Gate: 0.9 },
   light: { goldTier2Gate: 0.8 },
   medium: { goldTier2Gate: 0.75 },
