@@ -91,7 +91,12 @@ export function computeConformance(
   thresholds: ConformanceThresholds,
   ratchetOk = false,
 ): TwoTierResult {
-  // Tier-1 gate: any dim in tier1Members with verdict N → NON-CONFORMANT
+  // Tier-1 gate: any dim in tier1Members with verdict N → NON-CONFORMANT.
+  // This IS anti-fake-green guard #8 (outcome-axis veto, #1412): a reality-contact Tier-1
+  // dimension (family 'reality-contact', tier 1 in dimensions.ts, e.g. D-LIVE-E2E) that is N
+  // vetoes the whole score to 0 — a high process score cannot mask a missing outcome signal.
+  // It is NOT re-implemented as a separate guard script; the equivalence is documented in
+  // docs/REFERENCE/anti-fake-green.md so the guard family stays honest about what ships.
   const tier1Fails = dimensions.filter(
     (d) => thresholds.tier1Members.includes(d.id) && d.verdict === 'N',
   )

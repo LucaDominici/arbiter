@@ -19,6 +19,8 @@
 //     --json [P]         emit the scored payload as JSON (to stdout, or to file P)
 //     --check            no-regress gate: exit 1 if score/Y dropped below the baseline
 //                        (bootstraps a missing baseline and exits 0)
+//     --require-baseline  N1 fail-closed disarm: with --check, a missing baseline is a HARD FAIL
+//                        (refuse to silently re-bootstrap — deleting the baseline must not pass)
 //     --strict           false-gap meta-gate: exit 1 if any check is RISKY
 //     --update-baseline  monotonically ratchet the baseline (never lowers a field)
 //     --registry P       registry path (default standards/gold-registry.yml)
@@ -41,6 +43,7 @@ if (args.includes('--help') || args.includes('-h')) {
       '',
       '  --json [P]         emit the scored payload as JSON (stdout, or file P)',
       '  --check            no-regress gate: exit 1 if score/Y dropped vs baseline',
+      '  --require-baseline N1 disarm guard: with --check, a missing baseline is a HARD FAIL',
       '  --strict           false-gap meta-gate: exit 1 if any RISKY check exists',
       '  --update-baseline  monotonically ratchet the baseline (never lowers a field)',
       '  --registry P       registry path (default standards/gold-registry.yml)',
@@ -132,6 +135,17 @@ function main() {
   if (flag('--check')) {
     const baseline = readBaseline()
     if (baseline === null) {
+      // N1 (fail-closed disarm, #1412): with --require-baseline, a configured engine whose
+      // baseline is absent is a HARD FAIL — silently re-bootstrapping would erase the regression
+      // record (delete the baseline ⇒ any regression vanishes). The committed gate uses this flag.
+      if (flag('--require-baseline')) {
+        process.stderr.write(
+          `gold-audit: FAIL — N1 disarm guard: --require-baseline set but ${BASELINE} is missing.\n` +
+            `    A configured gold engine must carry a committed baseline; refusing to silently re-bootstrap.\n` +
+            `    Bootstrap once with: node scripts/gold-audit.mjs --check (without --require-baseline).\n`,
+        )
+        return 1
+      }
       writeBaseline(baselineOf(result))
       process.stdout.write(
         `gold-audit: baseline initialized → ${BASELINE} (score=${result.score}, Y=${result.yCount})\n`,
