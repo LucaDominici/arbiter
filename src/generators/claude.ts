@@ -358,6 +358,7 @@ function generateClaudeCommands(
     'task.md',
     'ship.md',
     'drain.md',
+    'impact.md',
     'wt-open.md',
     'wt-close.md',
     'wt-list.md',

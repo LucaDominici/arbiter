@@ -170,4 +170,57 @@ describe('check-claude-md-lint (#1266)', () => {
       cleanup()
     }
   })
+
+  it('warns (exit 0) on a volatile version literal in body prose', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeFileSync(join(dir, 'AGENTS.md'), `${SHARED_LAYER}\nWe pin Spring Boot 3.5.1 here.\n`)
+      const r = run(dir)
+      expect(r.status).toBe(0) // soft — never fails the gate
+      expect(r.stdout + r.stderr).toMatch(/volatile fact/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('warns (exit 0) on a hardcoded count of governance items', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeFileSync(join(dir, 'AGENTS.md'), `${SHARED_LAYER}\nThis project has 60 invariants.\n`)
+      const r = run(dir)
+      expect(r.status).toBe(0)
+      expect(r.stdout + r.stderr).toMatch(/volatile fact/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('does NOT flag versions in frontmatter, fenced code, or SSOT-pointer lines', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      const body = [
+        '---',
+        'doc_version: "1.2.3"',
+        '---',
+        '# Title',
+        '',
+        '@AGENTS.md is the layer.',
+        'The Java version lives in pom.xml (1.0.0 there is fine — it is a pointer).',
+        '',
+        '```',
+        'spring-boot 3.5.1',
+        '```',
+        '',
+        'See src/invariants/catalog.ts for the 60 invariants.',
+      ].join('\n')
+      writeFileSync(join(dir, 'AGENTS.md'), SHARED_LAYER)
+      mkdirSync(join(dir, '.claude'), { recursive: true })
+      writeFileSync(join(dir, '.claude', 'CLAUDE.md'), body)
+      const r = run(dir)
+      expect(r.status).toBe(0)
+      expect(r.stdout + r.stderr).not.toMatch(/volatile fact/i)
+    } finally {
+      cleanup()
+    }
+  })
 })

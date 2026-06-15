@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/compliance-menu.md'
 source_sha: '3204fd9fc74b56b9aeaac8d0396b5d98e0ad9652'
-last_updated: '2026-06-14'
+last_updated: '2026-06-15'
 ---
 
 # Compliance & Collaboration Menu — Reference

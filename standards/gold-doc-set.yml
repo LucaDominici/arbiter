@@ -1,0 +1,125 @@
+# Gold Doc-Set manifest (arbiter) — the canonical documentation every arbiter project carries.
+#
+# A deterministic presence audit (scripts/check-doc-set.mjs) grades a repo against this list.
+# The verdict is computed by code, never by an AI. Tiers:
+#   mandatory    — required; a gap is a (strict) gate failure
+#   recommended  — advisory; a gap is a warning
+#   conditional  — only required when its overlay is enabled (per-repo standards/doc-profile)
+#
+# Per check:
+#   path        canonical location (also the stub target for --generate)
+#   tier        mandatory | recommended | conditional
+#   applies     always | <overlay-name>
+#   accept_any  equivalent paths; the check PASSES if ANY exists (architecture=blueprint, etc.)
+#   glob        a glob that passes if >=1 file matches (e.g. at least one ADR)
+#   template    stub id used by --generate when the doc is missing
+version: '1.0.0'
+profile: tooling
+checks:
+  # ---- mandatory (always) ----
+  - path: README.md
+    tier: mandatory
+    applies: always
+    purpose: Repo overview — purpose, install, quickstart.
+  - path: AGENTS.md
+    tier: mandatory
+    applies: always
+    accept_any: ['AGENTS.md', 'CLAUDE.md', '.claude/CLAUDE.md']
+    purpose: Governance SSOT (invariants + workflow) for AI-assisted development.
+  - path: CHANGELOG.md
+    tier: mandatory
+    applies: always
+    purpose: Human-readable change history (semver / Keep a Changelog).
+  - path: CONTRIBUTING.md
+    tier: mandatory
+    applies: always
+    accept_any: ['CONTRIBUTING.md', 'docs/CONTRIBUTING.md']
+    purpose: How to contribute — workflow, gate, conventions.
+  - path: SECURITY.md
+    tier: mandatory
+    applies: always
+    accept_any: ['SECURITY.md', 'docs/SECURITY.md', '.github/SECURITY.md']
+    purpose: Security policy + vulnerability reporting.
+  - path: LICENSE
+    tier: mandatory
+    applies: always
+    accept_any: ['LICENSE', 'LICENSE.md', 'LICENSE.txt']
+    purpose: Open-source license.
+  - path: VERSION
+    tier: mandatory
+    applies: always
+    accept_any: ['VERSION', 'package.json']
+    purpose: Release version SSOT (semver).
+  - path: docs/INDEX.md
+    tier: mandatory
+    applies: always
+    purpose: Generated, discoverable index of the doc set.
+  - path: docs/GOVERNANCE.md
+    tier: mandatory
+    applies: always
+    accept_any: ['docs/GOVERNANCE.md', 'GOVERNANCE.md']
+    purpose: Governance model — how decisions and gates work.
+  - path: docs/architecture/ARCHITECTURE.md
+    tier: mandatory
+    applies: always
+    accept_any:
+      [
+        'docs/architecture/ARCHITECTURE.md',
+        'docs/architecture/arc42.md',
+        'docs/architecture/blueprint.md',
+        'docs/ARCHITECTURE.md',
+      ]
+    purpose: System architecture (arc42 / C4 / blueprint equivalent).
+  - path: docs/ADR
+    tier: mandatory
+    applies: always
+    glob: 'docs/ADR/[0-9]*.md'
+    accept_any: ['docs/ADR/[0-9]*.md', 'docs/adr/[0-9]*.md', 'docs/ADR/README.md']
+    purpose: Architecture Decision Records (at least one).
+  - path: docs/SEMVER.md
+    tier: mandatory
+    applies: always
+    accept_any: ['docs/SEMVER.md', 'SEMVER.md']
+    purpose: Versioning / compatibility policy.
+  - path: docs/coding-standards.md
+    tier: mandatory
+    applies: always
+    accept_any:
+      [
+        'docs/coding-standards.md',
+        'docs/naming-convention.md',
+        'docs/SECURE_CODING_CHECKLIST.md',
+        'CONTRIBUTING.md',
+      ]
+    purpose: Code conventions (or naming-convention / secure-coding equivalent).
+  # ---- recommended (advisory) ----
+  - path: CODE_OF_CONDUCT.md
+    tier: recommended
+    applies: always
+    purpose: Community standards.
+  - path: ROADMAP.md
+    tier: recommended
+    applies: always
+    accept_any: ['ROADMAP.md', 'docs/ROADMAP.md', 'docs/PRODUCT/ROADMAP.md']
+    purpose: Forward-looking plan.
+  - path: docs/GLOSSARY.md
+    tier: recommended
+    applies: always
+    template: glossary
+    purpose: Domain + project terminology (reduces cross-product confusion).
+  - path: PRIVACY.md
+    tier: recommended
+    applies: always
+    accept_any: ['PRIVACY.md', 'docs/PRIVACY.md']
+    purpose: Privacy / data-handling statement.
+  # ---- conditional (overlay-gated) ----
+  - path: docs/PLUGIN-API.md
+    tier: conditional
+    applies: has-plugin-api
+    accept_any: ['docs/PLUGIN-API.md', 'docs/plugin-api.md', 'PLUGIN-API.md']
+    purpose: Public plugin/extension API contract.
+  - path: docs/api
+    tier: conditional
+    applies: has-api
+    glob: 'docs/api/*'
+    purpose: API reference / OpenAPI.

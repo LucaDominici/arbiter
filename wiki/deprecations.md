@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/DEPRECATIONS.md'
 source_sha: '6638ae7b8f51cd8a08571d00562e7e4a81a19f30'
-last_updated: '2026-06-14'
+last_updated: '2026-06-15'
 ---
 
 # Active Deprecations
