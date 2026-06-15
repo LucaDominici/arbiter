@@ -26,6 +26,13 @@ const GUARDS = [
     script: 'scripts/check-ownership-distribution.mjs',
     class: 'gh-audit',
   },
+  // file-scan guards (#1412): deterministic, fail-closed; child exit 1 is a hard aggregate fail.
+  // #1 muted-test — a skip/disable marker on a gate test (NO-DATA on no tests is a skip at 0).
+  { name: 'muted-test', script: 'scripts/check-muted-test.mjs', class: 'file-scan' },
+  // #6 skip-critical-e2e — a skipped e2e spec (NA when no e2e config exists).
+  { name: 'skip-critical-e2e', script: 'scripts/check-skip-critical-e2e.mjs', class: 'file-scan' },
+  // E10 no-stub-redirects — a stale "Moved →" stub .md husk (allowlist needs a hard EXPIRES).
+  { name: 'no-stub-redirects', script: 'scripts/check-no-stub-redirects.mjs', class: 'file-scan' },
 ]
 
 function main() {

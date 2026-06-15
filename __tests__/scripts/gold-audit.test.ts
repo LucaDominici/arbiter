@@ -269,4 +269,46 @@ describe('gold-audit (#1373)', () => {
       cleanup()
     }
   })
+
+  // ── N1 (fail-closed disarm, #1412): a configured engine whose baseline was deleted must NOT
+  //    silently re-bootstrap and pass — that erases the regression record (a disarm vector).
+  it('N1: --check --require-baseline with a missing baseline → HARD FAIL (exit 1)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+      // No baseline file: configured registry + --require-baseline ⇒ disarm refusal.
+      const r = run(dir, ['--check', '--require-baseline'])
+      expect(r.status).toBe(1)
+      expect(r.stderr + r.stdout).toMatch(/baseline/i)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('N1: --check --require-baseline with a present baseline still gates normally (exit 0)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+      writeFileSync(
+        join(dir, '.gold-audit-baseline.json'),
+        JSON.stringify({ score: 0, yCount: 0, dimensions: {} }, null, 2) + '\n',
+      )
+      const r = run(dir, ['--check', '--require-baseline'])
+      expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('N1: --check (no --require-baseline) still bootstraps a missing baseline (exit 0)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+      const r = run(dir, ['--check'])
+      expect(r.status).toBe(0)
+      expect(existsSync(join(dir, '.gold-audit-baseline.json'))).toBe(true)
+    } finally {
+      cleanup()
+    }
+  })
 })
