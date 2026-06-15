@@ -7,7 +7,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import {
   runConformance,
   type ConformanceOptions,
-  type ConformanceResult,
+  type ConformanceScanResult,
   type DimensionVerdict,
 } from '../../src/commands/conformance.js'
 
@@ -53,7 +53,7 @@ describe('conformance (#1369)', () => {
     writeArbiter(dir)
 
     const opts: ConformanceOptions = { dir }
-    const result: ConformanceResult = runConformance(opts)
+    const result: ConformanceScanResult = runConformance(opts)
 
     expect(result).toHaveProperty('status')
     expect(result).toHaveProperty('score')
