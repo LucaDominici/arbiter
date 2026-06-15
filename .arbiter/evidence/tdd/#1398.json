@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1398",
+  "test_path": "__tests__/generators/conformance.test.ts",
+  "test_commit_sha": "1cf40d53cd783ab04cb877e5c697209684b61378",
+  "test_run_log": "\n RUN  v4.1.8\n\n ❯ __tests__/generators/conformance.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  00:00:00\n   Duration  100ms\n\n FAIL  __tests__/generators/conformance.test.ts [ __tests__/generators/conformance.test.ts ]\nError: Cannot find module '../../src/generators/conformance.js' imported from __tests__/generators/conformance.test.ts\n",
+  "observed_failure": "FAIL  __tests__/generators/conformance.test.ts",
+  "recorded_at": "2026-06-15T23:38:00.000Z"
+}
