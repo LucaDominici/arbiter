@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1393",
+  "test_path": "__tests__/conformance/engine.test.ts",
+  "test_commit_sha": "289c9ce23d741e545a21288b42210a73acc6fdf8",
+  "test_run_log": "\n RUN  v4.1.8 /home/luca/work/repos/arbiter.worktrees/1393\n\n ❯ __tests__/conformance/engine.test.ts (0 test)\n\n Test Files  1 failed (1)\n      Tests  no tests\n   Start at  19:14:32\n   Duration  140ms (transform 36ms, setup 16ms, import 0ms, tests 0ms, environment 0ms)\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  __tests__/conformance/engine.test.ts [ __tests__/conformance/engine.test.ts ]\nError: Cannot find module '../../src/conformance/engine.js' imported from /home/luca/work/repos/arbiter.worktrees/1393/__tests__/conformance/engine.test.ts\n ❯ __tests__/conformance/engine.test.ts:8:1\n      6| import { tmpdir } from 'node:os'\n      7| import { describe, it, expect, afterEach } from 'vitest'\n      8| import {\n       | ^\n      9|   evaluate,\n     10|   checkNoRegress,\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n",
+  "observed_failure": "FAIL  __tests__/conformance/engine.test.ts",
+  "recorded_at": "2026-06-15T17:14:32.628Z"
+}
