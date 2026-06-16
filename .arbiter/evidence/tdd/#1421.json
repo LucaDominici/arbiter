@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1421",
+  "test_path": "__tests__/templates/levelup-render.test.ts",
+  "test_commit_sha": "9897f9a318a6fe67f319df334633b3e86ff3033b",
+  "test_run_log": " FAIL  __tests__/templates/levelup-render.test.ts > levelup orchestrator skill + command templates (#1421) > renders claude/skills/levelup/SKILL.md.ejs\nError: ENOENT: no such file or directory, open 'src/templates/claude/skills/levelup/SKILL.md.ejs'\n FAIL  __tests__/templates/levelup-render.test.ts > renders claude/commands/levelup.md.ejs\nError: ENOENT: no such file or directory, open 'src/templates/claude/commands/levelup.md.ejs'\n",
+  "observed_failure": "FAIL  __tests__/templates/levelup-render.test.ts",
+  "recorded_at": "2026-06-16T06:38:00Z"
+}
