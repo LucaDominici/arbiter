@@ -24,7 +24,7 @@ It composes the engines that already exist — there is **no new TS engine** and
 - `/gold-audit` (`arbiter gold-audit --json`) — measure the band + prioritized gaps.
 - `/close-gold-gap <gapId>` (`arbiter close-gold-gap`) — the honest recipe per gap.
 - `arbiter gold-audit --check` — the no-regress ratchet that locks each gain.
-- `scripts/check-anti-fake-green.mjs` — the disarm-proof anti-fake-green aggregate.
+- `scripts/check-all.mjs` — the disarm-proof anti-fake-green aggregate.
 
 ## Defaults
 
@@ -41,14 +41,14 @@ It composes the engines that already exist — there is **no new TS engine** and
 3. **Close** each gap honestly via `/close-gold-gap` — doc-set (fill real content), test
    (TDD-first), config (wire the real tool). A `manual` check or external blocker → needs-human.
 4. **Re-audit behind the guards (fail-closed):** `npx arbiter gold-audit --check`
-   (no-regress ratchet) + `node scripts/check-anti-fake-green.mjs --enforce` (disarm-proof).
+   (no-regress ratchet) + `node scripts/check-all.mjs` (disarm-proof).
 5. Commit the new `.gold-audit-baseline.json` only when the band rose **for a real reason**;
    repeat to `--target` (or until every remaining gap is needs-human).
 
 ## Hard stops (fail-closed)
 
 - `gold-audit --check` exit 1 (regress) → REJECT the wave, revert the cheat, re-do real work.
-- `check-anti-fake-green.mjs` exit 1 (hard fail) or exit 2 (a broken/disarmed guard) → HALT —
+- `check-all.mjs` exit 1 (hard fail) or exit 2 (a broken/disarmed guard) → HALT —
   you cannot disarm a guard by breaking it.
 - A gap that can't be closed honestly → `needs-human` with a blocker reason. **Never** faked,
   suppressed, or marker-stuffed.

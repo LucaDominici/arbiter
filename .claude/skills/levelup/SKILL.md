@@ -39,7 +39,7 @@ existing engines and skills — there is **no new TS engine** and **no new `arbi
 | Skill `wave-drain`                        | The fan-out shape for the remediation wave (groups, parallel agents) |
 | Skill `tdd`                               | Red → green → refactor for every `test`-category gap                 |
 | Skill `verification`                      | Claim-based verification before the re-audit gate                    |
-| `scripts/check-anti-fake-green.mjs`       | The anti-fake-green aggregate — fail-closed disarm-proof verdict     |
+| `scripts/check-all.mjs`                   | The anti-fake-green aggregate — fail-closed disarm-proof verdict     |
 
 ---
 
@@ -102,7 +102,7 @@ flip — never by a moved threshold, a pasted literal, or a disabled check:
 npx arbiter gold-audit --check
 
 # 2. Anti-fake-green aggregate — disarm-proof; a broken guard (exit 2) fails unconditionally.
-node scripts/check-anti-fake-green.mjs --enforce
+node scripts/check-all.mjs
 
 # 3. Re-measure the band and compare to the before snapshot.
 npx arbiter gold-audit --json
@@ -112,7 +112,7 @@ npx arbiter gold-audit --json
 
 - `gold-audit --check` exit **1** (regress) → a gap was un-closed or a real metric dropped:
   **REJECT** the wave, revert the cheated change, re-do the real work.
-- `check-anti-fake-green.mjs` exit **1** (hard fail) or exit **2** (a broken/disarmed guard)
+- `check-all.mjs` exit **1** (hard fail) or exit **2** (a broken/disarmed guard)
   → **HALT** the wave. A guard you cannot trust is a stop, not a pass — you cannot disarm a
   guard by breaking it.
 - The re-audit must show the band rose **for a real reason** (genuine metric improved, real
