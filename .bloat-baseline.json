@@ -1,22 +1,22 @@
 {
-  "capturedAt": "2026-06-15T14:20:06.194Z",
-  "task": "#1366",
+  "capturedAt": "2026-06-16T03:05:53.867Z",
+  "task": "#1419",
   "buckets": {
     "srcDirect": {
       "files": 1,
-      "loc": 2428
+      "loc": 2652
     },
     "generators": {
-      "files": 79,
-      "loc": 7364
+      "files": 81,
+      "loc": 7534
     },
     "commands": {
-      "files": 46,
-      "loc": 12909
+      "files": 50,
+      "loc": 13943
     },
     "templates": {
-      "files": 496,
-      "loc": 38374
+      "files": 505,
+      "loc": 39747
     }
   }
 }
