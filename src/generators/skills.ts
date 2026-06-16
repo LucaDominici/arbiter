@@ -23,6 +23,7 @@ export const SKILL_NAMES = [
   'brainstorming',
   'wave-drain',
   'impact',
+  'gold-audit',
 ] as const
 
 function findReplacingSkill(

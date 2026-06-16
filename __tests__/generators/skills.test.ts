@@ -17,6 +17,7 @@ const SKILL_NAMES = [
   'brainstorming',
   'wave-drain',
   'impact',
+  'gold-audit',
 ] as const
 
 const SUPERPOWERS_TDD: InstalledSkill = {
@@ -165,5 +166,52 @@ describe('generateSkills', () => {
     for (const file of result.files) {
       expect(file.skipped !== undefined || file.path.includes('SKILL.md')).toBe(true)
     }
+  })
+
+  // #1420 — /gold-audit skill: read-only measurement front door over the
+  // deterministic `arbiter gold-audit --json` engine. No AI re-scoring.
+  describe('gold-audit skill (#1420)', () => {
+    it('SKILL_NAMES registry includes gold-audit', () => {
+      expect(SKILL_NAMES).toContain('gold-audit')
+    })
+
+    it('writes .claude/skills/gold-audit/SKILL.md', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      expect(existsSync(join(dir, '.claude', 'skills', 'gold-audit', 'SKILL.md'))).toBe(true)
+    })
+
+    it('invokes the existing CLI engine (no re-implemented scoring)', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      const content = readFileSync(
+        join(dir, '.claude', 'skills', 'gold-audit', 'SKILL.md'),
+        'utf-8',
+      )
+      expect(content).toContain('arbiter gold-audit --json')
+      // Reads the payload verbatim — level/score/checks — never re-scores.
+      expect(content).toContain('level')
+      expect(content).toContain('checks')
+    })
+
+    it('is documented as read-only (measures, never changes code)', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      const content = readFileSync(
+        join(dir, '.claude', 'skills', 'gold-audit', 'SKILL.md'),
+        'utf-8',
+      )
+      expect(content).toMatch(/read-only/i)
+    })
+
+    it('points at arbiter init/update as the graceful fallback', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      const content = readFileSync(
+        join(dir, '.claude', 'skills', 'gold-audit', 'SKILL.md'),
+        'utf-8',
+      )
+      expect(content).toMatch(/arbiter (init|update)/)
+    })
   })
 })

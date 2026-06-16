@@ -363,6 +363,7 @@ function generateClaudeCommands(
     'ship.md',
     'drain.md',
     'impact.md',
+    'gold-audit.md',
     'wt-open.md',
     'wt-close.md',
     'wt-list.md',
