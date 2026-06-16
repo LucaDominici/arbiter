@@ -842,6 +842,12 @@ if (level === 'L2') {
   if (existsSync('scripts/conformance.mjs')) {
     runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
   }
+  // Advisory (#1419): gold-audit no-regress ratchet — informational, never blocks gate.
+  // Plain --check bootstraps a missing baseline (exit 0); the strict require-baseline hard
+  // guard is NEVER passed downstream (it hard-fails a fresh consumer = day-1 red; self-only).
+  if (existsSync('scripts/gold-audit.mjs')) {
+    runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check'])
+  }
 <% } %>
 <% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────

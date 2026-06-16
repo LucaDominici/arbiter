@@ -76,6 +76,7 @@ import { generateApiE2e } from './api-e2e.js'
 import { generateSoloException } from './solo-exception.js'
 import { generateWiki } from './wiki.js'
 import { generateConformanceScript } from './conformance.js'
+import { generateGoldKit } from './gold-kit.js'
 import type { ProjectConfig } from '../wizard/types.js'
 import type { WriteResult, GeneratorRunOpts } from '../utils/fs.js'
 import type { GeneratorKey } from '../config/diff.js'
@@ -600,6 +601,14 @@ export function buildRegistry(
       key: 'conformance',
       enabled: true,
       run: (opts) => generateConformanceScript(config, opts).files,
+    },
+    {
+      // #1419: downstream gold-audit kit — thin runner (delegates to `npx arbiter
+      // gold-audit --check`) + consumer-DATA standards (registry, thresholds, doc-set,
+      // doc-profile). No engine copy, no `yaml` dep, no baseline seed. Always-on.
+      key: 'gold-kit',
+      enabled: true,
+      run: (opts) => generateGoldKit(config, opts).files,
     },
   ]
 }
