@@ -39,12 +39,12 @@ npx arbiter close-gold-gap <gapId> --json
 
 3. Execute the recipe's steps yourself. Each step is typed by **category**:
 
-| Category    | What the recipe does                                                            | Honest outcome |
-| ----------- | ------------------------------------------------------------------------------ | -------------- |
-| **doc-set** | Scaffold the missing doc (`check-doc-set --generate`) **then fill real content** | `P` → `Y` only after real content |
+| Category    | What the recipe does                                                             | Honest outcome                         |
+| ----------- | -------------------------------------------------------------------------------- | -------------------------------------- |
+| **doc-set** | Scaffold the missing doc (`check-doc-set --generate`) **then fill real content** | `P` → `Y` only after real content      |
 | **test**    | Write the missing test(s) TDD-first (loads the `tdd` skill)                      | `Y` when the real metric meets the bar |
-| **config**  | Wire the real tool/config the check verifies                                     | `Y` when the tool genuinely runs |
-| **process** | Human-only action for a `manual` check — **no code recipe**                      | `NV` (code cannot verify it) |
+| **config**  | Wire the real tool/config the check verifies                                     | `Y` when the tool genuinely runs       |
+| **process** | Human-only action for a `manual` check — **no code recipe**                      | `NV` (code cannot verify it)           |
 
 ## Anti-fake-green (hard rules)
 

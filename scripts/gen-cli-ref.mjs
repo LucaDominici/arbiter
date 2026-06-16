@@ -59,7 +59,7 @@ function parseCliTs(src) {
   // Find top-level commands: `program` (possibly with `const X =` assignment)
   // followed (within ~50 chars, across potential newlines) by `.command('name')`.
   // This intentionally does NOT match `varName.command(...)` (sub-commands on variables).
-  const topLevelRe = /\bprogram\s*[\s\S]{0,50}?\.command\('([^'<>\n]+?)'\)/g
+  const topLevelRe = /\bprogram\s*[\s\S]{0,50}?\.command\('([^'\n]+?)'\)/g
   const topLevelNames = new Set()
   for (const m of stripped.matchAll(topLevelRe)) {
     // Strip argument specs (<required> [optional]) — use only the base command name.
