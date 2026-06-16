@@ -157,7 +157,7 @@ if (isMain) {
   runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs'])
   runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
   runCheck('bloat ratchet', 'node', ['scripts/check-bloat-ratchet.mjs'])
-  runCheck('gold-audit no-regress (#1373)', 'node', ['scripts/gold-audit.mjs', '--check'])
+  runCheck('gold-audit no-regress (#1373)', 'node', ['scripts/gold-audit.mjs', '--check', '--require-baseline'])
   runCheck('gold-audit false-gap (#1373)', 'node', ['scripts/gold-audit.mjs', '--strict'])
   runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
   runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs'])

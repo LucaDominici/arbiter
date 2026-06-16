@@ -98,6 +98,7 @@
     "scripts/check-exit-code-contract.mjs",
     "scripts/check-inline-suppressions.mjs",
     "scripts/check-knowledge-map.mjs",
+    "scripts/check-no-tracked-artifacts.mjs",
     "scripts/check-pipe-tee-hazard.mjs",
     "scripts/check-pr-size-gate.mjs",
     "scripts/check-render-smoke.mjs",

@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1408",
+  "test_path": "__tests__/invariants/inv-129-data-file-guard.test.ts",
+  "test_commit_sha": "d174144c7df504ad905502cb9fa93ca3953320e7",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/invariants/inv-129-data-file-guard.test.ts > INV-129 \u2014 data/state file guard (#1408) > is present in the catalog\nAssertionError: expected undefined to be defined\n \u276f __tests__/invariants/inv-129-data-file-guard.test.ts:12:17\n     10|\n     11|   it('is present in the catalog', () => {\n     12|     expect(inv).toBeDefined()\n       |                 ^\n     13|   })\n     14|\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/4]\u23af\n",
+  "observed_failure": "FAIL  __tests__/invariants/inv-129-data-file-guard.test.ts",
+  "recorded_at": "2026-06-16T00:18:16Z"
+}
