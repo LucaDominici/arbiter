@@ -54,6 +54,28 @@ skipping phases.
 A group is the unit of parallelism. Keep groups module-coherent so two agents never edit the
 same file concurrently (see `.claude/rules/50-batch-execution.md`).
 
+## Phase 0.5 — Harvest the finding spool (#1404)
+
+Before composing the wave's work, **drain the incidental-finding spool into tracked issues** so
+findings noticed in prior waves become first-class backlog candidates instead of rotting in
+`.arbiter/findings/`:
+
+```bash
+arbiter findings promote        # re-validate vs HEAD, dedup vs open issues, file survivors
+arbiter findings list           # manual escape hatch — inspect the deduped spool without filing
+```
+
+`findings promote` reads every `.arbiter/findings/*.jsonl` shard, dedups by fingerprint,
+**re-validates each finding against HEAD** (a finding whose file/graph-node is gone is dropped,
+never filed), dedups against already-open issues via the embedded `<!-- arbiter-fp:FP -->` body
+marker, and files the survivors as `finding`+`tech-debt`+`priority/Pn` issues (recorded under
+`.arbiter/evidence/findings-promote/tech-debt.json` so they surface in `GAP.md`). The spool being
+absent/empty is a clean no-op.
+
+**Newly-promoted `severity: low` findings are candidate issues for THIS wave** — fold them into the
+Phase 0 triage roster (subject to the same workability filter). Higher-severity promotions enter
+the backlog like any other issue.
+
 ### Transactional claim (#1378)
 
 **Check-ALL-then-claim-ALL** to avoid race conditions when multiple drain runs overlap:
@@ -134,8 +156,43 @@ arbiter task init --plan <wave-N.md#group-anchor>   # anchor to the group's plan
 git commit                                          # format enforced by post-commit-check
 ```
 
-Then emit a **DONE report**: files touched, tests added, findings with `auditorHint`
-(the `auditor-routing.json` auditor whose remit covers each finding).
+Then emit a **DONE report**: files touched, tests added, commits, and `findings[]`.
+
+#### Canonical finding shape (#1404)
+
+The DONE-report `findings[]` use the **same `FindingEntry` shape as `arbiter note`** — the SSOT is
+`src/commands/task-note.ts` (interface `FindingEntry`). This is what lets a finding flow straight
+into the `.arbiter/findings` spool and get drained by `arbiter findings promote` in the next wave's
+Phase 0.5, with fingerprint dedup using the SAME material as `task-note.ts` `computeFingerprint`
+(so a finding is never double-filed). Do **not** invent a parallel free-prose shape.
+
+Each finding is one object with these fields (`graphNode` and `auditorHint` are optional; every
+other field is required):
+
+```json
+{
+  "ts": "2026-06-16T00:00:00.000Z",
+  "note": "duplicated retry helper — extract a shared utility",
+  "kind": "dup",
+  "severity": "low",
+  "foundDuring": "#1404",
+  "file": "src/commands/findings-promote.ts",
+  "line": 120,
+  "sha": "deadbeefcafef00d",
+  "graphNode": "src/commands/findings-promote.ts#revalidate",
+  "fingerprint": "<sha1 of kind+normalizedPath+symbol+normalizedNote>",
+  "auditorHint": "code-quality"
+}
+```
+
+- `kind` — finding class: `dup` | `smell` | `risk` | `debt` | `note`.
+- `severity` — `low` | `med` | `high` | `info` (drives the promoted issue's `priority/Pn` label).
+- `line` — number or `null`; it is **excluded** from the fingerprint.
+- `graphNode` — optional graph-node id; **omitted** (not a key) when absent.
+- `auditorHint` — optional; the `auditor-routing.json` auditor whose remit covers the finding.
+
+The cheapest way to honour this shape is to capture findings in-band with `arbiter note` (which
+writes exactly this entry); the DONE report then just mirrors what is already in the spool.
 
 **A blocked agent → mark its issue `needs-human` and STOP that agent. It does NOT block the
 wave.** The rest of the wave proceeds.
