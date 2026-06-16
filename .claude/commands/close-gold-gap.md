@@ -30,12 +30,12 @@ npx arbiter close-gold-gap <gapId> --json # machine-readable recipe
 
 ## Recipe categories
 
-| Category    | Action                                                        | Honest outcome              |
-| ----------- | ------------------------------------------------------------ | --------------------------- |
-| doc-set     | scaffold the doc, **then fill real content**                  | `P` → `Y` after real content |
-| test        | write the missing test(s) TDD-first (`tdd` skill)            | `Y` when the metric meets the bar |
-| config      | wire the real tool/config the check verifies                  | `Y` when the tool runs      |
-| process     | human-only action for a `manual` check — no code recipe       | `NV` (code cannot verify)   |
+| Category | Action                                                  | Honest outcome                    |
+| -------- | ------------------------------------------------------- | --------------------------------- |
+| doc-set  | scaffold the doc, **then fill real content**            | `P` → `Y` after real content      |
+| test     | write the missing test(s) TDD-first (`tdd` skill)       | `Y` when the metric meets the bar |
+| config   | wire the real tool/config the check verifies            | `Y` when the tool runs            |
+| process  | human-only action for a `manual` check — no code recipe | `NV` (code cannot verify)         |
 
 > A scaffold is `P`, not `Y` (presence ≠ closure). A `manual` check has no code recipe. Recipes carry
 > **no suppression** and **no marker-stuffing**. See the **`close-gold-gap`** skill for the full rules.

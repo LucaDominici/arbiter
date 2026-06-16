@@ -516,6 +516,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter benchmark`      | Performance benchmarks for arbiter                                              |
 | `arbiter blame`          | —                                                                               |
 | `arbiter ci`             | Governance-aware CI planning (#261)                                             |
+| `arbiter close-gold-gap` | Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close) |
 | `arbiter compare`        | Compare governance postures across multiple repos (#264)                        |
 | `arbiter configure`      | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
 | `arbiter conformance`    | Score a project against the arbiter gold standard (#1369)                       |
@@ -589,6 +590,16 @@ Governance-aware CI planning (#261).
 
 - `arbiter ci plan`
 - `arbiter ci verify-plan`
+
+## arbiter close-gold-gap
+
+Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close).
+
+**Options:**
+
+- `--repo <repo>` — Repo to audit (default: current directory)
+- `--stack <stack>` — Per-stack registry selector (standards/gold-registry.&lt;stack&gt;.yml)
+- `--json` — Emit machine-readable JSON output
 
 ## arbiter compare
 

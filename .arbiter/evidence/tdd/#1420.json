@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1420",
+  "test_path": "__tests__/generators/skills.test.ts",
+  "test_commit_sha": "3e20efbea490d9f1318278f1558a81822c589b94",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 16 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/generators/skills.test.ts > generateSkills > generates all built-in skill SKILL.md files for claude projects\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter/src/templates/claude/skills/gold-audit/SKILL.md.ejs'\n \u276f renderTemplate src/utils/render.ts:38:18\n     36| export function renderTemplate(templatePath: string, data: object): st\u2026\n     37|   const fullPath = join(TEMPLATES_DIR, templatePath)\n     38|   const source = readFileSync(fullPath, 'utf-8')\n       |                  ^\n     39|   return ejs.render(source, withBasePackageDefault(data), { filename: \u2026\n     40| }\n \u276f generateSkills src/generators/skills.ts:83:9",
+  "observed_failure": "FAIL  __tests__/generators/skills.test.ts",
+  "recorded_at": "2026-06-16T03:55:51Z"
+}

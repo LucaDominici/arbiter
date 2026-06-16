@@ -1,6 +1,6 @@
 {
   "schema": "arbiter-script-catalog-baseline-v1",
-  "generated_at": "2026-06-16T02:57:18.929Z",
+  "generated_at": "2026-06-16T03:53:18.796Z",
   "doctrine": "INV-94 / CANON-21 — grandfathered list of scripts/check-*.mjs at baseline freeze. New scripts added outside this list must carry a // CATALOG: marker block (>=3 contiguous // CATALOG: lines) explaining what is aggregated and why a sibling fold-in was rejected. To widen the baseline deliberately, regenerate with `node scripts/check-script-cohesion.mjs --update-baseline`.",
   "files": [
     "scripts/check-action-pins.mjs",

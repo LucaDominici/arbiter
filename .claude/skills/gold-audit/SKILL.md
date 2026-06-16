@@ -1,12 +1,12 @@
 ---
 name: gold-audit
 description: Use when the user wants to measure how close the project is to gold-standard quality — runs the deterministic `arbiter gold-audit` engine and reports the level band plus a prioritized list of what is missing. Read-only; never changes code.
-title: "Gold Audit (measure)"
-doc_version: "1.0.0"
+title: 'Gold Audit (measure)'
+doc_version: '1.0.0'
 status: active
-last_review: "2026-06-16"
-owner: ""
-canonical_id: ""
+last_review: '2026-06-16'
+owner: ''
+canonical_id: ''
 tags: ['audience/agent', 'audience/dev', 'kind/internal', 'kind/analysis']
 related: ['ship', 'gap']
 ---
@@ -53,16 +53,16 @@ Then stop.
 
 When stdout is JSON, parse it and read these fields **as-is** (no re-scoring):
 
-| Field          | Use                                                            |
-| -------------- | ------------------------------------------------------------- |
-| `level.level`  | Current band: `L0` / `L1` / `L2` / `L3`                        |
-| `level.nextLevel` / `level.toNextLevel` | Next band + how many points away    |
-| `level.brownfieldClass` | The detected class the band is keyed to              |
-| `score`        | Overall score                                                 |
-| `yCount` / `totals.checks` | Checks fully satisfied vs total                  |
-| `riskyCount`   | Count of risky (N/P on high-risk) checks                      |
-| `checks[]`     | Per-check `id` / `dimension` / `title` / `type` / `verdict` / `weight` / `evidence` |
-| `gaps[]`       | The "what's missing" families: N/P checks grouped by `dimension` |
+| Field                                   | Use                                                                                 |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
+| `level.level`                           | Current band: `L0` / `L1` / `L2` / `L3`                                             |
+| `level.nextLevel` / `level.toNextLevel` | Next band + how many points away                                                    |
+| `level.brownfieldClass`                 | The detected class the band is keyed to                                             |
+| `score`                                 | Overall score                                                                       |
+| `yCount` / `totals.checks`              | Checks fully satisfied vs total                                                     |
+| `riskyCount`                            | Count of risky (N/P on high-risk) checks                                            |
+| `checks[]`                              | Per-check `id` / `dimension` / `title` / `type` / `verdict` / `weight` / `evidence` |
+| `gaps[]`                                | The "what's missing" families: N/P checks grouped by `dimension`                    |
 
 ---
 
