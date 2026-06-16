@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1402",
+  "test_path": "__tests__/hooks/plan-anchor-out-of-scope.test.ts",
+  "test_commit_sha": "cd2dcf55a826a2f05ca8190aab900b079e7ee517",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/hooks/plan-anchor-out-of-scope.test.ts > pre-edit-plan-anchor \u2014 out-of-scope soft redirect (#1402) > emits a SOFT redirect (exit 0 + stdout message) for an out-of-manifest file\nAssertionError: expected '=== ACTIVE PLAN (task.md) ===\\n---\\nc\u2026' to contain 'arbiter note'\n\n- Expected\n+ Received\n\n- arbiter note\n+ === ACTIVE PLAN (task.md) ===\n+ ---\n+ context: >-\n+   Test plan with a files manifest.\n+ issues: [\"#1402\"]",
+  "observed_failure": "FAIL  __tests__/hooks/plan-anchor-out-of-scope.test.ts",
+  "recorded_at": "2026-06-16T00:18:16Z"
+}

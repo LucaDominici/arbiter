@@ -1,6 +1,6 @@
 # Gold Report — arbiter
 
-<!-- generated: 2026-06-15T12:43:40.345Z @ 1496426c — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
+<!-- generated: 2026-06-16T00:08:12.270Z @ c5d17314 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
 
 ## Documentation (gold doc-set)
 
@@ -27,3 +27,9 @@ False-gap meta-gate: clean (0 RISKY checks).
 | D-SUPPLY-CHAIN  | 100%  | 1        |
 
 Engine: `node scripts/gold-audit.mjs` (registry-driven, code-computed, deterministic — no AI). No-regress gate: `node scripts/gold-audit.mjs --check`.
+
+## Conformance scorecard
+
+_Conformance CLI not built — run `npm run build` to include the scorecard._
+
+_See CONFORMANCE.md for the full scorecard._

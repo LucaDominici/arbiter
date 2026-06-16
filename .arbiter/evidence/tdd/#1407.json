@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1407",
+  "test_path": "__tests__/scripts/check-no-tracked-artifacts.test.ts",
+  "test_commit_sha": "de4c032e108fa192382ff9207df3efd45f0e6443",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/scripts/check-no-tracked-artifacts.test.ts > check-no-tracked-artifacts.mjs (INV-117 / INV-129) > FAILS when a *.sqlite data file is tracked\nAssertionError: expected +0 to be 1 // Object.is equality\n\n- Expected\n+ Received\n\n- 1\n+ 0\n\n \u276f __tests__/scripts/check-no-tracked-artifacts.test.ts:83:24\n     81|       commitAll(dir)\n     82|       const r = run(dir)",
+  "observed_failure": "FAIL  __tests__/scripts/check-no-tracked-artifacts.test.ts",
+  "recorded_at": "2026-06-16T00:18:16Z"
+}

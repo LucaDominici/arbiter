@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1412",
+  "test_path": "__tests__/scripts/check-muted-test.test.ts",
+  "test_commit_sha": "03942a94a0fc78aeacee22bf879b45c1f3ce3d20",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 6 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/scripts/check-muted-test.test.ts > check-muted-test (guard #1, #1412) > --help exits 0\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n \u276f __tests__/scripts/check-muted-test.test.ts:30:24\n     28|     try {\n     29|       const r = run(dir, ['--help'])",
+  "observed_failure": "FAIL  __tests__/scripts/check-muted-test.test.ts",
+  "recorded_at": "2026-06-16T00:18:16Z"
+}

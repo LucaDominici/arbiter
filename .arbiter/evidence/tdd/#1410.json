@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1410",
+  "test_path": "__tests__/commands/update-unwired-gate-warning.test.ts",
+  "test_commit_sha": "4708e89c583fc00437dab9ffafba1f5ffd55e949",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 7 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/commands/update-unwired-gate-warning.test.ts > detectUnwiredGateWarning (#1410) > warns when a NEW check-*.mjs is emitted AND check-all.mjs is withheld\nTypeError: detectUnwiredGateWarning is not a function\n \u276f __tests__/commands/update-unwired-gate-warning.test.ts:15:21\n     13|       { path: '/p/scripts/check-all.mjs', action: 'skipped', withheld:\u2026\n     14|     ]\n     15|     const warning = detectUnwiredGateWarning(results)\n       |                     ^\n     16|     expect(warning).not.toBeNull()\n     17|     expect(warning).toContain('check-foo.mjs')\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/7]\u23af\n",
+  "observed_failure": "FAIL  __tests__/commands/update-unwired-gate-warning.test.ts",
+  "recorded_at": "2026-06-16T00:18:16Z"
+}

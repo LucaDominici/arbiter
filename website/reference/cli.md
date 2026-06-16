@@ -533,6 +533,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter knowledge-map` | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes |
 | `arbiter mark` | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
 | `arbiter notary` | Notary system — track semantic doc changes |
+| `arbiter note` | Capture an out-of-scope finding to the per-agent JSONL spool (#1401) |
 | `arbiter plugin` | [BETA] Manage arbiter plugins (API not yet stable) |
 | `arbiter report` | Bundle a replay run for bug reports |
 | `arbiter review` | Review artefacts (plans, code) against governance invariants |
@@ -749,6 +750,19 @@ Notary system — track semantic doc changes.
 
 - `arbiter notary check` — Validate Notary footer for staged doc changes (fails if footer missing)
 - `arbiter notary template` — Print expected Notary footer for staged doc changes
+
+## arbiter note
+
+Capture an out-of-scope finding to the per-agent JSONL spool (#1401).
+
+**Options:**
+
+- `--note <text>` — Finding text (alternative to the positional argument)
+- `--kind <kind>` — Finding class: dup|smell|risk|debt|note (default: note)
+- `--severity <sev>` — Severity band: low|med|high|info (default: info)
+- `--file <path>` — Repo-relative file the finding concerns
+- `--line <n>` — Line number the finding was seen at (excluded from the fingerprint)
+- `--dir <path>` — Project root (default: cwd)
 
 ## arbiter plugin
 
