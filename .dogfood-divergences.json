@@ -90,9 +90,5 @@
   {
     "path": "hooks/wiki-on-commit.mjs",
     "reason": "Arbiter self-dogfood: the arbiter-self wiki-on-commit.mjs is a direct copy of the template (no EJS expressions). Divergence is zero but the dogfood check compares against the rendered template output which may differ in whitespace. Divergence intentional (#1241, 2026-06-06)."
-  },
-  {
-    "path": "skills/wave-drain/SKILL.md",
-    "reason": "Probe Phase 0.5 harvest + canonical finding schema (#1404) added to the self orchestrator skill ahead of its .ejs template; downstream generation of the Probe loop (note/findings commands + /drain Phase 0.5 step) is tracked in #1406, which ships the consumer-side commands the Phase 0.5 step depends on. The template intentionally renders the pre-Probe skill until then."
   }
 ]
