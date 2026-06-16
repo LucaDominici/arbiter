@@ -120,7 +120,8 @@ if (targetRaw) {
   if (!isTestPath) {
     const manifest = parsePlanFilesManifest(planBody)
     if (manifest !== null && manifest.length > 0 && !manifest.includes(relForRedirect)) {
-      const issueRef = (planBody.match(/^\s+issues?\s*:\s*\[?\s*["']?(#?\d+)/m) ?? [])[1] ?? 'this task'
+      const issueRef =
+        (planBody.match(/^\s*issues?\s*:\s*\[?\s*["']?(#?\d+)/m) ?? [])[1] ?? 'this task'
       process.stdout.write(
         `[arbiter] OUT OF SCOPE for ${issueRef}: \`${relForRedirect}\` is not in the plan's files: manifest.\n` +
           `Run \`arbiter note "<finding>" --file ${relForRedirect}\` to capture it — do not fix it here.\n` +
@@ -221,13 +222,18 @@ function parsePlanFilesManifest(body) {
   if (!fmMatch) return null
   const fm = fmMatch[1]
   const lines = fm.split('\n')
-  const startIdx = lines.findIndex((l) => /^files\s*:\s*$/.test(l))
+  const startIdx = lines.findIndex((l) => /^\s*files\s*:\s*$/.test(l))
   if (startIdx === -1) return null
   const out = []
   for (let i = startIdx + 1; i < lines.length; i++) {
     const m = lines[i].match(/^\s+-\s+(.+?)\s*$/)
     if (!m) break // first non-list line ends the manifest
-    out.push(m[1].replace(/^["']|["']$/g, '').split('\\').join('/'))
+    out.push(
+      m[1]
+        .replace(/^["']|["']$/g, '')
+        .split('\\')
+        .join('/'),
+    )
   }
   return out.length > 0 ? out : null
 }

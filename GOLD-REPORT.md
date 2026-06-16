@@ -1,6 +1,6 @@
 # Gold Report — arbiter
 
-<!-- generated: 2026-06-16T00:08:12.270Z @ c5d17314 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
+<!-- generated: 2026-06-16T00:43:29.133Z @ af35f659 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
 
 ## Documentation (gold doc-set)
 
@@ -30,6 +30,6 @@ Engine: `node scripts/gold-audit.mjs` (registry-driven, code-computed, determini
 
 ## Conformance scorecard
 
-_Conformance CLI not built — run `npm run build` to include the scorecard._
+**Verdict: NON-CONFORMANT** — Score: 69.2%
 
-_See CONFORMANCE.md for the full scorecard._
+_See CONFORMANCE.md for the full dimension matrix._

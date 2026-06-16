@@ -57,13 +57,20 @@ function goldAudit() {
   }
 }
 
-/** Conformance scorecard output (#1397/C5) — null if the CLI is not built. */
+/** Conformance scorecard output (#1397/C5) — null only if the CLI is genuinely not built.
+ * `conformance --json` exits non-zero when the repo is NON-CONFORMANT, but still prints valid
+ * JSON on stdout — capture that so a non-conformant repo reports its real score, not "not built". */
 function conformanceReport() {
   try {
     const raw = execFileSync('node', ['dist/cli.js', 'conformance', '--json'], { cwd: CWD })
     return JSON.parse(raw.toString().trim())
-  } catch {
-    return null
+  } catch (err) {
+    const out = err && typeof err === 'object' && 'stdout' in err ? String(err.stdout ?? '') : ''
+    try {
+      return out.trim() ? JSON.parse(out.trim()) : null
+    } catch {
+      return null
+    }
   }
 }
 

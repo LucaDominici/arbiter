@@ -295,10 +295,7 @@ describe('generateClaude — batch-execution rule (#722)', () => {
 
   it('60-incidental-capture.md mandates arbiter note for out-of-scope findings', () => {
     generateClaude(claudeConfig())
-    const content = readFileSync(
-      join(dir, '.claude', 'rules', '60-incidental-capture.md'),
-      'utf-8',
-    )
+    const content = readFileSync(join(dir, '.claude', 'rules', '60-incidental-capture.md'), 'utf-8')
     expect(content).toMatch(/arbiter note/i)
     expect(content).toMatch(/out.of.scope|outside/i)
   })

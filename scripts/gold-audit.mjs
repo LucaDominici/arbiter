@@ -217,8 +217,7 @@ function main() {
   }
 
   const band = enriched.level
-  const toNext =
-    band.nextLevel === null ? '' : ` · ${band.toNextLevel} to ${band.nextLevel}`
+  const toNext = band.nextLevel === null ? '' : ` · ${band.toNextLevel} to ${band.nextLevel}`
   process.stdout.write(
     `gold-audit: ${band.level} (${band.brownfieldClass}) · score ${result.score}${toNext} · ` +
       `Y ${result.yCount}/${result.totals.checks} · RISKY ${result.riskyCount} ` +
@@ -229,7 +228,9 @@ function main() {
     for (const g of enriched.gaps) {
       process.stdout.write(`  ${g.dimension}:\n`)
       for (const c of g.checks) {
-        const ev = c.evidence ? ` [${c.evidence.file ?? ''}${c.evidence.detail ? `: ${c.evidence.detail}` : ''}]` : ''
+        const ev = c.evidence
+          ? ` [${c.evidence.file ?? ''}${c.evidence.detail ? `: ${c.evidence.detail}` : ''}]`
+          : ''
         process.stdout.write(`    ${c.verdict} ${c.id} ${c.title}${ev}\n`)
       }
     }

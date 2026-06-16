@@ -47,7 +47,8 @@ const E2E_DIR_NAMES = new Set(['e2e', 'playwright', 'cypress', 'integration-e2e'
 const SPEC_RE = /\.(?:spec|test|e2e)\.(?:ts|tsx|js|jsx|mjs)$/
 
 // Skip markers anchored to statement start (a string mention is not a skip).
-const SKIP_RE = /^(?:await\s+)?(?:test|it|describe)\.(?:skip|fixme)\s*\(|^x(?:test|it|describe)\s*\(/
+const SKIP_RE =
+  /^(?:await\s+)?(?:test|it|describe)\.(?:skip|fixme)\s*\(|^x(?:test|it|describe)\s*\(/
 const CRITICAL_RE = /@critical-path\b/
 const EXEMPT_RE = /skip-critical-e2e-exempt:\s*\S/
 

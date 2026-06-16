@@ -75,7 +75,7 @@ function parseCliTs(src) {
     // Look for the `.command('name')` line, then scan forward for .description and .option calls.
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const blockRe = new RegExp(
-      `\\.command\\('${escapedName}'\\)([\\s\\S]{0,2000}?)(?=\\.command\\('|const |var |let |\\bprogram\\b|$)`,
+      `\\.command\\('${escapedName}(?: [^']*)?'\\)([\\s\\S]{0,2000}?)(?=\\.command\\('|const |var |let |\\bprogram\\b|$)`,
     )
     const blockMatch = blockRe.exec(stripped)
     let description = ''
