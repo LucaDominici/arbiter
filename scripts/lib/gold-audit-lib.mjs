@@ -254,3 +254,64 @@ export function ratchet(current, baseline) {
 export function baselineOf(current) {
   return { score: current.score, yCount: current.yCount, dimensions: current.dimensions }
 }
+
+// ── #1414: deterministic gold-LEVEL band + "what's missing" gap report ──────────────────────────
+//
+// The level band maps a code-computed score (0–100) to a Target Maturity Level (L0–L3) keyed by
+// the repo's brownfieldClass: a heavy legacy repo reaches a given band at a LOWER score than a
+// greenfield gold repo (the realistic target differs by starting condition). Thresholds are the
+// minimum score required to ENTER each level; L0 is the floor (always entered).
+
+/** Per-class entry thresholds: [L1, L2, L3] minimum scores. gold = strictest, heavy = most lenient. */
+const LEVEL_THRESHOLDS = {
+  gold: [50, 75, 95],
+  light: [45, 70, 90],
+  medium: [40, 60, 85],
+  heavy: [30, 50, 75],
+}
+const LEVELS = ['L0', 'L1', 'L2', 'L3']
+
+/**
+ * Map a score to a level band for a brownfieldClass. Pure + deterministic.
+ * @returns { level, nextLevel, toNextLevel, brownfieldClass, thresholds }
+ */
+export function levelBand(score, brownfieldClass) {
+  const cls = Object.prototype.hasOwnProperty.call(LEVEL_THRESHOLDS, brownfieldClass)
+    ? brownfieldClass
+    : 'gold' // unknown class → strictest band (fail-safe, never over-credits)
+  const thresholds = LEVEL_THRESHOLDS[cls]
+  const s = Number.isFinite(score) ? score : 0
+  let idx = 0
+  for (let i = 0; i < thresholds.length; i++) if (s >= thresholds[i]) idx = i + 1
+  const level = LEVELS[idx]
+  const nextLevel = idx < LEVELS.length - 1 ? LEVELS[idx + 1] : null
+  const toNextLevel = nextLevel === null ? 0 : Math.max(0, Math.round((thresholds[idx] - s) * 10) / 10)
+  return { level, nextLevel, toNextLevel, brownfieldClass: cls, thresholds }
+}
+
+/**
+ * "What's missing" report: the checks with verdict N or P (the actionable gaps), grouped by
+ * dimension (family), each with its evidence. Y/NA/NV are excluded — you cannot close an NV (code
+ * can't verify it) or an NA (it doesn't apply) by working on it. Deterministic: dimensions sorted
+ * by id, checks in the already-stable id order from evaluate().
+ * @returns Array<{ dimension, title, checks: Array<{id,title,verdict,evidence,anchor}> }>
+ */
+export function gapReport(result) {
+  const checks = Array.isArray(result?.checks) ? result.checks : []
+  const byDim = new Map()
+  for (const c of checks) {
+    if (c.verdict !== 'N' && c.verdict !== 'P') continue
+    const dim = String(c.dimension ?? 'D-UNCLASSIFIED')
+    if (!byDim.has(dim)) byDim.set(dim, [])
+    byDim.get(dim).push({
+      id: c.id,
+      title: c.title,
+      verdict: c.verdict,
+      anchor: c.anchor ?? null,
+      evidence: c.evidence ?? null,
+    })
+  }
+  return [...byDim.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([dimension, gaps]) => ({ dimension, checks: gaps }))
+}

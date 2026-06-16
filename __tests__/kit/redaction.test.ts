@@ -98,6 +98,7 @@ describe('scanForRedactedTokens — real committed files', () => {
   const files = scanDirs.flatMap((d) => collectFiles(d, exts)).filter((f) => !skip.has(f))
 
   if (files.length === 0) {
+    // muted-test-exempt: no files to scan yet — a conditional no-op placeholder, not a real test.
     it.skip('no committed kit/docs/.github files yet', () => {})
     return
   }

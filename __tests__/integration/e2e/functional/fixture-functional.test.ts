@@ -83,6 +83,7 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
       // (e.g. missing `scripts/check-workflow-perms.mjs`). The harness is
       // ready; wave-D fixes the underlying templates so the generated L1 gate
       // passes inside the baked tmpdir.
+      // muted-test-exempt: pending #1042 (wave-D template fix); intentional, tracked.
       it.skip(`pending #1042: bake + execute generated L1 gate (${skipReason ?? 'toolchain present, gate broken'})`, async () => {
         await runInit({
           yes: true,

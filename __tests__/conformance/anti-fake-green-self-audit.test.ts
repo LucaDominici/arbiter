@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // N2 self-audit ("audit the auditors", #1412): proves each anti-fake-green guard still DETECTS
 // its violation. A guard that can't detect its own violation is itself a falso-green. Runs as a
-// unit test (npm test) — i.e. before the gate body in check-all. Tests the pure cores offline.
+// unit test (npm test) — i.e. before the gate body in check-all. The gh-audit guards are tested
+// via their pure cores offline; the file-scan guards (#1/#6/E10) are exercised end-to-end on
+// synthetic fixtures (a violation must BLOCK with exit 1; clean / NA must PASS with exit 0).
 import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import {
   classifyReview,
   classifyOwnership,
@@ -10,6 +16,20 @@ import {
   dependabotBumpLevel,
   V,
 } from '../../scripts/lib/anti-fake-green-core.mjs'
+
+/** Run a file-scan guard against a synthetic fixture dir; return its exit code. */
+function guardExit(script: string, dir: string): number {
+  const r = spawnSync('node', [resolve('scripts', script), '--dir', dir], { encoding: 'utf-8' })
+  return r.status ?? 1
+}
+function withTmp<T>(prefix: string, fn: (dir: string) => T): T {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  try {
+    return fn(dir)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 
 const mk = (over: Record<string, unknown> = {}) => ({
   author: { login: 'alice' },
@@ -112,5 +132,80 @@ describe('anti-fake-green self-audit — #10 ownership concentration', () => {
     expect(JSON.stringify(classifyOwnership(data, {}))).toBe(
       JSON.stringify(classifyOwnership(data, {})),
     )
+  })
+})
+
+describe('anti-fake-green self-audit — #1 muted-test (file-scan)', () => {
+  it('liveness: an it.skip on a gate test BLOCKS (exit 1)', () => {
+    withTmp('n2-muted-bad-', (dir) => {
+      mkdirSync(join(dir, '__tests__'), { recursive: true })
+      writeFileSync(join(dir, '__tests__', 'a.test.ts'), "it.skip('muted', () => {})\n")
+      expect(guardExit('check-muted-test.mjs', dir)).toBe(1)
+    })
+  })
+  it('clean populated test dir PASSES (exit 0)', () => {
+    withTmp('n2-muted-ok-', (dir) => {
+      mkdirSync(join(dir, '__tests__'), { recursive: true })
+      writeFileSync(join(dir, '__tests__', 'a.test.ts'), "it('ok', () => { expect(1).toBe(1) })\n")
+      expect(guardExit('check-muted-test.mjs', dir)).toBe(0)
+    })
+  })
+  it('NO-DATA (no test files) is a SKIP at exit 0, never a manufactured pass', () => {
+    withTmp('n2-muted-nodata-', (dir) => {
+      expect(guardExit('check-muted-test.mjs', dir)).toBe(0)
+    })
+  })
+})
+
+describe('anti-fake-green self-audit — #6 skip-critical-e2e (file-scan)', () => {
+  it('liveness: a skipped e2e spec BLOCKS (exit 1)', () => {
+    withTmp('n2-e2e-bad-', (dir) => {
+      writeFileSync(join(dir, 'playwright.config.ts'), 'export default {}\n')
+      mkdirSync(join(dir, 'e2e'), { recursive: true })
+      writeFileSync(join(dir, 'e2e', 'a.spec.ts'), "test.skip('x', async () => {})\n")
+      expect(guardExit('check-skip-critical-e2e.mjs', dir)).toBe(1)
+    })
+  })
+  it('clean e2e spec PASSES (exit 0)', () => {
+    withTmp('n2-e2e-ok-', (dir) => {
+      writeFileSync(join(dir, 'playwright.config.ts'), 'export default {}\n')
+      mkdirSync(join(dir, 'e2e'), { recursive: true })
+      writeFileSync(join(dir, 'e2e', 'a.spec.ts'), "test('x', async () => {})\n")
+      expect(guardExit('check-skip-critical-e2e.mjs', dir)).toBe(0)
+    })
+  })
+  it('no e2e config → NA at exit 0 (nothing to skip), never a manufactured fail', () => {
+    withTmp('n2-e2e-na-', (dir) => {
+      expect(guardExit('check-skip-critical-e2e.mjs', dir)).toBe(0)
+    })
+  })
+})
+
+describe('anti-fake-green self-audit — E10 no-stub-redirects (file-scan)', () => {
+  const STUB = '# Moved\n\nThis page has moved to [the new home](./new.md).\n'
+  it('liveness: a stale "Moved →" stub BLOCKS (exit 1)', () => {
+    withTmp('n2-stub-bad-', (dir) => {
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'old.md'), STUB)
+      expect(guardExit('check-no-stub-redirects.mjs', dir)).toBe(1)
+    })
+  })
+  it('a real doc PASSES (exit 0)', () => {
+    withTmp('n2-stub-ok-', (dir) => {
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(
+        join(dir, 'docs', 'real.md'),
+        '# Real\n\n' + 'genuine content here. '.repeat(30) + '\n',
+      )
+      expect(guardExit('check-no-stub-redirects.mjs', dir)).toBe(0)
+    })
+  })
+  it('an open-ended allowlist (no EXPIRES) does NOT disarm the guard (exit 1)', () => {
+    withTmp('n2-stub-allow-', (dir) => {
+      mkdirSync(join(dir, 'docs'), { recursive: true })
+      writeFileSync(join(dir, 'docs', 'old.md'), STUB)
+      writeFileSync(join(dir, '.stub-redirects-allowlist'), 'docs/old.md  # no expiry\n')
+      expect(guardExit('check-no-stub-redirects.mjs', dir)).toBe(1)
+    })
   })
 })

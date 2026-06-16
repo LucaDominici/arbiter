@@ -1,0 +1,142 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// CATALOG: anti-fake-green E10 (no-stub-redirects, #1412). A stale "Moved → X" stub .md is a
+// CATALOG:   falso-green for docs: the link checker passes and the page "exists", but it is a
+// CATALOG:   redirect husk with no real content — a green doc signal not backed by a real doc.
+// CATALOG:   Flags a .md that is (a) a heading/leading line with a redirect VERB (Moved / Relocated
+// CATALOG:   / Renamed / This page has moved / See instead), (b) a short body, and (c) exactly one
+// CATALOG:   .md link. Allowlist (.stub-redirects-allowlist) entries REQUIRE a hard `EXPIRES: YYYY-
+// CATALOG:   MM-DD` date — an open-ended or lapsed exemption is itself a falso-green, so it fails
+// CATALOG:   closed. NO-DATA (no docs) is a PASS (nothing to flag), not a manufactured fail.
+// CATALOG: Rejected fold-in into check-doc-links.mjs (link RESOLUTION, not stub-husk detection) and
+// CATALOG:   check-doc-style.mjs (prose style, not redirect-shape detection) — different axis.
+// selfOnly: arbiter-repo-only for now; downstream consumer-project gen DEFERRED to #1419 (LU-1).
+// Exit codes per INV-53: 0=PASS, 1=FAIL (un-allowlisted stub / bad allowlist), 2=ERROR.
+// Usage: node scripts/check-no-stub-redirects.mjs [--dir <path>] [--help]
+import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs'
+import { join, resolve, relative } from 'node:path'
+
+const args = process.argv.slice(2)
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write(
+    'Usage: node scripts/check-no-stub-redirects.mjs [--dir <path>]\n' +
+      '  Fails on a stale "Moved → X" stub .md unless allowlisted with a future EXPIRES: date.\n' +
+      '  Allowlist file: .stub-redirects-allowlist (one "path  EXPIRES: YYYY-MM-DD  # note" per line).\n',
+  )
+  process.exit(0)
+}
+const dirArgIdx = args.indexOf('--dir')
+const ROOT = dirArgIdx >= 0 && args[dirArgIdx + 1] ? resolve(args[dirArgIdx + 1]) : process.cwd()
+const ALLOWLIST = '.stub-redirects-allowlist'
+
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
+
+// A redirect VERB anchoring a stub. Matched against the leading non-empty lines of the doc.
+const REDIRECT_VERB_RE =
+  /\b(?:moved|relocated|renamed|has moved|now lives|see (?:instead|the new)|redirect(?:ed)? to)\b/i
+const MD_LINK_RE = /\[[^\]]*\]\(([^)]+\.md[^)]*)\)/g
+// A stub is "short": few non-trivial body words after stripping markdown punctuation.
+const SHORT_BODY_WORDS = 40
+
+function isStub(content) {
+  const lines = content.split('\n')
+  const nonEmpty = lines.map((l) => l.trim()).filter((l) => l.length > 0)
+  if (nonEmpty.length === 0) return false
+  // The redirect verb must appear in the first few lines (heading or lead paragraph).
+  const head = nonEmpty.slice(0, 4).join(' ')
+  if (!REDIRECT_VERB_RE.test(head)) return false
+  // Exactly one .md link in the whole body.
+  const links = [...content.matchAll(MD_LINK_RE)]
+  if (links.length !== 1) return false
+  // Short body: count words excluding markdown link/heading punctuation.
+  const words = content
+    .replace(MD_LINK_RE, ' ')
+    .replace(/[#>*_`[\]()]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 0)
+  return words.length <= SHORT_BODY_WORDS
+}
+
+/** Parse the allowlist into { relPath → { expires: Date|null } }. */
+function loadAllowlist() {
+  const abs = join(ROOT, ALLOWLIST)
+  if (!existsSync(abs)) return new Map()
+  const map = new Map()
+  for (const raw of readFileSync(abs, 'utf-8').split('\n')) {
+    const line = raw.replace(/#.*$/, '').trim()
+    if (line.length === 0) continue
+    const m = /^(\S+)\s*(?:EXPIRES:\s*(\d{4}-\d{2}-\d{2}))?\s*$/.exec(line)
+    if (!m) continue
+    const expires = m[2] ? new Date(m[2] + 'T00:00:00Z') : null
+    map.set(m[1].replace(/\\/g, '/'), { expires, raw: line })
+  }
+  return map
+}
+
+function collectMd(dir, acc) {
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    if (SKIP_DIRS.has(entry)) continue
+    const full = join(dir, entry)
+    let st
+    try {
+      st = statSync(full)
+    } catch {
+      continue
+    }
+    if (st.isDirectory()) collectMd(full, acc)
+    else if (entry.endsWith('.md')) acc.push(full)
+  }
+}
+
+function main() {
+  const allow = loadAllowlist()
+  const now = Date.now()
+  const files = []
+  collectMd(ROOT, files)
+
+  const violations = []
+  for (const file of files) {
+    let content
+    try {
+      content = readFileSync(file, 'utf-8')
+    } catch {
+      continue
+    }
+    if (!isStub(content)) continue
+    const rel = relative(ROOT, file).replace(/\\/g, '/')
+    const entry = allow.get(rel)
+    if (entry) {
+      if (entry.expires === null || Number.isNaN(entry.expires.getTime())) {
+        violations.push(`  ${rel}: allowlisted but missing a valid EXPIRES: YYYY-MM-DD date`)
+      } else if (entry.expires.getTime() < now) {
+        violations.push(`  ${rel}: allowlist EXPIRES ${entry.raw} has lapsed — remove the stub`)
+      }
+      // else: future EXPIRES → permitted, no violation.
+      continue
+    }
+    violations.push(`  ${rel}: stale "Moved →" stub (redirect husk) — restore content or delete`)
+  }
+
+  if (violations.length > 0) {
+    process.stderr.write(
+      `check-no-stub-redirects: ${violations.length} stub redirect(s) — a redirect husk is a falso-green:\n`,
+    )
+    for (const v of violations) process.stderr.write(v + '\n')
+    return 1
+  }
+  process.stdout.write(`check-no-stub-redirects: OK — ${files.length} .md file(s), no stub husks\n`)
+  return 0
+}
+
+try {
+  process.exit(main())
+} catch (e) {
+  process.stderr.write(`check-no-stub-redirects: ERROR — ${e?.message ?? e}\n`)
+  process.exit(2)
+}
