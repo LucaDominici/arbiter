@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/gold-audit.md'
-source_sha: 'e906fbdc624221e0903ae04d60ccb430e4b21b8f'
+source_sha: '04fdbc5ae11a8e839367c9763c92b86a54debda4'
 last_updated: '2026-06-16'
 ---
 
@@ -145,6 +145,11 @@ npm alias: `npm run gold:audit`. Wired into `scripts/check-all.mjs` (the `gold-a
 and `gold-audit false-gap` checks, L1) and mirrored in the local↔CI parity map. The engine's
 score and dimension table render into `GOLD-REPORT.md` via `scripts/gold-report.mjs`.
 
-## Exit codes
+## Downstream generation (#1419)
 
-`0` pass/advisory · `1` failure (regression / RISKY / stale) · `2` IO error.
+`arbiter init`/`update` emit a **thin runner** `scripts/gold-audit.mjs` into governed projects that
+delegates to `npx arbiter gold-audit --check` (the engine ships in the arbiter CLI — never copied), plus
+the consumer-data templates `standards/gold-registry.yml` (+ per-stack), `standards/thresholds.yml`, and
+`standards/gold-doc-set.yml`. The generated `check-all.mjs` wires it **advisory** (`run
+
+*[content truncated — see source for full text]*
