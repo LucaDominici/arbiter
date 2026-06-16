@@ -123,6 +123,15 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'conformance.mjs'],
     tpl: 'scripts/conformance.mjs.ejs',
   },
+  // #1419: gold-audit thin runner. Delegates to `npx arbiter gold-audit --check`
+  // (the engine + `yaml` dep stay in arbiter's env). Emitted unconditionally and
+  // wired ADVISORY (runWarnCheck, plain --check) in check-all.mjs so a fresh consumer
+  // bootstraps its baseline on first run with no day-1 redness. The consumer-DATA
+  // standards/* that this runner reads are emitted by generateGoldKit (gold-kit gen).
+  {
+    rel: ['scripts', 'gold-audit.mjs'],
+    tpl: 'scripts/gold-audit.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {
