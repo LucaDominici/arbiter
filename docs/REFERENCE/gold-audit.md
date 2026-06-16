@@ -144,6 +144,17 @@ npm alias: `npm run gold:audit`. Wired into `scripts/check-all.mjs` (the `gold-a
 and `gold-audit false-gap` checks, L1) and mirrored in the local↔CI parity map. The engine's
 score and dimension table render into `GOLD-REPORT.md` via `scripts/gold-report.mjs`.
 
+## Level-up skill family (#1420 / #1422)
+
+- **`/gold-audit`** (#1420) — read-only measurement front door. Runs `arbiter gold-audit --json` and
+  reports the level band + a prioritized "what's missing" list (N/P checks grouped by family, with
+  evidence). It never re-scores (no AI scoring) and never changes code.
+- **`/close-gold-gap`** (#1422) + `arbiter close-gold-gap <gapId>` — emits the deterministic remediation
+  recipe for one gap, keyed on the check's `type`/`dimension` via `src/remediations/playbook-catalog.json`.
+  Anti-fake-green is **structural**: `manual`/NV checks route to human-only playbooks (no code recipe), a
+  doc-set scaffold-only recipe yields verdict P (presence ≠ closure), and no recipe contains a suppression
+  step. The `/levelup` orchestrator (#1421) consumes this catalog to raise the level honestly, wave by wave.
+
 ## Downstream generation (#1419)
 
 `arbiter init`/`update` emit a **thin runner** `scripts/gold-audit.mjs` into governed projects that

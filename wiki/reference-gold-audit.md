@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/gold-audit.md'
-source_sha: '04fdbc5ae11a8e839367c9763c92b86a54debda4'
+source_sha: '2cf4ee7a471f9a0b07eb5abaca4c459ca949862c'
 last_updated: '2026-06-16'
 ---
 
@@ -145,11 +145,12 @@ npm alias: `npm run gold:audit`. Wired into `scripts/check-all.mjs` (the `gold-a
 and `gold-audit false-gap` checks, L1) and mirrored in the local↔CI parity map. The engine's
 score and dimension table render into `GOLD-REPORT.md` via `scripts/gold-report.mjs`.
 
-## Downstream generation (#1419)
+## Level-up skill family (#1420 / #1422)
 
-`arbiter init`/`update` emit a **thin runner** `scripts/gold-audit.mjs` into governed projects that
-delegates to `npx arbiter gold-audit --check` (the engine ships in the arbiter CLI — never copied), plus
-the consumer-data templates `standards/gold-registry.yml` (+ per-stack), `standards/thresholds.yml`, and
-`standards/gold-doc-set.yml`. The generated `check-all.mjs` wires it **advisory** (`run
+- **`/gold-audit`** (#1420) — read-only measurement front door. Runs `arbiter gold-audit --json` and
+  reports the level band + a prioritized "what's missing" list (N/P checks grouped by family, with
+  evidence). It never re-scores (no AI scoring) and never changes code.
+- **`/close-gold-gap`** (#1422) + `arbiter close-gold-gap <gapId>` — emits the deterministic remediation
+  recipe for
 
 *[content truncated — see source for full text]*
