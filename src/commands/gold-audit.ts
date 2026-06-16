@@ -124,7 +124,7 @@ function renderReport(p: GoldAuditPayload): string {
  * Run the gold-audit engine and present the level band + gap report.
  * Reuses the engine (no second engine); returns the enriched payload for callers/tests.
  */
-export async function runGoldAudit(opts: GoldAuditOptions = {}): Promise<GoldAuditResult> {
+export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   const repo = opts.repo ? resolve(opts.repo) : process.cwd()
   const cls = resolveClass(repo, opts.class)
   const script = resolve(packageRoot(), 'scripts/gold-audit.mjs')

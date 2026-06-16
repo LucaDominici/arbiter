@@ -56,7 +56,10 @@ function isTestFile(name) {
 const MUTE_PATTERNS = [
   { re: /^(?:await\s+|return\s+)?(?:it|test|describe)\.skip\s*\(/, label: 'js/ts .skip()' },
   { re: /^(?:await\s+|return\s+)?x(?:it|test|describe)\s*\(/, label: 'js/ts xit/xtest/xdescribe' },
-  { re: /^(?:await\s+|return\s+)?(?:it|test|describe)\.(?:todo|failing)\s*\(/, label: 'js/ts .todo/.failing()' },
+  {
+    re: /^(?:await\s+|return\s+)?(?:it|test|describe)\.(?:todo|failing)\s*\(/,
+    label: 'js/ts .todo/.failing()',
+  },
   { re: /^@Disabled\b/, label: 'jvm @Disabled' },
   { re: /^@Ignore\b/, label: 'jvm @Ignore' },
   { re: /^#\[ignore\]/, label: 'rust #[ignore]' },
@@ -134,7 +137,9 @@ function main() {
     for (const v of violations) process.stderr.write(v + '\n')
     return 1
   }
-  process.stdout.write(`check-muted-test: OK — ${files.length} gate test file(s), no skip markers\n`)
+  process.stdout.write(
+    `check-muted-test: OK — ${files.length} gate test file(s), no skip markers\n`,
+  )
   return 0
 }
 

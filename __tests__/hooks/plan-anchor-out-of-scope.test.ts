@@ -24,23 +24,25 @@ function configFor() {
   })
 }
 
-// A valid Context Block with a machine-parseable `files:` manifest.
+// A valid Context Block (canonical nested format — fields indented under `context:`, matching
+// docs/REFERENCE/plan-template.md) with a machine-parseable `files:` manifest. This is the format
+// the committed-hook Context-Block validator accepts, so the redirect is exercised on a real plan
+// shape (not a flat fixture the validator would reject).
 const PLAN_WITH_MANIFEST = `---
-context: >-
-  Test plan with a files manifest.
-issues: ["#1402"]
-type: task
-pipeline: ship
-branch_convention: "task/#<issue>-<slug>"
-base_branch: main
-key_constraints:
-  - none
-red_team_warnings:
-  - none
-estimate: "S"
-files:
-  - src/in-scope.ts
-  - src/also-in-scope.ts
+context:
+  issue: "#1402"
+  type: task
+  pipeline: ship
+  branch_convention: "task/#<issue>-<slug>"
+  base_branch: main
+  key_constraints:
+    - none
+  red_team_warnings:
+    - none
+  estimate: "S"
+  files:
+    - src/in-scope.ts
+    - src/also-in-scope.ts
 ---
 
 # Plan
@@ -48,18 +50,17 @@ Step 1: do something.
 `
 
 const PLAN_NO_MANIFEST = `---
-context: >-
-  Test plan without a files manifest.
-issues: ["#1402"]
-type: task
-pipeline: ship
-branch_convention: "task/#<issue>-<slug>"
-base_branch: main
-key_constraints:
-  - none
-red_team_warnings:
-  - none
-estimate: "S"
+context:
+  issue: "#1402"
+  type: task
+  pipeline: ship
+  branch_convention: "task/#<issue>-<slug>"
+  base_branch: main
+  key_constraints:
+    - none
+  red_team_warnings:
+    - none
+  estimate: "S"
 ---
 
 # Plan

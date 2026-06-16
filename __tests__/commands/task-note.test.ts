@@ -45,7 +45,12 @@ describe('arbiter note — per-agent JSONL finding spool (#1401)', () => {
   })
 
   it('(f) appends exactly one JSONL line and returns success (exit-0 semantics)', () => {
-    const result = runTaskNote({ dir, note: 'duplicate helper in foo.ts', kind: 'dup', severity: 'low' })
+    const result = runTaskNote({
+      dir,
+      note: 'duplicate helper in foo.ts',
+      kind: 'dup',
+      severity: 'low',
+    })
     expect(result.ok).toBe(true)
     const all = readAllFindings(dir)
     expect(all).toHaveLength(1)
@@ -53,7 +58,14 @@ describe('arbiter note — per-agent JSONL finding spool (#1401)', () => {
   })
 
   it('(e) auto-populates metadata: ts, kind, severity, foundDuring, fingerprint', () => {
-    runTaskNote({ dir, note: 'risky cast', kind: 'risk', severity: 'med', file: 'src/x.ts', line: 12 })
+    runTaskNote({
+      dir,
+      note: 'risky cast',
+      kind: 'risk',
+      severity: 'med',
+      file: 'src/x.ts',
+      line: 12,
+    })
     const [entry] = readAllFindings(dir)
     expect(entry).toBeDefined()
     expect(typeof entry?.ts).toBe('string')
@@ -90,8 +102,20 @@ describe('arbiter note — per-agent JSONL finding spool (#1401)', () => {
   })
 
   it('(c) notes differing only in trailing/inner whitespace → identical fingerprint', () => {
-    runTaskNote({ dir, note: 'collapse   me', kind: 'smell', file: 'src/z.ts', shardOverride: 's1' })
-    runTaskNote({ dir, note: '  collapse me  ', kind: 'smell', file: 'src/z.ts', shardOverride: 's2' })
+    runTaskNote({
+      dir,
+      note: 'collapse   me',
+      kind: 'smell',
+      file: 'src/z.ts',
+      shardOverride: 's1',
+    })
+    runTaskNote({
+      dir,
+      note: '  collapse me  ',
+      kind: 'smell',
+      file: 'src/z.ts',
+      shardOverride: 's2',
+    })
     const all = readAllFindings(dir)
     expect(all).toHaveLength(2)
     expect(all[0]?.fingerprint).toBe(all[1]?.fingerprint)
@@ -100,7 +124,14 @@ describe('arbiter note — per-agent JSONL finding spool (#1401)', () => {
   it('(d) ts and sha never affect the fingerprint', () => {
     runTaskNote({ dir, note: 'same finding', kind: 'dup', file: 'src/a.ts', line: 1 })
     // second run a moment later (different ts) and a forced different sha — fingerprint must match
-    runTaskNote({ dir, note: 'same finding', kind: 'dup', file: 'src/a.ts', line: 99, shaOverride: 'deadbeef' })
+    runTaskNote({
+      dir,
+      note: 'same finding',
+      kind: 'dup',
+      file: 'src/a.ts',
+      line: 99,
+      shaOverride: 'deadbeef',
+    })
     const all = readAllFindings(dir)
     expect(all).toHaveLength(2)
     // ts differs run-to-run but fingerprint is stable

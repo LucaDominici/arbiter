@@ -69,11 +69,11 @@ With INV-11/12/13 as `alwaysActive: true`, they appear in AGENTS.md and GLOBAL_I
 
 Repository content hygiene is enforced by three **non-overlapping** scanners, each owning a distinct failure class. The split exists because no single scanner catches all three, and the gaps between them are exactly where real leaks hide:
 
-| Scanner                          | Targets                                                                   | Skips                                                  | INV     |
-| -------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- | ------- |
-| **gitleaks**                     | SECRET PATTERNS in tracked text (API keys, tokens, private-key headers)   | files with no secret-shaped match; binary content     | INV-11  |
-| **pii-scan.mjs**                 | TEXT PII (emails, names, phone numbers) in source/tests/logs              | **binaries by extension** (`.png`, `.jpg`, … skipped) | INV-12  |
-| **check-no-tracked-artifacts.mjs** | DATA/STATE files (`*.sqlite`/`*.db*`) + build artifacts (`*.tgz`) + compiled binaries (magic-byte ELF/Mach-O/PE) | allowlisted fixtures + font/image/`.wasm`/`.pdf` | INV-117/129 |
+| Scanner                            | Targets                                                                                                          | Skips                                                 | INV         |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------- |
+| **gitleaks**                       | SECRET PATTERNS in tracked text (API keys, tokens, private-key headers)                                          | files with no secret-shaped match; binary content     | INV-11      |
+| **pii-scan.mjs**                   | TEXT PII (emails, names, phone numbers) in source/tests/logs                                                     | **binaries by extension** (`.png`, `.jpg`, … skipped) | INV-12      |
+| **check-no-tracked-artifacts.mjs** | DATA/STATE files (`*.sqlite`/`*.db*`) + build artifacts (`*.tgz`) + compiled binaries (magic-byte ELF/Mach-O/PE) | allowlisted fixtures + font/image/`.wasm`/`.pdf`      | INV-117/129 |
 
 **Why a committed `finance.sqlite` trips none of the first two:** it carries no secret-shaped token (gitleaks: clean), and it is a binary so the PII scan skips it by extension (PII-scan: not even read). A SQLite database can hold thousands of PII rows — names, emails, financial records — and pass both secret and PII gates silently. INV-129's `check-no-tracked-artifacts.mjs` is the **only** gate that catches it, by presence (`git ls-files` glob) and by magic-byte binary sniff. This is the load-bearing retroactive fix: it catches files already in the index, where the stack-aware `.gitignore` (greenfield-prevention only, `skipIfExists:true`) cannot help.
 

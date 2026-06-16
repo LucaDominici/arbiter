@@ -37,7 +37,10 @@ describe('check-muted-test (guard #1, #1412)', () => {
   it('clean populated test dir → PASS (exit 0)', () => {
     const { dir, cleanup } = makeRepo()
     try {
-      writeFileSync(join(dir, '__tests__', 'a.test.ts'), "it('works', () => { expect(1).toBe(1) })\n")
+      writeFileSync(
+        join(dir, '__tests__', 'a.test.ts'),
+        "it('works', () => { expect(1).toBe(1) })\n",
+      )
       const r = run(dir)
       expect(r.status).toBe(0)
     } finally {

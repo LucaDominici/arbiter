@@ -60,7 +60,10 @@ function noClaimTranscript(dir: string): string {
   const p = join(dir, 'transcript.jsonl')
   const obj = {
     type: 'assistant',
-    message: { role: 'assistant', content: [{ type: 'text', text: 'still working on the parser' }] },
+    message: {
+      role: 'assistant',
+      content: [{ type: 'text', text: 'still working on the parser' }],
+    },
   }
   writeFileSync(p, JSON.stringify(obj) + '\n')
   return p
@@ -69,7 +72,12 @@ function noClaimTranscript(dir: string): string {
 function runHook(hookPath: string, dir: string, transcriptPath: string) {
   return spawnSync('node', [hookPath], {
     cwd: dir,
-    input: JSON.stringify({ hook_event_name: 'Stop', session_id: 's1', cwd: dir, transcript_path: transcriptPath }),
+    input: JSON.stringify({
+      hook_event_name: 'Stop',
+      session_id: 's1',
+      cwd: dir,
+      transcript_path: transcriptPath,
+    }),
     encoding: 'utf-8',
   })
 }

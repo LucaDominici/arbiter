@@ -285,7 +285,8 @@ export function levelBand(score, brownfieldClass) {
   for (let i = 0; i < thresholds.length; i++) if (s >= thresholds[i]) idx = i + 1
   const level = LEVELS[idx]
   const nextLevel = idx < LEVELS.length - 1 ? LEVELS[idx + 1] : null
-  const toNextLevel = nextLevel === null ? 0 : Math.max(0, Math.round((thresholds[idx] - s) * 10) / 10)
+  const toNextLevel =
+    nextLevel === null ? 0 : Math.max(0, Math.round((thresholds[idx] - s) * 10) / 10)
   return { level, nextLevel, toNextLevel, brownfieldClass: cls, thresholds }
 }
 

@@ -51,7 +51,7 @@ function engineJson(args: string[] = []): Record<string, unknown> {
 describe('runGoldAudit (#1414 thin wrapper)', () => {
   it('returns the engine score + a level band + gaps', async () => {
     writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
-    const res = await runGoldAudit({ repo: dir, json: true })
+    const res = runGoldAudit({ repo: dir, json: true })
     expect(res.exitCode).toBe(0)
     expect(res.payload).toBeTruthy()
     expect(typeof res.payload!.score).toBe('number')
@@ -63,7 +63,7 @@ describe('runGoldAudit (#1414 thin wrapper)', () => {
   it('PARITY: core verdicts equal `gold-audit.mjs --json` (one engine, not two)', async () => {
     writeFileSync(join(dir, 'README.md'), '# r\n')
     // README present but no "install" → GA-01 Y, GA-02 N.
-    const cli = await runGoldAudit({ repo: dir, json: true, class: 'gold' })
+    const cli = runGoldAudit({ repo: dir, json: true, class: 'gold' })
     const engine = engineJson(['--class', 'gold'])
     const cliVerdicts = cli.payload!.checks.map((c) => ({ id: c.id, verdict: c.verdict }))
     const engVerdicts = (engine.checks as Array<{ id: string; verdict: string }>).map((c) => ({
@@ -77,13 +77,13 @@ describe('runGoldAudit (#1414 thin wrapper)', () => {
 
   it('--class overrides the level-band class', async () => {
     writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
-    const res = await runGoldAudit({ repo: dir, json: true, class: 'heavy' })
+    const res = runGoldAudit({ repo: dir, json: true, class: 'heavy' })
     expect(res.payload!.level.brownfieldClass).toBe('heavy')
   })
 
   it('the "what is missing" gaps list only N/P checks with evidence', async () => {
     // README missing → GA-01 N, GA-02 N.
-    const res = await runGoldAudit({ repo: dir, json: true })
+    const res = runGoldAudit({ repo: dir, json: true })
     const docs = res.payload!.gaps.find((g) => g.dimension === 'D-DOCS')
     expect(docs).toBeTruthy()
     expect(docs!.checks.every((c) => c.verdict === 'N' || c.verdict === 'P')).toBe(true)
@@ -93,7 +93,7 @@ describe('runGoldAudit (#1414 thin wrapper)', () => {
   it('no registry → SKIP (exit 0), never a manufactured fail', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'gold-audit-cmd-empty-'))
     try {
-      const res = await runGoldAudit({ repo: empty, json: true })
+      const res = runGoldAudit({ repo: empty, json: true })
       expect(res.exitCode).toBe(0)
     } finally {
       rmSync(empty, { recursive: true, force: true })

@@ -867,32 +867,30 @@ review
 
 program
   .command('gold-audit [repo]')
-  .description('Deterministic gold-LEVEL band + "what\'s missing" report (#1414, wraps the engine)')
+  .description('Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)')
   .option('--stack <stack>', 'Per-stack registry selector (standards/gold-registry.<stack>.yml)')
   .option('--class <class>', 'Brownfield class for the level band: gold|light|medium|heavy')
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action(
-    async (repo: string | undefined, opts: { stack?: string; class?: string; json: boolean }) => {
-      const cls =
-        opts.class === 'gold' ||
-        opts.class === 'light' ||
-        opts.class === 'medium' ||
-        opts.class === 'heavy'
-          ? (opts.class as BrownfieldClass)
-          : undefined
-      if (opts.class !== undefined && cls === undefined) {
-        printCliError(`invalid --class "${opts.class}". Valid: gold, light, medium, heavy.`)
-        process.exit(1)
-      }
-      const result = await runGoldAudit({
-        ...(repo !== undefined ? { repo } : {}),
-        ...(opts.stack !== undefined ? { stack: opts.stack } : {}),
-        ...(cls !== undefined ? { class: cls } : {}),
-        json: opts.json,
-      })
-      process.exit(result.exitCode)
-    },
-  )
+  .action((repo: string | undefined, opts: { stack?: string; class?: string; json: boolean }) => {
+    const cls =
+      opts.class === 'gold' ||
+      opts.class === 'light' ||
+      opts.class === 'medium' ||
+      opts.class === 'heavy'
+        ? opts.class
+        : undefined
+    if (opts.class !== undefined && cls === undefined) {
+      printCliError(`invalid --class "${opts.class}". Valid: gold, light, medium, heavy.`)
+      process.exit(1)
+    }
+    const result = runGoldAudit({
+      ...(repo !== undefined ? { repo } : {}),
+      ...(opts.stack !== undefined ? { stack: opts.stack } : {}),
+      ...(cls !== undefined ? { class: cls } : {}),
+      json: opts.json,
+    })
+    process.exit(result.exitCode)
+  })
 
 const verify = program
   .command('verify')
@@ -2474,7 +2472,9 @@ function conformanceAction(opts: {
     const summary = computeSummary(result.dimensions)
     process.stdout.write(renderConformanceText(result.dimensions, summary) + '\n')
   }
-  process.stdout.write('See CONFORMANCE.md for full scorecard\n')
+  if (!opts.json && !opts.markdown) {
+    process.stdout.write('See CONFORMANCE.md for full scorecard\n')
+  }
   process.exit(result.exitCode)
 }
 
