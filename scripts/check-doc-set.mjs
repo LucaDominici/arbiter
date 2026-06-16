@@ -16,12 +16,19 @@
 // Exit codes (INV contract): 0 = pass/advisory, 1 = failure/error.
 //
 // Usage:
-//   node scripts/check-doc-set.mjs [--strict] [--json] [--generate] [--manifest P] [--profile P] [--help]
-//     --strict     exit 1 if any mandatory doc is missing (default: advisory, exit 0)
-//     --json       emit the audit as JSON
-//     --generate   scaffold stub files for missing mandatory+recommended .md docs
-//     --manifest   manifest path (default standards/gold-doc-set.yml)
-//     --profile    overlay profile path (default standards/doc-profile)
+//   node scripts/check-doc-set.mjs [--strict] [--json] [--generate] [--refresh-stubs]
+//     [--manifest P] [--profile P] [--help]
+//     --strict        exit 1 if any mandatory doc is missing (default: advisory, exit 0)
+//     --json          emit the audit as JSON
+//     --generate      scaffold stub files for missing mandatory+recommended .md docs
+//     --refresh-stubs (with --generate) re-render a doc IN PLACE only if it is byte-equal to the
+//                     freshly rendered stub — a real, hand-written doc is NEVER overwritten
+//     --manifest      manifest path (default standards/gold-doc-set.yml)
+//     --profile       overlay profile path (default standards/doc-profile)
+//
+// Write-safety (#1415): --generate writes a stub ONLY when the target file is MISSING (the
+// `!existsSync` guard) — it never overwrites any existing file. Stub-refresh-in-place is opt-in
+// via --refresh-stubs and overwrites ONLY a file whose bytes equal the rendered stub template.
 
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
@@ -35,12 +42,14 @@ if (args.includes('--help') || args.includes('-h')) {
       '',
       'Deterministic presence audit of the canonical doc-set (standards/gold-doc-set.yml).',
       '',
-      '  --strict      exit 1 if any mandatory doc is missing (default: advisory)',
-      '  --json        emit JSON',
-      '  --generate    scaffold stubs for missing mandatory+recommended .md docs',
-      '  --manifest P  manifest path (default standards/gold-doc-set.yml)',
-      '  --profile P   overlay profile path (default standards/doc-profile)',
-      '  --help, -h    show this help',
+      '  --strict        exit 1 if any mandatory doc is missing (default: advisory)',
+      '  --json          emit JSON',
+      '  --generate      scaffold stubs for missing mandatory+recommended .md docs',
+      '  --refresh-stubs (with --generate) re-render a doc in place only if it is byte-equal',
+      '                  to the stub template (never overwrites a real, hand-written doc)',
+      '  --manifest P    manifest path (default standards/gold-doc-set.yml)',
+      '  --profile P     overlay profile path (default standards/doc-profile)',
+      '  --help, -h      show this help',
       '',
     ].join('\n'),
   )
@@ -86,9 +95,33 @@ function candidateExists(candidate) {
   return isGlob(candidate) ? globMatches(candidate) : existsSync(resolve(CWD, candidate))
 }
 
-/** Resolve presence for a check: any of accept_any / glob / path. */
+// ADR record forms (#1415 dual recognition). All anchored to the start of the filename so a
+// stray "notes.txt" or "README.md" never counts as a decision record:
+//   legacy bare-numeric:  001-thin-pointer.md
+//   legacy ADR-prefixed:  ADR-001-thin-pointer.md / ADR-001_thin-pointer.md
+//   repo-prefixed:        <PREFIX>-NNN_slug.md   (e.g. ARB-001_thin-pointer.md)
+const ADR_BARE_RE = /^\d{3,}[-_].+\.md$/
+const ADR_LEGACY_RE = /^ADR-\d{3,}[-_].+\.md$/i
+const ADR_PREFIX_RE = /^[A-Za-z][A-Za-z0-9]*-\d{3,}[-_].+\.md$/
+
+/** True if >=1 ADR record (legacy bare/ADR-NNN or repo-prefixed <PREFIX>-NNN) lives under dir. */
+function adrPresent(adrDir) {
+  const dirAbs = resolve(CWD, adrDir)
+  if (!existsSync(dirAbs)) return false
+  let entries
+  try {
+    entries = readdirSync(dirAbs)
+  } catch {
+    return false
+  }
+  return entries.some((e) => ADR_BARE_RE.test(e) || ADR_LEGACY_RE.test(e) || ADR_PREFIX_RE.test(e))
+}
+
+/** Resolve presence for a check: any of accept_any / glob / path (ADR-aware for adr:true). */
 function isPresent(check) {
   const candidates = check.accept_any?.length ? check.accept_any : [check.path]
+  // ADR checks accept legacy AND repo-prefixed records; fall through to glob/accept_any too.
+  if (check.adr === true && adrPresent(dirname(check.glob || 'docs/ADR/x'))) return true
   if (check.glob && globMatches(check.glob)) return true
   return candidates.some(candidateExists)
 }
@@ -144,6 +177,26 @@ function main() {
   const missingRecommended = []
   const na = []
   const generated = []
+  const refreshed = []
+
+  // --refresh-stubs (opt-in) re-renders an EXISTING doc in place, but ONLY when its bytes equal
+  // the freshly rendered stub — a real, hand-written doc is never touched. It runs for present
+  // docs too (a scaffolded stub passes the presence check), so handle it before the missing path.
+  const doRefresh = flag('--generate') && flag('--refresh-stubs')
+  if (doRefresh) {
+    for (const check of manifest.checks || []) {
+      const applicable = check.applies === 'always' || overlays.has(check.applies)
+      if (!applicable || !check.path.endsWith('.md')) continue
+      const abs = resolve(CWD, check.path)
+      if (!existsSync(abs)) continue
+      const current = readFileSync(abs, 'utf-8')
+      const stub = stubFor(check)
+      if (current === stub) {
+        writeFileSync(abs, stub) // idempotent rewrite of a byte-equal stub
+        refreshed.push(check.path)
+      }
+    }
+  }
 
   for (const check of manifest.checks || []) {
     const applicable = check.applies === 'always' || overlays.has(check.applies)
@@ -161,6 +214,7 @@ function main() {
     if (flag('--generate') && check.path.endsWith('.md')) {
       const abs = resolve(CWD, check.path)
       mkdirSync(dirname(abs), { recursive: true })
+      // Primary write-safety guard: only scaffold when the file is MISSING (never overwrite).
       if (!existsSync(abs)) {
         writeFileSync(abs, stubFor(check))
         generated.push(check.path)
@@ -182,6 +236,7 @@ function main() {
     missingMandatory: missingMandatory.map((c) => c.path),
     missingRecommended: missingRecommended.map((c) => c.path),
     generated,
+    refreshed,
   }
 
   if (flag('--json')) {
@@ -195,6 +250,7 @@ function main() {
     for (const c of missingRecommended)
       process.stdout.write(`    missing [recommended] ${c.path}\n`)
     for (const p of generated) process.stdout.write(`    + scaffolded stub: ${p}\n`)
+    for (const p of refreshed) process.stdout.write(`    ~ refreshed stub: ${p}\n`)
   }
 
   if (flag('--strict') && missingMandatory.length > 0) return 1
