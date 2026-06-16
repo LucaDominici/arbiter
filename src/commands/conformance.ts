@@ -6,7 +6,7 @@
 //
 // Dimension families:
 //   reality-contact  — D-TEST-LEVELS, D-LIVE-E2E, D-FE-RENDER-GATE, D-DOMAIN-API, D-DONE-EVIDENCE
-//   discipline       — D-GATE-GREEN, D-COVERAGE-THRESHOLDS, D-INVARIANTS-ENFORCED, D-NO-OVERCLAIM, D-COMMIT-HYGIENE
+//   discipline       — D-GATE-GREEN, D-COVERAGE-THRESHOLDS, D-INVARIANTS-ENFORCED, D-NO-OVERCLAIM, D-COMMIT-HYGIENE, DISC-finding-hygiene
 //   docs-convention  — DOC-README, DOC-CHANGELOG, DOC-ADR, DOC-CONTRIBUTING, DOC-LICENSE, DOC-API-DOCS, DOC-SECURITY
 //
 // Design: deterministic, code-computed, never AI-scored. Pure functions in
@@ -25,6 +25,7 @@ import {
   probeInvariantsEnforced,
   probeNoOverclaim,
   probeCommitHygiene,
+  probeFindingHygiene,
 } from '../conformance/dimensions.js'
 import type { DimensionEntry } from '../conformance/dimensions.js'
 import {
@@ -87,6 +88,7 @@ const ALL_PROBE_IDS = [
   'D-INVARIANTS-ENFORCED',
   'D-NO-OVERCLAIM',
   'D-COMMIT-HYGIENE',
+  'DISC-finding-hygiene',
   'DOC-README',
   'DOC-CHANGELOG',
   'DOC-ADR',
@@ -182,7 +184,11 @@ function applyUpdateBaseline(root: string, payload: CorePayload): ConformanceSca
   return { status: 'ok', ...payload, exitCode: 0 }
 }
 
-/** Collect all 17 dimension probes for a governed project. */
+/**
+ * Collect all 18 dimension probes for a governed project.
+ * (Adding DISC-finding-hygiene rebalances the equal-weight discipline family;
+ * the conformance baseline is recaptured at integration — #1405.)
+ */
 function collectDimensions(root: string, archetype: string | null): DimensionEntry[] {
   return [
     probeDTestLevels(root),
@@ -195,6 +201,7 @@ function collectDimensions(root: string, archetype: string | null): DimensionEnt
     probeInvariantsEnforced(root),
     probeNoOverclaim(root),
     probeCommitHygiene(root),
+    probeFindingHygiene(root),
     probeDDocReadme(root),
     probeDDocChangelog(root),
     probeDDocAdr(root),

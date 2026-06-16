@@ -428,6 +428,19 @@ describe('conformance (#1369)', () => {
     expect(dim!.verdict).toBe('Y')
   })
 
+  // ── A3 #1405: DISC-finding-hygiene wired into collectDimensions ───────────
+  it('AC-A3-1: dimensions include DISC-finding-hygiene (discipline family)', () => {
+    const dir = tmpRepo()
+    writeArbiter(dir)
+
+    const result = runConformance({ dir })
+    const dim = result.dimensions.find((d) => d.id === 'DISC-finding-hygiene')
+    expect(dim).toBeDefined()
+    expect(dim!.family).toBe('discipline')
+    // No findings spool in a bare governed repo → NA (anti-gaming: absence ≠ N)
+    expect(dim!.verdict).toBe('NA')
+  })
+
   // ── C5 #1397: aggregator + full output + gate wiring ─────────────────────
 
   // AC-C5-1: result includes verdict from two-tier scoring

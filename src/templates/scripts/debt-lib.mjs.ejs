@@ -200,6 +200,66 @@ export function getCommit(cwd) {
   return r.status === 0 ? r.stdout.trim() : 'unknown';
 }
 
+// ── Finding-hygiene metrics (#1405) ──────────────────────────────────────────
+// The incidental-findings spool (`.arbiter/findings/*.jsonl`) is the SSOT for
+// un-promoted findings. These metrics make the debt ratchet reward DRAINING the
+// spool (lower-is-better) and never let merely FILING findings inflate a green
+// signal (anti-gaming). Spool ABSENT → both metrics are OMITTED (not-applicable),
+// NEVER recorded as a regression. Language-agnostic.
+
+/** Relative path of the per-shard findings spool directory. */
+const FINDINGS_DIR = '.arbiter/findings';
+
+/**
+ * Read the findings spool and return open (un-promoted) finding metrics.
+ * Returns `{}` when the spool directory is absent (metric omitted = NA). When
+ * present: openFindingsCount (distinct fingerprints, dedup-safe) and
+ * unpromotedFindingsAge (age in whole days of the oldest open finding; 0 drained).
+ * Malformed JSONL lines are skipped.
+ * @param {string} cwd
+ * @returns {Record<string, {value: number, unit: string, direction: string}>}
+ */
+export function collectFindingsMetrics(cwd) {
+  const findingsDir = resolve(cwd, FINDINGS_DIR);
+  if (!existsSync(findingsDir)) return {};
+  let shards;
+  try {
+    shards = readdirSync(findingsDir).filter((f) => f.endsWith('.jsonl'));
+  } catch {
+    return {};
+  }
+  const fingerprints = new Set();
+  let oldestTs = null;
+  for (const shard of shards) {
+    let text;
+    try {
+      text = readFileSync(join(findingsDir, shard), 'utf-8');
+    } catch {
+      continue;
+    }
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) continue;
+      let entry;
+      try {
+        entry = JSON.parse(trimmed);
+      } catch {
+        continue;
+      }
+      if (entry === null || typeof entry !== 'object') continue;
+      const fp = typeof entry.fingerprint === 'string' ? entry.fingerprint : trimmed;
+      fingerprints.add(fp);
+      const ts = typeof entry.ts === 'string' ? Date.parse(entry.ts) : NaN;
+      if (!Number.isNaN(ts) && (oldestTs === null || ts < oldestTs)) oldestTs = ts;
+    }
+  }
+  const ageDays = oldestTs === null ? 0 : Math.floor((Date.now() - oldestTs) / (24 * 60 * 60 * 1000));
+  return {
+    openFindingsCount: { value: fingerprints.size, unit: 'count', direction: 'lower-is-better' },
+    unpromotedFindingsAge: { value: ageDays < 0 ? 0 : ageDays, unit: 'days', direction: 'lower-is-better' },
+  };
+}
+
 /**
  * Baseline key-drop guard: a recapture must never silently delete a metric
  * the prior baseline tracked (e.g. a tool hiccup during capture would remove
@@ -427,6 +487,9 @@ export function collectMetrics(cwd, collectionErrors = []) {
   }
 <% } %>
 
+  // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
+  Object.assign(metrics, collectFindingsMetrics(cwd));
+
   return metrics;
 }
 <% } else if (language === 'rust') { %>
@@ -482,6 +545,9 @@ export function collectMetrics(cwd) {
       };
     } catch { metrics.cargoAuditAdvisories = { value: 0, unit: 'count', direction: 'lower-is-better' }; }
   }
+
+  // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
+  Object.assign(metrics, collectFindingsMetrics(cwd));
 
   return metrics;
 }
@@ -608,6 +674,9 @@ export function collectMetrics(cwd) {
   }
 <% } %>
 
+  // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
+  Object.assign(metrics, collectFindingsMetrics(cwd));
+
   return metrics;
 }
 <% } else if (language === 'go') { %>
@@ -656,6 +725,9 @@ export function collectMetrics(cwd) {
       metrics.govulncheckAdvisories = { value: osvIds.size, unit: 'count', direction: 'lower-is-better' };
     } catch { metrics.govulncheckAdvisories = { value: 0, unit: 'count', direction: 'lower-is-better' }; }
   }
+
+  // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
+  Object.assign(metrics, collectFindingsMetrics(cwd));
 
   return metrics;
 }
@@ -712,6 +784,9 @@ export function collectMetrics(cwd) {
       metrics.pipAuditAdvisories = { value: vulnCount, unit: 'count', direction: 'lower-is-better' };
     } catch { metrics.pipAuditAdvisories = { value: 0, unit: 'count', direction: 'lower-is-better' }; }
   }
+
+  // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
+  Object.assign(metrics, collectFindingsMetrics(cwd));
 
   return metrics;
 }

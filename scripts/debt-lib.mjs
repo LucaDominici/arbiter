@@ -337,6 +337,76 @@ export function countTodos(cwd) {
   return count
 }
 
+// ── Finding-hygiene metrics (#1405) ──────────────────────────────────────────
+// The incidental-findings spool (`.arbiter/findings/*.jsonl`, #1401) is the SSOT
+// for un-promoted findings. These metrics make the debt ratchet reward DRAINING
+// the spool (lower-is-better) and never let merely FILING findings inflate a
+// green signal (anti-gaming, INV-114). Spool ABSENT → both metrics are OMITTED
+// (treated as not-applicable / "missing tool"), NEVER recorded as a regression.
+
+/** Relative path of the per-shard findings spool directory (#1401). */
+const FINDINGS_DIR = '.arbiter/findings'
+
+/**
+ * Read the findings spool and return open (un-promoted) finding metrics.
+ * Returns `{}` when the spool directory is absent (metric omitted = NA, never a
+ * regression). When present:
+ *   - openFindingsCount    — distinct fingerprints across all shards (dedup-safe)
+ *   - unpromotedFindingsAge — age in whole days of the OLDEST open finding (0 when drained)
+ * Malformed JSONL lines are skipped; a missing/empty spool yields count 0, age 0.
+ * @param {string} cwd
+ * @returns {Record<string, {value: number, unit: string, direction: string}>}
+ */
+export function collectFindingsMetrics(cwd) {
+  const findingsDir = resolve(cwd, FINDINGS_DIR)
+  if (!existsSync(findingsDir)) return {}
+  let shards
+  try {
+    shards = readdirSync(findingsDir).filter((f) => f.endsWith('.jsonl'))
+  } catch {
+    return {}
+  }
+  const fingerprints = new Set()
+  let oldestTs = null
+  for (const shard of shards) {
+    let text
+    try {
+      text = readFileSync(join(findingsDir, shard), 'utf-8')
+    } catch {
+      continue
+    }
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed.length === 0) continue
+      let entry
+      try {
+        entry = JSON.parse(trimmed)
+      } catch {
+        continue // malformed line — resilient skip
+      }
+      if (entry === null || typeof entry !== 'object') continue
+      const fp = typeof entry.fingerprint === 'string' ? entry.fingerprint : trimmed
+      fingerprints.add(fp)
+      const ts = typeof entry.ts === 'string' ? Date.parse(entry.ts) : NaN
+      if (!Number.isNaN(ts) && (oldestTs === null || ts < oldestTs)) oldestTs = ts
+    }
+  }
+  const ageDays =
+    oldestTs === null ? 0 : Math.floor((Date.now() - oldestTs) / (24 * 60 * 60 * 1000))
+  return {
+    openFindingsCount: {
+      value: fingerprints.size,
+      unit: 'count',
+      direction: 'lower-is-better',
+    },
+    unpromotedFindingsAge: {
+      value: ageDays < 0 ? 0 : ageDays,
+      unit: 'days',
+      direction: 'lower-is-better',
+    },
+  }
+}
+
 /**
  * Return the short git commit hash for HEAD, or 'unknown'.
  * @param {string} cwd
@@ -497,6 +567,12 @@ export function collectMetrics(cwd, collectionErrors = []) {
       direction: 'lower-is-better',
     }
   }
+
+  // ── Finding-hygiene (un-promoted findings spool, #1405) ───────────────────
+  // Language-agnostic: reads `.arbiter/findings/*.jsonl`. Spool absent → omitted
+  // (NA), so a project that never filed a finding is not penalised. Rewards
+  // DRAINING (lower-is-better); filing more findings is a regression (anti-gaming).
+  Object.assign(metrics, collectFindingsMetrics(cwd))
 
   return metrics
 }

@@ -48,6 +48,9 @@ coverage/
 # Wave audits + their evidence — version-controlled audit history
 !.arbiter/wave*/
 !.arbiter/wave*/**
+# Design notes (decision docs, e.g. conformance-scorecard) — committed SSOT (#1405)
+!.arbiter/design/
+!.arbiter/design/*.md
 
 # Java build artifacts in fixtures
 __tests__/**/.gradle/

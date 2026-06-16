@@ -10,7 +10,7 @@
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import type { Verdict, Evidence } from './engine.js'
-import { safeResolve, readJson, fileExists } from './shared.js'
+import { safeResolve, readJson, readText, fileExists } from './shared.js'
 
 export type DimensionVerdict = Verdict
 export type { Verdict, Evidence }
@@ -723,6 +723,156 @@ export function probeCommitHygiene(root: string): DimensionEntry {
     evidence: {
       file: '.commitlintrc.json',
       detail: `missing: ${missing.join(', ')}`,
+    },
+  }
+}
+
+// --- DISC-finding-hygiene (#1405) ---
+
+const FINDING_HYGIENE_ID = 'DISC-finding-hygiene'
+const FINDING_HYGIENE_TITLE = 'Incidental findings drained, not just filed'
+const FINDINGS_DIR = '.arbiter/findings'
+const FINDING_HYGIENE_BASELINE = '.arbiter/finding-hygiene-baseline.json'
+/** Findings older than this many days are stale (un-promoted too long). */
+const FINDING_STALE_DAYS = 14
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+/** Aggregate of the un-promoted findings spool. */
+interface SpoolStats {
+  /** Distinct fingerprints across all shards (dedup-safe). */
+  openCount: number
+  /** Age in whole days of the OLDEST open finding (0 when empty). */
+  oldestAgeDays: number
+}
+
+/** Mutable accumulator threaded through shard parsing. */
+interface SpoolAccumulator {
+  fingerprints: Set<string>
+  oldestTs: number | null
+}
+
+/**
+ * Fold a single spool shard's JSONL into the accumulator. Malformed lines are
+ * skipped (resilient). The fingerprint dedups across shards; the timestamp tracks
+ * the oldest open finding.
+ */
+function accumulateShard(text: string, acc: SpoolAccumulator): void {
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim()
+    if (trimmed.length === 0) continue
+    let entry: unknown
+    try {
+      entry = JSON.parse(trimmed)
+    } catch {
+      continue // resilient: skip malformed JSONL
+    }
+    if (typeof entry !== 'object' || entry === null) continue
+    const e = entry as Record<string, unknown>
+    const fp = typeof e['fingerprint'] === 'string' ? e['fingerprint'] : trimmed
+    acc.fingerprints.add(fp)
+    const ts = typeof e['ts'] === 'string' ? Date.parse(e['ts']) : NaN
+    if (!Number.isNaN(ts) && (acc.oldestTs === null || ts < acc.oldestTs)) acc.oldestTs = ts
+  }
+}
+
+/**
+ * Read the findings spool. Returns null when the spool directory is absent
+ * (→ NA: the project is not governed for findings). Fail-safe: malformed lines
+ * and unreadable shards are skipped; an empty/absent spool yields count 0, age 0.
+ */
+function readFindingsSpool(root: string): SpoolStats | null {
+  const dirAbs = safeResolve(root, FINDINGS_DIR)
+  if (dirAbs === null || !fileExists(dirAbs)) return null
+  let shards: string[]
+  try {
+    shards = readdirSync(dirAbs).filter((f) => f.endsWith('.jsonl'))
+  } catch {
+    return { openCount: 0, oldestAgeDays: 0 }
+  }
+  const acc: SpoolAccumulator = { fingerprints: new Set<string>(), oldestTs: null }
+  for (const shard of shards) {
+    const text = readText(join(dirAbs, shard))
+    if (text !== null) accumulateShard(text, acc)
+  }
+  const oldestAgeDays =
+    acc.oldestTs === null ? 0 : Math.max(0, Math.floor((Date.now() - acc.oldestTs) / MS_PER_DAY))
+  return { openCount: acc.fingerprints.size, oldestAgeDays }
+}
+
+/** Prior openFindingsCount snapshot, or null when no baseline exists (bootstrap). */
+function readFindingHygienePrior(root: string): number | null {
+  const abs = safeResolve(root, FINDING_HYGIENE_BASELINE)
+  if (abs === null || !fileExists(abs)) return null
+  const parsed = readJson(abs)
+  if (parsed === null || typeof parsed !== 'object') return null
+  const v = (parsed as Record<string, unknown>)['openFindingsCount']
+  return typeof v === 'number' ? v : null
+}
+
+/**
+ * DISC-finding-hygiene: rewards DRAINING the incidental-findings spool, never the
+ * mere act of FILING findings (anti-gaming, INV-114). Evidence = the spool path.
+ *
+ * Verdict ladder:
+ *   - spool absent                           → NA (not governed for findings)
+ *   - openFindingsCount rose vs prior        → N  (filed without draining — regression)
+ *   - oldest open finding older than 14 days → P  (stale: filed but left un-promoted)
+ *   - drained / fresh / non-regressing       → Y
+ *
+ * A drained spool (count 0) is always Y. Mere presence of fresh findings is Y only
+ * when the count did not rise vs the recorded prior; filing more is never an
+ * improvement signal.
+ */
+export function probeFindingHygiene(root: string): DimensionEntry {
+  const base = {
+    id: FINDING_HYGIENE_ID,
+    title: FINDING_HYGIENE_TITLE,
+    ...DISC_T1,
+  }
+  const stats = readFindingsSpool(root)
+  if (stats === null) {
+    return {
+      ...base,
+      verdict: 'NA',
+      evidence: {
+        file: FINDINGS_DIR,
+        detail: 'no findings spool — not governed for incidental-finding hygiene',
+      },
+    }
+  }
+
+  const prior = readFindingHygienePrior(root)
+  // Regression: open count rose vs the recorded prior (findings filed, none drained).
+  if (prior !== null && stats.openCount > prior) {
+    return {
+      ...base,
+      verdict: 'N',
+      evidence: {
+        file: FINDINGS_DIR,
+        detail: `openFindingsCount rose ${prior} → ${stats.openCount} — findings filed without draining`,
+      },
+    }
+  }
+  // Stale: oldest open finding left un-promoted past the threshold.
+  if (stats.openCount > 0 && stats.oldestAgeDays > FINDING_STALE_DAYS) {
+    return {
+      ...base,
+      verdict: 'P',
+      evidence: {
+        file: FINDINGS_DIR,
+        detail: `oldest open finding is ${stats.oldestAgeDays}d (> ${FINDING_STALE_DAYS}d) — promote or drain`,
+      },
+    }
+  }
+  return {
+    ...base,
+    verdict: 'Y',
+    evidence: {
+      file: FINDINGS_DIR,
+      detail:
+        stats.openCount === 0
+          ? 'spool drained — no open findings'
+          : `${stats.openCount} open finding(s), fresh and non-regressing`,
     },
   }
 }
