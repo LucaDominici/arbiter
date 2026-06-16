@@ -48,3 +48,25 @@ Thumbs.db
 # Arbiter backup turds (written by runtime; never commit)
 *.arbiter-backup
 .arbiter-generated.json.bak.*
+<% /* #1407: stack-aware entries — GREENFIELD-PREVENTION ONLY.
+      generateEvidenceRetention renders this with skipIfExists:true, so an
+      EXISTING .gitignore is never rewritten. The extended repo-hygiene GATE
+      (scripts/check-no-tracked-artifacts.mjs) is the retroactive catch for
+      already-tracked artifacts; brownfield .gitignore-merge-on-update is OUT
+      of scope (see ADR-047 / follow-up). language is always present; guard
+      databaseEngine because it is optional in ProjectConfig (EJS with(locals)
+      would throw on a bare reference to an absent key). */ %>
+<% if (language === 'go') { %>
+# Go compiled binary (module-root, named after the project) (#1407)
+/<%= projectName %>
+<% } %><% if (language === 'rust') { %>
+# Rust build output (#1407)
+/target/
+<% } %><% if (typeof databaseEngine !== 'undefined' && databaseEngine === 'sqlite') { %>
+# SQLite data/state files — must never be committed (#1407, INV-129)
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+<% } %>

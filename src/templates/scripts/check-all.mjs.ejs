@@ -131,6 +131,8 @@ runCheck('unit tests', './gradlew', ['test', '-q']);
 runCheck('detekt (beta)', './gradlew', ['detekt'], { soft: true });
 <% } %>
 
+// ─── L1: Repo hygiene — no tracked data/binary artifacts (INV-129, #1407) ─────
+runCheck('no tracked artifacts (INV-129)', 'node', ['scripts/check-no-tracked-artifacts.mjs']);
 // ─── L1: Test naming convention (M27) ────────────────────────────────────────
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 // ─── L1: Exit-code universal contract (INV-53) ────────────────────────────────

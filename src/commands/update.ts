@@ -49,6 +49,42 @@ function printStats(results: WriteResult[]): void {
   process.stdout.write(`${t('cli.update.done', { created, replaced, skipped, withheld })}\n`)
 }
 
+/** A newly LANDED gate script (created or replaced) named `scripts/check-*.mjs`. */
+function isNewlyLandedCheckScript(r: WriteResult): boolean {
+  if (r.action !== 'created' && r.action !== 'backed-up-and-replaced') return false
+  const norm = r.path.replace(/\\/g, '/')
+  return /(^|\/)scripts\/check-[^/]+\.mjs$/.test(norm)
+}
+
+/**
+ * #1410: detect the un-wired-gate footgun. When `arbiter update` emits a NEW
+ * `scripts/check-*.mjs` gate AND `scripts/check-all.mjs` is WITHHELD (user-
+ * modified, so the template fix that would wire the new gate did not land), the
+ * new gate sits on disk but is never invoked — a silently inert check. Returns a
+ * human-readable warning string, or null when there is nothing to warn about.
+ *
+ * Exported for unit testing the pure decision independent of the heavy runUpdate
+ * filesystem/git path.
+ */
+export function detectUnwiredGateWarning(results: WriteResult[]): string | null {
+  const checkAllWithheld = results.some(
+    (r) => r.withheld === true && r.path.replace(/\\/g, '/').endsWith('/scripts/check-all.mjs'),
+  )
+  if (!checkAllWithheld) return null
+  const newGates = results.filter(isNewlyLandedCheckScript).map((r) => {
+    const norm = r.path.replace(/\\/g, '/')
+    return norm.slice(norm.lastIndexOf('/') + 1)
+  })
+  if (newGates.length === 0) return null
+  const list = newGates.join(', ')
+  return (
+    `Warning: ${list} added but check-all.mjs is withheld — the new gate is NOT wired ` +
+    `(it will never run). Your check-all.mjs is user-modified, so the template fix that ` +
+    `wires it was preserved, not applied. Please re-sync check-all.mjs (delete it and re-run ` +
+    `\`arbiter update\`, or manually add the runCheck line) to activate the gate.`
+  )
+}
+
 function selectAndRun(
   specs: ReturnType<typeof buildRegistry>,
   snapshot: ArbiterConfigV2 | null,
@@ -346,6 +382,14 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
     const backendResult = runGithubSetup(config, log)
 
+    // #1410: surface the un-wired-gate footgun (new check-*.mjs emitted while a
+    // user-modified check-all.mjs withheld the wiring fix) through the same
+    // warnings channel as backend warnings — json mode lists it, text mode prints it.
+    const unwiredWarning = detectUnwiredGateWarning(results)
+    const allWarnings = unwiredWarning
+      ? [...backendResult.warnings, unwiredWarning]
+      : backendResult.warnings
+
     const validation = validateConfig(nextConfig)
     if (!validation.ok) {
       if (options.json) {
@@ -368,7 +412,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
       skipped: results.filter((r) => r.action === 'skipped' || r.action === 'dry-run').length,
       withheld: results.filter((r) => r.withheld === true).length,
     }
-    emitUpdateOutcome(options, summary, generatorErrors, backendResult.warnings)
+    emitUpdateOutcome(options, summary, generatorErrors, allWarnings)
 
     return { keysRun }
   } finally {

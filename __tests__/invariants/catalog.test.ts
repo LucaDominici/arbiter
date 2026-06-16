@@ -42,7 +42,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1364: +1 (INV-124 test pyramid non-empty gate, operational/Tier-4, all-languages)
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, operational/Tier-4, all-languages)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
-    expect(INVARIANT_CATALOG).toHaveLength(126)
+    // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
+    expect(INVARIANT_CATALOG).toHaveLength(127)
   })
 
   it('all IDs are unique', () => {
@@ -57,9 +58,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1364: +1 (INV-124)
     // Updated #1366: +1 (INV-127)
     // Updated #1398: +1 (INV-128)
+    // Updated #1408: +1 (INV-129)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(126)
+    expect(unique.size).toBe(127)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -153,8 +155,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly governance)
     // Updated #1249: +2 (INV-118 anti-proforma gate, INV-119 commit-footer audit evidence)
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate)
+    // Updated #1408: +1 (INV-129 no tracked data/state files, governance, all-languages)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(48)
+    expect(tier5).toHaveLength(49)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -414,7 +417,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1364: +1 (INV-124 test pyramid non-empty gate, L1+, all languages)
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, L1+, all languages)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
-    expect(result).toHaveLength(82)
+    // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
+    expect(result).toHaveLength(83)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -438,12 +442,13 @@ describe('getFilteredInvariants', () => {
     // +1 from INV-126 (L2+, all languages, live-api e2e) — threshold < 67 → < 68
     // +1 from INV-127 (L1+, all languages, render-smoke) — threshold < 68 → < 69
     // +1 from INV-128 (L1+, all languages, conformance script) — threshold < 69 → < 70
+    // +1 from INV-129 (L1+, all languages, no tracked data/state files) — threshold < 70 → < 71
     const result = getFilteredInvariants({
       language: 'unknown',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(70)
+    expect(result.length).toBeLessThan(71)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -517,7 +522,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1364: +1 (INV-124 test pyramid non-empty gate, L1+, all languages)
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, L1+, all languages)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
-    expect(result).toHaveLength(77)
+    // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
+    expect(result).toHaveLength(78)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -539,12 +545,13 @@ describe('getFilteredInvariants', () => {
     // Updated #1364: +1 (INV-124 test pyramid non-empty gate, L1+, all languages, operational)
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, L1+, all languages, operational)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
+    // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(78)
+    expect(result).toHaveLength(79)
   })
 
   it('essential preset at L1 returns minimal set', () => {

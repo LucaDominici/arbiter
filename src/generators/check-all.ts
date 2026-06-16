@@ -88,6 +88,12 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     tpl: 'scripts/check-collab-mode-wired.mjs.ejs',
   },
   { rel: ['scripts', 'check-constraint-scan.mjs'], tpl: 'scripts/check-constraint-scan.mjs.ejs' },
+  // #1407 (INV-129): repo-hygiene gate — no tracked data/state files or compiled
+  // binaries in the index. Emitted unconditionally and wired at L1 in check-all.mjs.ejs.
+  {
+    rel: ['scripts', 'check-no-tracked-artifacts.mjs'],
+    tpl: 'scripts/check-no-tracked-artifacts.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-test-pyramid.mjs'],
     tpl: 'scripts/check-test-pyramid.mjs.ejs',
