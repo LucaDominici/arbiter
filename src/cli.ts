@@ -10,6 +10,7 @@ import { runSettings } from './commands/settings.js'
 import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
+import { runGoldAudit } from './commands/gold-audit.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
@@ -808,6 +809,35 @@ review
         ...(tier !== undefined ? { tier } : {}),
         ...(opts.diff !== undefined ? { diffRef: opts.diff } : {}),
         ...(opts.evidenceDir !== undefined ? { evidenceDir: opts.evidenceDir } : {}),
+        json: opts.json,
+      })
+      process.exit(result.exitCode)
+    },
+  )
+
+program
+  .command('gold-audit [repo]')
+  .description('Deterministic gold-LEVEL band + "what\'s missing" report (#1414, wraps the engine)')
+  .option('--stack <stack>', 'Per-stack registry selector (standards/gold-registry.<stack>.yml)')
+  .option('--class <class>', 'Brownfield class for the level band: gold|light|medium|heavy')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action(
+    async (repo: string | undefined, opts: { stack?: string; class?: string; json: boolean }) => {
+      const cls =
+        opts.class === 'gold' ||
+        opts.class === 'light' ||
+        opts.class === 'medium' ||
+        opts.class === 'heavy'
+          ? (opts.class as BrownfieldClass)
+          : undefined
+      if (opts.class !== undefined && cls === undefined) {
+        printCliError(`invalid --class "${opts.class}". Valid: gold, light, medium, heavy.`)
+        process.exit(1)
+      }
+      const result = await runGoldAudit({
+        ...(repo !== undefined ? { repo } : {}),
+        ...(opts.stack !== undefined ? { stack: opts.stack } : {}),
+        ...(cls !== undefined ? { class: cls } : {}),
         json: opts.json,
       })
       process.exit(result.exitCode)
