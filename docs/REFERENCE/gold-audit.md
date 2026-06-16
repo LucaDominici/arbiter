@@ -144,6 +144,16 @@ npm alias: `npm run gold:audit`. Wired into `scripts/check-all.mjs` (the `gold-a
 and `gold-audit false-gap` checks, L1) and mirrored in the local↔CI parity map. The engine's
 score and dimension table render into `GOLD-REPORT.md` via `scripts/gold-report.mjs`.
 
+## Downstream generation (#1419)
+
+`arbiter init`/`update` emit a **thin runner** `scripts/gold-audit.mjs` into governed projects that
+delegates to `npx arbiter gold-audit --check` (the engine ships in the arbiter CLI — never copied), plus
+the consumer-data templates `standards/gold-registry.yml` (+ per-stack), `standards/thresholds.yml`, and
+`standards/gold-doc-set.yml`. The generated `check-all.mjs` wires it **advisory** (`runWarnCheck`, plain
+`--check`, behind `existsSync`) so a freshly-initialised project is never red on its first gate run — a
+missing baseline bootstraps and exits 0 (never `--require-baseline` downstream). The anti-fake-green
+guard + doc-set downstream runners are tracked in #1428.
+
 ## Exit codes
 
 `0` pass/advisory · `1` failure (regression / RISKY / stale) · `2` IO error.
