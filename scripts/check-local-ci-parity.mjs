@@ -183,6 +183,7 @@ const CI_COVERAGE = new Map([
   ['bloat ratchet', 'gate-full'],
   ['gold-audit no-regress (#1373)', 'gate-full'],
   ['gold-audit false-gap (#1373)', 'gate-full'],
+  ['gold registries no-false-gap (#1413)', 'gate-full'],
   ['exit code contract', 'gate-full'],
   ['pipe/tee hazard', 'gate-full'],
   ['ssot core', 'gate-full'],

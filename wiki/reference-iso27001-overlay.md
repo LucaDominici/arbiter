@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/iso27001-overlay.md'
 source_sha: '5b0b2c3e45cf708c9716518db63cb89a7ab09d32'
-last_updated: '2026-06-15'
+last_updated: '2026-06-16'
 ---
 
 # ISO 27001 Overlay — Reference

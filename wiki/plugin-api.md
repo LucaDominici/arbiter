@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/PLUGIN-API.md'
 source_sha: '2280df21d9d8f60b617f11803f67032808360a5c'
-last_updated: '2026-06-15'
+last_updated: '2026-06-16'
 ---
 
 # Plugin API Reference
