@@ -1,14 +1,16 @@
 # Gold Report — arbiter
 
-<!-- generated: 2026-06-16T00:43:29.133Z @ af35f659 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
+<!-- generated: 2026-06-16T01:38:26.621Z @ 0857e5b2 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
 
 ## Documentation (gold doc-set)
 
-**Score: 19/19 applicable docs present (100.0%).** Mandatory gaps: 0 · recommended gaps: 0 · n/a (overlay off): 0.
+**Score: 19/20 applicable docs present (95.0%).** Mandatory gaps: 0 · recommended gaps: 1 · n/a (overlay off): 28.
 
 Manifest: `standards/gold-doc-set.yml` · overlays: has-plugin-api, has-api
 
-_No gaps — every applicable doc is present._
+| Doc | Tier | Status |
+| --- | --- | --- |
+| docs/technical-debt.md | recommended | missing |
 
 Refresh / scaffold missing docs: `node scripts/check-doc-set.mjs --generate`.
 
