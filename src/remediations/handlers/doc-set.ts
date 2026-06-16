@@ -17,7 +17,7 @@ export const docSetHandler: RemediationHandler = (gap, ctx) => {
       delegateCommand: 'node scripts/check-doc-set.mjs --generate',
     },
     {
-      action: `Replace the "STUB — fill me in." placeholder in "${file}" with real, hand-written content that satisfies ${gap.id} (${gap.title}). Cite the SSOT ${ctx.entry.ssot.join(', ')}.`,
+      action: `Replace the auto-scaffolded stub body in "${file}" with real, hand-written content that satisfies ${gap.id} (${gap.title}). Cite the SSOT ${ctx.entry.ssot.join(', ')}.`,
     },
     {
       action: `Re-run \`arbiter gold-audit\` and confirm ${gap.id} only flips to Y once real content exists — a bare stub must keep the check at N/P (presence ≠ closure).`,
