@@ -1,6 +1,6 @@
 ---
 generated: true
-last_updated: '2026-06-15'
+last_updated: '2026-06-16'
 ---
 
 # Wiki Index
@@ -33,6 +33,7 @@ last_updated: '2026-06-15'
 - [[product-status]]
 - [[reference-agent-rules]]
 - [[reference-anti-drift-family]]
+- [[reference-anti-fake-green]]
 - [[reference-api]]
 - [[reference-backward-compat-harness]]
 - [[reference-ci-tier-workflows]]
