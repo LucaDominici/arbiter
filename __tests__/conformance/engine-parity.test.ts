@@ -208,7 +208,12 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
       {
         id: 'V-JSON',
         type: 'value',
-        args: { path: 'coverage-summary.json', format: 'json', select: 'total.lines.pct', op: 'gte' },
+        args: {
+          path: 'coverage-summary.json',
+          format: 'json',
+          select: 'total.lines.pct',
+          op: 'gte',
+        },
         threshold_ref: 'coverage.line',
       },
       // xml count: number of <error> elements in a checkstyle report lte threshold_ref
@@ -222,7 +227,12 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
       {
         id: 'V-ABSENT',
         type: 'value',
-        args: { path: 'never-generated.json', format: 'json', select: 'total.lines.pct', op: 'gte' },
+        args: {
+          path: 'never-generated.json',
+          format: 'json',
+          select: 'total.lines.pct',
+          op: 'gte',
+        },
         threshold_ref: 'coverage.line',
       },
       // literal expected (no threshold_ref): regex first-group numeric eq

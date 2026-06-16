@@ -207,7 +207,15 @@ function extractXml(text: string, select: string): number | null {
       if (i < 0) break
       const next = text[i + needle.length]
       // Match a real element open: next char must be whitespace, '>' or '/' (not another name char).
-      if (next === undefined || next === ' ' || next === '\t' || next === '\n' || next === '\r' || next === '>' || next === '/') {
+      if (
+        next === undefined ||
+        next === ' ' ||
+        next === '\t' ||
+        next === '\n' ||
+        next === '\r' ||
+        next === '>' ||
+        next === '/'
+      ) {
         count++
       }
       from = i + needle.length

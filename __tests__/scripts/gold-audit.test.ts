@@ -479,7 +479,15 @@ describe('gold-audit --stack java (#1413 per-stack registry)', () => {
       'target/coverage-summary.json': JSON.stringify({ total: { lines: { pct: 85 } } }),
     })
     try {
-      const args = ['--json', '--registry', JAVA_REGISTRY, '--thresholds', THRESHOLDS, '--class', 'medium']
+      const args = [
+        '--json',
+        '--registry',
+        JAVA_REGISTRY,
+        '--thresholds',
+        THRESHOLDS,
+        '--class',
+        'medium',
+      ]
       const a = run(dir, args).stdout
       const b = run(dir, args).stdout
       expect(a).toBe(b)

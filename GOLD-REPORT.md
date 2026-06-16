@@ -1,6 +1,6 @@
 # Gold Report — arbiter
 
-<!-- generated: 2026-06-16T01:38:26.621Z @ 0857e5b2 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
+<!-- generated: 2026-06-16T01:49:29.199Z @ 6bbd05f8 — regenerate with: node scripts/gold-report.mjs ; numbers are code-computed (no AI) -->
 
 ## Documentation (gold doc-set)
 
@@ -8,8 +8,8 @@
 
 Manifest: `standards/gold-doc-set.yml` · overlays: has-plugin-api, has-api
 
-| Doc | Tier | Status |
-| --- | --- | --- |
+| Doc                    | Tier        | Status  |
+| ---------------------- | ----------- | ------- |
 | docs/technical-debt.md | recommended | missing |
 
 Refresh / scaffold missing docs: `node scripts/check-doc-set.mjs --generate`.
