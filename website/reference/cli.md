@@ -704,6 +704,8 @@ Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine).
 
 - `--stack <stack>` — Per-stack registry selector (standards/gold-registry.&lt;stack&gt;.yml)
 - `--class <class>` — Brownfield class for the level band: gold|light|medium|heavy
+- `--check` — No-regress gate: bootstrap missing baseline (exit 0), fail on regress
+- `--require-baseline` — With --check, a missing baseline is a HARD FAIL (#1419)
 - `--json` — Emit machine-readable JSON output
 
 ## arbiter graph

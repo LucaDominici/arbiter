@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1406",
+  "test_path": "__tests__/skills/wave-drain-downstream.test.ts",
+  "test_commit_sha": "b37cd0ddef1bd1a7254069bacbb8813eef6a5a2c",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/skills/wave-drain-downstream.test.ts > wave-drain downstream generation \u2014 Probe loop (#1406) > renders a Phase 0.5 \u2014 Harvest step running `arbiter findings promote`\nAssertionError: expected '---\\nname: wave-drain\\ndescription: U\u2026' to match /Phase 0\\.5/\n\n- Expected:\n/Phase 0\\.5/\n\n+ Received:\n\"---\nname: wave-drain\ndescription: Use when draining the open backlog at maximum throughput. Batch up to ~10 workable issues into a WAVE, plan and review the wave once cumulatively, dispatch parallel TDD agents in isolated worktrees, then integrate into a SINGLE wave PR merged GREEN. Issues that cannot proceed become needs-human with a blocker report. The orchestrator directs parallel agents \u2014 it never implements.\nargument-hint: '[--wave-size N] [--max-parallel N]'\ntitle: 'Wave Drain'",
+  "observed_failure": "FAIL  __tests__/skills/wave-drain-downstream.test.ts",
+  "recorded_at": "2026-06-16T02:59:21Z"
+}
