@@ -149,6 +149,9 @@ if (isMain) {
   runCheck('global-invariants parity', 'node', ['scripts/check-global-invariants-parity.mjs'])
   runCheck('kit catalog parity', 'node', ['scripts/check-kit-catalog-parity.mjs'])
   runCheck('enforcement wired', 'node', ['scripts/check-inv-enforcement-wired.mjs'])
+  // #1410: advisory — report check-*.mjs gates not reachable from check-all.mjs
+  // (orphan gates). Report-only (exit 0); promotion to blocking is a tracked follow-up.
+  runWarnCheck('orchestrator coverage (#1410)', 'node', ['scripts/check-orchestrator-coverage.mjs'])
   runCheck('constraint scan (INV-115)', 'node', ['scripts/check-constraint-scan.mjs'])
   runCheck('agent-dispatch matrix (#1267)', 'node', ['scripts/check-agent-dispatch.mjs'])
   runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs'])
