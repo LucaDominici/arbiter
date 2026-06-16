@@ -370,6 +370,7 @@ function generateClaudeCommands(
     'wt-prune.md',
     'review-plan.md',
     'review-code.md',
+    'close-gold-gap.md',
   ]
   for (const cmd of commands) {
     results.push(

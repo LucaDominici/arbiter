@@ -16,6 +16,7 @@ const VALID_SKILL_NAMES = new Set([
   'brainstorming',
   'wave-drain',
   'impact',
+  'close-gold-gap',
 ])
 
 const SkillEntrySchema = z.object({
