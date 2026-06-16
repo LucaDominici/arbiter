@@ -49,6 +49,16 @@ describe('all stacks: shared invariants', () => {
       expect(lib).toContain('getCommit')
       expect(lib).toContain('countTodos')
     })
+
+    // #1405 — finding-hygiene metric is language-agnostic: every stack's
+    // collectMetrics folds in the un-promoted findings spool reader.
+    it(`${lang}: debt-lib exports collectFindingsMetrics and folds it into collectMetrics`, () => {
+      const { lib } = renderAll({ language: lang, enableDebtGates: true })
+      expect(lib).toContain('export function collectFindingsMetrics')
+      expect(lib).toContain('Object.assign(metrics, collectFindingsMetrics(cwd))')
+      expect(lib).toContain('openFindingsCount')
+      expect(lib).toContain('unpromotedFindingsAge')
+    })
   }
 })
 

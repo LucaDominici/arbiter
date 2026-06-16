@@ -43,6 +43,16 @@
       "value": 50,
       "unit": "count",
       "direction": "lower-is-better"
+    },
+    "openFindingsCount": {
+      "value": 0,
+      "unit": "count",
+      "direction": "lower-is-better"
+    },
+    "unpromotedFindingsAge": {
+      "value": 0,
+      "unit": "days",
+      "direction": "lower-is-better"
     }
   }
 }
