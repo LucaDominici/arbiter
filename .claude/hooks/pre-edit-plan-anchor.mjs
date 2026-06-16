@@ -106,13 +106,37 @@ if (!isLegacyPlan) {
   }
 }
 
-// ─── CANON-16: Survey gate for new src/ files ─────────────────────────────────
+// ─── #1402: out-of-scope SOFT redirect ────────────────────────────────────────
+// When the edit targets a file outside the plan's machine-parseable `files:` manifest, emit an
+// advisory nudge (stdout, exit 0 — NEVER a hard block). Skips silently when no `files:` manifest
+// exists. Excludes __tests__/ (mirrors the CANON-16 survey exclusion). Multi-file edits stay free.
 const targetRaw = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
 if (targetRaw) {
-  const absTarget = resolve(targetRaw)
-  const rel = relative(root, absTarget)
+  const absForRedirect = resolve(targetRaw)
+  const relForRedirect = relative(root, absForRedirect).split('\\').join('/')
+  const isTestPath =
+    /(?:^|\/)__tests__(?:\/|$)/.test(relForRedirect) ||
+    /\.(test|spec)\.[cm]?[jt]s$/.test(relForRedirect)
+  if (!isTestPath) {
+    const manifest = parsePlanFilesManifest(planBody)
+    if (manifest !== null && manifest.length > 0 && !manifest.includes(relForRedirect)) {
+      const issueRef = (planBody.match(/^\s+issues?\s*:\s*\[?\s*["']?(#?\d+)/m) ?? [])[1] ?? 'this task'
+      process.stdout.write(
+        `[arbiter] OUT OF SCOPE for ${issueRef}: \`${relForRedirect}\` is not in the plan's files: manifest.\n` +
+          `Run \`arbiter note "<finding>" --file ${relForRedirect}\` to capture it — do not fix it here.\n` +
+          `See .claude/rules/60-incidental-capture.md (advisory only; this edit is NOT blocked).\n`,
+      )
+    }
+  }
+}
+
+// ─── CANON-16: Survey gate for new src/ files ─────────────────────────────────
+{
+  const absTarget = targetRaw ? resolve(targetRaw) : ''
+  const rel = absTarget ? relative(root, absTarget) : ''
 
   const inScope =
+    !!targetRaw &&
     !existsSync(absTarget) && // new files only
     rel.startsWith('src/') && // under src/
     !rel.startsWith('src/..') && // no path escape
@@ -185,4 +209,25 @@ if (targetRaw) {
       process.exit(2)
     }
   }
+}
+
+/**
+ * #1402 — parse the plan front-matter's `files:` manifest into repo-relative POSIX paths, or null
+ * when the plan has no parseable manifest (→ the redirect skips silently). Reads only a simple YAML
+ * list (`files:` followed by `  - path` lines) to stay dependency-free in the hook.
+ */
+function parsePlanFilesManifest(body) {
+  const fmMatch = /^---\r?\n([\s\S]*?)\r?\n---/m.exec(body)
+  if (!fmMatch) return null
+  const fm = fmMatch[1]
+  const lines = fm.split('\n')
+  const startIdx = lines.findIndex((l) => /^files\s*:\s*$/.test(l))
+  if (startIdx === -1) return null
+  const out = []
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const m = lines[i].match(/^\s+-\s+(.+?)\s*$/)
+    if (!m) break // first non-list line ends the manifest
+    out.push(m[1].replace(/^["']|["']$/g, '').split('\\').join('/'))
+  }
+  return out.length > 0 ? out : null
 }

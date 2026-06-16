@@ -287,6 +287,21 @@ describe('generateClaude — batch-execution rule (#722)', () => {
     const file = result.files.find((f) => f.path.endsWith('50-batch-execution.md'))
     expect(file?.action).toBe('skipped')
   })
+
+  it('generates .claude/rules/60-incidental-capture.md downstream (#1402)', () => {
+    generateClaude(claudeConfig())
+    expect(existsSync(join(dir, '.claude', 'rules', '60-incidental-capture.md'))).toBe(true)
+  })
+
+  it('60-incidental-capture.md mandates arbiter note for out-of-scope findings', () => {
+    generateClaude(claudeConfig())
+    const content = readFileSync(
+      join(dir, '.claude', 'rules', '60-incidental-capture.md'),
+      'utf-8',
+    )
+    expect(content).toMatch(/arbiter note/i)
+    expect(content).toMatch(/out.of.scope|outside/i)
+  })
 })
 
 // ─── Context-economy rule + knowledge-map + track-aware post-commit (#720 #724) ─

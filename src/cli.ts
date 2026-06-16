@@ -46,6 +46,7 @@ import { resolveShipTier } from './sizing/diff-signals.js'
 import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
+import { runTaskNote } from './commands/task-note.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
@@ -382,6 +383,55 @@ program
       logger.warn('report.rejected_entries', { count: result.rejected.length })
     }
   })
+
+// #1401 — zero-friction incidental-finding capture. Appends ONE line to a per-shard JSONL spool
+// under .arbiter/findings/<shard>.jsonl. Non-blocking, no network. See rule 60-incidental-capture.
+program
+  .command('note')
+  .description('Capture an out-of-scope finding to the per-agent JSONL spool (#1401)')
+  .argument('[note]', 'Finding text (or use --note)')
+  .option('--note <text>', 'Finding text (alternative to the positional argument)')
+  .option('--kind <kind>', 'Finding class: dup|smell|risk|debt|note (default: note)')
+  .option('--severity <sev>', 'Severity band: low|med|high|info (default: info)')
+  .option('--file <path>', 'Repo-relative file the finding concerns')
+  .option('--line <n>', 'Line number the finding was seen at (excluded from the fingerprint)')
+  .option('--dir <path>', 'Project root (default: cwd)')
+  .action(
+    (
+      positional: string | undefined,
+      opts: {
+        note?: string
+        kind?: string
+        severity?: string
+        file?: string
+        line?: string
+        dir?: string
+      },
+    ): void => {
+      const text = (positional ?? opts.note ?? '').trim()
+      const logger = getLogger()
+      if (text.length === 0) {
+        process.stderr.write('arbiter note: a finding text is required (positional or --note)\n')
+        process.exitCode = 1
+        return
+      }
+      const noteOpts: import('./commands/task-note.js').TaskNoteOptions = { note: text }
+      if (opts.kind !== undefined) noteOpts.kind = opts.kind
+      if (opts.severity !== undefined) noteOpts.severity = opts.severity
+      if (opts.file !== undefined) noteOpts.file = opts.file
+      if (opts.dir !== undefined) noteOpts.dir = opts.dir
+      const parsedLine = opts.line !== undefined ? Number.parseInt(opts.line, 10) : NaN
+      if (Number.isInteger(parsedLine)) noteOpts.line = parsedLine
+      const result = runTaskNote(noteOpts)
+      if (result.ok) {
+        logger.info('note.captured', { spool: result.spoolPath, fingerprint: result.fingerprint })
+        process.stdout.write(`noted → ${result.spoolPath}\n`)
+      } else {
+        process.stderr.write(`arbiter note: ${result.reason}\n`)
+        process.exitCode = 1
+      }
+    },
+  )
 
 program
   .command('init')
