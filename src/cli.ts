@@ -11,6 +11,7 @@ import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
+import { runCloseGoldGap } from './commands/close-gold-gap.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
 import { loadPlugin } from './utils/plugin-loader.js'
@@ -969,6 +970,22 @@ program
       process.exit(result.exitCode)
     },
   )
+
+program
+  .command('close-gold-gap <gapId>')
+  .description('Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close)')
+  .option('--repo <repo>', 'Repo to audit (default: current directory)')
+  .option('--stack <stack>', 'Per-stack registry selector (standards/gold-registry.<stack>.yml)')
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .action((gapId: string, opts: { repo?: string; stack?: string; json: boolean }) => {
+    const result = runCloseGoldGap({
+      gapId,
+      ...(opts.repo !== undefined ? { repo: opts.repo } : {}),
+      ...(opts.stack !== undefined ? { stack: opts.stack } : {}),
+      json: opts.json,
+    })
+    process.exit(result.exitCode)
+  })
 
 const verify = program
   .command('verify')
