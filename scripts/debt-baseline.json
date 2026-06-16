@@ -35,7 +35,7 @@
       "direction": "lower-is-better"
     },
     "publicApiSurface": {
-      "value": 1232,
+      "value": 1247,
       "unit": "count",
       "direction": "lower-is-better"
     },

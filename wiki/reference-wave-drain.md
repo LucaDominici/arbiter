@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/wave-drain.md'
 source_sha: 'c069394e175729e706811286085cd30e18dd0632'
-last_updated: '2026-06-15'
+last_updated: '2026-06-16'
 ---
 
 # Reference: Wave Drain (/drain)

@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/SYSTEM/HOOK-CONTRACTS.md'
 source_sha: 'd79985022e95fe5892401802bea7f167d1ea22b3'
-last_updated: '2026-06-15'
+last_updated: '2026-06-16'
 ---
 
 # Hook Contracts — `.claude/hooks/*.mjs`

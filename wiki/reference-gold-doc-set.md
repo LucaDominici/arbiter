@@ -1,8 +1,8 @@
 ---
 generated: true
 source: 'docs/REFERENCE/gold-doc-set.md'
-source_sha: 'dde28651ba1ca3ae1358f0cf9d213a94de42447b'
-last_updated: '2026-06-15'
+source_sha: 'f039b992cd6eee263bcdeecd6d599591b86b7b9a'
+last_updated: '2026-06-16'
 ---
 
 # Reference: Gold Doc-Set + Report
@@ -38,13 +38,63 @@ matches ≥1 file. `accept_any` is how equivalents are accepted without false ga
 `architecture` = `arc42` = `blueprint`, `coding-standards` = `naming-convention` = secure-coding
 checklist, `VERSION` = `package.json`, and so on.
 
+## Manifest schema enrichment (#1415)
+
+Every check additionally carries:
+
+- **`phase`** — the ISO/IEC/IEEE 12207 lifecycle phase the doc serves:
+  `inception` | `design` | `build` | `release` | `operate`.
+- **`drivers[]`** — the standards/regulations that mandate the doc, from a fixed vocabulary:
+  `diataxis`, `iso29148`, `gamp5`, `part11`, `iso27001`, `gdpr`, `nis2`, `dd-impresoft`,
+  `iso12207`, `iso9001`, `owasp`. These make the manifest a traceable, audit-ready map from each
+  doc to _why_ it is required.
+
+## Overlays and doc families
+
+Conditional checks are grouped into doc **families**, each gated by an overlay declared in
+`standards/doc-profile`:
+
+| Overlay          | Family / docs                                                                                                                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `has-plugin-api` | `docs/PLUGIN-API.md`                                                                                                                                                                                                               |
+| `has-api`        | `docs/api` reference                                                                                                                                                                                                               |
+| `customer-data`  | **data** (ER, classification, retention, PII inventory) + **security** (threat-model, encryption, vuln-mgmt, risk-register) — GDPR / ISO 27001                                                                                     |
+| `deploys`        | **operations** (observability, SLO, DR-BCP, backup, incidents) + **legal/supply-chain** (SBOM CycloneDX/SPDX, OSS deps) + **delivery** (user-manual, admin-guide, release-notes) + **anti-falso-green** dims — NIS2 / dd-impresoft |
+| `gxp`            | CSV validation + audit-trail (GAMP 5 / 21 CFR Part 11)                                                                                                                                                                             |
+| `has-ai`         | model card + AI risk assessment                                                                                                                                                                                                    |
+| `has-mobile`     | app-store compliance + Playwright coverage                                                                                                                                                                                         |
+
+A `technical-debt` register (`docs/technical-debt.md`) is a recommended, always-on doc.
+
+## ADR dual recognition (#1415)
+
+The ADR check (`adr: true`) recognizes a decision record in any of three filename forms, so an
+org-wide repo prefix never produces a false gap:
+
+- legacy bare-numeric — `001-thin-pointer.md`
+- legacy `ADR-NNN` — `ADR-001-thin-pointer.md`
+- repo-prefixed — `<PREFIX>-NNN_slug.md` (e.g. `ARB-001_thin-pointer.md`)
+
+An optional validator, `scripts/validate-adr-prefix.mjs`, enforces a single org prefix and
+unique ADR numbers across a multi-repo org (`--prefix ARB`). It is **not** the canonical ADR
+index gate (`check-adr-index.mjs`, INV-107).
+
+## --generate write-safety (#1415)
+
+`--generate` scaffolds a stub **only when the target file is missing** (the `!existsSync`
+guard) — it never overwrites any existing file. Stub-refresh-in-place is opt-in via
+`--refresh-stubs` and re-renders a doc **only when its bytes equal the freshly rendered stub
+template**; a real, hand-written doc is always preserved byte-for-byte.
+
 ## Usage
 
 ```bash
 node scripts/check-doc-set.mjs              # advisory audit (exit 0)
 node scripts/check-doc-set.mjs --json       # machine-readable
 node scripts/check-doc-set.mjs --strict     # exit 1 if a mandatory doc is missing
-node scripts/check-doc-set.mjs --generate   # scaffold stubs for missing mandatory+recommended .md docs
+node scripts/check-doc-set.mjs --generate   # scaffold stubs for MISSING mandatory+recommended .md docs
+node scripts/check-doc-set.mjs --generate --refresh-stubs  # also re-render byte-equal stubs in place
+node scripts/validate-adr-prefix.mjs --prefix ARB          # validate ADR repo prefix + unique numbers
 node scripts/gold-report.mjs                # (re)write GOLD-REPORT.md
 node scripts/gold-report.mjs --check        # exit 1 if the committed report is stale
 ```

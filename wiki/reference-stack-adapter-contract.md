@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/stack-adapter-contract.md'
 source_sha: 'a6d876a3955f6c1189dbf9f1b4c84edc2df8eda9'
-last_updated: '2026-06-15'
+last_updated: '2026-06-16'
 ---
 
 # Stack Adapter Contract

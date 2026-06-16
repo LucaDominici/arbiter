@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/METHOD/PATTERNS_CATALOG.md'
 source_sha: '0d04e2bac910b2db2f2a6493fde7528afae4811f'
-last_updated: '2026-06-15'
+last_updated: '2026-06-16'
 ---
 
 # arbiter Patterns Catalog

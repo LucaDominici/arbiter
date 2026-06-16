@@ -195,6 +195,13 @@ function extractJson(text: string, select: string): number | null {
  *   `count:tag`        → number of `<tag` occurrences (open or self-closing)
  *   `attr:tag@name`    → the numeric `name="…"` attribute of the first `<tag …>` element
  */
+// A real element open ends in whitespace, '>' or '/' (not another name char).
+function isXmlElementBoundary(c: string | undefined): boolean {
+  return (
+    c === undefined || c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '>' || c === '/'
+  )
+}
+
 function extractXml(text: string, select: string): number | null {
   if (select.startsWith('count:')) {
     const tag = select.slice('count:'.length)
@@ -205,19 +212,7 @@ function extractXml(text: string, select: string): number | null {
     for (;;) {
       const i = text.indexOf(needle, from)
       if (i < 0) break
-      const next = text[i + needle.length]
-      // Match a real element open: next char must be whitespace, '>' or '/' (not another name char).
-      if (
-        next === undefined ||
-        next === ' ' ||
-        next === '\t' ||
-        next === '\n' ||
-        next === '\r' ||
-        next === '>' ||
-        next === '/'
-      ) {
-        count++
-      }
+      if (isXmlElementBoundary(text[i + needle.length])) count++
       from = i + needle.length
     }
     return count
@@ -302,9 +297,9 @@ function evalValueReport(
   // Absent report ⇒ NA: the tool did not run / does not apply for this stack (never a false-N).
   if (!existsSync(abs)) return { verdict: 'NA', evidence: null }
   const args = check.args ?? {}
-  const format = String(args.format ?? '')
-  const select = String(args.select ?? '')
-  const op = String(args.op ?? '')
+  const format = args.format ?? ''
+  const select = args.select ?? ''
+  const op = args.op ?? ''
   const bar = resolveBar(check, options)
   if (bar === null) {
     return { verdict: 'N', evidence: { file: rel, detail: 'unresolved threshold' } }

@@ -37,7 +37,7 @@
   },
   {
     "path": "hooks/post-edit-dispatch.mjs",
-    "reason": "Arbiter self-dogfood: uses 'npx prettier --check .' instead of 'npx prettier --write .' — arbiter validates format rather than auto-fixing to avoid silent file changes. Template uses the formatCommand variable which defaults to --write. (Confirmed intentional 2026-05-29, #1092.)"
+    "reason": "Arbiter self-dogfood: uses 'npx prettier --check .' instead of 'npx prettier --write .' \u2014 arbiter validates format rather than auto-fixing to avoid silent file changes. Template uses the formatCommand variable which defaults to --write. (Confirmed intentional 2026-05-29, #1092.)"
   },
   {
     "path": "rules/90-exec-protocol.md",
@@ -53,11 +53,11 @@
   },
   {
     "path": "hooks/hooks.mjs",
-    "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ — arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land."
+    "reason": "Arbiter self-dogfood: hooks.mjs dispatcher (#248) not yet materialized in arbiter's own .claude/hooks/ \u2014 arbiter's settings.json continues to use individual hook wiring (see existing settings.json divergence). Materialization deferred to a dedicated regenerate pass after all Wave-1 issues land."
   },
   {
     "path": "hooks/post-commit-check.mjs",
-    "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 — static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) — intentional: arbiter's self-config is more conservative than generated target advice."
+    "reason": "Arbiter self-dogfood: materialized hook uses dynamic await import() of scripts/detect-track.mjs (RT-EH-001 \u2014 static ESM import of a missing shared lib crashes all commits). Generated target hooks have equivalent regexes baked in at arbiter init time via EJS include; dynamic import is an arbiter-self-config-only pattern not shipped to target projects. Additionally, the self-config FE block emits 2 lines (vitest + tsc) while ts/frontend.ejs emits 3 (adding pnpm snapshot diff reminder) \u2014 intentional: arbiter's self-config is more conservative than generated target advice."
   },
   {
     "path": "commands/review-code.md",
@@ -90,5 +90,9 @@
   {
     "path": "hooks/wiki-on-commit.mjs",
     "reason": "Arbiter self-dogfood: the arbiter-self wiki-on-commit.mjs is a direct copy of the template (no EJS expressions). Divergence is zero but the dogfood check compares against the rendered template output which may differ in whitespace. Divergence intentional (#1241, 2026-06-06)."
+  },
+  {
+    "path": "skills/wave-drain/SKILL.md",
+    "reason": "Probe Phase 0.5 harvest + canonical finding schema (#1404) added to the self orchestrator skill ahead of its .ejs template; downstream generation of the Probe loop (note/findings commands + /drain Phase 0.5 step) is tracked in #1406, which ships the consumer-side commands the Phase 0.5 step depends on. The template intentionally renders the pre-Probe skill until then."
   }
 ]
