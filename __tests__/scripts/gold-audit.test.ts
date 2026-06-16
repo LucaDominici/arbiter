@@ -352,3 +352,149 @@ describe('gold-audit (#1373)', () => {
     }
   })
 })
+
+// ── #1413: per-stack registry (value-op reads pre-generated reports + threshold_ref per class) ────
+//
+// gold-audit --stack java selects standards/gold-registry.java.yml and resolves each value check's
+// bar from standards/thresholds.yml keyed by --class. Reports are PRE-GENERATED (no spawn). A check
+// whose report file is absent scores NA (never a false-N). The shipped registries live in the repo,
+// so this suite points the engine at the real standards/ via --registry/--thresholds.
+
+const ROOT = resolve('.')
+const JAVA_REGISTRY = join(ROOT, 'standards', 'gold-registry.java.yml')
+const THRESHOLDS = join(ROOT, 'standards', 'thresholds.yml')
+
+/** A repo with the has-java overlay enabled and a configurable set of pre-generated reports. */
+function makeJavaRepo(reports: Record<string, string> = {}): {
+  dir: string
+  cleanup: () => void
+} {
+  const dir = mkdtempSync(join(tmpdir(), 'gold-java-test-'))
+  mkdirSync(join(dir, 'standards'), { recursive: true })
+  writeFileSync(join(dir, 'standards', 'gold-profile'), 'overlays:\n  - has-java\n')
+  for (const [rel, content] of Object.entries(reports)) {
+    const abs = join(dir, rel)
+    mkdirSync(join(abs, '..'), { recursive: true })
+    writeFileSync(abs, content)
+  }
+  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
+}
+
+function runJava(
+  dir: string,
+  cls: string,
+): { status: number; byId: Record<string, { verdict: string; evidence: unknown }> } {
+  const r = run(dir, [
+    '--json',
+    '--registry',
+    JAVA_REGISTRY,
+    '--thresholds',
+    THRESHOLDS,
+    '--class',
+    cls,
+  ])
+  const j = JSON.parse(r.stdout)
+  const byId = Object.fromEntries(
+    j.checks.map((c: { id: string }) => [(c as { id: string }).id, c]),
+  )
+  return { status: r.status, byId }
+}
+
+describe('gold-audit --stack java (#1413 per-stack registry)', () => {
+  it('absent reports → value checks score NA (no false-N), config checks score N', () => {
+    const { dir, cleanup } = makeJavaRepo() // no reports, no config files at all
+    try {
+      const { byId } = runJava(dir, 'light')
+      // value-op report check with an absent report file ⇒ NA
+      expect(byId['JA-STYLE-02'].verdict).toBe('NA')
+      expect(byId['JA-COV-03'].verdict).toBe('NA')
+      expect(byId['JA-MUT-02'].verdict).toBe('NA')
+      // a plain file_exists config check with the file absent ⇒ N (correctly a verified gap)
+      expect(byId['JA-STYLE-01'].verdict).toBe('N')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('non-java repo (overlay off) → every report check is NA (no false gaps)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gold-nojava-'))
+    try {
+      // no profile ⇒ has-java overlay is OFF ⇒ applies_if gates all checks to NA
+      const { byId } = runJava(dir, 'gold')
+      for (const id of Object.keys(byId)) {
+        expect(byId[id].verdict).toBe('NA')
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('present reports under the per-class bar → Y with evidence', () => {
+    const { dir, cleanup } = makeJavaRepo({
+      'target/checkstyle-result.xml': '<checkstyle><file><error/><error/></file></checkstyle>',
+      'target/coverage-summary.json': JSON.stringify({
+        total: { lines: { pct: 85 }, branches: { pct: 75 } },
+      }),
+    })
+    try {
+      const { byId } = runJava(dir, 'light') // checkstyle bar 25, coverage.line 80, branch 70
+      expect(byId['JA-STYLE-02'].verdict).toBe('Y') // 2 errors <= 25
+      expect(byId['JA-COV-03'].verdict).toBe('Y') // 85 >= 80
+      expect(byId['JA-COV-04'].verdict).toBe('Y') // 75 >= 70
+      expect(byId['JA-STYLE-02'].evidence).toBeTruthy()
+      expect((byId['JA-COV-03'].evidence as { file?: string }).file).toBe(
+        'target/coverage-summary.json',
+      )
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('threshold_ref resolves per class — gold bar fails what light passes (same report)', () => {
+    const reports = {
+      'target/coverage-summary.json': JSON.stringify({
+        total: { lines: { pct: 85 }, branches: { pct: 75 } },
+      }),
+      'target/checkstyle-result.xml': '<checkstyle><file><error/><error/></file></checkstyle>',
+    }
+    const a = makeJavaRepo(reports)
+    const b = makeJavaRepo(reports)
+    try {
+      const light = runJava(a.dir, 'light')
+      const gold = runJava(b.dir, 'gold')
+      // coverage 85: light bar 80 ⇒ Y, gold bar 90 ⇒ N
+      expect(light.byId['JA-COV-03'].verdict).toBe('Y')
+      expect(gold.byId['JA-COV-03'].verdict).toBe('N')
+      // checkstyle 2 errors: light bar 25 ⇒ Y, gold bar 0 ⇒ N
+      expect(light.byId['JA-STYLE-02'].verdict).toBe('Y')
+      expect(gold.byId['JA-STYLE-02'].verdict).toBe('N')
+    } finally {
+      a.cleanup()
+      b.cleanup()
+    }
+  })
+
+  it('is byte-stable across two runs (determinism)', () => {
+    const { dir, cleanup } = makeJavaRepo({
+      'target/coverage-summary.json': JSON.stringify({ total: { lines: { pct: 85 } } }),
+    })
+    try {
+      const args = ['--json', '--registry', JAVA_REGISTRY, '--thresholds', THRESHOLDS, '--class', 'medium']
+      const a = run(dir, args).stdout
+      const b = run(dir, args).stdout
+      expect(a).toBe(b)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('the shipped java registry has zero RISKY checks (--strict passes)', () => {
+    const { dir, cleanup } = makeJavaRepo()
+    try {
+      const r = run(dir, ['--strict', '--registry', JAVA_REGISTRY, '--thresholds', THRESHOLDS])
+      expect(r.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+})

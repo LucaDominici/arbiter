@@ -8,6 +8,14 @@
 import { existsSync, statSync } from 'node:fs'
 import { safeResolve, readText } from './shared.js'
 
+// ── #1413: brownfield-class threshold SSOT + value-op report-extraction model ───
+//
+// A `value` check with an `args.format` reads a PRE-GENERATED tool report deterministically (no
+// live spawn: that would break the determinism + parity + fail-closed contracts). It extracts a
+// single numeric metric (json dotted-path, xml element-count / attribute, or a regex capture group)
+// and compares it against a bar resolved per brownfield class via `threshold_ref`. A check whose
+// report file is ABSENT resolves to NA (the tool did not run / does not apply) — never a false-N.
+
 // ── Public types ──────────────────────────────────────────────────────────────
 
 /** Unified verdict scale: Y=pass, P=partial, N=fail, NA=not-applicable, NV=not-verified. */
@@ -28,6 +36,14 @@ export interface CheckInput {
     pattern?: string
     min?: number
     equals?: string
+    /** value-op report extraction format (#1413). */
+    format?: 'json' | 'xml' | 'regex'
+    /** value-op selector: json dotted-path | xml `count:tag` / `attr:tag@attr` | regex w/ group 1. */
+    select?: string
+    /** value-op comparison operator (#1413). */
+    op?: 'gte' | 'lte' | 'eq'
+    /** value-op literal bar (used only when no `threshold_ref` is given). */
+    expected?: number
     [key: string]: unknown
   }
   weight?: number
@@ -36,11 +52,24 @@ export interface CheckInput {
   title?: string
   risk?: string
   anchor?: string
+  /** Resolve the comparison bar per brownfield class from the thresholds SSOT (#1413). */
+  threshold_ref?: string
 }
 
 export interface RegistryInput {
   version?: string
   checks?: CheckInput[]
+}
+
+/** Per-class numeric bar for one threshold_ref key (the thresholds.yml row). */
+export type ThresholdRow = Record<string, number>
+/** The brownfield-class threshold SSOT: threshold_ref → { gold, light, medium, heavy }. */
+export type ThresholdTable = Record<string, ThresholdRow>
+
+/** Optional evaluation context: thresholds SSOT + the active brownfield class (#1413). */
+export interface EvaluateOptions {
+  thresholds?: ThresholdTable
+  brownfieldClass?: string
 }
 
 export interface CheckResult {
@@ -142,11 +171,153 @@ function evalValue(abs: string, rel: string, expected: string): EvalCheckResult 
     : { verdict: 'N', evidence: { file: rel, detail: `value not present: ${expected}` } }
 }
 
+// ── #1413: deterministic report metric extraction (json/xml/regex) ──────────────
+
+/** Read a numeric metric from a JSON report via a dotted path (e.g. `total.lines.pct`), or null. */
+function extractJson(text: string, select: string): number | null {
+  let node: unknown
+  try {
+    node = JSON.parse(text)
+  } catch {
+    return null
+  }
+  for (const key of select.split('.')) {
+    if (key === '') continue
+    if (node === null || typeof node !== 'object') return null
+    node = (node as Record<string, unknown>)[key]
+  }
+  const n = typeof node === 'number' ? node : Number(node)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Read a numeric metric from an XML report. Selectors (deterministic, dependency-free):
+ *   `count:tag`        → number of `<tag` occurrences (open or self-closing)
+ *   `attr:tag@name`    → the numeric `name="…"` attribute of the first `<tag …>` element
+ */
+function extractXml(text: string, select: string): number | null {
+  if (select.startsWith('count:')) {
+    const tag = select.slice('count:'.length)
+    if (tag === '') return null
+    let count = 0
+    const needle = `<${tag}`
+    let from = 0
+    for (;;) {
+      const i = text.indexOf(needle, from)
+      if (i < 0) break
+      const next = text[i + needle.length]
+      // Match a real element open: next char must be whitespace, '>' or '/' (not another name char).
+      if (next === undefined || next === ' ' || next === '\t' || next === '\n' || next === '\r' || next === '>' || next === '/') {
+        count++
+      }
+      from = i + needle.length
+    }
+    return count
+  }
+  if (select.startsWith('attr:')) {
+    const spec = select.slice('attr:'.length)
+    const at = spec.indexOf('@')
+    if (at < 0) return null
+    const tag = spec.slice(0, at)
+    const attr = spec.slice(at + 1)
+    if (tag === '' || attr === '') return null
+    const open = text.indexOf(`<${tag}`)
+    if (open < 0) return null
+    const close = text.indexOf('>', open)
+    const segment = close < 0 ? text.slice(open) : text.slice(open, close)
+    const m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+    if (m === null) return null
+    const n = Number(m[1])
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+/** Read a numeric metric from text via a regex whose first capture group is the number. */
+function extractRegex(text: string, select: string): number | null {
+  let re: RegExp
+  try {
+    re = new RegExp(select)
+  } catch {
+    return null
+  }
+  const m = re.exec(text)
+  if (m === null || m[1] === undefined) return null
+  const n = Number(m[1])
+  return Number.isFinite(n) ? n : null
+}
+
+/** Extract a numeric metric from a report's text for the given format + selector, or null. */
+function extractMetric(text: string, format: string, select: string): number | null {
+  if (format === 'json') return extractJson(text, select)
+  if (format === 'xml') return extractXml(text, select)
+  if (format === 'regex') return extractRegex(text, select)
+  return null
+}
+
+/** Apply a comparison operator. Unknown op fails closed (false). */
+function compareValue(actual: number, op: string, bar: number): boolean {
+  if (op === 'gte') return actual >= bar
+  if (op === 'lte') return actual <= bar
+  if (op === 'eq') return actual === bar
+  return false
+}
+
+/**
+ * Resolve the comparison bar for a value check: `threshold_ref` row keyed by the active brownfield
+ * class, else the literal `args.expected`. Returns null when neither yields a finite number.
+ */
+function resolveBar(check: CheckInput, options: EvaluateOptions): number | null {
+  const ref = check.threshold_ref
+  if (ref !== undefined && ref !== '') {
+    const table = options.thresholds ?? {}
+    const row = table[ref]
+    if (row === undefined) return null
+    const cls = options.brownfieldClass ?? 'gold'
+    const bar = Object.prototype.hasOwnProperty.call(row, cls) ? row[cls] : undefined
+    return typeof bar === 'number' && Number.isFinite(bar) ? bar : null
+  }
+  const lit = check.args?.expected
+  return typeof lit === 'number' && Number.isFinite(lit) ? lit : null
+}
+
+/**
+ * value-op report-extraction evaluator (#1413). Reads a pre-generated tool report; absent report ⇒
+ * NA (no false-N). Bar resolved per brownfield class via threshold_ref / args.expected.
+ */
+function evalValueReport(
+  abs: string,
+  rel: string,
+  check: CheckInput,
+  options: EvaluateOptions,
+): EvalCheckResult {
+  // Absent report ⇒ NA: the tool did not run / does not apply for this stack (never a false-N).
+  if (!existsSync(abs)) return { verdict: 'NA', evidence: null }
+  const args = check.args ?? {}
+  const format = String(args.format ?? '')
+  const select = String(args.select ?? '')
+  const op = String(args.op ?? '')
+  const bar = resolveBar(check, options)
+  if (bar === null) {
+    return { verdict: 'N', evidence: { file: rel, detail: 'unresolved threshold' } }
+  }
+  const text = readText(abs)
+  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
+  const actual = extractMetric(text, format, select)
+  if (actual === null) {
+    return { verdict: 'N', evidence: { file: rel, detail: `no metric for ${format}:${select}` } }
+  }
+  const pass = compareValue(actual, op, bar)
+  return pass
+    ? { verdict: 'Y', evidence: { file: rel, detail: `${actual} ${op} ${bar}` } }
+    : { verdict: 'N', evidence: { file: rel, detail: `${actual} !${op} ${bar}` } }
+}
+
 /**
  * Evaluate a single check against the repo.
  * Returns { verdict, evidence } — evidence is null for NA/NV.
  */
-function evalCheck(check: CheckInput, root: string): EvalCheckResult {
+function evalCheck(check: CheckInput, root: string, options: EvaluateOptions): EvalCheckResult {
   const { type } = check
   if (type === 'manual') return { verdict: 'NV', evidence: null }
 
@@ -162,7 +333,14 @@ function evalCheck(check: CheckInput, root: string): EvalCheckResult {
   if (type === 'file_contains') return evalFileContains(abs, rel, args['pattern'] ?? '')
   if (type === 'count_matches')
     return evalCountMatches(abs, rel, args['pattern'] ?? '', args['min'] ?? 1)
-  if (type === 'value') return evalValue(abs, rel, args['equals'] ?? '')
+  if (type === 'value') {
+    // A value check with a report `format` reads a pre-generated tool report (#1413); without one it
+    // keeps the legacy single-line `equals`-contains behavior (back-compat — same verdicts as before).
+    // Truthy covers both undefined and "" (runtime YAML may carry either) for the legacy fall-through.
+    return args['format']
+      ? evalValueReport(abs, rel, check, options)
+      : evalValue(abs, rel, args['equals'] ?? '')
+  }
 
   // Unknown check type — fail-closed (not NV, not silent pass)
   return { verdict: 'N', evidence: { file: rel, detail: `unknown check type: ${type}` } }
@@ -221,6 +399,7 @@ function processCheck(
   overlays: Set<string>,
   root: string,
   dims: Map<string, DimAccum>,
+  options: EvaluateOptions,
 ): {
   checkResult: CheckResult
   yCount: number
@@ -236,7 +415,7 @@ function processCheck(
     verdict = 'NA'
     evidence = null
   } else {
-    const r = evalCheck(check, root)
+    const r = evalCheck(check, root, options)
     verdict = r.verdict
     evidence = r.evidence
   }
@@ -283,6 +462,7 @@ export function evaluate(
   registry: RegistryInput,
   overlays: Set<string>,
   root: string,
+  options: EvaluateOptions = {},
 ): EngineResult {
   try {
     const rawChecks = Array.isArray(registry.checks) ? registry.checks : []
@@ -298,7 +478,7 @@ export function evaluate(
     let possible = 0
 
     for (const check of sorted) {
-      const r = processCheck(check, overlays, root, dims)
+      const r = processCheck(check, overlays, root, dims, options)
       checks.push(r.checkResult)
       yCount += r.yCount
       riskyCount += r.riskyCount
