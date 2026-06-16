@@ -1,0 +1,204 @@
+# Gold-Audit registry — Java stack (#1413). Selected with `gold-audit --stack java`.
+#
+# A JUSTIFIED SUBSET (~15 checks) of the full Java gold-kit, ported as the FIRST per-stack registry.
+# The full ~392-check port is deferred to a follow-up issue (see #1413 DONE report). Every check here
+# is SAFE: anchored, deterministic, report-grounded — no app-specific single-proxy grep and no
+# absolute gold-sized count baked in (the bars live in standards/thresholds.yml, keyed by class).
+#
+# Two check families:
+#   * config-presence (file_exists / file_contains) — the tool is WIRED, not just aspirational.
+#   * report-metric (type: value, format: xml/json/regex) — reads a PRE-GENERATED tool report
+#     deterministically and compares the extracted metric to a per-brownfield-class bar resolved via
+#     threshold_ref. A check whose report file is ABSENT scores NA (the tool did not run / does not
+#     apply for this build) — never a false-N. No live spawn: the engine stays deterministic and the
+#     engine.ts ⇆ gold-audit-lib.mjs parity holds.
+#
+# applies_if: has-java gates the whole registry's report checks behind the Java overlay, so auditing a
+# non-Java repo with this registry yields NA across the board (no false gaps). Enable via the profile:
+#   overlays: [has-java]
+#
+# Verdicts: Y verified-true · P partial · N verified-false · NA not-applicable · NV manual.
+# Scoring excludes NA + NV (you are not graded on what code can't verify or on tools that did not run).
+version: '1.0.0'
+profile: java
+
+dimensions:
+  - id: D-BUILD
+    title: Build + dependency hygiene
+  - id: D-STYLE
+    title: Static style + lint (Checkstyle / PMD / SpotBugs)
+  - id: D-COVERAGE
+    title: Test coverage (JaCoCo)
+  - id: D-MUTATION
+    title: Mutation testing (PIT / Pitest)
+  - id: D-ARCH
+    title: Architecture conformance (ArchUnit)
+
+checks:
+  # ── D-BUILD: a recognized build tool is declared (Maven or Gradle). ───────────────────────────
+  - id: JA-BUILD-01
+    dimension: D-BUILD
+    title: Build manifest present (pom.xml)
+    type: file_exists
+    args: { path: pom.xml }
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-BUILD-02
+    dimension: D-BUILD
+    title: Reproducible build / dependency lock declared
+    type: file_exists
+    args: { path: gradle.lockfile }
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+
+  # ── D-STYLE: Checkstyle / PMD / SpotBugs wired AND under the per-class violation ceiling. ──────
+  - id: JA-STYLE-01
+    dimension: D-STYLE
+    title: Checkstyle config present (style gate wired)
+    type: file_exists
+    args: { path: config/checkstyle/checkstyle.xml }
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-STYLE-02
+    dimension: D-STYLE
+    title: Checkstyle violations under the per-class ceiling
+    type: value
+    args:
+      path: target/checkstyle-result.xml
+      format: xml
+      select: 'count:error'
+      op: lte
+    threshold_ref: checkstyle.errors
+    weight: 2
+    risk: SAFE
+    applies_if: has-java
+    anchor: INV-25
+  - id: JA-STYLE-03
+    dimension: D-STYLE
+    title: PMD violations under the per-class ceiling
+    type: value
+    args:
+      path: target/pmd.xml
+      format: xml
+      select: 'count:violation'
+      op: lte
+    threshold_ref: pmd.violations
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-STYLE-04
+    dimension: D-STYLE
+    title: SpotBugs bug-instances under the per-class ceiling
+    type: value
+    args:
+      path: target/spotbugsXml.xml
+      format: xml
+      select: 'count:BugInstance'
+      op: lte
+    threshold_ref: spotbugs.bugs
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+
+  # ── D-COVERAGE: JaCoCo wired AND line/branch coverage meet the per-class floor. ───────────────
+  - id: JA-COV-01
+    dimension: D-COVERAGE
+    title: JaCoCo report present (coverage measured)
+    type: file_exists
+    args: { path: target/site/jacoco/jacoco.csv }
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-COV-02
+    dimension: D-COVERAGE
+    title: Line coverage meets the per-class floor (jacoco.xml LINE covered ratio)
+    type: value
+    args:
+      path: target/site/jacoco/jacoco.xml
+      format: regex
+      select: 'type="LINE"[^>]*covered="(\d+)"'
+      op: gte
+      # NOTE: covered-count proxy; the registry author keeps the bar a ratio-independent floor via
+      # threshold_ref. For a true ratio, emit a coverage-summary.json (see JA-COV-03).
+    threshold_ref: coverage.line
+    weight: 2
+    risk: SAFE
+    applies_if: has-java
+    anchor: INV-25
+  - id: JA-COV-03
+    dimension: D-COVERAGE
+    title: Line coverage % meets the per-class floor (coverage-summary.json)
+    type: value
+    args:
+      path: target/coverage-summary.json
+      format: json
+      select: 'total.lines.pct'
+      op: gte
+    threshold_ref: coverage.line
+    weight: 2
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-COV-04
+    dimension: D-COVERAGE
+    title: Branch coverage % meets the per-class floor (coverage-summary.json)
+    type: value
+    args:
+      path: target/coverage-summary.json
+      format: json
+      select: 'total.branches.pct'
+      op: gte
+    threshold_ref: coverage.branch
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+
+  # ── D-MUTATION: PIT wired AND mutation score meets the per-class floor. ───────────────────────
+  - id: JA-MUT-01
+    dimension: D-MUTATION
+    title: PIT (Pitest) mutation report present
+    type: file_exists
+    args: { path: target/pit-reports/mutations.xml }
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+    anchor: INV-30
+  - id: JA-MUT-02
+    dimension: D-MUTATION
+    title: Mutation score meets the per-class floor (pit-summary.json)
+    type: value
+    args:
+      path: target/pit-reports/pit-summary.json
+      format: json
+      select: 'mutationScore'
+      op: gte
+    threshold_ref: mutation.score
+    weight: 2
+    risk: SAFE
+    applies_if: has-java
+    anchor: INV-30
+
+  # ── D-ARCH: ArchUnit wired AND architecture-rule violations under the per-class ceiling. ──────
+  - id: JA-ARCH-01
+    dimension: D-ARCH
+    title: ArchUnit test suite present (architecture conformance wired)
+    type: file_exists
+    args: { path: src/test/java/architecture/ArchitectureTest.java }
+    weight: 1
+    risk: SAFE
+    applies_if: has-java
+  - id: JA-ARCH-02
+    dimension: D-ARCH
+    title: ArchUnit violations under the per-class ceiling (archunit-report.json)
+    type: value
+    args:
+      path: target/archunit-report.json
+      format: json
+      select: 'violations'
+      op: lte
+    threshold_ref: archunit.violations
+    weight: 1
+    risk: SAFE
+    applies_if: has-java

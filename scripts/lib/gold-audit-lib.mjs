@@ -47,11 +47,161 @@ function lineOf(text, needle) {
   return line
 }
 
+// ── #1413: deterministic report metric extraction (json/xml/regex) ──────────────
+//
+// A `value` check with an `args.format` reads a PRE-GENERATED tool report deterministically (no live
+// spawn: that would break the determinism + parity + fail-closed contracts). It extracts a single
+// numeric metric and compares it against a per-brownfield-class bar resolved via `threshold_ref`. A
+// check whose report file is ABSENT resolves to NA (the tool did not run / does not apply) — never a
+// false-N. This logic is byte-identical to src/conformance/engine.ts (engine-parity.test.ts).
+
+/** Read a numeric metric from a JSON report via a dotted path (e.g. `total.lines.pct`), or null. */
+function extractJson(text, select) {
+  let node
+  try {
+    node = JSON.parse(text)
+  } catch {
+    return null
+  }
+  for (const key of select.split('.')) {
+    if (key === '') continue
+    if (node === null || typeof node !== 'object') return null
+    node = node[key]
+  }
+  const n = typeof node === 'number' ? node : Number(node)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Read a numeric metric from an XML report. Selectors (deterministic, dependency-free):
+ *   `count:tag`        → number of `<tag` occurrences (open or self-closing)
+ *   `attr:tag@name`    → the numeric `name="…"` attribute of the first `<tag …>` element
+ */
+function extractXml(text, select) {
+  if (select.startsWith('count:')) {
+    const tag = select.slice('count:'.length)
+    if (tag === '') return null
+    let count = 0
+    const needle = `<${tag}`
+    let from = 0
+    for (;;) {
+      const i = text.indexOf(needle, from)
+      if (i < 0) break
+      const next = text[i + needle.length]
+      if (
+        next === undefined ||
+        next === ' ' ||
+        next === '\t' ||
+        next === '\n' ||
+        next === '\r' ||
+        next === '>' ||
+        next === '/'
+      ) {
+        count++
+      }
+      from = i + needle.length
+    }
+    return count
+  }
+  if (select.startsWith('attr:')) {
+    const spec = select.slice('attr:'.length)
+    const at = spec.indexOf('@')
+    if (at < 0) return null
+    const tag = spec.slice(0, at)
+    const attr = spec.slice(at + 1)
+    if (tag === '' || attr === '') return null
+    const open = text.indexOf(`<${tag}`)
+    if (open < 0) return null
+    const close = text.indexOf('>', open)
+    const segment = close < 0 ? text.slice(open) : text.slice(open, close)
+    const m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+    if (m === null) return null
+    const n = Number(m[1])
+    return Number.isFinite(n) ? n : null
+  }
+  return null
+}
+
+/** Read a numeric metric from text via a regex whose first capture group is the number. */
+function extractRegex(text, select) {
+  let re
+  try {
+    re = new RegExp(select)
+  } catch {
+    return null
+  }
+  const m = re.exec(text)
+  if (m === null || m[1] === undefined) return null
+  const n = Number(m[1])
+  return Number.isFinite(n) ? n : null
+}
+
+/** Extract a numeric metric from a report's text for the given format + selector, or null. */
+function extractMetric(text, format, select) {
+  if (format === 'json') return extractJson(text, select)
+  if (format === 'xml') return extractXml(text, select)
+  if (format === 'regex') return extractRegex(text, select)
+  return null
+}
+
+/** Apply a comparison operator. Unknown op fails closed (false). */
+function compareValue(actual, op, bar) {
+  if (op === 'gte') return actual >= bar
+  if (op === 'lte') return actual <= bar
+  if (op === 'eq') return actual === bar
+  return false
+}
+
+/**
+ * Resolve the comparison bar for a value check: `threshold_ref` row keyed by the active brownfield
+ * class, else the literal `args.expected`. Returns null when neither yields a finite number.
+ */
+function resolveBar(check, options) {
+  const ref = check.threshold_ref
+  if (ref !== undefined && ref !== '') {
+    const table = options.thresholds ?? {}
+    const row = table[ref]
+    if (row === undefined) return null
+    const cls = options.brownfieldClass ?? 'gold'
+    const bar = Object.prototype.hasOwnProperty.call(row, cls) ? row[cls] : undefined
+    return typeof bar === 'number' && Number.isFinite(bar) ? bar : null
+  }
+  const lit = check.args?.expected
+  return typeof lit === 'number' && Number.isFinite(lit) ? lit : null
+}
+
+/**
+ * value-op report-extraction evaluator (#1413). Reads a pre-generated tool report; absent report ⇒
+ * NA (no false-N). Bar resolved per brownfield class via threshold_ref / args.expected.
+ */
+function evalValueReport(abs, rel, check, options) {
+  // Absent report ⇒ NA: the tool did not run / does not apply for this stack (never a false-N).
+  if (!existsSync(abs)) return { verdict: 'NA', evidence: null }
+  const args = check.args || {}
+  const format = String(args.format ?? '')
+  const select = String(args.select ?? '')
+  const op = String(args.op ?? '')
+  const bar = resolveBar(check, options)
+  if (bar === null) {
+    return { verdict: 'N', evidence: { file: rel, detail: 'unresolved threshold' } }
+  }
+  const text = readText(abs)
+  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
+  const actual = extractMetric(text, format, select)
+  if (actual === null) {
+    return { verdict: 'N', evidence: { file: rel, detail: `no metric for ${format}:${select}` } }
+  }
+  const pass = compareValue(actual, op, bar)
+  return pass
+    ? { verdict: 'Y', evidence: { file: rel, detail: `${actual} ${op} ${bar}` } }
+    : { verdict: 'N', evidence: { file: rel, detail: `${actual} !${op} ${bar}` } }
+}
+
 /**
  * Evaluate a single check against the repo. Returns { verdict, evidence } where evidence is
  * { file, line? , detail? } for code-verifiable checks, or null for NA/NV.
  */
-function evalCheck(check, root) {
+function evalCheck(check, root, options) {
   const type = check.type
   if (type === 'manual') {
     return { verdict: 'NV', evidence: null }
@@ -100,7 +250,11 @@ function evalCheck(check, root) {
   }
 
   if (type === 'value') {
-    // value: file_contains with an explicit equals on a single captured line.
+    // A value check with a report `format` reads a pre-generated tool report (#1413); without one it
+    // keeps the legacy single-line `equals`-contains behavior (back-compat — same verdicts as before).
+    if (args.format !== undefined && args.format !== '') {
+      return evalValueReport(abs, rel, check, options || {})
+    }
     const text = readText(abs)
     if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
     const expect = String(args.equals ?? '')
@@ -132,8 +286,9 @@ function verdictPoints(verdict) {
  * Evaluate the whole registry. Deterministic: checks sorted by id, no timestamps.
  * @returns scored payload: { registryVersion, score, yCount, riskyCount, totals, dimensions, checks }
  */
-export function evaluate(registry, overlays, root) {
+export function evaluate(registry, overlays, root, options = {}) {
   const overlaySet = overlays instanceof Set ? overlays : new Set(overlays || [])
+  const opts = options && typeof options === 'object' ? options : {}
   const rawChecks = Array.isArray(registry?.checks) ? registry.checks : []
   const sorted = [...rawChecks].sort((a, b) => String(a.id).localeCompare(String(b.id)))
 
@@ -152,7 +307,7 @@ export function evaluate(registry, overlays, root) {
       verdict = 'NA'
       evidence = null
     } else {
-      const r = evalCheck(check, root)
+      const r = evalCheck(check, root, opts)
       verdict = r.verdict
       evidence = r.evidence
     }
