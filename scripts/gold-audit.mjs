@@ -29,6 +29,8 @@
 //     --registry P       registry path (default standards/gold-registry.yml)
 //     --profile P        overlay profile path (default standards/gold-profile)
 //     --baseline P       baseline path (default .gold-audit-baseline.json)
+//     --thresholds P     brownfield-class threshold SSOT (default standards/thresholds.yml) —
+//                        resolves value-op threshold_ref per --class
 //     --help, -h         show this help
 //
 // The default/--json output carries a deterministic LEVEL band (L0–L3 keyed by brownfieldClass)
@@ -66,6 +68,7 @@ if (args.includes('--help') || args.includes('-h')) {
       '  --registry P       registry path (default standards/gold-registry.yml)',
       '  --profile P        overlay profile path (default standards/gold-profile)',
       '  --baseline P       baseline path (default .gold-audit-baseline.json)',
+      '  --thresholds P     brownfield-class threshold SSOT (resolves value-op threshold_ref)',
       '  --help, -h         show this help',
       '',
     ].join('\n'),
@@ -90,6 +93,9 @@ const REGISTRY = opt(
 )
 const PROFILE = opt('--profile', 'standards/gold-profile')
 const BASELINE = opt('--baseline', '.gold-audit-baseline.json')
+// --thresholds P: the brownfield-class SSOT used to resolve value-op `threshold_ref` per --class
+// (#1413). The value op reads pre-generated tool reports; the bar differs by brownfield class.
+const THRESHOLDS = opt('--thresholds', 'standards/thresholds.yml')
 
 /**
  * Enrich the raw scored payload with the #1414 presentation fields (level band + gap report).
@@ -108,6 +114,21 @@ function loadOverlays() {
     return new Set(Array.isArray(doc.overlays) ? doc.overlays : [])
   } catch {
     return new Set()
+  }
+}
+
+/**
+ * Load the brownfield-class threshold SSOT (standards/thresholds.yml): threshold_ref → per-class bar.
+ * Absent/malformed ⇒ {} (value checks with an unresolvable threshold then score N, never silent-Y).
+ */
+function loadThresholds() {
+  const abs = resolve(CWD, THRESHOLDS)
+  if (!existsSync(abs)) return {}
+  try {
+    const doc = parseYaml(readFileSync(abs, 'utf-8')) || {}
+    return doc && typeof doc.thresholds === 'object' && doc.thresholds !== null ? doc.thresholds : {}
+  } catch {
+    return {}
   }
 }
 
@@ -143,7 +164,11 @@ function main() {
   }
 
   const overlays = loadOverlays()
-  const result = evaluate(registry, overlays, CWD)
+  // #1413: value-op checks resolve threshold_ref per --class from the thresholds SSOT.
+  const result = evaluate(registry, overlays, CWD, {
+    thresholds: loadThresholds(),
+    brownfieldClass: CLASS,
+  })
 
   // --strict false-gap meta-gate: never score on a fragile (RISKY) registry.
   if (flag('--strict') && result.riskyCount > 0) {

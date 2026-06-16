@@ -16,8 +16,10 @@ import { evaluate, type RegistryInput } from '../../src/conformance/engine.js'
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const MJS_PATH = join(REPO_ROOT, 'scripts/lib/gold-audit-lib.mjs')
 
-// MJS evaluate(registry, overlays, root) — same 3-arg signature as TS engine.
-let mjsModule: { evaluate: (registry: unknown, overlays: Set<string>, root: string) => unknown }
+// MJS evaluate(registry, overlays, root, options?) — same signature as the TS engine.
+let mjsModule: {
+  evaluate: (registry: unknown, overlays: Set<string>, root: string, options?: unknown) => unknown
+}
 
 beforeAll(async () => {
   mjsModule = (await import(MJS_PATH)) as typeof mjsModule
@@ -190,5 +192,112 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     if (mjsCheck !== undefined && mjsCheck.verdict === 'N') {
       expect(tsResult.checks[0]?.verdict).toBe('N')
     }
+  })
+
+  // ── Parity case 6 (#1413): value-op report extraction + threshold_ref must be byte-identical ──
+  //
+  // The value op reads PRE-GENERATED tool reports deterministically (no live spawn): xml/json/regex
+  // extraction + gte/lte/eq comparison, with thresholds resolved per brownfield class via
+  // threshold_ref. A check whose report file is ABSENT resolves to NA (never a false-N). Both engines
+  // must agree on every verdict — the parity contract is an acceptance criterion of #1413.
+
+  const VALUE_REGISTRY: RegistryInput = {
+    version: '1.0.0',
+    checks: [
+      // json extraction: coverage.total.lines.pct gte threshold_ref (resolved per class)
+      {
+        id: 'V-JSON',
+        type: 'value',
+        args: { path: 'coverage-summary.json', format: 'json', select: 'total.lines.pct', op: 'gte' },
+        threshold_ref: 'coverage.line',
+      },
+      // xml count: number of <error> elements in a checkstyle report lte threshold_ref
+      {
+        id: 'V-XML',
+        type: 'value',
+        args: { path: 'checkstyle.xml', format: 'xml', select: 'count:error', op: 'lte' },
+        threshold_ref: 'checkstyle.errors',
+      },
+      // absent report → NA (the tool did not run / does not apply): never a false-N
+      {
+        id: 'V-ABSENT',
+        type: 'value',
+        args: { path: 'never-generated.json', format: 'json', select: 'total.lines.pct', op: 'gte' },
+        threshold_ref: 'coverage.line',
+      },
+      // literal expected (no threshold_ref): regex first-group numeric eq
+      {
+        id: 'V-REGEX',
+        type: 'value',
+        args: { path: 'version.txt', format: 'regex', select: 'v=(\\d+)', op: 'eq', expected: 7 },
+      },
+    ],
+  }
+
+  // Mini thresholds SSOT: per-check bar keyed by brownfield class (ratchet-monotonic).
+  const THRESHOLDS = {
+    'coverage.line': { gold: 90, light: 70, medium: 50, heavy: 30 },
+    'checkstyle.errors': { gold: 0, light: 10, medium: 50, heavy: 200 },
+  }
+
+  function setupValueReports(root: string): void {
+    writeFileSync(
+      join(root, 'coverage-summary.json'),
+      JSON.stringify({ total: { lines: { pct: 80 } } }),
+    )
+    writeFileSync(
+      join(root, 'checkstyle.xml'),
+      '<checkstyle><file><error/><error/><error/></file></checkstyle>',
+    )
+    writeFileSync(join(root, 'version.txt'), 'tool v=7 release')
+  }
+
+  it('parity: value xml/json/regex + threshold_ref → identical verdicts (class=light)', async () => {
+    const root = tmpDir()
+    setupValueReports(root)
+    const opts = { thresholds: THRESHOLDS, brownfieldClass: 'light' }
+
+    const tsResult = evaluate(VALUE_REGISTRY, new Set<string>(), root, opts)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(VALUE_REGISTRY, new Set<string>(), root, opts),
+    )) as Record<string, unknown>
+
+    const tsById = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.verdict]))
+    const mjsChecks = (mjsResult['checks'] as Array<{ id: string; verdict: string }>) ?? []
+    const mjsById = Object.fromEntries(mjsChecks.map((c) => [c.id, c.verdict]))
+
+    // light coverage bar = 70; 80 >= 70 ⇒ Y
+    expect(tsById['V-JSON']).toBe('Y')
+    // light checkstyle bar = 10; count 3 <= 10 ⇒ Y
+    expect(tsById['V-XML']).toBe('Y')
+    // report absent ⇒ NA (no false-N)
+    expect(tsById['V-ABSENT']).toBe('NA')
+    // regex group 1 = 7 eq expected 7 ⇒ Y
+    expect(tsById['V-REGEX']).toBe('Y')
+
+    expect(mjsById).toEqual(tsById)
+    expect(tsResult.score).toBe(mjsResult['score'])
+    expect(tsResult.yCount).toBe(mjsResult['yCount'])
+  })
+
+  it('parity: threshold_ref resolves per class — gold bar fails what light passes', async () => {
+    const root = tmpDir()
+    setupValueReports(root) // coverage 80, checkstyle errors 3
+    const goldOpts = { thresholds: THRESHOLDS, brownfieldClass: 'gold' }
+
+    const tsResult = evaluate(VALUE_REGISTRY, new Set<string>(), root, goldOpts)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(VALUE_REGISTRY, new Set<string>(), root, goldOpts),
+    )) as Record<string, unknown>
+
+    const tsById = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.verdict]))
+    const mjsChecks = (mjsResult['checks'] as Array<{ id: string; verdict: string }>) ?? []
+    const mjsById = Object.fromEntries(mjsChecks.map((c) => [c.id, c.verdict]))
+
+    // gold coverage bar = 90; 80 >= 90 is FALSE ⇒ N (gold stricter than light)
+    expect(tsById['V-JSON']).toBe('N')
+    // gold checkstyle bar = 0; count 3 <= 0 is FALSE ⇒ N
+    expect(tsById['V-XML']).toBe('N')
+    expect(mjsById).toEqual(tsById)
   })
 })
