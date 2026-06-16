@@ -311,4 +311,44 @@ describe('gold-audit (#1373)', () => {
       cleanup()
     }
   })
+
+  // ── #1414: level band + gap render in the engine output ────────────────────────────────────
+  it('--json --class heavy includes a level band keyed by brownfieldClass', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+      const j = JSON.parse(run(dir, ['--json', '--class', 'heavy']).stdout)
+      expect(j.level).toBeTruthy()
+      expect(j.level.brownfieldClass).toBe('heavy')
+      expect(['L0', 'L1', 'L2', 'L3']).toContain(j.level.level)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('--json includes a gaps array (the N/P "what is missing" view) by family', () => {
+    const { dir, cleanup } = makeRepo() // README missing → GA-01/GA-02 are N
+    try {
+      const j = JSON.parse(run(dir, ['--json']).stdout)
+      expect(Array.isArray(j.gaps)).toBe(true)
+      const docs = j.gaps.find((g: { dimension: string }) => g.dimension === 'D-DOCS')
+      expect(docs).toBeTruthy()
+      expect(docs.checks.length).toBeGreaterThan(0)
+      expect(docs.checks[0].evidence).toBeTruthy()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('--class overrides the detected class deterministically', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+      const a = run(dir, ['--json', '--class', 'gold']).stdout
+      const b = run(dir, ['--json', '--class', 'gold']).stdout
+      expect(a).toBe(b)
+    } finally {
+      cleanup()
+    }
+  })
 })
