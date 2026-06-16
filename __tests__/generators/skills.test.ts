@@ -18,6 +18,7 @@ const SKILL_NAMES = [
   'wave-drain',
   'impact',
   'gold-audit',
+  'close-gold-gap',
 ] as const
 
 const SUPERPOWERS_TDD: InstalledSkill = {
