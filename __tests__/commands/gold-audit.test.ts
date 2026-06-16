@@ -5,7 +5,7 @@
 // same registry + repo — there is exactly one engine, never a second one.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { runGoldAudit } from '../../src/commands/gold-audit.js'
@@ -94,6 +94,47 @@ describe('runGoldAudit (#1414 thin wrapper)', () => {
     const empty = mkdtempSync(join(tmpdir(), 'gold-audit-cmd-empty-'))
     try {
       const res = runGoldAudit({ repo: empty, json: true })
+      expect(res.exitCode).toBe(0)
+    } finally {
+      rmSync(empty, { recursive: true, force: true })
+    }
+  })
+})
+
+// ─── #1419: --check no-regress mode (downstream thin-runner enabler) ─────────────
+// The downstream thin runner (scripts/gold-audit.mjs) delegates to
+// `npx arbiter gold-audit --check`. The command must therefore support --check:
+// it delegates to the engine's no-regress path (bootstrap missing baseline → exit 0).
+describe('runGoldAudit --check (#1419 downstream enabler)', () => {
+  it('--check bootstraps a missing baseline and exits 0 (no day-1 redness)', () => {
+    writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+    const res = runGoldAudit({ repo: dir, check: true })
+    expect(res.exitCode).toBe(0)
+  })
+
+  it('--check writes .gold-audit-baseline.json on first run', () => {
+    writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+    runGoldAudit({ repo: dir, check: true })
+    expect(existsSync(join(dir, '.gold-audit-baseline.json'))).toBe(true)
+  })
+
+  it('--check passes (exit 0) when the score holds vs the committed baseline', () => {
+    writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+    runGoldAudit({ repo: dir, check: true }) // bootstrap
+    const res = runGoldAudit({ repo: dir, check: true }) // re-run, no regress
+    expect(res.exitCode).toBe(0)
+  })
+
+  it('--check --require-baseline HARD-FAILs (exit 1) when no baseline exists', () => {
+    writeFileSync(join(dir, 'README.md'), '# r\nrun npm install\n')
+    const res = runGoldAudit({ repo: dir, check: true, requireBaseline: true })
+    expect(res.exitCode).toBe(1)
+  })
+
+  it('--check on a repo with no registry SKIPs (exit 0)', () => {
+    const empty = mkdtempSync(join(tmpdir(), 'gold-audit-check-empty-'))
+    try {
+      const res = runGoldAudit({ repo: empty, check: true })
       expect(res.exitCode).toBe(0)
     } finally {
       rmSync(empty, { recursive: true, force: true })
