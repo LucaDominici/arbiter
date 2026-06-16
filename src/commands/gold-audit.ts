@@ -85,6 +85,12 @@ export interface GoldAuditOptions {
    * downstream (a fresh consumer has no baseline → would be day-1 red).
    */
   requireBaseline?: boolean
+  /**
+   * #1422: suppress this command's own stdout (the human/JSON report) and only
+   * RETURN the payload. Used by `arbiter close-gold-gap`, which consumes the
+   * audit payload programmatically and emits its OWN output (the recipe).
+   */
+  quiet?: boolean
 }
 
 export interface GoldAuditResult {
@@ -193,8 +199,10 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   const text = stdout.trim()
   // The engine emits a SKIP line (no registry) that is not JSON — treat as a clean exit-0 skip.
   if (!text.startsWith('{')) {
-    if (opts.json) process.stdout.write(stdout)
-    else process.stdout.write(text + '\n')
+    if (!opts.quiet) {
+      if (opts.json) process.stdout.write(stdout)
+      else process.stdout.write(text + '\n')
+    }
     return { exitCode: 0, payload: null }
   }
 
@@ -206,7 +214,9 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
     return { exitCode: 1, payload: null }
   }
 
-  if (opts.json) process.stdout.write(JSON.stringify(payload, null, 2) + '\n')
-  else process.stdout.write(renderReport(payload))
+  if (!opts.quiet) {
+    if (opts.json) process.stdout.write(JSON.stringify(payload, null, 2) + '\n')
+    else process.stdout.write(renderReport(payload))
+  }
   return { exitCode: 0, payload }
 }
