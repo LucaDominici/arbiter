@@ -933,27 +933,42 @@ program
   .description('Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)')
   .option('--stack <stack>', 'Per-stack registry selector (standards/gold-registry.<stack>.yml)')
   .option('--class <class>', 'Brownfield class for the level band: gold|light|medium|heavy')
+  .option('--check', 'No-regress gate: bootstrap missing baseline (exit 0), fail on regress', false)
+  .option('--require-baseline', 'With --check, a missing baseline is a HARD FAIL (#1419)', false)
   .option('--json', 'Emit machine-readable JSON output', false)
-  .action((repo: string | undefined, opts: { stack?: string; class?: string; json: boolean }) => {
-    const cls =
-      opts.class === 'gold' ||
-      opts.class === 'light' ||
-      opts.class === 'medium' ||
-      opts.class === 'heavy'
-        ? opts.class
-        : undefined
-    if (opts.class !== undefined && cls === undefined) {
-      printCliError(`invalid --class "${opts.class}". Valid: gold, light, medium, heavy.`)
-      process.exit(1)
-    }
-    const result = runGoldAudit({
-      ...(repo !== undefined ? { repo } : {}),
-      ...(opts.stack !== undefined ? { stack: opts.stack } : {}),
-      ...(cls !== undefined ? { class: cls } : {}),
-      json: opts.json,
-    })
-    process.exit(result.exitCode)
-  })
+  .action(
+    (
+      repo: string | undefined,
+      opts: {
+        stack?: string
+        class?: string
+        json: boolean
+        check: boolean
+        requireBaseline: boolean
+      },
+    ) => {
+      const cls =
+        opts.class === 'gold' ||
+        opts.class === 'light' ||
+        opts.class === 'medium' ||
+        opts.class === 'heavy'
+          ? opts.class
+          : undefined
+      if (opts.class !== undefined && cls === undefined) {
+        printCliError(`invalid --class "${opts.class}". Valid: gold, light, medium, heavy.`)
+        process.exit(1)
+      }
+      const result = runGoldAudit({
+        ...(repo !== undefined ? { repo } : {}),
+        ...(opts.stack !== undefined ? { stack: opts.stack } : {}),
+        ...(cls !== undefined ? { class: cls } : {}),
+        check: opts.check,
+        requireBaseline: opts.requireBaseline,
+        json: opts.json,
+      })
+      process.exit(result.exitCode)
+    },
+  )
 
 const verify = program
   .command('verify')

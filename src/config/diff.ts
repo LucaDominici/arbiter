@@ -77,6 +77,7 @@ export type GeneratorKey =
   | 'test-pyramid'
   | 'api-e2e'
   | 'conformance'
+  | 'gold-kit'
 
 export interface ConfigDiff {
   paths: string[]

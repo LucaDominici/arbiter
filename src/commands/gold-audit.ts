@@ -72,6 +72,19 @@ export interface GoldAuditOptions {
   class?: BrownfieldClass
   /** Emit machine-readable JSON instead of the human report. */
   json?: boolean
+  /**
+   * #1419: no-regress gate mode. Delegates to the engine's `--check` path —
+   * bootstraps a missing `.gold-audit-baseline.json` (exit 0, no day-1 redness)
+   * and exits 1 only when the score/Y regresses below the committed baseline.
+   * This powers the downstream thin runner (`npx arbiter gold-audit --check`).
+   */
+  check?: boolean
+  /**
+   * #1419: with `check`, a missing baseline is a HARD FAIL (engine N1 disarm
+   * guard). Used by self-gates that ship a committed baseline; NEVER used
+   * downstream (a fresh consumer has no baseline → would be day-1 red).
+   */
+  requireBaseline?: boolean
 }
 
 export interface GoldAuditResult {
@@ -121,6 +134,38 @@ function renderReport(p: GoldAuditPayload): string {
 }
 
 /**
+ * #1419: no-regress gate delegation. Runs `gold-audit.mjs --check` in the target
+ * repo and surfaces the engine's exit code (0 bootstrap/pass, 1 regress/disarm).
+ * The engine streams its own human line to stdout; we forward it. CliError (the
+ * engine's non-zero exit) maps to exitCode 1 — never throws to the caller.
+ */
+function runGoldAuditCheck(
+  repo: string,
+  script: string,
+  cls: BrownfieldClass,
+  opts: GoldAuditOptions,
+): GoldAuditResult {
+  const args = [script, '--check', '--class', cls]
+  if (opts.requireBaseline) args.push('--require-baseline')
+  if (opts.stack) args.push('--stack', opts.stack)
+  try {
+    const { stdout, stderr } = runCli('node', args, { cwd: repo })
+    if (stdout) process.stdout.write(stdout)
+    if (stderr) process.stderr.write(stderr)
+    return { exitCode: 0, payload: null }
+  } catch (err) {
+    if (err instanceof CliError) {
+      if (err.stdout) process.stdout.write(err.stdout)
+      if (err.stderr) process.stderr.write(err.stderr)
+      // exitCode 2 = engine IO error; anything else (incl. regress) = gate fail (1).
+      return { exitCode: err.exitCode === 2 ? 2 : 1, payload: null }
+    }
+    process.stderr.write(`gold-audit: engine failed — ${String(err)}\n`)
+    return { exitCode: 1, payload: null }
+  }
+}
+
+/**
  * Run the gold-audit engine and present the level band + gap report.
  * Reuses the engine (no second engine); returns the enriched payload for callers/tests.
  */
@@ -128,6 +173,10 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   const repo = opts.repo ? resolve(opts.repo) : process.cwd()
   const cls = resolveClass(repo, opts.class)
   const script = resolve(packageRoot(), 'scripts/gold-audit.mjs')
+
+  // #1419: --check delegates to the engine's no-regress path (bootstrap-or-gate),
+  // not the --json scorer. Used by the downstream thin runner.
+  if (opts.check) return runGoldAuditCheck(repo, script, cls, opts)
 
   const args = ['--json', '--class', cls]
   if (opts.stack) args.push('--stack', opts.stack)

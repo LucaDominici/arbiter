@@ -3,6 +3,10 @@
     {
       "path": "scripts/conformance.mjs",
       "rationale": "Generated only in target projects via arbiter init/update (UNCONDITIONAL_EMISSIONS, #1398, INV-128). The arbiter self-repo references this script behind existsSync() in its check-all.mjs advisory but does not emit the file itself — arbiter is the generator, not a recipient."
+    },
+    {
+      "path": "scripts/gold-audit.mjs",
+      "rationale": "Dual-nature (#1419): in the arbiter self-repo this IS the 18KB gold-audit ENGINE (scripts/gold-audit.mjs); in target projects arbiter init/update emits a THIN RUNNER at the same path that delegates to `npx arbiter gold-audit --check` (no engine copy, no `yaml` dep). Both respond to --check, so the check-all.mjs advisory (existsSync-guarded, plain --check, never --require-baseline downstream) is byte-identical for self and targets. Declared optional so the emission-coherence lint treats the guarded reference as intentional."
     }
   ]
 }
