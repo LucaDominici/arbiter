@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1404",
+  "test_path": "__tests__/skills/wave-drain-finding-schema.test.ts",
+  "test_commit_sha": "d255a0e97198bdf986bb742201a1b94699cba652",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 6 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/skills/wave-drain-finding-schema.test.ts > wave-drain SKILL.md \u2014 canonical finding schema (#1404) > documents every required FindingEntry field in the DONE-report section\nAssertionError: expected '---\\nname: wave-drain\\ndescription: U\u2026' to contain 'note'\n\n- Expected\n+ Received\n\n- note\n+ ---\n+ name: wave-drain\n+ description: Use when draining the open backlog at maximum throughput. Batch up to ~10 workable issues into a WAVE, plan and review the wave once cumulatively, dispatch parallel TDD agents in isolated worktrees, then integrate into a SINGLE wave PR merged GREEN. Issues that cannot proceed become needs-human with a blocker report. The orchestrator directs parallel agents \u2014 it never implements.\n+ argument-hint: '[--wave-size N] [--max-parallel N]'\n+ title: 'Wave Drain'",
+  "observed_failure": "FAIL  __tests__/skills/wave-drain-finding-schema.test.ts",
+  "recorded_at": "2026-06-16T01:50:25Z"
+}

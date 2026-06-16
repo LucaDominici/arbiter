@@ -24,8 +24,7 @@ import { parse as parseYaml } from 'yaml'
 
 const args = process.argv.slice(2)
 const stdArg = args.indexOf('--standards')
-const STANDARDS =
-  stdArg >= 0 && args[stdArg + 1] ? resolve(args[stdArg + 1]) : resolve('standards')
+const STANDARDS = stdArg >= 0 && args[stdArg + 1] ? resolve(args[stdArg + 1]) : resolve('standards')
 
 const VALUE_FORMATS = new Set(['json', 'xml', 'regex'])
 const VALUE_OPS = new Set(['gte', 'lte', 'eq'])
@@ -48,7 +47,8 @@ function loadThresholdRefs() {
     process.stdout.write(`  Cannot parse thresholds.yml: ${err.message}\n`)
     process.exit(2)
   }
-  const table = doc && typeof doc.thresholds === 'object' && doc.thresholds !== null ? doc.thresholds : {}
+  const table =
+    doc && typeof doc.thresholds === 'object' && doc.thresholds !== null ? doc.thresholds : {}
   return { refs: new Set(Object.keys(table)), present: true }
 }
 
@@ -117,7 +117,9 @@ function main() {
   const knownRefs = loadThresholdRefs()
   const files = readdirSync(STANDARDS).filter((f) => PER_STACK_RE.test(f))
   if (files.length === 0) {
-    process.stdout.write('check-gold-registries: no per-stack registries found (nothing to check)\n')
+    process.stdout.write(
+      'check-gold-registries: no per-stack registries found (nothing to check)\n',
+    )
     return 0
   }
   for (const name of files.sort()) validateRegistry(name, knownRefs)

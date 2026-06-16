@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1415",
+  "test_path": "__tests__/scripts/validate-adr-prefix.test.ts",
+  "test_commit_sha": "abd92a507a2fecede0b88d876ca4a16eb7a27aff",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/scripts/validate-adr-prefix.test.ts > validate-adr-prefix (#1415) > --help exits 0\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n \u276f __tests__/scripts/validate-adr-prefix.test.ts:26:24\n     24|     try {\n     25|       const r = run(dir, ['--help'])",
+  "observed_failure": "FAIL  __tests__/scripts/validate-adr-prefix.test.ts",
+  "recorded_at": "2026-06-16T01:50:25Z"
+}

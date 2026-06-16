@@ -163,6 +163,7 @@ if (isMain) {
     '--require-baseline',
   ])
   runCheck('gold-audit false-gap (#1373)', 'node', ['scripts/gold-audit.mjs', '--strict'])
+  runCheck('gold registries no-false-gap (#1413)', 'node', ['scripts/check-gold-registries.mjs'])
   runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
   runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs'])
   runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])

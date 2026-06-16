@@ -19,16 +19,16 @@ byte-identical output.
 
 ## Artifacts
 
-| File                                    | Role                                                                          |
-| --------------------------------------- | ----------------------------------------------------------------------------- |
-| `standards/gold-registry.yml`           | The default registry: every check, its dimension, type, args, weight, risk.   |
-| `standards/gold-registry.<stack>.yml`   | Per-stack registry (`java`, `typescript`, …) — selected with `--stack` (#1413). |
-| `standards/thresholds.yml`              | Brownfield-class threshold SSOT: `threshold_ref` → per-class numeric bar (#1413). |
-| `standards/gold-profile`                | Per-repo overlays that switch on `applies_if`-gated checks (optional).        |
-| `scripts/gold-audit.mjs`                | The engine CLI (verdicts, score, no-regress gate, ratchet, false-gap gate).   |
-| `scripts/lib/gold-audit-lib.mjs`        | The pure deterministic evaluator (shared by the CLI, the report, and tests).  |
-| `scripts/check-gold-registries.mjs`     | Per-stack false-gap meta-gate: every per-stack registry parses + is all-SAFE (#1413). |
-| `.gold-audit-baseline.json`             | The monotonic ratchet baseline (score + Y-count, never lowered).              |
+| File                                  | Role                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------- |
+| `standards/gold-registry.yml`         | The default registry: every check, its dimension, type, args, weight, risk.           |
+| `standards/gold-registry.<stack>.yml` | Per-stack registry (`java`, `typescript`, …) — selected with `--stack` (#1413).       |
+| `standards/thresholds.yml`            | Brownfield-class threshold SSOT: `threshold_ref` → per-class numeric bar (#1413).     |
+| `standards/gold-profile`              | Per-repo overlays that switch on `applies_if`-gated checks (optional).                |
+| `scripts/gold-audit.mjs`              | The engine CLI (verdicts, score, no-regress gate, ratchet, false-gap gate).           |
+| `scripts/lib/gold-audit-lib.mjs`      | The pure deterministic evaluator (shared by the CLI, the report, and tests).          |
+| `scripts/check-gold-registries.mjs`   | Per-stack false-gap meta-gate: every per-stack registry parses + is all-SAFE (#1413). |
+| `.gold-audit-baseline.json`           | The monotonic ratchet baseline (score + Y-count, never lowered).                      |
 
 ## Verdicts
 

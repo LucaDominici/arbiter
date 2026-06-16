@@ -126,7 +126,9 @@ function loadThresholds() {
   if (!existsSync(abs)) return {}
   try {
     const doc = parseYaml(readFileSync(abs, 'utf-8')) || {}
-    return doc && typeof doc.thresholds === 'object' && doc.thresholds !== null ? doc.thresholds : {}
+    return doc && typeof doc.thresholds === 'object' && doc.thresholds !== null
+      ? doc.thresholds
+      : {}
   } catch {
     return {}
   }

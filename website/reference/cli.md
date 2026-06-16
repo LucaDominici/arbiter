@@ -524,6 +524,7 @@ arbiter update  # regenerate canonical files, preserve customizations
 | `arbiter experiments`    | Inspect registered experimental features                                        |
 | `arbiter explain`        | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
 | `arbiter feature-matrix` | Feature/RTM matrix commands (INV-112)                                           |
+| `arbiter findings`       | Inspect and promote the incidental-finding spool (#1403)                        |
 | `arbiter gauntlet`       | Pairwise/combinatorial test generation (#260)                                   |
 | `arbiter gold-audit`     | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
 | `arbiter graph`          | —                                                                               |
@@ -676,6 +677,15 @@ Feature/RTM matrix commands (INV-112).
 **Subcommands:**
 
 - `arbiter feature-matrix export`
+
+## arbiter findings
+
+Inspect and promote the incidental-finding spool (#1403).
+
+**Subcommands:**
+
+- `arbiter findings list` — List detected integrations and recommend missing ones (doctor advisory target)
+- `arbiter findings promote`
 
 ## arbiter gauntlet
 

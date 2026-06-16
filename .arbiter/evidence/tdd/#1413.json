@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1413",
+  "test_path": "__tests__/scripts/check-gold-registries.test.ts",
+  "test_commit_sha": "df649a4f95e6df2aef5b227e82493ca648370a0e",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/scripts/check-gold-registries.test.ts > check-gold-registries (#1413) > the SHIPPED standards/ registries pass (no RISKY, refs resolve)\nAssertionError: expected 1 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 1\n\n \u276f __tests__/scripts/check-gold-registries.test.ts:38:22\n     36|   it('the SHIPPED standards/ registries pass (no RISKY, refs resolve)'\u2026\n     37|     const r = run(resolve('standards'))",
+  "observed_failure": "FAIL  __tests__/scripts/check-gold-registries.test.ts",
+  "recorded_at": "2026-06-16T01:50:25Z"
+}
