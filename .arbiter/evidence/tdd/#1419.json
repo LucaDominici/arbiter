@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1419",
+  "test_path": "__tests__/generators/gold-kit.test.ts",
+  "test_commit_sha": "7b3b1468ed59a196cccc989886b437b44cd118b2",
+  "test_run_log": "\u23af\u23af\u23af\u23af\u23af\u23af Failed Suites 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/generators/gold-kit.test.ts [ __tests__/generators/gold-kit.test.ts ]\nError: Cannot find module '../../src/generators/gold-kit.js' imported from /home/luca/work/repos/arbiter/__tests__/generators/gold-kit.test.ts\n \u276f __tests__/generators/gold-kit.test.ts:17:1\n     15| import { createTestProject, cleanupTestProject, makeConfig } from '../\u2026\n     16| import { renderTemplate } from '../../src/utils/render.js'\n     17| import { generateGoldKit } from '../../src/generators/gold-kit.js'\n       | ^\n     18| import { generateCheckAll } from '../../src/generators/check-all.js'\n     19|\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/1]\u23af\n",
+  "observed_failure": "FAIL  __tests__/generators/gold-kit.test.ts",
+  "recorded_at": "2026-06-16T02:59:21Z"
+}
