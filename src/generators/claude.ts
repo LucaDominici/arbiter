@@ -371,6 +371,7 @@ function generateClaudeCommands(
     'review-plan.md',
     'review-code.md',
     'close-gold-gap.md',
+    'levelup.md',
   ]
   for (const cmd of commands) {
     results.push(

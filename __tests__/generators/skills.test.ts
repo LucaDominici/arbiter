@@ -19,6 +19,7 @@ const SKILL_NAMES = [
   'impact',
   'gold-audit',
   'close-gold-gap',
+  'levelup',
 ] as const
 
 const SUPERPOWERS_TDD: InstalledSkill = {
@@ -213,6 +214,46 @@ describe('generateSkills', () => {
         'utf-8',
       )
       expect(content).toMatch(/arbiter (init|update)/)
+    })
+  })
+
+  // #1421 — /levelup orchestrator skill: the honest level-up loop that raises a
+  // governed project's gold level by REAL remediation (gold-audit → compose a
+  // remediation wave → close each gap honestly → re-audit ratchet), gated on the
+  // no-regress + anti-fake-green guards (fail-closed). No new TS engine.
+  describe('levelup skill (#1421)', () => {
+    it('SKILL_NAMES registry includes levelup', () => {
+      expect(SKILL_NAMES).toContain('levelup')
+    })
+
+    it('writes .claude/skills/levelup/SKILL.md', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      expect(existsSync(join(dir, '.claude', 'skills', 'levelup', 'SKILL.md'))).toBe(true)
+    })
+
+    it('composes the existing gold-audit + close-gold-gap CLIs (no new engine)', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      const content = readFileSync(join(dir, '.claude', 'skills', 'levelup', 'SKILL.md'), 'utf-8')
+      expect(content).toContain('arbiter gold-audit')
+      expect(content).toContain('close-gold-gap')
+    })
+
+    it('gates each wave on the no-regress + anti-fake-green guards (fail-closed)', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      const content = readFileSync(join(dir, '.claude', 'skills', 'levelup', 'SKILL.md'), 'utf-8')
+      expect(content).toContain('gold-audit --check')
+      expect(content).toMatch(/anti-fake-green/i)
+      expect(content).toMatch(/fail-closed/i)
+    })
+
+    it('routes un-closeable gaps to needs-human, never fakes a green', () => {
+      const config = makeConfig(dir, { tools: ['claude'] })
+      generateSkills(config, [])
+      const content = readFileSync(join(dir, '.claude', 'skills', 'levelup', 'SKILL.md'), 'utf-8')
+      expect(content).toMatch(/needs-human/i)
     })
   })
 })
