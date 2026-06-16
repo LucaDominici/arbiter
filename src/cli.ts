@@ -48,6 +48,11 @@ import { parseIssueList, runShipBatch } from './batch/batch-runner.js'
 import { runTaskRecordRed } from './commands/task-record-red.js'
 import { runTaskRecordTechDebt } from './commands/task-record-tech-debt.js'
 import { runTaskNote } from './commands/task-note.js'
+import {
+  runFindingsPromote,
+  listSpoolFindings,
+  defaultPromoteDeps,
+} from './commands/findings-promote.js'
 import { runVerifyTdd } from './commands/verify-tdd.js'
 import { runHarness } from './commands/harness.js'
 import { runKnowledgeMapUpdate } from './commands/knowledge-map.js'
@@ -433,6 +438,64 @@ program
       }
     },
   )
+
+// #1403 — drain the incidental-finding spool. `findings list` shows the deduped spool;
+// `findings promote` re-validates each finding vs HEAD, dedups vs open issues, and files the
+// survivors as tracked issues (recorded to .arbiter/evidence so they surface in GAP.md).
+const findings = program
+  .command('findings')
+  .description('Inspect and promote the incidental-finding spool (#1403)')
+
+findings
+  .command('list')
+  .description('List the deduped findings currently in the spool')
+  .option('--dir <path>', 'Project root (default: cwd)')
+  .action((opts: { dir?: string }): void => {
+    const dir = opts.dir ?? process.cwd()
+    const entries = listSpoolFindings(dir)
+    if (entries.length === 0) {
+      process.stdout.write('findings: spool is empty (nothing to promote)\n')
+      return
+    }
+    for (const f of entries) {
+      const loc = f.file.length > 0 ? ` (${f.file}${f.line !== null ? `:${f.line}` : ''})` : ''
+      process.stdout.write(`[${f.severity}] ${f.kind}: ${f.note}${loc}\n`)
+    }
+    process.stdout.write(`\nfindings: ${entries.length} unique finding(s) in spool\n`)
+  })
+
+findings
+  .command('promote')
+  .description('Re-validate vs HEAD, dedup vs open issues, and file the surviving findings')
+  .option('--dir <path>', 'Project root (default: cwd)')
+  .option(
+    '--age-sweep-days <n>',
+    'Force-decide findings unpromoted longer than N days (default: 14)',
+  )
+  .action((opts: { dir?: string; ageSweepDays?: string }): void => {
+    const promoteOpts: import('./commands/findings-promote.js').PromoteOptions = {}
+    if (opts.dir !== undefined) promoteOpts.dir = opts.dir
+    const parsedDays =
+      opts.ageSweepDays !== undefined ? Number.parseInt(opts.ageSweepDays, 10) : NaN
+    if (Number.isInteger(parsedDays) && parsedDays >= 0) promoteOpts.ageSweepDays = parsedDays
+    const result = runFindingsPromote(promoteOpts, defaultPromoteDeps)
+    const logger = getLogger()
+    if (!result.ok) {
+      process.stderr.write(`arbiter findings promote: ${result.reason}\n`)
+      process.exitCode = 1
+      return
+    }
+    logger.info('findings.promoted', {
+      promoted: result.promoted.length,
+      dropped: result.dropped.length,
+      skipped: result.skipped.length,
+      deferred: result.deferred.length,
+    })
+    process.stdout.write(
+      `findings promote: ${result.promoted.length} filed, ${result.dropped.length} dropped (stale), ` +
+        `${result.skipped.length} skipped (existing), ${result.deferred.length} deferred (age-sweep)\n`,
+    )
+  })
 
 program
   .command('init')
