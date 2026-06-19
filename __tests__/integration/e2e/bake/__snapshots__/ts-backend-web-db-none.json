@@ -109,6 +109,7 @@
     "scripts/check-suppression-expiry.mjs",
     "scripts/check-suppression-rationale.mjs",
     "scripts/check-suppressions.mjs",
+    "scripts/check-tdd-evidence.mjs",
     "scripts/check-test-naming.mjs",
     "scripts/check-test-pyramid.mjs",
     "scripts/check-validator-helptext.mjs",
