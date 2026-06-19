@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1442",
+  "test_path": "__tests__/templates/check-image-pins-render.test.ts",
+  "test_commit_sha": "354105de19a6ad6e479d9a37457372f92687c4d0",
+  "test_run_log": " ❯ __tests__/templates/check-image-pins-render.test.ts (10 tests | 8 failed) 10ms\n FAIL  __tests__/templates/check-image-pins-render.test.ts > scripts/check-image-pins.mjs.ejs — container digest-pin gate (#1442) > renders an executable node gate with a shebang and INV-53 exit codes\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter/src/templates/scripts/check-image-pins.mjs.ejs'\n FAIL  __tests__/templates/check-image-pins-render.test.ts > scripts/check-image-pins.mjs.ejs — container digest-pin gate (#1442) > targets Dockerfile FROM lines and the @sha256 digest form\n",
+  "observed_failure": "FAIL  __tests__/templates/check-image-pins-render.test.ts",
+  "recorded_at": "2026-06-19T20:10:43.609Z"
+}
