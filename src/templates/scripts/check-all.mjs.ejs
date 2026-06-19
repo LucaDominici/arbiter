@@ -929,13 +929,22 @@ if (_failedCount === 0) {
   const _headSha = _headResult.stdout.trim();
   const _gitUserResult = spawnSync('git', ['config', 'user.name'], { encoding: 'utf-8' });
   const _gitUser = _gitUserResult.status === 0 ? _gitUserResult.stdout.trim() : 'unknown';
+  // #1441: stamp the task id so the Stop hook can reject a prior task's gate-pass (anti-replay).
+  const _taskId = (() => {
+    try {
+      const _sp = resolve(process.cwd(), '.claude/.task/status.json');
+      if (!existsSync(_sp)) return 'unknown';
+      const _s = JSON.parse(readFileSync(_sp, 'utf-8'));
+      return (typeof _s.taskId === 'string' && _s.taskId.length > 0) ? _s.taskId : 'unknown';
+    } catch { return 'unknown'; }
+  })();
   const _markerPath = resolve(process.cwd(), '.arbiter/gate-pass.json');
   try {
     mkdirSync(dirname(_markerPath), { recursive: true });
     writeFileSync(
       _markerPath,
       JSON.stringify(
-        { head_sha: _headSha, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser },
+        { head_sha: _headSha, task_id: _taskId, timestamp: new Date().toISOString(), level, node_version: process.version, git_user: _gitUser },
         null,
         2,
       ) + '\n',

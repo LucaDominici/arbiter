@@ -30,7 +30,7 @@
 // helper trinity in scripts/lib/run-helpers.mjs (#351, CANON-01): runCheck (HARD),
 // runWarnCheck (informational), runToolCheck (CI-aware tool gate).
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -377,6 +377,18 @@ if (isMain) {
           return 'unknown'
         }
       })()
+      // #1441: stamp the task id so the fail-closed Stop hook can reject a prior
+      // task's gate-pass on the same branch (anti-replay, beyond branch+sha).
+      const taskId = (() => {
+        try {
+          const statusPath = resolve(GIT_CWD ?? process.cwd(), '.claude/.task/status.json')
+          if (!existsSync(statusPath)) return 'unknown'
+          const s = JSON.parse(readFileSync(statusPath, 'utf-8'))
+          return typeof s.taskId === 'string' && s.taskId.length > 0 ? s.taskId : 'unknown'
+        } catch {
+          return 'unknown'
+        }
+      })()
       const markerPath = resolve(GIT_CWD ?? process.cwd(), '.arbiter/gate-pass.json')
       mkdirSync(dirname(markerPath), { recursive: true })
       writeFileSync(
@@ -385,6 +397,7 @@ if (isMain) {
           {
             head_sha: headSha,
             branch,
+            task_id: taskId,
             timestamp: new Date().toISOString(),
             level,
             node_version: process.version,

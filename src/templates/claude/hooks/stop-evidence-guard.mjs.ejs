@@ -102,6 +102,8 @@ function main() {
   if (gate === null) fail('gate-pass evidence missing (.arbiter/gate-pass.json)');
   if (gate.branch !== branch) fail(`gate-pass evidence is for branch ${JSON.stringify(gate.branch)}, not ${branch}`);
   if (gate.head_sha !== head) fail('gate-pass head_sha does not equal HEAD — re-run the gate on the current tree');
+  // #1441: anti-replay — the gate-pass must belong to THIS task, not a prior task on the same branch.
+  if (gate.task_id !== taskId) fail(`gate-pass task_id ${JSON.stringify(gate.task_id)} does not match current task ${taskId} — re-run the gate for this task (anti-replay)`);
 
   // All three correlated — allow the stop, after a final reflection-sweep nudge (#1402).
   reflectionSweep(root);

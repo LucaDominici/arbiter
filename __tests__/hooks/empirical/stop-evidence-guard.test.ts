@@ -93,6 +93,7 @@ interface EvidenceOpts {
   planSha?: string
   dispatchSha?: string
   gateSha?: string
+  gateTaskId?: string
   planVerdict?: string
   omit?: 'plan' | 'dispatch' | 'gate'
 }
@@ -129,7 +130,12 @@ function writeCorrelatedEvidence(
   if (opts.omit !== 'gate') {
     writeFileSync(
       join(dir, '.arbiter', 'gate-pass.json'),
-      JSON.stringify({ head_sha: opts.gateSha ?? sha, branch: b, level: 'L2' }),
+      JSON.stringify({
+        head_sha: opts.gateSha ?? sha,
+        branch: b,
+        level: 'L2',
+        task_id: opts.gateTaskId ?? TASK_ID,
+      }),
     )
   }
 }
@@ -195,6 +201,21 @@ describe('stop-evidence-guard — empirical spawn (#1212)', () => {
       const r = runHook(hookPath, dir, { transcript_path: t })
       expect(r.status).toBe(2)
       expect(r.stderr).toMatch(/gate-pass/i)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 2 when gate-pass task_id belongs to a different task (anti-replay, #1441)', () => {
+    const { dir, hookPath, branch, sha } = setup()
+    try {
+      // gate-pass is on the right branch + exact HEAD, but was produced for a
+      // DIFFERENT task — a stale/borrowed green that branch+sha alone cannot catch.
+      writeCorrelatedEvidence(dir, branch, sha, { gateTaskId: '#9999' })
+      const t = claimTranscript(dir)
+      const r = runHook(hookPath, dir, { transcript_path: t })
+      expect(r.status).toBe(2)
+      expect(r.stderr).toMatch(/task/i)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
