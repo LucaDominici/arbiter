@@ -106,6 +106,29 @@ Review-agent minimums by tier: XS=<%= _tiers.XS.reviewAgentCount %>, S=<%= _tier
 
 ---
 
+## FEATURE_MATRIX (consume at plan, maintain at verification)
+
+The project's `FEATURE_MATRIX.md` is the product RTM. /ship keeps it from being write-only ceremony by
+**reading it at `plan`** and **updating it at `verification`** — so it drives the next action instead
+of just being audited by the gate.
+
+**At `plan`** — find the REQ row(s) this issue advances (match on the `issue_ref` column):
+
+```bash
+grep -rnE "REQ-[0-9]+" --include=FEATURE_MATRIX.md . | grep "#NNN"
+```
+
+If a row matches, surface its `feature_id`, current `status`, and the **gap to promote** (which of
+`code_ref` / `test_ref` / `doc_ref` is empty), and state in the plan how this work advances that REQ.
+If no row matches, the issue is out of product-RTM scope — note it and move on.
+
+**At `verification`** — if the work supplied a missing `code_ref` / `test_ref` / `doc_ref`, update that
+row (refs + status) and include the matrix change in the **same PR** (atomic code + SSOT). The
+FEATURE_MATRIX gate (part of `check-all`) refreshes the counters and validates `status ⟺ refs` — e.g.
+`Done` requires all three refs to exist on disk — so a status the refs don't back up fails closed.
+
+---
+
 ## Gate economy (dev loop)
 
 During `green` / `refactor` iteration, do **not** re-run `node scripts/check-all.mjs` — that
