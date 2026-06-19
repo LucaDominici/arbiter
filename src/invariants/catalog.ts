@@ -2224,4 +2224,32 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'src/templates/scripts/check-no-tracked-artifacts.mjs.ejs (CANON-01/04/11), wired at ' +
       'L1 in generated scripts/check-all.mjs. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.',
   },
+  {
+    id: 'INV-130',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'E2E flaky-test quarantine annotates but never suppresses, and cannot rot',
+    description:
+      'Every arbiter-governed project ships a stack-agnostic E2E reliability subsystem: a ' +
+      'library (scripts/lib/e2e-reliability.mjs — deterministic failure fingerprint, ' +
+      'INFRA/FLAKE/REGRESSION classify, initial→single-test→spec retry ladder, R0–R4 risk ' +
+      'tier that fail-closes to R4, append-only JSONL ledger, quarantine schema) plus a ' +
+      'fail-closed quarantine hygiene gate (scripts/check-e2e-quarantine.mjs). A quarantine ' +
+      'entry ANNOTATES a known-unstable test but NEVER suppresses it — quarantined tests ' +
+      'still run and still report, and CI exit codes are unchanged by membership. The gate ' +
+      'enforces that the registry (.arbiter/e2e/quarantine.json) cannot ROT into a permanent ' +
+      'silent mute: every entry must carry the full required-field set AND a FUTURE expires ' +
+      'date; an expired, incomplete, or malformed entry fails closed (exit 1). Self-SKIPs ' +
+      '(exit 0) when no registry is present (vacuous pass). This closes the #1 fake-green ' +
+      'source for a prompt-only operator — a flake re-run green that masks a real regression.',
+    enforcement:
+      'scripts/check-e2e-quarantine.mjs — emitted unconditionally for all governed targets ' +
+      'via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-e2e-quarantine.mjs.ejs (CANON-01/04/11), alongside the ' +
+      'library src/templates/scripts/lib/e2e-reliability.mjs.ejs it imports; wired HARD ' +
+      '(runCheck) at L1 in generated scripts/check-all.mjs. Track-B (not an arbiter ' +
+      'self-gate). Exit codes per INV-53: 0=PASS/absent, 1=FAIL (expired/malformed), 2=ERROR.',
+  },
 ]

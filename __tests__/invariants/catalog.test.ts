@@ -43,7 +43,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, operational/Tier-4, all-languages)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
-    expect(INVARIANT_CATALOG).toHaveLength(127)
+    // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, operational/Tier-4, all-languages)
+    expect(INVARIANT_CATALOG).toHaveLength(128)
   })
 
   it('all IDs are unique', () => {
@@ -59,9 +60,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1366: +1 (INV-127)
     // Updated #1398: +1 (INV-128)
     // Updated #1408: +1 (INV-129)
+    // Updated #1445: +1 (INV-130)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(127)
+    expect(unique.size).toBe(128)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -141,8 +143,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1367: +1 (INV-125 domain-api surface gate, operational)
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, operational)
     // Updated #1398: +1 (INV-128 conformance script generated, operational)
+    // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, operational)
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(42)
+    expect(tier4).toHaveLength(43)
   })
 
   it('has exactly 37 Tier 5 invariants', () => {
@@ -418,7 +421,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, L1+, all languages)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
-    expect(result).toHaveLength(83)
+    // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
+    expect(result).toHaveLength(84)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -443,12 +447,13 @@ describe('getFilteredInvariants', () => {
     // +1 from INV-127 (L1+, all languages, render-smoke) — threshold < 68 → < 69
     // +1 from INV-128 (L1+, all languages, conformance script) — threshold < 69 → < 70
     // +1 from INV-129 (L1+, all languages, no tracked data/state files) — threshold < 70 → < 71
+    // +1 from INV-130 (L1+, all languages, e2e flaky-test quarantine) — threshold < 71 → < 72
     const result = getFilteredInvariants({
       language: 'unknown',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(71)
+    expect(result.length).toBeLessThan(72)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -523,7 +528,8 @@ describe('getFilteredInvariants', () => {
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, L1+, all languages)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
-    expect(result).toHaveLength(78)
+    // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
+    expect(result).toHaveLength(79)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -546,12 +552,13 @@ describe('getFilteredInvariants', () => {
     // Updated #1366: +1 (INV-127 frontend render-smoke gate, L1+, all languages, operational)
     // Updated #1398: +1 (INV-128 conformance script generated, operational/Tier-4, all-languages)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
+    // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     const result = getFilteredInvariants({
       language: 'java',
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(79)
+    expect(result).toHaveLength(80)
   })
 
   it('essential preset at L1 returns minimal set', () => {
