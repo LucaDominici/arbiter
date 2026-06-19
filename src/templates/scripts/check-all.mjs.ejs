@@ -855,6 +855,12 @@ if (level === 'L2') {
     runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check'])
   }
 <% } %>
+  // ─── L2: TDD red→green evidence re-verification (INV-131, #1446) ──────────────
+  // Re-verifies every task-ID commit's red→green evidence on a fresh CI checkout —
+  // the rigor arbiter applies to itself, shipped to targets. Independent of debt
+  // gates (runs whenever level===L2). Self-SKIPs when origin/main is unavailable or
+  // there are no task-ID commits.
+  runCheck('tdd-evidence (INV-131)', 'node', ['scripts/check-tdd-evidence.mjs'], { soft: graceActive });
 <% if (governanceLevel === 'L3' || governanceLevel === 'L4') { %>
   // ─── L3/L4: Evidence gate (INV-33) ───────────────────────────────────────────
   // Validates nightly evidence produced by evidence-collect.mjs.
