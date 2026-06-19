@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1445",
+  "test_path": "__tests__/templates/check-e2e-quarantine-render.test.ts",
+  "test_commit_sha": "884c9f5cec4593458c3c386542e47f903f696c8c",
+  "test_run_log": " ❯ __tests__/templates/check-e2e-quarantine-render.test.ts (17 tests | 4 failed) 145ms\n FAIL  __tests__/templates/check-e2e-quarantine-render.test.ts > check-all.mjs wiring (#1445) — cross-stack > wires the e2e quarantine gate at L1 for typescript\nAssertionError: expected check-all.mjs render not to contain 'check-e2e-quarantine.mjs' (gate not yet wired)\n FAIL  __tests__/templates/check-e2e-quarantine-render.test.ts > check-all.mjs wiring (#1445) — cross-stack > wires the e2e quarantine gate at L1 for go\n FAIL  __tests__/templates/check-e2e-quarantine-render.test.ts > check-all.mjs wiring (#1445) — cross-stack > wires the e2e quarantine gate at L1 for python\n FAIL  __tests__/templates/check-e2e-quarantine-render.test.ts > check-all.mjs wiring (#1445) — cross-stack > wires the e2e quarantine gate at L1 for java\n Test Files  1 failed (1)\n      Tests  4 failed | 13 passed (17)\n",
+  "observed_failure": "FAIL  __tests__/templates/check-e2e-quarantine-render.test.ts",
+  "recorded_at": "2026-06-19T23:05:00.000Z"
+}
