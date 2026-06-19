@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1446",
+  "test_path": "__tests__/templates/check-tdd-evidence-render.test.ts",
+  "test_commit_sha": "ee820eb6d734c566fffd8448f396d2435f3c7756",
+  "test_run_log": "⎯⎯⎯ Failed Tests 8 ⎯⎯⎯\n FAIL  __tests__/templates/check-tdd-evidence-render.test.ts > scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446) > renders an executable node gate with shebang and INV-53 exit codes\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter/src/templates/scripts/check-tdd-evidence.mjs.ejs'\n FAIL  __tests__/templates/check-tdd-evidence-render.test.ts > scripts/check-tdd-evidence.mjs.ejs — target TDD-evidence gate (#1446) > A: PASS (exit 0) for a complete, consistent evidence file\n Test Files  1 failed (1)\n      Tests  12 failed (12)\n",
+  "observed_failure": "FAIL  __tests__/templates/check-tdd-evidence-render.test.ts",
+  "recorded_at": "2026-06-19T23:50:00.000Z"
+}
