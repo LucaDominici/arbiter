@@ -25,7 +25,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 12 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + gold-audit)', () => {
+  it('emits exactly 13 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + gold-audit)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -33,11 +33,12 @@ describe('generateCheckAll', () => {
     // + check-render-smoke.mjs + lib/glob-walk.mjs (INV-127, #1366)
     // + conformance.mjs (INV-128, #1398)
     // + check-no-tracked-artifacts.mjs (INV-129, #1407)
+    // + check-image-pins.mjs (#1442)
     // + gold-audit.mjs (thin runner, #1419)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(12)
+    expect(result.files).toHaveLength(13)
     expect(result.files.some((f) => f.path.endsWith('scripts/optional-emissions.json'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-render-smoke.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/glob-walk.mjs'))).toBe(true)
@@ -46,6 +47,7 @@ describe('generateCheckAll', () => {
     expect(
       result.files.some((f) => f.path.endsWith('scripts/check-no-tracked-artifacts.mjs')),
     ).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-image-pins.mjs'))).toBe(true)
   })
 
   it('emits scripts/check-api-e2e.mjs and wires it into check-all.mjs (#1365, INV-126)', () => {

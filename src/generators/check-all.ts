@@ -94,6 +94,12 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-no-tracked-artifacts.mjs'],
     tpl: 'scripts/check-no-tracked-artifacts.mjs.ejs',
   },
+  // #1442: container image digest-pin gate. Emitted unconditionally (self-SKIPs when
+  // the repo ships no Dockerfiles); wired at L1 in check-all.mjs.ejs.
+  {
+    rel: ['scripts', 'check-image-pins.mjs'],
+    tpl: 'scripts/check-image-pins.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-test-pyramid.mjs'],
     tpl: 'scripts/check-test-pyramid.mjs.ejs',
