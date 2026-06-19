@@ -2,7 +2,7 @@
 title: 'Architectural Decision Records — Generated Digest'
 doc_version: '1.0.0'
 status: generated
-last_review: '2026-06-15'
+last_review: '2026-06-19'
 owner: ''
 canonical_id: ''
 tags: ['audience/dev', 'kind/adr']
@@ -115,3 +115,4 @@ related: []
 | 094 | [Project Profile Resolver — one catalog + one precedence layer](../ADR/094-project-profile-resolver.md) | proposed | 2026-06-11 |
 | 095 | [Supported AI tools — claude + codex; rest experimental](../ADR/095-supported-ai-tools-claude-codex.md) | accepted | 2026-06-13 |
 | 096 | [Probe — always-on incidental-discovery loop](../ADR/096-probe-incidental-discovery-loop.md) | accepted | 2026-06-15 |
+| 097 | [Context-rot-management skill (CLI-first 3-layer redundancy)](../ADR/097-context-rot-management-skill.md) | accepted | 2026-06-19 |
