@@ -100,6 +100,18 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-image-pins.mjs'],
     tpl: 'scripts/check-image-pins.mjs.ejs',
   },
+  // #1445 (INV-130): stack-agnostic E2E reliability subsystem. The library
+  // (fingerprint/classify/retryLadder/riskTier/ledger/quarantine schema) is emitted
+  // first; the fail-closed quarantine hygiene gate imports it and is wired at L1 in
+  // check-all.mjs.ejs. Both self-SKIP/vacuous-pass when no quarantine registry exists.
+  {
+    rel: ['scripts', 'lib', 'e2e-reliability.mjs'],
+    tpl: 'scripts/lib/e2e-reliability.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'check-e2e-quarantine.mjs'],
+    tpl: 'scripts/check-e2e-quarantine.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-test-pyramid.mjs'],
     tpl: 'scripts/check-test-pyramid.mjs.ejs',

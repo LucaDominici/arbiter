@@ -135,6 +135,10 @@ runCheck('detekt (beta)', './gradlew', ['detekt'], { soft: true });
 runCheck('no tracked artifacts (INV-129)', 'node', ['scripts/check-no-tracked-artifacts.mjs']);
 // ─── L1: Container base images digest-pinned (#1442) ──────────────────────────
 runCheck('image pins (#1442)', 'node', ['scripts/check-image-pins.mjs']);
+// ─── L1: E2E flaky-test quarantine hygiene (INV-130, #1445) ───────────────────
+// Annotates known-unstable tests but never suppresses them; fails closed on an
+// expired/malformed quarantine entry. Self-SKIPs when no registry is present.
+runCheck('e2e quarantine (INV-130)', 'node', ['scripts/check-e2e-quarantine.mjs']);
 // ─── L1: Test naming convention (M27) ────────────────────────────────────────
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
 // ─── L1: Exit-code universal contract (INV-53) ────────────────────────────────
