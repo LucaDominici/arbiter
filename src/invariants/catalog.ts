@@ -2252,4 +2252,32 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       '(runCheck) at L1 in generated scripts/check-all.mjs. Track-B (not an arbiter ' +
       'self-gate). Exit codes per INV-53: 0=PASS/absent, 1=FAIL (expired/malformed), 2=ERROR.',
   },
+  {
+    id: 'INV-131',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'TDD red→green evidence is re-verified on a fresh checkout in CI',
+    description:
+      'The rigor arbiter applies to itself (scripts/check-tdd-evidence.mjs re-verifies its ' +
+      'own red→green evidence in CI) is shipped to governed targets: a generated, ' +
+      'self-contained gate (scripts/check-tdd-evidence.mjs) re-verifies, on a FRESH CI ' +
+      'checkout, that every task-ID commit on the branch carries valid TDD evidence — ' +
+      'evidence file present + schema-valid, task_id matches, a recognised test-runner ' +
+      'FAILURE signature present (proves RED), test_commit_sha exists in history, test_path ' +
+      'exists in that commit. The emitted gate INLINES the schema + git checks so a target ' +
+      'needs no local arbiter install. The ARBITER-SKIP-TDD commit trailer is forbidden. ' +
+      'Self-SKIPs (exit 0) when origin/main is unavailable or no task-ID commits exist. ' +
+      'Without this, a governed target never re-verifies its own evidence on a clean CI ' +
+      'machine — the rigor stops at arbiter and is not delivered to its users.',
+    enforcement:
+      'scripts/check-tdd-evidence.mjs — emitted unconditionally for all governed targets via ' +
+      'src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-tdd-evidence.mjs.ejs (CANON-01/04/11); wired HARD ' +
+      '(runCheck) at L2 in generated scripts/check-all.mjs (independent of debt gates). ' +
+      'Track-B (not an arbiter self-gate; arbiter dogfoods its own ' +
+      'scripts/check-tdd-evidence.mjs which delegates to the CLI). Exit codes per INV-53: ' +
+      '0=PASS/vacuous, 1=FAIL (missing/inconsistent evidence or forbidden skip trailer), 2=ERROR.',
+  },
 ]

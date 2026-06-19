@@ -1,0 +1,198 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// arbiter — TDD red→green evidence re-verification gate (#1446, INV-131).
+//
+// On a FRESH CI checkout, re-verify that every task-ID commit on the current branch
+// carries valid red→green TDD evidence — the rigor arbiter applies to itself, now
+// shipped to governed targets. Self-contained: it inlines the schema + git checks so a
+// target needs no local arbiter install. Scoped to commits since
+// `git merge-base origin/main HEAD` (branch-relative). Rejects the ARBITER-SKIP-TDD: 1
+// commit trailer (forbidden at L2+). Self-SKIPs (exit 0) when origin/main is
+// unavailable (local-only branch) or no task-ID commits exist (vacuous pass).
+//
+// For each task #NNN it loads .arbiter/evidence/tdd/#NNN.json and asserts:
+//   1. evidence file present + schema valid (v1)
+//   2. evidence task_id matches the commit's task id
+//   3. a recognised test-runner FAILURE signature appears in test_run_log (proves RED)
+//   4. test_commit_sha (40 hex) exists in git history
+//   5. test_path exists in that commit
+//
+// Exit codes (INV-53): 0 = all verified / vacuous · 1 = missing/inconsistent evidence
+// or a forbidden skip trailer · 2 = unexpected error.
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+function parseDir(argv) {
+  const i = argv.indexOf('--dir')
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : process.cwd()
+}
+const ROOT = parseDir(process.argv.slice(2))
+
+const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf-8' }).trim()
+
+// ─── Branch-relative task discovery ───────────────────────────────────────────
+/** Unique task ids from conventional-commit subjects, e.g. "feat(#551 #552): ...". */
+function parseTaskIds(subjectLog) {
+  const seen = new Set()
+  const ids = []
+  for (const line of subjectLog.split('\n')) {
+    const scope = line.match(/^\w+\(([^)]+)\):/)
+    if (!scope) continue
+    for (const m of scope[1].matchAll(/#(\d+)/g)) {
+      const full = `#${m[1]}`
+      if (!seen.has(full)) {
+        seen.add(full)
+        ids.push(full)
+      }
+    }
+  }
+  return ids
+}
+
+const hasSkipTrailer = (body) => /^ARBITER-SKIP-TDD: 1$/m.test(body)
+
+// ─── Evidence verification (inlined — no arbiter CLI dependency) ───────────────
+const FAILURE_SIGNATURES = [
+  /FAIL\s+\S+\.test\.[jt]sx?/m, // vitest
+  /FAIL\s+\S+\.(spec|test)\.[jt]sx?/m, // jest
+  /\d+ scenarios? \(\d+ failed/m, // cucumber
+  /={3,}\s*FAILURES\s*={3,}/m, // pytest
+  /FAILED\s*$|BUILD FAILED/m, // gradle
+  /test result: FAILED/m, // cargo
+  /--- FAIL:/m, // go
+]
+const hasFailureSignature = (log) => FAILURE_SIGNATURES.some((re) => re.test(log))
+
+/** Plain-JS mirror of the TddEvidenceV1 schema — returns { ok, reason }. */
+function validateSchema(ev) {
+  if (!ev || typeof ev !== 'object') return { ok: false, reason: 'evidence is not an object' }
+  if (ev.$schemaVersion !== 1) return { ok: false, reason: '$schemaVersion must be 1' }
+  if (typeof ev.task_id !== 'string' || !/^#\d+$/.test(ev.task_id))
+    return { ok: false, reason: 'task_id must match /^#\\d+$/' }
+  if (typeof ev.test_path !== 'string' || ev.test_path.length === 0)
+    return { ok: false, reason: 'test_path must be a non-empty string' }
+  if (typeof ev.test_commit_sha !== 'string' || !/^[0-9a-f]{40}$/i.test(ev.test_commit_sha))
+    return { ok: false, reason: 'test_commit_sha must be 40 hex characters' }
+  if (typeof ev.test_run_log !== 'string')
+    return { ok: false, reason: 'test_run_log must be a string' }
+  if (typeof ev.observed_failure !== 'string' || ev.observed_failure.length === 0)
+    return { ok: false, reason: 'observed_failure must not be empty' }
+  if (typeof ev.recorded_at !== 'string' || Number.isNaN(Date.parse(ev.recorded_at)))
+    return { ok: false, reason: 'recorded_at must be an ISO8601 datetime' }
+  return { ok: true }
+}
+
+function shaExists(sha) {
+  try {
+    git(['cat-file', '-e', sha])
+    return true
+  } catch {
+    return false
+  }
+}
+function pathInCommit(sha, path) {
+  try {
+    return git(['ls-tree', '--name-only', sha, path]).length > 0
+  } catch {
+    return false
+  }
+}
+
+/** Run the 5 checks for one task id — returns { ok, reason }. */
+function verifyTask(taskId) {
+  const p = join(ROOT, '.arbiter', 'evidence', 'tdd', `${taskId}.json`)
+  if (!existsSync(p)) return { ok: false, reason: `evidence not found at ${p}` }
+  let ev
+  try {
+    ev = JSON.parse(readFileSync(p, 'utf-8'))
+  } catch (err) {
+    return { ok: false, reason: `invalid JSON in evidence: ${err.message}` }
+  }
+  const schema = validateSchema(ev)
+  if (!schema.ok) return { ok: false, reason: `schema: ${schema.reason}` }
+  if (ev.task_id !== taskId)
+    return { ok: false, reason: `task_id mismatch: evidence has "${ev.task_id}"` }
+  if (!hasFailureSignature(ev.test_run_log))
+    return { ok: false, reason: 'no recognised failure signature in test_run_log (no RED proof)' }
+  if (!shaExists(ev.test_commit_sha))
+    return { ok: false, reason: `test_commit_sha ${ev.test_commit_sha} not in git history` }
+  if (!pathInCommit(ev.test_commit_sha, ev.test_path))
+    return { ok: false, reason: `test_path "${ev.test_path}" not in commit ${ev.test_commit_sha}` }
+  return { ok: true }
+}
+
+// ─── Entry point ──────────────────────────────────────────────────────────────
+function run() {
+let mergeBase
+try {
+  mergeBase = git(['merge-base', 'origin/main', 'HEAD'])
+} catch {
+  process.stdout.write('check-tdd-evidence: no origin/main (local-only branch), skipping\n')
+  process.exit(0)
+}
+
+let subjectLog
+try {
+  subjectLog = git(['log', `${mergeBase}..HEAD`, '--format=%s'])
+} catch {
+  process.stdout.write('check-tdd-evidence: no commits since merge-base, vacuous pass\n')
+  process.exit(0)
+}
+
+const taskIds = parseTaskIds(subjectLog)
+if (taskIds.length === 0) {
+  process.stdout.write('check-tdd-evidence: no task-ID commits found, vacuous pass\n')
+  process.exit(0)
+}
+
+// Reject the skip trailer — forbidden at L2+.
+let bodyLog = ''
+try {
+  bodyLog = git(['log', `${mergeBase}..HEAD`, '--format=%H%n%B%x00'])
+} catch {
+  bodyLog = ''
+}
+for (const block of bodyLog.split('\x00').filter(Boolean)) {
+  const lines = block.trim().split('\n')
+  const sha = lines[0]?.trim()
+  if (!sha || sha.length < 7) continue
+  if (!hasSkipTrailer(lines.slice(1).join('\n'))) continue
+  const ids = parseTaskIds(lines[1] ?? '')
+  process.stderr.write(
+    `\ncheck-tdd-evidence: FAIL — commit ${sha.slice(0, 12)} (task ${ids[0] ?? '<unknown>'}) ` +
+      'carries ARBITER-SKIP-TDD: 1, forbidden at L2+. Remove it or record TDD evidence.\n',
+  )
+  process.exit(1)
+}
+
+let anyFail = false
+for (const taskId of taskIds) {
+  const r = verifyTask(taskId)
+  if (r.ok) {
+    process.stdout.write(`  ${taskId}: PASS\n`)
+  } else {
+    process.stdout.write(`  ${taskId}: FAIL — ${r.reason}\n`)
+    anyFail = true
+  }
+}
+
+if (anyFail) {
+  process.stderr.write(
+    '\ncheck-tdd-evidence: one or more task(s) failed TDD evidence re-verification. ' +
+      'Record red→green evidence with `arbiter task record-red --test-path <path>`.\n',
+  )
+  process.exit(1)
+}
+process.stdout.write(`check-tdd-evidence: OK — ${taskIds.length} task(s) verified\n`)
+process.exit(0)
+}
+
+try {
+  run()
+} catch (err) {
+  // Unexpected internal error (e.g. an evidence file unreadable for reasons other than
+  // absence/parse) → exit 2 per INV-53, never a silent pass.
+  process.stderr.write(`check-tdd-evidence: unexpected error: ${err && err.message}\n`)
+  process.exit(2)
+}

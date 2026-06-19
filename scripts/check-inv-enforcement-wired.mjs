@@ -30,6 +30,7 @@ const TRACK_B_EXEMPT = new Set([
   'evidence-collect.mjs', // INV-33: generated nightly-pipeline harness for target projects
   'check-stack-conformity.mjs', // INV-121: emitted by check-stack-conformity.ts for target projects (#1312)
   'check-e2e-quarantine.mjs', // INV-130: emitted E2E reliability quarantine gate for target projects (#1445)
+  'check-tdd-evidence.mjs', // INV-131: emitted TDD-evidence re-verification gate for target projects (#1446)
 ])
 
 // Match scripts/<name>.mjs — broadened to all prefix patterns and digits.

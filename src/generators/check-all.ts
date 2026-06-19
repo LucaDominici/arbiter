@@ -112,6 +112,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-e2e-quarantine.mjs'],
     tpl: 'scripts/check-e2e-quarantine.mjs.ejs',
   },
+  // #1446 (INV-131): TDD red→green evidence re-verification gate. Self-contained
+  // (inlines schema + git checks — no arbiter CLI dependency); wired at L2 in
+  // check-all.mjs.ejs. Self-SKIPs (no origin/main or no task-ID commits).
+  {
+    rel: ['scripts', 'check-tdd-evidence.mjs'],
+    tpl: 'scripts/check-tdd-evidence.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-test-pyramid.mjs'],
     tpl: 'scripts/check-test-pyramid.mjs.ejs',
