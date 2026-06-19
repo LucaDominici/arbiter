@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1441",
+  "test_path": "__tests__/hooks/empirical/stop-evidence-guard.test.ts",
+  "test_commit_sha": "7268b2b6e6c7e397a95d6e08ea423377bc29d7fc",
+  "test_run_log": " ❯ __tests__/hooks/empirical/stop-evidence-guard.test.ts (13 tests | 1 failed | 12 skipped) 51ms\n     × exits 2 when gate-pass task_id belongs to a different task (anti-replay, #1441) 50ms\n FAIL  __tests__/hooks/empirical/stop-evidence-guard.test.ts > stop-evidence-guard — empirical spawn (#1212) > exits 2 when gate-pass task_id belongs to a different task (anti-replay, #1441)\n ❯ __tests__/hooks/empirical/stop-evidence-guard.test.ts:217:24\n Test Files  1 failed (1)\n      Tests  1 failed | 12 skipped (13)\n",
+  "observed_failure": "FAIL  __tests__/hooks/empirical/stop-evidence-guard.test.ts",
+  "recorded_at": "2026-06-19T19:31:41.335Z"
+}
