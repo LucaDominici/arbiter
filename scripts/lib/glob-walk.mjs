@@ -53,6 +53,9 @@ export function validateGlob(pattern) {
  * Unreadable dirs/entries are skipped silently (never throws).
  */
 export function walkRepo(root) {
+  // Normalize a trailing slash once: a `dir/` root would make `slice(root.length+1)` drop an extra
+  // leading char and mangle every relative path (a determinism foot-gun for the glob check types).
+  const base = root.replace(/[/\\]+$/, '') || root
   const files = []
   const visit = (dir) => {
     let entries
@@ -73,10 +76,10 @@ export function walkRepo(root) {
       if (stat.isDirectory()) {
         visit(full)
       } else {
-        files.push(full.slice(root.length + 1).replace(/\\/g, '/'))
+        files.push(full.slice(base.length + 1).replace(/\\/g, '/'))
       }
     }
   }
-  visit(root)
+  visit(base)
   return files
 }

@@ -16,13 +16,19 @@
 // Determinism contract: identical repo + identical registry ⇒ identical evaluate() output.
 // Checks are evaluated in stable id order; no wall-clock value enters the scored payload.
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, lstatSync } from 'node:fs'
 import { resolve, relative, isAbsolute } from 'node:path'
+import { globMatch, validateGlob, walkRepo } from './glob-walk.mjs'
 
-/** Resolve a registry-declared path inside root; reject traversal/absolute escapes. */
+/**
+ * Resolve a registry-declared path inside root; reject traversal + null bytes. Parity contract:
+ * behaves byte-identically to src/conformance/shared.ts safeResolve for string inputs (reject only
+ * `\0` + post-resolve `..` escape — a literal filename containing '..' that stays in-root is
+ * allowed, matching the TS engine). The leading non-string guard is .mjs-only safety (the TS engine
+ * defaults a missing args.path to ''); for any real path both engines agree.
+ */
 function safeResolve(root, p) {
-  if (typeof p !== 'string' || p.length === 0) return null
-  if (isAbsolute(p) || p.includes('..')) return null
+  if (typeof p !== 'string' || p.includes('\0')) return null
   const abs = resolve(root, p)
   const rel = relative(root, abs)
   if (rel.startsWith('..') || isAbsolute(rel)) return null
@@ -45,6 +51,74 @@ function lineOf(text, needle) {
   let line = 1
   for (let i = 0; i < idx; i++) if (text[i] === '\n') line++
   return line
+}
+
+/** 1-based line number of the character at `idx` in `text`. */
+function lineAtIndex(text, idx) {
+  let line = 1
+  for (let i = 0; i < idx && i < text.length; i++) if (text[i] === '\n') line++
+  return line
+}
+
+// ── Constrained deterministic glob (#1470) ──────────────────────────────────────
+//
+// Glob support reuses scripts/lib/glob-walk.mjs (globMatch/validateGlob/walkRepo: POSIX paths,
+// prunes SKIP_DIRS) — one canonical matcher, never a hand-written copy (CANON-16). The TS engine
+// mirrors this via src/conformance/shared.ts expandGlob (engine-parity gate). Both sort with a plain
+// `.sort()` (code-unit), NEVER localeCompare, so the file order is byte-identical across engines.
+
+/**
+ * Expand a repo-rooted glob to a SORTED array of repo-relative POSIX paths, or null when the glob
+ * is invalid (absolute / `..`-traversal / non-string). An empty array is a valid "matched nothing".
+ */
+function expandGlob(root, pattern) {
+  if (typeof pattern !== 'string' || pattern === '' || !validateGlob(pattern)) return null
+  return walkRepo(root)
+    .filter((f) => globMatch(pattern, f))
+    .sort()
+}
+
+/**
+ * Resolve a glob-check's `args.glob` to a SORTED match list. Returns { ok:true, glob, matched } on
+ * success, or { ok:false, result } (a verified-N) when the glob is invalid/empty — shared by every
+ * glob-based check so the invalid-glob guard exists once (mirrored in src/conformance/engine.ts).
+ */
+function resolveGlobArg(args, root) {
+  const glob = typeof args.glob === 'string' ? args.glob : ''
+  const matched = expandGlob(root, glob)
+  if (matched === null) {
+    return {
+      ok: false,
+      result: { verdict: 'N', evidence: { file: glob, detail: 'invalid or empty glob' } },
+    }
+  }
+  return { ok: true, glob, matched }
+}
+
+/**
+ * Whether git tracks the executable bit in this repo (core.fileMode). Reads `<root>/.git/config`
+ * deterministically (no spawn — INV-12); only an explicit `filemode = false` disables it. A missing
+ * or unreadable config (e.g. a worktree pointer file, or a non-git fixture) ⇒ treated as enabled, so
+ * the exec-bit check still runs. Mirrored byte-for-byte in src/conformance/engine.ts.
+ */
+function gitFileModeEnabled(root) {
+  const cfg = readText(resolve(root, '.git/config'))
+  if (cfg === null) return true
+  let inCore = false
+  let lastValue = null
+  for (const raw of cfg.split('\n')) {
+    const line = raw.trim()
+    if (line.startsWith('[')) {
+      // Only the exact top-level [core] section — a `[core "subsection"]` is NOT [core].filemode.
+      inCore = /^\[core\]/i.test(line)
+      continue
+    }
+    if (!inCore) continue
+    // git honors the LAST value when a key is declared more than once — keep scanning, don't return.
+    const m = /^filemode\s*=\s*(\S+)/i.exec(line)
+    if (m !== null) lastValue = m[1].toLowerCase()
+  }
+  return lastValue === null ? true : lastValue !== 'false'
 }
 
 // ── #1413: deterministic report metric extraction (json/xml/regex) ──────────────
@@ -114,7 +188,14 @@ function extractXml(text, select) {
     if (open < 0) return null
     const close = text.indexOf('>', open)
     const segment = close < 0 ? text.slice(open) : text.slice(open, close)
-    const m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+    // Guard the attr RegExp build: a regex metachar in the attr name (`attr:a@(`) would otherwise
+    // throw — yield null (⇒ per-check N 'no metric') instead of crashing the whole audit.
+    let m
+    try {
+      m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+    } catch {
+      return null
+    }
     if (m === null) return null
     const n = Number(m[1])
     return Number.isFinite(n) ? n : null
@@ -197,16 +278,273 @@ function evalValueReport(abs, rel, check, options) {
     : { verdict: 'N', evidence: { file: rel, detail: `${actual} !${op} ${bar}` } }
 }
 
+// ── version_consistency: a VERSION file ↔ the latest CHANGELOG entry ─────────────
+//
+// Catches release-hygiene drift: the declared VERSION must equal the newest version recorded in
+// the CHANGELOG. Pure text read + a single regex (no spawn, no wall-clock) — byte-deterministic.
+
+/** First capture group of `pattern` (multiline) in `text` = the latest declared version, or null. */
+function latestChangelogVersion(text, pattern) {
+  if (typeof pattern !== 'string' || pattern === '') return null
+  let re
+  try {
+    re = new RegExp(pattern, 'm')
+  } catch {
+    return null
+  }
+  const m = re.exec(text)
+  // A falsy/empty capture is NOT a version — return null so the caller scores P (indeterminate),
+  // never a false Y (e.g. an empty trimmed VERSION === an empty capture).
+  return m !== null && m[1] ? m[1] : null
+}
+
 /**
- * Evaluate a single check against the repo. Returns { verdict, evidence } where evidence is
- * { file, line? , detail? } for code-verifiable checks, or null for NA/NV.
+ * version_consistency evaluator. Y = VERSION equals the latest CHANGELOG entry; P = both present
+ * but divergent OR no changelog entry matches the pattern (indeterminate — never a false Y);
+ * N = a required file is missing/unreadable.
+ */
+function evalVersionConsistency(args, root) {
+  const vFile = typeof args.version_file === 'string' ? args.version_file : ''
+  const cFile = typeof args.changelog_file === 'string' ? args.changelog_file : ''
+  const vAbs = safeResolve(root, vFile)
+  const cAbs = safeResolve(root, cFile)
+  if (vAbs === null || cAbs === null) {
+    return { verdict: 'N', evidence: { file: vFile || cFile, detail: 'invalid path' } }
+  }
+  const vText = readText(vAbs)
+  if (vText === null)
+    return { verdict: 'N', evidence: { file: vFile, detail: 'missing version file' } }
+  const cText = readText(cAbs)
+  if (cText === null)
+    return { verdict: 'N', evidence: { file: cFile, detail: 'missing changelog' } }
+  const version = vText.trim()
+  if (version === '') {
+    return { verdict: 'P', evidence: { file: vFile, detail: 'empty version file' } }
+  }
+  const latest = latestChangelogVersion(cText, args.changelog_pattern)
+  if (latest === null) {
+    return {
+      verdict: 'P',
+      evidence: { file: cFile, detail: 'no changelog entry matches the pattern' },
+    }
+  }
+  if (version === latest) {
+    return { verdict: 'Y', evidence: { file: vFile, detail: `${version} == ${latest}` } }
+  }
+  return {
+    verdict: 'P',
+    evidence: { file: cFile, detail: `VERSION ${version} != CHANGELOG ${latest}` },
+  }
+}
+
+// ── Per-type check evaluators (extracted to mirror src/conformance/engine.ts) ────
+// The dispatch in evalCheck stays a thin if-chain over these handlers so the two engines keep an
+// identical structure (parity) and no single function grows past the complexity ceiling as types
+// are added. file_exists rejects directories + returns null evidence on N to match the TS engine
+// exactly (removes the previously-tolerated directory/evidence divergence).
+
+function evalFileExists(abs, rel) {
+  if (!existsSync(abs)) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
+  try {
+    if (statSync(abs).isDirectory())
+      return { verdict: 'N', evidence: { file: rel, detail: 'is a directory' } }
+  } catch {
+    return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
+  }
+  return { verdict: 'Y', evidence: { file: rel } }
+}
+
+function evalFileContains(abs, rel, pattern) {
+  const text = readText(abs)
+  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
+  const line = lineOf(text, pattern)
+  return line !== null
+    ? { verdict: 'Y', evidence: { file: rel, line } }
+    : { verdict: 'N', evidence: { file: rel, detail: `pattern not found: ${pattern}` } }
+}
+
+function evalCountMatches(abs, rel, pattern, want) {
+  const text = readText(abs)
+  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
+  let count = 0
+  let from = 0
+  while (pattern.length > 0) {
+    const i = text.indexOf(pattern, from)
+    if (i < 0) break
+    count++
+    from = i + pattern.length
+  }
+  if (count >= want) return { verdict: 'Y', evidence: { file: rel, detail: `count=${count}` } }
+  if (count > 0) return { verdict: 'P', evidence: { file: rel, detail: `count=${count}/${want}` } }
+  return { verdict: 'N', evidence: { file: rel, detail: `count=0/${want}` } }
+}
+
+function evalValue(abs, rel, expected) {
+  const text = readText(abs)
+  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
+  const line = lineOf(text, expected)
+  return line !== null
+    ? { verdict: 'Y', evidence: { file: rel, line } }
+    : { verdict: 'N', evidence: { file: rel, detail: `value not present: ${expected}` } }
+}
+
+// ── forbidden_pattern: a regex that must NOT appear in any file under a glob (#1470) ──
+//
+// Scores an ABSENCE property with anti-fake-green hardening (red-team): an empty scan must never
+// fake-green. Verdict ladder (order matters — evaluated top-down, byte-identical to engine.ts):
+//   empty/non-string pattern ⇒ N · invalid regex ⇒ N · invalid/empty glob ⇒ N ·
+//   exclude entry with a glob char ⇒ N (literal-only) · exclude_paths set w/o rationale ⇒ N ·
+//   glob matched 0 files ⇒ NA (nothing of this kind exists) ·
+//   excludes removed ALL matched files ⇒ N (refuse to fake-green an emptied scan) ·
+//   pattern found ⇒ N (first SORTED file + line) · absent across every scanned file ⇒ Y.
+
+/** True if a string contains any glob metacharacter (so it is NOT a literal path). */
+function hasGlobChar(s) {
+  return /[*?[\]]/.test(s)
+}
+
+function evalForbiddenPattern(args, root) {
+  const pattern = typeof args.pattern === 'string' ? args.pattern : ''
+  if (pattern === '') {
+    return { verdict: 'N', evidence: { file: '', detail: 'empty or non-string pattern' } }
+  }
+  let re
+  try {
+    re = new RegExp(pattern)
+  } catch {
+    return { verdict: 'N', evidence: { file: '', detail: `invalid regex: ${pattern}` } }
+  }
+  const g = resolveGlobArg(args, root)
+  if (!g.ok) return g.result
+  const { glob, matched } = g
+  const excludeRaw = Array.isArray(args.exclude_paths) ? args.exclude_paths : []
+  for (const ex of excludeRaw) {
+    if (typeof ex !== 'string' || hasGlobChar(ex)) {
+      return {
+        verdict: 'N',
+        evidence: { file: glob, detail: `exclude_paths must be literal: ${ex}` },
+      }
+    }
+  }
+  if (excludeRaw.length > 0) {
+    const rationale = typeof args.rationale === 'string' ? args.rationale.trim() : ''
+    if (rationale === '') {
+      return {
+        verdict: 'N',
+        evidence: { file: glob, detail: 'exclude_paths requires a rationale' },
+      }
+    }
+  }
+  if (matched.length === 0) {
+    return { verdict: 'NA', evidence: null }
+  }
+  const exclude = new Set(excludeRaw)
+  const remaining = matched.filter((f) => !exclude.has(f))
+  if (remaining.length === 0) {
+    return {
+      verdict: 'N',
+      evidence: { file: glob, detail: 'all matched files excluded (refusing fake-green)' },
+    }
+  }
+  for (const rel of remaining) {
+    const abs = safeResolve(root, rel)
+    const text = abs === null ? null : readText(abs)
+    if (text === null) {
+      // A matched, non-excluded file we cannot read ⇒ we cannot assert the pattern is ABSENT over
+      // it. Fail-closed N (never a silent skip → a chmod-000 file holding the marker must not
+      // fake-green to Y). Deterministic: `remaining` is sorted, so the first anomaly wins.
+      return { verdict: 'N', evidence: { file: rel, detail: 'unreadable — cannot verify absence' } }
+    }
+    const m = re.exec(text)
+    if (m !== null) {
+      return {
+        verdict: 'N',
+        evidence: {
+          file: rel,
+          line: lineAtIndex(text, m.index),
+          detail: 'forbidden pattern present',
+        },
+      }
+    }
+  }
+  // Y only when EVERY remaining file was actually read — the count is honest, never inflated.
+  return {
+    verdict: 'Y',
+    evidence: { file: glob, detail: `absent across ${remaining.length} file(s)` },
+  }
+}
+
+// ── file_stat: the executable bit on a glob of files (#1470) ─────────────────────
+//
+// Only the executable bit (mode & 0o111) is portable — git tracks 0o111 but read/write depend on
+// the umask (non-deterministic), so a readable/writable request is a config error (N). Gated behind
+// core.fileMode: when git does not track the exec bit the property is unmeasurable ⇒ NA. Symlinks
+// are evaluated by their OWN mode (lstat), never their target's. Verdict: all exec ⇒ Y, some ⇒ P,
+// none ⇒ N; a valid glob matching 0 files ⇒ NA; a malformed glob ⇒ N.
+
+function evalFileStat(args, root) {
+  const bit = typeof args.bit === 'string' ? args.bit.toLowerCase() : 'executable'
+  if (bit !== 'executable') {
+    return {
+      verdict: 'N',
+      evidence: { file: '', detail: `only the executable bit is deterministic, got: ${bit}` },
+    }
+  }
+  const g = resolveGlobArg(args, root)
+  if (!g.ok) return g.result
+  const { glob, matched } = g
+  if (matched.length === 0) {
+    return { verdict: 'NA', evidence: null }
+  }
+  if (!gitFileModeEnabled(root)) {
+    return { verdict: 'NA', evidence: null }
+  }
+  let withBit = 0
+  let firstMissing = null
+  for (const rel of matched) {
+    const abs = safeResolve(root, rel)
+    let exec = false
+    try {
+      const st = abs === null ? null : lstatSync(abs)
+      // A symlink is NOT a tracked executable regular file (git stores it as a symlink, not 0o755),
+      // and its OWN lstat mode is always 0o777 — trusting it would fake-green the exec bit. Treat a
+      // symlink as not-executable: deterministic (symlink-ness is stable) and anti-fake-green.
+      exec = st !== null && !st.isSymbolicLink() && (st.mode & 0o111) !== 0
+    } catch {
+      exec = false
+    }
+    if (exec) withBit++
+    else if (firstMissing === null) firstMissing = rel
+  }
+  if (withBit === matched.length) {
+    return {
+      verdict: 'Y',
+      evidence: { file: glob, detail: `executable across ${matched.length} file(s)` },
+    }
+  }
+  if (withBit === 0) {
+    return { verdict: 'N', evidence: { file: firstMissing ?? glob, detail: 'not executable' } }
+  }
+  return {
+    verdict: 'P',
+    evidence: { file: firstMissing ?? glob, detail: `executable ${withBit}/${matched.length}` },
+  }
+}
+
+/**
+ * Evaluate a single check against the repo. Thin dispatch over the per-type handlers above; returns
+ * { verdict, evidence } where evidence is { file, line?, detail? } for code-verifiable checks, or
+ * null for NA/NV. Glob/pair checks (version_consistency, forbidden_pattern, file_stat) dispatch
+ * BEFORE the single-file `args.path` resolve, since they own their own path handling.
  */
 function evalCheck(check, root, options) {
   const type = check.type
-  if (type === 'manual') {
-    return { verdict: 'NV', evidence: null }
-  }
+  if (type === 'manual') return { verdict: 'NV', evidence: null }
   const args = check.args || {}
+  if (type === 'version_consistency') return evalVersionConsistency(args, root)
+  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root)
+  if (type === 'file_stat') return evalFileStat(args, root)
+
   const abs = safeResolve(root, args.path)
   if (abs === null) {
     // An unresolvable / traversal path is a verified failure, with a detail note.
@@ -214,54 +552,16 @@ function evalCheck(check, root, options) {
   }
   const rel = args.path
 
-  if (type === 'file_exists') {
-    return existsSync(abs)
-      ? { verdict: 'Y', evidence: { file: rel } }
-      : { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
-  }
-
-  if (type === 'file_contains') {
-    const text = readText(abs)
-    if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
-    const pattern = String(args.pattern ?? '')
-    const line = lineOf(text, pattern)
-    return line !== null
-      ? { verdict: 'Y', evidence: { file: rel, line } }
-      : { verdict: 'N', evidence: { file: rel, detail: `pattern not found: ${pattern}` } }
-  }
-
-  if (type === 'count_matches') {
-    const text = readText(abs)
-    if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
-    const pattern = String(args.pattern ?? '')
-    const want = Number(args.min ?? 1)
-    let count = 0
-    let from = 0
-    while (pattern.length > 0) {
-      const i = text.indexOf(pattern, from)
-      if (i < 0) break
-      count++
-      from = i + pattern.length
-    }
-    if (count >= want) return { verdict: 'Y', evidence: { file: rel, detail: `count=${count}` } }
-    if (count > 0)
-      return { verdict: 'P', evidence: { file: rel, detail: `count=${count}/${want}` } }
-    return { verdict: 'N', evidence: { file: rel, detail: `count=0/${want}` } }
-  }
-
+  if (type === 'file_exists') return evalFileExists(abs, rel)
+  if (type === 'file_contains') return evalFileContains(abs, rel, String(args.pattern ?? ''))
+  if (type === 'count_matches')
+    return evalCountMatches(abs, rel, String(args.pattern ?? ''), Number(args.min ?? 1))
   if (type === 'value') {
     // A value check with a report `format` reads a pre-generated tool report (#1413); without one it
     // keeps the legacy single-line `equals`-contains behavior (back-compat — same verdicts as before).
-    if (args.format !== undefined && args.format !== '') {
-      return evalValueReport(abs, rel, check, options || {})
-    }
-    const text = readText(abs)
-    if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
-    const expect = String(args.equals ?? '')
-    const line = lineOf(text, expect)
-    return line !== null
-      ? { verdict: 'Y', evidence: { file: rel, line } }
-      : { verdict: 'N', evidence: { file: rel, detail: `value not present: ${expect}` } }
+    return args.format
+      ? evalValueReport(abs, rel, check, options || {})
+      : evalValue(abs, rel, String(args.equals ?? ''))
   }
 
   // Unknown check type — treat as not verified (never a silent pass).
@@ -286,10 +586,14 @@ function verdictPoints(verdict) {
  * Evaluate the whole registry. Deterministic: checks sorted by id, no timestamps.
  * @returns scored payload: { registryVersion, score, yCount, riskyCount, totals, dimensions, checks }
  */
-export function evaluate(registry, overlays, root, options = {}) {
+function evaluateInner(registry, overlays, root, options = {}) {
   const overlaySet = overlays instanceof Set ? overlays : new Set(overlays || [])
   const opts = options && typeof options === 'object' ? options : {}
-  const rawChecks = Array.isArray(registry?.checks) ? registry.checks : []
+  // Drop non-object entries (a stray `-`/commented item in a templated YAML list parses to null) so
+  // the valid checks are still scored and neither engine throws — shared fail-closed shape with the TS.
+  const rawChecks = (Array.isArray(registry?.checks) ? registry.checks : []).filter(
+    (c) => c && typeof c === 'object',
+  )
   const sorted = [...rawChecks].sort((a, b) => String(a.id).localeCompare(String(b.id)))
 
   const checks = []
@@ -369,6 +673,26 @@ export function evaluate(registry, overlays, root, options = {}) {
     },
     dimensions,
     checks,
+  }
+}
+
+/**
+ * Evaluate the whole registry, fail-closed: any uncaught error returns a zero-score payload rather
+ * than throwing (byte-identical fail-closed shape to src/conformance/engine.ts — engine-parity).
+ */
+export function evaluate(registry, overlays, root, options = {}) {
+  try {
+    return evaluateInner(registry, overlays, root, options)
+  } catch {
+    return {
+      registryVersion: '0',
+      score: 0,
+      yCount: 0,
+      riskyCount: 0,
+      totals: { checks: 0, y: 0, p: 0, n: 0, na: 0, nv: 0 },
+      dimensions: {},
+      checks: [],
+    }
   }
 }
 
