@@ -509,49 +509,51 @@ arbiter update  # regenerate canonical files, preserve customizations
 
 ## Command Reference
 
-| Command                  | Description                                                                     |
-| ------------------------ | ------------------------------------------------------------------------------- |
-| `arbiter adherence`      | —                                                                               |
-| `arbiter agent-rules`    | Export or verify AI agent governance rules (#265)                               |
-| `arbiter benchmark`      | Performance benchmarks for arbiter                                              |
-| `arbiter blame`          | —                                                                               |
-| `arbiter ci`             | Governance-aware CI planning (#261)                                             |
-| `arbiter close-gold-gap` | Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close) |
-| `arbiter compare`        | Compare governance postures across multiple repos (#264)                        |
-| `arbiter configure`      | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
-| `arbiter conformance`    | Score a project against the arbiter gold standard (#1369)                       |
-| `arbiter diff`           | Show what arbiter update would change (dry run)                                 |
-| `arbiter doctor`         | Diagnose and repair arbiter state                                               |
-| `arbiter experiments`    | Inspect registered experimental features                                        |
-| `arbiter explain`        | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
-| `arbiter feature-matrix` | Feature/RTM matrix commands (INV-112)                                           |
-| `arbiter findings`       | Inspect and promote the incidental-finding spool (#1403)                        |
-| `arbiter gauntlet`       | Pairwise/combinatorial test generation (#260)                                   |
-| `arbiter gold-audit`     | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
-| `arbiter graph`          | —                                                                               |
-| `arbiter harness`        | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)  |
-| `arbiter init`           | Initialise / update the unified task document (#1206)                           |
-| `arbiter integrations`   | Inspect agent-tool integrations (skills, plugins) detected for this project     |
-| `arbiter kit`            | Cross-stack governance kit commands (requires --experimental.kit)               |
-| `arbiter knowledge-map`  | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                  |
-| `arbiter mark`           | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
-| `arbiter notary`         | Notary system — track semantic doc changes                                      |
-| `arbiter note`           | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
-| `arbiter plugin`         | [BETA] Manage arbiter plugins (API not yet stable)                              |
-| `arbiter report`         | Bundle a replay run for bug reports                                             |
-| `arbiter review`         | Review artefacts (plans, code) against governance invariants                    |
-| `arbiter settings`       | List every settable arbiter.json path with its current value (#1121)            |
-| `arbiter ship`           | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
-| `arbiter ship-on-red`    | —                                                                               |
-| `arbiter skill-eval`     | Regression-eval harness for arbiter's own skills/commands (#1264)               |
-| `arbiter task`           | Manage task lifecycle state                                                     |
-| `arbiter trace`          | —                                                                               |
-| `arbiter tui`            | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)  |
-| `arbiter update`         | Re-generate governance files using stored config (arbiter.json)                 |
-| `arbiter upgrade-level`  | Upgrade governance level with a grace period for new gates                      |
-| `arbiter verify`         | Probe toolchain compatibility for the detected stack                            |
-| `arbiter work`           | Manage work units via decomposition backend                                     |
-| `arbiter worktree`       | Manage git worktrees for parallel task development                              |
+| Command                   | Description                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `arbiter adherence`       | —                                                                               |
+| `arbiter agent-rules`     | Export or verify AI agent governance rules (#265)                               |
+| `arbiter anti-fake-green` | Anti-fake-green guard aggregate (#1428, thin wrapper over the engine)           |
+| `arbiter benchmark`       | Performance benchmarks for arbiter                                              |
+| `arbiter blame`           | —                                                                               |
+| `arbiter ci`              | Governance-aware CI planning (#261)                                             |
+| `arbiter close-gold-gap`  | Emit the remediation recipe for one gold-audit gap (#1422, never fakes a close) |
+| `arbiter compare`         | Compare governance postures across multiple repos (#264)                        |
+| `arbiter configure`       | Modify arbiter.json configuration (interactive on TTY, or use --set)            |
+| `arbiter conformance`     | Score a project against the arbiter gold standard (#1369)                       |
+| `arbiter diff`            | Show what arbiter update would change (dry run)                                 |
+| `arbiter doc-set`         | Deterministic doc-set presence audit (#1428, thin wrapper over the engine)      |
+| `arbiter doctor`          | Diagnose and repair arbiter state                                               |
+| `arbiter experiments`     | Inspect registered experimental features                                        |
+| `arbiter explain`         | Show detailed explanation for an error code, INV-NN invariant, or CANON-NN rule |
+| `arbiter feature-matrix`  | Feature/RTM matrix commands (INV-112)                                           |
+| `arbiter findings`        | Inspect and promote the incidental-finding spool (#1403)                        |
+| `arbiter gauntlet`        | Pairwise/combinatorial test generation (#260)                                   |
+| `arbiter gold-audit`      | Deterministic gold-LEVEL band + missing-items report (#1414, wraps the engine)  |
+| `arbiter graph`           | —                                                                               |
+| `arbiter harness`         | Run the four SSOT gates (ssot-core, doc-links, knowledge-map, canonical-paths)  |
+| `arbiter init`            | Initialise / update the unified task document (#1206)                           |
+| `arbiter integrations`    | Inspect agent-tool integrations (skills, plugins) detected for this project     |
+| `arbiter kit`             | Cross-stack governance kit commands (requires --experimental.kit)               |
+| `arbiter knowledge-map`   | Regenerate KNOWLEDGE_MAP.md line counts from current doc sizes                  |
+| `arbiter mark`            | Pinpoint: snapshot the step-cursor so a mid-task /clear resumes exactly (#1206) |
+| `arbiter notary`          | Notary system — track semantic doc changes                                      |
+| `arbiter note`            | Capture an out-of-scope finding to the per-agent JSONL spool (#1401)            |
+| `arbiter plugin`          | [BETA] Manage arbiter plugins (API not yet stable)                              |
+| `arbiter report`          | Bundle a replay run for bug reports                                             |
+| `arbiter review`          | Review artefacts (plans, code) against governance invariants                    |
+| `arbiter settings`        | List every settable arbiter.json path with its current value (#1121)            |
+| `arbiter ship`            | Orchestrate an issue → reviewed, merged PR over the existing engine (#1206)     |
+| `arbiter ship-on-red`     | —                                                                               |
+| `arbiter skill-eval`      | Regression-eval harness for arbiter's own skills/commands (#1264)               |
+| `arbiter task`            | Manage task lifecycle state                                                     |
+| `arbiter trace`           | —                                                                               |
+| `arbiter tui`             | Interactive umbrella menu routing to configure/settings/doctor/upgrade (#1122)  |
+| `arbiter update`          | Re-generate governance files using stored config (arbiter.json)                 |
+| `arbiter upgrade-level`   | Upgrade governance level with a grace period for new gates                      |
+| `arbiter verify`          | Probe toolchain compatibility for the detected stack                            |
+| `arbiter work`            | Manage work units via decomposition backend                                     |
+| `arbiter worktree`        | Manage git worktrees for parallel task development                              |
 
 ## arbiter adherence
 
@@ -563,6 +565,14 @@ Export or verify AI agent governance rules (#265).
 
 - `arbiter agent-rules export`
 - `arbiter agent-rules verify` — Probe toolchain compatibility for the detected stack
+
+## arbiter anti-fake-green
+
+Anti-fake-green guard aggregate (#1428, thin wrapper over the engine).
+
+**Options:**
+
+- `--enforce` — Promote advisory (gh-audit) findings to hard failures
 
 ## arbiter benchmark
 
@@ -646,6 +656,17 @@ Show what arbiter update would change (dry run).
 - `--dir <dir>` — Target directory (default: current directory)
 - `--json` — Emit machine-readable JSON output
 - `--withheld` — Show only template fixes withheld from user-modified files (#1344)
+
+## arbiter doc-set
+
+Deterministic doc-set presence audit (#1428, thin wrapper over the engine).
+
+**Options:**
+
+- `--check` — Advisory mode for the downstream thin runner (exit 0 unless --strict)
+- `--strict` — Exit 1 if any mandatory doc is missing (default: advisory)
+- `--json` — Emit machine-readable JSON output
+- `--generate` — Scaffold stubs for missing mandatory+recommended .md docs
 
 ## arbiter doctor
 

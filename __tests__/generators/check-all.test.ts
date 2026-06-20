@@ -25,7 +25,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 16 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + gold-audit)', () => {
+  it('emits exactly 18 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + gold-audit + doc-set + anti-fake-green)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -37,10 +37,11 @@ describe('generateCheckAll', () => {
     // + lib/e2e-reliability.mjs + check-e2e-quarantine.mjs (INV-130, #1445)
     // + check-tdd-evidence.mjs (INV-131, #1446)
     // + gold-audit.mjs (thin runner, #1419)
+    // + check-doc-set.mjs + check-anti-fake-green.mjs (thin runners, INV-135, #1428)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(16)
+    expect(result.files).toHaveLength(18)
     expect(result.files.some((f) => f.path.endsWith('scripts/optional-emissions.json'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-render-smoke.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/glob-walk.mjs'))).toBe(true)
@@ -53,6 +54,30 @@ describe('generateCheckAll', () => {
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/e2e-reliability.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-e2e-quarantine.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-tdd-evidence.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-doc-set.mjs'))).toBe(true)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-anti-fake-green.mjs'))).toBe(
+      true,
+    )
+  })
+
+  it('emits the doc-set + anti-fake-green thin runners and wires them advisory at L2 (INV-135, #1428)', () => {
+    const result = generateCheckAll(
+      makeConfig(dir, { language: 'typescript', governanceLevel: 'L2' }),
+    )
+    const paths = result.files.map((f) => f.path)
+    expect(paths.some((p) => p.endsWith('scripts/check-doc-set.mjs'))).toBe(true)
+    expect(paths.some((p) => p.endsWith('scripts/check-anti-fake-green.mjs'))).toBe(true)
+    const docSet = readFileSync(join(dir, 'scripts', 'check-doc-set.mjs'), 'utf-8')
+    expect(docSet).toContain('arbiter')
+    expect(docSet).toContain('doc-set')
+    const afg = readFileSync(join(dir, 'scripts', 'check-anti-fake-green.mjs'), 'utf-8')
+    expect(afg).toContain('anti-fake-green')
+    const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(checkAll).toContain('check-doc-set.mjs')
+    expect(checkAll).toContain('check-anti-fake-green.mjs')
+    // Advisory wiring (runWarnCheck), never a hard runCheck for these two.
+    expect(checkAll).toMatch(/runWarnCheck\('doc-set'/)
+    expect(checkAll).toMatch(/runWarnCheck\('anti-fake-green'/)
   })
 
   it('emits scripts/check-api-e2e.mjs and wires it into check-all.mjs (#1365, INV-126)', () => {

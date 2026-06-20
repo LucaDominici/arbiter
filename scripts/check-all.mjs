@@ -284,6 +284,11 @@ if (isMain) {
     if (existsSync('scripts/conformance.mjs')) {
       runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
     }
+
+    // Advisory (#1428/INV-135): doc-set presence audit — informational, never blocks gate.
+    if (existsSync('scripts/check-doc-set.mjs')) {
+      runWarnCheck('doc-set presence', 'node', ['scripts/check-doc-set.mjs'])
+    }
   }
 
   // ─── Summary ─────────────────────────────────────────────────────────────────

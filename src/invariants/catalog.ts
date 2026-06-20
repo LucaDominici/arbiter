@@ -2308,4 +2308,30 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'runnable check-all.mjs). Documented in ADR-098. No runtime gate script (selfOnly CLI ' +
       'behaviour); not emitted to target projects.',
   },
+  {
+    id: 'INV-135',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'doc-set + anti-fake-green runners generated',
+    description:
+      'Every arbiter-governed project ships TWO Track-B thin runners that delegate to arbiter ' +
+      'via npx so a consumer needs NO local `yaml` dep: scripts/check-doc-set.mjs (delegates to ' +
+      '`arbiter doc-set` — the deterministic doc-set presence audit) and ' +
+      'scripts/check-anti-fake-green.mjs (delegates to `arbiter anti-fake-green` — the ' +
+      'disarm-proof guard aggregate). Both follow the gold-audit thin-runner shape (#1419, ' +
+      'INV-128): a STATIC `spawnSync("npx", ["--no-install", "arbiter", "<cmd>", ...args])` ' +
+      'delegation. Wired ADVISORY (runWarnCheck) at L2 in generated check-all.mjs so a fresh ' +
+      'consumer passes with no day-1 redness — doc-set is advisory unless --strict, and the ' +
+      'anti-fake-green gh-audit guards fail OPEN when `gh` is absent. The engine + its `yaml` ' +
+      "parse run inside arbiter's own environment, never in the consumer.",
+    enforcement:
+      'scripts/check-doc-set.mjs + scripts/check-anti-fake-green.mjs — emitted unconditionally ' +
+      'for all governed targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-doc-set.mjs.ejs and ' +
+      'src/templates/scripts/check-anti-fake-green.mjs.ejs (CANON-01/04/11). Both wired as ' +
+      'advisory (runWarnCheck) in generated scripts/check-all.mjs L2 behind existsSync guards ' +
+      '(#1428). Exit codes per INV-53: 0=PASS/advisory, 1=FAIL, 2=ERROR.',
+  },
 ]
