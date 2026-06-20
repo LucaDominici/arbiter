@@ -114,3 +114,6 @@ wiki/.wiki-log.json
 
 # Graphify AST cache (regenerable)
 graphify-out/
+
+# fablize goals discipline — local task-tracking state (transient, never committed)
+.fablize/
