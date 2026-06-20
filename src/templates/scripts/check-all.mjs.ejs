@@ -866,6 +866,12 @@ if (level === 'L2') {
   if (existsSync('scripts/check-anti-fake-green.mjs')) {
     runWarnCheck('anti-fake-green', 'node', ['scripts/check-anti-fake-green.mjs'])
   }
+  // Advisory (#1457, INV-134): per-module coverage non-regression ratchet — start-warn,
+  // promote-later. Informational (runWarnCheck) so it never blocks the gate while the
+  // ±0.5pp per-module baseline beds in. Self-SKIPs when no coverage summary exists.
+  if (existsSync('scripts/verify-module-coverage.mjs')) {
+    runWarnCheck('module coverage ratchet', 'node', ['scripts/verify-module-coverage.mjs'])
+  }
 <% } %>
   // ─── L2: TDD red→green evidence re-verification (INV-131, #1446) ──────────────
   // Re-verifies every task-ID commit's red→green evidence on a fresh CI checkout —
