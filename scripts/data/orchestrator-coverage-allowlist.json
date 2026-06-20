@@ -1,5 +1,5 @@
 {
-  "$comment": "#1410 — check-*.mjs scripts legitimately NOT reachable from scripts/check-all.mjs (directly or transitively via the check-anti-fake-green GUARDS aggregate). Mirrors the optional-emissions.json rationale style: every entry MUST carry a non-empty rationale. The check-orchestrator-coverage gate is ADVISORY in this wave; promotion to a fail-closed gate is a tracked follow-up that should first re-home or retire the workflow-lint orphans below.",
+  "$comment": "#1410 — check-*.mjs scripts legitimately NOT reachable from scripts/check-all.mjs (directly or transitively via the check-anti-fake-green GUARDS aggregate). Mirrors the optional-emissions.json rationale style: every entry MUST carry a non-empty rationale. The check-orchestrator-coverage gate is ADVISORY in this wave; promotion to a fail-closed gate is a tracked follow-up.",
   "allowlist": [
     {
       "script": "check-doc-set.mjs",
@@ -8,18 +8,6 @@
     {
       "script": "check-pack-size.mjs",
       "rationale": "npm tarball size budget — a release/CI-time concern (warn-only by default), not a per-PR L1 gate. Belongs to the packaging lane, deliberately kept out of the fast self-gate so a routine source edit never pays a pack cost."
-    },
-    {
-      "script": "check-workflow-job-naming.mjs",
-      "rationale": "Anti-drift workflow-lint family (INV-89), implemented on the shared scripts/lib/workflow-scan.mjs helper. The consolidated workflow gates wired in check-all are runners/docs-sync/test-integrity/parallelism; this finer-grained job-naming linter is currently un-wired. Allowlisted advisory; promote-to-blocking follow-up should re-home it into the wired workflow family or retire it."
-    },
-    {
-      "script": "check-workflow-perms.mjs",
-      "rationale": "Anti-drift workflow-lint family (INV-76) — verifies every .github/workflows/*.yml declares top-level permissions. Not currently invoked by check-all or any CI workflow yml. Allowlisted advisory; promote-to-blocking follow-up should re-home it into the wired workflow family or retire it."
-    },
-    {
-      "script": "check-workflow-sha-pinning.mjs",
-      "rationale": "Anti-drift workflow-lint family (INV-89) — overlaps with the SHA-pin rule already enforced inside check-emission-coherence.mjs (wired) and referenced by check-workflow-cosign.mjs. Not invoked directly by check-all. Allowlisted advisory; promote-to-blocking follow-up should de-duplicate against emission-coherence or retire it."
     }
   ]
 }
