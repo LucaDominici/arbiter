@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1459",
+  "test_path": "__tests__/commands/task-note.test.ts",
+  "test_commit_sha": "c1a3b50300f3ea1c2c5dee8d567fdeb6d15ae184",
+  "test_run_log": "     × rejects an out-of-enum --kind with a clear reason and writes nothing 5ms\n     × rejects an out-of-enum --severity with a clear reason and writes nothing 2ms\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯\n FAIL  __tests__/commands/task-note.test.ts > arbiter note — per-agent JSONL finding spool (#1401) > rejects an out-of-enum --kind with a clear reason and writes nothing\n    151|   it('rejects an out-of-enum --kind with a clear reason and writes not…\n FAIL  __tests__/commands/task-note.test.ts > arbiter note — per-agent JSONL finding spool (#1401) > rejects an out-of-enum --severity with a clear reason and writes nothing\n    158|   it('rejects an out-of-enum --severity with a clear reason and writes…\n      Tests  2 failed | 8 passed (10)\n",
+  "observed_failure": "FAIL __tests__/commands/task-note.test.ts — enum validation absent: out-of-enum --kind/--severity accepted instead of rejected",
+  "recorded_at": "2026-06-20T17:50:25.933Z"
+}
