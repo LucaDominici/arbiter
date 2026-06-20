@@ -854,6 +854,18 @@ if (level === 'L2') {
   if (existsSync('scripts/gold-audit.mjs')) {
     runWarnCheck('gold-audit', 'node', ['scripts/gold-audit.mjs', '--check'])
   }
+  // Advisory (#1428, INV-135): doc-set presence audit — informational, never blocks gate.
+  // Plain --check runs the engine in its default advisory mode (exit 0 unless --strict), so a
+  // fresh consumer bootstraps with no day-1 redness; the strict hard guard is never passed here.
+  if (existsSync('scripts/check-doc-set.mjs')) {
+    runWarnCheck('doc-set', 'node', ['scripts/check-doc-set.mjs', '--check'])
+  }
+  // Advisory (#1428, INV-135): anti-fake-green guard aggregate — informational, never blocks gate.
+  // The gh-audit guards fail OPEN (advisory) when `gh` is absent; --enforce is NEVER passed here
+  // (it would promote advisory findings to hard fails = day-1 red for a fresh consumer).
+  if (existsSync('scripts/check-anti-fake-green.mjs')) {
+    runWarnCheck('anti-fake-green', 'node', ['scripts/check-anti-fake-green.mjs'])
+  }
 <% } %>
   // ─── L2: TDD red→green evidence re-verification (INV-131, #1446) ──────────────
   // Re-verifies every task-ID commit's red→green evidence on a fresh CI checkout —

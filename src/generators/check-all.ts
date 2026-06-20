@@ -157,6 +157,19 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'gold-audit.mjs'],
     tpl: 'scripts/gold-audit.mjs.ejs',
   },
+  // #1428 (INV-135): doc-set + anti-fake-green thin runners. Each delegates to
+  // `npx arbiter <cmd>` (the engine + `yaml` dep stay in arbiter's env), so a consumer
+  // needs NO local `yaml` dep. Emitted unconditionally and wired ADVISORY (runWarnCheck)
+  // in check-all.mjs L2 so a fresh consumer passes with no day-1 redness (gh absent =
+  // fail-OPEN; doc-set advisory unless --strict).
+  {
+    rel: ['scripts', 'check-doc-set.mjs'],
+    tpl: 'scripts/check-doc-set.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'check-anti-fake-green.mjs'],
+    tpl: 'scripts/check-anti-fake-green.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

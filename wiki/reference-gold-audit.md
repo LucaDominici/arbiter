@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/gold-audit.md'
 source_sha: '2cf4ee7a471f9a0b07eb5abaca4c459ca949862c'
-last_updated: '2026-06-16'
+last_updated: '2026-06-20'
 ---
 
 # Reference: Gold-Audit Engine

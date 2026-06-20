@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/GLOSSARY.md'
 source_sha: '0cc0b159759db94bc682a5b19c1815a719a284dd'
-last_updated: '2026-06-16'
+last_updated: '2026-06-20'
 ---
 
 # Glossary

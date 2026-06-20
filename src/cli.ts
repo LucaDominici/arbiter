@@ -11,6 +11,8 @@ import { runTui } from './commands/tui.js'
 import { runWorktreeOpen, runWorktreeClose, runWorktreeList } from './commands/worktree.js'
 import { runVerify, runVerifyEvidence } from './commands/verify.js'
 import { runGoldAudit } from './commands/gold-audit.js'
+import { runDocSet } from './commands/doc-set.js'
+import { runAntiFakeGreen } from './commands/anti-fake-green.js'
 import { runCloseGoldGap } from './commands/close-gold-gap.js'
 import { runVerifyPlan } from './commands/verify-plan.js'
 import { loadConfig } from './utils/config.js'
@@ -976,6 +978,31 @@ program
       process.exit(result.exitCode)
     },
   )
+
+program
+  .command('doc-set')
+  .description('Deterministic doc-set presence audit (#1428, thin wrapper over the engine)')
+  .option('--check', 'Advisory mode for the downstream thin runner (exit 0 unless --strict)', false)
+  .option('--strict', 'Exit 1 if any mandatory doc is missing (default: advisory)', false)
+  .option('--json', 'Emit machine-readable JSON output', false)
+  .option('--generate', 'Scaffold stubs for missing mandatory+recommended .md docs', false)
+  .action((opts: { check: boolean; strict: boolean; json: boolean; generate: boolean }) => {
+    const args: string[] = []
+    if (opts.strict) args.push('--strict')
+    if (opts.json) args.push('--json')
+    if (opts.generate) args.push('--generate')
+    const result = runDocSet({ check: opts.check, args })
+    process.exit(result.exitCode)
+  })
+
+program
+  .command('anti-fake-green')
+  .description('Anti-fake-green guard aggregate (#1428, thin wrapper over the engine)')
+  .option('--enforce', 'Promote advisory (gh-audit) findings to hard failures', false)
+  .action((opts: { enforce: boolean }) => {
+    const result = runAntiFakeGreen({ enforce: opts.enforce })
+    process.exit(result.exitCode)
+  })
 
 program
   .command('close-gold-gap <gapId>')
