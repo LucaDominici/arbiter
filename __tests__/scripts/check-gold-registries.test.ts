@@ -3,9 +3,10 @@
 // parses, carries no RISKY check, and references only known threshold_refs.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { parse as parseYaml } from 'yaml'
 
 const SCRIPT = resolve('scripts/check-gold-registries.mjs')
 
@@ -35,6 +36,25 @@ function makeStandards(files: Record<string, string>): { dir: string; cleanup: (
 describe('check-gold-registries (#1413)', () => {
   it('the SHIPPED standards/ registries pass (no RISKY, refs resolve)', () => {
     const r = run(resolve('standards'))
+    expect(r.status).toBe(0)
+    expect(r.out).toMatch(/all checks SAFE/)
+  })
+
+  it('the shipped go/python/rust registries exist and every check is SAFE (#1426)', () => {
+    const stdDir = resolve('standards')
+    for (const stack of ['go', 'python', 'rust']) {
+      const file = join(stdDir, `gold-registry.${stack}.yml`)
+      expect(existsSync(file), `${stack} registry must ship`).toBe(true)
+      const doc = parseYaml(readFileSync(file, 'utf-8')) as {
+        profile?: string
+        checks?: Array<{ risk?: string }>
+      }
+      expect(doc.profile).toBe(stack)
+      expect(Array.isArray(doc.checks) && doc.checks.length > 0).toBe(true)
+      for (const c of doc.checks ?? []) expect(c.risk).not.toBe('RISKY')
+    }
+    // The meta-gate accepts all shipped registries together (go/python/rust refs resolve).
+    const r = run(stdDir)
     expect(r.status).toBe(0)
     expect(r.out).toMatch(/all checks SAFE/)
   })
