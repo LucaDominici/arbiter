@@ -141,9 +141,40 @@ describe('arbiter note — per-agent JSONL finding spool (#1401)', () => {
   })
 
   it('fingerprint is case-sensitive (NO lowercasing of the note)', () => {
-    runTaskNote({ dir, note: 'Foo', kind: 'x', file: 'src/c.ts', shardOverride: 'c1' })
-    runTaskNote({ dir, note: 'foo', kind: 'x', file: 'src/c.ts', shardOverride: 'c2' })
+    runTaskNote({ dir, note: 'Foo', kind: 'dup', file: 'src/c.ts', shardOverride: 'c1' })
+    runTaskNote({ dir, note: 'foo', kind: 'dup', file: 'src/c.ts', shardOverride: 'c2' })
     const all = readAllFindings(dir)
     expect(all[0]?.fingerprint).not.toBe(all[1]?.fingerprint)
+  })
+
+  // #1424a — enum validation: out-of-enum kind/severity is rejected (no spool write).
+  it('rejects an out-of-enum --kind with a clear reason and writes nothing', () => {
+    const result = runTaskNote({ dir, note: 'bad kind', kind: 'bogus' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toMatch(/kind/i)
+    expect(readAllFindings(dir)).toHaveLength(0)
+  })
+
+  it('rejects an out-of-enum --severity with a clear reason and writes nothing', () => {
+    const result = runTaskNote({ dir, note: 'bad sev', kind: 'risk', severity: 'critical' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toMatch(/severity/i)
+    expect(readAllFindings(dir)).toHaveLength(0)
+  })
+
+  it('accepts every documented kind and severity enum value', () => {
+    for (const kind of ['dup', 'smell', 'risk', 'debt', 'note']) {
+      const r = runTaskNote({ dir, note: `k ${kind}`, kind, shardOverride: `k-${kind}` })
+      expect(r.ok).toBe(true)
+    }
+    for (const severity of ['low', 'med', 'high', 'info']) {
+      const r = runTaskNote({
+        dir,
+        note: `s ${severity}`,
+        severity,
+        shardOverride: `s-${severity}`,
+      })
+      expect(r.ok).toBe(true)
+    }
   })
 })

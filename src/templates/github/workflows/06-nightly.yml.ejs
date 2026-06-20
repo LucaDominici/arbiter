@@ -98,7 +98,7 @@ jobs:
       - name: npm audit
         run: npm audit --omit=dev --audit-level=high
       - name: osv-scanner
-        uses: google/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
         with:
           scan-args: '--lockfile=package-lock.json'
 <% } else if (language === 'java') { %>
@@ -373,6 +373,7 @@ jobs:
         uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
         with:
           args: detect --source . --log-opts="--all --full-history"
 

@@ -163,7 +163,7 @@ describe('06-nightly.yml.ejs — per-language dep-CVE tools', () => {
     // Regression guard for #858: google/osv-scanner-action@v2 does not exist.
     // The action ref MUST be a full 40-character commit SHA, not a tag like @v2.
     const rendered = renderNightly({ language: 'typescript', buildTool: 'npm' })
-    const SHA_RE = /google\/osv-scanner-action@([0-9a-f]{40})/i
+    const SHA_RE = /google\/osv-scanner-action\/osv-scanner-action@([0-9a-f]{40})/i
     expect(rendered).toMatch(SHA_RE)
   })
 
@@ -172,7 +172,7 @@ describe('06-nightly.yml.ejs — per-language dep-CVE tools', () => {
     // also references a valid pinned SHA — not the broken @v2 tag.
     const wfPath = join(ROOT, '.github', 'workflows', '06-nightly.yml')
     const content = readFileSync(wfPath, 'utf-8')
-    const SHA_RE = /google\/osv-scanner-action@([0-9a-f]{40})/i
+    const SHA_RE = /google\/osv-scanner-action\/osv-scanner-action@([0-9a-f]{40})/i
     expect(content).toMatch(SHA_RE)
   })
 

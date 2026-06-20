@@ -80,6 +80,8 @@
     "@commitlint/config-conventional": "^21.0.2",
     "@cucumber/cucumber": "^13.0.0",
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "^9",
+    "@stryker-mutator/vitest-runner": "^9",
     "@types/ejs": "^3.1.5",
     "@types/node": "^25.9.2",
     "@vitest/coverage-v8": "^4.1.8",
