@@ -328,6 +328,11 @@ function generateClaudeRules(
       template: 'claude/rules/60-incidental-capture.md',
     },
     {
+      // #1448: read the impact-map (blast radius) before editing a shared/core module.
+      file: '75-impact-vault-reading.md',
+      template: 'claude/rules/75-impact-vault-reading.md',
+    },
+    {
       file: '90-exec-protocol.md',
       template: 'claude/rules/90-exec-protocol.md.ejs',
     },
