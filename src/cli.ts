@@ -505,6 +505,10 @@ program
   .option('--tools <tools>', 'Comma-separated list of AI tools (claude,codex)')
   .option('--level <level>', 'Governance level: L1, L2, L3, or L4', 'L2')
   .option(
+    '--tier <tier>',
+    'Progressive-adoption tier: bootstrap (gentlest Day-1: L1 + brownfield) | L1 | L2 | L3 | L4. Overrides --level.',
+  )
+  .option(
     '--language <lang>',
     'Override detected language (typescript|java|kotlin|rust|python|go|multi)',
   )
@@ -554,6 +558,7 @@ program
       yes: boolean
       tools?: string
       level?: string
+      tier?: string
       language?: string
       archetype?: string
       dir?: string
@@ -580,6 +585,7 @@ program
         yes: opts.yes,
         tools: opts.tools,
         level: opts.level,
+        ...(opts.tier !== undefined ? { tier: opts.tier } : {}),
         dir: opts.dir,
         dryRun: opts.dryRun,
         brownfield: opts.brownfield,

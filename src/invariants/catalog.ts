@@ -2280,4 +2280,32 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'scripts/check-tdd-evidence.mjs which delegates to the CLI). Exit codes per INV-53: ' +
       '0=PASS/vacuous, 1=FAIL (missing/inconsistent evidence or forbidden skip trailer), 2=ERROR.',
   },
+  {
+    id: 'INV-132',
+    tier: 'operational',
+    minGovernanceLevel: 'L1',
+    selfOnly: true,
+    alwaysActive: false,
+    adr: 'ADR-098',
+    title: 'arbiter init exposes a progressive-adoption tier on-ramp (bootstrap → L4)',
+    description:
+      '`arbiter init --tier <bootstrap|L1|L2|L3|L4>` is a progressive-adoption on-ramp so ' +
+      'brownfield/startup teams are not forced into all-or-nothing governance. `bootstrap` ' +
+      'is the gentlest Day-1 entry — it desugars to governance L1 (the minimal runnable ' +
+      'gate) plus brownfield baseline lock-in, so a messy repo gets a gate that runs and ' +
+      'passes (pre-existing debt is captured as a baseline, not thrown as day-1 red); ' +
+      '`L1`–`L4` are governance-level aliases. The tier adds NO new persisted config field — ' +
+      'it is a view over (governanceLevel, brownfield, grace) and desugars into the existing ' +
+      '`--level` + `--brownfield` settings. The adoption ladder bootstrap→L1→L2→L3→L4 has ' +
+      'documented entry/exit criteria; graduation uses the existing `arbiter upgrade-level` ' +
+      '(grace-softened, ADR-028) and `arbiter configure` flows. selfOnly: this governs ' +
+      "arbiter's own init CLI behaviour, not a gate emitted into target projects.",
+    enforcement:
+      'src/commands/init.ts (resolveAdoptionTier desugars --tier into governanceLevel + ' +
+      'brownfield; runInit applies it before level resolution) + the --tier CLI option in ' +
+      'src/cli.ts. Verified by __tests__/commands/init-tier.test.ts (red→green: bootstrap → ' +
+      'L1 + brownfield, L1–L4 pass-through, invalid rejected, bootstrap config emits a ' +
+      'runnable check-all.mjs). Documented in ADR-098. No runtime gate script (selfOnly CLI ' +
+      'behaviour); not emitted to target projects.',
+  },
 ]
