@@ -119,6 +119,13 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-tdd-evidence.mjs'],
     tpl: 'scripts/check-tdd-evidence.mjs.ejs',
   },
+  // #1456 (INV-133): TODO max-age enforcement gate. A TODO(#NNN) whose linked issue
+  // was created more than MAX_AGE_DAYS ago FAILS the gate (age from issue created_at
+  // only). Self-contained; wired at L2 in check-all.mjs.ejs. Graceful-SKIPs offline.
+  {
+    rel: ['scripts', 'check-todo-max-age.mjs'],
+    tpl: 'scripts/check-todo-max-age.mjs.ejs',
+  },
   {
     rel: ['scripts', 'check-test-pyramid.mjs'],
     tpl: 'scripts/check-test-pyramid.mjs.ejs',

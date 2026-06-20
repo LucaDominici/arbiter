@@ -47,7 +47,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, operational/Tier-4, all-languages)
     // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational/Tier-4, selfOnly)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational/Tier-4)
-    expect(INVARIANT_CATALOG).toHaveLength(131)
+    // Updated #1456: +1 (INV-133 TODO max-age enforced via linked-issue creation date, governance/Tier-5, all-languages)
+    expect(INVARIANT_CATALOG).toHaveLength(132)
   })
 
   it('all IDs are unique', () => {
@@ -67,9 +68,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1446: +1 (INV-131)
     // Updated #1447: +1 (INV-132)
     // Updated #1428: +1 (INV-135)
+    // Updated #1456: +1 (INV-133)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(131)
+    expect(unique.size).toBe(132)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -169,7 +171,7 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate)
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance, all-languages)
     const tier5 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'governance')
-    expect(tier5).toHaveLength(49)
+    expect(tier5).toHaveLength(50)
   })
 
   it('INV-38 (phase lifecycle enforcement) is in Tier 5 Governance and alwaysActive', () => {
@@ -433,7 +435,7 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
-    expect(result).toHaveLength(86)
+    expect(result).toHaveLength(87)
     const ids = result.map((inv) => inv.id)
     expect(ids).not.toContain('INV-29')
     expect(ids).not.toContain('INV-30')
@@ -466,7 +468,7 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result.length).toBeLessThan(74)
+    expect(result.length).toBeLessThan(75)
   })
 
   it('INV-29 appears for Java at all governance levels (alwaysActive, essential tiers)', () => {
@@ -544,7 +546,7 @@ describe('getFilteredInvariants', () => {
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, L1+, all-languages, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, L1+, all-languages, operational)
     // Updated #1428: +1 (INV-135 doc-set + anti-fake-green runners generated, operational)
-    expect(result).toHaveLength(81)
+    expect(result).toHaveLength(82)
     const ids = result.map((inv) => inv.id)
     expect(ids).toContain('INV-29')
     expect(ids).toContain('INV-30')
@@ -575,7 +577,7 @@ describe('getFilteredInvariants', () => {
       governanceLevel: 'L3',
       invariantTiers: ALL_TIERS,
     })
-    expect(result).toHaveLength(82)
+    expect(result).toHaveLength(83)
   })
 
   it('essential preset at L1 returns minimal set', () => {

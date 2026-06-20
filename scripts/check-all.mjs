@@ -264,6 +264,8 @@ if (isMain) {
     runCheck('id stability', 'node', ['scripts/check-id-stability.mjs'])
     runCheck('anti-telemetry', 'node', ['scripts/check-anti-telemetry.mjs'])
     runCheck('tdd-evidence', 'node', ['scripts/check-tdd-evidence.mjs'])
+    // INV-133 (#1456): over-age linked-TODO gate. SKIPs offline / no token.
+    runCheck('todo max-age', 'node', ['scripts/check-todo-max-age.mjs'])
     runCheck('evidence-bundle', 'node', ['scripts/check-evidence-bundle.mjs'])
     runCheck('commit-footer rationale (INV-119)', 'node', [
       'scripts/check-commit-footer-rationale.mjs',

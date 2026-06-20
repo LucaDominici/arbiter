@@ -2309,6 +2309,37 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'behaviour); not emitted to target projects.',
   },
   {
+    id: 'INV-133',
+    tier: 'governance',
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    alwaysActive: true,
+    title: 'TODO max-age enforced via linked-issue creation date',
+    description:
+      'A TODO(#NNN) whose LINKED ISSUE was created more than MAX_AGE_DAYS (default 180) ' +
+      'ago FAILS the gate. Age is derived from the issue `created_at` ONLY — never from ' +
+      'line/blame/git metadata — so a TODO cannot be silently kept alive by re-touching ' +
+      'its line. This complements INV-21 (orphan-TODO: every TODO must carry an issue ID): ' +
+      'INV-21 makes a TODO traceable, INV-133 makes a traceable TODO age out. The gate ' +
+      'walks source for TODO(#NNN), resolves OWNER/REPO from the git origin remote, and ' +
+      'for each issue calls `gh api repos/OWNER/REPO/issues/NNN --jq .created_at` (cached ' +
+      'per issue number to avoid rate limits). It GRACEFULLY SKIPS (exit 0) — never ' +
+      'false-fails — when gh is missing, no token is present, the repo is offline, or no ' +
+      'created_at could be resolved; only a genuinely over-age issue produces a FAIL. The ' +
+      'age decision is a PURE function (isOverAge / classifyOverAge over an injected ' +
+      '{issueNumber→created_at} map) so it is unit-tested without any live gh.',
+    enforcement:
+      'scripts/check-todo-max-age.mjs (L2, self) — emitted unconditionally for governed ' +
+      'targets via src/generators/check-all.ts UNCONDITIONAL_EMISSIONS from ' +
+      'src/templates/scripts/check-todo-max-age.mjs.ejs (CANON-01/04/11), wired at L2 in ' +
+      'the generated scripts/check-all.mjs (behind the standard runCheck path) and in the ' +
+      'self scripts/check-all.mjs. Graceful-skip: gh missing / token absent / offline → ' +
+      'SKIP (exit 0), never a false-fail. Verified by __tests__/scripts/check-todo-max-age.test.ts ' +
+      '(pure red→green: over-age map → FAIL classification, empty/offline map → SKIP) and ' +
+      '__tests__/templates/check-todo-max-age-render.test.ts (CANON-04 render + cross-stack ' +
+      'L2 wiring). Exit codes per INV-53: 0=PASS/SKIP, 1=FAIL (over-age), 2=ERROR.',
+  },
+  {
     id: 'INV-135',
     tier: 'operational',
     minGovernanceLevel: 'L1',
