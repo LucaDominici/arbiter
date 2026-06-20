@@ -44,6 +44,7 @@
     ".claude/rules/50-batch-execution.md",
     ".claude/rules/55-brainstorm-terminal-state.md",
     ".claude/rules/60-incidental-capture.md",
+    ".claude/rules/75-impact-vault-reading.md",
     ".claude/rules/90-exec-protocol.md",
     ".claude/settings.json",
     ".claude/skills/architect-review/SKILL.md",
