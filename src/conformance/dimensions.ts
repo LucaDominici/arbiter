@@ -10,7 +10,7 @@
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import type { Verdict, Evidence } from './engine.js'
-import { safeResolve, readJson, readText, fileExists } from './shared.js'
+import { safeResolve, readJson, readText, fileExists, globMatch, SKIP_DIRS } from './shared.js'
 
 export type DimensionVerdict = Verdict
 export type { Verdict, Evidence }
@@ -70,37 +70,6 @@ function walkFiles(dir: string, root: string, skipDirs: Set<string>): string[] {
     }
   }
   return results
-}
-
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.coverage'])
-
-/** Simple glob match supporting * and ** (same logic as check-test-pyramid.mjs). */
-function globMatch(pattern: string, filepath: string): boolean {
-  let reStr = '^'
-  let i = 0
-  while (i < pattern.length) {
-    const ch: string = pattern[i] ?? ''
-    if (ch === '*' && pattern[i + 1] === '*') {
-      if (pattern[i + 2] === '/') {
-        reStr += '(?:[^/]*/)*'
-        i += 3
-      } else {
-        reStr += '[\\s\\S]*'
-        i += 2
-      }
-    } else if (ch === '*') {
-      reStr += '[^/]*'
-      i++
-    } else if ('\\.+?^${}()|[]'.includes(ch)) {
-      reStr += '\\' + ch
-      i++
-    } else {
-      reStr += ch
-      i++
-    }
-  }
-  reStr += '$'
-  return new RegExp(reStr).test(filepath)
 }
 
 // --- D-TEST-LEVELS ---

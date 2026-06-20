@@ -78,7 +78,9 @@ describe('evaluate() — core (#1393 unit 1)', () => {
     const result = evaluate(registry, new Set<string>(), root)
 
     expect(result.checks[0]?.verdict).toBe('N')
-    expect(result.checks[0]?.evidence).toBeNull()
+    // N carries evidence pointing at the missing path (drives the "what's missing" gap report).
+    expect(result.checks[0]?.evidence?.file).toBe('MISSING.md')
+    expect(result.checks[0]?.evidence?.detail).toBe('missing')
   })
 
   it('file_contains returns Y when pattern is found', () => {

@@ -5,8 +5,9 @@
 // Checks are evaluated in stable id order; no wall-clock value enters the scored payload.
 // Parity gate: engine-parity.test.ts asserts deep-equal verdicts/score/yCount vs the .mjs.
 
-import { existsSync, statSync } from 'node:fs'
-import { safeResolve, readText } from './shared.js'
+import { existsSync, statSync, lstatSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { safeResolve, readText, expandGlob } from './shared.js'
 
 // ── #1413: brownfield-class threshold SSOT + value-op report-extraction model ───
 //
@@ -28,36 +29,45 @@ export interface Evidence {
   detail?: string
 }
 
+/**
+ * A registry is YAML-loaded, so a field that *should* be a string can arrive as a bare numeric
+ * scalar (`version: 1.0`, `weight: 2`, `pattern: 7`). These fields are typed `string | number` —
+ * not `string` — so the engine's String()/Number() coercions are genuinely necessary (and the two
+ * engines stay byte-identical on mistyped input). Stringifying a `string | number` is always safe.
+ */
+type RawScalar = string | number
+
 export interface CheckInput {
-  id: string
-  type: string
+  id: RawScalar
+  /** Optional at the type level: a malformed registry can omit it ⇒ scored as an unknown-type N. */
+  type?: RawScalar
   args?: {
-    path?: string
-    pattern?: string
-    min?: number
-    equals?: string
-    /** value-op report extraction format (#1413). */
-    format?: 'json' | 'xml' | 'regex'
+    path?: RawScalar
+    pattern?: RawScalar
+    min?: RawScalar
+    equals?: RawScalar
+    /** value-op report extraction format (#1413): 'json' | 'xml' | 'regex' (mistyped ⇒ no metric). */
+    format?: RawScalar
     /** value-op selector: json dotted-path | xml `count:tag` / `attr:tag@attr` | regex w/ group 1. */
-    select?: string
-    /** value-op comparison operator (#1413). */
-    op?: 'gte' | 'lte' | 'eq'
+    select?: RawScalar
+    /** value-op comparison operator (#1413): 'gte' | 'lte' | 'eq'. */
+    op?: RawScalar
     /** value-op literal bar (used only when no `threshold_ref` is given). */
-    expected?: number
+    expected?: RawScalar
     [key: string]: unknown
   }
-  weight?: number
+  weight?: RawScalar
   applies_if?: string
-  dimension?: string
-  title?: string
+  dimension?: RawScalar
+  title?: RawScalar
   risk?: string
-  anchor?: string
+  anchor?: RawScalar
   /** Resolve the comparison bar per brownfield class from the thresholds SSOT (#1413). */
   threshold_ref?: string
 }
 
 export interface RegistryInput {
-  version?: string
+  version?: RawScalar
   checks?: CheckInput[]
 }
 
@@ -102,6 +112,9 @@ export interface Baseline {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
+/** Evidence detail for an unresolvable / non-string / traversal path (shared across check types). */
+const INVALID_PATH = 'invalid path'
+
 type EvalCheckResult = { verdict: Verdict; evidence: Evidence | null }
 
 /** 1-based line number of the first occurrence of `needle` in `text`, or null. */
@@ -110,6 +123,13 @@ function lineOf(text: string, needle: string): number | null {
   if (idx < 0) return null
   let line = 1
   for (let i = 0; i < idx; i++) if (text[i] === '\n') line++
+  return line
+}
+
+/** 1-based line number of the character at `idx` in `text`. */
+function lineAtIndex(text: string, idx: number): number {
+  let line = 1
+  for (let i = 0; i < idx && i < text.length; i++) if (text[i] === '\n') line++
   return line
 }
 
@@ -123,11 +143,12 @@ function verdictPoints(verdict: Verdict): number {
 // ── Per-type check evaluators ─────────────────────────────────────────────────
 
 function evalFileExists(abs: string, rel: string): EvalCheckResult {
-  if (!existsSync(abs)) return { verdict: 'N', evidence: null }
+  if (!existsSync(abs)) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
   try {
-    if (statSync(abs).isDirectory()) return { verdict: 'N', evidence: null }
+    if (statSync(abs).isDirectory())
+      return { verdict: 'N', evidence: { file: rel, detail: 'is a directory' } }
   } catch {
-    return { verdict: 'N', evidence: null }
+    return { verdict: 'N', evidence: { file: rel, detail: 'unreadable' } }
   }
   return { verdict: 'Y', evidence: { file: rel } }
 }
@@ -228,7 +249,14 @@ function extractXml(text: string, select: string): number | null {
     if (open < 0) return null
     const close = text.indexOf('>', open)
     const segment = close < 0 ? text.slice(open) : text.slice(open, close)
-    const m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+    // Guard the attr RegExp build: a regex metachar in the attr name (`attr:a@(`) would otherwise
+    // throw and (via the top-level catch) zero the whole registry — yield a per-check N instead.
+    let m: RegExpExecArray | null
+    try {
+      m = new RegExp(`${attr}\\s*=\\s*"([^"]*)"`).exec(segment)
+    } catch {
+      return null
+    }
     if (m === null) return null
     const n = Number(m[1])
     return Number.isFinite(n) ? n : null
@@ -297,9 +325,11 @@ function evalValueReport(
   // Absent report ⇒ NA: the tool did not run / does not apply for this stack (never a false-N).
   if (!existsSync(abs)) return { verdict: 'NA', evidence: null }
   const args = check.args ?? {}
-  const format = args.format ?? ''
-  const select = args.select ?? ''
-  const op = args.op ?? ''
+  // String()-coerce — a numeric select from an unquoted YAML scalar would otherwise throw in
+  // extractJson/extractXml and (via the top-level catch) zero the WHOLE registry. Mirrors the .mjs.
+  const format = String(args.format ?? '')
+  const select = String(args.select ?? '')
+  const op = String(args.op ?? '')
   const bar = resolveBar(check, options)
   if (bar === null) {
     return { verdict: 'N', evidence: { file: rel, detail: 'unresolved threshold' } }
@@ -316,33 +346,325 @@ function evalValueReport(
     : { verdict: 'N', evidence: { file: rel, detail: `${actual} !${op} ${bar}` } }
 }
 
+// ── version_consistency: a VERSION file ↔ the latest CHANGELOG entry ─────────────
+// Mirror of scripts/lib/gold-audit-lib.mjs (parity contract). Pure text read + one regex.
+
+/** First capture group of `pattern` (multiline) in `text` = the latest declared version, or null. */
+function latestChangelogVersion(text: string, pattern: unknown): string | null {
+  if (typeof pattern !== 'string' || pattern === '') return null
+  let re: RegExp
+  try {
+    re = new RegExp(pattern, 'm')
+  } catch {
+    return null
+  }
+  const m = re.exec(text)
+  // A falsy/empty capture is NOT a version — return null so the caller scores P (indeterminate),
+  // never a false Y (e.g. an empty trimmed VERSION === an empty capture).
+  return m !== null && m[1] ? m[1] : null
+}
+
+/**
+ * version_consistency evaluator. Y = VERSION equals the latest CHANGELOG entry; P = both present
+ * but divergent OR no changelog entry matches the pattern (indeterminate — never a false Y);
+ * N = a required file is missing/unreadable.
+ */
+function evalVersionConsistency(args: Record<string, unknown>, root: string): EvalCheckResult {
+  const vFile = typeof args['version_file'] === 'string' ? args['version_file'] : ''
+  const cFile = typeof args['changelog_file'] === 'string' ? args['changelog_file'] : ''
+  const vAbs = safeResolve(root, vFile)
+  const cAbs = safeResolve(root, cFile)
+  if (vAbs === null || cAbs === null) {
+    return { verdict: 'N', evidence: { file: vFile || cFile, detail: INVALID_PATH } }
+  }
+  const vText = readText(vAbs)
+  if (vText === null)
+    return { verdict: 'N', evidence: { file: vFile, detail: 'missing version file' } }
+  const cText = readText(cAbs)
+  if (cText === null)
+    return { verdict: 'N', evidence: { file: cFile, detail: 'missing changelog' } }
+  const version = vText.trim()
+  if (version === '') {
+    return { verdict: 'P', evidence: { file: vFile, detail: 'empty version file' } }
+  }
+  const latest = latestChangelogVersion(cText, args['changelog_pattern'])
+  if (latest === null) {
+    return {
+      verdict: 'P',
+      evidence: { file: cFile, detail: 'no changelog entry matches the pattern' },
+    }
+  }
+  if (version === latest) {
+    return { verdict: 'Y', evidence: { file: vFile, detail: `${version} == ${latest}` } }
+  }
+  return {
+    verdict: 'P',
+    evidence: { file: cFile, detail: `VERSION ${version} != CHANGELOG ${latest}` },
+  }
+}
+
+// ── forbidden_pattern: a regex that must NOT appear in any file under a glob (#1470) ──
+// Mirror of scripts/lib/gold-audit-lib.mjs (parity contract). Anti-fake-green ladder (top-down):
+//   empty/non-string pattern ⇒ N · invalid regex ⇒ N · invalid/empty glob ⇒ N ·
+//   exclude entry with a glob char ⇒ N (literal-only) · exclude_paths set w/o rationale ⇒ N ·
+//   glob matched 0 files ⇒ NA · excludes removed ALL matched files ⇒ N (refuse fake-green) ·
+//   pattern found ⇒ N (first SORTED file + line) · absent across every scanned file ⇒ Y.
+
+/** Resolved glob: a sorted match list, or a verified-N result when the glob is invalid/empty. */
+type GlobResolution =
+  | { ok: true; glob: string; matched: string[] }
+  | { ok: false; result: EvalCheckResult }
+
+/**
+ * Resolve a glob-check's `args.glob` to a SORTED match list — the invalid-glob guard lives here
+ * once, shared by every glob-based check (mirrored in scripts/lib/gold-audit-lib.mjs).
+ */
+function resolveGlobArg(args: Record<string, unknown>, root: string): GlobResolution {
+  const glob = typeof args['glob'] === 'string' ? args['glob'] : ''
+  const matched = expandGlob(root, glob)
+  if (matched === null) {
+    return {
+      ok: false,
+      result: { verdict: 'N', evidence: { file: glob, detail: 'invalid or empty glob' } },
+    }
+  }
+  return { ok: true, glob, matched }
+}
+
+/** True if a string contains any glob metacharacter (so it is NOT a literal path). */
+function hasGlobChar(s: string): boolean {
+  return /[*?[\]]/.test(s)
+}
+
+/** Validate exclude_paths: each entry literal (no glob char) + a rationale present. N result or null. */
+function forbiddenExcludeViolation(
+  excludeRaw: unknown[],
+  glob: string,
+  args: Record<string, unknown>,
+): EvalCheckResult | null {
+  for (const ex of excludeRaw) {
+    if (typeof ex !== 'string' || hasGlobChar(ex)) {
+      return {
+        verdict: 'N',
+        evidence: { file: glob, detail: `exclude_paths must be literal: ${String(ex)}` },
+      }
+    }
+  }
+  if (excludeRaw.length > 0) {
+    const rationale = typeof args['rationale'] === 'string' ? args['rationale'].trim() : ''
+    if (rationale === '') {
+      return {
+        verdict: 'N',
+        evidence: { file: glob, detail: 'exclude_paths requires a rationale' },
+      }
+    }
+  }
+  return null
+}
+
+/** Scan each remaining (sorted) file for `re`; first anomaly wins. Unreadable ⇒ N (no fake-green). */
+function scanForbiddenFiles(
+  remaining: string[],
+  re: RegExp,
+  root: string,
+  glob: string,
+): EvalCheckResult {
+  for (const rel of remaining) {
+    const abs = safeResolve(root, rel)
+    const text = abs === null ? null : readText(abs)
+    if (text === null) {
+      // A matched, non-excluded file we cannot read ⇒ we cannot assert the pattern is ABSENT over
+      // it. Fail-closed N (never a silent skip → a chmod-000 file holding the marker must not
+      // fake-green to Y). Deterministic: `remaining` is sorted, so the first anomaly wins.
+      return { verdict: 'N', evidence: { file: rel, detail: 'unreadable — cannot verify absence' } }
+    }
+    const m = re.exec(text)
+    if (m !== null) {
+      return {
+        verdict: 'N',
+        evidence: {
+          file: rel,
+          line: lineAtIndex(text, m.index),
+          detail: 'forbidden pattern present',
+        },
+      }
+    }
+  }
+  // Y only when EVERY remaining file was actually read — the count is honest, never inflated.
+  return {
+    verdict: 'Y',
+    evidence: { file: glob, detail: `absent across ${remaining.length} file(s)` },
+  }
+}
+
+function evalForbiddenPattern(args: Record<string, unknown>, root: string): EvalCheckResult {
+  const pattern = typeof args['pattern'] === 'string' ? args['pattern'] : ''
+  if (pattern === '') {
+    return { verdict: 'N', evidence: { file: '', detail: 'empty or non-string pattern' } }
+  }
+  let re: RegExp
+  try {
+    re = new RegExp(pattern)
+  } catch {
+    return { verdict: 'N', evidence: { file: '', detail: `invalid regex: ${pattern}` } }
+  }
+  const g = resolveGlobArg(args, root)
+  if (!g.ok) return g.result
+  const { glob, matched } = g
+  const excludeRaw = Array.isArray(args['exclude_paths'])
+    ? (args['exclude_paths'] as unknown[])
+    : []
+  const violation = forbiddenExcludeViolation(excludeRaw, glob, args)
+  if (violation !== null) return violation
+  if (matched.length === 0) {
+    return { verdict: 'NA', evidence: null }
+  }
+  const exclude = new Set(excludeRaw as string[])
+  const remaining = matched.filter((f) => !exclude.has(f))
+  if (remaining.length === 0) {
+    return {
+      verdict: 'N',
+      evidence: { file: glob, detail: 'all matched files excluded (refusing fake-green)' },
+    }
+  }
+  return scanForbiddenFiles(remaining, re, root, glob)
+}
+
+// ── file_stat: the executable bit on a glob of files (#1470) ─────────────────────
+// Mirror of scripts/lib/gold-audit-lib.mjs. Only the executable bit (mode & 0o111) is portable;
+// read/write depend on umask (non-deterministic) ⇒ N. Gated behind core.fileMode (NA when git does
+// not track the exec bit). Symlinks evaluated by their own mode (lstat). all exec ⇒ Y, some ⇒ P,
+// none ⇒ N; valid glob matching 0 files ⇒ NA; malformed glob ⇒ N.
+
+/**
+ * Whether git tracks the executable bit in this repo (core.fileMode). Reads `<root>/.git/config`
+ * deterministically (no spawn — INV-12); only an explicit `filemode = false` disables it. A missing
+ * or unreadable config ⇒ treated as enabled. Byte-identical to gold-audit-lib.mjs.
+ */
+function gitFileModeEnabled(root: string): boolean {
+  const cfg = readText(resolve(root, '.git/config'))
+  if (cfg === null) return true
+  let inCore = false
+  let lastValue: string | null = null
+  for (const raw of cfg.split('\n')) {
+    const line = raw.trim()
+    if (line.startsWith('[')) {
+      // Only the exact top-level [core] section — a `[core "subsection"]` is NOT [core].filemode.
+      inCore = /^\[core\]/i.test(line)
+      continue
+    }
+    if (!inCore) continue
+    // git honors the LAST value when a key is declared more than once — keep scanning, don't return.
+    const m = /^filemode\s*=\s*(\S+)/i.exec(line)
+    if (m !== null) lastValue = (m[1] ?? '').toLowerCase()
+  }
+  return lastValue === null ? true : lastValue !== 'false'
+}
+
+/**
+ * Whether `abs` is a tracked executable REGULAR file (mode & 0o111, and NOT a symlink). A symlink's
+ * own lstat mode is always 0o777 — trusting it would fake-green the exec bit — so a symlink is never
+ * executable here: deterministic (symlink-ness is stable) and anti-fake-green.
+ */
+function isExecutableRegular(abs: string | null): boolean {
+  if (abs === null) return false
+  try {
+    const st = lstatSync(abs)
+    return !st.isSymbolicLink() && (st.mode & 0o111) !== 0
+  } catch {
+    return false
+  }
+}
+
+function evalFileStat(args: Record<string, unknown>, root: string): EvalCheckResult {
+  const bit = typeof args['bit'] === 'string' ? args['bit'].toLowerCase() : 'executable'
+  if (bit !== 'executable') {
+    return {
+      verdict: 'N',
+      evidence: { file: '', detail: `only the executable bit is deterministic, got: ${bit}` },
+    }
+  }
+  const g = resolveGlobArg(args, root)
+  if (!g.ok) return g.result
+  const { glob, matched } = g
+  if (matched.length === 0) {
+    return { verdict: 'NA', evidence: null }
+  }
+  if (!gitFileModeEnabled(root)) {
+    return { verdict: 'NA', evidence: null }
+  }
+  let withBit = 0
+  let firstMissing: string | null = null
+  for (const rel of matched) {
+    if (isExecutableRegular(safeResolve(root, rel))) withBit++
+    else if (firstMissing === null) firstMissing = rel
+  }
+  if (withBit === matched.length) {
+    return {
+      verdict: 'Y',
+      evidence: { file: glob, detail: `executable across ${matched.length} file(s)` },
+    }
+  }
+  if (withBit === 0) {
+    return { verdict: 'N', evidence: { file: firstMissing ?? glob, detail: 'not executable' } }
+  }
+  return {
+    verdict: 'P',
+    evidence: { file: firstMissing ?? glob, detail: `executable ${withBit}/${matched.length}` },
+  }
+}
+
 /**
  * Evaluate a single check against the repo.
  * Returns { verdict, evidence } — evidence is null for NA/NV.
+ * Glob/pair checks (version_consistency, forbidden_pattern, file_stat) dispatch BEFORE the
+ * single-file `args.path` resolve, since they own their own path handling.
  */
 function evalCheck(check: CheckInput, root: string, options: EvaluateOptions): EvalCheckResult {
-  const { type } = check
+  const type = check.type
   if (type === 'manual') return { verdict: 'NV', evidence: null }
 
   const args = check.args ?? {}
-  const rawPath = args['path'] ?? ''
+  if (type === 'version_consistency') return evalVersionConsistency(args, root)
+  if (type === 'forbidden_pattern') return evalForbiddenPattern(args, root)
+  if (type === 'file_stat') return evalFileStat(args, root)
+  return evalSingleFileCheck(check, type, args, root, options)
+}
+
+/** Dispatch the single-file (path-based) check types after resolving + guarding `args.path`. */
+function evalSingleFileCheck(
+  check: CheckInput,
+  type: RawScalar | undefined,
+  args: NonNullable<CheckInput['args']>,
+  root: string,
+  options: EvaluateOptions,
+): EvalCheckResult {
+  // A non-string path (missing, or a malformed registry's numeric path) is a verified N 'invalid
+  // path' — NEVER fed to safeResolve (which would throw on a non-string and fail-close the whole
+  // registry). Byte-identical to the .mjs (safeResolve's leading `typeof p !== 'string'` guard).
+  const rawPath = args['path']
+  if (typeof rawPath !== 'string') {
+    return { verdict: 'N', evidence: { file: String(rawPath ?? ''), detail: INVALID_PATH } }
+  }
   const abs = safeResolve(root, rawPath)
   if (abs === null) {
-    return { verdict: 'N', evidence: { file: rawPath, detail: 'invalid path' } }
+    return { verdict: 'N', evidence: { file: rawPath, detail: INVALID_PATH } }
   }
   const rel = rawPath
 
   if (type === 'file_exists') return evalFileExists(abs, rel)
-  if (type === 'file_contains') return evalFileContains(abs, rel, args['pattern'] ?? '')
+  // String()-coerce every text arg (a bare numeric YAML scalar like `pattern: 7` types to a number;
+  // count_matches' `(7).length` is undefined ⇒ a silent Y→N flip) — byte-identical to the .mjs.
+  if (type === 'file_contains') return evalFileContains(abs, rel, String(args['pattern'] ?? ''))
   if (type === 'count_matches')
-    return evalCountMatches(abs, rel, args['pattern'] ?? '', args['min'] ?? 1)
+    return evalCountMatches(abs, rel, String(args['pattern'] ?? ''), Number(args['min'] ?? 1))
   if (type === 'value') {
     // A value check with a report `format` reads a pre-generated tool report (#1413); without one it
     // keeps the legacy single-line `equals`-contains behavior (back-compat — same verdicts as before).
     // Truthy covers both undefined and "" (runtime YAML may carry either) for the legacy fall-through.
     return args['format']
       ? evalValueReport(abs, rel, check, options)
-      : evalValue(abs, rel, args['equals'] ?? '')
+      : evalValue(abs, rel, String(args['equals'] ?? ''))
   }
 
   // Unknown check type — fail-closed (not NV, not silent pass)
@@ -423,9 +745,13 @@ function processCheck(
     evidence = r.evidence
   }
 
-  const weight = check.weight ?? 1
+  // Coerce weight numerically (a YAML-quoted `weight: '2'` must SUM, not string-concatenate, the
+  // accumulator) — byte-identical to the .mjs `Number(check.weight ?? 1)`.
+  const weight = Number(check.weight ?? 1)
   const risk = check.risk === 'RISKY' ? 'RISKY' : 'SAFE'
-  const dimId = check.dimension ?? 'D-UNCLASSIFIED'
+  // String()-coerce every emitted metadata field (an unquoted YAML scalar like `dimension: 7` types
+  // to a number) so the scored payload is byte-identical to the .mjs across loosely-typed registries.
+  const dimId = String(check.dimension ?? 'D-UNCLASSIFIED')
 
   accumDim(dims, dimId, verdict, weight)
 
@@ -438,14 +764,14 @@ function processCheck(
 
   return {
     checkResult: {
-      id: check.id,
+      id: String(check.id),
       dimension: dimId,
-      title: check.title ?? '',
-      type: check.type,
+      title: String(check.title ?? ''),
+      type: String(check.type ?? ''),
       verdict,
       weight,
       risk,
-      anchor: check.anchor ?? null,
+      anchor: check.anchor ? String(check.anchor) : null,
       evidence,
     },
     yCount: verdict === 'Y' ? 1 : 0,
@@ -463,14 +789,25 @@ function processCheck(
  */
 export function evaluate(
   registry: RegistryInput,
-  overlays: Set<string>,
+  overlays: Set<string> | readonly string[] | null | undefined,
   root: string,
-  options: EvaluateOptions = {},
+  options: EvaluateOptions | null | undefined = {},
 ): EngineResult {
   try {
-    const rawChecks = Array.isArray(registry.checks) ? registry.checks : []
+    // Normalize the loose arguments the .mjs reference also hardens: a non-Set `overlays` (array) or
+    // a `null` options must NOT throw (`overlays.has`/`options.thresholds` on the wrong type) and
+    // fail-close the WHOLE registry — both engines normalize at the top instead.
+    const overlaySet = overlays instanceof Set ? overlays : new Set(overlays ?? [])
+    const opts = options && typeof options === 'object' ? options : {}
+    // Drop non-object entries (a stray `-`/commented item in a templated YAML list parses to null)
+    // so the valid checks are still scored and neither engine throws — shared shape with the .mjs.
+    const rawChecks = (Array.isArray(registry.checks) ? registry.checks : []).filter(
+      (c): c is CheckInput => Boolean(c) && typeof c === 'object',
+    )
+    // Coerce ids to strings before comparing (a malformed registry's numeric id must not throw
+    // and fail-close the whole payload) — matches the .mjs `String(a.id).localeCompare(...)`.
     const sorted = [...rawChecks].sort((a, b) =>
-      a.id.localeCompare(b.id, 'en', { sensitivity: 'variant' }),
+      String(a.id).localeCompare(String(b.id), 'en', { sensitivity: 'variant' }),
     )
 
     const checks: CheckResult[] = []
@@ -481,7 +818,7 @@ export function evaluate(
     let possible = 0
 
     for (const check of sorted) {
-      const r = processCheck(check, overlays, root, dims, options)
+      const r = processCheck(check, overlaySet, root, dims, opts)
       checks.push(r.checkResult)
       yCount += r.yCount
       riskyCount += r.riskyCount
@@ -492,7 +829,7 @@ export function evaluate(
     const score = possible > 0 ? Math.round((earned / possible) * 1000) / 10 : 0
 
     return {
-      registryVersion: registry.version ?? '0',
+      registryVersion: String(registry.version ?? '0'),
       score,
       yCount,
       riskyCount,
