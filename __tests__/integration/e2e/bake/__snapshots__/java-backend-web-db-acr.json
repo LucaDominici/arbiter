@@ -129,6 +129,7 @@
     "scripts/optional-emissions.json",
     "scripts/self-validation.mjs",
     "scripts/setup-hooks.sh",
+    "scripts/verify-module-coverage.mjs",
     "src/test/java/com/example/bdd/ExampleBddIT.java",
     "src/test/java/example/ExampleBehavioralTest.java",
     "src/test/resources/features/example.feature",
