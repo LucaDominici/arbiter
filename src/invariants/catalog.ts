@@ -2365,4 +2365,37 @@ export const INVARIANT_CATALOG: readonly Invariant[] = [
       'advisory (runWarnCheck) in generated scripts/check-all.mjs L2 behind existsSync guards ' +
       '(#1428). Exit codes per INV-53: 0=PASS/advisory, 1=FAIL, 2=ERROR.',
   },
+  {
+    id: 'INV-134',
+    tier: 'operational',
+    minGovernanceLevel: 'L2',
+    selfOnly: false,
+    alwaysActive: false,
+    title: 'per-module coverage non-regression ratchet',
+    description:
+      'Per-MODULE (per-file/package) test coverage is held to an upward-only ratchet with a ' +
+      '±0.5pp slack: a module whose line coverage drops more than 0.5 percentage points below ' +
+      'module-coverage-baseline.json is a regression. All-languages, greenfield-aware (a module ' +
+      'with zero executable lines contributes nothing and never false-fails). ADVISORY at L2 ' +
+      '(start-warn, promote-later) to bound false positives while the per-module baseline beds ' +
+      'in. Complements — does not duplicate — the FE per-layer coverage ratchet (INV, FSD ' +
+      'layers, frontend-only), the total-coverage greenfield gate (INV-30), and the bloat/debt ' +
+      'ratchets (those gate size and debt, not per-module coverage erosion).',
+    enforcement:
+      'scripts/verify-module-coverage.mjs (Track-B — emitted to governed targets, not an ' +
+      'arbiter self-gate) — emitted unconditionally via src/generators/check-all.ts ' +
+      'UNCONDITIONAL_EMISSIONS from src/templates/scripts/verify-module-coverage.mjs.ejs ' +
+      '(CANON-01/04/11). Reads the per-language coverage summary (TypeScript/JavaScript ' +
+      'coverage/coverage-summary.json robustly; Java/Python/Rust/Go scaffolded to SKIP when ' +
+      'their summary is absent/unsupported — never a false-fail), computes per-module line pct, ' +
+      'and compares each module vs module-coverage-baseline.json via the pure exported ' +
+      'compareModuleCoverage (±0.5pp slack, upward-only). First run with coverage and no ' +
+      'baseline seeds the baseline (exit 0); no coverage artifact → SKIP; --update-baseline ' +
+      'advances it (never auto-updated in CI). Wired ADVISORY (runWarnCheck) at L2 in the ' +
+      'generated scripts/check-all.mjs behind existsSync. Verified by ' +
+      '__tests__/generators/module-coverage-ratchet.test.ts (pure ratchet red→green: within ' +
+      'slack PASS, drop >0.5pp VIOLATION, greenfield/first-run seed) + ' +
+      '__tests__/templates/module-coverage-render.test.ts (render across archetypes). exit ' +
+      '0=PASS/SKIP/seed, 1=regression (#1457).',
+  },
 ]

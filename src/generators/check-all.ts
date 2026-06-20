@@ -130,6 +130,14 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-test-pyramid.mjs'],
     tpl: 'scripts/check-test-pyramid.mjs.ejs',
   },
+  // #1457 (INV-134): per-module coverage non-regression ratchet. Emitted unconditionally
+  // (self-SKIPs when no coverage summary exists, or the stack is not yet supported);
+  // wired ADVISORY (runWarnCheck) at L2 in check-all.mjs.ejs so it starts as a warning
+  // (start-warn-promote-later) and never hard-fails a fresh consumer's gate.
+  {
+    rel: ['scripts', 'verify-module-coverage.mjs'],
+    tpl: 'scripts/verify-module-coverage.mjs.ejs',
+  },
   {
     // #1365/INV-126: live-API e2e gate. Emitted unconditionally (manifest absent or
     // required:false ⇒ runtime SKIP); the suite itself is scaffolded by the api-e2e
