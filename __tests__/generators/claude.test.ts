@@ -56,6 +56,16 @@ describe('generateClaude', () => {
     expect(hookContent).toMatch(/^#!/)
   })
 
+  it('emits the impact-first editing rule directing /impact before editing (#1448)', () => {
+    generateClaude(makeConfig(dir))
+    const rulePath = join(dir, '.claude', 'rules', '75-impact-vault-reading.md')
+    expect(existsSync(rulePath)).toBe(true)
+    const content = readFileSync(rulePath, 'utf-8')
+    expect(content).toContain('/impact')
+    expect(content).toMatch(/blast radius/i)
+    expect(content).toMatch(/before .*edit/i)
+  })
+
   it('generates rules, commands, and hooks directories', () => {
     generateClaude(makeConfig(dir))
     expect(existsSync(join(dir, '.claude', 'rules', '90-exec-protocol.md'))).toBe(true)
