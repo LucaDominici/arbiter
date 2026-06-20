@@ -41,7 +41,8 @@ describe('extended opt-in invariants', () => {
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5)
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, operational/Tier-4)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, operational/Tier-4)
-    expect(INVARIANT_CATALOG).toHaveLength(129)
+    // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational/Tier-4, selfOnly)
+    expect(INVARIANT_CATALOG).toHaveLength(130)
   })
 
   it('all 10 extended IDs exist in catalog with optInGroup = extended', () => {

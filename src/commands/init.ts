@@ -107,6 +107,12 @@ export interface InitOptions {
    * Equivalent to the `--solo` CLI flag; overrides wizard collaborationMode question.
    */
   solo?: boolean
+  /**
+   * #1447 (ADR-098): progressive-adoption tier. `bootstrap` is the gentlest Day-1
+   * entry — governance L1 + brownfield baseline lock-in; `L1`–`L4` are governance-level
+   * aliases. Takes precedence over `--level` (desugars into level + brownfield).
+   */
+  tier?: string
 }
 
 function assertNotNativeWindows(): void {
@@ -148,6 +154,10 @@ export async function runInit(options: InitOptions): Promise<void> {
     process.exit(78)
     return
   }
+
+  // #1447 (ADR-098): `--tier` is the progressive-adoption on-ramp; desugar it into the
+  // existing `--level` + `--brownfield` settings so the rest of the flow is tier-agnostic.
+  applyAdoptionTier(options)
 
   assertNotNativeWindows()
   runPreMutationGitGuards(targetDir, options)
@@ -1203,6 +1213,46 @@ function parseLevel(level: string | undefined): GovernanceLevel {
     { level },
     { hint: 'Use L1 (fast), L2 (standard, default), L3 (audit-grade), or L4 (compliance-grade).' },
   )
+}
+
+/** Resolution of an `--tier` value into the underlying init settings (#1447). */
+export interface AdoptionTierResolution {
+  governanceLevel: GovernanceLevel
+  /** Whether to auto-capture the brownfield debt baseline (day-0 lock-in). */
+  brownfield: boolean
+}
+
+/**
+ * #1447 (ADR-098): map a progressive-adoption tier to concrete init settings.
+ * `bootstrap` is the gentlest Day-1 entry — governance L1 (the minimal runnable gate)
+ * plus brownfield baseline lock-in so a messy repo's pre-existing debt is captured
+ * rather than failing the gate on day one. `L1`–`L4` are governance-level aliases that
+ * do NOT force brownfield. Graduation up the ladder (bootstrap → L1 → L2 → L3 → L4)
+ * uses the existing `arbiter upgrade-level` / `arbiter configure` flow (see ADR-098).
+ */
+export function resolveAdoptionTier(tier: string): AdoptionTierResolution {
+  if (tier === 'bootstrap') return { governanceLevel: 'L1', brownfield: true }
+  if (tier === 'L1' || tier === 'L2' || tier === 'L3' || tier === 'L4') {
+    return { governanceLevel: tier, brownfield: false }
+  }
+  throw ArbiterError.fromKey(
+    'E_INVALID_LEVEL',
+    'errors.E_INVALID_LEVEL',
+    { level: tier },
+    { hint: 'Use bootstrap (gentlest Day-1 on-ramp), L1, L2, L3, or L4.' },
+  )
+}
+
+/**
+ * #1447 (ADR-098): desugar `--tier` into the existing `--level` + `--brownfield` init
+ * settings (bootstrap → L1 + brownfield baseline). `--tier` takes precedence over
+ * `--level`. Extracted so runInit stays within the complexity budget.
+ */
+function applyAdoptionTier(options: InitOptions): void {
+  if (options.tier === undefined) return
+  const resolved = resolveAdoptionTier(options.tier)
+  options.level = resolved.governanceLevel
+  if (resolved.brownfield) options.brownfield = true
 }
 
 function parseLanguage(language: Language | undefined): Language | undefined {

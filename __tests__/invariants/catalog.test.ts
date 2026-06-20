@@ -45,7 +45,8 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1408: +1 (INV-129 no tracked data/state files, governance/Tier-5, all-languages)
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, operational/Tier-4, all-languages)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, operational/Tier-4, all-languages)
-    expect(INVARIANT_CATALOG).toHaveLength(129)
+    // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational/Tier-4, selfOnly)
+    expect(INVARIANT_CATALOG).toHaveLength(130)
   })
 
   it('all IDs are unique', () => {
@@ -63,9 +64,10 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1408: +1 (INV-129)
     // Updated #1445: +1 (INV-130)
     // Updated #1446: +1 (INV-131)
+    // Updated #1447: +1 (INV-132)
     const ids = INVARIANT_CATALOG.map((inv) => inv.id)
     const unique = new Set(ids)
-    expect(unique.size).toBe(129)
+    expect(unique.size).toBe(130)
   })
 
   it('all IDs match INV-XX pattern sequentially (INV-01..82)', () => {
@@ -147,8 +149,9 @@ describe('INVARIANT_CATALOG', () => {
     // Updated #1398: +1 (INV-128 conformance script generated, operational)
     // Updated #1445: +1 (INV-130 e2e flaky-test quarantine subsystem, operational)
     // Updated #1446: +1 (INV-131 tdd-evidence re-verification gate, operational)
+    // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, operational, selfOnly)
     const tier4 = INVARIANT_CATALOG.filter((inv) => inv.tier === 'operational')
-    expect(tier4).toHaveLength(44)
+    expect(tier4).toHaveLength(45)
   })
 
   it('has exactly 37 Tier 5 invariants', () => {
@@ -618,8 +621,9 @@ describe('getFilteredInvariants', () => {
     // Updated #1241: +1 (INV-116 wiki-lint gate, selfOnly)
     // Updated #1217: +1 (INV-117 no tracked binary artifacts, selfOnly)
     // Updated #1231: +1 (INV-120 workflow needs-chain parallelism regression gate, selfOnly)
+    // Updated #1447: +1 (INV-132 progressive-adoption bootstrap tier, selfOnly)
     const selfOnly = INVARIANT_CATALOG.filter((inv) => inv.selfOnly === true)
-    expect(selfOnly).toHaveLength(28)
+    expect(selfOnly).toHaveLength(29)
     const ids = selfOnly.map((inv) => inv.id)
     expect(ids).toContain('INV-32')
     expect(ids).toContain('INV-36')
