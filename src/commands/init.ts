@@ -1215,13 +1215,6 @@ function parseLevel(level: string | undefined): GovernanceLevel {
   )
 }
 
-/** Resolution of an `--tier` value into the underlying init settings (#1447). */
-export interface AdoptionTierResolution {
-  governanceLevel: GovernanceLevel
-  /** Whether to auto-capture the brownfield debt baseline (day-0 lock-in). */
-  brownfield: boolean
-}
-
 /**
  * #1447 (ADR-098): map a progressive-adoption tier to concrete init settings.
  * `bootstrap` is the gentlest Day-1 entry — governance L1 (the minimal runnable gate)
@@ -1229,8 +1222,14 @@ export interface AdoptionTierResolution {
  * rather than failing the gate on day one. `L1`–`L4` are governance-level aliases that
  * do NOT force brownfield. Graduation up the ladder (bootstrap → L1 → L2 → L3 → L4)
  * uses the existing `arbiter upgrade-level` / `arbiter configure` flow (see ADR-098).
+ * Returns the resolved governance level + whether to auto-capture the brownfield debt
+ * baseline. The return shape is inlined (not an exported interface) to keep the public
+ * API surface to the single function.
  */
-export function resolveAdoptionTier(tier: string): AdoptionTierResolution {
+export function resolveAdoptionTier(tier: string): {
+  governanceLevel: GovernanceLevel
+  brownfield: boolean
+} {
   if (tier === 'bootstrap') return { governanceLevel: 'L1', brownfield: true }
   if (tier === 'L1' || tier === 'L2' || tier === 'L3' || tier === 'L4') {
     return { governanceLevel: tier, brownfield: false }
