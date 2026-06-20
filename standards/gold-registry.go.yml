@@ -1,0 +1,101 @@
+# Gold-Audit registry — Go stack (#1426). Selected with `gold-audit --stack go`.
+#
+# A JUSTIFIED SUBSET mirroring the Java/TypeScript registries' two families (config-presence +
+# report-metric value op). The full Go gold-kit is deferred; this ships the SAFE core. Every check
+# here is SAFE: anchored, deterministic, report-grounded — no app-specific single-proxy grep and no
+# absolute gold-sized count baked in (the bars live in standards/thresholds.yml, keyed by class).
+#
+# Two check families:
+#   * config-presence (file_exists) — the tool is WIRED, not just aspirational.
+#   * report-metric (type: value, format: json) — reads a PRE-GENERATED tool report deterministically
+#     and compares the extracted metric to a per-brownfield-class bar resolved via threshold_ref. A
+#     check whose report file is ABSENT scores NA (the tool did not run / does not apply) — never a
+#     false-N. No live spawn: the engine stays deterministic and engine.ts ⇆ gold-audit-lib.mjs parity
+#     holds.
+#
+# applies_if: has-go gates the report checks behind the Go overlay, so auditing a non-Go repo with this
+# registry yields NA (no false gaps). Enable via the profile:  overlays: [has-go]
+#
+# Verdicts: Y verified-true · P partial · N verified-false · NA not-applicable · NV manual.
+# Scoring excludes NA + NV (you are not graded on what code can't verify or on tools that did not run).
+version: '1.0.0'
+profile: go
+
+dimensions:
+  - id: D-BUILD
+    title: Module + build hygiene
+  - id: D-LINT
+    title: Static lint + vet (golangci-lint / go vet / staticcheck)
+  - id: D-FORMAT
+    title: Formatting (gofmt / gofumpt)
+  - id: D-COVERAGE
+    title: Test coverage (go test -cover)
+
+checks:
+  # ── D-BUILD: a Go module is declared (go.mod present). ────────────────────────────────────────
+  - id: GO-BUILD-01
+    dimension: D-BUILD
+    title: Go module manifest present (go.mod)
+    type: file_exists
+    args: { path: go.mod }
+    weight: 1
+    risk: SAFE
+    applies_if: has-go
+
+  # ── D-LINT: golangci-lint config present AND lint error count under the per-class ceiling. ─────
+  - id: GO-LINT-01
+    dimension: D-LINT
+    title: golangci-lint config present (lint gate wired)
+    type: file_exists
+    args: { path: .golangci.yml }
+    weight: 1
+    risk: SAFE
+    applies_if: has-go
+  - id: GO-LINT-02
+    dimension: D-LINT
+    title: golangci-lint issue count under the per-class ceiling (golangci-report.json)
+    type: value
+    args:
+      path: golangci-report.json
+      format: json
+      select: 'Issues.length'
+      op: lte
+    threshold_ref: eslint.errors
+    weight: 2
+    risk: SAFE
+    applies_if: has-go
+    anchor: INV-25
+
+  # ── D-FORMAT: gofmt/gofumpt is wired (config or tool directive declared). ──────────────────────
+  - id: GO-FMT-01
+    dimension: D-FORMAT
+    title: Formatting tool wired (.gofumpt.yaml or gofmt directive)
+    type: file_exists
+    args: { path: .gofumpt.yaml }
+    weight: 1
+    risk: SAFE
+    applies_if: has-go
+
+  # ── D-COVERAGE: coverage wired AND line coverage % meets the per-class floor. ──────────────────
+  - id: GO-COV-01
+    dimension: D-COVERAGE
+    title: Go coverage report present (coverage measured)
+    type: file_exists
+    args: { path: coverage.json }
+    weight: 1
+    risk: SAFE
+    applies_if: has-go
+  - id: GO-COV-02
+    dimension: D-COVERAGE
+    title: Line coverage % meets the per-class floor (go cover summary)
+    type: value
+    args:
+      path: coverage.json
+      format: json
+      select: 'total.lines.pct'
+      op: gte
+    threshold_ref: go.coverage.line
+    weight: 2
+    risk: SAFE
+    applies_if: has-go
+    anchor: INV-25

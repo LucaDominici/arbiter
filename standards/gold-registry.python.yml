@@ -1,0 +1,109 @@
+# Gold-Audit registry — Python stack (#1426). Selected with `gold-audit --stack python`.
+#
+# A JUSTIFIED SUBSET mirroring the Java/TypeScript registries' two families (config-presence +
+# report-metric value op). The full Python gold-kit is deferred; this ships the SAFE core. Every check
+# here is SAFE: anchored, deterministic, report-grounded — no app-specific single-proxy grep and no
+# absolute gold-sized count baked in (the bars live in standards/thresholds.yml, keyed by class).
+#
+# Two check families:
+#   * config-presence (file_exists) — the tool is WIRED, not just aspirational.
+#   * report-metric (type: value, format: json) — reads a PRE-GENERATED tool report deterministically
+#     and compares the extracted metric to a per-brownfield-class bar resolved via threshold_ref. A
+#     check whose report file is ABSENT scores NA (the tool did not run / does not apply) — never a
+#     false-N. No live spawn: the engine stays deterministic and engine.ts ⇆ gold-audit-lib.mjs parity
+#     holds.
+#
+# applies_if: has-python gates the report checks behind the Python overlay, so auditing a non-Python
+# repo with this registry yields NA (no false gaps). Enable via the profile:  overlays: [has-python]
+#
+# Verdicts: Y verified-true · P partial · N verified-false · NA not-applicable · NV manual.
+# Scoring excludes NA + NV (you are not graded on what code can't verify or on tools that did not run).
+version: '1.0.0'
+profile: python
+
+dimensions:
+  - id: D-BUILD
+    title: Project + dependency hygiene
+  - id: D-LINT
+    title: Static lint + type check (ruff / mypy)
+  - id: D-SECURITY
+    title: Security static analysis (bandit)
+  - id: D-COVERAGE
+    title: Test coverage (coverage.py)
+
+checks:
+  # ── D-BUILD: a project manifest is declared (pyproject.toml present). ──────────────────────────
+  - id: PY-BUILD-01
+    dimension: D-BUILD
+    title: Project manifest present (pyproject.toml)
+    type: file_exists
+    args: { path: pyproject.toml }
+    weight: 1
+    risk: SAFE
+    applies_if: has-python
+
+  # ── D-LINT: ruff + mypy wired (config declared) AND ruff issue count under the per-class ceiling.
+  - id: PY-LINT-01
+    dimension: D-LINT
+    title: ruff config present (lint gate wired)
+    type: file_exists
+    args: { path: ruff.toml }
+    weight: 1
+    risk: SAFE
+    applies_if: has-python
+  - id: PY-LINT-02
+    dimension: D-LINT
+    title: mypy config present (type gate wired)
+    type: file_exists
+    args: { path: mypy.ini }
+    weight: 1
+    risk: SAFE
+    applies_if: has-python
+  - id: PY-LINT-03
+    dimension: D-LINT
+    title: ruff issue count under the per-class ceiling (ruff-report.json)
+    type: value
+    args:
+      path: ruff-report.json
+      format: json
+      select: 'length'
+      op: lte
+    threshold_ref: eslint.errors
+    weight: 2
+    risk: SAFE
+    applies_if: has-python
+    anchor: INV-25
+
+  # ── D-SECURITY: bandit is wired (config declared). ────────────────────────────────────────────
+  - id: PY-SEC-01
+    dimension: D-SECURITY
+    title: bandit config present (security gate wired)
+    type: file_exists
+    args: { path: .bandit }
+    weight: 1
+    risk: SAFE
+    applies_if: has-python
+
+  # ── D-COVERAGE: coverage wired AND line coverage % meets the per-class floor. ──────────────────
+  - id: PY-COV-01
+    dimension: D-COVERAGE
+    title: coverage.py JSON report present (coverage measured)
+    type: file_exists
+    args: { path: coverage.json }
+    weight: 1
+    risk: SAFE
+    applies_if: has-python
+  - id: PY-COV-02
+    dimension: D-COVERAGE
+    title: Line coverage % meets the per-class floor (coverage.py totals.percent_covered)
+    type: value
+    args:
+      path: coverage.json
+      format: json
+      select: 'totals.percent_covered'
+      op: gte
+    threshold_ref: py.coverage.line
+    weight: 2
+    risk: SAFE
+    applies_if: has-python
+    anchor: INV-25

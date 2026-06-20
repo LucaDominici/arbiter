@@ -84,3 +84,24 @@ thresholds:
     light: 25
     medium: 100
     heavy: 500
+
+  # ── Go coverage (higher-is-better) — read from a `go test` cover summary (coverage.json pct).
+  go.coverage.line:
+    gold: 90
+    light: 80
+    medium: 60
+    heavy: 40
+
+  # ── Python coverage (higher-is-better) — read from coverage.py JSON (totals.percent_covered).
+  py.coverage.line:
+    gold: 90
+    light: 80
+    medium: 60
+    heavy: 40
+
+  # ── Rust coverage (higher-is-better) — read from a tarpaulin cobertura XML line-rate.
+  rust.coverage.line:
+    gold: 90
+    light: 80
+    medium: 60
+    heavy: 40
