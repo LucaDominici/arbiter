@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1447",
+  "test_path": "__tests__/commands/init-tier.test.ts",
+  "test_commit_sha": "f0ded96ff210498d3bb5f9eb51dca1d5c5e89548",
+  "test_run_log": "⎯⎯⎯ Failed Tests 3 ⎯⎯⎯\n FAIL  __tests__/commands/init-tier.test.ts > resolveAdoptionTier (#1447, ADR-098) > bootstrap → governance L1 + brownfield baseline lock-in (gentlest Day-1)\nTypeError: resolveAdoptionTier is not a function\n FAIL  __tests__/commands/init-tier.test.ts > resolveAdoptionTier (#1447, ADR-098) > L1–L4 are pass-through aliases with no forced brownfield\n FAIL  __tests__/commands/init-tier.test.ts > bootstrap tier produces a runnable minimal gate (#1447) > the bootstrap (L1) config emits a runnable check-all.mjs\n Test Files  1 failed (1)\n      Tests  3 failed | 1 passed (4)\n",
+  "observed_failure": "FAIL  __tests__/commands/init-tier.test.ts",
+  "recorded_at": "2026-06-20T00:15:00.000Z"
+}
