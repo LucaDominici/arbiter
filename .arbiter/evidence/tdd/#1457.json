@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1457",
+  "test_path": "__tests__/generators/module-coverage-ratchet.test.ts",
+  "test_commit_sha": "51f09ef8d532a8d77f88398925d817372fbc5bf3",
+  "test_run_log": "     × check-all generator emits scripts/verify-module-coverage.mjs for a TS project 12ms\n FAIL  __tests__/generators/module-coverage-ratchet.test.ts > compareModuleCoverage — pure ratchet (#1457)\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter.worktrees/1457-module-coverage/src/templates/scripts/verify-module-coverage.mjs.ejs'\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n FAIL  __tests__/generators/module-coverage-ratchet.test.ts > verify-module-coverage emission (#1457, INV-134) > check-all generator emits scripts/verify-module-coverage.mjs for a TS project\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter.worktrees/1457-module-coverage/src/templates/scripts/verify-module-coverage.mjs.ejs'\n",
+  "observed_failure": "FAIL __tests__/generators/module-coverage-ratchet.test.ts — verify-module-coverage.mjs.ejs template absent (ENOENT), no compareModuleCoverage to emit",
+  "recorded_at": "2026-06-20T19:04:40.220Z"
+}

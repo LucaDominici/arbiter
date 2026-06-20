@@ -129,6 +129,7 @@
     "scripts/lib/run-helpers.mjs",
     "scripts/optional-emissions.json",
     "scripts/self-validation.mjs",
+    "scripts/verify-module-coverage.mjs",
     "src/test/example.behavioral.test.ts",
     "standards/doc-profile",
     "standards/gold-doc-set.yml",
