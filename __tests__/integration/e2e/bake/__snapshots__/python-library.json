@@ -108,6 +108,7 @@
     "scripts/check-tdd-evidence.mjs",
     "scripts/check-test-naming.mjs",
     "scripts/check-test-pyramid.mjs",
+    "scripts/check-todo-max-age.mjs",
     "scripts/check-validator-helptext.mjs",
     "scripts/check-workflow-docs-sync.mjs",
     "scripts/check-workflow-job-naming.mjs",

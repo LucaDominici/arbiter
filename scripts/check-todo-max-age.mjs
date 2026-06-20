@@ -14,6 +14,10 @@
 //   0  PASS / SKIP (no over-age TODO, or created_at unresolvable — offline)
 //   1  FAIL — one or more linked issues are older than MAX_AGE_DAYS
 //   2  ERROR — invocation error
+//
+// CATALOG: enforces TODO max-age (INV-133) — a TODO(#NNN) whose linked issue is older than MAX_AGE_DAYS days ages out the gate, with age taken from the issue created_at.
+// CATALOG: rejected fold-in into check-no-orphan-todo.mjs because that gate is a static text scan enforcing TODO traceability (presence of #NNN) with no network; this one resolves issue created_at via gh and must graceful-skip offline — a distinct lifecycle and failure model.
+// CATALOG: rejected fold-in into check-suppressions.mjs because suppression-expiry keys off inline expiry dates, not linked-issue age, and shares no parsing or gh-resolution path.
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -193,5 +197,12 @@ export function main(exitFn = process.exit) {
 
 // Only run main when invoked as CLI (not imported in tests).
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main()
+  try {
+    main()
+  } catch (err) {
+    process.stderr.write(
+      `check-todo-max-age: ERROR — ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    process.exit(2)
+  }
 }

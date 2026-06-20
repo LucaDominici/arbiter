@@ -30,7 +30,7 @@
       "direction": "lower-is-better"
     },
     "duplicationPercentage": {
-      "value": 1.374041680164129,
+      "value": 1.3856089764498662,
       "unit": "percent",
       "direction": "lower-is-better"
     },
@@ -40,7 +40,7 @@
       "direction": "lower-is-better"
     },
     "todoCount": {
-      "value": 50,
+      "value": 68,
       "unit": "count",
       "direction": "lower-is-better"
     },
