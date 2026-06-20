@@ -25,7 +25,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 18 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + gold-audit + doc-set + anti-fake-green)', () => {
+  it('emits exactly 19 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + gold-audit + doc-set + anti-fake-green + todo-max-age)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -38,10 +38,12 @@ describe('generateCheckAll', () => {
     // + check-tdd-evidence.mjs (INV-131, #1446)
     // + gold-audit.mjs (thin runner, #1419)
     // + check-doc-set.mjs + check-anti-fake-green.mjs (thin runners, INV-135, #1428)
+    // + check-todo-max-age.mjs (INV-133, #1456)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(18)
+    expect(result.files).toHaveLength(19)
+    expect(result.files.some((f) => f.path.endsWith('scripts/check-todo-max-age.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/optional-emissions.json'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-render-smoke.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/lib/glob-walk.mjs'))).toBe(true)

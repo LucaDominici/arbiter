@@ -682,3 +682,11 @@ Neither the arbiter repo nor any governed target project may track data/state fi
 **Enforcement:** `scripts/check-no-tracked-artifacts.mjs` (L1 gate, self — extended for data/state globs + magic-byte binary detection). Downstream: emitted for governed targets via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS from `src/templates/scripts/check-no-tracked-artifacts.mjs.ejs` (CANON-01/04/11), wired at L1 in the generated `scripts/check-all.mjs`. Exit codes per INV-53: 0=PASS, 1=FAIL, 2=ERROR.
 
 ---
+
+### INV-133: TODO max-age — a linked TODO whose issue is older than the max age ages out
+
+A `TODO(#NNN)` linked to an issue created more than the max age ago (default 180 days, `TODO_MAX_AGE_DAYS` override) is reported as over-age. Age derives from the issue `created_at` (resolved via `gh api`, cached per issue), so re-touching the TODO line leaves its age unchanged. Complements INV-21: INV-21 keeps a TODO traceable, INV-133 ages a traceable TODO out. Graceful skip (exit 0) when gh is absent, the token is missing, the host is offline, or `created_at` is unresolvable — a genuinely over-age issue is the only failing condition.
+
+**Enforcement:** `scripts/check-todo-max-age.mjs` (L2, self) + emitted for governed targets via `src/generators/check-all.ts` UNCONDITIONAL_EMISSIONS from `src/templates/scripts/check-todo-max-age.mjs.ejs` (CANON-01/04/11), wired at L2 in the generated and self `scripts/check-all.mjs`. Exit codes per INV-53: 0=PASS/SKIP, 1=FAIL, 2=ERROR.
+
+---
