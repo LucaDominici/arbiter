@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1448",
+  "test_path": "__tests__/generators/claude.test.ts",
+  "test_commit_sha": "d582b50ca08ebaee5fd5aeef12fceebd242e34d6",
+  "test_run_log": "⎯⎯⎯ Failed Tests 1 ⎯⎯⎯\n FAIL  __tests__/generators/claude.test.ts > generateClaude > emits the impact-first editing rule directing /impact before editing (#1448)\nError: ENOENT: no such file or directory, open '/home/luca/work/repos/arbiter/src/templates/claude/rules/75-impact-vault-reading.md'\n Test Files  1 failed (1)\n      Tests  1 failed | 40 skipped (41)\n",
+  "observed_failure": "FAIL  __tests__/generators/claude.test.ts",
+  "recorded_at": "2026-06-20T00:55:00.000Z"
+}
