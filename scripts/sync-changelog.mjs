@@ -30,8 +30,27 @@ try {
   process.exit(1)
 }
 
-const HEADER_RE = /^## \[([^\]]+)\]/
+// Match both `## [X.Y.Z]` (KAC) and `## X.Y.Z` (changeset output) so this works regardless of
+// which changelog format `changeset version` emits upstream.
+const HEADER_RE = /^## (?:\[([^\]]+)\]|(\d+\.\d+\.\d+\S*))/
 const CHANNEL_LINE_RE = /^\*\*Channel:\*\* (stable|beta|canary)$/
+
+/**
+ * Preserve the target file's existing YAML frontmatter (doc_version / status / last_review / tags
+ * that the docs convention + doc-style gate require) instead of clobbering it with a title-only
+ * stub. Returns the verbatim `---\n…\n---\n` block, or null if the file is absent / has no
+ * frontmatter (fresh-file bootstrap falls back to the default).
+ */
+function existingFrontmatter(path) {
+  let text
+  try {
+    text = readFileSync(path, 'utf-8')
+  } catch {
+    return null
+  }
+  const m = /^(---\n[\s\S]*?\n---\n)/.exec(text)
+  return m ? m[1] : null
+}
 
 const lines = content.split('\n')
 let i = 0
@@ -89,7 +108,7 @@ while (i < lines.length) {
 }
 flushSection()
 
-const frontmatter = '---\ntitle: Stable Releases\n---\n'
+const frontmatter = existingFrontmatter(outPath) ?? '---\ntitle: Stable Releases\n---\n'
 const body = stableLines.join('\n')
 
 try {
