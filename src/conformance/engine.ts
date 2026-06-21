@@ -9,6 +9,12 @@ import { existsSync, statSync, lstatSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { safeResolve, readText, expandGlob } from './shared.js'
 
+/** Deterministic, locale-independent string order (UTF-16 code units) — byte-identical with the
+ * .mjs engine and immune to Node/ICU collation drift (#1471). Used for every check/dimension sort. */
+function cmpCodeUnit(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 // ── #1413: brownfield-class threshold SSOT + value-op report-extraction model ───
 //
 // A `value` check with an `args.format` reads a PRE-GENERATED tool report deterministically (no
@@ -708,9 +714,7 @@ function buildDimensions(
   dims: Map<string, DimAccum>,
 ): Record<string, { score: number; y: number }> {
   const result: Record<string, { score: number; y: number }> = {}
-  for (const [id, d] of [...dims.entries()].sort((a, b) =>
-    a[0].localeCompare(b[0], 'en', { sensitivity: 'variant' }),
-  )) {
+  for (const [id, d] of [...dims.entries()].sort((a, b) => cmpCodeUnit(a[0], b[0]))) {
     result[id] = {
       score: d.possible > 0 ? Math.round((d.earned / d.possible) * 1000) / 10 : 0,
       y: d.y,
@@ -805,10 +809,8 @@ export function evaluate(
       (c): c is CheckInput => Boolean(c) && typeof c === 'object',
     )
     // Coerce ids to strings before comparing (a malformed registry's numeric id must not throw
-    // and fail-close the whole payload) — matches the .mjs `String(a.id).localeCompare(...)`.
-    const sorted = [...rawChecks].sort((a, b) =>
-      String(a.id).localeCompare(String(b.id), 'en', { sensitivity: 'variant' }),
-    )
+    // and fail-close the whole payload) — matches the .mjs `cmpCodeUnit(String(a.id), ...)`.
+    const sorted = [...rawChecks].sort((a, b) => cmpCodeUnit(String(a.id), String(b.id)))
 
     const checks: CheckResult[] = []
     const dims = new Map<string, DimAccum>()
@@ -876,7 +878,7 @@ export function checkNoRegress(
 export function ratchet(current: EngineResult, baseline: Baseline): Baseline {
   const dimensions: Record<string, { score: number; y: number }> = {}
   const ids = new Set([...Object.keys(current.dimensions), ...Object.keys(baseline.dimensions)])
-  for (const id of [...ids].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'variant' }))) {
+  for (const id of [...ids].sort(cmpCodeUnit)) {
     const c = current.dimensions[id] ?? { score: 0, y: 0 }
     const p = baseline.dimensions[id] ?? { score: 0, y: 0 }
     dimensions[id] = {
