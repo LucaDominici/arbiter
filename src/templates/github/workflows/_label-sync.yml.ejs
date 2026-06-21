@@ -6,6 +6,11 @@ on:
     paths:
       - .github/labels.yml
 
+# Only the latest labels.yml on main matters — supersede older in-flight syncs.
+concurrency:
+  group: label-sync-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   issues: write
 

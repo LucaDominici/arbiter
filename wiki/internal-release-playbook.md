@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/internal/release-playbook.md'
 source_sha: '0b77ed888c87f896b4a07bc4ac1f38977066b068'
-last_updated: '2026-06-20'
+last_updated: '2026-06-21'
 ---
 
 # Release Playbook

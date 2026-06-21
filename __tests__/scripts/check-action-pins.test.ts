@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-// TDD guard for #902 — SHA-pin self-check (INV-76, transition mode).
-// Script exits 0 unconditionally during transition; behavior is in stdout.
+// TDD guard for #902 / #886 — SHA-pin self-check (INV-76, enforced).
+// A non-SHA action reference now fails the gate (exit 1); clean repos exit 0.
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
@@ -19,8 +19,8 @@ function makeDir(): { dir: string; cleanup: () => void } {
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
-describe('check-action-pins.mjs (#902, INV-76 transition)', () => {
-  it('reports tag-pinned ref as TRANSITION-WARN and exits 0', () => {
+describe('check-action-pins.mjs (#902/#886, INV-76 enforced)', () => {
+  it('rejects a tag-pinned ref with exit 1 (no transition)', () => {
     const { dir, cleanup } = makeDir()
     try {
       mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
@@ -29,8 +29,8 @@ describe('check-action-pins.mjs (#902, INV-76 transition)', () => {
         'jobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n',
       )
       const result = run(dir)
-      expect(result.status).toBe(0)
-      expect(result.stderr).toContain('[TRANSITION-WARN]')
+      expect(result.status).toBe(1)
+      expect(result.stderr).not.toContain('[TRANSITION-WARN]')
       expect(result.stderr).toContain('non-SHA action reference')
       expect(result.stderr).toContain('actions/checkout@v4')
     } finally {
@@ -107,8 +107,8 @@ describe('check-action-pins.mjs (#902, INV-76 transition)', () => {
         'runs:\n  using: composite\n  steps:\n    - uses: actions/setup-node@v4\n',
       )
       const result = run(dir)
-      expect(result.status).toBe(0)
-      expect(result.stderr).toContain('[TRANSITION-WARN]')
+      expect(result.status).toBe(1)
+      expect(result.stderr).not.toContain('[TRANSITION-WARN]')
       expect(result.stderr).toContain('actions/setup-node@v4')
     } finally {
       cleanup()

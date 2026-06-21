@@ -1,6 +1,6 @@
 ---
 generated: true
-last_updated: '2026-06-20'
+last_updated: '2026-06-21'
 ---
 
 # Wiki Index

@@ -9,6 +9,11 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, labeled, unlabeled]
 
+# Only the latest label state matters — supersede older in-flight runs per PR.
+concurrency:
+  group: ai-draft-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
