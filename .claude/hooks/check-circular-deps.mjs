@@ -6,8 +6,9 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { resolveToolInputPath } from './lib.mjs'
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+const file = resolveToolInputPath()
 if (!file) process.exit(0)
 
 const isJs =

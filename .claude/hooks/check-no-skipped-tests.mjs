@@ -2,8 +2,9 @@
 // Arbiter hook: block skipped/disabled tests (NI-11)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
+import { resolveToolInputPath } from './lib.mjs'
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 
 // Binary / lock files — skip

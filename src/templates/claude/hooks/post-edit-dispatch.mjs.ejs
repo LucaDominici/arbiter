@@ -15,22 +15,14 @@ const EXT_MAP = {
 };
 const sourceExts = EXT_MAP[language] || [];
 %>
-import { getRepoRoot, logInfo, logWarn } from './lib.mjs';
-import { readFileSync, existsSync } from 'node:fs';
+import { getRepoRoot, logInfo, logWarn, resolveToolInputPath } from './lib.mjs';
+import { existsSync } from 'node:fs';
 import { extname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-// Read edited file path from tool input JSON
-const inputPath = process.env['CLAUDE_TOOL_INPUT_PATH'];
-if (!inputPath) process.exit(0);
-
-let filePath = '';
-try {
-  const input = JSON.parse(readFileSync(inputPath, 'utf-8'));
-  filePath = input['file_path'] ?? input['path'] ?? '';
-} catch {
-  process.exit(0);
-}
+// Read edited file path from the Claude Code stdin-JSON payload (tool_input.file_path),
+// falling back to the CLAUDE_TOOL_INPUT_PATH env var on the Codex adapter path.
+const filePath = resolveToolInputPath();
 if (!filePath) process.exit(0);
 
 const root = getRepoRoot();

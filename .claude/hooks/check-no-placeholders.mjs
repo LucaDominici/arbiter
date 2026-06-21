@@ -2,6 +2,7 @@
 // Claude hook: blocks placeholder patterns in files being written/edited.
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
+import { resolveToolInputPath } from './lib.mjs'
 
 const PATTERNS = [
   { re: /\bPLACEHOLDER\b/i, label: 'PLACEHOLDER' },
@@ -18,7 +19,7 @@ const PATTERNS = [
   { re: /\b(xit|xdescribe|xtest)\s*\(/, label: 'xit/xdescribe/xtest' },
 ]
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 
 let content

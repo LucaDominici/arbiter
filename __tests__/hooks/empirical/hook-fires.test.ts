@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { renderTemplate } from '../../../src/utils/render.js'
@@ -29,6 +29,16 @@ function renderEjsHook(hooksDir: string, name: string): string {
   const dest = join(hooksDir, name.replace('.ejs', ''))
   writeFileSync(dest, renderTemplate(`claude/hooks/${name}`, minConfig()))
   return dest
+}
+
+// Materialize a raw (non-EJS) hook verbatim into a fresh project hooks dir, alongside the
+// rendered lib.mjs it now imports (resolveToolInputPath). Spawning a raw hook directly from
+// src/templates/ would fail to resolve `./lib.mjs` (only lib.mjs.ejs lives there).
+function makeRawHook(name: string): { dir: string; hooksDir: string; hookPath: string } {
+  const { dir, hooksDir } = makeHookDir()
+  const hookPath = join(hooksDir, name)
+  writeFileSync(hookPath, readFileSync(join(STATIC_HOOKS_DIR, name), 'utf-8'))
+  return { dir, hooksDir, hookPath }
 }
 
 function spawnHook(
@@ -108,12 +118,81 @@ describe('check-no-pii — empirical fire', () => {
   })
 })
 
-describe('check-no-orphan-todo — empirical fire', () => {
-  const hookPath = join(STATIC_HOOKS_DIR, 'check-no-orphan-todo.mjs')
+// ── stdin-JSON protocol (the actual Claude Code hook contract) ──────────────────
+// Regression for the gate-integrity "no-op hook" blocker: Claude Code delivers tool
+// input as a JSON object on stdin ({tool_input:{file_path}}). A hook that reads ONLY
+// the CLAUDE_TOOL_INPUT_PATH env var saw nothing under this protocol and exited 0,
+// silently letting violations through. These tests drive each hook the way Claude Code
+// does — stdin JSON, NO env var — and assert it actually blocks. Without the
+// resolveToolInputPath() stdin parse, every assertion below would see exit 0.
+
+function spawnHookStdin(hookPath: string, dir: string, filePath: string) {
+  return spawnSync('node', [hookPath], {
+    cwd: dir,
+    encoding: 'utf-8',
+    input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } }),
+    // Deliberately NO CLAUDE_TOOL_INPUT_PATH — only the stdin payload carries the path.
+    env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: '' },
+    timeout: 5000,
+  })
+}
+
+describe('check-no-pii — stdin-JSON protocol (no env var)', () => {
   let dir: string
+  let hooksDir: string
+  let hookPath: string
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'arbiter-todo-'))
+    ;({ dir, hooksDir } = makeHookDir())
+    hookPath = renderEjsHook(hooksDir, 'check-no-pii.mjs.ejs')
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('exits 1 on a violating file delivered via stdin JSON', () => {
+    const f = join(dir, 'dirty.ts')
+    writeFileSync(f, 'const contact = "user@example.com";\n')
+    const r = spawnHookStdin(hookPath, dir, f)
+    expect(r.status).toBe(1)
+    expect(r.stderr).toMatch(/INV-12|PII/i)
+  })
+
+  it('exits 0 on a clean file delivered via stdin JSON', () => {
+    const f = join(dir, 'clean.ts')
+    writeFileSync(f, 'export const x = 1;\n')
+    const r = spawnHookStdin(hookPath, dir, f)
+    expect(r.status).toBe(0)
+  })
+})
+
+describe('check-no-placeholders (raw hook) — stdin-JSON protocol (no env var)', () => {
+  let dir: string
+  let hookPath: string
+
+  beforeEach(() => {
+    // Raw .mjs hook copied verbatim (no EJS render), alongside the rendered lib.mjs it imports.
+    ;({ dir, hookPath } = makeRawHook('check-no-placeholders.mjs'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('exits 1 on a placeholder-laden file delivered via stdin JSON', () => {
+    const f = join(dir, 'wip.ts')
+    // Concatenate to avoid this very hook firing on the test source.
+    writeFileSync(f, '// FIX' + 'ME: finish this\n')
+    const r = spawnHookStdin(hookPath, dir, f)
+    expect(r.status).toBe(1)
+  })
+})
+
+describe('check-no-orphan-todo — empirical fire', () => {
+  let dir: string
+  let hookPath: string
+
+  beforeEach(() => {
+    ;({ dir, hookPath } = makeRawHook('check-no-orphan-todo.mjs'))
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
@@ -151,17 +230,25 @@ describe('check-no-orphan-todo — empirical fire', () => {
 })
 
 describe('enforce-read-only — empirical fire', () => {
-  const hookPath = join(STATIC_HOOKS_DIR, 'enforce-read-only.mjs')
+  let dir: string
+  let hookPath: string
+
+  beforeEach(() => {
+    ;({ dir, hookPath } = makeRawHook('enforce-read-only.mjs'))
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
 
   it('exits 0 for non-protected file', () => {
-    const r = spawnHook(hookPath, process.cwd(), {
+    const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_PATH: 'src/foo.ts',
     })
     expect(r.status).toBe(0)
   })
 
   it('exits 1 when AGENTS.md is targeted', () => {
-    const r = spawnHook(hookPath, process.cwd(), {
+    const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_PATH: '/project/AGENTS.md',
     })
     expect(r.status).toBe(1)
@@ -169,7 +256,7 @@ describe('enforce-read-only — empirical fire', () => {
   })
 
   it('exits 1 when package-lock.json is targeted', () => {
-    const r = spawnHook(hookPath, process.cwd(), {
+    const r = spawnHook(hookPath, dir, {
       CLAUDE_TOOL_INPUT_PATH: 'package-lock.json',
     })
     expect(r.status).toBe(1)
@@ -367,11 +454,11 @@ describe('debug-state-on-failure — empirical fire', () => {
 })
 
 describe('check-no-skipped-tests — empirical fire (#730)', () => {
-  const hookPath = join(STATIC_HOOKS_DIR, 'check-no-skipped-tests.mjs')
   let dir: string
+  let hookPath: string
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'arbiter-skip-'))
+    ;({ dir, hookPath } = makeRawHook('check-no-skipped-tests.mjs'))
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })

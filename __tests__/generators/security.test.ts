@@ -177,8 +177,10 @@ describe('check-no-pii.mjs.ejs render (CANON-04)', () => {
     expect(out).toContain('email address')
   })
 
-  it('rendered output reads CLAUDE_TOOL_INPUT_PATH', () => {
+  it('rendered output resolves the tool input path (stdin JSON + env fallback)', () => {
     const out = renderTemplate('claude/hooks/check-no-pii.mjs.ejs', {})
-    expect(out).toContain('CLAUDE_TOOL_INPUT_PATH')
+    // The hook resolves the edited file via resolveToolInputPath() (stdin tool_input.file_path
+    // with CLAUDE_TOOL_INPUT_PATH as the Codex fallback) rather than reading the env var raw.
+    expect(out).toContain('resolveToolInputPath')
   })
 })

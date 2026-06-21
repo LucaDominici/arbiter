@@ -1,14 +1,38 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { renderTemplate } from '../../../src/utils/render.js'
+import { makeConfig } from '../../helpers.js'
 
 const ADAPTER = join(process.cwd(), 'src/templates/codex/codex-adapter.mjs')
 
-const ORPHAN_TODO_HOOK = join(process.cwd(), 'src/templates/claude/hooks/check-no-orphan-todo.mjs')
+const TPL_DIR = join(process.cwd(), 'src/templates/claude/hooks')
 
+// Hooks that import ./lib.mjs (resolveToolInputPath) must be spawned from a directory where
+// lib.mjs is a sibling. Materialize the hooks-under-test + rendered lib.mjs into one temp dir.
+let HOOKS_DIR = ''
+let ORPHAN_TODO_HOOK = ''
+let SSOT_GUARD_HOOK = ''
 const STOP_DANGEROUS_HOOK = join(process.cwd(), 'src/templates/claude/hooks/stop-dangerous.mjs')
+
+beforeAll(() => {
+  HOOKS_DIR = mkdtempSync(join(tmpdir(), 'arbiter-codex-hooks-'))
+  mkdirSync(HOOKS_DIR, { recursive: true })
+  writeFileSync(
+    join(HOOKS_DIR, 'lib.mjs'),
+    renderTemplate(
+      'claude/hooks/lib.mjs.ejs',
+      makeConfig(process.cwd(), { projectName: 'arbiter' }),
+    ),
+  )
+  for (const name of ['check-no-orphan-todo.mjs', 'pre-edit-ssot-guard.mjs']) {
+    writeFileSync(join(HOOKS_DIR, name), readFileSync(join(TPL_DIR, name), 'utf-8'))
+  }
+  ORPHAN_TODO_HOOK = join(HOOKS_DIR, 'check-no-orphan-todo.mjs')
+  SSOT_GUARD_HOOK = join(HOOKS_DIR, 'pre-edit-ssot-guard.mjs')
+})
 
 function runAdapter(stdinPayload: object, hookPath: string, extraEnv: Record<string, string> = {}) {
   const baseEnv = { ...process.env }
@@ -158,10 +182,9 @@ describe('codex-adapter', () => {
   })
 
   it('captures Move to rename target for hook checks', () => {
-    const SSOT_GUARD = join(process.cwd(), 'src/templates/claude/hooks/pre-edit-ssot-guard.mjs')
     // Rename patch where destination is an SSOT file — guard must fire
     const patch = `*** Begin Patch\n*** Update File: src/foo.ts\n*** Move to: AGENTS.md\n@@\n-old\n+new\n*** End Patch`
-    const result = runAdapter(makeApplyPatchPayload(patch), SSOT_GUARD)
+    const result = runAdapter(makeApplyPatchPayload(patch), SSOT_GUARD_HOOK)
     // SSOT guard should exit 2 because AGENTS.md is the rename destination
     expect(result.status).toBe(2)
   })

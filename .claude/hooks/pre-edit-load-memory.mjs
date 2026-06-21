@@ -6,12 +6,13 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { minimatch } from 'minimatch'
+import { resolveToolInputPath } from './lib.mjs'
 
 const MEMORY_FILE = join(process.cwd(), '.claude', 'memory-impl.md')
 const MAX_BODY_BYTES = 4096
 const TRUNCATION_MARKER = '\n... [memory truncated at 4KB] ...\n'
 
-const filePath = process.env.CLAUDE_TOOL_INPUT_PATH
+const filePath = resolveToolInputPath()
 if (!filePath) process.exit(0)
 
 if (!existsSync(MEMORY_FILE)) process.exit(0)

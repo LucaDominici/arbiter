@@ -2,7 +2,8 @@
 // Fail if a Java file uses raw generic types (unparameterized generics)
 // FAIL-OPEN-INTENT: hook exits 0 for non-Java files; Java violations exit 1 explicitly
 import { readFileSync, existsSync } from 'node:fs'
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+import { resolveToolInputPath } from './lib.mjs'
+const file = resolveToolInputPath()
 if (!file.endsWith('.java')) process.exit(0)
 if (!existsSync(file)) process.exit(0)
 const repoRoot = process.cwd()

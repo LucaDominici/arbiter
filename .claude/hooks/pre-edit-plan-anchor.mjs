@@ -6,11 +6,15 @@
 // CANON-16: blocks Write to new src/ files lacking a valid Existing Code Survey
 // Exit 2: block — stderr returned to Claude as error context; user is NOT prompted
 // Bypass: ARBITER_PLAN_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
-import { readTaskState, getRepoRoot } from './lib.mjs'
+import { readTaskState, getRepoRoot, resolveToolInputPath } from './lib.mjs'
 import { readFileSync, existsSync } from 'node:fs'
 import { join, basename, resolve, relative } from 'node:path'
 
 if (process.env.ARBITER_PLAN_BYPASS === '1') process.exit(0)
+
+// Resolve the edit target once (stdin-JSON tool_input.file_path, env-var fallback) — the
+// stdin payload (fd 0) is consumed at most once, so capture it before any later use.
+const targetRaw = resolveToolInputPath()
 
 const root = getRepoRoot()
 const { phase, plan } = readTaskState(root)
@@ -110,7 +114,6 @@ if (!isLegacyPlan) {
 // When the edit targets a file outside the plan's machine-parseable `files:` manifest, emit an
 // advisory nudge (stdout, exit 0 — NEVER a hard block). Skips silently when no `files:` manifest
 // exists. Excludes __tests__/ (mirrors the CANON-16 survey exclusion). Multi-file edits stay free.
-const targetRaw = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
 if (targetRaw) {
   const absForRedirect = resolve(targetRaw)
   const relForRedirect = relative(root, absForRedirect).split('\\').join('/')

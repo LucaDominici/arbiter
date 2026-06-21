@@ -5,10 +5,11 @@
 // Bypass: ARBITER_SSOT_BYPASS=1 (session-scoped — see CONTRIBUTING.md)
 import { spawnSync } from 'node:child_process'
 import { resolve, relative } from 'node:path'
-
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+import { resolveToolInputPath } from './lib.mjs'
 
 if (process.env.ARBITER_SSOT_BYPASS === '1') process.exit(0)
+
+const file = resolveToolInputPath()
 
 // Anchor to repo root so external paths with matching names are not blocked.
 const gitResult = spawnSync('git', ['rev-parse', '--show-toplevel'], {

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Arbiter hook: guard designated read-only files
 // Fires on: PreToolUse → Edit|Write
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+import { resolveToolInputPath } from './lib.mjs'
+
+const file = resolveToolInputPath()
 
 const READ_ONLY_PATTERNS = ['AGENTS.md', 'LICENSE', 'package-lock.json', 'Cargo.lock']
 

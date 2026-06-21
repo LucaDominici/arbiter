@@ -308,9 +308,9 @@ describe('hooks/post-edit-dispatch.mjs.ejs', () => {
     }
   })
 
-  it('reads file path from CLAUDE_TOOL_INPUT_PATH', () => {
+  it('resolves the edited file path via resolveToolInputPath (stdin JSON + env fallback)', () => {
     const out = renderTemplate('claude/hooks/post-edit-dispatch.mjs.ejs', configFor('typescript'))
-    expect(out).toContain('CLAUDE_TOOL_INPUT_PATH')
+    expect(out).toContain('resolveToolInputPath')
   })
 })
 

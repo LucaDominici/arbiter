@@ -2,9 +2,9 @@
 // Arbiter hook: block explicit 'any' types in TypeScript (INV-04)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
-import { findInlineSuppression } from './lib.mjs'
+import { findInlineSuppression, resolveToolInputPath } from './lib.mjs'
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 if (!file.endsWith('.ts') && !file.endsWith('.tsx')) process.exit(0)
 

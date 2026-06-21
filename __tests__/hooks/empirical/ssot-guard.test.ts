@@ -1,7 +1,29 @@
 import { spawnSync } from 'node:child_process'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { renderTemplate } from '../../../src/utils/render.js'
+import { makeConfig } from '../../helpers.js'
 
-const HOOK = join(process.cwd(), 'src/templates/claude/hooks/pre-edit-ssot-guard.mjs')
+const TPL_DIR = join(process.cwd(), 'src/templates/claude/hooks')
+
+// The hook now imports resolveToolInputPath from ./lib.mjs, so it must be spawned from a
+// directory where lib.mjs is a sibling. Materialize hook + rendered lib.mjs into a temp dir;
+// the hook anchors SSOT paths to the git repo root (cwd), so we keep cwd = the arbiter repo.
+let HOOK = ''
+beforeAll(() => {
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-ssot-guard-'))
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(
+    join(dir, 'lib.mjs'),
+    renderTemplate(
+      'claude/hooks/lib.mjs.ejs',
+      makeConfig(process.cwd(), { projectName: 'arbiter' }),
+    ),
+  )
+  HOOK = join(dir, 'pre-edit-ssot-guard.mjs')
+  writeFileSync(HOOK, readFileSync(join(TPL_DIR, 'pre-edit-ssot-guard.mjs'), 'utf-8'))
+})
 
 function run(filePath: string, extraEnv: Record<string, string> = {}) {
   // Strip ARBITER_SSOT_BYPASS from inherited env so the hook runs in its
@@ -9,7 +31,11 @@ function run(filePath: string, extraEnv: Record<string, string> = {}) {
   const baseEnv = { ...process.env }
   delete baseEnv['ARBITER_SSOT_BYPASS']
   return spawnSync('node', [HOOK], {
+    cwd: process.cwd(),
     encoding: 'utf-8',
+    // Empty stdin so resolveToolInputPath falls back to the env var (the contract this
+    // test exercises); a non-empty CLAUDE_TOOL_INPUT_PATH still drives the path.
+    input: '',
     env: { ...baseEnv, CLAUDE_TOOL_INPUT_PATH: filePath, ...extraEnv },
   })
 }

@@ -5,8 +5,9 @@
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
 import { relative } from 'node:path'
+import { resolveToolInputPath } from './lib.mjs'
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 if (!file.endsWith('.ts') && !file.endsWith('.tsx')) process.exit(0)
 

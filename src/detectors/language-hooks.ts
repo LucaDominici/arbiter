@@ -7,7 +7,8 @@ const TS_NO_ANY: LanguageHook = {
   body: `#!/usr/bin/env node
 // Fail if a TypeScript file was edited with an explicit 'any' type
 import { readFileSync, existsSync } from 'node:fs';
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+import { resolveToolInputPath } from './lib.mjs';
+const file = resolveToolInputPath();
 if (!file.endsWith('.ts') && !file.endsWith('.tsx')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();
@@ -25,7 +26,8 @@ const RUST_NO_UNWRAP: LanguageHook = {
   body: `#!/usr/bin/env node
 // Fail if a Rust file was edited with an .unwrap() call
 import { readFileSync, existsSync } from 'node:fs';
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+import { resolveToolInputPath } from './lib.mjs';
+const file = resolveToolInputPath();
 if (!file.endsWith('.rs')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();
@@ -42,7 +44,8 @@ const COMMON_NO_ORPHAN_TODO: LanguageHook = {
   body: `#!/usr/bin/env node
 // Fail if a file has a TODO without a task reference
 import { readFileSync, existsSync } from 'node:fs';
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+import { resolveToolInputPath } from './lib.mjs';
+const file = resolveToolInputPath();
 if (!file || !existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();
 if (!file.startsWith(repoRoot)) process.exit(0);
@@ -64,7 +67,8 @@ const GO_NO_UNCHECKED_ERR: LanguageHook = {
   body: `#!/usr/bin/env node
 // Fail if a Go file discards an error return with _ = pattern
 import { readFileSync, existsSync } from 'node:fs';
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+import { resolveToolInputPath } from './lib.mjs';
+const file = resolveToolInputPath();
 if (!file.endsWith('.go')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();
@@ -86,7 +90,8 @@ const PY_NO_BARE_EXCEPT: LanguageHook = {
   body: `#!/usr/bin/env node
 // Fail if a Python file uses a bare 'except:' clause
 import { readFileSync, existsSync } from 'node:fs';
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+import { resolveToolInputPath } from './lib.mjs';
+const file = resolveToolInputPath();
 if (!file.endsWith('.py')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();
@@ -108,7 +113,8 @@ const JAVA_NO_RAW_TYPES: LanguageHook = {
   body: `#!/usr/bin/env node
 // Fail if a Java file uses raw generic types (unparameterized generics)
 import { readFileSync, existsSync } from 'node:fs';
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+import { resolveToolInputPath } from './lib.mjs';
+const file = resolveToolInputPath();
 if (!file.endsWith('.java')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();
@@ -137,7 +143,8 @@ const JAVA_NO_MOCKMVC: LanguageHook = {
   body: `#!/usr/bin/env node
 // Fail if a Java file imports or uses MockMvc (use RestAssured instead)
 import { readFileSync, existsSync } from 'node:fs';
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? '';
+import { resolveToolInputPath } from './lib.mjs';
+const file = resolveToolInputPath();
 if (!file.endsWith('.java')) process.exit(0);
 if (!existsSync(file)) process.exit(0);
 const repoRoot = process.cwd();

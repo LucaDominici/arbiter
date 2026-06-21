@@ -2,9 +2,9 @@
 // Arbiter hook: block PII patterns in edited files (INV-12)
 // Fires on: PostToolUse → Edit|Write
 import { readFileSync, existsSync } from 'node:fs'
-import { findInlineSuppression } from './lib.mjs'
+import { findInlineSuppression, resolveToolInputPath } from './lib.mjs'
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 
 const SKIP_EXTENSIONS = [

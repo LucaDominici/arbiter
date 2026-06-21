@@ -5,13 +5,14 @@
 // Skips non-source files (docs, config, lock files, generated dirs)
 // Always exits 0 (non-blocking, informational)
 
-import { getRepoRoot, logInfo, logWarn } from './lib.mjs'
+import { getRepoRoot, logInfo, logWarn, resolveToolInputPath } from './lib.mjs'
 import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-// CLAUDE_TOOL_INPUT_PATH is the path to the file that was just edited
-const filePath = process.env['CLAUDE_TOOL_INPUT_PATH'] ?? ''
+// Resolve the just-edited file path from the Claude Code stdin-JSON payload
+// (tool_input.file_path), falling back to the CLAUDE_TOOL_INPUT_PATH env var (Codex path).
+const filePath = resolveToolInputPath()
 if (!filePath) process.exit(0)
 
 // Skip .md docs, .json config, lock files, build artifacts

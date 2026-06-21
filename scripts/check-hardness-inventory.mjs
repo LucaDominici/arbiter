@@ -6,13 +6,55 @@
 //   2. HARD+spawnable hooks: spawn with fixture, assert exit code matches manifest
 //   3. Codex parity: every entry with tools["codex"] is wired in the Codex config template
 import { spawnSync } from 'node:child_process'
-import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import {
+  readFileSync,
+  readdirSync,
+  existsSync,
+  writeFileSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+} from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
+
+// Lazily render the hook lib.mjs once. Hooks now import resolveToolInputPath (and friends)
+// from a sibling ./lib.mjs, so a HARD hook spawned in isolation must be staged next to a
+// real lib.mjs or it crashes with ERR_MODULE_NOT_FOUND (a false "ceremony regression").
+let _renderedLib = null
+async function renderHookLib() {
+  if (_renderedLib !== null) return _renderedLib
+  const libTemplate = join(REPO_ROOT, 'src/templates/claude/hooks/lib.mjs.ejs')
+  if (!existsSync(libTemplate)) {
+    _renderedLib = ''
+    return _renderedLib
+  }
+  const ejs = (await import('ejs')).default
+  _renderedLib = ejs.render(readFileSync(libTemplate, 'utf-8'), { projectName: 'arbiter' })
+  return _renderedLib
+}
+
+/**
+ * Stage a hook into a temp dir alongside a rendered lib.mjs so its `./lib.mjs` import
+ * resolves when spawned in isolation. Returns the staged hook path and a cleanup fn.
+ */
+async function stageHookWithLib(hookPath) {
+  const src = readFileSync(hookPath, 'utf-8')
+  // A raw .mjs hook that imports ./lib.mjs needs the sibling; .ejs hooks aren't spawned here.
+  if (!/from\s+['"]\.\/lib\.mjs['"]/.test(src)) {
+    return { staged: hookPath, cleanup: () => {} }
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'arbiter-hardness-hook-'))
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'lib.mjs'), await renderHookLib())
+  const staged = join(dir, hookPath.split('/').pop())
+  writeFileSync(staged, src)
+  return { staged, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
+}
 
 // Parse args
 const args = process.argv.slice(2)
@@ -99,10 +141,14 @@ for (const entry of hardSpawnable) {
     Object.assign(env, fixture.env)
   }
 
+  // Stage the hook next to a rendered lib.mjs (no-op when it has no lib import) and feed an
+  // empty stdin so resolveToolInputPath falls back to the fixture's env var (Codex contract).
+  const { staged, cleanup } = await stageHookWithLib(hookPath)
   let result
   try {
-    result = spawnSync('node', [hookPath], { encoding: 'utf-8', env })
+    result = spawnSync('node', [staged], { encoding: 'utf-8', env, input: '' })
   } finally {
+    cleanup()
     for (const d of tmpFiles) rmSync(d, { recursive: true, force: true })
   }
 

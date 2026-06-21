@@ -3,8 +3,9 @@
 // Fires on: PostToolUse → Edit|Write (TypeScript projects only)
 import { existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
+import { resolveToolInputPath } from './lib.mjs'
 
-const file = process.env.CLAUDE_TOOL_INPUT_PATH ?? ''
+const file = resolveToolInputPath()
 if (!file || !existsSync(file)) process.exit(0)
 const TS_EXTS = ['.ts', '.tsx', '.mts', '.cts']
 if (!TS_EXTS.some((ext) => file.endsWith(ext))) process.exit(0)
