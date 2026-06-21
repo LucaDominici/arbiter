@@ -34,7 +34,11 @@ function channelFor(version) {
   return null
 }
 
-const HEADER_RE = /^## \[([^\]]+)\]/
+// Match BOTH a Keep-a-Changelog bracket header `## [X.Y.Z]` (this repo's hand-maintained
+// CHANGELOG.md) AND a plain changeset header `## X.Y.Z` (the default @changesets/cli/changelog
+// output). Group 1 = bracketed body, group 2 = plain semver. A non-semver bracket section like
+// `## [Unreleased]` matches group 1 but channelFor() returns null → it is skipped, not an error.
+const HEADER_RE = /^## (?:\[([^\]]+)\]|(\d+\.\d+\.\d+\S*))/
 const CHANNEL_LINE_RE = /^\*\*Channel:\*\* (stable|beta|canary)$/
 
 let content
@@ -60,13 +64,23 @@ while (i < lines.length) {
     continue
   }
 
-  const version = headerMatch[1]
+  const version = headerMatch[1] ?? headerMatch[2]
   const channel = channelFor(version)
 
   if (channel === null) {
+    // The standard Keep-a-Changelog `## [Unreleased]` section — every CHANGELOG carries one and
+    // changeset output keeps it. Skip it (never label, never error); only release-version sections
+    // (X.Y.Z / -rc / -beta / -alpha / -canary) get a **Channel:** label.
+    if (/^unreleased$/i.test(version)) {
+      out.push(line)
+      i++
+      continue
+    }
+    // A header that looks like a version section but is a shape we do not recognise — a real
+    // authoring error (e.g. a typo'd version), so fail loudly as before.
     process.stderr.write(
       `[changeset-channel-tag] error: unknown version shape "${version}"\n` +
-        `  expected: plain X.Y.Z, -rc.N, -beta.N, -alpha.N, or -canary.HASH\n`,
+        `  expected: plain X.Y.Z, -rc.N, -beta.N, -alpha.N, -canary.HASH, or [Unreleased]\n`,
     )
     process.exit(1)
   }
