@@ -21,12 +21,13 @@ There is no opt-out because there is nothing to opt out of.
 
 Arbiter is offline by default. The only network activity is explicit and user-initiated:
 
-| Action                              | When                    | Why                                            |
-| ----------------------------------- | ----------------------- | ---------------------------------------------- |
-| `arbiter plugin add <name>`         | You run this command    | Fetches the named plugin from the npm registry |
-| `arbiter ci plan` with `--gh-token` | You pass a GitHub token | Uses the GitHub API to read issue/PR data      |
+| Action                              | When                              | Why                                            |
+| ----------------------------------- | --------------------------------- | ---------------------------------------------- |
+| `arbiter plugin add <name>`         | You run this command              | Fetches the named plugin from the npm registry |
+| `arbiter ci plan` with `--gh-token` | You pass a GitHub token           | Uses the GitHub API to read issue/PR data      |
+| `arbiter init --recipe <https://…>` | You pass an `https://` recipe URL | Fetches the recipe JSON you pointed it at      |
 
-In both cases, the network call is a direct consequence of a command you explicitly ran. Arbiter does not call home in the background, on startup, or at any other time.
+In every case, the network call is a direct consequence of a command (and, for recipes, a URL) you explicitly ran. Arbiter does not call home in the background, on startup, or at any other time.
 
 ---
 
@@ -53,6 +54,7 @@ The full source is at `src/`. Network-capable code paths are limited to:
 
 - `src/commands/plugin.ts` — npm registry fetch for plugin install
 - `src/github/` — GitHub API calls, only when a token is explicitly provided
+- `src/recipes/loader.ts` — fetches a recipe JSON, only when you pass an `https://` URL to `arbiter init --recipe` (size-capped, 10s timeout, redirects not followed)
 
 ---
 
@@ -92,4 +94,4 @@ If you discover unexpected network activity, please report it via [SECURITY.md](
 
 ---
 
-_Last reviewed: 2026-05-16_
+_Last reviewed: 2026-06-22_
