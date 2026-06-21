@@ -198,6 +198,27 @@ export function generateDebtGates(
     injectTsGateToolchain(base, opts.dryRun)
   }
 
+  if (config.language === 'python') {
+    // Gate-essential Python scaffold — emitted on EVERY Python init (even L1, where
+    // enableDebtGates is false) because the generated L1 gate runs ruff (lint +
+    // format) and pytest. ruff.toml supplies arbiter's lint config; requirements-
+    // dev.txt declares the toolchain the gate invokes (B4, #1491).
+    results.push(
+      writeFile(
+        resolvedPath(base, 'ruff.toml'),
+        renderTemplate('static-analysis/ruff.toml.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+    results.push(
+      writeFile(
+        resolvedPath(base, 'requirements-dev.txt'),
+        renderTemplate('static-analysis/requirements-dev.txt.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
   if (!config.enableDebtGates) return { files: results }
 
   if (config.language === 'typescript' || config.language === 'multi') {
@@ -242,15 +263,8 @@ export function generateDebtGates(
     pushJavaDebtGates(results, base, data, opts.dryRun)
   }
 
-  if (config.language === 'python') {
-    results.push(
-      writeFile(
-        resolvedPath(base, 'ruff.toml'),
-        renderTemplate('static-analysis/ruff.toml.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-  }
+  // NOTE: ruff.toml + requirements-dev.txt for Python are emitted above, before the
+  // enableDebtGates guard, so the L1 gate (ruff/pytest) has its config on first run.
 
   if (config.language === 'kotlin') {
     pushKotlinDebtGates(results, base, data, opts.dryRun)

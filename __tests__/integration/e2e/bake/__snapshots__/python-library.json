@@ -75,6 +75,8 @@
     "docs/METHOD/SSOT_CORE_SET.md",
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
+    "requirements-dev.txt",
+    "ruff.toml",
     "run.sh",
     "scripts/audit-toolchain.mjs",
     "scripts/check-action-pins.mjs",

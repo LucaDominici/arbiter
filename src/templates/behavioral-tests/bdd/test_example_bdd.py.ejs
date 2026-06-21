@@ -1,6 +1,17 @@
-"""BDD tests using pytest-bdd — binds to features/example.feature."""
+"""BDD tests using pytest-bdd — binds to features/example.feature.
+
+`pytest-bdd` is an L2 (full-gate) dependency, not part of the L1 fast gate's
+toolchain. `importorskip` makes a plain `pytest` run (the L1 unit-tests check)
+SKIP this module cleanly when pytest-bdd is not installed, instead of failing
+collection with ModuleNotFoundError — so the freshly-scaffolded project is green
+on its first `check-all.mjs L1`. With pytest-bdd installed (L2), it runs in full.
+"""
+
 import pytest
-from pytest_bdd import scenarios, given, when, then
+
+pytest.importorskip("pytest_bdd")
+
+from pytest_bdd import scenarios, given, when, then  # noqa: E402
 
 scenarios("features/example.feature")
 

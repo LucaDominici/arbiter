@@ -16,12 +16,20 @@ describe('generateDebtGates', () => {
     cleanupTestProject(dir)
   })
 
-  it('emits no debt-gate extras for a non-TS language when enableDebtGates is false', () => {
-    // Non-TS languages have no first-run gate scaffold to emit, so debtGates:false
-    // is a clean no-op (the debt-only configs are below the guard).
-    const config = makeConfig(dir, { language: 'python', enableDebtGates: false })
+  it('emits no debt-gate extras for rust/go when enableDebtGates is false', () => {
+    // rust/go have no first-run gate scaffold to emit (their debt configs sit below
+    // the enableDebtGates guard), so debtGates:false is a clean no-op. (TS and
+    // Python DO emit an always-on gate-essential scaffold — covered separately.)
+    const config = makeConfig(dir, { language: 'rust', enableDebtGates: false })
     const result = generateDebtGates(config)
     expect(result.files).toHaveLength(0)
+  })
+
+  it('emits the always-on Python gate scaffold even when enableDebtGates is false (B4)', () => {
+    const config = makeConfig(dir, { language: 'python', enableDebtGates: false })
+    const emitted = generateDebtGates(config).files.map((f) => f.path)
+    expect(emitted.some((p) => p.endsWith('ruff.toml'))).toBe(true)
+    expect(emitted.some((p) => p.endsWith('requirements-dev.txt'))).toBe(true)
   })
 
   // B4 (#1491): the gate-essential TS scaffold (tsconfig, eslint flat configs,

@@ -81,6 +81,26 @@ describe('static-analysis/eslint.config.static.mjs.ejs (B4 #1491)', () => {
   })
 })
 
+describe('static-analysis/requirements-dev.txt.ejs (B4 #1491)', () => {
+  const out = render('static-analysis/requirements-dev.txt.ejs', { language: 'python' })
+
+  it('declares the Python gate toolchain the generated gate invokes', () => {
+    for (const dep of ['ruff', 'pytest', 'pytest-bdd', 'pytest-cov']) {
+      expect(out).toContain(dep)
+    }
+  })
+})
+
+describe('behavioral-tests/bdd/test_example_bdd.py.ejs (B4 #1491)', () => {
+  const out = render('behavioral-tests/bdd/test_example_bdd.py.ejs', { language: 'python' })
+
+  it('guards the pytest-bdd import with importorskip so L1 pytest skips it cleanly', () => {
+    expect(out).toContain('pytest.importorskip("pytest_bdd")')
+    // No bare unused import — `import pytest` is consumed by importorskip (no F401).
+    expect(out.indexOf('pytest.importorskip')).toBeLessThan(out.indexOf('from pytest_bdd import'))
+  })
+})
+
 describe('check-all.mjs.ejs static-analysis command (B4 #1491)', () => {
   const out = renderCheckAll()
 

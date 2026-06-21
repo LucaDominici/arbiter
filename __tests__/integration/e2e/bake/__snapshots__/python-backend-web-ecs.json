@@ -76,6 +76,8 @@
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
     "domain-api-surface.json",
+    "requirements-dev.txt",
+    "ruff.toml",
     "run.sh",
     "scripts/audit-toolchain.mjs",
     "scripts/check-action-pins.mjs",

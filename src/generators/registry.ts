@@ -248,9 +248,14 @@ function buildInfraSpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'debt-gates',
       // Always run for typescript/multi so injectTestScripts fires regardless of
       // enableDebtGates — check-all.mjs calls test:unit/contract/integration/behavioral
-      // unconditionally for TS at L1+ (#933 F13).
+      // unconditionally for TS at L1+ (#933 F13). Also always-on for python so the
+      // gate-essential python scaffold (ruff.toml + requirements-dev.txt) emits at
+      // L1, where the generated gate runs ruff/pytest (B4, #1491).
       enabled:
-        config.enableDebtGates || config.language === 'typescript' || config.language === 'multi',
+        config.enableDebtGates ||
+        config.language === 'typescript' ||
+        config.language === 'multi' ||
+        config.language === 'python',
       run: (opts) => generateDebtGates(config, opts).files,
     },
     {

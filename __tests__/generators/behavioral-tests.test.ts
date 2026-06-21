@@ -439,6 +439,29 @@ describe('generateBehavioralTests', () => {
     }
   })
 
+  // B4 (#1491): the generated BDD test must not break the L1 `pytest` run (which
+  // collects the whole tree) when pytest-bdd is not installed — pytest-bdd is an
+  // L2 dependency. `pytest.importorskip` makes the module skip cleanly instead of
+  // hard-failing collection, and uses the `import pytest` (so no F401 lint error).
+  it('python BDD test skips cleanly when pytest-bdd is absent (B4)', () => {
+    const pyDir = createTestProject('python')
+    initGit(pyDir)
+    try {
+      generateBehavioralTests(makeConfig(pyDir, { language: 'python', archetype: 'library' }))
+      const content = readFileSync(join(pyDir, 'tests', 'bdd', 'test_example_bdd.py'), 'utf-8')
+      // importorskip guards collection without a separate unused import (no F401).
+      expect(content).toContain('pytest.importorskip("pytest_bdd")')
+      // The bare `import pytest` must remain (consumed by importorskip) and the
+      // pytest_bdd import must come AFTER the guard so it never executes unguarded.
+      const importGuardIdx = content.indexOf('pytest.importorskip')
+      const bddImportIdx = content.indexOf('from pytest_bdd import')
+      expect(importGuardIdx).toBeGreaterThan(-1)
+      expect(bddImportIdx).toBeGreaterThan(importGuardIdx)
+    } finally {
+      cleanupTestProject(pyDir)
+    }
+  })
+
   it('generates test_example_behavioral.py for python', () => {
     const pyDir = createTestProject('python')
     initGit(pyDir)
