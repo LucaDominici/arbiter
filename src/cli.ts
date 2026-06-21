@@ -347,7 +347,7 @@ process.on('exit', (code) => {
 
 const program = new Command()
 
-program.name('arbiter').description('AI development governance framework').version('0.1.0')
+program.name('arbiter').description('AI development governance framework').version('0.2.0')
 
 // Global flags. Declared so `--help` documents them; values are consumed pre-parse above.
 program
