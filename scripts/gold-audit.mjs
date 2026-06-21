@@ -254,6 +254,16 @@ function main() {
 
   // Default / --json: emit the scored payload enriched with the #1414 level band + gap report.
   const enriched = withPresentation(result)
+
+  // --cockpit-data (#1475): the data envelope the TS `--cockpit` renderer consumes — the SAME scored
+  // payload PLUS the out-of-band freshness object (wall-clock). Kept SEPARATE from `--json` so the
+  // scored artifact (no-regress baseline, bake snapshots) stays byte-deterministic + freshness-free.
+  if (flag('--cockpit-data')) {
+    const fresh = freshness(registry, CWD, { staleHours: STALE_HOURS })
+    process.stdout.write(JSON.stringify({ payload: enriched, freshness: fresh }) + '\n')
+    return 0
+  }
+
   if (flag('--json')) {
     const out = opt('--json', null)
     const text = JSON.stringify(enriched, null, 2) + '\n'
