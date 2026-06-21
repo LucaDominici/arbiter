@@ -10,6 +10,12 @@
 // pure (reads the tree, no spawn — INV-12).
 //
 // Exit: 0 = all refs resolve (or none declared); 1 = at least one dangling/unverifiable ref.
+//
+// CATALOG: rejected fold-in into scripts/check-adr-index.mjs because that gate validates ADR
+// CATALOG:   structure (canonical_id / index parity), not the cross-artifact enforces↔check/INV
+// CATALOG:   linkage — a different concern with its own registry + catalog reads.
+// CATALOG: rejected fold-in into scripts/lib/gold-audit-lib.mjs because that is the pure scored-
+// CATALOG:   payload evaluator; an ADR-frontmatter traceability gate is presentation/governance.
 
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
@@ -217,4 +223,10 @@ function main() {
   return 0
 }
 
-process.exit(main())
+try {
+  process.exit(main())
+} catch (err) {
+  // Fail-closed (INV-96): any unexpected error is a hard gate failure, never a silent pass.
+  process.stderr.write(`check-adr-enforcement: unexpected error — ${err?.message ?? err}\n`)
+  process.exit(1)
+}
