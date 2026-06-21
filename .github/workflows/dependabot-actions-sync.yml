@@ -17,6 +17,11 @@ on:
     paths:
       - '.github/workflows/**'
 
+# Supersede older in-flight syncs per PR — only the latest pin set matters.
+concurrency:
+  group: dependabot-actions-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

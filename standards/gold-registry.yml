@@ -31,6 +31,8 @@ dimensions:
     title: Enforcement dimensions E1–E7
   - id: D-SUPPLY-CHAIN
     title: Supply-chain (keyless signing + SBOM attestation)
+  - id: D-ACTIONS
+    title: CI/CD workflow hardening (SHA-pins, least-privilege permissions, concurrency, signing)
   - id: D-META-TEST
     title: Meta-test discipline (RED-on-bug + GREEN-on-clean per static rule)
 
@@ -64,6 +66,57 @@ checks:
     args: { path: CHANGELOG.md }
     weight: 1
     risk: SAFE
+  - id: GA-DOC-05
+    dimension: D-DOCS
+    title: ADR governance index present (architecture decisions are recorded)
+    type: file_exists
+    args: { path: docs/ADR/README.md }
+    weight: 1
+    risk: SAFE
+    anchor: INV-107
+  - id: GA-DOC-06
+    dimension: D-DOCS
+    title: Architecture overview present
+    type: file_exists
+    args: { path: docs/architecture/ARCHITECTURE.md }
+    weight: 1
+    risk: SAFE
+  - id: GA-DOC-07
+    dimension: D-DOCS
+    title: Contribution guide present
+    type: file_exists
+    args: { path: CONTRIBUTING.md }
+    weight: 1
+    risk: SAFE
+  - id: GA-DOC-08
+    dimension: D-DOCS
+    title: Documentation links resolve (no broken internal links)
+    type: value
+    args:
+      path: .arbiter/reports/doc-links.json
+      format: json
+      select: broken
+      op: lte
+      expected: 0
+    weight: 1
+    risk: SAFE
+    anchor: INV-55
+  - id: GA-DOC-09
+    dimension: D-DOCS
+    title: Doc-set completeness gate is wired (not just present — enforced)
+    type: file_contains
+    args: { path: scripts/check-all.mjs, pattern: 'doc-set' }
+    weight: 1
+    risk: SAFE
+    anchor: INV-135
+  - id: GA-DOC-10
+    dimension: D-DOCS
+    title: ADR enforcement-linkage gate is wired
+    type: file_contains
+    args: { path: scripts/check-all.mjs, pattern: 'adr-enforcement' }
+    weight: 1
+    risk: SAFE
+    anchor: INV-107
 
   # ---- D-EFFECTIVENESS: prove tools are WIRED, not just present (anti-ceremony) ----
   - id: GA-EFF-01
@@ -129,6 +182,56 @@ checks:
     type: manual
     weight: 1
     risk: SAFE
+
+  # ---- D-ACTIONS: CI/CD workflow hardening (deterministic report-metric + signing presence) ----
+  # The three value checks read .arbiter/reports/workflow-hardening.json, emitted by
+  # scripts/check-workflow-hardening.mjs (run BEFORE gold-audit in scripts/check-all.mjs). An absent
+  # report scores NA (the gate did not run) — never a false-Y.
+  - id: GA-ACT-01
+    dimension: D-ACTIONS
+    title: All GitHub Actions references are SHA-pinned (no mutable tag/branch refs)
+    type: value
+    args:
+      path: .arbiter/reports/workflow-hardening.json
+      format: json
+      select: unpinnedActions
+      op: lte
+      expected: 0
+    weight: 1
+    risk: SAFE
+    anchor: INV-76
+  - id: GA-ACT-02
+    dimension: D-ACTIONS
+    title: Every workflow declares a least-privilege permissions block
+    type: value
+    args:
+      path: .arbiter/reports/workflow-hardening.json
+      format: json
+      select: workflowsMissingPermissions
+      op: lte
+      expected: 0
+    weight: 1
+    risk: SAFE
+  - id: GA-ACT-03
+    dimension: D-ACTIONS
+    title: PR/push-triggered workflows declare concurrency (no redundant in-flight runs)
+    type: value
+    args:
+      path: .arbiter/reports/workflow-hardening.json
+      format: json
+      select: prPushWorkflowsMissingConcurrency
+      op: lte
+      expected: 0
+    weight: 1
+    risk: SAFE
+  - id: GA-ACT-04
+    dimension: D-ACTIONS
+    title: Release artifacts are keyless-signed (cosign sign-blob wired on release)
+    type: file_contains
+    args: { path: .github/workflows/05-release.yml, pattern: 'cosign sign-blob' }
+    weight: 1
+    risk: SAFE
+    anchor: INV-79
 
   # ---- D-META-TEST: every static rule needs a RED-on-bug + GREEN-on-clean fixture ----
   - id: GA-META-01

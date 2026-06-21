@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/REFERENCE/anti-fake-green.md'
 source_sha: '6b55f6338ad8bd8639e05c0412c9ee6d126c20f7'
-last_updated: '2026-06-20'
+last_updated: '2026-06-21'
 ---
 
 # Reference: Anti-fake-green guards

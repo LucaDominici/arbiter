@@ -2,7 +2,9 @@
 // Gate: verify markdown links in docs/ resolve; follow CANONICAL_PATHS redirects. (INV-55, #255)
 // Exits 0: all links resolve (possibly via redirect) or no docs found.
 // Exits 1: one or more broken links with no valid redirect.
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+// Also emits .arbiter/reports/doc-links.json ({ broken, filesScanned }) for the gold-audit
+// D-DOCS doc-link-integrity value check (GA-DOC-08) — deterministic, read by the gold engine.
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, dirname, resolve, relative, sep } from 'node:path'
 
 const CWD = process.cwd()
@@ -146,6 +148,14 @@ for (const file of markdownFiles) {
     broken++
   }
 }
+
+// Emit the deterministic report (consumed by gold-audit GA-DOC-08) in both branches.
+function writeDocLinksReport(brokenCount, filesScanned) {
+  const out = join(CWD, '.arbiter', 'reports', 'doc-links.json')
+  mkdirSync(dirname(out), { recursive: true })
+  writeFileSync(out, JSON.stringify({ broken: brokenCount, filesScanned }, null, 2) + '\n')
+}
+writeDocLinksReport(broken, markdownFiles.length)
 
 if (broken === 0) {
   process.stdout.write(`  check-doc-links: all links resolve (${markdownFiles.length} files scanned)

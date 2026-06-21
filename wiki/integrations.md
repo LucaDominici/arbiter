@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/INTEGRATIONS.md'
 source_sha: 'f0aafbb990c98688cb9d50239ec165ba596f0735'
-last_updated: '2026-06-20'
+last_updated: '2026-06-21'
 ---
 
 # Integrations

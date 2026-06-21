@@ -209,6 +209,8 @@ const CI_COVERAGE = new Map([
   ['ci tiers (INV-73)', 'gate-full'],
   ['action pin parity', 'gate-full'],
   ['action pin sha (INV-76)', 'gate-full'],
+  ['workflow hardening (INV-76/95)', 'gate-full'],
+  ['doc-set presence', 'gate-full'],
   ['anti-drift: suppression rationale', 'gate-full'],
   ['anti-drift: suppression expiry', 'gate-full'],
   ['anti-drift: pii scan config', 'gate-full'],

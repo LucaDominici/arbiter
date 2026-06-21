@@ -95,10 +95,19 @@ column, so the same check is strict on a greenfield `gold` repo and lenient on a
 
 ## Dimensions
 
-`D-DOCS`, `D-EFFECTIVENESS` (anti-ceremony: prove tools are wired, not just present),
-`D-ENFORCEMENT` (E1–E7), `D-SUPPLY-CHAIN` (keyless signing + SBOM attestation), `D-META-TEST`
-(RED-on-bug + GREEN-on-clean per static rule). Per-stack registries add their own families — e.g.
-the Java registry uses `D-BUILD`, `D-STYLE`, `D-COVERAGE`, `D-MUTATION`, `D-ARCH`.
+- **`D-DOCS`** — canonical doc-set present plus quality: ADR index, architecture overview,
+  contribution guide, doc-link integrity, and the doc-set / ADR-enforcement gates wired.
+- **`D-EFFECTIVENESS`** — anti-ceremony: prove tools are wired, not just present.
+- **`D-ENFORCEMENT`** — behavioural-endpoint coverage and gate-critical guards (E1–E7).
+- **`D-SUPPLY-CHAIN`** — keyless signing and SBOM attestation.
+- **`D-ACTIONS`** — CI/CD workflow hardening: every action SHA-pinned, least-privilege
+  `permissions:`, `concurrency:` on PR/push workflows, and keyless release signing. The
+  pinning / permissions / concurrency checks read `.arbiter/reports/workflow-hardening.json`,
+  emitted by `scripts/check-workflow-hardening.mjs`.
+- **`D-META-TEST`** — RED-on-bug plus GREEN-on-clean per static rule.
+
+Per-stack registries add their own families — e.g. the Java registry uses `D-BUILD`, `D-STYLE`,
+`D-COVERAGE`, `D-MUTATION`, `D-ARCH`.
 
 ## Per-stack registries (`--stack`)
 

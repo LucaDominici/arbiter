@@ -6,6 +6,12 @@ on:
   pull_request:
     types: [synchronize]
 
+# Serialize per PR but never cancel in-flight approval processing — a cancelled run
+# could drop an approval-label apply. cancel-in-progress: false is deliberate.
+concurrency:
+  group: human-approval-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 

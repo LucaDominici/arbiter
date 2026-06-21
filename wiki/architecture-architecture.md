@@ -2,7 +2,7 @@
 generated: true
 source: 'docs/architecture/ARCHITECTURE.md'
 source_sha: 'a80009cc809344baaba2a53a61b45c3952c3d915'
-last_updated: '2026-06-20'
+last_updated: '2026-06-21'
 ---
 
 # arbiter Architecture

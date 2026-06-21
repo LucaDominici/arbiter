@@ -157,13 +157,6 @@ if (isMain) {
   runCheck('wiki lint (INV-116)', 'node', ['scripts/check-wiki-lint.mjs'])
   runCheck('node version ssot', 'node', ['scripts/check-node-version-ssot.mjs'])
   runCheck('bloat ratchet', 'node', ['scripts/check-bloat-ratchet.mjs'])
-  runCheck('gold-audit no-regress (#1373)', 'node', [
-    'scripts/gold-audit.mjs',
-    '--check',
-    '--require-baseline',
-  ])
-  runCheck('gold-audit false-gap (#1373)', 'node', ['scripts/gold-audit.mjs', '--strict'])
-  runCheck('gold registries no-false-gap (#1413)', 'node', ['scripts/check-gold-registries.mjs'])
   runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs'])
   runCheck('pipe/tee hazard', 'node', ['scripts/check-pipe-tee-hazard.mjs'])
   runCheck('ssot core', 'node', ['scripts/check-ssot-core.mjs'])
@@ -188,6 +181,20 @@ if (isMain) {
   runCheck('ci tiers (INV-73)', 'node', ['scripts/check-ci-tiers.mjs'])
   runCheck('action pin parity', 'node', ['scripts/sync-action-pins.mjs', '--check'])
   runCheck('action pin sha (INV-76)', 'node', ['scripts/check-action-pins.mjs'])
+  // Workflow hardening report (gold-audit D-ACTIONS value-report source) — emits
+  // .arbiter/reports/workflow-hardening.json. MUST precede the gold-audit no-regress check
+  // below so the D-ACTIONS value checks read a fresh report (absent ⇒ NA ⇒ yCount regress).
+  runCheck('workflow hardening (INV-76/95)', 'node', ['scripts/check-workflow-hardening.mjs'])
+  // Gold-audit no-regress + false-gap + registry validation. Relocated here (after the
+  // 'doc links' and 'workflow hardening' report generators) so the D-DOCS/D-ACTIONS value
+  // checks evaluate against fresh .arbiter/reports/*.json rather than absent (NA) reports.
+  runCheck('gold-audit no-regress (#1373)', 'node', [
+    'scripts/gold-audit.mjs',
+    '--check',
+    '--require-baseline',
+  ])
+  runCheck('gold-audit false-gap (#1373)', 'node', ['scripts/gold-audit.mjs', '--strict'])
+  runCheck('gold registries no-false-gap (#1413)', 'node', ['scripts/check-gold-registries.mjs'])
   runToolCheck('actionlint', 'actionlint', [])
   // Local↔CI parity guards (#1244 follow-up): keep the gate's external tools pinned
   // and installable locally, and keep permission tests root-guarded — the two
@@ -288,9 +295,10 @@ if (isMain) {
       runWarnCheck('conformance', 'node', ['scripts/conformance.mjs', '--check'])
     }
 
-    // Advisory (#1428/INV-135): doc-set presence audit — informational, never blocks gate.
+    // Strict (#1481/INV-135): doc-set mandatory-doc completeness — a missing mandatory doc
+    // fails the gate (--strict). Recommended-tier gaps remain advisory inside the script.
     if (existsSync('scripts/check-doc-set.mjs')) {
-      runWarnCheck('doc-set presence', 'node', ['scripts/check-doc-set.mjs'])
+      runCheck('doc-set presence', 'node', ['scripts/check-doc-set.mjs', '--strict'])
     }
   }
 
