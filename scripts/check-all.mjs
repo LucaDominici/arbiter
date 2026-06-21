@@ -176,6 +176,7 @@ if (isMain) {
   runCheck('ssot core index (#1100)', 'node', ['scripts/gen-ssot-core.mjs', '--check'])
   runCheck('adr index (INV-107)', 'node', ['scripts/check-adr-index.mjs'])
   runCheck('adr digest (INV-107)', 'node', ['scripts/gen-adr-readme.mjs', '--check'])
+  runCheck('adr enforcement linkage (#1473)', 'node', ['scripts/check-adr-enforcement.mjs'])
   runCheck('cli ref parity (INV-111)', 'node', ['scripts/gen-cli-ref.mjs', '--check'])
   runCheck('phase doc consistency (INV-113)', 'node', ['scripts/check-phase-doc-consistency.mjs'])
   runCheck('canonical paths', 'node', ['scripts/check-canonical-paths.mjs'])

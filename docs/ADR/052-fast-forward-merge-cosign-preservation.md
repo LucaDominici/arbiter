@@ -7,6 +7,7 @@ owner: ''
 canonical_id: '052'
 tags: ['audience/dev', 'kind/adr']
 related: ['docs/ADR/051-merge-train-collaboration-mode.md']
+enforces: ['INV-101']
 ---
 
 # ADR-052 — Fast-Forward Merge Policy and Cosign SHA Preservation

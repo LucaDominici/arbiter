@@ -795,3 +795,68 @@ export function gapReport(result) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([dimension, gaps]) => ({ dimension, checks: gaps }))
 }
+
+// ── #1473: fail-closed freshness banner (out-of-band, NEVER in the scored payload) ───────────────
+//
+// A `value` check with an `args.format` reads a PRE-GENERATED tool report; an absent report scores
+// NA silently (the tool may not apply OR may simply never have run). freshness() is the out-of-band
+// signal that distinguishes those: it stats every value-check report path and reports FRESH/PARTIAL/
+// STALE. The wall-clock (mtime / now) lives ONLY here — it never enters evaluate()'s byte-deterministic
+// payload — so the scored artifact stays reproducible while the banner stays honest (fail-closed:
+// a report that is absent, or older than the window, is never counted as FRESH).
+
+/**
+ * Classify the freshness of the value-check report files declared by `registry`. Pure given (now).
+ *   FRESH   — every declared report present AND within staleHours (or no reports declared at all)
+ *   PARTIAL — at least one report present, but some missing or older than the window
+ *   STALE   — reports are declared but NONE are present (the tools never ran)
+ * @param {{checks?: unknown[]}} registry
+ * @param {string} root
+ * @param {{ staleHours?: number, now?: number }} [options]
+ * @returns {{ status: 'FRESH'|'PARTIAL'|'STALE', staleHours: number,
+ *   counts: { total: number, present: number, fresh: number },
+ *   reports: Array<{ path: string, present: boolean, ageHours: number|null, fresh: boolean }> }}
+ */
+export function freshness(registry, root, options = {}) {
+  const staleHours =
+    Number.isFinite(options.staleHours) && options.staleHours >= 0 ? options.staleHours : 24
+  const now = typeof options.now === 'number' ? options.now : Date.now()
+  const checks = Array.isArray(registry?.checks) ? registry.checks : []
+  const reports = []
+  for (const c of checks) {
+    if (!c || typeof c !== 'object') continue
+    if (c.type !== 'value') continue
+    const args = c.args || {}
+    // Only a value check with a report `format` reads a pre-generated tool report; a legacy value
+    // check (args.equals, no format) reads a tracked source file and is not a freshness concern.
+    if (!args.format) continue
+    const p = typeof args.path === 'string' ? args.path : null
+    if (p === null) continue
+    const abs = safeResolve(root, p)
+    let present = false
+    let ageHours = null
+    if (abs !== null) {
+      try {
+        const st = statSync(abs)
+        if (st.isFile()) {
+          present = true
+          ageHours = Math.max(0, (now - st.mtimeMs) / (3600 * 1000))
+        }
+      } catch {
+        present = false
+      }
+    }
+    const fresh = present && ageHours !== null && ageHours <= staleHours
+    reports.push({ path: p, present, ageHours, fresh })
+  }
+  // Stable banner order (code-unit), deterministic across runs.
+  reports.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+  const total = reports.length
+  const present = reports.filter((r) => r.present).length
+  const fresh = reports.filter((r) => r.fresh).length
+  let status
+  if (total === 0 || fresh === total) status = 'FRESH'
+  else if (present === 0) status = 'STALE'
+  else status = 'PARTIAL'
+  return { status, staleHours, counts: { total, present, fresh }, reports }
+}

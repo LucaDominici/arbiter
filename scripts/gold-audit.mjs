@@ -39,7 +39,7 @@
 // is unaffected (#1414).
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import {
   evaluate,
@@ -48,6 +48,7 @@ import {
   baselineOf,
   levelBand,
   gapReport,
+  freshness,
 } from './lib/gold-audit-lib.mjs'
 
 const args = process.argv.slice(2)
@@ -62,6 +63,8 @@ if (args.includes('--help') || args.includes('-h')) {
       '  --check            no-regress gate: exit 1 if score/Y dropped vs baseline',
       '  --require-baseline N1 disarm guard: with --check, a missing baseline is a HARD FAIL',
       '  --strict           false-gap meta-gate: exit 1 if any RISKY check exists',
+      '  --check-fresh      freshness gate: exit 1 if value-check reports are STALE (none present)',
+      '  --stale-hours N    freshness window in hours for --check-fresh / the banner (default 24)',
       '  --update-baseline  monotonically ratchet the baseline (never lowers a field)',
       '  --stack S          select per-stack registry standards/gold-registry.<S>.yml',
       '  --class C          brownfieldClass for the level band: gold|light|medium|heavy',
@@ -96,6 +99,8 @@ const BASELINE = opt('--baseline', '.gold-audit-baseline.json')
 // --thresholds P: the brownfield-class SSOT used to resolve value-op `threshold_ref` per --class
 // (#1413). The value op reads pre-generated tool reports; the bar differs by brownfield class.
 const THRESHOLDS = opt('--thresholds', 'standards/thresholds.yml')
+// #1473: freshness window (hours) for --check-fresh and the advisory banner.
+const STALE_HOURS = Number(opt('--stale-hours', 24))
 
 /**
  * Enrich the raw scored payload with the #1414 presentation fields (level band + gap report).
@@ -181,6 +186,25 @@ function main() {
     return 1
   }
 
+  // --check-fresh freshness gate (#1473): fail-closed exit 1 when the value-check reports are STALE
+  // (declared but NONE present — the tools never ran). Out-of-band: the wall-clock never touches the
+  // scored payload or the no-regress baseline. PARTIAL/FRESH are advisory (exit 0).
+  if (flag('--check-fresh')) {
+    const f = freshness(registry, CWD, { staleHours: STALE_HOURS })
+    const c = f.counts
+    if (f.status === 'STALE') {
+      process.stderr.write(
+        `gold-audit: FAIL — freshness STALE: ${c.present}/${c.total} value-check report(s) present ` +
+          `(the tools never ran). Regenerate the reports or remove the value checks.\n`,
+      )
+      return 1
+    }
+    process.stdout.write(
+      `gold-audit: freshness ${f.status} (${c.fresh}/${c.total} report(s) within ${f.staleHours}h)\n`,
+    )
+    return 0
+  }
+
   // --update-baseline: monotonic ratchet (can only tighten).
   if (flag('--update-baseline')) {
     const next = ratchet(result, readBaseline())
@@ -241,6 +265,16 @@ function main() {
       process.stdout.write(text)
     }
     return 0
+  }
+
+  // Advisory freshness banner (out-of-band; never in the --json scored payload). Only shown when the
+  // registry declares value-check reports — otherwise there is nothing to be fresh/stale about.
+  const fresh = freshness(registry, CWD, { staleHours: STALE_HOURS })
+  if (fresh.counts.total > 0) {
+    process.stdout.write(
+      `gold-audit: freshness ${fresh.status} ` +
+        `(${fresh.counts.fresh}/${fresh.counts.total} report(s) within ${fresh.staleHours}h)\n`,
+    )
   }
 
   const band = enriched.level
