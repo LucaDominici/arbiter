@@ -104,14 +104,19 @@ describe('check-all.mjs.ejs rendering — BDD gate (#361)', () => {
     expect(content).toContain("runCheck('bdd', 'pytest', ['tests/bdd/']")
   })
 
-  it('Go: emits go test BDD runCheck', () => {
+  it('Go: emits go test BDD runCheck (build-tag isolated, godog-gated) (#1042)', () => {
     const data = makeConfig('/tmp/test', {
       language: 'go',
       governanceLevel: 'L2',
       coverageEnabled: false,
     }) as unknown as Record<string, unknown>
     const content = renderTemplate('scripts/check-all.mjs.ejs', data)
-    expect(content).toContain("runCheck('bdd', 'go', ['test', './internal/bdd/...']")
+    // BDD test is `//go:build bdd`-tagged; the gate runs it with `-tags bdd` and
+    // only when godog is actually wired into go.mod — otherwise SKIPs cleanly.
+    expect(content).toContain(
+      "runCheck('bdd', 'go', ['test', '-tags', 'bdd', './internal/bdd/...']",
+    )
+    expect(content).toContain("_goMod.includes('github.com/cucumber/godog')")
   })
 
   it('Java Gradle: emits cucumberTest BDD runCheck', () => {

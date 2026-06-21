@@ -1,3 +1,12 @@
+//go:build bdd
+// +build bdd
+
+// BDD suite — guarded by the `bdd` build tag so the unresolved
+// github.com/cucumber/godog import does NOT break the default build. The
+// generated gate runs it explicitly with `go test -tags bdd ./internal/bdd/...`
+// (see scripts/check-all.mjs), while `go vet/test/staticcheck ./...`, coverage
+// and complexity all skip it cleanly until the dependency is wired. Mirrors the
+// Python suite's `pytest.importorskip("pytest_bdd")` graceful-skip pattern.
 package bdd_test
 
 import (

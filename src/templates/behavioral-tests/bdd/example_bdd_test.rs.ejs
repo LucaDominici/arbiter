@@ -1,7 +1,20 @@
-// Requires in Cargo.toml:
+// BDD suite — gated behind the `bdd` cargo feature. `cargo test` compiles every
+// file under tests/ as an integration crate, so the cucumber/tokio imports below
+// would break the DEFAULT build (the gate's `unit tests` check) until the deps
+// are wired. The crate-level cfg compiles this file to EMPTY unless the project
+// declares a `bdd` feature; the gate runs it with `cargo test --features bdd`.
+// Mirrors the Go `//go:build bdd` tag and Python `importorskip` graceful skip.
+//
+// To enable, add to Cargo.toml:
+//   [features]
+//   bdd = []
+//   [dev-dependencies]
+//   cucumber = "0.21"
+//   tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 //   [[test]]
 //   name = "example_bdd_test"
 //   harness = false
+#![cfg(feature = "bdd")]
 use cucumber::{given, then, when, World};
 
 #[derive(Debug, Default, World)]

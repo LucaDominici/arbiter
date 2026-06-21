@@ -832,13 +832,41 @@ if (level === 'L2') {
 <% } else if (language === 'python') { %>
   runCheck('bdd', 'pytest', ['tests/bdd/'], { soft: graceActive });
 <% } else if (language === 'go') { %>
-  runCheck('bdd', 'go', ['test', './internal/bdd/...'], { soft: graceActive });
+  // godog is an L2 (full-gate) dependency, not wired into go.mod by `arbiter
+  // init` (which runs offline). The BDD test is `//go:build bdd`-tagged so it
+  // never breaks the default build; here we run it ONLY when the project has
+  // actually required github.com/cucumber/godog — otherwise SKIP cleanly, the
+  // direct parallel of Python's `pytest.importorskip("pytest_bdd")`.
+  {
+    const _goBddStart = Date.now();
+    const _goMod = existsSync('go.mod') ? readFileSync('go.mod', 'utf-8') : '';
+    if (_goMod.includes('github.com/cucumber/godog')) {
+      runCheck('bdd', 'go', ['test', '-tags', 'bdd', './internal/bdd/...'], { soft: graceActive });
+    } else {
+      console.log('[CHECK] bdd ... SKIP (github.com/cucumber/godog not in go.mod — run: go get github.com/cucumber/godog)');
+      pushResult('bdd', 'SKIP', Date.now() - _goBddStart);
+    }
+  }
 <% } else if (language === 'java' && buildTool === 'gradle') { %>
   runCheck('bdd', './gradlew', ['cucumberTest'], { soft: graceActive });
 <% } else if (language === 'java' && buildTool === 'maven') { %>
   runCheck('bdd', 'mvn', ['test', '-Dtest=*BDD*'], { soft: graceActive });
 <% } else if (language === 'rust') { %>
-  runCheck('bdd', 'cargo', ['test', '--features', 'bdd'], { soft: graceActive });
+  // The `cucumber` crate is an L2 dependency the scaffolded Cargo.toml does not
+  // declare (`arbiter init` does not own a greenfield Cargo.toml). `cargo test
+  // --features bdd` errors on an unknown feature, so run it ONLY when the
+  // project has declared a `bdd` feature — otherwise SKIP cleanly. Same
+  // graceful-skip contract as the Go/Python BDD gates above.
+  {
+    const _rustBddStart = Date.now();
+    const _cargoToml = existsSync('Cargo.toml') ? readFileSync('Cargo.toml', 'utf-8') : '';
+    if (/^\s*bdd\s*=/m.test(_cargoToml) || _cargoToml.includes('cucumber')) {
+      runCheck('bdd', 'cargo', ['test', '--features', 'bdd'], { soft: graceActive });
+    } else {
+      console.log('[CHECK] bdd ... SKIP (no `bdd` feature / cucumber dep in Cargo.toml — see tests/example_bdd_test.rs)');
+      pushResult('bdd', 'SKIP', Date.now() - _rustBddStart);
+    }
+  }
 <% } %>
   // ─── L2: Debt Ratchet ────────────────────────────────────────────────────────
   // Compares against baseline if debt-baseline.json exists (skips gracefully if absent)

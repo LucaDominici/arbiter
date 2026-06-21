@@ -326,6 +326,22 @@ describe('BDD templates — real Gherkin + framework bindings', () => {
     expect(out).toContain('TestSuite')
   })
 
+  it('example_test.go.ejs: is guarded by a //go:build bdd tag (#1042)', () => {
+    // The godog import is unresolvable until the project wires the dependency.
+    // Without a build tag the file breaks the DEFAULT build, cascading into
+    // `go vet ./...`, `go test ./...`, staticcheck, coverage and complexity —
+    // every whole-module check fails. A `//go:build bdd` constraint excludes it
+    // from the default build, so the freshly-scaffolded gate is green; the bdd
+    // check runs it explicitly with `-tags bdd`. Mirrors Python's importorskip.
+    const out = renderBehavioral('behavioral-tests/bdd/example_test.go.ejs', {
+      language: 'go',
+    })
+    const firstLine = out.split('\n')[0]
+    expect(firstLine).toBe('//go:build bdd')
+    // Legacy-Go build-constraint twin must accompany the new directive.
+    expect(out).toContain('// +build bdd')
+  })
+
   it('ExampleBddIT.java.ejs: uses cucumber-junit-platform-engine @Suite', () => {
     const out = renderBehavioral('behavioral-tests/bdd/ExampleBddIT.java.ejs', {
       language: 'java',
@@ -340,6 +356,21 @@ describe('BDD templates — real Gherkin + framework bindings', () => {
     })
     expect(out).toContain('cucumber')
     expect(out).toContain('World')
+  })
+
+  it('example_bdd_test.rs.ejs: is gated behind the `bdd` cargo feature (#1042)', () => {
+    // `cargo test` compiles every file under tests/ as an integration crate, so
+    // the unresolved `cucumber`/`tokio` imports break the DEFAULT `unit tests`
+    // check. A crate-level `#![cfg(feature = "bdd")]` compiles the file to empty
+    // unless the project declares the `bdd` feature — the gate runs it with
+    // `cargo test --features bdd`. Same graceful-skip contract as Go/Python.
+    const out = renderBehavioral('behavioral-tests/bdd/example_bdd_test.rs.ejs', {
+      language: 'rust',
+    })
+    const firstNonComment = out
+      .split('\n')
+      .find((l) => l.trim() !== '' && !l.trim().startsWith('//'))
+    expect(firstNonComment).toBe('#![cfg(feature = "bdd")]')
   })
 
   it('no BDD template contains @ignore tag', () => {
