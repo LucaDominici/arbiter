@@ -20,7 +20,8 @@ features:
       no configuration files to manually author.
   - title: Multi-tool
     details: >
-      Claude Code, Codex, Cursor, Copilot, Windsurf, Aider, Gemini CLI.
+      Claude Code and Codex out of the box (Cursor, Copilot, Windsurf, Aider,
+      Gemini CLI are experimental, behind `--accept-beta-tools`).
       All tools read the same canonical `AGENTS.md`.
   - title: Zero telemetry
     details: >
@@ -28,7 +29,7 @@ features:
       See the [Privacy Policy](/privacy) for details.
   - title: Gate or fail
     details: >
-      L1 / L2 / L3 gate tiers enforce governance at commit, push,
+      L1 / L2 / L3 / L4 gate tiers enforce governance at commit, push,
       and CI — not just in documentation.
   - title: Governance is the product
     details: >

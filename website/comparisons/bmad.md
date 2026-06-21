@@ -2,7 +2,7 @@
 title: 'arbiter vs BMAD'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-06-22'
 owner: ''
 canonical_id: ''
 tags: []
@@ -59,7 +59,7 @@ arbiter does not define agent roles or workflow phases. It defines the _rules th
 - You need the AI tool to be _blocked_ from writing `any` types, `.unwrap()` calls, or orphan TODOs — not just asked not to
 - You want CI to fail hard on governance violations, not warn
 - You need a consistent, language-specific AGENTS.md with matching hooks deployed in under a minute
-- You are working with multiple AI tools (Claude Code, Codex, Cursor) and need unified governance across all of them from one install
+- You are working with multiple AI tools (Claude Code and Codex out of the box; Cursor and others experimental) and need unified governance across all of them from one install
 
 ## Using both together
 
@@ -67,4 +67,4 @@ BMAD governs _workflow_; arbiter governs _rules_. A project can use BMAD persona
 
 ---
 
-_Last reviewed: 2026-05-15_
+_Last reviewed: 2026-06-22_

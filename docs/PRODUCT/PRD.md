@@ -58,14 +58,14 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 
 ## Non-Goals
 
-| Non-goal                                          | Rationale                                                                                                                                                             |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime enforcement (blocking bad code)           | That's the AI tool's job. Arbiter sets policy, tools enforce it.                                                                                                      |
-| AI model configuration                            | Which model to use is out of scope. Arbiter configures governance, not model selection.                                                                               |
-| Replacing ai-rulez                                | ai-rulez is a format translator. Arbiter is a governance installer. They are complementary — if ai-rulez is detected, Arbiter delegates tool config generation to it. |
-| IDE plugins (VS Code extension, JetBrains plugin) | CLI-first. IDE integration comes through tool configs, not Arbiter directly.                                                                                          |
-| Locking to a specific AI tool                     | Arbiter is tool-agnostic. The canonical source (`AGENTS.md`) is read natively by all major tools.                                                                     |
-| Cloud/SaaS dashboard                              | Offline-first CLI. No accounts, no telemetry, no cloud dependency.                                                                                                    |
+| Non-goal                                          | Rationale                                                                                                                                                                                                                                          |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime enforcement (blocking bad code)           | That's the AI tool's job. Arbiter sets policy, tools enforce it. (The optional `/ship`+`/drain` orchestration layer drives the workflow but still relies on the installed gates to enforce — it does not itself rewrite or block code at runtime.) |
+| AI model configuration                            | Which model to use is out of scope. Arbiter configures governance, not model selection.                                                                                                                                                            |
+| Replacing ai-rulez                                | ai-rulez is a format translator. Arbiter is a governance installer. They are complementary — if ai-rulez is detected, Arbiter delegates tool config generation to it.                                                                              |
+| IDE plugins (VS Code extension, JetBrains plugin) | CLI-first. IDE integration comes through tool configs, not Arbiter directly.                                                                                                                                                                       |
+| Locking to a specific AI tool                     | Arbiter is tool-agnostic. The canonical source (`AGENTS.md`) is read natively by all major tools.                                                                                                                                                  |
+| Cloud/SaaS dashboard                              | Offline-first CLI. No accounts, no telemetry, no cloud dependency.                                                                                                                                                                                 |
 
 ---
 
@@ -205,7 +205,7 @@ Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
 ## Constraints
 
-- **Node.js ≥ 20** required (ES module support, `node:` protocol)
+- **Node.js ≥ 22** required (ES module support, `node:` protocol)
 - **`gh` CLI required** for GitHub operations (labels, branch protection, repository config)
 - **No cloud dependency**: all generation is local; GitHub ops require authenticated `gh` CLI
 - **Offline-first**: `arbiter init --yes --no-github` must work with no network access

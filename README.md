@@ -35,23 +35,31 @@ Doing this by hand across stacks and tools is copy-paste work that rots the mome
 
 **No telemetry.** Arbiter collects zero usage data and makes zero unsolicited network calls. See [PRIVACY.md](PRIVACY.md).
 
-**Honest framing.** Arbiter is a governance installer, not an AI workflow or persona framework. See [`docs/PRODUCT/PRD.md`](docs/PRODUCT/PRD.md) for what arbiter is, what it is not, and how it relates to other tools.
+**Honest framing.** Arbiter is a governance installer with an optional orchestration layer. Its **core** is the installer — the canonical `AGENTS.md`, hooks, gate scripts, and CI it provisions. On top of that core it ships an _optional_ orchestration layer (`/ship`, `/drain`, and four sub-agents) that drives issues to merged PRs against the same governance contract; you can ignore it entirely and just use the installed gates. It is **not** a persona framework — it never tells the AI _who to be_. See [`docs/PRODUCT/PRD.md`](docs/PRODUCT/PRD.md) for what arbiter is, what it is not, and how it relates to other tools.
 
 ---
 
 ## How it compares
 
-| Capability                   | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
-| ---------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
-| Canonical governance file    | ✓       | —    | —    | —           | —           | —        |
-| Language-aware generation    | ✓       | —    | —    | —           | —           | —        |
-| L1/L2/L3/L4 governance tiers | ✓       | —    | —    | —           | —           | —        |
-| Generated hook scripts       | ✓       | —    | —    | —           | —           | —        |
-| CI workflow generation       | ✓       | —    | —    | —           | —           | —        |
-| Idempotent update            | ✓       | —    | —    | —           | —           | —        |
-| Zero telemetry               | ✓       | —    | —    | —           | —           | —        |
+| Capability                        | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
+| --------------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
+| Canonical governance file         | ✓       | —    | —    | —           | —           | —        |
+| Language-aware generation         | ✓       | —    | —    | —           | —           | —        |
+| L1/L2/L3/L4 governance tiers      | ✓       | —    | —    | —           | —           | —        |
+| Generated hook scripts            | ✓       | —    | —    | —           | —           | —        |
+| CI workflow generation            | ✓       | —    | —    | —           | —           | —        |
+| Idempotent update                 | ✓       | —    | —    | —           | —           | —        |
+| Zero telemetry                    | ✓       | —    | —    | —           | —           | —        |
+| Specialized sub-agents¹           | ✓       | ✓    | ✓    | ✓           | ✓           | —        |
+| Autonomous task execution¹        | ✓       | —    | ✓    | ✓           | —           | —        |
+| Parallel agent orchestration¹     | ✓       | —    | —    | ✓           | —           | —        |
+| Agent personas / role definitions | —       | ✓    | —    | —           | ✓           | —        |
 
-> Arbiter is a governance installer, not a workflow or persona framework. [Full comparison →](website/comparisons/index.md)
+> ¹ Provided by arbiter's **optional orchestration layer** (`/ship`, `/drain`, and the
+> `bridge-reviewer`/`codebase-scanner`/`context-checker`/`red-team` sub-agents) — distinct from the
+> installer **core** (rows above the line), which is usable on its own. Arbiter is a governance
+> installer with an optional orchestration layer; it is **not** a _persona_ framework.
+> [Full comparison →](website/comparisons/index.md)
 
 ---
 

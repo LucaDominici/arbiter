@@ -2,7 +2,7 @@
 title: 'arbiter vs claude-flow'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-06-22'
 owner: ''
 canonical_id: ''
 tags: []
@@ -26,25 +26,29 @@ claude-flow is an **agent fleet coordinator**. Its primary value is parallelism 
 
 ## What arbiter does
 
-arbiter is a **governance installer**. It produces a static set of governance artifacts — AGENTS.md, hook scripts, gate commands, CI workflows — that define the rules any agent (including Claude agents) must follow. arbiter is tool-agnostic: it supports Claude Code, Codex, Cursor, Windsurf, and others from a single install.
+arbiter's **core** is a **governance installer**. It produces a static set of governance artifacts — AGENTS.md, hook scripts, gate commands, CI workflows — that define the rules any agent (including Claude agents) must follow. arbiter supports Claude Code and Codex out of the box (Cursor, Windsurf, and others exist as experimental generators).
 
-arbiter does not coordinate agents at runtime. It defines the rules that govern what those agents may produce.
+arbiter _also_ ships an **optional orchestration layer** (`/ship`, `/drain`, four sub-agents) that can drive issues to merged PRs and dispatch parallel agents in isolated worktrees. The key distinction from claude-flow is that arbiter's orchestration is a thin layer over the governance contract — it has **no runtime fleet coordinator and no shared agent memory/state**; claude-flow is purpose-built around exactly those.
 
 ---
 
 ## Feature comparison
 
-| Capability                   | arbiter | claude-flow |
-| ---------------------------- | ------- | ----------- |
-| Multi-agent orchestration    | —       | ✓           |
-| Parallel agent execution     | —       | ✓           |
-| Shared agent memory/state    | —       | ✓           |
-| Governance file (AGENTS.md)  | ✓       | —           |
-| Blocking hook scripts        | ✓       | —           |
-| CI workflow generation       | ✓       | —           |
-| Multi-tool support (7 tools) | ✓       | —           |
-| Language-aware setup         | ✓       | —           |
-| npx install in one step      | ✓       | —           |
+| Capability                          | arbiter | claude-flow |
+| ----------------------------------- | ------- | ----------- |
+| Multi-agent orchestration¹          | ✓       | ✓           |
+| Parallel agent execution¹           | ✓       | ✓           |
+| Shared agent memory/state           | —       | ✓           |
+| Runtime fleet coordinator           | —       | ✓           |
+| Governance file (AGENTS.md)         | ✓       | —           |
+| Blocking hook scripts               | ✓       | —           |
+| CI workflow generation              | ✓       | —           |
+| Multi-tool support (Claude + Codex) | ✓       | —           |
+| Language-aware setup                | ✓       | —           |
+| npx install in one step             | ✓       | —           |
+
+> **¹** Via arbiter's _optional orchestration layer_ (`/ship`, `/drain`) — distinct from the installer
+> core, and lighter-weight than claude-flow's runtime fleet coordination.
 
 ---
 
@@ -58,7 +62,7 @@ arbiter does not coordinate agents at runtime. It defines the rules that govern 
 ## When to choose arbiter
 
 - You need governance rules enforced at the tool level — hooks that block violations before they land, not agent prompts that ask nicely
-- You are working with multiple AI tools beyond Claude (Codex, Cursor, Windsurf) and need consistent governance across all of them
+- You are working with multiple AI tools beyond Claude (Codex out of the box; Cursor, Windsurf experimental) and need consistent governance across all of them
 - You want a complete project governance setup (AGENTS.md + hooks + CI) in one install that works without an ongoing runtime
 - You need CI to reject non-compliant output regardless of which agent produced it
 
@@ -68,4 +72,4 @@ claude-flow manages _how agents are coordinated_; arbiter manages _what rules th
 
 ---
 
-_Last reviewed: 2026-05-15_
+_Last reviewed: 2026-06-22_

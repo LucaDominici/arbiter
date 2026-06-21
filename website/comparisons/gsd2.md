@@ -2,7 +2,7 @@
 title: 'arbiter vs GSD2'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-06-22'
 owner: ''
 canonical_id: ''
 tags: []
@@ -32,16 +32,20 @@ arbiter is a **governance installer**. It does not orchestrate tasks or drive ex
 
 ## Feature comparison
 
-| Capability                    | arbiter | GSD2 |
-| ----------------------------- | ------- | ---- |
-| Autonomous task execution     | —       | ✓    |
-| Multi-agent sub-task dispatch | —       | ✓    |
-| Governance file (AGENTS.md)   | ✓       | —    |
-| Blocking hook scripts         | ✓       | —    |
-| CI workflow generation        | ✓       | —    |
-| Multi-tool support (7 tools)  | ✓       | ✓    |
-| Language-aware setup          | ✓       | —    |
-| Zero telemetry guarantee      | ✓       | —    |
+| Capability                          | arbiter | GSD2 |
+| ----------------------------------- | ------- | ---- |
+| Autonomous task execution¹          | ✓       | ✓    |
+| Multi-agent sub-task dispatch¹      | ✓       | ✓    |
+| Governance file (AGENTS.md)         | ✓       | —    |
+| Blocking hook scripts               | ✓       | —    |
+| CI workflow generation              | ✓       | —    |
+| Multi-tool support (Claude + Codex) | ✓       | ✓    |
+| Language-aware setup                | ✓       | —    |
+| Zero telemetry guarantee            | ✓       | —    |
+
+> **¹** Via arbiter's _optional orchestration layer_ (`/ship`, `/drain`) — distinct from, and not
+> required by, the installer core. GSD2 is built around autonomous execution as its primary purpose;
+> for arbiter it is an add-on over the governance contract.
 
 ---
 
@@ -65,4 +69,4 @@ GSD2 handles _what gets done and how tasks are orchestrated_; arbiter handles _w
 
 ---
 
-_Last reviewed: 2026-05-15_
+_Last reviewed: 2026-06-22_

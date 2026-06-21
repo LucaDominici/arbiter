@@ -2,7 +2,7 @@
 title: 'arbiter vs SuperClaude'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-06-22'
 owner: ''
 canonical_id: ''
 tags: []
@@ -28,24 +28,24 @@ SuperClaude is a **Claude Code UX enhancer**. Its primary value is productivity:
 
 arbiter is a **governance installer**. It generates the project-level artifacts that enforce quality standards: hook scripts that block violations at write time, gate commands that fail CI on coverage or lint regressions, and AGENTS.md that defines the invariants any AI tool must follow.
 
-arbiter works across tools. Its governance artifacts apply whether you are using Claude Code, Codex, Cursor, or any other supported AI coding tool.
+arbiter works across tools. Its governance artifacts apply whether you are using Claude Code or Codex (the supported tools out of the box; Cursor and others are experimental).
 
 ---
 
 ## Feature comparison
 
-| Capability                   | arbiter | SuperClaude |
-| ---------------------------- | ------- | ----------- |
-| Enhanced slash commands      | —       | ✓           |
-| Specialized Claude personas  | —       | ✓           |
-| Curated prompt library       | —       | ✓           |
-| Governance file (AGENTS.md)  | ✓       | —           |
-| Blocking hook scripts        | ✓       | —           |
-| CI workflow generation       | ✓       | —           |
-| Multi-tool support (7 tools) | ✓       | —           |
-| Language-aware setup         | ✓       | —           |
-| L1/L2/L3 governance tiers    | ✓       | —           |
-| Zero telemetry guarantee     | ✓       | —           |
+| Capability                          | arbiter | SuperClaude |
+| ----------------------------------- | ------- | ----------- |
+| Enhanced slash commands             | —       | ✓           |
+| Specialized Claude personas         | —       | ✓           |
+| Curated prompt library              | —       | ✓           |
+| Governance file (AGENTS.md)         | ✓       | —           |
+| Blocking hook scripts               | ✓       | —           |
+| CI workflow generation              | ✓       | —           |
+| Multi-tool support (Claude + Codex) | ✓       | —           |
+| Language-aware setup                | ✓       | —           |
+| L1/L2/L3/L4 governance tiers        | ✓       | —           |
+| Zero telemetry guarantee            | ✓       | —           |
 
 ---
 
@@ -59,7 +59,7 @@ arbiter works across tools. Its governance artifacts apply whether you are using
 ## When to choose arbiter
 
 - You need governance rules that _cannot be bypassed_ — hooks that block violations regardless of how the AI is prompted
-- You need the same governance to work across Claude Code, Codex, Cursor, and other tools
+- You need the same governance to work across Claude Code and Codex (with experimental support for Cursor and others)
 - You want CI to fail on governance violations, not just rely on AI cooperation
 - You need a complete, language-specific project setup (AGENTS.md + hooks + CI + GitHub infrastructure) from one install
 
@@ -69,4 +69,4 @@ SuperClaude enhances the _Claude Code experience_; arbiter enforces the _project
 
 ---
 
-_Last reviewed: 2026-05-15_
+_Last reviewed: 2026-06-22_

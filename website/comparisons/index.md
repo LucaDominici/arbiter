@@ -2,7 +2,7 @@
 title: 'Comparisons'
 doc_version: '1.0.0'
 status: active
-last_review: '2026-05-20'
+last_review: '2026-06-22'
 owner: ''
 canonical_id: ''
 tags: []
@@ -15,30 +15,36 @@ How arbiter fits alongside other AI governance and workflow tools.
 
 ## What arbiter is (and isn't)
 
-Arbiter is a **governance installer** — it sets up the files, scripts, and hooks that enforce quality standards in a project. It is not a chat client, not an agent orchestrator, and not a replacement for an AI coding tool.
+Arbiter's **core** is a **governance installer** — it sets up the files, scripts, and hooks that enforce quality standards in a project. It is not a chat client and not a replacement for an AI coding tool. On top of that core it ships an **optional orchestration layer** (`/ship`, `/drain`, and four sub-agents) that can drive issues to merged PRs against the same governance contract; the installer core is fully usable without it.
 
-Most alternatives in this space are workflow or persona frameworks: they tell the AI _how_ to think. Arbiter tells the AI _what rules apply_ and _enforces them mechanically_ at commit, push, and CI.
+Most alternatives in this space are persona frameworks: they tell the AI _who to be_. Arbiter tells the AI _what rules apply_ and _enforces them mechanically_ at commit, push, and CI. It is **not** a persona framework.
 
 ## Feature Matrix
 
-| Capability                        | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
-| --------------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
-| Canonical governance file         | ✓       | —    | —    | —           | —           | —        |
-| Multi-tool support (7 tools)      | ✓       | —    | ✓    | —           | —           | —        |
-| Language-aware generation         | ✓       | —    | —    | —           | —           | —        |
-| L1/L2/L3 governance tiers         | ✓       | —    | —    | —           | —           | —        |
-| Generated hook scripts            | ✓       | —    | —    | —           | —           | —        |
-| GitHub infrastructure             | ✓       | —    | —    | —           | —           | —        |
-| CI workflow generation            | ✓       | —    | —    | —           | —           | —        |
-| Idempotent update                 | ✓       | —    | —    | —           | —           | —        |
-| Specialized sub-agents            | —       | ✓    | ✓    | ✓           | ✓           | —        |
-| Autonomous task execution         | —       | —    | ✓    | ✓           | —           | —        |
-| Agent personas / role definitions | —       | ✓    | —    | —           | ✓           | —        |
-| Spec-driven development           | —       | —    | —    | —           | —           | ✓        |
-| npx install                       | ✓       | —    | —    | —           | —           | —        |
-| Zero telemetry                    | ✓       | —    | —    | —           | —           | —        |
+| Capability                          | arbiter | BMAD | GSD2 | claude-flow | SuperClaude | spec-kit |
+| ----------------------------------- | ------- | ---- | ---- | ----------- | ----------- | -------- |
+| Canonical governance file           | ✓       | —    | —    | —           | —           | —        |
+| Multi-tool support (Claude + Codex) | ✓       | —    | ✓    | —           | —           | —        |
+| Language-aware generation           | ✓       | —    | —    | —           | —           | —        |
+| L1/L2/L3/L4 governance tiers        | ✓       | —    | —    | —           | —           | —        |
+| Generated hook scripts              | ✓       | —    | —    | —           | —           | —        |
+| GitHub infrastructure               | ✓       | —    | —    | —           | —           | —        |
+| CI workflow generation              | ✓       | —    | —    | —           | —           | —        |
+| Idempotent update                   | ✓       | —    | —    | —           | —           | —        |
+| Specialized sub-agents¹             | ✓       | ✓    | ✓    | ✓           | ✓           | —        |
+| Autonomous task execution¹          | ✓       | —    | ✓    | ✓           | —           | —        |
+| Parallel agent orchestration¹       | ✓       | —    | —    | ✓           | —           | —        |
+| Agent personas / role definitions   | —       | ✓    | —    | —           | ✓           | —        |
+| Spec-driven development             | —       | —    | —    | —           | —           | ✓        |
+| npx install                         | ✓       | —    | —    | —           | —           | —        |
+| Zero telemetry                      | ✓       | —    | —    | —           | —           | —        |
 
-> **Key:** ✓ = core feature, — = not present or not a stated goal
+> **Key:** ✓ = present, — = not present or not a stated goal.
+> **¹** Provided by arbiter's _optional orchestration layer_ (`/ship`, `/drain`, and the
+> `bridge-reviewer`/`codebase-scanner`/`context-checker`/`red-team` sub-agents), which is distinct
+> from — and not required by — the installer **core**. Arbiter does **not** ship agent _personas_.
+> "Claude + Codex" are the supported tools out of the box; Cursor, Copilot, Windsurf, Aider, and
+> Gemini CLI generators exist but are **experimental** (behind `--accept-beta-tools`).
 
 ## When to choose arbiter
 
@@ -65,4 +71,4 @@ Most alternatives in this space are workflow or persona frameworks: they tell th
 
 ---
 
-_Last reviewed: 2026-05-15_
+_Last reviewed: 2026-06-22_
