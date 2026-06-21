@@ -44,11 +44,11 @@ export default defineConfig({
       ],
       // Absolute floors (the suite fails below these). The coverage no-regression ratchet
       // (scripts/check-coverage-ratchet.mjs + .coverage-baseline.json) enforces the tighter
-      // "never erode from the current measured %" on all four axes. lines is held at the 90
-      // target (#1483); branches climbs toward 90 under the ratchet (epic #1480 PR3+).
+      // "never erode from the current measured %" on all four axes. lines + branches are both
+      // held at the 90 target (epic #1480: lines #1483, branches #1486 climb 78→90).
       thresholds: {
         lines: 90,
-        branches: 75,
+        branches: 90,
         functions: 90,
         statements: 85,
       },
