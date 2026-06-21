@@ -42,6 +42,17 @@ const STEP_SCOPED_ALLOWLIST = {
   'drift-shadow.yml': new Set(['parity']),
 }
 
+// #1491 — fake-green-via-`|| true`: a gate/test/check command whose exit code is swallowed by a
+// trailing `|| true` / `|| exit 0` / `|| :` turns a red gate green. This is distinct from the
+// many LEGITIMATE `|| true` uses in CI (best-effort cleanup `find … -delete || true`, capture
+// `LOG=$(git log … || true)`, `grep … || true`, `cp … 2>/dev/null || true`) — so the guard flags
+// `|| true` ONLY when the same line invokes a recognized GATE command. Conservative by design:
+// false-negatives (a novel gate runner) are preferable to false-positives on cleanup idioms.
+const GATE_COMMAND_RE =
+  /\b(?:check-all(?:\.mjs)?|scripts\/check-[\w.-]+\.mjs|arbiter\s+(?:verify|gold-audit|anti-fake-green)|npm\s+(?:run\s+)?test|npm\s+run\s+(?:lint|gate|check[\w:-]*)|npx\s+(?:vitest|jest|eslint|tsc|playwright)\b|pnpm\s+(?:run\s+)?test|yarn\s+test|vitest\b|jest\b|pytest\b|cargo\s+(?:test|clippy)|go\s+test\b|(?:\.\/)?gradlew\s+\w*(?:test|check|verify)|mvn\s+\w*(?:test|verify))\b/
+// Swallow patterns that neutralize a non-zero exit at end-of-command.
+const EXIT_SWALLOW_RE = /\|\|\s*(?:true|exit\s+0|:)\s*(?:#.*)?$/
+
 // Resolve the id: of the step enclosing line index `i`. A step begins at a
 // `- ` list item (8-space indent) and runs until the next one. Returns the
 // step's `id:` value, or null when the step has no id.
@@ -93,6 +104,23 @@ for (const file of yamlFiles) {
         if (allowedSteps && allowedSteps.has(enclosingStepId(lines, i))) continue
         process.stderr.write(
           `[FAIL] ${file}:${i + 1}: step-level continue-on-error: true found (INV-80)\n`,
+        )
+        violations++
+      }
+    }
+  }
+
+  // Check (#1491): a GATE command whose non-zero exit is swallowed by `|| true` / `|| exit 0` /
+  // `|| :` — a fake-green vector. Applies to ALL workflows: a gate must fail the run wherever it
+  // runs. GATE_COMMAND_RE is narrow so best-effort non-gate commands (mutation/fuzz/dep-report
+  // `|| true` in nightly/monthly) are not flagged.
+  {
+    const lines = content.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      if (EXIT_SWALLOW_RE.test(line) && GATE_COMMAND_RE.test(line)) {
+        process.stderr.write(
+          `[FAIL] ${file}:${i + 1}: gate command exit code swallowed by '|| true' (fake-green, #1491): ${line.trim()}\n`,
         )
         violations++
       }

@@ -225,4 +225,70 @@ jobs:
       cleanup()
     }
   })
+
+  // ─── #1491: `|| true` swallowing a GATE command's exit code (fake-green) ──────
+
+  function writeWf(dir: string, name: string, runLine: string): void {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    writeFileSync(
+      join(dir, '.github', 'workflows', name),
+      `on:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: gate
+        run: ${runLine}
+`,
+    )
+  }
+
+  it.each([
+    'node scripts/check-all.mjs L2 || true',
+    'npm test || true',
+    'npm run test:unit || exit 0',
+    'npx vitest run || true',
+    'npx eslint src || true',
+    'npx tsc --noEmit || :',
+    'pytest || true',
+    'cargo test || true',
+    'node scripts/check-foo.mjs || true',
+  ])('exits 1 when a gate command swallows its exit code: %s', (runLine) => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeWf(dir, 'fake-green.yml', runLine)
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/gate command exit code swallowed/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it.each([
+    `find "$GITHUB_WORKSPACE/.git/refs" -name '*.lock' -delete 2>/dev/null || true`,
+    `cp -r build/coverage/. coverage/ 2>/dev/null || true`,
+    `BYPASS=$(echo "$LOG" | grep -F '[skip-docs]' || true)`,
+    `LOG=$(git log --format=%B "$MB..$HEAD" || true)`,
+  ])('exits 0 for a legitimate non-gate `|| true` idiom: %s', (runLine) => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeWf(dir, 'legit.yml', runLine)
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('exits 0 when a gate command runs WITHOUT an exit-swallow', () => {
+    const { dir, cleanup } = makeTemp()
+    try {
+      writeWf(dir, 'clean-gate.yml', 'node scripts/check-all.mjs L2')
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
 })

@@ -35,6 +35,16 @@ const STEP_SCOPED_ALLOWLIST = {
   'drift-shadow.yml': new Set(['parity']),
 };
 
+// #1491 — fake-green-via-`|| true`: a gate/test/check command whose exit code is swallowed by a
+// trailing `|| true` / `|| exit 0` / `|| :` turns a red gate green. Distinct from legitimate
+// `|| true` idioms (best-effort cleanup `find … -delete || true`, capture `LOG=$(git log … || true)`,
+// `grep … || true`, `cp … 2>/dev/null || true`) — so it flags `|| true` ONLY when the same line
+// invokes a recognized GATE command. Conservative: a false-negative (novel runner) beats a
+// false-positive on a cleanup idiom.
+const GATE_COMMAND_RE =
+  /\b(?:check-all(?:\.mjs)?|scripts\/check-[\w.-]+\.mjs|arbiter\s+(?:verify|gold-audit|anti-fake-green)|npm\s+(?:run\s+)?test|npm\s+run\s+(?:lint|gate|check[\w:-]*)|npx\s+(?:vitest|jest|eslint|tsc|playwright)\b|pnpm\s+(?:run\s+)?test|yarn\s+test|vitest\b|jest\b|pytest\b|cargo\s+(?:test|clippy)|go\s+test\b|(?:\.\/)?gradlew\s+\w*(?:test|check|verify)|mvn\s+\w*(?:test|verify))\b/;
+const EXIT_SWALLOW_RE = /\|\|\s*(?:true|exit\s+0|:)\s*(?:#.*)?$/;
+
 // Resolve the id: of the step enclosing line index `i` (step begins at an 8-space
 // `- ` list item). Returns the step's id:, or null when the step has no id.
 function enclosingStepId(lines, i) {
@@ -97,6 +107,19 @@ for (const file of yamlFiles) {
       if (/^\s{6,}continue-on-error:\s*true/.test(lines[i])) {
         if (allowedSteps && allowedSteps.has(enclosingStepId(lines, i))) continue;
         process.stderr.write(`[FAIL] ${file}:${i + 1}: step-level continue-on-error: true found (INV-80)\n`);
+        violations++;
+      }
+    }
+  }
+
+  // #1491: a GATE command whose non-zero exit is swallowed by `|| true` / `|| exit 0` / `|| :`.
+  // Applies to ALL workflows — a gate must fail the run wherever it runs. GATE_COMMAND_RE is narrow
+  // so best-effort non-gate `|| true` (mutation/fuzz/dep-report) is not flagged.
+  {
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (EXIT_SWALLOW_RE.test(lines[i]) && GATE_COMMAND_RE.test(lines[i])) {
+        process.stderr.write(`[FAIL] ${file}:${i + 1}: gate command exit code swallowed by '|| true' (fake-green, #1491): ${lines[i].trim()}\n`);
         violations++;
       }
     }
