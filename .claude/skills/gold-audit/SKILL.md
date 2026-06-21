@@ -26,7 +26,7 @@ or "estimate" anything with the model — the verdicts come straight from the en
 ## Step 1 — Run the engine
 
 ```bash
-npx arbiter gold-audit --json
+npx @arbiter/cli gold-audit --json
 ```
 
 The CLI auto-detects the project's brownfield class and degrades gracefully when no
@@ -41,8 +41,8 @@ registry/engine installed. In that case do NOT invent a score. Tell the user the
 gold registry isn't wired up yet and point them at:
 
 ```bash
-npx arbiter init    # new project — sets up the registry + gates
-npx arbiter update  # existing arbiter project — refreshes the generated kit
+npx @arbiter/cli init    # new project — sets up the registry + gates
+npx @arbiter/cli update  # existing arbiter project — refreshes the generated kit
 ```
 
 Then stop.

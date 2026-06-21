@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/PRODUCT/PRD.md'
-source_sha: 'e60f571d88f9652cf338c5829a69e58e97754124'
+source_sha: 'ec6604d36dc7875dcf05781644c51ebf14aebf6e'
 last_updated: '2026-06-21'
 ---
 
@@ -23,7 +23,7 @@ last_updated: '2026-06-21'
 
 Arbiter installs a complete, standards-aligned AI governance stack into any project in one command. No manual configuration, no drift, no duplication.
 
-Any developer using AI coding agents should be able to run `npx arbiter init`, answer a few questions about their project, and receive a production-grade governance stack that all their AI tools understand natively.
+Any developer using AI coding agents should be able to run `npx @arbiter/cli init`, answer a few questions about their project, and receive a production-grade governance stack that all their AI tools understand natively.
 
 ---
 
@@ -146,6 +146,6 @@ Maintaining a public repo and wanting to signal AI-governance maturity to contri
 Based on exhaustive gap analysis. Principle: **once chosen, enforced** (`ENFORCEMENT-PHILOSOPHY.md`).
 M22 (architecture verification suite) shipped. M23-M24 (mutation, security) and M29-M30 (static analysis, coverage) in progress.
 
-- Architec
+- Arc
 
 *[content truncated — see source for full text]*

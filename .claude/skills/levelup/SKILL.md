@@ -46,13 +46,13 @@ existing engines and skills — there is **no new TS engine** and **no new `arbi
 ## Phase 0 — Measure the starting band
 
 ```bash
-npx arbiter gold-audit --json
+npx @arbiter/cli gold-audit --json
 ```
 
 Load the **`gold-audit`** skill and read the payload verbatim — `level.level`,
 `level.nextLevel`, `score`, and `gaps[]` (the N/P checks grouped by `dimension`). Record this
 as the **before** snapshot. If the engine emits a SKIP line (no registry installed), do NOT
-invent a score: point the user at `npx arbiter init` / `npx arbiter update` and stop.
+invent a score: point the user at `npx @arbiter/cli init` / `npx @arbiter/cli update` and stop.
 
 Parse `--target` (a level band `L0`–`L3`, default the top band `L3`). If the current band is
 already `>= --target`, report "already at target" and stop.
@@ -74,8 +74,8 @@ never edit the same file concurrently). Independent groups are parallelizable.
 For each gap, get its recipe and carry it out:
 
 ```bash
-npx arbiter close-gold-gap <gapId>          # human recipe
-npx arbiter close-gold-gap <gapId> --json   # machine-readable recipe
+npx @arbiter/cli close-gold-gap <gapId>          # human recipe
+npx @arbiter/cli close-gold-gap <gapId> --json   # machine-readable recipe
 ```
 
 Load the **`close-gold-gap`** skill and execute the recipe by **category**:
@@ -99,13 +99,13 @@ flip — never by a moved threshold, a pasted literal, or a disabled check:
 
 ```bash
 # 1. No-regress ratchet — locks the gain; exit 1 if score/Y regressed below baseline.
-npx arbiter gold-audit --check
+npx @arbiter/cli gold-audit --check
 
 # 2. Anti-fake-green aggregate — disarm-proof; a broken guard (exit 2) fails unconditionally.
 node scripts/check-all.mjs
 
 # 3. Re-measure the band and compare to the before snapshot.
-npx arbiter gold-audit --json
+npx @arbiter/cli gold-audit --json
 ```
 
 **Fail-closed semantics (structural anti-fake-green):**

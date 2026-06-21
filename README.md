@@ -18,7 +18,7 @@ related: []
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/LucaDominici/arbiter)
 
 ```bash
-npx arbiter init
+npx @arbiter/cli init
 ```
 
 <!-- TODO(#530): replace this block with asciinema embed once cast is recorded -->
@@ -76,13 +76,13 @@ See [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) for the ful
 
 ```bash
 # Interactive wizard
-npx arbiter init
+npx @arbiter/cli init
 
 # Non-interactive (CI / first setup)
-npx arbiter init --yes
+npx @arbiter/cli init --yes
 
 # Specific tools and level
-npx arbiter init --yes --tools claude,codex --level L2
+npx @arbiter/cli init --yes --tools claude,codex --level L2
 ```
 
 Requires: Node.js ≥ 22, `gh` CLI authenticated (`gh auth login`).

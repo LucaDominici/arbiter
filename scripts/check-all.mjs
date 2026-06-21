@@ -139,6 +139,7 @@ if (isMain) {
   runCheck('test naming', 'node', ['scripts/check-test-naming.mjs'])
   runCheck('hardness inventory', 'node', ['scripts/check-hardness-inventory.mjs'])
   runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
+  runCheck('install command (B1)', 'node', ['scripts/check-install-command.mjs'])
   runCheck('matrix fixtures', 'node', ['scripts/check-matrix-fixtures.mjs'])
   runCheck('matrix proven cells', 'node', ['scripts/check-matrix-proven-cells.mjs'])
   runCheck('skills-matrix-schema', 'node', ['scripts/check-skills-matrix.mjs'])

@@ -20,7 +20,7 @@ Canary entries are **not** included in `CHANGELOG.md` — they are git-derived. 
 ## Using canary builds
 
 ```bash
-npm install arbiter@canary
+npm install -g @arbiter/cli@canary
 ```
 
 Or configure your `arbiter.json`:

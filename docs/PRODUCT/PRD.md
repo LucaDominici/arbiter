@@ -22,7 +22,7 @@ related: []
 
 Arbiter installs a complete, standards-aligned AI governance stack into any project in one command. No manual configuration, no drift, no duplication.
 
-Any developer using AI coding agents should be able to run `npx arbiter init`, answer a few questions about their project, and receive a production-grade governance stack that all their AI tools understand natively.
+Any developer using AI coding agents should be able to run `npx @arbiter/cli init`, answer a few questions about their project, and receive a production-grade governance stack that all their AI tools understand natively.
 
 ---
 
@@ -195,7 +195,7 @@ Arbiter itself operates at L3 (dogfooding its own highest governance tier).
 
 | Metric                                                             | Target                      |
 | ------------------------------------------------------------------ | --------------------------- |
-| Time from `npx arbiter init` to complete governance stack          | < 60 seconds                |
+| Time from `npx @arbiter/cli init` to complete governance stack     | < 60 seconds                |
 | Tests passing (all stacks, all governance levels)                  | 9,000+ tests, 85%+ coverage |
 | Idempotency: running init twice produces no unintended changes     | 100%                        |
 | Brownfield safety: existing customizations preserved               | 100% of custom hooks/rules  |

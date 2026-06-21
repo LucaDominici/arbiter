@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/REFERENCE/gold-audit.md'
-source_sha: 'b4bdcce253c594729703b76c072d085ea9c153a1'
+source_sha: '9811d5c3457b55a30e10769e112f5cf7085d45d3'
 last_updated: '2026-06-21'
 ---
 

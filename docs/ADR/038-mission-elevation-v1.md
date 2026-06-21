@@ -34,7 +34,7 @@ Approaching v1.0, arbiter has accumulated scope that does not align with the cor
 
 The Obsidian vault feature is deleted in its entirety. This closes issues #335, #168, #123, #323, #182, #396.
 
-**Rationale:** Obsidian vault generation is a documentation convenience feature, not a governance mechanism. It couples arbiter to a proprietary knowledge base tool, adds ~30 source files, and is not covered by the core mission. The effort required to maintain it at production quality exceeds the value it delivers relative to the target user (developer who runs `npx arbiter init`).
+**Rationale:** Obsidian vault generation is a documentation convenience feature, not a governance mechanism. It couples arbiter to a proprietary knowledge base tool, adds ~30 source files, and is not covered by the core mission. The effort required to maintain it at production quality exceeds the value it delivers relative to the target user (developer who runs `npx @arbiter/cli init`).
 
 The code is recoverable from git history. It is not deleted from the project's past; it is removed from v1.0 scope.
 

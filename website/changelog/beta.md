@@ -25,7 +25,7 @@ These are filtered from the root `CHANGELOG.md` by the `**Channel:** beta` label
 
 ```bash
 # Install a specific beta tag from npm
-npm install arbiter@beta
+npm install -g @arbiter/cli@beta
 ```
 
 Or configure your `arbiter.json`:

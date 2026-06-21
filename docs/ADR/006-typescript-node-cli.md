@@ -17,11 +17,11 @@ related: []
 
 ## Context
 
-Arbiter needs a CLI runtime for the `npx arbiter init` wizard and file generation. The question was which language and runtime to use.
+Arbiter needs a CLI runtime for the `npx @arbiter/cli init` wizard and file generation. The question was which language and runtime to use.
 
 ## Decision
 
-TypeScript + Node, distributed as `@arbiter/cli` on npm. Installed via `npx arbiter init`.
+TypeScript + Node, distributed as `@arbiter/cli` on npm. Installed via `npx @arbiter/cli init`.
 
 ## Rationale
 
