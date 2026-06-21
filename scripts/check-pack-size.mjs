@@ -11,13 +11,18 @@
  *   1  — between WARN_BYTES and HARD_CAP_BYTES (non-fatal unless --strict)
  *   2  — over HARD_CAP_BYTES (always fatal)
  *
- * Budget (established 2026-05-15, baseline unpackedSize = 2,140,867 B = 2.04 MB):
- *   WARN_BYTES      = 3,211,301  (~1.5× baseline, ~3.06 MB)
- *   HARD_CAP_BYTES  = 5,242,880  (5 MB, per issue #511)
+ * Budget (re-baselined 2026-06-21, #1491/B6):
+ *   Removing source maps from the published build (declarationMap/sourceMap=false +
+ *   clean `dist/` on each build) dropped unpacked size 6.20 MB -> 4.64 MB, back under
+ *   the 5 MB hard cap. The template/command surface has legitimately grown well past
+ *   the original 2026-05-15 baseline (2.04 MB), so WARN is re-set to 4.75 MB to give an
+ *   early-warning band below the unchanged hard cap.
+ *   WARN_BYTES      = 4,980,736  (4.75 MB)
+ *   HARD_CAP_BYTES  = 5,242,880  (5 MB, per issue #511 — UNCHANGED)
  */
 import { spawnSync } from 'node:child_process'
 
-const WARN_BYTES = 3_211_301
+const WARN_BYTES = 4_980_736
 const HARD_CAP_BYTES = 5 * 1024 * 1024
 
 const strict = process.argv.includes('--strict')
