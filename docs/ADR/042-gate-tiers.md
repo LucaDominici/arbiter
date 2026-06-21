@@ -7,6 +7,7 @@ owner: ''
 canonical_id: '042'
 tags: ['audience/dev', 'kind/adr']
 related: []
+enforces: ['INV-59']
 ---
 
 # ADR-042: Three-Tier Gate System (L1/L2/L3)
