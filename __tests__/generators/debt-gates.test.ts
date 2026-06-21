@@ -16,10 +16,49 @@ describe('generateDebtGates', () => {
     cleanupTestProject(dir)
   })
 
-  it('returns empty files array when enableDebtGates is false', () => {
-    const config = makeConfig(dir, { enableDebtGates: false })
+  it('emits no debt-gate extras for a non-TS language when enableDebtGates is false', () => {
+    // Non-TS languages have no first-run gate scaffold to emit, so debtGates:false
+    // is a clean no-op (the debt-only configs are below the guard).
+    const config = makeConfig(dir, { language: 'python', enableDebtGates: false })
     const result = generateDebtGates(config)
     expect(result.files).toHaveLength(0)
+  })
+
+  // B4 (#1491): the gate-essential TS scaffold (tsconfig, eslint flat configs,
+  // .prettierignore) must emit for EVERY TS init — even at L1 where
+  // enableDebtGates is false — because the generated L1 gate runs
+  // typecheck/format/lint/static-analysis for TS unconditionally. Without it the
+  // gate is RED on first install.
+  it('emits the gate-essential TS scaffold even when enableDebtGates is false (B4)', () => {
+    const config = makeConfig(dir, { language: 'typescript', enableDebtGates: false })
+    const result = generateDebtGates(config)
+    const emitted = result.files.map((f) => f.path)
+    expect(emitted.some((p) => p.endsWith('tsconfig.json'))).toBe(true)
+    expect(emitted.some((p) => p.endsWith('eslint.config.mjs'))).toBe(true)
+    expect(emitted.some((p) => p.endsWith('eslint.config.static.mjs'))).toBe(true)
+    expect(emitted.some((p) => p.endsWith('.prettierignore'))).toBe(true)
+    // Debt-only extras stay gated — knip/dependency-cruiser must NOT appear at L1.
+    expect(emitted.some((p) => p.endsWith('knip.json'))).toBe(false)
+    expect(emitted.some((p) => p.endsWith('.dependency-cruiser.cjs'))).toBe(false)
+  })
+
+  it('declares the L1 gate toolchain (eslint/vitest/prettier/tsc) in package.json devDeps (B4)', () => {
+    const config = makeConfig(dir, { language: 'typescript', enableDebtGates: false })
+    generateDebtGates(config)
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')) as {
+      devDependencies?: Record<string, string>
+    }
+    const dd = pkg.devDependencies ?? {}
+    for (const tool of [
+      'typescript',
+      '@types/node',
+      'prettier',
+      'eslint',
+      'typescript-eslint',
+      'vitest',
+    ]) {
+      expect(dd, `expected ${tool} in devDependencies`).toHaveProperty(tool)
+    }
   })
 
   // ── TypeScript ──────────────────────────────────────────────────────────────

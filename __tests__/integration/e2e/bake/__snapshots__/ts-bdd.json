@@ -64,9 +64,12 @@
     ".claude/skills/verification/SKILL.md",
     ".claude/skills/wave-drain/SKILL.md",
     ".env.example",
+    ".eslintrc-static.json",
     ".githooks/commit-msg",
     ".githooks/pre-commit",
     ".githooks/pre-push",
+    ".prettierignore",
+    ".prettierrc.json",
     "AGENTS.md",
     "Makefile",
     "api-e2e.json",
@@ -77,6 +80,8 @@
     "docs/METHOD/SSOT_CORE_SET.md",
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
+    "eslint.config.mjs",
+    "eslint.config.static.mjs",
     "run.sh",
     "scripts/audit-toolchain.mjs",
     "scripts/check-action-pins.mjs",
@@ -138,6 +143,7 @@
     "suppressions/dependency-check-suppressions.xml",
     "suppressions/pii-allowlist.json",
     "suppressions/suppressions-schema.json",
-    "test-pyramid.json"
+    "test-pyramid.json",
+    "tsconfig.json"
   ]
 }

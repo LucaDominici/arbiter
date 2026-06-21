@@ -75,8 +75,13 @@ runCheck('typecheck', 'npx', ['tsc', '--noEmit']);
 runCheck('format', 'npx', ['prettier', '--check', '.']);
 runCheck('lint', 'npx', ['eslint', 'src']);
 // ─── L1: Static analysis rules (M29) ─────────────────────────────────────────
-if (existsSync('.eslintrc-static.json')) {
-  runCheck('static analysis', 'npx', ['eslint', '--no-eslintrc', '-c', '.eslintrc-static.json', '--no-error-on-unmatched-pattern', 'src']);
+// ESLint v9+ flat config: the static-analysis ruleset lives in
+// eslint.config.static.mjs and is run in isolation (--no-config-lookup) so it does
+// not merge with the project's main eslint.config.mjs. The legacy eslintrc path
+// (--no-eslintrc -c .eslintrc-static.json) was removed: ESLint v9 disabled it and
+// v10 deleted it, so it crashed the gate on a fresh install (B4, #1491).
+if (existsSync('eslint.config.static.mjs')) {
+  runCheck('static analysis', 'npx', ['eslint', '--config', 'eslint.config.static.mjs', '--no-config-lookup', '--no-error-on-unmatched-pattern', 'src']);
 } else {
   console.log('[CHECK] static analysis ... SKIP (run: arbiter update)');
 }

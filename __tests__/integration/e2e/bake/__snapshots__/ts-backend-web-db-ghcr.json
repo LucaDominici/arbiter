@@ -64,9 +64,12 @@
     ".claude/skills/verification/SKILL.md",
     ".claude/skills/wave-drain/SKILL.md",
     ".env.example",
+    ".eslintrc-static.json",
     ".githooks/commit-msg",
     ".githooks/pre-commit",
     ".githooks/pre-push",
+    ".prettierignore",
+    ".prettierrc.json",
     "AGENTS.md",
     "Makefile",
     "__tests__/contract/error-shape.contract.test.ts",
@@ -79,6 +82,8 @@
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
     "domain-api-surface.json",
+    "eslint.config.mjs",
+    "eslint.config.static.mjs",
     "features/example.feature",
     "features/step_definitions/example.steps.ts",
     "run.sh",
@@ -153,6 +158,7 @@
     "tests/api/api.e2e.test.ts",
     "tests/api/run.sh",
     "tests/e2e/a11y.spec.ts",
-    "tests/e2e/a11y/run-axe.ts"
+    "tests/e2e/a11y/run-axe.ts",
+    "tsconfig.json"
   ]
 }

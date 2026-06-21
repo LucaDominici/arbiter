@@ -162,11 +162,15 @@ describe('generateCheckAll', () => {
     expect(content).toContain('prettier')
   })
 
-  it('static analysis eslint uses --no-error-on-unmatched-pattern (avoids error on TypeScript-only src)', () => {
+  it('static analysis eslint uses the flat config in isolation (ESLint v9+, B4 #1491)', () => {
     generateCheckAll(makeConfig(dir, { language: 'typescript' }))
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
-    expect(content).toContain('eslintrc-static.json')
+    // Flat config run in isolation — the legacy `--no-eslintrc -c .eslintrc-static.json`
+    // path crashed under ESLint v9 (eslintrc removed) and is gone from the command.
+    expect(content).toContain("'--config', 'eslint.config.static.mjs'")
+    expect(content).toContain("'--no-config-lookup'")
     expect(content).toContain("'--no-error-on-unmatched-pattern'")
+    expect(content).not.toContain("'--no-eslintrc'")
     expect(content).not.toContain("'--ext', '.ts,.js'")
   })
 

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { renderTemplate } from '../../src/utils/render.js'
 import { generateRoot } from '../../src/generators/root.js'
+import { generateDebtGates } from '../../src/generators/debt-gates.js'
 import { makeConfig } from '../helpers.js'
 import type { Language } from '../../src/wizard/types.js'
 
@@ -57,12 +58,16 @@ describe('tsconfig.json.ejs (#170)', () => {
   })
 })
 
-describe('generateRoot tsconfig emission (#170)', () => {
+// tsconfig.json moved from the GitHub-gated `root` generator to the always-on
+// `debt-gates` generator (B4, #1491): the root generator only runs when GitHub
+// support is enabled, so emitting tsconfig there dropped it for every non-GitHub
+// TS init and broke the typecheck gate on first run.
+describe('generateDebtGates tsconfig emission (#170, B4 #1491)', () => {
   it('emits tsconfig.json for TypeScript projects', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'arbiter-root-ts-'))
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-dg-ts-'))
     try {
-      const config = cfg('typescript', { targetDir: dir })
-      const result = generateRoot(config)
+      const config = cfg('typescript', { targetDir: dir, enableDebtGates: false })
+      const result = generateDebtGates(config)
       const paths = result.files.map((f) => f.path)
       expect(paths.some((p) => p.endsWith('tsconfig.json'))).toBe(true)
     } finally {
@@ -70,12 +75,24 @@ describe('generateRoot tsconfig emission (#170)', () => {
     }
   })
 
+  it('the root generator no longer emits tsconfig.json', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-root-ts-'))
+    try {
+      const config = cfg('typescript', { targetDir: dir })
+      const result = generateRoot(config)
+      const paths = result.files.map((f) => f.path)
+      expect(paths.some((p) => p.endsWith('tsconfig.json'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('does not emit tsconfig.json for non-TypeScript projects', () => {
     for (const lang of ['java', 'rust', 'go', 'python'] as Language[]) {
-      const dir = mkdtempSync(join(tmpdir(), `arbiter-root-${lang}-`))
+      const dir = mkdtempSync(join(tmpdir(), `arbiter-dg-${lang}-`))
       try {
-        const config = cfg(lang, { targetDir: dir })
-        const result = generateRoot(config)
+        const config = cfg(lang, { targetDir: dir, enableDebtGates: true })
+        const result = generateDebtGates(config)
         const paths = result.files.map((f) => f.path)
         expect(paths.some((p) => p.endsWith('tsconfig.json'))).toBe(false)
       } finally {
@@ -85,12 +102,12 @@ describe('generateRoot tsconfig emission (#170)', () => {
   })
 
   it('uses skipIfExists so existing tsconfig is preserved (brownfield)', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'arbiter-root-brownfield-'))
+    const dir = mkdtempSync(join(tmpdir(), 'arbiter-dg-brownfield-'))
     try {
       const existing = JSON.stringify({ compilerOptions: { target: 'ES5' } })
       writeFileSync(join(dir, 'tsconfig.json'), existing)
-      const config = cfg('typescript', { targetDir: dir })
-      const result = generateRoot(config)
+      const config = cfg('typescript', { targetDir: dir, enableDebtGates: false })
+      const result = generateDebtGates(config)
       const tsEntry = result.files.find((f) => f.path.endsWith('tsconfig.json'))
       expect(tsEntry?.action).toBe('skipped')
     } finally {

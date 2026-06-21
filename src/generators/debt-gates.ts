@@ -83,6 +83,78 @@ function injectDepCruiserPackageJson(targetDir: string, dryRun: boolean): void {
   }
 }
 
+// The toolchain the generated L1/L2 gate actually invokes (tsc, prettier, eslint,
+// vitest). Without these declared, a plain `npm install` after `arbiter init`
+// leaves the gate's `npx eslint`/`vitest` unresolved (exit 127) — the gate is RED
+// on first run for a reason that is arbiter's own under-declaration (B4, #1491).
+// Pinned to registry versions (caret) so the install is reproducible (#1314).
+const TS_GATE_DEVDEPS: Record<string, string> = {
+  typescript: '^5.6.0',
+  '@types/node': '^22.0.0',
+  prettier: '^3.3.0',
+  eslint: '^9.13.0',
+  '@eslint/js': '^9.13.0',
+  'typescript-eslint': '^8.10.0',
+  vitest: '^3.0.0',
+  '@vitest/coverage-v8': '^3.0.0',
+}
+
+function injectTsGateToolchain(targetDir: string, dryRun: boolean): void {
+  if (dryRun) return
+  const pkgPath = resolvedPath(targetDir, 'package.json')
+  if (!existsSync(pkgPath)) return
+  let pkg: Record<string, unknown>
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<string, unknown>
+  } catch (err) {
+    getLogger().warn(
+      'debt_gates.inject_toolchain_parse_failed',
+      { path: pkgPath, err: String(err) },
+      'injectTsGateToolchain: failed to parse package.json',
+    )
+    return
+  }
+  const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>
+  let changed = false
+  for (const [name, version] of Object.entries(TS_GATE_DEVDEPS)) {
+    // Respect a version the user already pinned — only fill in what is absent so a
+    // brownfield project's existing toolchain versions are never overwritten.
+    if (!devDeps[name] && !(pkg.dependencies as Record<string, string> | undefined)?.[name]) {
+      devDeps[name] = version
+      changed = true
+    }
+  }
+  if (changed) {
+    pkg.devDependencies = devDeps
+    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+  }
+}
+
+// Gate-essential TypeScript config files — every one is consumed by the generated
+// L1 gate (typecheck→tsconfig, format→.prettierrc/.prettierignore, lint→
+// eslint.config.mjs, static analysis→eslint.config.static.mjs). Emitted on EVERY
+// TS init regardless of enableDebtGates, so init→install→check-all is green (B4).
+function emitTsGateScaffold(base: string, data: object, dryRun: boolean): WriteResult[] {
+  const files: [string, string][] = [
+    // tsconfig.json — TS greenfield baseline (was emitted by the GitHub-gated
+    // `root` generator, so non-GitHub inits had no tsconfig → typecheck RED).
+    ['tsconfig.json', 'root/tsconfig.json.ejs'],
+    ['.prettierrc.json', 'static-analysis/prettierrc.json.ejs'],
+    // .prettierignore — scopes `prettier --check .` to the user's source so
+    // arbiter's own generated docs/config/hooks do not turn the format gate RED.
+    ['.prettierignore', 'static-analysis/prettierignore.ejs'],
+    // Flat ESLint configs (v9+): main (lint gate) + isolated static-analysis gate.
+    // The legacy eslintrc (.eslintrc-static.json) is retained for compatibility but
+    // is no longer consumable by ESLint v9 — the gate now loads the flat configs.
+    ['eslint.config.mjs', 'static-analysis/eslint.config.mjs.ejs'],
+    ['eslint.config.static.mjs', 'static-analysis/eslint.config.static.mjs.ejs'],
+    ['.eslintrc-static.json', 'static-analysis/eslintrc-static.json.ejs'],
+  ]
+  return files.map(([rel, tmpl]) =>
+    writeFile(resolvedPath(base, rel), renderTemplate(tmpl, data), { skipIfExists: true, dryRun }),
+  )
+}
+
 function pushJavaDebtGates(
   results: WriteResult[],
   base: string,
@@ -111,35 +183,28 @@ export function generateDebtGates(
   config: ProjectConfig,
   opts: { dryRun: boolean } = { dryRun: false },
 ): DebtGatesGeneratorResult {
-  if (config.language === 'typescript' || config.language === 'multi') {
-    injectTestScripts(config.targetDir, opts.dryRun)
-  }
-
-  if (!config.enableDebtGates) return { files: [] }
-
   const results: WriteResult[] = []
   const base = config.targetDir
-  const data = config
+  const data = { ...config, strictnessTier: config.strictnessTier ?? 'practical' }
+
+  if (config.language === 'typescript' || config.language === 'multi') {
+    injectTestScripts(base, opts.dryRun)
+    // Gate-essential TS scaffold — emitted for EVERY TS init (even L1, where
+    // enableDebtGates is false) because the generated L1 gate already runs
+    // typecheck/format/lint/static-analysis/unit for TS. Without these the gate is
+    // RED on first install (B4, #1491). The debt-only extras (knip, dep-cruiser)
+    // stay below the enableDebtGates guard.
+    results.push(...emitTsGateScaffold(base, data, opts.dryRun))
+    injectTsGateToolchain(base, opts.dryRun)
+  }
+
+  if (!config.enableDebtGates) return { files: results }
 
   if (config.language === 'typescript' || config.language === 'multi') {
     results.push(
       writeFile(
         resolvedPath(base, 'knip.json'),
         renderTemplate('static-analysis/knip.json.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-    results.push(
-      writeFile(
-        resolvedPath(base, '.eslintrc-static.json'),
-        renderTemplate('static-analysis/eslintrc-static.json.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-    results.push(
-      writeFile(
-        resolvedPath(base, '.prettierrc.json'),
-        renderTemplate('static-analysis/prettierrc.json.ejs', data),
         { skipIfExists: true, dryRun: opts.dryRun },
       ),
     )

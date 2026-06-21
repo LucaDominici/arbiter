@@ -66,10 +66,13 @@
     ".env.example",
     ".eslintrc-frontend-spa.cjs",
     ".eslintrc-playwright.json",
+    ".eslintrc-static.json",
     ".githooks/commit-msg",
     ".githooks/pre-commit",
     ".githooks/pre-push",
     ".lighthouserc.json",
+    ".prettierignore",
+    ".prettierrc.json",
     ".stylelintrc.json",
     "AGENTS.md",
     "Makefile",
@@ -86,6 +89,8 @@
     "docs/METHOD/SSOT_CORE_SET.md",
     "docs/TESTING_POLICY.md",
     "docs/TEST_TAXONOMY.md",
+    "eslint.config.mjs",
+    "eslint.config.static.mjs",
     "features/example.feature",
     "features/step_definitions/example.steps.ts",
     "run.sh",
@@ -158,6 +163,7 @@
     "tests/e2e/a11y.spec.ts",
     "tests/e2e/a11y/run-axe.ts",
     "tests/e2e/render-smoke.spec.ts",
+    "tsconfig.json",
     "vitest.browser.config.ts"
   ]
 }

@@ -65,6 +65,46 @@ describe('generateTestPyramidManifest (R8, CANON-05)', () => {
     expect(l1!.globs!.some((g) => g.includes('.ts'))).toBe(true)
   })
 
+  // B4 (#1491): first-run gate must be green. The emitted example test lands under
+  // src/ (vitest convention), so the TS L1 glob must cover src/**, and tiers the
+  // init scaffold does not populate (L2 Property-Based) must be greenfield-n/a so
+  // the freshly-scaffolded project passes its OWN check-test-pyramid gate.
+  it('TS L1 globs cover src/** so the emitted example test satisfies L1 (B4)', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'library' })
+    const result = generateTestPyramidManifest(config)
+    const manifestFile = result.files.find((f) => f.path.endsWith('test-pyramid.json'))!
+    const manifest: { levels: Array<{ id: string; globs?: string[] }> } = JSON.parse(
+      readFileSync(manifestFile.path, 'utf-8'),
+    )
+    const l1 = manifest.levels.find((l) => l.id === 'L1')
+    expect(l1!.globs!).toContain('src/**/*.test.ts')
+  })
+
+  it('unscaffolded higher tiers are greenfield-n/a with a rationale (B4)', () => {
+    const config = makeConfig(dir, { language: 'typescript', archetype: 'library' })
+    const result = generateTestPyramidManifest(config)
+    const manifestFile = result.files.find((f) => f.path.endsWith('test-pyramid.json'))!
+    const manifest: {
+      levels: Array<{ id: string; status: string; rationale?: string; globs?: string[] }>
+    } = JSON.parse(readFileSync(manifestFile.path, 'utf-8'))
+    const l2 = manifest.levels.find((l) => l.id === 'L2')
+    expect(l2?.status).toBe('n/a')
+    expect(l2?.rationale?.length).toBeGreaterThanOrEqual(20)
+    // globs retained so a team can flip status→required without re-deriving them
+    expect(l2?.globs).toBeDefined()
+  })
+
+  it('Rust keeps L2 required (its example tests land under tests/, L1 stays n/a)', () => {
+    const config = makeConfig(dir, { language: 'rust', archetype: 'library' })
+    const result = generateTestPyramidManifest(config)
+    const manifestFile = result.files.find((f) => f.path.endsWith('test-pyramid.json'))!
+    const manifest: { levels: Array<{ id: string; status: string }> } = JSON.parse(
+      readFileSync(manifestFile.path, 'utf-8'),
+    )
+    expect(manifest.levels.find((l) => l.id === 'L1')?.status).toBe('n/a')
+    expect(manifest.levels.find((l) => l.id === 'L2')?.status).toBe('required')
+  })
+
   it('emits Rust L1 Unit as n/a (inline #[test] cannot be glob-detected)', () => {
     const config = makeConfig(dir, { language: 'rust', archetype: 'library' })
     const result = generateTestPyramidManifest(config)

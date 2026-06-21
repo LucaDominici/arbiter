@@ -53,16 +53,11 @@ export function generateRoot(
     }),
   )
 
-  // tsconfig.json — TypeScript greenfield baseline (skipIfExists for brownfield)
-  if (config.language === 'typescript' || config.language === 'multi') {
-    results.push(
-      writeFile(
-        resolvedPath(base, 'tsconfig.json'),
-        renderTemplate('root/tsconfig.json.ejs', data),
-        { skipIfExists: true, dryRun: opts.dryRun },
-      ),
-    )
-  }
+  // NOTE: tsconfig.json is emitted by the debt-gates generator (always-on for TS),
+  // not here — the `root` generator is gated on permitGitHub, so emitting the
+  // tsconfig here dropped it for every non-GitHub TS init and broke the typecheck
+  // gate on first run (B4, #1491). It now lives next to the rest of the TS gate
+  // toolchain so it ships regardless of the GitHub flag.
 
   // clippy.toml — Rust pedantic lints for non-hexagonal projects (hexagonal gets it via rust-boundaries)
   if (

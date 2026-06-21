@@ -17,7 +17,17 @@ export interface TestPyramidManifestResult {
 // Rust L1 Unit cannot be detected by file presence (inline #[test] annotations);
 // the generator emits it as n/a with a documented rationale (amendment #8).
 const L1_GLOBS: Partial<Record<Language, string[]>> = {
-  typescript: ['__tests__/**/*.test.ts', '__tests__/**/*.spec.ts'],
+  // TS: vitest convention co-locates `*.test.ts` under `src/` (arbiter's own
+  // emitted example behavioral test lands at src/test/*.behavioral.test.ts), so
+  // the L1 glob must cover `src/**` as well as the optional `__tests__/**` layout
+  // — otherwise the freshly-scaffolded project fails its own pyramid gate on the
+  // very first run (B4: gate must be green init→install→check-all).
+  typescript: [
+    'src/**/*.test.ts',
+    'src/**/*.spec.ts',
+    '__tests__/**/*.test.ts',
+    '__tests__/**/*.spec.ts',
+  ],
   java: ['src/test/**/*Test.java', 'src/test/**/*Tests.java'],
   kotlin: ['src/test/**/*Test.kt', 'src/test/**/*Spec.kt'],
   python: ['tests/**/*.py', 'test/**/*.py'],
@@ -74,6 +84,29 @@ const GLOB_BY_LEVEL: Record<string, Partial<Record<Language, string[]>>> = {
 const RUST_L1_RATIONALE =
   'Rust unit tests are inline #[test] annotations inside source files; file presence cannot confirm test existence.'
 
+// Greenfield rationale for tiers arbiter does not scaffold a test for. `arbiter
+// init` emits a passing example test that satisfies exactly one tier per language
+// (see SCAFFOLDED_LEVELS); it does NOT fabricate property-based, integration,
+// contract, e2e, or performance tests — those depend on the team's real subjects
+// and infrastructure. Emitting an unscaffolded tier as `required` would make a
+// fresh project fail its own gate on first run (B4). Such tiers start as `n/a`
+// with an honest, auditable rationale (retaining their globs) so a team flips
+// status→required once it adds real tests — the gate then enforces it.
+const GREENFIELD_TIER_RATIONALE =
+  'Greenfield scaffold: arbiter init does not fabricate tests for this tier — add ' +
+  'real tests for it, then set status to "required" so the gate enforces it.'
+
+// Which pyramid tier the `arbiter init` example test(s) actually populate, per
+// language — the one tier that may be `required` on first run without failing the
+// gate. TS/Python/Java/Go scaffold an L1 unit/behavioral test; Rust scaffolds its
+// example tests under `tests/` (which the L2 glob matches) while L1 is inline-only
+// and undetectable (n/a). Every other declared tier is greenfield-`n/a`.
+const SCAFFOLDED_LEVEL: Partial<Record<Language, string>> = {
+  rust: 'L2',
+}
+// Default for every language whose init scaffold populates the L1 tier.
+const DEFAULT_SCAFFOLDED_LEVEL = 'L1'
+
 function buildManifestLevel(id: string, name: string, language: Language): object {
   // Rust L1 gets n/a — inline tests are undetectable by file presence
   if (id === 'L1' && language === 'rust') {
@@ -81,6 +114,13 @@ function buildManifestLevel(id: string, name: string, language: Language): objec
   }
 
   const globs = GLOB_BY_LEVEL[id]?.[language] ?? []
+
+  // Only the single tier the init scaffold populates is `required`; every other
+  // tier is greenfield-`n/a` (retaining globs) so first-run is green and honest.
+  if (id !== (SCAFFOLDED_LEVEL[language] ?? DEFAULT_SCAFFOLDED_LEVEL)) {
+    return { id, name, globs, status: 'n/a', rationale: GREENFIELD_TIER_RATIONALE }
+  }
+
   return { id, name, globs, status: 'required' }
 }
 
