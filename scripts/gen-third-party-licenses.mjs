@@ -146,11 +146,13 @@ try {
       )
       process.exit(1)
     }
-    console.log('[gen-third-party-licenses] OK — THIRD_PARTY_LICENSES.md is up to date')
+    // Info to stderr so the script never pollutes stdout: `npm pack --json`
+    // runs this via prepack and parses stdout as JSON.
+    process.stderr.write('[gen-third-party-licenses] OK — THIRD_PARTY_LICENSES.md is up to date\n')
   } else {
     writeFileSync(OUT_FILE, content)
-    console.log(
-      `[gen-third-party-licenses] wrote THIRD_PARTY_LICENSES.md (${Object.keys(readJson(resolve(ROOT, 'package.json')).dependencies ?? {}).length} production deps)`,
+    process.stderr.write(
+      `[gen-third-party-licenses] wrote THIRD_PARTY_LICENSES.md (${Object.keys(readJson(resolve(ROOT, 'package.json')).dependencies ?? {}).length} production deps)\n`,
     )
   }
 } catch (err) {

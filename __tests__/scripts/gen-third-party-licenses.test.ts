@@ -16,7 +16,18 @@ describe('gen-third-party-licenses.mjs', () => {
   it('committed THIRD_PARTY_LICENSES.md is up to date (--check passes)', () => {
     const result = run(['--check'])
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('up to date')
+    // Info is on stderr so stdout stays clean for `npm pack --json` consumers.
+    expect(result.stderr).toContain('up to date')
+    expect(result.stdout).toBe('')
+  })
+
+  it('write mode keeps stdout clean (prepack runs under `npm pack --json`)', () => {
+    // Regenerating must not print to stdout, or it corrupts the JSON that
+    // `npm pack --dry-run --json` emits when prepack runs this generator.
+    const result = run([])
+    expect(result.status).toBe(0)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toContain('wrote THIRD_PARTY_LICENSES.md')
   })
 
   it('the committed file exists and lists every production dependency', () => {
