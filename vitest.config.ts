@@ -14,17 +14,23 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: [join(root, 'vitest.setup.ts')],
-    // Generator tests create full project trees; under full-suite parallelism
-    // they compete for CPU and easily exceed the 5 s vitest default.
-    testTimeout: 20000,
+    // Generator tests create full project trees and (with the #1486 coverage suite) many files
+    // stub process globals / spawn short-lived subprocesses; under full-suite parallelism on a
+    // resource-constrained CI runner they compete for CPU. 30 s absorbs that contention (the 5 s
+    // vitest default flaked; 20 s still flaked the heaviest coverage files in CI).
+    testTimeout: 30000,
     // Integration tests are L2+ per AGENTS.md gate policy; L1 unit-only keeps pre-commit fast.
     include: ['__tests__/**/*.test.ts'],
-    // Generous timeout: hook rsyncs to tmp, competing for CPU → 5 s default causes flaky timeouts.
-    testTimeout: 20000,
     exclude: ['**/node_modules/**', '__tests__/integration/**'],
-    // Integration tests use vi.doMock + dynamic import which requires process-level
-    // isolation to avoid module registry leaks across parallel test files.
-    poolMatchGlobs: [['**/__tests__/integration/**', 'forks']],
+    // Integration tests use vi.doMock + dynamic import which requires process-level isolation to
+    // avoid module-registry / process-global leaks across parallel test files. The #1486
+    // coverage suite (__tests__/coverage/**) does the same — heavy vi.doMock + process.exit/stdout
+    // stubs + real subprocess spawns — so it runs in the forks pool too: each file gets its own
+    // process, so an unrestored global stub or a slow subprocess in one file cannot flake another.
+    poolMatchGlobs: [
+      ['**/__tests__/integration/**', 'forks'],
+      ['**/__tests__/coverage/**', 'forks'],
+    ],
     coverage: {
       provider: 'v8',
       // json-summary feeds the coverage no-regression ratchet (scripts/check-coverage-ratchet.mjs):
