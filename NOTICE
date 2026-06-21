@@ -16,5 +16,6 @@ limitations under the License.
 ---
 
 This product includes software developed by third parties.
-Third-party license information is available in THIRD_PARTY_LICENSES.txt,
-which is generated automatically and attached to each release artifact.
+Third-party license information is available in THIRD_PARTY_LICENSES.md,
+which is generated automatically (see scripts/gen-third-party-licenses.mjs)
+and shipped in each release artifact.
