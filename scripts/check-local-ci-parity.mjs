@@ -146,6 +146,7 @@ const CI_COVERAGE = new Map([
   ['circular deps', 'debt-gates'],
   ['dead code', 'debt-gates'],
   ['coverage', 'debt-gates'],
+  ['coverage ratchet (#1483)', 'debt-gates'],
   ['gitleaks', 'security-early-fail'],
   ['debt ratchet', 'debt-ratchet'],
   ['integration suite (INV-25)', 'integration-tests'],

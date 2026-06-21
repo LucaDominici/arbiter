@@ -12,6 +12,9 @@ coverage/
 # tracked docs, not test-coverage output. Directory-level negation is required
 # (git cannot re-include a file whose parent dir stays excluded).
 !docs/REFERENCE/coverage/
+# #1483: __tests__/coverage/ holds coverage-boosting unit tests (tracked source),
+# not the v8 coverage/ output dir — same directory-level negation.
+!__tests__/coverage/
 
 # Claude Code local settings (user-specific permissions)
 .claude/settings.local.json
