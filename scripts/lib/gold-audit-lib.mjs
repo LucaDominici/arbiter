@@ -79,6 +79,15 @@ function expandGlob(root, pattern) {
 }
 
 /**
+ * Deterministic, locale-independent string order (UTF-16 code units) — byte-identical across the
+ * .mjs and TS engines and immune to Node/ICU collation drift (#1471). Used for every check /
+ * dimension sort so the scored payload's ordering can never silently diverge between engines.
+ */
+function cmpCodeUnit(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
+/**
  * Resolve a glob-check's `args.glob` to a SORTED match list. Returns { ok:true, glob, matched } on
  * success, or { ok:false, result } (a verified-N) when the glob is invalid/empty — shared by every
  * glob-based check so the invalid-glob guard exists once (mirrored in src/conformance/engine.ts).
@@ -594,7 +603,7 @@ function evaluateInner(registry, overlays, root, options = {}) {
   const rawChecks = (Array.isArray(registry?.checks) ? registry.checks : []).filter(
     (c) => c && typeof c === 'object',
   )
-  const sorted = [...rawChecks].sort((a, b) => String(a.id).localeCompare(String(b.id)))
+  const sorted = [...rawChecks].sort((a, b) => cmpCodeUnit(String(a.id), String(b.id)))
 
   const checks = []
   const dims = new Map()
@@ -651,7 +660,7 @@ function evaluateInner(registry, overlays, root, options = {}) {
 
   const score = possible > 0 ? Math.round((earned / possible) * 1000) / 10 : 0
   const dimensions = {}
-  for (const [id, d] of [...dims.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  for (const [id, d] of [...dims.entries()].sort((a, b) => cmpCodeUnit(a[0], b[0]))) {
     dimensions[id] = {
       score: d.possible > 0 ? Math.round((d.earned / d.possible) * 1000) / 10 : 0,
       y: d.y,
@@ -792,7 +801,7 @@ export function gapReport(result) {
     })
   }
   return [...byDim.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => cmpCodeUnit(a[0], b[0]))
     .map(([dimension, gaps]) => ({ dimension, checks: gaps }))
 }
 

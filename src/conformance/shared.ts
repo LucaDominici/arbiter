@@ -4,7 +4,7 @@
 // Extracted from dimensions.ts and engine.ts to eliminate CANON-22 duplication.
 // safeResolve is security-sensitive: reject path traversal and null bytes.
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, lstatSync } from 'node:fs'
 import { resolve, relative, isAbsolute, join } from 'node:path'
 
 /** Safely resolve a path inside root, rejecting traversal and null bytes. Returns null on invalid path. */
@@ -111,8 +111,14 @@ function walkRepo(root: string): string[] {
       const full = join(dir, entry)
       let stat
       try {
-        stat = statSync(full)
+        stat = lstatSync(full)
       } catch {
+        continue
+      }
+      if (stat.isSymbolicLink()) {
+        // Record the symlink path (file/stat checks evaluate it via their own lstat) but NEVER
+        // recurse into it — a symlinked directory could cycle and stack-overflow the walk. #1471.
+        files.push(full.slice(base.length + 1).replace(/\\/g, '/'))
         continue
       }
       if (stat.isDirectory()) {
