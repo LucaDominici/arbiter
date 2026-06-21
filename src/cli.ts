@@ -945,6 +945,8 @@ program
   .option('--check', 'No-regress gate: bootstrap missing baseline (exit 0), fail on regress', false)
   .option('--require-baseline', 'With --check, a missing baseline is a HARD FAIL (#1419)', false)
   .option('--json', 'Emit machine-readable JSON output', false)
+  .option('--cockpit', 'Render the rich TTY-gated goldness console (#1475)', false)
+  .option('--ascii', 'Force pure-ASCII cockpit output (no unicode glyphs/ANSI)', false)
   .action(
     (
       repo: string | undefined,
@@ -954,6 +956,8 @@ program
         json: boolean
         check: boolean
         requireBaseline: boolean
+        cockpit: boolean
+        ascii: boolean
       },
     ) => {
       const cls =
@@ -974,6 +978,8 @@ program
         check: opts.check,
         requireBaseline: opts.requireBaseline,
         json: opts.json,
+        cockpit: opts.cockpit,
+        ascii: opts.ascii,
       })
       process.exit(result.exitCode)
     },

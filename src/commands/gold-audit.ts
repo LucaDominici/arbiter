@@ -15,6 +15,7 @@ import { resolve } from 'node:path'
 import { runCli, CliError } from '../utils/run-cli.js'
 import { detectBrownfieldClass } from '../kit/brownfield-detect.js'
 import type { BrownfieldClass } from '../kit/thresholds.js'
+import { paint, colorEnabled, asciiOnly, type Sgr } from '../utils/tty.js'
 
 /** Per-check verdict + evidence, as emitted by the engine. */
 export interface GoldCheck {
@@ -91,6 +92,17 @@ export interface GoldAuditOptions {
    * audit payload programmatically and emits its OWN output (the recipe).
    */
   quiet?: boolean
+  /** #1475: render the rich TTY-gated goldness cockpit instead of the plain report. */
+  cockpit?: boolean
+  /** #1475: force pure-ASCII cockpit output (also implied by a C/POSIX locale). */
+  ascii?: boolean
+}
+
+/** Out-of-band freshness signal (never part of the scored payload) — rendered in the cockpit banner. */
+export interface FreshnessInfo {
+  status: 'FRESH' | 'PARTIAL' | 'STALE'
+  counts: { total: number; present: number; fresh: number }
+  staleHours: number
 }
 
 export interface GoldAuditResult {
@@ -139,6 +151,179 @@ function renderReport(p: GoldAuditPayload): string {
   return lines.join('\n') + '\n'
 }
 
+// ── #1475: the rich goldness cockpit (pure render over the existing payload — never re-scores) ──
+
+// Verdict → glyph. NV MUST render distinctly from NA (anti-fake-green: "can't verify" ≠ "n/a").
+// String-indexed so an unknown verdict from a malformed envelope falls back to NA (verdictCell).
+const COCKPIT_GLYPH: { unicode: Record<string, string>; ascii: Record<string, string> } = {
+  unicode: { Y: '🟢', P: '🟡', N: '🔴', NA: '·', NV: '❔' },
+  ascii: { Y: 'Y', P: 'P', N: 'N', NA: '.', NV: '?' },
+}
+
+const VERDICT_COLOR: Record<string, Sgr> = {
+  Y: 'green',
+  P: 'yellow',
+  N: 'red',
+  NA: 'dim',
+  NV: 'cyan',
+}
+
+const FRESH_COLOR: Record<string, Sgr> = { FRESH: 'green', PARTIAL: 'yellow', STALE: 'red' }
+
+/**
+ * Strip C0 controls, ESC, DEL and newlines from untrusted payload text (dimension/check ids,
+ * freshness status). The gold-registry is project-authored — in a consumer repo it is untrusted —
+ * so a crafted id must NEVER inject an ANSI escape or forge a line into piped/CI/committed output.
+ */
+function sanitize(s: unknown, ascii = false): string {
+  // A non-string field (a malformed --cockpit-data envelope where a JSON object/array sits where a
+  // scalar string belongs) renders BLANK — never `String(s)`, which would either leak the literal
+  // `[object Object]` or THROW "Cannot convert object to primitive value" on a primitive-resisting
+  // value like `{"toString":null}` (the render call is outside a try/catch).
+  const str = typeof s === 'string' ? s : ''
+  // eslint-disable-next-line no-control-regex -- strips C0/ESC/DEL + C1 line separators (NEL/LS/PS)
+  const noCtrl = str.replace(/[\x00-\x1f\x7f\u0085\u2028\u2029]/g, '')
+  // In --ascii mode also drop multi-byte unicode so untrusted registry text cannot leak non-ASCII.
+  return ascii ? noCtrl.replace(/[^\x20-\x7e]/g, '') : noCtrl
+}
+
+/** Coerce an (untrusted, possibly string/NaN/Infinity) numeric field to a finite number for display. */
+function num(n: unknown): number {
+  const x = Number(n)
+  return Number.isFinite(x) ? x : 0
+}
+
+/** A finite score clamped to [0,100] — a corrupt envelope renders visibly, never blank/NaN. */
+function clampScore(n: unknown): number {
+  const x = Number(n)
+  return Number.isFinite(x) ? Math.max(0, Math.min(100, x)) : 0
+}
+
+/** Round to one decimal for display (the engine already does; defensive against a corrupt envelope). */
+function displayScore(n: number): string {
+  return String(Math.round(clampScore(n) * 10) / 10)
+}
+
+/** Score → band colour (gold ≥75 green, ≥50 yellow, else red). */
+function scoreColor(score: number): Sgr {
+  return score >= 75 ? 'green' : score >= 50 ? 'yellow' : 'red'
+}
+
+/** A width-`w` progress bar for `score` (0–100, clamped). ASCII `#`/`.` or unicode `█`/`░`. */
+function scoreBar(score: number, w: number, ascii: boolean): string {
+  const filled = Math.max(0, Math.min(w, Math.round((clampScore(score) / 100) * w)))
+  const fill = ascii ? '#' : '█'
+  const empty = ascii ? '.' : '░'
+  return fill.repeat(filled) + empty.repeat(w - filled)
+}
+
+/** Resolve an (untrusted) verdict to its glyph + colour, falling back to NA for an unknown verdict. */
+function verdictCell(verdict: unknown, ascii: boolean): { glyph: string; color: Sgr } {
+  const glyphs = ascii ? COCKPIT_GLYPH.ascii : COCKPIT_GLYPH.unicode
+  // String-guard first (a non-string from a malformed envelope must not be coerced into a key — that
+  // throws on `{"toString":null}`), then Object.hasOwn (NOT `in`) so a prototype-chain key
+  // (toString/__proto__/…) falls back to NA. `key` is therefore always one of the 5 own glyph keys.
+  const v = typeof verdict === 'string' ? verdict : 'NA'
+  const key = Object.hasOwn(glyphs, v) ? v : 'NA'
+  return { glyph: glyphs[key] ?? glyphs['NA'] ?? '?', color: VERDICT_COLOR[key] ?? 'dim' }
+}
+
+/**
+ * Render the single-repo goldness cockpit. Three byte-deterministic tiers driven by `color`/`ascii`:
+ * TTY (color) → unicode glyphs + ANSI bars; piped (no color) → unicode glyphs, ANSI-free; `--ascii`
+ * → pure ASCII. Pure presentation over the engine payload + the out-of-band freshness — never scores.
+ * Untrusted payload strings (ids, status) are sanitized so the gate's "ANSI only behind TTY" holds.
+ */
+export function renderCockpit(
+  p: GoldAuditPayload,
+  fresh: FreshnessInfo | null,
+  opts: { color: boolean; ascii: boolean },
+): string {
+  const { color, ascii } = opts
+  const glyphs = ascii ? COCKPIT_GLYPH.ascii : COCKPIT_GLYPH.unicode
+  const sep = ascii ? ' | ' : ' · ' // a `·` middle-dot is non-ASCII — keep --ascii output pure ASCII
+  const lines: string[] = []
+
+  // Freshness banner (first line) — only when the registry declares value-check reports.
+  if (fresh && num(fresh.counts.total) > 0) {
+    const c = fresh.counts
+    // sanitize() returns a guaranteed string (folds a non-string/object status to ''), so it is safe
+    // both as the displayed text AND as the colour-map key — a raw `FRESH_COLOR[fresh.status]` would
+    // coerce an object key and THROW on `{"toString":null}`. paint() then no-ops any non-palette colour.
+    const statusText = sanitize(fresh.status, ascii)
+    lines.push(
+      paint(`DATA ${statusText}`, FRESH_COLOR[statusText] ?? 'dim', color) +
+        `${sep}${num(c.fresh)}/${num(c.total)} report(s) within ${num(fresh.staleHours)}h`,
+    )
+  }
+
+  // Level-band header + a global score bar.
+  const b = p.level
+  const toNext =
+    b.nextLevel === null ? 'max level' : `${num(b.toNextLevel)} to ${sanitize(b.nextLevel, ascii)}`
+  lines.push(
+    paint(sanitize(b.level, ascii), scoreColor(clampScore(p.score)), color) +
+      ` (${sanitize(b.brownfieldClass, ascii)})${sep}score ${displayScore(p.score)}${sep}${toNext}${sep}` +
+      `Y ${num(p.yCount)}/${num(p.totals.checks)}`,
+  )
+  lines.push(
+    '  ' +
+      paint(scoreBar(p.score, 24, ascii), scoreColor(clampScore(p.score)), color) +
+      ` ${displayScore(p.score)}`,
+  )
+
+  // Single-repo DIMENSION × check glyph grid. Iterate the UNION of declared dimensions and the
+  // dimensions actually present on checks, so no check (esp. an N/NV) can silently vanish.
+  lines.push('')
+  lines.push('DIMENSIONS')
+  const byDim = new Map<string, GoldCheck[]>()
+  for (const c of p.checks) {
+    // String-guard the dimension before using it as a Map key — a non-string from a malformed
+    // envelope would survive into byDim.keys() and throw when the default .sort() coerces it.
+    const dimKey = typeof c.dimension === 'string' ? c.dimension : ''
+    const arr = byDim.get(dimKey)
+    if (arr) arr.push(c)
+    else byDim.set(dimKey, [c])
+  }
+  const dimIds = [...new Set([...Object.keys(p.dimensions), ...byDim.keys()])].sort()
+  const rows = dimIds.map((id) => {
+    const dim = p.dimensions[id] ?? { score: 0, y: 0 }
+    const strip = (byDim.get(id) ?? [])
+      .map((c) => {
+        const cell = verdictCell(c.verdict, ascii)
+        return paint(cell.glyph, cell.color, color)
+      })
+      .join(' ')
+    return { label: sanitize(id, ascii), score: clampScore(dim.score), strip }
+  })
+  const w = rows.reduce((m, r) => Math.max(m, r.label.length), 0)
+  for (const r of rows) {
+    lines.push(
+      `  ${r.label.padEnd(w)}  ${paint(scoreBar(r.score, 12, ascii), scoreColor(r.score), color)} ` +
+        `${displayScore(r.score).padStart(5)}  ${r.strip}`,
+    )
+  }
+
+  // RISKY row — the false-gap meta-gate.
+  if (num(p.riskyCount) > 0) {
+    lines.push('')
+    const dash = ascii ? '--' : '—' // an em-dash is non-ASCII — keep --ascii output pure ASCII
+    lines.push(
+      paint(
+        `RISKY: ${num(p.riskyCount)} check(s) ${dash} false-gap meta-gate (scoring suppressed under --strict)`,
+        'red',
+        color,
+      ),
+    )
+  }
+
+  lines.push('')
+  lines.push(
+    `legend: ${glyphs['Y']} Y  ${glyphs['P']} P  ${glyphs['N']} N  ${glyphs['NA']} NA  ${glyphs['NV']} NV`,
+  )
+  return lines.join('\n') + '\n'
+}
+
 /**
  * #1419: no-regress gate delegation. Runs `gold-audit.mjs --check` in the target
  * repo and surfaces the engine's exit code (0 bootstrap/pass, 1 regress/disarm).
@@ -172,6 +357,54 @@ function runGoldAuditCheck(
 }
 
 /**
+ * #1475: cockpit delegation. Runs `gold-audit.mjs --cockpit-data` (scored payload + out-of-band
+ * freshness), then renders the rich console at the right TTY/ascii tier. Never re-scores.
+ */
+function runGoldAuditCockpit(
+  repo: string,
+  script: string,
+  cls: BrownfieldClass,
+  opts: GoldAuditOptions,
+): GoldAuditResult {
+  const args = [script, '--cockpit-data', '--class', cls]
+  if (opts.stack) args.push('--stack', opts.stack)
+  let stdout: string
+  try {
+    stdout = runCli('node', args, { cwd: repo }).stdout
+  } catch (err) {
+    const detail = err instanceof CliError ? err.message : String(err)
+    process.stderr.write(`gold-audit: engine failed — ${detail}\n`)
+    return { exitCode: 1, payload: null }
+  }
+  const text = stdout.trim()
+  if (!text.startsWith('{')) {
+    // SKIP (no registry) — forward the engine's plain line.
+    if (!opts.quiet) process.stdout.write(text + '\n')
+    return { exitCode: 0, payload: null }
+  }
+  let env: { payload: GoldAuditPayload; freshness?: FreshnessInfo }
+  try {
+    env = JSON.parse(text) as { payload: GoldAuditPayload; freshness?: FreshnessInfo }
+  } catch (err) {
+    process.stderr.write(`gold-audit: invalid cockpit JSON — ${(err as Error).message}\n`)
+    return { exitCode: 1, payload: null }
+  }
+  if (!opts.quiet) {
+    const ascii = asciiOnly(Boolean(opts.ascii))
+    const color = colorEnabled() && !ascii
+    try {
+      process.stdout.write(renderCockpit(env.payload, env.freshness ?? null, { color, ascii }))
+    } catch (err) {
+      // Defense-in-depth: renderCockpit is pure but consumes an untyped subprocess envelope — a
+      // pathologically malformed payload must degrade to an error, never a raw stack trace.
+      process.stderr.write(`gold-audit: could not render cockpit — ${(err as Error).message}\n`)
+      return { exitCode: 1, payload: env.payload }
+    }
+  }
+  return { exitCode: 0, payload: env.payload }
+}
+
+/**
  * Run the gold-audit engine and present the level band + gap report.
  * Reuses the engine (no second engine); returns the enriched payload for callers/tests.
  */
@@ -183,6 +416,11 @@ export function runGoldAudit(opts: GoldAuditOptions = {}): GoldAuditResult {
   // #1419: --check delegates to the engine's no-regress path (bootstrap-or-gate),
   // not the --json scorer. Used by the downstream thin runner.
   if (opts.check) return runGoldAuditCheck(repo, script, cls, opts)
+
+  // #1475: --cockpit renders the rich goldness console over the engine's --cockpit-data envelope
+  // (scored payload + out-of-band freshness). Pure presentation; never re-scores. `--ascii` implies
+  // the cockpit (it is a cockpit-only modifier — otherwise it would be a silent no-op).
+  if (opts.cockpit || opts.ascii) return runGoldAuditCockpit(repo, script, cls, opts)
 
   const args = ['--json', '--class', cls]
   if (opts.stack) args.push('--stack', opts.stack)
