@@ -805,3 +805,67 @@ describe('check-all.mjs.ejs rendering — wiki-lint L1 gating (#1318/#1321)', ()
     expect(content).toContain('check-wiki-lint.mjs')
   })
 })
+
+// #1491 / B3 — every run-helper called in the generated gate MUST be imported, or the
+// generated check-all.mjs throws a runtime ReferenceError mid-gate (never reaching the
+// Summary / writing the pass marker). String-match render tests missed this; this guard
+// asserts import↔usage parity for the run-helper trinity across representative configs.
+describe('check-all.mjs.ejs — run-helper import↔usage parity (#1491, B3)', () => {
+  const RUN_HELPERS = ['runCheck', 'runWarnCheck', 'runToolCheck'] as const
+
+  function importedRunHelpers(content: string): Set<string> {
+    const m = content.match(/import\s*\{([^}]*)\}\s*from\s*'\.\/lib\/run-helpers\.mjs'/)
+    expect(m, 'run-helpers import block must exist in rendered check-all.mjs').toBeTruthy()
+    return new Set(
+      m![1]
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    )
+  }
+
+  // enableDebtGates (not coverage) is what renders the runWarnCheck call sites; coverageEnabled
+  // is set explicitly because the template references it in a scriptlet (undefined → render
+  // ReferenceError). The java case keeps coverage on to also exercise the coverage path.
+  for (const cfg of [
+    {
+      language: 'typescript',
+      enableDebtGates: true,
+      coverageEnabled: false,
+      governanceLevel: 'L2',
+    },
+    {
+      language: 'typescript',
+      enableDebtGates: true,
+      coverageEnabled: false,
+      governanceLevel: 'L3',
+    },
+    { language: 'python', enableDebtGates: true, coverageEnabled: false, governanceLevel: 'L2' },
+    {
+      language: 'java',
+      buildTool: 'gradle',
+      enableDebtGates: true,
+      coverageEnabled: true,
+      governanceLevel: 'L2',
+    },
+  ] as const) {
+    const label = `${cfg.language}${'buildTool' in cfg ? '/' + cfg.buildTool : ''} ${cfg.governanceLevel}`
+    it(`${label}: no run-helper is called without being imported`, () => {
+      const data = makeConfig('/tmp/test', cfg as Record<string, unknown>) as unknown as Record<
+        string,
+        unknown
+      >
+      const content = renderTemplate('scripts/check-all.mjs.ejs', data)
+      const imported = importedRunHelpers(content)
+      for (const helper of RUN_HELPERS) {
+        const calledInBody = new RegExp(`\\b${helper}\\s*\\(`).test(content)
+        if (calledInBody) {
+          expect(
+            imported.has(helper),
+            `${helper}() is called in the generated gate but not imported from run-helpers.mjs → ReferenceError at runtime`,
+          ).toBe(true)
+        }
+      }
+    })
+  }
+})
