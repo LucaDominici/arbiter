@@ -57,6 +57,49 @@ export function collectYamlFiles(dir, { onReadError } = {}) {
 }
 
 /**
+ * Recursively collect workflow TEMPLATE files (`.ejs`) that live under any
+ * `workflows/` directory within `templatesRoot` (e.g. `src/templates/`).
+ *
+ * Arbiter emits these templates verbatim into a consumer project's
+ * `.github/workflows/`, so a non-SHA / fabricated action pin in a template
+ * ships a broken, unverifiable reference to every generated project while the
+ * arbiter self-gate (which only walks arbiter's own `.github/`) stays green.
+ * This walker lets the pin gate also vet the emitted source (#1491).
+ *
+ * Returns [] when `templatesRoot` does not exist. Mirrors collectYamlFiles:
+ * skips symlinks, recurses into subdirectories, invokes `onReadError` (if
+ * given) on a readdir failure and returns results gathered so far.
+ *
+ * @param {string} templatesRoot Root of the template tree (e.g. src/templates).
+ * @param {{ onReadError?: (dir: string, err: Error) => void }} [opts]
+ * @returns {string[]} Paths of `*.ejs` files under a `workflows/` directory.
+ */
+export function collectWorkflowTemplates(templatesRoot, { onReadError } = {}) {
+  if (!existsSync(templatesRoot)) return []
+  const results = []
+  const walk = (dir, inWorkflows) => {
+    let entries
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch (err) {
+      if (onReadError) onReadError(dir, /** @type {Error} */ (err))
+      return
+    }
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(full, inWorkflows || entry.name === 'workflows')
+      } else if (inWorkflows && entry.isFile() && entry.name.endsWith('.ejs')) {
+        results.push(full)
+      }
+    }
+  }
+  walk(templatesRoot, false)
+  return results
+}
+
+/**
  * Handle the shared `--help`/`-h` and `--dir <path>` arguments.
  *
  * If `--help` or `-h` is present, the provided `usage` string is written to

@@ -114,4 +114,86 @@ describe('check-action-pins.mjs (#902/#886, INV-76 enforced)', () => {
       cleanup()
     }
   })
+
+  // #1491 (security-privacy MAJOR-3): a fabricated/short/tag SHA pin in a workflow TEMPLATE
+  // (src/templates/**/workflows/*.ejs) is emitted verbatim into every generated project. The pin
+  // gate must vet the emitted source, not only arbiter's own .github/.
+  function writeTemplate(dir: string, name: string, body: string): void {
+    const wfDir = join(dir, 'src', 'templates', 'github', 'workflows')
+    mkdirSync(wfDir, { recursive: true })
+    writeFileSync(join(wfDir, name), body)
+  }
+
+  it('rejects a fabricated/short SHA pin in a workflow template (.ejs)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      // 39-char SHA (one short) — the exact MAJOR-3 defect; not a valid commit object.
+      writeTemplate(
+        dir,
+        'deploy.yml.ejs',
+        'jobs:\n  go:\n    steps:\n      - uses: google-github-actions/auth@71f986410dfbc7ef6f5e4d50c57a2b159b3e3ec  # v2\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('non-SHA action reference')
+      expect(result.stderr).toContain('71f986410dfbc7ef6f5e4d50c57a2b159b3e3ec')
+      expect(result.stderr).toContain('deploy.yml.ejs')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('rejects a tag-pinned ref in a workflow template (.ejs)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeTemplate(
+        dir,
+        'ci.yml.ejs',
+        'jobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('actions/checkout@v4')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('accepts a real 40-hex SHA and skips templated/local refs in a workflow template', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      writeTemplate(
+        dir,
+        'mixed.yml.ejs',
+        'jobs:\n  build:\n    steps:\n' +
+          '      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n' +
+          '      - uses: actions/setup-node@<%= setupNodeSha %>\n' +
+          '      - uses: foo/bar@${{ env.PIN }}\n' +
+          '      - uses: ./.github/actions/local\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('all action references are SHA-pinned')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('only scans .ejs files under a workflows/ template dir (ignores other templates)', () => {
+    const { dir, cleanup } = makeDir()
+    try {
+      // A non-workflows template with a tag ref must NOT trip the gate.
+      const otherDir = join(dir, 'src', 'templates', 'docs')
+      mkdirSync(otherDir, { recursive: true })
+      writeFileSync(
+        join(otherDir, 'example.md.ejs'),
+        'Example doc snippet: uses: actions/checkout@v4\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('all action references are SHA-pinned')
+    } finally {
+      cleanup()
+    }
+  })
 })
