@@ -27,7 +27,9 @@ export default defineConfig({
     poolMatchGlobs: [['**/__tests__/integration/**', 'forks']],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'lcov'],
+      // json-summary feeds the coverage no-regression ratchet (scripts/check-coverage-ratchet.mjs):
+      // coverage/coverage-summary.json is the deterministic, machine-readable source of truth.
+      reporter: ['text', 'lcov', 'json-summary'],
       // Measure the coverage floor against shipped product code only. Build/dev
       // tooling (scripts/*.mjs, .claude/hooks/*) and test helpers are exercised
       // incidentally by tests but are not the product; counting them made the
@@ -40,8 +42,12 @@ export default defineConfig({
         '.claude/**',
         '**/*.config.ts',
       ],
+      // Absolute floors (the suite fails below these). The coverage no-regression ratchet
+      // (scripts/check-coverage-ratchet.mjs + .coverage-baseline.json) enforces the tighter
+      // "never erode from the current measured %" on all four axes. lines is held at the 90
+      // target (#1483); branches climbs toward 90 under the ratchet (epic #1480 PR3+).
       thresholds: {
-        lines: 85,
+        lines: 90,
         branches: 75,
         functions: 90,
         statements: 85,

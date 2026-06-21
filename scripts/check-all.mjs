@@ -243,6 +243,10 @@ if (isMain) {
   // ─── gate: T1+T2 extended checks ─────────────────────────────────────────────
   if (subcommand !== 'check') {
     runCheck('coverage', 'npm', ['test', '--', '--coverage'], vitestEnv ? { env: vitestEnv } : {})
+    // Coverage no-regression ratchet (#1483): runs right after coverage, reading the
+    // coverage/coverage-summary.json the run above emits (json-summary reporter). Fails if any
+    // of lines/branches/functions/statements drops below the .coverage-baseline.json floor.
+    runCheck('coverage ratchet (#1483)', 'node', ['scripts/check-coverage-ratchet.mjs'])
     // When running from rsync'd temp dir on behalf of a '#'-path worktree,
     // VitePress cannot resolve workspace paths; degrade to warn (CI validates).
     const docsCheck = process.env.ARBITER_HOOK_GIT_CWD?.includes('#') ? runWarnCheck : runCheck

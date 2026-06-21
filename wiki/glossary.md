@@ -1,7 +1,7 @@
 ---
 generated: true
 source: 'docs/GLOSSARY.md'
-source_sha: '0cc0b159759db94bc682a5b19c1815a719a284dd'
+source_sha: '865656c03237c404a6f1e1b1bd86fb24c39ad269'
 last_updated: '2026-06-21'
 ---
 
@@ -40,6 +40,12 @@ detail.
   from the (code-computed) audits.
 - **dogfood** — arbiter applying its own governance to itself; `scripts/check-self-dogfood.mjs`
   verifies arbiter's `.claude/` matches what its templates generate.
+- **coverage ratchet** — a no-regression gate (`scripts/check-coverage-ratchet.mjs`) that reads
+  the v8 `coverage/coverage-summary.json` and fails if any of lines/branches/functions/statements
+  drops more than 0.5pp below `.coverage-baseline.json`. Like the bloat and gold ratchets, the
+  baseline only tightens (`--update` writes `max(current, baseline)`), so coverage can hold or
+  rise but never silently erode. The vitest `thresholds` are the absolute floor; the ratchet is
+  the tighter "never go below where we are now" guard.
 - **SSOT** — single source of truth; the one authoritative place a fact lives (config/code),
   which docs point at rather than duplicate.
 - **/ship** — the orchestration entrypoint that drives one issue to a merged, reviewed PR.
