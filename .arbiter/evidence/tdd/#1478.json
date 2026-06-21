@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1478",
+  "test_path": "__tests__/scripts/changeset-version.test.ts",
+  "test_commit_sha": "b0fc941a76223a090198416344c0be5706f6f9d0",
+  "test_run_log": "\n RUN  v4.1.9 /home/luca/work/repos/arbiter.worktrees/1478-release-fix\n\n FAIL  __tests__/scripts/changeset-version.test.ts > changeset-version wrapper (#1478 root enumeration) > strips workspaces during the version step and restores it after (preserving the bump)\n FAIL  __tests__/scripts/changeset-version.test.ts > changeset-version wrapper (#1478 root enumeration) > restores workspaces even when the version step throws (try/finally)\n FAIL  __tests__/scripts/changeset-version.test.ts > changeset-channel-tag (#1478 header formats + Unreleased) > labels a PLAIN changeset header (## X.Y.Z) and skips [Unreleased] without erroring\n   → Cannot find module '../../scripts/changeset-version.mjs' (wrapper not yet created); channel-tag exited 1 on '## [Unreleased]'\n\n Test Files  1 failed (1)\n      Tests  7 failed (7)\n",
+  "observed_failure": "FAIL  __tests__/scripts/changeset-version.test.ts — scripts/changeset-version.mjs absent + channel-tag/sync-changelog not yet fixed (7 failing)",
+  "recorded_at": "2026-06-21T21:28:00.000Z"
+}
