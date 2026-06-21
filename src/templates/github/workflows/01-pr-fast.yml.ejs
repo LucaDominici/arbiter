@@ -38,12 +38,14 @@ jobs:
   solo-dev-gate:
     name: Solo-Dev Gate (INV-59)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - run: echo "solo-dev mode — local L2 gate guards merge via INV-59 parity check"
 <% } else { %><% if (enableSecurityScanning) { %>
   security-early-fail:
     name: Security (PII + Secrets)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
       # .git/refs/**/*.lock from an interrupted run, which makes the
@@ -76,6 +78,7 @@ jobs:
   classify-changes:
     name: Classify Changes
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     outputs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
       backend_changed: ${{ steps.classify.outputs.backend_changed }}
@@ -108,6 +111,7 @@ jobs:
   cross-stack-guard:
     name: Cross-Stack Guard
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [classify-changes]
     if: github.event_name == 'pull_request'
     permissions:
@@ -140,6 +144,7 @@ jobs:
   gate:
     name: Lint + Typecheck
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% if(_tsNeeds.length){ %>    needs: [<%= _tsNeeds.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
@@ -155,6 +160,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
@@ -177,6 +183,7 @@ jobs:
   contract-tests:
     name: Contract Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
@@ -190,6 +197,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
@@ -203,6 +211,7 @@ jobs:
   behavioral-tests:
     name: Behavioral Tests
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
@@ -217,6 +226,7 @@ jobs:
   gate:
     name: Lint + Test (Rust)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
@@ -301,6 +311,7 @@ jobs:
   unit-tests:
     name: Unit Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% if(buildTool === 'maven'){ /* tests need compiled classes from build-reactor, not lint; off the gate hop (#1278) */ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
@@ -340,6 +351,7 @@ jobs:
   contract-tests:
     name: Contract Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
@@ -361,6 +373,7 @@ jobs:
   integration-tests:
     name: Integration Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
@@ -382,6 +395,7 @@ jobs:
   behavioral-tests:
     name: Behavioral Tests (Java)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
@@ -404,6 +418,7 @@ jobs:
   gate:
     name: Lint + Test (Go)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
@@ -422,6 +437,7 @@ jobs:
   gate:
     name: Lint + Test (Python)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
@@ -453,6 +469,7 @@ jobs:
   docs-check:
     name: Docs Check
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     if: github.event_name == 'pull_request'
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
@@ -497,6 +514,7 @@ jobs:
   debt-gates:
     name: Tech Debt Gates
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
@@ -580,6 +598,7 @@ jobs:
   sonar-scan:
     name: SonarCloud Scan
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate]
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
@@ -617,6 +636,7 @@ jobs:
   debt-ratchet:
     name: Debt Ratchet
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
@@ -647,6 +667,7 @@ jobs:
   contract-verify:
     name: Contract Verify
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [gate]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
@@ -786,6 +807,7 @@ jobs:
   ci-required:
     name: CI Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 <%
   const _ciNeeds = ['gate'];
   if (_humanApproval) _ciNeeds.push('human-approval-required');

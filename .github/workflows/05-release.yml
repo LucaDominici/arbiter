@@ -20,6 +20,7 @@ jobs:
   build-superset:
     name: Build superset
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
@@ -45,6 +46,7 @@ jobs:
     name: Trivy filesystem scan (CRITICAL block, INV-92)
     needs: [build-superset]
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       - name: Scan filesystem for CRITICAL vulnerabilities
@@ -61,6 +63,7 @@ jobs:
     name: Mutation tests (blocking)
     needs: [build-superset]
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     continue-on-error: false
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
@@ -72,6 +75,7 @@ jobs:
     name: Full-history secret scan
     needs: [build-superset]
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
       # .git/refs/**/*.lock from an interrupted run, which makes the
@@ -94,6 +98,7 @@ jobs:
     name: Generate SBOM (CycloneDX)
     needs: [build-superset]
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       - uses: ./.github/actions/setup-node-pnpm
@@ -110,6 +115,7 @@ jobs:
     needs: [build-superset, mutation-blocking, secret-scan-history, trivy-fs-scan]
     if: github.event_name != 'pull_request'
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     permissions:
       contents: write
       id-token: write
@@ -131,6 +137,7 @@ jobs:
     needs: [sbom, cosign-sign]
     if: github.event_name != 'pull_request'
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     permissions:
       id-token: write
       contents: read
@@ -170,6 +177,7 @@ jobs:
     needs: [build-superset]
     if: github.event_name != 'pull_request'
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     permissions:
       id-token: write
       attestations: write
@@ -187,6 +195,7 @@ jobs:
     needs: [cosign-sign, attest-build-provenance, slsa-provenance, sbom-attest]
     if: github.event_name != 'pull_request'
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     permissions:
       contents: read
       id-token: write  # required by `npm publish --provenance` (OIDC)
@@ -220,6 +229,7 @@ jobs:
       - publish-package
     if: always()
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - name: Release gate summary
         run: |

@@ -17,6 +17,7 @@ jobs:
   dep-age-audit:
     name: Dependency age audit (>180 days)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
       # .git/refs/**/*.lock from an interrupted run, which makes the
@@ -46,6 +47,7 @@ jobs:
   license-full-audit:
     name: Full license compliance scan
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -63,6 +65,7 @@ jobs:
   action-pins-stale-audit:
     name: GitHub Actions SHA pin staleness (>180d)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -104,6 +107,7 @@ jobs:
   sbom-archive:
     name: SBOM full snapshot
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -127,6 +131,7 @@ jobs:
       - sbom-archive
     if: always()
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Collect evidence summary
@@ -150,6 +155,7 @@ jobs:
       - sbom-archive
     if: always()
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - name: Assert all jobs succeeded
         run: |

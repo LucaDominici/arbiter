@@ -179,7 +179,7 @@ jobs:
     }
   })
 
-  it('counts jobs missing timeout-minutes (visibility metric, not gated)', () => {
+  it('fails when a numbered-tier job is missing timeout-minutes (#1485, now gated)', () => {
     const t = makeTemp()
     try {
       write(
@@ -201,8 +201,7 @@ jobs:
 `,
       )
       const r = run(t.dir, t.out)
-      // missing timeout alone must NOT fail the gate in this phase
-      expect(r.status).toBe(0)
+      expect(r.status).toBe(1)
       expect(report(t.out).jobsMissingTimeout).toBeGreaterThanOrEqual(1)
     } finally {
       t.cleanup()
