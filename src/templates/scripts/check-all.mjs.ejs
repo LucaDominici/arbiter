@@ -39,22 +39,46 @@ for (let _i = 0; _i < _rawArgs.length; _i++) {
 }
 
 // ─── Grace Period Guard (ADR-028) ─────────────────────────────────────────────
-// If arbiter.json records graceFromLevel==='L1' with a future graceEndsAt,
-// all L2 gates become WARN-only for the remainder of the grace period.
+// A freshly-upgraded L1→L2 project may run its new L2 gates WARN-only for a
+// bounded settling window (set ONLY by `arbiter upgrade-level`, never by hand).
+//
+// Three guards close the L2 fake-green vector this mechanism could otherwise open:
+//   1. CURRENT-LEVEL binding — grace is honored only while THIS project is at L2
+//      (the level baked into this script at generation time). Once it climbs to
+//      L3/L4, `arbiter update` re-renders this script at the higher level and the
+//      guard below evaluates false, so a stale L1→L2 graceEndsAt can no longer
+//      silence the (now higher) gate. A grace from L1 only ever softens L2.
+//   2. BOUNDED window — graceEndsAt is honored only if it is at most
+//      GRACE_MAX_DAYS ahead of now. A hand-edited far-future date (the classic
+//      "neuter the gate forever" edit) exceeds the bound and is IGNORED, with a
+//      loud warning — it cannot make the gate advisory.
+//   3. HARD checks stay hard — PII/secret early-fail (above) and the anti-fake-green
+//      aggregate are never softened by grace.
+const GRACE_MAX_DAYS = 35; // upgrade-level default is 30; +5 slack for one --extend
+const _projectLevel = '<%= governanceLevel %>';
 let graceActive = false;
 const _arbiterJsonPath = join(process.cwd(), 'arbiter.json');
 if (existsSync(_arbiterJsonPath)) {
   try {
     const _cfg = JSON.parse(readFileSync(_arbiterJsonPath, 'utf-8'));
-    if (
-      _cfg.graceFromLevel === 'L1' &&
-      _cfg.graceEndsAt &&
-      Date.parse(_cfg.graceEndsAt) > Date.now()
-    ) {
-      graceActive = true;
-      const _daysLeft = Math.ceil((Date.parse(_cfg.graceEndsAt) - Date.now()) / 86400000);
-      const _endsDate = _cfg.graceEndsAt.slice(0, 10);
-      console.log(`[GRACE] Grace period ends in ${_daysLeft} day(s) (${_endsDate}). L2 gates WARN-only until then.`);
+    const _ends = _cfg.graceEndsAt ? Date.parse(_cfg.graceEndsAt) : NaN;
+    const _now = Date.now();
+    // Grace from L1 is only meaningful while the project is itself at L2.
+    const _levelOk = _cfg.graceFromLevel === 'L1' && _projectLevel === 'L2';
+    if (_levelOk && Number.isFinite(_ends) && _ends > _now) {
+      const _maxEnds = _now + GRACE_MAX_DAYS * 86400000;
+      if (_ends > _maxEnds) {
+        const _endsDate = _cfg.graceEndsAt.slice(0, 10);
+        console.log(`[GRACE] IGNORED — graceEndsAt (${_endsDate}) exceeds the ${GRACE_MAX_DAYS}-day bound; treating L2 gates as HARD. Re-run \`arbiter upgrade-level --extend\` instead of hand-editing arbiter.json.`);
+      } else {
+        graceActive = true;
+        const _daysLeft = Math.ceil((_ends - _now) / 86400000);
+        const _endsDate = _cfg.graceEndsAt.slice(0, 10);
+        console.log(`[GRACE] Grace period ends in ${_daysLeft} day(s) (${_endsDate}). L2 gates WARN-only until then.`);
+      }
+    } else if (_cfg.graceFromLevel === 'L1' && _projectLevel !== 'L2' && Number.isFinite(_ends) && _ends > _now) {
+      // Stale grace carried into a higher level — never soften the higher gate.
+      console.log(`[GRACE] IGNORED — graceFromLevel=L1 but project is now ${_projectLevel}; L2 grace does not apply to a ${_projectLevel} gate.`);
     }
   } catch { /* ignore parse errors — arbiter.json absent or malformed */ }
 }

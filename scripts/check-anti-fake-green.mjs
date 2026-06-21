@@ -33,6 +33,9 @@ const GUARDS = [
   { name: 'skip-critical-e2e', script: 'scripts/check-skip-critical-e2e.mjs', class: 'file-scan' },
   // E10 no-stub-redirects — a stale "Moved →" stub .md husk (allowlist needs a hard EXPIRES).
   { name: 'no-stub-redirects', script: 'scripts/check-no-stub-redirects.mjs', class: 'file-scan' },
+  // grace-window — an over-long / stale-level ADR-028 grace in arbiter.json (#1491): the classic
+  // L2 fake-green via a hand-edited far-future graceEndsAt. NO-DATA (no active grace) is a PASS.
+  { name: 'grace-window', script: 'scripts/check-grace-window.mjs', class: 'file-scan' },
 ]
 
 function main() {
