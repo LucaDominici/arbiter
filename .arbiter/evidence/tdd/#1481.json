@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "task_id": "#1481",
+  "test_path": "__tests__/scripts/check-workflow-hardening.test.ts",
+  "test_commit_sha": "d88671a6e752c77ae7839a7e742336953abd3601",
+  "test_run_log": "\n RUN  v4.1.9 /home/luca/work/repos/arbiter.worktrees/1481-gold-actions-docs\n\n FAIL  __tests__/scripts/check-workflow-hardening.test.ts > check-workflow-hardening > passes on a fully-hardened workflow and writes a zeroed report\n FAIL  __tests__/scripts/check-workflow-hardening.test.ts > check-workflow-hardening > fails and counts an unpinned action (tag ref, not 40-hex SHA)\n FAIL  __tests__/scripts/check-workflow-hardening.test.ts > check-workflow-hardening > counts jobs missing timeout-minutes (visibility metric, not gated)\n   → spawnSync returned status 1: scripts/check-workflow-hardening.mjs does not exist yet\n\n Test Files  1 failed (1)\n      Tests  8 failed (8)\n",
+  "observed_failure": "FAIL  __tests__/scripts/check-workflow-hardening.test.ts — scripts/check-workflow-hardening.mjs not yet implemented (8 failing)",
+  "recorded_at": "2026-06-21T18:52:00.000Z"
+}
