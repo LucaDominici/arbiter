@@ -20,6 +20,7 @@ jobs:
   mutation-deep:
     name: Deep mutation testing
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
       # .git/refs/**/*.lock from an interrupted run, which makes the
@@ -79,6 +80,7 @@ jobs:
     if: false
 <% } %>
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: ZAP full scan
@@ -91,6 +93,7 @@ jobs:
   dep-cve-refresh:
     name: Dependency CVE refresh
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 <% if (language === 'typescript') { %>
@@ -302,6 +305,7 @@ jobs:
   toxiproxy-resilience:
     name: Toxiproxy resilience (service only)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 <% if (language === 'typescript') { %>
@@ -357,6 +361,7 @@ jobs:
   gitleaks-history:
     name: Secret scan (full history)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
       # .git/refs/**/*.lock from an interrupted run, which makes the
@@ -438,6 +443,7 @@ jobs:
 <% } %>
     if: always()
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Collect evidence summary
@@ -467,6 +473,7 @@ jobs:
 <% } %>
     if: always()
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - name: Assert no hard failures
         run: |

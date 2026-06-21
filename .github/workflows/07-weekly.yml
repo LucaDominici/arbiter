@@ -19,6 +19,7 @@ jobs:
   dep-freshness:
     name: Dependency freshness report
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -30,6 +31,7 @@ jobs:
   perf-trend:
     name: k6 performance trend
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: k6 performance smoke vs 7-day baseline
@@ -42,6 +44,7 @@ jobs:
   action-version-audit:
     name: Stale action pin audit
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Find SHA-pinned actions older than 180 days
@@ -78,6 +81,7 @@ jobs:
 
     if: always()
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     steps:
       - name: Weekly gate summary
         run: |

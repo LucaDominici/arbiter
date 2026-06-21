@@ -24,6 +24,7 @@ jobs:
   check-trigger:
     name: Check Extended Trigger
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     outputs:
       should_run: ${{ steps.decide.outputs.should_run }}
     steps:
@@ -76,6 +77,7 @@ jobs:
   integration-tests:
     name: Integration Tests (T2)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [check-trigger]
     strategy:
       max-parallel: 2
@@ -93,6 +95,7 @@ jobs:
   license-scan:
     name: License Scan (T2)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
@@ -106,6 +109,7 @@ jobs:
   behavioral-tests:
     name: Behavioral Tests (T2)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [check-trigger]
     strategy:
       max-parallel: 2
@@ -122,6 +126,7 @@ jobs:
   bake-e2e-tests:
     name: Bake E2E (T2)
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
     needs: [check-trigger]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
@@ -134,6 +139,7 @@ jobs:
   extended-required:
     name: Extended Required
     runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 60
 
     needs: [check-trigger, integration-tests, license-scan, behavioral-tests, bake-e2e-tests]
     if: always()

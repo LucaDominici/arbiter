@@ -232,6 +232,18 @@ checks:
     weight: 1
     risk: SAFE
     anchor: INV-79
+  - id: GA-ACT-05
+    dimension: D-ACTIONS
+    title: Every CI-tier job declares timeout-minutes (no hung job runs to the 6h default)
+    type: value
+    args:
+      path: .arbiter/reports/workflow-hardening.json
+      format: json
+      select: jobsMissingTimeout
+      op: lte
+      expected: 0
+    weight: 1
+    risk: SAFE
 
   # ---- D-META-TEST: every static rule needs a RED-on-bug + GREEN-on-clean fixture ----
   - id: GA-META-01

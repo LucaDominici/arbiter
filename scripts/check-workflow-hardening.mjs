@@ -5,9 +5,8 @@
 // CATALOG:   gold-audit D-ACTIONS dimension (value report-metric). Gated metrics (fail the gate
 // CATALOG:   when > 0): unpinnedActions (non-40-hex `uses:` ref), workflowsMissingPermissions
 // CATALOG:   (no top-level `permissions:`), prPushWorkflowsMissingConcurrency (a pull_request/push
-// CATALOG:   triggered workflow with no `concurrency:`). Visibility-only metric (reported, NOT
-// CATALOG:   gated in this phase): jobsMissingTimeout (numbered-tier jobs lacking timeout-minutes,
-// CATALOG:   tracked for the timeout-hardening follow-up).
+// CATALOG:   triggered workflow with no `concurrency:`), jobsMissingTimeout (numbered-tier jobs
+// CATALOG:   lacking timeout-minutes — a hung job otherwise runs to GitHub's 6h default, #1485).
 // CATALOG: Rejected fold-in into check-action-pins.mjs (single-axis SHA-pin transition gate) and
 // CATALOG:   check-workflow-parallelism.mjs (needs-chain depth, different axis): this gate owns the
 // CATALOG:   multi-axis hardening report + the gold-audit value-report contract.
@@ -186,13 +185,21 @@ function main() {
     metrics.jobsMissingTimeout += countJobsMissingTimeout(file, lines)
   }
 
+  if (metrics.jobsMissingTimeout > 0) {
+    violations.push(
+      `${metrics.jobsMissingTimeout} numbered-tier job(s) without timeout-minutes (a hung job ` +
+        `runs to GitHub's 6h default, burning runner minutes)`,
+    )
+  }
+
   mkdirSync(dirname(OUT), { recursive: true })
   writeFileSync(OUT, JSON.stringify(metrics, null, 2) + '\n')
 
   const gated =
     metrics.unpinnedActions +
     metrics.workflowsMissingPermissions +
-    metrics.prPushWorkflowsMissingConcurrency
+    metrics.prPushWorkflowsMissingConcurrency +
+    metrics.jobsMissingTimeout
   if (gated > 0) {
     process.stdout.write(
       `  check-workflow-hardening: ${gated} hardening violation(s):\n` +
@@ -203,8 +210,7 @@ function main() {
   }
   process.stdout.write(
     `  check-workflow-hardening: ${metrics.workflows} workflow(s) hardened ` +
-      `(pins ✓, permissions ✓, concurrency ✓; ${metrics.jobsMissingTimeout} job(s) without ` +
-      `timeout-minutes — tracked follow-up)\n`,
+      `(pins ✓, permissions ✓, concurrency ✓, timeout-minutes ✓)\n`,
   )
   return 0
 }
