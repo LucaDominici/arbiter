@@ -174,6 +174,19 @@ describe('generateCheckAll', () => {
     expect(content).not.toContain("'--ext', '.ts,.js'")
   })
 
+  it('rendered GRACE_MAX_DAYS matches the CLI upgrade-level bound (no drift)', async () => {
+    // The generated gate caps the honored grace window at GRACE_MAX_DAYS and the
+    // `arbiter upgrade-level` CLI clamps the persisted window to the SAME value.
+    // If they drift, the CLI could write a window the gate silently ignores
+    // (fake-green-adjacent). This parity test forbids that drift.
+    const { GRACE_MAX_DAYS } = await import('../../src/commands/upgrade-level.js')
+    generateCheckAll(makeConfig(dir, { governanceLevel: 'L2' }))
+    const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    const m = content.match(/const GRACE_MAX_DAYS\s*=\s*(\d+)/)
+    expect(m, 'check-all.mjs must define GRACE_MAX_DAYS').not.toBeNull()
+    expect(Number(m![1])).toBe(GRACE_MAX_DAYS)
+  })
+
   it('check-all.mjs contains Rust commands for Rust projects', () => {
     generateCheckAll(makeConfig(dir, { language: 'rust', buildTool: 'cargo' }))
     const content = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')

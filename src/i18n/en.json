@@ -172,7 +172,9 @@
       "grace_ends_warn": "Grace ends {date} ({days} days). {target} gates will WARN until then.",
       "upgraded": "Upgraded to {target}. Grace period recorded until {date} ({days} days).",
       "grace_warn_note": "  Note: grace-period warn mode is L1→L2 only in this release; {target} gates activate immediately.",
-      "grace_extended": "Grace extended to {date} (+{days} days)."
+      "grace_extended": "Grace extended to {date} (+{days} days).",
+      "grace_capped": "Grace window capped at {max} days (requested {requested}). The generated gate ignores any grace longer than {max} days.",
+      "grace_extend_capped": "Grace window capped at {max} days from now (extend by {requested} would exceed it). The generated gate ignores any grace longer than {max} days."
     },
     "update": {
       "checking": "Checking for updates...",

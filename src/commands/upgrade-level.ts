@@ -23,6 +23,46 @@ export interface UpgradeLevelOptions {
 const LEVEL_RANK: Record<GovernanceLevel, number> = { L1: 1, L2: 2, L3: 3, L4: 4 }
 const DEFAULT_GRACE_DAYS = 30
 
+/**
+ * Hard ceiling on how far ahead of *now* a `graceEndsAt` may be persisted.
+ *
+ * This MUST stay in lock-step with `GRACE_MAX_DAYS` in
+ * `src/templates/scripts/check-all.mjs.ejs`: the generated gate IGNORES any
+ * `graceEndsAt` more than this many days ahead (it can no longer soften L2).
+ * If the CLI wrote a larger window, the gate would silently disregard it and
+ * the user would believe they had a longer grace than they actually do — a
+ * confusing, fake-green-adjacent state. So the CLI clamps every write
+ * (`--target ... --days N` and repeated `--extend`s) to this same bound, with
+ * a loud warning, keeping `arbiter.json` truthful about what the gate honors.
+ * (`check-all.test.ejs` parity test asserts the two constants are equal.)
+ */
+export const GRACE_MAX_DAYS = 35
+
+/** Clamp an absolute end-of-grace timestamp to at most `now + GRACE_MAX_DAYS`. */
+function clampGraceEndsAt(endsAtMs: number, nowMs: number): { ms: number; clamped: boolean } {
+  const maxMs = nowMs + GRACE_MAX_DAYS * 86400000
+  return endsAtMs > maxMs ? { ms: maxMs, clamped: true } : { ms: endsAtMs, clamped: false }
+}
+
+/**
+ * Compute the persisted grace window for a fresh `--target` upgrade, clamped to
+ * `GRACE_MAX_DAYS` (what the generated gate honors). Warns on STDERR when the
+ * requested `--days` exceeds the bound and returns the effective (post-clamp)
+ * day count so messaging/JSON never overstate the window.
+ */
+function resolveGraceWindow(
+  days: number,
+  nowMs: number,
+): { graceEndsAt: string; effectiveDays: number } {
+  const { ms, clamped } = clampGraceEndsAt(nowMs + days * 86400000, nowMs)
+  if (clamped) {
+    process.stderr.write(
+      `${t('cli.upgrade_level.grace_capped', { max: GRACE_MAX_DAYS, requested: days })}\n`,
+    )
+  }
+  return { graceEndsAt: new Date(ms).toISOString(), effectiveDays: clamped ? GRACE_MAX_DAYS : days }
+}
+
 export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> {
   const dir = resolve(opts.dir ?? '.')
   const stored = loadConfig(dir)
@@ -85,7 +125,9 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
   }
 
   const days = opts.days ?? DEFAULT_GRACE_DAYS
-  const graceEndsAt = new Date(Date.now() + days * 86400000).toISOString()
+  // Clamp + warn in one place; effectiveDays is what messaging/JSON must report
+  // so the user is never told "9999 days" when only GRACE_MAX_DAYS were persisted.
+  const { graceEndsAt, effectiveDays } = resolveGraceWindow(days, Date.now())
 
   // INV-33 (#498): validate config shape FIRST, then mutate external state,
   // then persist. Order is: validate → capture baseline → saveConfig. See
@@ -119,7 +161,7 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
       from: current,
       to: target,
       graceEndsAt,
-      graceDays: days,
+      graceDays: effectiveDays,
     })
     return
   }
@@ -127,10 +169,12 @@ export async function runUpgradeLevel(opts: UpgradeLevelOptions): Promise<void> 
   const endsDate = graceEndsAt.slice(0, 10)
   if (current === 'L1' && target === 'L2') {
     process.stdout.write(
-      `${t('cli.upgrade_level.grace_ends_warn', { date: endsDate, days, target })}\n`,
+      `${t('cli.upgrade_level.grace_ends_warn', { date: endsDate, days: effectiveDays, target })}\n`,
     )
   } else {
-    process.stdout.write(`${t('cli.upgrade_level.upgraded', { target, date: endsDate, days })}\n`)
+    process.stdout.write(
+      `${t('cli.upgrade_level.upgraded', { target, date: endsDate, days: effectiveDays })}\n`,
+    )
     process.stdout.write(`${t('cli.upgrade_level.grace_warn_note', { target })}\n`)
   }
 }
@@ -151,7 +195,18 @@ async function handleExtend(
     )
   }
 
-  const newEndsAt = new Date(Date.parse(existing) + days * 86400000).toISOString()
+  const _now = Date.now()
+  const { ms: newEndsMs, clamped } = clampGraceEndsAt(Date.parse(existing) + days * 86400000, _now)
+  if (clamped) {
+    process.stderr.write(
+      `${t('cli.upgrade_level.grace_extend_capped', { max: GRACE_MAX_DAYS, requested: days })}\n`,
+    )
+  }
+  const newEndsAt = new Date(newEndsMs).toISOString()
+  // Effective extension actually applied (post-clamp), rounded to whole days.
+  // When clamped this is less than the requested `days`; reporting it keeps the
+  // audit log and user messaging honest about the window that was persisted.
+  const appliedDays = Math.round((newEndsMs - Date.parse(existing)) / 86400000)
 
   const arbiterDir = join(dir, '.arbiter')
   mkdirSync(arbiterDir, { recursive: true })
@@ -190,6 +245,7 @@ async function handleExtend(
     previousEndsAt: existing,
     newEndsAt,
     days,
+    ...(clamped ? { appliedDays, clampedToMaxDays: GRACE_MAX_DAYS } : {}),
   })
 
   const lock = await acquireLock(join(arbiterDir, '.lock'))
@@ -204,11 +260,13 @@ async function handleExtend(
     jsonOutput('upgrade-level', 'ok', {
       action: 'extend',
       newEndsAt,
-      extensionDays: days,
+      extensionDays: appliedDays,
     })
     return
   }
 
   const endsDate = newEndsAt.slice(0, 10)
-  process.stdout.write(`${t('cli.upgrade_level.grace_extended', { date: endsDate, days })}\n`)
+  process.stdout.write(
+    `${t('cli.upgrade_level.grace_extended', { date: endsDate, days: appliedDays })}\n`,
+  )
 }

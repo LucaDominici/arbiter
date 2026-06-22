@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createTestProject, cleanupTestProject } from '../helpers.js'
-import { runUpgradeLevel } from '../../src/commands/upgrade-level.js'
+import { runUpgradeLevel, GRACE_MAX_DAYS } from '../../src/commands/upgrade-level.js'
 import { runCli } from '../../src/utils/run-cli.js'
 import { validateConfig } from '../../src/config/schema.js'
 import type { GovernanceLevel } from '../../src/wizard/types.js'
@@ -85,6 +85,22 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     expect(Math.abs(endsAt - expected)).toBeLessThan(5000)
   })
 
+  it('clamps an over-long --days to GRACE_MAX_DAYS so the gate cannot be silently neutered', async () => {
+    seedConfig('L1')
+
+    // The generated gate IGNORES any graceEndsAt > GRACE_MAX_DAYS ahead of now.
+    // If the CLI persisted 9999 days, arbiter.json would lie about the grace the
+    // gate honors. The CLI must clamp the persisted value to the same bound.
+    await runUpgradeLevel({ dir, target: 'L2', days: 9999 })
+
+    const saved = loadConfig(dir)
+    const endsAt = Date.parse(saved!.graceEndsAt!)
+    const maxAllowed = Date.now() + GRACE_MAX_DAYS * 86400000
+    // Must be capped at the bound, not 9999 days out.
+    expect(endsAt).toBeLessThanOrEqual(maxAllowed + 5000)
+    expect(endsAt).toBeGreaterThanOrEqual(Date.now() + (GRACE_MAX_DAYS - 1) * 86400000)
+  })
+
   it('rejects same-level target', async () => {
     seedConfig('L2')
     await expect(runUpgradeLevel({ dir, target: 'L2' })).rejects.toThrow(/already at L2/i)
@@ -102,9 +118,10 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     await expect(runUpgradeLevel({ dir, target: 'L2' })).rejects.toThrow(/arbiter\.json/i)
   })
 
-  it('--extend on active grace: adds +30d to existing end date and appends to grace-log.json', async () => {
+  it('--extend on active grace: adds +days to existing end date (within bound) and appends to grace-log.json', async () => {
     seedConfig('L1')
-    const futureDate = new Date(Date.now() + 15 * 86400000).toISOString()
+    // 2 days out + 30 = 32 days, still within the 35-day bound (no clamp).
+    const futureDate = new Date(Date.now() + 2 * 86400000).toISOString()
     writeFileSync(
       join(dir, 'arbiter.json'),
       JSON.stringify({
@@ -132,6 +149,33 @@ describe('runUpgradeLevel — MK grace period (ADR-028)', () => {
     const entry = log[0] as { action: string; previousEndsAt: string }
     expect(entry.action).toBe('extend')
     expect(entry.previousEndsAt).toBe(futureDate)
+  })
+
+  it('--extend clamps the cumulative window to GRACE_MAX_DAYS from now', async () => {
+    // Already 30 days out; a +30 extend would land ~60 days out, well past the
+    // bound. The CLI must clamp the persisted value to what the gate honors,
+    // not let repeated extends push graceEndsAt arbitrarily far.
+    const futureDate = new Date(Date.now() + 30 * 86400000).toISOString()
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({
+        version: '0.1',
+        tools: ['claude'],
+        governanceLevel: 'L2',
+        useGitHub: false,
+        graceEndsAt: futureDate,
+        graceFromLevel: 'L1',
+      }),
+    )
+
+    await runUpgradeLevel({ dir, extend: true })
+
+    const saved = loadConfig(dir)
+    const newEndsAt = Date.parse(saved!.graceEndsAt!)
+    const maxAllowed = Date.now() + GRACE_MAX_DAYS * 86400000
+    expect(newEndsAt).toBeLessThanOrEqual(maxAllowed + 5000)
+    // And it was actually clamped (not the naive existing + 30d ≈ 60 days out).
+    expect(newEndsAt).toBeLessThan(Date.parse(futureDate) + 30 * 86400000)
   })
 
   it('--extend rejects when no active grace period', async () => {
