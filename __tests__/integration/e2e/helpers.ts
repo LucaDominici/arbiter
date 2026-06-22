@@ -120,3 +120,20 @@ export function hasBinary(bin: string): boolean {
 export function missingBinaries(bins: readonly string[]): string[] {
   return bins.filter((b) => !hasBinary(b))
 }
+
+/**
+ * Classify a dependency-install failure as a GENUINE network/offline failure (true) vs
+ * a DETERMINISTIC, reproducible failure (false: PEP-668 externally-managed-environment,
+ * a broken build backend, a malformed manifest, a resolver conflict).
+ *
+ * Load-bearing fake-green guard for the functional harness (B5 / #1491 / #1042): only a
+ * genuine network failure may SKIP a cell. A deterministic failure must surface as a
+ * hard RED — never be laundered into a skip/green. (A bare `pip install -e .` fails with
+ * `externally-managed-environment` on every Debian/Ubuntu host incl. the CI runner; the
+ * old harness silently passed that cell, so the generated python gate never ran.)
+ */
+export function isOfflineFailure(out: string): boolean {
+  return /(ETIMEDOUT|ENOTFOUND|ECONNREFUSED|ECONNRESET|EAI_AGAIN|getaddrinfo|Temporary failure in name resolution|Could not resolve host|[Nn]etwork is unreachable|Failed to establish a new connection|Connection timed out|Max retries exceeded)/.test(
+    out,
+  )
+}

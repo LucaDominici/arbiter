@@ -19,7 +19,7 @@ import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runInit } from '../../../../src/commands/init.js'
-import { listFixtures, loadFixtureManifest, stageFixture } from '../helpers.js'
+import { isOfflineFailure, listFixtures, loadFixtureManifest, stageFixture } from '../helpers.js'
 
 const L2 = process.env.VITEST_L2 === '1'
 
@@ -57,43 +57,78 @@ function toolchainSkipReason(language: string): string | null {
   return null
 }
 
-// Install the project's own dependencies so the gate's unit/lint/typecheck checks
-// can resolve them. Returns a skip reason when the install cannot complete (e.g.
-// offline) — the gate is then not executed and the cell SKIPs rather than false-RED.
-function installDeps(dir: string, language: string): string | null {
+// Resolved dependency-install outcome. `pathPrefix` is a bin dir (e.g. a python venv's
+// bin/) the generated gate must run with so it resolves the project-local toolchain.
+type DepResult = { skip: string } | { ok: true; pathPrefix?: string }
+
+// Install the project's own dependencies so the gate's unit/lint/typecheck checks can
+// resolve them. Returns { skip } ONLY when the failure output proves it is a genuine
+// network failure; any other install failure THROWS (the cell surfaces it as a hard
+// RED) so a deterministic generated-output/harness defect can never masquerade as a
+// skip or a green — the exact fake-green vector that let B5-class defects ship dark.
+function installDeps(dir: string, language: string): DepResult {
   if (language === 'typescript') {
     const r = spawnSync('npm', ['install', '--no-audit', '--no-fund'], {
       cwd: dir,
       encoding: 'utf-8',
       timeout: 240_000,
     })
-    return r.status === 0 ? null : 'npm install unavailable (offline?)'
+    if (r.status === 0) return { ok: true }
+    const out = (r.stdout ?? '') + (r.stderr ?? '')
+    if (isOfflineFailure(out)) return { skip: 'npm install unavailable (offline)' }
+    throw new Error(`npm install failed (not offline):\n${out.slice(-2000)}`)
   }
   if (language === 'python') {
-    // The fixture's package must be importable by `pytest` (bare binary does not
-    // add the project root to sys.path the way `python3 -m pytest` does).
-    const r = spawnSync('python3', ['-m', 'pip', 'install', '-e', '.', '--quiet'], {
+    // Install into an ISOLATED venv. A bare `pip install -e .` fails deterministically
+    // on every PEP-668 externally-managed environment (Debian/Ubuntu default — incl.
+    // the CI runner) with `externally-managed-environment`, which the old harness
+    // silently laundered into a green so the python gate NEVER actually ran. A venv is
+    // the canonical PEP-668-safe path and also makes the fixture package importable by
+    // pytest; the gate's bare `pytest`/`ruff` then resolve to the venv via PATH.
+    const venv = join(dir, '.venv')
+    const mk = spawnSync('python3', ['-m', 'venv', venv], {
       cwd: dir,
       encoding: 'utf-8',
-      timeout: 240_000,
+      timeout: 120_000,
     })
-    return r.status === 0 ? null : 'pip install -e . unavailable (offline?)'
+    if (mk.status !== 0) {
+      const out = (mk.stdout ?? '') + (mk.stderr ?? '')
+      if (isOfflineFailure(out)) return { skip: 'python venv creation unavailable (offline)' }
+      throw new Error(`python venv creation failed (not offline):\n${out.slice(-2000)}`)
+    }
+    const venvBin = join(venv, 'bin')
+    const venvPython = join(venvBin, 'python')
+    const r = spawnSync(
+      venvPython,
+      ['-m', 'pip', 'install', '-e', '.', 'pytest', 'ruff', '--quiet'],
+      {
+        cwd: dir,
+        encoding: 'utf-8',
+        timeout: 240_000,
+      },
+    )
+    if (r.status === 0) return { ok: true, pathPrefix: venvBin }
+    const out = (r.stdout ?? '') + (r.stderr ?? '')
+    if (isOfflineFailure(out)) return { skip: 'pip install unavailable (offline)' }
+    throw new Error(`pip install -e . failed (not offline):\n${out.slice(-2000)}`)
   }
   // go/rust/java pull deps as part of their own build during the gate; nothing to
   // pre-install for the L1 fast gate (godog/cucumber BDD suites are build-isolated).
-  return null
+  return { ok: true }
 }
 
-function runGeneratedGate(dir: string): { status: number; output: string } {
+function runGeneratedGate(dir: string, pathPrefix?: string): { status: number; output: string } {
   const scriptPath = join(dir, 'scripts', 'check-all.mjs')
   if (!existsSync(scriptPath)) {
     return { status: 127, output: `check-all.mjs not generated at ${scriptPath}` }
   }
+  const env: NodeJS.ProcessEnv = { ...process.env, CI: 'true' }
+  if (pathPrefix != null) env.PATH = `${pathPrefix}:${process.env.PATH ?? ''}`
   const r = spawnSync('node', [scriptPath, 'L1'], {
     encoding: 'utf-8',
     cwd: dir,
     timeout: 240_000,
-    env: { ...process.env, CI: 'true' },
+    env,
   })
   return { status: r.status ?? 1, output: (r.stdout ?? '') + (r.stderr ?? '') }
 }
@@ -137,15 +172,16 @@ describe.skipIf(!L2)('functional harness — generated L1 gate runs green (#1041
           stdio: 'ignore',
         })
 
-        const installSkip = installDeps(dir, language)
-        if (installSkip != null) {
-          // Offline / network-restricted env ⇒ SKIP rather than false-RED. The
-          // gate-execution guarantee is still asserted via virgin-init-matrix.
-          expect(installSkip, 'deps unavailable — skipping gate exec').toBeTruthy()
+        const dep = installDeps(dir, language)
+        if ('skip' in dep) {
+          // GENUINELY offline (network signature in install output) ⇒ SKIP rather than
+          // false-RED. A deterministic install failure does NOT reach here — it throws
+          // inside installDeps and fails the cell, so it can never be laundered green.
+          expect(dep.skip, 'deps unavailable (offline) — skipping gate exec').toBeTruthy()
           return
         }
 
-        const result = runGeneratedGate(dir)
+        const result = runGeneratedGate(dir, dep.pathPrefix)
         // Load-bearing #1041/#1042 guarantee: the gate must EXECUTE — no missing
         // generated script (127) and no dangling generated module reference.
         expect(result.status, `gate did not execute:\n${result.output.slice(-2000)}`).not.toBe(127)
