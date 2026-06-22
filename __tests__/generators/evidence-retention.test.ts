@@ -23,29 +23,31 @@ describe('generateEvidenceRetention', () => {
   // SAME condition as its guard hook), NOT L4-only. evidence-files.json stays
   // L4-only. The harness defaults ON (enableEvidenceHarness !== false), so the
   // baseline emission at every level includes done-evidence.mjs.
-  it('generates 5 files when harness on (rotate + prune + gitignore + policy doc + done-evidence) at L1', () => {
+  // B6/#1491: the baseline .gitignore moved to the always-on `generateGitignore`
+  // (registry key `baseline-gitignore`), so evidence-retention emits one fewer file.
+  it('generates 4 files when harness on (rotate + prune + policy doc + done-evidence) at L1', () => {
     const config = makeConfig(dir, { governanceLevel: 'L1' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(5)
-  })
-
-  it('generates 6 files at L4 (rotate + prune + gitignore + policy doc + done-evidence + evidence-files)', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L4' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(6)
-  })
-
-  it('generates 5 files at L2 (rotate + prune + gitignore + policy doc + done-evidence)', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L2' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(5)
-  })
-
-  it('generates 5 files at L3 (rotate + prune + gitignore + policy doc + done-evidence)', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L3' })
-    expect(generateEvidenceRetention(config).files).toHaveLength(5)
-  })
-
-  it('generates 4 files when harness off (no done-evidence) at L2', () => {
-    const config = makeConfig(dir, { governanceLevel: 'L2', enableEvidenceHarness: false })
     expect(generateEvidenceRetention(config).files).toHaveLength(4)
+  })
+
+  it('generates 5 files at L4 (rotate + prune + policy doc + done-evidence + evidence-files)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L4' })
+    expect(generateEvidenceRetention(config).files).toHaveLength(5)
+  })
+
+  it('generates 4 files at L2 (rotate + prune + policy doc + done-evidence)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2' })
+    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+  })
+
+  it('generates 4 files at L3 (rotate + prune + policy doc + done-evidence)', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L3' })
+    expect(generateEvidenceRetention(config).files).toHaveLength(4)
+  })
+
+  it('generates 3 files when harness off (no done-evidence) at L2', () => {
+    const config = makeConfig(dir, { governanceLevel: 'L2', enableEvidenceHarness: false })
+    expect(generateEvidenceRetention(config).files).toHaveLength(3)
   })
 
   it('generates scripts/done-evidence.mjs at L4', () => {
@@ -85,45 +87,10 @@ describe('generateEvidenceRetention', () => {
     expect(existsSync(join(dir, 'scripts', 'evidence-rotate.mjs'))).toBe(true)
   })
 
-  it('generates .gitignore', () => {
-    generateEvidenceRetention(makeConfig(dir))
-    expect(existsSync(join(dir, '.gitignore'))).toBe(true)
-  })
-
-  it('.gitignore contains .evidence/ entry', () => {
-    generateEvidenceRetention(makeConfig(dir))
-    const content = readFileSync(join(dir, '.gitignore'), 'utf-8')
-    expect(content).toContain('.evidence/')
-  })
-
-  it('.gitignore contains common entries', () => {
-    generateEvidenceRetention(makeConfig(dir))
-    const content = readFileSync(join(dir, '.gitignore'), 'utf-8')
-    expect(content).toContain('node_modules/')
-    expect(content).toContain('dist/')
-    expect(content).toContain('.env')
-    expect(content).toContain('website/.vitepress/.temp/')
-  })
-
-  it('.gitignore contains local Arbiter runtime state entries', () => {
-    generateEvidenceRetention(makeConfig(dir))
-    const content = readFileSync(join(dir, '.gitignore'), 'utf-8')
-    expect(content).toContain('.arbiter/')
-    expect(content).toContain('.agents-dispatched')
-    expect(content).toContain('.claude/.task-*')
-    expect(content).toContain('.claude/plans/')
-    expect(content).toContain('*.arbiter-backup')
-    expect(content).toContain('.arbiter-generated.json.bak.*')
-  })
-
-  it('.gitignore skipIfExists — does not overwrite existing file', () => {
-    generateEvidenceRetention(makeConfig(dir))
-    const gitignorePath = join(dir, '.gitignore')
-    writeFileSync(gitignorePath, 'EXISTING')
+  it('does NOT emit .gitignore (moved to always-on baseline-gitignore, B6/#1491)', () => {
     const result = generateEvidenceRetention(makeConfig(dir))
-    const file = result.files.find((f) => f.path.endsWith('.gitignore'))
-    expect(file?.action).toBe('skipped')
-    expect(readFileSync(gitignorePath, 'utf-8')).toBe('EXISTING')
+    expect(result.files.some((f) => f.path.endsWith('.gitignore'))).toBe(false)
+    expect(existsSync(join(dir, '.gitignore'))).toBe(false)
   })
 
   it('evidence-rotate.mjs is regenerated (backup-managed, not skipIfExists) when content differs', () => {
@@ -463,22 +430,5 @@ describe('generateEvidenceRetention — policy doc (#718)', () => {
     generateEvidenceRetention(makeConfig(dir))
     const content = readFileSync(join(dir, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md'), 'utf-8')
     expect(content).toContain('local-last-N')
-  })
-
-  // #1328 unit 7 (Track-B): the emitted .gitignore must NOT ignore the committed
-  // generated-manifest, or the governed fleet silently loses provenance and
-  // `update` propagates nothing (the very property INV-122 asserts).
-  it('emitted .gitignore does NOT ignore .arbiter-generated-manifest.json (fleet provenance must be committed)', () => {
-    generateEvidenceRetention(makeConfig(dir))
-    const isIgnored = (rel: string): boolean => {
-      writeFileSync(join(dir, rel), 'x')
-      return spawnSync('git', ['check-ignore', '-q', rel], { cwd: dir }).status === 0
-    }
-    // The manifest and the snapshot envelope (both committed) must NOT be ignored.
-    expect(isIgnored('.arbiter-generated-manifest.json')).toBe(false)
-    expect(isIgnored('.arbiter-generated.json')).toBe(false)
-    // Sanity: the template still ignores the runtime .arbiter/ dir (intent preserved).
-    mkdirSync(join(dir, '.arbiter'), { recursive: true })
-    expect(isIgnored('.arbiter/scratch.tmp')).toBe(true)
   })
 })

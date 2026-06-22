@@ -4,6 +4,7 @@ import type { ArbiterConfigV2 } from './schema.js'
 export type GeneratorKey =
   | 'agents-md'
   | 'global-invariants'
+  | 'baseline-gitignore'
   | 'claude'
   | 'codex'
   | 'cursor'

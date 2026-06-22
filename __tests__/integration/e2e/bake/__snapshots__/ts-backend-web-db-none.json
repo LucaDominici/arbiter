@@ -68,6 +68,7 @@
     ".githooks/commit-msg",
     ".githooks/pre-commit",
     ".githooks/pre-push",
+    ".gitignore",
     ".prettierignore",
     ".prettierrc.json",
     "AGENTS.md",

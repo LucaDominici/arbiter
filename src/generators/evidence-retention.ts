@@ -35,11 +35,11 @@ export function generateEvidenceRetention(
       renderTemplate('scripts/evidence-prune.mjs.ejs', data),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
-    // Seed .gitignore with common entries + .evidence/ — skip if user already has one
-    writeFile(resolvedPath(base, '.gitignore'), renderTemplate('root/.gitignore.ejs', data), {
-      skipIfExists: true,
-      dryRun: opts.dryRun,
-    }),
+    // NOTE: the baseline .gitignore is emitted UNCONDITIONALLY by `generateGitignore`
+    // (registry key `baseline-gitignore`, always-on), not here — gating it on the
+    // evidence harness left L1/L2 users with no .gitignore (B6/#1491, M3). Both writes
+    // used skipIfExists:true and the same template, so consolidating into the always-on
+    // generator changes no brownfield behaviour, only fixes the L1/L2 drop.
     // Policy doc — human-readable retention rules; skipIfExists so users can customise
     writeFile(
       resolvedPath(base, 'docs', 'METHOD', 'EVIDENCE_RETENTION.md'),

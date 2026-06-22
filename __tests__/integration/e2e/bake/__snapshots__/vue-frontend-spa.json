@@ -70,6 +70,7 @@
     ".githooks/commit-msg",
     ".githooks/pre-commit",
     ".githooks/pre-push",
+    ".gitignore",
     ".lighthouserc.json",
     ".prettierignore",
     ".prettierrc.json",

@@ -21,6 +21,7 @@ import { generateSuppressions } from './suppressions.js'
 import { generateSecurity } from './security.js'
 import { generateStrideEnforcement } from './stride-enforcement.js'
 import { generateEvidenceRetention } from './evidence-retention.js'
+import { generateGitignore } from './gitignore.js'
 import { generateTestTaxonomy } from './test-taxonomy.js'
 import { generateArchUnit } from './archunit.js'
 import { generateQuality } from './quality.js'
@@ -118,6 +119,15 @@ function buildAiToolSpecs(
       key: 'global-invariants',
       enabled: true,
       run: (opts) => [generateGlobalInvariants(config, opts)],
+    },
+    {
+      // Baseline .gitignore — ALWAYS-ON (B6/#1491, M3). Previously only emitted by
+      // evidence-retention (gated on enableEvidenceHarness, off at L1/L2), so L1/L2
+      // users committed .arbiter/ + .evidence/ runtime state. skipIfExists keeps it
+      // brownfield-safe.
+      key: 'baseline-gitignore',
+      enabled: true,
+      run: (opts) => generateGitignore(config, opts).files,
     },
     {
       key: 'claude',
