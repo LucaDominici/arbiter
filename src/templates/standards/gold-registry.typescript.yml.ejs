@@ -42,8 +42,11 @@ checks:
   - id: TS-CFG-03
     dimension: D-CONFIG
     title: ESLint config present (lint gate wired)
+    # #1491 (M5): arbiter emits the flat config as `eslint.config.mjs`, never
+    # `eslint.config.js` — the old path made this check fail-N on every real
+    # arbiter-generated TS project, falsely reporting the lint gate as unwired.
     type: file_exists
-    args: { path: eslint.config.js }
+    args: { path: eslint.config.mjs }
     weight: 1
     risk: SAFE
     applies_if: has-ts

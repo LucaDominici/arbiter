@@ -42,6 +42,15 @@ describe('standards/*.ejs render (CANON-04, #1419)', () => {
     expect(content).toContain('threshold_ref')
   })
 
+  // #1491 (M5): the TS-CFG-03 ESLint-config check must point at the file arbiter
+  // actually emits (`eslint.config.mjs`), not `eslint.config.js` — the old path
+  // made the lint-gate-wired check fail-N on every real generated TS project.
+  it('TS-CFG-03 checks eslint.config.mjs (the file init actually emits)', () => {
+    const content = renderTemplate('standards/gold-registry.typescript.yml.ejs', config)
+    expect(content).toMatch(/path:\s*eslint\.config\.mjs/)
+    expect(content).not.toMatch(/path:\s*eslint\.config\.js\b/)
+  })
+
   it('standards/gold-registry.java.yml.ejs renders the Java per-stack registry', () => {
     const content = renderTemplate('standards/gold-registry.java.yml.ejs', config)
     expect(content).toContain('JA-BUILD-01')
