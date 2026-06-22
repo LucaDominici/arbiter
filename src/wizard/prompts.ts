@@ -708,11 +708,15 @@ export function buildConfigFromAnswers(input: WizardInput, answers: WizardAnswer
 
 type Opt<T extends string | boolean> = { value: T; label: string }
 
-function buildLanguageOptions(): Opt<Language>[] {
+export function buildLanguageOptions(): Opt<Language>[] {
   return [
     { value: 'typescript', label: 'TypeScript / JavaScript' },
     { value: 'java', label: 'Java' },
-    { value: 'kotlin', label: 'Kotlin' },
+    // #1491 (M2/matrix-coverage): Kotlin has ZERO `proven` matrix cells, only a
+    // snapshot-tier fixture (init never executed against it), and no L4 — it is
+    // not at runtime-verified parity with the other JVM stack (Java). Mark it
+    // experimental so a wizard user does not pick it expecting Java-level support.
+    { value: 'kotlin', label: 'Kotlin (experimental — beta tooling, not fixture-verified)' },
     { value: 'rust', label: 'Rust' },
     { value: 'python', label: 'Python' },
     { value: 'go', label: 'Go' },
