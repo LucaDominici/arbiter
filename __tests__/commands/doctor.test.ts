@@ -115,6 +115,65 @@ describe('runDoctorHealth (#539)', () => {
     expect(c?.status).toBe('PASS')
   })
 
+  // M4/#1491: doctor must surface the generated gate's health, not report a green
+  // "0 failed" while the gate it told the user to run is red / its toolchain absent.
+  it('gate-script WARN when scripts/check-all.mjs is absent', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'gate-script')
+    expect(c?.status).toBe('WARN')
+    expect(c?.detail).toMatch(/not found/)
+  })
+
+  it('gate-script PASS when scripts/check-all.mjs is present', async () => {
+    mockGitOk()
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts', 'check-all.mjs'), '// gate')
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'gate-script')
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('emits a gate-toolchain check (PASS for an uncovered stack — nothing to probe)', async () => {
+    mockGitOk()
+    // No language signal → detectLanguage='unknown' → empty matrix → no missing tools.
+    writeFileSync(join(dir, 'arbiter.json'), JSON.stringify({ governanceLevel: 'L2' }))
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'gate-toolchain')
+    expect(c).toBeDefined()
+    expect(c?.status).toBe('PASS')
+  })
+
+  it('gate-toolchain WARN when a tool the gate invokes is not installed', async () => {
+    // TS project (package.json signal) → the matrix probes tsc/prettier/eslint/
+    // vitest; a notFound CliError ⇒ `toolchain-missing` ⇒ the gate would error.
+    const { CliError } = await import('../../src/utils/run-cli.js')
+    mockRunCli.mockImplementation((tool: string) => {
+      if (tool === 'git')
+        return { stdout: 'git version 2.40\n', stderr: '', exitCode: 0, durationMs: 0 }
+      const e = new CliError('not found') as Error & { notFound: boolean }
+      e.notFound = true
+      throw e
+    })
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'x', devDependencies: {} }))
+    writeFileSync(join(dir, 'tsconfig.json'), '{}')
+    writeFileSync(
+      join(dir, 'arbiter.json'),
+      JSON.stringify({ language: 'typescript', governanceLevel: 'L2' }),
+    )
+    const result = await runDoctorHealth({ dir, json: true })
+    const c = result.checks.find((x) => x.id === 'gate-toolchain')
+    // The critical M4 property: a missing/broken gate toolchain is no longer
+    // reported as "all healthy" — the check is non-PASS and says the gate would
+    // error on first run. (Uninstalled-only ⇒ WARN; a broken build-probe ⇒ FAIL.)
+    expect(c?.status === 'WARN' || c?.status === 'FAIL').toBe(true)
+    expect(c?.detail).toMatch(/gate would error on first run/)
+    expect(c?.detail).toMatch(/not installed/)
+    expect(c?.hint).toMatch(/npm install/)
+  })
+
   // #1254: industryOverlay × governanceLevel coherence surfaced by doctor.
   it('overlay-coherence PASS for a coherent cell (pharma @ L3)', async () => {
     mockGitOk()

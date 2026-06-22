@@ -18,6 +18,7 @@ import type { LockInfo } from '../utils/file-lock.js'
 import { ArbiterError } from '../utils/errors.js'
 import { resolveChannel } from '../utils/channel.js'
 import { detectLanguage } from '../detectors/language.js'
+import { runProbes } from '../compatibility/probe.js'
 import { isArbiterSelf } from './ship-profile.js'
 import { isValidPhase } from './task-state.js'
 import {
@@ -133,6 +134,8 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
     out.push(hooksCheck)
   }
 
+  out.push(checkGateScript(dir))
+  out.push(checkGateToolchain(dir))
   out.push(checkLockfile(dir))
   out.push(checkStackAdapterHealth(dir))
   out.push(checkCollaborationCoherence(dir))
@@ -142,6 +145,70 @@ function checkArbiterProject(dir: string, gitOk: boolean): HealthCheck[] {
   out.push(checkProfileCoherence(dir))
 
   return out
+}
+
+/**
+ * M4/#1491: the gate is the very first thing the CLI tells a new user to run
+ * (`node scripts/check-all.mjs L1`). doctor reported "0 failed" while that gate
+ * was red, so a newcomer trusted a green doctor and was blindsided. This check
+ * verifies the generated gate SCRIPT is present; the companion checkGateToolchain
+ * verifies the tools the gate invokes are actually installed.
+ */
+function checkGateScript(dir: string): HealthCheck {
+  const present = existsSync(join(dir, 'scripts', 'check-all.mjs'))
+  const check: HealthCheck = {
+    id: 'gate-script',
+    label: 'gate script (scripts/check-all.mjs) present',
+    status: present ? 'PASS' : 'WARN',
+    detail: present ? 'found' : 'scripts/check-all.mjs not found',
+  }
+  if (!present) check.hint = 'Run `arbiter init` (or `arbiter update`) to (re)generate the gate.'
+  return check
+}
+
+/**
+ * M4/#1491: probe that the toolchain the generated gate invokes is actually
+ * installed, so doctor's "healthy" is truthful instead of green-while-the-gate-
+ * is-red. Reuses the compatibility probe (the same one `init --verify` runs): a
+ * `toolchain-missing` probe means a tool the gate calls (tsc/prettier/eslint/
+ * vitest/ruff/…) is absent → the gate will error on first run. A `failed` probe
+ * (wrong version / broken binary) is the harder signal and FAILs. Missing-only →
+ * WARN with the install hint. No matrix coverage for the stack → PASS (advisory).
+ */
+function checkGateToolchain(dir: string): HealthCheck {
+  const check: HealthCheck = {
+    id: 'gate-toolchain',
+    label: 'gate toolchain installed (tools check-all.mjs invokes)',
+    status: 'PASS',
+    detail: 'all required gate tools resolve',
+  }
+  let report: ReturnType<typeof runProbes>
+  try {
+    report = runProbes(dir)
+  } catch (err) {
+    check.status = 'WARN'
+    check.detail = `could not probe gate toolchain: ${err instanceof Error ? err.message : String(err)}`
+    return check
+  }
+  const failed = report.probes.filter((p) => p.status === 'failed').map((p) => p.tool)
+  const missing = report.probes
+    .filter((p) => p.status === 'skipped' && p.reason === 'toolchain-missing')
+    .map((p) => p.tool)
+  if (failed.length === 0 && missing.length === 0) {
+    check.detail = `all gate tools resolve for ${report.stack}`
+    return check
+  }
+  // A broken/wrong-version tool is a hard signal (gate cannot pass); a merely
+  // uninstalled one is fixable with an install, so it WARNs.
+  check.status = failed.length > 0 ? 'FAIL' : 'WARN'
+  const parts: string[] = []
+  if (missing.length > 0) parts.push(`not installed: ${missing.join(', ')}`)
+  if (failed.length > 0) parts.push(`broken/incompatible: ${failed.join(', ')}`)
+  check.detail = `gate would error on first run — ${parts.join('; ')}`
+  check.hint =
+    'Install the gate toolchain (e.g. `npm install` for the declared devDependencies) ' +
+    'before running `node scripts/check-all.mjs L1`.'
+  return check
 }
 
 /**
