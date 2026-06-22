@@ -120,6 +120,64 @@ describe('check-tool-claims.mjs (positioning-truth: --accept-beta-tools tool-cla
     }
   })
 
+  it('FAILS when a `--tools` example passes a non-core tool as the VALUE (copy-paste errors)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      // A doc command a reader would copy-paste — `--tools` rejects cursor with E_INVALID_TOOL.
+      write(
+        dir,
+        'website/reference/cli.md',
+        'arbiter init --yes --tools claude,codex,cursor,gemini --level L3\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toMatch(/shows `--tools/)
+      expect(result.stderr).toContain('E_INVALID_TOOL')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('matches the `--tools=value` (equals) form as well as space-separated', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      write(dir, 'website/x.md', 'Run `arbiter init --tools=claude,windsurf`.\n')
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('windsurf')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSES a truthful prose sentence that mentions `--tools` AND a tool name (not a value)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      // The exact shipped framing: the tool name is in PROSE, not the flag value. Must not trip.
+      write(
+        dir,
+        'website/comparisons/index.md',
+        'Gemini CLI generators exist but are experimental — not yet selectable via `--tools`.\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('[check-tool-claims] OK')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSES the supported `--tools claude,codex` value (the only accepted tools)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      write(dir, 'website/reference/cli.md', 'arbiter init --yes --tools claude,codex --level L3\n')
+      const result = run(dir)
+      expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('FAILS on the false claim inside a src/templates markdown template (.md.ejs)', () => {
     const { dir, cleanup } = makeRepo()
     try {

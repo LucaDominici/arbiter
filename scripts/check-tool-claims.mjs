@@ -75,6 +75,24 @@ function violatesOnLine(line) {
   return tool ?? null
 }
 
+// The OTHER false claim: a `--tools <…,non-core,…>` VALUE — a copy-pasteable command
+// that passes a non-core tool as the flag's argument (e.g. `--tools claude,codex,cursor`).
+// `--tools` accepts ONLY claude,codex (src/commands/init.ts), so that command errors with
+// E_INVALID_TOOL the moment a reader runs it. We match the flag's VALUE token only — the
+// run of word/comma/space chars immediately after `--tools` — so a truthful PROSE sentence
+// ("…experimental, not yet selectable via `--tools`.") that merely mentions a tool name
+// elsewhere on the line is NOT flagged. The SENTINEL escape still applies.
+function violatesToolsFlagOnLine(line) {
+  // Capture the argument value: `--tools <value>` or `--tools=<value>`, value = the
+  // contiguous comma/word run (stops at whitespace/backtick/quote/end).
+  const m = line.match(/--tools[=\s]+([A-Za-z0-9,_-]+)/)
+  if (!m) return null
+  const value = m[1]
+  const listed = value.split(',').map((t) => t.trim().toLowerCase())
+  const tool = NON_CORE_TOOLS.find((t) => listed.includes(t))
+  return tool ?? null
+}
+
 try {
   const files = getAllTrackedFiles()
   const violations = []
@@ -93,9 +111,13 @@ try {
       const prev = i > 0 ? lines[i - 1] : ''
       const allowed = line.includes(SENTINEL) || prev.includes(SENTINEL)
       if (allowed) continue
-      const tool = violatesOnLine(line)
-      if (tool) {
-        violations.push({ file, line: i + 1, tool })
+      const flagTool = violatesOnLine(line)
+      if (flagTool) {
+        violations.push({ file, line: i + 1, tool: flagTool, kind: 'accept-beta-tools' })
+      }
+      const toolsFlagTool = violatesToolsFlagOnLine(line)
+      if (toolsFlagTool) {
+        violations.push({ file, line: i + 1, tool: toolsFlagTool, kind: 'tools-flag' })
       }
     }
   }
@@ -105,9 +127,15 @@ try {
       '\n[check-tool-claims] FAIL — false tool-capability claim(s) in user-facing docs:\n',
     )
     for (const v of violations) {
-      console.error(
-        `  ${v.file}:${v.line}: claims --${FLAG} enables "${v.tool}" — but --tools rejects it with E_INVALID_TOOL`,
-      )
+      if (v.kind === 'tools-flag') {
+        console.error(
+          `  ${v.file}:${v.line}: shows \`--tools ... ${v.tool}\` — but --tools accepts only claude,codex (E_INVALID_TOOL)`,
+        )
+      } else {
+        console.error(
+          `  ${v.file}:${v.line}: claims --${FLAG} enables "${v.tool}" — but --tools rejects it with E_INVALID_TOOL`,
+        )
+      }
     }
     console.error(
       `\nThe --${FLAG} flag gates beta LANGUAGE features (L3 mutation/contract), not tool\n` +

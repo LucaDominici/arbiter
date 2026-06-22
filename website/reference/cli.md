@@ -85,8 +85,8 @@ arbiter init --yes --tools claude --level L1
 # Install into a different directory
 arbiter init --yes --dir /path/to/my-project
 
-# All tools, audit-grade governance
-arbiter init --yes --tools claude,codex,cursor,copilot,gemini,windsurf,aider --level L3
+# Both supported tools, audit-grade governance
+arbiter init --yes --tools claude,codex --level L3
 
 # Preview what would be generated without writing any files
 arbiter init --dry-run
@@ -117,7 +117,7 @@ The interactive wizard is state-reactive — it behaves differently based on wha
 | `windsurf` | `windsurf-instructions.md` (thin pointer to AGENTS.md)               |
 | `aider`    | `.aider.conf.yml` (YAML convention mapping + AGENTS.md reference)    |
 
-Multiple tools: `--tools claude,codex,gemini,windsurf,aider`
+Both supported tools: `--tools claude,codex` (the `gemini`/`windsurf`/`aider` generators above are experimental and not yet selectable via `--tools`)
 
 ---
 
