@@ -1,11 +1,46 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect } from 'vitest'
-import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { spawnSync, execSync } from 'node:child_process'
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { resolve, join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 const SCRIPT = resolve('scripts/gen-third-party-licenses.mjs')
 const OUT = resolve('THIRD_PARTY_LICENSES.md')
+
+/**
+ * The true production dependency closure a consumer installs with
+ * `npm install @arbiter/cli` — every registry package reachable from the
+ * root `dependencies`, pruning local workspace packages (resolved `file:`)
+ * whose own subtrees are not part of arbiter's runtime. This is what the
+ * attribution file must cover, not merely the 5 direct deps.
+ */
+function productionClosure(): string[] {
+  const raw = execSync('npm ls --omit=dev --all --json', {
+    encoding: 'utf-8',
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  const tree = JSON.parse(raw) as {
+    dependencies?: Record<string, { resolved?: string; version?: string; dependencies?: unknown }>
+  }
+  const acc: Record<string, true> = {}
+  const walk = (node: { dependencies?: Record<string, unknown> }): void => {
+    const deps = (node.dependencies ?? {}) as Record<
+      string,
+      { resolved?: string; dependencies?: unknown }
+    >
+    for (const [name, child] of Object.entries(deps)) {
+      const resolved = child.resolved ?? ''
+      if (resolved.startsWith('file:')) continue // prune local workspace subtree
+      if (!acc[name]) {
+        acc[name] = true
+        walk(child as { dependencies?: Record<string, unknown> })
+      }
+    }
+  }
+  walk(tree)
+  return Object.keys(acc).sort((a, b) => a.localeCompare(b))
+}
 
 function run(args: string[]) {
   const r = spawnSync('node', [SCRIPT, ...args], { encoding: 'utf-8' })
@@ -38,6 +73,72 @@ describe('gen-third-party-licenses.mjs', () => {
     for (const dep of deps) {
       // Each dependency gets a `## <name>@<version>` section.
       expect(content).toContain(`## ${dep}@`)
+    }
+  })
+
+  it('attributes the FULL production dependency closure, not just direct deps', () => {
+    // A consumer of `@arbiter/cli` installs the entire transitive production
+    // tree; every one of those packages carries an attribution obligation
+    // (MIT/BSD/ISC require the copyright notice be preserved). Listing only
+    // the 5 direct deps while shipping ~90 transitive ones is a legal gap.
+    const closure = productionClosure()
+    // Sanity: the closure is materially larger than the direct deps.
+    const directCount = Object.keys(
+      JSON.parse(readFileSync(resolve('package.json'), 'utf8')).dependencies ?? {},
+    ).length
+    expect(closure.length).toBeGreaterThan(directCount)
+    const content = readFileSync(OUT, 'utf8')
+    const missing = closure.filter((dep) => !content.includes(`## ${dep}@`))
+    expect(missing, `unattributed production deps: ${missing.join(', ')}`).toEqual([])
+  })
+
+  it('resolves a metadata-less dependency via a sourced override (no UNKNOWN)', () => {
+    // `buffers@0.1.1` ships no license field; it is attributed MIT via the
+    // curated, sourced override rather than left UNKNOWN or silently dropped.
+    const content = readFileSync(OUT, 'utf8')
+    const idx = content.indexOf('## buffers@0.1.1')
+    expect(idx, 'buffers@0.1.1 must be attributed').toBeGreaterThanOrEqual(0)
+    const section = content.slice(idx, idx + 400)
+    expect(section).toContain('- License: MIT')
+    // The escape hatch must be auditable — it records WHY the license was set.
+    expect(section).toContain('- Attribution source:')
+  })
+
+  it('does NOT attribute local workspace packages (resolved file:)', () => {
+    // `@arbiter/website` is a sibling workspace (resolved `file:../../website`),
+    // not a redistributed third party — it must never appear in attribution.
+    const content = readFileSync(OUT, 'utf8')
+    expect(content).not.toContain('@arbiter/website')
+  })
+
+  it('fails closed on an UNKNOWN license (no silent attribution gap)', () => {
+    // A legal artifact must never silently emit `UNKNOWN`. Build a throwaway
+    // project whose sole dependency has no license field and run the generator
+    // there: it must exit non-zero rather than producing an UNKNOWN section.
+    // The fixture is created at runtime (its `node_modules/` is gitignored, so
+    // it cannot be committed) and torn down afterwards.
+    const root = mkdtempSync(join(tmpdir(), 'tpl-unknown-'))
+    try {
+      writeFileSync(
+        join(root, 'package.json'),
+        JSON.stringify({
+          name: 'tpl-unknown-fixture',
+          version: '0.0.0',
+          private: true,
+          dependencies: { 'nolicense-pkg': '1.0.0' },
+        }),
+      )
+      const pkgDir = join(root, 'node_modules', 'nolicense-pkg')
+      mkdirSync(pkgDir, { recursive: true })
+      writeFileSync(
+        join(pkgDir, 'package.json'),
+        JSON.stringify({ name: 'nolicense-pkg', version: '1.0.0' }),
+      )
+      const result = spawnSync('node', [SCRIPT], { encoding: 'utf-8', cwd: root })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toMatch(/UNKNOWN|no resolvable license|unresolved/i)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
     }
   })
 
