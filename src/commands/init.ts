@@ -347,7 +347,7 @@ async function generateAndFinalize(
     activateGitHooks(targetDir, log)
 
     if (!options.noVerify) {
-      runToolchainVerify(targetDir)
+      runToolchainVerify(targetDir, Boolean(options.json))
     }
 
     const generatorErrorLines = generatorErrors.map((e) => `${e.key}: ${e.message}`)
@@ -1361,8 +1361,15 @@ function activateGitHooks(targetDir: string, log: (msg: string) => void): void {
   }
 }
 
-function runToolchainVerify(targetDir: string): void {
-  process.stdout.write(`${t('cli.init.verifying_toolchain')}\n`)
+function runToolchainVerify(targetDir: string, jsonMode = false): void {
+  // Under --json the stdout stream must be a single parseable JSON document
+  // (M2/#1491): route the human-readable verify banner + report to stderr so it
+  // does not precede the JSON object on stdout. Failures already go to stderr.
+  const writeHuman = (s: string): void => {
+    if (jsonMode) process.stderr.write(s)
+    else process.stdout.write(s)
+  }
+  writeHuman(`${t('cli.init.verifying_toolchain')}\n`)
   let report: ReturnType<typeof runProbes>
   try {
     report = runProbes(targetDir)
@@ -1374,7 +1381,7 @@ function runToolchainVerify(targetDir: string): void {
     )
     process.exit(1)
   }
-  process.stdout.write(`${formatText(report)}\n`)
+  writeHuman(`${formatText(report)}\n`)
   if (report.hasFailures) {
     process.stderr.write(
       '\n  arbiter init aborted: toolchain incompatibilities detected.\n' +

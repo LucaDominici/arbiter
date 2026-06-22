@@ -189,6 +189,42 @@ describe('init --json', () => {
     }
     expect(opts.json).toBe(true)
   })
+
+  // M2/#1491: the toolchain-verify banner used to print to STDOUT before the JSON
+  // object, so `init --json | jq` failed to parse. With verify ENABLED (noVerify:
+  // false) stdout must remain a single parseable JSON document; the banner goes to
+  // stderr.
+  it('keeps stdout pure JSON when the verify step runs (banner → stderr)', async () => {
+    let err = ''
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk: unknown) => {
+      err += String(chunk)
+      return true
+    })
+
+    await runInit({
+      yes: true,
+      tools: undefined,
+      level: 'L1',
+      dir: '/tmp/fake',
+      dryRun: false,
+      brownfield: false,
+      noVerify: false, // verify ENABLED — this is the path M2 regressed
+      json: true,
+    })
+
+    const lines = written
+      .trim()
+      .split('\n')
+      .filter((l) => l.length > 0)
+    expect(lines).toHaveLength(1)
+    const parsed = JSON.parse(lines[0]) as Record<string, unknown>
+    expect(parsed.command).toBe('init')
+    expect(parsed.status).toBe('ok')
+    // The human-readable verify banner + report must be on stderr, not stdout.
+    expect(written).not.toContain('Verifying toolchain')
+    expect(err).toContain('Verifying toolchain')
+    expect(err).toContain('all ok')
+  })
 })
 
 describe('init: ARBITER_GITHUB=1 activates GitHub API calls (F4)', () => {
