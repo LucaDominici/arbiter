@@ -27,6 +27,11 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
       - uses: ./.github/actions/setup-node-pnpm
       - run: npm run build
+      - name: Pack-size guard (early signal; hard cap blocks, #1491/B6)
+        # --ci: surfaces the 4.75–5.0 MB warn band loudly without failing the
+        # build, but a breach of the 5 MB hard cap (#511) fails here at the START
+        # of the release run instead of only at the terminal prepublishOnly gate.
+        run: node scripts/check-pack-size.mjs --ci
       - name: Package artifact
         run: zip -r release-artifact.zip dist/
       - name: Compute artifact hash
