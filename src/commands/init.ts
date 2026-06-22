@@ -1228,7 +1228,11 @@ function parseTools(tools: string | undefined): AiTool[] {
   const parsed = tools.split(',').map((s) => s.trim())
   const invalid = parsed.filter((s) => !VALID.has(s))
   if (invalid.length > 0) {
+    // The message template owns no quotes; we quote each invalid tool exactly
+    // once here so a list renders as `"cursor", "copilot"` (never `""cursor""`),
+    // and agree the noun in number for a clean first-run error.
     throw ArbiterError.fromKey('E_INVALID_TOOL', 'errors.E_INVALID_TOOL', {
+      noun: invalid.length === 1 ? 'tool' : 'tools',
       tool: invalid.map((s) => `"${s}"`).join(', '),
       valid: [...VALID].join(', '),
     })

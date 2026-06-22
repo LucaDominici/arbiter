@@ -142,7 +142,13 @@ describe('runConfigure — validation', () => {
     writeV2Config(dir)
     const before = readArbiterJson(dir)
 
-    await expect(runConfigure({ dir, sets: ['tools=claude,unknown-tool'] })).rejects.toThrow()
+    // The rendered message must be clean — the i18n template owns no quotes, so
+    // the offending tool is quoted exactly once here (regression for the doubled
+    // `""..""` rendering shared with init). (release-readiness init-ux gap-close)
+    await expect(runConfigure({ dir, sets: ['tools=claude,unknown-tool'] })).rejects.toMatchObject({
+      code: 'E_INVALID_TOOL',
+      message: expect.stringContaining('Invalid tool: "unknown-tool".'),
+    })
 
     expect(readArbiterJson(dir)).toEqual(before)
   })

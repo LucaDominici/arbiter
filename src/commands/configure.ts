@@ -234,7 +234,9 @@ export function parseValue(path: string, raw: string): unknown {
           'E_INVALID_TOOL',
           'errors.E_INVALID_TOOL',
           {
-            tool,
+            // The template owns no quotes; quote the single offending tool here.
+            noun: 'tool',
+            tool: `"${tool}"`,
             valid: [...VALID_TOOLS].join(', '),
           },
           { hint: 'Valid tools: claude, codex, cursor, copilot, gemini, windsurf, aider.' },

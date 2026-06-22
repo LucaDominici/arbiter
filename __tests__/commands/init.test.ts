@@ -854,6 +854,49 @@ describe('parseTools / parseLevel — input validation (#325)', () => {
     ).rejects.toMatchObject({ code: 'E_INVALID_TOOL' })
   })
 
+  it('renders E_INVALID_TOOL without doubled quotes (first-impression polish)', async () => {
+    // Regression: the i18n template wrapped {tool} in quotes AND the code wrapped
+    // each tool in quotes, so a newcomer who copied the website's tool list hit a
+    // visibly malformed `Invalid tool: ""cursor""`. The message a first-time user
+    // sees must be clean. (release-readiness init-ux gap-close)
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'cursor',
+        level: undefined,
+        dir,
+        dryRun: true,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toMatchObject({
+      code: 'E_INVALID_TOOL',
+      message: 'Invalid tool: "cursor". Valid tools: claude, codex',
+    })
+  })
+
+  it('renders E_INVALID_TOOL for multiple bad tools with correct grammar', async () => {
+    // The previous template produced `Invalid tool: ""cursor", "copilot""` — both
+    // doubled-quoted and grammatically singular for a list. Each tool is quoted
+    // exactly once and the noun agrees in number. (release-readiness init-ux gap-close)
+    const { runInit } = await import('../../src/commands/init.js')
+    await expect(
+      runInit({
+        yes: true,
+        tools: 'cursor,copilot',
+        level: undefined,
+        dir,
+        dryRun: true,
+        brownfield: false,
+        noVerify: true,
+      }),
+    ).rejects.toMatchObject({
+      code: 'E_INVALID_TOOL',
+      message: 'Invalid tools: "cursor", "copilot". Valid tools: claude, codex',
+    })
+  })
+
   it('throws on invalid level in --level (#325)', async () => {
     const { runInit } = await import('../../src/commands/init.js')
     await expect(

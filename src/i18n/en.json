@@ -62,7 +62,7 @@
     "E_INVALID_ARCHETYPE": "Invalid {field}: \"{value}\". Valid: {valid}",
     "E_INVALID_BOOL": "{path} must be true or false — got: {value}",
     "E_INVALID_NUMBER": "{path} must be a number — got: {value}",
-    "E_INVALID_TOOL": "Invalid tool: \"{tool}\". Valid tools: {valid}",
+    "E_INVALID_TOOL": "Invalid {noun}: {tool}. Valid tools: {valid}",
     "E_INVALID_FORMAT": "Invalid --set format (expected path=value): {assignment}",
     "E_UNKNOWN_PATH": "Unknown configuration path: {path}",
     "E_UNSUPPORTED_PATH_DEPTH": "Unsupported path depth: {path}",
