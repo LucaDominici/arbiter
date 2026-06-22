@@ -8,6 +8,10 @@
     {
       "script": "check-pack-size.mjs",
       "rationale": "npm tarball size budget — a release/CI-time concern (warn-only by default), not a per-PR L1 gate. Belongs to the packaging lane, deliberately kept out of the fast self-gate so a routine source edit never pays a pack cost."
+    },
+    {
+      "script": "check-tarball-contents.mjs",
+      "rationale": "Published-tarball leak guard (no docs/internal/** or *.arbiter-backup in the package) — a release/publish-boundary concern wired into prepublishOnly --strict and the 05-release build-superset early signal, mirroring check-pack-size. Runs `npm pack`, too heavy for the per-PR L1 gate; deliberately kept in the packaging lane."
     }
   ]
 }

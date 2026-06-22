@@ -10,6 +10,8 @@
   "files": [
     "dist",
     "docs",
+    "!docs/internal",
+    "!docs/**/*.arbiter-backup",
     "README.md",
     "LICENSE",
     "NOTICE",
@@ -41,7 +43,7 @@
     "dev": "tsx src/cli.ts",
     "prepack": "npm run build && node scripts/gen-third-party-licenses.mjs",
     "licenses:third-party": "node scripts/gen-third-party-licenses.mjs",
-    "prepublishOnly": "node scripts/check-pack-size.mjs --strict",
+    "prepublishOnly": "node scripts/check-pack-size.mjs --strict && node scripts/check-tarball-contents.mjs --strict",
     "pack:size": "node scripts/check-pack-size.mjs",
     "test": "vitest run",
     "test:unit": "vitest run",

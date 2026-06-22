@@ -32,6 +32,12 @@ jobs:
         # build, but a breach of the 5 MB hard cap (#511) fails here at the START
         # of the release run instead of only at the terminal prepublishOnly gate.
         run: node scripts/check-pack-size.mjs --ci
+      - name: Tarball-contents guard (no internal/backup leak, #1491)
+        # Fails the release build if the published tarball would ship a
+        # maintainer-internal doc (docs/internal/**) or a working-tree
+        # *.arbiter-backup artifact — caught here at the START of the run,
+        # not only at the terminal prepublishOnly gate.
+        run: node scripts/check-tarball-contents.mjs
       - name: Package artifact
         run: zip -r release-artifact.zip dist/
       - name: Compute artifact hash
