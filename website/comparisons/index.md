@@ -44,7 +44,7 @@ Most alternatives in this space are persona frameworks: they tell the AI _who to
 > `bridge-reviewer`/`codebase-scanner`/`context-checker`/`red-team` sub-agents), which is distinct
 > from — and not required by — the installer **core**. Arbiter does **not** ship agent _personas_.
 > "Claude + Codex" are the supported tools out of the box; Cursor, Copilot, Windsurf, Aider, and
-> Gemini CLI generators exist but are **experimental** (behind `--accept-beta-tools`).
+> Gemini CLI generators exist but are **experimental** — not yet selectable via `--tools`.
 
 ## When to choose arbiter
 

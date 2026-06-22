@@ -257,6 +257,9 @@ const CI_COVERAGE = new Map([
   ['actionlint', 'gate-full'],
   ['ci tool parity', 'gate-full'],
   ['perm-test guards', 'gate-full'],
+  ['install command (B1)', 'gate-full'],
+  ['third-party licenses', 'gate-full'],
+  ['tool claims', 'gate-full'],
 ])
 
 // CI_SKIP_SET: checks intentionally excluded from CI parity enforcement.

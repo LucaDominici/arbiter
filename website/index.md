@@ -20,9 +20,9 @@ features:
       no configuration files to manually author.
   - title: Multi-tool
     details: >
-      Claude Code and Codex out of the box (Cursor, Copilot, Windsurf, Aider,
-      Gemini CLI are experimental, behind `--accept-beta-tools`).
-      All tools read the same canonical `AGENTS.md`.
+      Claude Code and Codex out of the box. Cursor, Copilot, Windsurf, Aider,
+      and Gemini CLI have experimental generators but are not yet selectable via
+      `--tools`. All supported tools read the same canonical `AGENTS.md`.
   - title: Zero telemetry
     details: >
       Arbiter collects nothing and phones home to nobody.

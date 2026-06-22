@@ -140,6 +140,7 @@ if (isMain) {
   runCheck('hardness inventory', 'node', ['scripts/check-hardness-inventory.mjs'])
   runCheck('docs', 'node', ['scripts/check-docs.mjs'], { cwd: GIT_CWD })
   runCheck('install command (B1)', 'node', ['scripts/check-install-command.mjs'])
+  runCheck('tool claims', 'node', ['scripts/check-tool-claims.mjs'])
   runCheck('third-party licenses', 'node', ['scripts/gen-third-party-licenses.mjs', '--check'])
   runCheck('matrix fixtures', 'node', ['scripts/check-matrix-fixtures.mjs'])
   runCheck('matrix proven cells', 'node', ['scripts/check-matrix-proven-cells.mjs'])
