@@ -126,6 +126,16 @@ export interface WriteResult {
    * withheld gate/security fix is no longer reported as a silent "unchanged".
    */
   withheld?: boolean
+  /**
+   * B6/#1491 (M1): set when a generator DELIBERATELY did not emit a file because it
+   * is not applicable to this config (e.g. GLOBAL_INVARIANTS.md when no optional
+   * invariant tiers are selected) — as opposed to a `skipIfExists` skip of a file
+   * that is on disk. The action stays `'skipped'` (no write, side-effect gates
+   * unaffected), but this flag lets reporting avoid the false "already exists"
+   * claim and lets the post-write presence check skip a file that was never meant
+   * to land.
+   */
+  reason?: 'not-applicable'
 }
 
 export type GeneratorRunOpts = { dryRun: boolean }

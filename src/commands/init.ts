@@ -328,8 +328,16 @@ async function generateAndFinalize(
       }
     }
 
+    // Post-write presence check (M1/#1491): every file a generator claims it WROTE
+    // must actually be on disk. A `created`/`replaced` result whose file is missing
+    // is a silent content-loss bug (the class that dropped GLOBAL_INVARIANTS.md),
+    // not a benign skip — fail hard rather than report a phantom success.
+    assertEmittedFilesPresent(committed)
+
     if (!options.brownfield && !options.json) {
-      const skippedFiles = committed.filter((r) => r.action === 'skipped')
+      const skippedFiles = committed.filter(
+        (r) => r.action === 'skipped' && r.reason !== 'not-applicable',
+      )
       if (skippedFiles.length > 0) {
         const names = skippedFiles.map((r) => basename(r.path)).join(', ')
         log(`\n  ${skippedFiles.length} file(s) already exist: ${names}`)
@@ -850,8 +858,32 @@ function runBrownfieldCapture(
   }
 }
 
+/**
+ * Post-write presence guard (M1/#1491). A generator result with action
+ * `created`/`replaced`/`backed-up-and-replaced` asserts a file was written; if it
+ * is not on disk the emission silently lost content. `skipped` files (including
+ * `reason: 'not-applicable'` deliberate non-emissions and skipIfExists preserves)
+ * are exempt — they are not expected to be (re)written.
+ */
+export function assertEmittedFilesPresent(results: WriteResult[]): void {
+  const missing = results
+    .filter((r) => r.action !== 'skipped' && r.action !== 'dry-run')
+    .filter((r) => !existsSync(r.path))
+    .map((r) => r.path)
+  if (missing.length > 0) {
+    throw new Error(
+      `Emission integrity check failed — ${missing.length} file(s) reported written but ` +
+        `not found on disk:\n${missing.map((p) => `    - ${p}`).join('\n')}\n` +
+        `This is a generator bug (content silently dropped). Re-run init or file an issue.`,
+    )
+  }
+}
+
 export function printResults(results: WriteResult[], targetDir: string): void {
   for (const result of results) {
+    // not-applicable files were deliberately NOT emitted — do not list them as
+    // "skipped — already exists" (false claim on a clean project, M1/#1491).
+    if (result.reason === 'not-applicable') continue
     const icon = result.action === 'skipped' ? '│  ' : '├──'
     const label =
       result.action === 'skipped'

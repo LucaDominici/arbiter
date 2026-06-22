@@ -15,8 +15,14 @@ export function generateGlobalInvariants(
   const hasOptionalTiers = config.invariantTiers.some((t) => OPTIONAL_TIERS.includes(t))
 
   if (!hasOptionalTiers) {
+    // Deliberate non-emission: GLOBAL_INVARIANTS.md only ships when an optional
+    // tier (data/security/operational) is selected — at L1's `essential` preset
+    // there are none, so the file SHOULD NOT exist. Mark it `not-applicable` so
+    // init reporting does not falsely claim it "already exists" on a clean project
+    // and the post-write presence check does not flag it as a lost file (M1/#1491).
     return {
       action: 'skipped',
+      reason: 'not-applicable',
       path: resolvedPath(config.targetDir, 'GLOBAL_INVARIANTS.md'),
     }
   }

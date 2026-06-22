@@ -24,6 +24,10 @@ describe('generateGlobalInvariants', () => {
     })
     const result = generateGlobalInvariants(config)
     expect(result.action).toBe('skipped')
+    // M1/#1491: the skip is a DELIBERATE non-emission (no optional tiers), tagged
+    // `not-applicable` so init reporting does not falsely claim "already exists"
+    // and the post-write presence check does not flag it as a lost file.
+    expect(result.reason).toBe('not-applicable')
     expect(existsSync(join(dir, 'GLOBAL_INVARIANTS.md'))).toBe(false)
   })
 

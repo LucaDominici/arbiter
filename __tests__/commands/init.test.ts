@@ -436,9 +436,12 @@ describe('runInit', () => {
   })
 
   it('prints created/skipped file counts after generation', async () => {
+    // #1491: the post-write presence check requires a `created` file to exist on
+    // disk — write it so the mocked generator result reflects a real emission.
+    writeFileSync(`${dir}/AGENTS.md`, 'x')
     mockRunGeneratorsFromRegistry.mockReturnValue([
-      { path: '/tmp/AGENTS.md', action: 'created' },
-      { path: '/tmp/check-all.mjs', action: 'skipped' },
+      { path: `${dir}/AGENTS.md`, action: 'created' },
+      { path: `${dir}/check-all.mjs`, action: 'skipped' },
     ])
     const { runInit } = await import('../../src/commands/init.js')
     await runInit({
@@ -454,6 +457,8 @@ describe('runInit', () => {
   })
 
   it('lists skipped filenames and suggests --force in non-brownfield mode (#812)', async () => {
+    // #1491: the post-write presence check requires a `created` file on disk.
+    writeFileSync(`${dir}/AGENTS.md`, 'x')
     mockRunGeneratorsFromRegistry.mockReturnValue([
       { path: `${dir}/AGENTS.md`, action: 'created' },
       { path: `${dir}/arbiter.json`, action: 'skipped' },
