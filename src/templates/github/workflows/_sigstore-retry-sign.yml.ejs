@@ -48,7 +48,7 @@ jobs:
           name: ${{ inputs.artifact-path }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
 
       - name: Sign artifact (keyless OIDC, max-attempts=${{ inputs.max-attempts }})
         shell: bash
@@ -93,7 +93,7 @@ jobs:
           fi
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e7ddfa5e8ede2a605eb4c14fa96b50  # v3.8.1
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
 
       - name: Sigstore preflight check
         run: |
