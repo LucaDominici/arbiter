@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// CATALOG: Publish-boundary leak gate — inspects the actual `npm pack` manifest and
+// CATALOG: fails if a forbidden path (docs/internal/** maintainer runbooks, stray
+// CATALOG: *.arbiter-backup editor artifacts) would ship to the registry. Distinct
+// CATALOG: from check-pack-size.mjs (byte budget, not content) and from
+// CATALOG: check-private-paths-ignored.mjs (git-ignore status, not the published tarball).
 /**
  * Verifies the published npm tarball ships NO maintainer-internal or working-tree
  * cruft. The `package.json` "files" allowlist is the primary curation, but a
@@ -109,7 +114,14 @@ export function checkTarballContents() {
   return 0
 }
 
-// Only run when invoked directly (not when imported by tests).
+// Only run when invoked directly (not when imported by tests). Wrapped so any
+// unexpected error fails CLOSED (exit 1) rather than crashing with an unhandled
+// rejection that a CI step might treat as a soft skip (INV-96 / FAIL_CLOSED.md).
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  process.exit(checkTarballContents())
+  try {
+    process.exit(checkTarballContents())
+  } catch (err) {
+    process.stderr.write(`check-tarball-contents: unexpected error — ${err?.message ?? err}\n`)
+    process.exit(1)
+  }
 }

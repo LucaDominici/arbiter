@@ -11,6 +11,7 @@
     "stryker",
     "which",
     "java",
+    "python3",
     "gofmt",
     "license-checker",
     "Apache-2.0",
