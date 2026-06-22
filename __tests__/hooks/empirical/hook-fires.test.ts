@@ -166,6 +166,59 @@ describe('check-no-pii — stdin-JSON protocol (no env var)', () => {
   })
 })
 
+// ── dispatcher end-to-end (the path generated projects actually run) ─────────────
+// Generated projects do NOT wire each hook directly in settings.json — settings.json.ejs
+// registers ONE command per event: `node .claude/hooks/hooks.mjs <Event:Matcher>`. The
+// dispatcher buffers fd 0 ONCE and re-feeds it to every handler via spawnSync({ input }).
+// The prior stdin-JSON tests above drive leaf hooks DIRECTLY, so they never exercise that
+// buffer-and-forward step. This regression renders the real dispatcher + lib.mjs + a
+// registered handler and pipes a violation through `hooks.mjs PostToolUse:Edit|Write` —
+// the exact invocation Claude Code makes in a generated repo. If the dispatcher ever stops
+// forwarding stdin (e.g. `input: stdinData` dropped, or the buffer regresses), the handler
+// sees an empty path and exits 0, and this test goes red.
+describe('hooks.mjs dispatcher — forwards stdin JSON to handlers end-to-end', () => {
+  let dir: string
+  let hooksDir: string
+  let dispatcherPath: string
+
+  beforeEach(() => {
+    ;({ dir, hooksDir } = makeHookDir())
+    // lib.mjs is written by makeHookDir(); add the dispatcher + a registered handler.
+    dispatcherPath = join(hooksDir, 'hooks.mjs')
+    writeFileSync(dispatcherPath, renderTemplate('claude/hooks/hooks.mjs.ejs', minConfig()))
+    renderEjsHook(hooksDir, 'check-no-pii.mjs.ejs')
+  })
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  function spawnDispatcher(filePath: string) {
+    return spawnSync('node', [dispatcherPath, 'PostToolUse:Edit|Write'], {
+      cwd: dir,
+      encoding: 'utf-8',
+      input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } }),
+      // No env var — only the stdin payload carries the path, exactly like Claude Code.
+      env: { ...process.env, CLAUDE_TOOL_INPUT_PATH: '' },
+      timeout: 10000,
+    })
+  }
+
+  it('aborts the chain with non-zero exit when a handler blocks a violation', () => {
+    const f = join(dir, 'dirty.ts')
+    writeFileSync(f, 'const contact = "user@example.com";\n')
+    const r = spawnDispatcher(f)
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).toMatch(/INV-12|PII/i)
+  })
+
+  it('exits 0 through the dispatcher for a clean file', () => {
+    const f = join(dir, 'clean.ts')
+    writeFileSync(f, 'export const x = 1;\n')
+    const r = spawnDispatcher(f)
+    expect(r.status).toBe(0)
+  })
+})
+
 describe('check-no-placeholders (raw hook) — stdin-JSON protocol (no env var)', () => {
   let dir: string
   let hookPath: string
