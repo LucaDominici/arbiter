@@ -65,25 +65,26 @@ describe('classifyTarball — forbidden-path detection (#1491 tarball-leak)', ()
   })
 })
 
-describe('package.json files[] negates the leak subpaths (#1491 the actual fix)', () => {
+describe('package.json files[] does not ship docs wholesale — whitelist the one runtime file (#1491)', () => {
   const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf-8')) as { files: string[] }
 
-  it('still ships docs wholesale (the public doc set is intended to publish)', () => {
-    expect(pkg.files).toContain('docs')
+  it('does NOT ship the docs/ tree wholesale (so internal/backup cannot leak by construction)', () => {
+    // The human-only docs tree (ADR/REFERENCE/PRODUCT/METHOD/…, ~1.1 MB) lives on the website +
+    // repo, not in the npm tarball. Whitelisting beats blacklisting: a new docs subdir can never
+    // re-introduce a leak, and the package stays well under the 5 MB cap.
+    expect(pkg.files).not.toContain('docs')
+    expect(pkg.files.filter((f) => f.startsWith('docs/') && !f.startsWith('!'))).toEqual([
+      'docs/audits/kit-canonical-mapping.json',
+    ])
   })
 
-  it('negates docs/internal so maintainer runbooks never ship', () => {
-    expect(pkg.files).toContain('!docs/internal')
+  it('ships the one bundled doc the CLI reads at runtime (kit parity check)', () => {
+    // kit.js resolves this against the package root; dropping it would break `arbiter kit`.
+    expect(pkg.files).toContain('docs/audits/kit-canonical-mapping.json')
   })
 
-  it('negates *.arbiter-backup so editor artifacts never ship', () => {
-    expect(pkg.files).toContain('!docs/**/*.arbiter-backup')
-  })
-
-  it('the negation entries appear AFTER the docs entry (npm applies in order)', () => {
-    const docsIdx = pkg.files.indexOf('docs')
-    expect(pkg.files.indexOf('!docs/internal')).toBeGreaterThan(docsIdx)
-    expect(pkg.files.indexOf('!docs/**/*.arbiter-backup')).toBeGreaterThan(docsIdx)
+  it('carries no stale negation entries (whitelist makes them unnecessary)', () => {
+    expect(pkg.files.some((f) => f.startsWith('!'))).toBe(false)
   })
 })
 

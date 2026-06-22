@@ -9,9 +9,7 @@
   },
   "files": [
     "dist",
-    "docs",
-    "!docs/internal",
-    "!docs/**/*.arbiter-backup",
+    "docs/audits/kit-canonical-mapping.json",
     "README.md",
     "LICENSE",
     "NOTICE",
