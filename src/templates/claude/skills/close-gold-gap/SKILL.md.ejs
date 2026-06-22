@@ -26,15 +26,15 @@ attest). Pick the gap's `id` and ask for its recipe.
 1. Run the audit to list the gaps:
 
 ```bash
-npx arbiter gold-audit
+npx @arbiter/cli gold-audit
 ```
 
 2. Get the recipe for one gap:
 
 ```bash
-npx arbiter close-gold-gap <gapId>
+npx @arbiter/cli close-gold-gap <gapId>
 # machine-readable:
-npx arbiter close-gold-gap <gapId> --json
+npx @arbiter/cli close-gold-gap <gapId> --json
 ```
 
 3. Execute the recipe's steps yourself. Each step is typed by **category**:
@@ -58,6 +58,6 @@ npx arbiter close-gold-gap <gapId> --json
 
 ## Re-audit
 
-After executing a recipe, re-run `npx arbiter gold-audit` and confirm the gap flipped for a real
+After executing a recipe, re-run `npx @arbiter/cli gold-audit` and confirm the gap flipped for a real
 reason — the genuine metric improved or real content/config now exists. If it only flipped because a
 threshold moved or a literal was pasted in, that is fake-green: revert and do the real work.

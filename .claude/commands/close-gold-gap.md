@@ -23,9 +23,9 @@ the recipe and **never fakes a close**.
 ## Use it
 
 ```bash
-npx arbiter gold-audit          # list the gaps
-npx arbiter close-gold-gap <gapId>        # human recipe
-npx arbiter close-gold-gap <gapId> --json # machine-readable recipe
+npx @arbiter/cli gold-audit          # list the gaps
+npx @arbiter/cli close-gold-gap <gapId>        # human recipe
+npx @arbiter/cli close-gold-gap <gapId> --json # machine-readable recipe
 ```
 
 ## Recipe categories

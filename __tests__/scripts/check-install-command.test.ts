@@ -92,12 +92,62 @@ describe('check-install-command.mjs (B1 install-command gate)', () => {
     }
   })
 
-  it('does not scan non-user-facing files (e.g. src/)', () => {
+  it('does not scan non-user-facing files (e.g. src/ outside templates)', () => {
     const { dir, cleanup } = makeRepo()
     try {
       write(dir, 'src/notes.md', 'npx arbiter init\n')
       const result = run(dir)
       expect(result.status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  // B1 gap-close (install-scope-b1): the gate must guard the GENERATED kit, not
+  // just arbiter's own self-docs. A `.md.ejs` template under src/templates/ renders
+  // into every downstream project's .claude/ — an unscoped `npx arbiter` there ships
+  // the exact B1 broken-onboarding defect to every consumer.
+  it('FAILS on an unscoped `npx arbiter` in a src/templates markdown template (.md.ejs)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      write(
+        dir,
+        'src/templates/claude/skills/gold-audit/SKILL.md.ejs',
+        '# Gold Audit\n\n```bash\nnpx arbiter gold-audit --json\n```\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('[check-install-command] FAIL')
+      expect(result.stderr).toContain('src/templates/claude/skills/gold-audit/SKILL.md.ejs')
+      expect(result.stderr).toContain('npx arbiter')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('FAILS on an unscoped `npx arbiter` in a materialized .claude/commands file', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      write(dir, '.claude/commands/gold-audit.md', 'Run `npx arbiter gold-audit --json`.\n')
+      const result = run(dir)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('.claude/commands/gold-audit.md')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('PASSES on the scoped form inside a src/templates markdown template', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      write(
+        dir,
+        'src/templates/claude/skills/gold-audit/SKILL.md.ejs',
+        '# Gold Audit\n\n```bash\nnpx @arbiter/cli gold-audit --json\n```\n',
+      )
+      const result = run(dir)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('[check-install-command] OK')
     } finally {
       cleanup()
     }

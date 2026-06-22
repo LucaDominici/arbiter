@@ -35,12 +35,12 @@ It composes the engines that already exist — there is **no new TS engine** and
 
 ## The loop (per wave)
 
-1. **Measure** — `npx arbiter gold-audit --json`; read the band + `gaps[]` (no AI re-scoring).
+1. **Measure** — `npx @arbiter/cli gold-audit --json`; read the band + `gaps[]` (no AI re-scoring).
 2. **Compose** a remediation wave from the gaps, prioritized by risk + ratchet value +
    closeability (code-closeable gaps ahead of `manual`/`process` gaps).
 3. **Close** each gap honestly via `/close-gold-gap` — doc-set (fill real content), test
    (TDD-first), config (wire the real tool). A `manual` check or external blocker → needs-human.
-4. **Re-audit behind the guards (fail-closed):** `npx arbiter gold-audit --check`
+4. **Re-audit behind the guards (fail-closed):** `npx @arbiter/cli gold-audit --check`
    (no-regress ratchet) + `node scripts/check-all.mjs` (disarm-proof).
 5. Commit the new `.gold-audit-baseline.json` only when the band rose **for a real reason**;
    repeat to `--target` (or until every remaining gap is needs-human).

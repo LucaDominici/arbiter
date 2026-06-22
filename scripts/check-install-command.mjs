@@ -24,7 +24,20 @@ import { join } from 'node:path'
 // changelog history of the (separate) public package are intentionally out of scope
 // only where they reference a different package — but here we scan all of these
 // because every one is something a public reader can land on.
-const SCAN_PREFIXES = ['README.md', 'website/', 'docs/', '.claude/skills/', 'CONTRIBUTING.md']
+//
+// `.claude/commands/` and `src/templates/` are scanned too: the latter RENDERS the
+// generated `.claude/` kit for every downstream project, so an unscoped `npx arbiter`
+// in a template ships the exact B1 defect into every consumer's skills/commands. The
+// gate must guard the generated surface, not just arbiter's own self-docs.
+const SCAN_PREFIXES = [
+  'README.md',
+  'website/',
+  'docs/',
+  '.claude/skills/',
+  '.claude/commands/',
+  'src/templates/',
+  'CONTRIBUTING.md',
+]
 
 // Never scan the gate's own source (it must contain the forbidden patterns to
 // describe them) or generated/built site output.
@@ -52,7 +65,10 @@ const FORBIDDEN = [
 
 function shouldScan(filePath) {
   if (SKIP_PATHS.some((skip) => filePath.startsWith(skip))) return false
-  if (!filePath.endsWith('.md')) return false
+  // Markdown docs and markdown templates (`.md.ejs` renders to a `.md` in the
+  // generated kit). Other template kinds are out of scope for an install-command
+  // doc gate.
+  if (!filePath.endsWith('.md') && !filePath.endsWith('.md.ejs')) return false
   return SCAN_PREFIXES.some((p) => (p.endsWith('/') ? filePath.startsWith(p) : filePath === p))
 }
 

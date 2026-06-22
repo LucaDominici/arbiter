@@ -25,11 +25,11 @@ repo + registry always produces identical output.
 1. Run the engine and capture stdout:
 
 ```bash
-npx arbiter gold-audit --json
+npx @arbiter/cli gold-audit --json
 ```
 
 2. If stdout is not JSON (a SKIP line — no registry installed), do not invent a score.
-   Point the user at `npx arbiter init` (new project) or `npx arbiter update` (existing
+   Point the user at `npx @arbiter/cli init` (new project) or `npx @arbiter/cli update` (existing
    arbiter project), then stop.
 
 3. Otherwise parse the payload and present the band + the `gaps[]` families (N/P checks
@@ -37,7 +37,7 @@ npx arbiter gold-audit --json
 
 ## Allowed Tools
 
-- `Bash` to run `npx arbiter gold-audit --json`
+- `Bash` to run `npx @arbiter/cli gold-audit --json`
 - `Read` to inspect cited evidence files
 
 > See the **`gold-audit`** skill for the full field-by-field reading protocol and hard rules.

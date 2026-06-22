@@ -190,7 +190,10 @@ describe('generateSkills', () => {
         join(dir, '.claude', 'skills', 'gold-audit', 'SKILL.md'),
         'utf-8',
       )
-      expect(content).toContain('arbiter gold-audit --json')
+      // Scoped install command (B1): the published package is @arbiter/cli; the
+      // unscoped `arbiter` name resolves to an unrelated npm package, so the
+      // generated kit must invoke the engine via the scoped name.
+      expect(content).toContain('npx @arbiter/cli gold-audit --json')
       // Reads the payload verbatim — level/score/checks — never re-scores.
       expect(content).toContain('level')
       expect(content).toContain('checks')
@@ -236,7 +239,7 @@ describe('generateSkills', () => {
       const config = makeConfig(dir, { tools: ['claude'] })
       generateSkills(config, [])
       const content = readFileSync(join(dir, '.claude', 'skills', 'levelup', 'SKILL.md'), 'utf-8')
-      expect(content).toContain('arbiter gold-audit')
+      expect(content).toContain('npx @arbiter/cli gold-audit')
       expect(content).toContain('close-gold-gap')
     })
 
