@@ -29,6 +29,11 @@ function emitW6DualTrack(
     // without an explicit vars.SKIP_<NAME> opt-out is a fake-green. Dual-track (arbiter self-gate
     // + target). Self-contained (no lib import) so it runs in any generated project.
     'check-secret-presence.mjs',
+    // A3 #1497: parser-backed swallowed-gate guard — a GATING job/step with a const-true
+    // continue-on-error swallows its failure (a red gate goes green). Catches the YAML-1.1
+    // `on`/`yes` and `${{ true }}` forms the regex sibling misses. Dual-track (arbiter self-gate
+    // + target). Self-contained (no lib import) so it runs in any generated project.
+    'check-continue-on-error.mjs',
     'check-pr-size-gate.mjs',
     // #1266: thin context-file linter (CLAUDE.md/AGENTS.md) — dual-track (arbiter self-gate + target).
     'check-claude-md-lint.mjs',

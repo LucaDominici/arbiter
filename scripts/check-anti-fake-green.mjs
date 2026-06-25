@@ -45,6 +45,15 @@ const GUARDS = [
     script: 'scripts/check-secret-presence.mjs',
     class: 'file-scan',
   },
+  // continue-on-error (A3, #1497) — a GATING job/step that swallows its failure via a const-true
+  // `continue-on-error`. Parser-backed: catches the YAML-1.1 `on`/`yes` and `${{ true }}` forms the
+  // regex sibling (check-workflow-test-integrity) misses, and also vets the shipped `.ejs`
+  // templates. Sole exempt step = artifact up/download. NO-DATA (no workflows) is a PASS.
+  {
+    name: 'continue-on-error',
+    script: 'scripts/check-continue-on-error.mjs',
+    class: 'file-scan',
+  },
 ]
 
 function main() {
