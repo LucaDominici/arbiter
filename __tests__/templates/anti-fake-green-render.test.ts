@@ -6,13 +6,17 @@ import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
 
 describe('scripts/check-anti-fake-green.mjs.ejs render (CANON-04, #1428)', () => {
-  it('renders without error and delegates to `arbiter anti-fake-green`', () => {
+  it("renders a self-contained aggregate that runs the project's OWN local guards (#1497)", () => {
     const config = makeConfig('/tmp/test', { language: 'typescript', governanceLevel: 'L1' })
     const content = renderTemplate('scripts/check-anti-fake-green.mjs.ejs', config)
     expect(content.trim().length).toBeGreaterThan(0)
-    expect(content).toContain('arbiter')
     expect(content).toContain('anti-fake-green')
-    expect(content).toContain('--no-install')
+    // Runs local guards via spawnSync('node', ...) — NOT delegated to arbiter's env via npx.
+    expect(content).toContain('GUARDS')
+    expect(content).toContain("spawnSync('node'")
+    expect(content).not.toContain('--no-install')
+    expect(content).not.toContain("'npx'")
+    expect(content).not.toContain('arbiter anti-fake-green')
   })
 
   it('rendered output starts with shebang', () => {

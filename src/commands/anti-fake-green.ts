@@ -8,10 +8,11 @@
 // `node scripts/check-anti-fake-green.mjs` through the INV-12 runCli helper and surfaces its exit
 // code. It mirrors the gold-audit.ts thin wrapper.
 //
-// The matching thin runner (scripts/check-anti-fake-green.mjs.ejs) is emitted into governed targets
-// so a consumer can run the aggregate with NO local arbiter install — the engine runs inside
-// arbiter's own env via `npx --no-install arbiter anti-fake-green`. The gh-audit guards fail OPEN
-// (advisory) when `gh` is absent, so a fresh consumer has no day-1 redness.
+// This `arbiter anti-fake-green` command runs the FULL roster (incl. the gh-audit guards that need
+// the GitHub API) against the arbiter repo itself. Generated consumer projects do NOT call it: as
+// of #1497 they ship a SELF-CONTAINED aggregate (scripts/check-anti-fake-green.mjs) that runs the
+// deterministic file-scan guards against the consumer's OWN files with no npx / arbiter install /
+// network, and each of those guards is also HARD-wired in the consumer's check-all.mjs.
 
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'

@@ -110,4 +110,45 @@ describe('anti-fake-green file-scan guard templates (A5, #1497)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('the self-contained aggregate runs LOCAL guards, blocks a fake-green, and is disarm-proof (#1497)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'afg-agg-'))
+    try {
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      // Render the aggregate + the two guards it can find here. No npx, no arbiter install.
+      writeFileSync(
+        join(dir, 'scripts', 'check-anti-fake-green.mjs'),
+        render('scripts/check-anti-fake-green.mjs.ejs'),
+      )
+      const agg = render('scripts/check-anti-fake-green.mjs.ejs')
+      // No npx delegation to arbiter's env — it runs the project's OWN guards locally.
+      expect(agg).not.toContain("'npx'")
+      expect(agg).not.toContain('arbiter anti-fake-green')
+      expect(agg).not.toContain("from './lib/")
+      writeFileSync(
+        join(dir, 'scripts', 'check-muted-test.mjs'),
+        render('scripts/check-muted-test.mjs.ejs'),
+      )
+      const run = () =>
+        spawnSync('node', [join('scripts', 'check-anti-fake-green.mjs')], {
+          cwd: dir,
+          encoding: 'utf-8',
+        }).status ?? 1
+
+      mkdirSync(join(dir, '__tests__'), { recursive: true })
+      const spec = join(dir, '__tests__', 'a.test.ts')
+      // Clean → aggregate PASS (absent guards skipped, present guard NO-DATA/OK).
+      writeFileSync(spec, "it('x', () => { expect(1).toBe(1) })\n")
+      expect(run()).toBe(0)
+      // Planted muted test → the local muted-test guard fires → aggregate FAILS.
+      writeFileSync(spec, "it.skip('x', () => { expect(1).toBe(1) })\n")
+      expect(run()).toBe(1)
+      // Disarm-proof: a BROKEN guard (exit 2) fails the aggregate even with no fake-green present.
+      writeFileSync(spec, "it('x', () => { expect(1).toBe(1) })\n")
+      writeFileSync(join(dir, 'scripts', 'check-muted-test.mjs'), 'process.exit(2)\n')
+      expect(run()).toBe(1)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
