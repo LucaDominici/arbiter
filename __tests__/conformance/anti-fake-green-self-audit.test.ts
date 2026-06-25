@@ -209,3 +209,40 @@ describe('anti-fake-green self-audit — E10 no-stub-redirects (file-scan)', () 
     })
   })
 })
+
+describe('anti-fake-green self-audit — secret-presence (file-scan, #1497)', () => {
+  const wf = (dir: string, name: string, body: string) => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true })
+    writeFileSync(join(dir, '.github', 'workflows', name), body)
+  }
+  const STEP = (run: string, env = '          BASE_URL: ${{ secrets.TEST_BASE_URL }}') =>
+    `name: deploy\non: [push]\njobs:\n  s:\n    runs-on: ubuntu-latest\n    steps:\n      - name: gate\n        env:\n${env}\n        run: |\n${run}\n`
+  it('liveness: an unguarded skip-on-empty-secret step BLOCKS (exit 1)', () => {
+    withTmp('n2-secret-bad-', (dir) => {
+      wf(
+        dir,
+        'deploy.yml',
+        STEP('          [[ -z "$BASE_URL" ]] && { echo skip; exit 0; }\n          run-it'),
+      )
+      expect(guardExit('check-secret-presence.mjs', dir)).toBe(1)
+    })
+  })
+  it('the sanctioned vars.SKIP_ opt-out PASSES (exit 0)', () => {
+    withTmp('n2-secret-ok-', (dir) => {
+      wf(
+        dir,
+        'deploy.yml',
+        STEP(
+          '          test -n "$BASE_URL" || { [ "${SKIP_X}" = "true" ] && exit 0 || { echo "::error::x"; exit 1; }; }\n          run-it',
+          '          BASE_URL: ${{ secrets.TEST_BASE_URL }}\n          SKIP_X: ${{ vars.SKIP_X }}',
+        ),
+      )
+      expect(guardExit('check-secret-presence.mjs', dir)).toBe(0)
+    })
+  })
+  it('no workflows → NO-DATA at exit 0, never a manufactured fail', () => {
+    withTmp('n2-secret-na-', (dir) => {
+      expect(guardExit('check-secret-presence.mjs', dir)).toBe(0)
+    })
+  })
+})

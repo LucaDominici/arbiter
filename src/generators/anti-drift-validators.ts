@@ -25,6 +25,10 @@ function emitW6DualTrack(
     'check-workflow-runners.mjs',
     'check-workflow-docs-sync.mjs',
     'check-workflow-test-integrity.mjs',
+    // #1497: fail-loud secret-presence guard — a workflow step that skips on an empty secret
+    // without an explicit vars.SKIP_<NAME> opt-out is a fake-green. Dual-track (arbiter self-gate
+    // + target). Self-contained (no lib import) so it runs in any generated project.
+    'check-secret-presence.mjs',
     'check-pr-size-gate.mjs',
     // #1266: thin context-file linter (CLAUDE.md/AGENTS.md) — dual-track (arbiter self-gate + target).
     'check-claude-md-lint.mjs',

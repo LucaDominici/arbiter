@@ -36,6 +36,15 @@ const GUARDS = [
   // grace-window — an over-long / stale-level ADR-028 grace in arbiter.json (#1491): the classic
   // L2 fake-green via a hand-edited far-future graceEndsAt. NO-DATA (no active grace) is a PASS.
   { name: 'grace-window', script: 'scripts/check-grace-window.mjs', class: 'file-scan' },
+  // secret-presence — a workflow run-step that depends on a secret, tests it for emptiness and
+  // then `exit 0` (silent skip) without an explicit `vars.SKIP_<NAME>` opt-out (#1497). A missing
+  // secret would otherwise turn the gate green with the real work never done. NO-DATA (no secret
+  // steps) is a PASS.
+  {
+    name: 'secret-presence',
+    script: 'scripts/check-secret-presence.mjs',
+    class: 'file-scan',
+  },
 ]
 
 function main() {

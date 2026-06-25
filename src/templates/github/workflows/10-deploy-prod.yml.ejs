@@ -83,11 +83,19 @@ const _dt = ({
       # === GROUP: smoke ===
 
       - name: PROD smoke — k6 LT1 (scaffold)
+        env:
+          # Sanctioned opt-out: set repo/org variable SKIP_SMOKE_PROD=true to deliberately skip this
+          # gate. With it unset, an empty PROD_BASE_URL secret FAILS loud — never a silent green.
+          SKIP_SMOKE_PROD: ${{ vars.SKIP_SMOKE_PROD }}
         run: |
           PROD_URL="${{ secrets.PROD_BASE_URL }}"
           if [ -z "${PROD_URL}" ]; then
-            echo "::warning::PROD_BASE_URL not set — skip smoke (SCAFFOLD)"
-            exit 0
+            if [ "${SKIP_SMOKE_PROD}" = "true" ]; then
+              echo "::notice::SKIP_SMOKE_PROD=true — PROD smoke explicitly skipped"
+              exit 0
+            fi
+            echo "::error::PROD_BASE_URL secret is empty and SKIP_SMOKE_PROD is not 'true'"
+            exit 1
           fi
           k6 run tests/load/smoke.js \
             --env BASE_URL="${PROD_URL}" \

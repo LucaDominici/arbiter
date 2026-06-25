@@ -24,10 +24,11 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
   // check-inline-suppressions). The github-owned 3 are now conditional-fallback
   // (emitted only when github-setup is disabled). makeConfig default is L2 +
   // useGitHub:false ⇒ github-setup disabled ⇒ anti-drift emits the github-3.
-  // Total: 11 W6 + 4 F4 (validator-helptext + the 3 github fallbacks) = 15.
-  it('emits 15 scripts total at L2/github-off (11 W6 + 4 F4) — #1318.2 dropped 4 double-emits', () => {
+  // Total: 12 W6 + 4 F4 (validator-helptext + the 3 github fallbacks) = 16.
+  // #1497: check-secret-presence added to the W6 dual-track batch (11 → 12).
+  it('emits 16 scripts total at L2/github-off (12 W6 + 4 F4) — #1318.2 dropped 4 double-emits', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
-    expect(result.files).toHaveLength(15)
+    expect(result.files).toHaveLength(16)
   })
 
   // #1318.2: the 4 always-on-owned scripts are NEVER emitted by anti-drift —
@@ -61,6 +62,7 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-runners.mjs',
       'check-workflow-docs-sync.mjs',
       'check-workflow-test-integrity.mjs',
+      'check-secret-presence.mjs',
       'check-pr-size-gate.mjs',
       'check-claude-md-lint.mjs',
       'check-workflow-sha-pinning.mjs',
@@ -132,6 +134,7 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-runners.mjs',
       'check-workflow-docs-sync.mjs',
       'check-workflow-test-integrity.mjs',
+      'check-secret-presence.mjs',
       'check-pr-size-gate.mjs',
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',
@@ -215,6 +218,7 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
       'check-workflow-runners.mjs',
       'check-workflow-docs-sync.mjs',
       'check-workflow-test-integrity.mjs',
+      'check-secret-presence.mjs',
       'check-pr-size-gate.mjs',
       'check-workflow-sha-pinning.mjs',
       'check-workflow-job-naming.mjs',

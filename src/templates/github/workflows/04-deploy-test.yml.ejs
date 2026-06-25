@@ -299,10 +299,15 @@ const _dt = ({
         env:
           BASE_URL: ${{ secrets.TEST_BASE_URL }}
           AUTH_TOKEN: ${{ secrets.K6_TEST_AUTH_TOKEN }}
+          # Sanctioned opt-out: set repo/org variable SKIP_SMOKE_K6=true to deliberately skip this
+          # gate. With it unset, an empty TEST_BASE_URL secret FAILS loud — never a silent green.
+          SKIP_SMOKE_K6: ${{ vars.SKIP_SMOKE_K6 }}
           VUS: "1"
           DURATION: "30s"
         run: |
-          [[ -z "$BASE_URL" ]] && { echo "::warning::TEST_BASE_URL not set — skip k6 smoke"; exit 0; }
+          test -n "$BASE_URL" || { [ "${SKIP_SMOKE_K6}" = "true" ] \
+            && { echo "::notice::SKIP_SMOKE_K6=true — k6 smoke explicitly skipped"; exit 0; } \
+            || { echo "::error::TEST_BASE_URL secret is empty and SKIP_SMOKE_K6 is not 'true'"; exit 1; }; }
           k6 run \
             --env BASE_URL="$BASE_URL" \
             --env AUTH_TOKEN="$AUTH_TOKEN" \
