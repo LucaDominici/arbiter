@@ -36,6 +36,10 @@
     {
       "path": "scripts/check-bundle-size.mjs",
       "rationale": "Emitted only when the frontend bundle-budget overlay + bundle-budget.json are present. Absent otherwise."
+    },
+    {
+      "path": "scripts/check-regulated-overlay.mjs",
+      "rationale": "Emitted only when the opt-in regulated/high-assurance governance overlay is selected (#1497). check-all.mjs references it behind existsSync(); a project without the overlay skips it gracefully. Absent on projects without that overlay."
     }
   ]
 }
