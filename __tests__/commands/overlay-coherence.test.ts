@@ -19,6 +19,7 @@ const ALL_OVERLAYS: IndustryOverlay[] = [
   'iso9001',
   'iso27001',
   'pharma',
+  'regulated',
 ]
 
 describe('validateOverlayCoherence — heavy compliance overlays (#1254)', () => {
@@ -32,6 +33,16 @@ describe('validateOverlayCoherence — heavy compliance overlays (#1254)', () =>
   it('flags iso27001 @ L1 as WARN', () => {
     const r = validateOverlayCoherence('iso27001', 'L1')
     expect(r.severity).toBe('WARN')
+  })
+
+  it('flags regulated @ L2 as WARN (heavy high-assurance overlay below L3)', () => {
+    const r = validateOverlayCoherence('regulated', 'L2')
+    expect(r.valid).toBe(true)
+    expect(r.severity).toBe('WARN')
+  })
+
+  it('regulated @ L3 is OK (governance matches the high-assurance bundle)', () => {
+    expect(validateOverlayCoherence('regulated', 'L3').severity).toBe('OK')
   })
 
   it('pharma @ L3 is OK (governance matches overlay weight)', () => {

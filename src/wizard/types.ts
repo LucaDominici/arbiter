@@ -60,7 +60,15 @@ export interface WizardAnswers {
    * Drives the gdpr/iso27001/iso9001/pharma overlay generators and the
    * (overlay × governanceLevel) coherence advisory.
    */
-  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'none'
+  industryOverlay?:
+    | 'pharma'
+    | 'sox'
+    | 'gdpr'
+    | 'generic'
+    | 'iso27001'
+    | 'iso9001'
+    | 'regulated'
+    | 'none'
   /**
    * #1261: ship autonomy level chosen in the wizard. Absent = 'L0'
    * (ask at each ship step — the safe default).
@@ -449,7 +457,15 @@ export interface ProjectConfig {
    * 'none'              → no overlay (default).
    * Absent field is treated as 'none'.
    */
-  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'none'
+  industryOverlay?:
+    | 'pharma'
+    | 'sox'
+    | 'gdpr'
+    | 'generic'
+    | 'iso27001'
+    | 'iso9001'
+    | 'regulated'
+    | 'none'
 
   /**
    * F6: Emit k6 performance testing ecosystem.

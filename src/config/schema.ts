@@ -159,7 +159,15 @@ export interface ArbiterConfigV2 {
    * can flag incoherent (overlay × governanceLevel) cells and `arbiter update`
    * re-emits the overlay artefacts. Absent = 'none'.
    */
-  industryOverlay?: 'pharma' | 'sox' | 'gdpr' | 'generic' | 'iso27001' | 'iso9001' | 'none'
+  industryOverlay?:
+    | 'pharma'
+    | 'sox'
+    | 'gdpr'
+    | 'generic'
+    | 'iso27001'
+    | 'iso9001'
+    | 'regulated'
+    | 'none'
   basePackage?: string
   invariantTiers?: InvariantTier[]
   worktree?: WorktreeConfig
@@ -336,6 +344,7 @@ const INDUSTRY_OVERLAYS: ReadonlySet<string> = new Set([
   'generic',
   'iso27001',
   'iso9001',
+  'regulated',
   'none',
 ])
 export const VALID_COLLABORATION_MODES: ReadonlySet<string> = new Set([

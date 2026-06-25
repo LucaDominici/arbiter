@@ -1,0 +1,158 @@
+#!/usr/bin/env node
+// <%= projectName %> — regulated / high-assurance overlay gate.
+// Fail-closed enforcement of the regulated bundle declared in
+// .arbiter/regulated/overlay.json. The manifest MAY be tightened above the
+// regulated floor; this gate FAILS if any pillar is weakened below the floor,
+// dropped, or the manifest is missing/unparseable. It is the machine-checkable
+// half of the regulated overlay — the bundle cannot be silently un-wired while a
+// project still claims to be "regulated".
+//
+// Exit codes: 0 = all pillars satisfy the regulated floor; 1 = a pillar violates
+// the floor; 2 = fail-closed error (manifest absent or unreadable).
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write([
+    'Usage: node scripts/check-regulated-overlay.mjs [options]',
+    '',
+    'Enforces the regulated / high-assurance overlay floor declared in',
+    '.arbiter/regulated/overlay.json (separation-of-duties, audit retention,',
+    'suppression-expiry, signing/SBOM attestation, mutation coverage).',
+    '',
+    'Options:',
+    '  --root <path>   Project root (default: cwd)',
+    '  --help, -h      Show this help and exit',
+    '',
+    'Exit: 0 = clean, 1 = floor violated, 2 = fail-closed error.',
+    '',
+  ].join('\n'));
+  process.exit(0);
+}
+
+const rootArg = args.indexOf('--root');
+const ROOT = rootArg >= 0 && args[rootArg + 1] ? resolve(args[rootArg + 1]) : process.cwd();
+const MANIFEST = join(ROOT, '.arbiter/regulated/overlay.json');
+
+// ── Regulated floor (the minimums that define "regulated"; tightening is allowed) ──
+const MIN_RETENTION_DAYS = 365;
+const MAX_SUPPRESSION_VALIDITY_DAYS = 365;
+
+function failClosed(msg) {
+  process.stderr.write(`[ERROR] check-regulated-overlay: ${msg}\n`);
+  process.exit(2);
+}
+
+if (!existsSync(MANIFEST)) {
+  failClosed(`policy manifest not found: .arbiter/regulated/overlay.json (regulated overlay requires it)`);
+}
+
+let manifest;
+try {
+  manifest = JSON.parse(readFileSync(MANIFEST, 'utf-8'));
+} catch (err) {
+  failClosed(`policy manifest is not valid JSON: ${err.message}`);
+}
+if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+  failClosed('policy manifest must be a JSON object');
+}
+
+const failures = [];
+function require_(cond, pillar, detail) {
+  if (!cond) failures.push(`${pillar}: ${detail}`);
+}
+function isPosInt(v) {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1;
+}
+
+// 1. Separation of duties — an AI-authored PR needs an independent human approval.
+const sod = manifest.separationOfDuties;
+if (sod === null || typeof sod !== 'object' || Array.isArray(sod)) {
+  failures.push('separationOfDuties: pillar is missing — regulated requires human approval on AI-authored PRs');
+} else {
+  require_(
+    sod.requireHumanApprovalOnAiAuthoredPR === true,
+    'separationOfDuties',
+    'requireHumanApprovalOnAiAuthoredPR must be true (an AI-authored PR cannot self-approve)',
+  );
+  require_(
+    isPosInt(sod.minHumanApprovals),
+    'separationOfDuties',
+    'minHumanApprovals must be an integer >= 1',
+  );
+  require_(
+    Array.isArray(sod.aiAuthorMarkers) &&
+      sod.aiAuthorMarkers.length > 0 &&
+      sod.aiAuthorMarkers.every((m) => typeof m === 'string' && m.length > 0),
+    'separationOfDuties',
+    'aiAuthorMarkers must be a non-empty array of strings (how an AI-authored commit is recognised)',
+  );
+}
+
+// 2. Audit-trail retention — a minimum retention horizon.
+const audit = manifest.auditTrail;
+if (audit === null || typeof audit !== 'object' || Array.isArray(audit)) {
+  failures.push('auditTrail: pillar is missing — regulated requires a declared retention horizon');
+} else {
+  require_(
+    typeof audit.retentionDays === 'number' && audit.retentionDays >= MIN_RETENTION_DAYS,
+    'auditTrail',
+    `retentionDays must be a number >= ${MIN_RETENTION_DAYS}`,
+  );
+}
+
+// 3. Suppression expiry — every suppression carries a mandatory, bounded expiry.
+const supp = manifest.suppressionExpiry;
+if (supp === null || typeof supp !== 'object' || Array.isArray(supp)) {
+  failures.push('suppressionExpiry: pillar is missing — regulated requires mandatory, bounded suppression expiry');
+} else {
+  require_(supp.mandatory === true, 'suppressionExpiry', 'mandatory must be true');
+  require_(
+    typeof supp.maxValidityDays === 'number' &&
+      supp.maxValidityDays >= 1 &&
+      supp.maxValidityDays <= MAX_SUPPRESSION_VALIDITY_DAYS,
+    'suppressionExpiry',
+    `maxValidityDays must be a number in 1..${MAX_SUPPRESSION_VALIDITY_DAYS}`,
+  );
+}
+
+// 4. Signing + SBOM attestation — release artefacts are signed with an SBOM.
+const att = manifest.attestation;
+if (att === null || typeof att !== 'object' || Array.isArray(att)) {
+  failures.push('attestation: pillar is missing — regulated requires cosign + SBOM attestation');
+} else {
+  require_(att.cosign === true, 'attestation', 'cosign must be true');
+  require_(att.sbom === true, 'attestation', 'sbom must be true');
+}
+
+// 5. Mutation coverage — a minimum mutation score floor.
+const mut = manifest.mutationCoverage;
+if (mut === null || typeof mut !== 'object' || Array.isArray(mut)) {
+  failures.push('mutationCoverage: pillar is missing — regulated requires a mutation score floor');
+} else {
+  require_(
+    typeof mut.minScore === 'number' && mut.minScore >= 1,
+    'mutationCoverage',
+    'minScore must be a number >= 1',
+  );
+}
+
+// Bundle-wiring advisory: the suppression-expiry gate should be present when the
+// manifest mandates it. Advisory (WARN, not FAIL) — the floor above is the gate's
+// authority; this only nudges projects to wire the companion gate.
+if (supp && supp.mandatory === true && !existsSync(join(ROOT, 'scripts/check-suppressions.mjs'))) {
+  process.stderr.write(
+    '[WARN] suppressionExpiry.mandatory=true but scripts/check-suppressions.mjs is absent — ' +
+      'enable suppressions so expiry is actually enforced.\n',
+  );
+}
+
+if (failures.length > 0) {
+  process.stderr.write(`\n[FAIL] regulated overlay floor violated (${failures.length}):\n`);
+  for (const f of failures) process.stderr.write(`  - ${f}\n`);
+  process.exit(1);
+}
+
+process.stdout.write('check-regulated-overlay: OK — all regulated pillars satisfy the floor\n');
+process.exit(0);

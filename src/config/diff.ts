@@ -54,6 +54,7 @@ export type GeneratorKey =
   | 'pharma'
   | 'iso27001-controls'
   | 'iso9001'
+  | 'regulated-overlay'
   | 'observability'
   | 'auth'
   | 'ci-tier'
@@ -175,7 +176,7 @@ const PATH_TO_KEYS: Readonly<Record<string, GeneratorKey[]>> = {
   'thresholds.maxParams': ['debt-gates'],
   invariantTiers: ['global-invariants', 'agents-md'],
   hasPublicApi: ['api-middleware'],
-  industryOverlay: ['pharma', 'iso27001-controls', 'iso9001'],
+  industryOverlay: ['pharma', 'iso27001-controls', 'iso9001', 'regulated-overlay'],
   'observability.provider': ['observability'],
   'auth.provider': ['auth'],
   // bare 'frontend' path: emitted when frontend block is added/removed wholesale

@@ -31,6 +31,7 @@ export type IndustryOverlay =
   | 'generic'
   | 'iso27001'
   | 'iso9001'
+  | 'regulated'
   | 'none'
 
 export interface CoherenceResult {
@@ -125,7 +126,7 @@ export function validateCollaborationCoherence(
  * Compliance weight tiers. Heavy overlays expect L3/L4 rigour; medium overlays
  * expect at least L2 (debt + security gates). Light/none impose nothing.
  */
-const HEAVY_OVERLAYS: ReadonlySet<IndustryOverlay> = new Set(['pharma', 'iso27001'])
+const HEAVY_OVERLAYS: ReadonlySet<IndustryOverlay> = new Set(['pharma', 'iso27001', 'regulated'])
 const MEDIUM_OVERLAYS: ReadonlySet<IndustryOverlay> = new Set(['sox', 'gdpr', 'iso9001'])
 
 /** Minimum governance level that makes a heavy overlay coherent. */

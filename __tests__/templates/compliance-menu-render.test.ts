@@ -33,7 +33,15 @@ describe('compliance-menu.md.ejs — structural invariants (#1254)', () => {
 
   it.each(STACKS)('%s: presents the compliance axis (all overlays)', (language) => {
     const out = renderMenu({ language })
-    for (const overlay of ['generic', 'sox', 'gdpr', 'iso9001', 'iso27001', 'pharma']) {
+    for (const overlay of [
+      'generic',
+      'sox',
+      'gdpr',
+      'iso9001',
+      'iso27001',
+      'pharma',
+      'regulated',
+    ]) {
       expect(out, `${language} missing ${overlay}`).toContain(overlay)
     }
   })

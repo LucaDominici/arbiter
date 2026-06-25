@@ -60,6 +60,7 @@ import { generateComplianceMenu } from './compliance-menu.js'
 import { generatePharma } from './pharma.js'
 import { generateIso27001 } from './iso27001.js'
 import { generateIso9001 } from './iso9001.js'
+import { generateRegulated } from './regulated.js'
 import { generateObservability } from './observability.js'
 import { generateAuth } from './auth.js'
 import { generateCiTier } from './ci-tier.js'
@@ -433,6 +434,17 @@ function buildGovernanceOverlaySpecs(config: ProjectConfig): GeneratorSpec[] {
       key: 'iso9001',
       enabled: config.industryOverlay === 'iso9001',
       run: (opts) => generateIso9001(config, opts).files,
+    },
+    {
+      // Regulated / high-assurance overlay: bundles separation-of-duties (human
+      // approval on AI PRs), audit retention, suppression-expiry, signing/SBOM,
+      // and a mutation-coverage floor into one fail-closed policy gate. Fires only
+      // for industryOverlay === 'regulated'. The generic audit-trail docs come from
+      // the 'pharma' spec above (gate: overlay != 'none'); this adds the regulated
+      // bundle (manifest + gate + policy doc).
+      key: 'regulated-overlay',
+      enabled: config.industryOverlay === 'regulated',
+      run: (opts) => generateRegulated(config, opts).files,
     },
     {
       // #1254: (team × compliance) menu doc. Always-on onboarding aid presenting

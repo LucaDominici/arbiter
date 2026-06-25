@@ -907,12 +907,22 @@ const INDUSTRY_OVERLAY_MESSAGE = [
   '  iso9001   — quality-process overlay: requirement→test RTM + doc-control + CAPA + gate',
   '  iso27001  — ISO 27001:2022 Annex-A security controls→gate traceability (heavy)',
   '  pharma    — 21 CFR Part 11 audit-trail overlay (heavy; recommend L3+)',
+  '  regulated — high-assurance bundle: separation-of-duties (human approval on AI PRs)',
+  '              + audit retention + suppression-expiry + signing/SBOM + mutation (heavy)',
   '',
-  '  Heavy overlays (pharma, iso27001) assume L3+ governance rigour.',
+  '  Heavy overlays (pharma, iso27001, regulated) assume L3+ governance rigour.',
   '',
 ].join('\n')
 
-type IndustryOverlayValue = 'none' | 'generic' | 'sox' | 'gdpr' | 'iso9001' | 'iso27001' | 'pharma'
+type IndustryOverlayValue =
+  | 'none'
+  | 'generic'
+  | 'sox'
+  | 'gdpr'
+  | 'iso9001'
+  | 'iso27001'
+  | 'pharma'
+  | 'regulated'
 
 const INDUSTRY_OVERLAY_OPTIONS: Opt<IndustryOverlayValue>[] = [
   { value: 'none', label: 'none      — no compliance overlay  [default]' },
@@ -922,6 +932,10 @@ const INDUSTRY_OVERLAY_OPTIONS: Opt<IndustryOverlayValue>[] = [
   { value: 'iso9001', label: 'iso9001   — quality-process RTM + doc-control + CAPA' },
   { value: 'iso27001', label: 'iso27001  — ISO 27001 Annex-A controls→gates (heavy)' },
   { value: 'pharma', label: 'pharma    — 21 CFR Part 11 audit-trail (heavy, L3+)' },
+  {
+    value: 'regulated',
+    label: 'regulated — high-assurance bundle: SoD + retention + signing + mutation (heavy, L3+)',
+  },
 ]
 
 // #1261: ship autonomy level (ADR-093 §4) — how much of `arbiter ship` runs

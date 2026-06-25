@@ -422,6 +422,12 @@ runCheck('stack conformity (INV-121)', 'node', ['scripts/check-stack-conformity.
 if (existsSync('scripts/check-iso9001.mjs')) {
   runCheck('iso9001 QMS (RTM + doc-control + CAPA)', 'node', ['scripts/check-iso9001.mjs']);
 }
+// ─── L1: regulated / high-assurance overlay gate — present only when overlay selected
+if (existsSync('scripts/check-regulated-overlay.mjs')) {
+  runCheck('regulated overlay (SoD + retention + signing + mutation)', 'node', [
+    'scripts/check-regulated-overlay.mjs',
+  ]);
+}
 <% if (useGitHub) { %>
 // ─── L1: GitHub CI tier gates (INV-72, INV-75, INV-76) ───────────────────────
 runCheck('ci tiers (INV-72)', 'node', ['scripts/check-ci-tiers.mjs']);

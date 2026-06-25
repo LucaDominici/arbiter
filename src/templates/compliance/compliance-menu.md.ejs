@@ -34,6 +34,7 @@ Emits domain-specific compliance scaffolding + enforceable gates. Single-valued;
 | `iso9001`  | medium | quality-process overlay: requirement→test RTM + doc-control + CAPA + gate |
 | `iso27001` | heavy  | ISO 27001:2022 Annex-A security controls→gate traceability         |
 | `pharma`   | heavy  | 21 CFR Part 11 audit-trail overlay (Java JPA/ArchUnit scaffolding)  |
+| `regulated`| heavy  | high-assurance bundle: separation-of-duties + retention + suppression-expiry + signing/SBOM + mutation floor |
 
 ---
 
@@ -69,7 +70,7 @@ flagged as a `WARN` (advisory, never blocking).
 | --------------------- | ------ | ------ | ---- | ---- |
 | light (`generic`)     | OK     | OK     | OK   | OK   |
 | medium (`sox`, `gdpr`, `iso9001`) | WARN   | OK     | OK   | OK   |
-| heavy (`iso27001`, `pharma`)      | WARN   | WARN   | OK   | OK   |
+| heavy (`iso27001`, `pharma`, `regulated`) | WARN   | WARN   | OK   | OK   |
 
 **Recommended pairings:** `pharma`/`iso27001` → L3 or L4; `gdpr`/`sox`/`iso9001`
 → L2+; `generic` → any level.
