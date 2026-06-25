@@ -100,20 +100,24 @@ describe('05-release.yml.ejs — structural invariants (CANON-18)', () => {
 // ─── Triggers and concurrency ─────────────────────────────────────────────────
 
 describe('05-release.yml.ejs — triggers and concurrency', () => {
-  it('push to main trigger present', () => {
-    const rendered = renderRelease({})
-    expect(rendered).toContain('branches: [main]')
-  })
-
   it('tag trigger present', () => {
     const rendered = renderRelease({})
     expect(rendered).toContain("- 'v*'")
     expect(rendered).toContain("- '!v0.0.0-verify-*'")
   })
 
-  it('pull_request trigger present for dry-run', () => {
+  // E3: the release workflow is PROD-only. A `pull_request` trigger caused the
+  // entire sign/SBOM/SLSA/attest/trivy-strict machinery to run on every PR to
+  // main (the build-superset/mutation/secret-history/sbom jobs had no event
+  // guard). The trigger is removed so release machinery runs only on tag push.
+  it('no pull_request trigger (release machinery is PROD-only)', () => {
     const rendered = renderRelease({})
-    expect(rendered).toContain('pull_request:')
+    expect(rendered).not.toContain('pull_request:')
+  })
+
+  it('no PR branch filter (the only branches: filter was the PR trigger)', () => {
+    const rendered = renderRelease({})
+    expect(rendered).not.toContain('branches: [main]')
   })
 
   it('concurrency cancel-in-progress is false', () => {
@@ -121,7 +125,9 @@ describe('05-release.yml.ejs — triggers and concurrency', () => {
     expect(rendered).toContain('cancel-in-progress: false')
   })
 
-  it('signing jobs gated on non-PR events', () => {
+  // Defense-in-depth: the signing chain keeps its non-PR event guards so that
+  // if a future edit re-introduces a PR/dispatch trigger, signing stays PROD-only.
+  it('signing jobs keep non-PR event guards (defense-in-depth)', () => {
     const rendered = renderRelease({})
     expect(rendered).toContain("github.event_name != 'pull_request'")
   })
