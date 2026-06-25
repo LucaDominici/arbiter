@@ -97,8 +97,10 @@ export function computeOrphanChecks(checkFiles, orchestratorSrc, transitiveSrcs,
 
 // Transitive aggregators: files that themselves reference check-*.mjs gates and
 // ARE wired into check-all.mjs (so a check reachable only through them still
-// counts as covered). The anti-fake-green aggregate is the canonical example.
-const TRANSITIVE_AGGREGATORS = ['check-anti-fake-green.mjs']
+// counts as covered). The anti-fake-green aggregate is the canonical example;
+// its guard roster now lives in the shared SSOT lib (#1497), so that lib carries
+// the guard basenames and must be part of the haystack too.
+const TRANSITIVE_AGGREGATORS = ['check-anti-fake-green.mjs', 'lib/anti-fake-green-guards.mjs']
 
 function main() {
   const checkFiles = readdirSync(SCRIPTS_DIR).filter(

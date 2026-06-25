@@ -9,6 +9,7 @@
 // Exit codes per INV-53: 0=PASS, 1=FAIL (hard/broken, or advisory under --enforce), 2=ERROR (self).
 // Usage: node scripts/check-anti-fake-green.mjs [--enforce] [--help]
 import { spawnSync } from 'node:child_process'
+import { GUARDS } from './lib/anti-fake-green-guards.mjs'
 
 const args = process.argv.slice(2)
 if (args.includes('--help') || args.includes('-h')) {
@@ -18,54 +19,9 @@ if (args.includes('--help') || args.includes('-h')) {
   process.exit(0)
 }
 const enforce = args.includes('--enforce')
-// class: 'file-scan' (deterministic, exit1=hard) | 'gh-audit' (remote, exit1=advisory)
-const GUARDS = [
-  { name: 'min-review-time', script: 'scripts/check-min-review-time.mjs', class: 'gh-audit' },
-  {
-    name: 'ownership-distribution',
-    script: 'scripts/check-ownership-distribution.mjs',
-    class: 'gh-audit',
-  },
-  // file-scan guards (#1412): deterministic, fail-closed; child exit 1 is a hard aggregate fail.
-  // #1 muted-test — a skip/disable marker on a gate test (NO-DATA on no tests is a skip at 0).
-  { name: 'muted-test', script: 'scripts/check-muted-test.mjs', class: 'file-scan' },
-  // #6 skip-critical-e2e — a skipped e2e spec (NA when no e2e config exists).
-  { name: 'skip-critical-e2e', script: 'scripts/check-skip-critical-e2e.mjs', class: 'file-scan' },
-  // E10 no-stub-redirects — a stale "Moved →" stub .md husk (allowlist needs a hard EXPIRES).
-  { name: 'no-stub-redirects', script: 'scripts/check-no-stub-redirects.mjs', class: 'file-scan' },
-  // grace-window — an over-long / stale-level ADR-028 grace in arbiter.json (#1491): the classic
-  // L2 fake-green via a hand-edited far-future graceEndsAt. NO-DATA (no active grace) is a PASS.
-  { name: 'grace-window', script: 'scripts/check-grace-window.mjs', class: 'file-scan' },
-  // secret-presence — a workflow run-step that depends on a secret, tests it for emptiness and
-  // then `exit 0` (silent skip) without an explicit `vars.SKIP_<NAME>` opt-out (#1497). A missing
-  // secret would otherwise turn the gate green with the real work never done. NO-DATA (no secret
-  // steps) is a PASS.
-  {
-    name: 'secret-presence',
-    script: 'scripts/check-secret-presence.mjs',
-    class: 'file-scan',
-  },
-  // continue-on-error (A3, #1497) — a GATING job/step that swallows its failure via a const-true
-  // `continue-on-error`. Parser-backed: catches the YAML-1.1 `on`/`yes` and `${{ true }}` forms the
-  // regex sibling (check-workflow-test-integrity) misses, and also vets the shipped `.ejs`
-  // templates. Sole exempt step = artifact up/download. NO-DATA (no workflows) is a PASS.
-  {
-    name: 'continue-on-error',
-    script: 'scripts/check-continue-on-error.mjs',
-    class: 'file-scan',
-  },
-  // no-empty-suite (A2, #1497) — a `test:*` script (or CI run-step) carrying `--passWithNoTests`
-  // silently passes on an empty test directory: the classic "0 executed = green" false-green.
-  // Folding the standalone INV-25 guard into the aggregate makes it disarm-proof (a broken guard
-  // exit fails the aggregate). It stays individually wired in check-all too, so the named INV-25
-  // gate remains visible + parity-tracked. NO-DATA (no offending scripts) is a PASS.
-  {
-    name: 'no-empty-suite',
-    script: 'scripts/check-no-passwithnotests.mjs',
-    class: 'file-scan',
-  },
-]
-
+// The guard roster is the SSOT in scripts/lib/anti-fake-green-guards.mjs — shared with the
+// guard-flip self-test harness (scripts/check-guard-flip.mjs) so a newly-added vacuous guard
+// fails CI: class 'file-scan' (exit1=hard) | 'gh-audit' (exit1=advisory).
 function main() {
   const broken = [],
     hardFail = [],

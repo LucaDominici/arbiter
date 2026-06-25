@@ -67,6 +67,10 @@ const SKIP_FILES = new Set([
   'scripts/lib/anti-fake-green-core.mjs', // #1412 pure verdict logic; consumers own the exit contract
   'scripts/lib/gh-audit-io.mjs', // #1412 gh I/O helpers; NO-DATA returns {ok:false}, callers own exits
   'scripts/lib/glob-walk.mjs', // #1366: pure glob/tree-walk helper; consumers own the exit contract
+  'scripts/lib/continue-on-error-core.mjs', // #1497 pure YAML/value semantics; consumers own exits
+  'scripts/lib/secret-presence-core.mjs', // #1497 pure scan semantics; consumers own the exit contract
+  'scripts/lib/anti-fake-green-guards.mjs', // #1497 pure guard roster data; no entry point
+  'scripts/lib/guard-flip-registry.mjs', // #1497 pure flip-proof registry; no entry point
 ])
 
 const BASH_SHEBANG = /^#!\s*\/(usr\/bin\/env\s+bash|bin\/bash|bin\/sh|usr\/bin\/env\s+sh)/
