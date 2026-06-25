@@ -10,7 +10,8 @@ permissions:
 
 concurrency:
   group: archunit-extended
-  cancel-in-progress: true
+  # Audit run: a cancelled architecture audit silently loses its required result (a false-green).
+  cancel-in-progress: false
 
 jobs:
   archunit-extended:

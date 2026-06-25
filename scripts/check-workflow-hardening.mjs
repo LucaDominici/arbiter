@@ -6,7 +6,10 @@
 // CATALOG:   when > 0): unpinnedActions (non-40-hex `uses:` ref), workflowsMissingPermissions
 // CATALOG:   (no top-level `permissions:`), prPushWorkflowsMissingConcurrency (a pull_request/push
 // CATALOG:   triggered workflow with no `concurrency:`), jobsMissingTimeout (numbered-tier jobs
-// CATALOG:   lacking timeout-minutes — a hung job otherwise runs to GitHub's 6h default, #1485).
+// CATALOG:   lacking timeout-minutes — a hung job otherwise runs to GitHub's 6h default, #1485),
+// CATALOG:   cancellableDeployAuditWorkflows (a deploy/audit/release-class workflow that is NOT
+// CATALOG:   pull_request-triggered yet has cancellable concurrency — a silently-cancelled required
+// CATALOG:   check is a false-green; only PR fast-feedback runs may supersede, #1497).
 // CATALOG: Rejected fold-in into check-action-pins.mjs (single-axis SHA-pin transition gate) and
 // CATALOG:   check-workflow-parallelism.mjs (needs-chain depth, different axis): this gate owns the
 // CATALOG:   multi-axis hardening report + the gold-audit value-report contract.
@@ -30,8 +33,9 @@ if (args.includes('--help') || args.includes('-h')) {
       'Usage: node scripts/check-workflow-hardening.mjs [options]',
       '',
       'Audits GitHub Actions hardening (SHA-pinning, least-privilege permissions,',
-      'concurrency on PR/push workflows) and emits a JSON report for the gold-audit',
-      'D-ACTIONS dimension.',
+      'concurrency on PR/push workflows, cancel-in-progress classification — deploy/',
+      'audit/release runs must not be silently cancellable) and emits a JSON report',
+      'for the gold-audit D-ACTIONS dimension.',
       '',
       'Options:',
       '  --dir <path>   Repo root to scan (default: cwd). Scans <dir>/.github/workflows.',
@@ -114,6 +118,64 @@ function isPrPushTriggered(content) {
 }
 
 /**
+ * True if the workflow declares a `pull_request` trigger (exact event key, NOT
+ * `pull_request_review`/`pull_request_target`). A PR-triggered workflow is fast-feedback: a new
+ * commit to the same head supersedes the in-flight run, so cancellable concurrency is correct
+ * there. Handles the block form (`on:` then indented `pull_request:`) and the inline forms
+ * (`on: pull_request`, `on: [push, pull_request]`).
+ */
+function isPullRequestTriggered(content) {
+  const lines = content.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const inline = /^on:\s*(\S.*)$/.exec(line)
+    if (inline) {
+      return /\bpull_request\b/.test(inline[1].replace(/pull_request_\w+/g, ''))
+    }
+    if (/^on:\s*$/.test(line)) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const sub = lines[j]
+        if (/^\S/.test(sub)) break // dedent to column 0 ends the on: block
+        if (/^\s+pull_request:/.test(sub)) return true
+      }
+      return false
+    }
+  }
+  return false
+}
+
+/**
+ * Keywords that mark a workflow as the deploy/audit/release class — runs whose result is required
+ * work that does NOT re-execute on the next trigger (a deploy applies migrations once; a scheduled
+ * mutation/license/architecture audit produces a result a later run does not reproduce). For these,
+ * a cancelled run silently loses a required-check result (a false-green), so concurrency must be
+ * non-cancellable (`cancel-in-progress: false`, the GitHub default).
+ */
+const DEPLOY_AUDIT_KEYWORDS =
+  /\b(deploy|release|publish|mutation|archunit|license|scorecard|codeql|sbom|attest|audit|compliance|sast|dast)\b/i
+
+/** True if the workflow is deploy/audit/release class (by filename or top-level `name:`). */
+function isDeployAuditReleaseClass(file, content) {
+  if (DEPLOY_AUDIT_KEYWORDS.test(basename(file))) return true
+  const m = /^name:\s*(.+)$/m.exec(content)
+  return m !== null && DEPLOY_AUDIT_KEYWORDS.test(m[1])
+}
+
+/**
+ * True if the workflow's concurrency is cancellable. `cancel-in-progress: false` (and an absent key,
+ * whose GitHub default is false) is non-cancellable; a literal `true` or any `${{ ... }}` expression
+ * (which can evaluate true) is cancellable.
+ */
+function isCancellableConcurrency(lines) {
+  for (const line of lines) {
+    const m = /^\s*cancel-in-progress:\s*(.+?)\s*$/.exec(line)
+    if (m === null) continue
+    return m[1] !== 'false'
+  }
+  return false
+}
+
+/**
  * Count numbered-tier jobs (files matching `0N-*.yml`) that lack `timeout-minutes`. A job whose
  * body is a reusable-workflow call (job-level `uses:`) is exempt — GitHub forbids timeout-minutes
  * there. Visibility-only: reported, not gated, until the timeout-hardening follow-up.
@@ -162,6 +224,7 @@ function main() {
     workflowsMissingPermissions: 0,
     prPushWorkflowsMissingConcurrency: 0,
     jobsMissingTimeout: 0,
+    cancellableDeployAuditWorkflows: 0,
   }
   const violations = []
   for (const file of files) {
@@ -183,6 +246,17 @@ function main() {
       violations.push(`${rel}: pull_request/push workflow without concurrency`)
     }
     metrics.jobsMissingTimeout += countJobsMissingTimeout(file, lines)
+    if (
+      isDeployAuditReleaseClass(file, content) &&
+      !isPullRequestTriggered(content) &&
+      isCancellableConcurrency(lines)
+    ) {
+      metrics.cancellableDeployAuditWorkflows++
+      violations.push(
+        `${rel}: deploy/audit/release workflow with cancellable concurrency ` +
+          `(cancel-in-progress must be false) — a silently-cancelled required check is a false-green`,
+      )
+    }
   }
 
   if (metrics.jobsMissingTimeout > 0) {
@@ -199,7 +273,8 @@ function main() {
     metrics.unpinnedActions +
     metrics.workflowsMissingPermissions +
     metrics.prPushWorkflowsMissingConcurrency +
-    metrics.jobsMissingTimeout
+    metrics.jobsMissingTimeout +
+    metrics.cancellableDeployAuditWorkflows
   if (gated > 0) {
     process.stdout.write(
       `  check-workflow-hardening: ${gated} hardening violation(s):\n` +
@@ -210,7 +285,7 @@ function main() {
   }
   process.stdout.write(
     `  check-workflow-hardening: ${metrics.workflows} workflow(s) hardened ` +
-      `(pins ✓, permissions ✓, concurrency ✓, timeout-minutes ✓)\n`,
+      `(pins ✓, permissions ✓, concurrency ✓, timeout-minutes ✓, cancel-classification ✓)\n`,
   )
   return 0
 }

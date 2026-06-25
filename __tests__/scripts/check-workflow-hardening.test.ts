@@ -179,6 +179,136 @@ jobs:
     }
   })
 
+  // ---- cancel-in-progress classification (#1497): deploy/audit/release must not be cancellable ----
+  // A scheduled audit workflow (no pull_request trigger) — each run produces a required result that
+  // a later run does not reproduce, so a silent cancel is a false-green.
+  const SCHEDULED_AUDIT = `
+name: License Scan
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: license-scan
+  cancel-in-progress: CANCEL
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        run: echo hi
+`
+
+  it('fails when a deploy/audit/release workflow has cancellable concurrency (false-green)', () => {
+    const t = makeTemp()
+    try {
+      write(t.wf, '14-license-scan.yml', SCHEDULED_AUDIT.replace('CANCEL', 'true'))
+      const r = run(t.dir, t.out)
+      expect(r.status).toBe(1)
+      expect(report(t.out).cancellableDeployAuditWorkflows).toBeGreaterThanOrEqual(1)
+      expect(r.stdout).toMatch(/cancel-in-progress must be false/)
+    } finally {
+      t.cleanup()
+    }
+  })
+
+  it('passes when that same audit workflow sets cancel-in-progress: false', () => {
+    const t = makeTemp()
+    try {
+      write(t.wf, '14-license-scan.yml', SCHEDULED_AUDIT.replace('CANCEL', 'false'))
+      const r = run(t.dir, t.out)
+      expect(r.status).toBe(0)
+      expect(report(t.out).cancellableDeployAuditWorkflows).toBe(0)
+    } finally {
+      t.cleanup()
+    }
+  })
+
+  it('also flags a cancellable expression (not a literal false) on a deploy workflow', () => {
+    const t = makeTemp()
+    try {
+      write(
+        t.wf,
+        '10-deploy-prod.yml',
+        SCHEDULED_AUDIT.replace('License Scan', 'Deploy Prod').replace(
+          'cancel-in-progress: CANCEL',
+          "cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}",
+        ),
+      )
+      const r = run(t.dir, t.out)
+      expect(r.status).toBe(1)
+      expect(report(t.out).cancellableDeployAuditWorkflows).toBeGreaterThanOrEqual(1)
+    } finally {
+      t.cleanup()
+    }
+  })
+
+  it('does NOT flag a pull_request-triggered audit (codeql) with cancellable concurrency', () => {
+    const t = makeTemp()
+    try {
+      // CodeQL on a PR: a new commit supersedes the in-flight scan — cancelling is correct.
+      const codeql = `
+name: CodeQL
+on:
+  pull_request:
+  push:
+  schedule:
+    - cron: '0 4 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: codeql-\${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        run: echo hi
+`
+      write(t.wf, '15-codeql.yml', codeql)
+      const r = run(t.dir, t.out)
+      expect(r.status).toBe(0)
+      expect(report(t.out).cancellableDeployAuditWorkflows).toBe(0)
+    } finally {
+      t.cleanup()
+    }
+  })
+
+  it('does NOT flag a non-deploy/audit workflow (heartbeat) that is schedule + cancellable', () => {
+    const t = makeTemp()
+    try {
+      const heartbeat = `
+name: Heartbeat
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: heartbeat
+  cancel-in-progress: true
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        run: echo hi
+`
+      write(t.wf, '09-heartbeat.yml', heartbeat)
+      const r = run(t.dir, t.out)
+      expect(r.status).toBe(0)
+      expect(report(t.out).cancellableDeployAuditWorkflows).toBe(0)
+    } finally {
+      t.cleanup()
+    }
+  })
+
   it('fails when a numbered-tier job is missing timeout-minutes (#1485, now gated)', () => {
     const t = makeTemp()
     try {

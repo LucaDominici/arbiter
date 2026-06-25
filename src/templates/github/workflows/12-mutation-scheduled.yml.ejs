@@ -10,7 +10,8 @@ permissions:
 
 concurrency:
   group: mutation-scheduled
-  cancel-in-progress: true
+  # Audit run: a cancelled mutation run silently loses its required result (a false-green).
+  cancel-in-progress: false
 
 jobs:
 <% if (locals.language === 'java' || locals.language === 'multi') { %>

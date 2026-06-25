@@ -10,7 +10,8 @@ permissions:
 
 concurrency:
   group: license-scan
-  cancel-in-progress: true
+  # Audit run: a cancelled license/compliance scan silently loses its required result (a false-green).
+  cancel-in-progress: false
 
 jobs:
   license-scan:
