@@ -171,6 +171,11 @@ runCheck('image pins (#1442)', 'node', ['scripts/check-image-pins.mjs']);
 runCheck('e2e quarantine (INV-130)', 'node', ['scripts/check-e2e-quarantine.mjs']);
 // ─── L1: Test naming convention (M27) ────────────────────────────────────────
 runCheck('test naming', 'node', ['scripts/check-test-naming.mjs']);
+// ─── L1: No-empty-suite / min-execution guard (INV-25, A2 #1497) ──────────────
+// Asks the project test runner (vitest/jest/pytest/go) how many tests it would run, via its
+// collect/list mode (no execution), and FAILS when that count is 0 — the "0 executed = green"
+// false-green that a runner's own exit code does not catch. NA when no runner; SKIP when deps absent.
+runCheck('min test execution (INV-25)', 'node', ['scripts/check-min-test-execution.mjs']);
 // ─── L1: Exit-code universal contract (INV-53) ────────────────────────────────
 runCheck('exit code contract', 'node', ['scripts/check-exit-code-contract.mjs']);
 // ─── L1: Pipe/tee hazard (advisory — always exits 0) ─────────────────────────

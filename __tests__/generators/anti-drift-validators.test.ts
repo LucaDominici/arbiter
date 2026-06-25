@@ -27,9 +27,10 @@ describe('generateAntiDriftValidators (INV-89, W6+F4)', () => {
   // Total: 12 W6 + 4 F4 (validator-helptext + the 3 github fallbacks) = 16.
   // #1497: check-secret-presence added to the W6 dual-track batch (11 → 12).
   // #1497 A3: check-continue-on-error added to the W6 dual-track batch (12 → 13).
-  it('emits 17 scripts total at L2/github-off (13 W6 + 4 F4) — #1318.2 dropped 4 double-emits', () => {
+  // #1497 A2: check-min-test-execution added to the W6 Track-B-only batch (2 → 3 ⇒ total 17 → 18).
+  it('emits 18 scripts total at L2/github-off (13 W6-dual + 3 W6-trackB + 4 F4)', () => {
     const result = generateAntiDriftValidators(makeConfig(dir))
-    expect(result.files).toHaveLength(17)
+    expect(result.files).toHaveLength(18)
   })
 
   // #1318.2: the 4 always-on-owned scripts are NEVER emitted by anti-drift —

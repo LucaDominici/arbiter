@@ -52,7 +52,15 @@ function emitW6TrackBOnly(
   config: ProjectConfig,
   opts: { dryRun: boolean },
 ): WriteResult[] {
-  const scripts = ['check-workflow-sha-pinning.mjs', 'check-workflow-job-naming.mjs']
+  const scripts = [
+    'check-workflow-sha-pinning.mjs',
+    'check-workflow-job-naming.mjs',
+    // A2 #1497: no-empty-suite / min-execution guard — runs the project test runner in collect
+    // mode and FAILS when it collects 0 tests (the "0 executed = green" false-green). Track-B-only
+    // (not wired in arbiter's own gate — arbiter's suite is self-evidently non-empty and a
+    // `vitest list` over it adds ~9s for no signal). Self-contained (no lib import).
+    'check-min-test-execution.mjs',
+  ]
   return scripts.map((name) =>
     writeFile(resolvedPath(base, 'scripts', name), renderTemplate(`scripts/${name}.ejs`, config), {
       skipIfExists: true,

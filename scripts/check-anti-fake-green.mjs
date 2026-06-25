@@ -54,6 +54,16 @@ const GUARDS = [
     script: 'scripts/check-continue-on-error.mjs',
     class: 'file-scan',
   },
+  // no-empty-suite (A2, #1497) — a `test:*` script (or CI run-step) carrying `--passWithNoTests`
+  // silently passes on an empty test directory: the classic "0 executed = green" false-green.
+  // Folding the standalone INV-25 guard into the aggregate makes it disarm-proof (a broken guard
+  // exit fails the aggregate). It stays individually wired in check-all too, so the named INV-25
+  // gate remains visible + parity-tracked. NO-DATA (no offending scripts) is a PASS.
+  {
+    name: 'no-empty-suite',
+    script: 'scripts/check-no-passwithnotests.mjs',
+    class: 'file-scan',
+  },
 ]
 
 function main() {
