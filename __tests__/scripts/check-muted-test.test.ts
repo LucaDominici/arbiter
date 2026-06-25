@@ -116,6 +116,112 @@ describe('check-muted-test (guard #1, #1412)', () => {
     }
   })
 
+  it('// arbiter-allow-skip: <reason> opts an audited marker out (exit 0)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(
+        join(dir, '__tests__', 'a.test.ts'),
+        '// arbiter-allow-skip: flaky upstream, tracked in #9999\nit.skip("later", () => {})\n',
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('arbiter-allow-skip with no reason still FAILS (audited marker needs a rationale)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(
+        join(dir, '__tests__', 'a.test.ts'),
+        '// arbiter-allow-skip:\nit.skip("later", () => {})\n',
+      )
+      expect(run(dir).status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('marker token buried in a string literal does NOT exempt (anti-fake-green)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(
+        join(dir, '__tests__', 'a.test.ts'),
+        "const x = 'arbiter-allow-skip: lie'\nit.skip('x', () => {})\n",
+      )
+      expect(run(dir).status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('a trailing-comment arbiter-allow-skip on the skip line exempts (exit 0)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(
+        join(dir, '__tests__', 'a.test.ts'),
+        'it.skip("later", () => {}) // arbiter-allow-skip: env-gated, runs in extended gate\n',
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('an UNMARKED skip on a gate test still FAILS (behavior unchanged)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      writeFileSync(join(dir, '__tests__', 'a.test.ts'), 'it.skip("later", () => {})\n')
+      expect(run(dir).status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('JVM assume-style abort (Assumptions.assumeTrue) on a gate test → FAIL (exit 1)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      mkdirSync(join(dir, 'src', 'test', 'java'), { recursive: true })
+      writeFileSync(
+        join(dir, 'src', 'test', 'java', 'FooTest.java'),
+        '@Test\nvoid foo() {\nAssumptions.assumeTrue(false);\n}\n',
+      )
+      expect(run(dir).status).toBe(1)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('JVM bare assumeFalse / abort aborts are detected', () => {
+    for (const marker of ['assumeFalse(env);', 'abort("skip");', 'Assumptions.abort();']) {
+      const { dir, cleanup } = makeRepo()
+      try {
+        mkdirSync(join(dir, 'src', 'test', 'kotlin'), { recursive: true })
+        writeFileSync(
+          join(dir, 'src', 'test', 'kotlin', 'BarTest.kt'),
+          `@Test\nfun bar() {\n${marker}\n}\n`,
+        )
+        expect(run(dir).status).toBe(1)
+      } finally {
+        cleanup()
+      }
+    }
+  })
+
+  it('an audited assume-abort with arbiter-allow-skip opts out (exit 0)', () => {
+    const { dir, cleanup } = makeRepo()
+    try {
+      mkdirSync(join(dir, 'src', 'test', 'java'), { recursive: true })
+      writeFileSync(
+        join(dir, 'src', 'test', 'java', 'FooTest.java'),
+        '@Test\nvoid foo() {\n// arbiter-allow-skip: env-gated integration, runs only in extended gate\nAssumptions.assumeTrue(hasDocker());\n}\n',
+      )
+      expect(run(dir).status).toBe(0)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('NO-DATA (no test dirs at all) → SKIP at exit 0, never a manufactured pass', () => {
     const dir = mkdtempSync(join(tmpdir(), 'muted-test-empty-'))
     try {
