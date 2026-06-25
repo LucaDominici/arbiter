@@ -121,6 +121,75 @@ describe('01-pr-fast.yml.ejs — DAG parallelism (#1227, ADR-090)', () => {
   })
 })
 
+// PORT E1 (#1502) — slim the ALWAYS (PR) path; move heavy tools to nightly.
+// Each move keeps the tool RUNNING at a different cadence and preserves the
+// governance floor (coverage threshold stays enforced by gate-full's check-all L2
+// on PR; OWASP DC + full sonar + full-repo CPD move to nightly).
+describe('01-pr-fast.yml.ejs — PR-path slimming (E1, #1502)', () => {
+  function debtGatesSection(rendered: string): string {
+    return (rendered.split('debt-gates:')[1] ?? '').split('\n  sonar-scan:')[0]
+  }
+
+  it('(c) debt-gates no longer re-runs the full coverage suite (TS)', () => {
+    const section = debtGatesSection(render({ language: 'typescript', governanceLevel: 'L2' }))
+    // the redundant whole-suite coverage re-run is gone (gate-full's check-all L2
+    // already enforces the threshold on PR) ...
+    expect(section).not.toContain('--coverage.thresholds.lines')
+    // ... but the fast static-analysis legs stay on PR
+    expect(section).toContain('npx knip')
+    expect(section).toContain('madge --circular')
+  })
+
+  it('(c) debt-gates keeps fast static analysis but drops the coverage re-run (per language)', () => {
+    const rust = debtGatesSection(
+      render({ language: 'rust', buildTool: 'cargo', governanceLevel: 'L3' }),
+    )
+    expect(rust).not.toContain('cargo tarpaulin')
+    expect(rust).toContain('clippy::pedantic')
+
+    const go = debtGatesSection(render({ language: 'go', buildTool: 'go', governanceLevel: 'L3' }))
+    expect(go).not.toContain('-coverprofile')
+    expect(go).toContain('golangci-lint run --enable')
+
+    const py = debtGatesSection(
+      render({ language: 'python', buildTool: 'pip', governanceLevel: 'L3' }),
+    )
+    expect(py).not.toContain('--cov-fail-under')
+    expect(py).toContain('C901,PLR0911')
+
+    const javaGradle = debtGatesSection(
+      render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L3' }),
+    )
+    expect(javaGradle).not.toContain('jacocoTestCoverageVerification')
+    expect(javaGradle).toContain('pmdMain')
+    expect(javaGradle).toContain('spotbugsMain')
+  })
+
+  it('(d) the slow OWASP Dependency-Check is off the PR java gate (moved to nightly)', () => {
+    const gradle = render({ language: 'java', buildTool: 'gradle', governanceLevel: 'L2' })
+    expect(gradle).not.toContain('dependencyCheckAnalyze')
+    const maven = render({ language: 'java', buildTool: 'maven', governanceLevel: 'L2' })
+    expect(maven).not.toContain('org.owasp:dependency-check-maven')
+  })
+
+  it('(d) fast PR dep audits remain on PR for the languages that have one', () => {
+    expect(render({ language: 'typescript', governanceLevel: 'L2' })).toContain(
+      'npm audit --omit=dev',
+    )
+    expect(render({ language: 'go', governanceLevel: 'L2' })).toContain('govulncheck-action')
+    expect(render({ language: 'rust', buildTool: 'cargo', governanceLevel: 'L2' })).toContain(
+      'rustsec/audit-check',
+    )
+  })
+
+  it('(a) PR sonar-scan does incremental PR decoration, not a full scan', () => {
+    const rendered = render({ language: 'typescript', governanceLevel: 'L2' })
+    const sonar = (rendered.split('sonar-scan:')[1] ?? '').split('\n  debt-ratchet:')[0]
+    expect(sonar).toContain('sonar.pullrequest.key')
+    expect(sonar).toContain("github.event_name == 'pull_request'")
+  })
+})
+
 // #1296 — CI Required on docs-only PRs: skipped code jobs are accepted ONLY when
 // the docs_only classification skipped them; classify-changes itself must succeed.
 describe('ci-required — docs-only skip acceptance (#1296)', () => {

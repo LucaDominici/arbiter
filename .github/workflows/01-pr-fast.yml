@@ -225,28 +225,26 @@ jobs:
 
 
 
-
   debt-gates:
     name: Tech Debt Gates
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
+    # E1 (#1502): the PR leg keeps only the FAST static-analysis gates
+    # (knip/madge/pmd/spotbugs/clippy/ruff/golangci). The whole-suite coverage
+    # re-run that used to live here was a SECOND full test execution on the PR
+    # (the unit/integration jobs already ran the suite, and `gate-full` runs
+    # check-all L2 which enforces the coverage threshold). The threshold floor is
+    # therefore preserved on PR via gate-full; the heavy coverage report (HTML/lcov
+    # artifact) is produced at nightly cadence in 06-nightly `coverage-report`.
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - uses: ./.github/actions/setup-node-pnpm
       - run: npm run build && node scripts/build-kit.mjs
-      - run: npx vitest run --coverage --coverage.thresholds.lines=80
       - run: npx knip
       - run: npx madge --circular --extensions ts,tsx,js,jsx src
 
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        if: always()
-        with:
-          name: coverage-${{ github.run_id }}
-          path: coverage/
-          retention-days: 30
 
 
 
@@ -270,14 +268,32 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
 
-      - name: SonarCloud Scan
-        if: env.SONAR_TOKEN != ''
+
+      - name: SonarCloud Scan (PR decoration — incremental new-code analysis)
+        # E1 (#1502): on PRs Sonar runs in pull-request mode — it decorates the PR
+        # with new-code findings only (incremental), NOT a full deep scan. The full
+        # branch baseline runs on merge-to-main below and nightly (06-nightly
+        # `sonar-deep-scan`), keeping the PR path fast.
+        if: env.SONAR_TOKEN != '' && github.event_name == 'pull_request'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # untrusted refs pass through env (never inlined into the script body).
+          PR_KEY: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+        run: |
+          npx sonar-scanner -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.pullrequest.key="$PR_KEY" \
+            -Dsonar.pullrequest.branch="$PR_BRANCH" \
+            -Dsonar.pullrequest.base="$PR_BASE"
+      - name: SonarCloud Scan (full branch baseline)
+        # Push to a long-lived branch refreshes the full-project baseline so the
+        # PR decoration above has a fresh reference to diff new code against.
+        if: env.SONAR_TOKEN != '' && github.event_name != 'pull_request'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-
           npx sonar-scanner -Dsonar.token="$SONAR_TOKEN"
-
 
 
 

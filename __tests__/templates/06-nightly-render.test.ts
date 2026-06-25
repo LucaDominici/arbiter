@@ -251,6 +251,69 @@ describe('06-nightly.yml.ejs — gitleaks full history', () => {
   })
 })
 
+// ─── PORT E1 (#1502): tools moved off the PR path land here ───────────────────
+
+describe('06-nightly.yml.ejs — E1 moved-in heavy tools (#1502)', () => {
+  const STACKS = [
+    { language: 'typescript', buildTool: 'npm' },
+    { language: 'java', buildTool: 'gradle' },
+    { language: 'java', buildTool: 'maven' },
+    { language: 'go', buildTool: 'go' },
+    { language: 'python', buildTool: 'pip' },
+    { language: 'rust', buildTool: 'cargo' },
+  ] as const
+
+  it.each(STACKS)(
+    '$language/$buildTool: coverage-report job present (moved from PR debt-gates)',
+    ({ language, buildTool }) => {
+      const rendered = renderNightly({ language, buildTool })
+      expect(rendered).toContain('coverage-report:')
+    },
+  )
+
+  it('typescript: duplication-baseline job present (full-repo jscpd)', () => {
+    const rendered = renderNightly({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).toContain('duplication-baseline:')
+    expect(rendered).toContain('scripts/check-duplication.mjs')
+  })
+
+  it.each(STACKS.filter((s) => s.language !== 'typescript'))(
+    '$language/$buildTool: no jscpd duplication-baseline (native CPD instead)',
+    ({ language, buildTool }) => {
+      const rendered = renderNightly({ language, buildTool })
+      expect(rendered).not.toContain('duplication-baseline:')
+      // and the aggregator must not dangle a ref to the absent job
+      expect(rendered).not.toContain('needs.duplication-baseline.result')
+    },
+  )
+
+  it('(a) sonar-deep-scan job present with a full branch analysis', () => {
+    const rendered = renderNightly({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).toContain('sonar-deep-scan:')
+    // full analysis: no pullrequest decoration params in the nightly deep scan
+    const sonar = (rendered.split('sonar-deep-scan:')[1] ?? '').split('\n  evidence-collect:')[0]
+    expect(sonar).not.toContain('sonar.pullrequest')
+  })
+
+  it('coverage-report + duplication-baseline are gated by nightly-required', () => {
+    const rendered = renderNightly({ language: 'typescript', buildTool: 'npm' })
+    const aggregator = rendered.split('nightly-required:')[1] ?? ''
+    expect(aggregator).toContain('coverage-report')
+    expect(aggregator).toContain('duplication-baseline')
+  })
+
+  it('moved-in jobs carry timeout-minutes (workflow hardening)', () => {
+    const rendered = renderNightly({ language: 'typescript', buildTool: 'npm' })
+    for (const job of ['coverage-report:', 'duplication-baseline:', 'sonar-deep-scan:']) {
+      // job header to the start of its `steps:` block — timeout-minutes lives in
+      // the job preamble (name/runs-on/timeout-minutes), before steps.
+      const afterHeader = rendered.split(`\n  ${job}`)[1] ?? ''
+      const preamble = afterHeader.split('\n    steps:')[0]
+      expect(preamble, `${job} must declare timeout-minutes`).toContain('timeout-minutes:')
+    }
+  })
+})
+
 // ─── Issue filing on failure ──────────────────────────────────────────────────
 
 describe('06-nightly.yml.ejs — issue filing on regression', () => {
