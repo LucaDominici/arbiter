@@ -141,7 +141,24 @@ jobs:
 <% } %>
 <% if (language === 'typescript') { %>
 <% const _tsNeeds=[]; if(enableSecurityScanning) _tsNeeds.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _tsNeeds.push('classify-changes'); %>
-  gate:
+<% if (locals.ciPreTestBuild) { %>  build-workspace:
+    name: Build Workspace (cache)
+    # E2 (#1500): build dist ONCE and share it run-id-keyed via the build-cache
+    # composite, instead of unit/contract/integration/behavioral each re-running
+    # `npm run build`. The composite's restore is non-blocking (cache miss ⇒ rebuild).
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+<% { const _bwNeeds=[]; if(governanceLevel !== 'L1' || _multiLane) _bwNeeds.push('classify-changes'); if(_bwNeeds.length){ %>    needs: [<%= _bwNeeds.join(', ') %>]
+<% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
+<% } } %>    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Build + cache workspace (shared via run-id key)
+        uses: ./.github/actions/build-cache
+        with:
+          op: save
+
+<% } %>  gate:
     name: Lint + Typecheck
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
@@ -161,14 +178,18 @@ jobs:
     name: Unit Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
 <% } %>      - run: npm run test:unit<% if (enableDebtGates) { %> -- --reporter=junit --outputFile=test-results/junit.xml<% } %>
 <% if (enableDebtGates) { %>
       - name: Upload test results
@@ -184,42 +205,54 @@ jobs:
     name: Contract Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
 <% } %>      - run: npm run test:contract
 
   integration-tests:
     name: Integration Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
 <% } %>      - run: npm run test:integration
 
   behavioral-tests:
     name: Behavioral Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } %>    steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-<% if (locals.ciPreTestBuild) { %>      - run: npm run build && node scripts/build-kit.mjs
+<% if (locals.ciPreTestBuild) { %>      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
 <% } %>      - run: npm run test:behavioral
 
 <% } %><% if (language === 'rust') { %>
@@ -309,7 +342,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ /* tests need compiled classes from build-reactor, not lint; off the gate hop (#1278) */ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -349,7 +382,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -371,7 +404,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -393,7 +426,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
-<% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
+<% } else { %>    needs: [gate<% if (language === 'typescript' && locals.ciPreTestBuild) { %>, build-workspace<% } %><% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } %>    strategy:
       max-parallel: 2
 <% if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'

@@ -97,6 +97,23 @@ jobs:
 
 
 
+  build-workspace:
+    name: Build Workspace (cache)
+    # E2 (#1500): build dist ONCE and share it run-id-keyed via the build-cache
+    # composite, instead of unit/contract/integration/behavioral each re-running
+    # `npm run build`. The composite's restore is non-blocking (cache miss ⇒ rebuild).
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [classify-changes]
+    if: needs.classify-changes.outputs.docs_only != 'true'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Build + cache workspace (shared via run-id key)
+        uses: ./.github/actions/build-cache
+        with:
+          op: save
+
   gate:
     name: Lint + Typecheck
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
@@ -117,14 +134,18 @@ jobs:
     name: Unit Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate, classify-changes]
+    needs: [gate, build-workspace, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build && node scripts/build-kit.mjs
+      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
       - run: npm run test:unit -- --reporter=junit --outputFile=test-results/junit.xml
 
       - name: Upload test results
@@ -140,42 +161,54 @@ jobs:
     name: Contract Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate, classify-changes]
+    needs: [gate, build-workspace, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build && node scripts/build-kit.mjs
+      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
       - run: npm run test:contract
 
   integration-tests:
     name: Integration Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate, classify-changes]
+    needs: [gate, build-workspace, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build && node scripts/build-kit.mjs
+      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
       - run: npm run test:integration
 
   behavioral-tests:
     name: Behavioral Tests
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [gate, classify-changes]
+    needs: [gate, build-workspace, classify-changes]
     strategy:
       max-parallel: 2
     if: needs.classify-changes.outputs.docs_only != 'true'
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build && node scripts/build-kit.mjs
+      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+      - run: node scripts/build-kit.mjs
       - run: npm run test:behavioral
 
 

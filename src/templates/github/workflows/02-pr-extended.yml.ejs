@@ -110,7 +110,24 @@ jobs:
           echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
           echo "Extended CI: should_run=${SHOULD_RUN}"
 
-  integration-tests:
+<% if (language === 'typescript') { %>  build-workspace:
+    name: Build Workspace (cache)
+    # E2 (#1500): build the node-workspace ONCE and share it run-id-keyed via the
+    # build-cache composite, instead of behavioral + bake each re-running
+    # `npm run build`. The composite's restore is non-blocking (cache miss ⇒ rebuild).
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
+    timeout-minutes: 60
+    needs: [check-trigger]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Build + cache workspace (shared via run-id key)
+        uses: ./.github/actions/build-cache
+        with:
+          op: save
+
+<% } %>  integration-tests:
     name: Integration Tests (T2)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
@@ -380,7 +397,7 @@ jobs:
     name: Behavioral Tests (T2)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [check-trigger]
+    needs: [check-trigger<% if (language === 'typescript') { %>, build-workspace<% } %>]
     strategy:
       max-parallel: 2
     if: needs.check-trigger.outputs.should_run == 'true'
@@ -388,8 +405,12 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 <% if (language === 'typescript') { %>
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build<% if (locals.ciPreTestBuild) { %> && node scripts/build-kit.mjs<% } %>
-      - run: npm run test:behavioral
+      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+<% if (locals.ciPreTestBuild) { %>      - run: node scripts/build-kit.mjs
+<% } %>      - run: npm run test:behavioral
 <% } else if (language === 'java') { %>
       - uses: ./.github/actions/setup-java-maven
 <% if (buildTool === 'gradle') { %>
@@ -421,13 +442,17 @@ jobs:
     name: Bake E2E (T2)
     runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
-    needs: [check-trigger]
+    needs: [check-trigger, build-workspace]
     if: needs.check-trigger.outputs.should_run == 'true'
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./.github/actions/setup-node-pnpm
-      - run: npm run build<% if (locals.ciPreTestBuild) { %> && node scripts/build-kit.mjs<% } %>
-      - run: npm run test:e2e:bake
+      - name: Restore cached workspace build (non-blocking)
+        uses: ./.github/actions/build-cache
+        with:
+          op: restore
+<% if (locals.ciPreTestBuild) { %>      - run: node scripts/build-kit.mjs
+<% } %>      - run: npm run test:e2e:bake
 <% } %>
 
   extended-required:
@@ -436,7 +461,7 @@ jobs:
     timeout-minutes: 60
 <%
   const _extNeeds = ['check-trigger', 'integration-tests', 'license-scan', 'behavioral-tests'];
-  if (language === 'typescript') _extNeeds.push('bake-e2e-tests');
+  if (language === 'typescript') _extNeeds.push('build-workspace', 'bake-e2e-tests');
   if (contractType && contractType !== 'none') _extNeeds.push('contract-extended');
   if (_isService) _extNeeds.push('container-scan', 'dast-baseline', 'load-smoke');
 %>
@@ -454,6 +479,9 @@ jobs:
             echo "behavioral-tests failed"; exit 1
           fi
 <% if (language === 'typescript') { %>
+          if [[ "${{ needs.build-workspace.result }}" == "failure" ]]; then
+            echo "build-workspace failed"; exit 1
+          fi
           if [[ "${{ needs.bake-e2e-tests.result }}" == "failure" ]]; then
             echo "bake-e2e-tests failed"; exit 1
           fi

@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { renderTemplate } from '../../src/utils/render.js'
 import { makeConfig } from '../helpers.js'
+
+// Self-host render context (ciPreTestBuild=true) — the same fixture the
+// ci-tier render-parity suite bakes arbiter's own .github/workflows from.
+const CI_CTX = JSON.parse(
+  readFileSync(new URL('../fixtures/ci-tier-render-context.json', import.meta.url), 'utf-8'),
+)
+function renderSelfHost(overrides: Record<string, unknown> = {}): string {
+  return renderTemplate('github/workflows/01-pr-fast.yml.ejs', { ...CI_CTX, ...overrides })
+}
 
 // #1131 slice 2: 01-pr-fast is the most-rewired workflow (setup-node + npm ci
 // pairs → the setup-node-pnpm composite). It had no render test; this is the
@@ -187,6 +197,46 @@ describe('01-pr-fast.yml.ejs — PR-path slimming (E1, #1502)', () => {
     const sonar = (rendered.split('sonar-scan:')[1] ?? '').split('\n  debt-ratchet:')[0]
     expect(sonar).toContain('sonar.pullrequest.key')
     expect(sonar).toContain("github.event_name == 'pull_request'")
+  })
+})
+
+// PORT E2 (#1500/#1502) — wire the build-cache composite into the build/test
+// graph. A single build-workspace `save` job builds the node-workspace once; the
+// downstream test jobs `restore` it (non-blocking rebuild fallback) instead of
+// each re-running `npm run build`. The self-host (ciPreTestBuild) path is the
+// only pr-fast case whose test jobs build — so the wiring is gated on it there.
+describe('01-pr-fast.yml.ejs — build-cache wiring (E2, #1500)', () => {
+  it('self-host: a build-workspace job saves the workspace via the build-cache action', () => {
+    const rendered = renderSelfHost()
+    expect(rendered).toContain('build-workspace:')
+    expect(rendered).toContain('uses: ./.github/actions/build-cache')
+    // The save op lives in the build-workspace job.
+    const bw = (rendered.split('build-workspace:')[1] ?? '').split('\n  gate:')[0]
+    expect(bw).toContain('op: save')
+    expect(bw).toContain('timeout-minutes: 60')
+  })
+
+  it('self-host: test jobs restore the cache instead of re-running npm run build', () => {
+    const rendered = renderSelfHost()
+    // Each of the 4 test jobs replaced its inline `npm run build && build-kit`
+    // prefix with a restore step (build-kit still runs, fed by restored/rebuilt dist).
+    const unit = (rendered.split('  unit-tests:')[1] ?? '').split('\n  contract-tests:')[0]
+    expect(unit).toContain('op: restore')
+    expect(unit).not.toContain('npm run build && node scripts/build-kit.mjs')
+    // unit-tests now depends on build-workspace.
+    expect(rendered).toMatch(/unit-tests:[\s\S]{0,260}?needs:\s*\[gate, build-workspace, /)
+  })
+
+  it('self-host: the non-blocking rebuild fallback is preserved (action carries it)', () => {
+    // restore is wired; the action itself guarantees the rebuild fallback, but the
+    // workflow must reference it via op: restore (not an inline unconditional build).
+    expect(renderSelfHost()).toContain('op: restore')
+  })
+
+  it('adversarial: a generic project (no ciPreTestBuild) is unchanged — no build-workspace', () => {
+    const generic = render({ language: 'typescript', governanceLevel: 'L2' })
+    expect(generic).not.toContain('build-workspace:')
+    expect(generic).not.toContain('op: save')
   })
 })
 

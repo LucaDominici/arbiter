@@ -271,6 +271,47 @@ describe('02-pr-extended.yml.ejs — license-scan per-language tools', () => {
   })
 })
 
+// ─── Build-cache wiring (E2, #1500/#1502) ────────────────────────────────────
+//
+// The node-workspace build-cache composite is wired into the build/test graph:
+// a single build-workspace `save` job builds dist once; behavioral-tests and
+// bake-e2e-tests `restore` it (non-blocking rebuild fallback) instead of each
+// re-running `npm run build`. This generalises the Maven-only reactor handoff.
+
+describe('02-pr-extended.yml.ejs — build-cache wiring (E2, #1500)', () => {
+  it('TypeScript: a build-workspace job saves the workspace via the build-cache action', () => {
+    const rendered = renderExt({ language: 'typescript', buildTool: 'npm' })
+    expect(rendered).toContain('build-workspace:')
+    expect(rendered).toContain('uses: ./.github/actions/build-cache')
+    expect(rendered).toContain('op: save')
+    expect(rendered).toContain('op: restore')
+  })
+
+  it('TypeScript: behavioral + bake jobs restore instead of re-running npm run build', () => {
+    const rendered = renderExt({ language: 'typescript', buildTool: 'npm' })
+    // the always-on inline `npm run build` in behavioral/bake is replaced by restore
+    expect(rendered).not.toContain('- run: npm run build\n')
+    // behavioral-tests now depends on build-workspace
+    expect(rendered).toMatch(
+      /behavioral-tests:[\s\S]{0,200}?needs:\s*\[check-trigger, build-workspace\]/,
+    )
+  })
+
+  it('TypeScript: extended-required closes the false-green hole for build-workspace', () => {
+    const rendered = renderExt({ language: 'typescript', buildTool: 'npm' })
+    const aggregator = rendered.split('extended-required:')[1] ?? ''
+    expect(aggregator).toContain('build-workspace')
+    expect(aggregator).toContain('needs.build-workspace.result')
+  })
+
+  it('adversarial: non-node languages get no build-workspace job', () => {
+    for (const language of ['go', 'rust', 'python'] as const) {
+      const rendered = renderExt({ language, buildTool: language })
+      expect(rendered).not.toContain('build-workspace:')
+    }
+  })
+})
+
 // ─── Check-trigger logic ─────────────────────────────────────────────────────
 
 describe('02-pr-extended.yml.ejs — check-trigger trigger conditions', () => {
