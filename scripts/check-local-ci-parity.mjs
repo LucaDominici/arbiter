@@ -241,6 +241,7 @@ const CI_COVERAGE = new Map([
   ['api e2e (INV-126)', 'gate-full'],
   ['render smoke presence (INV-127)', 'gate-full'],
   ['workflow cache strategy (§17.5 rec 3)', 'gate-full'],
+  ['build-cache strategy (C3)', 'gate-full'],
   ['commit-footer rationale (INV-119)', 'gate-full'],
   // 'docs:build' is invoked via the docsCheck() warn-helper (not run[Tool]Check),
   // so the parity regex never extracts it — no CI_COVERAGE entry is required.

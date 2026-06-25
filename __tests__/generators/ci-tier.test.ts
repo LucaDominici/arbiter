@@ -22,13 +22,14 @@ describe('generateCiTier — no-op gate', () => {
   })
 })
 
-// T2–T6 — 4-artifact contract (locked by Reading B)
-// ci-tier.ts emits ONLY: _notify.yml, _label-sync.yml, labels.yml, setup-node-pnpm/action.yml
+// T2–T6 — base-artifact contract
+// ci-tier.ts emits for TypeScript: _notify.yml, _label-sync.yml, labels.yml,
+// setup-node-pnpm/action.yml, and (C3, #1497) build-cache/action.yml.
 // Standard CI workflows remain owned by github.ts (with ciTierMode awareness)
-describe('generateCiTier — 4-artifact contract', () => {
-  it('emits exactly 4 new artifacts at L2 without enableCodeownersNotify', () => {
+describe('generateCiTier — base-artifact contract', () => {
+  it('emits exactly 5 new artifacts at L2 without enableCodeownersNotify (TS)', () => {
     const result = generateCiTier(makeConfig(dir, { useGitHub: true, governanceLevel: 'L2' }))
-    expect(result.files).toHaveLength(4)
+    expect(result.files).toHaveLength(5)
   })
 
   it('emits _notify.yml under .github/workflows/', () => {
@@ -58,34 +59,80 @@ describe('generateCiTier — 4-artifact contract', () => {
       paths.some((p) => p.includes(join('.github', 'actions', 'setup-node-pnpm', 'action.yml'))),
     ).toBe(true)
   })
+
+  it('emits build-cache composite action under .github/actions/ (C3, #1497)', () => {
+    const result = generateCiTier(makeConfig(dir, { useGitHub: true }))
+    const paths = result.files.map((f) => f.path)
+    expect(
+      paths.some((p) => p.includes(join('.github', 'actions', 'build-cache', 'action.yml'))),
+    ).toBe(true)
+  })
+})
+
+// C3 (#1497): parametric build-cache strategy per archetype.
+describe('generateCiTier — build-cache strategy emission (C3, #1497)', () => {
+  function buildCachePath(d: string, overrides: Parameters<typeof makeConfig>[1] = {}) {
+    const result = generateCiTier(makeConfig(d, { useGitHub: true, ...overrides }))
+    return result.files.some((f) =>
+      f.path.includes(join('.github', 'actions', 'build-cache', 'action.yml')),
+    )
+  }
+
+  it('emits build-cache for TypeScript (node-workspace)', () => {
+    expect(buildCachePath(dir, { language: 'typescript' })).toBe(true)
+  })
+
+  it('emits build-cache for Python (python-wheel)', () => {
+    expect(buildCachePath(dir, { language: 'python', buildTool: 'pip' })).toBe(true)
+  })
+
+  it('emits build-cache for Java (maven-reactor / gradle)', () => {
+    expect(buildCachePath(dir, { language: 'java', buildTool: 'maven' })).toBe(true)
+  })
+
+  it('does NOT emit build-cache for Rust (Swatinem/rust-cache handles it)', () => {
+    expect(buildCachePath(dir, { language: 'rust', buildTool: 'cargo' })).toBe(false)
+  })
+
+  it('build-cache/action.yml is skipIfExists — no overwrite on re-init (CANON-11)', () => {
+    const config = makeConfig(dir, { useGitHub: true, language: 'typescript' })
+    const first = generateCiTier(config).files.find((f) =>
+      f.path.includes(join('.github', 'actions', 'build-cache', 'action.yml')),
+    )
+    expect(first?.action).toBe('created')
+    const second = generateCiTier(config).files.find((f) =>
+      f.path.includes(join('.github', 'actions', 'build-cache', 'action.yml')),
+    )
+    expect(second?.action).toBe('skipped')
+  })
 })
 
 // #943: opt-in post-merge CODEOWNERS notification (L2+ only)
 describe('generateCiTier — enableCodeownersNotify opt-in', () => {
-  it('emits 5 artifacts at L2 with enableCodeownersNotify: true', () => {
+  it('emits 6 artifacts at L2 with enableCodeownersNotify: true', () => {
     const result = generateCiTier(
       makeConfig(dir, { useGitHub: true, governanceLevel: 'L2', enableCodeownersNotify: true }),
     )
-    expect(result.files).toHaveLength(5)
+    expect(result.files).toHaveLength(6)
     const paths = result.files.map((f) => f.path)
     expect(
       paths.some((p) => p.includes(join('.github', 'workflows', '_post-merge-notify.yml'))),
     ).toBe(true)
   })
 
-  it('emits 5 artifacts at L3 with enableCodeownersNotify: true', () => {
+  it('emits 6 artifacts at L3 with enableCodeownersNotify: true', () => {
     const result = generateCiTier(
       makeConfig(dir, { useGitHub: true, governanceLevel: 'L3', enableCodeownersNotify: true }),
     )
-    expect(result.files).toHaveLength(5)
+    expect(result.files).toHaveLength(6)
   })
 
   it('does not emit _post-merge-notify.yml at L1 even with flag', () => {
     const result = generateCiTier(
       makeConfig(dir, { useGitHub: true, governanceLevel: 'L1', enableCodeownersNotify: true }),
     )
-    expect(result.files).toHaveLength(4)
-    const paths = result.files.map((f) => f.path)
+    expect(result.files).toHaveLength(5)
+    const paths = result.files.map((p) => p.path)
     expect(
       paths.some((p) => p.includes(join('.github', 'workflows', '_post-merge-notify.yml'))),
     ).toBe(false)
@@ -95,7 +142,7 @@ describe('generateCiTier — enableCodeownersNotify opt-in', () => {
     const result = generateCiTier(
       makeConfig(dir, { useGitHub: true, governanceLevel: 'L2', enableCodeownersNotify: false }),
     )
-    expect(result.files).toHaveLength(4)
+    expect(result.files).toHaveLength(5)
   })
 })
 
@@ -129,9 +176,9 @@ describe('generateCiTier — Java setup-java-maven emission (#1226)', () => {
     ).toBe(false)
   })
 
-  it('existing 4-artifact TypeScript contract is unchanged', () => {
+  it('TypeScript base contract is 5 artifacts (incl. build-cache, C3)', () => {
     const result = generateCiTier(makeConfig(dir, { useGitHub: true, language: 'typescript' }))
-    expect(result.files).toHaveLength(4)
+    expect(result.files).toHaveLength(5)
   })
 
   // CANON-11: brownfield — re-init with Java must honour skipIfExists semantics

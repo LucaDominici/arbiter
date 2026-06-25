@@ -240,6 +240,7 @@ if (isMain) {
   runCheck('workflow cache strategy (§17.5 rec 3)', 'node', [
     'scripts/check-workflow-cache-strategy.mjs',
   ])
+  runCheck('build-cache strategy (C3)', 'node', ['scripts/check-build-cache-strategy.mjs'])
 
   // Capture L1 boundary for parityContentHash computation (INV-59)
   const l1EndIdx = getResults().length

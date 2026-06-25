@@ -67,5 +67,25 @@ export function generateCiTier(
     )
   }
 
+  // C3 (#1497): parametric cross-job build cache composite action. Generalises the
+  // Maven-reactor-only artifact handoff into a per-archetype strategy
+  // (node-workspace | python-wheel | maven-reactor | gradle) with an immutable
+  // run-id artifact key and a non-blocking rebuild fallback. Emitted for the
+  // archetypes the strategy supports; Rust uses Swatinem/rust-cache instead and
+  // is intentionally excluded. skipIfExists preserves user customisation (CANON-11).
+  if (
+    config.language === 'typescript' ||
+    config.language === 'python' ||
+    config.language === 'java'
+  ) {
+    files.push(
+      writeFile(
+        join(actionsDir, 'build-cache', 'action.yml'),
+        renderTemplate('github/actions/build-cache/action.yml.ejs', data),
+        { skipIfExists: true, dryRun: opts.dryRun },
+      ),
+    )
+  }
+
   return { files }
 }
