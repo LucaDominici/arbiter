@@ -377,6 +377,13 @@ export function generateGithub(
       renderTemplate('github/PULL_REQUEST_TEMPLATE.md.ejs', data),
       { skipIfExists: true, dryRun: opts.dryRun },
     ),
+    // C2: version-controlled sensitive-path SSOT consumed by the 02-pr-extended
+    // check-trigger gate (grep -E -f). skipIfExists so re-init preserves edits.
+    writeFile(
+      join(githubDir, 'extended-ci-paths.txt'),
+      renderTemplate('github/extended-ci-paths.txt.ejs', data),
+      { skipIfExists: true, dryRun: opts.dryRun },
+    ),
     ...generateIssueTemplates(issueTemplatesDir, data, opts.dryRun),
     writeFile(
       join(workflowsDir, 'issue-state.yml'),

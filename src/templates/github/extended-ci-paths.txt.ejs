@@ -1,0 +1,38 @@
+# Extended-CI sensitive paths — version-controlled SSOT.
+#
+# One POSIX extended regex per line (matched against `git diff --name-only`).
+# A pull request that touches ANY path matching a pattern below runs the slow
+# extended test suites regardless of size — see .github/workflows/02-pr-extended.yml
+# (the check-trigger job reads this file via `grep -E -f`).
+#
+# Blank lines and lines starting with `#` are ignored. Edit this list to change
+# which paths are "sensitive" — no workflow change is needed. The size threshold
+# is parameterized separately by the EXTENDED_CI_LOC_THRESHOLD repository
+# variable (default 100 changed LOC).
+
+# Database / schema / API contracts
+^migrations/
+^openapi/
+^schemas/
+(^|/)schema[^/]*\.(sql|prisma|graphql)$
+
+# Infrastructure & container/runtime definitions
+^infra/
+(^|/)Dockerfile[^/]*$
+(^|/)docker-compose[^/]*\.ya?ml$
+
+# CI / workflow definitions (a change here can mask broken gates)
+^\.github/workflows/.*\.ya?ml$
+
+# Security-sensitive code paths
+(^|/)security/
+(^|/)auth[^/]*\.(ts|js|go|py|java|rs)$
+
+# Dependency manifests / lockfiles (supply-chain surface)
+(^|/)package-lock\.json$
+(^|/)yarn\.lock$
+(^|/)go\.sum$
+(^|/)Cargo\.lock$
+(^|/)requirements[^/]*\.txt$
+(^|/)poetry\.lock$
+(^|/)pom\.xml$

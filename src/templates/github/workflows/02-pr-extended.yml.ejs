@@ -78,8 +78,13 @@ jobs:
           PR_DELETIONS: ${{ github.event.pull_request.deletions }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
+          # Parameterized LOC threshold (org/repo var, default 100). The sensitive
+          # path list is the version-controlled SSOT .github/extended-ci-paths.txt.
+          LOC_THRESHOLD: ${{ vars.EXTENDED_CI_LOC_THRESHOLD || '100' }}
         run: |
           SHOULD_RUN=false
+          THRESHOLD="${LOC_THRESHOLD:-100}"
+          PATHS_FILE=".github/extended-ci-paths.txt"
 
           [[ "$HAS_EXT_LABEL" == "true" ]] && { echo "Trigger: extended-ci label"; SHOULD_RUN=true; }
           [[ "$EVENT_ACTION" == "ready_for_review" ]] && { echo "Trigger: ready_for_review"; SHOULD_RUN=true; }
@@ -87,18 +92,19 @@ jobs:
           if [[ "$SHOULD_RUN" == "false" ]]; then
             MB=$(git merge-base "$BASE_SHA" "$HEAD_SHA" || echo "$BASE_SHA")
             CHANGED=$(git diff --name-only "$MB" "$HEAD_SHA")
-            if echo "$CHANGED" | grep -qE '^(migrations/|infra/|openapi/|schemas/)'; then
-              echo "Trigger: sensitive directory changed"; SHOULD_RUN=true
-            elif echo "$CHANGED" | grep -qE '(Dockerfile[^/]*$|docker-compose[^/]*\.ya?ml$|package-lock\.json$|yarn\.lock$|go\.sum$|Cargo\.lock$|requirements[^/]*\.txt$|poetry\.lock$|pom\.xml$)'; then
-              echo "Trigger: sensitive file changed"; SHOULD_RUN=true
-            elif echo "$CHANGED" | grep -qiE '/auth[^/]*\.(ts|js|go|py|java|rs)$'; then
-              echo "Trigger: auth file changed"; SHOULD_RUN=true
+            if [[ -f "$PATHS_FILE" ]]; then
+              # SSOT: strip comments/blank lines, then match changed paths against
+              # the remaining regexes. Empty list ⇒ no path trigger (LOC still applies).
+              PATTERNS=$(grep -vE '^[[:space:]]*(#|$)' "$PATHS_FILE" || true)
+              if [[ -n "$PATTERNS" ]] && printf '%s\n' "$CHANGED" | grep -qE -f <(printf '%s\n' "$PATTERNS"); then
+                echo "Trigger: sensitive path matched (${PATHS_FILE})"; SHOULD_RUN=true
+              fi
             fi
           fi
 
           if [[ "$SHOULD_RUN" == "false" ]]; then
             LOC=$(( ${PR_ADDITIONS:-0} + ${PR_DELETIONS:-0} ))
-            (( LOC >= 100 )) && { echo "Trigger: PR size ${LOC} LOC >= 100"; SHOULD_RUN=true; } || true
+            (( LOC >= THRESHOLD )) && { echo "Trigger: PR size ${LOC} LOC >= ${THRESHOLD}"; SHOULD_RUN=true; } || true
           fi
 
           echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"

@@ -285,23 +285,23 @@ describe('02-pr-extended.yml.ejs — check-trigger trigger conditions', () => {
     expect(rendered).toContain('ready_for_review')
   })
 
-  it('checks sensitive paths: migrations, infra, openapi, schemas', () => {
+  // C2 (#1497): the sensitive-path list is no longer inlined in the workflow —
+  // the check-trigger job reads the version-controlled SSOT via `grep -E -f`.
+  it('reads the sensitive-path SSOT file (not inlined regexes)', () => {
     const rendered = renderExt({})
-    expect(rendered).toContain('migrations/')
-    expect(rendered).toContain('infra/')
-    expect(rendered).toContain('openapi/')
-    expect(rendered).toContain('schemas/')
+    expect(rendered).toContain('.github/extended-ci-paths.txt')
+    expect(rendered).toContain('grep -qE -f')
+    // The old inlined directory regex must be gone (proves the SSOT drives it).
+    expect(rendered).not.toContain("grep -qE '^(migrations/|infra/|openapi/|schemas/)'")
   })
 
-  it('checks sensitive files: Dockerfile, lockfiles', () => {
+  it('parameterizes the LOC threshold via EXTENDED_CI_LOC_THRESHOLD var (default 100)', () => {
     const rendered = renderExt({})
-    expect(rendered).toContain('Dockerfile')
-    expect(rendered).toContain('package-lock\\.json')
-  })
-
-  it('checks LOC >= 100 threshold', () => {
-    const rendered = renderExt({})
-    expect(rendered).toContain('LOC >= 100')
+    expect(rendered).toContain("vars.EXTENDED_CI_LOC_THRESHOLD || '100'")
+    expect(rendered).toContain('THRESHOLD="${LOC_THRESHOLD:-100}"')
+    expect(rendered).toContain('LOC >= THRESHOLD')
+    // No bare hardcoded threshold comparison remains.
+    expect(rendered).not.toContain('(( LOC >= 100 ))')
   })
 
   it('writes should_run to GITHUB_OUTPUT', () => {
