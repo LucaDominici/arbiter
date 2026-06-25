@@ -372,17 +372,24 @@ function evalFileContains(abs, rel, pattern) {
     : { verdict: 'N', evidence: { file: rel, detail: `pattern not found: ${pattern}` } }
 }
 
-function evalCountMatches(abs, rel, pattern, want) {
-  const text = readText(abs)
-  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
+/** Count non-overlapping occurrences of `pattern` in `text` (0 for an empty pattern). */
+function countOccurrences(text, pattern) {
+  if (pattern.length === 0) return 0
   let count = 0
   let from = 0
-  while (pattern.length > 0) {
+  for (;;) {
     const i = text.indexOf(pattern, from)
     if (i < 0) break
     count++
     from = i + pattern.length
   }
+  return count
+}
+
+function evalCountMatches(abs, rel, pattern, want) {
+  const text = readText(abs)
+  if (text === null) return { verdict: 'N', evidence: { file: rel, detail: 'missing' } }
+  const count = countOccurrences(text, pattern)
   if (count >= want) return { verdict: 'Y', evidence: { file: rel, detail: `count=${count}` } }
   if (count > 0) return { verdict: 'P', evidence: { file: rel, detail: `count=${count}/${want}` } }
   return { verdict: 'N', evidence: { file: rel, detail: `count=0/${want}` } }
@@ -577,11 +584,73 @@ function evalCheck(check, root, options) {
   return { verdict: 'N', evidence: { file: rel || '', detail: `unknown check type: ${type}` } }
 }
 
-/** True if a check's overlay condition is satisfied (applies_if absent ⇒ always applies). */
-function isApplicable(check, overlays) {
+// ── applies_if conditional gating (G1) ──────────────────────────────────────────
+// Mirror of src/conformance/engine.ts (parity contract). A precondition that is MET ⇒ the check is
+// evaluated; UNMET ⇒ NA. FAIL-SAFE: a malformed / uninterpretable precondition (unknown type,
+// missing required field, invalid path) ⇒ the check APPLIES — a silent skip would be a false-green.
+
+/** capability precondition: met when `name` is in the overlay set. Missing name ⇒ APPLIES. */
+function capabilityMet(cond, overlays) {
+  const name = typeof cond.name === 'string' ? cond.name : ''
+  if (name === '') return true
+  return overlays.has(name)
+}
+
+/** file_exists precondition: met when `path` resolves to an existing file. Bad path ⇒ APPLIES. */
+function fileExistsMet(cond, root) {
+  const p = typeof cond.path === 'string' ? cond.path : ''
+  if (p === '') return true
+  const abs = safeResolve(root, p)
+  if (abs === null) return true
+  return existsSync(abs)
+}
+
+/** file_contains precondition: met when the file at `path` contains `pattern`. Malformed ⇒ APPLIES. */
+function fileContainsMet(cond, root) {
+  const p = typeof cond.path === 'string' ? cond.path : ''
+  const pattern = typeof cond.pattern === 'string' ? cond.pattern : ''
+  if (p === '' || pattern === '') return true
+  const abs = safeResolve(root, p)
+  if (abs === null) return true
+  const text = readText(abs)
+  if (text === null) return false // marker file absent/unreadable ⇒ precondition UNMET ⇒ NA
+  return text.includes(pattern)
+}
+
+/** count_matches precondition: met when `path` contains `pattern` ≥ `min` times. Malformed ⇒ APPLIES. */
+function countMatchesMet(cond, root) {
+  const p = typeof cond.path === 'string' ? cond.path : ''
+  const pattern = typeof cond.pattern === 'string' ? cond.pattern : ''
+  if (p === '' || pattern === '') return true
+  const min = Number(cond.min ?? 1)
+  if (!Number.isFinite(min)) return true
+  const abs = safeResolve(root, p)
+  if (abs === null) return true
+  const text = readText(abs)
+  if (text === null) return false // marker file absent/unreadable ⇒ precondition UNMET ⇒ NA
+  return countOccurrences(text, pattern) >= min
+}
+
+/** Dispatch an object-form precondition. Unknown `type` ⇒ APPLIES (fail-safe, never a silent skip). */
+function preconditionApplies(cond, overlays, root) {
+  const type = typeof cond.type === 'string' ? cond.type : ''
+  if (type === 'capability') return capabilityMet(cond, overlays)
+  if (type === 'file_exists') return fileExistsMet(cond, root)
+  if (type === 'file_contains') return fileContainsMet(cond, root)
+  if (type === 'count_matches') return countMatchesMet(cond, root)
+  return true
+}
+
+/**
+ * True if a check applies (applies_if absent ⇒ always). A string is an overlay/capability name
+ * (legacy). An object is a generic precondition (G1). Any other type ⇒ APPLIES (fail-safe).
+ */
+function isApplicable(check, overlays, root) {
   const cond = check.applies_if
   if (!cond || cond === 'always') return true
-  return overlays.has(cond)
+  if (typeof cond === 'string') return overlays.has(cond)
+  if (typeof cond === 'object') return preconditionApplies(cond, overlays, root)
+  return true
 }
 
 /** Numeric verdict weight: Y=1, P=0.5, N=0; NA/NV excluded from the denominator. */
@@ -613,7 +682,7 @@ function evaluateInner(registry, overlays, root, options = {}) {
   let possible = 0
 
   for (const check of sorted) {
-    const applicable = isApplicable(check, overlaySet)
+    const applicable = isApplicable(check, overlaySet, root)
     let verdict
     let evidence
     if (!applicable) {

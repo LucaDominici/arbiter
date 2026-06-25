@@ -922,4 +922,76 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     expect(byId['INJ']).toBe('N') // injected attr ⇒ no metric ⇒ N
     expect(mjsResult).toEqual(tsResult)
   })
+
+  // ── Parity case 21 (G1): generic applies_if preconditions ≡ across engines ──────────────
+  // file_exists MET ⇒ evaluated · file_exists UNMET ⇒ NA · file_contains/count_matches/capability ·
+  // and the fail-safe: a malformed precondition (unknown type / missing field) ⇒ APPLIES (not NA).
+  it('parity: object-form applies_if preconditions are identical across engines (G1)', async () => {
+    const root = tmpDir()
+    writeFileSync(join(root, 'go.mod'), 'module x\n')
+    writeFileSync(join(root, 'pkg.json'), '{"deps":{"react":"18"}}\n')
+    writeFileSync(join(root, 'svc.yml'), 'service: a\nservice: b\n')
+    writeFileSync(join(root, 'TARGET.md'), '# t\n')
+    const reg: RegistryInput = {
+      checks: [
+        // MET ⇒ evaluated (Y)
+        {
+          id: 'P-EXIST-MET',
+          type: 'file_exists',
+          args: { path: 'TARGET.md' },
+          applies_if: { type: 'file_exists', path: 'go.mod' },
+        },
+        // UNMET ⇒ NA
+        {
+          id: 'P-EXIST-UNMET',
+          type: 'file_exists',
+          args: { path: 'TARGET.md' },
+          applies_if: { type: 'file_exists', path: 'absent.lock' },
+        },
+        // file_contains MET ⇒ Y
+        {
+          id: 'P-CONTAINS',
+          type: 'file_exists',
+          args: { path: 'TARGET.md' },
+          applies_if: { type: 'file_contains', path: 'pkg.json', pattern: '"react"' },
+        },
+        // count_matches <min ⇒ NA
+        {
+          id: 'P-COUNT-NA',
+          type: 'file_exists',
+          args: { path: 'TARGET.md' },
+          applies_if: { type: 'count_matches', path: 'svc.yml', pattern: 'service:', min: 3 },
+        },
+        // capability not in overlays ⇒ NA
+        {
+          id: 'P-CAP-NA',
+          type: 'file_exists',
+          args: { path: 'TARGET.md' },
+          applies_if: { type: 'capability', name: 'regulated' },
+        },
+        // FAIL-SAFE: unknown type ⇒ APPLIES (Y, not NA)
+        {
+          id: 'P-MALFORMED',
+          type: 'file_exists',
+          args: { path: 'TARGET.md' },
+          applies_if: { type: 'who_knows' } as never,
+        },
+      ],
+    }
+    const overlays = new Set<string>(['frontend'])
+    const tsResult = evaluate(reg, overlays, root)
+    const mjsResult = (await Promise.resolve(mjsModule.evaluate(reg, overlays, root))) as Record<
+      string,
+      unknown
+    >
+    const byId = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.verdict]))
+
+    expect(byId['P-EXIST-MET']).toBe('Y')
+    expect(byId['P-EXIST-UNMET']).toBe('NA')
+    expect(byId['P-CONTAINS']).toBe('Y')
+    expect(byId['P-COUNT-NA']).toBe('NA')
+    expect(byId['P-CAP-NA']).toBe('NA')
+    expect(byId['P-MALFORMED']).toBe('Y') // fail-safe: never a silent skip
+    expect(mjsResult).toEqual(tsResult)
+  })
 })

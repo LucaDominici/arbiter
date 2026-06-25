@@ -15,7 +15,15 @@
 #   risk        SAFE | RISKY — a RISKY check fails the false-gap meta-gate (--strict). Every
 #               check here is SAFE: anchored, deterministic, inventory-grounded.
 #   anchor      optional INV-NN id the check enforces (evidence hint, not an import)
-#   applies_if  overlay name (else NA); absent ⇒ always applies
+#   applies_if  conditional gating; absent ⇒ always applies. Two forms:
+#                 • a string  → an overlay/capability name (NA when that overlay is disabled)
+#                 • an object → a generic precondition (G1). UNMET ⇒ NA (excluded from the score);
+#                   MET ⇒ the check is evaluated. FAIL-SAFE: an unknown/missing/malformed
+#                   precondition ⇒ the check APPLIES (a silent skip would be a false-green). Shapes:
+#                     { type: file_exists,   path: go.mod }
+#                     { type: file_contains, path: package.json, pattern: '"react"' }
+#                     { type: count_matches, path: svc.yml, pattern: 'service:', min: 2 }
+#                     { type: capability,    name: regulated }   # object form of the string overlay
 #
 # Verdicts: Y verified-true · P partial · N verified-false · NA not-applicable · NV manual.
 # Scoring excludes NA + NV from the denominator (you are not graded on what code can't verify).
