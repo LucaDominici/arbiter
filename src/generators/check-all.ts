@@ -185,6 +185,27 @@ const UNCONDITIONAL_EMISSIONS: ReadonlyArray<{ rel: readonly string[]; tpl: stri
     rel: ['scripts', 'check-anti-fake-green.mjs'],
     tpl: 'scripts/check-anti-fake-green.mjs.ejs',
   },
+  // #1497 (A5): ship arbiter's deterministic file-scan anti-fake-green guards INTO the generated
+  // project so a planted false-green is caught by THIS project's own gate — not only by arbiter's.
+  // Each is self-contained (node-only, no lib import) and NO-DATA-safe (PASS when there is nothing
+  // to scan), so each is emitted unconditionally and hard-wired (runCheck) in check-all.mjs. The
+  // self-contained aggregate (check-anti-fake-green.mjs) also runs this set as an informational view.
+  {
+    rel: ['scripts', 'check-muted-test.mjs'],
+    tpl: 'scripts/check-muted-test.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'check-skip-critical-e2e.mjs'],
+    tpl: 'scripts/check-skip-critical-e2e.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'check-no-stub-redirects.mjs'],
+    tpl: 'scripts/check-no-stub-redirects.mjs.ejs',
+  },
+  {
+    rel: ['scripts', 'check-grace-window.mjs'],
+    tpl: 'scripts/check-grace-window.mjs.ejs',
+  },
 ]
 
 function emitUnconditional(base: string, data: object, opts: { dryRun: boolean }): WriteResult[] {

@@ -440,6 +440,16 @@ runCheck('pr size gate', 'node', ['scripts/check-pr-size-gate.mjs']);
 runCheck('merge method ff-only (INV-101)', 'node', ['scripts/check-merge-method.mjs']);
 <% } %>
 <% } %>
+// ─── L1+: anti-fake-green file-scan guards (#1497) ────────────────────────────
+// arbiter's deterministic, NO-DATA-safe anti-fake-green guards, shipped INTO this project so a
+// planted false-green is caught by THIS gate — not only by arbiter's. Each PASSES when there is
+// nothing to scan, so they are safe to enforce hard at every governance level:
+//   muted gate test (a silenced test that can never fail), skipped critical e2e, a stale "Moved →"
+//   redirect husk doc, and an over-long / stale-level ADR-028 grace window in arbiter.json.
+runCheck('muted gate test (anti-fake-green)', 'node', ['scripts/check-muted-test.mjs']);
+runCheck('skipped critical e2e (anti-fake-green)', 'node', ['scripts/check-skip-critical-e2e.mjs']);
+runCheck('stub redirect husk (anti-fake-green)', 'node', ['scripts/check-no-stub-redirects.mjs']);
+runCheck('grace window (anti-fake-green)', 'node', ['scripts/check-grace-window.mjs']);
 // ─── L2: Full checks ──────────────────────────────────────────────────────────
 if (level === 'L2') {
 <% if (enableSecurityScanning) { %>

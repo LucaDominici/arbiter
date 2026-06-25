@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { generateCheckAll } from '../../src/generators/check-all.js'
 import { makeConfig } from '../helpers.js'
 import type { ProjectConfig } from '../../src/wizard/types.js'
@@ -25,7 +26,7 @@ describe('generateCheckAll', () => {
     expect(result.files.every((f) => f.action === 'created')).toBe(true)
   })
 
-  it('emits exactly 20 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + gold-audit + doc-set + anti-fake-green + todo-max-age + module-coverage)', () => {
+  it('emits exactly 24 files at L1 (check-all + optional-emissions + run-helpers + collab-mode + constraint-scan + test-pyramid + api-e2e + render-smoke + glob-walk + conformance + no-tracked-artifacts + image-pins + e2e-reliability lib + e2e-quarantine + tdd-evidence + gold-audit + doc-set + anti-fake-green + todo-max-age + module-coverage + 4 file-scan guards)', () => {
     // L1: no docs-check; non-rust language: no Rust checkers → check-all + run-helpers
     // + check-collab-mode-wired (INV-100, #1093) + check-constraint-scan (INV-115, #1214)
     // + optional-emissions.json (INV-123, #1331) + check-test-pyramid.mjs (INV-124, #1364)
@@ -40,10 +41,12 @@ describe('generateCheckAll', () => {
     // + check-doc-set.mjs + check-anti-fake-green.mjs (thin runners, INV-135, #1428)
     // + check-todo-max-age.mjs (INV-133, #1456)
     // + verify-module-coverage.mjs (INV-134, #1457)
+    // + check-muted-test.mjs + check-skip-critical-e2e.mjs + check-no-stub-redirects.mjs
+    //   + check-grace-window.mjs (anti-fake-green file-scan guards, A5, #1497)
     const result = generateCheckAll(
       makeConfig(dir, { language: 'typescript', governanceLevel: 'L1' }),
     )
-    expect(result.files).toHaveLength(20)
+    expect(result.files).toHaveLength(24)
     expect(result.files.some((f) => f.path.endsWith('scripts/check-todo-max-age.mjs'))).toBe(true)
     expect(result.files.some((f) => f.path.endsWith('scripts/verify-module-coverage.mjs'))).toBe(
       true,
@@ -84,6 +87,73 @@ describe('generateCheckAll', () => {
     // Advisory wiring (runWarnCheck), never a hard runCheck for these two.
     expect(checkAll).toMatch(/runWarnCheck\('doc-set'/)
     expect(checkAll).toMatch(/runWarnCheck\('anti-fake-green'/)
+  })
+
+  it('ships the 4 file-scan anti-fake-green guards and HARD-wires them in check-all (A5, #1497)', () => {
+    const result = generateCheckAll(
+      makeConfig(dir, { language: 'typescript', governanceLevel: 'L2' }),
+    )
+    const paths = result.files.map((f) => f.path)
+    const guards = [
+      'check-muted-test.mjs',
+      'check-skip-critical-e2e.mjs',
+      'check-no-stub-redirects.mjs',
+      'check-grace-window.mjs',
+    ]
+    for (const g of guards) {
+      // (a) the guard script is emitted into the generated project
+      expect(paths.some((p) => p.endsWith(`scripts/${g}`))).toBe(true)
+      // (b) the emitted guard is self-contained: no EJS markers, no lib import, has --help
+      const body = readFileSync(join(dir, 'scripts', g), 'utf-8')
+      expect(body).not.toContain('<%')
+      expect(body).not.toContain('%>')
+      expect(body).not.toContain("from './lib/")
+      expect(body).toContain('--help')
+      expect(body).toContain('anti-fake-green')
+    }
+    // (c) each guard is HARD-wired (runCheck, not runWarnCheck) so a planted false-green BLOCKS.
+    const checkAll = readFileSync(join(dir, 'scripts', 'check-all.mjs'), 'utf-8')
+    expect(checkAll).toMatch(/runCheck\('muted gate test \(anti-fake-green\)'/)
+    expect(checkAll).toMatch(/runCheck\('skipped critical e2e \(anti-fake-green\)'/)
+    expect(checkAll).toMatch(/runCheck\('stub redirect husk \(anti-fake-green\)'/)
+    expect(checkAll).toMatch(/runCheck\('grace window \(anti-fake-green\)'/)
+    // and never softened to advisory for these deterministic guards
+    expect(checkAll).not.toMatch(/runWarnCheck\('muted gate test/)
+  })
+
+  it('emitted muted-test guard is anti-vacuous: RED on a planted skip, GREEN when clean (A6, #1497)', () => {
+    generateCheckAll(makeConfig(dir, { language: 'typescript', governanceLevel: 'L2' }))
+    const guard = join(dir, 'scripts', 'check-muted-test.mjs')
+    const testsDir = join(dir, '__tests__')
+    mkdirSync(testsDir, { recursive: true })
+    const spec = join(testsDir, 'sample.test.ts')
+
+    // GREEN: a real, non-muted gate test → guard passes (exit 0).
+    writeFileSync(spec, "it('does a thing', () => { expect(1).toBe(1) })\n")
+    const clean = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
+    expect(clean.status).toBe(0)
+
+    // RED: the same test silenced with `.skip` → guard fails closed (exit 1).
+    writeFileSync(spec, "it.skip('does a thing', () => { expect(1).toBe(1) })\n")
+    const muted = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
+    expect(muted.status).toBe(1)
+    expect(muted.stderr).toContain('muted gate test')
+
+    // The guard cannot be fake-greened by an UNREASONED exemption attempt buried in a string.
+    writeFileSync(
+      spec,
+      "const x = 'arbiter-allow-skip: lie'\nit.skip('does a thing', () => { expect(1).toBe(1) })\n",
+    )
+    const lied = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
+    expect(lied.status).toBe(1)
+
+    // An AUDITED exemption (real comment + reason) is honored → exit 0.
+    writeFileSync(
+      spec,
+      "// arbiter-allow-skip: flaky upstream, tracked in #123\nit.skip('does a thing', () => { expect(1).toBe(1) })\n",
+    )
+    const exempt = spawnSync('node', [guard, '--dir', dir], { encoding: 'utf-8' })
+    expect(exempt.status).toBe(0)
   })
 
   it('emits scripts/check-api-e2e.mjs and wires it into check-all.mjs (#1365, INV-126)', () => {
