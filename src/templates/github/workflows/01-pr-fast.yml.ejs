@@ -37,14 +37,14 @@ jobs:
 <% if (enableSoloDevMode) { %>
   solo-dev-gate:
     name: Solo-Dev Gate (INV-59)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       - run: echo "solo-dev mode — local L2 gate guards merge via INV-59 parity check"
 <% } else { %><% if (enableSecurityScanning) { %>
   security-early-fail:
     name: Security (PII + Secrets)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
@@ -77,7 +77,7 @@ jobs:
 <% if (governanceLevel !== 'L1' || _multiLane) { %>
   classify-changes:
     name: Classify Changes
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     outputs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
@@ -110,7 +110,7 @@ jobs:
 <% if (_multiLane) { %>
   cross-stack-guard:
     name: Cross-Stack Guard
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [classify-changes]
     if: github.event_name == 'pull_request'
@@ -143,7 +143,7 @@ jobs:
 <% const _tsNeeds=[]; if(enableSecurityScanning) _tsNeeds.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _tsNeeds.push('classify-changes'); %>
   gate:
     name: Lint + Typecheck
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(_tsNeeds.length){ %>    needs: [<%= _tsNeeds.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -159,7 +159,7 @@ jobs:
 
   unit-tests:
     name: Unit Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
@@ -182,7 +182,7 @@ jobs:
 
   contract-tests:
     name: Contract Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
@@ -196,7 +196,7 @@ jobs:
 
   integration-tests:
     name: Integration Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
@@ -210,7 +210,7 @@ jobs:
 
   behavioral-tests:
     name: Behavioral Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
     strategy:
@@ -225,7 +225,7 @@ jobs:
 <% } %><% if (language === 'rust') { %>
   gate:
     name: Lint + Test (Rust)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -249,7 +249,7 @@ jobs:
 <% /* #1278: build-reactor runs in PARALLEL with security-early-fail (not after it) to keep the maven critical path under the 15m T1 budget. security still HARD-blocks merge via ci-required, and `gate` (lint) still gates on it, preserving the early-fail signal on the lint lane. Tradeoff: wasted compile compute on a security-failing PR — not lost coverage or developer feedback. */ const _reactorNeeds=[]; if(governanceLevel !== 'L1' || _multiLane) _reactorNeeds.push('classify-changes'); %>
 <% if (buildTool === 'maven') { %>  build-reactor:
     name: Build Maven Reactor (#1226)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     permissions:
       contents: read
 <% if(_reactorNeeds.length){ %>    needs: [<%= _reactorNeeds.join(', ') %>]
@@ -284,7 +284,7 @@ jobs:
 
 <% } %>  gate:
     name: Lint (Java)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
 <% { const _gateNeeds=[..._javaNeeds]; if(buildTool === 'maven') _gateNeeds.push('build-reactor'); if(_gateNeeds.length){ %>    needs: [<%= _gateNeeds.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
 <% } } %>    steps:
@@ -310,7 +310,7 @@ jobs:
 
   unit-tests:
     name: Unit Tests (Java)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ /* tests need compiled classes from build-reactor, not lint; off the gate hop (#1278) */ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
@@ -350,7 +350,7 @@ jobs:
 
   contract-tests:
     name: Contract Tests (Java)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
@@ -372,7 +372,7 @@ jobs:
 
   integration-tests:
     name: Integration Tests (Java)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
@@ -394,7 +394,7 @@ jobs:
 
   behavioral-tests:
     name: Behavioral Tests (Java)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% if(buildTool === 'maven'){ %>    needs: [build-reactor<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
 <% } else { %>    needs: [gate<% if(governanceLevel !== 'L1' || _multiLane){ %>, classify-changes<% } %>]
@@ -417,7 +417,7 @@ jobs:
 <% } %><% if (language === 'go') { %>
   gate:
     name: Lint + Test (Go)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -436,7 +436,7 @@ jobs:
 <% } %><% if (language === 'python') { %>
   gate:
     name: Lint + Test (Python)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <% { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); if(governanceLevel !== 'L1' || _multiLane) _n.push('classify-changes'); if(_n.length){ %>    needs: [<%= _n.join(', ') %>]
 <% } if(governanceLevel !== 'L1' || _multiLane){ %>    if: needs.classify-changes.outputs.docs_only != 'true'
@@ -468,7 +468,7 @@ jobs:
 <% if (governanceLevel !== 'L1') { %>
   docs-check:
     name: Docs Check
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     if: github.event_name == 'pull_request'
     steps:
@@ -513,7 +513,7 @@ jobs:
 <% const threshold = (governanceLevel === 'L3' || governanceLevel === 'L4') ? 85 : 80; %>
   debt-gates:
     name: Tech Debt Gates
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
     steps:
@@ -597,7 +597,7 @@ jobs:
 <% if (governanceLevel !== 'L1') { %>
   sonar-scan:
     name: SonarCloud Scan
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
     steps:
@@ -635,7 +635,7 @@ jobs:
 <% if (enableDebtGates) { %>
   debt-ratchet:
     name: Debt Ratchet
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
     steps:
@@ -666,7 +666,7 @@ jobs:
 
   contract-verify:
     name: Contract Verify
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
     steps:
@@ -736,7 +736,7 @@ jobs:
 <% if (governanceLevel !== 'L1') { %>
   gate-full:
     name: Full Gate (L2, INV-59)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
 <%  { const _n=[]; if(enableSecurityScanning) _n.push('security-early-fail'); _n.push('classify-changes'); %>
     needs: [<%= _n.join(', ') %>]
     if: needs.classify-changes.outputs.docs_only != 'true'
@@ -788,7 +788,7 @@ jobs:
 
 <% if (_humanApproval) { %>  human-approval-required:
     name: Human Approval Required (INV-74)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     if: github.event_name == 'pull_request'
     steps:
       - name: Assert approved-by-human label (anti-bot gate)
@@ -806,7 +806,7 @@ jobs:
 <% } %>
   ci-required:
     name: CI Required
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 <%
   const _ciNeeds = ['gate'];

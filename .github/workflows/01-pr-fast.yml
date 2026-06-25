@@ -31,7 +31,7 @@ jobs:
 
   security-early-fail:
     name: Security (PII + Secrets)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     steps:
       # #1311: self-hosted persistent workspaces can keep a stale
@@ -64,7 +64,7 @@ jobs:
 
   classify-changes:
     name: Classify Changes
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     outputs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
@@ -99,7 +99,7 @@ jobs:
 
   gate:
     name: Lint + Typecheck
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [security-early-fail, classify-changes]
     if: needs.classify-changes.outputs.docs_only != 'true'
@@ -115,7 +115,7 @@ jobs:
 
   unit-tests:
     name: Unit Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate, classify-changes]
     strategy:
@@ -138,7 +138,7 @@ jobs:
 
   contract-tests:
     name: Contract Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate, classify-changes]
     strategy:
@@ -152,7 +152,7 @@ jobs:
 
   integration-tests:
     name: Integration Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate, classify-changes]
     strategy:
@@ -166,7 +166,7 @@ jobs:
 
   behavioral-tests:
     name: Behavioral Tests
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate, classify-changes]
     strategy:
@@ -183,7 +183,7 @@ jobs:
 
   docs-check:
     name: Docs Check
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     if: github.event_name == 'pull_request'
     steps:
@@ -228,7 +228,7 @@ jobs:
 
   debt-gates:
     name: Tech Debt Gates
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
     steps:
@@ -252,7 +252,7 @@ jobs:
 
   sonar-scan:
     name: SonarCloud Scan
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
     steps:
@@ -283,7 +283,7 @@ jobs:
 
   debt-ratchet:
     name: Debt Ratchet
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
     needs: [gate]
     steps:
@@ -298,7 +298,7 @@ jobs:
 
   gate-full:
     name: Full Gate (L2, INV-59)
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
 
     needs: [security-early-fail, classify-changes]
     if: needs.classify-changes.outputs.docs_only != 'true'
@@ -345,7 +345,7 @@ jobs:
 
   ci-required:
     name: CI Required
-    runs-on: ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER_LABELS_TEST || '["ubuntu-latest"]') }}
     timeout-minutes: 60
 
     needs: [gate, unit-tests, contract-tests, integration-tests, behavioral-tests, security-early-fail, docs-check, sonar-scan, gate-full, debt-gates, debt-ratchet, classify-changes]

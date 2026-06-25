@@ -252,11 +252,15 @@ runCheck('claude-md lint', 'node', ['scripts/check-claude-md-lint.mjs']);
   process.stdout.write('[CHECK] workflow runners ... ');
   const _wrWorkflowsDir = join(process.cwd(), '.github', 'workflows');
   // Allowlisted runs-on forms (INV-89, ADR-023 amendment #959 — ubuntu-latest default):
-  //   1. ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}
-  //   2. ${{ fromJSON(vars.RUNNER_LABELS_BUILD || '["ubuntu-latest"]') }}
-  //   3. ${{ fromJSON(vars.RUNNER_LABELS_DEPLOY || '["ubuntu-latest"]') }}
-  //   4. ${{ matrix.os }} — explicit OS matrix, always allowed
-  const _wrAllowedPattern = /\$\{\{\s*(?:vars\.CI_BUILD_RUNNER_LABEL|fromJSON\(vars\.RUNNER_LABELS_(?:BUILD|DEPLOY)|matrix\.os)/;
+  //   1. ${{ vars.CI_BUILD_RUNNER_LABEL || 'ubuntu-latest' }}  — global override (auxiliary jobs)
+  //   2. ${{ fromJSON(vars.RUNNER_LABELS_BUILD  || '["ubuntu-latest"]') }}  — build job-class pool
+  //   3. ${{ fromJSON(vars.RUNNER_LABELS_TEST   || '["ubuntu-latest"]') }}  — test job-class pool
+  //   4. ${{ fromJSON(vars.RUNNER_LABELS_DEPLOY || '["ubuntu-latest"]') }}  — deploy job-class pool
+  //   5. ${{ matrix.os }} — explicit OS matrix, always allowed
+  // The per-job-class map lets a project point build/test/deploy at distinct runner
+  // pools (self-hosted / cloud / GitHub-hosted) via org vars without editing workflows;
+  // each var falls back to ubuntu-latest, so an unset var is never a broken runner.
+  const _wrAllowedPattern = /\$\{\{\s*(?:vars\.CI_BUILD_RUNNER_LABEL|fromJSON\(vars\.RUNNER_LABELS_(?:BUILD|TEST|DEPLOY)|matrix\.os)/;
   const _wrRunsOnPattern = /^\s*runs-on:/;
   let _wrViolations = 0;
   let _wrFiles;
