@@ -154,6 +154,68 @@ describe('version_consistency check type (#1470)', () => {
   })
 })
 
+// ── version_consistency with a JSON version source (version_select: package.json) ──
+
+const VC_JSON_REGISTRY = `version: '1.0.0'
+dimensions:
+  - id: D-RELEASE
+    title: Release hygiene
+checks:
+  - id: GA-REL-01
+    dimension: D-RELEASE
+    title: package.json version matches CHANGELOG latest
+    type: version_consistency
+    args:
+      version_file: package.json
+      version_select: version
+      changelog_file: CHANGELOG.md
+      changelog_pattern: '^##\\s*\\[?(\\d+\\.\\d+\\.\\d+)'
+    weight: 1
+    risk: SAFE
+`
+
+describe('version_consistency with a JSON version source (G2)', () => {
+  it('Y when package.json version equals the CHANGELOG latest entry', () => {
+    const { byId } = audit(VC_JSON_REGISTRY, {
+      'package.json': '{\n  "name": "demo",\n  "version": "1.4.0"\n}\n',
+      'CHANGELOG.md': '# Changelog\n\n## [1.4.0] - 2026-06-20\n- thing\n\n## [1.3.0]\n- old\n',
+    })
+    expect(byId['GA-REL-01'].verdict).toBe('Y')
+  })
+
+  it('P when package.json version diverges from the CHANGELOG latest entry', () => {
+    const { byId } = audit(VC_JSON_REGISTRY, {
+      'package.json': '{ "version": "2.0.0" }\n',
+      'CHANGELOG.md': '# Changelog\n\n## [1.4.0] - 2026-06-01\n- old top\n',
+    })
+    expect(byId['GA-REL-01'].verdict).toBe('P')
+    expect(byId['GA-REL-01'].evidence?.detail).toMatch(/2\.0\.0/)
+  })
+
+  it('P when the selected JSON field is absent (indeterminate, never a false Y)', () => {
+    const { byId } = audit(VC_JSON_REGISTRY, {
+      'package.json': '{ "name": "demo" }\n',
+      'CHANGELOG.md': '## [1.4.0]\n',
+    })
+    expect(byId['GA-REL-01'].verdict).toBe('P')
+  })
+
+  it('P when package.json is not valid JSON (parse failure is not a false Y)', () => {
+    const { byId } = audit(VC_JSON_REGISTRY, {
+      'package.json': 'not json at all\n',
+      'CHANGELOG.md': '## [1.4.0]\n',
+    })
+    expect(byId['GA-REL-01'].verdict).toBe('P')
+  })
+
+  it('N when the CHANGELOG file is missing', () => {
+    const { byId } = audit(VC_JSON_REGISTRY, {
+      'package.json': '{ "version": "1.4.0" }\n',
+    })
+    expect(byId['GA-REL-01'].verdict).toBe('N')
+  })
+})
+
 // ── forbidden_pattern: a regex that must NOT appear under a glob ─────────────────
 
 const FP_REGISTRY = `version: '1.0.0'

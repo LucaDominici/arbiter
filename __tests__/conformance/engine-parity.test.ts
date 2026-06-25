@@ -390,6 +390,53 @@ describe('engine-parity: TS evaluate() ≡ .mjs evaluate() (#1393 unit 6)', () =
     expect(tsResult.yCount).toBe(mjsResult['yCount'])
   })
 
+  // ── Parity case 7b (G2): version_select (JSON version source) identical across engines ──
+  const VC_JSON_REGISTRY: RegistryInput = {
+    version: '1.0.0',
+    checks: [
+      {
+        id: 'VCJ-Y',
+        type: 'version_consistency',
+        args: {
+          version_file: 'package.json',
+          version_select: 'version',
+          changelog_file: 'CHANGELOG.md',
+          changelog_pattern: '^##\\s*\\[?(\\d+\\.\\d+\\.\\d+)',
+        },
+      },
+      {
+        id: 'VCJ-P',
+        type: 'version_consistency',
+        args: {
+          version_file: 'package.json',
+          version_select: 'missing',
+          changelog_file: 'CHANGELOG.md',
+          changelog_pattern: '^##\\s*\\[?(\\d+\\.\\d+\\.\\d+)',
+        },
+      },
+    ],
+  }
+
+  it('parity: version_select JSON source identical across engines (G2)', async () => {
+    const root = tmpDir()
+    writeFileSync(join(root, 'package.json'), '{ "name": "demo", "version": "1.4.0" }\n')
+    writeFileSync(join(root, 'CHANGELOG.md'), '## [1.4.0]\n- x\n')
+
+    const tsResult = evaluate(VC_JSON_REGISTRY, new Set<string>(), root)
+    const mjsResult = (await Promise.resolve(
+      mjsModule.evaluate(VC_JSON_REGISTRY, new Set<string>(), root),
+    )) as Record<string, unknown>
+
+    const tsById = Object.fromEntries(tsResult.checks.map((c) => [c.id, c.verdict]))
+    const mjsChecks = (mjsResult['checks'] as Array<{ id: string; verdict: string }>) ?? []
+    const mjsById = Object.fromEntries(mjsChecks.map((c) => [c.id, c.verdict]))
+
+    expect(tsById['VCJ-Y']).toBe('Y')
+    expect(tsById['VCJ-P']).toBe('P')
+    expect(mjsById).toEqual(tsById)
+    expect(tsResult.score).toBe(mjsResult['score'])
+  })
+
   // ── Parity case 8 (#1470): safeResolve + empty-capture edge surface MUST agree across engines.
   // These paths previously diverged (the .mjs safeResolve rejected any '..' substring + empty string
   // and skipped the null-byte check; shared.ts did not), so version_consistency could verdict-split.

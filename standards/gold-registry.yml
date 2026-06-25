@@ -125,6 +125,21 @@ checks:
     weight: 1
     risk: SAFE
     anchor: INV-107
+  - id: GA-DOC-11
+    dimension: D-DOCS
+    title: Declared version matches the latest CHANGELOG entry (release hygiene)
+    # version_consistency: the package version (package.json:version) must equal the newest
+    # version recorded in the CHANGELOG. Y = match · P = present but divergent/indeterminate
+    # (never a false Y) · N = a required file is missing. version_select reads a dotted JSON
+    # path, so this works on package.json directly (no separate VERSION file required).
+    type: version_consistency
+    args:
+      version_file: package.json
+      version_select: version
+      changelog_file: CHANGELOG.md
+      changelog_pattern: '^##\s*\[?(\d+\.\d+\.\d+)'
+    weight: 1
+    risk: SAFE
 
   # ---- D-EFFECTIVENESS: prove tools are WIRED, not just present (anti-ceremony) ----
   - id: GA-EFF-01

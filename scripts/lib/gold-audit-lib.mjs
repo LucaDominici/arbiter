@@ -308,13 +308,37 @@ function latestChangelogVersion(text, pattern) {
 }
 
 /**
- * version_consistency evaluator. Y = VERSION equals the latest CHANGELOG entry; P = both present
- * but divergent OR no changelog entry matches the pattern (indeterminate — never a false Y);
- * N = a required file is missing/unreadable.
+ * Read a STRING value from a JSON document via a dotted path (e.g. `version` in package.json), or
+ * null when the text is not JSON / the path is absent / the value is not a non-empty string. The
+ * string twin of extractJson — a non-string field is never coerced (so a missing version scores P,
+ * never a false Y).
+ */
+function extractJsonString(text, select) {
+  let node
+  try {
+    node = JSON.parse(text)
+  } catch {
+    return null
+  }
+  for (const key of select.split('.')) {
+    if (key === '') continue
+    if (node === null || typeof node !== 'object') return null
+    node = node[key]
+  }
+  return typeof node === 'string' && node !== '' ? node : null
+}
+
+/**
+ * version_consistency evaluator. Y = the declared version equals the latest CHANGELOG entry; P =
+ * both present but divergent OR no changelog entry matches the pattern OR the version is
+ * indeterminate (indeterminate — never a false Y); N = a required file is missing/unreadable.
+ * The version comes from a plain-text file (trimmed) or, when `version_select` is set, from a
+ * dotted JSON path inside `version_file` (e.g. version_file: package.json, version_select: version).
  */
 function evalVersionConsistency(args, root) {
   const vFile = typeof args.version_file === 'string' ? args.version_file : ''
   const cFile = typeof args.changelog_file === 'string' ? args.changelog_file : ''
+  const vSelect = typeof args.version_select === 'string' ? args.version_select : ''
   const vAbs = safeResolve(root, vFile)
   const cAbs = safeResolve(root, cFile)
   if (vAbs === null || cAbs === null) {
@@ -326,7 +350,10 @@ function evalVersionConsistency(args, root) {
   const cText = readText(cAbs)
   if (cText === null)
     return { verdict: 'N', evidence: { file: cFile, detail: 'missing changelog' } }
-  const version = vText.trim()
+  const version = vSelect !== '' ? extractJsonString(vText, vSelect) : vText.trim()
+  if (version === null) {
+    return { verdict: 'P', evidence: { file: vFile, detail: `no ${vSelect} in version file` } }
+  }
   if (version === '') {
     return { verdict: 'P', evidence: { file: vFile, detail: 'empty version file' } }
   }

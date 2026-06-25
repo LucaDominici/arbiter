@@ -70,7 +70,22 @@ checks:
     args: { path: CHANGELOG.md }
     weight: 1
     risk: SAFE
-
+<% if (language === 'typescript') { %>  - id: GA-DOC-05
+    dimension: D-DOCS
+    # version_consistency: the declared version must equal the newest version recorded in the
+    # CHANGELOG. Y = match · P = present but divergent/indeterminate (never a false Y) · N = a
+    # required file is missing. version_select reads a dotted JSON path so it audits package.json
+    # directly (no separate VERSION file required).
+    title: Declared version matches the latest CHANGELOG entry (release hygiene)
+    type: version_consistency
+    args:
+      version_file: package.json
+      version_select: version
+      changelog_file: CHANGELOG.md
+      changelog_pattern: '^##\s*\[?(\d+\.\d+\.\d+)'
+    weight: 1
+    risk: SAFE
+<% } %>
   # ---- D-EFFECTIVENESS: prove the quality gate is WIRED, not just present ----
   - id: GA-EFF-01
     dimension: D-EFFECTIVENESS
